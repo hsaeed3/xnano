@@ -21,7 +21,7 @@ def generate_tool(client, tool_name: str, model: str) -> Tool:
     4. Places imports inside function body
     5. Implements core functionality implied by '{tool_name}'"""
 
-    from ..code_generators import coder
+    from ..resources.code_generators import coder
 
     # Use coder to generate the implementation
     generated_code = coder(
