@@ -197,7 +197,8 @@ class BaseModelMixin:
         context_header = "You may be asked about, queried, or instructed to augment or use the following information:"
         context_footer = (
             "Assume the context is relevant to the current conversation. Do not use broad information to answer queries; always try to tailor your response to the specific context."
-            "Directly answer or respond to queries using context; there is no need to explain what the context/schema is or how it works."
+            "Directly answer or respond to queries using context; there is no need to explain what the context/schema is or how it works.",
+            "Items will always be in a JSON schema or format. DO NOT include this information in your responses."
         )
 
         if details["type"] == "instance":
