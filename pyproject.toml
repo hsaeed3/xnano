@@ -1,0 +1,26 @@
+[project]
+name = "xnano"
+version = "0.0.32"
+description = "Add your description here"
+readme = "readme.md"
+requires-python = ">=3.9"
+dependencies = [
+    "bs4>=0.0.2",
+    "instructor>=1.6.3",
+    "litellm>=1.52.3",
+    "qdrant-client>=1.12.1",
+    "questionary>=2.0.1",
+    "rich>=13.9.4",
+    "semchunk>=2.2.0",
+]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.7.3",
+    "uv>=0.5.1",
+]
