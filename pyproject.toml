@@ -1,8 +1,9 @@
 [project]
 name = "xnano"
 version = "0.0.32"
-description = "Add your description here"
+description = "build extremely 'nano' llm workflows"
 readme = "readme.md"
+
 requires-python = ">=3.9"
 dependencies = [
     "bs4>=0.0.2",
@@ -16,6 +17,8 @@ dependencies = [
     "semchunk>=2.2.0",
 ]
 
+[project.scripts]
+xnano = "xnano._cli:app"
 
 [build-system]
 requires = ["hatchling"]

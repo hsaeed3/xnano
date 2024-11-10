@@ -34,6 +34,9 @@ def scrape(
     if isinstance(inputs, str):
         inputs = [inputs]
 
+    if not any(input.startswith('http://') or input.startswith('https://') for input in inputs):
+        search = True
+
     if search:
         # Perform web search on each input query
         all_links = []
@@ -93,10 +96,13 @@ def scrape(
         # If no target model is provided, return the raw contents
         result = contents
 
-    if isinstance(result, list):
-        return [patch(item) for item in result]
+    if target:
+        if isinstance(result, list):
+            return [patch(item) for item in result]
+        else:
+            return patch(result)
     else:
-        return patch(result)
+        return result
 
 
 if __name__ == "__main__":

@@ -1,2 +1,2 @@
 # xnano
-exteremely nano llm workflows
+build extremely 'nano' llm workflows
