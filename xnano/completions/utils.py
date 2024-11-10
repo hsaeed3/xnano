@@ -3,7 +3,7 @@
 
 import json
 from pydantic import BaseModel, ValidationError, create_model
-from ..lib.exceptions import XNANOException
+from .._exceptions import XNANOException
 
 from ..types.completions.completions_arguments import CompletionsArguments
 from typing import Any, Optional, Type

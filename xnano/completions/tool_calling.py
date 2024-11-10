@@ -6,7 +6,7 @@ import inspect
 from typing import Any, Callable, Dict, Type, Union
 
 from ..types.tools.tool import Tool
-from ..lib.exceptions import XNANOException
+from .._exceptions import XNANOException
 
 
 # tool generator

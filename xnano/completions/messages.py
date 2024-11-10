@@ -1,7 +1,7 @@
 # message utilities
 
 import json
-from ..lib.exceptions import XNANOException
+from .._exceptions import XNANOException
 from ..types.messages.message import Message
 from typing import List, Union
 

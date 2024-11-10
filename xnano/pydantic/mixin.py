@@ -1,7 +1,7 @@
 # basemodel
 # llm extension for pydantic models
 
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel as PydanticBaseModel, create_model, Field
 
 from ..completions.main import completion, acompletion
 from .._console import console
@@ -50,7 +50,7 @@ class function_handler:
 class BaseModelMixin:
 
     @function_handler
-    def _get_model_by_fields(cls_or_self, fields: List[str]) -> Type[BaseModel]:
+    def _get_model_by_fields(cls_or_self, fields: List[str]) -> Type[PydanticBaseModel]:
         """
         Builds a model using the original model and only the specified fields.
         
@@ -102,7 +102,7 @@ class BaseModelMixin:
         
 
     @function_handler
-    def _merge_patch_with_cls(cls_or_self, fields: List[str], response: BaseModel) -> BaseModel:
+    def _merge_patch_with_cls(cls_or_self, fields: List[str], response: PydanticBaseModel) -> PydanticBaseModel:
         """Merges only the new values from the patch with the original model"""
         try:
             response_data = response.model_dump()
@@ -112,7 +112,7 @@ class BaseModelMixin:
         
         
     @function_handler
-    def _get_model_by_none_fields(cls_or_self) -> Tuple[str, Union[Type[BaseModel], None]]:
+    def _get_model_by_none_fields(cls_or_self) -> Tuple[str, Union[Type[PydanticBaseModel], None]]:
         """Builds a model using the original model and only the fields with None values"""
         try:
             original_model = cls_or_self if isinstance(cls_or_self, type) else cls_or_self.__class__
@@ -134,7 +134,7 @@ class BaseModelMixin:
 
     # builds context for patch
     @function_handler
-    def _get_patch_context(cls_or_self, fields: List[str]) -> Tuple[str, Type[BaseModel]]:
+    def _get_patch_context(cls_or_self, fields: List[str]) -> Tuple[str, Type[PydanticBaseModel]]:
         """Builds a message to describe the patch if model_generate() or model_agenerate() is given specific fields"""
 
         try:
@@ -1018,8 +1018,8 @@ class BaseModelMixin:
 # -------------------------------------------------------------------------------------------------
 
 
-def patch(model: Union[Type[BaseModel], BaseModel]) -> Union[Type[BaseModelType], BaseModelType]:
-    if isinstance(model, type) and issubclass(model, BaseModel):
+def patch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Type[BaseModelType], BaseModelType]:
+    if isinstance(model, type) and issubclass(model, PydanticBaseModel):
         # Create a dynamic subclass without renaming it to 'PatchedModel'
         PatchedModel = type(
             model.__name__,  # Use the original class name
@@ -1027,7 +1027,7 @@ def patch(model: Union[Type[BaseModel], BaseModel]) -> Union[Type[BaseModelType]
             {"__annotations__": model.__annotations__}  # Preserve original annotations
         )
         return PatchedModel
-    elif isinstance(model, BaseModel):
+    elif isinstance(model, PydanticBaseModel):
         # Dynamically extend the instance’s class with BaseModelMixin
         model.__class__ = type(
             model.__class__.__name__,  # Use the instance's original class name
@@ -1039,12 +1039,19 @@ def patch(model: Union[Type[BaseModel], BaseModel]) -> Union[Type[BaseModelType]
         raise TypeError("The patch function expects a Pydantic BaseModel class or instance.")
     
 
-def unpatch(model: Union[Type[BaseModel], BaseModel]) -> Union[Type[BaseModelType], BaseModelType]:
-    if isinstance(model, type) and issubclass(model, BaseModel):
+def unpatch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Type[BaseModelType], BaseModelType]:
+    if isinstance(model, type) and issubclass(model, PydanticBaseModel):
         return model.__base__
-    elif isinstance(model, BaseModel):
+    elif isinstance(model, PydanticBaseModel):
         return model.__class__.__base__
     
+
+# -------------------------------------------------------------------------------------------------
+# EXPORTS
+# -------------------------------------------------------------------------------------------------
+
+class BaseModel(PydanticBaseModel, BaseModelMixin):
+    pass
 
 # -------------------------------------------------------------------------------------------------
 # TESTS
@@ -1055,7 +1062,7 @@ def unpatch(model: Union[Type[BaseModel], BaseModel]) -> Union[Type[BaseModelTyp
 if __name__ == "__main__":
 
     @patch
-    class Test(BaseModel):
+    class Test(PydanticBaseModel):
         name : str
         age : int
 
