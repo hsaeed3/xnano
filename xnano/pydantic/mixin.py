@@ -562,7 +562,7 @@ class BaseModelMixin:
                 console.message(f"Generating {n} instance(s) of {details['name']} using batch generation...")
 
             if loader:
-                with console.progress(f"Generating {n} instance(s) of {details['name']}...") as progress:
+                with console.progress(f"Generating [white bold]{n}[/white bold] instance(s) of [white bold]{details['name']}[/white bold] using [sky_blue2 bold]{process}[/sky_blue2 bold] generation...") as progress:
                     response = cls_or_self.model_completion(
                         context=context + "\n\n" + base_context if context else base_context,
                         messages = messages, model = model, 
@@ -631,7 +631,7 @@ class BaseModelMixin:
 
                     if loader:
                         with console.progress(
-                            f"Generating field '{field_name}' for instance {i+1}/{n}..."
+                            f"Generating field '[white bold]{field_name}[/white bold]' for instance {i+1}/{n} using [sky_blue2 bold]{process}[/sky_blue2 bold] generation..."
                         ) as progress:
                             
                             # Build field-specific context with full model context
