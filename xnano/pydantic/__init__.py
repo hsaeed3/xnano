@@ -5,4 +5,4 @@ __all__ = [
 ]
 
 
-from .mixin import patch, unpatch, BaseModelMixin as BaseModel
+from .mixin import patch, unpatch, BaseModel

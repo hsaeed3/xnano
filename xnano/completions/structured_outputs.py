@@ -3,7 +3,7 @@
 
 from pydantic import BaseModel, create_model, Field
 from typing import Type, Union, List, Optional
-from ..lib.exceptions import XNANOException
+from .._exceptions import XNANOException
 
 
 # HACK
