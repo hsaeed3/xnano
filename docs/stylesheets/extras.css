@@ -1,0 +1,457 @@
+@font-face {
+  font-family: "Zed Mono";
+  src: url("../fonts/zed-mono-extended.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zed Mono";
+  src: url("../fonts/zed-mono-extendedbold.ttf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zed Mono";
+  src: url("../fonts/zed-mono-extendedbolditalic.ttf") format("truetype");
+  font-weight: bold;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zed Mono";
+  src: url("../fonts/zed-mono-extendeditalic.ttf") format("truetype");
+  font-weight: normal;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zed Sans";
+  src: url("../fonts/zed-sans-extended.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zed Sans";
+  src: url("../fonts/zed-sans-extendedbold.ttf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zed Sans";
+  src: url("../fonts/zed-sans-extendedbolditalic.ttf") format("truetype");
+  font-weight: bold;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zed Sans";
+  src: url("../fonts/zed-sans-extendeditalic.ttf") format("truetype");
+  font-weight: normal;
+  font-style: italic;
+}
+
+:root {
+  --md-text-font: "Zed Sans";
+}
+
+:root {
+  --md-code-font: "Zed Mono";
+}
+
+/* Styling for code boxes */
+.md-typeset pre {
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.md-typeset code {
+  border-radius: 3px;
+  padding: 0.2em 0.4em;
+}
+
+[data-md-color-scheme="home-light"] {
+  --md-hue: 60deg;
+
+  --md-primary-fg-color:               #FAFAF7;  /* Ivory Light (same as main background) */
+  --md-primary-fg-color--light:        #F0F0EB;  /* Ivory Medium */
+  --md-primary-fg-color--dark:         #E5E4DF;  /* Ivory Dark */
+  --md-primary-bg-color:               #191919;  /* Slate Dark (for contrast) */
+  --md-primary-bg-color--light:        #262625;  /* Slate Medium */
+
+  --md-accent-fg-color:                #60AAF2;  /* Focus */
+  --md-accent-fg-color--transparent:   #60AAF233;  /* Focus with transparency */
+
+  --md-default-fg-color:               #191919;  /* Slate Dark */
+  --md-default-fg-color--light:        #262625;  /* Slate Medium */
+  --md-default-fg-color--lighter:      #40403E;  /* Slate Light */
+  --md-default-fg-color--lightest:     #E5E4DF;  /* Ivory Dark */
+  --md-default-bg-color:               #FAFAF7;  /* Ivory Light */
+  --md-default-bg-color--light:        #F0F0EB;  /* Ivory Medium */
+  --md-default-bg-color--lighter:      #E5E4DF;  /* Ivory Dark */
+  --md-default-bg-color--lightest:     #D4A27F;  /* Kraft */
+
+  --md-code-fg-color:                  #3c3836;  /* Gruvbox dark0_hard */
+  --md-code-bg-color:                  #F0F0EB;  /* Ivory Medium */
+  --md-code-hl-color:                  #E5E4DF;  /* Ivory Dark */
+
+  --md-code-hl-number-color:           #d65d0e;  /* Gruvbox orange */
+  --md-code-hl-special-color:          #d79921;  /* Gruvbox yellow */
+  --md-code-hl-function-color:         #b16286;  /* Gruvbox purple */
+  --md-code-hl-constant-color:         #689d6a;  /* Gruvbox aqua */
+  --md-code-hl-keyword-color:          #af3a03;  /* Gruvbox bright_orange */
+  --md-code-hl-string-color:           #98971a;  /* Gruvbox green */
+  --md-code-hl-name-color:             #076678;  /* Gruvbox blue */
+  --md-code-hl-operator-color:         #427b58;  /* Gruvbox dark_aqua */
+  --md-code-hl-punctuation-color:      #7c6f64;  /* Gruvbox fg4 */
+  --md-code-hl-comment-color:          #928374;  /* Gruvbox gray */
+  --md-code-hl-generic-color:          #504945;  /* Gruvbox dark2 */
+  --md-code-hl-variable-color:         #458588;  /* Gruvbox bright_blue */
+
+  --md-typeset-color:                  var(--md-default-fg-color);
+  --md-typeset-a-color:                #CC785C;  /* Book Cloth */
+
+  --md-typeset-mark-color:             #D4A27F80;  /* Kraft with transparency */
+
+  --md-typeset-table-color:            #E5E4DF;  /* Ivory Dark */
+  --md-typeset-table-color--light:     #F0F0EB;  /* Ivory Medium */
+
+  --md-admonition-fg-color:            var(--md-default-fg-color);
+  --md-admonition-bg-color:            var(--md-default-bg-color);
+
+  --md-warning-fg-color:               #191919;  /* Slate Dark */
+  --md-warning-bg-color:               #D4A27F;  /* Kraft */
+
+  --md-footer-fg-color:                #FAFAF7;  /* Ivory Light */
+  --md-footer-fg-color--light:         #F0F0EB;  /* Ivory Medium */
+  --md-footer-fg-color--lighter:       #E5E4DF;  /* Ivory Dark */
+  --md-footer-bg-color:                #191919;  /* Slate Dark */
+  --md-footer-bg-color--dark:          #262625;  /* Slate Medium */
+
+  /* Shadow color for light theme */
+  --md-code-shadow-color:              rgba(0, 0, 0, 0.05);
+}
+
+[data-md-color-scheme="home-dark"] {
+  --md-hue: 220deg;
+
+  --md-primary-fg-color:               #191919;  /* Slate Dark (same as main background) */
+  --md-primary-fg-color--light:        #262625;  /* Slate Medium */
+  --md-primary-fg-color--dark:         #40403E;  /* Slate Light */
+  --md-primary-bg-color:               #FAFAF7;  /* Ivory Light (for contrast) */
+  --md-primary-bg-color--light:        #F0F0EB;  /* Ivory Medium */
+
+  --md-accent-fg-color:                #60AAF2;  /* Focus */
+  --md-accent-fg-color--transparent:   #60AAF233;  /* Focus with transparency */
+
+  --md-default-fg-color:               #FAFAF7;  /* Ivory Light */
+  --md-default-fg-color--light:        #F0F0EB;  /* Ivory Medium */
+  --md-default-fg-color--lighter:      #E5E4DF;  /* Ivory Dark */
+  --md-default-fg-color--lightest:     #D4A27F;  /* Kraft */
+  --md-default-bg-color:               #191919;  /* Slate Dark */
+  --md-default-bg-color--light:        #262625;  /* Slate Medium */
+  --md-default-bg-color--lighter:      #40403E;  /* Slate Light */
+  --md-default-bg-color--lightest:     #666663;  /* Cloud Dark */
+
+  --md-code-fg-color:                  #ebdbb2;  /* Gruvbox light0 */
+  --md-code-bg-color:                  #262625;  /* Slate Medium */
+  --md-code-hl-color:                  #40403E;  /* Slate Light */
+
+  --md-code-hl-number-color:           #fe8019;  /* Gruvbox bright_orange */
+  --md-code-hl-special-color:          #fabd2f;  /* Gruvbox bright_yellow */
+  --md-code-hl-function-color:         #d3869b;  /* Gruvbox bright_purple */
+  --md-code-hl-constant-color:         #8ec07c;  /* Gruvbox bright_aqua */
+  --md-code-hl-keyword-color:          #ef8d82;  /* Gruvbox bright_red */
+  --md-code-hl-string-color:           #b8bb26;  /* Gruvbox bright_green */
+  --md-code-hl-name-color:             #83a598;  /* Gruvbox bright_blue */
+  --md-code-hl-operator-color:         #8ec07c;  /* Gruvbox bright_aqua */
+  --md-code-hl-punctuation-color:      #a89984;  /* Gruvbox fg2 */
+  --jp-mirror-editor-punctuation-color: #a89984;  /* Gruvbox fg2 */
+  --md-code-hl-comment-color:          #928374;  /* Gruvbox gray */
+  --md-code-hl-generic-color:          #bdae93;  /* Gruvbox light3 */
+  --md-code-hl-variable-color:         #83a598;  /* Gruvbox bright_blue */
+
+  --md-typeset-color:                  var(--md-default-fg-color);
+  --md-typeset-a-color:                #CC785C;  /* Book Cloth */
+
+  --md-typeset-mark-color:             #D4A27F80;  /* Kraft with transparency */
+
+  --md-typeset-table-color:            #40403E;  /* Slate Light */
+  --md-typeset-table-color--light:     #262625;  /* Slate Medium */
+
+  --md-admonition-fg-color:            var(--md-default-fg-color);
+  --md-admonition-bg-color:            var(--md-default-bg-color);
+
+  --md-warning-fg-color:               #191919;  /* Slate Dark */
+  --md-warning-bg-color:               #D4A27F;  /* Kraft */
+
+  --md-footer-fg-color:                #FAFAF7;  /* Ivory Light */
+  --md-footer-fg-color--light:         #F0F0EB;  /* Ivory Medium */
+  --md-footer-fg-color--lighter:       #E5E4DF;  /* Ivory Dark */
+  --md-footer-bg-color:                #191919;  /* Slate Dark */
+  --md-footer-bg-color--dark:          #262625;  /* Slate Medium */
+
+  /* Shadow color for dark theme */
+  --md-code-shadow-color:              rgba(0, 0, 0, 0.2);
+}
+
+/* Apply theme-specific shadow to code boxes */
+.md-typeset pre {
+  box-shadow: 0 2px 6px var(--md-code-shadow-color);
+}
+
+/* Ensure inline code uses theme background */
+.md-typeset code:not(pre code) {
+  background-color: var(--md-code-bg-color);
+  color: var(--md-code-fg-color);
+}
+
+/* Add horizontal padding to headers */
+.md-header_inner {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.md-header--lifted {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.md-tabs {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.md-header--shadow {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.md-footer {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.md-footer-meta {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.md-ellipsis {
+  position: relative;
+}
+
+.md-header__title .md-ellipsis {
+  position: relative;
+}
+
+
+.grid.cards {
+  border-radius: 6px;
+}
+
+/* Jupyter notebook cell styling */
+.jp-Cell {
+  padding: 5px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+.jp-CodeCell {
+  background: var(--md-code-bg-color);
+}
+
+.jp-InputArea-prompt {
+  padding: 6px 0;
+  min-width: 14ex;
+  color: var(--md-code-fg-color);
+  opacity: 0.7;
+}
+
+.jp-InputArea-editor {
+  background: var(--md-code-bg-color);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.jp-OutputArea-prompt {
+  color: var(--md-code-fg-color);
+  opacity: 0.7;
+}
+
+.jp-OutputArea-output {
+  padding: 8px;
+  background: var(--md-code-bg-color);
+  border-radius: 4px;
+}
+
+[data-md-color-scheme="home-dark"] .jp-CodeCell {
+  background: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="home-dark"] .jp-InputArea-editor {
+  background: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="home-dark"] .jp-OutputArea-output {
+  background: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="home-light"] .jp-CodeCell {
+  background: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="home-light"] .jp-InputArea-editor {
+  background: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="home-light"] .jp-OutputArea-output {
+  background: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="home-dark"] .jp-InputPrompt {
+  background: var(--md-code-bg-color);
+  color: var(--md-code-fg-color);
+  opacity: 0.7;
+}
+
+[data-md-color-scheme="home-light"] .jp-InputPrompt {
+  background: var(--md-code-bg-color); 
+  color: var(--md-code-fg-color);
+  opacity: 0.7;
+}
+
+.jp-InputArea-editor {
+  border: var(--jp-border-width) solid var(--jp-cell-editor-border-color);
+  border-radius: 0;
+  background: var(--jp-cell-editor-background);
+}
+
+.jp-InputArea-editor .CodeMirror {
+  background: transparent;
+}
+
+.jp-InputArea-editor .CodeMirror-gutters {
+  border: none;
+  border-right: 1px solid var(--jp-border-color2);
+  background-color: transparent;
+  width: 28px;
+}
+
+.jp-InputArea-editor .CodeMirror-linenumber {
+  padding: 0 8px;
+}
+
+.jp-InputPrompt {
+  flex: 0 0 var(--jp-cell-prompt-width);
+  color: var(--jp-cell-inprompt-font-color);
+  padding: 6px;
+  font-family: var(--jp-code-font-family);
+  letter-spacing: 1px;
+  line-height: 1.6;
+  font-size: var(--jp-code-font-size);
+  border: var(--jp-border-width) solid transparent;
+}
+
+
+.CodeMirror {
+  background-color: var(--md-code-bg-color) !important;
+  color: var(--md-code-fg-color) !important;
+}
+
+.jp-InputArea-editor {
+  padding: 8px !important;
+  border-color: var(--md-code-bg-color) !important;
+  border-width: 1px !important;
+}
+
+:root .jupyter-wrapper {
+  --jp-cell-editor-background: var(--md-code-bg-color);
+  --jp-cell-editor-border-color: var(--md-code-bg-color);
+  --jp-border-width: 0px;
+  --jp-CodeCell-background: transparent;
+  --jp-border-color2: var(--md-code-bg-color);
+  --jp-CodeMirror-background: var(--md-code-bg-color);
+  --jp-Editor-background: var(--md-code-bg-color);
+  --jp-mirror-editor-background: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="home-dark"] .jupyter-wrapper {
+  --jp-cell-editor-background: var(--md-code-bg-color);
+  --jp-cell-editor-border-color: var(--md-code-bg-color);
+  --jp-border-width: 1px;
+  --jp-CodeCell-background: var(--md-code-bg-color);
+  --jp-border-color2: var(--md-code-bg-color);
+  --jp-CodeMirror-background: var(--md-code-bg-color);
+  --jp-Editor-background: var(--md-code-bg-color);
+  --jp-mirror-editor-background: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="home-light"] .jupyter-wrapper {
+  --jp-cell-editor-background: var(--md-code-bg-color);
+  --jp-cell-editor-border-color: var(--md-code-bg-color);
+  --jp-CodeCell-background: var(--md-code-bg-color);
+  --jp-border-width: 1px;
+  --jp-border-color2: var(--md-code-bg-color);
+  --jp-CodeMirror-background: var(--md-code-bg-color);
+  --jp-Editor-background: var(--md-code-bg-color);
+  --jp-mirror-editor-background: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="home-light"] .highlight-ipynb {
+  --jp-mirror-editor-number-color: var(--md-code-hl-number-color);
+  --jp-mirror-editor-special-color: var(--md-code-hl-special-color);
+  --jp-mirror-editor-function-color: var(--md-code-hl-function-color);
+  --jp-mirror-editor-constant-color: var(--md-code-hl-constant-color);
+  --jp-mirror-editor-keyword-color: var(--md-code-hl-keyword-color);
+  --jp-mirror-editor-string-color: var(--md-code-hl-string-color);
+  --jp-mirror-editor-name-color: var(--md-code-hl-name-color);
+  --jp-mirror-editor-operator-color: var(--md-code-hl-operator-color);
+  --jp-mirror-editor-punctuation-color: var(--md-code-hl-punctuation-color);
+  --jp-mirror-editor-comment-color: var(--md-code-hl-comment-color);
+  --jp-mirror-editor-generic-color: var(--md-code-hl-generic-color);
+  --jp-mirror-editor-variable-color: var(--md-code-hl-variable-color);
+}
+
+[data-md-color-scheme="home-dark"] .highlight-ipynb {
+  --jp-mirror-editor-number-color: var(--md-code-hl-number-color);
+  --jp-mirror-editor-special-color: var(--md-code-hl-special-color);
+  --jp-mirror-editor-function-color: var(--md-code-hl-function-color);
+  --jp-mirror-editor-constant-color: var(--md-code-hl-constant-color);
+  --jp-mirror-editor-keyword-color: var(--md-code-hl-keyword-color);
+  --jp-mirror-editor-string-color: var(--md-code-hl-string-color);
+  --jp-mirror-editor-name-color: var(--md-code-hl-name-color);
+  --jp-mirror-editor-operator-color: var(--md-code-hl-operator-color);
+  --jp-mirror-editor-punctuation-color: var(--md-code-hl-punctuation-color);
+  --jp-mirror-editor-comment-color: var(--md-code-hl-comment-color);
+  --jp-mirror-editor-generic-color: var(--md-code-hl-generic-color);
+  --jp-mirror-editor-variable-color: var(--md-code-hl-variable-color);
+}
+
+.md-footer-meta {
+  border-top-left-radius : 10px;
+  border-top-right-radius : 10px;
+}
+
+.md-nav__item--section {
+  font-family: var(--md-text-font);
+  color: var(--md-default-fg-color);
+  font-style: bold;
+  font-size: 1.2em;
+}
+
+.md-nav__link {
+  font-family: var(--md-text-font);
+  color: var(--md-default-fg-color);
+  font-style: normal;
+  font-size: 0.95em;
+}
+
+.zyx-new-item {
+  font-style: italic;
+}
