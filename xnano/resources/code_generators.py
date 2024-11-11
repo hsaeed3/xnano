@@ -64,7 +64,6 @@ def coder(
         # Instructions
 
         - Generate the complete Python code as a single string.
-        - The code should define any necessary functions or classes.
         - Do not include any JSON encoding, printing, or explanations in your response.
         - All arguments in the code should be typed.
         - The function must include a clear docstring explaining its purpose, arguments and return value.
