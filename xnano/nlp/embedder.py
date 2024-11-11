@@ -1,12 +1,18 @@
-from openai import OpenAI
-from typing import List, Union, Optional, Literal, Dict, Any, TypedDict
-from concurrent.futures import ThreadPoolExecutor
-from functools import lru_cache
-import json
-import hashlib
-from collections import deque
-import time
+def _import_dependencies(): 
+    global OpenAI, List, Union, Optional, Literal, Dict, Any, TypedDict, ThreadPoolExecutor, lru_cache, json, hashlib, deque, time, XNANOException
+    from openai import OpenAI
+    from typing import List, Union, Optional, Literal, Dict, Any, TypedDict
+    from concurrent.futures import ThreadPoolExecutor
+    from functools import lru_cache
+    import json
+    import hashlib
+    from collections import deque
+    import time
+    from .._lib import XNANOException
 
+_import_dependencies()
+
+from ..types.nlp.embeddings import EmbeddingModel
 
 
 MODEL_DIMENSIONS = {
@@ -133,7 +139,6 @@ def embedding(
                 
             except Exception as e:
                 if attempt == retry_attempts - 1:
-                    from .._exceptions import XNANOException
                     raise XNANOException(f"Error generating embeddings after {retry_attempts} attempts: {e}")
                 time.sleep(retry_delay * (2 ** attempt))
 
