@@ -1,18 +1,6 @@
-def _import_dependencies(): 
-    global OpenAI, List, Union, Optional, Literal, Dict, Any, TypedDict, ThreadPoolExecutor, lru_cache, json, hashlib, deque, time, XNANOException
-    from openai import OpenAI
-    from typing import List, Union, Optional, Literal, Dict, Any, TypedDict
-    from concurrent.futures import ThreadPoolExecutor
-    from functools import lru_cache
-    import json
-    import hashlib
-    from collections import deque
-    import time
-    from .._lib import XNANOException
-
-_import_dependencies()
-
+from .._lib import XNANOException
 from ..types.nlp.embeddings import EmbeddingModel
+from typing import List, Union, Optional, Dict
 
 
 MODEL_DIMENSIONS = {
@@ -26,6 +14,8 @@ MODEL_DIMENSIONS = {
 class EmbeddingCache:
     """LRU cache implementation for embeddings with size limits and TTL"""
     def __init__(self, max_size: int = 1000, ttl: int = 3600):
+        from collections import deque
+
         self._cache: Dict[str, tuple[List[float], float]] = {}
         self._max_size = max_size
         self._ttl = ttl
@@ -33,10 +23,14 @@ class EmbeddingCache:
         
     def _generate_key(self, text: str, model: str, dimensions: int) -> str:
         """Generate a consistent hash key for the input parameters"""
+        import hashlib
+
         key_string = f"{text}:{model}:{dimensions}"
         return hashlib.sha256(key_string.encode()).hexdigest()
 
     def get(self, text: str, model: str, dimensions: int) -> Optional[List[float]]:
+        import time
+
         key = self._generate_key(text, model, dimensions)
         if key in self._cache:
             embedding, timestamp = self._cache[key]
@@ -50,6 +44,8 @@ class EmbeddingCache:
         return None
 
     def set(self, text: str, model: str, dimensions: int, embedding: List[float]):
+        import time
+
         key = self._generate_key(text, model, dimensions)
         if len(self._cache) >= self._max_size:
             old_key = self._access_order.popleft()
@@ -106,6 +102,10 @@ def embedding(
     Returns:
         Union[List[float], List[List[float]]]: Generated embeddings
     """
+    from litellm import embedding as litellm_embedding
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
     cache = EmbeddingCache() if use_cache else None
     
     # Set model dimensions based on input or fallback
@@ -126,11 +126,13 @@ def embedding(
 
         for attempt in range(retry_attempts):
             try:
-                client = OpenAI(api_key=api_key, base_url=base_url, organization=organization)
-                result = client.embeddings.create(
+                result = litellm_embedding(
                     input=input_text,
                     model=model,
-                    dimensions=dimensions
+                    dimensions=dimensions,
+                    api_base = base_url,
+                    api_key = api_key,
+                    organization = organization
                 ).data[0].embedding
                 
                 if cache:

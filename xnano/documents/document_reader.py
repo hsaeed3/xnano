@@ -1,27 +1,7 @@
-def _import_dependencies():
-    global mimetypes, json, Path, Union, List, Dict, ThreadPoolExecutor, mp, requests
-    global urlparse, PyPDF2, uuid, os, Progress, SpinnerColumn, TextColumn, zipfile
-    global csv, ET, XNANOException, Document
-    
-    import mimetypes
-    import json
-    from pathlib import Path
-    from typing import Union, List, Dict
-    from concurrent.futures import ThreadPoolExecutor
-    import multiprocessing as mp
-    import requests
-    from urllib.parse import urlparse
-    import PyPDF2
-    import uuid
-    import os
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-    import zipfile
-    import csv
-    import xml.etree.ElementTree as ET
-    from .._lib import XNANOException
-    from ..pydantic import BaseModel as Document
-
-_import_dependencies()
+from pathlib import Path
+from typing import Union, List, Dict
+from .._lib import XNANOException
+from ..pydantic import BaseModel as Document
 
 
 def read_documents(
@@ -30,6 +10,11 @@ def read_documents(
     verbose: bool = False,
     workers: int = None
 ) -> Union[Document, List[Document]]:
+    from concurrent.futures import ThreadPoolExecutor
+    import os
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    import multiprocessing as mp
+
     paths = [_download_if_url(p) for p in (path if isinstance(path, list) else [path])]
     paths = [Path(p) for p in paths]
 
@@ -69,6 +54,11 @@ def read_documents(
                         print(f"Error removing temporary file {p}: {str(e)}")
 
 def _download_if_url(path: Union[str, Path]) -> Union[str, Path]:
+    from urllib.parse import urlparse
+    import requests
+    import mimetypes
+    import uuid
+
     if isinstance(path, str) and urlparse(path).scheme in ("http", "https"):
         response = requests.get(path)
         response.raise_for_status()
@@ -89,6 +79,7 @@ def _read_single_file(
     target: str = "text",
     verbose: bool = False
 ) -> Union[str, Dict, None]:
+    import mimetypes
     mime_type, _ = mimetypes.guess_type(str(path))
     if not mime_type:
         mime_type = _guess_mime_type(path)
@@ -102,6 +93,8 @@ def _read_single_file(
         return None
 
 def _guess_mime_type(path: Path) -> str:
+    import json
+
     with path.open('rb') as f:
         header = f.read(5)
         if header == b"%PDF-":
@@ -143,6 +136,8 @@ def _read_json(path: Path) -> Dict:
     """
     Reads JSON files and returns their content as a dictionary.
     """
+    import json
+
     try:
         with open(path, "r", encoding="utf-8") as file:
             return json.load(file)
@@ -154,6 +149,8 @@ def _read_pdf(path: Path) -> str:
     """
     Extracts text from a PDF, including proper formatting for tables and paragraphs.
     """
+    import PyPDF2
+
     try:
         with open(path, "rb") as file:
             reader = PyPDF2.PdfReader(file)
@@ -231,6 +228,8 @@ def _read_csv(path: Path) -> List[List[str]]:
     """
     Reads CSV data.
     """
+    import csv
+
     try:
         with open(path, "r", newline="", encoding="utf-8") as csvfile:
             reader = csv.reader(csvfile)
@@ -254,6 +253,8 @@ def _read_xml(path: Path) -> Dict:
     """
     Reads XML files and converts them to a dictionary.
     """
+    import xml.etree.ElementTree as ET
+
     try:
         tree = ET.parse(path)
         root = tree.getroot()
@@ -280,6 +281,8 @@ def _element_to_dict(element):
 
 
 def _format_content(content: Union[str, List, Dict], target: str, mime_type: str) -> Union[str, Dict]:
+    import json
+    
     if target == "json" and mime_type == "application/json":
         return content
     elif target == "markdown":
@@ -303,6 +306,9 @@ def _read_docx(path: Path) -> str:
     """
     Reads DOCX files and extracts text content.
     """
+    import zipfile
+    import xml.etree.ElementTree as ET
+
     try:
         with zipfile.ZipFile(path, 'r') as docx:
             xml_content = docx.read('word/document.xml')
@@ -320,6 +326,9 @@ def _read_xlsx(path: Path) -> List[List[str]]:
     """
     Reads XLSX files and extracts sheet data.
     """
+    import zipfile
+    import xml.etree.ElementTree as ET
+
     try:
         with zipfile.ZipFile(path, 'r') as xlsx:
             shared_strings = []

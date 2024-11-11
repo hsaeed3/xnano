@@ -1,13 +1,6 @@
-def _import_dependencies():
-    global semchunk, tiktoken, Union, List, multiprocessing, XNANOException
-    import semchunk
-    import tiktoken
-    from typing import Union, List
-    import multiprocessing
+from typing import Union, List
+from .._lib import console, XNANOException
 
-    from .._lib import console, XNANOException
-
-_import_dependencies()
 
 
 def chunk(
@@ -34,6 +27,9 @@ def chunk(
     Returns:
         Union[List[str], List[List[str]]]: Chunked text(s).
     """
+    import semchunk
+    import tiktoken
+
     try:
         # Initialize tokenizer for the specified model
         tokenizer = tiktoken.encoding_for_model(tiktoken_model)
@@ -73,6 +69,8 @@ def _process_chunks(inputs: List[str], chunker, processes: int, progress=None):
     Returns:
         List of chunked texts.
     """
+    import multiprocessing
+    
     if len(inputs) == 1:
         return chunker(inputs[0])
 
