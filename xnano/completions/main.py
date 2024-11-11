@@ -276,6 +276,7 @@ class Completions:
             api_version: Optional[str] = None,
             model_list: Optional[list] = None, 
             stream : Optional[bool] = None,
+            return_messages : Optional[bool] = None,
     ) -> Response:
         """
         Runs a completion
@@ -488,8 +489,12 @@ class Completions:
             else:
                 response = patch(response)
 
-        if responses:
-            return responses
+
+        if return_messages:
+            if responses:
+                return responses
+            else:
+                return response
         else:
             return response
     
@@ -538,6 +543,7 @@ class Completions:
             api_version: Optional[str] = None,
             model_list: Optional[list] = None, 
             stream : Optional[bool] = None,
+            return_messages : Optional[bool] = None,
     ) -> Response:
         """
         Runs a completion
@@ -730,10 +736,11 @@ class Completions:
                 raise XNANOException(f"Failed to run final completion: {e}")
             
         # return
-        if responses:
-            return responses
-        else:
-            return response
+        if return_messages:
+            if responses:
+                return responses
+            else:
+                return response 
 
 
     # ------------------------------------------------------------
@@ -798,6 +805,7 @@ class Completions:
             api_version: Optional[str] = None,
             model_list: Optional[list] = None, 
             stream : Optional[bool] = None,
+            return_messages : Optional[bool] = None,
     ) -> Response:
         """
         Create a chat completion or completion(s)
@@ -860,7 +868,7 @@ class Completions:
             prediction = prediction, audio = audio, presence_penalty = presence_penalty, frequency_penalty = frequency_penalty,
             logit_bias = logit_bias, user = user, seed = seed, logprobs = logprobs, top_logprobs = top_logprobs,
             deployment_id = deployment_id, extra_headers = extra_headers, functions = functions, function_call = function_call,
-            api_version = api_version, model_list = model_list
+            api_version = api_version, model_list = model_list, return_messages = return_messages
         )
     
     #static
@@ -923,6 +931,7 @@ class Completions:
             api_version: Optional[str] = None,
             model_list: Optional[list] = None, 
             stream : Optional[bool] = None,
+            return_messages : Optional[bool] = None,
             verbose : Optional[bool] = None,
     ) -> Response:
         """
@@ -1031,6 +1040,7 @@ class Completions:
             # set api_base, api_version, api_key
             api_version: Optional[str] = None,
             model_list: Optional[list] = None, 
+            return_messages : Optional[bool] = None,
             stream : Optional[bool] = None,
     ) -> Response:
         """
@@ -1092,7 +1102,7 @@ class Completions:
             prediction = prediction, audio = audio, presence_penalty = presence_penalty, frequency_penalty = frequency_penalty,
             logit_bias = logit_bias, user = user, seed = seed, logprobs = logprobs, top_logprobs = top_logprobs,
             deployment_id = deployment_id, extra_headers = extra_headers, functions = functions, function_call = function_call,
-            api_version = api_version, model_list = model_list
+            api_version = api_version, model_list = model_list, return_messages = return_messages
         )
     
 
@@ -1140,6 +1150,7 @@ class Completions:
             api_version: Optional[str] = None,
             model_list: Optional[list] = None, 
             stream : Optional[bool] = None,
+            return_messages : Optional[bool] = None,
             verbose : Optional[bool] = None,
     ) -> Response:
         """
