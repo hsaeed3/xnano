@@ -8,7 +8,14 @@ import csv
 import xml.etree.ElementTree as ET
 
 
-def read_url(
+# TODO
+# build in response model for document response
+# model should have document.markdown or document.text or document.html if url scraped
+# this is going to be unified into xnano.documents.document_reader.read_documents() return type
+# as well as vector store client
+
+
+def read_urls(
     inputs: Union[str, List[str]],
     max_chars_per_content: int = 5000,
     verbose: bool = False
@@ -139,7 +146,7 @@ if __name__ == "__main__":
         "https://jsonplaceholder.typicode.com/posts/1",  # JSON content
     ]
     
-    results = read_url(
+    results = read_urls(
         urls,
         max_chars_per_content=5000,
         verbose=True
