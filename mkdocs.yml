@@ -1,0 +1,96 @@
+site_name: xnano
+site_url: https://xnano.hammad.fun
+
+repo_url: https://github.com/hsaeed3/xnano
+
+theme:
+  name: material
+
+  icon:
+    logo: material/emoticon-happy
+
+  favicon: fonts/icon.svg
+
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.sections
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.expand
+    - navigation.path
+    - toc.follow
+    - toc.integrate
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - header.autohide
+    - navigation.footer
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: home-light
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: home-dark
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/hsaeed3/zyx
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/hsaeed3/
+    - icon: fontawesome/brands/spotify
+      link: https://open.spotify.com/user/hxmmad
+
+plugins:
+  - mkdocstrings
+  - search
+  - tags
+  - mkdocs-jupyter:
+      ignore_h1_titles: true
+      highlight_extra_classes: "CodeMirror"
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra_css:
+  - stylesheets/extras.css
+
+extra_javascript:
+  - stylesheets/extras.js
+
+
