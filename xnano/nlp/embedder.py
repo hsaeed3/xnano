@@ -11,6 +11,36 @@ MODEL_DIMENSIONS = {
     "ollama/all-minilm": 384
 }
 
+
+FASTEMBED_MODELS = {
+    "fastembed/BAAI/bge-small-en-v1.5": 384,
+    "fastembed/BAAI/bge-small-zh-v1.5": 512,
+    "fastembed/snowflake/snowflake-arctic-embed-xs": 384,
+    "fastembed/sentence-transformers/all-MiniLM-L6-v2": 384,
+    "fastembed/jinaai/jina-embeddings-v2-small-en": 512,
+    "fastembed/BAAI/bge-small-en": 384,
+    "fastembed/snowflake/snowflake-arctic-embed-s": 384,
+    "fastembed/nomic-ai/nomic-embed-text-v1.5-Q": 768,
+    "fastembed/BAAI/bge-base-en-v1.5": 768,
+    "fastembed/sentence-transformers/paraphrase-multilingual-...": 384,
+    "fastembed/Qdrant/clip-ViT-B-32-text": 512,
+    "fastembed/jinaai/jina-embeddings-v2-base-de": 768,
+    "fastembed/BAAI/bge-base-en": 768,
+    "fastembed/snowflake/snowflake-arctic-embed-m": 768,
+    "fastembed/nomic-ai/nomic-embed-text-v1.5": 768,
+    "fastembed/jinaai/jina-embeddings-v2-base-en": 768,
+    "fastembed/nomic-ai/nomic-embed-text-v1": 768,
+    "fastembed/snowflake/snowflake-arctic-embed-m-long": 768,
+    "fastembed/mixedbread-ai/mxbai-embed-large-v1": 1024,
+    "fastembed/jinaai/jina-embeddings-v2-base-code": 768,
+    "fastembed/sentence-transformers/paraphrase-multilingual-...": 768,
+    "fastembed/snowflake/snowflake-arctic-embed-l": 1024,
+    "fastembed/thenlper/gte-large": 1024,
+    "fastembed/BAAI/bge-large-en-v1.5": 1024,
+    "fastembed/intfloat/multilingual-e5-large": 1024
+}
+
+
 class EmbeddingCache:
     """LRU cache implementation for embeddings with size limits and TTL"""
     def __init__(self, max_size: int = 1000, ttl: int = 3600):
@@ -54,6 +84,7 @@ class EmbeddingCache:
         self._cache[key] = (embedding, time.time())
         self._access_order.append(key)
 
+
 class BatchProcessor:
     """Handles efficient batching of embedding requests"""
     def __init__(self, batch_size: int = 8):
@@ -72,6 +103,7 @@ class BatchProcessor:
         self.current_batch = self.current_batch[self.batch_size:]
         return batch
 
+
 def embedding(
     text: Union[str, List[str]],
     model: Union[str, EmbeddingModel] = "text-embedding-3-small",
@@ -86,7 +118,6 @@ def embedding(
 ) -> Union[List[float], List[List[float]]]:
     """
     Enhanced embedding generation with intelligent batching, caching, and error handling.
-
     Args:
         text (Union[str, List[str]]): Input text(s) to embed
         model (Union[str, EmbeddingModel]): Model identifier
@@ -98,7 +129,6 @@ def embedding(
         batch_size (Optional[int]): Override default batch size
         retry_attempts (int): Number of retry attempts
         retry_delay (float): Delay between retries in seconds
-
     Returns:
         Union[List[float], List[List[float]]]: Generated embeddings
     """
@@ -107,9 +137,14 @@ def embedding(
     from concurrent.futures import ThreadPoolExecutor
 
     cache = EmbeddingCache() if use_cache else None
+
+    # Check if model is in FastEmbed list and lock dimensions if so
+    if model in FASTEMBED_MODELS:
+        dimensions = FASTEMBED_MODELS[model]
+    else:
+        # Set model dimensions based on input or fallback
+        dimensions = dimensions or MODEL_DIMENSIONS.get(model, 1536)
     
-    # Set model dimensions based on input or fallback
-    dimensions = dimensions or MODEL_DIMENSIONS.get(model, 1536)
     batch_size = batch_size or (8 if model == "text-embedding-3-small" else 4)
 
     if model.startswith("ollama/"):
@@ -126,19 +161,24 @@ def embedding(
 
         for attempt in range(retry_attempts):
             try:
-                result = litellm_embedding(
-                    input=input_text,
-                    model=model,
-                    dimensions=dimensions,
-                    api_base = base_url,
-                    api_key = api_key,
-                    organization = organization
-                ).data[0].embedding
+                if model in FASTEMBED_MODELS:
+                    from fastembed import TextEmbedding
+                    embedding_model = TextEmbedding(model_name=model)
+                    result = list(embedding_model.embed([input_text]))[0]
+                else:
+                    result = litellm_embedding(
+                        input=input_text,
+                        model=model,
+                        dimensions=dimensions,
+                        api_base=base_url,
+                        api_key=api_key,
+                        organization=organization
+                    ).data[0]['embedding']
                 
                 if cache:
                     cache.set(input_text, model, dimensions, result)
                 return result
-                
+
             except Exception as e:
                 if attempt == retry_attempts - 1:
                     raise XNANOException(f"Error generating embeddings after {retry_attempts} attempts: {e}")
