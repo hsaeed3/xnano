@@ -15,7 +15,10 @@ __all__ = [
     # nlp
     "classify", "aclassify",
     "extract", "aextract",
-    "chunk", "embedding"
+    "chunk", "embedding",
+
+    # embeddings
+    "Embeddings",
 ]
 
 
@@ -27,3 +30,5 @@ from .pydantic import BaseModel, Field, patch, unpatch
 from .documents import read_documents
 # nlp
 from .nlp import classify, aclassify, extract, aextract, chunk, embedding
+# embeddings
+from .embeddings import Embeddings
