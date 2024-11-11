@@ -5,5 +5,5 @@ from typing import Dict, Any, Optional
 
 
 class Document(BaseModel):
-    content : str
+    text : str
     metadata : Optional[Dict[str, Any]] = None
