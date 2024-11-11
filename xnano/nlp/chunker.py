@@ -1,9 +1,13 @@
-import semchunk
-import tiktoken
-from typing import Union, List
-import multiprocessing
+def _import_dependencies():
+    global semchunk, tiktoken, Union, List, multiprocessing, XNANOException
+    import semchunk
+    import tiktoken
+    from typing import Union, List
+    import multiprocessing
 
-from .._lib import console
+    from .._lib import console, XNANOException
+
+_import_dependencies()
 
 
 def chunk(
@@ -54,8 +58,7 @@ def chunk(
         return chunked_texts
 
     except Exception as e:
-        print(f"Error in chunk function: {str(e)}")
-        raise e
+        raise XNANOException(f"Error in chunk function: {str(e)}")
 
 def _process_chunks(inputs: List[str], chunker, processes: int, progress=None):
     """
