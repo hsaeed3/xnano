@@ -6,8 +6,12 @@ from pydantic import BaseModel
 from typing import Any, Callable, Type, Dict, Optional, Union, Literal
 
 
+# tool function
+PrebuiltTool = Literal["search_web"]
+
+
 # tool type
-ToolType = Union[str, Callable, Type[BaseModel], Dict[str, Any]]
+ToolType = Union[str, Callable, Type[BaseModel], Dict[str, Any], PrebuiltTool]
 
 
 # tool choice parameter
