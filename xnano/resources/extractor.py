@@ -14,7 +14,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 def extract(
     target: Type[BaseModel],
     text: Union[str, List[str]],
-    provider: Literal["litellm", "openai"] = "openai",
     model: Union[str, ChatModel] = "gpt-4o-mini",
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
