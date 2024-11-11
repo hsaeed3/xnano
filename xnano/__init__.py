@@ -19,6 +19,14 @@ __all__ = [
 
     # embeddings
     "Embeddings",
+
+    # web
+    "read_urls",
+    "scrape",
+    "web_search",
+
+    # agents
+    "Agent",
 ]
 
 
@@ -32,3 +40,7 @@ from .documents import read_documents
 from .nlp import classify, aclassify, extract, aextract, chunk, embedding
 # embeddings
 from .embeddings import Embeddings
+# web
+from .web import scrape, read_urls, web_search
+# agents
+from .agents import Agent
