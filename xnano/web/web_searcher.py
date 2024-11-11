@@ -1,5 +1,4 @@
 from typing import List
-from duckduckgo_search import DDGS
 
 
 def web_search(query: str, max_results: int = 10, verbose: bool = False) -> List[str]:
@@ -14,6 +13,8 @@ def web_search(query: str, max_results: int = 10, verbose: bool = False) -> List
     Returns:
         List[str]: A list of links to the search results.
     """
+    from duckduckgo_search import DDGS
+    
     client = DDGS()
 
     if verbose:

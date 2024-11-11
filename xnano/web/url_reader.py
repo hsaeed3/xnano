@@ -1,11 +1,5 @@
 import requests
-from typing import Union, List, Dict, Optional
-from bs4 import BeautifulSoup
-from urllib.parse import urlparse
-from pathlib import Path
-import PyPDF2
-import csv
-import xml.etree.ElementTree as ET
+from typing import Union, List, Dict
 
 from .._lib import console, XNANOException
 
@@ -33,6 +27,7 @@ def read_urls(
     Returns:
         str or list of str or dict: The extracted and formatted content.
     """
+    from bs4 import BeautifulSoup
 
     try:
         if isinstance(inputs, str):
@@ -97,6 +92,8 @@ def _read_pdf_from_bytes(pdf_bytes: bytes) -> str:
     """
     Reads PDF content from bytes and extracts text.
     """
+    import PyPDF2
+
     try:
         from io import BytesIO
         pdf_stream = BytesIO(pdf_bytes)
@@ -114,6 +111,8 @@ def _read_csv_from_text(csv_text: str) -> List[List[str]]:
     """
     Reads CSV content from text.
     """
+    import csv
+
     try:
         from io import StringIO
         f = StringIO(csv_text)
@@ -126,6 +125,8 @@ def _read_xml_from_text(xml_text: str) -> Dict:
     """
     Reads XML content from text and converts it to a dictionary.
     """
+    import xml.etree.ElementTree as ET
+    
     try:
         root = ET.fromstring(xml_text)
         return _element_to_dict(root)
