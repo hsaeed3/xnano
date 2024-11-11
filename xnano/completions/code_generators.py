@@ -31,6 +31,7 @@ def coder(
     return_code: bool = False,
     verbose: bool = False,
     max_retries: int = 3,
+    _tool : bool = False,
     **kwargs,
 ) -> Any:
     """
@@ -71,6 +72,7 @@ def coder(
         - The function must include a clear docstring explaining its purpose, arguments and return value.
         - All imports must be nested inside the function body, not at the module level.
         - Do not include any JSON encoding, printing, or explanations in your response.
+        - The function's arguments should never include default values.
         """
 
         if return_code:
