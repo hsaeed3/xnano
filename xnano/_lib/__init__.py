@@ -2,3 +2,5 @@
 
 __all__ = ["console", "XNANOException"]
 
+from .console import console
+from .exceptions import XNANOException
