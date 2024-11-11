@@ -46,6 +46,15 @@ class function_handler:
 # -------------------------------------------------------------------------------------------------
 
 class BaseModelMixin:
+    model_fields = {}  # Add default model_fields attribute
+    
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Initialize model_fields from annotations
+        cls.model_fields = {
+            field_name: Field(annotation=annotation)
+            for field_name, annotation in cls.__annotations__.items()
+        }
 
     @function_handler
     def _get_model_by_fields(cls_or_self, fields: List[str]) -> Type[PydanticBaseModel]:
@@ -1050,7 +1059,13 @@ def unpatch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[T
 # -------------------------------------------------------------------------------------------------
 
 class BaseModel(PydanticBaseModel, BaseModelMixin):
-    pass
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Initialize model_fields from annotations
+        cls.model_fields = {
+            field_name: Field(annotation=annotation)
+            for field_name, annotation in cls.__annotations__.items()
+        }
 
 # -------------------------------------------------------------------------------------------------
 # TESTS
