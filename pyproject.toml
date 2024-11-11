@@ -5,6 +5,7 @@ description = "build extremely 'nano' llm workflows"
 readme = "readme.md"
 
 requires-python = ">=3.9"
+
 dependencies = [
     "bs4>=0.0.2",
     "duckduckgo-search>=6.3.4",
