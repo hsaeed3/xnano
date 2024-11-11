@@ -13,7 +13,7 @@ from ..types.completions.instructor import InstructorMode
 from ..types.completions.messages import MessageType
 from ..types.completions.responses import Response
 from ..types.completions.response_models import ResponseModelType
-from ..types.completions.tools import ToolChoice, ToolType
+from ..types.completions.tools import ToolChoice, ToolType, PrebuiltTool
 
 import httpx
 import json
@@ -348,8 +348,12 @@ class Completions:
                 for tool in tools:
                     if isinstance(tool, str):
                         try:
-           
-                            # build tool
+
+                            if self.verbose:
+                                console.message(
+                                    "String tool detected, checking for prebuilt tool..."
+                                )
+
                             args.tools.append(tool_calling.generate_tool(self, tool, model))
            
                         except Exception as e:
