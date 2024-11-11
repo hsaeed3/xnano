@@ -1,5 +1,5 @@
 from typing import Literal, Optional, Any, Union
-from .._console import console
+from .._lib import console
 
 
 __all__ = ["image", "audio", "transcribe"]
@@ -137,7 +137,7 @@ def image(
             prompt_cli_install("fal-client")
 
         if optimize_prompt:
-            from ..completions import completion
+            from .completions import completion
             from pydantic import BaseModel
 
             class OptimizedPrompt(BaseModel):
