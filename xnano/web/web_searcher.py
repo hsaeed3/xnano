@@ -29,3 +29,7 @@ def web_search(query: str, max_results: int = 10, verbose: bool = False) -> List
     if verbose:
         print(f"Found {len(links)} links from search results.")
     return links
+
+
+if __name__ == "__main__":
+    print(web_search("latest technology news"))
