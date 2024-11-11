@@ -19,16 +19,27 @@ __all__ = [
     "read",
     "read_url",
     "scrape",
-    "web_search"
+    "web_search",
+
+    "audio",
+    "image",
+    "transcribe"
 ]
 
 
 from .completions import (
     Completions, completion, acompletion
 )
+
 from .pydantic import (
     BaseModel, patch, unpatch
 )
+
+from .resources.classifier import classify
+from .resources.extractor import extract
+from .resources.code_generators import coder, function
+from .resources.multimodal import audio, image, transcribe
+
 from .data.chunker import chunk
 from .data.embedder import embedding
 from .data.reader import read

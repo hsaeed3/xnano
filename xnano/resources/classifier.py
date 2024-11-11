@@ -22,7 +22,6 @@ def classify(
     organization: Optional[str] = None,
     mode: InstructorMode = "tool_call",
     temperature: Optional[float] = None,
-    provider: Optional[Literal["openai", "litellm"]] = "openai",
     progress_bar: Optional[bool] = True,
     verbose: bool = False,
 ) -> List:
@@ -163,6 +162,10 @@ Example format:
                     response_model=response_model,
                     mode=mode,
                     temperature=temperature,
+                    n=n,
+                    api_key=api_key,
+                    base_url=base_url,
+                    organization=organization,
                 )
 
                 if batch_size == 1:
@@ -185,7 +188,10 @@ Example format:
                 response_model=response_model,
                 mode=mode,
                 temperature=temperature,
-                progress_bar=progress_bar,
+                n=n,
+                api_key=api_key,
+                base_url=base_url,
+                organization=organization,
             )
 
             if batch_size == 1:
