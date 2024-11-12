@@ -9,7 +9,6 @@ requires-python = ">=3.9"
 dependencies = [
     "bs4>=0.0.2",
     "duckduckgo-search>=6.3.4",
-    "fastembed>=0.4.1",
     "instructor>=1.6.3",
     "litellm>=1.52.3",
     "pypdf2>=3.0.1",
@@ -19,7 +18,10 @@ dependencies = [
     "semchunk>=2.2.0",
 ]
 
-[project.scripts]
+[project.optional-dependencies]
+fastembed = ["fastembed>=0.4.1"]
+
+[project.scripts] 
 xnano = "xnano._cli:app"
 
 [build-system]
