@@ -36,3 +36,8 @@ response = x.completion(
 
 print(response)
 ```
+
+```bash
+# OUTPUT
+Response(operating_system='Darwin', version='23.6.0')
+```
