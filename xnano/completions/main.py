@@ -506,14 +506,6 @@ class Completions:
                 responses.append(response)
             except Exception as e:
                 raise XNANOException(f"Failed to run final completion: {e}")
-            
-        # return
-        if response_model:
-            from ..pydantic import patch
-            if responses:
-                responses = [patch(response) for response in responses]
-            else:
-                response = patch(response)
 
 
         if return_messages:
@@ -800,14 +792,6 @@ class Completions:
                 responses.append(response)
             except Exception as e:
                 raise XNANOException(f"Failed to run final completion: {e}")
-            
-        # return
-        if response_model:
-            from ..pydantic import patch
-            if responses:
-                responses = [patch(response) for response in responses]
-            else:
-                response = patch(response)
 
 
         if return_messages:
