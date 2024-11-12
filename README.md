@@ -6,9 +6,9 @@ pip install xnano
 
 ---
 
-## Example
+## Examples
 
-## The most robust llm completion function any library provides
+### The most robust llm completion function any library provides
 
 ```python
 import xnano as x
