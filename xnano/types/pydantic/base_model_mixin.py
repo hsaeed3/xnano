@@ -4,6 +4,7 @@ from pydantic import BaseModel as PydanticBaseModel
 import httpx
 from typing import TypeVar, Union, Optional, List
 from .base_model_generation_process import BaseModelGenerationProcess
+from ..memories.embeddings import Embeddings
 from ..openai import ChatCompletionModality, ChatCompletionPredictionContentParam, ChatCompletionAudioParam, ChatCompletion
 from ..completions.context import Context
 from ..completions.chat_models import ChatModel
@@ -20,12 +21,13 @@ T = TypeVar('T', bound='BaseModelMixin')
 class BaseModelMixin(PydanticBaseModel):
     ...
 
-    @classmethod
     def model_completion(
         cls_or_self,
         messages : MessageType,
         model : ChatModel = "gpt-4o-mini",
         context : Optional[Context] = None,
+        embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+        embeddings_limit : Optional[int] = None,
         mode : Optional[InstructorMode] = None,
         response_model : Optional[ResponseModelType] = None,
         response_format : Optional[ResponseModelType] = None,
@@ -72,12 +74,13 @@ class BaseModelMixin(PydanticBaseModel):
         ...
     
 
-    @classmethod
     async def model_acompletion(
         cls_or_self,
         messages : MessageType,
         model : ChatModel = "gpt-4o-mini",
         context : Optional[Context] = None,
+        embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+        embeddings_limit : Optional[int] = None,
         mode : Optional[InstructorMode] = None,
         response_model : Optional[ResponseModelType] = None,
         response_format : Optional[ResponseModelType] = None,
@@ -124,7 +127,6 @@ class BaseModelMixin(PydanticBaseModel):
         ...
 
 
-    @classmethod
     def model_generate(
         cls_or_self,
         messages: MessageType = "",
@@ -134,6 +136,8 @@ class BaseModelMixin(PydanticBaseModel):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[Context] = None,
+        embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+        embeddings_limit : Optional[int] = None,
         mode: Optional[InstructorMode] = None,
         tools: Optional[List[ToolType]] = None,
         run_tools: Optional[bool] = None,
@@ -172,7 +176,6 @@ class BaseModelMixin(PydanticBaseModel):
         ...
 
 
-    @classmethod
     async def model_agenerate(
         cls_or_self,
         messages: MessageType = "",
@@ -182,6 +185,8 @@ class BaseModelMixin(PydanticBaseModel):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[Context] = None,
+        embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+        embeddings_limit : Optional[int] = None,
         mode: Optional[InstructorMode] = None,
         tools: Optional[List[ToolType]] = None,
         run_tools: Optional[bool] = None,
