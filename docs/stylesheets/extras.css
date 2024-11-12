@@ -76,125 +76,122 @@
 [data-md-color-scheme="home-light"] {
   --md-hue: 60deg;
 
-  --md-primary-fg-color:               #FAFAF7;  /* Ivory Light (same as main background) */
-  --md-primary-fg-color--light:        #F0F0EB;  /* Ivory Medium */
-  --md-primary-fg-color--dark:         #E5E4DF;  /* Ivory Dark */
-  --md-primary-bg-color:               #191919;  /* Slate Dark (for contrast) */
-  --md-primary-bg-color--light:        #262625;  /* Slate Medium */
+  --md-primary-fg-color:               #F5F5F0;  /* Soft Cream */
+  --md-primary-fg-color--light:        #E8E8E3;  /* Light Cream */
+  --md-primary-fg-color--dark:         #DCDCD7;  /* Muted Cream */
+  --md-primary-bg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-primary-bg-color--light:        #3D3D3D;  /* Medium Charcoal */
 
-  --md-accent-fg-color:                #60AAF2;  /* Focus */
-  --md-accent-fg-color--transparent:   #60AAF233;  /* Focus with transparency */
+  --md-accent-fg-color:                #89CFF0;  /* Baby Blue */
+  --md-accent-fg-color--transparent:   #89CFF033;  /* Baby Blue with transparency */
 
-  --md-default-fg-color:               #191919;  /* Slate Dark */
-  --md-default-fg-color--light:        #262625;  /* Slate Medium */
-  --md-default-fg-color--lighter:      #40403E;  /* Slate Light */
-  --md-default-fg-color--lightest:     #E5E4DF;  /* Ivory Dark */
-  --md-default-bg-color:               #FAFAF7;  /* Ivory Light */
-  --md-default-bg-color--light:        #F0F0EB;  /* Ivory Medium */
-  --md-default-bg-color--lighter:      #E5E4DF;  /* Ivory Dark */
-  --md-default-bg-color--lightest:     #D4A27F;  /* Kraft */
+  --md-default-fg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-default-fg-color--light:        #3D3D3D;  /* Medium Charcoal */
+  --md-default-fg-color--lighter:      #4D4D4D;  /* Light Charcoal */
+  --md-default-fg-color--lightest:     #DCDCD7;  /* Muted Cream */
+  --md-default-bg-color:               #F5F5F0;  /* Soft Cream */
+  --md-default-bg-color--light:        #E8E8E3;  /* Light Cream */
+  --md-default-bg-color--lighter:      #DCDCD7;  /* Muted Cream */
+  --md-default-bg-color--lightest:     #E9C7B7;  /* Soft Peach */
 
-  --md-code-fg-color:                  #3c3836;  /* Gruvbox dark0_hard */
-  --md-code-bg-color:                  #F0F0EB;  /* Ivory Medium */
-  --md-code-hl-color:                  #E5E4DF;  /* Ivory Dark */
+  --md-code-fg-color:                  #4A4A4A;  /* Soft Black */
+  --md-code-bg-color:                  #E8E8E3;  /* Light Cream */
+  --md-code-hl-color:                  #DCDCD7;  /* Muted Cream */
 
-  --md-code-hl-number-color:           #d65d0e;  /* Gruvbox orange */
-  --md-code-hl-special-color:          #d79921;  /* Gruvbox yellow */
-  --md-code-hl-function-color:         #b16286;  /* Gruvbox purple */
-  --md-code-hl-constant-color:         #689d6a;  /* Gruvbox aqua */
-  --md-code-hl-keyword-color:          #af3a03;  /* Gruvbox bright_orange */
-  --md-code-hl-string-color:           #98971a;  /* Gruvbox green */
-  --md-code-hl-name-color:             #076678;  /* Gruvbox blue */
-  --md-code-hl-operator-color:         #427b58;  /* Gruvbox dark_aqua */
-  --md-code-hl-punctuation-color:      #7c6f64;  /* Gruvbox fg4 */
-  --md-code-hl-comment-color:          #928374;  /* Gruvbox gray */
-  --md-code-hl-generic-color:          #504945;  /* Gruvbox dark2 */
-  --md-code-hl-variable-color:         #458588;  /* Gruvbox bright_blue */
+  --md-code-hl-number-color:           #F0A07C;  /* Soft Coral */
+  --md-code-hl-special-color:          #F0CF7C;  /* Soft Yellow */
+  --md-code-hl-function-color:         #D7B4D9;  /* Soft Purple */
+  --md-code-hl-constant-color:         #A8D7C2;  /* Soft Mint */
+  --md-code-hl-keyword-color:          #F0A07C;  /* Soft Coral */
+  --md-code-hl-string-color:           #BFD9A8;  /* Soft Green */
+  --md-code-hl-name-color:             #A8C4D9;  /* Soft Blue */
+  --md-code-hl-operator-color:         #A8D7C2;  /* Soft Mint */
+  --md-code-hl-punctuation-color:      #B4B4B4;  /* Soft Gray */
+  --md-code-hl-comment-color:          #C2C2C2;  /* Light Gray */
+  --md-code-hl-generic-color:          #8A8A8A;  /* Medium Gray */
+  --md-code-hl-variable-color:         #A8C4D9;  /* Soft Blue */
 
   --md-typeset-color:                  var(--md-default-fg-color);
-  --md-typeset-a-color:                #CC785C;  /* Book Cloth */
+  --md-typeset-a-color:                #E6A99F;  /* Soft Terracotta */
 
-  --md-typeset-mark-color:             #D4A27F80;  /* Kraft with transparency */
+  --md-typeset-mark-color:             #E9C7B780;  /* Soft Peach with transparency */
 
-  --md-typeset-table-color:            #E5E4DF;  /* Ivory Dark */
-  --md-typeset-table-color--light:     #F0F0EB;  /* Ivory Medium */
+  --md-typeset-table-color:            #DCDCD7;  /* Muted Cream */
+  --md-typeset-table-color--light:     #E8E8E3;  /* Light Cream */
 
   --md-admonition-fg-color:            var(--md-default-fg-color);
   --md-admonition-bg-color:            var(--md-default-bg-color);
 
-  --md-warning-fg-color:               #191919;  /* Slate Dark */
-  --md-warning-bg-color:               #D4A27F;  /* Kraft */
+  --md-warning-fg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-warning-bg-color:               #E9C7B7;  /* Soft Peach */
 
-  --md-footer-fg-color:                #FAFAF7;  /* Ivory Light */
-  --md-footer-fg-color--light:         #F0F0EB;  /* Ivory Medium */
-  --md-footer-fg-color--lighter:       #E5E4DF;  /* Ivory Dark */
-  --md-footer-bg-color:                #191919;  /* Slate Dark */
-  --md-footer-bg-color--dark:          #262625;  /* Slate Medium */
+  --md-footer-fg-color:                #F5F5F0;  /* Soft Cream */
+  --md-footer-fg-color--light:         #E8E8E3;  /* Light Cream */
+  --md-footer-fg-color--lighter:       #DCDCD7;  /* Muted Cream */
+  --md-footer-bg-color:                #2D2D2D;  /* Soft Charcoal */
+  --md-footer-bg-color--dark:          #3D3D3D;  /* Medium Charcoal */
 
-  /* Shadow color for light theme */
   --md-code-shadow-color:              rgba(0, 0, 0, 0.05);
 }
 
 [data-md-color-scheme="home-dark"] {
   --md-hue: 220deg;
 
-  --md-primary-fg-color:               #191919;  /* Slate Dark (same as main background) */
-  --md-primary-fg-color--light:        #262625;  /* Slate Medium */
-  --md-primary-fg-color--dark:         #40403E;  /* Slate Light */
-  --md-primary-bg-color:               #FAFAF7;  /* Ivory Light (for contrast) */
-  --md-primary-bg-color--light:        #F0F0EB;  /* Ivory Medium */
+  --md-primary-fg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-primary-fg-color--light:        #3D3D3D;  /* Medium Charcoal */
+  --md-primary-fg-color--dark:         #4D4D4D;  /* Light Charcoal */
+  --md-primary-bg-color:               #F5F5F0;  /* Soft Cream */
+  --md-primary-bg-color--light:        #E8E8E3;  /* Light Cream */
 
-  --md-accent-fg-color:                #60AAF2;  /* Focus */
-  --md-accent-fg-color--transparent:   #60AAF233;  /* Focus with transparency */
+  --md-accent-fg-color:                #89CFF0;  /* Baby Blue */
+  --md-accent-fg-color--transparent:   #89CFF033;  /* Baby Blue with transparency */
 
-  --md-default-fg-color:               #FAFAF7;  /* Ivory Light */
-  --md-default-fg-color--light:        #F0F0EB;  /* Ivory Medium */
-  --md-default-fg-color--lighter:      #E5E4DF;  /* Ivory Dark */
-  --md-default-fg-color--lightest:     #D4A27F;  /* Kraft */
-  --md-default-bg-color:               #191919;  /* Slate Dark */
-  --md-default-bg-color--light:        #262625;  /* Slate Medium */
-  --md-default-bg-color--lighter:      #40403E;  /* Slate Light */
-  --md-default-bg-color--lightest:     #666663;  /* Cloud Dark */
+  --md-default-fg-color:               #F5F5F0;  /* Soft Cream */
+  --md-default-fg-color--light:        #E8E8E3;  /* Light Cream */
+  --md-default-fg-color--lighter:      #DCDCD7;  /* Muted Cream */
+  --md-default-fg-color--lightest:     #E9C7B7;  /* Soft Peach */
+  --md-default-bg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-default-bg-color--light:        #3D3D3D;  /* Medium Charcoal */
+  --md-default-bg-color--lighter:      #4D4D4D;  /* Light Charcoal */
+  --md-default-bg-color--lightest:     #5D5D5D;  /* Lighter Charcoal */
 
-  --md-code-fg-color:                  #ebdbb2;  /* Gruvbox light0 */
-  --md-code-bg-color:                  #262625;  /* Slate Medium */
-  --md-code-hl-color:                  #40403E;  /* Slate Light */
+  --md-code-fg-color:                  #E8E8E3;  /* Light Cream */
+  --md-code-bg-color:                  #3D3D3D;  /* Medium Charcoal */
+  --md-code-hl-color:                  #4D4D4D;  /* Light Charcoal */
 
-  --md-code-hl-number-color:           #fe8019;  /* Gruvbox bright_orange */
-  --md-code-hl-special-color:          #fabd2f;  /* Gruvbox bright_yellow */
-  --md-code-hl-function-color:         #d3869b;  /* Gruvbox bright_purple */
-  --md-code-hl-constant-color:         #8ec07c;  /* Gruvbox bright_aqua */
-  --md-code-hl-keyword-color:          #ef8d82;  /* Gruvbox bright_red */
-  --md-code-hl-string-color:           #b8bb26;  /* Gruvbox bright_green */
-  --md-code-hl-name-color:             #83a598;  /* Gruvbox bright_blue */
-  --md-code-hl-operator-color:         #8ec07c;  /* Gruvbox bright_aqua */
-  --md-code-hl-punctuation-color:      #a89984;  /* Gruvbox fg2 */
-  --jp-mirror-editor-punctuation-color: #a89984;  /* Gruvbox fg2 */
-  --md-code-hl-comment-color:          #928374;  /* Gruvbox gray */
-  --md-code-hl-generic-color:          #bdae93;  /* Gruvbox light3 */
-  --md-code-hl-variable-color:         #83a598;  /* Gruvbox bright_blue */
+  --md-code-hl-number-color:           #FFB5A1;  /* Light Coral */
+  --md-code-hl-special-color:          #FFE5A1;  /* Light Yellow */
+  --md-code-hl-function-color:         #E8C6EA;  /* Light Purple */
+  --md-code-hl-constant-color:         #B8E8D4;  /* Light Mint */
+  --md-code-hl-keyword-color:          #FFB5A1;  /* Light Coral */
+  --md-code-hl-string-color:           #D1E8B8;  /* Light Green */
+  --md-code-hl-name-color:             #B8D5E8;  /* Light Blue */
+  --md-code-hl-operator-color:         #B8E8D4;  /* Light Mint */
+  --md-code-hl-punctuation-color:      #D1D1D1;  /* Light Gray */
+  --md-code-hl-comment-color:          #B8B8B8;  /* Medium Gray */
+  --md-code-hl-generic-color:          #E8E8E8;  /* Off White */
+  --md-code-hl-variable-color:         #B8D5E8;  /* Light Blue */
 
   --md-typeset-color:                  var(--md-default-fg-color);
-  --md-typeset-a-color:                #CC785C;  /* Book Cloth */
+  --md-typeset-a-color:                #E6A99F;  /* Soft Terracotta */
 
-  --md-typeset-mark-color:             #D4A27F80;  /* Kraft with transparency */
+  --md-typeset-mark-color:             #E9C7B780;  /* Soft Peach with transparency */
 
-  --md-typeset-table-color:            #40403E;  /* Slate Light */
-  --md-typeset-table-color--light:     #262625;  /* Slate Medium */
+  --md-typeset-table-color:            #4D4D4D;  /* Light Charcoal */
+  --md-typeset-table-color--light:     #3D3D3D;  /* Medium Charcoal */
 
   --md-admonition-fg-color:            var(--md-default-fg-color);
   --md-admonition-bg-color:            var(--md-default-bg-color);
 
-  --md-warning-fg-color:               #191919;  /* Slate Dark */
-  --md-warning-bg-color:               #D4A27F;  /* Kraft */
+  --md-warning-fg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-warning-bg-color:               #E9C7B7;  /* Soft Peach */
 
-  --md-footer-fg-color:                #FAFAF7;  /* Ivory Light */
-  --md-footer-fg-color--light:         #F0F0EB;  /* Ivory Medium */
-  --md-footer-fg-color--lighter:       #E5E4DF;  /* Ivory Dark */
-  --md-footer-bg-color:                #191919;  /* Slate Dark */
-  --md-footer-bg-color--dark:          #262625;  /* Slate Medium */
+  --md-footer-fg-color:                #F5F5F0;  /* Soft Cream */
+  --md-footer-fg-color--light:         #E8E8E3;  /* Light Cream */
+  --md-footer-fg-color--lighter:       #DCDCD7;  /* Muted Cream */
+  --md-footer-bg-color:                #2D2D2D;  /* Soft Charcoal */
+  --md-footer-bg-color--dark:          #3D3D3D;  /* Medium Charcoal */
 
-  /* Shadow color for dark theme */
   --md-code-shadow-color:              rgba(0, 0, 0, 0.2);
 }
 
