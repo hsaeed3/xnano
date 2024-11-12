@@ -14,6 +14,7 @@ from ..types.completions.messages import MessageType
 from ..types.completions.responses import Response
 from ..types.completions.response_models import ResponseModelType
 from ..types.completions.tools import ToolChoice, ToolType, PrebuiltTool
+from ..types.memories.embeddings import Embeddings
 
 import httpx
 import json
@@ -236,6 +237,8 @@ class Completions:
             messages : MessageType,
             model : ChatModel = "gpt-4o-mini",
             context : Optional[Context] = None,
+            embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+            embeddings_limit : Optional[int] = None,
             mode : Optional[InstructorMode] = None,
             response_model : Optional[ResponseModelType] = None,
             response_format : Optional[ResponseModelType] = None,
@@ -290,6 +293,7 @@ class Completions:
         ran_tools = False
         is_batch_completion = False
         is_tool_execution = False
+        embedding_context_string = None
 
         # set flags
         if isinstance(messages, list) and isinstance(messages[0], list):
@@ -300,6 +304,26 @@ class Completions:
         # ------------------------------------------------------------
         # structured output handling
         # ------------------------------------------------------------
+
+        if embeddings:
+            if not isinstance(embeddings, list):
+                embeddings = [embeddings]
+
+            for embedding in embeddings:
+                embedding_context = embedding._build_context(
+                    messages = messages,
+                    model = model,
+                    api_key = api_key,
+                    base_url = base_url,
+                    organization = organization,
+                    limit = embeddings_limit
+                )
+
+            embedding_context_string = "\n\n".join(embedding_context)
+
+        if context:
+            if embedding_context_string:
+                context = f"{embedding_context_string}\n\n{context}"
 
         # set response_format as response_model if given instead of response_model
         if response_format:
@@ -507,6 +531,8 @@ class Completions:
             messages : MessageType,
             model : ChatModel = "gpt-4o-mini",
             context : Optional[Context] = None,
+            embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+            embeddings_limit : Optional[int] = None,
             mode : Optional[InstructorMode] = None,
             response_model : Optional[ResponseModelType] = None,
             response_format : Optional[ResponseModelType] = None,
@@ -548,7 +574,10 @@ class Completions:
             return_messages : Optional[bool] = None,
     ) -> Response:
         """
-        Runs a completion
+        Runs an async completion
+
+        Returns:
+            Response: The completion response
         """
 
         # setup response
@@ -558,6 +587,7 @@ class Completions:
         ran_tools = False
         is_batch_completion = False
         is_tool_execution = False
+        embedding_context_string = None
 
         # set flags
         if isinstance(messages, list) and isinstance(messages[0], list):
@@ -568,6 +598,26 @@ class Completions:
         # ------------------------------------------------------------
         # structured output handling
         # ------------------------------------------------------------
+
+        if embeddings:
+            if not isinstance(embeddings, list):
+                embeddings = [embeddings]
+
+            for embedding in embeddings:
+                embedding_context = embedding._build_context(
+                    messages = messages,
+                    model = model,
+                    api_key = api_key,
+                    base_url = base_url,
+                    organization = organization,
+                    limit = embeddings_limit
+                )
+
+            embedding_context_string = "\n\n".join(embedding_context)
+
+        if context:
+            if embedding_context_string:
+                context = f"{embedding_context_string}\n\n{context}"
 
         # set response_format as response_model if given instead of response_model
         if response_format:
@@ -581,7 +631,6 @@ class Completions:
             response_model = structured_outputs.handle_response_model(response_model)
 
         try:
-
             # format messages
             messages = message_utils.format_messages(messages)
 
@@ -611,7 +660,24 @@ class Completions:
         # format tools
         if tools:
             try:
-                args.tools = [tool_calling.convert_to_tool(tool) for tool in tools]
+
+                args.tools = []
+
+                for tool in tools:
+                    if isinstance(tool, str):
+                        try:
+
+                            if self.verbose:
+                                console.message(
+                                    "String tool detected, checking for prebuilt tool..."
+                                )
+
+                            args.tools.append(tool_calling.generate_tool(self, tool, model))
+           
+                        except Exception as e:
+                            raise XNANOException(f"Failed to generate tool named: {tool}: {e}")
+                    else:
+                        args.tools.append(tool_calling.convert_to_tool(tool))
             except Exception as e:
                 raise XNANOException(f"Failed to format tools: {e}")
         
@@ -639,11 +705,7 @@ class Completions:
                 if response_model and tools:
                     args.response_model = None
 
-                if not run_tools:
-                    return await self._arun_completion(args)
-
-                response = self.run_completion(args)
-                responses.append(response)
+                response = await self._arun_completion(args)
             except Exception as e:
                 raise XNANOException(f"Failed to run completion: {e}")
             
@@ -651,6 +713,7 @@ class Completions:
         if tools and run_tools is True:
 
             args.messages.append(response.choices[0].message.model_dump())
+            responses.append(response)
 
             # detect tool calls
             if response.choices[0].message.tool_calls:
@@ -733,16 +796,27 @@ class Completions:
             try:
 
                 response = await self._arun_completion(args)
+
                 responses.append(response)
             except Exception as e:
                 raise XNANOException(f"Failed to run final completion: {e}")
             
         # return
+        if response_model:
+            from ..pydantic import patch
+            if responses:
+                responses = [patch(response) for response in responses]
+            else:
+                response = patch(response)
+
+
         if return_messages:
             if responses:
                 return responses
             else:
-                return response 
+                return response
+        else:
+            return response
 
 
     # ------------------------------------------------------------
@@ -758,6 +832,9 @@ class Completions:
             model : ChatModel = "gpt-4o-mini",
             # context
             context : Optional[Context] = None,
+            # embeddings
+            embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+            embeddings_limit : Optional[int] = None,
             # instructor arguments
             # instructor mode patches generation & response parsing
             # method
@@ -861,7 +938,7 @@ class Completions:
 
         # run completion
         return self.run_completion(
-            messages = messages, model = model, context = context,
+            messages = messages, model = model, context = context, embeddings = embeddings, embeddings_limit = embeddings_limit,
             mode = mode, response_model = response_model, response_format = response_format,
             tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
             api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
@@ -884,6 +961,9 @@ class Completions:
             model : ChatModel = "gpt-4o-mini",
             # context
             context : Optional[Context] = None,
+            # embeddings
+            embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+            embeddings_limit : Optional[int] = None,
             # instructor arguments
             # instructor mode patches generation & response parsing
             # method
@@ -1005,6 +1085,8 @@ class Completions:
             messages : MessageType,
             model : ChatModel = "gpt-4o-mini",
             context : Optional[Context] = None,
+            embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+            embeddings_limit : Optional[int] = None,
             mode : Optional[InstructorMode] = None,
             response_model : Optional[ResponseModelType] = None,
             response_format : Optional[ResponseModelType] = None,
@@ -1095,7 +1177,7 @@ class Completions:
         """
 
         return await self.arun_completion(
-            messages = messages, model = model, context = context,
+            messages = messages, model = model, context = context, embeddings = embeddings, embeddings_limit = embeddings_limit,
             mode = mode, response_model = response_model, response_format = response_format,
             tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
             api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
@@ -1114,6 +1196,8 @@ class Completions:
             messages : MessageType,
             model : ChatModel = "gpt-4o-mini",
             context : Optional[Context] = None,
+            embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+            embeddings_limit : Optional[int] = None,
             mode : Optional[InstructorMode] = None,
             response_model : Optional[ResponseModelType] = None,
             response_format : Optional[ResponseModelType] = None,

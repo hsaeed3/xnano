@@ -20,6 +20,7 @@ from ..types.completions.instructor import InstructorMode
 from ..types.completions.response_models import ResponseModelType
 from ..types.completions.messages import MessageType
 from ..types.completions.tools import ToolChoice, ToolType
+from ..types.memories.embeddings import Embeddings
 
 
 # typevar
@@ -236,6 +237,8 @@ class BaseModelMixin:
         messages : MessageType,
         model : ChatModel = "gpt-4o-mini",
         context : Optional[Context] = None,
+        embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+        embeddings_limit : Optional[int] = None,
         mode : Optional[InstructorMode] = None,
         response_model : Optional[ResponseModelType] = None,
         response_format : Optional[ResponseModelType] = None,
@@ -293,6 +296,8 @@ class BaseModelMixin:
             "messages": messages,
             "model": model,
             "context": context,
+            "embeddings": embeddings,
+            "embeddings_limit": embeddings_limit,
             "mode": mode,
             "response_model": response_model,
             "response_format": response_format,
@@ -348,6 +353,8 @@ class BaseModelMixin:
         messages : MessageType,
         model : ChatModel = "gpt-4o-mini",
         context : Optional[Context] = None,
+        embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+        embeddings_limit : Optional[int] = None,
         mode : Optional[InstructorMode] = None,
         response_model : Optional[ResponseModelType] = None,
         response_format : Optional[ResponseModelType] = None,
@@ -405,6 +412,8 @@ class BaseModelMixin:
             "messages": messages,
             "model": model,
             "context": context,
+            "embeddings": embeddings,
+            "embeddings_limit": embeddings_limit,
             "mode": mode,
             "response_model": response_model,
             "response_format": response_format,
@@ -464,6 +473,8 @@ class BaseModelMixin:
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[Context] = None,
+        embeddings : Optional[Union[Embeddings, List[Embeddings]]] = None,
+        embeddings_limit : Optional[int] = None,
         mode: Optional[InstructorMode] = None,
         tools: Optional[List[ToolType]] = None,
         run_tools: Optional[bool] = None,
@@ -573,7 +584,7 @@ class BaseModelMixin:
                     response = cls_or_self.model_completion(
                         context=context + "\n\n" + base_context if context else base_context,
                         messages = messages, model = model, 
-                        mode = mode, response_model = ResponseModel, verbose = verbose,
+                        mode = mode, response_model = ResponseModel, verbose = verbose, embeddings = embeddings, embeddings_limit = embeddings_limit,
                         tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
                         api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
                         timeout = timeout, temperature = temperature, top_p = top_p, stream_options = stream_options, stop = stop,
@@ -587,7 +598,7 @@ class BaseModelMixin:
                 response = cls_or_self.model_completion(
                     context=context + "\n\n" + base_context if context else base_context,
                     messages = messages, model = model, 
-                    mode = mode, response_model = ResponseModel, verbose = verbose,
+                    mode = mode, response_model = ResponseModel, verbose = verbose, embeddings = embeddings, embeddings_limit = embeddings_limit,
                     tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
                     api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
                     timeout = timeout, temperature = temperature, top_p = top_p, stream_options = stream_options, stop = stop,
@@ -661,7 +672,7 @@ class BaseModelMixin:
                             response = cls_or_self.model_completion(
                                 context=context + "\n\n" + field_context if context else field_context,
                                 messages = messages, model = model, 
-                                mode = mode, response_model = FieldModel, verbose = verbose,
+                                mode = mode, response_model = FieldModel, verbose = verbose, embeddings = embeddings, embeddings_limit = embeddings_limit,
                                 tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
                                 api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
                                 timeout = timeout, temperature = temperature, top_p = top_p, stream_options = stream_options, stop = stop,
@@ -692,7 +703,7 @@ class BaseModelMixin:
                         response = cls_or_self.model_completion(
                             context=context + "\n\n" + field_context if context else field_context,
                             messages = messages, model = model, 
-                            mode = mode, response_model = FieldModel, verbose = verbose,
+                            mode = mode, response_model = FieldModel, verbose = verbose, embeddings = embeddings, embeddings_limit = embeddings_limit,
                             tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
                             api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
                             timeout = timeout, temperature = temperature, top_p = top_p, stream_options = stream_options, stop = stop,
@@ -747,6 +758,8 @@ class BaseModelMixin:
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[Context] = None,
+        embeddings: Optional[Union[Embeddings, List[Embeddings]]] = None,
+        embeddings_limit: Optional[int] = None,
         mode: Optional[InstructorMode] = None,
         tools: Optional[List[ToolType]] = None,
         run_tools: Optional[bool] = None,
@@ -856,7 +869,7 @@ class BaseModelMixin:
                     response = await cls_or_self.model_acompletion(
                         context=context + "\n\n" + base_context if context else base_context,
                         messages = messages, model = model, 
-                        mode = mode, response_model = ResponseModel, verbose = verbose,
+                        mode = mode, response_model = ResponseModel, verbose = verbose, embeddings = embeddings, embeddings_limit = embeddings_limit,
                         tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
                         api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
                         timeout = timeout, temperature = temperature, top_p = top_p, stream_options = stream_options, stop = stop,
@@ -870,7 +883,7 @@ class BaseModelMixin:
                 response = await cls_or_self.model_acompletion(
                     context=context + "\n\n" + base_context if context else base_context,
                     messages = messages, model = model, 
-                    mode = mode, response_model = ResponseModel, verbose = verbose,
+                    mode = mode, response_model = ResponseModel, verbose = verbose, embeddings = embeddings, embeddings_limit = embeddings_limit,
                     tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
                     api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
                     timeout = timeout, temperature = temperature, top_p = top_p, stream_options = stream_options, stop = stop,
@@ -944,7 +957,7 @@ class BaseModelMixin:
                             response = await cls_or_self.model_acompletion(
                                 context=context + "\n\n" + field_context if context else field_context,
                                 messages = messages, model = model, 
-                                mode = mode, response_model = FieldModel, verbose = verbose,
+                                mode = mode, response_model = FieldModel, verbose = verbose, embeddings = embeddings, embeddings_limit = embeddings_limit,
                                 tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
                                 api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
                                 timeout = timeout, temperature = temperature, top_p = top_p, stream_options = stream_options, stop = stop,
@@ -975,7 +988,7 @@ class BaseModelMixin:
                         response = await cls_or_self.model_acompletion(
                             context=context + "\n\n" + field_context if context else field_context,
                             messages = messages, model = model, 
-                            mode = mode, response_model = FieldModel, verbose = verbose,
+                            mode = mode, response_model = FieldModel, verbose = verbose, embeddings = embeddings, embeddings_limit = embeddings_limit,
                             tools = tools, run_tools = run_tools, tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
                             api_key = api_key, base_url = base_url, organization = organization, n = n, stream = stream,
                             timeout = timeout, temperature = temperature, top_p = top_p, stream_options = stream_options, stop = stop,
