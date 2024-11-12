@@ -47,15 +47,7 @@ class function_handler:
 # -------------------------------------------------------------------------------------------------
 
 class BaseModelMixin:
-    model_fields = {}  # Add default model_fields attribute
-    
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # Initialize model_fields from annotations
-        cls.model_fields = {
-            field_name: Field(annotation=annotation)
-            for field_name, annotation in cls.__annotations__.items()
-        }
+    pass  # No need to redefine model_fields or __init_subclass__
 
     @function_handler
     def _get_model_by_fields(cls_or_self, fields: List[str]) -> Type[PydanticBaseModel]:
@@ -75,7 +67,7 @@ class BaseModelMixin:
         try:
             # Get the original model (handle both class and instance cases)
             original_model = cls_or_self if isinstance(cls_or_self, type) else cls_or_self.__class__
-            original_fields = original_model.__annotations__
+            original_fields = original_model.model_fields  # Adjusted for Pydantic v2
             
             # Validate that all requested fields exist in the original model
             invalid_fields = set(fields) - set(original_fields.keys())
@@ -85,14 +77,15 @@ class BaseModelMixin:
             # Create field definitions for the new model - ONLY for requested fields
             field_definitions = {}
             for field in fields:  # Only iterate through requested fields
-                field_type = original_fields[field]
-                field_info = original_model.__fields__[field] if hasattr(original_model, '__fields__') else None
-                default_value = getattr(field_info, 'default', ...) if field_info else ...
+                field_info = original_fields[field]
+                field_type = field_info.annotation
+                default_value = field_info.default if field_info.default is not None else ...
                 field_definitions[field] = (field_type, default_value)
             
             # Create new model with ONLY the specified fields
             new_model = create_model(
                 f"{original_model.__name__}Patch",
+                __base__=PydanticBaseModel,
                 **field_definitions 
             )
             
@@ -102,7 +95,7 @@ class BaseModelMixin:
                 return new_model(**init_values)
             
             return new_model
-            
+                
         except ValueError as ve:
             raise ve
         except Exception as e:
@@ -177,8 +170,8 @@ class BaseModelMixin:
             details = {
                 "type": "class",
                 "name": cls_or_self.__name__,
-                "fields": list(cls_or_self.__annotations__.keys()) if hasattr(cls_or_self, '__annotations__') else [],
-                "annotations": cls_or_self.__annotations__ if hasattr(cls_or_self, '__annotations__') else {},
+                "fields": list(cls_or_self.model_fields.keys()),
+                "annotations": {k: v.annotation for k, v in cls_or_self.model_fields.items()},
                 "values": None
             }
         else:
@@ -186,11 +179,10 @@ class BaseModelMixin:
             details = {
                 "type": "instance",
                 "name": cls_or_self.__class__.__name__,
-                "fields": list(cls_or_self.__class__.__annotations__.keys()) if hasattr(cls_or_self.__class__, '__annotations__') else [],
-                "annotations": cls_or_self.__class__.__annotations__ if hasattr(cls_or_self.__class__, '__annotations__') else {},
+                "fields": list(cls_or_self.__class__.model_fields.keys()),
+                "annotations": {k: v.annotation for k, v in cls_or_self.__class__.model_fields.items()},
                 "values": cls_or_self.model_dump()
             }
-
         return details
     
     # ---------------------------------------------------------------------------------------------
@@ -1039,13 +1031,13 @@ class BaseModelMixin:
 # -------------------------------------------------------------------------------------------------
 
 
-def patch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Type[BaseModelMixinType], BaseModelMixinType]:
+def patch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Type[PydanticBaseModel], PydanticBaseModel]:
     if isinstance(model, type) and issubclass(model, PydanticBaseModel):
         # Create a dynamic subclass without renaming it to 'PatchedModel'
         PatchedModel = type(
             model.__name__,  # Use the original class name
             (model, BaseModelMixin),
-            {"__annotations__": model.__annotations__}  # Preserve original annotations
+            {}
         )
         return PatchedModel
     elif isinstance(model, PydanticBaseModel):
@@ -1053,14 +1045,14 @@ def patch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Typ
         model.__class__ = type(
             model.__class__.__name__,  # Use the instance's original class name
             (model.__class__, BaseModelMixin),
-            {"__annotations__": model.__class__.__annotations__}  # Preserve original annotations
+            {}
         )
         return model
     else:
         raise TypeError("The patch function expects a Pydantic BaseModel class or instance.")
     
 
-def unpatch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Type[BaseModelMixinType], BaseModelMixinType]:
+def unpatch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Type[PydanticBaseModel], PydanticBaseModel]:
     if isinstance(model, type) and issubclass(model, PydanticBaseModel):
         return model.__base__
     elif isinstance(model, PydanticBaseModel):
@@ -1072,13 +1064,7 @@ def unpatch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[T
 # -------------------------------------------------------------------------------------------------
 
 class BaseModel(PydanticBaseModel, BaseModelMixin):
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # Initialize model_fields from annotations
-        cls.model_fields = {
-            field_name: Field(annotation=annotation)
-            for field_name, annotation in cls.__annotations__.items()
-        }
+    pass 
 
 # -------------------------------------------------------------------------------------------------
 # TESTS
@@ -1088,19 +1074,12 @@ class BaseModel(PydanticBaseModel, BaseModelMixin):
 # tests
 if __name__ == "__main__":
 
-    @patch
-    class Test(PydanticBaseModel):
-        name : str
-        age : int
+    class Test(BaseModel):
+        name: str
+        age: int
 
-    patched = patch(Test)
+    test = Test(name="John", age=30)
 
+    print(Test.model_generate())
 
-    test2 = Test(name="John", age=30)
-
-    test2 = patch(test2)
-
-    # generate
-    model = test2.model_generate(n=2, process="sequential", fields=["name"], verbose=True)
-
-    print(model)
+    print(test.model_generate())
