@@ -162,7 +162,11 @@ def embedding(
         for attempt in range(retry_attempts):
             try:
                 if model in FASTEMBED_MODELS:
-                    from fastembed import TextEmbedding
+                    try:
+                        from fastembed import TextEmbedding
+                    except ImportError:
+                        raise XNANOException("fastembed is not included in the base xnano package. To use fastembed models, install it with 'pip install xnano[fastembed]' or 'pip install fastembed'")
+
                     embedding_model = TextEmbedding(model_name=model)
                     result = list(embedding_model.embed([input_text]))[0]
                 else:
