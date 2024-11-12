@@ -36,4 +36,5 @@ dev = [
     "ruff>=0.7.3",
     "uv>=0.5.1",
     "mkdocs-jupyter>=0.25.1",
+    "twine>=5.1.1",
 ]
