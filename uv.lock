@@ -3309,7 +3309,6 @@ source = { editable = "." }
 dependencies = [
     { name = "bs4" },
     { name = "duckduckgo-search" },
-    { name = "fastembed" },
     { name = "instructor" },
     { name = "litellm" },
     { name = "pypdf2" },
@@ -3317,6 +3316,11 @@ dependencies = [
     { name = "questionary" },
     { name = "rich" },
     { name = "semchunk" },
+]
+
+[package.optional-dependencies]
+fastembed = [
+    { name = "fastembed" },
 ]
 
 [package.dev-dependencies]
@@ -3333,7 +3337,7 @@ dev = [
 requires-dist = [
     { name = "bs4", specifier = ">=0.0.2" },
     { name = "duckduckgo-search", specifier = ">=6.3.4" },
-    { name = "fastembed", specifier = ">=0.4.1" },
+    { name = "fastembed", marker = "extra == 'fastembed'", specifier = ">=0.4.1" },
     { name = "instructor", specifier = ">=1.6.3" },
     { name = "litellm", specifier = ">=1.52.3" },
     { name = "pypdf2", specifier = ">=3.0.1" },
