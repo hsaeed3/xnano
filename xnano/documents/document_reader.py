@@ -1,15 +1,18 @@
 from pathlib import Path
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Optional
 from .._lib import XNANOException
-from ..pydantic import BaseModel as Document
+
+from ..types.documents.document import Document
+from ..types.pydantic.base_model_mixin import BaseModelMixin
 
 
 def read_documents(
     path: Union[str, Path, List[Union[str, Path]]],
     target: str = "text",
+    string: bool = False,
     verbose: bool = False,
     workers: int = None
-) -> Union[Document, List[Document]]:
+) -> Union[str, Document, List[Document], List[str], BaseModelMixin, List[BaseModelMixin]]:
     from concurrent.futures import ThreadPoolExecutor
     import os
     from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -21,7 +24,9 @@ def read_documents(
     try:
         if len(paths) == 1 and paths[0].is_file():
             content = _read_single_file(paths[0], target, verbose)
-            return Document(content=content)
+            if string:
+                return content
+            return Document(text=content, metadata={"source": str(paths[0])})
         else:
             with Progress(
                 SpinnerColumn(),
@@ -41,9 +46,12 @@ def read_documents(
                     for future in futures:
                         result = future.result()
                         if result is not None:
-                            results.append(Document(content=result))
+                            if string:
+                                results.append(result)
+                            else:
+                                results.append(Document(text=result, metadata={"source": str(p)}))
                         progress.update(task_id, advance=1)
-                    return results
+                    return "\n".join(results) if string else results
     finally:
         for p in paths:
             if str(p).startswith("/tmp/") and p.is_file():
