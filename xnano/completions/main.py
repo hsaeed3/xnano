@@ -15,6 +15,7 @@ from ..types.completions.responses import Response
 from ..types.completions.response_models import ResponseModelType
 from ..types.completions.tools import ToolChoice, ToolType, PrebuiltTool
 from ..types.memories.embeddings import Embeddings
+from pydantic import BaseModel
 
 import httpx
 import json
@@ -294,6 +295,7 @@ class Completions:
         is_batch_completion = False
         is_tool_execution = False
         embedding_context_string = None
+        original_response_model = response_model if response_model or response_format else None
 
         # set flags
         if isinstance(messages, list) and isinstance(messages[0], list):
@@ -506,7 +508,21 @@ class Completions:
                 responses.append(response)
             except Exception as e:
                 raise XNANOException(f"Failed to run final completion: {e}")
+            
+        if response_model:
+            
+            if isinstance(original_response_model, type) and not issubclass(original_response_model, BaseModel):
+                if return_messages:
+                    return responses
+                
+                else:
+                    return response.response
+                
+            else:
 
+                from ..pydantic import patch
+
+                return patch(response)
 
         if return_messages:
             if responses:
