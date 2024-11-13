@@ -48,7 +48,7 @@ class function_handler:
 # -------------------------------------------------------------------------------------------------
 
 class BaseModelMixin:
-    pass  # No need to redefine model_fields or __init_subclass__
+    ...
 
     @function_handler
     def _get_model_by_fields(cls_or_self, fields: List[str]) -> Type[PydanticBaseModel]:
@@ -1201,7 +1201,7 @@ class BaseModelMixin:
 # -------------------------------------------------------------------------------------------------
 
 class BaseModel(PydanticBaseModel, BaseModelMixin):
-    pass 
+    ...
 
 # -------------------------------------------------------------------------------------------------
 # PATCH

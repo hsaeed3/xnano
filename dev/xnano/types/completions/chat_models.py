@@ -1,4 +1,8 @@
-from typing import Literal
+# predefined chat model types
+
+# completion chat model parameter type
+
+from typing import Union, Literal
 
 
 # model list
@@ -25,6 +29,13 @@ ChatModels = Literal[
     "ollama/nuextract",
     "ollama/granite3-moe:1b", "ollama/granite3-moe:3b", "ollama/granite3-dense:2b", "ollama/granite3-dense:8b",
     "ollama/solar-pro", "ollama/llama-guard3:1b", "ollama/llama-guard3:8b",
+]
+
+
+# base param type
+ChatModel = Union[
+    str,
+    ChatModels
 ]
 
 

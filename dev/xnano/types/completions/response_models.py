@@ -1,9 +1,13 @@
+# response model typing
+
+# response model types for completions
+
 from pydantic import BaseModel
 from typing import Any, Dict, Type, Union
 
 
 # response model
-ResponseModel = Union[
+ResponseModelType = Union[
     # standard response_model input
     BaseModel,
     Type[BaseModel],

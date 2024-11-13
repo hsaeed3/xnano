@@ -1,7 +1,9 @@
+# instructor mode mapping
+
 from typing import Literal
 
 
-# instructor generation mode
+# instructor mode
 InstructorMode = Literal[
     "function_call", "parallel_tool_call", "tool_call", "mistral_tools",
     "json_mode", "json_o1", "markdown_json_mode", "json_schema_mode",

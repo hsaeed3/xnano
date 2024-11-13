@@ -3,7 +3,7 @@
 from pydantic import BaseModel as PydanticBaseModel
 import httpx
 from typing import TypeVar, Union, Optional, List
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from .base_model_generation_process import BaseModelGenerationProcess
 from ..memories.embeddings import Embeddings
 from ..openai import ChatCompletionModality, ChatCompletionPredictionContentParam, ChatCompletionAudioParam, ChatCompletion
@@ -19,10 +19,10 @@ from ..completions.tools import ToolChoice, ToolType
 T = TypeVar('T', bound='BaseModelMixin')
 
 
-class BaseModelMixin(PydanticBaseModel):
+class BaseModelMixin(ABC):
     ...
 
-    @classmethod
+    @abstractmethod
     def model_completion(
         cls_or_self,
         messages : MessageType,
@@ -125,7 +125,7 @@ class BaseModelMixin(PydanticBaseModel):
         """
     
 
-    @classmethod
+    @abstractmethod
     async def model_acompletion(
         cls_or_self,
         messages : MessageType,
@@ -227,6 +227,7 @@ class BaseModelMixin(PydanticBaseModel):
             Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
         """
 
+    @abstractmethod
     def model_generate(
         cls_or_self,
         messages: MessageType = "",
@@ -328,8 +329,7 @@ class BaseModelMixin(PydanticBaseModel):
             Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
         """
 
-
-    @classmethod
+    @abstractmethod
     async def model_agenerate(
         cls_or_self,
         messages: MessageType = "",
