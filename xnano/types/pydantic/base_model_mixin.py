@@ -3,6 +3,7 @@
 from pydantic import BaseModel as PydanticBaseModel
 import httpx
 from typing import TypeVar, Union, Optional, List
+from abc import abstractmethod
 from .base_model_generation_process import BaseModelGenerationProcess
 from ..memories.embeddings import Embeddings
 from ..openai import ChatCompletionModality, ChatCompletionPredictionContentParam, ChatCompletionAudioParam, ChatCompletion
@@ -21,6 +22,7 @@ T = TypeVar('T', bound='BaseModelMixin')
 class BaseModelMixin(PydanticBaseModel):
     ...
 
+    @classmethod
     def model_completion(
         cls_or_self,
         messages : MessageType,
@@ -71,9 +73,59 @@ class BaseModelMixin(PydanticBaseModel):
         ChatCompletion,
         List[ChatCompletion],
     ]:
-        ...
+        """
+        Generates a chat completion for the model.
+
+        Args:
+            messages (MessageType): Messages to send to the LLM
+            model (ChatModel): Model to use for generation
+            context (Optional[Context]): Additional context to provide
+            embeddings (Optional[Union[Embeddings, List[Embeddings]]]): Embeddings to use for generation
+            embeddings_limit (Optional[int]): Maximum number of embeddings to use
+            mode (Optional[InstructorMode]): Instructor mode to use for generation
+            response_model (Optional[ResponseModelType]): Response model to use for generation
+            response_format (Optional[ResponseModelType]): Response format to use for generation
+            tools (Optional[List[ToolType]]): Tools to use for generation
+            run_tools (Optional[bool]): Whether to run tools for generation
+            tool_choice (Optional[ToolChoice]): Tool choice to use for generation
+            parallel_tool_calls (Optional[bool]): Whether to allow parallel tool calls for generation
+            api_key (Optional[str]): API key to use for generation
+            base_url (Optional[str]): Base URL to use for generation
+            organization (Optional[str]): Organization to use for generation
+            n (Optional[int]): Number of generations to run
+            timeout (Optional[Union[float, str, httpx.Timeout]]): Timeout to use for generation
+            temperature (Optional[float]): Temperature to use for generation
+            top_p (Optional[float]): Top P to use for generation
+            stream_options (Optional[dict]): Stream options to use for generation
+            stop (Optional[str]): Stop sequence to use for generation
+            max_completion_tokens (Optional[int]): Maximum number of completion tokens to use for generation
+            max_tokens (Optional[int]): Maximum number of tokens to use for generation
+            modalities (Optional[List[ChatCompletionModality]]): Modalities to use for generation
+            prediction (Optional[ChatCompletionPredictionContentParam]): Prediction content parameter to use for generation
+            audio (Optional[ChatCompletionAudioParam]): Audio parameter to use for generation
+            presence_penalty (Optional[float]): Presence penalty to use for generation
+            frequency_penalty (Optional[float]): Frequency penalty to use for generation
+            logit_bias (Optional[dict]): Logit bias to use for generation
+            user (Optional[str]): User to use for generation
+            seed (Optional[int]): Seed to use for generation
+            logprobs (Optional[bool]): Logprobs to use for generation
+            top_logprobs (Optional[int]): Top logprobs to use for generation
+            deployment_id (Optional[str]): Deployment ID to use for generation
+            extra_headers (Optional[dict]): Extra headers to use for generation
+            functions (Optional[List]): Functions to use for generation
+            function_call (Optional[str]): Function call to use for generation
+            api_version (Optional[str]): API version to use for generation
+            model_list (Optional[list]): Model list to use for generation
+            stream (Optional[bool]): Whether to stream the generation
+            loader (Optional[bool]): Whether to use a loader for generation
+            verbose (Optional[bool]): Whether to use verbose logging for generation
+
+        Returns:
+            Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
+        """
     
 
+    @classmethod
     async def model_acompletion(
         cls_or_self,
         messages : MessageType,
@@ -124,8 +176,56 @@ class BaseModelMixin(PydanticBaseModel):
         ChatCompletion,
         List[ChatCompletion],
     ]:
-        ...
+        """
+        Asynchronously generates a chat completion for the model.
 
+        Args:
+            messages (MessageType): Messages to send to the LLM
+            model (ChatModel): Model to use for generation
+            context (Optional[Context]): Additional context to provide
+            embeddings (Optional[Union[Embeddings, List[Embeddings]]]): Embeddings to use for generation
+            embeddings_limit (Optional[int]): Maximum number of embeddings to use
+            mode (Optional[InstructorMode]): Instructor mode to use for generation
+            response_model (Optional[ResponseModelType]): Response model to use for generation
+            response_format (Optional[ResponseModelType]): Response format to use for generation
+            tools (Optional[List[ToolType]]): Tools to use for generation
+            run_tools (Optional[bool]): Whether to run tools for generation
+            tool_choice (Optional[ToolChoice]): Tool choice to use for generation
+            parallel_tool_calls (Optional[bool]): Whether to allow parallel tool calls for generation
+            api_key (Optional[str]): API key to use for generation
+            base_url (Optional[str]): Base URL to use for generation
+            organization (Optional[str]): Organization to use for generation
+            n (Optional[int]): Number of generations to run
+            timeout (Optional[Union[float, str, httpx.Timeout]]): Timeout to use for generation
+            temperature (Optional[float]): Temperature to use for generation
+            top_p (Optional[float]): Top P to use for generation
+            stream_options (Optional[dict]): Stream options to use for generation
+            stop (Optional[str]): Stop sequence to use for generation
+            max_completion_tokens (Optional[int]): Maximum number of completion tokens to use for generation
+            max_tokens (Optional[int]): Maximum number of tokens to use for generation
+            modalities (Optional[List[ChatCompletionModality]]): Modalities to use for generation
+            prediction (Optional[ChatCompletionPredictionContentParam]): Prediction content parameter to use for generation
+            audio (Optional[ChatCompletionAudioParam]): Audio parameter to use for generation
+            presence_penalty (Optional[float]): Presence penalty to use for generation
+            frequency_penalty (Optional[float]): Frequency penalty to use for generation
+            logit_bias (Optional[dict]): Logit bias to use for generation
+            user (Optional[str]): User to use for generation
+            seed (Optional[int]): Seed to use for generation
+            logprobs (Optional[bool]): Logprobs to use for generation
+            top_logprobs (Optional[int]): Top logprobs to use for generation
+            deployment_id (Optional[str]): Deployment ID to use for generation
+            extra_headers (Optional[dict]): Extra headers to use for generation
+            functions (Optional[List]): Functions to use for generation
+            function_call (Optional[str]): Function call to use for generation
+            api_version (Optional[str]): API version to use for generation
+            model_list (Optional[list]): Model list to use for generation
+            stream (Optional[bool]): Whether to stream the generation
+            loader (Optional[bool]): Whether to use a loader for generation
+            verbose (Optional[bool]): Whether to use verbose logging for generation
+
+        Returns:
+            Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
+        """
 
     def model_generate(
         cls_or_self,
@@ -173,9 +273,63 @@ class BaseModelMixin(PydanticBaseModel):
         loader: Optional[bool] = True,
         verbose: Optional[bool] = None,
     ) -> Union[T, List[T]]:
-        ...
+        """Generates instance(s) of the model using LLM completion.
+        
+        Supports two generation processes:
+        - batch: Generates all instances at once
+        - sequential: Generates instances one at a time, field by field
+        
+        Args:
+            messages (MessageType): Messages to send to the LLM
+            model (ChatModel): Model to use for generation
+            context (Optional[Context]): Additional context to provide
+            process (BaseModelGenerationProcess): Generation process type ("batch" or "sequential")
+            embeddings (Optional[Union[Embeddings, List[Embeddings]]]): Embeddings to use for generation
+            embeddings_limit (Optional[int]): Maximum number of embeddings to use
+            mode (Optional[InstructorMode]): Instructor mode to use for generation
+            response_model (Optional[ResponseModelType]): Response model to use for generation
+            response_format (Optional[ResponseModelType]): Response format to use for generation
+            tools (Optional[List[ToolType]]): Tools to use for generation
+            run_tools (Optional[bool]): Whether to run tools for generation
+            tool_choice (Optional[ToolChoice]): Tool choice to use for generation
+            parallel_tool_calls (Optional[bool]): Whether to allow parallel tool calls for generation
+            api_key (Optional[str]): API key to use for generation
+            base_url (Optional[str]): Base URL to use for generation
+            organization (Optional[str]): Organization to use for generation
+            n (Optional[int]): Number of generations to run
+            timeout (Optional[Union[float, str, httpx.Timeout]]): Timeout to use for generation
+            temperature (Optional[float]): Temperature to use for generation
+            top_p (Optional[float]): Top P to use for generation
+            stream_options (Optional[dict]): Stream options to use for generation
+            stop (Optional[str]): Stop sequence to use for generation
+            max_completion_tokens (Optional[int]): Maximum number of completion tokens to use for generation
+            max_tokens (Optional[int]): Maximum number of tokens to use for generation
+            modalities (Optional[List[ChatCompletionModality]]): Modalities to use for generation
+            prediction (Optional[ChatCompletionPredictionContentParam]): Prediction content parameter to use for generation
+            audio (Optional[ChatCompletionAudioParam]): Audio parameter to use for generation
+            presence_penalty (Optional[float]): Presence penalty to use for generation
+            frequency_penalty (Optional[float]): Frequency penalty to use for generation
+            logit_bias (Optional[dict]): Logit bias to use for generation
+            user (Optional[str]): User to use for generation
+            seed (Optional[int]): Seed to use for generation
+            logprobs (Optional[bool]): Logprobs to use for generation
+            top_logprobs (Optional[int]): Top logprobs to use for generation
+            deployment_id (Optional[str]): Deployment ID to use for generation
+            extra_headers (Optional[dict]): Extra headers to use for generation
+            functions (Optional[List]): Functions to use for generation
+            function_call (Optional[str]): Function call to use for generation
+            api_version (Optional[str]): API version to use for generation
+            model_list (Optional[list]): Model list to use for generation
+            stream (Optional[bool]): Whether to stream the generation
+            loader (Optional[bool]): Whether to use a loader for generation
+            verbose (Optional[bool]): Whether to use verbose logging for generation
+
+        Returns:
+            Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
+        """
 
 
+    @classmethod
     async def model_agenerate(
         cls_or_self,
         messages: MessageType = "",
@@ -222,4 +376,53 @@ class BaseModelMixin(PydanticBaseModel):
         loader: Optional[bool] = True,
         verbose: Optional[bool] = None,
     ) -> Union[T, List[T]]:
-        ...
+        """Asynchronously generates instance(s) of the model using LLM completion.
+        
+        Args:
+            messages (MessageType): Messages to send to the LLM
+            model (ChatModel): Model to use for generation
+            context (Optional[Context]): Additional context to provide
+            process (BaseModelGenerationProcess): Generation process type ("batch" or "sequential")
+            embeddings (Optional[Union[Embeddings, List[Embeddings]]]): Embeddings to use for generation
+            embeddings_limit (Optional[int]): Maximum number of embeddings to use
+            mode (Optional[InstructorMode]): Instructor mode to use for generation
+            response_model (Optional[ResponseModelType]): Response model to use for generation
+            response_format (Optional[ResponseModelType]): Response format to use for generation
+            tools (Optional[List[ToolType]]): Tools to use for generation
+            run_tools (Optional[bool]): Whether to run tools for generation
+            tool_choice (Optional[ToolChoice]): Tool choice to use for generation
+            parallel_tool_calls (Optional[bool]): Whether to allow parallel tool calls for generation
+            api_key (Optional[str]): API key to use for generation
+            base_url (Optional[str]): Base URL to use for generation
+            organization (Optional[str]): Organization to use for generation
+            n (Optional[int]): Number of generations to run
+            timeout (Optional[Union[float, str, httpx.Timeout]]): Timeout to use for generation
+            temperature (Optional[float]): Temperature to use for generation
+            top_p (Optional[float]): Top P to use for generation
+            stream_options (Optional[dict]): Stream options to use for generation
+            stop (Optional[str]): Stop sequence to use for generation
+            max_completion_tokens (Optional[int]): Maximum number of completion tokens to use for generation
+            max_tokens (Optional[int]): Maximum number of tokens to use for generation
+            modalities (Optional[List[ChatCompletionModality]]): Modalities to use for generation
+            prediction (Optional[ChatCompletionPredictionContentParam]): Prediction content parameter to use for generation
+            audio (Optional[ChatCompletionAudioParam]): Audio parameter to use for generation
+            presence_penalty (Optional[float]): Presence penalty to use for generation
+            frequency_penalty (Optional[float]): Frequency penalty to use for generation
+            logit_bias (Optional[dict]): Logit bias to use for generation
+            user (Optional[str]): User to use for generation
+            seed (Optional[int]): Seed to use for generation
+            logprobs (Optional[bool]): Logprobs to use for generation
+            top_logprobs (Optional[int]): Top logprobs to use for generation
+            deployment_id (Optional[str]): Deployment ID to use for generation
+            extra_headers (Optional[dict]): Extra headers to use for generation
+            functions (Optional[List]): Functions to use for generation
+            function_call (Optional[str]): Function call to use for generation
+            api_version (Optional[str]): API version to use for generation
+            model_list (Optional[list]): Model list to use for generation
+            stream (Optional[bool]): Whether to stream the generation
+            loader (Optional[bool]): Whether to use a loader for generation
+            verbose (Optional[bool]): Whether to use verbose logging for generation
+
+        Returns:
+            Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
+        """
