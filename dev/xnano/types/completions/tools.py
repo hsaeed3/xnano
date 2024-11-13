@@ -1,3 +1,7 @@
+# tool & tool argument types
+
+# tool choice parameter type
+
 from pydantic import BaseModel
 from typing import Any, Callable, Type, Dict, Optional, Union, Literal
 

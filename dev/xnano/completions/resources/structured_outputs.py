@@ -65,7 +65,12 @@ def handle_response_model(response_model: Union[Type[BaseModel], Type, str, List
         elif isinstance(response_model, (str, list)):
             # New logic to handle string with type annotations
             if isinstance(response_model, str):
-                return create_dynamic_response_model([response_model])
+                # Check for type annotation in a single string
+                if ':' in response_model:
+                    name, type_annotation = response_model.split(':', 1)
+                    return create_model('Response', **{name.strip(): (eval(type_annotation.strip()), ...)})
+                else:
+                    return create_dynamic_response_model([response_model])
             elif isinstance(response_model, list):
                 fields = {}
                 for item in response_model:

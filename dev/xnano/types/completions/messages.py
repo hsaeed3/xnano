@@ -63,3 +63,12 @@ class Message(TypedDict):
   """
   Tools calls to be made by the model.
   """
+
+
+# base param type
+MessageType = Union[
+    str,
+    Message,
+    List[Message],
+    List[List[Message]]
+]

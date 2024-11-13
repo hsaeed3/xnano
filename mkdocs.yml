@@ -93,26 +93,4 @@ extra_javascript:
   - stylesheets/extras.js
 
 
-nav:
-  - Home: index.md
-  - Tutorials:
-    - tutorials/index.md
-    - LLM Completions:
-      - Generating LLM Completions: tutorials/completions/completions.md
-      - Adding Context to LLM Completions: tutorials/completions/completions-with-context.md
-      - LLM Completions with Structured Outputs: tutorials/completions/completion-structured-outputs.md
-      - Function / Tool Calling: tutorials/completions/completions-tools.md
-      - Automatically Executing Tools (Agentic): tutorials/completions/completions-with-tool-execution.md
-      - Automatically Generating Tools: tutorials/completions/completions-generating-tools.md
-    - LLM Powered Pydantic Models:
-      - tutorials/pydantic-models/pydantic-models.md
-      - Using Pydantic Models as Context: tutorials/pydantic-models/pydantic-models-as-context.md
-    - Working with Documents: tutorials/documents.md
-    - Embeddings & Vector Databases:
-      - Generating Embeddings: tutorials/embeddings/creating-embeddings.md
-      - Adding Documents to the Store: tutorials/embeddings/adding-documents.md
-      - Creating a Vector Database: tutorials/embeddings/vector-database.md
-    - Web Scraping:
-      - Efficiently Reading Web Pages: tutorials/web-scraping/web-scraping.md
-      - LLM Powered Web Scraping: tutorials/web-scraping/web-scraping-llm.md
 
