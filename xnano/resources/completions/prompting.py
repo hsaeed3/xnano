@@ -15,7 +15,7 @@ from ...types.completions.params import (
     CompletionModalityParam,
     CompletionPredictionContentParam,
     CompletionToolChoiceParam,
-    CompletionToolsParam
+    CompletionToolsParam,
 )
 from ...types.completions.responses import Response
 from .resources.messages import swap_system_prompt
@@ -182,7 +182,7 @@ PROMPT_TYPES_MAPPING = {
     "costar": CostarSystemPrompt,
     "tidd-ec": TiddECSystemPrompt,
     "instruction": InstructionSystemPrompt,
-    "reasoning": ReasoningSystemPrompt
+    "reasoning": ReasoningSystemPrompt,
 }
 
 
@@ -243,7 +243,7 @@ def generate_system_prompt(
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
-            transient=True
+            transient=True,
         ) as progress:
             task_id = progress.add_task("Building Prompt...", total=len(instructions))
 
@@ -294,7 +294,10 @@ def generate_system_prompt(
                     )
 
                     result = completion(
-                        messages=[system_prompt, {"role": "user", "content": batch_message}],
+                        messages=[
+                            system_prompt,
+                            {"role": "user", "content": batch_message},
+                        ],
                         model=model,
                         response_model=response_model_batch,
                         mode=mode,
@@ -357,7 +360,10 @@ def generate_system_prompt(
                 )
 
                 result = completion(
-                    messages=[system_prompt, {"role": "user", "content": batch_message}],
+                    messages=[
+                        system_prompt,
+                        {"role": "user", "content": batch_message},
+                    ],
                     model=model,
                     response_model=response_model_batch,
                     mode=mode,
@@ -391,7 +397,8 @@ def generate_system_prompt(
         messages = [
             {
                 "role": "system",
-                "content": "Regenerate the following prompt to ensure it refers to the character in the second person (using 'you', 'your', etc.):\n\n" + prompt_str,
+                "content": "Regenerate the following prompt to ensure it refers to the character in the second person (using 'you', 'your', etc.):\n\n"
+                + prompt_str,
             }
         ]
         regenerated_prompt = completion(
@@ -417,9 +424,11 @@ def generate_system_prompt(
 
     # If messages were provided, swap the system prompt and return updated messages
     if messages is not None:
-        result = formatted_results[0] if len(formatted_results) == 1 else formatted_results
+        result = (
+            formatted_results[0] if len(formatted_results) == 1 else formatted_results
+        )
         return swap_system_prompt(messages=messages, system_prompt=result)
-    
+
     # Otherwise return the formatted results as before
     return formatted_results if len(formatted_results) > 1 else formatted_results[0]
 

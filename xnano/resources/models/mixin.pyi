@@ -1,5 +1,3 @@
-
-
 from pydantic import BaseModel as PydanticBaseModel, create_model, Field
 
 from ..completions.main import completion, acompletion
@@ -9,7 +7,18 @@ import json
 import httpx
 from textwrap import dedent
 from copy import deepcopy
-from typing import Type, TypeVar, Union, Dict, Any, Optional, List, Tuple, Callable, overload
+from typing import (
+    Type,
+    TypeVar,
+    Union,
+    Dict,
+    Any,
+    Optional,
+    List,
+    Tuple,
+    Callable,
+    overload,
+)
 from ...types.embeddings.memory import Memory
 from ...types.completions.params import (
     CompletionMessagesParam,
@@ -21,12 +30,11 @@ from ...types.completions.params import (
     CompletionModalityParam,
     CompletionPredictionContentParam,
     CompletionToolChoiceParam,
-    CompletionToolsParam
+    CompletionToolsParam,
 )
 from ...types.models.base_model_generation_process import BaseModelGenerationProcess
 from ...types.models.mixin import BaseModelMixin as BaseModelMixinType
 from ...types.completions._openai import ChatCompletion
-
 
 class BaseModel(BaseModelMixinType):
     ...
@@ -34,22 +42,22 @@ class BaseModel(BaseModelMixinType):
     @overload
     def model_acompletion(
         cls,
-        messages : CompletionMessagesParam,
-        model : CompletionChatModelsParam = "gpt-4o-mini",
-        context : Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
-        mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        response_format : Optional[CompletionResponseModelParam] = None,
-        tools : Optional[List[CompletionToolsParam]] = None,
-        run_tools : Optional[bool] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = None,
-        api_key : Optional[str] = None,
-        base_url : Optional[str] = None,
-        organization : Optional[str] = None,
-        n : Optional[int] = None,
+        messages: CompletionMessagesParam,
+        model: CompletionChatModelsParam = "gpt-4o-mini",
+        context: Optional[CompletionContextParam] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
+        mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        response_format: Optional[CompletionResponseModelParam] = None,
+        tools: Optional[List[CompletionToolsParam]] = None,
+        run_tools: Optional[bool] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        organization: Optional[str] = None,
+        n: Optional[int] = None,
         timeout: Optional[Union[float, str, httpx.Timeout]] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
@@ -75,39 +83,36 @@ class BaseModel(BaseModelMixinType):
         function_call: Optional[str] = None,
         # set api_base, api_version, api_key
         api_version: Optional[str] = None,
-        model_list: Optional[list] = None, 
-        stream : Optional[bool] = None,
-        return_messages : Optional[bool] = None,
-        loader : Optional[bool] = True,
-        verbose : Optional[bool] = None,
+        model_list: Optional[list] = None,
+        stream: Optional[bool] = None,
+        return_messages: Optional[bool] = None,
+        loader: Optional[bool] = True,
+        verbose: Optional[bool] = None,
     ) -> Union[
         ChatCompletion,
         BaseModelMixinType,
         List[BaseModelMixinType],
         List[ChatCompletion],
-    ]:
-        ...
-
-
+    ]: ...
     @overload
     def model_acompletion(
         self,
-        messages : CompletionMessagesParam,
-        model : CompletionChatModelsParam = "gpt-4o-mini",
-        context : Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
-        mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        response_format : Optional[CompletionResponseModelParam] = None,
-        tools : Optional[List[CompletionToolsParam]] = None,
-        run_tools : Optional[bool] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = None,
-        api_key : Optional[str] = None,
-        base_url : Optional[str] = None,
-        organization : Optional[str] = None,
-        n : Optional[int] = None,
+        messages: CompletionMessagesParam,
+        model: CompletionChatModelsParam = "gpt-4o-mini",
+        context: Optional[CompletionContextParam] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
+        mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        response_format: Optional[CompletionResponseModelParam] = None,
+        tools: Optional[List[CompletionToolsParam]] = None,
+        run_tools: Optional[bool] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        organization: Optional[str] = None,
+        n: Optional[int] = None,
         timeout: Optional[Union[float, str, httpx.Timeout]] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
@@ -133,39 +138,36 @@ class BaseModel(BaseModelMixinType):
         function_call: Optional[str] = None,
         # set api_base, api_version, api_key
         api_version: Optional[str] = None,
-        model_list: Optional[list] = None, 
-        stream : Optional[bool] = None,
-        return_messages : Optional[bool] = None,
-        loader : Optional[bool] = True,
-        verbose : Optional[bool] = None,
+        model_list: Optional[list] = None,
+        stream: Optional[bool] = None,
+        return_messages: Optional[bool] = None,
+        loader: Optional[bool] = True,
+        verbose: Optional[bool] = None,
     ) -> Union[
         ChatCompletion,
         BaseModelMixinType,
         List[BaseModelMixinType],
         List[ChatCompletion],
-    ]:
-        ...
-
-
+    ]: ...
     @overload
     def model_completion(
         cls,
-        messages : CompletionMessagesParam,
-        model : CompletionChatModelsParam = "gpt-4o-mini",
-        context : Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
-        mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        response_format : Optional[CompletionResponseModelParam] = None,
-        tools : Optional[List[CompletionToolsParam]] = None,
-        run_tools : Optional[bool] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = None,
-        api_key : Optional[str] = None,
-        base_url : Optional[str] = None,
-        organization : Optional[str] = None,
-        n : Optional[int] = None,
+        messages: CompletionMessagesParam,
+        model: CompletionChatModelsParam = "gpt-4o-mini",
+        context: Optional[CompletionContextParam] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
+        mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        response_format: Optional[CompletionResponseModelParam] = None,
+        tools: Optional[List[CompletionToolsParam]] = None,
+        run_tools: Optional[bool] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        organization: Optional[str] = None,
+        n: Optional[int] = None,
         timeout: Optional[Union[float, str, httpx.Timeout]] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
@@ -191,39 +193,36 @@ class BaseModel(BaseModelMixinType):
         function_call: Optional[str] = None,
         # set api_base, api_version, api_key
         api_version: Optional[str] = None,
-        model_list: Optional[list] = None, 
-        stream : Optional[bool] = None,
-        return_messages : Optional[bool] = None,
-        loader : Optional[bool] = True,
-        verbose : Optional[bool] = None,
+        model_list: Optional[list] = None,
+        stream: Optional[bool] = None,
+        return_messages: Optional[bool] = None,
+        loader: Optional[bool] = True,
+        verbose: Optional[bool] = None,
     ) -> Union[
         ChatCompletion,
         BaseModelMixinType,
         List[BaseModelMixinType],
         List[ChatCompletion],
-    ]:
-        ...
-
-
+    ]: ...
     @overload
     def model_completion(
         self,
-        messages : CompletionMessagesParam,
-        model : CompletionChatModelsParam = "gpt-4o-mini",
-        context : Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
-        mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        response_format : Optional[CompletionResponseModelParam] = None,
-        tools : Optional[List[CompletionToolsParam]] = None,
-        run_tools : Optional[bool] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = None,
-        api_key : Optional[str] = None,
-        base_url : Optional[str] = None,
-        organization : Optional[str] = None,
-        n : Optional[int] = None,
+        messages: CompletionMessagesParam,
+        model: CompletionChatModelsParam = "gpt-4o-mini",
+        context: Optional[CompletionContextParam] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
+        mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        response_format: Optional[CompletionResponseModelParam] = None,
+        tools: Optional[List[CompletionToolsParam]] = None,
+        run_tools: Optional[bool] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        organization: Optional[str] = None,
+        n: Optional[int] = None,
         timeout: Optional[Union[float, str, httpx.Timeout]] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
@@ -249,20 +248,17 @@ class BaseModel(BaseModelMixinType):
         function_call: Optional[str] = None,
         # set api_base, api_version, api_key
         api_version: Optional[str] = None,
-        model_list: Optional[list] = None, 
-        stream : Optional[bool] = None,
-        return_messages : Optional[bool] = None,
-        loader : Optional[bool] = True,
-        verbose : Optional[bool] = None,
+        model_list: Optional[list] = None,
+        stream: Optional[bool] = None,
+        return_messages: Optional[bool] = None,
+        loader: Optional[bool] = True,
+        verbose: Optional[bool] = None,
     ) -> Union[
         ChatCompletion,
         BaseModelMixinType,
         List[BaseModelMixinType],
         List[ChatCompletion],
-    ]:
-        ...
-
-
+    ]: ...
     @overload
     def model_generate(
         cls,
@@ -273,8 +269,8 @@ class BaseModel(BaseModelMixinType):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         tools: Optional[CompletionToolsParam] = None,
         run_tools: Optional[bool] = None,
@@ -309,10 +305,7 @@ class BaseModel(BaseModelMixinType):
         stream: Optional[bool] = None,
         loader: Optional[bool] = True,
         verbose: Optional[bool] = None,
-    ) -> Union[BaseModelMixinType, List[BaseModelMixinType]]:
-        ...
-
-
+    ) -> Union[BaseModelMixinType, List[BaseModelMixinType]]: ...
     @overload
     def model_generate(
         self,
@@ -323,8 +316,8 @@ class BaseModel(BaseModelMixinType):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         tools: Optional[CompletionToolsParam] = None,
         run_tools: Optional[bool] = None,
@@ -436,7 +429,6 @@ class BaseModel(BaseModelMixinType):
             verbose (bool): Whether to show verbose output.
         """
 
-
     @overload
     def model_agenerate(
         cls,
@@ -447,8 +439,8 @@ class BaseModel(BaseModelMixinType):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         tools: Optional[CompletionToolsParam] = None,
         run_tools: Optional[bool] = None,
@@ -560,7 +552,6 @@ class BaseModel(BaseModelMixinType):
             verbose (bool): Whether to show verbose output.
         """
 
-
     @overload
     def model_agenerate(
         self,
@@ -571,8 +562,8 @@ class BaseModel(BaseModelMixinType):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         tools: Optional[CompletionToolsParam] = None,
         run_tools: Optional[bool] = None,
@@ -607,17 +598,15 @@ class BaseModel(BaseModelMixinType):
         stream: Optional[bool] = None,
         loader: Optional[bool] = True,
         verbose: Optional[bool] = None,
-    ) -> Union[BaseModelMixinType, List[BaseModelMixinType]]:
-        ...
-
-
+    ) -> Union[BaseModelMixinType, List[BaseModelMixinType]]: ...
 
 # -------------------------------------------------------------------------------------------------
 # patch
 # -------------------------------------------------------------------------------------------------
 
-
-def patch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Type[BaseModel], BaseModel]:
+def patch(
+    model: Union[Type[PydanticBaseModel], PydanticBaseModel],
+) -> Union[Type[BaseModel], BaseModel]:
     """
     A function or decorator that patches a Pydantic BaseModel class or instance to build in xnano completions. Either
     run the function or decorate a class, or run the function on an instance.
@@ -651,8 +640,9 @@ def patch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Typ
     """
     ...
 
-
-def unpatch(model: Union[Type[BaseModel], BaseModel]) -> Union[Type[PydanticBaseModel], PydanticBaseModel]:
+def unpatch(
+    model: Union[Type[BaseModel], BaseModel],
+) -> Union[Type[PydanticBaseModel], PydanticBaseModel]:
     """
     A function that unpatches a patched Pydantic BaseModel class or instance.
 
@@ -676,4 +666,3 @@ def unpatch(model: Union[Type[BaseModel], BaseModel]) -> Union[Type[PydanticBase
         A Pydantic BaseModel class or instance.
     """
     ...
-

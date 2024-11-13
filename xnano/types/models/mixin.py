@@ -17,13 +17,13 @@ from ..completions.params import (
     CompletionModalityParam,
     CompletionPredictionContentParam,
     CompletionToolChoiceParam,
-    CompletionToolsParam
+    CompletionToolsParam,
 )
 from ..completions._openai import ChatCompletion
 
 
 # typevar
-BMM = TypeVar('BMM', bound='BaseModelMixin')
+BMM = TypeVar("BMM", bound="BaseModelMixin")
 
 
 class BaseModelMixin(ABC):
@@ -32,22 +32,22 @@ class BaseModelMixin(ABC):
     @abstractmethod
     def model_completion(
         cls_or_self,
-        messages : CompletionMessagesParam,
-        model : CompletionChatModelsParam = "gpt-4o-mini",
-        context : Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
-        mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        response_format : Optional[CompletionResponseModelParam] = None,
-        tools : Optional[CompletionToolsParam] = None,
-        run_tools : Optional[bool] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = None,
-        api_key : Optional[str] = None,
-        base_url : Optional[str] = None,
-        organization : Optional[str] = None,
-        n : Optional[int] = None,
+        messages: CompletionMessagesParam,
+        model: CompletionChatModelsParam = "gpt-4o-mini",
+        context: Optional[CompletionContextParam] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
+        mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        response_format: Optional[CompletionResponseModelParam] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        run_tools: Optional[bool] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        organization: Optional[str] = None,
+        n: Optional[int] = None,
         timeout: Optional[Union[float, str, httpx.Timeout]] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
@@ -70,10 +70,10 @@ class BaseModelMixin(ABC):
         functions: Optional[List] = None,
         function_call: Optional[str] = None,
         api_version: Optional[str] = None,
-        model_list: Optional[list] = None, 
-        stream : Optional[bool] = None,
-        loader : Optional[bool] = True,
-        verbose : Optional[bool] = None,
+        model_list: Optional[list] = None,
+        stream: Optional[bool] = None,
+        loader: Optional[bool] = True,
+        verbose: Optional[bool] = None,
     ) -> Union[
         BMM,
         List[BMM],
@@ -130,26 +130,26 @@ class BaseModelMixin(ABC):
         Returns:
             Union[BMM, List[BMM], Response, List[Response]]: Generated completion(s)
         """
-    
+
     @abstractmethod
     async def model_acompletion(
         cls_or_self,
-        messages : CompletionMessagesParam,
-        model : CompletionChatModelsParam = "gpt-4o-mini",
-        context : Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
-        mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        response_format : Optional[CompletionResponseModelParam] = None,
-        tools : Optional[CompletionToolsParam] = None,
-        run_tools : Optional[bool] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = None,
-        api_key : Optional[str] = None,
-        base_url : Optional[str] = None,
-        organization : Optional[str] = None,
-        n : Optional[int] = None,
+        messages: CompletionMessagesParam,
+        model: CompletionChatModelsParam = "gpt-4o-mini",
+        context: Optional[CompletionContextParam] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
+        mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        response_format: Optional[CompletionResponseModelParam] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        run_tools: Optional[bool] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        organization: Optional[str] = None,
+        n: Optional[int] = None,
         timeout: Optional[Union[float, str, httpx.Timeout]] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
@@ -172,10 +172,10 @@ class BaseModelMixin(ABC):
         functions: Optional[List] = None,
         function_call: Optional[str] = None,
         api_version: Optional[str] = None,
-        model_list: Optional[list] = None, 
-        stream : Optional[bool] = None,
-        loader : Optional[bool] = True,
-        verbose : Optional[bool] = None,
+        model_list: Optional[list] = None,
+        stream: Optional[bool] = None,
+        loader: Optional[bool] = True,
+        verbose: Optional[bool] = None,
     ) -> Union[
         BMM,
         List[BMM],
@@ -243,8 +243,8 @@ class BaseModelMixin(ABC):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         tools: Optional[CompletionToolsParam] = None,
         run_tools: Optional[bool] = None,
@@ -279,9 +279,7 @@ class BaseModelMixin(ABC):
         stream: Optional[bool] = None,
         loader: Optional[bool] = True,
         verbose: Optional[bool] = None,
-    ) -> Union[BMM, List[BMM]]:
-        ...
-
+    ) -> Union[BMM, List[BMM]]: ...
 
     @overload
     def model_generate(
@@ -293,8 +291,8 @@ class BaseModelMixin(ABC):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         tools: Optional[CompletionToolsParam] = None,
         run_tools: Optional[bool] = None,
@@ -329,9 +327,7 @@ class BaseModelMixin(ABC):
         stream: Optional[bool] = None,
         loader: Optional[bool] = True,
         verbose: Optional[bool] = None,
-    ) -> Union[BMM, List[BMM]]:
-        ...
-
+    ) -> Union[BMM, List[BMM]]: ...
 
     @abstractmethod
     @overload
@@ -344,8 +340,8 @@ class BaseModelMixin(ABC):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         tools: Optional[CompletionToolsParam] = None,
         run_tools: Optional[bool] = None,
@@ -382,11 +378,11 @@ class BaseModelMixin(ABC):
         verbose: Optional[bool] = None,
     ) -> Union[BMM, List[BMM]]:
         """Generates instance(s) of the model using LLM completion.
-        
+
         Supports two generation processes:
         - batch: Generates all instances at once
         - sequential: Generates instances one at a time, field by field
-        
+
         Args:
             messages (MessageType): Messages to send to the LLM
             model (ChatModel): Model to use for generation
@@ -446,8 +442,8 @@ class BaseModelMixin(ABC):
         fields: Optional[List[str]] = None,
         regenerate: Optional[bool] = None,
         context: Optional[CompletionContextParam] = None,
-        memory : Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit : Optional[int] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         tools: Optional[CompletionToolsParam] = None,
         run_tools: Optional[bool] = None,
@@ -484,7 +480,7 @@ class BaseModelMixin(ABC):
         verbose: Optional[bool] = None,
     ) -> Union[BMM, List[BMM]]:
         """Asynchronously generates instance(s) of the model using LLM completion.
-        
+
         Args:
             messages (MessageType): Messages to send to the LLM
             model (ChatModel): Model to use for generation

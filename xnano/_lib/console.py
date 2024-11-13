@@ -4,9 +4,11 @@
 # builtins -- xnano swaps out print with rich.print
 import builtins
 from rich import print
+
 # console & ext imports
 from rich.console import Console
 from rich.progress import Progress, track
+
 # imports
 from contextlib import contextmanager
 import inspect
@@ -20,15 +22,11 @@ builtins.print = print
 
 # console resource
 class RichConsole(Console):
-
-
     """Console Resource"""
-
 
     # super
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
 
     # input collection method
     # uses questionary not rich.prompt
@@ -47,7 +45,6 @@ class RichConsole(Console):
             # Use questionary to display a radio list with arrow key and number selection
             return questionary.select("Please select an option:", choices=prompt).ask()
         return questionary.text(prompt).ask()
-    
 
     # confirmation method
     # uses questionary not rich.prompt
@@ -63,9 +60,8 @@ class RichConsole(Console):
         """
         return questionary.confirm(prompt).ask()
 
-
     # message printer for all 'verbose' message for methods
-    def message(self, message : str):
+    def message(self, message: str):
         """
         Sends xnano message to the console
 
@@ -77,12 +73,13 @@ class RichConsole(Console):
         """
         frame = inspect.currentframe().f_back
         module = frame.f_globals["__name__"]
-        self.print(f"⚛️ [bold plum3] xnano[/bold plum3] | [cyan]{module}[/cyan] | [white italic]{message}[/white italic]")
-
+        self.print(
+            f"⚛️ [bold plum3] xnano[/bold plum3] | [cyan]{module}[/cyan] | [white italic]{message}[/white italic]"
+        )
 
     # warning method
     # no exception -- exceptions raised by xnano.lib.common.exceptions
-    def warning(self, message : str):
+    def warning(self, message: str):
         """
         Prints a warning message to the console
 
@@ -94,8 +91,9 @@ class RichConsole(Console):
         """
         frame = inspect.currentframe().f_back
         module = frame.f_globals["__name__"]
-        self.print(f"⚠️ [bold yellow] XNANO WARNING[/bold yellow] | [yellow]{module}[/yellow] | [yellow italic]{message}[/yellow italic]")
-
+        self.print(
+            f"⚠️ [bold yellow] XNANO WARNING[/bold yellow] | [yellow]{module}[/yellow] | [yellow italic]{message}[/yellow italic]"
+        )
 
     # context manager for constant progress loader
     @contextmanager
@@ -116,7 +114,7 @@ class RichConsole(Console):
         Returns:
             Tuple[Progress, int, int]: Progress object, task, and task id
         """
-        with Progress(*args, **kwargs, console=self, transient = True) as progress:
+        with Progress(*args, **kwargs, console=self, transient=True) as progress:
             task = progress.add_task(f"[plum3]{prompt}[/plum3]", total=None)
             task_id = task
             progress.start()
@@ -125,10 +123,9 @@ class RichConsole(Console):
             finally:
                 progress.stop()
 
-
     # track method
     # for iterable progress -- .progress if used for a static loader
-    def track(self, iterable, prompt : str):
+    def track(self, iterable, prompt: str):
         """
         Track progress of an iterable
 
@@ -141,7 +138,7 @@ class RichConsole(Console):
             prompt (str): Message to display in the progress loader
         """
         return track(iterable, description=prompt)
-    
+
 
 # singleton
 console = RichConsole()

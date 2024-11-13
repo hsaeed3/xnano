@@ -9,31 +9,29 @@ from ...types.completions.params import (
     CompletionModalityParam,
     CompletionPredictionContentParam,
     CompletionToolChoiceParam,
-    CompletionToolsParam
+    CompletionToolsParam,
 )
 from ...types.completions.responses import Response
 import httpx
 from typing import List, Optional, Union
 
-
-
 def acompletion(
-    messages : CompletionMessagesParam,
-    model : CompletionChatModelsParam = "gpt-4o-mini",
-    context : Optional[CompletionContextParam] = None,
-    memory : Optional[Union[Memory, List[Memory]]] = None,
-    memory_limit : Optional[int] = None,
-    mode : Optional[CompletionInstructorModeParam] = None,
-    response_model : Optional[CompletionResponseModelParam] = None,
-    response_format : Optional[CompletionResponseModelParam] = None,
-    tools : Optional[List[CompletionToolsParam]] = None,
-    run_tools : Optional[bool] = None,
-    tool_choice : Optional[CompletionToolChoiceParam] = None,
-    parallel_tool_calls : Optional[bool] = None,
-    api_key : Optional[str] = None,
-    base_url : Optional[str] = None,
-    organization : Optional[str] = None,
-    n : Optional[int] = None,
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
     timeout: Optional[Union[float, str, httpx.Timeout]] = None,
     temperature: Optional[float] = None,
     top_p: Optional[float] = None,
@@ -59,11 +57,11 @@ def acompletion(
     function_call: Optional[str] = None,
     # set api_base, api_version, api_key
     api_version: Optional[str] = None,
-    model_list: Optional[list] = None, 
-    stream : Optional[bool] = None,
-    return_messages : Optional[bool] = None,
-    verbose : Optional[bool] = None,
-    ) -> Response:
+    model_list: Optional[list] = None,
+    stream: Optional[bool] = None,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> Response:
     """
     ### Generate a completion using any LiteLLM supported model, with incredibly easy to access features.
 
@@ -175,7 +173,7 @@ def acompletion(
         seed (int): The seed to use for the completion.
         logprobs (bool): Whether to return the log probabilities.
         top_logprobs (int): The top log probabilities to use for the completion.
-        deployment_id (str): The deployment ID to use for the completion.   
+        deployment_id (str): The deployment ID to use for the completion.
         extra_headers (dict): The extra headers to use for the completion.
         functions (List): The functions to use for the completion.
         function_call (str): The function call to use for the completion.
@@ -187,25 +185,23 @@ def acompletion(
     """
     ...
 
-
-
 def completion(
-    messages : CompletionMessagesParam,
-    model : CompletionChatModelsParam = "gpt-4o-mini",
-    context : Optional[CompletionContextParam] = None,
-    memory : Optional[Union[Memory, List[Memory]]] = None,
-    memory_limit : Optional[int] = None,
-    mode : Optional[CompletionInstructorModeParam] = None,
-    response_model : Optional[CompletionResponseModelParam] = None,
-    response_format : Optional[CompletionResponseModelParam] = None,
-    tools : Optional[List[CompletionToolsParam]] = None,
-    run_tools : Optional[bool] = None,
-    tool_choice : Optional[CompletionToolChoiceParam] = None,
-    parallel_tool_calls : Optional[bool] = None,
-    api_key : Optional[str] = None,
-    base_url : Optional[str] = None,
-    organization : Optional[str] = None,
-    n : Optional[int] = None,
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
     timeout: Optional[Union[float, str, httpx.Timeout]] = None,
     temperature: Optional[float] = None,
     top_p: Optional[float] = None,
@@ -231,11 +227,11 @@ def completion(
     function_call: Optional[str] = None,
     # set api_base, api_version, api_key
     api_version: Optional[str] = None,
-    model_list: Optional[list] = None, 
-    stream : Optional[bool] = None,
-    return_messages : Optional[bool] = None,
-    verbose : Optional[bool] = None,
-    ) -> Response:
+    model_list: Optional[list] = None,
+    stream: Optional[bool] = None,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> Response:
     """
     ### Generate a completion using any LiteLLM supported model, with incredibly easy to access features.
 
@@ -347,7 +343,7 @@ def completion(
         seed (int): The seed to use for the completion.
         logprobs (bool): Whether to return the log probabilities.
         top_logprobs (int): The top log probabilities to use for the completion.
-        deployment_id (str): The deployment ID to use for the completion.   
+        deployment_id (str): The deployment ID to use for the completion.
         extra_headers (dict): The extra headers to use for the completion.
         functions (List): The functions to use for the completion.
         function_call (str): The function call to use for the completion.

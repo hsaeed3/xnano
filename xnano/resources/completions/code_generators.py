@@ -2,7 +2,10 @@
 
 __all__ = ["coder", "function"]
 
-from ...types.completions.params import CompletionChatModelsParam, CompletionInstructorModeParam
+from ...types.completions.params import (
+    CompletionChatModelsParam,
+    CompletionInstructorModeParam,
+)
 from .main import Completions
 from ..._lib import console
 
@@ -14,7 +17,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 import re
 
 from ..._lib import repl
-
 
 
 def generate_code(
@@ -30,7 +32,7 @@ def generate_code(
     return_code: bool = False,
     verbose: bool = False,
     max_retries: int = 3,
-    _tool : bool = False,
+    _tool: bool = False,
     **kwargs,
 ) -> Any:
     """
@@ -52,7 +54,7 @@ def generate_code(
         _tool (bool): Whether to use the tool calling mode.
         kwargs (dict): Additional keyword arguments to pass to the code generation.
     """
-    
+
     last_error = None
     last_code = None
 
@@ -64,13 +66,15 @@ def generate_code(
     )
     def _generate_and_execute():
         nonlocal last_error, last_code
-        
+
         if verbose:
             console.message(f"Generating code based on instructions: {instructions}")
             console.message(f"Using model: {model}")
 
         class CodeGenerationModel(BaseModel):
-            code: str = Field(..., instructions="Complete Python code as a single string")
+            code: str = Field(
+                ..., instructions="Complete Python code as a single string"
+            )
 
         base_instructions = """
         You are a Python code generator. Your goal is to generate Python code based on the given instructions.
@@ -87,27 +91,39 @@ def generate_code(
         """
 
         if return_code:
-            system_message = base_instructions + "\n  - The last line MUST be the return statement of the function."
+            system_message = (
+                base_instructions
+                + "\n  - The last line MUST be the return statement of the function."
+            )
             user_message = f"Generate Python code for: {instructions}"
         else:
-            system_message = base_instructions + "\n    - The last line MUST assign the created object to a variable named 'result'."
+            system_message = (
+                base_instructions
+                + "\n    - The last line MUST assign the created object to a variable named 'result'."
+            )
             user_message = f"Generate Python code to create this object and assign it to 'result': {instructions}"
 
         if not client:
             from ..completions import Completions
 
-        completion_client = Completions(
-            verbose=verbose,
-        ) if client is None else client
+        completion_client = (
+            Completions(
+                verbose=verbose,
+            )
+            if client is None
+            else client
+        )
 
         try:
             if progress_bar:
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
-                    transient=True
+                    transient=True,
                 ) as progress:
-                    task_id = progress.add_task(description="Constructing...", total=None)
+                    task_id = progress.add_task(
+                        description="Constructing...", total=None
+                    )
 
                     response = completion_client.completion(
                         messages=[
@@ -150,16 +166,14 @@ def generate_code(
 
             if return_code:
                 # Clean up any result assignment at the end if return_code=True
-                cleaned_code = re.sub(r'\nresult\s*=\s*.+$', '', response.code)
+                cleaned_code = re.sub(r"\nresult\s*=\s*.+$", "", response.code)
                 return cleaned_code
 
             # Execute code in sandbox and capture result
             try:
                 # Execute the code directly without JSON handling
                 output = repl.execute_in_sandbox(
-                    response.code,
-                    verbose=verbose,
-                    return_result=True 
+                    response.code, verbose=verbose, return_result=True
                 )
                 return output
 
@@ -170,13 +184,13 @@ def generate_code(
 
         except Exception as e:
             last_error = str(e)
-            last_code = response.code if 'response' in locals() else None
+            last_code = response.code if "response" in locals() else None
             raise RuntimeError(f"Error in code generation or execution: {str(e)}")
 
     def _handle_retry(retry_state, instructions):
         """Handle retry by updating the prompt with error context"""
         nonlocal last_error, last_code
-        
+
         if last_code and last_error:
             # Update instructions with context from the last failure
             return f"""Previous attempt failed with error: {last_error}
@@ -226,7 +240,7 @@ def function(
     mock: bool = False,
     return_code: bool = False,
     progress_bar: Optional[bool] = True,
-    client : Optional[Completions] = None,
+    client: Optional[Completions] = None,
     verbose: bool = False,
     **kwargs,
 ) -> Callable[[Callable], Callable]:
@@ -243,7 +257,6 @@ def function(
     Returns:
         The function response or the generated code response (Any).
     """
-
 
     def decorator(f: Callable) -> Callable:
         from pydantic import create_model
@@ -307,15 +320,19 @@ def function(
                     if verbose:
                         console.message("Constructed Messages")
 
-                    completion_client = Completions(
-                        verbose=verbose,
-                    ) if client is None else client
+                    completion_client = (
+                        Completions(
+                            verbose=verbose,
+                        )
+                        if client is None
+                        else client
+                    )
 
                     if progress_bar:
                         with Progress(
                             SpinnerColumn(),
                             TextColumn("[progress.description]{task.description}"),
-                            transient=True
+                            transient=True,
                         ) as progress:
                             task_id = progress.add_task("Constructing...", total=None)
 
@@ -353,7 +370,9 @@ def function(
                     function_code = response.code
 
                     # Now create the execution code by adding the function call
-                    args_str = ", ".join([f"{k}={repr(v)}" for k, v in input_dict.items()])
+                    args_str = ", ".join(
+                        [f"{k}={repr(v)}" for k, v in input_dict.items()]
+                    )
                     execution_code = f"""
 {function_code}
 
@@ -366,15 +385,17 @@ result = {f.__name__}({args_str})
                     try:
                         # Execute the complete code
                         output = repl.execute_in_sandbox(
-                            execution_code,
-                            verbose=verbose,
-                            return_result=True
+                            execution_code, verbose=verbose, return_result=True
                         )
 
                         if verbose:
                             print(f"Execution successful, result type: {type(output)}")
 
-                        return output if not return_code else FunctionResponse(code=function_code, output=output)
+                        return (
+                            output
+                            if not return_code
+                            else FunctionResponse(code=function_code, output=output)
+                        )
 
                     except Exception as e:
                         last_error = str(e)
@@ -414,17 +435,19 @@ result = {f.__name__}({args_str})
                     {"role": "user", "content": f"Function inputs: {input_dict}"},
                 ]
 
-                completion_client = Completions(
-                    verbose=verbose
-                ) if client is None else client
+                completion_client = (
+                    Completions(verbose=verbose) if client is None else client
+                )
 
                 if progress_bar:
                     with Progress(
                         SpinnerColumn(),
                         TextColumn("[progress.description]{task.description}"),
-                        transient=True
+                        transient=True,
                     ) as progress:
-                        task_id = progress.add_task("Simulating Function...", total=None)
+                        task_id = progress.add_task(
+                            "Simulating Function...", total=None
+                        )
 
                         response = completion_client.completion(
                             messages=messages,
