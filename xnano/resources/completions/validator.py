@@ -202,6 +202,19 @@ def validate(
                             f"Failed to check contextual accuracy: {e}"
                         )
 
+                # Skip explanation and accurate generation if only guardrails are provided
+                if guardrails and not context:
+                    results.append(
+                        ValidationResult(
+                            explanation=None,  # No explanation generated
+                            content=input_text,
+                            accuracy=None,  # No accuracy generated
+                            context=context if context else None,
+                            violates_guardrails=False,
+                        )
+                    )
+                    continue  # Skip to the next input
+
                 # Get explanation
                 progress.update(
                     task_id,
@@ -345,6 +358,19 @@ def validate(
                     accuracy_score = accuracy_score_result.accuracy
                 except Exception as e:
                     raise XNANOException(f"Failed to check contextual accuracy: {e}")
+
+            # Skip explanation and accurate generation if only guardrails are provided
+            if guardrails and not context:
+                results.append(
+                    ValidationResult(
+                        explanation=None,  # No explanation generated
+                        content=input_text,
+                        accuracy=None,  # No accuracy generated
+                        context=context if context else None,
+                        violates_guardrails=False,
+                    )
+                )
+                continue  # Skip to the next input
 
             system_message = (
                 "You are a validation expert. Provide a clear, concise explanation for why "
@@ -556,6 +582,19 @@ async def _avalidate(
                             f"Failed to check contextual accuracy: {e}"
                         )
 
+                # Skip explanation and accurate generation if only guardrails are provided
+                if guardrails and not context:
+                    results.append(
+                        ValidationResult(
+                            explanation=None,  # No explanation generated
+                            content=input_text,
+                            accuracy=None,  # No accuracy generated
+                            context=context if context else None,
+                            violates_guardrails=False,
+                        )
+                    )
+                    continue  # Skip to the next input
+
                 # Get explanation
                 progress.update(
                     task_id,
@@ -699,6 +738,19 @@ async def _avalidate(
                     accuracy_score = accuracy_score_result.accuracy
                 except Exception as e:
                     raise XNANOException(f"Failed to check contextual accuracy: {e}")
+
+            # Skip explanation and accurate generation if only guardrails are provided
+            if guardrails and not context:
+                results.append(
+                    ValidationResult(
+                        explanation=None,  # No explanation generated
+                        content=input_text,
+                        accuracy=None,  # No accuracy generated
+                        context=context if context else None,
+                        violates_guardrails=False,
+                    )
+                )
+                continue  # Skip to the next input
 
             system_message = (
                 "You are a validation expert. Provide a clear, concise explanation for why "
