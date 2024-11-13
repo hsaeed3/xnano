@@ -120,8 +120,9 @@ def generate_image(
             try:
                 from IPython.display import display, Image
             except ImportError:
-
-                console.warning("IPython is not installed. Please install it with `pip install ipython`.")
+                console.warning(
+                    "IPython is not installed. Please install it with `pip install ipython`."
+                )
                 prompt_cli_install("IPython")
 
             url = response.data[0].url
@@ -131,9 +132,10 @@ def generate_image(
     elif model_config["provider"] == "fal":
         try:
             import fal_client
-        except ImportError:  
-
-            console.critical("FAL_AI API requires the 'fal-client' package. Please install it with `pip install fal-client`.")
+        except ImportError:
+            console.critical(
+                "FAL_AI API requires the 'fal-client' package. Please install it with `pip install fal-client`."
+            )
             prompt_cli_install("fal-client")
 
         if optimize_prompt:
@@ -194,7 +196,9 @@ def generate_image(
                 except ImportError:
                     from ... import logger
 
-                    logger.critical("IPython is not installed. Please install it with `pip install ipython`.")
+                    logger.critical(
+                        "IPython is not installed. Please install it with `pip install ipython`."
+                    )
                     prompt_cli_install("IPython")
 
                 url = result["images"][0]["url"]
@@ -272,7 +276,9 @@ def generate_audio(
             except ImportError:
                 from ... import logger
 
-                logger.critical("IPython is not installed. Please install it with `pip install ipython`.")
+                logger.critical(
+                    "IPython is not installed. Please install it with `pip install ipython`."
+                )
                 prompt_cli_install("IPython")
             # Play audio using sounddevice
             sd.play(audio_array, sample_rate)
@@ -287,7 +293,7 @@ def generate_audio(
         return str(e)
 
 
-def transcribe_audio(
+def generate_transcription(
     model: str = "whisper-1",
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
@@ -409,7 +415,7 @@ class MultimodalClient:
         )
 
     @staticmethod
-    def transcribe(
+    def generate_transcription(
         model: str = "whisper-1",
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
@@ -418,7 +424,7 @@ class MultimodalClient:
         record: bool = False,
         duration: int = 5,
     ):
-        return transcribe_audio(
+        return generate_transcription(
             model=model,
             api_key=api_key,
             base_url=base_url,

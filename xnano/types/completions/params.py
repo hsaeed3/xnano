@@ -16,17 +16,13 @@ from typing import List, Optional, Union
 # -------------------------------------------------------------------------------------------------
 # chat models param
 # -------------------------------------------------------------------------------------------------
-CompletionChatModelsParam = Union[
-    str, ChatModels
-]
+CompletionChatModelsParam = Union[str, ChatModels]
 
 
 # -------------------------------------------------------------------------------------------------
 # completion messages param
 # -------------------------------------------------------------------------------------------------
-CompletionMessagesParam = Union[
-    str, Message, List[Message], List[List[Message]]
-]
+CompletionMessagesParam = Union[str, Message, List[Message], List[List[Message]]]
 
 
 # -------------------------------------------------------------------------------------------------

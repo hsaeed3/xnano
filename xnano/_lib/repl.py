@@ -46,13 +46,23 @@ class REPL:
 
     def get_uv_path(self) -> str:
         """Gets path to uv executable"""
-        return str(Path(sys.executable).parent / ("uv.exe" if sys.platform == "win32" else "uv"))
+        return str(
+            Path(sys.executable).parent
+            / ("uv.exe" if sys.platform == "win32" else "uv")
+        )
 
     def is_stdlib_module(self, module_name: str) -> bool:
         """Check if a module is part of the Python standard library"""
         known_third_party = {
-            'numpy', 'pandas', 'requests', 'sklearn', 'tensorflow',
-            'torch', 'matplotlib', 'scipy', 'seaborn'
+            "numpy",
+            "pandas",
+            "requests",
+            "sklearn",
+            "tensorflow",
+            "torch",
+            "matplotlib",
+            "scipy",
+            "seaborn",
         }
 
         if module_name in known_third_party:
@@ -64,11 +74,14 @@ class REPL:
 
         if module_name in sys.modules:
             module = sys.modules[module_name]
-            if hasattr(module, '__file__'):
-                return module.__file__ is not None and 'site-packages' not in module.__file__
+            if hasattr(module, "__file__"):
+                return (
+                    module.__file__ is not None
+                    and "site-packages" not in module.__file__
+                )
 
         if spec.origin:
-            return 'site-packages' not in spec.origin
+            return "site-packages" not in spec.origin
 
         return True
 
@@ -83,10 +96,10 @@ class REPL:
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for name in node.names:
-                    packages.add(name.name.split('.')[0])
+                    packages.add(name.name.split(".")[0])
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
-                    packages.add(node.module.split('.')[0])
+                    packages.add(node.module.split(".")[0])
 
         return list(packages)
 
@@ -100,26 +113,20 @@ class REPL:
             subprocess.run(
                 [self.get_uv_path(), "pip", "install", package],
                 check=True,
-                env=env_vars
+                env=env_vars,
             )
 
             # Verify the package can be imported
-            verify_cmd = [
-                self.get_python(),
-                "-c",
-                f"import {package.split('[')[0]}"
-            ]
+            verify_cmd = [self.get_python(), "-c", f"import {package.split('[')[0]}"]
 
             # Keep verification quiet
             subprocess.run(
-                verify_cmd,
-                check=True,
-                env=env_vars,
-                capture_output=True,
-                text=True
+                verify_cmd, check=True, env=env_vars, capture_output=True, text=True
             )
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to install or verify package {package}: {e.stderr if hasattr(e, 'stderr') else str(e)}")
+            raise RuntimeError(
+                f"Failed to install or verify package {package}: {e.stderr if hasattr(e, 'stderr') else str(e)}"
+            )
 
     def execute_code(self, code: str, required_packages: Optional[list[str]] = None):
         """Executes code in current environment"""
@@ -144,7 +151,9 @@ class REPL:
 
         # If we installed new packages, verify imports
         if packages_installed:
-            setup_code = "\n".join([f"import {pkg.split('[')[0]}" for pkg in all_packages])
+            setup_code = "\n".join(
+                [f"import {pkg.split('[')[0]}" for pkg in all_packages]
+            )
             verification_code = setup_code + "\nprint('Package imports successful')"
 
             verify_file = self.sandbox_dir / "verify_imports.py"
@@ -155,7 +164,7 @@ class REPL:
                 result = subprocess.run(
                     [self.get_python(), str(verify_file)],
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
 
                 if result.returncode != 0:
@@ -172,9 +181,7 @@ class REPL:
 
             # Execute code
             result = subprocess.run(
-                [self.get_python(), str(temp_file)],
-                capture_output=True,
-                text=True
+                [self.get_python(), str(temp_file)], capture_output=True, text=True
             )
 
             if result.returncode != 0:
@@ -206,7 +213,7 @@ def execute_in_sandbox(
     required_packages: Optional[list[str]] = None,
     reset: bool = False,
     verbose: bool = False,
-    return_result: bool = False
+    return_result: bool = False,
 ) -> str:
     """
     Executes code in current environment sandbox
@@ -234,10 +241,10 @@ def execute_in_sandbox(
             # Execute in the current process to get the actual object
             local_vars = {}
             exec(code, globals(), local_vars)
-            return local_vars.get('result')
+            return local_vars.get("result")
         else:
             output = _sandbox_manager.execute_code(code, required_packages)
-            
+
         if verbose:
             console.message("[bold green]Code executed successfully![/bold green]")
         return output
@@ -245,6 +252,7 @@ def execute_in_sandbox(
         if verbose:
             console.message(f"[bold red]Error executing code: {str(e)}[/bold red]")
         raise
+
 
 if __name__ == "__main__":
     # Example usage
@@ -258,8 +266,5 @@ df = pd.DataFrame({
 print(df)
 """
 
-    result = execute_in_sandbox(
-        code,
-        verbose=True
-    )
+    result = execute_in_sandbox(code, verbose=True)
     print("Output:", result)

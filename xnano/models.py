@@ -5,8 +5,8 @@
 
 __all__ = [
     "BaseModel",
-
-    "patch", "unpatch",
+    "patch",
+    "unpatch",
 ]
 
 # imports

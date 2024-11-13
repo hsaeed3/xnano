@@ -12,7 +12,7 @@ from ....types.completions.tools import Tool
 # tool generator
 def generate_tool(client, tool_name: str, model: str) -> Tool:
     """Dynamically generate a tool function from its name"""
-    
+
     # Create a prompt that will generate a function based on the tool name
     function_prompt = f"""Create a Python function named '{tool_name}' that:
     1. Has typed arguments and return value
@@ -26,12 +26,12 @@ def generate_tool(client, tool_name: str, model: str) -> Tool:
     # Use coder to generate the implementation
     generated_code = generate_code(
         instructions=function_prompt,
-        model=model, 
+        model=model,
         temperature=0.2,
         client=client,
         verbose=client.verbose,
         return_code=True,
-        progress_bar=False
+        progress_bar=False,
     )
 
     # Create function object from code
@@ -48,16 +48,14 @@ def generate_tool(client, tool_name: str, model: str) -> Tool:
         function=generated_function,
         description=get_function_description(generated_function),
         arguments=get_function_arguments(generated_function),
-        formatted_function=convert_to_openai_tool(generated_function)
-    ) 
+        formatted_function=convert_to_openai_tool(generated_function),
+    )
 
     return tool
 
 
 # convert to tool model
-def convert_to_tool(
-    function : Union[Callable, Type[BaseModel], Dict[str, Any]]
-) -> Tool:
+def convert_to_tool(function: Union[Callable, Type[BaseModel], Dict[str, Any]]) -> Tool:
     """
     Builds a raw function/class into a CompletionsTool.
 
@@ -69,21 +67,21 @@ def convert_to_tool(
     """
 
     # setup tool
-    tool = Tool(function = function)
+    tool = Tool(function=function)
 
     try:
         # format tool
         tool.formatted_function = convert_to_openai_tool(function)
     except Exception as e:
         raise XNANOException(f"Failed to convert tool: {e}")
-    
+
     try:
         tool.name = get_function_name(function)
         tool.description = get_function_description(function)
         tool.arguments = get_function_arguments(function)
     except Exception as e:
         raise XNANOException(f"Failed to format tool: {e}")
-    
+
     return tool
 
 
@@ -97,7 +95,7 @@ def convert_to_openai_tool(
         >>> convert_to_openai_tool(lambda x: x + 1)
         >>> convert_to_openai_tool(MyModel)
         >>> convert_to_openai_tool({"name": "my_tool", "description": "my tool", "function": lambda x: x + 1})
-    
+
     Args:
         function (Union[Dict[str, Any], Type[BaseModel], Callable]): The function/class to convert.
 
@@ -123,7 +121,7 @@ def convert_to_openai_tool(
 # create pydantic model from function
 def create_pydantic_model_from_function(function: Callable) -> Type[BaseModel]:
     """Create a Pydantic model from a Python function.
-    
+
     Args:
         function (Callable): The function to convert.
 
@@ -133,24 +131,28 @@ def create_pydantic_model_from_function(function: Callable) -> Type[BaseModel]:
     signature = inspect.signature(function)
     fields = {}
     for name, param in signature.parameters.items():
-        annotation = param.annotation if param.annotation != inspect.Parameter.empty else Any
+        annotation = (
+            param.annotation if param.annotation != inspect.Parameter.empty else Any
+        )
         default = ... if param.default == inspect.Parameter.empty else param.default
         fields[name] = (annotation, Field(default=default))
-    
+
     # Use the original function name for the model
     model = create_model(function.__name__, **fields)
     model.__doc__ = function.__doc__ or ""
-    
+
     # Store the original function as an attribute
     model._original_function = function
-    
+
     return model
 
 
 # get function name helper
-def get_function_name(function: Union[Callable, Type[BaseModel], Dict[str, Any]]) -> str:
+def get_function_name(
+    function: Union[Callable, Type[BaseModel], Dict[str, Any]],
+) -> str:
     """Get the name of a function."""
-    
+
     # if in callable format
     if callable(function):
         return function.__name__
@@ -162,12 +164,14 @@ def get_function_name(function: Union[Callable, Type[BaseModel], Dict[str, Any]]
         return function.get("name", None)
     else:
         raise ValueError(f"Unsupported function type: {type(function)}")
-    
+
 
 # get function description helper
-def get_function_description(function: Union[Callable, Type[BaseModel], Dict[str, Any]]) -> str:
+def get_function_description(
+    function: Union[Callable, Type[BaseModel], Dict[str, Any]],
+) -> str:
     """Get the description of a function
-    
+
     Args:
         function (Union[Callable, Type[BaseModel], Dict[str, Any]]): The function to get the description of.
 
@@ -178,12 +182,14 @@ def get_function_description(function: Union[Callable, Type[BaseModel], Dict[str
         return function.get("description", None)
     else:
         return function.__doc__
-    
+
 
 # get function arguments helper
-def get_function_arguments(function: Union[Callable, Type[BaseModel], Dict[str, Any]]) -> Dict[str, Any]:
+def get_function_arguments(
+    function: Union[Callable, Type[BaseModel], Dict[str, Any]],
+) -> Dict[str, Any]:
     """Get the arguments of a function.
-    
+
     Args:
         function (Union[Callable, Type[BaseModel], Dict[str, Any]]): The function to get the arguments of.
 
@@ -198,7 +204,7 @@ def get_function_arguments(function: Union[Callable, Type[BaseModel], Dict[str, 
         return function.model_fields
     else:
         raise ValueError(f"Unsupported function type: {type(function)}")
-    
+
 
 if __name__ == "__main__":
     # Example usage of get_function_name
@@ -208,7 +214,10 @@ if __name__ == "__main__":
     class ExampleModel(BaseModel):
         field: int
 
-    example_dict = {"name": "example_dict", "description": "This is an example dictionary"}
+    example_dict = {
+        "name": "example_dict",
+        "description": "This is an example dictionary",
+    }
 
     print(get_function_name(example_function))  # Output: example_function
     print(get_function_name(ExampleModel))  # Output: ExampleModel
@@ -219,11 +228,20 @@ if __name__ == "__main__":
         """This is an example function with a docstring."""
         return x + 1
 
-    example_dict_with_description = {"name": "example_dict", "description": "This is an example dictionary with a description"}
+    example_dict_with_description = {
+        "name": "example_dict",
+        "description": "This is an example dictionary with a description",
+    }
 
-    print(get_function_description(example_function_with_doc))  # Output: This is an example function with a docstring.
-    print(get_function_description(ExampleModel))  # Output: None (assuming BaseModel does not have a docstring)
-    print(get_function_description(example_dict_with_description))  # Output: This is an example dictionary with a description
+    print(
+        get_function_description(example_function_with_doc)
+    )  # Output: This is an example function with a docstring.
+    print(
+        get_function_description(ExampleModel)
+    )  # Output: None (assuming BaseModel does not have a docstring)
+    print(
+        get_function_description(example_dict_with_description)
+    )  # Output: This is an example dictionary with a description
 
     # Example usage of get_function_arguments
     def example_function_with_args(a, b, c=3):
@@ -233,5 +251,9 @@ if __name__ == "__main__":
         field1: int
         field2: str
 
-    print(get_function_arguments(example_function_with_args))  # Output: OrderedDict([('a', <Parameter "a">), ('b', <Parameter "b">), ('c', <Parameter "c=3">)])
-    print(get_function_arguments(ExampleModelWithFields))  # Output: {'field1': <FieldInfo>, 'field2': <FieldInfo>}
+    print(
+        get_function_arguments(example_function_with_args)
+    )  # Output: OrderedDict([('a', <Parameter "a">), ('b', <Parameter "b">), ('c', <Parameter "c=3">)])
+    print(
+        get_function_arguments(ExampleModelWithFields)
+    )  # Output: {'field1': <FieldInfo>, 'field2': <FieldInfo>}

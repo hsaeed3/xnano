@@ -7,9 +7,18 @@ from ..models.mixin import BaseModelMixin
 # response
 Response = Union[
     # standard completion
-    ChatCompletion, List[ChatCompletion],
-    BaseModelMixin, List[BaseModelMixin],
-    # all structured output formats
-    Type[BaseModel], List[Type[BaseModel]],
-    str, list[str], int , float, bool, list[int], list[float], list[bool], list
+    ChatCompletion,
+    List[ChatCompletion],
+    BaseModelMixin,
+    List[BaseModelMixin],
+    # simple types
+    str,
+    list[str],
+    int,
+    float,
+    bool,
+    list[int],
+    list[float],
+    list[bool],
+    list,
 ]
