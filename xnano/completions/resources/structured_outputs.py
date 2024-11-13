@@ -63,7 +63,24 @@ def handle_response_model(response_model: Union[Type[BaseModel], Type, str, List
         elif isinstance(response_model, type):
             return create_response_model(response_model)
         elif isinstance(response_model, (str, list)):
-            return create_dynamic_response_model(response_model)
+            # New logic to handle string with type annotations
+            if isinstance(response_model, str):
+                return create_dynamic_response_model([response_model])
+            elif isinstance(response_model, list):
+                fields = {}
+                for item in response_model:
+                    if isinstance(item, str):
+                        # Check for type annotation
+                        if ':' in item:
+                            name, type_annotation = item.split(':', 1)
+                            fields[name.strip()] = (eval(type_annotation.strip()), ...)
+                        else:
+                            fields[item] = (str, ...)
+                    else:
+                        raise ValueError("List elements must be strings or lists of strings.")
+                return create_model('Response', **fields)
+            else:
+                raise ValueError("Input must be a string or a list of strings or nested lists.")
         else:
             raise ValueError("Input for [bold]'response_model'[/bold] must be a pydantic model, a type, a string, or a list of strings.")
     except Exception as e:
@@ -108,7 +125,6 @@ def get_empty_fields(model: Union[BaseModel, Type[BaseModel]]) -> List[str]:
             empty_fields.append(field_name)
             
     return empty_fields
-
 
 
 def create_patch_model(response_model_instance: Union[BaseModel, Type[BaseModel]], fields: Optional[List[str]] = None) -> Type[BaseModel]:
