@@ -1,6 +1,6 @@
 [project]
 name = "xnano"
-version = "0.0.32"
+version = "0.0.33"
 description = "build extremely 'nano' llm workflows"
 readme = "readme.md"
 
@@ -16,6 +16,7 @@ dependencies = [
     "questionary>=2.0.1",
     "rich>=13.9.4",
     "semchunk>=2.2.0",
+    "sqlalchemy>=2.0.36",
 ]
 
 [project.optional-dependencies]
