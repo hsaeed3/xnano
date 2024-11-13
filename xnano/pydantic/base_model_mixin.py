@@ -10,7 +10,7 @@ import json
 import httpx
 from textwrap import dedent
 from copy import deepcopy
-from typing import Type, TypeVar, Union, Dict, Any, Optional, List, Tuple
+from typing import Type, TypeVar, Union, Dict, Any, Optional, List, Tuple, Callable
 from ..types.pydantic.base_model_mixin import BaseModelMixin as BaseModelMixinType
 from ..types.pydantic.base_model_generation_process import BaseModelGenerationProcess
 from ..types.openai import ChatCompletionModality, ChatCompletionPredictionContentParam, ChatCompletionAudioParam, ChatCompletion
@@ -37,9 +37,10 @@ class function_handler:
         self.func = func
 
     # helper for getting class or instance details
-    def __get__(self, obj, cls):
-        def wrapper(*args, **kwargs):
+    def __get__(self, obj: Optional[Type] = None, cls: Optional[Type] = None) -> Callable:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             return self.func(obj or cls, *args, **kwargs)
+    
         return wrapper
 
 # -------------------------------------------------------------------------------------------------
@@ -274,6 +275,55 @@ class BaseModelMixin:
         List[BaseModelMixinType],
         List[ChatCompletion],
     ]:
+        """Generates a chat completion for the model.
+
+        Args:
+            messages (MessageType): Messages to send to the LLM
+            model (ChatModel): Model to use for generation
+            context (Optional[Context]): Additional context to provide
+            embeddings (Optional[Union[Embeddings, List[Embeddings]]]): Embeddings to use for generation
+            embeddings_limit (Optional[int]): Maximum number of embeddings to use
+            mode (Optional[InstructorMode]): Instructor mode to use for generation
+            response_model (Optional[ResponseModelType]): Response model to use for generation
+            response_format (Optional[ResponseModelType]): Response format to use for generation
+            tools (Optional[List[ToolType]]): Tools to use for generation
+            run_tools (Optional[bool]): Whether to run tools for generation
+            tool_choice (Optional[ToolChoice]): Tool choice to use for generation
+            parallel_tool_calls (Optional[bool]): Whether to allow parallel tool calls for generation
+            api_key (Optional[str]): API key to use for generation
+            base_url (Optional[str]): Base URL to use for generation
+            organization (Optional[str]): Organization to use for generation
+            n (Optional[int]): Number of generations to run
+            timeout (Optional[Union[float, str, httpx.Timeout]]): Timeout to use for generation
+            temperature (Optional[float]): Temperature to use for generation
+            top_p (Optional[float]): Top P to use for generation
+            stream_options (Optional[dict]): Stream options to use for generation
+            stop (Optional[str]): Stop sequence to use for generation
+            max_completion_tokens (Optional[int]): Maximum number of completion tokens to use for generation
+            max_tokens (Optional[int]): Maximum number of tokens to use for generation
+            modalities (Optional[List[ChatCompletionModality]]): Modalities to use for generation
+            prediction (Optional[ChatCompletionPredictionContentParam]): Prediction content parameter to use for generation
+            audio (Optional[ChatCompletionAudioParam]): Audio parameter to use for generation
+            presence_penalty (Optional[float]): Presence penalty to use for generation
+            frequency_penalty (Optional[float]): Frequency penalty to use for generation
+            logit_bias (Optional[dict]): Logit bias to use for generation
+            user (Optional[str]): User to use for generation
+            seed (Optional[int]): Seed to use for generation
+            logprobs (Optional[bool]): Logprobs to use for generation
+            top_logprobs (Optional[int]): Top logprobs to use for generation
+            deployment_id (Optional[str]): Deployment ID to use for generation
+            extra_headers (Optional[dict]): Extra headers to use for generation
+            functions (Optional[List]): Functions to use for generation
+            function_call (Optional[str]): Function call to use for generation
+            api_version (Optional[str]): API version to use for generation
+            model_list (Optional[list]): Model list to use for generation
+            stream (Optional[bool]): Whether to stream the generation
+            loader (Optional[bool]): Whether to use a loader for generation
+            verbose (Optional[bool]): Whether to use verbose logging for generation
+
+        Returns:
+            Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
+        """
         
         details = cls_or_self._get_details()
         model_context = cls_or_self._get_context()
@@ -390,6 +440,56 @@ class BaseModelMixin:
         List[BaseModelMixinType],
         List[ChatCompletion],
     ]:
+        """
+        Asynchronously generates a chat completion for the model.
+
+        Args:
+            messages (MessageType): Messages to send to the LLM
+            model (ChatModel): Model to use for generation
+            context (Optional[Context]): Additional context to provide
+            embeddings (Optional[Union[Embeddings, List[Embeddings]]]): Embeddings to use for generation
+            embeddings_limit (Optional[int]): Maximum number of embeddings to use
+            mode (Optional[InstructorMode]): Instructor mode to use for generation
+            response_model (Optional[ResponseModelType]): Response model to use for generation
+            response_format (Optional[ResponseModelType]): Response format to use for generation
+            tools (Optional[List[ToolType]]): Tools to use for generation
+            run_tools (Optional[bool]): Whether to run tools for generation
+            tool_choice (Optional[ToolChoice]): Tool choice to use for generation
+            parallel_tool_calls (Optional[bool]): Whether to allow parallel tool calls for generation
+            api_key (Optional[str]): API key to use for generation
+            base_url (Optional[str]): Base URL to use for generation
+            organization (Optional[str]): Organization to use for generation
+            n (Optional[int]): Number of generations to run
+            timeout (Optional[Union[float, str, httpx.Timeout]]): Timeout to use for generation
+            temperature (Optional[float]): Temperature to use for generation
+            top_p (Optional[float]): Top P to use for generation
+            stream_options (Optional[dict]): Stream options to use for generation
+            stop (Optional[str]): Stop sequence to use for generation
+            max_completion_tokens (Optional[int]): Maximum number of completion tokens to use for generation
+            max_tokens (Optional[int]): Maximum number of tokens to use for generation
+            modalities (Optional[List[ChatCompletionModality]]): Modalities to use for generation
+            prediction (Optional[ChatCompletionPredictionContentParam]): Prediction content parameter to use for generation
+            audio (Optional[ChatCompletionAudioParam]): Audio parameter to use for generation
+            presence_penalty (Optional[float]): Presence penalty to use for generation
+            frequency_penalty (Optional[float]): Frequency penalty to use for generation
+            logit_bias (Optional[dict]): Logit bias to use for generation
+            user (Optional[str]): User to use for generation
+            seed (Optional[int]): Seed to use for generation
+            logprobs (Optional[bool]): Logprobs to use for generation
+            top_logprobs (Optional[int]): Top logprobs to use for generation
+            deployment_id (Optional[str]): Deployment ID to use for generation
+            extra_headers (Optional[dict]): Extra headers to use for generation
+            functions (Optional[List]): Functions to use for generation
+            function_call (Optional[str]): Function call to use for generation
+            api_version (Optional[str]): API version to use for generation
+            model_list (Optional[list]): Model list to use for generation
+            stream (Optional[bool]): Whether to stream the generation
+            loader (Optional[bool]): Whether to use a loader for generation
+            verbose (Optional[bool]): Whether to use verbose logging for generation
+
+        Returns:
+            Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
+        """
         
         details = cls_or_self._get_details()
         model_context = cls_or_self._get_context()
@@ -454,7 +554,6 @@ class BaseModelMixin:
         else:
             return await acompletion(**args)
         
-
     @function_handler
     def model_generate(
         cls_or_self,
@@ -514,16 +613,52 @@ class BaseModelMixin:
         Args:
             messages (MessageType): Messages to send to the LLM
             model (ChatModel): Model to use for generation
-            process (BaseModelGenerationProcess): Generation process type ("batch" or "sequential")
-            n (Optional[int]): Number of instances to generate
-            fields (Optional[List[str]]): Specific fields to generate/update
-            regenerate (Optional[bool]): Whether to regenerate all fields
             context (Optional[Context]): Additional context to provide
-            ... (other standard completion parameters)
-            
+            process (BaseModelGenerationProcess): Generation process type ("batch" or "sequential")
+            embeddings (Optional[Union[Embeddings, List[Embeddings]]]): Embeddings to use for generation
+            embeddings_limit (Optional[int]): Maximum number of embeddings to use
+            mode (Optional[InstructorMode]): Instructor mode to use for generation
+            response_model (Optional[ResponseModelType]): Response model to use for generation
+            response_format (Optional[ResponseModelType]): Response format to use for generation
+            tools (Optional[List[ToolType]]): Tools to use for generation
+            run_tools (Optional[bool]): Whether to run tools for generation
+            tool_choice (Optional[ToolChoice]): Tool choice to use for generation
+            parallel_tool_calls (Optional[bool]): Whether to allow parallel tool calls for generation
+            api_key (Optional[str]): API key to use for generation
+            base_url (Optional[str]): Base URL to use for generation
+            organization (Optional[str]): Organization to use for generation
+            n (Optional[int]): Number of generations to run
+            timeout (Optional[Union[float, str, httpx.Timeout]]): Timeout to use for generation
+            temperature (Optional[float]): Temperature to use for generation
+            top_p (Optional[float]): Top P to use for generation
+            stream_options (Optional[dict]): Stream options to use for generation
+            stop (Optional[str]): Stop sequence to use for generation
+            max_completion_tokens (Optional[int]): Maximum number of completion tokens to use for generation
+            max_tokens (Optional[int]): Maximum number of tokens to use for generation
+            modalities (Optional[List[ChatCompletionModality]]): Modalities to use for generation
+            prediction (Optional[ChatCompletionPredictionContentParam]): Prediction content parameter to use for generation
+            audio (Optional[ChatCompletionAudioParam]): Audio parameter to use for generation
+            presence_penalty (Optional[float]): Presence penalty to use for generation
+            frequency_penalty (Optional[float]): Frequency penalty to use for generation
+            logit_bias (Optional[dict]): Logit bias to use for generation
+            user (Optional[str]): User to use for generation
+            seed (Optional[int]): Seed to use for generation
+            logprobs (Optional[bool]): Logprobs to use for generation
+            top_logprobs (Optional[int]): Top logprobs to use for generation
+            deployment_id (Optional[str]): Deployment ID to use for generation
+            extra_headers (Optional[dict]): Extra headers to use for generation
+            functions (Optional[List]): Functions to use for generation
+            function_call (Optional[str]): Function call to use for generation
+            api_version (Optional[str]): API version to use for generation
+            model_list (Optional[list]): Model list to use for generation
+            stream (Optional[bool]): Whether to stream the generation
+            loader (Optional[bool]): Whether to use a loader for generation
+            verbose (Optional[bool]): Whether to use verbose logging for generation
+
         Returns:
-            Union[BaseModel, List[BaseModel]]: Generated instance(s)
+            Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
         """
+
         # Get model details
         details = cls_or_self._get_details()
         cls = cls_or_self if isinstance(cls_or_self, type) else type(cls_or_self)
@@ -790,7 +925,7 @@ class BaseModelMixin:
         BaseModelMixinType,
         List[BaseModelMixinType],
     ]:
-        """Generates instance(s) of the model using LLM completion.
+        """Asynchronously generates instance(s) of the model using LLM completion.
         
         Supports two generation processes:
         - batch: Generates all instances at once
@@ -799,15 +934,50 @@ class BaseModelMixin:
         Args:
             messages (MessageType): Messages to send to the LLM
             model (ChatModel): Model to use for generation
-            process (BaseModelGenerationProcess): Generation process type ("batch" or "sequential")
-            n (Optional[int]): Number of instances to generate
-            fields (Optional[List[str]]): Specific fields to generate/update
-            regenerate (Optional[bool]): Whether to regenerate all fields
             context (Optional[Context]): Additional context to provide
-            ... (other standard completion parameters)
-            
+            process (BaseModelGenerationProcess): Generation process type ("batch" or "sequential")
+            embeddings (Optional[Union[Embeddings, List[Embeddings]]]): Embeddings to use for generation
+            embeddings_limit (Optional[int]): Maximum number of embeddings to use
+            mode (Optional[InstructorMode]): Instructor mode to use for generation
+            response_model (Optional[ResponseModelType]): Response model to use for generation
+            response_format (Optional[ResponseModelType]): Response format to use for generation
+            tools (Optional[List[ToolType]]): Tools to use for generation
+            run_tools (Optional[bool]): Whether to run tools for generation
+            tool_choice (Optional[ToolChoice]): Tool choice to use for generation
+            parallel_tool_calls (Optional[bool]): Whether to allow parallel tool calls for generation
+            api_key (Optional[str]): API key to use for generation
+            base_url (Optional[str]): Base URL to use for generation
+            organization (Optional[str]): Organization to use for generation
+            n (Optional[int]): Number of generations to run
+            timeout (Optional[Union[float, str, httpx.Timeout]]): Timeout to use for generation
+            temperature (Optional[float]): Temperature to use for generation
+            top_p (Optional[float]): Top P to use for generation
+            stream_options (Optional[dict]): Stream options to use for generation
+            stop (Optional[str]): Stop sequence to use for generation
+            max_completion_tokens (Optional[int]): Maximum number of completion tokens to use for generation
+            max_tokens (Optional[int]): Maximum number of tokens to use for generation
+            modalities (Optional[List[ChatCompletionModality]]): Modalities to use for generation
+            prediction (Optional[ChatCompletionPredictionContentParam]): Prediction content parameter to use for generation
+            audio (Optional[ChatCompletionAudioParam]): Audio parameter to use for generation
+            presence_penalty (Optional[float]): Presence penalty to use for generation
+            frequency_penalty (Optional[float]): Frequency penalty to use for generation
+            logit_bias (Optional[dict]): Logit bias to use for generation
+            user (Optional[str]): User to use for generation
+            seed (Optional[int]): Seed to use for generation
+            logprobs (Optional[bool]): Logprobs to use for generation
+            top_logprobs (Optional[int]): Top logprobs to use for generation
+            deployment_id (Optional[str]): Deployment ID to use for generation
+            extra_headers (Optional[dict]): Extra headers to use for generation
+            functions (Optional[List]): Functions to use for generation
+            function_call (Optional[str]): Function call to use for generation
+            api_version (Optional[str]): API version to use for generation
+            model_list (Optional[list]): Model list to use for generation
+            stream (Optional[bool]): Whether to stream the generation
+            loader (Optional[bool]): Whether to use a loader for generation
+            verbose (Optional[bool]): Whether to use verbose logging for generation
+
         Returns:
-            Union[BaseModel, List[BaseModel]]: Generated instance(s)
+            Union[T, List[T], ChatCompletion, List[ChatCompletion]]: Generated completion(s)
         """
         # Get model details
         details = cls_or_self._get_details()
@@ -1024,16 +1194,21 @@ class BaseModelMixin:
                     return original_models[0] if n == 1 else original_models
 
             return results[0] if n == 1 else results
+    
 
+# -------------------------------------------------------------------------------------------------
+# EXPORTS
+# -------------------------------------------------------------------------------------------------
+
+class BaseModel(PydanticBaseModel, BaseModelMixin):
+    pass 
 
 # -------------------------------------------------------------------------------------------------
 # PATCH
 # -------------------------------------------------------------------------------------------------
 
-
-def patch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Type[PydanticBaseModel], PydanticBaseModel]:
+def patch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[Type[BaseModel], BaseModel]:
     if isinstance(model, type) and issubclass(model, PydanticBaseModel):
-        # Create a dynamic subclass without renaming it to 'PatchedModel'
         PatchedModel = type(
             model.__name__,  # Use the original class name
             (model, BaseModelMixin),
@@ -1057,14 +1232,6 @@ def unpatch(model: Union[Type[PydanticBaseModel], PydanticBaseModel]) -> Union[T
         return model.__base__
     elif isinstance(model, PydanticBaseModel):
         return model.__class__.__base__
-    
-
-# -------------------------------------------------------------------------------------------------
-# EXPORTS
-# -------------------------------------------------------------------------------------------------
-
-class BaseModel(PydanticBaseModel, BaseModelMixin):
-    pass 
 
 # -------------------------------------------------------------------------------------------------
 # TESTS
@@ -1074,11 +1241,14 @@ class BaseModel(PydanticBaseModel, BaseModelMixin):
 # tests
 if __name__ == "__main__":
 
-    class Test(BaseModel):
+    class Test(PydanticBaseModel):
         name: str
         age: int
 
     test = Test(name="John", age=30)
+
+    test = patch(test)
+    Test = patch(Test)
 
     print(Test.model_generate())
 
