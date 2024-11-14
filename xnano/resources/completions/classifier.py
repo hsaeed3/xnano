@@ -10,6 +10,17 @@ from typing import List, Literal, Optional, Union
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 
+class ClassificationResult(BaseModel):
+    text: str
+    label: str
+    confidence: Optional[float] = None
+
+class MultiClassificationResult(BaseModel):
+    text: str
+    labels: List[str]
+    confidences: Optional[List[float]] = None
+
+
 def classify(
     inputs: Union[str, List[str]],
     labels: List[str],
@@ -24,7 +35,8 @@ def classify(
     temperature: Optional[float] = None,
     progress_bar: Optional[bool] = True,
     verbose: bool = False,
-) -> List:
+) -> Union[ClassificationResult, List[ClassificationResult],
+           MultiClassificationResult, List[MultiClassificationResult]]:
     """
     Classifies given input(s) into one or more of the provided labels.
 
@@ -60,16 +72,6 @@ def classify(
         console.message(f"Using model: {model}")
         console.message(f"Batch size: {batch_size}")
         console.message(f"Classification Mode: {classification}")
-
-    class ClassificationResult(BaseModel):
-        text: str
-        label: str
-        confidence: Optional[float] = None
-
-    class MultiClassificationResult(BaseModel):
-        text: str
-        labels: List[str]
-        confidences: Optional[List[float]] = None
 
     if classification == "single":
         system_message = f"""

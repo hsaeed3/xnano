@@ -500,7 +500,7 @@ class VectorStore:
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
         limit: int = 10,
-    ):
+    ) -> List[SearchResult]:
         """
         Searches the collection
 

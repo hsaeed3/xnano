@@ -194,9 +194,8 @@ def generate_image(
                 try:
                     from IPython.display import display, Image
                 except ImportError:
-                    from ... import logger
 
-                    logger.critical(
+                    console.warning(
                         "IPython is not installed. Please install it with `pip install ipython`."
                     )
                     prompt_cli_install("IPython")
@@ -243,9 +242,8 @@ def generate_audio(
         import soundfile as sf
 
     except ImportError:
-        from ... import logger
 
-        logger.critical(
+        console.warning(
             "The [italic]speak[/italic] function requires sounddevice and soundfile, which are not included in the base 'xnano' package. Please install them with [bold]`pip install sounddevice soundfile`[/bold]."
         )
         prompt_cli_install("sounddevice soundfile")
@@ -274,9 +272,8 @@ def generate_audio(
             try:
                 from IPython.display import Audio
             except ImportError:
-                from ... import logger
 
-                logger.critical(
+                console.warning(
                     "IPython is not installed. Please install it with `pip install ipython`."
                 )
                 prompt_cli_install("IPython")
@@ -322,10 +319,9 @@ def generate_transcription(
         import sounddevice as sd
         import soundfile as sf
     except ImportError:
-        from ... import logger
 
-        logger.critical(
-            "The [italic]speak[/italic] function requires sounddevice and soundfile, which are not included in the base 'zyx' package. Please install them with [bold]`pip install sounddevice soundfile`[/bold]."
+        console.warning(
+            "The [italic]speak[/italic] function requires sounddevice and soundfile, which are not included in the base 'xnano` package. Please install them with [bold]`pip install sounddevice soundfile`[/bold]."
         )
         prompt_cli_install("sounddevice soundfile")
 
