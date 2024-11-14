@@ -141,7 +141,7 @@ def generate_embeddings(
     cache = EmbeddingCache() if use_cache else None
 
     # Check if model is in FastEmbed list and lock dimensions if so
-    if model in FASTEMBED_MODELS:
+    if model.startswith("fastembed"):
         dimensions = FASTEMBED_MODELS[model]
     else:
         # Set model dimensions based on input or fallback
@@ -157,7 +157,7 @@ def generate_embeddings(
 
         for attempt in range(retry_attempts):
             try:
-                if model in FASTEMBED_MODELS:
+                if model.startswith("fastembed"):
                     try:
                         from fastembed import TextEmbedding
                     except ImportError:
