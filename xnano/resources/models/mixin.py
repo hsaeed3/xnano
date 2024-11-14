@@ -1615,7 +1615,7 @@ class BaseModel(PydanticBaseModel, BaseModelMixin): ...
 
 def patch(
     model: Union[Type[PydanticBaseModel], PydanticBaseModel],
-) -> Union[Type[BaseModelMixinType], BaseModelMixinType]:
+) -> Union[Type[BaseModel], BaseModel, Type[PydanticBaseModel], PydanticBaseModel]:
     if isinstance(model, type) and issubclass(model, PydanticBaseModel):
         PatchedModel = type(model.__name__, (model, BaseModelMixin), {})
         return PatchedModel
