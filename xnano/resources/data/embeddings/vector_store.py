@@ -253,7 +253,7 @@ class VectorStore:
         Gets the chunks from the content
         """
         import uuid
-        from ..nlp import chunk
+        from ..nlp.chunker import generate_chunks
 
         results = []
 
@@ -262,7 +262,7 @@ class VectorStore:
                 try:
                     # TODO:
                     # implement more sophisticated chunking
-                    chunks = chunk(
+                    chunks = generate_chunks(
                         inputs=item["text"], chunk_size=chunk_size, progress_bar=False
                     )
 
