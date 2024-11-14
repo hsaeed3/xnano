@@ -13,6 +13,7 @@ from ....types.embeddings.memory_params import (
     MemoryDistanceParam,
     MemoryDataTypeParam,
 )
+from pydantic import BaseModel
 
 import httpx
 from ....types.completions.params import (
@@ -28,6 +29,14 @@ from ....types.completions.params import (
     CompletionToolsParam,
 )
 from ....types.completions.responses import Response
+
+
+class SearchResult(BaseModel):
+    id: str
+    chunk_id: str
+    text: str
+    metadata: Dict[str, Any]
+    score: float
 
 
 class VectorStore:
@@ -126,7 +135,7 @@ class VectorStore:
             return False
 
         if self.verbose:
-            console.message(f"Using [green]On Memory[/green] Vector Store")
+            console.message(f"Using [green]On Memory[/green] Vector Store named [sky_blue3]{self.collection_name}[/sky_blue3]")
 
         return True
 
@@ -266,19 +275,17 @@ class VectorStore:
                         inputs=item["text"], chunk_size=chunk_size, progress_bar=False
                     )
 
-                    # Replace the item with the chunked documents
-                    content = [
-                        {
+                    for chunk in chunks:
+                        # Replace the item with the chunked documents
+                        content = {
                             "text": chunk,
                             "metadata": {
                                 **item["metadata"].copy(),
                                 "chunk_id": str(uuid.uuid4()),
                             },
                         }
-                        for chunk in chunks
-                    ]
 
-                    results.extend(content)
+                        results.append(content)
 
                     if self.verbose:
                         console.message(
@@ -311,51 +318,32 @@ class VectorStore:
         from .embedder import generate_embeddings
 
         for item in content:
-            if "chunk_id" in item and "text" in item:
-                # Process chunked content
-                embedding_result = generate_embeddings(
-                    item["text"],
-                    model=model,
-                    dimensions=self.dimensions,
-                    base_url=base_url,
-                    api_key=api_key,
-                    organization=organization,
-                )
-                embeddings.append(
-                    {
-                        "chunk_id": item["chunk_id"],
-                        "text": item["text"],
-                        "embedding": embedding_result
-                        if isinstance(embedding_result, list)
-                        else embedding_result["embedding"],
-                        "metadata": item.get("metadata", {}),
-                    }
-                )
-            else:
-                # Process non-chunked content
-                embedding_result = generate_embeddings(
-                    item["text"],
-                    model=model,
-                    dimensions=self.dimensions,
-                    base_url=base_url,
-                    api_key=api_key,
-                    organization=organization,
+            # Always process the content regardless of chunk_id presence
+            embedding_result = generate_embeddings(
+                item["text"],
+                model=model,
+                dimensions=self.dimensions,
+                base_url=base_url,
+                api_key=api_key,
+                organization=organization,
+            )
+
+            if len(embedding_result) != self.dimensions:
+                raise XNANOException(
+                    f"Embedding dimensions mismatch: expected [bold]{self.dimensions}[/bold], got [bold]{len(embedding_result)}[/bold]. Try using a different model."
                 )
 
-                if len(embedding_result) != self.dimensions:
-                    raise XNANOException(
-                        f"Embedding dimensions mismatch: expected [bold]{self.dimensions}[/bold], got [bold]{len(embedding_result)}[/bold]. Try using a different model."
-                    )
-
-                embeddings.append(
-                    {
-                        "text": item["text"],  # Preserve the text
-                        "embedding": embedding_result
-                        if isinstance(embedding_result, list)
-                        else embedding_result["embedding"],
-                        "metadata": item.get("metadata", {}),
-                    }
-                )
+            # Append the embedding result with chunk_id if it exists
+            embeddings.append(
+                {
+                    "chunk_id": item.get("chunk_id"),  # Include chunk_id if present
+                    "text": item["text"],  # Preserve the text
+                    "embedding": embedding_result
+                    if isinstance(embedding_result, list)
+                    else embedding_result["embedding"],
+                    "metadata": item.get("metadata", {}),
+                }
+            )
 
         return embeddings
 
@@ -435,12 +423,14 @@ class VectorStore:
         # Get content
         try:
             content = self._get_content_from_data(data, metadata)
+
         except Exception as e:
             raise XNANOException(f"Failed to get content from data: {e}") from e
 
         # Create chunks if needed
         try:
             content = self._get_chunks(content, chunk_size)
+
         except Exception as e:
             raise XNANOException(f"Failed to get chunks from content: {e}") from e
 
@@ -449,6 +439,7 @@ class VectorStore:
             content = self._get_embeddings(
                 content, model, base_url, api_key, organization
             )
+
         except Exception as e:
             raise XNANOException(f"Failed to get embeddings from content: {e}") from e
 
@@ -463,24 +454,28 @@ class VectorStore:
 
                 # Create payload with metadata only (text is handled separately)
                 payload = item["metadata"].copy()
-                if "text" in payload:  # Remove text from metadata if it exists
+                if "text" in payload: 
                     del payload["text"]
 
+                # Always generate a new chunk_id if one doesn't exist
+                chunk_id = item.get("chunk_id") or str(uuid.uuid4())
+                
+                # Create point with chunk_id as the primary ID
                 points.append(
                     PointStruct(
-                        id=item["metadata"].get("id", str(uuid.uuid4())),
+                        id=chunk_id,  # Use chunk_id as primary ID
                         vector=item["embedding"],
                         payload={
                             **payload,
-                            "text": item["text"],  # Add text at the top level
+                            "text": item["text"],
+                            "chunk_id": chunk_id,  # Store chunk_id in payload too
+                            "document_id": item["metadata"].get("id"),  # Store original doc ID
                         },
                     )
                 )
-
         except Exception as e:
             raise XNANOException(f"Failed to create points & payloads: {e}") from e
 
-        # Add to collection
         try:
             result = self.client.upsert(
                 collection_name=self.collection_name, points=points
@@ -553,6 +548,7 @@ class VectorStore:
         # run search
         try:
             try:
+                seen_chunk_ids = set()  # Track unique chunk IDs
                 for qe in query_embeddings:
                     result = self.client.search(
                         collection_name=self.collection_name,
@@ -562,19 +558,16 @@ class VectorStore:
                         with_vectors=True,
                     )
                     try:
-                        results.extend(
-                            [
-                                {
-                                    "id": hit.id,
-                                    "text": hit.payload.pop(
-                                        "text", ""
-                                    ),  # Remove text from payload after extracting it
-                                    "metadata": hit.payload,  # Now payload doesn't include text
-                                    "score": hit.score,
-                                }
-                                for hit in result
-                            ]
-                        )
+                        for hit in result:
+                            if hit.id not in seen_chunk_ids:  # Only add if we haven't seen this chunk
+                                seen_chunk_ids.add(hit.id)
+                                results.append(SearchResult(
+                                    id=hit.payload.get("document_id"),  # Use original doc ID
+                                    chunk_id=hit.id,  # Store chunk ID
+                                    text=hit.payload.pop("text", ""),
+                                    metadata=hit.payload,
+                                    score=hit.score,
+                                ))
                     except Exception as e:
                         raise XNANOException(
                             f"Failed to parse search results: {e}"
