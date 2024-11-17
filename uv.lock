@@ -3880,7 +3880,7 @@ wheels = [
 
 [[package]]
 name = "xnano"
-version = "0.0.34"
+version = "0.0.41"
 source = { editable = "." }
 dependencies = [
     { name = "bs4" },
