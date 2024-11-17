@@ -5,6 +5,7 @@ import typer
 from typer import Typer
 from rich.panel import Panel
 from rich.text import Text
+from rich.live import Live
 from rich.table import Table
 
 
@@ -113,13 +114,22 @@ def process_message(
 
     assistant_response = ""
 
-    for chunk in response:
-        assistant_response += chunk.choices[0].delta.content or ""
-        console.print(chunk.choices[0].delta.content or "", end="", style="bold green")
+    # Create a panel for user message
+    user_message = messages[-1]['content']
 
-    console.print("")
-
-    console.print()
+    # Initialize empty panel
+    assistant_panel = Panel("", title="Assistant Response", border_style="green")
+    
+    # Pass the panel to Live instead of the console
+    with Live(assistant_panel, console=console, refresh_per_second=10) as live:
+        for chunk in response:
+            if chunk.choices and chunk.choices[0].delta.content:
+                assistant_response += chunk.choices[0].delta.content
+                # Update panel content
+                assistant_panel.renderable = Text(assistant_response, style="bold green")
+                live.refresh()
+            else:
+                continue
 
     messages.append({"role": "assistant", "content": assistant_response})
 
