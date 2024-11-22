@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple, Optional
 from .console import console
 import shutil
+from datetime import datetime
 
 
 class SystemPromptCache:
@@ -10,17 +11,30 @@ class SystemPromptCache:
         self.path = path
         self.path.mkdir(parents=True, exist_ok=True)
 
-    def get_thread_ids(self) -> List[str]:
-        console.message(f"Getting thread ids from {self.path}") 
+    def get_prompt_ids(self) -> List[str]:
+        """Get all available prompt IDs"""
+        console.message(f"Getting prompt ids from {self.path}") 
         return [f.stem for f in self.path.iterdir() if f.is_file()]
     
-    def get_system_prompt(self, thread_id: str) -> str:
-        with open(self.path / f"{thread_id}.json", 'r') as f:
+    def get_prompt(self, prompt_id: str) -> Dict[str, str]:
+        """Get a system prompt by its ID"""
+        prompt_file = self.path / f"{prompt_id}.json"
+        if not prompt_file.exists():
+            raise KeyError(f"No prompt found with ID: {prompt_id}")
+            
+        with open(prompt_file, 'r') as f:
             return json.load(f)
         
-    def add_system_prompt(self, thread_id: str, system_prompt: str):
-        with open(self.path / f"{thread_id}.json", 'w') as f:
-            json.dump(system_prompt, f)
+    def save_prompt(self, prompt_id: str, prompt: str, name: str, description: Optional[str] = None):
+        """Save or update a system prompt with the given ID and metadata"""
+        prompt_data = {
+            "name": name,
+            "description": description,
+            "prompt": prompt,
+            "created_at": datetime.now().isoformat()
+        }
+        with open(self.path / f"{prompt_id}.json", 'w') as f:
+            json.dump(prompt_data, f)
 
 
 class MessageCache:
@@ -37,22 +51,53 @@ class MessageCache:
             return []
             
         with open(message_file, 'r') as f:
-            return json.load(f)
+            thread_data = json.load(f)
+            return thread_data["messages"]
 
     def add_message(self, message: Dict, thread_id: str):
         """Add a message to a specific thread"""
         console.message(f"Adding message to thread {thread_id}")
         message_file = self.messages_dir / f"{thread_id}.json"
         
-        messages = self.get_messages(thread_id)
+        if message_file.exists():
+            with open(message_file, 'r') as f:
+                thread_data = json.load(f)
+                messages = thread_data["messages"]
+        else:
+            thread_data = {
+                "created_at": datetime.now().isoformat(),
+                "messages": []
+            }
+            messages = thread_data["messages"]
+            
         messages.append(message)
+        thread_data["updated_at"] = datetime.now().isoformat()
         
         with open(message_file, 'w') as f:
-            json.dump(messages, f)
+            json.dump(thread_data, f)
 
-    def get_thread_ids(self) -> List[str]:
-        """Get all thread IDs"""
-        return [f.stem for f in self.messages_dir.iterdir() if f.is_file() and f.suffix == '.json']
+    def get_threads(self) -> List[Dict]:
+        """
+        Get all threads from the cache
+        Returns a list of thread dictionaries with messages and metadata
+        """
+        threads = []
+        for thread_file in self.messages_dir.glob('*.json'):
+            try:
+                with open(thread_file, 'r') as f:
+                    thread_data = json.load(f)
+                    threads.append({
+                        "thread_id": thread_file.stem,
+                        "created_at": thread_data.get("created_at", ""),
+                        "updated_at": thread_data.get("updated_at", ""),
+                        "messages": thread_data.get("messages", [])
+                    })
+            except json.JSONDecodeError:
+                console.error(f"Error reading thread file: {thread_file}")
+                continue
+        
+        # Sort threads by updated_at date, newest first
+        return sorted(threads, key=lambda x: x.get("updated_at", ""), reverse=True)
 
 
 class Cache:
@@ -75,7 +120,7 @@ class Cache:
     def get_thread_ids(self) -> List[str]:
         """Get all thread IDs"""
         console.message("Getting thread ids")
-        return self.message_cache.get_thread_ids()
+        return self.message_cache.get_threads()
     
     def clear_message_cache(self, thread_id: str):
         """Clear message cache for a specific thread"""
