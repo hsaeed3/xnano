@@ -2,7 +2,7 @@ from typing import Union, List
 from ...._lib import console, XNANOException
 
 
-def generate_chunks(
+def text_chunker(
     inputs: Union[str, List[str]],
     chunk_size: int = 512,
     processes: int = 1,
@@ -93,4 +93,4 @@ if __name__ == "__main__":
         "I like to be a good person. I like to be a good friend. I like to be a good teacher. "
         "I like to be a good learner. I like to be a good helper."
     )
-    print(generate_chunks(sample_text, progress_bar=True, chunk_size=45))
+    print(text_chunker(sample_text, progress_bar=True, chunk_size=45))
