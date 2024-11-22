@@ -3,7 +3,7 @@ from pydantic import BaseModel, create_model
 
 from ..._lib import console
 
-from ..data.nlp.chunker import generate_chunks as chunker
+from ..data.nlp.chunker import text_chunker as chunker
 from ..completions.main import completion
 from ...types.completions.params import (
     CompletionChatModelsParam,

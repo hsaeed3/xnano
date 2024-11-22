@@ -15,7 +15,7 @@ from ...types.completions.responses import Response
 import httpx
 from typing import List, Optional, Union
 
-def acompletion(
+async def acompletion(
     messages: CompletionMessagesParam,
     model: CompletionChatModelsParam = "gpt-4o-mini",
     context: Optional[CompletionContextParam] = None,
