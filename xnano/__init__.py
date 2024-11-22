@@ -2,6 +2,7 @@
 # no classes now imported at top level
 
 __all__ = [
+    "create_agent",
     "completion",
     "acompletion",
     "generate_code",
@@ -13,6 +14,7 @@ __all__ = [
     "aextract",
     "validate",
     "avalidate",
+    "generate_chunks",
     "generate_qa_pairs",
     "text_reader",
     "text_chunker",
@@ -33,9 +35,15 @@ __all__ = [
     "swap_system_prompt",
     "add_message",
     "repair_messages",
+    "convert_yaml_to_pydantic",
+    "convert_to_openai_tool",
 ]
 
 # imports
+
+# agents
+
+from .agents import create_agent
 
 from .completions import (
     completion,
@@ -50,6 +58,7 @@ from .completions import (
     validate,
     avalidate,
     generate_qa_pairs,
+    generate_chunks,
 )
 
 from ._lib import console
