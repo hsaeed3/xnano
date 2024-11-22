@@ -29,7 +29,7 @@ def read_documents(
         else:
             with console.progress(
                 "Reading Files...",
-            ) as progress, task_id:
+            ) as progress:
                 task_id = progress.add_task("Reading Files...", total=len(paths))
 
                 with ThreadPoolExecutor(
