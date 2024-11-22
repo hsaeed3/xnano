@@ -47,6 +47,13 @@ def classify(
             ClassificationResult(text="I like french fries", label="food")
         ]
 
+    Returns a ClassificationResult or List[ClassificationResult] depending on the classification type and batch size.
+
+    ClassificationResult:
+        text: The original input text.
+        label: The single label that the input text was classified into.
+        confidence: The confidence score of the classification.
+
     Args:
         inputs (Union[str, List[str]]): The input text to classify.
         labels (List[str]): The list of labels to classify the input text into.
