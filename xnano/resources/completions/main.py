@@ -71,6 +71,7 @@ class Completions:
 
         # drop params
         litellm.drop_params = True
+        litellm.modify_params = True
 
         # set methods
         self.litellm_completion = completion

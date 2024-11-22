@@ -157,6 +157,54 @@ def add_message(
     return messages
 
 
+def verify_messages_integrity(messages: Union[List[Message], Message]) -> List[Message]:
+    """
+    Verifies the integrity of the messages by checking that:
+    1. Input is a list of dictionaries
+    2. Each message contains required 'role' and 'content' keys
+    
+    Will attempt to repair nested lists before raising validation errors.
+    
+    Args:
+        messages (List[Message]): Messages to verify
+        
+    Returns:
+        List[Message]: Verified (and potentially repaired) messages
+        
+    Raises:
+        ValueError: If messages fail validation after repair attempt
+    """
+    if isinstance(messages, Dict):
+
+        # ensure "role" and "content" keys are present
+        if "role" not in messages:
+            raise ValueError(f"Message missing required 'role' key: {messages}")
+        if "content" not in messages:
+            raise ValueError(f"Message missing required 'content' key: {messages}")
+        
+        return [messages]
+
+    try:
+        messages = repair_messages(messages)
+    except ValueError:
+        pass
+        
+    if not isinstance(messages, list):
+        raise ValueError("Messages must be a list")
+        
+    for msg in messages:
+        if not isinstance(msg, dict):
+            raise ValueError(f"Each message must be a dictionary, got {type(msg)}")
+            
+        if "role" not in msg:
+            raise ValueError(f"Message missing required 'role' key: {msg}")
+            
+        if "content" not in msg:
+            raise ValueError(f"Message missing required 'content' key: {msg}")
+        
+    return messages
+
+
 def repair_messages(messages: Union[List[Message], List[List[Message]]]) -> List[Message]:
     """
     Flattens the list of messages to ensure there are no hidden nested lists.
@@ -172,7 +220,7 @@ def repair_messages(messages: Union[List[Message], List[List[Message]]]) -> List
     if isinstance(messages, list):
         for msg in messages:
             if isinstance(msg, list):
-                repaired_messages.extend(repair_messages(msg))  # Recursively flatten nested lists
+                repaired_messages.extend(repair_messages(msg)) 
             else:
                 repaired_messages.append(msg)
     else:
