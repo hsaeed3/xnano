@@ -210,6 +210,7 @@ class Agent:
             planning : Optional[bool] = False,
             workflows : Optional[List[BaseModel]] = None,
             summarization_steps : Optional[int] = 5,
+            agents: Optional[List['Agent']] = None,
             # agent memory -- utilized differently than .completion(memory = ...)
             memory : Optional[List[Memory]] = None,
             # agent completion config params
@@ -220,7 +221,6 @@ class Agent:
             organization : Optional[str] = None,
             messages : Optional[CompletionMessagesParam] = None,
             verbose : bool = False,
-            agents: Optional[List['Agent']] = None,
     ):
         
         # VERBOSITY
