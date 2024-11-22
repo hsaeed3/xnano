@@ -6,6 +6,7 @@ from ...types.completions.params import (
     CompletionMessagesParam,
     CompletionChatModelsParam,
     CompletionInstructorModeParam,
+    CompletionToolsParam,
 )
 from ...types.embeddings.memory import Memory
 
@@ -24,6 +25,7 @@ def create_agent(
     workflows : Optional[List[BaseModel]] = None,
     summarization_steps : Optional[int] = 5,
     agents: Optional[List['Agent']] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
     # agent memory -- utilized differently than .completion(memory = ...)
     memory : Optional[List[Memory]] = None,
     # agent completion config params
@@ -87,6 +89,7 @@ def create_agent(
         api_key=api_key,
         organization=organization,
         messages=messages,
+        tools=tools,
         verbose=verbose,
         agents=agents,
     )

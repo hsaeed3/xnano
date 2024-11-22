@@ -1225,7 +1225,7 @@ class Completions:
 
     # static
     @staticmethod
-    def _acompletion(
+    async def _acompletion(
         messages: CompletionMessagesParam,
         model: CompletionChatModelsParam = "gpt-4o-mini",
         context: Optional[CompletionContextParam] = None,
@@ -1326,7 +1326,7 @@ class Completions:
         local_args.pop("verbose", None)
 
         try:
-            return Completions(verbose=verbose).acompletion(**local_args)
+            return await Completions(verbose=verbose).arun_completion(**local_args)
         except Exception as e:
             raise XNANOException(f"Failed to run completion: {e}")
 

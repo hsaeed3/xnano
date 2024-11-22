@@ -35,7 +35,6 @@ from ...types.completions.params import (
     CompletionToolChoiceParam,
     CompletionToolsParam,
 )
-from litellm import ModelResponse
 from ...types.completions.responses import Response
 from ...types.embeddings.memory import Memory
 
@@ -44,8 +43,11 @@ import json
 from pydantic import BaseModel, create_model
 from typing import Dict, List, Literal, Optional, Union, Type
 
+from litellm import ModelResponse
+
 
 Agent = Type["Agent"]
+
 
 
 # --------------------------------------------------------------
@@ -175,8 +177,8 @@ class AgentResources:
             workflow_names = []
             workflow_docs = []
             if workflows:
-                workflow_names = [workflow.model_json_schema()["title"] for workflow in workflows]
-                workflow_docs = [workflow.model_json_schema()["description"] for workflow in workflows]
+                workflow_names = [workflow.__class__.__name__ for workflow in workflows]
+                workflow_docs = [workflow.__class__.__doc__ for workflow in workflows]
 
         except Exception as e:
             raise XNANOException(f"Error building workflow string descriptions: {e}")
@@ -211,6 +213,7 @@ class Agent:
             workflows : Optional[List[BaseModel]] = None,
             summarization_steps : Optional[int] = 5,
             agents: Optional[List['Agent']] = None,
+            tools: Optional[List[CompletionToolsParam]] = None,
             # agent memory -- utilized differently than .completion(memory = ...)
             memory : Optional[List[Memory]] = None,
             # agent completion config params
@@ -244,7 +247,8 @@ class Agent:
             model = model, base_url = base_url, api_key = api_key,
             organization = organization,
             instructor_mode = instructor_mode,
-            agents = agents
+            agents = agents,
+            tools = tools
         )
 
         if self.verbose and agents:
@@ -336,7 +340,7 @@ class Agent:
 
             return
         
-        if isinstance(response, ModelResponse) and not hasattr(response, 'workflow'):
+        if isinstance(response, BaseModel) and not hasattr(response, 'workflow'):
             self.state.messages.append(response.choices[0].message.model_dump())
             return
         
@@ -723,7 +727,7 @@ class Agent:
                         messages = messages,
                         model = args.model, api_key = args.api_key, base_url = args.base_url,
                         mode = args.instructor_mode, response_model = field_response_model,
-                        verbose = self.verbose, run_tools = True
+                        verbose = self.verbose, run_tools = True, tools = args.tools if args.tools else self.config.tools
                     )
                 except Exception as e:
                     raise XNANOException(f"Error running field completion for agent [bold red]{self.config.name}[/bold red]: {e}")
@@ -1004,19 +1008,17 @@ class Agent:
             workflow = self._select_workflow_to_run(args=args, workflows=workflows)
             completed_workflow = self._execute_workflow(workflow=workflow, args=args)
 
-            # Return workflow response
-            return self.resources.build_response_type(
-                response=ModelResponse(
-                    choices=[{
-                        "message": {
-                            "role": "assistant",
-                            "content": json.dumps(completed_workflow.model_dump(), indent=2)
-                        }
-                    }]
-                ),
-                workflow=completed_workflow,
-                instructor=True if response_model else False
-            )
+            # add workflow to thread
+            self.state.messages.extend([
+                {
+                    "role" : "assistant",
+                    "content" : f"{completed_workflow.model_dump_json(indent=2)}"
+                },
+                {
+                    "role" : "user",
+                    "content" : f"Use the information to respond to the original user query."
+                }
+            ])
 
         # Update context to include both workflows and team agents
         team_context = ""
@@ -1039,7 +1041,7 @@ class Agent:
         )
 
         try:
-            return completion(
+            response = completion(
                 messages=args.messages,
                 model=args.model,
                 base_url=args.base_url,
@@ -1051,7 +1053,14 @@ class Agent:
                 tool_choice=args.tool_choice,
                 parallel_tool_calls=args.parallel_tool_calls,
                 context=context,
-                run_tools=True
+                run_tools=True,
+                verbose=self.verbose
+            )
+
+            return self.resources.build_response_type(
+                response=response,
+                workflow=completed_workflow,
+                instructor=True if response_model else False
             )
         except Exception as e:
             raise XNANOException(
@@ -1095,6 +1104,14 @@ class Agent:
 
             # add messages to state on success
             self.add_messages_to_state(messages)
+
+            if response.workflow:
+                self.add_messages_to_state([
+                    {
+                        "role" : "assistant",
+                        "content" : f"{response.workflow.model_dump_json(indent=2)}"
+                    }
+                ])
 
             # add response to state (handles workflow automatically)
             self.add_response_to_state(
