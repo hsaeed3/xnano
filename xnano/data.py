@@ -22,7 +22,7 @@ from .resources.models.document import Document
 from .resources.data.documents.read_documents import read_documents as text_reader
 
 # nlp
-from .resources.data.nlp.chunker import generate_chunks as text_chunker
+from .resources.data.nlp.chunker import text_chunker
 
 # db
 from .resources.data.database.main import Database
