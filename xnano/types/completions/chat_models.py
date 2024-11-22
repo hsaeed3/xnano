@@ -3,6 +3,10 @@ from typing import Literal
 
 # model list
 ChatModels = Literal[
+    "anthropic/claude-3-haiku-latest",
+    "anthropic/claude-3-5-sonnet-latest",
+    "openai/gpt-4o-mini",
+    "openai/gpt-4o",
     "o1-preview",
     "o1-mini",
     "gpt-4o-mini",
@@ -17,7 +21,6 @@ ChatModels = Literal[
     "anthropic/claude-2.1",
     "anthropic/claude-2",
     "anthropic/claude-3-5-sonnet-20241022",
-    "anthropic/claude-3-5-sonnet-latest",
     "anthropic/claude-3-haiku-20240307",
     "anthropic/claude-3-opus-20240229",
     "anthropic/claude-3-sonnet-20240229",
