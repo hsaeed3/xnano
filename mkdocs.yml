@@ -34,25 +34,9 @@ theme:
     - content.code.annotate
 
   palette:
-    # Palette toggle for automatic mode
-    - media: "(prefers-color-scheme)"
-      toggle:
-        icon: material/brightness-auto
-        name: Switch to light mode
-
-    # Palette toggle for light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: home-light
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-
-    # Palette toggle for dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: home-dark
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
+    scheme: home-dark
+    primary: blue
+    accent: light blue
 
 extra:
   social:
@@ -68,8 +52,12 @@ plugins:
   - search
   - tags
   - mkdocs-jupyter:
-      ignore_h1_titles: true
       highlight_extra_classes: "CodeMirror"
+      ignore_h1_titles: true
+      include_source: true
+      show_input: true
+      execute: false
+      include_buttons: true
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -92,5 +80,57 @@ extra_css:
 extra_javascript:
   - stylesheets/extras.js
 
+nav:
 
+  - Home: index.md
 
+  - LLMs:
+    - LLM Completions:
+      - Generating Completions: llms/llm-completions/generating-completions.md
+      - Structured Outputs: llms/llm-completions/structured-outputs.md
+      - Tool Calling: llms/llm-completions/tool-calling.md
+      - Automatic Tool Generation & Execution: llms/llm-completions/tool-execution-and-generation.md
+      - Adding Context to Completions: llms/llm-completions/adding-context.md
+
+    - LLM Powered NLP Functions:
+      - Context-Aware LLM Text Chunking: llms/llm-powered-nlp/chunker.md
+      - Text Classification: llms/llm-powered-nlp/classifier.md
+      - Text Extraction: llms/llm-powered-nlp/extractor.md
+      - Synthetic QA Dataset Generation: llms/llm-powered-nlp/question-answer-builder.md
+
+    - Code Generation:
+      - Generating Code Outputs: llms/code-generation/generating-code-outputs.md
+      - Generative Functions: llms/code-generation/generative-functions.md
+
+    - LLM Validation & Guardrails:
+      - Creating a Validator: llms/llm-validation-and-guardrails/validation.md
+      - Implementing Guardrails: llms/llm-validation-and-guardrails/guardrails.md
+
+    - Prompt Engineering & Generation:
+      - Generating a System Prompt: llms/prompt-generation/generating-a-system-prompt.md
+      - Optimizing a System Prompt: llms/prompt-generation/optimizing-a-system-prompt.md
+
+  - Agents:
+    - Agents in xnano: agents/getting-started.md
+    - Creating a Chatbot: agents/creating-a-chatbot.md
+    - What are Workflows & Steps: agents/workflows-and-steps.md
+
+    - Agentic Workflows (Tasks):
+      - Creating a Workflow: agents/workflows/creating-a-workflow.md
+      - Workflow Selection: agents/workflows/workflow-selection.md
+      - Manually Running a Workflow: agents/workflows/manually-run-a-workflow.md
+      - Adding Workflow Specific Tools: agents/workflows/workflow-specific-tools.md
+
+    - Steps:
+      - Defining Steps: agents/steps/defining-steps.md
+
+    - Multi-Agent Collaboration:
+      - Using Multiple Agents: agents/multi-agent-collaboration/using-multiple-agents.md
+      - Multiple Agents as a Team: agents/multi-agent-collaboration/multiple-agents-as-a-team.md
+      - Automatic Collaboration: agents/multi-agent-collaboration/automatic-collaboration.md
+
+  - Generative Pydantic Models:
+    - Getting Started: generative-pydantic-models/getting-started.md
+
+  - Data, Web Scraping & NLP:
+    - Getting Started: data-and-nlp/getting-started.md
