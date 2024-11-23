@@ -149,7 +149,7 @@
   --md-default-fg-color:               #F5F5F0;  /* Soft Cream */
   --md-default-fg-color--light:        #E8E8E3;  /* Light Cream */
   --md-default-fg-color--lighter:      #DCDCD7;  /* Muted Cream */
-  --md-default-fg-color--lightest:     #E9C7B7;  /* Soft Peach */
+  --md-default-fg-color--lightest:     #1e1e1e;  /* Soft Peach */
   --md-default-bg-color:               #2D2D2D;  /* Soft Charcoal */
   --md-default-bg-color--light:        #3D3D3D;  /* Medium Charcoal */
   --md-default-bg-color--lighter:      #4D4D4D;  /* Light Charcoal */
@@ -247,187 +247,16 @@
   position: relative;
 }
 
+.jupyter-wrapper .highlight pre {
+  background-color: #1e1e1e !important;
+}
+
+.jupyter-wrapper .CodeMirror {
+  background-color: #1e1e1e !important;
+}
 
 .grid.cards {
   border-radius: 6px;
-}
-
-/* Jupyter notebook cell styling */
-.jp-Cell {
-  padding: 5px;
-  margin: 2px 0;
-  border-radius: 4px;
-}
-
-.jp-CodeCell {
-  background: var(--md-code-bg-color);
-}
-
-.jp-InputArea-prompt {
-  padding: 6px 0;
-  min-width: 14ex;
-  color: var(--md-code-fg-color);
-  opacity: 0.7;
-}
-
-.jp-InputArea-editor {
-  background: var(--md-code-bg-color);
-  border-radius: 4px;
-  padding: 8px;
-}
-
-.jp-OutputArea-prompt {
-  color: var(--md-code-fg-color);
-  opacity: 0.7;
-}
-
-.jp-OutputArea-output {
-  padding: 8px;
-  background: var(--md-code-bg-color);
-  border-radius: 4px;
-}
-
-[data-md-color-scheme="home-dark"] .jp-CodeCell {
-  background: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="home-dark"] .jp-InputArea-editor {
-  background: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="home-dark"] .jp-OutputArea-output {
-  background: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="home-light"] .jp-CodeCell {
-  background: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="home-light"] .jp-InputArea-editor {
-  background: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="home-light"] .jp-OutputArea-output {
-  background: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="home-dark"] .jp-InputPrompt {
-  background: var(--md-code-bg-color);
-  color: var(--md-code-fg-color);
-  opacity: 0.7;
-}
-
-[data-md-color-scheme="home-light"] .jp-InputPrompt {
-  background: var(--md-code-bg-color); 
-  color: var(--md-code-fg-color);
-  opacity: 0.7;
-}
-
-.jp-InputArea-editor {
-  border: var(--jp-border-width) solid var(--jp-cell-editor-border-color);
-  border-radius: 0;
-  background: var(--jp-cell-editor-background);
-}
-
-.jp-InputArea-editor .CodeMirror {
-  background: transparent;
-}
-
-.jp-InputArea-editor .CodeMirror-gutters {
-  border: none;
-  border-right: 1px solid var(--jp-border-color2);
-  background-color: transparent;
-  width: 28px;
-}
-
-.jp-InputArea-editor .CodeMirror-linenumber {
-  padding: 0 8px;
-}
-
-.jp-InputPrompt {
-  flex: 0 0 var(--jp-cell-prompt-width);
-  color: var(--jp-cell-inprompt-font-color);
-  padding: 6px;
-  font-family: var(--jp-code-font-family);
-  letter-spacing: 1px;
-  line-height: 1.6;
-  font-size: var(--jp-code-font-size);
-  border: var(--jp-border-width) solid transparent;
-}
-
-
-.CodeMirror {
-  background-color: var(--md-code-bg-color) !important;
-  color: var(--md-code-fg-color) !important;
-}
-
-.jp-InputArea-editor {
-  padding: 8px !important;
-  border-color: var(--md-code-bg-color) !important;
-  border-width: 1px !important;
-}
-
-:root .jupyter-wrapper {
-  --jp-cell-editor-background: var(--md-code-bg-color);
-  --jp-cell-editor-border-color: var(--md-code-bg-color);
-  --jp-border-width: 0px;
-  --jp-CodeCell-background: transparent;
-  --jp-border-color2: var(--md-code-bg-color);
-  --jp-CodeMirror-background: var(--md-code-bg-color);
-  --jp-Editor-background: var(--md-code-bg-color);
-  --jp-mirror-editor-background: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="home-dark"] .jupyter-wrapper {
-  --jp-cell-editor-background: var(--md-code-bg-color);
-  --jp-cell-editor-border-color: var(--md-code-bg-color);
-  --jp-border-width: 1px;
-  --jp-CodeCell-background: var(--md-code-bg-color);
-  --jp-border-color2: var(--md-code-bg-color);
-  --jp-CodeMirror-background: var(--md-code-bg-color);
-  --jp-Editor-background: var(--md-code-bg-color);
-  --jp-mirror-editor-background: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="home-light"] .jupyter-wrapper {
-  --jp-cell-editor-background: var(--md-code-bg-color);
-  --jp-cell-editor-border-color: var(--md-code-bg-color);
-  --jp-CodeCell-background: var(--md-code-bg-color);
-  --jp-border-width: 1px;
-  --jp-border-color2: var(--md-code-bg-color);
-  --jp-CodeMirror-background: var(--md-code-bg-color);
-  --jp-Editor-background: var(--md-code-bg-color);
-  --jp-mirror-editor-background: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="home-light"] .highlight-ipynb {
-  --jp-mirror-editor-number-color: var(--md-code-hl-number-color);
-  --jp-mirror-editor-special-color: var(--md-code-hl-special-color);
-  --jp-mirror-editor-function-color: var(--md-code-hl-function-color);
-  --jp-mirror-editor-constant-color: var(--md-code-hl-constant-color);
-  --jp-mirror-editor-keyword-color: var(--md-code-hl-keyword-color);
-  --jp-mirror-editor-string-color: var(--md-code-hl-string-color);
-  --jp-mirror-editor-name-color: var(--md-code-hl-name-color);
-  --jp-mirror-editor-operator-color: var(--md-code-hl-operator-color);
-  --jp-mirror-editor-punctuation-color: var(--md-code-hl-punctuation-color);
-  --jp-mirror-editor-comment-color: var(--md-code-hl-comment-color);
-  --jp-mirror-editor-generic-color: var(--md-code-hl-generic-color);
-  --jp-mirror-editor-variable-color: var(--md-code-hl-variable-color);
-}
-
-[data-md-color-scheme="home-dark"] .highlight-ipynb {
-  --jp-mirror-editor-number-color: var(--md-code-hl-number-color);
-  --jp-mirror-editor-special-color: var(--md-code-hl-special-color);
-  --jp-mirror-editor-function-color: var(--md-code-hl-function-color);
-  --jp-mirror-editor-constant-color: var(--md-code-hl-constant-color);
-  --jp-mirror-editor-keyword-color: var(--md-code-hl-keyword-color);
-  --jp-mirror-editor-string-color: var(--md-code-hl-string-color);
-  --jp-mirror-editor-name-color: var(--md-code-hl-name-color);
-  --jp-mirror-editor-operator-color: var(--md-code-hl-operator-color);
-  --jp-mirror-editor-punctuation-color: var(--md-code-hl-punctuation-color);
-  --jp-mirror-editor-comment-color: var(--md-code-hl-comment-color);
-  --jp-mirror-editor-generic-color: var(--md-code-hl-generic-color);
-  --jp-mirror-editor-variable-color: var(--md-code-hl-variable-color);
 }
 
 .md-footer-meta {
@@ -449,6 +278,112 @@
   font-size: 0.95em;
 }
 
-.zyx-new-item {
+.jp-InputArea-editor {
+  background: var(--md-code-bg-color);
+  border-radius: 12px;
+}
+
+.highlight-ipynb {
+  font-family: var(--md-code-font) !important;
+  font-size: 16px !important;
+}
+
+/* Comments */
+.highlight-ipynb .c1 {
+  color: var(--md-code-hl-comment-color) !important;
   font-style: italic;
+}
+
+.highlight-ipynb .sd {
+  color: var(--md-code-hl-comment-color) !important;
+  font-style: italic;
+}
+
+.highlight-ipynb .s2 {
+  color: var(--md-code-hl-string-color) !important;
+}
+
+.highlight-ipynb .s1 {
+  color: var(--md-code-hl-string-color) !important;
+}
+
+/* Keywords ('import', 'def', etc.) */
+.highlight-ipynb .kn {
+  color: var(--md-code-hl-keyword-color) !important;
+  font-style: italic;
+}
+
+.highlight-ipynb .k {
+  color: var(--md-code-hl-keyword-color) !important;
+  font-style: italic;
+}
+
+/* types */
+.highlight-ipynb .nb {
+  color: var(--md-code-hl-constant-color) !important;
+  font-style: italic;
+}
+
+/* Names (function names, variable names, etc.) */
+.highlight-ipynb .nn {
+  color: var(--md-code-hl-function-color) !important;
+}
+
+.highlight-ipynb .n {
+  color: var(--md-code-hl-name-color) !important;
+}
+
+/* Operators ('+', '-', '*', etc.) */
+.highlight-ipynb .o {
+  color: var(--md-code-hl-operator-color) !important;
+}
+
+/* Parentheses */
+.highlight-ipynb .p {
+  color: var(--md-code-hl-punctuation-color) !important;
+}
+
+
+
+.jp-InputPrompt {
+  flex: 0 0 var(--jp-cell-prompt-width);
+  padding: 6px;
+  font-family: var(--md-code-font);
+  letter-spacing: 1px;
+  line-height: 1.6;
+  font-size: var(--jp-code-font-size);
+  border: var(--jp-border-width) solid transparent;
+}
+
+.CodeMirror {
+  background-color: var(--md-code-bg-color) !important;
+  color: var(--md-code-fg-color) !important;
+}
+
+.jp-CodeMirrorEditor {
+  border-radius: 12px !important;
+}
+
+.jp-Editor {
+  border-radius: 12px !important;
+}
+
+.jp-InputArea-editor {
+  border-radius: 12px !important;
+  border: none !important;
+  padding: 8px !important;
+  background-color: #1e1e1e !important;
+}
+
+.jp-InputArea-prompt {
+  color: var(--md-code-fg-color) !important;
+}
+
+.jp-OutputArea-output {
+  background-color: #1e1e1e !important;
+  border-radius: 12px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  font-size: 14px !important;
 }
