@@ -11,13 +11,14 @@ dependencies = [
     "duckduckgo-search>=6.3.4",
     "instructor>=1.6.3",
     "litellm>=1.52.3",
+    "markdownify>=0.13.1",
     "pypdf2>=3.0.1",
     "qdrant-client>=1.12.1",
     "questionary>=2.0.1",
+    "readability-lxml>=0.8.1",
     "rich>=13.9.4",
     "semchunk>=2.2.0",
     "sqlalchemy>=2.0.36",
-    "trafilatura>=1.12.2",
 ]
 
 [project.optional-dependencies]
