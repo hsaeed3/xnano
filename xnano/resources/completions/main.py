@@ -1,4 +1,4 @@
-import instructor
+from instructor import from_litellm, Mode
 
 # interal imports
 from ..._lib import console, XNANOException
@@ -106,8 +106,8 @@ class Completions:
 
         # sync
         if not self.instructor_completion:
-            self.instructor_completion = instructor.from_litellm(
-                self.litellm_completion, mode=instructor.Mode(mode)
+            self.instructor_completion = from_litellm(
+                self.litellm_completion, mode=Mode(mode)
             )
 
         if self.verbose:
@@ -132,8 +132,8 @@ class Completions:
             mode = "tool_call"
 
         if not self.instructor_acompletion:
-            self.instructor_acompletion = instructor.from_litellm(
-                self.litellm_acompletion, mode=instructor.Mode(mode)
+            self.instructor_acompletion = from_litellm(
+                self.litellm_acompletion, mode=Mode(mode)
             )
 
         if self.verbose:
