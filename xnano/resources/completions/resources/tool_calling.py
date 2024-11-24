@@ -13,13 +13,15 @@ from ....types.completions.tools import Tool
 def generate_tool(client, tool_name: str, model: str) -> Tool:
     """Dynamically generate a tool function from its name"""
 
-    # Create a prompt that will generate a function based on the tool name
     function_prompt = f"""Create a Python function named '{tool_name}' that:
+    
     1. Has typed arguments and return value
     2. Includes clear docstring
     3. Handles errors with try/except
     4. Places imports inside function body
-    5. Implements core functionality implied by '{tool_name}'"""
+    5. Implements core functionality implied by '{tool_name}'
+    6. OPTS TO USING STANDARD PYTHON LIBRARIES UNLESS SPECIFICALLY REQUESTED
+    """
 
     from ..code_generators import generate_code
 

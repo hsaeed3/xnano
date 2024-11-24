@@ -4,11 +4,14 @@
 # pydantic extensions
 
 __all__ = [
-    "BaseModel",
+    "GenerativeModel",
     "patch",
     "unpatch",
 ]
 
 # imports
 
-from .resources.models.mixin import BaseModel, patch, unpatch
+from .resources.models.mixin import (
+    BaseModel as GenerativeModel,
+    patch, unpatch
+)

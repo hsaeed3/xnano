@@ -85,18 +85,23 @@ nav:
   - Home: index.md
 
   - LLMs:
-    - LLM Completions:
+    - Generating Completions:
+      - Getting Started: llms/llm-completions/getting-started.md
       - Generating Completions: llms/llm-completions/generating-completions.md
+
+    - Structured Outputs:
       - Structured Outputs: llms/llm-completions/structured-outputs.md
+
+    - Tool Calling:
       - Tool Calling: llms/llm-completions/tool-calling.md
       - Automatic Tool Generation & Execution: llms/llm-completions/tool-execution-and-generation.md
-      - Adding Context to Completions: llms/llm-completions/adding-context.md
 
-    - LLM Powered NLP Functions:
-      - Context-Aware LLM Text Chunking: llms/llm-powered-nlp/chunker.md
-      - Text Classification: llms/llm-powered-nlp/classifier.md
-      - Text Extraction: llms/llm-powered-nlp/extractor.md
-      - Synthetic QA Dataset Generation: llms/llm-powered-nlp/question-answer-builder.md
+    - Adding Context to Completions: llms/llm-completions/adding-context.md
+    - Context-Aware LLM Text Chunking: llms/chunker.md
+    - Text Classification: llms/classifier.md
+    - Text Extraction: llms/extractor.md
+    - Synthetic QA Dataset Generation: llms/question-answer-builder.md
+    - LLM Based Web Scraping: llms/llm-based-web-scraping.md
 
     - Code Generation:
       - Generating Code Outputs: llms/code-generation/generating-code-outputs.md
@@ -129,8 +134,45 @@ nav:
       - Multiple Agents as a Team: agents/multi-agent-collaboration/multiple-agents-as-a-team.md
       - Automatic Collaboration: agents/multi-agent-collaboration/automatic-collaboration.md
 
-  - Generative Pydantic Models:
+  - LLM Powered Pydantic Models:
     - Getting Started: generative-pydantic-models/getting-started.md
+    - Patching Existing Pydantic Models: generative-pydantic-models/patching-existing-pydantic-models.md
+
+    - Generating Models:
+      - Generating Full Models: generative-pydantic-models/generating-models/generating-full-models.md
+      - Generating Specific Fields: generative-pydantic-models/generating-models/generating-specific-fields.md
+      - Chain of Thought Generation: generative-pydantic-models/generating-models/chain-of-though-generation.md
+      - Regeneration: generative-pydantic-models/generating-models/regeneration.md
+
+    - Editing Models:
+      - Editing Models: generative-pydantic-models/editing-models/editing-models.md
+      - Editing Specific Fields: generative-pydantic-models/editing-models/editing-specific-fields.md
+
+    - Using Models as Context in Completions:
+      - Using Models as Context for RAG: generative-pydantic-models/using-models-as-context/using-models-as-rag-context.md
+      - Using Specific Fields as Context: generative-pydantic-models/using-models-as-context/using-specific-fields-as-context.md
 
   - Data, Web Scraping & NLP:
-    - Getting Started: data-and-nlp/getting-started.md
+    - Getting Started: data/getting-started.md
+
+    - Embeddings & Vector Stores:
+      - Generating Embeddings: data/embeddings-and-vector-stores/generating-embeddings.md
+      - Generating Embeddings Locally w/ FastEmbed: data/embeddings-and-vector-stores/generating-embeddings-with-fastembed.md
+      - Creating a Vector Store: data/embeddings-and-vector-stores/creating-a-vector-store.md
+      - Adding Content & Documents to Vector Stores: data/embeddings-and-vector-stores/adding-content-to-vector-stores.md
+      - Using a Vector Store for Queries & Completions: data/embeddings-and-vector-stores/using-vector-stores-for-completions.md
+
+    - Document Processing:
+      - Reading Documents: data/document-processing/reading-documents.md
+
+    - Text Processing:
+      - Semantic Chunking: data/text-processing/semantic-chunking.md
+
+    - Web Scraping:
+      - Searching the Web: data/web-scraping/searching-the-web.md
+      - Efficiently Reading Web Pages: data/web-scraping/efficiently-reading-web-pages.md
+      - Automatic LLM-Based Web Scraping: data/web-scraping/automatic-web-scraping.md
+       
+
+
+

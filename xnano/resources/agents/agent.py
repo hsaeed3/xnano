@@ -70,7 +70,7 @@ class AgentResources:
     def collect_message_from_cli():
         try:
             message = console.input(
-                message = f"[bold italic] Enter your message:[/bold italic] [bold red]>>[/bold red]"
+                prompt = f"[bold italic] Enter your message:[/bold italic] [bold red]>>[/bold red]  "
             )
         except KeyboardInterrupt:
             return XNANOException(
@@ -205,7 +205,7 @@ class Agent:
             self,
             # agent dsl params
             # required
-            role : str,
+            role : str = "assistant",
             # optional
             name : Optional[str] = helpers.get_random_name(),
             instructions : Optional[str] = None,
