@@ -34,9 +34,10 @@ from ...types.completions.params import (
 )
 from ...types.models.base_model_generation_process import BaseModelGenerationProcess
 from ...types.models.mixin import BaseModelMixin as BaseModelMixinType
+from pydantic import BaseModel as PydanticBaseModel
 from ...types.completions._openai import ChatCompletion
 
-class BaseModel(BaseModelMixinType):
+class BaseModel(BaseModelMixinType, PydanticBaseModel):
     ...
 
     @overload

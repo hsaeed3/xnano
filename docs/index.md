@@ -46,7 +46,4 @@ Use one of the following links to get started with using `xnano`:
 
 </div>
 
-## Applications
-
-Use one of the following links to view examples of `xnano` to build implementations of popular `LLM` & `AI` applications.
 

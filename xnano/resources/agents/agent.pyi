@@ -39,7 +39,7 @@ class Agent:
 
     def __init__(
             self,
-            role : str,
+            role : str = "assistant",
             name : Optional[str] = None,
             instructions : Optional[str] = None,
             planning : Optional[bool] = False,
