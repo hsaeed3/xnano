@@ -30,6 +30,9 @@ def format_messages(
 
     elif isinstance(messages, list) and isinstance(messages[0], dict):
         return messages
+    
+    elif isinstance(messages, list) and isinstance(messages[0], list):
+        return messages
 
     raise ValueError("Invalid message format")
 
