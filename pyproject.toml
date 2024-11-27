@@ -1,6 +1,6 @@
 [project]
 name = "xnano"
-version = "0.0.46"
+version = "0.0.47"
 description = "build extremely 'nano' llm workflows"
 readme = "readme.md"
 
