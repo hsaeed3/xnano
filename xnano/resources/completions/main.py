@@ -19,13 +19,13 @@ from ...types.completions.params import (
     CompletionToolChoiceParam,
     CompletionToolsParam,
 )
-from ...types.completions.responses import Response
+from ...types.completions.responses import Response, StreamingResponse, AsyncStreamingResponse
 
 from pydantic import BaseModel
 
 import httpx
 import json
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Generator
 
 
 # base client
@@ -140,6 +140,18 @@ class Completions:
             console.message(
                 f"✅ [green]Successfully patched asynchronous completion methods w/ [bold]instructor[/bold] mode: [bold white]{mode}[/bold white][/green]"
             )
+
+
+    # ------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------
+    def _handle_stream(self, response) -> StreamingResponse:
+        """
+        Handles the stream response
+        """
+
+        return response
+
 
     # ------------------------------------------------------------
     # non - batch completion methods
@@ -268,7 +280,7 @@ class Completions:
         model_list: Optional[list] = None,
         stream: Optional[bool] = None,
         return_messages: Optional[bool] = None,
-    ) -> Response:
+    ) -> Union[Response, StreamingResponse]:
         """
         Runs a completion
 
@@ -623,12 +635,12 @@ class Completions:
         model_list: Optional[list] = None,
         stream: Optional[bool] = None,
         return_messages: Optional[bool] = None,
-    ) -> Response:
+    ) -> Union[Response, AsyncStreamingResponse]:
         """
         Runs an async completion
 
         Returns:
-            Response: The completion response
+            Union[Response, StreamingResponse]: The completion response
         """
 
         if instructor_mode:
@@ -924,7 +936,7 @@ class Completions:
         model_list: Optional[list] = None,
         stream: Optional[bool] = None,
         return_messages: Optional[bool] = None,
-    ) -> Response:
+    ) -> Union[Response, StreamingResponse]:
         """
         Create a chat completion or completion(s)
 
@@ -1075,7 +1087,7 @@ class Completions:
         stream: Optional[bool] = None,
         return_messages: Optional[bool] = None,
         verbose: Optional[bool] = None,
-    ) -> Response:
+    ) -> Union[Response, StreamingResponse]:
         """
         Create a chat completion or completion(s)
 
@@ -1190,7 +1202,7 @@ class Completions:
         model_list: Optional[list] = None,
         stream: Optional[bool] = None,
         return_messages: Optional[bool] = None,
-    ) -> Response:
+    ) -> Union[Response, AsyncStreamingResponse]:
         """
         Asynchronously create a chat completion or completion(s)
 
@@ -1336,7 +1348,7 @@ class Completions:
         stream: Optional[bool] = None,
         return_messages: Optional[bool] = None,
         verbose: Optional[bool] = None,
-    ) -> Response:
+    ) -> Union[Response, AsyncStreamingResponse]:
         """
         Asynchronously create a chat completion or completion(s)
 
