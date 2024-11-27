@@ -175,20 +175,28 @@ class BaseModelMixin:
             details = cls_or_self._get_details()
 
             if details["type"] == "instance":
-                context = f"""
+                # For instances, include ALL current field values as context
+                current_values = {
+                    field: getattr(cls_or_self, field) 
+                    for field in details["fields"]
+                    if getattr(cls_or_self, field) is not None
+                }
+                context = dedent(f"""
                 You are building a patch for the following values:
-                {json.dumps({field: getattr(new_model, field) for field in fields})}
-                """
+                Current values: {json.dumps(current_values)}
+                Fields to generate: {json.dumps(fields)}
+                """)
             else:
-                context = f"""
+                # For classes, just show the fields and their types
+                context = dedent(f"""
                 You are building a patch for the following class:
                 {details["name"]}
                 ---
-                {json.dumps(fields)}
-                {json.dumps({field: str(details["annotations"][field]) for field in fields})}
-                """
+                Fields to generate: {json.dumps(fields)}
+                Field types: {json.dumps({field: str(details["annotations"][field]) for field in fields})}
+                """)
 
-            return context, new_model
+            return context, type(new_model) if not isinstance(new_model, type) else new_model
 
         except Exception as e:
             raise XNANOException(f"Failed to build patch context: {str(e)}")
@@ -875,28 +883,26 @@ class BaseModelMixin:
             # Return just the field model if specific fields requested
             if fields:
                 # Update original model with any new generated values
-                if not details["type"] == "instance":
+                if not isinstance(cls_or_self, type):
                     if verbose:
-                        console.log("Updating original model with generated values")
+                        console.message("Updating original model with generated values")
 
-                        original_models = [
-                            deepcopy(cls_or_self) for _ in range(len(results))
-                        ]  # Use results instead of response.items
+                    # Create copies of original model for each result
+                    original_models = [deepcopy(cls_or_self) for _ in range(n)]
 
-                        # Update each copy with corresponding generated values
-                        for i, original_model in enumerate(original_models):
-                            for field in fields:
-                                setattr(
-                                    original_model, field, getattr(results[i], field)
-                                )  # Use results instead of response.items
-                                if verbose:
-                                    console.message(
-                                        f"Setting {field} to {getattr(original_model, field)} for result {i+1}"
-                                    )
+                    # Get the results list - handle both single and multiple responses
+                    results_list = [response] if n == 1 else response.items
 
-                        # Return updated models
-                        return original_models[0] if n == 1 else original_models
+                    # Update each copy with corresponding generated values
+                    for i, original_model in enumerate(original_models):
+                        for field in fields:
+                            setattr(original_model, field, getattr(results_list[i], field))
+                            if verbose:
+                                console.message(f"Setting {field} to {getattr(original_model, field)} for result {i+1}")
 
+                    # Return updated models
+                    return original_models[0] if n == 1 else original_models
+                else:
                     return response if n == 1 else response.items
 
             return response if n == 1 else response.items
@@ -1080,24 +1086,18 @@ class BaseModelMixin:
                 if verbose:
                     console.message("Updating original model with generated values")
 
-                    # Create copies of original model for each result
-                    original_models = [
-                        deepcopy(cls_or_self) for _ in range(len(results))
-                    ]  # Use results instead of response.items
+                # Create copies of original model for each result
+                original_models = [deepcopy(cls_or_self) for _ in range(len(results))]
 
-                    # Update each copy with corresponding generated values
-                    for i, original_model in enumerate(original_models):
-                        for field in fields:
-                            setattr(
-                                original_model, field, getattr(results[i], field)
-                            )  # Use results instead of response.items
-                            if verbose:
-                                console.message(
-                                    f"Setting {field} to {getattr(original_model, field)} for result {i+1}"
-                                )
+                # Update each copy with corresponding generated values
+                for i, original_model in enumerate(original_models):
+                    for field in fields:
+                        setattr(original_model, field, getattr(results[i], field))
+                        if verbose:
+                            console.message(f"Setting {field} to {getattr(original_model, field)} for result {i+1}")
 
-                    # Return updated models
-                    return original_models[0] if n == 1 else original_models
+                # Return updated models
+                return original_models[0] if n == 1 else original_models
 
             return results[0] if n == 1 else results
 
@@ -1376,28 +1376,26 @@ class BaseModelMixin:
             # Return just the field model if specific fields requested
             if fields:
                 # Update original model with any new generated values
-                if not details["type"] == "instance":
+                if not isinstance(cls_or_self, type):
                     if verbose:
-                        console.log("Updating original model with generated values")
+                        console.message("Updating original model with generated values")
 
-                        original_models = [
-                            deepcopy(cls_or_self) for _ in range(len(results))
-                        ]  # Use results instead of response.items
+                    # Create copies of original model for each result
+                    original_models = [deepcopy(cls_or_self) for _ in range(n)]
 
-                        # Update each copy with corresponding generated values
-                        for i, original_model in enumerate(original_models):
-                            for field in fields:
-                                setattr(
-                                    original_model, field, getattr(results[i], field)
-                                )  # Use results instead of response.items
-                                if verbose:
-                                    console.message(
-                                        f"Setting {field} to {getattr(original_model, field)} for result {i+1}"
-                                    )
+                    # Get the results list - handle both single and multiple responses
+                    results_list = [response] if n == 1 else response.items
 
-                        # Return updated models
-                        return original_models[0] if n == 1 else original_models
+                    # Update each copy with corresponding generated values
+                    for i, original_model in enumerate(original_models):
+                        for field in fields:
+                            setattr(original_model, field, getattr(results_list[i], field))
+                            if verbose:
+                                console.message(f"Setting {field} to {getattr(original_model, field)} for result {i+1}")
 
+                    # Return updated models
+                    return original_models[0] if n == 1 else original_models
+                else:
                     return response if n == 1 else response.items
 
             return response if n == 1 else response.items
@@ -1581,24 +1579,18 @@ class BaseModelMixin:
                 if verbose:
                     console.message("Updating original model with generated values")
 
-                    # Create copies of original model for each result
-                    original_models = [
-                        deepcopy(cls_or_self) for _ in range(len(results))
-                    ]  # Use results instead of response.items
+                # Create copies of original model for each result
+                original_models = [deepcopy(cls_or_self) for _ in range(len(results))]
 
-                    # Update each copy with corresponding generated values
-                    for i, original_model in enumerate(original_models):
-                        for field in fields:
-                            setattr(
-                                original_model, field, getattr(results[i], field)
-                            )  # Use results instead of response.items
-                            if verbose:
-                                console.message(
-                                    f"Setting {field} to {getattr(original_model, field)} for result {i+1}"
-                                )
+                # Update each copy with corresponding generated values
+                for i, original_model in enumerate(original_models):
+                    for field in fields:
+                        setattr(original_model, field, getattr(results[i], field))
+                        if verbose:
+                            console.message(f"Setting {field} to {getattr(original_model, field)} for result {i+1}")
 
-                    # Return updated models
-                    return original_models[0] if n == 1 else original_models
+                # Return updated models
+                return original_models[0] if n == 1 else original_models
 
             return results[0] if n == 1 else results
 
