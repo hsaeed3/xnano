@@ -1,6 +1,7 @@
 # Completion Tests
 
 import asyncio
+from typing import Generator
 from xnano import completion, async_completion
 from pydantic import BaseModel
 import pytest
@@ -23,6 +24,18 @@ def test_completion_string_input():
     response = completion("Hello, world!")
 
     assert isinstance(response.choices[0].message.content, str)
+
+
+def test_completion_stream():
+
+    response = completion("Repeat after me: I am a happy person", stream = True)
+
+    content = ""
+
+    for chunk in response:
+        content += chunk.choices[0].delta.content
+
+    assert "happy" in content.lower()
 
 
 @pytest.mark.asyncio
