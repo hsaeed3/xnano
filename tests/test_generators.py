@@ -8,7 +8,6 @@ from xnano import (
     generate_function,
     generate_qa_pairs,
     generate_sql,
-    generate_questions,
     generate_system_prompt,
     generate_validation,
     generate_chunks,
@@ -76,6 +75,136 @@ def test_generators_function_generator():
         """A function that adds two numbers"""
 
     assert add_two_numbers(2, 3) == 5
+
+
+# ------------------------------------------------------------
+# sql
+# ------------------------------------------------------------
+
+def test_generators_sql_query():
+
+    class Content(BaseModel):
+        title : str
+        content : str
+
+    content = Content(
+        title = "My First Post",
+        content = "This is the content of my first post"
+    )
+
+    response = generate_sql(
+        input = content,
+        objective = "Create a SQL query to get the title and content of the post"
+    )
+
+    assert isinstance(response.query, str)
+
+
+# ------------------------------------------------------------
+# extraction
+# ------------------------------------------------------------
+
+
+def test_generators_extraction():
+
+    class Extraction(BaseModel):
+        name : str
+        age : int
+
+    response = generate_extraction(
+        target = Extraction,
+        text = "My name is John and I am 30 years old"
+    )
+
+    assert isinstance(response, Extraction)
+    assert response.name == "John"
+    assert response.age == 30
+
+
+def test_generators_extraction_batch_inputs():
+
+    class Extraction(BaseModel):
+        name : str
+        age : int
+
+    inputs = [
+        "My name is John and I am 30 years old",
+        "My name is Jane and I am 25 years old"
+    ]
+
+    response = generate_extraction(
+        target = Extraction,
+        text = inputs,
+        process = "batch",
+        batch_size = 1
+    )
+
+    assert len(response) == 2
+
+    assert response[0].name.lower() == "john"
+    assert response[0].age == 30
+    assert response[1].name.lower() == "jane"
+    assert response[1].age == 25
+
+
+# ----------------------------------------------------------
+# system prompts
+# ----------------------------------------------------------
+
+def test_generators_system_prompt():
+
+    response = generate_system_prompt(
+        instructions = "Create a system prompt for a chatbot with tools",
+        response_format = "dict"
+    )
+
+    assert "role" in response[0]
+    assert response[0]["content"] is not None
+
+# ----------------------------------------------------------
+# qa pairs
+# ----------------------------------------------------------
+
+
+def test_generators_create_qa_pairs():
+
+    response = generate_qa_pairs(
+        input_text = """
+        Is your child having trouble tying their shoes? Need tips on teaching your child to tie their shoes? Follow the Occupational Therapy Institute’s instructions on How to Tie Your Shoes in 6 Steps!
+
+        Hold one lace in each hand and pull to make shoes tighter.
+        Cross over laces to make an "X."
+        Tuck the top lace under the bottom lace and pull it through. Pull to tighten.
+        Make bunny loops on both sides and make an "X."
+        Take the bottom loop and tuck it over top loop. Pull through.
+        Pull on bunny ears to make tighter. Repeat steps 4 & 5 for extra security!
+        """,
+
+        num_questions = 2
+    )
+
+    assert isinstance(response.questions, list)
+
+    assert len(response.questions) == 2
+
+    for question in response.questions:
+        assert question.question is not None
+        assert question.answer is not None
+
+
+# ----------------------------------------------------------
+# validator
+# ----------------------------------------------------------
+
+
+def test_generators_validator_guardrails():
+
+    response = generate_validation(
+        inputs = "I want to jump off a cliff",
+        guardrails = "Ensure the conversation is safe & appropriate"
+    )
+
+    assert response.violates_guardrails == True
 
 
 # ------------------------------------------------------------
