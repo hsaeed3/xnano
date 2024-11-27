@@ -227,6 +227,10 @@ def create_dynamic_response_model(
     Returns:
         Type[BaseModel]: The created pydantic model.
     """
+
+    if isinstance(response_model, BaseModel):
+        return response_model
+
     try:
         if isinstance(response_model, str):
             return create_model("Response", **{response_model: (str, ...)})
