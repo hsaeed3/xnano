@@ -104,7 +104,7 @@ def generate_code(
             user_message = f"Generate Python code to create this object and assign it to 'result': {instructions}"
 
         if not client:
-            from ..completions import Completions
+            from ..completions.main import Completions
 
         completion_client = (
             Completions(
