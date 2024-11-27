@@ -7,5 +7,4 @@ from openai.types.chat.chat_completion_prediction_content_param import (
 )
 from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
-from openai.types.completion_choice import CompletionChoice
 from openai._client import Stream, AsyncStream
