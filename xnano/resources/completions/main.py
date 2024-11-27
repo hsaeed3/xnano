@@ -3,7 +3,7 @@ from instructor import from_litellm, Mode
 # interal imports
 from ...lib import console, XNANOException
 from .resources import messages as message_utils
-from .resources import structured_outputs, tool_calling, utils
+from .resources import structured_outputs, tool_calling, utils, batch
 
 from ...types.completions.arguments import CompletionArguments
 from ...types.embeddings.memory import Memory
@@ -295,10 +295,46 @@ class Completions:
         )
 
         # set flags
-        if isinstance(messages, list) and isinstance(messages[0], list):
-            is_batch_completion = True
         if tools and run_tools is True:
             is_tool_execution = True
+
+        # ------------------------------------------------------------
+        # batch handling
+        # ------------------------------------------------------------
+
+        # get batch determination
+        batch_determination = batch.determine_batch_needed(messages, model)
+
+        if self.verbose:
+            console.message(f"✅ [green]Batch determination: [bold white]{batch_determination}[/bold white][/green]")
+
+        if batch_determination.multi_model_batch_job:
+            # Get local variables as dict and remove unwanted keys
+            local_vars = locals()
+            local_vars.pop("self", None)
+            local_vars.pop("batch_determination", None) 
+            local_vars.pop("responses", None)
+            local_vars.pop("ran_tools", None)
+            local_vars.pop("is_batch_completion", None)
+            local_vars.pop("is_tool_execution", None)
+            local_vars.pop("embedding_context_string", None)
+            local_vars.pop("original_response_model", None)
+            local_vars.pop("response_model", None)
+            return batch.create_batch_completion_job_with_multiple_models(**local_vars, response_model=response_model)
+        
+        if batch_determination.multi_message_batch_job:
+            # Get local variables as dict and remove unwanted keys
+            local_vars = locals()
+            local_vars.pop("self", None)
+            local_vars.pop("batch_determination", None)
+            local_vars.pop("responses", None) 
+            local_vars.pop("ran_tools", None)
+            local_vars.pop("is_batch_completion", None)
+            local_vars.pop("is_tool_execution", None)
+            local_vars.pop("embedding_context_string", None)
+            local_vars.pop("original_response_model", None)
+            local_vars.pop("response_model", None)
+            return batch.create_batch_completion_job(**local_vars, response_model=response_model)
 
         # ------------------------------------------------------------
         # structured output handling
