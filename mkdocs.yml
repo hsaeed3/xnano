@@ -32,6 +32,8 @@ theme:
     - content.code.copy
     - content.code.select
     - content.code.annotate
+    - content.code.line-numbers
+    - content.tooltips
 
   palette:
     scheme: home-dark
