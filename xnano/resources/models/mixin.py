@@ -3,8 +3,7 @@
 
 from pydantic import BaseModel as PydanticBaseModel, create_model, Field
 
-from ..completions.main import completion, acompletion
-from ..._lib import console, XNANOException
+from ...lib import console, XNANOException
 
 import json
 import httpx
@@ -363,6 +362,8 @@ class BaseModelMixin:
             Union[T, List[T], Response, List[Response]]: Generated completion(s)
         """
 
+        from ..completions.main import completion
+
         details = cls_or_self._get_details()
         model_context = cls_or_self._get_context()
 
@@ -428,7 +429,7 @@ class BaseModelMixin:
 
     # async completion
     @function_handler
-    async def model_acompletion(
+    async def model_async_completion(
         cls_or_self,
         messages: CompletionMessagesParam,
         model: CompletionChatModelsParam = "gpt-4o-mini",
@@ -533,6 +534,8 @@ class BaseModelMixin:
             Union[T, List[T], Response, List[Response]]: Generated completion(s)
         """
 
+        from ..completions.main import async_completion, completion
+
         details = cls_or_self._get_details()
         model_context = cls_or_self._get_context()
 
@@ -594,7 +597,7 @@ class BaseModelMixin:
                 return response
 
         else:
-            return await acompletion(**args)
+            return await async_completion(**args)
 
     @function_handler
     def model_generate(
@@ -1099,7 +1102,7 @@ class BaseModelMixin:
             return results[0] if n == 1 else results
 
     @function_handler
-    async def model_agenerate(
+    async def model_async_generate(
         cls_or_self,
         messages: Optional[CompletionMessagesParam] = "",
         model: CompletionChatModelsParam = "gpt-4o-mini",
@@ -1278,7 +1281,7 @@ class BaseModelMixin:
                 with console.progress(
                     f"Generating {n} instance(s) of {details['name']}..."
                 ) as progress:
-                    response = await cls_or_self.model_acompletion(
+                    response = await cls_or_self.model_async_completion(
                         context=context + "\n\n" + base_context
                         if context
                         else base_context,
@@ -1324,7 +1327,7 @@ class BaseModelMixin:
                         loader=False,
                     )
             else:
-                response = await cls_or_self.model_acompletion(
+                response = await cls_or_self.model_async_completion(
                     context=context + "\n\n" + base_context
                     if context
                     else base_context,
@@ -1444,7 +1447,7 @@ class BaseModelMixin:
                                 "FieldResponse", value=(field.annotation, ...)
                             )
 
-                            response = await cls_or_self.model_acompletion(
+                            response = await cls_or_self.model_async_completion(
                                 context=context + "\n\n" + field_context
                                 if context
                                 else field_context,
@@ -1510,7 +1513,7 @@ class BaseModelMixin:
                             "FieldResponse", value=(field.annotation, ...)
                         )
 
-                        response = await cls_or_self.model_acompletion(
+                        response = await cls_or_self.model_async_completion(
                             context=context + "\n\n" + field_context
                             if context
                             else field_context,
@@ -1605,7 +1608,7 @@ class BaseModelMixin:
 # -------------------------------------------------------------------------------------------------
 
 
-class BaseModel(PydanticBaseModel, BaseModelMixin): ...
+class GenerativeModel(PydanticBaseModel, BaseModelMixin): ...
 
 
 # -------------------------------------------------------------------------------------------------
@@ -1615,7 +1618,7 @@ class BaseModel(PydanticBaseModel, BaseModelMixin): ...
 
 def patch(
     model: Union[Type[PydanticBaseModel], PydanticBaseModel],
-) -> Union[Type[BaseModel], BaseModel, Type[PydanticBaseModel], PydanticBaseModel]:
+) -> Union[Type[GenerativeModel], GenerativeModel, Type[PydanticBaseModel], PydanticBaseModel]:
     if isinstance(model, type) and issubclass(model, PydanticBaseModel):
         PatchedModel = type(model.__name__, (model, BaseModelMixin), {})
         return PatchedModel
@@ -1631,7 +1634,7 @@ def patch(
 
 
 def unpatch(
-    model: Union[Type[PydanticBaseModel], PydanticBaseModel],
+    model: Union[Type[GenerativeModel], GenerativeModel, Type[PydanticBaseModel], PydanticBaseModel],
 ) -> Union[Type[PydanticBaseModel], PydanticBaseModel]:
     if isinstance(model, type) and issubclass(model, PydanticBaseModel):
         return model.__base__

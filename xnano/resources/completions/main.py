@@ -1,7 +1,7 @@
 from instructor import from_litellm, Mode
 
 # interal imports
-from ..._lib import console, XNANOException
+from ...lib import console, XNANOException
 from .resources import messages as message_utils
 from .resources import structured_outputs, tool_calling, utils
 
@@ -228,6 +228,7 @@ class Completions:
         context: Optional[CompletionContextParam] = None,
         memory: Optional[Union[Memory, List[Memory]]] = None,
         memory_limit: Optional[int] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
         response_format: Optional[CompletionResponseModelParam] = None,
@@ -274,6 +275,12 @@ class Completions:
         Returns:
             CompletionResponse: The completion response
         """
+
+        if instructor_mode:
+            mode = instructor_mode
+
+        if mode:
+            self.instructor_patch(mode)
 
         # setup response
         responses = []
@@ -541,6 +548,7 @@ class Completions:
         memory: Optional[Union[Memory, List[Memory]]] = None,
         memory_limit: Optional[int] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
         response_format: Optional[CompletionResponseModelParam] = None,
         tools: Optional[List[CompletionToolsParam]] = None,
@@ -586,6 +594,12 @@ class Completions:
         Returns:
             Response: The completion response
         """
+
+        if instructor_mode:
+            mode = instructor_mode
+
+        if mode:
+            self.instructor_patch(mode)
 
         # setup response
         responses = []
@@ -833,7 +847,9 @@ class Completions:
         context: Optional[CompletionContextParam] = None,
         memory: Optional[Union[Memory, List[Memory]]] = None,
         memory_limit: Optional[int] = None,
+        # instructor mode param now implemented but not fully built in
         mode: Optional[CompletionInstructorModeParam] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
         response_format: Optional[CompletionResponseModelParam] = None,
         tools: Optional[List[CompletionToolsParam]] = None,
@@ -923,6 +939,9 @@ class Completions:
             verbose (bool): Verbose to use for the completion
         """
 
+        if instructor_mode:
+            mode = instructor_mode
+
         # run completion
         return self.run_completion(
             messages=messages,
@@ -979,6 +998,7 @@ class Completions:
         context: Optional[CompletionContextParam] = None,
         memory: Optional[Union[Memory, List[Memory]]] = None,
         memory_limit: Optional[int] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
         response_format: Optional[CompletionResponseModelParam] = None,
@@ -1090,6 +1110,7 @@ class Completions:
         context: Optional[CompletionContextParam] = None,
         memory: Optional[Union[Memory, List[Memory]]] = None,
         memory_limit: Optional[int] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
         response_format: Optional[CompletionResponseModelParam] = None,
@@ -1179,6 +1200,9 @@ class Completions:
             stream (bool): Stream to use for the completion
         """
 
+        if instructor_mode:
+            mode = instructor_mode
+
         return await self.arun_completion(
             messages=messages,
             model=model,
@@ -1231,6 +1255,7 @@ class Completions:
         context: Optional[CompletionContextParam] = None,
         memory: Optional[Union[Memory, List[Memory]]] = None,
         memory_limit: Optional[int] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
         mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
         response_format: Optional[CompletionResponseModelParam] = None,
@@ -1333,4 +1358,4 @@ class Completions:
 
 # functions
 completion = Completions._completion
-acompletion = Completions._acompletion
+async_completion = Completions._acompletion

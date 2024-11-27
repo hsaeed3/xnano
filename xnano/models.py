@@ -1,17 +1,20 @@
-# xnano
-# hammad saeed // 2024
-
-# pydantic extensions
+# xnano . models
 
 __all__ = [
     "GenerativeModel",
-    "patch",
-    "unpatch",
+    "model_patch",
+    "model_unpatch"
 ]
 
-# imports
+# primary import level for xnano.GenerativeModel
+# (Pydantic Subclass & Extension)
 
 from .resources.models.mixin import (
-    BaseModel as GenerativeModel,
-    patch, unpatch
+    GenerativeModel,
+    
+    # TODO:
+    # update lib imports to use .model_ at 
+    # internal level
+    patch as model_patch,
+    unpatch as model_unpatch
 )

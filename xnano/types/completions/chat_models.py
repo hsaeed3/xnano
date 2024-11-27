@@ -63,3 +63,7 @@ ChatModels = Literal[
     "ollama/llama-guard3:1b",
     "ollama/llama-guard3:8b",
 ]
+
+
+# List Export
+ChatModelsList = list(ChatModels)

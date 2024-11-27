@@ -1,90 +1,125 @@
+# xnano
 # hammad saeed // 2024
-# no classes now imported at top level
 
 __all__ = [
-    "create_agent",
+    # lib level resource
+    # exported at top level
+    "console",
+
+    # ----------------------------------------
+    # completions
+    # ----------------------------------------
+
     "completion",
     "async_completion",
+
+    # ----------------------------------------
+    # data
+    # ----------------------------------------
+
+    "Database",
+    "VectorStore",
+
+    # ----------------------------------------
+    # generators
+    # ----------------------------------------
+
     "generate_code",
-    "function",
-    "generate_system_prompt",
-    "classify",
-    "async_classify",
-    "extract",
-    "async_extract",
-    "validate",
-    "async_validate",
+    "generate_function",
+    "generate_classification",
+    "async_generate_classification",
     "generate_chunks",
+    "generate_extraction",
+    "async_generate_extraction",
+    "generate_sql",
+    "generate_system_prompt",
     "generate_qa_pairs",
-    "text_reader",
-    "text_chunker",
-    "generate_embeddings",
-    "web_reader",
-    "web_scraper",
-    "web_search",
-    "web_url_search",
-    "generate_image",
-    "generate_audio",
-    "generate_transcription",
-    "TOOLS",
-    "console",
-    "patch",
-    "unpatch",
-    "messages",
-    "format_messages",
-    "swap_system_prompt",
-    "add_message",
-    "repair_messages",
+    "generate_answers",
+    "generate_questions",
+    "generate_validation",
+    "async_generate_validation",
+    "generate_web_extraction",
+
+    # ----------------------------------------
+    # models
+    # ----------------------------------------
+
+    "GenerativeModel",
+    "model_patch",
+    "model_unpatch",
+
+    # ----------------------------------------
+    # utils
+    # ----------------------------------------
+
     "convert_yaml_to_pydantic",
+    "format_messages",
+    "repair_messages",
+    "verify_messages_integrity",
+    "swap_system_prompt",
     "convert_to_openai_tool",
+    "MessageUtils",
+    "tools"
+
 ]
 
-# imports
+# ----------------------------------------
+# lib level resources
+# ----------------------------------------
 
-# agents
+from .lib import console
 
-from .agents import create_agent
+# ----------------------------------------
+# completions
+# ----------------------------------------
 
-from .completions import (
-    completion,
-    acompletion as async_completion,
+from .completions import completion, async_completion
+
+# ----------------------------------------
+# data
+# ----------------------------------------
+
+from .data import Database, VectorStore
+
+# ----------------------------------------
+# generators
+# ----------------------------------------
+
+from .generators import (
     generate_code,
-    function,
-    generate_system_prompt,
-    classify,
-    aclassify as async_classify,
-    extract,
-    aextract as async_extract,
-    validate,
-    avalidate as async_validate,
-    generate_qa_pairs,
+    generate_function,
+    generate_classification,
+    async_generate_classification,
     generate_chunks,
+    generate_extraction,
+    async_generate_extraction,
+    generate_sql,
+    generate_system_prompt,
+    generate_qa_pairs,
+    generate_answers,
+    generate_questions,
+    generate_validation,
+    async_generate_validation,
+    generate_web_extraction 
 )
 
-from ._lib import console
+# ----------------------------------------
+# models
+# ----------------------------------------
 
-from .models import patch, unpatch
+from .models import GenerativeModel, model_patch, model_unpatch
 
-from .data import (
-    text_reader,
-    text_chunker,
-    generate_embeddings,
-    web_reader,
-    web_scraper,
-    web_search,
-    web_url_search,
-)
+# ----------------------------------------
+# utils
+# ----------------------------------------
 
-from .multimodal import generate_image, generate_audio, generate_transcription
-
-from .tools import TOOLS
-
-from .utils import (
-    messages,
-    add_message,
-    format_messages,
-    swap_system_prompt,
-    repair_messages,
+from .resources.utils._routing import (
     convert_yaml_to_pydantic,
+    format_messages,
+    repair_messages,
+    verify_messages_integrity,
+    swap_system_prompt,
     convert_to_openai_tool,
+    MessageUtils,
+    tools
 )

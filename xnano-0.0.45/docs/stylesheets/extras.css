@@ -1,0 +1,389 @@
+@font-face {
+  font-family: "Zed Mono";
+  src: url("../fonts/zed-mono-extended.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zed Mono";
+  src: url("../fonts/zed-mono-extendedbold.ttf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zed Mono";
+  src: url("../fonts/zed-mono-extendedbolditalic.ttf") format("truetype");
+  font-weight: bold;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zed Mono";
+  src: url("../fonts/zed-mono-extendeditalic.ttf") format("truetype");
+  font-weight: normal;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zed Sans";
+  src: url("../fonts/zed-sans-extended.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zed Sans";
+  src: url("../fonts/zed-sans-extendedbold.ttf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zed Sans";
+  src: url("../fonts/zed-sans-extendedbolditalic.ttf") format("truetype");
+  font-weight: bold;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zed Sans";
+  src: url("../fonts/zed-sans-extendeditalic.ttf") format("truetype");
+  font-weight: normal;
+  font-style: italic;
+}
+
+:root {
+  --md-text-font: "Zed Sans";
+}
+
+:root {
+  --md-code-font: "Zed Mono";
+}
+
+/* Styling for code boxes */
+.md-typeset pre {
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.md-typeset code {
+  border-radius: 3px;
+  padding: 0.2em 0.4em;
+}
+
+[data-md-color-scheme="home-light"] {
+  --md-hue: 60deg;
+
+  --md-primary-fg-color:               #F5F5F0;  /* Soft Cream */
+  --md-primary-fg-color--light:        #E8E8E3;  /* Light Cream */
+  --md-primary-fg-color--dark:         #DCDCD7;  /* Muted Cream */
+  --md-primary-bg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-primary-bg-color--light:        #3D3D3D;  /* Medium Charcoal */
+
+  --md-accent-fg-color:                #89CFF0;  /* Baby Blue */
+  --md-accent-fg-color--transparent:   #89CFF033;  /* Baby Blue with transparency */
+
+  --md-default-fg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-default-fg-color--light:        #3D3D3D;  /* Medium Charcoal */
+  --md-default-fg-color--lighter:      #4D4D4D;  /* Light Charcoal */
+  --md-default-fg-color--lightest:     #DCDCD7;  /* Muted Cream */
+  --md-default-bg-color:               #F5F5F0;  /* Soft Cream */
+  --md-default-bg-color--light:        #E8E8E3;  /* Light Cream */
+  --md-default-bg-color--lighter:      #DCDCD7;  /* Muted Cream */
+  --md-default-bg-color--lightest:     #E9C7B7;  /* Soft Peach */
+
+  --md-code-fg-color:                  #4A4A4A;  /* Soft Black */
+  --md-code-bg-color:                  #E8E8E3;  /* Light Cream */
+  --md-code-hl-color:                  #DCDCD7;  /* Muted Cream */
+
+  --md-code-hl-number-color:           #F0A07C;  /* Soft Coral */
+  --md-code-hl-special-color:          #F0CF7C;  /* Soft Yellow */
+  --md-code-hl-function-color:         #D7B4D9;  /* Soft Purple */
+  --md-code-hl-constant-color:         #A8D7C2;  /* Soft Mint */
+  --md-code-hl-keyword-color:          #F0A07C;  /* Soft Coral */
+  --md-code-hl-string-color:           #BFD9A8;  /* Soft Green */
+  --md-code-hl-name-color:             #A8C4D9;  /* Soft Blue */
+  --md-code-hl-operator-color:         #A8D7C2;  /* Soft Mint */
+  --md-code-hl-punctuation-color:      #B4B4B4;  /* Soft Gray */
+  --md-code-hl-comment-color:          #C2C2C2;  /* Light Gray */
+  --md-code-hl-generic-color:          #8A8A8A;  /* Medium Gray */
+  --md-code-hl-variable-color:         #A8C4D9;  /* Soft Blue */
+
+  --md-typeset-color:                  var(--md-default-fg-color);
+  --md-typeset-a-color:                #E6A99F;  /* Soft Terracotta */
+
+  --md-typeset-mark-color:             #E9C7B780;  /* Soft Peach with transparency */
+
+  --md-typeset-table-color:            #DCDCD7;  /* Muted Cream */
+  --md-typeset-table-color--light:     #E8E8E3;  /* Light Cream */
+
+  --md-admonition-fg-color:            var(--md-default-fg-color);
+  --md-admonition-bg-color:            var(--md-default-bg-color);
+
+  --md-warning-fg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-warning-bg-color:               #E9C7B7;  /* Soft Peach */
+
+  --md-footer-fg-color:                #F5F5F0;  /* Soft Cream */
+  --md-footer-fg-color--light:         #E8E8E3;  /* Light Cream */
+  --md-footer-fg-color--lighter:       #DCDCD7;  /* Muted Cream */
+  --md-footer-bg-color:                #2D2D2D;  /* Soft Charcoal */
+  --md-footer-bg-color--dark:          #3D3D3D;  /* Medium Charcoal */
+
+  --md-code-shadow-color:              rgba(0, 0, 0, 0.05);
+}
+
+[data-md-color-scheme="home-dark"] {
+  --md-hue: 220deg;
+
+  --md-primary-fg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-primary-fg-color--light:        #3D3D3D;  /* Medium Charcoal */
+  --md-primary-fg-color--dark:         #4D4D4D;  /* Light Charcoal */
+  --md-primary-bg-color:               #F5F5F0;  /* Soft Cream */
+  --md-primary-bg-color--light:        #E8E8E3;  /* Light Cream */
+
+  --md-accent-fg-color:                #89CFF0;  /* Baby Blue */
+  --md-accent-fg-color--transparent:   #89CFF033;  /* Baby Blue with transparency */
+
+  --md-default-fg-color:               #F5F5F0;  /* Soft Cream */
+  --md-default-fg-color--light:        #E8E8E3;  /* Light Cream */
+  --md-default-fg-color--lighter:      #DCDCD7;  /* Muted Cream */
+  --md-default-fg-color--lightest:     #1e1e1e;  /* Soft Peach */
+  --md-default-bg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-default-bg-color--light:        #3D3D3D;  /* Medium Charcoal */
+  --md-default-bg-color--lighter:      #4D4D4D;  /* Light Charcoal */
+  --md-default-bg-color--lightest:     #5D5D5D;  /* Lighter Charcoal */
+
+  --md-code-fg-color:                  #E8E8E3;  /* Light Cream */
+  --md-code-bg-color:                  #3D3D3D;  /* Medium Charcoal */
+  --md-code-hl-color:                  #4D4D4D;  /* Light Charcoal */
+
+  --md-code-hl-number-color:           #FFB5A1;  /* Light Coral */
+  --md-code-hl-special-color:          #FFE5A1;  /* Light Yellow */
+  --md-code-hl-function-color:         #E8C6EA;  /* Light Purple */
+  --md-code-hl-constant-color:         #B8E8D4;  /* Light Mint */
+  --md-code-hl-keyword-color:          #FFB5A1;  /* Light Coral */
+  --md-code-hl-string-color:           #D1E8B8;  /* Light Green */
+  --md-code-hl-name-color:             #B8D5E8;  /* Light Blue */
+  --md-code-hl-operator-color:         #B8E8D4;  /* Light Mint */
+  --md-code-hl-punctuation-color:      #D1D1D1;  /* Light Gray */
+  --md-code-hl-comment-color:          #B8B8B8;  /* Medium Gray */
+  --md-code-hl-generic-color:          #E8E8E8;  /* Off White */
+  --md-code-hl-variable-color:         #B8D5E8;  /* Light Blue */
+
+  --md-typeset-color:                  var(--md-default-fg-color);
+  --md-typeset-a-color:                #E6A99F;  /* Soft Terracotta */
+
+  --md-typeset-mark-color:             #E9C7B780;  /* Soft Peach with transparency */
+
+  --md-typeset-table-color:            #4D4D4D;  /* Light Charcoal */
+  --md-typeset-table-color--light:     #3D3D3D;  /* Medium Charcoal */
+
+  --md-admonition-fg-color:            var(--md-default-fg-color);
+  --md-admonition-bg-color:            var(--md-default-bg-color);
+
+  --md-warning-fg-color:               #2D2D2D;  /* Soft Charcoal */
+  --md-warning-bg-color:               #E9C7B7;  /* Soft Peach */
+
+  --md-footer-fg-color:                #F5F5F0;  /* Soft Cream */
+  --md-footer-fg-color--light:         #E8E8E3;  /* Light Cream */
+  --md-footer-fg-color--lighter:       #DCDCD7;  /* Muted Cream */
+  --md-footer-bg-color:                #2D2D2D;  /* Soft Charcoal */
+  --md-footer-bg-color--dark:          #3D3D3D;  /* Medium Charcoal */
+
+  --md-code-shadow-color:              rgba(0, 0, 0, 0.2);
+}
+
+/* Apply theme-specific shadow to code boxes */
+.md-typeset pre {
+  box-shadow: 0 2px 6px var(--md-code-shadow-color);
+}
+
+/* Ensure inline code uses theme background */
+.md-typeset code:not(pre code) {
+  background-color: var(--md-code-bg-color);
+  color: var(--md-code-fg-color);
+}
+
+/* Add horizontal padding to headers */
+.md-header_inner {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.md-header--lifted {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.md-tabs {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.md-header--shadow {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.md-footer {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.md-footer-meta {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.md-ellipsis {
+  position: relative;
+}
+
+.md-header__title .md-ellipsis {
+  position: relative;
+}
+
+.jupyter-wrapper .highlight pre {
+  background-color: #1e1e1e !important;
+}
+
+.jupyter-wrapper .CodeMirror {
+  background-color: #1e1e1e !important;
+}
+
+.grid.cards {
+  border-radius: 6px;
+}
+
+.md-footer-meta {
+  border-top-left-radius : 10px;
+  border-top-right-radius : 10px;
+}
+
+.md-nav__item--section {
+  font-family: var(--md-text-font);
+  color: var(--md-default-fg-color);
+  font-style: bold;
+  font-size: 1.2em;
+}
+
+.md-nav__link {
+  font-family: var(--md-text-font);
+  color: var(--md-default-fg-color);
+  font-style: normal;
+  font-size: 0.95em;
+}
+
+.jp-InputArea-editor {
+  background: var(--md-code-bg-color);
+  border-radius: 12px;
+}
+
+.highlight-ipynb {
+  font-family: var(--md-code-font) !important;
+  font-size: 16px !important;
+}
+
+/* Comments */
+.highlight-ipynb .c1 {
+  color: var(--md-code-hl-comment-color) !important;
+  font-style: italic;
+}
+
+.highlight-ipynb .sd {
+  color: var(--md-code-hl-comment-color) !important;
+  font-style: italic;
+}
+
+.highlight-ipynb .s2 {
+  color: var(--md-code-hl-string-color) !important;
+}
+
+.highlight-ipynb .s1 {
+  color: var(--md-code-hl-string-color) !important;
+}
+
+/* Keywords ('import', 'def', etc.) */
+.highlight-ipynb .kn {
+  color: var(--md-code-hl-keyword-color) !important;
+  font-style: italic;
+}
+
+.highlight-ipynb .k {
+  color: var(--md-code-hl-keyword-color) !important;
+  font-style: italic;
+}
+
+/* types */
+.highlight-ipynb .nb {
+  color: var(--md-code-hl-constant-color) !important;
+  font-style: italic;
+}
+
+/* Names (function names, variable names, etc.) */
+.highlight-ipynb .nn {
+  color: var(--md-code-hl-function-color) !important;
+}
+
+.highlight-ipynb .n {
+  color: var(--md-code-hl-name-color) !important;
+}
+
+/* Operators ('+', '-', '*', etc.) */
+.highlight-ipynb .o {
+  color: var(--md-code-hl-operator-color) !important;
+}
+
+/* Parentheses */
+.highlight-ipynb .p {
+  color: var(--md-code-hl-punctuation-color) !important;
+}
+
+
+
+.jp-InputPrompt {
+  flex: 0 0 var(--jp-cell-prompt-width);
+  padding: 6px;
+  font-family: var(--md-code-font);
+  letter-spacing: 1px;
+  line-height: 1.6;
+  font-size: var(--jp-code-font-size);
+  border: var(--jp-border-width) solid transparent;
+}
+
+.CodeMirror {
+  background-color: var(--md-code-bg-color) !important;
+  color: var(--md-code-fg-color) !important;
+}
+
+.jp-CodeMirrorEditor {
+  border-radius: 12px !important;
+}
+
+.jp-Editor {
+  border-radius: 12px !important;
+}
+
+.jp-InputArea-editor {
+  border-radius: 12px !important;
+  border: none !important;
+  padding: 8px !important;
+  background-color: #1e1e1e !important;
+}
+
+.jp-InputArea-prompt {
+  color: var(--md-code-fg-color) !important;
+}
+
+.jp-OutputArea-output {
+  background-color: #1e1e1e !important;
+  border-radius: 12px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  font-size: 14px !important;
+}
