@@ -30,7 +30,6 @@ def _qa(
     organization: Optional[str] = None,
     temperature: float = 0.7,
     instructor_mode: CompletionInstructorModeParam = "tool_call",
-    max_retries: int = 3,
     client: Optional[Literal["openai", "litellm"]] = "openai",
     progress_bar: Optional[bool] = True,
     verbose: bool = False,
@@ -50,7 +49,6 @@ def _qa(
         organization (Optional[str]): Organization for the LLM service.
         temperature (float): Temperature for response generation.
         instructor_mode (InstructorMode): Mode for the instructor.
-        max_retries (int): Maximum number of retries for API calls.
         client (Optional[Literal["openai", "litellm"]]): Client to use for API calls.
         verbose (bool): Whether to log verbose output.
 
@@ -65,7 +63,7 @@ def _qa(
     # Chunk the input text only if chunk_size is not None
     if chunk_size is not None:
         chunks = chunker(
-            input_text, chunk_size=chunk_size, model=model, progress_bar=progress_bar
+            input_text, chunk_size=chunk_size, progress_bar=False
         )
         if verbose:
             console.message(f"Text chunked into {len(chunks)} parts")
@@ -83,7 +81,6 @@ def _qa(
             num_questions,
             model,
             instructor_mode,
-            max_retries,
             temperature,
             progress_bar,
             api_key,
@@ -99,7 +96,6 @@ def _qa(
             questions,
             model,
             instructor_mode,
-            max_retries,
             temperature,
             progress_bar,
             api_key,
@@ -170,9 +166,7 @@ def generate_questions(
         model=model,
         response_model=create_model("QuestionList", questions=(List[str], ...)),
         instructor_mode=instructor_mode,
-        max_retries=max_retries,
         temperature=temperature,
-        progress_bar=progress_bar,
         api_key=api_key,
         base_url=base_url,
         organization=organization,
@@ -187,7 +181,6 @@ def generate_answers(
     questions,
     model,
     instructor_mode,
-    max_retries,
     temperature,
     progress_bar,
     api_key,
@@ -215,9 +208,7 @@ def generate_answers(
             model=model,
             response_model=create_model("Answer", answer=(str, ...)),
             instructor_mode=instructor_mode,
-            max_retries=max_retries,
             temperature=temperature,
-            progress_bar=progress_bar,
             api_key=api_key,
             base_url=base_url,
             organization=organization,
@@ -238,7 +229,6 @@ def generate_qa_pairs(
     organization: Optional[str] = None,
     temperature: float = 0.7,
     instructor_mode: CompletionInstructorModeParam = "markdown_json_mode",
-    max_retries: int = 3,
     client: Optional[Literal["openai", "litellm"]] = "openai",
     progress_bar: Optional[bool] = True,
     verbose: bool = False,
@@ -263,7 +253,6 @@ def generate_qa_pairs(
         organization (Optional[str]): Organization for the LLM service.
         temperature (float): Temperature for response generation.
         mode (InstructorMode): Mode for the instructor.
-        max_retries (int): Maximum number of retries for API calls.
         client (Optional[Literal["openai", "litellm"]]): Client to use for API calls.
         verbose (bool): Whether to log verbose output.
 
@@ -280,7 +269,6 @@ def generate_qa_pairs(
         organization,
         temperature,
         instructor_mode,
-        max_retries,
         client,
         progress_bar,
         verbose,

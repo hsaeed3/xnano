@@ -47,7 +47,7 @@ def generate_validation(
     organization: Optional[str] = None,
     loader: Optional[bool] = True,
     verbose: bool = False,
-) -> Union[ValidationResult, List[ValidationResult]]:
+) -> ValidationResult:
     """
     Validates input(s) for accuracy, contextual relevance, and guardrail compliance.
 
