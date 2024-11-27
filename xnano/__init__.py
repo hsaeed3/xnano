@@ -12,7 +12,7 @@ __all__ = [
 
     "Agent",
     "create_agent",
-    "Steps"
+    "Steps",
 
     # ----------------------------------------
     # completions
@@ -47,6 +47,11 @@ __all__ = [
     "generate_validation",
     "async_generate_validation",
     "generate_web_extraction",
+
+    # multimodal
+    "multimodal_generate_image",
+    "multimodal_generate_audio",
+    "multimodal_generate_transcription",
 
     # ----------------------------------------
     # models
@@ -121,7 +126,12 @@ from .generators import (
     generate_questions,
     generate_validation,
     async_generate_validation,
-    generate_web_extraction 
+    generate_web_extraction,
+
+    # multimodal
+    multimodal_generate_image,
+    multimodal_generate_audio,
+    multimodal_generate_transcription,
 )
 
 # ----------------------------------------

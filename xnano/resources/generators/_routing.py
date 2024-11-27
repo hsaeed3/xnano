@@ -13,7 +13,12 @@ __all__ = [
     "generate_questions",
     "generate_validation",
     "async_generate_validation",
-    "generate_web_extraction"
+    "generate_web_extraction",
+
+    # multimodal
+    "multimodal_generate_image",
+    "multimodal_generate_audio",
+    "multimodal_generate_transcription",
 ]
 
 
@@ -124,3 +129,23 @@ class generate_web_extraction(router):
 
 generate_web_extraction.init("xnano.resources.generators.web_extractor", "generate_web_extraction")
 
+
+class multimodal_generate_image(router):
+    pass
+
+
+multimodal_generate_image.init("xnano.resources.generators.multimodal", "multimodal_generate_image")
+
+
+class multimodal_generate_audio(router):
+    pass
+
+
+multimodal_generate_audio.init("xnano.resources.generators.multimodal", "multimodal_generate_audio")
+
+
+class multimodal_generate_transcription(router):
+    pass
+
+
+multimodal_generate_transcription.init("xnano.resources.generators.multimodal", "multimodal_generate_transcription")
