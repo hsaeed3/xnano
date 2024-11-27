@@ -1,24 +1,19 @@
 # response
 from pydantic import BaseModel
-from typing import Union, Type, List
-from ._openai import ChatCompletion
+from typing import Union, Type, List, Generator
+from ._openai import ChatCompletion, Stream, ChatCompletionChunk
 from ..models.mixin import BaseModelMixin
+
+
+StreamingResponse = Stream[ChatCompletionChunk]
+
 
 # response
 Response = Union[
+
     # standard completion
     ChatCompletion,
-    List[ChatCompletion],
     BaseModelMixin,
-    List[BaseModelMixin],
-    # simple types
-    str,
-    list[str],
-    int,
-    float,
-    bool,
-    list[int],
-    list[float],
-    list[bool],
-    list,
+
 ]
+
