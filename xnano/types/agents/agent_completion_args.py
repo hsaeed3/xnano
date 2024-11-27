@@ -19,6 +19,7 @@ class AgentCompletionArgs(BaseModel):
 
     base_url : Optional[str] = None
 
+    temperature : Optional[float] = None
 
     agents : Optional[Union[List[Any], Any]] = None
 
