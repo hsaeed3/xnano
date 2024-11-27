@@ -33,7 +33,7 @@ def test_completion_stream():
     content = ""
 
     for chunk in response:
-        content += chunk.choices[0].delta.content
+        content += chunk.choices[0].delta.content or ""
 
     assert "happy" in content.lower()
 
