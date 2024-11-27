@@ -11,14 +11,18 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 
 class ClassificationResult(BaseModel):
-    text: str
     label: str
     confidence: Optional[float] = None
 
 class MultiClassificationResult(BaseModel):
-    text: str
     labels: List[str]
     confidences: Optional[List[float]] = None
+
+
+class Classification(BaseModel):
+    text: str
+    label : Union[str, List[str]]
+    confidence : Optional[Union[float, List[float]]] = None
 
 
 def generate_classification(
@@ -35,8 +39,7 @@ def generate_classification(
     temperature: Optional[float] = None,
     progress_bar: Optional[bool] = True,
     verbose: bool = False,
-) -> Union[ClassificationResult, List[ClassificationResult],
-           MultiClassificationResult, List[MultiClassificationResult]]:
+) -> Union[Classification, List[Classification]]:
     """
     Classifies given input(s) into one or more of the provided labels.
 
@@ -94,8 +97,8 @@ Critical Instructions:
 
 Example format:
 {{
-    "text": "input text here",
-    "label": "chosen_label"
+    "label": "chosen_label",
+    "confidence": "corresponding_confidence_score"
 }}
 """
         if batch_size == 1:
@@ -120,8 +123,8 @@ Critical Instructions:
 
 Example format:
 {{
-    "text": "input text here",
-    "labels": ["label1", "label2"]  # All applicable labels
+    "labels": ["label1", "label2"],  # All applicable labels
+    "confidence": "corresponding_confidence_score"
 }}
 """
         if batch_size == 1:
@@ -176,9 +179,16 @@ Example format:
                 )
 
                 if batch_size == 1:
-                    results.append(result)
+                    if isinstance(result, ClassificationResult):
+                        results.append(Classification(text=batch[0], label=result.label, confidence=result.confidence))
+                    else:
+                        results.append(Classification(text=batch[0], label=result.labels, confidence=result.confidences))
                 else:
-                    results.extend(result.items)
+                    for text, item in zip(batch, result.items):
+                        if isinstance(item, ClassificationResult):
+                            results.append(Classification(text=text, label=item.label, confidence=item.confidence))
+                        else:
+                            results.append(Classification(text=text, label=item.labels, confidence=item.confidences))
 
                 progress.update(task_id, advance=len(batch))
     else:
@@ -202,9 +212,16 @@ Example format:
             )
 
             if batch_size == 1:
-                results.append(result)
+                if isinstance(result, ClassificationResult):
+                    results.append(Classification(text=batch[0], label=result.label, confidence=result.confidence))
+                else:
+                    results.append(Classification(text=batch[0], label=result.labels, confidence=result.confidences))
             else:
-                results.extend(result.items)
+                for text, item in zip(batch, result.items):
+                    if isinstance(item, ClassificationResult):
+                        results.append(Classification(text=text, label=item.label, confidence=item.confidence))
+                    else:
+                        results.append(Classification(text=text, label=item.labels, confidence=item.confidences))
 
     return results if len(results) > 1 else results[0]
 
