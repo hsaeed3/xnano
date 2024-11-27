@@ -25,6 +25,7 @@ class AgentModel(BaseModel):
     model : str = "gpt-4o-mini"
     base_url : Optional[str] = None
     api_key : Optional[str] = None
+    temperature : Optional[float] = None
     organization : Optional[str] = None
     instructor_mode : Optional[str] = None
 
