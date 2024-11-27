@@ -68,6 +68,14 @@ __all__ = [
     "convert_to_openai_tool",
     "MessageUtils",
     "tools",
+
+    # ----------------------------------------
+    # text
+    # ----------------------------------------
+
+    "text_reader",
+    "text_embeddings",
+    "text_chunker"
 ]
 
 # ----------------------------------------
@@ -136,3 +144,9 @@ from .resources.utils._routing import (
     MessageUtils,
     tools
 )
+
+# ----------------------------------------
+# text
+# ----------------------------------------
+
+from .text import text_reader, text_embeddings, text_chunker
