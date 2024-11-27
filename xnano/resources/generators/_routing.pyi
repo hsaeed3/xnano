@@ -13,7 +13,12 @@ __all__ = [
     "generate_questions",
     "generate_validation",
     "async_generate_validation",
-    "generate_web_extraction"
+    "generate_web_extraction",
+
+    # multimodal
+    "multimodal_generate_image",
+    "multimodal_generate_audio",
+    "multimodal_generate_transcription",
 ]
 
 from .code_generators import generate_code, generate_function
@@ -25,3 +30,6 @@ from .prompting import generate_system_prompt
 from .question_answer import generate_qa_pairs, generate_answers, generate_questions
 from .validator import generate_validation, async_generate_validation
 from .web_extractor import generate_web_extraction
+
+# multimodal
+from .multimodal import multimodal_generate_image, multimodal_generate_audio, multimodal_generate_transcription
