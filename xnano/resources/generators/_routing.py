@@ -78,7 +78,7 @@ class generate_sql(router):
     pass
 
 
-generate_sql.init("xnano.resources.generators.sql_generator", "generate_sql")
+generate_sql.init("xnano.resources.generators.generate_sql", "generate_sql")
 
 
 class generate_system_prompt(router):
