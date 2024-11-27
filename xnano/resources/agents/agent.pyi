@@ -1,3 +1,4 @@
+from ...types.agents.agent_model import AgentModel
 from ...types.agents.state import State
 from ...types.agents.agent_response import AgentResponse
 from ...types.completions.params import (
@@ -18,6 +19,7 @@ from typing import Dict, List, Literal, Optional, Union, Type
 
 
 Agent = Type["Agent"]
+AgentResources = Type["AgentResources"]
 
 
 class Agent:
@@ -34,6 +36,8 @@ class Agent:
     """
 
     state: State
+    config: AgentModel
+    resources: AgentResources
 
     def __init__(
             self,
@@ -555,5 +559,42 @@ class Agent:
             ```python
             agent.reset_state()
             ```
+        """
+        ...
+
+    def plan(
+        self,
+        messages: Optional[CompletionMessagesParam] = None,
+        agents: Optional[List[Agent]] = None,
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = False,
+        workflows: Optional[List[BaseModel]] = None,
+    ) -> List[AgentResponse]:
+        """
+        Generates a plan to accomplish the given task and executes it step by step.
+
+        Args:
+            messages (Optional[CompletionMessagesParam]): Initial messages or user request.
+            agents (Optional[List[Agent]]): Other agents to collaborate with.
+            model (Optional[Union[CompletionChatModelsParam, str]]): Model to use for completions.
+            base_url (Optional[str]): Base URL for the API.
+            api_key (Optional[str]): API key for authentication.
+            organization (Optional[str]): Organization identifier.
+            tools (Optional[CompletionToolsParam]): Tools available to the agent.
+            instructor_mode (Optional[CompletionInstructorModeParam]): Instructor mode settings.
+            response_model (Optional[CompletionResponseModelParam]): Expected response model.
+            tool_choice (Optional[CompletionToolChoiceParam]): Tool choice parameters.
+            parallel_tool_calls (Optional[bool]): Whether to run tool calls in parallel.
+            workflows (Optional[List[BaseModel]]): Workflows available to the agent.
+
+        Returns:
+            List[AgentResponse]: The list of responses from executing each step.
         """
         ...

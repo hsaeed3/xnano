@@ -1,6 +1,6 @@
 [project]
 name = "xnano"
-version = "0.0.44"
+version = "0.0.46"
 description = "build extremely 'nano' llm workflows"
 readme = "readme.md"
 
@@ -11,6 +11,7 @@ dependencies = [
     "duckduckgo-search>=6.3.4",
     "instructor>=1.6.3",
     "litellm>=1.52.3",
+    "lxml-html-clean>=0.4.1",
     "markdownify>=0.13.1",
     "pypdf2>=3.0.1",
     "qdrant-client>=1.12.1",
