@@ -203,6 +203,7 @@ class Agent:
             summarization_steps : Optional[int] = 5,
             agents: Optional[List['Agent']] = None,
             tools: Optional[List[CompletionToolsParam]] = None,
+            temperature : Optional[float] = None,
             # agent memory -- utilized differently than .completion(memory = ...)
             memory : Optional[List[Memory]] = None,
             # agent completion config params
@@ -237,7 +238,8 @@ class Agent:
             organization = organization,
             instructor_mode = instructor_mode,
             agents = agents,
-            tools = tools
+            tools = tools,
+            temperature = temperature
         )
 
         if self.verbose and agents:
@@ -445,6 +447,7 @@ class Agent:
             api_key : Optional[str] = None,
             organization : Optional[str] = None,
             tools : Optional[CompletionToolsParam] = None,
+            temperature : Optional[float] = None,
             instructor_mode : Optional[CompletionInstructorModeParam] = None,
             response_model : Optional[CompletionResponseModelParam] = None,
             tool_choice : Optional[CompletionToolChoiceParam] = None,
@@ -467,6 +470,9 @@ class Agent:
             if self.config.tools:
                 tools = self.config.tools
 
+        if not temperature:
+            temperature = self.config.temperature
+
         # build instruction
         instruction_prompt = self.get_system_prompt(tools)
 
@@ -485,7 +491,8 @@ class Agent:
             instructor_mode = instructor_mode if instructor_mode else self.config.instructor_mode,
             response_model = response_model,
             tool_choice = tool_choice,
-            parallel_tool_calls = parallel_tool_calls
+            parallel_tool_calls = parallel_tool_calls,
+            temperature = temperature
         )
 
         if self.verbose:
@@ -570,7 +577,7 @@ class Agent:
                 messages = messages,
                 model = args.model, api_key = args.api_key, base_url = args.base_url,
                 mode = args.instructor_mode, response_model = WorkflowRequired,
-                verbose = self.verbose
+                verbose = self.verbose, temperature = args.temperature
             )
         except Exception as e:
             raise XNANOException(
@@ -628,7 +635,7 @@ class Agent:
             messages = messages,
             model = args.model, api_key = args.api_key, base_url = args.base_url,
             mode = args.instructor_mode, response_model = Selection,
-            verbose = self.verbose
+            verbose = self.verbose, temperature = args.temperature
         )
 
         selected_workflow = selection.tool
@@ -714,7 +721,8 @@ class Agent:
                     response_model=field_response_model,
                     tools=args.tools if args.tools else self.config.tools,
                     run_tools=True,
-                    verbose=self.verbose
+                    verbose=self.verbose,
+                    temperature = args.temperature
                 )
             except Exception as e:
                 raise XNANOException(
@@ -815,7 +823,8 @@ class Agent:
                 organization=args.organization,
                 mode=args.instructor_mode,
                 response_model=Plan,
-                verbose=self.verbose
+                verbose=self.verbose,
+                temperature = args.temperature
             )
 
             if self.verbose:
@@ -900,6 +909,7 @@ class Agent:
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
+        temperature: Optional[float] = None,
         tools: Optional[CompletionToolsParam] = None,
         instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
@@ -961,7 +971,8 @@ class Agent:
                     response_model=response_model,
                     tool_choice=tool_choice,
                     parallel_tool_calls=parallel_tool_calls,
-                    workflows=workflows
+                    workflows=workflows,
+                    temperature = temperature
                 )
 
                 responses.append(response)
@@ -989,6 +1000,7 @@ class Agent:
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
+        temperature: Optional[float] = None,
         tools: Optional[CompletionToolsParam] = None,
         instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
@@ -1042,7 +1054,8 @@ class Agent:
             response_model=response_model,
             tool_choice=tool_choice,
             parallel_tool_calls=parallel_tool_calls,
-            workflows=workflows
+            workflows=workflows,
+            temperature = temperature
         )
 
         if self.verbose:
@@ -1148,7 +1161,8 @@ class Agent:
                     api_key=agent.config.api_key,
                     base_url=agent.config.base_url,
                     organization=agent.config.organization,
-                    workflows=agent.config.workflows
+                    workflows=agent.config.workflows,
+                    temperature = agent.config.temperature
                 )
 
                 # Handle workflow responses separately
@@ -1219,6 +1233,7 @@ class Agent:
         base_url : Optional[str] = None,
         api_key : Optional[str] = None,
         organization : Optional[str] = None,
+        temperature : Optional[float] = None,
         tools : Optional[CompletionToolsParam] = None,
         instructor_mode : Optional[CompletionInstructorModeParam] = None,
         response_model : Optional[CompletionResponseModelParam] = None,
@@ -1257,7 +1272,8 @@ class Agent:
             instructor_mode=instructor_mode,
             response_model=response_model,
             tool_choice=tool_choice,
-            parallel_tool_calls=parallel_tool_calls
+            parallel_tool_calls=parallel_tool_calls,
+            temperature = temperature
         )
 
         # Check if workflow is needed
@@ -1311,6 +1327,7 @@ class Agent:
                 response_model=response_model if response_model else args.response_model,
                 tool_choice=args.tool_choice,
                 parallel_tool_calls=args.parallel_tool_calls,
+                temperature = args.temperature,
                 context=context,
                 run_tools=True,
                 verbose=self.verbose
@@ -1338,6 +1355,7 @@ class Agent:
         base_url : Optional[str] = None,
         api_key : Optional[str] = None,
         organization : Optional[str] = None,
+        temperature : Optional[float] = None,
         tools : Optional[CompletionToolsParam] = None,
         instructor_mode : Optional[CompletionInstructorModeParam] = None,
         response_model : Optional[CompletionResponseModelParam] = None,
@@ -1358,7 +1376,7 @@ class Agent:
                 organization = organization, tools = tools,
                 instructor_mode = instructor_mode, response_model = response_model,
                 tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
-                workflows = workflows
+                workflows = workflows, temperature = temperature
             )
 
             # add messages to state on success
@@ -1496,6 +1514,7 @@ class Agent:
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
         tools: Optional[CompletionToolsParam] = None,
+        temperature: Optional[float] = None,
         instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
         tool_choice: Optional[CompletionToolChoiceParam] = None,
@@ -1533,7 +1552,8 @@ class Agent:
             instructor_mode=instructor_mode,
             response_model=response_model,
             tool_choice=tool_choice,
-            parallel_tool_calls=parallel_tool_calls
+            parallel_tool_calls=parallel_tool_calls,
+            temperature = temperature
         )
 
         try:
@@ -1650,6 +1670,7 @@ class Agent:
                 base_url=self.config.base_url,
                 organization=self.config.organization,
                 mode=self.config.instructor_mode,
+                temperature = self.config.temperature,
                 response_model=Complete,
                 verbose=self.verbose
             )
@@ -1671,6 +1692,7 @@ class Agent:
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
+        temperature: Optional[float] = None,
         tools: Optional[CompletionToolsParam] = None,
         instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
@@ -1724,7 +1746,8 @@ class Agent:
                         instructor_mode=instructor_mode,
                         response_model=response_model,
                         tool_choice=tool_choice,
-                        parallel_tool_calls=parallel_tool_calls
+                        parallel_tool_calls=parallel_tool_calls,
+                        temperature = temperature
                     ),
                     workflows=workflows
                 ):
@@ -1741,7 +1764,8 @@ class Agent:
                             instructor_mode=instructor_mode,
                             response_model=response_model,
                             tool_choice=tool_choice,
-                            parallel_tool_calls=parallel_tool_calls
+                            parallel_tool_calls=parallel_tool_calls,
+                            temperature = temperature
                         ),
                         workflows=workflows
                     )
@@ -1759,6 +1783,7 @@ class Agent:
                         response_model=response_model,
                         tool_choice=tool_choice,
                         parallel_tool_calls=parallel_tool_calls,
+                        temperature = temperature
                     )
                 else:
                     # Run regular completion
@@ -1774,6 +1799,7 @@ class Agent:
                         response_model=response_model,
                         tool_choice=tool_choice,
                         parallel_tool_calls=parallel_tool_calls,
+                        temperature = temperature
                     )
 
                 last_response = response
@@ -1925,6 +1951,7 @@ class Agent:
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
+        temperature: Optional[float] = None,
         tools: Optional[CompletionToolsParam] = None,
         instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
@@ -1986,7 +2013,8 @@ class Agent:
                     response_model=response_model,
                     tool_choice=tool_choice,
                     parallel_tool_calls=parallel_tool_calls,
-                    workflows=workflows
+                    workflows=workflows,
+                    temperature = temperature
                 )
 
                 responses.append(response)
@@ -2014,6 +2042,7 @@ class Agent:
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
+        temperature: Optional[float] = None,
         tools: Optional[CompletionToolsParam] = None,
         instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
@@ -2067,10 +2096,110 @@ class Agent:
             response_model=response_model,
             tool_choice=tool_choice,
             parallel_tool_calls=parallel_tool_calls,
-            workflows=workflows
+            workflows=workflows,
+            temperature = temperature
         )
 
         if self.verbose:
             console.message(f"Completed planning and execution for [bold red]{self.config.name}[/bold red].")
 
         return responses
+    
+
+    def chat_completion(
+        self,
+        messages: Optional[CompletionMessagesParam] = None,
+        agents: Optional[List[Agent]] = None,
+        # completion specific params
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        temperature: Optional[float] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = False,
+        workflows: Optional[List[BaseModel]] = None
+    ) -> AgentResponse:
+        
+        if not messages:
+            messages = self.resources.collect_message_from_cli()
+
+        messages = self.resources.format_new_messages(messages)
+
+        # Handle one-time agent collaborations
+        if agents:
+            agent_messages = self._converse_with_agents(agents, messages)
+            messages.extend(agent_messages)
+
+        # Handle team agent consultations
+        if self.config.agents:
+            required_agents = self._determine_required_agents(messages)
+            if required_agents:
+                team_messages = self._get_team_agent_responses(messages, required_agents)
+                messages.extend(team_messages)
+
+        args = self._build_completion_request(
+            messages=messages,
+            agents=agents,
+            model=model,
+            base_url=base_url,
+            api_key=api_key,
+            organization=organization,
+            tools=tools,
+            instructor_mode=instructor_mode,
+            response_model=response_model,
+            tool_choice=tool_choice,
+            parallel_tool_calls=parallel_tool_calls,
+            temperature = temperature
+        )
+
+        # Update context to include both workflows and team agents
+        team_context = ""
+        if self.config.agents:
+            team_roles = "\n".join([
+                f"- {agent.config.name}: {agent.config.role}"
+                for agent in self.config.agents
+            ])
+            team_context = f"\n\nYou have access to the following team members:\n{team_roles}"
+
+        workflow_context = self.resources.build_all_workflow_string_descriptions(
+            workflows=self.config.workflows
+        )
+
+        context = (
+            "You have access to the following workflows: \n\n" +
+            workflow_context +
+            team_context +
+            "\nDo not hallucinate or make up tools/team members that are not listed."
+        )
+
+        try:
+            response = completion(
+                messages=args.messages,
+                model=args.model if args.model else self.config.model,
+                base_url=args.base_url if args.base_url else self.config.base_url,
+                api_key=args.api_key if args.api_key else self.config.api_key,
+                organization=args.organization if args.organization else self.config.organization,
+                tools=args.tools if args.tools else self.config.tools,
+                mode=args.instructor_mode if args.instructor_mode else self.config.instructor_mode,
+                response_model=response_model if response_model else args.response_model,
+                tool_choice=args.tool_choice,
+                parallel_tool_calls=args.parallel_tool_calls,
+                context=context,
+                run_tools=True,
+                verbose=self.verbose,
+                temperature = temperature if temperature else self.config.temperature
+            )
+
+            return self.resources.build_response_type(
+                response=response,
+                workflow=None,
+                instructor=True if response_model else False
+            )
+        except Exception as e:
+            raise XNANOException(
+                message=f"Error running chat completion: {e}"
+            )

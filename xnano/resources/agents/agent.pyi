@@ -53,6 +53,7 @@ class Agent:
             base_url : Optional[str] = None,
             api_key : Optional[str] = None,
             organization : Optional[str] = None,
+            temperature : Optional[float] = None,
             messages : Optional[CompletionMessagesParam] = None,
             verbose : bool = False,
             agents : Optional[List[Agent]] = None,
@@ -228,6 +229,7 @@ class Agent:
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
+        temperature: Optional[float] = None,
         tools: Optional[CompletionToolsParam] = None,
         instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
@@ -283,6 +285,7 @@ class Agent:
         base_url : Optional[str] = None,
         api_key : Optional[str] = None,
         organization : Optional[str] = None,
+        temperature : Optional[float] = None,
         tools : Optional[CompletionToolsParam] = None,
         instructor_mode : Optional[CompletionInstructorModeParam] = None,
         response_model : Optional[CompletionResponseModelParam] = None,
@@ -366,6 +369,7 @@ class Agent:
         base_url : Optional[str] = None,
         api_key : Optional[str] = None,
         organization : Optional[str] = None,
+        temperature : Optional[float] = None,
         tools : Optional[CompletionToolsParam] = None,
         instructor_mode : Optional[CompletionInstructorModeParam] = None,
         response_model : Optional[CompletionResponseModelParam] = None,
@@ -491,6 +495,7 @@ class Agent:
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
+        temperature: Optional[float] = None,
         tools: Optional[CompletionToolsParam] = None,
         instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
@@ -570,6 +575,7 @@ class Agent:
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         organization: Optional[str] = None,
+        temperature: Optional[float] = None,
         tools: Optional[CompletionToolsParam] = None,
         instructor_mode: Optional[CompletionInstructorModeParam] = None,
         response_model: Optional[CompletionResponseModelParam] = None,
@@ -596,5 +602,50 @@ class Agent:
 
         Returns:
             List[AgentResponse]: The list of responses from executing each step.
+        """
+        ...
+
+
+    def chat_completion(
+        self,
+        messages: Optional[CompletionMessagesParam] = None,
+        agents: Optional[List[Agent]] = None,
+        # completion specific params
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        temperature: Optional[float] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = False,
+        workflows: Optional[List[BaseModel]] = None
+    ) -> AgentResponse:
+        """
+        Runs a chat completion with the agent, without executing any workflows or multi-agent collaboration.
+
+        Example:
+            ```python
+            response = agent.chat_completion(messages="Hello, how are you?")
+            ```
+
+        Args:
+            messages (Optional[CompletionMessagesParam]): The messages to use for the chat completion
+            agents (Optional[List[Agent]]): The agents to collaborate with
+            model (Optional[Union[CompletionChatModelsParam, str]]): The model to use for the chat completion
+            base_url (Optional[str]): The base URL to use for the chat completion   
+            api_key (Optional[str]): The API key to use for the chat completion
+            organization (Optional[str]): The organization to use for the chat completion
+            tools (Optional[CompletionToolsParam]): The tools to use for the chat completion
+            instructor_mode (Optional[CompletionInstructorModeParam]): The instructor mode to use for the chat completion
+            response_model (Optional[CompletionResponseModelParam]): The response model to use for the chat completion
+            tool_choice (Optional[CompletionToolChoiceParam]): The tool choice to use for the chat completion
+            parallel_tool_calls (Optional[bool]): Whether to use parallel tool calls for the chat completion
+            workflows (Optional[List[BaseModel]]): The workflows to execute
+
+        Returns:
+            AgentResponse: The response from the chat completion
         """
         ...
