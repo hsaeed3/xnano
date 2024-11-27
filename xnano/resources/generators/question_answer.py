@@ -29,7 +29,7 @@ def _qa(
     base_url: Optional[str] = None,
     organization: Optional[str] = None,
     temperature: float = 0.7,
-    mode: CompletionInstructorModeParam = "tool_call",
+    instructor_mode: CompletionInstructorModeParam = "tool_call",
     max_retries: int = 3,
     client: Optional[Literal["openai", "litellm"]] = "openai",
     progress_bar: Optional[bool] = True,
@@ -49,7 +49,7 @@ def _qa(
         base_url (Optional[str]): Base URL for the LLM service.
         organization (Optional[str]): Organization for the LLM service.
         temperature (float): Temperature for response generation.
-        mode (InstructorMode): Mode for the instructor.
+        instructor_mode (InstructorMode): Mode for the instructor.
         max_retries (int): Maximum number of retries for API calls.
         client (Optional[Literal["openai", "litellm"]]): Client to use for API calls.
         verbose (bool): Whether to log verbose output.
@@ -82,7 +82,7 @@ def _qa(
             chunk,
             num_questions,
             model,
-            mode,
+            instructor_mode,
             max_retries,
             temperature,
             progress_bar,
@@ -98,7 +98,7 @@ def _qa(
             chunk,
             questions,
             model,
-            mode,
+            instructor_mode,
             max_retries,
             temperature,
             progress_bar,
@@ -143,7 +143,7 @@ def generate_questions(
     context,
     num_questions,
     model,
-    mode,
+    instructor_mode,
     max_retries,
     temperature,
     progress_bar,
@@ -169,7 +169,7 @@ def generate_questions(
         ],
         model=model,
         response_model=create_model("QuestionList", questions=(List[str], ...)),
-        mode=mode,
+        instructor_mode=instructor_mode,
         max_retries=max_retries,
         temperature=temperature,
         progress_bar=progress_bar,
@@ -186,7 +186,7 @@ def generate_answers(
     context,
     questions,
     model,
-    mode,
+    instructor_mode,
     max_retries,
     temperature,
     progress_bar,
@@ -214,7 +214,7 @@ def generate_answers(
             ],
             model=model,
             response_model=create_model("Answer", answer=(str, ...)),
-            mode=mode,
+            instructor_mode=instructor_mode,
             max_retries=max_retries,
             temperature=temperature,
             progress_bar=progress_bar,
@@ -237,7 +237,7 @@ def generate_qa_pairs(
     base_url: Optional[str] = None,
     organization: Optional[str] = None,
     temperature: float = 0.7,
-    mode: CompletionInstructorModeParam = "markdown_json_mode",
+    instructor_mode: CompletionInstructorModeParam = "markdown_json_mode",
     max_retries: int = 3,
     client: Optional[Literal["openai", "litellm"]] = "openai",
     progress_bar: Optional[bool] = True,
@@ -279,7 +279,7 @@ def generate_qa_pairs(
         base_url,
         organization,
         temperature,
-        mode,
+        instructor_mode,
         max_retries,
         client,
         progress_bar,

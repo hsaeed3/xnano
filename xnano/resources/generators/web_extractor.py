@@ -19,7 +19,7 @@ def generate_web_extraction(
     inputs: Union[str, List[str]],
     target: Optional[Type[BaseModel]] = None,
     model: CompletionChatModelsParam = "gpt-4o-mini",
-    mode: CompletionInstructorModeParam = "tool_call",
+    instructor_mode: CompletionInstructorModeParam = "tool_call",
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     organization: Optional[str] = None,
@@ -104,7 +104,7 @@ def generate_web_extraction(
             base_url=base_url,
             organization=organization,
             verbose=verbose,
-            mode=mode,
+            instructor_mode=instructor_mode,
             **kwargs,
         )
     else:

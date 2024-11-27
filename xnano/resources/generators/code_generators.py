@@ -25,7 +25,7 @@ def generate_code(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     organization: Optional[str] = None,
-    mode: CompletionInstructorModeParam = "tool_call",
+    instructor_mode: CompletionInstructorModeParam = "tool_call",
     temperature: Optional[float] = None,
     progress_bar: Optional[bool] = True,
     client: Optional[Completions] = None,
@@ -132,7 +132,7 @@ def generate_code(
                         ],
                         model=model,
                         response_model=CodeGenerationModel,
-                        mode=mode,
+                        instructor_mode=instructor_mode,
                         temperature=temperature,
                         api_key=api_key,
                         base_url=base_url,
@@ -149,7 +149,7 @@ def generate_code(
                     ],
                     model=model,
                     response_model=CodeGenerationModel,
-                    mode=mode,
+                    instructor_mode=instructor_mode,
                     temperature=temperature,
                     api_key=api_key,
                     base_url=base_url,
@@ -236,7 +236,7 @@ def generate_function(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     organization: Optional[str] = None,
-    mode: CompletionInstructorModeParam = "tool_call",
+    instructor_mode: CompletionInstructorModeParam = "tool_call",
     mock: bool = False,
     return_code: bool = False,
     progress_bar: Optional[bool] = True,
@@ -343,7 +343,7 @@ def generate_function(
                                 ],
                                 model=model,
                                 response_model=CodeGenerationModel,
-                                mode=mode,
+                                instructor_mode=instructor_mode,
                                 api_key=api_key,
                                 base_url=base_url,
                                 organization=organization,
@@ -359,7 +359,7 @@ def generate_function(
                             ],
                             model=model,
                             response_model=CodeGenerationModel,
-                            mode=mode,
+                            instructor_mode=instructor_mode,
                             **kwargs,
                         )
 
@@ -453,9 +453,7 @@ result = {f.__name__}({args_str})
                             messages=messages,
                             model=model,
                             response_model=FunctionResponseModel,
-                            mode="markdown_json_mode"
-                            if model.startswith(("ollama/", "ollama_chat/"))
-                            else mode,
+                            instructor_mode=instructor_mode,
                             **kwargs,
                         )
 
@@ -465,9 +463,7 @@ result = {f.__name__}({args_str})
                         messages=messages,
                         model=model,
                         response_model=FunctionResponseModel,
-                        mode="markdown_json_mode"
-                        if model.startswith(("ollama/", "ollama_chat/"))
-                        else mode,
+                        instructor_mode=instructor_mode,
                         **kwargs,
                     )
 
