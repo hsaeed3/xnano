@@ -42,6 +42,7 @@ dev = [
     "uv>=0.5.1",
     "mkdocs-jupyter>=0.25.1",
     "twine>=5.1.1",
+    "pytest>=7.4.3",
 ]
 
 
