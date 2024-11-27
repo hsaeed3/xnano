@@ -3,7 +3,7 @@ from typing import Any, Callable, Type, Dict, Optional, Union, Literal
 
 
 # tool type
-ToolType = Union[str, Callable, Type[BaseModel], Dict[str, Any]]
+ToolType = Union[str, Callable, callable, Type[BaseModel], Dict[str, Any]]
 
 
 # tool choice parameter
