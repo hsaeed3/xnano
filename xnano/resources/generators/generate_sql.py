@@ -29,7 +29,7 @@ def generate_sql(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     organization: Optional[str] = None,
-    mode: CompletionInstructorModeParam = "tool_call",
+    instructor_mode: CompletionInstructorModeParam = "tool_call",
     temperature: float = 0.2,
     progress_bar: Optional[bool] = True,
     verbose: bool = False,
@@ -55,7 +55,7 @@ def generate_sql(
         api_key: Optional API key
         base_url: Optional base URL
         organization: Optional organization ID
-        mode: Completion mode
+        instructor_mode: Completion instructor mode
         temperature: Temperature for generation
         progress_bar: Whether to show progress bar
         verbose: Whether to show verbose output
@@ -110,7 +110,7 @@ Critical Instructions:
                 ],
                 model=model,
                 response_model=SQLQuery,
-                mode=mode,
+                instructor_mode=instructor_mode,
                 temperature=temperature,
                 api_key=api_key,
                 base_url=base_url,
@@ -138,7 +138,7 @@ Instructions:
                     ],
                     model=model,
                     response_model=create_model("Explanation", explanation=(str, ...)),
-                    mode=mode,
+                    instructor_mode=instructor_mode,
                     temperature=temperature,
                     api_key=api_key,
                     base_url=base_url,
@@ -154,7 +154,7 @@ Instructions:
             ],
             model=model,
             response_model=SQLQuery,
-            mode=mode,
+            instructor_mode=instructor_mode,
             temperature=temperature,
             api_key=api_key,
             base_url=base_url,
@@ -180,7 +180,7 @@ Instructions:
                 ],
                 model=model,
                 response_model=create_model("Explanation", explanation=(str, ...)),
-                mode=mode,
+                instructor_mode=instructor_mode,
                 temperature=temperature,
                 api_key=api_key,
                 base_url=base_url,

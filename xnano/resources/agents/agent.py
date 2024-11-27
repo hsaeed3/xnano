@@ -717,7 +717,7 @@ class Agent:
                     api_key=args.api_key,
                     base_url=args.base_url,
                     organization=args.organization,
-                    mode=args.instructor_mode,
+                    instructor_mode=args.instructor_mode,
                     response_model=field_response_model,
                     tools=args.tools if args.tools else self.config.tools,
                     run_tools=True,
@@ -821,7 +821,7 @@ class Agent:
                 api_key=args.api_key,
                 base_url=args.base_url,
                 organization=args.organization,
-                mode=args.instructor_mode,
+                instructor_mode=args.instructor_mode,
                 response_model=Plan,
                 verbose=self.verbose,
                 temperature = args.temperature
@@ -885,7 +885,7 @@ class Agent:
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
                 organization=self.config.organization,
-                mode=self.config.instructor_mode,
+                instructor_mode=self.config.instructor_mode,
                 response_model=Plan,
                 verbose=self.verbose
             )
@@ -1323,7 +1323,7 @@ class Agent:
                 api_key=args.api_key,
                 organization=args.organization,
                 tools=args.tools,
-                mode=args.instructor_mode,
+                instructor_mode=args.instructor_mode,
                 response_model=response_model if response_model else args.response_model,
                 tool_choice=args.tool_choice,
                 parallel_tool_calls=args.parallel_tool_calls,
@@ -1468,7 +1468,7 @@ class Agent:
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
                 organization=self.config.organization,
-                mode=self.config.instructor_mode,
+                instructor_mode=self.config.instructor_mode,
                 response_model=AgentSelection,
                 verbose=self.verbose
             )
@@ -1625,7 +1625,7 @@ class Agent:
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
                 organization=self.config.organization,
-                mode=self.config.instructor_mode,
+                instructor_mode=self.config.instructor_mode,
                 response_model=Task,
                 verbose=self.verbose
             )
@@ -1669,7 +1669,7 @@ class Agent:
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
                 organization=self.config.organization,
-                mode=self.config.instructor_mode,
+                instructor_mode=self.config.instructor_mode,
                 temperature = self.config.temperature,
                 response_model=Complete,
                 verbose=self.verbose
@@ -1927,7 +1927,7 @@ class Agent:
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
                 organization=self.config.organization,
-                mode=self.config.instructor_mode,
+                instructor_mode=self.config.instructor_mode,
                 response_model=Plan,
                 verbose=self.verbose
             )
@@ -2184,7 +2184,7 @@ class Agent:
                 api_key=args.api_key if args.api_key else self.config.api_key,
                 organization=args.organization if args.organization else self.config.organization,
                 tools=args.tools if args.tools else self.config.tools,
-                mode=args.instructor_mode if args.instructor_mode else self.config.instructor_mode,
+                instructor_mode=args.instructor_mode if args.instructor_mode else self.config.instructor_mode,
                 response_model=response_model if response_model else args.response_model,
                 tool_choice=args.tool_choice,
                 parallel_tool_calls=args.parallel_tool_calls,
