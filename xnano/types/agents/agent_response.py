@@ -4,5 +4,4 @@ from typing import Optional
 
 
 class AgentResponse(ModelResponse):
-
-    workflow : Optional[BaseModel] = None
+    workflow: Optional[BaseModel] = None

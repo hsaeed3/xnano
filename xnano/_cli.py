@@ -115,18 +115,20 @@ def process_message(
     assistant_response = ""
 
     # Create a panel for user message
-    user_message = messages[-1]['content']
+    user_message = messages[-1]["content"]
 
     # Initialize empty panel
     assistant_panel = Panel("", title="Assistant Response", border_style="green")
-    
+
     # Pass the panel to Live instead of the console
     with Live(assistant_panel, console=console, refresh_per_second=10) as live:
         for chunk in response:
             if chunk.choices and chunk.choices[0].delta.content:
                 assistant_response += chunk.choices[0].delta.content
                 # Update panel content
-                assistant_panel.renderable = Text(assistant_response, style="bold green")
+                assistant_panel.renderable = Text(
+                    assistant_response, style="bold green"
+                )
                 live.refresh()
             else:
                 continue

@@ -1,8 +1,4 @@
-__all__ = [
-    "web_search",
-    "web_reader",
-    "web_url_search"
-]
+__all__ = ["web_search", "web_reader", "web_url_search"]
 
 
 from ...lib.router import router

@@ -11,7 +11,7 @@ def web_search(
     max_results: int = 10,
     verbose: bool = False,
     max_chars_per_content: int = 2500,
-    batch_size: int = 5
+    batch_size: int = 5,
 ) -> Dict[str, Union[str, List[str]]]:
     """
     Searches the web for a query and returns the results in a dictionary.
@@ -39,18 +39,21 @@ def web_search(
 
     # Process content in batches
     for i in range(0, len(results), batch_size):
-        batch_urls = results[i:i + batch_size]
+        batch_urls = results[i : i + batch_size]
         if verbose:
             print(f"Processing batch of {len(batch_urls)} URLs")
-            
+
         batch_content = web_reader(
             batch_urls,
             max_chars_per_content=max_chars_per_content,
-            batch_size=batch_size
+            batch_size=batch_size,
         )
-        
+
         # Add batch results to returned_results
-        for url, content in zip(batch_urls, batch_content if isinstance(batch_content, list) else [batch_content]):
+        for url, content in zip(
+            batch_urls,
+            batch_content if isinstance(batch_content, list) else [batch_content],
+        ):
             returned_results[url] = content
 
     if verbose:

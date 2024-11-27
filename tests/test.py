@@ -1,10 +1,9 @@
-
 # full test suite for xnano
 
 from tests.test_agents import (
     test_agents_blank_init,
     test_agents_completion_with_short_term_memory,
-    test_agents_single_completion_context
+    test_agents_single_completion_context,
 )
 from tests.test_completion import (
     test_completion_defaults,
@@ -25,7 +24,7 @@ from tests.test_completion import (
     test_single_model_batch_job,
     test_batch_job_structured_outputs,
     test_multiple_model_batch_job,
-    test_multiple_model_batch_job_structured_outputs
+    test_multiple_model_batch_job_structured_outputs,
 )
 from tests.test_generators import (
     test_generators_chunk_generation,
@@ -38,7 +37,7 @@ from tests.test_generators import (
     test_generators_extraction_batch_inputs,
     test_generators_sql_query,
     test_generators_system_prompt,
-    test_generators_validator_guardrails
+    test_generators_validator_guardrails,
 )
 from tests.test_generative_model import (
     test_generative_model_init,
@@ -47,11 +46,11 @@ from tests.test_generative_model import (
     test_generative_model_generate_single,
     test_generative_model_generate_multiple,
     test_generative_model_generate_single_with_messages,
-    test_generative_model_field_regeneration
+    test_generative_model_field_regeneration,
 )
 
 
 if __name__ == "__main__":
-
     import pytest
+
     pytest.main()

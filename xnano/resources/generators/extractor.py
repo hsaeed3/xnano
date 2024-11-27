@@ -420,6 +420,8 @@ if __name__ == "__main__":
 
     text = ["John is 20 years old", "Alice is 30 years old", "Bob is 25 years old"]
 
-    results = generate_extraction(User, text, process="batch", batch_size=2, verbose=True)
+    results = generate_extraction(
+        User, text, process="batch", batch_size=2, verbose=True
+    )
     for result in results:
         print(result)

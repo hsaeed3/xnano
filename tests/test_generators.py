@@ -19,15 +19,13 @@ import pytest
 # classification
 # ------------------------------------------------------------
 
-def test_generators_single_label_classification():
 
+def test_generators_single_label_classification():
     inputs = ["I am a happy person", "I am a sad person"]
     labels = ["positive", "negative"]
 
     response = generate_classification(
-        inputs = inputs,
-        labels = labels,
-        classification = "single"
+        inputs=inputs, labels=labels, classification="single"
     )
 
     assert isinstance(response, list)
@@ -37,14 +35,11 @@ def test_generators_single_label_classification():
 
 
 def test_generators_multi_label_classification():
-
     inputs = ["I am a happy and sad person"]
     labels = ["positive", "negative"]
 
     response = generate_classification(
-        inputs = inputs,
-        labels = labels,
-        classification = "multi"
+        inputs=inputs, labels=labels, classification="multi"
     )
 
     assert isinstance(response.label, list)
@@ -58,9 +53,8 @@ def test_generators_multi_label_classification():
 
 
 def test_generators_code_generation():
-
     response = generate_code(
-        instructions = "Create a logger named `my_logger` that logs to the console"
+        instructions="Create a logger named `my_logger` that logs to the console"
     )
 
     from logging import Logger
@@ -69,7 +63,6 @@ def test_generators_code_generation():
 
 
 def test_generators_function_generator():
-
     @generate_function()
     def add_two_numbers(a: int, b: int) -> int:
         """A function that adds two numbers"""
@@ -81,20 +74,19 @@ def test_generators_function_generator():
 # sql
 # ------------------------------------------------------------
 
-def test_generators_sql_query():
 
+def test_generators_sql_query():
     class Content(BaseModel):
-        title : str
-        content : str
+        title: str
+        content: str
 
     content = Content(
-        title = "My First Post",
-        content = "This is the content of my first post"
+        title="My First Post", content="This is the content of my first post"
     )
 
     response = generate_sql(
-        input = content,
-        objective = "Create a SQL query to get the title and content of the post"
+        input=content,
+        objective="Create a SQL query to get the title and content of the post",
     )
 
     assert isinstance(response.query, str)
@@ -106,14 +98,12 @@ def test_generators_sql_query():
 
 
 def test_generators_extraction():
-
     class Extraction(BaseModel):
-        name : str
-        age : int
+        name: str
+        age: int
 
     response = generate_extraction(
-        target = Extraction,
-        text = "My name is John and I am 30 years old"
+        target=Extraction, text="My name is John and I am 30 years old"
     )
 
     assert isinstance(response, Extraction)
@@ -122,21 +112,17 @@ def test_generators_extraction():
 
 
 def test_generators_extraction_batch_inputs():
-
     class Extraction(BaseModel):
-        name : str
-        age : int
+        name: str
+        age: int
 
     inputs = [
         "My name is John and I am 30 years old",
-        "My name is Jane and I am 25 years old"
+        "My name is Jane and I am 25 years old",
     ]
 
     response = generate_extraction(
-        target = Extraction,
-        text = inputs,
-        process = "batch",
-        batch_size = 1
+        target=Extraction, text=inputs, process="batch", batch_size=1
     )
 
     assert len(response) == 2
@@ -151,15 +137,16 @@ def test_generators_extraction_batch_inputs():
 # system prompts
 # ----------------------------------------------------------
 
-def test_generators_system_prompt():
 
+def test_generators_system_prompt():
     response = generate_system_prompt(
-        instructions = "Create a system prompt for a chatbot with tools",
-        response_format = "dict"
+        instructions="Create a system prompt for a chatbot with tools",
+        response_format="dict",
     )
 
     assert "role" in response[0]
     assert response[0]["content"] is not None
+
 
 # ----------------------------------------------------------
 # qa pairs
@@ -167,9 +154,8 @@ def test_generators_system_prompt():
 
 
 def test_generators_create_qa_pairs():
-
     response = generate_qa_pairs(
-        input_text = """
+        input_text="""
         Is your child having trouble tying their shoes? Need tips on teaching your child to tie their shoes? Follow the Occupational Therapy Institute’s instructions on How to Tie Your Shoes in 6 Steps!
 
         Hold one lace in each hand and pull to make shoes tighter.
@@ -179,8 +165,7 @@ def test_generators_create_qa_pairs():
         Take the bottom loop and tuck it over top loop. Pull through.
         Pull on bunny ears to make tighter. Repeat steps 4 & 5 for extra security!
         """,
-
-        num_questions = 2
+        num_questions=2,
     )
 
     assert isinstance(response.questions, list)
@@ -198,10 +183,9 @@ def test_generators_create_qa_pairs():
 
 
 def test_generators_validator_guardrails():
-
     response = generate_validation(
-        inputs = "I want to jump off a cliff",
-        guardrails = "Ensure the conversation is safe & appropriate"
+        inputs="I want to jump off a cliff",
+        guardrails="Ensure the conversation is safe & appropriate",
     )
 
     assert response.violates_guardrails == True
@@ -213,7 +197,6 @@ def test_generators_validator_guardrails():
 
 
 def test_generators_chunk_generation():
-
     text = """
     How do I decide what to put in a paragraph?
 

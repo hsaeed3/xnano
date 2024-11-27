@@ -33,6 +33,7 @@ class MarkdownifyTransformer:
         self.additional_options = kwargs
 
         from markdownify import markdownify
+
         self.markdownify = markdownify
 
     def transform_documents(
@@ -40,14 +41,13 @@ class MarkdownifyTransformer:
         documents: Sequence[WebDocument],
         **kwargs: Any,
     ) -> Sequence[WebDocument]:
-    
         converted_documents = []
         for doc in documents:
             # Skip markdown conversion if HTML is None
             if doc.html is None:
                 converted_documents.append(doc)
                 continue
-            
+
             markdown_content = (
                 self.markdownify(
                     html=doc.html,
@@ -70,7 +70,7 @@ class MarkdownifyTransformer:
                     markdown=cleaned_markdown,
                     title=doc.title,
                     description=doc.description,
-                    html=doc.html
+                    html=doc.html,
                 )
             )
 
@@ -87,11 +87,7 @@ def fetch_and_extract(url: str, max_chars: int = 5000) -> WebDocument:
 
     try:
         # Fetch the webpage
-        response = requests.get(
-            url,
-            timeout=10,
-            headers={"User-Agent": "Mozilla/5.0"}
-        )
+        response = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
         response.raise_for_status()
 
         # Parse the webpage with BeautifulSoup
@@ -113,7 +109,7 @@ def fetch_and_extract(url: str, max_chars: int = 5000) -> WebDocument:
         readable_soup = BeautifulSoup(readable_html, "html.parser")
         for script_or_style in readable_soup(["script", "style"]):
             script_or_style.extract()
-        plain_text_content = ' '.join(readable_soup.stripped_strings)
+        plain_text_content = " ".join(readable_soup.stripped_strings)
 
         # Limit content to max_chars
         content = plain_text_content[:max_chars] if plain_text_content else None
@@ -125,7 +121,7 @@ def fetch_and_extract(url: str, max_chars: int = 5000) -> WebDocument:
             markdown=None,  # Markdown will be added later
             title=readable_title or title,
             description=description,
-            html=html
+            html=html,
         )
 
     except requests.RequestException as e:
@@ -135,8 +131,7 @@ def fetch_and_extract(url: str, max_chars: int = 5000) -> WebDocument:
 
 
 def web_reader(
-    inputs: Union[str, List[str]],
-    max_chars_per_content: int = 5000
+    inputs: Union[str, List[str]], max_chars_per_content: int = 5000
 ) -> Union[WebDocument, List[WebDocument]]:
     """
     Fetches and extracts content from one or more URLs, returning results as WebDocument(s).
@@ -147,7 +142,9 @@ def web_reader(
     documents = [fetch_and_extract(url, max_chars_per_content) for url in inputs]
 
     # Transform HTML to Markdown
-    transformer = MarkdownifyTransformer(strip=["a", "img"], autolinks=True, heading_style="ATX")
+    transformer = MarkdownifyTransformer(
+        strip=["a", "img"], autolinks=True, heading_style="ATX"
+    )
     documents = transformer.transform_documents(documents)
 
     return documents if len(documents) > 1 else documents[0]
@@ -157,7 +154,7 @@ if __name__ == "__main__":
     example_urls = [
         "https://example.com",
         "https://www.bbc.com/news/world-60525350",
-        "https://www.google.com"
+        "https://www.google.com",
     ]
 
     results = web_reader(example_urls, max_chars_per_content=5000)

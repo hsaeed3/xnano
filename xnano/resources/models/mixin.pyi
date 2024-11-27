@@ -635,7 +635,12 @@ def patch(
     ...
 
 def unpatch(
-    model: Union[Type[GenerativeModel], GenerativeModel, Type[PydanticBaseModel], PydanticBaseModel],
+    model: Union[
+        Type[GenerativeModel],
+        GenerativeModel,
+        Type[PydanticBaseModel],
+        PydanticBaseModel,
+    ],
 ) -> Union[Type[PydanticBaseModel], PydanticBaseModel]:
     """
     A function that unpatches a patched Pydantic BaseModel class or instance.

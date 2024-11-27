@@ -1,9 +1,6 @@
 # xnano . data
 
-__all__ = [
-    "Database",
-    "VectorStore"
-]
+__all__ = ["Database", "VectorStore"]
 
 # database and vector store handlers
 # located at
