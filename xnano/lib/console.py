@@ -77,6 +77,13 @@ class RichConsole(Console):
             f"⚛️ [bold plum3] xnano[/bold plum3] | [cyan]{module}[/cyan] | [white italic]{message}[/white italic]"
         )
 
+    # deprecated method
+    def mark_deprecated(self, message: str):
+        """
+        Prints a deprecated message to the console
+        """
+        self.print(f"🚨 [bold yellow] DEPRECATED [/bold yellow] | {message}")
+
     # warning method
     # no exception -- exceptions raised by xnano.lib.common.exceptions
     def warning(self, message: str):
