@@ -25,7 +25,7 @@ from pydantic import BaseModel
 
 import httpx
 import json
-from typing import List, Optional, Union
+from typing import List, Optional, Union, overload, Literal, Callable, Any
 
 
 # base client
@@ -152,6 +152,12 @@ class Completions:
 
         return response
 
+    def _type_response_list(self, response: Response) -> List[Response]:
+        """
+        Types the response as a list of responses
+        """
+
+        return response
 
     # ------------------------------------------------------------
     # non - batch completion methods
@@ -324,7 +330,7 @@ class Completions:
             # Get local variables as dict and remove unwanted keys
             local_vars = locals()
             local_vars.pop("self", None)
-            local_vars.pop("batch_determination", None) 
+            local_vars.pop("batch_determination", None)
             local_vars.pop("responses", None)
             local_vars.pop("ran_tools", None)
             local_vars.pop("is_batch_completion", None)
@@ -333,13 +339,13 @@ class Completions:
             local_vars.pop("original_response_model", None)
             local_vars.pop("response_model", None)
             return batch.create_batch_completion_job_with_multiple_models(**local_vars, response_model=response_model)
-        
+
         if batch_determination.multi_message_batch_job:
             # Get local variables as dict and remove unwanted keys
             local_vars = locals()
             local_vars.pop("self", None)
             local_vars.pop("batch_determination", None)
-            local_vars.pop("responses", None) 
+            local_vars.pop("responses", None)
             local_vars.pop("ran_tools", None)
             local_vars.pop("is_batch_completion", None)
             local_vars.pop("is_tool_execution", None)
@@ -1035,12 +1041,20 @@ class Completions:
             return_messages=return_messages,
         )
 
-    # static
+    
     @staticmethod
+    @overload
     def _completion(
-        # messages
-        # if str, will be formatted as user message
-        # if list of list of messages, will be sent as a batch request
+        messages: CompletionMessagesParam,
+        stream : Literal[True],
+        model: CompletionChatModelsParam = "gpt-4o-mini",
+        **kwargs,
+    ) -> Union[StreamingResponse, List[StreamingResponse]]:
+        ...
+
+    @staticmethod
+    @overload
+    def _completion(
         messages: CompletionMessagesParam,
         model: CompletionChatModelsParam = "gpt-4o-mini",
         context: Optional[CompletionContextParam] = None,
@@ -1072,77 +1086,76 @@ class Completions:
         frequency_penalty: Optional[float] = None,
         logit_bias: Optional[dict] = None,
         user: Optional[str] = None,
-        # openai v1.0+ new params
         seed: Optional[int] = None,
         logprobs: Optional[bool] = None,
         top_logprobs: Optional[int] = None,
         deployment_id=None,
         extra_headers: Optional[dict] = None,
-        # soon to be deprecated params by OpenAI
         functions: Optional[List] = None,
         function_call: Optional[str] = None,
-        # set api_base, api_version, api_key
         api_version: Optional[str] = None,
         model_list: Optional[list] = None,
-        stream: Optional[bool] = None,
+        stream : Literal[False] = False,
         return_messages: Optional[bool] = None,
         verbose: Optional[bool] = None,
-    ) -> Union[Response, StreamingResponse]:
-        """
-        Create a chat completion or completion(s)
+    ) -> Union[Response, List[Response]]:
+        ...
 
-        Example:
-        ```python
-        completion(messages="hi", model="gpt-4o-mini")
-        ```
-
-        Args:
-            messages (CompletionMessageParam): Messages to send to the model
-            model (CompletionChatModelParam): Model to use for the completion
-            context (CompletionContext): Context to use for the completion
-            mode (CompletionInstructorMode): Instructor mode to use for the completion
-            response_model (CompletionResponseModelParam): Response model to use for the completion
-            response_format (CompletionResponseModelParam): Response format to use for the completion
-            tools (List[CompletionToolType]): Tools to use for the completion
-            run_tools (bool): Run tools for the completion
-            tool_choice (CompletionToolChoiceParam): Tool choice to use for the completion
-            parallel_tool_calls (bool): Parallel tool calls to use for the completion
-            api_key (str): API key to use for the completion
-            base_url (str): Base URL to use for the completion
-            organization (str): Organization to use for the completion
-            n (int): Number of completions to use for the completion
-            timeout (Union[float, str, httpx.Timeout]): Timeout to use for the completion
-            temperature (float): Temperature to use for the completion
-            top_p (float): Top P to use for the completion
-            stream_options (dict): Stream options to use for the completion
-            stop (str): Stop to use for the completion
-            max_completion_tokens (int): Max completion tokens to use for the completion
-            max_tokens (int): Max tokens to use for the completion
-            modalities (List[ChatCompletionModality]): Modalities to use for the completion
-            prediction (ChatCompletionPredictionContentParam): Prediction to use for the completion
-            audio (ChatCompletionAudioParam): Audio to use for the completion
-            presence_penalty (float): Presence penalty to use for the completion
-            frequency_penalty (float): Frequency penalty to use for the completion
-            logit_bias (dict): Logit bias to use for the completion
-            user (str): User to use for the completion
-            seed (int): Seed to use for the completion
-            logprobs (bool): Logprobs to use for the completion
-            top_logprobs (int): Top logprobs to use for the completion
-            deployment_id (str): Deployment ID to use for the completion
-            extra_headers (dict): Extra headers to use for the completion
-            functions (List): Functions to use for the completion
-            function_call (str): Function call to use for the completion
-            api_version (str): API version to use for the completion
-            model_list (list): Model list to use for the completion
-            stream (bool): Stream to use for the completion
-            verbose (bool): Verbose to use for the completion
-        """
-
-        # run completion
+    @staticmethod
+    def _completion(
+        messages: CompletionMessagesParam,
+        model: CompletionChatModelsParam = "gpt-4o-mini",
+        context: Optional[CompletionContextParam] = None,
+        memory: Optional[Union[Memory, List[Memory]]] = None,
+        memory_limit: Optional[int] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        response_format: Optional[CompletionResponseModelParam] = None,
+        tools: Optional[List[CompletionToolsParam]] = None,
+        run_tools: Optional[bool] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        organization: Optional[str] = None,
+        n: Optional[int] = None,
+        timeout: Optional[Union[float, str, httpx.Timeout]] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        stream_options: Optional[dict] = None,
+        stop=None,
+        max_completion_tokens: Optional[int] = None,
+        max_tokens: Optional[int] = None,
+        modalities: Optional[List[CompletionModalityParam]] = None,
+        prediction: Optional[CompletionPredictionContentParam] = None,
+        audio: Optional[CompletionAudioParam] = None,
+        presence_penalty: Optional[float] = None,
+        frequency_penalty: Optional[float] = None,
+        logit_bias: Optional[dict] = None,
+        user: Optional[str] = None,
+        seed: Optional[int] = None,
+        logprobs: Optional[bool] = None,
+        top_logprobs: Optional[int] = None,
+        deployment_id=None,
+        extra_headers: Optional[dict] = None,
+        functions: Optional[List] = None,
+        function_call: Optional[str] = None,
+        api_version: Optional[str] = None,
+        model_list: Optional[list] = None,
+        stream: bool = False,
+        return_messages: Optional[bool] = None,
+        verbose: Optional[bool] = None,
+    ) -> Union[Response, StreamingResponse, List[Response], List[StreamingResponse]]:
 
         # deprecated
         if mode:
-            console.mark_deprecated("xnano.completion() | `[bold red]mode[/bold red]` is now deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
+            console.mark_deprecated("xnano.completion() | `[bold red]mode[/bold red]` will soon be deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
+
+        # deprecated
+        if max_tokens:
+            console.mark_deprecated("xnano.completion() | `[bold red]max_tokens[/bold red]` is now deprecated. [bold sky_blue3]OpenAI[/bold sky_blue3] uses `[bold green]max_completion_tokens[/bold green]` instead.")
+            max_completion_tokens = max_tokens
 
         local_args = locals()
         local_args.pop("verbose", None)
@@ -1298,120 +1311,299 @@ class Completions:
             model_list=model_list,
             return_messages=return_messages,
         )
+    
 
-    # static
-    @staticmethod
-    async def _acompletion(
-        messages: CompletionMessagesParam,
-        model: CompletionChatModelsParam = "gpt-4o-mini",
-        context: Optional[CompletionContextParam] = None,
-        memory: Optional[Union[Memory, List[Memory]]] = None,
-        memory_limit: Optional[int] = None,
-        instructor_mode: Optional[CompletionInstructorModeParam] = None,
-        mode: Optional[CompletionInstructorModeParam] = None,
-        response_model: Optional[CompletionResponseModelParam] = None,
-        response_format: Optional[CompletionResponseModelParam] = None,
-        tools: Optional[List[CompletionToolsParam]] = None,
-        run_tools: Optional[bool] = None,
-        tool_choice: Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls: Optional[bool] = None,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        organization: Optional[str] = None,
-        n: Optional[int] = None,
-        timeout: Optional[Union[float, str, httpx.Timeout]] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        stream_options: Optional[dict] = None,
-        stop=None,
-        max_completion_tokens: Optional[int] = None,
-        max_tokens: Optional[int] = None,
-        modalities: Optional[List[CompletionModalityParam]] = None,
-        prediction: Optional[CompletionPredictionContentParam] = None,
-        audio: Optional[CompletionAudioParam] = None,
-        presence_penalty: Optional[float] = None,
-        frequency_penalty: Optional[float] = None,
-        logit_bias: Optional[dict] = None,
-        user: Optional[str] = None,
-        # openai v1.0+ new params
-        seed: Optional[int] = None,
-        logprobs: Optional[bool] = None,
-        top_logprobs: Optional[int] = None,
-        deployment_id=None,
-        extra_headers: Optional[dict] = None,
-        # soon to be deprecated params by OpenAI
-        functions: Optional[List] = None,
-        function_call: Optional[str] = None,
-        # set api_base, api_version, api_key
-        api_version: Optional[str] = None,
-        model_list: Optional[list] = None,
-        stream: Optional[bool] = None,
-        return_messages: Optional[bool] = None,
-        verbose: Optional[bool] = None,
-    ) -> Union[Response, AsyncStreamingResponse]:
-        """
-        Asynchronously create a chat completion or completion(s)
+@overload
+def completion(
+    messages: CompletionMessagesParam,
+    stream : Literal[True],
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    **kwargs,
+) -> Union[StreamingResponse, List[StreamingResponse]]:
+    ...
 
-        Example:
-        ```python
-        completion(messages="hi", model="gpt-4o-mini")
-        ```
+@overload
+def completion(
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    instructor_mode: Optional[CompletionInstructorModeParam] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
+    timeout: Optional[Union[float, str, httpx.Timeout]] = None,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    stream_options: Optional[dict] = None,
+    stop=None,
+    max_completion_tokens: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    modalities: Optional[List[CompletionModalityParam]] = None,
+    prediction: Optional[CompletionPredictionContentParam] = None,
+    audio: Optional[CompletionAudioParam] = None,
+    presence_penalty: Optional[float] = None,
+    frequency_penalty: Optional[float] = None,
+    logit_bias: Optional[dict] = None,
+    user: Optional[str] = None,
+    seed: Optional[int] = None,
+    logprobs: Optional[bool] = None,
+    top_logprobs: Optional[int] = None,
+    deployment_id=None,
+    extra_headers: Optional[dict] = None,
+    functions: Optional[List] = None,
+    function_call: Optional[str] = None,
+    api_version: Optional[str] = None,
+    model_list: Optional[list] = None,
+    stream : Literal[False] = False,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> Union[Response, List[Response]]:
+    ...
 
-        Args:
-            messages (CompletionMessageParam): Messages to send to the model
-            model (CompletionChatModelParam): Model to use for the completion
-            context (CompletionContext): Context to use for the completion
-            mode (CompletionInstructorMode): Instructor mode to use for the completion
-            response_model (CompletionResponseModelParam): Response model to use for the completion
-            response_format (CompletionResponseModelParam): Response format to use for the completion
-            tools (List[CompletionToolType]): Tools to use for the completion
-            run_tools (bool): Run tools for the completion
-            tool_choice (CompletionToolChoiceParam): Tool choice to use for the completion
-            parallel_tool_calls (bool): Parallel tool calls to use for the completion
-            api_key (str): API key to use for the completion
-            base_url (str): Base URL to use for the completion
-            organization (str): Organization to use for the completion
-            n (int): Number of completions to use for the completion
-            timeout (Union[float, str, httpx.Timeout]): Timeout to use for the completion
-            temperature (float): Temperature to use for the completion
-            top_p (float): Top P to use for the completion
-            stream_options (dict): Stream options to use for the completion
-            stop (str): Stop to use for the completion
-            max_completion_tokens (int): Max completion tokens to use for the completion
-            max_tokens (int): Max tokens to use for the completion
-            modalities (List[ChatCompletionModality]): Modalities to use for the completion
-            prediction (ChatCompletionPredictionContentParam): Prediction to use for the completion
-            audio (ChatCompletionAudioParam): Audio to use for the completion
-            presence_penalty (float): Presence penalty to use for the completion
-            frequency_penalty (float): Frequency penalty to use for the completion
-            logit_bias (dict): Logit bias to use for the completion
-            user (str): User to use for the completion
-            seed (int): Seed to use for the completion
-            logprobs (bool): Logprobs to use for the completion
-            top_logprobs (int): Top logprobs to use for the completion
-            deployment_id (str): Deployment ID to use for the completion
-            extra_headers (dict): Extra headers to use for the completion
-            functions (List): Functions to use for the completion
-            function_call (str): Function call to use for the completion
-            api_version (str): API version to use for the completion
-            model_list (list): Model list to use for the completion
-            stream (bool): Stream to use for the completion
-            verbose (bool): Verbose to use for the completion
-        """
+def completion(
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    instructor_mode: Optional[CompletionInstructorModeParam] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
+    timeout: Optional[Union[float, str, httpx.Timeout]] = None,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    stream_options: Optional[dict] = None,
+    stop=None,
+    max_completion_tokens: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    modalities: Optional[List[CompletionModalityParam]] = None,
+    prediction: Optional[CompletionPredictionContentParam] = None,
+    audio: Optional[CompletionAudioParam] = None,
+    presence_penalty: Optional[float] = None,
+    frequency_penalty: Optional[float] = None,
+    logit_bias: Optional[dict] = None,
+    user: Optional[str] = None,
+    seed: Optional[int] = None,
+    logprobs: Optional[bool] = None,
+    top_logprobs: Optional[int] = None,
+    deployment_id=None,
+    extra_headers: Optional[dict] = None,
+    functions: Optional[List] = None,
+    function_call: Optional[str] = None,
+    api_version: Optional[str] = None,
+    model_list: Optional[list] = None,
+    stream: bool = False,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> Union[Response, StreamingResponse, List[Response], List[StreamingResponse]]:
 
-        # deprecated
-        if mode:
-            console.mark_deprecated("xnano.async_completion() | `[bold red]mode[/bold red]` is now deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
+    # deprecated
+    if mode:
+        console.mark_deprecated("xnano.completion() | `[bold red]mode[/bold red]` will soon be deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
 
-        local_args = locals()
-        local_args.pop("verbose", None)
+    # deprecated
+    if max_tokens:
+        console.mark_deprecated("xnano.completion() | `[bold red]max_tokens[/bold red]` is now deprecated. [bold sky_blue3]OpenAI[/bold sky_blue3] uses `[bold green]max_completion_tokens[/bold green]` instead.")
+        max_completion_tokens = max_tokens
 
-        try:
-            return await Completions(verbose=verbose).arun_completion(**local_args)
-        except Exception as e:
-            raise XNANOException(f"Failed to run completion: {e}")
+    local_args = locals()
+    local_args.pop("verbose", None)
+
+    try:
+        return Completions(verbose=verbose).run_completion(**local_args)
+    except Exception as e:
+        raise XNANOException(f"Failed to run completion: {e}")
+    
+
+@overload
+def async_completion(
+    messages: CompletionMessagesParam,
+    stream : Literal[True],
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    **kwargs,
+) -> Union[AsyncStreamingResponse, List[AsyncStreamingResponse]]:
+    ...
+
+@overload
+def async_completion(
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    instructor_mode: Optional[CompletionInstructorModeParam] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
+    timeout: Optional[Union[float, str, httpx.Timeout]] = None,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    stream_options: Optional[dict] = None,
+    stop=None,
+    max_completion_tokens: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    modalities: Optional[List[CompletionModalityParam]] = None,
+    prediction: Optional[CompletionPredictionContentParam] = None,
+    audio: Optional[CompletionAudioParam] = None,
+    presence_penalty: Optional[float] = None,
+    frequency_penalty: Optional[float] = None,
+    logit_bias: Optional[dict] = None,
+    user: Optional[str] = None,
+    seed: Optional[int] = None,
+    logprobs: Optional[bool] = None,
+    top_logprobs: Optional[int] = None,
+    deployment_id=None,
+    extra_headers: Optional[dict] = None,
+    functions: Optional[List] = None,
+    function_call: Optional[str] = None,
+    api_version: Optional[str] = None,
+    model_list: Optional[list] = None,
+    stream : Literal[False] = False,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> Union[Response, List[Response]]:
+    ...
+
+async def async_completion(
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    instructor_mode: Optional[CompletionInstructorModeParam] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
+    timeout: Optional[Union[float, str, httpx.Timeout]] = None,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    stream_options: Optional[dict] = None,
+    stop=None,
+    max_completion_tokens: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    modalities: Optional[List[CompletionModalityParam]] = None,
+    prediction: Optional[CompletionPredictionContentParam] = None,
+    audio: Optional[CompletionAudioParam] = None,
+    presence_penalty: Optional[float] = None,
+    frequency_penalty: Optional[float] = None,
+    logit_bias: Optional[dict] = None,
+    user: Optional[str] = None,
+    # openai v1.0+ new params
+    seed: Optional[int] = None,
+    logprobs: Optional[bool] = None,
+    top_logprobs: Optional[int] = None,
+    deployment_id=None,
+    extra_headers: Optional[dict] = None,
+    # soon to be deprecated params by OpenAI
+    functions: Optional[List] = None,
+    function_call: Optional[str] = None,
+    # set api_base, api_version, api_key
+    api_version: Optional[str] = None,
+    model_list: Optional[list] = None,
+    stream: Optional[bool] = None,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> Union[Response, AsyncStreamingResponse, List[Response], List[AsyncStreamingResponse]]:
+    """
+    Asynchronously create a chat completion or completion(s)
+
+    Example:
+    ```python
+    completion(messages="hi", model="gpt-4o-mini")
+    ```
+
+    Args:
+        messages (CompletionMessageParam): Messages to send to the model
+        model (CompletionChatModelParam): Model to use for the completion
+        context (CompletionContext): Context to use for the completion
+        mode (CompletionInstructorMode): Instructor mode to use for the completion
+        response_model (CompletionResponseModelParam): Response model to use for the completion
+        response_format (CompletionResponseModelParam): Response format to use for the completion
+        tools (List[CompletionToolType]): Tools to use for the completion
+        run_tools (bool): Run tools for the completion
+        tool_choice (CompletionToolChoiceParam): Tool choice to use for the completion
+        parallel_tool_calls (bool): Parallel tool calls to use for the completion
+        api_key (str): API key to use for the completion
+        base_url (str): Base URL to use for the completion
+        organization (str): Organization to use for the completion
+        n (int): Number of completions to use for the completion
+        timeout (Union[float, str, httpx.Timeout]): Timeout to use for the completion
+        temperature (float): Temperature to use for the completion
+        top_p (float): Top P to use for the completion
+        stream_options (dict): Stream options to use for the completion
+        stop (str): Stop to use for the completion
+        max_completion_tokens (int): Max completion tokens to use for the completion
+        max_tokens (int): Max tokens to use for the completion
+        modalities (List[ChatCompletionModality]): Modalities to use for the completion
+        prediction (ChatCompletionPredictionContentParam): Prediction to use for the completion
+        audio (ChatCompletionAudioParam): Audio to use for the completion
+        presence_penalty (float): Presence penalty to use for the completion
+        frequency_penalty (float): Frequency penalty to use for the completion
+        logit_bias (dict): Logit bias to use for the completion
+        user (str): User to use for the completion
+        seed (int): Seed to use for the completion
+        logprobs (bool): Logprobs to use for the completion
+        top_logprobs (int): Top logprobs to use for the completion
+        deployment_id (str): Deployment ID to use for the completion
+        extra_headers (dict): Extra headers to use for the completion
+        functions (List): Functions to use for the completion
+        function_call (str): Function call to use for the completion
+        api_version (str): API version to use for the completion
+        model_list (list): Model list to use for the completion
+        stream (bool): Stream to use for the completion
+        verbose (bool): Verbose to use for the completion
+    """
+
+    # deprecated
+    if mode:
+        console.mark_deprecated("xnano.async_completion() | `[bold red]mode[/bold red]` will soon be deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
+
+    if max_tokens:
+        console.mark_deprecated("xnano.async_completion() | `[bold red]max_tokens[/bold red]` is now deprecated. [bold sky_blue3]OpenAI[/bold sky_blue3] uses `[bold green]max_completion_tokens[/bold green]` instead.")
+        max_completion_tokens = max_tokens
+
+    local_args = locals()
+    local_args.pop("verbose", None)
+
+    try:
+        return await Completions(verbose=verbose).arun_completion(**local_args)
+    except Exception as e:
+        raise XNANOException(f"Failed to run completion: {e}")
 
 
-# functions
-completion = Completions._completion
-async_completion = Completions._acompletion
+
