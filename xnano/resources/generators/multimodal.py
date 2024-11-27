@@ -194,7 +194,6 @@ def multimodal_generate_image(
                 try:
                     from IPython.display import display, Image
                 except ImportError:
-
                     console.warning(
                         "IPython is not installed. Please install it with `pip install ipython`."
                     )
@@ -242,7 +241,6 @@ def multimodal_generate_audio(
         import soundfile as sf
 
     except ImportError:
-
         console.warning(
             "The [italic]speak[/italic] function requires sounddevice and soundfile, which are not included in the base 'xnano' package. Please install them with [bold]`pip install sounddevice soundfile`[/bold]."
         )
@@ -272,7 +270,6 @@ def multimodal_generate_audio(
             try:
                 from IPython.display import Audio
             except ImportError:
-
                 console.warning(
                     "IPython is not installed. Please install it with `pip install ipython`."
                 )
@@ -319,7 +316,6 @@ def multimodal_generate_transcription(
         import sounddevice as sd
         import soundfile as sf
     except ImportError:
-
         console.warning(
             "The [italic]speak[/italic] function requires sounddevice and soundfile, which are not included in the base 'xnano` package. Please install them with [bold]`pip install sounddevice soundfile`[/bold]."
         )

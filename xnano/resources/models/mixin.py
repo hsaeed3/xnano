@@ -177,7 +177,7 @@ class BaseModelMixin:
             if details["type"] == "instance":
                 # For instances, include ALL current field values as context
                 current_values = {
-                    field: getattr(cls_or_self, field) 
+                    field: getattr(cls_or_self, field)
                     for field in details["fields"]
                     if getattr(cls_or_self, field) is not None
                 }
@@ -196,7 +196,9 @@ class BaseModelMixin:
                 Field types: {json.dumps({field: str(details["annotations"][field]) for field in fields})}
                 """)
 
-            return context, type(new_model) if not isinstance(new_model, type) else new_model
+            return context, type(new_model) if not isinstance(
+                new_model, type
+            ) else new_model
 
         except Exception as e:
             raise XNANOException(f"Failed to build patch context: {str(e)}")
@@ -896,9 +898,13 @@ class BaseModelMixin:
                     # Update each copy with corresponding generated values
                     for i, original_model in enumerate(original_models):
                         for field in fields:
-                            setattr(original_model, field, getattr(results_list[i], field))
+                            setattr(
+                                original_model, field, getattr(results_list[i], field)
+                            )
                             if verbose:
-                                console.message(f"Setting {field} to {getattr(original_model, field)} for result {i+1}")
+                                console.message(
+                                    f"Setting {field} to {getattr(original_model, field)} for result {i+1}"
+                                )
 
                     # Return updated models
                     return original_models[0] if n == 1 else original_models
@@ -1094,7 +1100,9 @@ class BaseModelMixin:
                     for field in fields:
                         setattr(original_model, field, getattr(results[i], field))
                         if verbose:
-                            console.message(f"Setting {field} to {getattr(original_model, field)} for result {i+1}")
+                            console.message(
+                                f"Setting {field} to {getattr(original_model, field)} for result {i+1}"
+                            )
 
                 # Return updated models
                 return original_models[0] if n == 1 else original_models
@@ -1389,9 +1397,13 @@ class BaseModelMixin:
                     # Update each copy with corresponding generated values
                     for i, original_model in enumerate(original_models):
                         for field in fields:
-                            setattr(original_model, field, getattr(results_list[i], field))
+                            setattr(
+                                original_model, field, getattr(results_list[i], field)
+                            )
                             if verbose:
-                                console.message(f"Setting {field} to {getattr(original_model, field)} for result {i+1}")
+                                console.message(
+                                    f"Setting {field} to {getattr(original_model, field)} for result {i+1}"
+                                )
 
                     # Return updated models
                     return original_models[0] if n == 1 else original_models
@@ -1587,7 +1599,9 @@ class BaseModelMixin:
                     for field in fields:
                         setattr(original_model, field, getattr(results[i], field))
                         if verbose:
-                            console.message(f"Setting {field} to {getattr(original_model, field)} for result {i+1}")
+                            console.message(
+                                f"Setting {field} to {getattr(original_model, field)} for result {i+1}"
+                            )
 
                 # Return updated models
                 return original_models[0] if n == 1 else original_models
@@ -1610,7 +1624,9 @@ class GenerativeModel(PydanticBaseModel, BaseModelMixin): ...
 
 def patch(
     model: Union[Type[PydanticBaseModel], PydanticBaseModel],
-) -> Union[Type[GenerativeModel], GenerativeModel, Type[PydanticBaseModel], PydanticBaseModel]:
+) -> Union[
+    Type[GenerativeModel], GenerativeModel, Type[PydanticBaseModel], PydanticBaseModel
+]:
     if isinstance(model, type) and issubclass(model, PydanticBaseModel):
         PatchedModel = type(model.__name__, (model, BaseModelMixin), {})
         return PatchedModel
@@ -1626,7 +1642,12 @@ def patch(
 
 
 def unpatch(
-    model: Union[Type[GenerativeModel], GenerativeModel, Type[PydanticBaseModel], PydanticBaseModel],
+    model: Union[
+        Type[GenerativeModel],
+        GenerativeModel,
+        Type[PydanticBaseModel],
+        PydanticBaseModel,
+    ],
 ) -> Union[Type[PydanticBaseModel], PydanticBaseModel]:
     if isinstance(model, type) and issubclass(model, PydanticBaseModel):
         return model.__base__

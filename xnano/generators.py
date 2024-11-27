@@ -16,7 +16,6 @@ __all__ = [
     "generate_validation",
     "async_generate_validation",
     "generate_web_extraction",
-
     # multimodal
     "multimodal_generate_image",
     "multimodal_generate_audio",
@@ -46,10 +45,8 @@ from .resources.generators._routing import (
     generate_validation,
     async_generate_validation,
     generate_web_extraction,
-
     # multimodal
     multimodal_generate_image,
     multimodal_generate_audio,
     multimodal_generate_transcription,
 )
-

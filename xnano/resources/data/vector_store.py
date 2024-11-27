@@ -135,7 +135,9 @@ class VectorStore:
             return False
 
         if self.verbose:
-            console.message(f"Using [green]On Memory[/green] Vector Store named [sky_blue3]{self.collection_name}[/sky_blue3]")
+            console.message(
+                f"Using [green]On Memory[/green] Vector Store named [sky_blue3]{self.collection_name}[/sky_blue3]"
+            )
 
         return True
 
@@ -454,12 +456,12 @@ class VectorStore:
 
                 # Create payload with metadata only (text is handled separately)
                 payload = item["metadata"].copy()
-                if "text" in payload: 
+                if "text" in payload:
                     del payload["text"]
 
                 # Always generate a new chunk_id if one doesn't exist
                 chunk_id = item.get("chunk_id") or str(uuid.uuid4())
-                
+
                 # Create point with chunk_id as the primary ID
                 points.append(
                     PointStruct(
@@ -469,7 +471,9 @@ class VectorStore:
                             **payload,
                             "text": item["text"],
                             "chunk_id": chunk_id,  # Store chunk_id in payload too
-                            "document_id": item["metadata"].get("id"),  # Store original doc ID
+                            "document_id": item["metadata"].get(
+                                "id"
+                            ),  # Store original doc ID
                         },
                     )
                 )
@@ -559,15 +563,21 @@ class VectorStore:
                     )
                     try:
                         for hit in result:
-                            if hit.id not in seen_chunk_ids:  # Only add if we haven't seen this chunk
+                            if (
+                                hit.id not in seen_chunk_ids
+                            ):  # Only add if we haven't seen this chunk
                                 seen_chunk_ids.add(hit.id)
-                                results.append(SearchResult(
-                                    id=hit.payload.get("document_id"),  # Use original doc ID
-                                    chunk_id=hit.id,  # Store chunk ID
-                                    text=hit.payload.pop("text", ""),
-                                    metadata=hit.payload,
-                                    score=hit.score,
-                                ))
+                                results.append(
+                                    SearchResult(
+                                        id=hit.payload.get(
+                                            "document_id"
+                                        ),  # Use original doc ID
+                                        chunk_id=hit.id,  # Store chunk ID
+                                        text=hit.payload.pop("text", ""),
+                                        metadata=hit.payload,
+                                        score=hit.score,
+                                    )
+                                )
                     except Exception as e:
                         raise XNANOException(
                             f"Failed to parse search results: {e}"

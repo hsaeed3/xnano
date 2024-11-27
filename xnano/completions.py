@@ -1,9 +1,6 @@
 # xnano . completions
 
-__all__ = [
-    "completion",
-    "async_completion"
-]
+__all__ = ["completion", "async_completion"]
 
 # methods located at
 # xnano.resources.completions.main

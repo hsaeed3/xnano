@@ -17,13 +17,10 @@ import json
 from pydantic import BaseModel, create_model
 from typing import Dict, List, Literal, Optional, Union, Type
 
-
 Agent = Type["Agent"]
 AgentResources = Type["AgentResources"]
 
-
 class Agent:
-
     """
     base class for all agents in the xnano library.
 
@@ -40,23 +37,23 @@ class Agent:
     resources: AgentResources
 
     def __init__(
-            self,
-            role : str = "assistant",
-            name : Optional[str] = None,
-            instructions : Optional[str] = None,
-            planning : Optional[bool] = False,
-            workflows : Optional[List[BaseModel]] = None,
-            summarization_steps : Optional[int] = 5,
-            memory : Optional[List[Memory]] = None,
-            model : Union[CompletionChatModelsParam, str] = "openai/gpt-4o-mini",
-            instructor_mode : Optional[CompletionInstructorModeParam] = None,
-            base_url : Optional[str] = None,
-            api_key : Optional[str] = None,
-            organization : Optional[str] = None,
-            temperature : Optional[float] = None,
-            messages : Optional[CompletionMessagesParam] = None,
-            verbose : bool = False,
-            agents : Optional[List[Agent]] = None,
+        self,
+        role: str = "assistant",
+        name: Optional[str] = None,
+        instructions: Optional[str] = None,
+        planning: Optional[bool] = False,
+        workflows: Optional[List[BaseModel]] = None,
+        summarization_steps: Optional[int] = 5,
+        memory: Optional[List[Memory]] = None,
+        model: Union[CompletionChatModelsParam, str] = "openai/gpt-4o-mini",
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        temperature: Optional[float] = None,
+        messages: Optional[CompletionMessagesParam] = None,
+        verbose: bool = False,
+        agents: Optional[List[Agent]] = None,
     ) -> None:
         """
         Initializes an agent with the given parameters.
@@ -100,10 +97,7 @@ class Agent:
     # - HELPERS
     # ----------------------------------------------------------
 
-    def add_messages_to_state(
-            self,
-            messages : CompletionMessagesParam
-    ) -> None:
+    def add_messages_to_state(self, messages: CompletionMessagesParam) -> None:
         """
         Persists messages to the agent's internal state message thread
 
@@ -130,9 +124,9 @@ class Agent:
         ...
 
     def add_response_to_state(
-            self,
-            response : AgentResponse,
-            instructor : bool = False,
+        self,
+        response: AgentResponse,
+        instructor: bool = False,
     ) -> None:
         """
         Persists a response to the agent's internal state
@@ -152,8 +146,8 @@ class Agent:
         ...
 
     def get_system_prompt(
-            self,
-            tools : Optional[List[BaseModel]] = None,
+        self,
+        tools: Optional[List[BaseModel]] = None,
     ) -> str:
         """
         Retrieves the system prompt for the agent
@@ -176,11 +170,11 @@ class Agent:
     # ----------------------------------------------------------
 
     def build_summary(
-            self,
-            model : Optional[Union[CompletionChatModelsParam, str]] = None,
-            api_key : Optional[str] = None,
-            base_url : Optional[str] = None,
-            organization : Optional[str] = None,
+        self,
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        organization: Optional[str] = None,
     ) -> str:
         """
         Builds a summary of the agent's internal state message thread &
@@ -204,8 +198,8 @@ class Agent:
     # ----------------------------------------------------------
 
     def get_workflows(
-            self,
-            workflows : Optional[List[BaseModel]] = None,
+        self,
+        workflows: Optional[List[BaseModel]] = None,
     ) -> List[BaseModel]:
         """
         Retrieves the workflows for the agent, along with any additional
@@ -274,23 +268,23 @@ class Agent:
     # ----------------------------------------------------------
     # - COMPLETIONS
     # ----------------------------------------------------------
-   
+
     def completion(
         self,
-        messages : Optional[CompletionMessagesParam] = None,
-        agents : Optional[List[Agent]] = None,
-        workflows : Optional[List[BaseModel]] = None,
+        messages: Optional[CompletionMessagesParam] = None,
+        agents: Optional[List[Agent]] = None,
+        workflows: Optional[List[BaseModel]] = None,
         # completion specific params
-        model : Optional[Union[CompletionChatModelsParam, str]] = None,
-        base_url : Optional[str] = None,
-        api_key : Optional[str] = None,
-        organization : Optional[str] = None,
-        temperature : Optional[float] = None,
-        tools : Optional[CompletionToolsParam] = None,
-        instructor_mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = False,
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        temperature: Optional[float] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = False,
     ) -> AgentResponse:
         """
         Runs an agent chat 'completion' & saves user inputs, workflows & assistant responses to the agent's internal state.
@@ -365,17 +359,17 @@ class Agent:
         messages: Optional[CompletionMessagesParam] = None,
         agents: Optional[List[Agent]] = None,
         # completion specific params
-        model : Optional[Union[CompletionChatModelsParam, str]] = None,
-        base_url : Optional[str] = None,
-        api_key : Optional[str] = None,
-        organization : Optional[str] = None,
-        temperature : Optional[float] = None,
-        tools : Optional[CompletionToolsParam] = None,
-        instructor_mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = False,
-        workflows : Optional[List[BaseModel]] = None
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        temperature: Optional[float] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = False,
+        workflows: Optional[List[BaseModel]] = None,
     ) -> AgentResponse:
         """
         Runs an agent chat 'completion'. Does not save to the agent's internal state.
@@ -463,7 +457,7 @@ class Agent:
                     messages="Collect relevant data for analysis"
                 )
                 return {"data": response.choices[0].message.content}
-            
+
             @steps.step("analyze_data", depends_on=["collect_data"])
             def analyze_data(agent: Agent, state: StepState, input_data: Dict):
                 data = input_data["collect_data"]["data"]
@@ -536,10 +530,7 @@ class Agent:
         """
         ...
 
-    def update_instructions(
-        self,
-        instructions: str
-    ):
+    def update_instructions(self, instructions: str):
         """
         Updates the agent's instructions
 
@@ -605,7 +596,6 @@ class Agent:
         """
         ...
 
-
     def chat_completion(
         self,
         messages: Optional[CompletionMessagesParam] = None,
@@ -621,7 +611,7 @@ class Agent:
         response_model: Optional[CompletionResponseModelParam] = None,
         tool_choice: Optional[CompletionToolChoiceParam] = None,
         parallel_tool_calls: Optional[bool] = False,
-        workflows: Optional[List[BaseModel]] = None
+        workflows: Optional[List[BaseModel]] = None,
     ) -> AgentResponse:
         """
         Runs a chat completion with the agent, without executing any workflows or multi-agent collaboration.
@@ -635,7 +625,7 @@ class Agent:
             messages (Optional[CompletionMessagesParam]): The messages to use for the chat completion
             agents (Optional[List[Agent]]): The agents to collaborate with
             model (Optional[Union[CompletionChatModelsParam, str]]): The model to use for the chat completion
-            base_url (Optional[str]): The base URL to use for the chat completion   
+            base_url (Optional[str]): The base URL to use for the chat completion
             api_key (Optional[str]): The API key to use for the chat completion
             organization (Optional[str]): The organization to use for the chat completion
             tools (Optional[CompletionToolsParam]): The tools to use for the chat completion

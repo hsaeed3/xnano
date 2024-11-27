@@ -1,7 +1,4 @@
-__all__ = [
-    "VectorStore",
-    "Database"
-]
+__all__ = ["VectorStore", "Database"]
 
 
 from ...lib.router import router

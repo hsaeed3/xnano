@@ -1,7 +1,4 @@
-__all__ = [
-    "completion",
-    "async_completion"
-]
+__all__ = ["completion", "async_completion"]
 
 
 from ...lib.router import router

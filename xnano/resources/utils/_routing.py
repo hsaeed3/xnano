@@ -6,7 +6,7 @@ __all__ = [
     "swap_system_prompt",
     "convert_to_openai_tool",
     "MessageUtils",
-    "tools"
+    "tools",
 ]
 
 
@@ -17,7 +17,9 @@ class convert_yaml_to_pydantic(router):
     pass
 
 
-convert_yaml_to_pydantic.init("xnano.resources.utils.convert_yaml_to_pydantic", "convert_yaml_to_pydantic")
+convert_yaml_to_pydantic.init(
+    "xnano.resources.utils.convert_yaml_to_pydantic", "convert_yaml_to_pydantic"
+)
 
 
 class format_messages(router):
@@ -35,7 +37,7 @@ repair_messages.init("xnano.resources.utils.messages", "repair_messages")
 
 
 class verify_messages_integrity(router):
-    pass 
+    pass
 
 
 class swap_system_prompt(router):
@@ -49,7 +51,9 @@ class convert_to_openai_tool(router):
     pass
 
 
-convert_to_openai_tool.init("xnano.resources.completions.resources.tool_calling", "convert_to_openai_tool")
+convert_to_openai_tool.init(
+    "xnano.resources.completions.resources.tool_calling", "convert_to_openai_tool"
+)
 
 
 class MessageUtils(router):

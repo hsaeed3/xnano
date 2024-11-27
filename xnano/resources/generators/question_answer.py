@@ -62,9 +62,7 @@ def _qa(
 
     # Chunk the input text only if chunk_size is not None
     if chunk_size is not None:
-        chunks = chunker(
-            input_text, chunk_size=chunk_size, progress_bar=False
-        )
+        chunks = chunker(input_text, chunk_size=chunk_size, progress_bar=False)
         if verbose:
             console.message(f"Text chunked into {len(chunks)} parts")
     else:

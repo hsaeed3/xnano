@@ -4,8 +4,52 @@ from typing import Optional
 
 def get_random_name():
     names = [
-        "John", "Alice", "Bob", "Grace", "David", "Eve", "Frank", "Hannah", "Hank", "Ivy", "Jack", "Jasmine", "Larry", "Katherine", "Noah", "Mabel", "Ryan", "Nina", "Victor", "Olivia", "Xavier", "Pam", "Zach", "Queenie",
-        "Charlie", "Abigail", "Trent", "Beatrice", "Sasha", "Charlotte", "Quinn", "Diana", "Yvonne", "Eleanor", "Wendy", "Fiona", "Ursula", "Giselle", "Sasha", "Iris", "Tamsin", "Ophelia", "Vera", "Petunia", "Roxanne", "Selene"
+        "John",
+        "Alice",
+        "Bob",
+        "Grace",
+        "David",
+        "Eve",
+        "Frank",
+        "Hannah",
+        "Hank",
+        "Ivy",
+        "Jack",
+        "Jasmine",
+        "Larry",
+        "Katherine",
+        "Noah",
+        "Mabel",
+        "Ryan",
+        "Nina",
+        "Victor",
+        "Olivia",
+        "Xavier",
+        "Pam",
+        "Zach",
+        "Queenie",
+        "Charlie",
+        "Abigail",
+        "Trent",
+        "Beatrice",
+        "Sasha",
+        "Charlotte",
+        "Quinn",
+        "Diana",
+        "Yvonne",
+        "Eleanor",
+        "Wendy",
+        "Fiona",
+        "Ursula",
+        "Giselle",
+        "Sasha",
+        "Iris",
+        "Tamsin",
+        "Ophelia",
+        "Vera",
+        "Petunia",
+        "Roxanne",
+        "Selene",
     ]
     return random.choice(names)
 
@@ -14,13 +58,13 @@ def get_random_name():
 # INSTRUCTION HELPER FUNCTIONS
 # -----------------------------------------------------------------
 
+
 def build_instruction(
-        name : str,
-        role : str,
-        tool_names : Optional[list] = None,
-        instructions : Optional[str] = None
+    name: str,
+    role: str,
+    tool_names: Optional[list] = None,
+    instructions: Optional[str] = None,
 ) -> dict:
-    
     tool_string = ""
     intro_string = (
         f"You are {name}, a world class {role}."
@@ -34,6 +78,8 @@ def build_instruction(
         )
 
     return {
-        "role" : "system",
-        "content" : intro_string + (tool_string if tool_string else "") + (instructions if instructions else "")
+        "role": "system",
+        "content": intro_string
+        + (tool_string if tool_string else "")
+        + (instructions if instructions else ""),
     }

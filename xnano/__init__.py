@@ -5,33 +5,25 @@ __all__ = [
     # lib level resource
     # exported at top level
     "console",
-
     # ----------------------------------------
     # agents
     # ----------------------------------------
-
     "Agent",
     "create_agent",
     "Steps",
-
     # ----------------------------------------
     # completions
     # ----------------------------------------
-
     "completion",
     "async_completion",
-
     # ----------------------------------------
     # data
     # ----------------------------------------
-
     "Database",
     "VectorStore",
-
     # ----------------------------------------
     # generators
     # ----------------------------------------
-
     "generate_code",
     "generate_function",
     "generate_classification",
@@ -47,24 +39,19 @@ __all__ = [
     "generate_validation",
     "async_generate_validation",
     "generate_web_extraction",
-
     # multimodal
     "multimodal_generate_image",
     "multimodal_generate_audio",
     "multimodal_generate_transcription",
-
     # ----------------------------------------
     # models
     # ----------------------------------------
-
     "GenerativeModel",
     "model_patch",
     "model_unpatch",
-
     # ----------------------------------------
     # utils
     # ----------------------------------------
-
     "convert_yaml_to_pydantic",
     "format_messages",
     "repair_messages",
@@ -73,14 +60,12 @@ __all__ = [
     "convert_to_openai_tool",
     "MessageUtils",
     "tools",
-
     # ----------------------------------------
     # text
     # ----------------------------------------
-
     "text_reader",
     "text_embeddings",
-    "text_chunker"
+    "text_chunker",
 ]
 
 # ----------------------------------------
@@ -127,7 +112,6 @@ from .generators import (
     generate_validation,
     async_generate_validation,
     generate_web_extraction,
-
     # multimodal
     multimodal_generate_image,
     multimodal_generate_audio,
@@ -152,7 +136,7 @@ from .resources.utils._routing import (
     swap_system_prompt,
     convert_to_openai_tool,
     MessageUtils,
-    tools
+    tools,
 )
 
 # ----------------------------------------

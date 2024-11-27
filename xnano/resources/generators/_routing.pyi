@@ -14,7 +14,6 @@ __all__ = [
     "generate_validation",
     "async_generate_validation",
     "generate_web_extraction",
-
     # multimodal
     "multimodal_generate_image",
     "multimodal_generate_audio",
@@ -32,4 +31,8 @@ from .validator import generate_validation, async_generate_validation
 from .web_extractor import generate_web_extraction
 
 # multimodal
-from .multimodal import multimodal_generate_image, multimodal_generate_audio, multimodal_generate_transcription
+from .multimodal import (
+    multimodal_generate_image,
+    multimodal_generate_audio,
+    multimodal_generate_transcription,
+)

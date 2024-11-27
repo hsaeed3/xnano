@@ -134,22 +134,13 @@ def add_message(
     """
 
     if issubclass(type(input), BaseModel):
-        
-        messages.append(
-            input.choices[0].message.model_dump()
-        )
+        messages.append(input.choices[0].message.model_dump())
 
     elif isinstance(input, Dict):
-
-        messages.append(
-            input["choices"][0]["message"]
-        )
+        messages.append(input["choices"][0]["message"])
 
     elif isinstance(input, str):
-
-        messages.append(
-            {"role": role, "content": input}
-        )
+        messages.append({"role": role, "content": input})
 
     else:
         raise ValueError(f"Invalid input type: {type(input)}")
@@ -162,50 +153,51 @@ def verify_messages_integrity(messages: Union[List[Message], Message]) -> List[M
     Verifies the integrity of the messages by checking that:
     1. Input is a list of dictionaries
     2. Each message contains required 'role' and 'content' keys
-    
+
     Will attempt to repair nested lists before raising validation errors.
-    
+
     Args:
         messages (List[Message]): Messages to verify
-        
+
     Returns:
         List[Message]: Verified (and potentially repaired) messages
-        
+
     Raises:
         ValueError: If messages fail validation after repair attempt
     """
     if isinstance(messages, Dict):
-
         # ensure "role" and "content" keys are present
         if "role" not in messages:
             raise ValueError(f"Message missing required 'role' key: {messages}")
         if "content" not in messages:
             raise ValueError(f"Message missing required 'content' key: {messages}")
-        
+
         return [messages]
 
     try:
         messages = repair_messages(messages)
     except ValueError:
         pass
-        
+
     if not isinstance(messages, list):
         raise ValueError("Messages must be a list")
-        
+
     for msg in messages:
         if not isinstance(msg, dict):
             raise ValueError(f"Each message must be a dictionary, got {type(msg)}")
-            
+
         if "role" not in msg:
             raise ValueError(f"Message missing required 'role' key: {msg}")
-            
+
         if "content" not in msg:
             raise ValueError(f"Message missing required 'content' key: {msg}")
-        
+
     return messages
 
 
-def repair_messages(messages: Union[List[Message], List[List[Message]]]) -> List[Message]:
+def repair_messages(
+    messages: Union[List[Message], List[List[Message]]],
+) -> List[Message]:
     """
     Flattens the list of messages to ensure there are no hidden nested lists.
 
@@ -220,7 +212,7 @@ def repair_messages(messages: Union[List[Message], List[List[Message]]]) -> List
     if isinstance(messages, list):
         for msg in messages:
             if isinstance(msg, list):
-                repaired_messages.extend(repair_messages(msg)) 
+                repaired_messages.extend(repair_messages(msg))
             else:
                 repaired_messages.append(msg)
     else:
@@ -230,7 +222,6 @@ def repair_messages(messages: Union[List[Message], List[List[Message]]]) -> List
 
 
 class Messages:
-
     def __init__(self, messages: Optional[List[Message]] = None):
         if messages is None:
             self.messages = []
@@ -252,7 +243,11 @@ class Messages:
         """
         self.messages.clear()
 
-    def add_message(self, input: Union[Message, str, Dict[str, Any]], role: Literal["user", "assistant", "system", "tool"] = "user") -> None:
+    def add_message(
+        self,
+        input: Union[Message, str, Dict[str, Any]],
+        role: Literal["user", "assistant", "system", "tool"] = "user",
+    ) -> None:
         """
         Adds a message to the list of messages.
         """
@@ -261,7 +256,7 @@ class Messages:
     def format(self) -> List[Message]:
         """
         Formats the current messages using the format_messages utility.
-        
+
         Returns:
             List[Message]: Formatted messages.
         """
@@ -272,5 +267,3 @@ class Messages:
         Repairs the messages to ensure there are no hidden nested lists.
         """
         self.messages = repair_messages(self.messages)
-
-

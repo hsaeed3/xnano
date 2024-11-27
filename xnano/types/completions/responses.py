@@ -13,10 +13,7 @@ AsyncStreamingResponse = AsyncStream[ChatCompletionChunk]
 
 # response
 Response = Union[
-
     # standard completion
     ChatCompletion,
     BaseModelMixin,
-
 ]
-

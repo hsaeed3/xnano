@@ -11,6 +11,7 @@ from ..utils import messages as messages_utils
 from ..completions.main import completion
 from ..completions.resources.tool_calling import convert_to_tool
 from .step import Steps
+
 # - types-------------------------------------------------------
 from ...types.agents.agent_model import AgentModel
 from ...types.agents.agent_completion_args import AgentCompletionArgs
@@ -38,13 +39,12 @@ from litellm import ModelResponse
 Agent = Type["Agent"]
 
 
-
 # --------------------------------------------------------------
 # RESOURCES
 # --------------------------------------------------------------
 
-class AgentResources:
 
+class AgentResources:
     convert_to_tool = convert_to_tool
     messages = messages_utils
     helpers = helpers
@@ -59,54 +59,46 @@ class AgentResources:
     def collect_message_from_cli():
         try:
             message = console.input(
-                prompt = f"[bold italic] Enter your message:[/bold italic] [bold red]>>[/bold red]  "
+                prompt=f"[bold italic] Enter your message:[/bold italic] [bold red]>>[/bold red]  "
             )
         except KeyboardInterrupt:
             return XNANOException(
-                message = "Keyboard Interrupt.. Try entering a message again"
+                message="Keyboard Interrupt.. Try entering a message again"
             )
-        
-        return [{"role" : "user", "content" : message}]
-        
+
+        return [{"role": "user", "content": message}]
+
     @staticmethod
-    def format_new_messages(
-        messages : CompletionMessagesParam
-    ) -> List[Dict]:
-        
+    def format_new_messages(messages: CompletionMessagesParam) -> List[Dict]:
         if isinstance(messages, str):
-            messages = [{"role" : "user", "content" : messages}]
-        
+            messages = [{"role": "user", "content": messages}]
+
         if isinstance(messages, Dict):
             messages = [messages]
 
         try:
             messages = AgentResources.messages.verify_messages_integrity(
-                messages = messages
+                messages=messages
             )
         except Exception as e:
-            raise XNANOException(
-                message = f"Error formatting new messages: {e}"
-            )
-        
+            raise XNANOException(message=f"Error formatting new messages: {e}")
+
         return messages
 
     # - // responses
 
     @staticmethod
     def build_response_type(
-        response : Response,
-        workflow : Optional[BaseModel] = None,
-        instructor : bool = False
+        response: Response,
+        workflow: Optional[BaseModel] = None,
+        instructor: bool = False,
     ):
         """
         Types response
         """
 
         if not instructor:
-            return AgentResponse(
-                workflow = workflow,
-                **response.model_dump()
-            )
+            return AgentResponse(workflow=workflow, **response.model_dump())
         else:
             return response
 
@@ -114,9 +106,8 @@ class AgentResources:
 
     @staticmethod
     def get_tool_names(
-        tools : Optional[CompletionToolsParam] = None,
+        tools: Optional[CompletionToolsParam] = None,
     ):
-        
         tool_names = []
 
         if not tools:
@@ -130,38 +121,34 @@ class AgentResources:
                     tool = AgentResources.convert_to_tool(tool)
                     tool_names.append(tool.name)
         except Exception as e:
-            raise XNANOException(
-                message = f"Error getting tool names: {e}"
-            )
+            raise XNANOException(message=f"Error getting tool names: {e}")
 
         return tool_names
 
     # - // workflows
 
     @staticmethod
-    def build_empty_workflow_model(
-        workflow : BaseModel
-    ) -> BaseModel:
+    def build_empty_workflow_model(workflow: BaseModel) -> BaseModel:
         try:
             workflow_empty_model = create_model(
                 workflow.__class__.__name__,
-                **{name: (Optional[field.annotation], None) for name, field in workflow.model_fields.items()}
+                **{
+                    name: (Optional[field.annotation], None)
+                    for name, field in workflow.model_fields.items()
+                },
             )
 
             return workflow_empty_model()
         except Exception as e:
-            raise XNANOException(
-                message = f"Error building empty workflow model: {e}"
-            )
+            raise XNANOException(message=f"Error building empty workflow model: {e}")
 
     @staticmethod
     def build_all_workflow_string_descriptions(
-        workflows : Optional[List[BaseModel]] = None
+        workflows: Optional[List[BaseModel]] = None,
     ) -> str:
-        
         if not workflows:
             return ""
-        
+
         try:
             workflow_names = []
             workflow_docs = []
@@ -171,17 +158,23 @@ class AgentResources:
 
         except Exception as e:
             raise XNANOException(f"Error building workflow string descriptions: {e}")
-        
-        workflow_string = "\n".join([f"{name}: {doc if doc else ''}" for name, doc in zip(workflow_names, workflow_docs)])
+
+        workflow_string = "\n".join(
+            [
+                f"{name}: {doc if doc else ''}"
+                for name, doc in zip(workflow_names, workflow_docs)
+            ]
+        )
 
         return workflow_string
 
+
 # --------------------------------------------------------------
-# AGENT CLASS 
+# AGENT CLASS
 # --------------------------------------------------------------
+
 
 class Agent:
-
     """
     Base agent class for all agentic workflows/completions & multi
     agent pipelines
@@ -191,31 +184,30 @@ class Agent:
     resources = AgentResources
 
     def __init__(
-            self,
-            # agent dsl params
-            # required
-            role : str = "assistant",
-            # optional
-            name : Optional[str] = helpers.get_random_name(),
-            instructions : Optional[str] = None,
-            planning : Optional[bool] = False,
-            workflows : Optional[List[BaseModel]] = None,
-            summarization_steps : Optional[int] = 5,
-            agents: Optional[List['Agent']] = None,
-            tools: Optional[List[CompletionToolsParam]] = None,
-            temperature : Optional[float] = None,
-            # agent memory -- utilized differently than .completion(memory = ...)
-            memory : Optional[List[Memory]] = None,
-            # agent completion config params
-            model : Union[CompletionChatModelsParam, str] = "openai/gpt-4o-mini",
-            instructor_mode : Optional[CompletionInstructorModeParam] = None,
-            base_url : Optional[str] = None,
-            api_key : Optional[str] = None,
-            organization : Optional[str] = None,
-            messages : Optional[CompletionMessagesParam] = None,
-            verbose : bool = False,
+        self,
+        # agent dsl params
+        # required
+        role: str = "assistant",
+        # optional
+        name: Optional[str] = helpers.get_random_name(),
+        instructions: Optional[str] = None,
+        planning: Optional[bool] = False,
+        workflows: Optional[List[BaseModel]] = None,
+        summarization_steps: Optional[int] = 5,
+        agents: Optional[List["Agent"]] = None,
+        tools: Optional[List[CompletionToolsParam]] = None,
+        temperature: Optional[float] = None,
+        # agent memory -- utilized differently than .completion(memory = ...)
+        memory: Optional[List[Memory]] = None,
+        # agent completion config params
+        model: Union[CompletionChatModelsParam, str] = "openai/gpt-4o-mini",
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        messages: Optional[CompletionMessagesParam] = None,
+        verbose: bool = False,
     ):
-        
         # VERBOSITY
         # cli outputs for debugging and progress
         self.verbose = verbose
@@ -223,23 +215,25 @@ class Agent:
         # STATE
         # handles message and summarization states
         self.state = State(
-            messages = messages if messages else [],
-            summary_thread = [],
-            count = 0
+            messages=messages if messages else [], summary_thread=[], count=0
         )
 
         # AGENT CONFIG
         self.config = AgentModel(
-            role = role, name = name, instructions = instructions,
-            workflows = workflows,
-            summarization_steps = summarization_steps,
-            planning = planning,
-            model = model, base_url = base_url, api_key = api_key,
-            organization = organization,
-            instructor_mode = instructor_mode,
-            agents = agents,
-            tools = tools,
-            temperature = temperature
+            role=role,
+            name=name,
+            instructions=instructions,
+            workflows=workflows,
+            summarization_steps=summarization_steps,
+            planning=planning,
+            model=model,
+            base_url=base_url,
+            api_key=api_key,
+            organization=organization,
+            instructor_mode=instructor_mode,
+            agents=agents,
+            tools=tools,
+            temperature=temperature,
         )
 
         if self.verbose and agents:
@@ -253,7 +247,7 @@ class Agent:
             )
 
         # ----------------------------------------------------------
-    
+
     # ----------------------------------------------------------
     # STEPS
     # ----------------------------------------------------------
@@ -266,10 +260,7 @@ class Agent:
     # - internal helper methods
     # ----------------------------------------------------------
 
-    def _get_tools(
-            self,
-            tools : Optional[CompletionToolsParam] = None
-    ):
+    def _get_tools(self, tools: Optional[CompletionToolsParam] = None):
         if tools:
             if self.config.tools:
                 return self.config.tools + tools
@@ -287,10 +278,7 @@ class Agent:
 
     # - // messages // state
 
-    def add_messages_to_state(
-            self,
-            messages : CompletionMessagesParam
-    ):
+    def add_messages_to_state(self, messages: CompletionMessagesParam):
         try:
             self.state.messages.extend(messages)
 
@@ -299,103 +287,100 @@ class Agent:
                     f"Added [bold gold1]{len(messages)}[/bold gold1] messages to state"
                 )
         except Exception as e:
-            raise XNANOException(
-                message = f"Error adding messages to state: {e}"
-            )
+            raise XNANOException(message=f"Error adding messages to state: {e}")
 
-    def get_messages_from_state(
-            self
-    ):
+    def get_messages_from_state(self):
         try:
             return self.state.summary_thread + self.state.messages
         except Exception as e:
-            raise XNANOException(
-                message = f"Error getting messages from state: {e}"
-            )
-        
+            raise XNANOException(message=f"Error getting messages from state: {e}")
+
     def add_response_to_state(
-            self,
-            response : AgentResponse,
-            instructor : bool = False,
+        self,
+        response: AgentResponse,
+        instructor: bool = False,
     ):
-        
         if instructor:
             self.state.messages.append(
-                {
-                    "role" : "assistant",
-                    "content" : response.model_dump_json(indent = 2)
-                }
+                {"role": "assistant", "content": response.model_dump_json(indent=2)}
             )
             if self.verbose:
-                console.message(f"Added [bold sky_blue1]Instructor[/bold sky_blue1] response to state thread for [bold red]{self.config.name}[/bold red]")
+                console.message(
+                    f"Added [bold sky_blue1]Instructor[/bold sky_blue1] response to state thread for [bold red]{self.config.name}[/bold red]"
+                )
 
             return
-        
-        if isinstance(response, BaseModel) and not hasattr(response, 'workflow'):
+
+        if isinstance(response, BaseModel) and not hasattr(response, "workflow"):
             self.state.messages.append(response.choices[0].message.model_dump())
             return
-        
+
         if response.workflow is not None:
             self.state.messages.extend(
                 [
                     {
-                        "role" : "assistant",
-                        "content" : (
+                        "role": "assistant",
+                        "content": (
                             "I have constructed the following object, now usable for reference"
                             f"\n\n{response.workflow.model_dump_json(indent = 2)}"
-                            )
+                        ),
                     },
                     {
-                        "role" : "user",
-                        "content" : (
-                            "Use the object to continue your response."
-                        )
-                    }
+                        "role": "user",
+                        "content": ("Use the object to continue your response."),
+                    },
                 ]
             )
             if self.verbose:
-                console.message(f"Added [bold sky_blue1]Workflow[/bold sky_blue1] to state thread for [bold red]{self.config.name}[/bold red]")
+                console.message(
+                    f"Added [bold sky_blue1]Workflow[/bold sky_blue1] to state thread for [bold red]{self.config.name}[/bold red]"
+                )
         else:
             self.state.messages.append(response.choices[0].message.model_dump())
 
             if self.verbose:
-                console.message(f"Added [bold sky_blue1]Completion[/bold sky_blue1] response to state thread for [bold red]{self.config.name}[/bold red]")
+                console.message(
+                    f"Added [bold sky_blue1]Completion[/bold sky_blue1] response to state thread for [bold red]{self.config.name}[/bold red]"
+                )
 
         return
 
     # - // instruction (system prompt)
 
-    def get_system_prompt(
-            self,
-            tools : Optional[CompletionToolsParam] = None
-    ) -> Dict:
+    def get_system_prompt(self, tools: Optional[CompletionToolsParam] = None) -> Dict:
         tool_names = AgentResources.get_tool_names(tools)
 
         instruction_prompt = self.resources.helpers.build_instruction(
-            name = self.config.name, role = self.config.role,
-            tool_names = tool_names, instructions = self.config.instructions
+            name=self.config.name,
+            role=self.config.role,
+            tool_names=tool_names,
+            instructions=self.config.instructions,
         )
 
         if self.verbose:
-            console.message(f"Built instruction system prompt for [bold red]{self.config.name}[/bold red]")
+            console.message(
+                f"Built instruction system prompt for [bold red]{self.config.name}[/bold red]"
+            )
 
         return instruction_prompt
 
     # - // summarization
 
     def build_summary(
-            self,
-            model : Optional[Union[CompletionChatModelsParam, str]] = None,
-            api_key : Optional[str] = None,
-            base_url : Optional[str] = None,
-            organization : Optional[str] = None
+        self,
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        organization: Optional[str] = None,
     ):
         messages = self.state.messages
 
         try:
             summary = completion(
-                messages = [
-                    {"role" : "system", "content" : (
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
                             "You are a Pulitzer Prize winning journalist. You are tasked with summarizing the following conversation into a concise and informative summary.\n\n"
                             "## INSTRUCTIONS\n"
                             "- Read through the entire given conversation\n"
@@ -403,27 +388,28 @@ class Agent:
                             "- Generate a summary in a detailed list based format\n"
                             "- DO NOT INCLUDE AN INTRODUCTION OR TITLE TO THE SUMMARY\n\n"
                             "## CONVERSATION:"
-                        )
+                        ),
                     },
-                    {
-                        "role" : "user",
-                        "content" : json.dumps(messages)
-                    }
+                    {"role": "user", "content": json.dumps(messages)},
                 ],
-                model = self.config.model if not model else model, api_key = self.config.api_key if not api_key else api_key, base_url = self.config.base_url if not base_url else base_url,
-                organization = self.config.organization if not organization else organization,
-                verbose = self.verbose
+                model=self.config.model if not model else model,
+                api_key=self.config.api_key if not api_key else api_key,
+                base_url=self.config.base_url if not base_url else base_url,
+                organization=self.config.organization
+                if not organization
+                else organization,
+                verbose=self.verbose,
             )
         except Exception as e:
-            raise XNANOException(
-                message = f"Error building summary: {e}"
-            )
-        
+            raise XNANOException(message=f"Error building summary: {e}")
+
         self.state.summary_thread.append(
-            {"role" : "user", "content" : (
+            {
+                "role": "user",
+                "content": (
                     "The conversation proceeded as follows:\n\n"
                     f"{json.dumps(summary.choices[0].message.content)}"
-                )
+                ),
             }
         )
 
@@ -432,33 +418,34 @@ class Agent:
 
         return summary.choices[0].message.content
 
-    # - // completion handler 
+    # - // completion handler
 
     def _build_completion_request(
-            self,
-            # required
-            messages : CompletionMessagesParam,
-            # optional
-            # agent dsl params
-            agents : Optional[List[Agent]] = None,
-            # completion specific params
-            model : Optional[Union[CompletionChatModelsParam, str]] = None,
-            base_url : Optional[str] = None,
-            api_key : Optional[str] = None,
-            organization : Optional[str] = None,
-            tools : Optional[CompletionToolsParam] = None,
-            temperature : Optional[float] = None,
-            instructor_mode : Optional[CompletionInstructorModeParam] = None,
-            response_model : Optional[CompletionResponseModelParam] = None,
-            tool_choice : Optional[CompletionToolChoiceParam] = None,
-            parallel_tool_calls : Optional[bool] = False
+        self,
+        # required
+        messages: CompletionMessagesParam,
+        # optional
+        # agent dsl params
+        agents: Optional[List[Agent]] = None,
+        # completion specific params
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        temperature: Optional[float] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = False,
     ) -> AgentCompletionArgs:
-        
         # add internal state messages to completion messages if applicable
         internal_messages = self.get_messages_from_state()
 
         if self.verbose:
-            console.message(f"Found [bold gold1]{len(internal_messages)}[/bold gold1] internal messages")
+            console.message(
+                f"Found [bold gold1]{len(internal_messages)}[/bold gold1] internal messages"
+            )
 
         if len(internal_messages) > 0:
             messages = internal_messages + messages
@@ -477,68 +464,72 @@ class Agent:
         instruction_prompt = self.get_system_prompt(tools)
 
         messages = self.resources.messages.swap_system_prompt(
-            messages = messages, system_prompt = instruction_prompt
+            messages=messages, system_prompt=instruction_prompt
         )
 
         args = AgentCompletionArgs(
-            messages = messages,
-            agents = agents,
-            model = model if model else self.config.model,
-            base_url = base_url if base_url else self.config.base_url,
-            api_key = api_key if api_key else self.config.api_key,
-            organization = organization if organization else self.config.organization,
-            tools = tools,
-            instructor_mode = instructor_mode if instructor_mode else self.config.instructor_mode,
-            response_model = response_model,
-            tool_choice = tool_choice,
-            parallel_tool_calls = parallel_tool_calls,
-            temperature = temperature
+            messages=messages,
+            agents=agents,
+            model=model if model else self.config.model,
+            base_url=base_url if base_url else self.config.base_url,
+            api_key=api_key if api_key else self.config.api_key,
+            organization=organization if organization else self.config.organization,
+            tools=tools,
+            instructor_mode=instructor_mode
+            if instructor_mode
+            else self.config.instructor_mode,
+            response_model=response_model,
+            tool_choice=tool_choice,
+            parallel_tool_calls=parallel_tool_calls,
+            temperature=temperature,
         )
 
         if self.verbose:
-            console.message(f"Built completion request for [bold red]{self.config.name}[/bold red]")
+            console.message(
+                f"Built completion request for [bold red]{self.config.name}[/bold red]"
+            )
 
         return args
-    
+
     def _run_completion(
-            self,
-            args : AgentCompletionArgs,
-            response_model : Optional[CompletionResponseModelParam] = None
+        self,
+        args: AgentCompletionArgs,
+        response_model: Optional[CompletionResponseModelParam] = None,
     ):
-        
         if self.verbose:
-            console.message(f"Running completion for [bold red]{self.config.name}[/bold red], with [bold gold1]{len(args.messages)}[/bold gold1] messages")
+            console.message(
+                f"Running completion for [bold red]{self.config.name}[/bold red], with [bold gold1]{len(args.messages)}[/bold gold1] messages"
+            )
 
         try:
             return completion(
-                messages = args.messages,
-                model = args.model,
-                base_url = args.base_url,
-                api_key = args.api_key,
-                organization = args.organization,
-                tools = args.tools,
-                mode = args.instructor_mode,
-                response_model = response_model if response_model else args.response_model,
-                tool_choice = args.tool_choice,
-                parallel_tool_calls = args.parallel_tool_calls,
-                context = "You have access to the following workflows: \n\n" + self.resources.build_all_workflow_string_descriptions(
-                    workflows = self.config.workflows
-                ) + "\n Do not hallucinate or make up tools that are not listed.",
-                run_tools = True
+                messages=args.messages,
+                model=args.model,
+                base_url=args.base_url,
+                api_key=args.api_key,
+                organization=args.organization,
+                tools=args.tools,
+                mode=args.instructor_mode,
+                response_model=response_model
+                if response_model
+                else args.response_model,
+                tool_choice=args.tool_choice,
+                parallel_tool_calls=args.parallel_tool_calls,
+                context="You have access to the following workflows: \n\n"
+                + self.resources.build_all_workflow_string_descriptions(
+                    workflows=self.config.workflows
+                )
+                + "\n Do not hallucinate or make up tools that are not listed.",
+                run_tools=True,
             )
         except Exception as e:
-            raise XNANOException(
-                message = f"Error running completion: {e}"
-            )
-    
+            raise XNANOException(message=f"Error running completion: {e}")
+
     # ----------------------------------------------------------
     # - workflows
     # ----------------------------------------------------------
 
-    def get_workflows(
-            self,
-            workflows : Optional[List[BaseModel]] = None
-    ):
+    def get_workflows(self, workflows: Optional[List[BaseModel]] = None):
         if not workflows:
             return self.config.workflows or []
         if not self.config.workflows:
@@ -546,115 +537,116 @@ class Agent:
         return self.config.workflows + workflows
 
     def _determine_if_workflow_required(
-            self,
-            args : AgentCompletionArgs,
-            workflows : Optional[List[BaseModel]] = None
+        self, args: AgentCompletionArgs, workflows: Optional[List[BaseModel]] = None
     ) -> bool:
-        
         workflows = self.get_workflows(workflows)
 
         if len(workflows) == 0:
             return False
-        
+
         workflow_string = self.resources.build_all_workflow_string_descriptions(
-            workflows = workflows
+            workflows=workflows
         )
 
         class WorkflowRequired(BaseModel):
-            required : bool
+            required: bool
 
         messages = [
-            {"role" : "system", "content" : (
+            {
+                "role": "system",
+                "content": (
                     "You are a world class tool selector. Given a list of tools, you must accurately determine whether or not the current point of the conversation requires the use of a tool.\n\n"
                     f"## TOOLS\n{workflow_string}\n\n"
-                )
+                ),
             },
-            *args.messages
+            *args.messages,
         ]
 
         try:
             required = completion(
-                messages = messages,
-                model = args.model, api_key = args.api_key, base_url = args.base_url,
-                mode = args.instructor_mode, response_model = WorkflowRequired,
-                verbose = self.verbose, temperature = args.temperature
+                messages=messages,
+                model=args.model,
+                api_key=args.api_key,
+                base_url=args.base_url,
+                mode=args.instructor_mode,
+                response_model=WorkflowRequired,
+                verbose=self.verbose,
+                temperature=args.temperature,
             )
         except Exception as e:
             raise XNANOException(
-                message = f"Error determining if workflow is required: {e}"
+                message=f"Error determining if workflow is required: {e}"
             )
 
         return required.required
 
     def _select_workflow_to_run(
-            self,
-            args : AgentCompletionArgs,
-            workflows : Optional[List[BaseModel]] = None
+        self, args: AgentCompletionArgs, workflows: Optional[List[BaseModel]] = None
     ):
-        
         # get workflows
         workflows = self.get_workflows(workflows)
 
         # build workflow string
         workflow_string = self.resources.build_all_workflow_string_descriptions(
-            workflows = workflows
+            workflows=workflows
         )
 
-        workflow_names = [workflow.model_json_schema()["title"] for workflow in workflows]
+        workflow_names = [
+            workflow.model_json_schema()["title"] for workflow in workflows
+        ]
 
         # build workflow selection model
         Selection = create_model(
-            'Selection',
-            tool=(Literal[tuple(workflow_names)], ...)
+            "Selection", tool=(Literal[tuple(workflow_names)], ...)
         )
 
         messages = [
             {
-                "role" : "system",
-                "content" : (
+                "role": "system",
+                "content": (
                     "You are a world class tool selector. Given a list of tools, you must accurately determine which tool to use.\n\n"
                     f"## TOOLS\n{workflow_string}\n\n"
-                )
+                ),
             },
             *args.messages,
+            {"role": "user", "content": "Do we need to run a tool to continue?"},
             {
-                "role" : "user",
-                "content" : "Do we need to run a tool to continue?"
+                "role": "assistant",
+                "content": "I've determined that a tool is required to continue.",
             },
             {
-                "role" : "assistant",
-                "content" : "I've determined that a tool is required to continue."
+                "role": "user",
+                "content": "Please select the most appropriate tool to use.",
             },
-            {
-                "role" : "user",
-                "content" : "Please select the most appropriate tool to use."
-            }
         ]
 
         selection = completion(
-            messages = messages,
-            model = args.model, api_key = args.api_key, base_url = args.base_url,
-            mode = args.instructor_mode, response_model = Selection,
-            verbose = self.verbose, temperature = args.temperature
+            messages=messages,
+            model=args.model,
+            api_key=args.api_key,
+            base_url=args.base_url,
+            mode=args.instructor_mode,
+            response_model=Selection,
+            verbose=self.verbose,
+            temperature=args.temperature,
         )
 
         selected_workflow = selection.tool
 
         for workflow in workflows:
             if workflow.model_json_schema()["title"] == selected_workflow:
-
                 if self.verbose:
-                    console.message(f"Selected workflow: [bold red]{workflow.__class__.__name__}[/bold red]")
+                    console.message(
+                        f"Selected workflow: [bold red]{workflow.__class__.__name__}[/bold red]"
+                    )
 
                 return workflow
 
-        raise XNANOException(f"Selected workflow '{selected_workflow}' not found in workflow list")
-    
-    def _execute_workflow(
-            self,
-            workflow : BaseModel,
-            args : AgentCompletionArgs
-    ):
+        raise XNANOException(
+            f"Selected workflow '{selected_workflow}' not found in workflow list"
+        )
+
+    def _execute_workflow(self, workflow: BaseModel, args: AgentCompletionArgs):
         """
         Executes the workflow by generating and executing a plan for each field.
 
@@ -668,7 +660,9 @@ class Agent:
         completed_workflow = {}
 
         if self.verbose:
-            console.message(f"Executing workflow with planning: [bold red]{workflow.model_json_schema()['title']}[/bold red]")
+            console.message(
+                f"Executing workflow with planning: [bold red]{workflow.model_json_schema()['title']}[/bold red]"
+            )
 
         # Generate a plan for the workflow execution
         plan = self._plan_workflow_execution(workflow, args)
@@ -700,14 +694,13 @@ class Agent:
                     "content": (
                         f"Now working on field '{field_name}' of the workflow '{workflow.model_json_schema()['title']}'. "
                         f"Action: {action_description}"
-                    )
+                    ),
                 }
             ]
 
             # Build response model for the field
             field_response_model = create_model(
-                f"{field_name.capitalize()}Response",
-                **{field_name: (field_type, ...)}
+                f"{field_name.capitalize()}Response", **{field_name: (field_type, ...)}
             )
 
             try:
@@ -722,7 +715,7 @@ class Agent:
                     tools=args.tools if args.tools else self.config.tools,
                     run_tools=True,
                     verbose=self.verbose,
-                    temperature = args.temperature
+                    temperature=args.temperature,
                 )
             except Exception as e:
                 raise XNANOException(
@@ -734,13 +727,15 @@ class Agent:
                 completed_workflow[field_name] = getattr(field_response, field_name)
 
                 # Update messages with assistant's response
-                messages.append({
-                    "role": "assistant",
-                    "content": (
-                        f"Completed field '{field_name}':\n"
-                        f"{json.dumps(getattr(field_response, field_name), indent=2)}"
-                    )
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": (
+                            f"Completed field '{field_name}':\n"
+                            f"{json.dumps(getattr(field_response, field_name), indent=2)}"
+                        ),
+                    }
+                )
 
             except Exception as e:
                 raise XNANOException(
@@ -751,12 +746,12 @@ class Agent:
         try:
             completed_workflow_object = workflow(**completed_workflow)
         except Exception as e:
-            raise XNANOException(
-                message=f"Error creating workflow object: {e}"
-            )
+            raise XNANOException(message=f"Error creating workflow object: {e}")
 
         if self.verbose:
-            console.message(f"Completed workflow: [bold sky_blue1]{workflow.model_json_schema()['title']}[/bold sky_blue1] with [bold red]{self.config.name}[/bold red]")
+            console.message(
+                f"Completed workflow: [bold sky_blue1]{workflow.model_json_schema()['title']}[/bold sky_blue1] with [bold red]{self.config.name}[/bold red]"
+            )
 
         return completed_workflow_object
 
@@ -765,9 +760,7 @@ class Agent:
     # ----------------------------------------------------------
 
     def _plan_workflow_execution(
-        self,
-        workflow: BaseModel,
-        args: AgentCompletionArgs
+        self, workflow: BaseModel, args: AgentCompletionArgs
     ) -> BaseModel:
         """
         Generates a plan for executing each field in the workflow.
@@ -781,16 +774,9 @@ class Agent:
         """
 
         # Dynamically create Plan and PlanStep models
-        PlanStep = create_model(
-            'PlanStep',
-            field_name=(str, ...),
-            action=(str, ...)
-        )
+        PlanStep = create_model("PlanStep", field_name=(str, ...), action=(str, ...))
 
-        Plan = create_model(
-            'Plan',
-            steps=(List[PlanStep], ...)
-        )
+        Plan = create_model("Plan", steps=(List[PlanStep], ...))
 
         # Get workflow schema and description
         workflow_name = workflow.model_json_schema()["title"]
@@ -804,14 +790,14 @@ class Agent:
                     f"You are an expert planner specialized in constructing workflows for {workflow_name}. "
                     f"The workflow is described as: {workflow_description}\n"
                     f"Your task is to generate a detailed plan to build each field of the workflow step by step."
-                )
+                ),
             },
             {
                 "role": "user",
                 "content": (
                     "Generate a plan where each step specifies which field to construct and the action required."
-                )
-            }
+                ),
+            },
         ]
 
         try:
@@ -824,7 +810,7 @@ class Agent:
                 instructor_mode=args.instructor_mode,
                 response_model=Plan,
                 verbose=self.verbose,
-                temperature = args.temperature
+                temperature=args.temperature,
             )
 
             if self.verbose:
@@ -855,15 +841,12 @@ class Agent:
 
         # Define the Plan and PlanStep models dynamically
         PlanStep = create_model(
-            'PlanStep',
+            "PlanStep",
             step_number=(int, ...),
             action=(str, ...),
         )
 
-        Plan = create_model(
-            'Plan',
-            steps=(List[PlanStep], ...)
-        )
+        Plan = create_model("Plan", steps=(List[PlanStep], ...))
 
         try:
             # Build prompt to generate the plan
@@ -874,9 +857,9 @@ class Agent:
                         "You are an expert planner. Based on the following conversation, generate a detailed plan "
                         "to accomplish the user's request. The plan should be a numbered list of steps. Each step "
                         "should include a clear and actionable description."
-                    )
+                    ),
                 },
-                *messages
+                *messages,
             ]
 
             plan = completion(
@@ -887,18 +870,18 @@ class Agent:
                 organization=self.config.organization,
                 instructor_mode=self.config.instructor_mode,
                 response_model=Plan,
-                verbose=self.verbose
+                verbose=self.verbose,
             )
 
             if self.verbose:
-                console.message(f"Generated plan with [bold gold1]{len(plan.steps)}[/bold gold1] steps for [bold red]{self.config.name}[/bold red].")
+                console.message(
+                    f"Generated plan with [bold gold1]{len(plan.steps)}[/bold gold1] steps for [bold red]{self.config.name}[/bold red]."
+                )
 
             return plan
 
         except Exception as e:
-            raise XNANOException(
-                message=f"Error generating plan: {e}"
-            )
+            raise XNANOException(message=f"Error generating plan: {e}")
 
     def _execute_plan(
         self,
@@ -947,7 +930,9 @@ class Agent:
         for step in plan.steps:
             try:
                 if self.verbose:
-                    console.message(f"Executing plan step [bold gold1]{step.step_number}[/bold gold1]: {step.action}")
+                    console.message(
+                        f"Executing plan step [bold gold1]{step.step_number}[/bold gold1]: {step.action}"
+                    )
 
                 # Build messages for this step
                 step_messages = context_messages + [
@@ -955,7 +940,7 @@ class Agent:
                         "role": "system",
                         "content": (
                             f"Now executing step {step.step_number} of the plan: {step.action}"
-                        )
+                        ),
                     }
                 ]
 
@@ -972,13 +957,13 @@ class Agent:
                     tool_choice=tool_choice,
                     parallel_tool_calls=parallel_tool_calls,
                     workflows=workflows,
-                    temperature = temperature
+                    temperature=temperature,
                 )
 
                 responses.append(response)
 
                 # Update context_messages with the assistant's response
-                if hasattr(response, 'choices') and response.choices:
+                if hasattr(response, "choices") and response.choices:
                     assistant_message = response.choices[0].message.model_dump()
                     context_messages.append(assistant_message)
 
@@ -988,7 +973,9 @@ class Agent:
                 )
 
         if self.verbose:
-            console.message(f"Executed all [bold gold1]{len(plan.steps)}[/bold gold1] steps for [bold red]{self.config.name}[/bold red].")
+            console.message(
+                f"Executed all [bold gold1]{len(plan.steps)}[/bold gold1] steps for [bold red]{self.config.name}[/bold red]."
+            )
 
         return responses
 
@@ -1035,7 +1022,9 @@ class Agent:
         messages = self.resources.format_new_messages(messages)
 
         if self.verbose:
-            console.message(f"Starting planning process for [bold red]{self.config.name}[/bold red].")
+            console.message(
+                f"Starting planning process for [bold red]{self.config.name}[/bold red]."
+            )
 
         # Generate plan
         plan = self._generate_plan(messages)
@@ -1055,11 +1044,13 @@ class Agent:
             tool_choice=tool_choice,
             parallel_tool_calls=parallel_tool_calls,
             workflows=workflows,
-            temperature = temperature
+            temperature=temperature,
         )
 
         if self.verbose:
-            console.message(f"Completed planning and execution for [bold red]{self.config.name}[/bold red].")
+            console.message(
+                f"Completed planning and execution for [bold red]{self.config.name}[/bold red]."
+            )
 
         return responses
 
@@ -1068,36 +1059,40 @@ class Agent:
     # ----------------------------------------------------------
 
     def _build_agent_query(
-            self,
-            agent: 'Agent',
-            messages: CompletionMessagesParam,
+        self,
+        agent: "Agent",
+        messages: CompletionMessagesParam,
     ) -> str:
         """
         Builds a targeted query for a specific agent based on current context
         """
         try:
             query_model = create_model(
-                'QueryBuilder',
-                query=(str, ...),
-                reasoning=(str, ...)
+                "QueryBuilder", query=(str, ...), reasoning=(str, ...)
             )
 
             # Build context-aware prompt
             query_messages = [
-                {"role": "system", "content": (
-                    f"You are an expert query constructor working with {self.config.name}. "
-                    f"Your task is to formulate a specific question or request for {agent.config.name}, "
-                    f"who has the following role: {agent.config.role}\n\n"
-                    "Based on the current conversation context, construct a targeted query that will "
-                    "help advance the current objective."
-                )},
+                {
+                    "role": "system",
+                    "content": (
+                        f"You are an expert query constructor working with {self.config.name}. "
+                        f"Your task is to formulate a specific question or request for {agent.config.name}, "
+                        f"who has the following role: {agent.config.role}\n\n"
+                        "Based on the current conversation context, construct a targeted query that will "
+                        "help advance the current objective."
+                    ),
+                },
                 *messages,
-                {"role": "user", "content": (
-                    "Based on this context, what specific question or request should be asked to "
-                    f"{agent.config.name} to help with the current situation? Provide both the query "
-                    "and your reasoning."
-                    "Ensure that you indicate who you are, and what your role is."
-                )}
+                {
+                    "role": "user",
+                    "content": (
+                        "Based on this context, what specific question or request should be asked to "
+                        f"{agent.config.name} to help with the current situation? Provide both the query "
+                        "and your reasoning."
+                        "Ensure that you indicate who you are, and what your role is."
+                    ),
+                },
             ]
 
             query_response = completion(
@@ -1107,8 +1102,8 @@ class Agent:
                 base_url=self.config.base_url,
                 organization=self.config.organization,
                 response_model=query_model,
-                mode = self.config.instructor_mode,
-                verbose=self.verbose
+                mode=self.config.instructor_mode,
+                verbose=self.verbose,
             )
 
             if self.verbose:
@@ -1120,14 +1115,12 @@ class Agent:
             return query_response.query
 
         except Exception as e:
-            raise XNANOException(
-                message=f"Error building agent query: {e}"
-            )
-        
+            raise XNANOException(message=f"Error building agent query: {e}")
+
     def _converse_with_agents(
-            self,
-            agents: List['Agent'],
-            messages: CompletionMessagesParam,
+        self,
+        agents: List["Agent"],
+        messages: CompletionMessagesParam,
     ) -> List[Dict]:
         """
         Manages conversations with multiple agents, collecting their responses
@@ -1145,11 +1138,11 @@ class Agent:
             # Generate queries and get responses from each agent
             for agent in agents:
                 query = self._build_agent_query(agent, messages)
-                
+
                 # Ensure query is properly formatted
                 if isinstance(query, str):
                     query = [{"role": "user", "content": query}]
-                
+
                 queries.append(query)
                 agent_names.append(agent.config.name)
 
@@ -1162,18 +1155,18 @@ class Agent:
                     base_url=agent.config.base_url,
                     organization=agent.config.organization,
                     workflows=agent.config.workflows,
-                    temperature = agent.config.temperature
+                    temperature=agent.config.temperature,
                 )
 
                 # Handle workflow responses separately
-                if hasattr(response, 'workflow') and response.workflow is not None:
+                if hasattr(response, "workflow") and response.workflow is not None:
                     workflow_responses.append(
                         f"\nWorkflow from {agent.config.name}:\n"
                         f"```json\n{response.workflow.model_dump_json(indent=2)}\n```"
                     )
 
                 # Format response content
-                if hasattr(response, 'choices') and response.choices:
+                if hasattr(response, "choices") and response.choices:
                     response_content = response.choices[0].message.content
                 else:
                     response_content = response.model_dump_json(indent=2)
@@ -1186,21 +1179,27 @@ class Agent:
             query_summary = {
                 "role": "assistant",
                 "content": (
-                    "I have consulted with the following agents:\n\n" +
-                    "\n".join([
-                        f"- {name}: {query['content'] if isinstance(query, dict) else query}" 
-                        for name, query in zip(agent_names, queries)
-                    ])
-                )
+                    "I have consulted with the following agents:\n\n"
+                    + "\n".join(
+                        [
+                            f"- {name}: {query['content'] if isinstance(query, dict) else query}"
+                            for name, query in zip(agent_names, queries)
+                        ]
+                    )
+                ),
             }
 
             consolidated_response = {
                 "role": "assistant",
                 "content": (
-                    "Here are the responses from all consulted agents:" +
-                    "".join(all_responses) +
-                    ("" if not workflow_responses else "\n\nWorkflows generated:" + "".join(workflow_responses))
-                )
+                    "Here are the responses from all consulted agents:"
+                    + "".join(all_responses)
+                    + (
+                        ""
+                        if not workflow_responses
+                        else "\n\nWorkflows generated:" + "".join(workflow_responses)
+                    )
+                ),
             }
 
             # Ensure all messages are properly formatted before returning
@@ -1214,9 +1213,7 @@ class Agent:
             return messages_to_return
 
         except Exception as e:
-            raise XNANOException(
-                message=f"Error in agent conversation: {e}"
-            )
+            raise XNANOException(message=f"Error in agent conversation: {e}")
 
     # ----------------------------------------------------------
     # - completions
@@ -1229,21 +1226,20 @@ class Agent:
         messages: Optional[CompletionMessagesParam] = None,
         agents: Optional[List[Agent]] = None,
         # completion specific params
-        model : Optional[Union[CompletionChatModelsParam, str]] = None,
-        base_url : Optional[str] = None,
-        api_key : Optional[str] = None,
-        organization : Optional[str] = None,
-        temperature : Optional[float] = None,
-        tools : Optional[CompletionToolsParam] = None,
-        instructor_mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = False,
-        workflows : Optional[List[BaseModel]] = None
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        temperature: Optional[float] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = False,
+        workflows: Optional[List[BaseModel]] = None,
     ) -> AgentResponse:
-        
         completed_workflow = None
-        
+
         if not messages:
             messages = self.resources.collect_message_from_cli()
 
@@ -1258,7 +1254,9 @@ class Agent:
         if self.config.agents:
             required_agents = self._determine_required_agents(messages)
             if required_agents:
-                team_messages = self._get_team_agent_responses(messages, required_agents)
+                team_messages = self._get_team_agent_responses(
+                    messages, required_agents
+                )
                 messages.extend(team_messages)
 
         args = self._build_completion_request(
@@ -1273,46 +1271,54 @@ class Agent:
             response_model=response_model,
             tool_choice=tool_choice,
             parallel_tool_calls=parallel_tool_calls,
-            temperature = temperature
+            temperature=temperature,
         )
 
         # Check if workflow is needed
         workflows = self.get_workflows(workflows)
-        if workflows and self._determine_if_workflow_required(args=args, workflows=workflows):
+        if workflows and self._determine_if_workflow_required(
+            args=args, workflows=workflows
+        ):
             # Select and execute workflow
             workflow = self._select_workflow_to_run(args=args, workflows=workflows)
             completed_workflow = self._execute_workflow(workflow=workflow, args=args)
 
             # add workflow to thread
-            self.state.messages.extend([
-                {
-                    "role" : "assistant",
-                    "content" : f"{completed_workflow.model_dump_json(indent=2)}"
-                },
-                {
-                    "role" : "user",
-                    "content" : f"Use the information to respond to the original user query."
-                }
-            ])
+            self.state.messages.extend(
+                [
+                    {
+                        "role": "assistant",
+                        "content": f"{completed_workflow.model_dump_json(indent=2)}",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Use the information to respond to the original user query.",
+                    },
+                ]
+            )
 
         # Update context to include both workflows and team agents
         team_context = ""
         if self.config.agents:
-            team_roles = "\n".join([
-                f"- {agent.config.name}: {agent.config.role}"
-                for agent in self.config.agents
-            ])
-            team_context = f"\n\nYou have access to the following team members:\n{team_roles}"
+            team_roles = "\n".join(
+                [
+                    f"- {agent.config.name}: {agent.config.role}"
+                    for agent in self.config.agents
+                ]
+            )
+            team_context = (
+                f"\n\nYou have access to the following team members:\n{team_roles}"
+            )
 
         workflow_context = self.resources.build_all_workflow_string_descriptions(
             workflows=self.config.workflows
         )
 
         context = (
-            "You have access to the following workflows: \n\n" +
-            workflow_context +
-            team_context +
-            "\nDo not hallucinate or make up tools/team members that are not listed."
+            "You have access to the following workflows: \n\n"
+            + workflow_context
+            + team_context
+            + "\nDo not hallucinate or make up tools/team members that are not listed."
         )
 
         try:
@@ -1324,45 +1330,44 @@ class Agent:
                 organization=args.organization,
                 tools=args.tools,
                 instructor_mode=args.instructor_mode,
-                response_model=response_model if response_model else args.response_model,
+                response_model=response_model
+                if response_model
+                else args.response_model,
                 tool_choice=args.tool_choice,
                 parallel_tool_calls=args.parallel_tool_calls,
-                temperature = args.temperature,
+                temperature=args.temperature,
                 context=context,
                 run_tools=True,
-                verbose=self.verbose
+                verbose=self.verbose,
             )
 
             return self.resources.build_response_type(
                 response=response,
                 workflow=completed_workflow,
-                instructor=True if response_model else False
+                instructor=True if response_model else False,
             )
         except Exception as e:
-            raise XNANOException(
-                message=f"Error running completion: {e}"
-            )
+            raise XNANOException(message=f"Error running completion: {e}")
 
     # - // main
 
     def completion(
         self,
-        messages : Optional[CompletionMessagesParam] = None,
-        agents : Optional[List[Agent]] = None,
-        workflows : Optional[List[BaseModel]] = None,
+        messages: Optional[CompletionMessagesParam] = None,
+        agents: Optional[List[Agent]] = None,
+        workflows: Optional[List[BaseModel]] = None,
         # completion specific params
-        model : Optional[Union[CompletionChatModelsParam, str]] = None,
-        base_url : Optional[str] = None,
-        api_key : Optional[str] = None,
-        organization : Optional[str] = None,
-        temperature : Optional[float] = None,
-        tools : Optional[CompletionToolsParam] = None,
-        instructor_mode : Optional[CompletionInstructorModeParam] = None,
-        response_model : Optional[CompletionResponseModelParam] = None,
-        tool_choice : Optional[CompletionToolChoiceParam] = None,
-        parallel_tool_calls : Optional[bool] = False,
+        model: Optional[Union[CompletionChatModelsParam, str]] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        organization: Optional[str] = None,
+        temperature: Optional[float] = None,
+        tools: Optional[CompletionToolsParam] = None,
+        instructor_mode: Optional[CompletionInstructorModeParam] = None,
+        response_model: Optional[CompletionResponseModelParam] = None,
+        tool_choice: Optional[CompletionToolChoiceParam] = None,
+        parallel_tool_calls: Optional[bool] = False,
     ) -> AgentResponse:
-        
         if not messages:
             messages = self.resources.collect_message_from_cli()
 
@@ -1371,57 +1376,62 @@ class Agent:
         # run completion
         try:
             response = self.run_completion(
-                messages = messages, agents = agents,
-                model = model, base_url = base_url, api_key = api_key,
-                organization = organization, tools = tools,
-                instructor_mode = instructor_mode, response_model = response_model,
-                tool_choice = tool_choice, parallel_tool_calls = parallel_tool_calls,
-                workflows = workflows, temperature = temperature
+                messages=messages,
+                agents=agents,
+                model=model,
+                base_url=base_url,
+                api_key=api_key,
+                organization=organization,
+                tools=tools,
+                instructor_mode=instructor_mode,
+                response_model=response_model,
+                tool_choice=tool_choice,
+                parallel_tool_calls=parallel_tool_calls,
+                workflows=workflows,
+                temperature=temperature,
             )
 
             # add messages to state on success
             self.add_messages_to_state(messages)
 
             if response.workflow:
-                self.add_messages_to_state([
-                    {
-                        "role" : "assistant",
-                        "content" : f"{response.workflow.model_dump_json(indent=2)}"
-                    }
-                ])
+                self.add_messages_to_state(
+                    [
+                        {
+                            "role": "assistant",
+                            "content": f"{response.workflow.model_dump_json(indent=2)}",
+                        }
+                    ]
+                )
 
             # add response to state (handles workflow automatically)
             self.add_response_to_state(
-                response = response,
-                instructor = True if response_model else False
+                response=response, instructor=True if response_model else False
             )
 
         except Exception as e:
-            raise XNANOException(
-                message = f"Error running completion: {e}"
-            )
+            raise XNANOException(message=f"Error running completion: {e}")
 
         # build summary if needed
         try:
-
             self.state.count += 1
 
             if self.state.count >= self.config.summarization_steps:
                 self.build_summary(
-                    model = model, api_key = api_key, base_url = base_url,
-                    organization = organization
+                    model=model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    organization=organization,
                 )
 
         except Exception as e:
-            raise XNANOException(
-                message = f"Error incrementing summarization count: {e}"
-            )
+            raise XNANOException(message=f"Error incrementing summarization count: {e}")
 
         return response
 
     def _determine_required_agents(
-            self,
-            messages: CompletionMessagesParam,
+        self,
+        messages: CompletionMessagesParam,
     ) -> List[str]:
         """
         Determines which agents from the team would be useful for the current context
@@ -1438,15 +1448,16 @@ class Agent:
 
             # Create dynamic model for agent selection
             AgentSelection = create_model(
-                'AgentSelection',
-                required_agents=(List[str], ...)
+                "AgentSelection", required_agents=(List[str], ...)
             )
 
             # Build agent roles string
-            agent_roles = "\n".join([
-                f"- {agent.config.name}: {agent.config.role}"
-                for agent in self.config.agents
-            ])
+            agent_roles = "\n".join(
+                [
+                    f"- {agent.config.name}: {agent.config.role}"
+                    for agent in self.config.agents
+                ]
+            )
 
             # Query for needed agents
             selection = completion(
@@ -1460,9 +1471,9 @@ class Agent:
                             f"Available team members:\n{agent_roles}\n\n"
                             "Return ONLY the names of team members that would be genuinely useful "
                             "for the current context. Return an empty list if no team members are needed."
-                        )
+                        ),
                     },
-                    *messages
+                    *messages,
                 ],
                 model=self.config.model,
                 api_key=self.config.api_key,
@@ -1470,7 +1481,7 @@ class Agent:
                 organization=self.config.organization,
                 instructor_mode=self.config.instructor_mode,
                 response_model=AgentSelection,
-                verbose=self.verbose
+                verbose=self.verbose,
             )
 
             if self.verbose:
@@ -1481,14 +1492,10 @@ class Agent:
             return selection.required_agents
 
         except Exception as e:
-            raise XNANOException(
-                message=f"Error determining required agents: {e}"
-            )
+            raise XNANOException(message=f"Error determining required agents: {e}")
 
     def _get_team_agent_responses(
-            self,
-            messages: CompletionMessagesParam,
-            required_agents: List[str]
+        self, messages: CompletionMessagesParam, required_agents: List[str]
     ) -> List[Dict]:
         """
         Gets responses from required team agents
@@ -1497,12 +1504,13 @@ class Agent:
             return []
 
         selected_agents = [
-            agent for agent in self.config.agents
+            agent
+            for agent in self.config.agents
             if agent.config.name in required_agents
         ]
 
         return self._converse_with_agents(selected_agents, messages)
-    
+
     def workflow(
         self,
         workflow: BaseModel,
@@ -1538,7 +1546,9 @@ class Agent:
         if self.config.agents:
             required_agents = self._determine_required_agents(messages)
             if required_agents:
-                team_messages = self._get_team_agent_responses(messages, required_agents)
+                team_messages = self._get_team_agent_responses(
+                    messages, required_agents
+                )
                 messages.extend(team_messages)
 
         args = self._build_completion_request(
@@ -1553,33 +1563,33 @@ class Agent:
             response_model=response_model,
             tool_choice=tool_choice,
             parallel_tool_calls=parallel_tool_calls,
-            temperature = temperature
+            temperature=temperature,
         )
 
         try:
-            completed_workflow = self._execute_workflow(
-                workflow=workflow,
-                args=args
-            )
+            completed_workflow = self._execute_workflow(workflow=workflow, args=args)
 
             response = self.resources.build_response_type(
                 response=ModelResponse(
-                    choices=[{
-                        "message": {
-                            "role": "assistant",
-                            "content": json.dumps(completed_workflow.model_dump(), indent=2)
+                    choices=[
+                        {
+                            "message": {
+                                "role": "assistant",
+                                "content": json.dumps(
+                                    completed_workflow.model_dump(), indent=2
+                                ),
+                            }
                         }
-                    }]
+                    ]
                 ),
                 workflow=completed_workflow,
-                instructor=True if response_model else False
+                instructor=True if response_model else False,
             )
 
             # Add messages and response to state
             self.add_messages_to_state(messages)
             self.add_response_to_state(
-                response=response,
-                instructor=True if response_model else False
+                response=response, instructor=True if response_model else False
             )
 
             # Handle summarization if needed
@@ -1589,21 +1599,20 @@ class Agent:
                     model=model,
                     api_key=api_key,
                     base_url=base_url,
-                    organization=organization
+                    organization=organization,
                 )
 
             return response
 
         except Exception as e:
-            raise XNANOException(
-                message=f"Error executing workflow: {e}"
-            )
+            raise XNANOException(message=f"Error executing workflow: {e}")
 
     def _analyze_task(
         self,
         messages: CompletionMessagesParam,
     ) -> Dict:
         """Creates simple task definition"""
+
         class Task(BaseModel):
             task: str
             complete_when: str
@@ -1617,9 +1626,9 @@ class Agent:
                             "You are a task analyzer. Given the context, define:\n"
                             "1. The core task\n"
                             "2. A single clear condition for completion"
-                        )
+                        ),
                     },
-                    *messages
+                    *messages,
                 ],
                 model=self.config.model,
                 api_key=self.config.api_key,
@@ -1627,7 +1636,7 @@ class Agent:
                 organization=self.config.organization,
                 instructor_mode=self.config.instructor_mode,
                 response_model=Task,
-                verbose=self.verbose
+                verbose=self.verbose,
             )
 
             if self.verbose:
@@ -1638,9 +1647,7 @@ class Agent:
             return task.model_dump()
 
         except Exception as e:
-            raise XNANOException(
-                message=f"Error analyzing task: {e}"
-            )
+            raise XNANOException(message=f"Error analyzing task: {e}")
 
     def _is_task_complete(
         self,
@@ -1648,6 +1655,7 @@ class Agent:
         task: Dict,
     ) -> bool:
         """Simple completion check"""
+
         class Complete(BaseModel):
             complete: bool
 
@@ -1661,26 +1669,24 @@ class Agent:
                             f"Complete when: {task['complete_when']}\n\n"
                             "Based on the conversation, is this task complete? "
                             "Return only true or false."
-                        )
+                        ),
                     },
-                    *messages
+                    *messages,
                 ],
                 model=self.config.model,
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
                 organization=self.config.organization,
                 instructor_mode=self.config.instructor_mode,
-                temperature = self.config.temperature,
+                temperature=self.config.temperature,
                 response_model=Complete,
-                verbose=self.verbose
+                verbose=self.verbose,
             )
 
             return check.complete
 
         except Exception as e:
-            raise XNANOException(
-                message=f"Error checking completion: {e}"
-            )
+            raise XNANOException(message=f"Error checking completion: {e}")
 
     def collaborate(
         self,
@@ -1711,15 +1717,17 @@ class Agent:
 
         # Define task
         task = self._analyze_task(messages)
-        
+
         # Add task context
-        messages.append({
-            "role": "system",
-            "content": (
-                f"Current task: {task['task']}\n"
-                f"Task is complete when: {task['complete_when']}"
-            )
-        })
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    f"Current task: {task['task']}\n"
+                    f"Task is complete when: {task['complete_when']}"
+                ),
+            }
+        )
 
         steps = 0
         last_response = None
@@ -1736,7 +1744,9 @@ class Agent:
                 workflows = self.get_workflows(workflows)
                 if workflows and self._determine_if_workflow_required(
                     args=self._build_completion_request(
-                        messages=messages if steps == 0 else self.get_messages_from_state(),
+                        messages=messages
+                        if steps == 0
+                        else self.get_messages_from_state(),
                         agents=agents,
                         model=model,
                         base_url=base_url,
@@ -1747,14 +1757,16 @@ class Agent:
                         response_model=response_model,
                         tool_choice=tool_choice,
                         parallel_tool_calls=parallel_tool_calls,
-                        temperature = temperature
+                        temperature=temperature,
                     ),
-                    workflows=workflows
+                    workflows=workflows,
                 ):
                     # Select and execute workflow
                     workflow = self._select_workflow_to_run(
                         args=self._build_completion_request(
-                            messages=messages if steps == 0 else self.get_messages_from_state(),
+                            messages=messages
+                            if steps == 0
+                            else self.get_messages_from_state(),
                             agents=agents,
                             model=model,
                             base_url=base_url,
@@ -1765,11 +1777,11 @@ class Agent:
                             response_model=response_model,
                             tool_choice=tool_choice,
                             parallel_tool_calls=parallel_tool_calls,
-                            temperature = temperature
+                            temperature=temperature,
                         ),
-                        workflows=workflows
+                        workflows=workflows,
                     )
-                    
+
                     response = self.workflow(
                         workflow=workflow,
                         messages=messages if steps == 0 else None,
@@ -1783,7 +1795,7 @@ class Agent:
                         response_model=response_model,
                         tool_choice=tool_choice,
                         parallel_tool_calls=parallel_tool_calls,
-                        temperature = temperature
+                        temperature=temperature,
                     )
                 else:
                     # Run regular completion
@@ -1799,7 +1811,7 @@ class Agent:
                         response_model=response_model,
                         tool_choice=tool_choice,
                         parallel_tool_calls=parallel_tool_calls,
-                        temperature = temperature
+                        temperature=temperature,
                     )
 
                 last_response = response
@@ -1807,9 +1819,7 @@ class Agent:
                 messages = []  # Clear initial messages after first step
 
             except Exception as e:
-                raise XNANOException(
-                    message=f"Error in conversation step {steps}: {e}"
-                )
+                raise XNANOException(message=f"Error in conversation step {steps}: {e}")
 
         # Build simple result
         class Result(BaseModel):
@@ -1821,7 +1831,7 @@ class Agent:
             result = Result(
                 steps=steps,
                 complete=steps < max_steps,  # True if broke early
-                task=task['task']
+                task=task["task"],
             )
 
             # Format final response
@@ -1830,25 +1840,24 @@ class Agent:
             else:
                 return self.resources.build_response_type(
                     response=ModelResponse(
-                        choices=[{
-                            "message": {
-                                "role": "assistant",
-                                "content": json.dumps(result.model_dump(), indent=2)
+                        choices=[
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "content": json.dumps(
+                                        result.model_dump(), indent=2
+                                    ),
+                                }
                             }
-                        }]
+                        ]
                     ),
-                    workflow=None
+                    workflow=None,
                 )
 
         except Exception as e:
-            raise XNANOException(
-                message=f"Error building conversation result: {e}"
-            )
+            raise XNANOException(message=f"Error building conversation result: {e}")
 
-    def update_instructions(
-        self,
-        instructions: str
-    ):
+    def update_instructions(self, instructions: str):
         """
         Updates the agent's instructions (system prompt).
 
@@ -1861,21 +1870,13 @@ class Agent:
                 f"Updated instructions for [bold red]{self.config.name}[/bold red]"
             )
 
-    def reset_state(
-        self
-    ):
+    def reset_state(self):
         """
         Resets the agent's internal state, including messages and summaries.
         """
-        self.state = State(
-            messages=[],
-            summary_thread=[],
-            count=0
-        )
+        self.state = State(messages=[], summary_thread=[], count=0)
         if self.verbose:
-            console.message(
-                f"Reset state for [bold red]{self.config.name}[/bold red]"
-            )
+            console.message(f"Reset state for [bold red]{self.config.name}[/bold red]")
 
     # ----------------------------------------------------------
     # - Planning methods
@@ -1897,15 +1898,12 @@ class Agent:
 
         # Define the Plan and PlanStep models dynamically
         PlanStep = create_model(
-            'PlanStep',
+            "PlanStep",
             step_number=(int, ...),
             action=(str, ...),
         )
 
-        Plan = create_model(
-            'Plan',
-            steps=(List[PlanStep], ...)
-        )
+        Plan = create_model("Plan", steps=(List[PlanStep], ...))
 
         try:
             # Build prompt to generate the plan
@@ -1916,9 +1914,9 @@ class Agent:
                         "You are an expert planner. Based on the following conversation, generate a detailed plan "
                         "to accomplish the user's request. The plan should be a numbered list of steps. Each step "
                         "should include a clear and actionable description."
-                    )
+                    ),
                 },
-                *messages
+                *messages,
             ]
 
             plan = completion(
@@ -1929,18 +1927,18 @@ class Agent:
                 organization=self.config.organization,
                 instructor_mode=self.config.instructor_mode,
                 response_model=Plan,
-                verbose=self.verbose
+                verbose=self.verbose,
             )
 
             if self.verbose:
-                console.message(f"Generated plan with {len(plan.steps)} steps for [bold red]{self.config.name}[/bold red].")
+                console.message(
+                    f"Generated plan with {len(plan.steps)} steps for [bold red]{self.config.name}[/bold red]."
+                )
 
             return plan
 
         except Exception as e:
-            raise XNANOException(
-                message=f"Error generating plan: {e}"
-            )
+            raise XNANOException(message=f"Error generating plan: {e}")
 
     def _execute_plan(
         self,
@@ -1989,7 +1987,9 @@ class Agent:
         for step in plan.steps:
             try:
                 if self.verbose:
-                    console.message(f"Executing plan step [bold gold1]{step.step_number}[/bold gold1]: {step.action}")
+                    console.message(
+                        f"Executing plan step [bold gold1]{step.step_number}[/bold gold1]: {step.action}"
+                    )
 
                 # Build messages for this step
                 step_messages = context_messages + [
@@ -1997,7 +1997,7 @@ class Agent:
                         "role": "system",
                         "content": (
                             f"Now executing step {step.step_number} of the plan: {step.action}"
-                        )
+                        ),
                     }
                 ]
 
@@ -2014,13 +2014,13 @@ class Agent:
                     tool_choice=tool_choice,
                     parallel_tool_calls=parallel_tool_calls,
                     workflows=workflows,
-                    temperature = temperature
+                    temperature=temperature,
                 )
 
                 responses.append(response)
 
                 # Update context_messages with the assistant's response
-                if hasattr(response, 'choices') and response.choices:
+                if hasattr(response, "choices") and response.choices:
                     assistant_message = response.choices[0].message.model_dump()
                     context_messages.append(assistant_message)
 
@@ -2030,7 +2030,9 @@ class Agent:
                 )
 
         if self.verbose:
-            console.message(f"Executed all [bold gold1]{len(plan.steps)}[/bold gold1] steps for [bold red]{self.config.name}[/bold red].")
+            console.message(
+                f"Executed all [bold gold1]{len(plan.steps)}[/bold gold1] steps for [bold red]{self.config.name}[/bold red]."
+            )
 
         return responses
 
@@ -2077,7 +2079,9 @@ class Agent:
         messages = self.resources.format_new_messages(messages)
 
         if self.verbose:
-            console.message(f"Starting planning process for [bold red]{self.config.name}[/bold red].")
+            console.message(
+                f"Starting planning process for [bold red]{self.config.name}[/bold red]."
+            )
 
         # Generate plan
         plan = self._generate_plan(messages)
@@ -2097,14 +2101,15 @@ class Agent:
             tool_choice=tool_choice,
             parallel_tool_calls=parallel_tool_calls,
             workflows=workflows,
-            temperature = temperature
+            temperature=temperature,
         )
 
         if self.verbose:
-            console.message(f"Completed planning and execution for [bold red]{self.config.name}[/bold red].")
+            console.message(
+                f"Completed planning and execution for [bold red]{self.config.name}[/bold red]."
+            )
 
         return responses
-    
 
     def chat_completion(
         self,
@@ -2121,9 +2126,8 @@ class Agent:
         response_model: Optional[CompletionResponseModelParam] = None,
         tool_choice: Optional[CompletionToolChoiceParam] = None,
         parallel_tool_calls: Optional[bool] = False,
-        workflows: Optional[List[BaseModel]] = None
+        workflows: Optional[List[BaseModel]] = None,
     ) -> AgentResponse:
-        
         if not messages:
             messages = self.resources.collect_message_from_cli()
 
@@ -2138,7 +2142,9 @@ class Agent:
         if self.config.agents:
             required_agents = self._determine_required_agents(messages)
             if required_agents:
-                team_messages = self._get_team_agent_responses(messages, required_agents)
+                team_messages = self._get_team_agent_responses(
+                    messages, required_agents
+                )
                 messages.extend(team_messages)
 
         args = self._build_completion_request(
@@ -2153,27 +2159,31 @@ class Agent:
             response_model=response_model,
             tool_choice=tool_choice,
             parallel_tool_calls=parallel_tool_calls,
-            temperature = temperature
+            temperature=temperature,
         )
 
         # Update context to include both workflows and team agents
         team_context = ""
         if self.config.agents:
-            team_roles = "\n".join([
-                f"- {agent.config.name}: {agent.config.role}"
-                for agent in self.config.agents
-            ])
-            team_context = f"\n\nYou have access to the following team members:\n{team_roles}"
+            team_roles = "\n".join(
+                [
+                    f"- {agent.config.name}: {agent.config.role}"
+                    for agent in self.config.agents
+                ]
+            )
+            team_context = (
+                f"\n\nYou have access to the following team members:\n{team_roles}"
+            )
 
         workflow_context = self.resources.build_all_workflow_string_descriptions(
             workflows=self.config.workflows
         )
 
         context = (
-            "You have access to the following workflows: \n\n" +
-            workflow_context +
-            team_context +
-            "\nDo not hallucinate or make up tools/team members that are not listed."
+            "You have access to the following workflows: \n\n"
+            + workflow_context
+            + team_context
+            + "\nDo not hallucinate or make up tools/team members that are not listed."
         )
 
         try:
@@ -2182,24 +2192,28 @@ class Agent:
                 model=args.model if args.model else self.config.model,
                 base_url=args.base_url if args.base_url else self.config.base_url,
                 api_key=args.api_key if args.api_key else self.config.api_key,
-                organization=args.organization if args.organization else self.config.organization,
+                organization=args.organization
+                if args.organization
+                else self.config.organization,
                 tools=args.tools if args.tools else self.config.tools,
-                instructor_mode=args.instructor_mode if args.instructor_mode else self.config.instructor_mode,
-                response_model=response_model if response_model else args.response_model,
+                instructor_mode=args.instructor_mode
+                if args.instructor_mode
+                else self.config.instructor_mode,
+                response_model=response_model
+                if response_model
+                else args.response_model,
                 tool_choice=args.tool_choice,
                 parallel_tool_calls=args.parallel_tool_calls,
                 context=context,
                 run_tools=True,
                 verbose=self.verbose,
-                temperature = temperature if temperature else self.config.temperature
+                temperature=temperature if temperature else self.config.temperature,
             )
 
             return self.resources.build_response_type(
                 response=response,
                 workflow=None,
-                instructor=True if response_model else False
+                instructor=True if response_model else False,
             )
         except Exception as e:
-            raise XNANOException(
-                message=f"Error running chat completion: {e}"
-            )
+            raise XNANOException(message=f"Error running chat completion: {e}")

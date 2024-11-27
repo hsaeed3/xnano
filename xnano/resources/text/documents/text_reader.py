@@ -12,7 +12,9 @@ def text_reader(
     target: Literal["text", "json", "markdown"] = "text",
     string: bool = False,
     verbose: bool = False,
-) -> Union[str, Document, List[Document], List[str], GenerativeModel, List[GenerativeModel]]:
+) -> Union[
+    str, Document, List[Document], List[str], GenerativeModel, List[GenerativeModel]
+]:
     from concurrent.futures import ThreadPoolExecutor
     import os
     import multiprocessing as mp

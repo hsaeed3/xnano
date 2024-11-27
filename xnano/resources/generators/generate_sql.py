@@ -13,6 +13,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 class SQLQuery(BaseModel):
     query: str
 
+
 class SQLQueryResult(BaseModel):
     query: str
     explanation: Optional[str] = None
@@ -63,7 +64,7 @@ def generate_sql(
     Returns:
         SQLQueryResult: Generated SQL query with optional explanation
     """
-    
+
     if verbose:
         console.message(f"Generating SQL query for objective: {objective}")
         console.message(f"Using dialect: {dialect}")
@@ -101,8 +102,10 @@ Critical Instructions:
             TextColumn("[progress.description]{task.description}"),
             transient=True,
         ) as progress:
-            task = progress.add_task("Generating SQL query...", total=2 if include_explanation else 1)
-            
+            task = progress.add_task(
+                "Generating SQL query...", total=2 if include_explanation else 1
+            )
+
             query_result = completion(
                 messages=[
                     {"role": "system", "content": query_system_message},
@@ -116,9 +119,9 @@ Critical Instructions:
                 base_url=base_url,
                 organization=organization,
             )
-            
+
             progress.advance(task)
-            
+
             # Step 2: Generate explanation if requested
             explanation = None
             if include_explanation:
@@ -160,7 +163,7 @@ Instructions:
             base_url=base_url,
             organization=organization,
         )
-        
+
         # Generate explanation if requested
         explanation = None
         if include_explanation:
@@ -192,12 +195,14 @@ Instructions:
         query=query_result.query,
         explanation=explanation,
         dialect=dialect,
-        parameters=None  # Could be enhanced to detect and extract parameters
+        parameters=None,  # Could be enhanced to detect and extract parameters
     )
 
 
 if __name__ == "__main__":
-    print(generate_sql(
-        input={"users": [{"id": 1, "name": "John"}, {"id": 2, "name": "Jane"}]},
-        objective="Get all users where id > 1",
-    ))
+    print(
+        generate_sql(
+            input={"users": [{"id": 1, "name": "John"}, {"id": 2, "name": "Jane"}]},
+            objective="Get all users where id > 1",
+        )
+    )

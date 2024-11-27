@@ -19,7 +19,11 @@ from ...types.completions.params import (
     CompletionToolChoiceParam,
     CompletionToolsParam,
 )
-from ...types.completions.responses import Response, StreamingResponse, AsyncStreamingResponse
+from ...types.completions.responses import (
+    Response,
+    StreamingResponse,
+    AsyncStreamingResponse,
+)
 
 from pydantic import BaseModel
 
@@ -140,7 +144,6 @@ class Completions:
             console.message(
                 f"✅ [green]Successfully patched asynchronous completion methods w/ [bold]instructor[/bold] mode: [bold white]{mode}[/bold white][/green]"
             )
-
 
     # ------------------------------------------------------------
     # helpers
@@ -324,7 +327,9 @@ class Completions:
         batch_determination = batch.determine_batch_needed(messages, model)
 
         if self.verbose:
-            console.message(f"✅ [green]Batch determination: [bold white]{batch_determination}[/bold white][/green]")
+            console.message(
+                f"✅ [green]Batch determination: [bold white]{batch_determination}[/bold white][/green]"
+            )
 
         if batch_determination.multi_model_batch_job:
             # Get local variables as dict and remove unwanted keys
@@ -338,7 +343,9 @@ class Completions:
             local_vars.pop("embedding_context_string", None)
             local_vars.pop("original_response_model", None)
             local_vars.pop("response_model", None)
-            return batch.create_batch_completion_job_with_multiple_models(**local_vars, response_model=response_model)
+            return batch.create_batch_completion_job_with_multiple_models(
+                **local_vars, response_model=response_model
+            )
 
         if batch_determination.multi_message_batch_job:
             # Get local variables as dict and remove unwanted keys
@@ -352,7 +359,9 @@ class Completions:
             local_vars.pop("embedding_context_string", None)
             local_vars.pop("original_response_model", None)
             local_vars.pop("response_model", None)
-            return batch.create_batch_completion_job(**local_vars, response_model=response_model)
+            return batch.create_batch_completion_job(
+                **local_vars, response_model=response_model
+            )
 
         # ------------------------------------------------------------
         # structured output handling
@@ -1041,16 +1050,14 @@ class Completions:
             return_messages=return_messages,
         )
 
-    
     @staticmethod
     @overload
     def _completion(
         messages: CompletionMessagesParam,
-        stream : Literal[True],
+        stream: Literal[True],
         model: CompletionChatModelsParam = "gpt-4o-mini",
         **kwargs,
-    ) -> Union[StreamingResponse, List[StreamingResponse]]:
-        ...
+    ) -> Union[StreamingResponse, List[StreamingResponse]]: ...
 
     @staticmethod
     @overload
@@ -1095,11 +1102,10 @@ class Completions:
         function_call: Optional[str] = None,
         api_version: Optional[str] = None,
         model_list: Optional[list] = None,
-        stream : Literal[False] = False,
+        stream: Literal[False] = False,
         return_messages: Optional[bool] = None,
         verbose: Optional[bool] = None,
-    ) -> Union[Response, List[Response]]:
-        ...
+    ) -> Union[Response, List[Response]]: ...
 
     @staticmethod
     def _completion(
@@ -1147,14 +1153,17 @@ class Completions:
         return_messages: Optional[bool] = None,
         verbose: Optional[bool] = None,
     ) -> Union[Response, StreamingResponse, List[Response], List[StreamingResponse]]:
-
         # deprecated
         if mode:
-            console.mark_deprecated("xnano.completion() | `[bold red]mode[/bold red]` will soon be deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
+            console.mark_deprecated(
+                "xnano.completion() | `[bold red]mode[/bold red]` will soon be deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead."
+            )
 
         # deprecated
         if max_tokens:
-            console.mark_deprecated("xnano.completion() | `[bold red]max_tokens[/bold red]` is now deprecated. [bold sky_blue3]OpenAI[/bold sky_blue3] uses `[bold green]max_completion_tokens[/bold green]` instead.")
+            console.mark_deprecated(
+                "xnano.completion() | `[bold red]max_tokens[/bold red]` is now deprecated. [bold sky_blue3]OpenAI[/bold sky_blue3] uses `[bold green]max_completion_tokens[/bold green]` instead."
+            )
             max_completion_tokens = max_tokens
 
         local_args = locals()
@@ -1311,16 +1320,16 @@ class Completions:
             model_list=model_list,
             return_messages=return_messages,
         )
-    
+
 
 @overload
 def completion(
     messages: CompletionMessagesParam,
-    stream : Literal[True],
+    stream: Literal[True],
     model: CompletionChatModelsParam = "gpt-4o-mini",
     **kwargs,
-) -> Union[StreamingResponse, List[StreamingResponse]]:
-    ...
+) -> Union[StreamingResponse, List[StreamingResponse]]: ...
+
 
 @overload
 def completion(
@@ -1364,11 +1373,11 @@ def completion(
     function_call: Optional[str] = None,
     api_version: Optional[str] = None,
     model_list: Optional[list] = None,
-    stream : Literal[False] = False,
+    stream: Literal[False] = False,
     return_messages: Optional[bool] = None,
     verbose: Optional[bool] = None,
-) -> Union[Response, List[Response]]:
-    ...
+) -> Union[Response, List[Response]]: ...
+
 
 def completion(
     messages: CompletionMessagesParam,
@@ -1415,14 +1424,17 @@ def completion(
     return_messages: Optional[bool] = None,
     verbose: Optional[bool] = None,
 ) -> Union[Response, StreamingResponse, List[Response], List[StreamingResponse]]:
-
     # deprecated
     if mode:
-        console.mark_deprecated("xnano.completion() | `[bold red]mode[/bold red]` will soon be deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
+        console.mark_deprecated(
+            "xnano.completion() | `[bold red]mode[/bold red]` will soon be deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead."
+        )
 
     # deprecated
     if max_tokens:
-        console.mark_deprecated("xnano.completion() | `[bold red]max_tokens[/bold red]` is now deprecated. [bold sky_blue3]OpenAI[/bold sky_blue3] uses `[bold green]max_completion_tokens[/bold green]` instead.")
+        console.mark_deprecated(
+            "xnano.completion() | `[bold red]max_tokens[/bold red]` is now deprecated. [bold sky_blue3]OpenAI[/bold sky_blue3] uses `[bold green]max_completion_tokens[/bold green]` instead."
+        )
         max_completion_tokens = max_tokens
 
     local_args = locals()
@@ -1432,16 +1444,16 @@ def completion(
         return Completions(verbose=verbose).run_completion(**local_args)
     except Exception as e:
         raise XNANOException(f"Failed to run completion: {e}")
-    
+
 
 @overload
 def async_completion(
     messages: CompletionMessagesParam,
-    stream : Literal[True],
+    stream: Literal[True],
     model: CompletionChatModelsParam = "gpt-4o-mini",
     **kwargs,
-) -> Union[AsyncStreamingResponse, List[AsyncStreamingResponse]]:
-    ...
+) -> Union[AsyncStreamingResponse, List[AsyncStreamingResponse]]: ...
+
 
 @overload
 def async_completion(
@@ -1485,11 +1497,11 @@ def async_completion(
     function_call: Optional[str] = None,
     api_version: Optional[str] = None,
     model_list: Optional[list] = None,
-    stream : Literal[False] = False,
+    stream: Literal[False] = False,
     return_messages: Optional[bool] = None,
     verbose: Optional[bool] = None,
-) -> Union[Response, List[Response]]:
-    ...
+) -> Union[Response, List[Response]]: ...
+
 
 async def async_completion(
     messages: CompletionMessagesParam,
@@ -1538,7 +1550,9 @@ async def async_completion(
     stream: Optional[bool] = None,
     return_messages: Optional[bool] = None,
     verbose: Optional[bool] = None,
-) -> Union[Response, AsyncStreamingResponse, List[Response], List[AsyncStreamingResponse]]:
+) -> Union[
+    Response, AsyncStreamingResponse, List[Response], List[AsyncStreamingResponse]
+]:
     """
     Asynchronously create a chat completion or completion(s)
 
@@ -1591,10 +1605,14 @@ async def async_completion(
 
     # deprecated
     if mode:
-        console.mark_deprecated("xnano.async_completion() | `[bold red]mode[/bold red]` will soon be deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
+        console.mark_deprecated(
+            "xnano.async_completion() | `[bold red]mode[/bold red]` will soon be deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead."
+        )
 
     if max_tokens:
-        console.mark_deprecated("xnano.async_completion() | `[bold red]max_tokens[/bold red]` is now deprecated. [bold sky_blue3]OpenAI[/bold sky_blue3] uses `[bold green]max_completion_tokens[/bold green]` instead.")
+        console.mark_deprecated(
+            "xnano.async_completion() | `[bold red]max_tokens[/bold red]` is now deprecated. [bold sky_blue3]OpenAI[/bold sky_blue3] uses `[bold green]max_completion_tokens[/bold green]` instead."
+        )
         max_completion_tokens = max_tokens
 
     local_args = locals()
@@ -1604,6 +1622,3 @@ async def async_completion(
         return await Completions(verbose=verbose).arun_completion(**local_args)
     except Exception as e:
         raise XNANOException(f"Failed to run completion: {e}")
-
-
-

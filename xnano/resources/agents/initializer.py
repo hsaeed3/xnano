@@ -1,6 +1,7 @@
 # agent initializer method
 
 from . import helpers
+
 # - types-------------------------------------------------------
 from ...types.completions.params import (
     CompletionMessagesParam,
@@ -17,25 +18,25 @@ from pydantic import BaseModel
 
 
 def create_agent(
-    role : str = "Assistant",
+    role: str = "Assistant",
     # optional
-    name : Optional[str] = helpers.get_random_name(),
-    instructions : Optional[str] = None,
-    planning : Optional[bool] = False,
-    workflows : Optional[List[BaseModel]] = None,
-    summarization_steps : Optional[int] = 5,
-    agents: Optional[List['Agent']] = None,
+    name: Optional[str] = helpers.get_random_name(),
+    instructions: Optional[str] = None,
+    planning: Optional[bool] = False,
+    workflows: Optional[List[BaseModel]] = None,
+    summarization_steps: Optional[int] = 5,
+    agents: Optional[List["Agent"]] = None,
     tools: Optional[List[CompletionToolsParam]] = None,
     # agent memory -- utilized differently than .completion(memory = ...)
-    memory : Optional[List[Memory]] = None,
+    memory: Optional[List[Memory]] = None,
     # agent completion config params
-    model : Union[CompletionChatModelsParam, str] = "openai/gpt-4o-mini",
-    instructor_mode : Optional[CompletionInstructorModeParam] = None,
-    base_url : Optional[str] = None,
-    api_key : Optional[str] = None,
-    organization : Optional[str] = None,
-    messages : Optional[CompletionMessagesParam] = None,
-    verbose : bool = True,
+    model: Union[CompletionChatModelsParam, str] = "openai/gpt-4o-mini",
+    instructor_mode: Optional[CompletionInstructorModeParam] = None,
+    base_url: Optional[str] = None,
+    api_key: Optional[str] = None,
+    organization: Optional[str] = None,
+    messages: Optional[CompletionMessagesParam] = None,
+    verbose: bool = True,
 ) -> Agent:
     """
     Initializes an agent with the given parameters.
