@@ -204,6 +204,11 @@ def get_function_arguments(
     # if in model format
     elif isinstance(function, type) and issubclass(function, BaseModel):
         return function.model_fields
+    elif isinstance(function, dict):
+        if function.get("type", None) == "function":
+            return function.get("parameters", {}).get("properties", {})
+        else:
+            return {}
     else:
         raise ValueError(f"Unsupported function type: {type(function)}")
 
