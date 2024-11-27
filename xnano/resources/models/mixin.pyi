@@ -1,9 +1,4 @@
 from pydantic import BaseModel as PydanticBaseModel, create_model, Field
-
-from ..completions.main import completion, acompletion
-from ..._lib import console, XNANOException
-
-import json
 import httpx
 from textwrap import dedent
 from copy import deepcopy
@@ -15,8 +10,6 @@ from typing import (
     Any,
     Optional,
     List,
-    Tuple,
-    Callable,
     overload,
 )
 from ...types.embeddings.memory import Memory
@@ -37,11 +30,11 @@ from ...types.models.mixin import BaseModelMixin as BaseModelMixinType
 from pydantic import BaseModel as PydanticBaseModel
 from ...types.completions._openai import ChatCompletion
 
-class BaseModel(BaseModelMixinType, PydanticBaseModel):
+class GenerativeModel(BaseModelMixinType, PydanticBaseModel):
     ...
 
     @overload
-    def model_acompletion(
+    async def model_async_completion(
         cls,
         messages: CompletionMessagesParam,
         model: CompletionChatModelsParam = "gpt-4o-mini",
@@ -96,7 +89,7 @@ class BaseModel(BaseModelMixinType, PydanticBaseModel):
         List[ChatCompletion],
     ]: ...
     @overload
-    def model_acompletion(
+    async def model_async_completion(
         self,
         messages: CompletionMessagesParam,
         model: CompletionChatModelsParam = "gpt-4o-mini",
@@ -431,7 +424,7 @@ class BaseModel(BaseModelMixinType, PydanticBaseModel):
         """
 
     @overload
-    def model_agenerate(
+    async def model_async_generate(
         cls,
         messages: CompletionMessagesParam = "",
         model: CompletionChatModelsParam = "gpt-4o-mini",
@@ -554,7 +547,7 @@ class BaseModel(BaseModelMixinType, PydanticBaseModel):
         """
 
     @overload
-    def model_agenerate(
+    async def model_async_generate(
         self,
         messages: CompletionMessagesParam = "",
         model: CompletionChatModelsParam = "gpt-4o-mini",
@@ -607,7 +600,7 @@ class BaseModel(BaseModelMixinType, PydanticBaseModel):
 
 def patch(
     model: Union[Type[PydanticBaseModel], PydanticBaseModel],
-) -> Union[Type[BaseModel], BaseModel]:
+) -> Union[Type[GenerativeModel], GenerativeModel]:
     """
     A function or decorator that patches a Pydantic BaseModel class or instance to build in xnano completions. Either
     run the function or decorate a class, or run the function on an instance.
@@ -642,7 +635,7 @@ def patch(
     ...
 
 def unpatch(
-    model: Union[Type[BaseModel], BaseModel],
+    model: Union[Type[GenerativeModel], GenerativeModel, Type[PydanticBaseModel], PydanticBaseModel],
 ) -> Union[Type[PydanticBaseModel], PydanticBaseModel]:
     """
     A function that unpatches a patched Pydantic BaseModel class or instance.

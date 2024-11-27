@@ -1,33 +1,12 @@
-# xnano
-# hammad saeed // 2024
-
-# main exports
+# xnano . completions
 
 __all__ = [
-    # completions // no client
     "completion",
-    "acompletion",
-    # methods
-    "generate_code",
-    "generate_chunks",
-    "function",
-    "generate_system_prompt",
-    "generate_qa_pairs",
-    "validate",
-    "avalidate",
-    "classify",
-    "aclassify",
-    "extract",
-    "aextract",
+    "async_completion"
 ]
 
-# imports
+# methods located at
+# xnano.resources.completions.main
+# this resource is the core of the library
 
-from .resources.completions.main import completion, acompletion
-from .resources.completions.classifier import classify, aclassify
-from .resources.completions.chunker import generate_chunks
-from .resources.completions.extractor import extract, aextract
-from .resources.completions.code_generators import generate_code, function
-from .resources.completions.prompting import generate_system_prompt
-from .resources.completions.question_answer import generate_qa_pairs
-from .resources.completions.validator import validate, avalidate
+from .resources.completions._routing import completion, async_completion

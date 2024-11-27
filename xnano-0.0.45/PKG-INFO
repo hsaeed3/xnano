@@ -1,0 +1,28 @@
+Metadata-Version: 2.3
+Name: xnano
+Version: 0.0.45
+Summary: build extremely 'nano' llm workflows
+Requires-Python: >=3.9
+Requires-Dist: bs4>=0.0.2
+Requires-Dist: duckduckgo-search>=6.3.4
+Requires-Dist: instructor>=1.6.3
+Requires-Dist: litellm>=1.52.3
+Requires-Dist: lxml-html-clean>=0.4.1
+Requires-Dist: markdownify>=0.13.1
+Requires-Dist: pypdf2>=3.0.1
+Requires-Dist: qdrant-client>=1.12.1
+Requires-Dist: questionary>=2.0.1
+Requires-Dist: readability-lxml>=0.8.1
+Requires-Dist: rich>=13.9.4
+Requires-Dist: semchunk>=2.2.0
+Requires-Dist: sqlalchemy>=2.0.36
+Provides-Extra: fastembed
+Requires-Dist: fastembed>=0.4.1; extra == 'fastembed'
+Provides-Extra: serve
+Requires-Dist: fastapi; extra == 'serve'
+Requires-Dist: nicegui; extra == 'serve'
+Requires-Dist: sse-starlette; extra == 'serve'
+Requires-Dist: uvicorn; extra == 'serve'
+Description-Content-Type: text/markdown
+
+# xnano

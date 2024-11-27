@@ -3,7 +3,7 @@
 import json
 from typing import List, Union
 
-from ...._lib import XNANOException
+from ....lib import XNANOException
 from ....types.completions.messages import Message
 
 

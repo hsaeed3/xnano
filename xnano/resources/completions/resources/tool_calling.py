@@ -5,7 +5,7 @@ from pydantic import create_model, Field, BaseModel
 import inspect
 from typing import Any, Callable, Dict, Type, Union
 
-from ...._lib import XNANOException
+from ....lib import XNANOException
 from ....types.completions.tools import Tool
 
 
@@ -23,7 +23,7 @@ def generate_tool(client, tool_name: str, model: str) -> Tool:
     6. OPTS TO USING STANDARD PYTHON LIBRARIES UNLESS SPECIFICALLY REQUESTED
     """
 
-    from ..code_generators import generate_code
+    from ...generators.code_generators import generate_code
 
     # Use coder to generate the implementation
     generated_code = generate_code(

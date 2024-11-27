@@ -3,7 +3,7 @@ from typing import Any, Dict, Union, Optional
 import yaml
 from pydantic import BaseModel, create_model
 
-from ..._lib import XNANOException, console
+from ...lib import XNANOException, console
 
 
 def convert_yaml_to_pydantic(path: Union[str, Path], verbose: bool = False) -> BaseModel:

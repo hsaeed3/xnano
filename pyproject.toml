@@ -42,3 +42,6 @@ dev = [
     "mkdocs-jupyter>=0.25.1",
     "twine>=5.1.1",
 ]
+
+[tool.hatch.build]
+exclude = ["docs/"]
