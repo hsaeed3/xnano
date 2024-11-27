@@ -1128,6 +1128,10 @@ class Completions:
 
         # run completion
 
+        # deprecated
+        if mode:
+            console.mark_deprecated("xnano.completion() | `[bold red]mode[/bold red]` is now deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
+
         local_args = locals()
         local_args.pop("verbose", None)
 
@@ -1382,6 +1386,10 @@ class Completions:
             stream (bool): Stream to use for the completion
             verbose (bool): Verbose to use for the completion
         """
+
+        # deprecated
+        if mode:
+            console.mark_deprecated("xnano.async_completion() | `[bold red]mode[/bold red]` is now deprecated. Use `[bold green]instructor_mode[/bold green]` for setting the Instructor Generation Mode instead.")
 
         local_args = locals()
         local_args.pop("verbose", None)
