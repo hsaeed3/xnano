@@ -1,3 +1,4 @@
+from ...types.completions._openai import Stream, ChatCompletionChunk
 from ...types.embeddings.memory import Memory
 from ...types.completions.params import (
     CompletionMessagesParam,
@@ -11,10 +12,111 @@ from ...types.completions.params import (
     CompletionToolChoiceParam,
     CompletionToolsParam,
 )
-from ...types.completions.responses import Response
+from ...types.completions.responses import Response, StreamingResponse, AsyncStreamingResponse
 import httpx
-from typing import List, Optional, Union
+from typing import List, Optional, Union, overload, Literal
 
+
+@overload
+async def async_completion(
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    instructor_mode: Optional[CompletionInstructorModeParam] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
+    timeout: Optional[Union[float, str, httpx.Timeout]] = None,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    stream_options: Optional[dict] = None,
+    stop=None,
+    max_completion_tokens: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    modalities: Optional[List[CompletionModalityParam]] = None,
+    prediction: Optional[CompletionPredictionContentParam] = None,
+    audio: Optional[CompletionAudioParam] = None,
+    presence_penalty: Optional[float] = None,
+    frequency_penalty: Optional[float] = None,
+    logit_bias: Optional[dict] = None,
+    user: Optional[str] = None,
+    # openai v1.0+ new params
+    seed: Optional[int] = None,
+    logprobs: Optional[bool] = None,
+    top_logprobs: Optional[int] = None,
+    deployment_id=None,
+    extra_headers: Optional[dict] = None,
+    # soon to be deprecated params by OpenAI
+    functions: Optional[List] = None,
+    function_call: Optional[str] = None,
+    # set api_base, api_version, api_key
+    api_version: Optional[str] = None,
+    model_list: Optional[list] = None,
+    stream: Optional[Literal[True]] = True,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> AsyncStreamingResponse:
+    ...
+@overload
+async def async_completion(
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    instructor_mode: Optional[CompletionInstructorModeParam] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
+    timeout: Optional[Union[float, str, httpx.Timeout]] = None,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    stream_options: Optional[dict] = None,
+    stop=None,
+    max_completion_tokens: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    modalities: Optional[List[CompletionModalityParam]] = None,
+    prediction: Optional[CompletionPredictionContentParam] = None,
+    audio: Optional[CompletionAudioParam] = None,
+    presence_penalty: Optional[float] = None,
+    frequency_penalty: Optional[float] = None,
+    logit_bias: Optional[dict] = None,
+    user: Optional[str] = None,
+    # openai v1.0+ new params
+    seed: Optional[int] = None,
+    logprobs: Optional[bool] = None,
+    top_logprobs: Optional[int] = None,
+    deployment_id=None,
+    extra_headers: Optional[dict] = None,
+    # soon to be deprecated params by OpenAI
+    functions: Optional[List] = None,
+    function_call: Optional[str] = None,
+    # set api_base, api_version, api_key
+    api_version: Optional[str] = None,
+    model_list: Optional[list] = None,
+    stream: Optional[Literal[False]] = None,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> Response:
+    ...
 async def async_completion(
     messages: CompletionMessagesParam,
     model: CompletionChatModelsParam = "gpt-4o-mini",
@@ -62,7 +164,7 @@ async def async_completion(
     stream: Optional[bool] = None,
     return_messages: Optional[bool] = None,
     verbose: Optional[bool] = None,
-) -> Response:
+) -> Union[Response, AsyncStreamingResponse]:
     """
     ### Generate a completion using any LiteLLM supported model, with incredibly easy to access features.
 
@@ -186,6 +288,106 @@ async def async_completion(
     """
     ...
 
+@overload
+def completion(
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    instructor_mode: Optional[CompletionInstructorModeParam] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
+    timeout: Optional[Union[float, str, httpx.Timeout]] = None,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    stream_options: Optional[dict] = None,
+    stop=None,
+    max_completion_tokens: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    modalities: Optional[List[CompletionModalityParam]] = None,
+    prediction: Optional[CompletionPredictionContentParam] = None,
+    audio: Optional[CompletionAudioParam] = None,
+    presence_penalty: Optional[float] = None,
+    frequency_penalty: Optional[float] = None,
+    logit_bias: Optional[dict] = None,
+    user: Optional[str] = None,
+    # openai v1.0+ new params
+    seed: Optional[int] = None,
+    logprobs: Optional[bool] = None,
+    top_logprobs: Optional[int] = None,
+    deployment_id=None,
+    extra_headers: Optional[dict] = None,
+    # soon to be deprecated params by OpenAI
+    functions: Optional[List] = None,
+    function_call: Optional[str] = None,
+    # set api_base, api_version, api_key
+    api_version: Optional[str] = None,
+    model_list: Optional[list] = None,
+    stream: Optional[Literal[False]] = None,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> Response:
+    ...
+@overload
+def completion(
+    messages: CompletionMessagesParam,
+    model: CompletionChatModelsParam = "gpt-4o-mini",
+    context: Optional[CompletionContextParam] = None,
+    memory: Optional[Union[Memory, List[Memory]]] = None,
+    memory_limit: Optional[int] = None,
+    instructor_mode: Optional[CompletionInstructorModeParam] = None,
+    mode: Optional[CompletionInstructorModeParam] = None,
+    response_model: Optional[CompletionResponseModelParam] = None,
+    response_format: Optional[CompletionResponseModelParam] = None,
+    tools: Optional[List[CompletionToolsParam]] = None,
+    run_tools: Optional[bool] = None,
+    tool_choice: Optional[CompletionToolChoiceParam] = None,
+    parallel_tool_calls: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    organization: Optional[str] = None,
+    n: Optional[int] = None,
+    timeout: Optional[Union[float, str, httpx.Timeout]] = None,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    stream_options: Optional[dict] = None,
+    stop=None,
+    max_completion_tokens: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    modalities: Optional[List[CompletionModalityParam]] = None,
+    prediction: Optional[CompletionPredictionContentParam] = None,
+    audio: Optional[CompletionAudioParam] = None,
+    presence_penalty: Optional[float] = None,
+    frequency_penalty: Optional[float] = None,
+    logit_bias: Optional[dict] = None,
+    user: Optional[str] = None,
+    # openai v1.0+ new params
+    seed: Optional[int] = None,
+    logprobs: Optional[bool] = None,
+    top_logprobs: Optional[int] = None,
+    deployment_id=None,
+    extra_headers: Optional[dict] = None,
+    # soon to be deprecated params by OpenAI
+    functions: Optional[List] = None,
+    function_call: Optional[str] = None,
+    # set api_base, api_version, api_key
+    api_version: Optional[str] = None,
+    model_list: Optional[list] = None,
+    stream: Literal[True] = True,
+    return_messages: Optional[bool] = None,
+    verbose: Optional[bool] = None,
+) -> StreamingResponse:
+    ...
 def completion(
     messages: CompletionMessagesParam,
     model: CompletionChatModelsParam = "gpt-4o-mini",
@@ -233,7 +435,7 @@ def completion(
     stream: Optional[bool] = None,
     return_messages: Optional[bool] = None,
     verbose: Optional[bool] = None,
-) -> Response:
+) -> Union[Response, StreamingResponse]:
     """
     ### Generate a completion using any LiteLLM supported model, with incredibly easy to access features.
 
