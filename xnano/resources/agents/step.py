@@ -1,5 +1,5 @@
 from ...types.agents.step import StepModel, StepState, StepStatus
-from ..._lib import console, XNANOException
+from ...lib import console, XNANOException
 from typing import Dict, List, Optional, Any, Callable, Type, Union
 from functools import wraps
 
