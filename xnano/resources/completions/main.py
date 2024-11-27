@@ -25,7 +25,7 @@ from pydantic import BaseModel
 
 import httpx
 import json
-from typing import List, Optional, Union, Generator
+from typing import List, Optional, Union
 
 
 # base client
