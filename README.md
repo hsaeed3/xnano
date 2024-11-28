@@ -4,7 +4,8 @@
 
 `xnano` is an llm project built to be as developer & human friendly as possible, to help you build _extremely nano llm workflows_. 
 
-> [NOTE] - Currently examples for 'Agents', all LLM-Task oriented functions "Generators" & Text Processing/Vector Store are not included yet in this readme.
+> [!NOTE] 
+> Currently examples for 'Agents', all LLM-Task oriented functions "Generators" & Text Processing/Vector Store are not included yet in this readme.
 
 # __Installation__
 
