@@ -34,6 +34,8 @@ xnano
     - [Completions w/ Automatically Generated Tools](#automatically-generated-tools)
     - [Completions Using Multiple Models](#get-completions-from-multiple-models)
     - [Batch Completions](#batch-completions)
+    - [Streaming Completions](#streaming-completions)
+    - [Asynchronous Completions](#asynchronous-completions)
 - [Generative Pydantic Models](#generative-pydantic-models)
     - [Creating a Generative Model](#creating-a-generative-model)
     - [Generating Synthetic Data w/ `.model_generate()`](#generating-synthetic-data-w-model_generate)
@@ -514,6 +516,104 @@ History unfolds.
 Some people enjoy visiting Europe.
 ```
 </details>
+
+### __Streaming Completions__
+
+Stream completions with properly typed `chunk` objects using the `stream` argument.
+
+```python
+from xnano import completion
+
+# stream a message
+response = completion(
+    "Tell me a long joke",
+    stream=True,
+)
+
+# print the response
+for chunk in response:
+    print(chunk.choices[0].delta.content or "", end="", flush=True)
+```
+
+<details>
+<summary>
+Output
+</summary>
+
+```bash
+Sure! Here’s a long joke for you:
+
+Once upon a time, in a small village, there lived three friends: a physicist, a mathematician, and a philosopher. They were known for their brilliant minds but also for their inability to communicate effectively. One day, they decided to go on an adventure together to explore the nearby forest, which was rumored to have a magical pond.
+
+As they strolled through the forest, they chatted about their respective fields. The physicist enthusiastically explained the laws of motion, the mathematician scribbled equations in the dirt, and the philosopher pondered the meaning of existence. Just as they were deep in conversation, they stumbled upon the magical pond.
+
+To their surprise, a mystical frog emerged from the water. "Greetings, noble travelers!" the frog croaked. "I am the guardian of this pond. If you each solve a riddle I have for you, I will grant you one wish. But fail, and you must jump into the pond!" 
+
+Intrigued, the friends agreed to the challenge. The frog turned to the physicist first. "Here’s your riddle: What weighs more, a ton of feathers or a ton of bricks?"
+
+The physicist laughed and quickly replied, "They weigh the same! A ton is a ton!" 
+
+“Correct!” the frog said. “Now, what is your wish?”
+
+The physicist thought for a moment and said, “I wish to understand the universe!” 
+
+With a wave of its webbed hand, the frog granted the wish, and the physicist felt a surge of knowledge coursing through him.
+
+Next, the frog turned to the mathematician. "Here’s your riddle: If two’s a company and three’s a crowd, what are four and five?”
+
+The mathematician furrowed his brow and exclaimed, “That’s easy! Nine!” 
+
+“Correct!” smiled the frog. “What is your wish?” 
+
+The mathematician, excited, said, “I wish to solve the greatest equations of all time!” 
+
+The frog granted his wish, and the mathematician felt a rush of equations and theorems flooding his mind.
+
+Finally, it was the philosopher's turn. The frog recited, “What is the sound of one hand clapping?”
+
+The philosopher stared at the frog blankly for a long time, deep in thought. Hours went by as the physicist and mathematician chatted about their newfound wisdom, but the philosopher remained lost in contemplation.
+
+Frustrated, the frog finally interrupted, “Well?! What’s your answer?”
+
+The philosopher smiled and said, “The sound of one hand clapping is a reflection of the individual’s search for meaning in a world constrained by societal norms.”
+
+The frog blinked, taken aback. “Um.. that's... deep, but you got it wrong. You still have to jump in the pond!”
+
+The philosopher sighed, “I’m not worried. You see, while they might be diving into knowledge, I’ll be diving into the unknown!”
+
+And with that, the philosopher took a graceful jump into the pond, while the physicist and mathematician laughed and congratulated themselves on their brilliant minds. 
+
+As the philosopher splashed around in the water, he suddenly yelled, “Hey! Wait! Is this water even real? Or is it just a construct of my mind?”
+
+To which the physicist replied, “No, it’s real! I can measure it!” 
+
+And the mathematician added, “Well, I can prove how deep it is!”
+
+Meanwhile, the philosopher, still swimming, called out, “Looks like my wish was the best of all! I’m swimming in the depths of existence!”
+
+And so, from that day on, the three friends often visited the magical pond. The physicist and the mathematician conducted their experiments and calculations, while the philosopher dived in, pondering the mysteries of life—each believing they had made the best wish of all! 
+
+But you know what they say: all’s well that ends well... as long as you can swim! 
+
+And that’s how three friends found themselves... in a bit of a muddle! 
+
+Hope you enjoyed it!%     
+```
+
+</details>
+
+### __Asynchronous Completions__
+
+Generate asynchronous completions easily, with all the functionality of the `completion` function.
+
+```python
+from xnano import async_completion
+import asyncio
+
+response = asyncio.run(
+    async_completion("Hi, how are you?")
+)
+```
 
 ---
 
