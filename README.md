@@ -27,6 +27,7 @@ xnano
 - [Agents](#a-new-way-to-build-ai-agents)
     - [Creating a Simple Chatbot with Tools](#creating-a-simple-chatbot-with-tools)
     - [Creating Autonomous Workflows](#creating-autonomous-workflows)
+    - [Creating Strict & User Augmented Steps in Workflows](#creating-strict--user-augmented-steps-in-workflows)
 - [LLM Completions w/ any LiteLLM model](#incredibly-simple--extensive-completion-api-thanks-litellm)
     - [Completions w/ Structured Outputs (using Instructor)](#structured-outputs)
     - [Completions w/ Simpler & Quicker Structured Outputs](#simpler--quicker-structured-outputs)
@@ -236,6 +237,152 @@ def calculate_sum(a, b):
 
 Now, the function should work correctly and print the sum of `a` and `b`.
 
+```
+
+</details>
+
+### __Creating Strict & User Augmented Steps in Workflows__
+
+> [!NOTE]
+> Currently the implementation for this is a little messy, but will be up to `xnano` standards soon.
+
+Create a pipeline with steps & required dependencies:
+
+```python
+from xnano import Agent
+from pydantic import BaseModel
+
+# Define structured response models for each step
+class CollectedData(BaseModel):
+    data: str
+
+class Analysis(BaseModel):
+    analysis: str
+    confidence: float
+
+# Initialize agent with verbose logging enabled
+agent = Agent(verbose=True)
+steps = agent.steps()
+
+# define a step
+# steps can have structured responses
+@steps.step("collect_data", response_model=CollectedData)
+def collect_data(agent: Agent, input_data):
+    # Send a prompt to the agent to generate mock sales data
+    # The prompt specifies the structure we want: revenue, customers, products
+    response = agent.completion(
+        messages=[{
+            "role": "user",
+            "content": """Generate mock sales data for the last 3 months including:
+            - Monthly revenue
+            - Number of customers
+            - Top selling products"""
+        }]
+    )
+    
+    # Extract the generated data from the response
+    # Return in format matching CollectedData model
+    return {"data": response.choices[0].message.content}
+
+# analyze the collected data
+# depends on collect_data step and returns structured analysis
+@steps.step("analyze_data", 
+            depends_on=["collect_data"],
+            response_model=Analysis)
+def analyze_data(agent: Agent, input_data):
+    # Extract data from previous step
+    # input_data contains results from all dependent steps
+    data = input_data["collect_data"].data
+    
+    # Send the collected data back to agent for analysis
+    # Provide specific focus areas in the prompt
+    response = agent.completion(
+        messages=[{
+            "role": "user",
+            "content": f"""Analyze this sales data and provide insights:
+            {data}
+            
+            Focus on:
+            - Revenue trends
+            - Customer growth
+            - Product performance"""
+        }]
+    )
+    
+    # Return analysis results matching Analysis model
+    # Include confidence score for the analysis
+    return {
+        "analysis": response.choices[0].message.content,
+        "confidence": 0.95  # Example confidence score
+    }
+
+# Execute all steps in order and get typed results
+results = steps.execute()
+
+# Print the analysis results
+# Results are typed thanks to the Analysis model
+print(results.analyze_data.analysis)
+```
+
+Let's view out output!
+
+<details>
+<summary>
+Output
+</summary>
+
+```bash
+### Sales Data Analysis
+
+#### 1. Revenue Trends
+- **Overall Growth:** There is a clear upward trend in monthly revenue over the three months analyzed:
+  - August: $50,000
+  - September: $65,000 (30% increase from August)
+  - October: $70,000 (7.7% increase from September)
+  
+- **Total Revenue:** Over the three months, the total revenue is $185,000, indicating a solid performance. The growth
+rate from August to September suggests successful promotion or product offering changes, while October's growth rate,
+though smaller, indicates consistency and stability in sales.
+
+#### 2. Customer Growth
+- **Increased Customer Base:** The customer base has increased steadily each month:
+  - August: 1,200 customers
+  - September: 1,500 customers (25% increase from August)
+  - October: 1,700 customers (13.3% increase from September)
+
+- **Total Customers:** The total number of customers over the three months amounts to 4,400, which reinforces the 
+positive trend in customer acquisition and retention.
+
+#### 3. Product Performance
+- **Top Products Overview:**
+  - **Product A:** Steady performance in both August (300 units) and September (320 units). However, it saw a decline
+in October, where it did not feature as a top seller. This may suggest potential market saturation or increased 
+competition.
+  - **Product B:** Improved performance in October with 400 units sold after 250 in August and reaching 0 in 
+September, indicating a strong comeback. This may be due to promotional activities or enhanced features that 
+attracted customers.
+  - **Product D:** A notable performer introduced in September, selling 350 units and then 370 units in October, 
+indicating it has become a strong seller.
+  - **Product C and E:** Both products saw declines in unit sales, with Product C not appearing again and Product E 
+just maintaining its position. This suggests re-evaluating these products for potential redesign, rebranding, or 
+discontinuation.
+  - **Product F:** Newly listed in October with 250 units sold; this shows promise and may need further marketing 
+focus to capitalize on its initial success.
+
+### Insights
+- **Revenue Growth:** The business is experiencing healthy revenue growth which can be attributed to increased 
+product offerings and effective customer engagement strategies.
+- **Customer Engagement:** The growth in the customer base suggests effective marketing and a potential for brand 
+loyalty, but strategies should be in place to maintain this momentum.
+- **Inventory Decisions:** The mix of top-selling products indicates that some products may need to be phased out or 
+re-evaluated. Strategic decisions regarding inventory and marketing for lower-performing products may also optimize 
+profitability.
+- **Promotional Strategies:** Evaluating promotional efforts, especially around products that show fluctuating 
+performance, can help stabilize revenue and customer interest in specific product lines.
+
+Overall, the data indicates a positive trajectory with opportunities for optimization in product offerings and 
+customer engagement strategies. Adjustments based on performance insights will be key to sustaining growth moving 
+forward.
 ```
 
 </details>
