@@ -683,7 +683,7 @@ class VectorStore:
 
             context_string = "Relevant Context: \n"
             for result in context:
-                context_string += f"- {result['text']}\n"
+                context_string += f"- {result.text}\n"
             context_string += "The above context is provided to help generate a response that is relevant to the conversation or query."
         else:
             if isinstance(messages, str):
@@ -700,7 +700,7 @@ class VectorStore:
 
             context_string = "Relevant Context: \n"
             for result in query_results:
-                context_string += f"- {result['text']}\n"
+                context_string += f"- {result.text}\n"
             context_string += "The above context is provided to help generate a response that is relevant to the conversation or query."
 
         return context_string
