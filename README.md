@@ -24,10 +24,6 @@ xnano
 **Table of Contents**
 
 - [Terminal Application](#try-the-cli)
-- [Agents](#a-new-way-to-build-ai-agents)
-    - [Creating a Simple Chatbot with Tools](#creating-a-simple-chatbot-with-tools)
-    - [Creating Autonomous Workflows](#creating-autonomous-workflows)
-    - [Creating Strict & User Augmented Steps in Workflows](#creating-strict--user-augmented-steps-in-workflows)
 - [LLM Completions w/ any LiteLLM model](#incredibly-simple--extensive-completion-api-thanks-litellm)
     - [Completions w/ Structured Outputs (using Instructor)](#structured-outputs)
     - [Completions w/ Simpler & Quicker Structured Outputs](#simpler--quicker-structured-outputs)
@@ -37,6 +33,10 @@ xnano
     - [Batch Completions](#batch-completions)
     - [Streaming Completions](#streaming-completions)
     - [Asynchronous Completions](#asynchronous-completions)
+- [Agents](#a-new-way-to-build-ai-agents)
+    - [Creating a Simple Chatbot with Tools](#creating-a-simple-chatbot-with-tools)
+    - [Creating Autonomous Workflows](#creating-autonomous-workflows)
+    - [Creating Strict & User Augmented Steps in Workflows](#creating-strict--user-augmented-steps-in-workflows)
 - [Generative Pydantic Models](#generative-pydantic-models)
     - [Creating a Generative Model](#creating-a-generative-model)
     - [Generating Synthetic Data w/ `.model_generate()`](#generating-synthetic-data-w-model_generate)
@@ -62,330 +62,6 @@ xnano chat
 
 # or xnano chat --model "anthropic/claude-3-5-sonnet-latest"
 ```
-
----
-
-## __A New Way to Build AI Agents__
-
-Extensive AI Agent documentation & examples will be available soon.
-
-Creating `on-message` based agents was something I've wanted to do for a while, and `xnano` provides an easy way to get started building with LLM agents capable of multi agent collaboration & workflows.
-
-### __Creating a Simple Chatbot with Tools__
-
-To create an agent, we can either instantiate the `Agent` class, or create an agent using `create_agent()`.
-
-```python
-import xnano as x
-
-# lets create an agent
-# all params are optional!
-agent = x.create_agent(
-    name = "Steve",
-    role = "AI Researcher",
-
-    # xnano provides a few premade tools in the 'Tools' class
-    # this tool uses the Tavily API to search the web for information
-    # ensure you have `TAVILY_API_KEY` in your environment variables
-    tools = [x.Tools.web_search]
-)
-
-# try running this script to chat with the agent in your terminal!
-while True:
-
-    user_input = input("You >>  ")
-
-    # agent.completion works just as our standard .completion()
-    # so you can give it a string, or a list of messages for the messages parameter
-    response = agent.completion(messages = user_input)
-
-    # print the response
-    # it is a standard openai response object
-    print("\nSteve: " + response.choices[0].message.content + "\n")
-```
-
-<details>
-<summary> Conversation Example </summary>
-
-```bash
-You >>  hi
-
-Steve: Hello! How can I assist you today?
-
-You >>  who are you?
-
-Steve: I am Steve, a world-class AI researcher specializing in solving complex problems and providing insightful 
-answers. I'm here to help you with any questions or challenges you may have related to AI or other topics. How can
-I assist you today?
-
-You >>  do you have any tools?
-
-Steve: Yes, I have access to a tool that allows me to perform web searches. If you have a specific question or 
-topic in mind, I can use this tool to gather relevant information. What would you like to know?
-
-You >>  can you search the web for the latest ai research?
-
-Steve: Here are some recent articles on the latest AI research:
-
-1. **[AI Index: State of AI in 13 Charts - Stanford 
-HAI](https://hai.stanford.edu/news/ai-index-state-ai-13-charts)**  
-   This year's AI Index is a comprehensive 500-page report tracking worldwide trends in AI for 2023, highlighting 
-the rise of multimodal foundation models.
-
-2. **[AI for Everything: 10 Breakthrough Technologies 2024 - MIT Technology 
-Review](https://www.technologyreview.com/2024/01/08/1085096/artificial-intelligence-generative-ai-chatgpt-open-ai-
-breakthrough-technologies)**  
-   This article discusses how Google DeepMind utilized a large language model to solve an unsolved math problem, 
-emphasizing the potential of generative AI in various fields, including financial services.
-
-3. **[Artificial Intelligence | MIT News](https://news.mit.edu/topic/artificial-intelligence2)**  
-   - Highlights include techniques to accelerate AI tasks while ensuring data security, findings of 
-self-supervised models simulating mammalian brain activity, and challenges faced by generative AI in engineering 
-design.
-
-Feel free to explore any of these articles for more detailed insights! If you have further questions or need 
-information on a specific topic, let me know!
-```
-
-</details>
-
-### __Creating Autonomous Workflows__
-
-`xnano` agents implement agentic `Worfklows` as pydantic basemodels, where each field in the model is a step in the workflow. Let's look at an example.
-
-```python
-import xnano as x
-from pydantic import BaseModel
-
-# create a workflow
-# each field in the model is a step in the workflow
-class Refinement(BaseModel):
-    determine_errors : str
-    plan_steps_to_fix : list[str]
-    solution : str
-
-# now lets create an agent with this workflow
-# workflows are selected to the agent similar to tools, and the agent
-# is able to interpret the response of the workflow as a whole
-agent = x.create_agent(workflows = [Refinement])
-
-# lets try running this example, with a sample piece of code that contains errors
-code = """
-def calculate_sum(a, b)
-    sum = a + b;
-    print("The sum is: " sum)
-    retrun sum
-"""
-
-# now we can give this code to the agent, and it will refine it
-response = agent.completion(
-    messages = f"I'm having trouble with this code: {code}, could you refine it?"
-)
-
-# we can check for completed workflows in the response, the same way we check for tools;
-# just with a different key
-if response.workflow:
-    print(response.workflow)
-
-# lets' print the response content as well
-print(response.choices[0].message.content)
-```
-
-<details>
-<summary>
-Workflow Output
-</summary>
-
-```bash
-Refinement(
-    determine_errors="1. Missing colon (:) at the end of the function definition line. \n2. Incorrect syntax for the 
-print statement; it should use a comma (,) or a formatted string.\n3. There is a typo in the 'return' statement; it 
-is spelled as 'retrun'. \n4. Using 'sum' as a variable name is not recommended because it shadows the built-in sum() 
-function.",
-    plan_steps_to_fix=[
-        "Add a colon (:) at the end of the function definition line: 'def calculate_sum(a, b):'",
-        "Modify the print statement to use proper syntax, either: 'print('The sum is:', sum)' or 'print(f'The sum is:
-{sum}')'",
-        "Correct the spelling of 'return' in the return statement: 'return sum'",
-        "Consider renaming the variable 'sum' to avoid shadowing the built-in function, e.g., 'total' instead of 
-'sum'."
-    ],
-    solution="def calculate_sum(a, b):\n    total = a + b\n    print(f'The sum is: {total}')\n    return total"
-)
-```
-
-</details>
-
-<details>
-<summary>
-Response Content
-</summary>
-
-```bash
-Certainly! Your code has a few syntax errors that need correcting. Here’s the refined version:
-
-def calculate_sum(a, b):
-    total = a + b
-    print("The sum is:", total)
-    return total
-
-### Changes made:
-1. Added a colon (`:`) at the end of the function definition line.
-2. Changed the variable name `sum` to `total` to avoid shadowing the built-in `sum()` function.
-3. Changed the print statement to use a comma to separate the string and the variable.
-4. Corrected the spelling of `return`.
-
-Now, the function should work correctly and print the sum of `a` and `b`.
-
-```
-
-</details>
-
-### __Creating Strict & User Augmented Steps in Workflows__
-
-> [!NOTE]
-> Currently the implementation for this is a little messy, but will be up to `xnano` standards soon.
-
-Create a pipeline with steps & required dependencies:
-
-```python
-from xnano import Agent
-from pydantic import BaseModel
-
-# Define structured response models for each step
-class CollectedData(BaseModel):
-    data: str
-
-class Analysis(BaseModel):
-    analysis: str
-    confidence: float
-
-# Initialize agent with verbose logging enabled
-agent = Agent(verbose=True)
-steps = agent.steps()
-
-# define a step
-# steps can have structured responses
-@steps.step("collect_data", response_model=CollectedData)
-def collect_data(agent: Agent, input_data):
-    # Send a prompt to the agent to generate mock sales data
-    # The prompt specifies the structure we want: revenue, customers, products
-    response = agent.completion(
-        messages=[{
-            "role": "user",
-            "content": """Generate mock sales data for the last 3 months including:
-            - Monthly revenue
-            - Number of customers
-            - Top selling products"""
-        }]
-    )
-    
-    # Extract the generated data from the response
-    # Return in format matching CollectedData model
-    return {"data": response.choices[0].message.content}
-
-# analyze the collected data
-# depends on collect_data step and returns structured analysis
-@steps.step("analyze_data", 
-            depends_on=["collect_data"],
-            response_model=Analysis)
-def analyze_data(agent: Agent, input_data):
-    # Extract data from previous step
-    # input_data contains results from all dependent steps
-    data = input_data["collect_data"].data
-    
-    # Send the collected data back to agent for analysis
-    # Provide specific focus areas in the prompt
-    response = agent.completion(
-        messages=[{
-            "role": "user",
-            "content": f"""Analyze this sales data and provide insights:
-            {data}
-            
-            Focus on:
-            - Revenue trends
-            - Customer growth
-            - Product performance"""
-        }]
-    )
-    
-    # Return analysis results matching Analysis model
-    # Include confidence score for the analysis
-    return {
-        "analysis": response.choices[0].message.content,
-        "confidence": 0.95  # Example confidence score
-    }
-
-# Execute all steps in order and get typed results
-results = steps.execute()
-
-# Print the analysis results
-# Results are typed thanks to the Analysis model
-print(results.analyze_data.analysis)
-```
-
-Let's view out output!
-
-<details>
-<summary>
-Output
-</summary>
-
-```bash
-### Sales Data Analysis
-
-#### 1. Revenue Trends
-- **Overall Growth:** There is a clear upward trend in monthly revenue over the three months analyzed:
-  - August: $50,000
-  - September: $65,000 (30% increase from August)
-  - October: $70,000 (7.7% increase from September)
-  
-- **Total Revenue:** Over the three months, the total revenue is $185,000, indicating a solid performance. The growth
-rate from August to September suggests successful promotion or product offering changes, while October's growth rate,
-though smaller, indicates consistency and stability in sales.
-
-#### 2. Customer Growth
-- **Increased Customer Base:** The customer base has increased steadily each month:
-  - August: 1,200 customers
-  - September: 1,500 customers (25% increase from August)
-  - October: 1,700 customers (13.3% increase from September)
-
-- **Total Customers:** The total number of customers over the three months amounts to 4,400, which reinforces the 
-positive trend in customer acquisition and retention.
-
-#### 3. Product Performance
-- **Top Products Overview:**
-  - **Product A:** Steady performance in both August (300 units) and September (320 units). However, it saw a decline
-in October, where it did not feature as a top seller. This may suggest potential market saturation or increased 
-competition.
-  - **Product B:** Improved performance in October with 400 units sold after 250 in August and reaching 0 in 
-September, indicating a strong comeback. This may be due to promotional activities or enhanced features that 
-attracted customers.
-  - **Product D:** A notable performer introduced in September, selling 350 units and then 370 units in October, 
-indicating it has become a strong seller.
-  - **Product C and E:** Both products saw declines in unit sales, with Product C not appearing again and Product E 
-just maintaining its position. This suggests re-evaluating these products for potential redesign, rebranding, or 
-discontinuation.
-  - **Product F:** Newly listed in October with 250 units sold; this shows promise and may need further marketing 
-focus to capitalize on its initial success.
-
-### Insights
-- **Revenue Growth:** The business is experiencing healthy revenue growth which can be attributed to increased 
-product offerings and effective customer engagement strategies.
-- **Customer Engagement:** The growth in the customer base suggests effective marketing and a potential for brand 
-loyalty, but strategies should be in place to maintain this momentum.
-- **Inventory Decisions:** The mix of top-selling products indicates that some products may need to be phased out or 
-re-evaluated. Strategic decisions regarding inventory and marketing for lower-performing products may also optimize 
-profitability.
-- **Promotional Strategies:** Evaluating promotional efforts, especially around products that show fluctuating 
-performance, can help stabilize revenue and customer interest in specific product lines.
-
-Overall, the data indicates a positive trajectory with opportunities for optimization in product offerings and 
-customer engagement strategies. Adjustments based on performance insights will be key to sustaining growth moving 
-forward.
-```
-
-</details>
 
 ---
 
@@ -765,6 +441,330 @@ response = asyncio.run(
     async_completion("Hi, how are you?")
 )
 ```
+
+---
+
+## __A New Way to Build AI Agents__
+
+Extensive AI Agent documentation & examples will be available soon.
+
+Creating `on-message` based agents was something I've wanted to do for a while, and `xnano` provides an easy way to get started building with LLM agents capable of multi agent collaboration & workflows.
+
+### __Creating a Simple Chatbot with Tools__
+
+To create an agent, we can either instantiate the `Agent` class, or create an agent using `create_agent()`.
+
+```python
+import xnano as x
+
+# lets create an agent
+# all params are optional!
+agent = x.create_agent(
+    name = "Steve",
+    role = "AI Researcher",
+
+    # xnano provides a few premade tools in the 'Tools' class
+    # this tool uses the Tavily API to search the web for information
+    # ensure you have `TAVILY_API_KEY` in your environment variables
+    tools = [x.Tools.web_search]
+)
+
+# try running this script to chat with the agent in your terminal!
+while True:
+
+    user_input = input("You >>  ")
+
+    # agent.completion works just as our standard .completion()
+    # so you can give it a string, or a list of messages for the messages parameter
+    response = agent.completion(messages = user_input)
+
+    # print the response
+    # it is a standard openai response object
+    print("\nSteve: " + response.choices[0].message.content + "\n")
+```
+
+<details>
+<summary> Conversation Example </summary>
+
+```bash
+You >>  hi
+
+Steve: Hello! How can I assist you today?
+
+You >>  who are you?
+
+Steve: I am Steve, a world-class AI researcher specializing in solving complex problems and providing insightful 
+answers. I'm here to help you with any questions or challenges you may have related to AI or other topics. How can
+I assist you today?
+
+You >>  do you have any tools?
+
+Steve: Yes, I have access to a tool that allows me to perform web searches. If you have a specific question or 
+topic in mind, I can use this tool to gather relevant information. What would you like to know?
+
+You >>  can you search the web for the latest ai research?
+
+Steve: Here are some recent articles on the latest AI research:
+
+1. **[AI Index: State of AI in 13 Charts - Stanford 
+HAI](https://hai.stanford.edu/news/ai-index-state-ai-13-charts)**  
+   This year's AI Index is a comprehensive 500-page report tracking worldwide trends in AI for 2023, highlighting 
+the rise of multimodal foundation models.
+
+2. **[AI for Everything: 10 Breakthrough Technologies 2024 - MIT Technology 
+Review](https://www.technologyreview.com/2024/01/08/1085096/artificial-intelligence-generative-ai-chatgpt-open-ai-
+breakthrough-technologies)**  
+   This article discusses how Google DeepMind utilized a large language model to solve an unsolved math problem, 
+emphasizing the potential of generative AI in various fields, including financial services.
+
+3. **[Artificial Intelligence | MIT News](https://news.mit.edu/topic/artificial-intelligence2)**  
+   - Highlights include techniques to accelerate AI tasks while ensuring data security, findings of 
+self-supervised models simulating mammalian brain activity, and challenges faced by generative AI in engineering 
+design.
+
+Feel free to explore any of these articles for more detailed insights! If you have further questions or need 
+information on a specific topic, let me know!
+```
+
+</details>
+
+### __Creating Autonomous Workflows__
+
+`xnano` agents implement agentic `Worfklows` as pydantic basemodels, where each field in the model is a step in the workflow. Let's look at an example.
+
+```python
+import xnano as x
+from pydantic import BaseModel
+
+# create a workflow
+# each field in the model is a step in the workflow
+class Refinement(BaseModel):
+    determine_errors : str
+    plan_steps_to_fix : list[str]
+    solution : str
+
+# now lets create an agent with this workflow
+# workflows are selected to the agent similar to tools, and the agent
+# is able to interpret the response of the workflow as a whole
+agent = x.create_agent(workflows = [Refinement])
+
+# lets try running this example, with a sample piece of code that contains errors
+code = """
+def calculate_sum(a, b)
+    sum = a + b;
+    print("The sum is: " sum)
+    retrun sum
+"""
+
+# now we can give this code to the agent, and it will refine it
+response = agent.completion(
+    messages = f"I'm having trouble with this code: {code}, could you refine it?"
+)
+
+# we can check for completed workflows in the response, the same way we check for tools;
+# just with a different key
+if response.workflow:
+    print(response.workflow)
+
+# lets' print the response content as well
+print(response.choices[0].message.content)
+```
+
+<details>
+<summary>
+Workflow Output
+</summary>
+
+```bash
+Refinement(
+    determine_errors="1. Missing colon (:) at the end of the function definition line. \n2. Incorrect syntax for the 
+print statement; it should use a comma (,) or a formatted string.\n3. There is a typo in the 'return' statement; it 
+is spelled as 'retrun'. \n4. Using 'sum' as a variable name is not recommended because it shadows the built-in sum() 
+function.",
+    plan_steps_to_fix=[
+        "Add a colon (:) at the end of the function definition line: 'def calculate_sum(a, b):'",
+        "Modify the print statement to use proper syntax, either: 'print('The sum is:', sum)' or 'print(f'The sum is:
+{sum}')'",
+        "Correct the spelling of 'return' in the return statement: 'return sum'",
+        "Consider renaming the variable 'sum' to avoid shadowing the built-in function, e.g., 'total' instead of 
+'sum'."
+    ],
+    solution="def calculate_sum(a, b):\n    total = a + b\n    print(f'The sum is: {total}')\n    return total"
+)
+```
+
+</details>
+
+<details>
+<summary>
+Response Content
+</summary>
+
+```bash
+Certainly! Your code has a few syntax errors that need correcting. Here’s the refined version:
+
+def calculate_sum(a, b):
+    total = a + b
+    print("The sum is:", total)
+    return total
+
+### Changes made:
+1. Added a colon (`:`) at the end of the function definition line.
+2. Changed the variable name `sum` to `total` to avoid shadowing the built-in `sum()` function.
+3. Changed the print statement to use a comma to separate the string and the variable.
+4. Corrected the spelling of `return`.
+
+Now, the function should work correctly and print the sum of `a` and `b`.
+
+```
+
+</details>
+
+### __Creating Strict & User Augmented Steps in Workflows__
+
+> [!NOTE]
+> Currently the implementation for this is a little messy, but will be up to `xnano` standards soon.
+
+Create a pipeline with steps & required dependencies:
+
+```python
+from xnano import Agent
+from pydantic import BaseModel
+
+# Define structured response models for each step
+class CollectedData(BaseModel):
+    data: str
+
+class Analysis(BaseModel):
+    analysis: str
+    confidence: float
+
+# Initialize agent with verbose logging enabled
+agent = Agent(verbose=True)
+steps = agent.steps()
+
+# define a step
+# steps can have structured responses
+@steps.step("collect_data", response_model=CollectedData)
+def collect_data(agent: Agent, input_data):
+    # Send a prompt to the agent to generate mock sales data
+    # The prompt specifies the structure we want: revenue, customers, products
+    response = agent.completion(
+        messages=[{
+            "role": "user",
+            "content": """Generate mock sales data for the last 3 months including:
+            - Monthly revenue
+            - Number of customers
+            - Top selling products"""
+        }]
+    )
+    
+    # Extract the generated data from the response
+    # Return in format matching CollectedData model
+    return {"data": response.choices[0].message.content}
+
+# analyze the collected data
+# depends on collect_data step and returns structured analysis
+@steps.step("analyze_data", 
+            depends_on=["collect_data"],
+            response_model=Analysis)
+def analyze_data(agent: Agent, input_data):
+    # Extract data from previous step
+    # input_data contains results from all dependent steps
+    data = input_data["collect_data"].data
+    
+    # Send the collected data back to agent for analysis
+    # Provide specific focus areas in the prompt
+    response = agent.completion(
+        messages=[{
+            "role": "user",
+            "content": f"""Analyze this sales data and provide insights:
+            {data}
+            
+            Focus on:
+            - Revenue trends
+            - Customer growth
+            - Product performance"""
+        }]
+    )
+    
+    # Return analysis results matching Analysis model
+    # Include confidence score for the analysis
+    return {
+        "analysis": response.choices[0].message.content,
+        "confidence": 0.95  # Example confidence score
+    }
+
+# Execute all steps in order and get typed results
+results = steps.execute()
+
+# Print the analysis results
+# Results are typed thanks to the Analysis model
+print(results.analyze_data.analysis)
+```
+
+Let's view out output!
+
+<details>
+<summary>
+Output
+</summary>
+
+```bash
+### Sales Data Analysis
+
+#### 1. Revenue Trends
+- **Overall Growth:** There is a clear upward trend in monthly revenue over the three months analyzed:
+  - August: $50,000
+  - September: $65,000 (30% increase from August)
+  - October: $70,000 (7.7% increase from September)
+  
+- **Total Revenue:** Over the three months, the total revenue is $185,000, indicating a solid performance. The growth
+rate from August to September suggests successful promotion or product offering changes, while October's growth rate,
+though smaller, indicates consistency and stability in sales.
+
+#### 2. Customer Growth
+- **Increased Customer Base:** The customer base has increased steadily each month:
+  - August: 1,200 customers
+  - September: 1,500 customers (25% increase from August)
+  - October: 1,700 customers (13.3% increase from September)
+
+- **Total Customers:** The total number of customers over the three months amounts to 4,400, which reinforces the 
+positive trend in customer acquisition and retention.
+
+#### 3. Product Performance
+- **Top Products Overview:**
+  - **Product A:** Steady performance in both August (300 units) and September (320 units). However, it saw a decline
+in October, where it did not feature as a top seller. This may suggest potential market saturation or increased 
+competition.
+  - **Product B:** Improved performance in October with 400 units sold after 250 in August and reaching 0 in 
+September, indicating a strong comeback. This may be due to promotional activities or enhanced features that 
+attracted customers.
+  - **Product D:** A notable performer introduced in September, selling 350 units and then 370 units in October, 
+indicating it has become a strong seller.
+  - **Product C and E:** Both products saw declines in unit sales, with Product C not appearing again and Product E 
+just maintaining its position. This suggests re-evaluating these products for potential redesign, rebranding, or 
+discontinuation.
+  - **Product F:** Newly listed in October with 250 units sold; this shows promise and may need further marketing 
+focus to capitalize on its initial success.
+
+### Insights
+- **Revenue Growth:** The business is experiencing healthy revenue growth which can be attributed to increased 
+product offerings and effective customer engagement strategies.
+- **Customer Engagement:** The growth in the customer base suggests effective marketing and a potential for brand 
+loyalty, but strategies should be in place to maintain this momentum.
+- **Inventory Decisions:** The mix of top-selling products indicates that some products may need to be phased out or 
+re-evaluated. Strategic decisions regarding inventory and marketing for lower-performing products may also optimize 
+profitability.
+- **Promotional Strategies:** Evaluating promotional efforts, especially around products that show fluctuating 
+performance, can help stabilize revenue and customer interest in specific product lines.
+
+Overall, the data indicates a positive trajectory with opportunities for optimization in product offerings and 
+customer engagement strategies. Adjustments based on performance insights will be key to sustaining growth moving 
+forward.
+```
+
+</details>
 
 ---
 
