@@ -541,13 +541,12 @@ class Completions:
 
                     # return if none
                     else:
-                        console.message(f"No tools called")
+
 
                         return response
 
             # return if no tools ran
             if not ran_tools:
-                console.message(f"No runnable tools called")
 
                 return response
 
@@ -857,13 +856,11 @@ class Completions:
 
                     # return if none
                     else:
-                        console.message(f"No tools called")
 
                         return response
 
             # return if no tools ran
             if not ran_tools:
-                console.message(f"No runnable tools called")
 
                 return response
 
