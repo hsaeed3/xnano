@@ -781,6 +781,7 @@ class Agent:
         # Get workflow schema and description
         workflow_name = workflow.model_json_schema()["title"]
         workflow_description = workflow.model_json_schema().get("description", "")
+        workflow_fields = list(workflow.model_fields.keys())
 
         # Build prompt for planning
         planning_messages = [
@@ -789,13 +790,15 @@ class Agent:
                 "content": (
                     f"You are an expert planner specialized in constructing workflows for {workflow_name}. "
                     f"The workflow is described as: {workflow_description}\n"
+                    f"The workflow has the following fields that need to be constructed: {', '.join(workflow_fields)}\n"
                     f"Your task is to generate a detailed plan to build each field of the workflow step by step."
                 ),
             },
             {
                 "role": "user",
                 "content": (
-                    "Generate a plan where each step specifies which field to construct and the action required."
+                    "Generate a plan where each step specifies which field to construct and the action required. "
+                    "You must include exactly one step for each workflow field, using the exact field names listed above."
                 ),
             },
         ]
@@ -812,6 +815,22 @@ class Agent:
                 verbose=self.verbose,
                 temperature=args.temperature,
             )
+
+            # Validate that all field names in the plan match workflow fields
+            plan_fields = {step.field_name for step in plan.steps}
+            workflow_field_set = set(workflow_fields)
+            
+            if plan_fields != workflow_field_set:
+                missing = workflow_field_set - plan_fields
+                extra = plan_fields - workflow_field_set
+                error_msg = []
+                if missing:
+                    error_msg.append(f"Missing fields: {missing}")
+                if extra:
+                    error_msg.append(f"Extra fields: {extra}")
+                raise XNANOException(
+                    message=f"Plan fields don't match workflow fields. {' '.join(error_msg)}"
+                )
 
             if self.verbose:
                 console.message(
