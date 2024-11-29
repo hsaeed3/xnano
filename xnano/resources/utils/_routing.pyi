@@ -6,7 +6,7 @@ __all__ = [
     "swap_system_prompt",
     "MessageUtils",
     "convert_to_openai_tool",
-    "tools",
+    "Tools",
 ]
 
 from .convert_yaml_to_pydantic import convert_yaml_to_pydantic
@@ -18,4 +18,4 @@ from .messages import (
     Messages as MessageUtils,
 )
 from ..completions.resources.tool_calling import convert_to_openai_tool
-from .tools import tools
+from .tools import Tools

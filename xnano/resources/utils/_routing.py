@@ -6,7 +6,7 @@ __all__ = [
     "swap_system_prompt",
     "convert_to_openai_tool",
     "MessageUtils",
-    "tools",
+    "Tools"
 ]
 
 
@@ -63,8 +63,7 @@ class MessageUtils(router):
 MessageUtils.init("xnano.resources.utils.messages", "Messages")
 
 
-class tools(router):
+class Tools(router):
     pass
 
-
-tools.init("xnano.resources.utils.tools", "tools")
+Tools.init("xnano.resources.utils.tools", "Tools")

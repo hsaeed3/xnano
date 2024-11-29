@@ -1,59 +1,60 @@
-# pre-built llm tools
+# llm usable tools
 
-__all__ = ["tools"]
-
-
-from typing import List
-import json
-
-
-def execute_code(code: str) -> str:
-    """
-    A function that executes code and returns the output
-
-    Args:
-        code (str): The code to execute
-
-    Returns:
-        str: The output of the code
-    """
-    from ...lib import repl
-
-    return json.dumps(repl.execute_in_sandbox(code))
+from ..data._routing import (
+    web_search,
+    web_news_search,
+    web_reader,
+)
+from typing import Dict
 
 
-# search web tool
-def web_search(
-    query: str,
-    max_results: int,
-) -> List[str]:
-    """
-    A function that searches the web and returns a list of content for the first 5 results
+class Tools:
 
-    Args:
-        query (str): The query to search the web with
-        max_results (int): The maximum number of results to return
+    @staticmethod
+    def web_search(
+        query : str,
+        max_results : int
+    ) -> Dict:
+        """
+        A tool to search the web and return a dictionary of results
 
-    Returns:
-        List[str]: A list of content for the first 5 results
-    """
-    from ..web.web_url_searcher import web_url_search
-    from ..web.web_url_reader import web_reader
+        Args:
+            query (str): The query to search the web with
+            max_results (int): The maximum number of results to return
 
-    results = web_url_search(query, max_results)
+        Returns:
+            Dict: A dictionary containing the search results
+        """
+        return web_search(query, 3)
 
-    content = []
+    @staticmethod
+    def news_search(
+        query : str,
+        max_results : int
+    ) -> Dict:
+        """
+        A tool to search the web for news and return a dictionary of results
 
-    for result in results:
-        content.append(str(web_reader(result, max_chars_per_content=2500)))
+        Args:
+            query (str): The query to search the web with
+            max_results (int): The maximum number of results to return
 
-    return content
+        Returns:
+            Dict: A dictionary containing the search results
+        """
+        return web_news_search(query, max_results)
+    
+    @staticmethod
+    def url_reader(
+        url : str
+    ) -> str:
+        """
+        A tool to read the content of a web page and return a string of the content
 
+        Args:
+            url (str): The URL of the web page to read
 
-class tools:
-    execute_code = execute_code
-    web_search = web_search
-
-
-if __name__ == "__main__":
-    print(web_search("latest technology news"))
+        Returns:
+            str: A string containing the content of the web page
+        """
+        return web_reader(url)
