@@ -13,7 +13,6 @@ __all__ = [
     "generate_questions",
     "generate_validation",
     "async_generate_validation",
-    "generate_web_extraction",
     # multimodal
     "multimodal_generate_image",
     "multimodal_generate_audio",
@@ -135,15 +134,6 @@ class async_generate_validation(router):
 
 async_generate_validation.init(
     "xnano.resources.generators.validator", "async_generate_validation"
-)
-
-
-class generate_web_extraction(router):
-    pass
-
-
-generate_web_extraction.init(
-    "xnano.resources.generators.web_extractor", "generate_web_extraction"
 )
 
 
