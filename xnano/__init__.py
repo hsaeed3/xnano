@@ -38,7 +38,6 @@ __all__ = [
     "generate_questions",
     "generate_validation",
     "async_generate_validation",
-    "generate_web_extraction",
     # multimodal
     "multimodal_generate_image",
     "multimodal_generate_audio",
@@ -59,7 +58,7 @@ __all__ = [
     "swap_system_prompt",
     "convert_to_openai_tool",
     "MessageUtils",
-    "tools",
+    "Tools",
     # ----------------------------------------
     # text
     # ----------------------------------------
@@ -111,7 +110,6 @@ from .generators import (
     generate_questions,
     generate_validation,
     async_generate_validation,
-    generate_web_extraction,
     # multimodal
     multimodal_generate_image,
     multimodal_generate_audio,
@@ -136,7 +134,7 @@ from .resources.utils._routing import (
     swap_system_prompt,
     convert_to_openai_tool,
     MessageUtils,
-    tools,
+    Tools,
 )
 
 # ----------------------------------------
