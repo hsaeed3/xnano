@@ -1073,9 +1073,14 @@ results = store.search(
 print(results)
 ```
 
+<details>
+
+<summary>
+Output
+</summary>
+
 ```bash
 # Output
-y
 [
     SearchResult(
         id='8cf07d25-715f-4c30-b8f9-930e68dd3a95',
@@ -1105,6 +1110,8 @@ y
     )
 ]
 ```
+
+</details>
 
 ### __Generating Completions w/ Vector Stores for `RAG`__
 
