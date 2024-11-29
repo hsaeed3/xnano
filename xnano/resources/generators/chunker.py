@@ -80,7 +80,13 @@ def generate_chunks(
 
         # Convert Chunk objects to strings before adding to results
         formatted_chunks = [
-            f"{chunk.text}\n[{enhancement_type}: {chunk.context}]"
+            f"""=== CHUNK ===
+TEXT:
+{chunk.text}
+
+{enhancement_type.upper()}:
+{chunk.context}
+============="""
             for chunk in enhanced_chunks
         ]
         enhanced_results.append(formatted_chunks)
