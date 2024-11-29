@@ -46,6 +46,10 @@ xnano
     - [Code Generators w/ `.generate_code()` & `.generate_function()`](#code-generators-w-generate_code--generate_function)
     - [Label Based Classification w/ `.generate_classification()`](#label-based-classification-w-generate_classification)
     - [Context Enhanced Text Chunking w/ `.generate_chunks()`](#context-enhanced-text-chunking)
+- [Embeddings & Vector Stores](#embeddings--vector-stores)
+    - [Generating Embeddings](#generating-embeddings)
+    - [Creating & Using Vector Stores](#creating-a-vector-store)
+    - [Generating `RAG` Completions w/ Vector Stores](#generating-completions-w-vector-stores-for-rag)
 
 ---
 
@@ -1009,3 +1013,125 @@ instruct or guide on how to effectively employ these techniques in writing.
 
 </details>
 
+---
+
+## __Embeddings & Vector Stores__
+
+`xnano` utilizes `Qdrant` and `LiteLLM`'s embedding generation to power vector search. Optionally, you can install `fastembed`, using `pip install 'xnano[fastembed]'`, or `pip install fastembed` to leverage `fastembed`'s fast & fully local embedding generation.
+
+### __Generating Embeddings__
+
+Generate embeddings with `text_embeddings()`.
+
+```python
+from xnano import text_embeddings
+
+embeddings = text_embeddings(
+    ['this is my first chunk', 'this is my second chunk'], 
+    model = "openai/text-embedding-3-large"
+)
+```
+
+To generate embeddings using `fastembed`, just use the `fastembed/` prefix with any `fastembed` supported model.
+
+```python
+from xnano import text_embeddings
+
+embeddings = text_embeddings(
+    ['this is my first chunk', 'this is my second chunk'], 
+    model = "fastembed/BAAI/bge-base-en"
+)
+```
+
+### __Creating a Vector Store__
+
+Creating and using vectors in `xnano` is incredbly easy. To begin, lets create a vector store with some `memories`.
+
+```python
+from xnano import VectorStore
+
+# all params are optional
+store = VectorStore(
+    # set this to either :memory: (defualt)
+    # or a path to a folder
+    # if a store is found in a folder, it will be loaded, otherwise a new store will be created
+    location = ":memory:"
+)
+
+# with store.add() you can add anything to the store, strings, documents,
+# pydantic models, etc.
+# long text will automatically be chunked
+store.add(
+    ["My favorite color is blue", "I like to play soccer"]
+)
+
+# to search the store, use store.search()
+results = store.search(
+    "What is my favorite color?"
+)
+
+print(results)
+```
+
+```bash
+# Output
+y
+[
+    SearchResult(
+        id='8cf07d25-715f-4c30-b8f9-930e68dd3a95',
+        chunk_id='19ebc4fe-8f6e-4781-b13a-951fec22682f',
+        text='My favorite color is blue',
+        metadata={
+            'time_added': 1732845947.657376,
+            'id': '8cf07d25-715f-4c30-b8f9-930e68dd3a95',
+            'chunk_id': '19ebc4fe-8f6e-4781-b13a-951fec22682f',
+            'embedding': None,
+            'document_id': '8cf07d25-715f-4c30-b8f9-930e68dd3a95'
+        },
+        score=0.7446617009267129
+    ),
+    SearchResult(
+        id='07583029-8349-4c2b-add6-44ff114a1ddf',
+        chunk_id='74f459c3-4cd6-4916-a1ac-1e8ab69fc11d',
+        text='I like to play soccer',
+        metadata={
+            'time_added': 1732845947.657393,
+            'id': '07583029-8349-4c2b-add6-44ff114a1ddf',
+            'chunk_id': '74f459c3-4cd6-4916-a1ac-1e8ab69fc11d',
+            'embedding': None,
+            'document_id': '07583029-8349-4c2b-add6-44ff114a1ddf'
+        },
+        score=0.1960301443680059
+    )
+]
+```
+
+### __Generating Completions w/ Vector Stores for `RAG`__
+
+Vector stores can directly be queried with `VectorStore.completion()`, to generate `RAG` completions based on the most relevant search results.
+
+The base `xnano` completion function is also capable of taking in a single or list of `VectorStore` objects, to generate completions based on the most relevant search results. 
+
+```python
+from xnano import VectorStore
+
+# all params are optional
+store = VectorStore()
+
+store.add(
+    ["My favorite color is blue", "I like to play soccer"]
+)
+
+# generate a completion
+response = store.completion(
+    "what is my favorite color?",
+    model = "openai/gpt-4o-mini"
+)
+
+print(response.choices[0].message.content)
+```
+
+```bash
+# Output
+Your favorite color is blue!
+```
