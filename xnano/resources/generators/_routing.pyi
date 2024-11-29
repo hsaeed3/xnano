@@ -13,7 +13,6 @@ __all__ = [
     "generate_questions",
     "generate_validation",
     "async_generate_validation",
-    "generate_web_extraction",
     # multimodal
     "multimodal_generate_image",
     "multimodal_generate_audio",
@@ -28,7 +27,6 @@ from .generate_sql import generate_sql
 from .prompting import generate_system_prompt
 from .question_answer import generate_qa_pairs, generate_answers, generate_questions
 from .validator import generate_validation, async_generate_validation
-from .web_extractor import generate_web_extraction
 
 # multimodal
 from .multimodal import (
