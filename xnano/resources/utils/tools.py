@@ -9,12 +9,8 @@ from typing import Dict
 
 
 class Tools:
-
     @staticmethod
-    def web_search(
-        query : str,
-        max_results : int
-    ) -> Dict:
+    def web_search(query: str, max_results: int) -> Dict:
         """
         A tool to search the web and return a dictionary of results
 
@@ -28,10 +24,7 @@ class Tools:
         return web_search(query, 3)
 
     @staticmethod
-    def news_search(
-        query : str,
-        max_results : int
-    ) -> Dict:
+    def news_search(query: str, max_results: int) -> Dict:
         """
         A tool to search the web for news and return a dictionary of results
 
@@ -43,11 +36,9 @@ class Tools:
             Dict: A dictionary containing the search results
         """
         return web_news_search(query, max_results)
-    
+
     @staticmethod
-    def url_reader(
-        url : str
-    ) -> str:
+    def url_reader(url: str) -> str:
         """
         A tool to read the content of a web page and return a string of the content
 

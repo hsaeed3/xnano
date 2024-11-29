@@ -30,11 +30,13 @@ Database.init("xnano.resources.data.database", "Database")
 class web_reader(router):
     pass
 
+
 web_reader.init("xnano.resources.data.web", "web_reader")
 
 
 class web_search(router):
     pass
+
 
 web_search.init("xnano.resources.data.web", "web_search")
 
@@ -42,11 +44,13 @@ web_search.init("xnano.resources.data.web", "web_search")
 class web_news_search(router):
     pass
 
+
 web_news_search.init("xnano.resources.data.web", "web_news_search")
 
 
 class async_web_search(router):
     pass
+
 
 async_web_search.init("xnano.resources.data.web", "async_web_search")
 
@@ -54,10 +58,12 @@ async_web_search.init("xnano.resources.data.web", "async_web_search")
 class async_web_news_search(router):
     pass
 
+
 async_web_news_search.init("xnano.resources.data.web", "async_web_news_search")
 
 
 class async_web_reader(router):
     pass
+
 
 async_web_reader.init("xnano.resources.data.web", "async_web_reader")

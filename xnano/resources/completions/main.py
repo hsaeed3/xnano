@@ -541,13 +541,10 @@ class Completions:
 
                     # return if none
                     else:
-
-
                         return response
 
             # return if no tools ran
             if not ran_tools:
-
                 return response
 
             # get final response
@@ -856,12 +853,10 @@ class Completions:
 
                     # return if none
                     else:
-
                         return response
 
             # return if no tools ran
             if not ran_tools:
-
                 return response
 
             # get final response

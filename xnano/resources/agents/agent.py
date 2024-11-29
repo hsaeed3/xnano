@@ -819,7 +819,7 @@ class Agent:
             # Validate that all field names in the plan match workflow fields
             plan_fields = {step.field_name for step in plan.steps}
             workflow_field_set = set(workflow_fields)
-            
+
             if plan_fields != workflow_field_set:
                 missing = workflow_field_set - plan_fields
                 extra = plan_fields - workflow_field_set

@@ -7,7 +7,7 @@ from typing import Dict, List
 
 
 def web_reader(
-        url : str,
+    url: str,
 ) -> str:
     """
     A simple tool that uses the Tavily API to read the content of a web page and return a string of the content
@@ -18,39 +18,26 @@ def web_reader(
     return client.extract_content(url)
 
 
-def web_search(
-        query : str,
-        max_results : int = 3
-) -> Dict:
-    
+def web_search(query: str, max_results: int = 3) -> Dict:
     """
     A simple tool that uses the Tavily API to search the web and return a list of results
 
     For more advance search capabilities, consider importing the `TavilyClient` class directly.
     """
-    
+
     # ensure key is at env level as TAVILY_API_KEY
     client = TavilyClient()
 
-    return client.search(
-        query = query,
-        max_results = max_results,
-        topic = "general"
-    )
-
+    return client.search(query=query, max_results=max_results, topic="general")
 
 
 if __name__ == "__main__":
     print(web_search("latest technology news"))
 
 
-
-def web_news_search(
-        query : str,
-        max_results : int = 3
-) -> Dict:
+def web_news_search(query: str, max_results: int = 3) -> Dict:
     """
-    A simple tool that uses the Tavily API to search the web and return a list of news results  
+    A simple tool that uses the Tavily API to search the web and return a list of news results
 
     For more advance search capabilities, consider importing the `TavilyClient` class directly.
     """
@@ -60,11 +47,7 @@ def web_news_search(
     return client.search(query, max_results, topic="news")
 
 
-
-async def async_web_search(
-        query : str,
-        max_results : int = 3
-) -> Dict:
+async def async_web_search(query: str, max_results: int = 3) -> Dict:
     """
     An async version of the `web_search` function
 
@@ -73,36 +56,22 @@ async def async_web_search(
 
     client = AsyncTavilyClient()
 
-    return await client.search(
-        query = query,
-        max_results = max_results,
-        topic = "general"
-    )
+    return await client.search(query=query, max_results=max_results, topic="general")
 
 
-async def async_web_news_search(
-        query : str,
-        max_results : int = 3
-) -> Dict:
+async def async_web_news_search(query: str, max_results: int = 3) -> Dict:
     """
     An async version of the `web_news_search` function
 
-    For more advance search capabilities, consider importing the `AsyncTavilyClient` class directly.    
+    For more advance search capabilities, consider importing the `AsyncTavilyClient` class directly.
     """
 
     client = AsyncTavilyClient()
 
-    return await client.search(
-        query = query,
-        max_results = max_results,
-        topic = "news"
-    )
+    return await client.search(query=query, max_results=max_results, topic="news")
 
 
-async def async_web_reader(
-        url : str
-) -> str:
-
+async def async_web_reader(url: str) -> str:
     client = AsyncTavilyClient()
 
     return await client.extract_content(url)
