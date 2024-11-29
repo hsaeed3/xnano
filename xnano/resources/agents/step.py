@@ -2,6 +2,8 @@ from ...types.agents.step import StepModel, StepState, StepStatus
 from ...lib import console, XNANOException
 from typing import Dict, List, Optional, Any, Callable, Type, Union
 from functools import wraps
+from pydantic import BaseModel, create_model
+from typing_extensions import Annotated
 
 Agent = Type["Agent"]
 
@@ -18,35 +20,44 @@ class Steps:
         self.state = StepState()
         self._current_step: Optional[str] = None
         self._executed_steps: List[str] = []
+        self._response_models: Dict[str, Type[BaseModel]] = {}
 
     def step(
         self,
         name: str,
         depends_on: Optional[List[str]] = None,
+        response_model: Optional[Type[BaseModel]] = None,
         condition: Optional[Callable[[StepState], bool]] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Callable:
         """
-        Step decorator that can be used both with and without an agent
+        Step decorator with simplified interface and structured outputs
 
         Example:
-            @steps.step("process_data", depends_on=["fetch_data"])
-            def process_data(state: StepState, input_data: Dict[str, Any]) -> Any:
+            class DataOutput(BaseModel):
+                data: str
+                metadata: Dict[str, Any]
+
+            @steps.step("process_data", 
+                       depends_on=["fetch_data"],
+                       response_model=DataOutput)
+            def process_data(agent: Agent, input_data: Dict[str, Any]) -> Dict[str, Any]:
                 # Process the data
-                return processed_data
+                return {"data": "processed", "metadata": {}}
         """
 
         def decorator(func: Callable) -> Callable:
             @wraps(func)
             def wrapper(*args, **kwargs):
-                # Handle both agent and standalone contexts
-                if self.agent:
-                    return func(
-                        agent=self.agent,
-                        state=self.state,
-                        input_data=kwargs.get("input_data", {}),
-                    )
-                return func(state=self.state, input_data=kwargs.get("input_data", {}))
+                result = func(
+                    agent=self.agent,
+                    input_data=kwargs.get("input_data", {})
+                )
+                
+                if response_model:
+                    self._response_models[name] = response_model
+                    return response_model(**result)
+                return result
 
             self.steps[name] = StepModel(
                 name=name,
@@ -186,51 +197,35 @@ class Steps:
         finally:
             self._current_step = None
 
-    def execute(self) -> Dict[str, Any]:
+    def execute(self) -> BaseModel:
         """
         Execute all steps in the correct order
 
         Returns:
-            Dict[str, Any]: Results from all completed steps
+            BaseModel: Results from all completed steps in a typed model
         """
-        if not self.steps:
-            raise XNANOException(message="No steps defined")
-
+        # Validate dependencies before execution
         self._validate_dependencies()
-        self._executed_steps = []
-
-        while True:
-            # Get all runnable steps for potential parallel execution
-            runnable_steps = [
-                step
-                for step in self.steps.values()
-                if step.status == StepStatus.PENDING and self._can_run_step(step)
-            ]
-
-            if not runnable_steps:
-                if all(
-                    s.status == StepStatus.COMPLETED or s.status == StepStatus.SKIPPED
-                    for s in self.steps.values()
-                ):
-                    break
-                if any(s.status == StepStatus.FAILED for s in self.steps.values()):
-                    failed_steps = [
-                        s.name
-                        for s in self.steps.values()
-                        if s.status == StepStatus.FAILED
-                    ]
-                    raise XNANOException(
-                        message=f"Step execution failed. Failed steps: {', '.join(failed_steps)}"
-                    )
-                raise XNANOException(
-                    message="Step execution deadlocked - possible circular dependency"
-                )
-
-            # Execute each runnable step
-            for step in runnable_steps:
-                self._execute_step(step)
-
-        return self.state.results
+        
+        # Execute steps in order based on dependencies
+        results = {}
+        pending_steps = set(self.steps.keys())
+        
+        while pending_steps:
+            for step_name in list(pending_steps):
+                step = self.steps[step_name]
+                if self._can_run_step(step):
+                    results[step_name] = self._execute_step(step)
+                    pending_steps.remove(step_name)
+        
+        # Dynamically create a result model based on registered response models
+        fields = {
+            name: (model, ...) 
+            for name, model in self._response_models.items()
+        }
+        ResultModel = create_model('ResultModel', **fields)
+        
+        return ResultModel(**results)
 
     def reset(self) -> None:
         """Reset all steps to their initial state"""

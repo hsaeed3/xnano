@@ -1,7 +1,9 @@
 from ...types.agents.step import StepState
-from typing import Dict, List, Optional, Any, Callable, Type
+from typing import Dict, List, Optional, Any, Callable, Type, TypeVar, Generic
+from pydantic import BaseModel
 
 Agent = Type["Agent"]
+T = TypeVar('T', bound=BaseModel)
 
 class Steps:
     """
@@ -22,28 +24,35 @@ class Steps:
         self,
         name: str,
         depends_on: Optional[List[str]] = None,
+        response_model: Optional[Type[BaseModel]] = None,
         condition: Optional[Callable[[StepState], bool]] = None,
         metadata: Optional[Dict[str, Any]] = None,
-    ) -> Callable:
+    ) -> Callable[[Callable[..., Dict[str, Any]]], Callable[..., T]]:
         """
-        Step decorator that can be used both with and without an agent
+        Step decorator with support for typed responses using Pydantic models
 
         Example:
             ```python
-            @steps.step("process_data", depends_on=["fetch_data"])
-            def process_data(state: StepState, input_data: Dict[str, Any]) -> Any:
-                # Process the data
-                return processed_data
+            class DataOutput(BaseModel):
+                data: str
+                metadata: Dict[str, Any]
+
+            @steps.step("process_data", 
+                       depends_on=["fetch_data"],
+                       response_model=DataOutput)
+            def process_data(agent: Agent, input_data: Dict[str, Any]) -> Dict[str, Any]:
+                return {"data": "processed", "metadata": {}}
             ```
 
         Args:
             name (str): The name of the step
             depends_on (Optional[List[str]]): The names of the steps that must be executed before this step
+            response_model (Optional[Type[BaseModel]]): Pydantic model for type-safe responses
             condition (Optional[Callable[[StepState], bool]]): A condition that must be met for the step to be executed
             metadata (Optional[Dict[str, Any]]): Metadata for the step
 
         Returns:
-            Callable: The decorated function
+            Callable: The decorated function with typed response
         """
         ...
 
@@ -75,22 +84,25 @@ class Steps:
         """
         ...
 
-    def execute(self) -> Dict[str, Any]:
+    def execute(self) -> BaseModel:
         """
         Execute all steps in the correct order
 
         Example:
             ```python
-            @steps.step("process_data", depends_on=["fetch_data"])
-            def process_data(state: StepState, input_data: Dict[str, Any]) -> Any:
-                # Process the data
-                return processed_data
+            class DataOutput(BaseModel):
+                data: str
+
+            @steps.step("process_data", response_model=DataOutput)
+            def process_data(agent: Agent, input_data: Dict[str, Any]) -> Dict[str, Any]:
+                return {"data": "processed"}
 
             results = steps.execute()
+            print(results.process_data.data)  # Typed access
             ```
 
         Returns:
-            Dict[str, Any]: Results from all completed steps
+            BaseModel: Results from all completed steps in a typed model
         """
         ...
 
