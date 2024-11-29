@@ -237,7 +237,7 @@ def generate_function(
     base_url: Optional[str] = None,
     organization: Optional[str] = None,
     instructor_mode: CompletionInstructorModeParam = "tool_call",
-    mock: bool = False,
+    mock: bool = True,
     return_code: bool = False,
     progress_bar: Optional[bool] = True,
     client: Optional[Completions] = None,
