@@ -746,7 +746,7 @@ The `model_generate()` function contains a `process` argument that is set to `ba
 ```python
 from xnano import GenerativeModel
 
-class Reasoning(BaseModel):
+class Reasoning(GenerativeModel):
     step_1 : str
     step_2 : str
     step_3 : str
