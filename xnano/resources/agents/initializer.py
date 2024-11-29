@@ -36,7 +36,7 @@ def create_agent(
     api_key: Optional[str] = None,
     organization: Optional[str] = None,
     messages: Optional[CompletionMessagesParam] = None,
-    verbose: bool = True,
+    verbose: bool = False,
 ) -> Agent:
     """
     Initializes an agent with the given parameters.
