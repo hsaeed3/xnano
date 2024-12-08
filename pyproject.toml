@@ -7,20 +7,8 @@ readme = "readme.md"
 requires-python = ">=3.9"
 
 dependencies = [
-    "instructor>=1.6.3",
-    "litellm>=1.52.3",
-    "pypdf2>=3.0.1",
-    "qdrant-client>=1.12.1",
-    "questionary>=2.0.1",
-    "rich>=13.9.4",
-    "semchunk>=2.2.0",
-    "sqlalchemy>=2.0.36",
-    "tavily-python>=0.5.0",
-]
 
-[project.optional-dependencies]
-fastembed = ["fastembed>=0.4.1"]
-serve = ["nicegui", "fastapi", "uvicorn", "sse-starlette"]
+]
 
 [project.scripts] 
 xnano = "xnano._cli:app"
