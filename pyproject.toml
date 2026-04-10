@@ -1,46 +1,73 @@
-[project]
-name = "xnano"
-version = "0.0.52"
-description = "build extremely 'nano' llm workflows"
-readme = "readme.md"
-
-requires-python = ">=3.9"
-
-dependencies = [
-    "instructor>=1.6.3",
-    "litellm>=1.52.3",
-    "pypdf2>=3.0.1",
-    "qdrant-client>=1.12.1",
-    "questionary>=2.0.1",
-    "rich>=13.9.4",
-    "semchunk>=2.2.0",
-    "sqlalchemy>=2.0.36",
-    "tavily-python>=0.5.0",
-]
-
-[project.optional-dependencies]
-fastembed = ["fastembed>=0.4.1"]
-serve = ["nicegui", "fastapi", "uvicorn", "sse-starlette"]
-
-[project.scripts] 
-xnano = "xnano._cli:app"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[dependency-groups]
-dev = [
-    "mkdocs-material>=9.5.44",
-    "mkdocs-material-extensions>=1.3.1",
-    "mkdocstrings[python]>=0.27.0",
-    "ruff>=0.7.3",
-    "uv>=0.5.1",
-    "mkdocs-jupyter>=0.25.1",
-    "twine>=5.1.1",
-    "pytest>=7.4.3",
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["xnano"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/deprecated", "/docs", "/tests", "/examples"]
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+bump = true
+
+[project]
+name = "xnano"
+version = "0.0.60"
+description = ""
+authors = [{ name = "Hammad Saeed", email = "hvmmad@gmail.com" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
 ]
 
+[dependency-groups]
+dev = [
+    # rust-based alternative to pre-commit hooks
+    "prek",
+    "logfire",
+    "black",
+    # SORT!
+    "isort",
+    "ruff",
+    "uv",
+    "pytest",
+    "pytest-asyncio",
+    "twine>=6.1.0",
+    # astral.sh alternative to pyright / mypy
+    # we are indeed common enjoyers of astral.sh products
+    "ty",
 
-[tool.hatch.build]
-exclude = ["docs/"]
+    # docs (zensical is a project by the mkdocs-material team, that
+    # aims to be the successor to mkdocs-material and mkdocs itself)
+    "zensical",
+    "mkdocstrings-python",
+]
+
+[tool.uv.build-backend]
+source-exclude = ["/docs", "/tests"]
+wheel-exclude = ["/docs"]
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ["/docs", "/deprecated"]
+
+[tool.ty.src]
+exclude = ["/docs", "/deprecated"]
+
+[tool.ruff.format]
+line-ending = "auto"
