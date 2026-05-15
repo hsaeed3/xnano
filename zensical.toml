@@ -1,0 +1,193 @@
+[project]
+site_name = " "
+site_url = "https://xnano.hammad.app"
+site_description = "Extremely 'Nano' Components for Agentic Context & Harness Engineering."
+site_author = "Hammad Saeed"
+docs_dir = "docs"
+
+repo_name = "hsaeed3/xnano"
+repo_url = "https://github.com/hsaeed3/xnano"
+copyright = """
+Copyright &copy; 2026 Hammad Saeed
+"""
+
+nav = []
+
+extra_css = [
+    "stylesheets/extras.css",
+    "stylesheets/hero.css",
+    "stylesheets/mkdocstrings.css",
+]
+
+extra_javascript = [
+    "js/hero.js",
+    "https://unpkg.com/katex@0/dist/katex.min.js",
+    "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
+    "https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js",
+    "https://unpkg.com/papaparse@5/papaparse.min.js",
+]
+
+[project.theme]
+custom_dir = "docs/overrides"
+language = "en"
+features = [
+    "announce.dismiss",
+    "content.code.annotate",
+    "content.code.copy",
+    "content.code.select",
+    "content.footnote.tooltips",
+    "content.tabs.link",
+    "content.tooltips",
+    "header.autohide",
+    "navigation.footer",
+    "navigation.instant",
+    "navigation.instant.prefetch",
+    "navigation.instant.progress",
+    "navigation.path",
+    # "navigation.prune",
+    "navigation.tabs",
+    "navigation.top",
+    # "navigation.sections",
+    "navigation.tracking",
+    "search.highlight",
+    "toc.follow",
+]
+
+[project.theme.icon]
+logo = "lucide/smile"
+repo = "lucide/smile"
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[project.theme.font]
+text = "iA Writer Quattro S"
+code = "Zed Mono"
+
+[project.home]
+tagline = "fun llm functions and assorted knick-knacks."
+gradient_hsla = "hsla(0, 0%, 100%, 0)"
+description = """
+Extremely **'Nano'** Components for Agentic Context & Harness Engineering.
+"""
+
+[[project.home.buttons]]
+name = "Beta API"
+url = "beta/overview"
+theme = "md-button"
+
+[[project.home.buttons]]
+name = "Documentation"
+url = "documentation/getting-started"
+theme = "md-button"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/hsaeed3/xnano"
+name = "XNano - GitHub"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/python"
+link = "https://pypi.org/project/xnano"
+name = "XNano - PyPI"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/linkedin"
+link = "https://www.linkedin.com/in/hsaeed3"
+name = "Hammad Saeed - LinkedIn"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/spotify"
+link = "https://open.spotify.com/user/hxmmad"
+name = "Some Songs I Like"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+footnotes = {}
+md_in_html = {}
+"mkdocs-click" = {}
+
+[project.markdown_extensions.pymdownx]
+critic = {}
+details = {}
+keys = {}
+snippets = {}
+inlinehilite = {}
+
+[project.markdown_extensions.pymdownx.arithmatex]
+generic = true
+
+[project.markdown_extensions.pymdownx.highlight]
+anchor_linenums = true
+line_spans = "__span"
+pygments_lang_class = true
+
+[project.markdown_extensions.pymdownx.emoji]
+emoji_index = "material.extensions.emoji.twemoji"
+emoji_generator = "material.extensions.emoji.to_svg"
+
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+
+[project.markdown_extensions.toc]
+permalink = true
+title = "On this page"
+permalink_title = "Anchor link to this section for reference"
+
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+    { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+
+[project.plugins.mkdocstrings.handlers.python]
+inventories = ["https://docs.python.org/3/objects.inv"]
+paths = ["lib/catalog", "lib/datautils", "lib/repack"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+inherited_members = true          # false
+merge_init_into_class = true
+parameter_headings = false
+members_order = "source"
+filters = ["!^_", "^__"]
+heading_level = 2
+separate_signature = true
+docstring_section_style = "list"
+backlinks = "tree"
+show_root_heading = true
+show_root_full_path = true
+show_signature_annotations = true
+show_source = true
+show_symbol_type_heading = true
+show_symbol_type_toc = true
+show_root_toc_entry = false
+signature_crossrefs = true
+summary = true
+unwrap_annotated = true
+
+extensions = ["griffe_typingdoc"]
+
+[project.plugins]
+
+[project.plugins."mkdocs-jupyter"]
+ignore_h1_titles = true
+include_source = true
+execute = false
+allow_errors = false
+show_input = true
+include_requirejs = true
+
+[project.plugins.search]
