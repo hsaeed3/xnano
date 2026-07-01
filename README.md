@@ -1,6 +1,6 @@
 # __xnano__
 
-> _`a simple python **tui** framework built on top of the ``[ratatui](https://ratatui.rs)`` and ``[tachyonfx](https://github.com/ratatui/tachyonfx)`` rust libraries.`_
+A simple python **tui** framework built on top of the [ratatui](https://ratatui.rs) and [tachyonfx](https://github.com/ratatui/tachyonfx) rust libraries.
 
 > [!IMPORTANT]
 > The ``xnano`` library is currently going through a complete rebuild of it's primary purpose and API. As the
