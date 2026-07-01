@@ -1,0 +1,39 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v8
+        with:
+          version: "latest"
+
+      - name: Install project (dev)
+        run: uv sync --dev
+
+      - name: Run pre-commit hooks on all files
+        run: uvx pre-commit run --all-files
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Type checking with ty
+        run: uv run ty .
+
+      - name: Tests & Coverage
+        run: uv run pytest --cov=xnano --cov-report=xml
+
+      - name: Upload coverage to Codacy
+        uses: codacy/codacy-coverage-reporter-action@v1
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: coverage.xml
