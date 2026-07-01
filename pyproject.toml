@@ -54,6 +54,12 @@ dev = [
     "mkdocs-click",
     "mkdocstrings-python",
 ]
+benchmark = [
+    "textual",
+    "pytermgui",
+    "urwid",
+    "psutil",
+]
 
 [tool.maturin.env]
 PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
