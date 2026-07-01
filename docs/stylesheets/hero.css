@@ -1,0 +1,142 @@
+/* ---- Hero Image Container ---- */
+.zyx-hero-wrapper {
+    position: relative;
+    display: block;
+    margin: calc(-1 * var(--size-2)) auto 0 auto;
+    /* Decreased negative margin to tighten vertical space */
+    width: var(--size-px-15);
+    /* Increased width for larger appearance (approx 400px) */
+    max-width: 100%;
+    padding: 0;
+}
+
+.zyx-hero-image {
+    display: block;
+    max-width: 100%;
+}
+
+/* ---- Gradient overlay: canvas masked to logo shape ---- */
+.zyx-hero-gradient {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    will-change: contents;
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+}
+
+/* ---- Grain overlay: canvas masked to logo shape ---- */
+.zyx-hero-grain {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+    opacity: 0.40;
+    will-change: contents;
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+}
+
+/* ---- Tighten Content Gaps ---- */
+.hero-tagline {
+    margin-top: calc(-1 * var(--size-5)) !important;
+    position: relative;
+    z-index: var(--layer-2);
+}
+
+.hero-tagline+p[align="center"] {
+    margin-top: calc(-1 * var(--size-2)) !important;
+}
+
+/* ---- Navbar Logo Styling ---- */
+/* Use highly specific selectors to override Material's default 1.2rem logo constraints */
+.md-header__button.md-logo .zyx-nav-logo-wrapper,
+.md-header__button.md-logo .zyx-nav-logo-image {
+    height: 1.8rem !important;
+    /* Increase to match search bar */
+    width: auto !important;
+    vertical-align: middle;
+}
+
+.zyx-nav-logo-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+/* Gradient and grain canvas layers masked to logo shape */
+.zyx-nav-logo-gradient,
+.zyx-nav-logo-grain {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s var(--ease-out-3);
+    /* smooth fade in/out — Open Props easing for buttery transitions */
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+}
+
+.zyx-nav-logo-grain {
+    mix-blend-mode: overlay;
+}
+
+/* On hover, fade them in! */
+.zyx-nav-logo-wrapper:hover .zyx-nav-logo-gradient {
+    opacity: 1;
+}
+
+.zyx-nav-logo-wrapper:hover .zyx-nav-logo-grain {
+    opacity: 0.40;
+}
+
+/* Toggle page hero visibility by theme (light + dark assets in index.md) */
+[data-md-color-scheme="default"] .hero-light,
+[data-md-color-scheme="default"] .zyx-hero-wrapper.hero-light {
+    display: block;
+}
+
+[data-md-color-scheme="default"] .hero-dark,
+[data-md-color-scheme="default"] .zyx-hero-wrapper.hero-dark {
+    display: none;
+}
+
+[data-md-color-scheme="slate"] .hero-light,
+[data-md-color-scheme="slate"] .zyx-hero-wrapper.hero-light {
+    display: none;
+}
+
+[data-md-color-scheme="slate"] .hero-dark,
+[data-md-color-scheme="slate"] .zyx-hero-wrapper.hero-dark {
+    display: block;
+}
+
+/* Toggle visibility by theme scheme */
+[data-md-color-scheme="default"] .zyx-nav-logo-wrapper.logo-light {
+    display: inline-block;
+}
+
+[data-md-color-scheme="default"] .zyx-nav-logo-wrapper.logo-dark {
+    display: none;
+}
+
+[data-md-color-scheme="slate"] .zyx-nav-logo-wrapper.logo-light {
+    display: none;
+}
+
+[data-md-color-scheme="slate"] .zyx-nav-logo-wrapper.logo-dark {
+    display: inline-block;
+}

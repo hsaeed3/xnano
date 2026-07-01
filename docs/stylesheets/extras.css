@@ -1,389 +1,243 @@
+@import url("https://unpkg.com/open-props");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;500;600&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght,MONO@0,300..800,1;1,300..800,1&display=swap');
+
 @font-face {
-  font-family: "Zed Mono";
-  src: url("../fonts/zed-mono-extended.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
+    font-family: "iA Writer Quattro S";
+    src: url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Regular.woff2") format("woff2"),
+        url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Regular.woff") format("woff");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
 }
 
 @font-face {
-  font-family: "Zed Mono";
-  src: url("../fonts/zed-mono-extendedbold.ttf") format("truetype");
-  font-weight: bold;
-  font-style: normal;
+    font-family: "iA Writer Quattro S";
+    src: url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Italic.woff2") format("woff2"),
+        url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Italic.woff") format("woff");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
 }
 
 @font-face {
-  font-family: "Zed Mono";
-  src: url("../fonts/zed-mono-extendedbolditalic.ttf") format("truetype");
-  font-weight: bold;
-  font-style: italic;
+    font-family: "iA Writer Quattro S";
+    src: url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Bold.woff2") format("woff2"),
+        url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Bold.woff") format("woff");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
 }
 
 @font-face {
-  font-family: "Zed Mono";
-  src: url("../fonts/zed-mono-extendeditalic.ttf") format("truetype");
-  font-weight: normal;
-  font-style: italic;
-}
-
-@font-face {
-  font-family: "Zed Sans";
-  src: url("../fonts/zed-sans-extended.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "Zed Sans";
-  src: url("../fonts/zed-sans-extendedbold.ttf") format("truetype");
-  font-weight: bold;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "Zed Sans";
-  src: url("../fonts/zed-sans-extendedbolditalic.ttf") format("truetype");
-  font-weight: bold;
-  font-style: italic;
-}
-
-@font-face {
-  font-family: "Zed Sans";
-  src: url("../fonts/zed-sans-extendeditalic.ttf") format("truetype");
-  font-weight: normal;
-  font-style: italic;
+    font-family: "iA Writer Quattro S";
+    src: url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-BoldItalic.woff2") format("woff2"),
+        url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-BoldItalic.woff") format("woff");
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
 }
 
 :root {
-  --md-text-font: "Zed Sans";
+    --md-code-font: "Google Sans Code", system-ui, -apple-system, BlinkMacSystemFont,
+        'Segoe UI', sans-serif;
 }
 
-:root {
-  --md-code-font: "Zed Mono";
+.md-typeset,
+.md-typeset p,
+.md-typeset li,
+.md-typeset dd,
+.md-typeset td {
+    font-family: "iA Writer Quattro S", Georgia, "Times New Roman", serif;
+    line-height: var(--font-lineheight-3) !important;
+    font-weight: var(--font-weight-5);
+    letter-spacing: var(--font-letterspacing-0);
+    text-rendering: geometricPrecision !important;
 }
 
-/* Styling for code boxes */
-.md-typeset pre {
-  border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+/* Description elements: closer to headers, serif styling */
+.md-typeset description {
+    font-family: "IBM Plex Serif", Georgia, "Times New Roman", serif !important;
+    font-size: 0.95em !important;
 }
 
-.md-typeset code {
-  border-radius: 3px;
-  padding: 0.2em 0.4em;
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4,
+.md-typeset h5,
+.md-typeset h6 {
+    font-family: 'IBM Plex Serif', serif !important;
+    margin-bottom: 0.35em !important;
+    font-weight: var(--font-weight-4) !important;
+    border-bottom: var(--border-size-1) dashed;
+    padding-bottom: 0.8rem;
+    border-color: #21252B;
 }
 
-[data-md-color-scheme="home-light"] {
-  --md-hue: 60deg;
-
-  --md-primary-fg-color:               #F5F5F0;  /* Soft Cream */
-  --md-primary-fg-color--light:        #E8E8E3;  /* Light Cream */
-  --md-primary-fg-color--dark:         #DCDCD7;  /* Muted Cream */
-  --md-primary-bg-color:               #2D2D2D;  /* Soft Charcoal */
-  --md-primary-bg-color--light:        #3D3D3D;  /* Medium Charcoal */
-
-  --md-accent-fg-color:                #89CFF0;  /* Baby Blue */
-  --md-accent-fg-color--transparent:   #89CFF033;  /* Baby Blue with transparency */
-
-  --md-default-fg-color:               #2D2D2D;  /* Soft Charcoal */
-  --md-default-fg-color--light:        #3D3D3D;  /* Medium Charcoal */
-  --md-default-fg-color--lighter:      #4D4D4D;  /* Light Charcoal */
-  --md-default-fg-color--lightest:     #DCDCD7;  /* Muted Cream */
-  --md-default-bg-color:               #F5F5F0;  /* Soft Cream */
-  --md-default-bg-color--light:        #E8E8E3;  /* Light Cream */
-  --md-default-bg-color--lighter:      #DCDCD7;  /* Muted Cream */
-  --md-default-bg-color--lightest:     #E9C7B7;  /* Soft Peach */
-
-  --md-code-fg-color:                  #4A4A4A;  /* Soft Black */
-  --md-code-bg-color:                  #E8E8E3;  /* Light Cream */
-  --md-code-hl-color:                  #DCDCD7;  /* Muted Cream */
-
-  --md-code-hl-number-color:           #F0A07C;  /* Soft Coral */
-  --md-code-hl-special-color:          #F0CF7C;  /* Soft Yellow */
-  --md-code-hl-function-color:         #D7B4D9;  /* Soft Purple */
-  --md-code-hl-constant-color:         #A8D7C2;  /* Soft Mint */
-  --md-code-hl-keyword-color:          #F0A07C;  /* Soft Coral */
-  --md-code-hl-string-color:           #BFD9A8;  /* Soft Green */
-  --md-code-hl-name-color:             #A8C4D9;  /* Soft Blue */
-  --md-code-hl-operator-color:         #A8D7C2;  /* Soft Mint */
-  --md-code-hl-punctuation-color:      #B4B4B4;  /* Soft Gray */
-  --md-code-hl-comment-color:          #C2C2C2;  /* Light Gray */
-  --md-code-hl-generic-color:          #8A8A8A;  /* Medium Gray */
-  --md-code-hl-variable-color:         #A8C4D9;  /* Soft Blue */
-
-  --md-typeset-color:                  var(--md-default-fg-color);
-  --md-typeset-a-color:                #E6A99F;  /* Soft Terracotta */
-
-  --md-typeset-mark-color:             #E9C7B780;  /* Soft Peach with transparency */
-
-  --md-typeset-table-color:            #DCDCD7;  /* Muted Cream */
-  --md-typeset-table-color--light:     #E8E8E3;  /* Light Cream */
-
-  --md-admonition-fg-color:            var(--md-default-fg-color);
-  --md-admonition-bg-color:            var(--md-default-bg-color);
-
-  --md-warning-fg-color:               #2D2D2D;  /* Soft Charcoal */
-  --md-warning-bg-color:               #E9C7B7;  /* Soft Peach */
-
-  --md-footer-fg-color:                #F5F5F0;  /* Soft Cream */
-  --md-footer-fg-color--light:         #E8E8E3;  /* Light Cream */
-  --md-footer-fg-color--lighter:       #DCDCD7;  /* Muted Cream */
-  --md-footer-bg-color:                #2D2D2D;  /* Soft Charcoal */
-  --md-footer-bg-color--dark:          #3D3D3D;  /* Medium Charcoal */
-
-  --md-code-shadow-color:              rgba(0, 0, 0, 0.05);
+/* Index hero ASCII title (injected by hero.js) */
+.md-content__inner:has(.page-index) .zyx-hero-wrapper {
+    display: block;
 }
 
-[data-md-color-scheme="home-dark"] {
-  --md-hue: 220deg;
-
-  --md-primary-fg-color:               #2D2D2D;  /* Soft Charcoal */
-  --md-primary-fg-color--light:        #3D3D3D;  /* Medium Charcoal */
-  --md-primary-fg-color--dark:         #4D4D4D;  /* Light Charcoal */
-  --md-primary-bg-color:               #F5F5F0;  /* Soft Cream */
-  --md-primary-bg-color--light:        #E8E8E3;  /* Light Cream */
-
-  --md-accent-fg-color:                #89CFF0;  /* Baby Blue */
-  --md-accent-fg-color--transparent:   #89CFF033;  /* Baby Blue with transparency */
-
-  --md-default-fg-color:               #F5F5F0;  /* Soft Cream */
-  --md-default-fg-color--light:        #E8E8E3;  /* Light Cream */
-  --md-default-fg-color--lighter:      #DCDCD7;  /* Muted Cream */
-  --md-default-fg-color--lightest:     #1e1e1e;  /* Soft Peach */
-  --md-default-bg-color:               #2D2D2D;  /* Soft Charcoal */
-  --md-default-bg-color--light:        #3D3D3D;  /* Medium Charcoal */
-  --md-default-bg-color--lighter:      #4D4D4D;  /* Light Charcoal */
-  --md-default-bg-color--lightest:     #5D5D5D;  /* Lighter Charcoal */
-
-  --md-code-fg-color:                  #E8E8E3;  /* Light Cream */
-  --md-code-bg-color:                  #3D3D3D;  /* Medium Charcoal */
-  --md-code-hl-color:                  #4D4D4D;  /* Light Charcoal */
-
-  --md-code-hl-number-color:           #FFB5A1;  /* Light Coral */
-  --md-code-hl-special-color:          #FFE5A1;  /* Light Yellow */
-  --md-code-hl-function-color:         #E8C6EA;  /* Light Purple */
-  --md-code-hl-constant-color:         #B8E8D4;  /* Light Mint */
-  --md-code-hl-keyword-color:          #FFB5A1;  /* Light Coral */
-  --md-code-hl-string-color:           #D1E8B8;  /* Light Green */
-  --md-code-hl-name-color:             #B8D5E8;  /* Light Blue */
-  --md-code-hl-operator-color:         #B8E8D4;  /* Light Mint */
-  --md-code-hl-punctuation-color:      #D1D1D1;  /* Light Gray */
-  --md-code-hl-comment-color:          #B8B8B8;  /* Medium Gray */
-  --md-code-hl-generic-color:          #E8E8E8;  /* Off White */
-  --md-code-hl-variable-color:         #B8D5E8;  /* Light Blue */
-
-  --md-typeset-color:                  var(--md-default-fg-color);
-  --md-typeset-a-color:                #E6A99F;  /* Soft Terracotta */
-
-  --md-typeset-mark-color:             #E9C7B780;  /* Soft Peach with transparency */
-
-  --md-typeset-table-color:            #4D4D4D;  /* Light Charcoal */
-  --md-typeset-table-color--light:     #3D3D3D;  /* Medium Charcoal */
-
-  --md-admonition-fg-color:            var(--md-default-fg-color);
-  --md-admonition-bg-color:            var(--md-default-bg-color);
-
-  --md-warning-fg-color:               #2D2D2D;  /* Soft Charcoal */
-  --md-warning-bg-color:               #E9C7B7;  /* Soft Peach */
-
-  --md-footer-fg-color:                #F5F5F0;  /* Soft Cream */
-  --md-footer-fg-color--light:         #E8E8E3;  /* Light Cream */
-  --md-footer-fg-color--lighter:       #DCDCD7;  /* Muted Cream */
-  --md-footer-bg-color:                #2D2D2D;  /* Soft Charcoal */
-  --md-footer-bg-color--dark:          #3D3D3D;  /* Medium Charcoal */
-
-  --md-code-shadow-color:              rgba(0, 0, 0, 0.2);
+/* Hide duplicate markdown h1 — the ASCII hero is the visual title */
+.md-content__inner:has(.page-index) h1:first-of-type {
+    display: none;
 }
 
-/* Apply theme-specific shadow to code boxes */
-.md-typeset pre {
-  box-shadow: 0 2px 6px var(--md-code-shadow-color);
+/* Index tagline alignment */
+.md-content__inner:has(.page-index) .hero-tagline {
+    text-align: center;
+    margin-top: 0.75rem;
 }
 
-/* Ensure inline code uses theme background */
-.md-typeset code:not(pre code) {
-  background-color: var(--md-code-bg-color);
-  color: var(--md-code-fg-color);
+/*
+  !!! LIGHT THEME COLORS !!!
+*/
+[data-md-color-scheme="default"] {
+    --md-default-bg-color: #F4F4ED;
+    --md-primary-bg-color: #F4F4ED;
+
+    --md-accent-fg-color: #102044;
+    --md-accent-bg-color: #124ECF;
+
+    --md-footer-bg-color: #F3F1EB;
+    --md-footer-bg-color--dark: #F3F1EB;
 }
 
-/* Add horizontal padding to headers */
-.md-header_inner {
-  margin-left: 20px;
-  margin-right: 20px;
+/*
+  !!! LIGHT THEME COLOR OVERRIDES !!!
+*/
+[data-md-color-scheme="default"] .md-header {
+    background-color: #F4F4ED;
 }
 
-.md-header--lifted {
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
+[data-md-color-scheme="default"] .md-footer-meta {
+    background-color: #F4F4ED;
 }
 
-.md-tabs {
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
+/* H1 Coloring */
+[data-md-color-scheme="default"] .md-typeset h1 {
+    color: #124ECF;
 }
 
-.md-header--shadow {
-  margin-left: 20px;
-  margin-right: 20px;
+/* Banner Announcement over Header */
+[data-md-color-scheme="default"] .md-banner {
+    background-color: transparent;
 }
 
-.md-footer {
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-  margin-left: 20px;
-  margin-right: 20px;
+/* Code Blocks Override */
+[data-md-color-scheme="default"] .highlight {
+    border-radius: var(--radius-2);
+    border: var(--border-size-1) solid #124ECF;
+    box-shadow: #124ECF33 4px 4px 0px 0px;
+    position: relative;
+    overflow: hidden; /* cleanly clips the header and code body rounded corners */
 }
 
-.md-footer-meta {
-  margin-left: 20px;
-  margin-right: 20px;
+/*
+  !!! DARK THEME COLORS !!!
+*/
+[data-md-color-scheme="slate"] {
+    --md-default-bg-color: #141519;
+    --md-primary-bg-color: #141519;
+
+    --md-primary-fg-color: #DEDCD1;
+
+    --md-accent-bg-color: #102044;
+    --md-accent-fg-color: #85ACFA;
+
+    --md-footer-bg-color: #0E1014;
+    --md-footer-bg-color--dark: #0E1014;
 }
 
-.md-ellipsis {
-  position: relative;
+/*
+  !!! DARK THEME COLOR OVERRIDES !!!
+*/
+[data-md-color-scheme="slate"] .md-header {
+    background-color: #141519;
 }
 
-.md-header__title .md-ellipsis {
-  position: relative;
+[data-md-color-scheme="slate"] .md-footer-meta {
+    background-color: #141519;
 }
 
-.jupyter-wrapper .highlight pre {
-  background-color: #1e1e1e !important;
+/* H1 Coloring */
+[data-md-color-scheme="slate"] .md-typeset h1 {
+    color: #8EC6FF;
 }
 
-.jupyter-wrapper .CodeMirror {
-  background-color: #1e1e1e !important;
+/* Banner Announcement over Header */
+[data-md-color-scheme="slate"] .md-banner {
+    background-color: transparent;
 }
 
-.grid.cards {
-  border-radius: 6px;
+/* Code Blocks Override */
+[data-md-color-scheme="slate"] .highlight {
+    border-radius: var(--radius-2);
+    border: var(--border-size-1) solid #2A3856;
+    box-shadow: #2A385633 4px 4px 0px 0px;
+    position: relative;
+    overflow: hidden; /* cleanly clips the header and code body rounded corners */
 }
 
-.md-footer-meta {
-  border-top-left-radius : 10px;
-  border-top-right-radius : 10px;
+/* Strip default borders/shadows/radius from the child pre tag so they sit perfectly in the wrapper */
+.highlight pre {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
 }
 
-.md-nav__item--section {
-  font-family: var(--md-text-font);
-  color: var(--md-default-fg-color);
-  font-style: bold;
-  font-size: 1.2em;
+/* Beautiful seamless integrated filename header bar */
+.highlight > span.filename {
+    display: flex;
+    align-items: baseline;
+    gap: var(--size-3);
+    margin-top: 0; /* override theme .highlight span.filename { margin-top: 1em } */
+    padding: var(--size-2) 1.1764705882em; /* match .md-typeset pre > code horizontal padding */
+    font-family: var(--md-code-font), monospace;
+    font-size: 0.78em;
+    font-weight: var(--font-weight-6);
+    letter-spacing: var(--font-letterspacing-2);
+    text-transform: uppercase;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom: var(--border-size-1) solid;
 }
 
-.md-nav__link {
-  font-family: var(--md-text-font);
-  color: var(--md-default-fg-color);
-  font-style: normal;
-  font-size: 0.95em;
+.highlight > span.filename .code-lang {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: var(--font-size-0);
+    font-weight: var(--font-weight-7);
+    letter-spacing: var(--font-letterspacing-2);
+    text-transform: uppercase;
 }
 
-.jp-InputArea-editor {
-  background: var(--md-code-bg-color);
-  border-radius: 12px;
+/* Keep the code body flush with the wrapper border */
+.highlight:has(> span.filename) > pre > code {
+    border-radius: 0;
 }
 
-.highlight-ipynb {
-  font-family: var(--md-code-font) !important;
-  font-size: 16px !important;
+[data-md-color-scheme="default"] .highlight > span.filename {
+    background-color: #e9e7dc;
+    color: #102044;
+    border-color: #85ACFA;
 }
 
-/* Comments */
-.highlight-ipynb .c1 {
-  color: var(--md-code-hl-comment-color) !important;
-  font-style: italic;
+[data-md-color-scheme="default"] .highlight > span.filename .code-lang {
+    color: #124ecf;
+    opacity: 0.85;
 }
 
-.highlight-ipynb .sd {
-  color: var(--md-code-hl-comment-color) !important;
-  font-style: italic;
+[data-md-color-scheme="slate"] .highlight > span.filename {
+    background-color: #0e1014;
+    color: #dedcd1;
+    border-color: #2A3856;
 }
 
-.highlight-ipynb .s2 {
-  color: var(--md-code-hl-string-color) !important;
-}
-
-.highlight-ipynb .s1 {
-  color: var(--md-code-hl-string-color) !important;
-}
-
-/* Keywords ('import', 'def', etc.) */
-.highlight-ipynb .kn {
-  color: var(--md-code-hl-keyword-color) !important;
-  font-style: italic;
-}
-
-.highlight-ipynb .k {
-  color: var(--md-code-hl-keyword-color) !important;
-  font-style: italic;
-}
-
-/* types */
-.highlight-ipynb .nb {
-  color: var(--md-code-hl-constant-color) !important;
-  font-style: italic;
-}
-
-/* Names (function names, variable names, etc.) */
-.highlight-ipynb .nn {
-  color: var(--md-code-hl-function-color) !important;
-}
-
-.highlight-ipynb .n {
-  color: var(--md-code-hl-name-color) !important;
-}
-
-/* Operators ('+', '-', '*', etc.) */
-.highlight-ipynb .o {
-  color: var(--md-code-hl-operator-color) !important;
-}
-
-/* Parentheses */
-.highlight-ipynb .p {
-  color: var(--md-code-hl-punctuation-color) !important;
-}
-
-
-
-.jp-InputPrompt {
-  flex: 0 0 var(--jp-cell-prompt-width);
-  padding: 6px;
-  font-family: var(--md-code-font);
-  letter-spacing: 1px;
-  line-height: 1.6;
-  font-size: var(--jp-code-font-size);
-  border: var(--jp-border-width) solid transparent;
-}
-
-.CodeMirror {
-  background-color: var(--md-code-bg-color) !important;
-  color: var(--md-code-fg-color) !important;
-}
-
-.jp-CodeMirrorEditor {
-  border-radius: 12px !important;
-}
-
-.jp-Editor {
-  border-radius: 12px !important;
-}
-
-.jp-InputArea-editor {
-  border-radius: 12px !important;
-  border: none !important;
-  padding: 8px !important;
-  background-color: #1e1e1e !important;
-}
-
-.jp-InputArea-prompt {
-  color: var(--md-code-fg-color) !important;
-}
-
-.jp-OutputArea-output {
-  background-color: #1e1e1e !important;
-  border-radius: 12px !important;
-  padding-left: 8px !important;
-  padding-right: 8px !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
-  font-size: 14px !important;
+[data-md-color-scheme="slate"] .highlight > span.filename .code-lang {
+    color: #85acfa;
+    opacity: 0.85;
 }

@@ -1,144 +1,40 @@
-# xnano
-# hammad saeed // 2024
+"""xnano — A Pythonic TUI framework built on ratatui and tachyonfx.
 
-__all__ = [
-    # lib level resource
-    # exported at top level
-    "console",
-    # ----------------------------------------
-    # agents
-    # ----------------------------------------
-    "Agent",
-    "create_agent",
-    "Steps",
-    # ----------------------------------------
-    # completions
-    # ----------------------------------------
-    "completion",
-    "async_completion",
-    # ----------------------------------------
-    # data
-    # ----------------------------------------
-    "Database",
-    "VectorStore",
-    # ----------------------------------------
-    # generators
-    # ----------------------------------------
-    "generate_code",
-    "generate_function",
-    "generate_classification",
-    "async_generate_classification",
-    "generate_chunks",
-    "generate_extraction",
-    "async_generate_extraction",
-    "generate_sql",
-    "generate_system_prompt",
-    "generate_qa_pairs",
-    "generate_answers",
-    "generate_questions",
-    "generate_validation",
-    "async_generate_validation",
-    # multimodal
-    "multimodal_generate_image",
-    "multimodal_generate_audio",
-    "multimodal_generate_transcription",
-    # ----------------------------------------
-    # models
-    # ----------------------------------------
-    "GenerativeModel",
-    "model_patch",
-    "model_unpatch",
-    # ----------------------------------------
-    # utils
-    # ----------------------------------------
-    "convert_yaml_to_pydantic",
-    "format_messages",
-    "repair_messages",
-    "verify_messages_integrity",
-    "swap_system_prompt",
-    "convert_to_openai_tool",
-    "MessageUtils",
-    "Tools",
-    # ----------------------------------------
-    # text
-    # ----------------------------------------
-    "text_reader",
-    "text_embeddings",
-    "text_chunker",
-]
+``xnano`` provides a rich set of terminal UI primitives for building
+interactive terminal applications in Python, powered by Rust bindings
+to the ``ratatui`` rendering engine and ``tachyonfx`` effect system.
 
-# ----------------------------------------
-# lib level resources
-# ----------------------------------------
+Quick Start::
 
-from .lib import console
+    from xnano.events import EventHandler, poll_event, on_key
+    from xnano.terminal import Terminal
+    from xnano.layout import Layout, Constraint, Rectangle
+    from xnano.widget import Paragraph, Block
+    from xnano.style import Style
 
-# ----------------------------------------
-# agents
-# ----------------------------------------
+    handler = EventHandler()
 
-from .agents import Agent, create_agent, Steps
+    @handler.on_key("ctrl+c", "q")
+    def quit(event):
+        raise SystemExit
 
-# ----------------------------------------
-# completions
-# ----------------------------------------
+    with Terminal() as term:
+        while True:
+            event = poll_event(100)
+            if event:
+                handler.dispatch(event)
 
-from .completions import completion, async_completion
+            term.draw(lambda frame: frame.render_widget(
+                Paragraph("Hello, xnano!", block=Block(borders="all")),
+                frame.area(),
+            ))
+"""
 
-# ----------------------------------------
-# data
-# ----------------------------------------
+from __future__ import annotations
 
-from .data import Database, VectorStore
-
-# ----------------------------------------
-# generators
-# ----------------------------------------
-
-from .generators import (
-    generate_code,
-    generate_function,
-    generate_classification,
-    async_generate_classification,
-    generate_chunks,
-    generate_extraction,
-    async_generate_extraction,
-    generate_sql,
-    generate_system_prompt,
-    generate_qa_pairs,
-    generate_answers,
-    generate_questions,
-    generate_validation,
-    async_generate_validation,
-    # multimodal
-    multimodal_generate_image,
-    multimodal_generate_audio,
-    multimodal_generate_transcription,
+from xnano.events import (
+    Event,
+    on_key,
+    on_mouse,
 )
-
-# ----------------------------------------
-# models
-# ----------------------------------------
-
-from .models import GenerativeModel, model_patch, model_unpatch
-
-# ----------------------------------------
-# utils
-# ----------------------------------------
-
-from .resources.utils._routing import (
-    convert_yaml_to_pydantic,
-    format_messages,
-    repair_messages,
-    verify_messages_integrity,
-    swap_system_prompt,
-    convert_to_openai_tool,
-    MessageUtils,
-    Tools,
-)
-
-# ----------------------------------------
-# text
-# ----------------------------------------
-
-from .text import text_reader, text_embeddings, text_chunker
+from xnano.terminal import Terminal

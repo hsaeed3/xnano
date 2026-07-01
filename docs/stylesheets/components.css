@@ -1,0 +1,23 @@
+.z-card {
+    border: 1px solid var(--z-border);
+    border-radius: var(--z-radius);
+    box-shadow: var(--z-shadow);
+    padding: var(--size-5);
+    background: var(--z-surface);
+}
+
+.z-grid {
+    display: grid;
+    gap: var(--size-4);
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.z-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-2);
+    border-radius: var(--radius-2);
+    padding: var(--size-2) var(--size-4);
+    font-weight: var(--font-weight-6);
+    text-decoration: none;
+}
