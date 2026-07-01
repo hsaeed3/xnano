@@ -14,6 +14,17 @@ xnano is a **zero dependency** (aside from rust crates) python library that port
 
 ---
 
+## Installation
+
+> [!IMPORTANT]
+> Ensure all versions of `xnano` installed are above `0.99.0`
+
+```bash
+pip install 'xnano>=0.99.0'
+```
+
+---
+
 ## Examples
 
 **Agent Chat**
