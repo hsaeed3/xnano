@@ -8,6 +8,9 @@ A simple python **tui** framework built on top of the [ratatui](https://ratatui.
 > the stable ``1.0.0`` release.
 >
 > Docs will soon be available at: [xnano.hammad.app](https://xnano.hammad.app).
+>
+
+xnano is a **zero dependency** (aside from rust crates) python library that ports various capabilities of the [ratatui](https://ratatui.rs) and [tachyonfx](https://github.com/ratatui/tachyonfx) rust terminal UI libraries into an API that aims to feel as pythonic as possible.
 
 ---
 
@@ -17,25 +20,25 @@ A simple python **tui** framework built on top of the [ratatui](https://ratatui.
 
 [View Example](https://github.com/hsaeed3/xnano/blob/main/examples/agent_chat.py)
 
-![Agent Chat Example](https://github.com/hsaeed3/xnano/blob/main/examples/agent_chat.gif?raw=true)
+![Example](./docs/assets/demos/agent_chat.gif)
 
-**Dashboard**
+### Dashboard
 
 [View Example](https://github.com/hsaeed3/xnano/blob/main/examples/dashboard.py)
 
-![Dashboard Example](https://github.com/hsaeed3/xnano/blob/main/examples/dashboard.gif?raw=true)
+![Example](./docs/assets/demos/dashboard.gif)
 
-**Effects Demo**
+### Effects Demo
 
 [View Example](https://github.com/hsaeed3/xnano/blob/main/examples/effects_demo.py)
 
-![Effects Demo Example](https://github.com/hsaeed3/xnano/blob/main/examples/effects_demo.gif?raw=true)
+![Example](./docs/assets/demos/effects_demo.gif)
 
-**Tab Navigation**
+### Tab Navigation
 
 [View Example](https://github.com/hsaeed3/xnano/blob/main/examples/tabs_nav.py)
 
-![Tab Navigation Example](https://github.com/hsaeed3/xnano/blob/main/examples/tabs_nav.gif?raw=true)
+![Example](./docs/assets/demos/tabs_nav.gif)
 
 ---
 

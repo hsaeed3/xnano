@@ -193,6 +193,30 @@ def test_terminal_management():
         with pytest.raises(ValueError, match="Invalid draw tuple"):
             bridge_cb_cberr(mock_native_frame)
         
+        # Test Frame.render sequence/widget rendering
+        # 1. Sequence rendering
+        mock_native_frame.render_widget.reset_mock()
+        mock_native_frame.render_stateful_widget.reset_mock()
+        frame = Frame._from_core(mock_native_frame)
+        frame.render([
+            mock_widget,
+            (mock_widget, mock_area),
+            (mock_widget, mock_area, mock_state)
+        ])
+        assert mock_native_frame.render_widget.call_count == 2
+        assert mock_native_frame.render_stateful_widget.call_count == 1
+
+        # 2. Single widget rendering
+        mock_native_frame.render_widget.reset_mock()
+        frame.render(mock_widget)
+        assert mock_native_frame.render_widget.call_count == 1
+
+        # 3. Invalid tuple length in Frame.render
+        with pytest.raises(ValueError, match="Invalid draw tuple"):
+            frame.render([
+                (mock_widget, mock_area, mock_state, "extra")
+            ])
+
         # Context manager
         with term as t:
             assert t is term

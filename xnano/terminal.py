@@ -39,20 +39,67 @@ class Frame:
         """Return the total renderable area of this frame."""
         return Rectangle._from_core(self._inner.area())
 
-    def render_widget(self, widget: Any, area: Rectangle) -> None:
+    def render_widget(self, widget: Any, area: RectangleLike) -> None:
         """Render a widget into the given area."""
+        resolved_area = _resolve_rectangle(area)
         if isinstance(widget, str):
             from xnano.widgets import Paragraph
             widget = Paragraph(widget)
-        self._inner.render_widget(unwrap(widget), area._to_core())
+        self._inner.render_widget(unwrap(widget), resolved_area._to_core())
 
     def render_stateful_widget(
-        self, widget: Any, area: Rectangle, state: Any
+        self, widget: Any, area: RectangleLike, state: Any
     ) -> None:
         """Render a stateful widget with its mutable state."""
+        resolved_area = _resolve_rectangle(area)
         self._inner.render_stateful_widget(
-            unwrap(widget), area._to_core(), unwrap(state)
+            unwrap(widget), resolved_area._to_core(), unwrap(state)
         )
+
+    def render(
+        self,
+        renderable: Sequence[
+            Any
+            | tuple[Any, RectangleLike]
+            | tuple[Any, RectangleLike, Any]
+        ]
+        | Any,
+        area: RectangleLike | None = None,
+    ) -> None:
+        """Render a widget or sequence of widgets into this frame.
+
+        Args:
+            renderable: A single widget to render, or a sequence of widgets
+                or layout tuples ``(widget, area)`` or ``(widget, area, state)``.
+            area: Default area to render into if rendering a single widget.
+                If not specified, defaults to the entire frame area.
+        """
+        if isinstance(renderable, Sequence) and not isinstance(
+            renderable, (str, bytes)
+        ):
+            for item in renderable:
+                if isinstance(item, tuple):
+                    if len(item) == 2:
+                        widget, item_area = item
+                        self.render_widget(widget, item_area)
+                    elif len(item) == 3:
+                        widget, item_area, state = item
+                        self.render_stateful_widget(widget, item_area, state)
+                    else:
+                        raise ValueError(
+                            f"Invalid draw tuple: {item!r}. "
+                            f"Expected 2 or 3 elements."
+                        )
+                else:
+                    self.render_widget(
+                        item,
+                        area if area is not None else self.area(),
+                    )
+        else:
+            self.render_widget(
+                renderable,
+                area if area is not None else self.area(),
+            )
 
     def set_cursor_position(self, position: Position) -> None:
         """Set the terminal cursor position for this frame."""
