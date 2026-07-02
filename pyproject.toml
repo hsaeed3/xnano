@@ -1,11 +1,20 @@
 [build-system]
-requires = ["maturin>=1.7,<2.0"]
-build-backend = "maturin"
+requires = ["uv_build>=0.11.26,<0.12"]
+build-backend = "uv_build"
 
-[tool.maturin]
-features = ["pyo3/extension-module"]
-module-name = "xnano._core"
-python-source = ""
+[tool.uv]
+managed = true
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.uv.sources]
+xnano-core = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "xnano-core"
+]
 
 [project]
 name = "xnano"
@@ -23,6 +32,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
+]
+dependencies = [
+    "xnano-core>=0.0.1",
 ]
 
 [dependency-groups]
