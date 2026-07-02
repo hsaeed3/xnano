@@ -16,6 +16,7 @@ rust-version = "1.88"
 [lib]
 name = "xnano_core"
 crate-type = ["cdylib", "rlib"]
+path = "rust/src/lib.rs"
 
 [dependencies]
 crossterm = "0.28"
@@ -26,5 +27,5 @@ ratatui-core = "0.1"
 tachyonfx = "0.25"
 
 [package.metadata.maturin]
-name = "xnano._core"
-python-source = ""
+name = "xnano_core"
+python-source = "python/xnano_core"
