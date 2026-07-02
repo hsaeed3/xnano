@@ -269,7 +269,7 @@ class Text:
     def text(self) -> str:
         """Return the plain text content of this ``Text``."""
         return "\n".join(self.lines())
-   
+
     @classmethod
     def _from_core(cls, inner: _core.Text) -> Text:
         """Construct a Text object from the native ``_core.Text``."""

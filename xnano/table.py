@@ -140,7 +140,7 @@ class Table:
         )
     """
 
-    __slots__ = ("_inner",)
+    __slots__ = ("_inner", "width", "height")
     _inner: _core.RatTable
 
     def __init__(
@@ -158,6 +158,9 @@ class Table:
         highlight_symbol: Content | None = None,
         highlight_spacing: HighlightSpacingName | None = None,
         column_spacing: int | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        class_name: str | None = None,
     ) -> None:
         """Create a Table.
 
@@ -174,7 +177,15 @@ class Table:
             highlight_symbol: Symbol drawn next to selected row.
             highlight_spacing: Highlight spacing mode.
             column_spacing: Inter-column spacing gap in cells.
+            width: Optional fixed width constraint.
+            height: Optional fixed height constraint.
+            class_name: Optional space-separated Tailwind utility classes.
         """
+        from xnano.widgets import _merge_tailwind
+
+        style, width, height, block = _merge_tailwind(
+            class_name, style, width, height, block
+        )
         inner = _core.RatTable.new(
             [row._to_core() for row in rows],
             [w._to_core() for w in widths],
@@ -205,7 +216,14 @@ class Table:
         if column_spacing is not None:
             inner = inner.column_spacing(column_spacing)
 
+        if width is None and block is not None:
+            width = getattr(block, "width", None)
+        if height is None and block is not None:
+            height = getattr(block, "height", None)
+
         object.__setattr__(self, "_inner", inner)
+        object.__setattr__(self, "width", width)
+        object.__setattr__(self, "height", height)
 
     @classmethod
     def _from_core(cls, inner: _core.RatTable) -> Table:

@@ -163,11 +163,17 @@ class TestStyle:
         assert s is not None
 
     def test_style_with_all_options(self):
-        s = Style(foreground="red", background="blue", modifiers=["bold", "italic"])
+        s = Style(
+            foreground="red", background="blue", modifiers=["bold", "italic"]
+        )
         assert s is not None
 
     def test_style_from_parts(self):
-        s = Style.from_parts(fg=Color(r=255, g=0, b=0, a=255), bg=Color(r=0, g=0, b=255, a=255), modifiers=Modifier("bold"))
+        s = Style.from_parts(
+            fg=Color(r=255, g=0, b=0, a=255),
+            bg=Color(r=0, g=0, b=255, a=255),
+            modifiers=Modifier("bold"),
+        )
         assert s is not None
 
     def test_style_patch(self):

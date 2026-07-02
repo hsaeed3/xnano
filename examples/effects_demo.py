@@ -171,16 +171,18 @@ def main() -> None:
         while True:
             # Poll for input with a tiny 16ms wait to achieve 60 FPS update rate!
             event = poll_event(16)
-            if event and event.key and event.key.is_press:
-                if event.key.matches("ctrl+c") or event.key.matches("q"):
+            if event and event.keyboard and event.keyboard.is_press:
+                if event.keyboard.matches("ctrl+c") or event.keyboard.matches(
+                    "q"
+                ):
                     break
-                elif event.key.matches("c"):
+                elif event.keyboard.matches("c"):
                     demo.trigger_coalesce()
-                elif event.key.matches("f"):
+                elif event.keyboard.matches("f"):
                     demo.trigger_fade()
-                elif event.key.matches("d"):
+                elif event.keyboard.matches("d"):
                     demo.trigger_dissolve()
-                elif event.key.matches("s"):
+                elif event.keyboard.matches("s"):
                     demo.trigger_sweep()
 
             # Calculate time delta for fluid animation processing

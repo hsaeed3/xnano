@@ -12,7 +12,16 @@ from xnano.widgets import (
     Clear,
     ListDirectionName,
 )
-from xnano.style import Style, Borders, Padding, ModifierName, HighlightSpacingName, TitlePositionName, BorderTypeName, Wrap
+from xnano.style import (
+    Style,
+    Borders,
+    Padding,
+    ModifierName,
+    HighlightSpacingName,
+    TitlePositionName,
+    BorderTypeName,
+    Wrap,
+)
 from xnano.layout import Rectangle
 from xnano.text import Line, Span
 
@@ -41,7 +50,14 @@ class TestBlock:
         assert b is not None
 
     def test_block_with_border_type(self):
-        for bt in ["plain", "rounded", "double", "thick", "quadrant_inside", "quadrant_outside"]:
+        for bt in [
+            "plain",
+            "rounded",
+            "double",
+            "thick",
+            "quadrant_inside",
+            "quadrant_outside",
+        ]:
             b = Block(border_type=bt)
             assert b is not None
 
@@ -401,7 +417,7 @@ class TestWidgetInternals:
         ls.scroll_down_by(1)
         ls.scroll_up_by(1)
         assert isinstance(ls.offset, int)
-        
+
         ls2 = ListState._from_core(ls._to_core())
         assert repr(ls2) == repr(ls)
 

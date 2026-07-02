@@ -219,6 +219,7 @@ class TestRectangle:
 
     def test_rectangle_from_core(self):
         import xnano._core as core
+
         r = Rectangle._from_core(core.Rect(5, 10, 50, 25))
         assert r.x == 5
         assert r.y == 10
@@ -291,7 +292,10 @@ class TestConstraint:
         assert len(constraints) == 3
 
     def test_constraint_invalid_instantiation(self):
-        with pytest.raises(TypeError, match="Constraint instances are created via factory methods"):
+        with pytest.raises(
+            TypeError,
+            match="Constraint instances are created via factory methods",
+        ):
             Constraint()
 
     def test_constraint_to_core(self):
@@ -372,7 +376,14 @@ class TestLayout:
 
     def test_layout_all_flex_modes(self):
         r = Rectangle(x=0, y=0, width=100, height=100)
-        for mode in ["legacy", "start", "end", "center", "space_between", "space_around"]:
+        for mode in [
+            "legacy",
+            "start",
+            "end",
+            "center",
+            "space_between",
+            "space_around",
+        ]:
             layout = Layout(
                 direction="vertical",
                 constraints=[Constraint.fill(1)],
@@ -382,12 +393,16 @@ class TestLayout:
             assert splits is not None
 
     def test_layout_to_core(self):
-        layout = Layout(direction="vertical", constraints=[Constraint.length(10)])
+        layout = Layout(
+            direction="vertical", constraints=[Constraint.length(10)]
+        )
         core_layout = layout._to_core()
         assert core_layout is not None
 
     def test_layout_get_core(self):
-        layout = Layout(direction="vertical", constraints=[Constraint.length(10)])
+        layout = Layout(
+            direction="vertical", constraints=[Constraint.length(10)]
+        )
         core_layout = layout.get_core_layout()
         assert core_layout is not None
 
@@ -401,13 +416,13 @@ class TestLayout:
         # - string digits -> length
         l = Layout(
             direction="vertical",
-            constraints=[10, 0.25, "50%", "fill", "*", "3*", "15"]
+            constraints=[10, 0.25, "50%", "fill", "*", "3*", "15"],
         )
         assert l is not None
-        
+
         # Test invalid constraint type
         with pytest.raises(TypeError, match="Invalid constraint"):
-            Layout(constraints=[(1, 2, 3)]) # type: ignore
+            Layout(constraints=[(1, 2, 3)])  # type: ignore
 
     def test_layout_split_with_tuple_area(self):
         l = Layout(direction="vertical", constraints=[10])
@@ -416,17 +431,18 @@ class TestLayout:
         assert len(splits) == 1
         assert splits[0].width == 100
         assert splits[0].height == 10
-        
+
         # Test invalid rectangle type
         with pytest.raises(TypeError, match="expected Rectangle or 4-tuple"):
-            l.split(123) # type: ignore
+            l.split(123)  # type: ignore
 
     def test_layout_map(self):
         l = Layout(direction="vertical", constraints=[10, 20])
         widgets = ["header", "body"]
         states = ["h_state", "b_state"]
-        
+
         from typing import cast, Any
+
         # Map widgets and states to 4-tuple area
         mapping = l.map((0, 0, 100, 100), widgets, states)
         assert len(mapping) == 2
@@ -434,27 +450,24 @@ class TestLayout:
         assert item0[0] == "header"
         assert item0[1].height == 10
         assert item0[2] == "h_state"
-        
+
         # Map widgets without states
         mapping2 = l.map((0, 0, 100, 100), widgets)
         assert len(mapping2) == 2
         assert len(mapping2[0]) == 2
         assert mapping2[0][0] == "header"
-        
+
         # Test ValueError when more widgets than splits
         with pytest.raises(ValueError, match="More widgets"):
             l.map((0, 0, 100, 100), ["w1", "w2", "w3"])
 
     def test_layout_named_constraints(self):
         from typing import cast, Any
+
         # 1. Named constraints in split
         l = Layout(
             direction="vertical",
-            constraints={
-                "header": 3,
-                "body": "fill",
-                "footer": 3
-            }
+            constraints={"header": 3, "body": "fill", "footer": 3},
         )
         splits = l.split((0, 0, 100, 100))
         assert isinstance(splits, dict)
@@ -462,17 +475,12 @@ class TestLayout:
         assert splits["header"].height == 3
         assert splits["body"].height == 94
         assert splits["footer"].height == 3
-        
+
         # 2. Named constraints in map
         mapping = l.map(
             (0, 0, 100, 100),
-            widgets={
-                "header": "header_widget",
-                "body": "body_widget"
-            },
-            states={
-                "body": "body_state"
-            }
+            widgets={"header": "header_widget", "body": "body_widget"},
+            states={"body": "body_state"},
         )
         assert len(mapping) == 2
         item0 = cast(tuple[Any, Any, Any], mapping[0])

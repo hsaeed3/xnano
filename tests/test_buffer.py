@@ -19,7 +19,10 @@ class TestBuffer:
         assert buf.area.height == 5
 
     def test_buffer_invalid_instantiation(self):
-        with pytest.raises(TypeError, match="Buffer instances must be created using factory methods"):
+        with pytest.raises(
+            TypeError,
+            match="Buffer instances must be created using factory methods",
+        ):
             Buffer()
 
     def test_buffer_immutability(self):
@@ -27,7 +30,9 @@ class TestBuffer:
         with pytest.raises(AttributeError, match="Buffer is immutable"):
             buf.x = 10
         with pytest.raises(AttributeError, match="Buffer is immutable"):
-            buf._inner = _core.Buffer.empty(Rectangle(x=0, y=0, width=10, height=5)._to_core())
+            buf._inner = _core.Buffer.empty(
+                Rectangle(x=0, y=0, width=10, height=5)._to_core()
+            )
 
     def test_buffer_cell_symbol(self):
         buf = Buffer.empty(Rectangle(x=0, y=0, width=10, height=5))
@@ -107,9 +112,12 @@ class TestBuffer:
     def test_buffer_instance_render_stateful_widget(self):
         buf = Buffer.empty(Rectangle(x=0, y=0, width=20, height=10))
         from xnano.widgets import ListView, ListItem
+
         list_view = ListView([ListItem("A")])
         state = ListState()
-        buf.render_stateful_widget(list_view, Rectangle(x=0, y=0, width=20, height=10), state)
+        buf.render_stateful_widget(
+            list_view, Rectangle(x=0, y=0, width=20, height=10), state
+        )
 
 
 class TestRenderFunctions:
@@ -130,20 +138,26 @@ class TestRenderFunctions:
     def test_render_stateful_widget_list(self):
         buf = Buffer.empty(Rectangle(x=0, y=0, width=20, height=10))
         from xnano.widgets import ListView, ListItem
+
         list_view = ListView([ListItem("A"), ListItem("B"), ListItem("C")])
         state = ListState()
         state.select(1)
-        render_stateful_widget(list_view, Rectangle(x=0, y=0, width=20, height=10), state, buf)
+        render_stateful_widget(
+            list_view, Rectangle(x=0, y=0, width=20, height=10), state, buf
+        )
 
     def test_render_stateful_widget_table(self):
         buf = Buffer.empty(Rectangle(x=0, y=0, width=40, height=10))
         from xnano.table import Table, Row, Cell, TableState
+
         table = Table(
             [Row([Cell("A"), Cell("B")])],
             [Constraint.length(10), Constraint.length(10)],
         )
         state = TableState(selected=0)
-        render_stateful_widget(table, Rectangle(x=0, y=0, width=40, height=10), state, buf)
+        render_stateful_widget(
+            table, Rectangle(x=0, y=0, width=40, height=10), state, buf
+        )
 
     def test_buffer_tuple_shorthands(self):
         # 1. empty with 4-tuple
@@ -161,13 +175,14 @@ class TestRenderFunctions:
 
         # 3. render_stateful_widget with 4-tuple
         from xnano.widgets import ListView, ListItem
+
         list_view = ListView([ListItem("A")])
         state = ListState()
         buf.render_stateful_widget(list_view, (0, 0, 20, 5), state)
 
         # 4. render_widget function with 4-tuple and string
         render_widget("TestHelper", (0, 0, 20, 5), buf)
-        
+
         # 5. render_stateful_widget function with 4-tuple
         render_stateful_widget(list_view, (0, 0, 20, 5), state, buf)
 
@@ -175,15 +190,14 @@ class TestRenderFunctions:
         buf = Buffer.empty((0, 0, 40, 20))
         para = Paragraph("Item")
         from xnano.widgets import ListView, ListItem
+
         list_view = ListView([ListItem("A")])
         state = ListState()
 
         # Render list/sequence of items
-        buf.render([
-            para,
-            (para, (0, 5, 20, 5)),
-            (list_view, (0, 10, 20, 5), state)
-        ])
+        buf.render(
+            [para, (para, (0, 5, 20, 5)), (list_view, (0, 10, 20, 5), state)]
+        )
         assert "Item" in buf.lines()[0]
         assert "Item" in buf.lines()[5]
 
@@ -199,6 +213,4 @@ class TestRenderFunctions:
 
         # Invalid tuple length
         with pytest.raises(ValueError, match="Invalid draw tuple"):
-            buf.render([
-                (para, (0, 0, 20, 5), state, "extra")
-            ])
+            buf.render([(para, (0, 0, 20, 5), state, "extra")])

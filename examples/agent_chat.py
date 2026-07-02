@@ -10,7 +10,7 @@ import sys
 import time
 
 from xnano.color import Color
-from xnano.events import Event, EventHandler, on_key, poll_event
+from xnano.events import Event, poll_event
 from xnano.layout import Constraint, Layout, Rectangle
 from xnano.style import Borders, Style
 from xnano.tailwind import tailwind
@@ -475,14 +475,8 @@ class AgentChatApp:
 
 def main() -> None:
     app = AgentChatApp()
-    handler = EventHandler()
 
-    @handler.on_key("ctrl+c")
-    def handle_ctrl_c(event) -> None:
-        raise SystemExit
-
-    @handler.on_key("enter")
-    def handle_enter(event) -> None:
+    def handle_enter() -> None:
         matches = app.get_matching_commands()
         if matches:
             if 0 <= app.autocomplete_index < len(matches):
@@ -495,36 +489,30 @@ def main() -> None:
                 app.trigger_agent_response(app.input_text)
                 app.input_text = ""
 
-    @handler.on_key("backspace")
-    def handle_backspace(event) -> None:
+    def handle_backspace() -> None:
         app.input_text = app.input_text[:-1]
         app.autocomplete_index = 0
 
-    @handler.on_key("up")
-    def handle_up(event) -> None:
+    def handle_up() -> None:
         matches = app.get_matching_commands()
         if matches:
             app.navigate_autocomplete(-1)
         else:
             app.list_state.select_previous()
 
-    @handler.on_key("down")
-    def handle_down(event) -> None:
+    def handle_down() -> None:
         matches = app.get_matching_commands()
         if matches:
             app.navigate_autocomplete(1)
         else:
             app.list_state.select_next()
 
-    @handler.on_key("tab")
-    def handle_tab(event) -> None:
+    def handle_tab() -> None:
         app.autocomplete_text()
 
-    # Handle text input
-    @handler.on_key()
-    def handle_char(event) -> None:
-        if event.char is not None and len(event.char) == 1:
-            app.input_text += event.char
+    def handle_char(character: str) -> None:
+        if len(character) == 1:
+            app.input_text += character
             app.autocomplete_index = 0
 
     with Terminal() as term:
@@ -534,21 +522,24 @@ def main() -> None:
             # Low latency event loop for smooth typewriter animation
             event = poll_event(15)
             if event:
-                if event.key and event.key.is_press:
-                    if event.key.matches("ctrl+c"):
+                if event.keyboard and event.keyboard.is_press:
+                    keyboard_event = event.keyboard
+                    if keyboard_event.matches("ctrl+c"):
                         break
-                    elif event.key.matches("enter"):
-                        handle_enter(event.key)
-                    elif event.key.matches("backspace"):
-                        handle_backspace(event.key)
-                    elif event.key.matches("up"):
-                        handle_up(event.key)
-                    elif event.key.matches("down"):
-                        handle_down(event.key)
-                    elif event.key.matches("tab"):
-                        handle_tab(event.key)
+                    elif keyboard_event.matches("enter"):
+                        handle_enter()
+                    elif keyboard_event.matches("backspace"):
+                        handle_backspace()
+                    elif keyboard_event.matches("up"):
+                        handle_up()
+                    elif keyboard_event.matches("down"):
+                        handle_down()
+                    elif keyboard_event.matches("tab"):
+                        handle_tab()
                     else:
-                        handle_char(event.key)
+                        character = keyboard_event.character
+                        if character is not None:
+                            handle_char(character)
 
             app.update()
             term.draw(app.draw)

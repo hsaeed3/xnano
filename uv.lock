@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.10"
 
+[manifest]
+members = [
+    "xnano",
+    "xnano-core",
+]
+
 [[package]]
 name = "anyio"
 version = "4.14.1"
@@ -2308,8 +2314,73 @@ wheels = [
 
 [[package]]
 name = "xnano"
-version = "0.99.1"
+version = "0.99.2"
 source = { editable = "." }
+dependencies = [
+    { name = "xnano-core" },
+]
+
+[package.dev-dependencies]
+benchmark = [
+    { name = "psutil" },
+    { name = "pytermgui" },
+    { name = "textual" },
+    { name = "urwid" },
+]
+dev = [
+    { name = "black" },
+    { name = "griffe-typingdoc" },
+    { name = "isort" },
+    { name = "logfire" },
+    { name = "marimo" },
+    { name = "mkdocs-click" },
+    { name = "mkdocs-material" },
+    { name = "mkdocstrings-python" },
+    { name = "prek" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "twine" },
+    { name = "ty" },
+    { name = "uv" },
+    { name = "zensical" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "xnano-core", editable = "xnano-core" }]
+
+[package.metadata.requires-dev]
+benchmark = [
+    { name = "psutil" },
+    { name = "pytermgui" },
+    { name = "textual" },
+    { name = "urwid" },
+]
+dev = [
+    { name = "black" },
+    { name = "griffe-typingdoc" },
+    { name = "isort" },
+    { name = "logfire" },
+    { name = "marimo" },
+    { name = "mkdocs-click" },
+    { name = "mkdocs-material" },
+    { name = "mkdocstrings-python" },
+    { name = "prek" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "twine", specifier = ">=6.1.0" },
+    { name = "ty" },
+    { name = "uv" },
+    { name = "zensical" },
+]
+
+[[package]]
+name = "xnano-core"
+version = "0.0.1"
+source = { editable = "xnano-core" }
 
 [package.dev-dependencies]
 benchmark = [

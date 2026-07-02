@@ -2,11 +2,7 @@ import pytest
 import xnano._core as core
 
 from xnano.color import Color
-from xnano.events import (
-    EventHandler,
-    on_key,
-    on_mouse,
-)
+from xnano import hooks
 from xnano.layout import (
     Constraint,
     Layout,
@@ -178,12 +174,23 @@ def test_event_handler_matching_and_decorators():
     assert f_num == 11
 
     # Decorator checks
-    dispatcher = EventHandler()
+    from xnano.component import Component
+    from xnano.context import Context
+    import dataclasses
 
-    @dispatcher.on_key("q", "ctrl+c")
-    def quit_handler(event):
+    @dataclasses.dataclass
+    class DummyState:
         pass
 
-    assert len(dispatcher._key_handlers) == 1
-    assert "q" in dispatcher._key_handlers[0][0]
-    assert "ctrl+c" in dispatcher._key_handlers[0][0]
+    class DummyComponent(Component[DummyState]):
+        @hooks.on_keyboard("q", "ctrl+c")
+        def quit_handler(self, ctx: Context[DummyState]):
+            pass
+
+        def render(self, area):
+            return None
+
+    component = DummyComponent(state=DummyState())
+    assert len(component._keyboard_handlers) == 1
+    assert "q" in component._keyboard_handlers[0][0]
+    assert "ctrl+c" in component._keyboard_handlers[0][0]

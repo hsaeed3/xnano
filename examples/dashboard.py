@@ -155,10 +155,13 @@ class SystemDashboard:
                 return Color.lerp(keyframes[idx], keyframes[idx + 1], t)
 
             # Draw sparkline column by column to apply the gradient colors
-            data_to_draw = self.cpu_history[-W:] if len(self.cpu_history) >= W else ([0] * (W - len(self.cpu_history)) + self.cpu_history)
+            data_to_draw = (
+                self.cpu_history[-W:]
+                if len(self.cpu_history) >= W
+                else ([0] * (W - len(self.cpu_history)) + self.cpu_history)
+            )
             col_layout = Layout(
-                direction="horizontal",
-                constraints=[Constraint.length(1)] * W
+                direction="horizontal", constraints=[Constraint.length(1)] * W
             )
             cols = col_layout.split(inner_area)
 
@@ -274,15 +277,17 @@ def main() -> None:
         while True:
             # Poll events with a 250ms frame step for real-time tick updates
             event = poll_event(250)
-            if event and event.key and event.key.is_press:
-                if event.key.matches("ctrl+c") or event.key.matches("q"):
+            if event and event.keyboard and event.keyboard.is_press:
+                if event.keyboard.matches("ctrl+c") or event.keyboard.matches(
+                    "q"
+                ):
                     break
-                elif event.key.matches("up"):
+                elif event.keyboard.matches("up"):
                     dash.selected_row = (dash.selected_row - 1) % len(
                         dash.processes
                     )
                     dash.table_state.select(dash.selected_row)
-                elif event.key.matches("down"):
+                elif event.keyboard.matches("down"):
                     dash.selected_row = (dash.selected_row + 1) % len(
                         dash.processes
                     )

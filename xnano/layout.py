@@ -292,7 +292,9 @@ def _resolve_rectangle(value: RectangleLike) -> Rectangle:
     if isinstance(value, Rectangle):
         return value
     if isinstance(value, tuple) and len(value) == 4:
-        return Rectangle(x=value[0], y=value[1], width=value[2], height=value[3])
+        return Rectangle(
+            x=value[0], y=value[1], width=value[2], height=value[3]
+        )
     raise TypeError(f"expected Rectangle or 4-tuple, got {type(value)!r}")
 
 
@@ -327,7 +329,9 @@ class Layout:
     def __init__(
         self,
         direction: Direction = "vertical",
-        constraints: Sequence[ConstraintLike] | dict[str, ConstraintLike] | None = None,
+        constraints: Sequence[ConstraintLike]
+        | dict[str, ConstraintLike]
+        | None = None,
         *,
         margin: Margin | int | None = None,
         horizontal_margin: int | None = None,
@@ -421,7 +425,11 @@ class Layout:
 
             areas_dict = cast(dict[str, Rectangle], areas)
             widgets_dict = cast(dict[str, Any], widgets)
-            states_dict = cast(dict[str, Any], states) if isinstance(states, dict) else {}
+            states_dict = (
+                cast(dict[str, Any], states)
+                if isinstance(states, dict)
+                else {}
+            )
 
             for key, widget in widgets_dict.items():
                 if key not in areas_dict:
@@ -442,7 +450,8 @@ class Layout:
             widgets_seq = cast(Sequence[Any], widgets)
             states_seq = (
                 cast(Sequence[Any], states)
-                if isinstance(states, Sequence) and not isinstance(states, (str, bytes))
+                if isinstance(states, Sequence)
+                and not isinstance(states, (str, bytes))
                 else None
             )
 

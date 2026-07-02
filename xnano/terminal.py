@@ -7,7 +7,13 @@ from typing import Any, TypeVar, cast
 
 from xnano import _core
 from xnano._convert import unwrap
-from xnano.layout import Position, Rectangle, RectangleLike, Size, _resolve_rectangle
+from xnano.layout import (
+    Position,
+    Rectangle,
+    RectangleLike,
+    Size,
+    _resolve_rectangle,
+)
 
 
 T = TypeVar("T")
@@ -44,6 +50,7 @@ class Frame:
         resolved_area = _resolve_rectangle(area)
         if isinstance(widget, str):
             from xnano.widgets import Paragraph
+
             widget = Paragraph(widget)
         self._inner.render_widget(unwrap(widget), resolved_area._to_core())
 
@@ -59,9 +66,7 @@ class Frame:
     def render(
         self,
         renderable: Sequence[
-            Any
-            | tuple[Any, RectangleLike]
-            | tuple[Any, RectangleLike, Any]
+            Any | tuple[Any, RectangleLike] | tuple[Any, RectangleLike, Any]
         ]
         | Any,
         area: RectangleLike | None = None,
@@ -147,9 +152,7 @@ class Terminal:
         self,
         renderable: Callable[[Frame], Any]
         | Sequence[
-            Any
-            | tuple[Any, RectangleLike]
-            | tuple[Any, RectangleLike, Any]
+            Any | tuple[Any, RectangleLike] | tuple[Any, RectangleLike, Any]
         ]
         | Any,
     ) -> None:
@@ -166,12 +169,16 @@ class Terminal:
             def _bridge(native_frame: _core.Frame) -> Any:
                 frame = Frame._from_core(native_frame)
                 res = cb(frame)
-                if isinstance(res, Sequence) and not isinstance(res, (str, bytes)):
+                if isinstance(res, Sequence) and not isinstance(
+                    res, (str, bytes)
+                ):
                     for item in res:
                         if isinstance(item, tuple):
                             if len(item) == 2:
                                 widget, area = item
-                                frame.render_widget(widget, _resolve_rectangle(area))
+                                frame.render_widget(
+                                    widget, _resolve_rectangle(area)
+                                )
                             elif len(item) == 3:
                                 widget, area, state = item
                                 frame.render_stateful_widget(
@@ -192,12 +199,15 @@ class Terminal:
         elif isinstance(renderable, Sequence) and not isinstance(
             renderable, (str, bytes)
         ):
+
             def _draw_widgets(frame: Frame) -> None:
                 for item in renderable:
                     if isinstance(item, tuple):
                         if len(item) == 2:
                             widget, area = item
-                            frame.render_widget(widget, _resolve_rectangle(area))
+                            frame.render_widget(
+                                widget, _resolve_rectangle(area)
+                            )
                         elif len(item) == 3:
                             widget, area, state = item
                             frame.render_stateful_widget(
@@ -216,6 +226,7 @@ class Terminal:
 
             self._inner.draw(_bridge_seq)
         else:
+
             def _bridge_single(native_frame: _core.Frame) -> Any:
                 frame = Frame._from_core(native_frame)
                 return frame.render_widget(renderable, frame.area())
