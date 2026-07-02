@@ -117,13 +117,17 @@ class TestColorCreation:
         # We can trigger ValueError by mocking the native call to raise an exception
         from unittest import mock
         from xnano import _core
-        with mock.patch("xnano._core.color_from_hsl", side_effect=Exception("HSL error")):
+
+        with mock.patch(
+            "xnano._core.color_from_hsl", side_effect=Exception("HSL error")
+        ):
             with pytest.raises(ValueError, match="Invalid HSL components"):
                 Color.from_hsl(999.0, 999.0, 999.0)
 
     def test_from_native_mappings(self):
         from unittest import mock
         from xnano import _core
+
         # Test named color mapping (e.g. "Black")
         mock_color = mock.Mock(spec=_core.Color)
         mock_color.__repr__ = mock.Mock(return_value="Black")
@@ -143,7 +147,6 @@ class TestColorCreation:
     def test_color_repr(self):
         c = Color(1, 2, 3, 4)
         assert repr(c) == "Color(r=1, g=2, b=3, a=4)"
-
 
 
 class TestColorLerp:

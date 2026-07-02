@@ -37,6 +37,101 @@ def _core_list_direction(value: ListDirectionName) -> _core.ListDirection:
     return _LIST_DIRECTION[value]
 
 
+def _merge_tailwind(
+    class_name: str | None,
+    style: Style | None,
+    width: int | None,
+    height: int | None,
+    block: Block | None = None,
+) -> tuple[Style | None, int | None, int | None, Block | None]:
+    if not class_name:
+        return style, width, height, block
+
+    from xnano.tailwind import parse_tailwind
+
+    tw = parse_tailwind(class_name)
+
+    if "style" in tw:
+        if style is not None:
+            style = tw["style"].patch(style)
+        else:
+            style = tw["style"]
+
+    if width is None:
+        width = tw.get("width")
+    if height is None:
+        height = tw.get("height")
+
+    has_block_opts = any(
+        k in tw for k in ("borders", "border_type", "border_style", "padding")
+    )
+    if has_block_opts:
+        if block is None:
+            block = Block(
+                borders=tw.get("borders"),
+                border_type=tw.get("border_type"),
+                border_style=tw.get("border_style"),
+                padding=tw.get("padding"),
+            )
+
+    return style, width, height, block
+
+
+def _merge_tailwind_block(
+    class_name: str | None,
+    style: Style | None,
+    borders: Borders | Literal["all", "none"] | None,
+    border_type: BorderTypeName | None,
+    border_style: Style | None,
+    padding: Padding | int | None,
+    width: int | None,
+    height: int | None,
+) -> tuple[
+    Style | None,
+    Borders | Literal["all", "none"] | None,
+    BorderTypeName | None,
+    Style | None,
+    Padding | int | None,
+    int | None,
+    int | None,
+]:
+    if not class_name:
+        return (
+            style,
+            borders,
+            border_type,
+            border_style,
+            padding,
+            width,
+            height,
+        )
+
+    from xnano.tailwind import parse_tailwind
+
+    tw = parse_tailwind(class_name)
+
+    if "style" in tw:
+        if style is not None:
+            style = tw["style"].patch(style)
+        else:
+            style = tw["style"]
+
+    if borders is None:
+        borders = tw.get("borders")
+    if border_type is None:
+        border_type = tw.get("border_type")
+    if border_style is None:
+        border_style = tw.get("border_style")
+    if padding is None:
+        padding = tw.get("padding")
+    if width is None:
+        width = tw.get("width")
+    if height is None:
+        height = tw.get("height")
+
+    return style, borders, border_type, border_style, padding, width, height
+
+
 class Block:
     """A decorative panel container with optional borders, titles, and padding.
 
@@ -53,8 +148,10 @@ class Block:
         )
     """
 
-    __slots__ = ("_inner",)
+    __slots__ = ("_inner", "width", "height")
     _inner: _core.Block
+    width: int | None
+    height: int | None
 
     def __init__(
         self,
@@ -68,6 +165,9 @@ class Block:
         border_style: Style | None = None,
         style: Style | None = None,
         padding: Padding | int | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        class_name: str | None = None,
     ) -> None:
         """Create a new Block.
 
@@ -82,7 +182,22 @@ class Block:
             border_style: Style for the border lines.
             style: Background and default style for the entire block.
             padding: Inner padding spacing. Can be an integer or a ``Padding`` instance.
+            width: Optional fixed width constraint.
+            height: Optional fixed height constraint.
+            class_name: Optional space-separated Tailwind utility classes.
         """
+        style, borders, border_type, border_style, padding, width, height = (
+            _merge_tailwind_block(
+                class_name,
+                style,
+                borders,
+                border_type,
+                border_style,
+                padding,
+                width,
+                height,
+            )
+        )
         inner = _core.Block.new()
 
         if borders is not None:
@@ -121,6 +236,8 @@ class Block:
                 inner = inner.padding(padding._to_core())
 
         object.__setattr__(self, "_inner", inner)
+        object.__setattr__(self, "width", width)
+        object.__setattr__(self, "height", height)
 
     @classmethod
     def _from_core(cls, inner: _core.Block) -> Block:
@@ -160,8 +277,10 @@ class Paragraph:
         paragraph = Paragraph("This is some text.", alignment="center")
     """
 
-    __slots__ = ("_inner",)
+    __slots__ = ("_inner", "width", "height")
     _inner: _core.Paragraph
+    width: int | None
+    height: int | None
 
     def __init__(
         self,
@@ -172,6 +291,9 @@ class Paragraph:
         wrap: Wrap | bool | None = None,
         alignment: Alignment | None = None,
         scroll: tuple[int, int] | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        class_name: str | None = None,
     ) -> None:
         """Create a new Paragraph.
 
@@ -182,7 +304,13 @@ class Paragraph:
             wrap: Word-wrap settings. If ``True``, word wrapping is enabled.
             alignment: Horizontal text alignment.
             scroll: Optional ``(scroll_x, scroll_y)`` viewport offset tuple.
+            width: Optional fixed width constraint.
+            height: Optional fixed height constraint.
+            class_name: Optional space-separated Tailwind utility classes.
         """
+        style, width, height, block = _merge_tailwind(
+            class_name, style, width, height, block
+        )
         inner = _core.Paragraph.new(as_text(content))
 
         if block is not None:
@@ -204,7 +332,14 @@ class Paragraph:
         if scroll is not None:
             inner = inner.scroll(scroll[0], scroll[1])
 
+        if width is None and block is not None:
+            width = getattr(block, "width", None)
+        if height is None and block is not None:
+            height = getattr(block, "height", None)
+
         object.__setattr__(self, "_inner", inner)
+        object.__setattr__(self, "width", width)
+        object.__setattr__(self, "height", height)
 
     @classmethod
     def _from_core(cls, inner: _core.Paragraph) -> Paragraph:
@@ -280,7 +415,7 @@ class ListView:
         )
     """
 
-    __slots__ = ("_inner",)
+    __slots__ = ("_inner", "width", "height")
     _inner: _core.RatList
 
     def __init__(
@@ -295,6 +430,9 @@ class ListView:
         repeat_highlight_symbol: bool | None = None,
         highlight_spacing: HighlightSpacingName | None = None,
         scroll_padding: int | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        class_name: str | None = None,
     ) -> None:
         """Create a new selectable ListView.
 
@@ -310,7 +448,13 @@ class ListView:
             repeat_highlight_symbol: Wrap lines highlight repeat toggle.
             highlight_spacing: Highlight spacing mode.
             scroll_padding: Threshold buffer rows before scrolling viewport.
+            width: Optional fixed width constraint.
+            height: Optional fixed height constraint.
+            class_name: Optional space-separated Tailwind utility classes.
         """
+        style, width, height, block = _merge_tailwind(
+            class_name, style, width, height, block
+        )
         native_items = [
             item._to_core() if isinstance(item, ListItem) else as_line(item)
             for item in items
@@ -336,7 +480,14 @@ class ListView:
         if scroll_padding is not None:
             inner = inner.scroll_padding(scroll_padding)
 
+        if width is None and block is not None:
+            width = getattr(block, "width", None)
+        if height is None and block is not None:
+            height = getattr(block, "height", None)
+
         object.__setattr__(self, "_inner", inner)
+        object.__setattr__(self, "width", width)
+        object.__setattr__(self, "height", height)
 
     @classmethod
     def _from_core(cls, inner: _core.RatList) -> ListView:
@@ -455,7 +606,7 @@ class Gauge:
         gauge = Gauge(percent=45, label="Loading...")
     """
 
-    __slots__ = ("_inner",)
+    __slots__ = ("_inner", "width", "height")
     _inner: _core.Gauge
 
     def __init__(
@@ -468,6 +619,9 @@ class Gauge:
         style: Style | None = None,
         gauge_style: Style | None = None,
         use_unicode: bool = False,
+        width: int | None = None,
+        height: int | None = None,
+        class_name: str | None = None,
     ) -> None:
         """Create a progress Gauge.
 
@@ -479,7 +633,13 @@ class Gauge:
             style: Overall default style.
             gauge_style: Style for the progress filled portion.
             use_unicode: Enable unicode blocks for smoother progress rendering.
+            width: Optional fixed width constraint.
+            height: Optional fixed height constraint.
+            class_name: Optional space-separated Tailwind utility classes.
         """
+        style, width, height, block = _merge_tailwind(
+            class_name, style, width, height, block
+        )
         inner = _core.Gauge.new()
 
         if percent is not None:
@@ -497,7 +657,14 @@ class Gauge:
         if use_unicode:
             inner = inner.use_unicode(use_unicode)
 
+        if width is None and block is not None:
+            width = getattr(block, "width", None)
+        if height is None and block is not None:
+            height = getattr(block, "height", None)
+
         object.__setattr__(self, "_inner", inner)
+        object.__setattr__(self, "width", width)
+        object.__setattr__(self, "height", height)
 
     @classmethod
     def _from_core(cls, inner: _core.Gauge) -> Gauge:

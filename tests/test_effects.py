@@ -122,7 +122,10 @@ class TestEffect:
     """Tests for Effect class."""
 
     def test_effect_invalid_instantiation(self):
-        with pytest.raises(TypeError, match="Effect instances must be created using the effect creator functions"):
+        with pytest.raises(
+            TypeError,
+            match="Effect instances must be created using the effect creator functions",
+        ):
             Effect()
 
     def test_effect_with_area(self):
@@ -230,7 +233,12 @@ class TestSlideAndSweepEffects:
         assert e is not None
 
     def test_slide_in_all_directions(self):
-        for direction in ["up_to_down", "down_to_up", "left_to_right", "right_to_left"]:
+        for direction in [
+            "up_to_down",
+            "down_to_up",
+            "left_to_right",
+            "right_to_left",
+        ]:
             e = slide_in(direction, 5, 2, "red", 100)
             assert e is not None
 
@@ -367,7 +375,9 @@ class TestColorTransformEffects:
         assert e is not None
 
     def test_hsl_shift_all(self):
-        e = hsl_shift(100, fg_h=0.1, fg_s=0.1, fg_l=0.1, bg_h=0.2, bg_s=0.2, bg_l=0.2)
+        e = hsl_shift(
+            100, fg_h=0.1, fg_s=0.1, fg_l=0.1, bg_h=0.2, bg_s=0.2, bg_l=0.2
+        )
         assert e is not None
 
     def test_hsl_shift_fg(self):
@@ -417,11 +427,25 @@ class TestTypeAliases:
     """Tests for type aliases."""
 
     def test_motion_types(self):
-        for m in ["up_to_down", "down_to_up", "left_to_right", "right_to_left"]:
-            e = fade_to_fg("red", 100)  # Just verify type aliases are valid strings
+        for m in [
+            "up_to_down",
+            "down_to_up",
+            "left_to_right",
+            "right_to_left",
+        ]:
+            e = fade_to_fg(
+                "red", 100
+            )  # Just verify type aliases are valid strings
 
     def test_interpolation_types(self):
-        for i in ["back_in", "back_out", "cubic_in", "cubic_out", "linear", "sine_in"]:
+        for i in [
+            "back_in",
+            "back_out",
+            "cubic_in",
+            "cubic_out",
+            "linear",
+            "sine_in",
+        ]:
             e = fade_to_fg("red", 100, interpolation=i)
             assert e is not None
 

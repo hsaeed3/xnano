@@ -242,7 +242,7 @@ class BarGroup:
 class BarChart:
     """A bar chart widget that displays grouped data vertically or horizontally."""
 
-    __slots__ = ("_inner",)
+    __slots__ = ("_inner", "width", "height")
     _inner: _core.BarChart
 
     def __init__(
@@ -259,6 +259,9 @@ class BarChart:
         value_style: Style | None = None,
         label_style: Style | None = None,
         direction: Direction | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        class_name: str | None = None,
     ) -> None:
         """Create a BarChart.
 
@@ -274,7 +277,15 @@ class BarChart:
             value_style: Visual style applied to the printed values.
             label_style: Visual style applied to the labels under the bars.
             direction: Direction of bar stack flow (``"vertical"`` or ``"horizontal"``).
+            width: Optional fixed width constraint.
+            height: Optional fixed height constraint.
+            class_name: Optional space-separated Tailwind utility classes.
         """
+        from xnano.widgets import _merge_tailwind
+
+        style, width, height, block = _merge_tailwind(
+            class_name, style, width, height, block
+        )
         inner = _core.BarChart.new([g._to_core() for g in groups])
 
         if block is not None:
@@ -298,7 +309,14 @@ class BarChart:
         if direction is not None:
             inner = inner.direction(_core_direction(direction))
 
+        if width is None and block is not None:
+            width = getattr(block, "width", None)
+        if height is None and block is not None:
+            height = getattr(block, "height", None)
+
         object.__setattr__(self, "_inner", inner)
+        object.__setattr__(self, "width", width)
+        object.__setattr__(self, "height", height)
 
     @classmethod
     def _from_core(cls, inner: _core.BarChart) -> BarChart:

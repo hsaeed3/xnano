@@ -7,7 +7,6 @@ from typing import Any, Literal, TypeAlias, TypeVar, Union
 
 from xnano import _core
 
-
 T = TypeVar("T")
 
 
@@ -44,11 +43,11 @@ SpecialKey: TypeAlias = Literal[
 """Special key names for bindings."""
 
 
-KeyModifierPrefix: TypeAlias = Literal["ctrl+", "shift+", "alt+"]
+KeyboardModifierPrefix: TypeAlias = Literal["ctrl+", "shift+", "alt+"]
 """Modifiers prefixes for combinations."""
 
 
-KeyBinding: TypeAlias = Union[
+KeyboardBinding: TypeAlias = Union[
     str,
     SpecialKey,
     Literal[
@@ -79,11 +78,11 @@ KeyBinding: TypeAlias = Union[
         "alt+right",
     ],
 ]
-"""A key binding string representation."""
+"""A keyboard binding string representation."""
 
 
-KeyEventKindName: TypeAlias = Literal["press", "repeat", "release"]
-"""The phase of a key event."""
+KeyboardEventKind: TypeAlias = Literal["press", "repeat", "release"]
+"""The phase of a keyboard event."""
 
 
 _SPECIAL_KEYS: dict[str, _core.KeyCode] = {
@@ -133,7 +132,6 @@ def _parse_binding(
     shift = False
     alt = False
 
-    # All parts except the last are modifiers
     key_part = parts[-1]
     for mod in parts[:-1]:
         if mod == "ctrl":
@@ -148,13 +146,11 @@ def _parse_binding(
                 f"Valid modifiers: ctrl, shift, alt"
             )
 
-    # Parse the key part
     if key_part in _SPECIAL_KEYS:
         code = _SPECIAL_KEYS[key_part]
         char = " " if key_part == "space" else None
         return ctrl, shift, alt, code, char, None
 
-    # Check function keys (f1 - f12)
     f_match = _F_KEY_RE.match(key_part)
     if f_match:
         f_num = int(f_match.group(1))
@@ -162,23 +158,22 @@ def _parse_binding(
             return ctrl, shift, alt, _core.KeyCode.F, None, f_num
         raise ValueError(f"invalid function key: {key_part!r}")
 
-    # Check single character
     if len(key_part) == 1:
         return ctrl, shift, alt, _core.KeyCode.Char, key_part, None
 
     raise ValueError(f"unknown key in binding: {key_part!r}")
 
 
-def _event_matches_binding(event: _core.KeyEvent, binding: KeyBinding) -> bool:
+def _event_matches_binding(
+    event: _core.KeyEvent, binding: KeyboardBinding
+) -> bool:
     """Internal matching function comparing a native key event to a binding."""
     try:
         ctrl, shift, alt, code, char, _f_num = _parse_binding(binding)
     except ValueError:
         return False
 
-    # Check key code matches
     if event.code_name != code:
-        # Special case: shift+tab should match BackTab
         if (
             shift
             and not ctrl
@@ -189,7 +184,6 @@ def _event_matches_binding(event: _core.KeyEvent, binding: KeyBinding) -> bool:
             return True
         return False
 
-    # Check character (for Char keys)
     if code == _core.KeyCode.Char and char is not None:
         event_char = event.char()
         if event_char is None:
@@ -197,20 +191,17 @@ def _event_matches_binding(event: _core.KeyEvent, binding: KeyBinding) -> bool:
         if event_char.lower() != char.lower():
             return False
 
-    # Check modifiers
     if ctrl != event.modifiers.control():
         return False
     if alt != event.modifiers.alt():
         return False
-    # Shift is implicit for uppercase characters, so only check
-    # explicitly when the binding specifies shift with a non-char key
     if code != _core.KeyCode.Char and shift != event.modifiers.shift():
         return False
 
     return True
 
 
-class KeyEvent:
+class KeyboardEvent:
     """A keyboard input event with modifier-aware matching."""
 
     __slots__ = ("_inner",)
@@ -218,11 +209,11 @@ class KeyEvent:
 
     def __init__(self) -> None:
         raise TypeError(
-            "KeyEvent instances are created internally by the event system."
+            "KeyboardEvent instances are created internally by the event system."
         )
 
     @classmethod
-    def _from_core(cls, event: _core.KeyEvent) -> KeyEvent:
+    def _from_core(cls, event: _core.KeyEvent) -> KeyboardEvent:
         """Construct from a native key event."""
         obj = object.__new__(cls)
         object.__setattr__(obj, "_inner", event)
@@ -238,7 +229,7 @@ class KeyEvent:
         return self._inner.code_name
 
     @property
-    def kind(self) -> KeyEventKindName:
+    def kind(self) -> KeyboardEventKind:
         """The key action type: ``"press"``, ``"repeat"``, or ``"release"``."""
         kind_val = self._inner.kind
         if kind_val == _core.KeyEventKind.Press:
@@ -264,7 +255,7 @@ class KeyEvent:
         return self.kind == "release"
 
     @property
-    def ctrl(self) -> bool:
+    def control(self) -> bool:
         """True if the Ctrl key was held."""
         return self._inner.modifiers.control()
 
@@ -274,20 +265,20 @@ class KeyEvent:
         return self._inner.modifiers.shift()
 
     @property
-    def alt(self) -> bool:
+    def alternate(self) -> bool:
         """True if the Alt key was held."""
         return self._inner.modifiers.alt()
 
     @property
-    def char(self) -> str | None:
+    def character(self) -> str | None:
         """The character representation of the key if printable, else ``None``."""
         return self._inner.char()
 
-    def matches(self, binding: KeyBinding) -> bool:
+    def matches(self, binding: KeyboardBinding) -> bool:
         """Check if this key event matches a Textual-style binding string."""
         return _event_matches_binding(self._inner, binding)
 
-    def matches_any(self, *bindings: KeyBinding) -> bool:
+    def matches_any(self, *bindings: KeyboardBinding) -> bool:
         """Check if this key event matches any of the given binding strings."""
         return any(self.matches(b) for b in bindings)
 
@@ -295,16 +286,16 @@ class KeyEvent:
         return repr(self._inner)
 
     def __setattr__(self, name: str, value: object) -> None:
-        raise AttributeError("KeyEvent is immutable")
+        raise AttributeError("KeyboardEvent is immutable")
 
     def __delattr__(self, name: str) -> None:
-        raise AttributeError("KeyEvent is immutable")
+        raise AttributeError("KeyboardEvent is immutable")
 
 
 __all__ = (
     "SpecialKey",
-    "KeyModifierPrefix",
-    "KeyBinding",
-    "KeyEventKindName",
-    "KeyEvent",
+    "KeyboardModifierPrefix",
+    "KeyboardBinding",
+    "KeyboardEventKind",
+    "KeyboardEvent",
 )

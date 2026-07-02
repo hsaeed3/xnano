@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any, Literal, TypeAlias, TypeVar, cast
+from collections.abc import Sequence
+from typing import Any, Literal, TypeAlias, cast
 
 import xnano._core as _core
-from xnano.keyboard import KeyBinding, KeyEvent
-from xnano.mouse import MouseEvent, MouseEventName
+from xnano.keyboard import KeyboardEvent
+from xnano.mouse import MouseEvent
 
 
-F = TypeVar("F", bound=Callable[..., Any])
-
-
-EventKindName: TypeAlias = Literal["key", "resize", "paste", "mouse", "other"]
+EventKind: TypeAlias = Literal["keyboard", "resize", "paste", "mouse", "other"]
 """The category of a terminal event."""
 
 
@@ -40,16 +37,17 @@ class Event:
         return self._inner
 
     @property
-    def kind(self) -> EventKindName:
-        """The event category: ``"key"``, ``"resize"``, ``"paste"``, ``"mouse"``, or ``"other"``."""
-        return cast(EventKindName, self._inner.kind)
+    def kind(self) -> EventKind:
+        """The event category: ``"keyboard"``, ``"resize"``, ``"paste"``, ``"mouse"``, or ``"other"``."""
+        kind_val = self._inner.kind
+        return "keyboard" if kind_val == "key" else cast(EventKind, kind_val)
 
     @property
-    def key(self) -> KeyEvent | None:
-        """The key event data, or ``None`` if this is not a key event."""
+    def keyboard(self) -> KeyboardEvent | None:
+        """The keyboard event data, or ``None`` if this is not a keyboard event."""
         if self._inner.key is None:
             return None
-        return KeyEvent._from_core(self._inner.key)
+        return KeyboardEvent._from_core(self._inner.key)
 
     @property
     def width(self) -> int | None:
@@ -77,9 +75,13 @@ class Event:
         return repr(self._inner)
 
 
-def poll_event(timeout_ms: int) -> Event | None:
-    """Poll for a terminal event with a timeout."""
-    event = _core.poll_event(timeout_ms)
+def poll_event(timeout_milliseconds: int) -> Event | None:
+    """Poll for a terminal event with a timeout.
+
+    Args:
+        timeout_milliseconds: The timeout duration in milliseconds.
+    """
+    event = _core.poll_event(timeout_milliseconds)
     return Event._from_core(event) if event is not None else None
 
 
@@ -88,108 +90,49 @@ def read_event() -> Event:
     return Event._from_core(_core.read_event())
 
 
-_KEY_BINDINGS_ATTR = "__xnano_key_bindings__"
-_MOUSE_KINDS_ATTR = "__xnano_mouse_kinds__"
+def dispatch(
+    event: Event,
+    target: Any | Sequence[Any],
+) -> bool:
+    """Dispatch an event to a component or sequence of components.
 
+    Creates a Context and calls target.dispatch(context) on each target component
+    until the event is handled.
 
-def on_key(*bindings: KeyBinding) -> Callable[[F], F]:
-    """Decorator that marks a function as a key event handler."""
+    Args:
+        event: The event to dispatch.
+        target: A component or sequence of components to dispatch to.
 
-    def decorator(fn: F) -> F:
-        existing = getattr(fn, _KEY_BINDINGS_ATTR, [])
-        setattr(fn, _KEY_BINDINGS_ATTR, existing + list(bindings))
-        return fn
+    Returns:
+        True if the event was handled by one of the components, False otherwise.
+    """
+    from xnano.context import Context
 
-    return decorator
+    inner_event = event.keyboard or event.mouse
+    if inner_event is None:
+        return False
 
+    if isinstance(target, Sequence) and not isinstance(target, (str, bytes)):
+        for component in target:
+            if hasattr(component, "dispatch"):
+                comp_any: Any = component
+                context = Context(component=comp_any, event=inner_event)
+                if comp_any.dispatch(context):
+                    return True
+        return False
 
-def on_mouse(*kinds: MouseEventName) -> Callable[[F], F]:
-    """Decorator that marks a function as a mouse event handler."""
+    if hasattr(target, "dispatch"):
+        target_any: Any = target
+        context = Context(component=target_any, event=inner_event)
+        return bool(target_any.dispatch(context))
 
-    def decorator(fn: F) -> F:
-        existing = getattr(fn, _MOUSE_KINDS_ATTR, [])
-        setattr(fn, _MOUSE_KINDS_ATTR, existing + list(kinds))
-        return fn
-
-    return decorator
-
-
-class EventHandler:
-    """Collects key and mouse event handlers and dispatches events."""
-
-    __slots__ = ("_key_handlers", "_mouse_handlers")
-
-    def __init__(self) -> None:
-        self._key_handlers: list[tuple[list[str], Callable[..., Any]]] = []
-        self._mouse_handlers: list[tuple[list[str], Callable[..., Any]]] = []
-
-    def on_key(self, *bindings: KeyBinding) -> Callable[[F], F]:
-        """Register a key event handler on this dispatcher."""
-
-        def decorator(fn: F) -> F:
-            self._key_handlers.append((list(bindings), fn))
-            return fn
-
-        return decorator
-
-    def on_mouse(self, *kinds: MouseEventName) -> Callable[[F], F]:
-        """Register a mouse event handler on this dispatcher."""
-
-        def decorator(fn: F) -> F:
-            self._mouse_handlers.append((list(kinds), fn))
-            return fn
-
-        return decorator
-
-    def register(self, fn: Callable[..., Any]) -> None:
-        """Register a decorated handler function."""
-        key_bindings = getattr(fn, _KEY_BINDINGS_ATTR, None)
-        mouse_kinds = getattr(fn, _MOUSE_KINDS_ATTR, None)
-
-        if key_bindings is None and mouse_kinds is None:
-            raise ValueError(
-                f"{fn!r} is not decorated with @on_key or @on_mouse"
-            )
-
-        if key_bindings:
-            self._key_handlers.append((key_bindings, fn))
-        if mouse_kinds:
-            self._mouse_handlers.append((mouse_kinds, fn))
-
-    def dispatch(self, event: Event) -> bool:
-        """Dispatch an event to all matching registered handlers."""
-        handled = False
-
-        if event.kind == "key" and event.key is not None:
-            key_event = event.key
-            if key_event.is_press:
-                for bindings, handler in self._key_handlers:
-                    if key_event.matches_any(*bindings):
-                        handler(key_event)
-                        handled = True
-
-        elif event.kind == "mouse" and event.mouse is not None:
-            mouse_event = event.mouse
-            for kinds, handler in self._mouse_handlers:
-                if mouse_event.kind in kinds:
-                    handler(mouse_event)
-                    handled = True
-
-        return handled
-
-    def __repr__(self) -> str:
-        return (
-            f"EventHandler(key_handlers={len(self._key_handlers)}, "
-            f"mouse_handlers={len(self._mouse_handlers)})"
-        )
+    return False
 
 
 __all__ = (
     "Event",
-    "EventHandler",
-    "EventKindName",
-    "on_key",
-    "on_mouse",
+    "EventKind",
     "poll_event",
     "read_event",
+    "dispatch",
 )

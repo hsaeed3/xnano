@@ -11,7 +11,7 @@ MouseButtonName: TypeAlias = Literal["left", "right", "middle", "unknown"]
 """The mouse button involved in a mouse event."""
 
 
-MouseEventName: TypeAlias = Literal[
+MouseEventKind: TypeAlias = Literal[
     "down",
     "up",
     "drag",
@@ -28,14 +28,14 @@ class MouseEvent:
     """A mouse input event."""
 
     __slots__ = ("kind", "x", "y", "button")
-    kind: MouseEventName
+    kind: MouseEventKind
     x: int
     y: int
     button: MouseButtonName
 
     def __init__(
         self,
-        kind: MouseEventName,
+        kind: MouseEventKind,
         x: int,
         y: int,
         button: MouseButtonName,
@@ -49,7 +49,7 @@ class MouseEvent:
     def _from_core(cls, event: _core.MouseEvent) -> MouseEvent:
         """Construct from a native mouse event."""
         return cls(
-            kind=cast(MouseEventName, event.kind),
+            kind=cast(MouseEventKind, event.kind),
             x=event.x,
             y=event.y,
             button=cast(MouseButtonName, event.button),
@@ -67,6 +67,6 @@ class MouseEvent:
 
 __all__ = (
     "MouseButtonName",
-    "MouseEventName",
+    "MouseEventKind",
     "MouseEvent",
 )
