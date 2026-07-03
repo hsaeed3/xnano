@@ -291,12 +291,13 @@ class TestConstraint:
         constraints = Constraint.from_fills([1, 2, 3])
         assert len(constraints) == 3
 
+    def test_constraint_attribute_construction(self):
+        constraint = Constraint(kind="length", value=10)
+        assert constraint.apply(100) == 10
+
     def test_constraint_invalid_instantiation(self):
-        with pytest.raises(
-            TypeError,
-            match="Constraint instances are created via factory methods",
-        ):
-            Constraint()
+        with pytest.raises(ValueError, match="non-zero denominator"):
+            Constraint(kind="ratio", numerator=1, denominator=0)
 
     def test_constraint_to_core(self):
         c = Constraint.length(10)
