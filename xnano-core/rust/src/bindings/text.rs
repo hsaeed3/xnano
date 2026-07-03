@@ -36,6 +36,24 @@ impl PySpan {
         }
     }
 
+    #[staticmethod]
+    #[pyo3(name = "from")]
+    fn from_value(content: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if let Ok(span) = content.extract::<PyRef<PySpan>>() {
+            return Ok(Self {
+                inner: span.inner.clone(),
+            });
+        }
+        if let Ok(text) = content.extract::<&str>() {
+            return Ok(Self {
+                inner: Span::from(text.to_string()),
+            });
+        }
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "expected str or Span",
+        ))
+    }
+
     fn content(&self, value: &str) -> Self {
         Self {
             inner: self.inner.clone().content(value.to_string()),
@@ -163,6 +181,12 @@ impl PyLine {
         })
     }
 
+    fn push_span(&self, span: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let mut inner = self.inner.clone();
+        inner.push_span(extract_span(span)?);
+        Ok(Self { inner })
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}", self = self.inner)
     }
@@ -249,6 +273,12 @@ impl PyText {
         Self {
             inner: self.inner.clone().right_aligned(),
         }
+    }
+
+    fn push_line(&self, line: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let mut inner = self.inner.clone();
+        inner.push_line(extract_line(line)?);
+        Ok(Self { inner })
     }
 
     fn __repr__(&self) -> String {

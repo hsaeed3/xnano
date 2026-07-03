@@ -1,20 +1,132 @@
 use pyo3::prelude::*;
-use ratatui::buffer::Buffer;
+use pyo3::types::PyList;
+use ratatui::buffer::{Buffer, Cell};
+use ratatui::layout::Position;
+use ratatui::text::Line;
 use ratatui::widgets::{Clear, StatefulWidget, Widget};
 use ratatui::style::{Color, Modifier};
 
 use super::layout::PyRect;
 use super::style::{PyColor, PyModifier, PyStyle};
 use super::text::{PyLine, PySpan, PyText};
+use super::widgets_extra::PyPosition;
 use super::widgets::{PyBlock, PyClear, PyGauge, PyListState, PyRatList, PyParagraph};
 use super::widgets_extra::{
-    PyBarChart, PyLineGauge, PyRatTable, PyScrollbar, PyScrollbarState, PySparkline, PyTableState,
-    PyTabs,
+    PyBarChart, PyCanvas, PyChart, PyLineGauge, PyRatTable, PyScrollbar, PyScrollbarState,
+    PySparkline, PyTableState, PyTabs,
 };
 
+#[pyclass(name = "BufferCell", module = "xnano_core._xnano_core")]
+#[derive(Clone)]
+pub struct PyBufferCell {
+    pub inner: Cell,
+}
+
+impl From<Cell> for PyBufferCell {
+    fn from(value: Cell) -> Self {
+        Self { inner: value }
+    }
+}
+
+#[pymethods]
+impl PyBufferCell {
+    #[staticmethod]
+    fn new(symbol: &str) -> Self {
+        let mut inner = Cell::default();
+        inner.set_symbol(symbol);
+        Self { inner }
+    }
+
+    #[classattr]
+    const EMPTY: Self = Self {
+        inner: Cell::EMPTY,
+    };
+
+    #[getter]
+    fn symbol(&self) -> String {
+        self.inner.symbol().to_string()
+    }
+
+    #[getter]
+    fn fg(&self) -> PyColor {
+        self.inner.fg.into()
+    }
+
+    #[getter]
+    fn bg(&self) -> PyColor {
+        self.inner.bg.into()
+    }
+
+    #[getter]
+    fn modifier(&self) -> PyModifier {
+        PyModifier {
+            inner: self.inner.modifier,
+        }
+    }
+
+    #[getter]
+    fn style(&self) -> PyStyle {
+        PyStyle {
+            inner: self.inner.style(),
+        }
+    }
+
+    fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    fn set_symbol(&mut self, symbol: &str) -> Self {
+        self.inner.set_symbol(symbol);
+        self.clone()
+    }
+
+    fn set_style(&mut self, style: PyStyle) -> Self {
+        self.inner.set_style(style.inner);
+        self.clone()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "BufferCell(symbol={:?}, fg={:?}, bg={:?})",
+            self.inner.symbol(),
+            self.inner.fg,
+            self.inner.bg
+        )
+    }
+}
+
 #[pyclass(name = "Buffer", module = "xnano_core._xnano_core")]
+#[derive(Clone)]
 pub struct PyBuffer {
     pub inner: Buffer,
+}
+
+fn check_local_coords(buffer: &Buffer, x: u16, y: u16) -> PyResult<()> {
+    if x >= buffer.area.width || y >= buffer.area.height {
+        return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+            "position ({x}, {y}) out of bounds"
+        )));
+    }
+    Ok(())
+}
+
+fn local_position(buffer: &Buffer, x: u16, y: u16) -> Position {
+    Position {
+        x: buffer.area.x + x,
+        y: buffer.area.y + y,
+    }
+}
+
+fn extract_line_value(value: &Bound<'_, PyAny>) -> PyResult<Line<'static>> {
+    if let Ok(line) = value.extract::<PyRef<PyLine>>() {
+        return Ok(line.inner.clone());
+    }
+    if let Ok(text) = value.extract::<String>() {
+        return Ok(Line::from(text));
+    }
+    Err(pyo3::exceptions::PyTypeError::new_err(
+        "expected str or Line",
+    ))
 }
 
 pub fn render_widget_inner(
@@ -65,6 +177,14 @@ pub fn render_widget_inner(
     }
     if let Ok(bar_chart) = resolved.extract::<PyRef<PyBarChart>>() {
         bar_chart.inner.clone().render(area.inner, buffer);
+        return Ok(());
+    }
+    if let Ok(chart) = resolved.extract::<PyRef<PyChart>>() {
+        chart.render_to(area.inner, buffer);
+        return Ok(());
+    }
+    if let Ok(canvas) = resolved.extract::<PyRef<PyCanvas>>() {
+        canvas.render_to(area.inner, buffer);
         return Ok(());
     }
     if resolved.is_instance_of::<PyClear>() {
@@ -143,6 +263,24 @@ impl PyBuffer {
         }
     }
 
+    #[staticmethod]
+    fn filled(area: PyRect, cell: &PyBufferCell) -> Self {
+        Self {
+            inner: Buffer::filled(area.inner, cell.inner.clone()),
+        }
+    }
+
+    #[staticmethod]
+    fn with_lines(lines: &Bound<'_, PyList>) -> PyResult<Self> {
+        let parsed: Vec<Line<'static>> = lines
+            .iter()
+            .map(|item| extract_line_value(&item))
+            .collect::<PyResult<_>>()?;
+        Ok(Self {
+            inner: Buffer::with_lines(parsed),
+        })
+    }
+
     #[getter]
     fn area(&self) -> PyRect {
         PyRect {
@@ -161,6 +299,99 @@ impl PyBuffer {
         state: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         render_stateful_inner(widget, area, state, &mut self.inner)
+    }
+
+    fn cell(&self, x: u16, y: u16) -> PyResult<Option<PyBufferCell>> {
+        check_local_coords(&self.inner, x, y)?;
+        let position = local_position(&self.inner, x, y);
+        Ok(self
+            .inner
+            .cell(position)
+            .map(|cell| PyBufferCell { inner: cell.clone() }))
+    }
+
+    fn set_cell(
+        &mut self,
+        x: u16,
+        y: u16,
+        symbol: &str,
+        style: PyStyle,
+    ) -> PyResult<()> {
+        check_local_coords(&self.inner, x, y)?;
+        let position = local_position(&self.inner, x, y);
+        if let Some(cell) = self.inner.cell_mut(position) {
+            cell.set_symbol(symbol).set_style(style.inner);
+            Ok(())
+        } else {
+            Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                "position ({x}, {y}) out of bounds"
+            )))
+        }
+    }
+
+    #[pyo3(signature = (y, line, x=0, max_width=None))]
+    fn set_line(
+        &mut self,
+        y: u16,
+        line: &Bound<'_, PyAny>,
+        x: u16,
+        max_width: Option<u16>,
+    ) -> PyResult<(u16, u16)> {
+        if y >= self.inner.area.height {
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                "row {y} out of bounds"
+            )));
+        }
+        let parsed = extract_line_value(line)?;
+        let max_width = max_width.unwrap_or(self.inner.area.width.saturating_sub(x));
+        Ok(self.inner.set_line(x, y, &parsed, max_width))
+    }
+
+    fn set_style(&mut self, area: PyRect, style: PyStyle) {
+        self.inner.set_style(area.inner, style.inner);
+    }
+
+    #[pyo3(signature = (x, y, span, max_width=None))]
+    fn set_span(
+        &mut self,
+        x: u16,
+        y: u16,
+        span: &PySpan,
+        max_width: Option<u16>,
+    ) -> PyResult<(u16, u16)> {
+        if x >= self.inner.area.width || y >= self.inner.area.height {
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                "position ({x}, {y}) out of bounds"
+            )));
+        }
+        let max_width = max_width.unwrap_or(self.inner.area.width.saturating_sub(x));
+        Ok(self.inner.set_span(x, y, &span.inner, max_width))
+    }
+
+    fn resize(&mut self, area: PyRect) {
+        self.inner.resize(area.inner);
+    }
+
+    fn index_of(&self, x: u16, y: u16) -> PyResult<usize> {
+        check_local_coords(&self.inner, x, y)?;
+        let position = local_position(&self.inner, x, y);
+        Ok(self.inner.index_of(position.x, position.y))
+    }
+
+    fn pos_of(&self, index: usize) -> PyPosition {
+        let (x, y) = self.inner.pos_of(index);
+        PyPosition {
+            inner: Position { x, y },
+        }
+    }
+
+    fn content(&self) -> Vec<PyBufferCell> {
+        self.inner
+            .content()
+            .iter()
+            .cloned()
+            .map(PyBufferCell::from)
+            .collect()
     }
 
     fn cell_symbol(&self, x: u16, y: u16) -> PyResult<String> {
@@ -470,6 +701,7 @@ pub fn render_stateful_widget(
 }
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<PyBufferCell>()?;
     m.add_class::<PyBuffer>()?;
     m.add_function(wrap_pyfunction!(render_widget, m)?)?;
     m.add_function(wrap_pyfunction!(render_stateful_widget, m)?)?;

@@ -216,6 +216,9 @@ class Color:
     def rgb(r: int, g: int, b: int) -> Color: ...
     @staticmethod
     def from_u32(value: int) -> Color: ...
+    @staticmethod
+    def from_hsl(h: float, s: float, l: float) -> Color: ...
+    def to_u32(self) -> int: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
@@ -273,6 +276,20 @@ def color_from_hex(value: str) -> Color:
 
 def color_lerp(a: Color, b: Color, t: float) -> Color:
     """Linearly interpolate between two colors."""
+
+def color_to_hsl(color: Color) -> tuple[float, float, float]:
+    """Convert a color to HSL components (hue in degrees, saturation, lightness)."""
+
+def color_to_srgb(color: Color) -> tuple[float, float, float]:
+    """Convert a color to normalized sRGB components (0.0–1.0)."""
+
+def interpolate_colors(
+    a: Color,
+    b: Color,
+    t: float,
+    space: str = "rgb",
+) -> Color:
+    """Interpolate between two colors in RGB or HSL space."""
 
 def tailwind_color(name: str, shade: int) -> Color:
     """Look up a Tailwind CSS palette color.
@@ -836,6 +853,32 @@ class BarChart:
     def label_style(self, style: Style) -> BarChart: ...
     def direction(self, direction: Direction) -> BarChart: ...
 
+class BufferCell:
+    """Single buffer cell.
+
+    Maps to :class:`ratatui::buffer::Cell`.
+    See https://docs.rs/ratatui/0.29.0/ratatui/buffer/struct.Cell.html
+    """
+
+    EMPTY: BufferCell
+
+    @staticmethod
+    def new(symbol: str) -> BufferCell: ...
+    @property
+    def symbol(self) -> str: ...
+    @property
+    def fg(self) -> Color: ...
+    @property
+    def bg(self) -> Color: ...
+    @property
+    def modifier(self) -> Modifier: ...
+    @property
+    def style(self) -> Style: ...
+    def reset(self) -> None: ...
+    def set_symbol(self, symbol: str) -> BufferCell: ...
+    def set_style(self, style: Style) -> BufferCell: ...
+    def __repr__(self) -> str: ...
+
 class Buffer:
     """Off-screen render buffer.
 
@@ -845,12 +888,37 @@ class Buffer:
 
     @staticmethod
     def empty(area: Rect) -> Buffer: ...
+    @staticmethod
+    def filled(area: Rect, cell: BufferCell) -> Buffer: ...
+    @staticmethod
+    def with_lines(lines: Sequence[str | Line]) -> Buffer: ...
     @property
     def area(self) -> Rect: ...
     def render_widget(self, widget: Any, area: Rect) -> None: ...
     def render_stateful_widget(
         self, widget: Any, area: Rect, state: Any
     ) -> None: ...
+    def cell(self, x: int, y: int) -> Optional[BufferCell]: ...
+    def set_cell(self, x: int, y: int, symbol: str, style: Style) -> None: ...
+    def set_line(
+        self,
+        y: int,
+        line: str | Line,
+        x: int = 0,
+        max_width: Optional[int] = None,
+    ) -> Tuple[int, int]: ...
+    def set_style(self, area: Rect, style: Style) -> None: ...
+    def set_span(
+        self,
+        x: int,
+        y: int,
+        span: Span,
+        max_width: Optional[int] = None,
+    ) -> Tuple[int, int]: ...
+    def resize(self, area: Rect) -> None: ...
+    def index_of(self, x: int, y: int) -> int: ...
+    def pos_of(self, index: int) -> Position: ...
+    def content(self) -> list[BufferCell]: ...
     def cell_symbol(self, x: int, y: int) -> str: ...
     def cell_fg(self, x: int, y: int) -> Color: ...
     def cell_bg(self, x: int, y: int) -> Color: ...
@@ -870,6 +938,17 @@ def render_stateful_widget(
 ) -> None:
     """Render a supported stateful widget into a buffer region."""
 
+class CompletedFrame:
+    """Terminal state after a successful draw.
+
+    Maps to :class:`ratatui::CompletedFrame`.
+    See https://docs.rs/ratatui/0.29.0/ratatui/terminal/struct.CompletedFrame.html
+    """
+
+    buffer: Buffer
+    area: Rect
+    count: int
+
 class Frame:
     """Per-frame render context.
 
@@ -886,11 +965,17 @@ class Frame:
         self, widget: Any, area: Rect, state: Any
     ) -> None: ...
     def set_cursor_position(self, position: Position) -> None: ...
-    def hide_cursor(self) -> None: ...
+    def hide_cursor(self) -> None:
+        """Hide the terminal cursor for this frame draw pass."""
+        ...
     def process_effects(
         self, manager: EffectManager, duration_ms: int, area: Rect
     ) -> None: ...
     def count(self) -> int: ...
+    def buffer(self) -> Buffer: ...
+    def get_buffer(self) -> Buffer: ...
+    def size(self) -> Size: ...
+    def viewport(self) -> Rect: ...
 
 class KeyEventKind(IntEnum):
     """Key event phase.
@@ -902,23 +987,52 @@ class KeyEventKind(IntEnum):
     Repeat = ...
     Release = ...
 
+class KeyEventState:
+    """Extra keyboard event state flags.
+
+    Maps to :class:`crossterm::event::KeyEventState`.
+    """
+
+    NONE: KeyEventState
+    KEYPAD: KeyEventState
+    CAPS_LOCK: KeyEventState
+    NUM_LOCK: KeyEventState
+    bits: int
+
+    def keypad(self) -> bool: ...
+    def caps_lock(self) -> bool: ...
+    def num_lock(self) -> bool: ...
+    def __repr__(self) -> str: ...
+
 class KeyModifiers:
     """Keyboard modifier flags.
 
     Maps to :class:`crossterm::event::KeyModifiers`.
     """
 
+    NONE: KeyModifiers
+    SHIFT: KeyModifiers
+    CONTROL: KeyModifiers
+    ALT: KeyModifiers
+    SUPER: KeyModifiers
+    HYPER: KeyModifiers
+    META: KeyModifiers
     bits: int
 
     def contains(self, other: KeyModifiers) -> bool: ...
     def control(self) -> bool: ...
     def shift(self) -> bool: ...
     def alt(self) -> bool: ...
+    def super_(self) -> bool: ...
+    def meta(self) -> bool: ...
+    def hyper(self) -> bool: ...
+    def __or__(self, other: KeyModifiers) -> KeyModifiers: ...
+    def __repr__(self) -> str: ...
 
 class KeyCode(IntEnum):
     """Key code category.
 
-    Maps to :class:`crossterm::event::KeyCode` (simplified).
+    Maps to :class:`crossterm::event::KeyCode`.
     """
 
     Char = ...
@@ -939,7 +1053,42 @@ class KeyCode(IntEnum):
     Delete = ...
     F = ...
     Null = ...
+    CapsLock = ...
+    ScrollLock = ...
+    NumLock = ...
+    PrintScreen = ...
+    Pause = ...
+    Menu = ...
+    KeypadBegin = ...
+    Media = ...
+    Modifier = ...
     Other = ...
+
+class MouseButton(IntEnum):
+    """Mouse button identifier.
+
+    Maps to :class:`crossterm::event::MouseButton`.
+    """
+
+    Left = ...
+    Right = ...
+    Middle = ...
+    NoButton = ...
+
+class MouseEventKind(IntEnum):
+    """Mouse event kind.
+
+    Maps to :class:`crossterm::event::MouseEventKind`.
+    """
+
+    Down = ...
+    Up = ...
+    Drag = ...
+    Moved = ...
+    ScrollDown = ...
+    ScrollUp = ...
+    ScrollLeft = ...
+    ScrollRight = ...
 
 class MouseEvent:
     """Mouse event data.
@@ -948,9 +1097,14 @@ class MouseEvent:
     """
 
     kind: str
+    button: str
+    event_kind: MouseEventKind
+    mouse_button: MouseButton
     x: int
     y: int
-    button: str
+    column: int
+    row: int
+    modifiers: KeyModifiers
 
 class KeyEvent:
     """Keyboard event data.
@@ -961,7 +1115,10 @@ class KeyEvent:
     kind: KeyEventKind
     modifiers: KeyModifiers
     code_name: KeyCode
+    state: KeyEventState
 
+    def char_value(self) -> Optional[str]: ...
+    def function_number(self) -> Optional[int]: ...
     def is_char(self, ch: str) -> bool: ...
     def char(self) -> Optional[str]: ...
     def is_up(self) -> bool: ...
@@ -974,12 +1131,33 @@ class KeyEvent:
     def is_tab(self) -> bool: ...
     def is_page_up(self) -> bool: ...
     def is_page_down(self) -> bool: ...
+    def is_home(self) -> bool: ...
+    def is_end(self) -> bool: ...
+    def is_insert(self) -> bool: ...
+    def is_delete(self) -> bool: ...
+    def is_null(self) -> bool: ...
+    def is_back_tab(self) -> bool: ...
+    def is_function_key(self) -> bool: ...
+    def is_caps_lock(self) -> bool: ...
+    def is_scroll_lock(self) -> bool: ...
+    def is_num_lock(self) -> bool: ...
     def __repr__(self) -> str: ...
+
+class TerminalEventKind(IntEnum):
+    """Terminal input event category."""
+
+    Key = ...
+    Resize = ...
+    Paste = ...
+    Mouse = ...
+    FocusGained = ...
+    FocusLost = ...
 
 class Event:
     """Terminal input event."""
 
     kind: str
+    event_kind: TerminalEventKind
     key: Optional[KeyEvent]
     width: Optional[int]
     height: Optional[int]
@@ -998,6 +1176,8 @@ class Terminal:
     @staticmethod
     def init() -> Terminal: ...
     def draw(self, callback: Callable[[Frame], Any]) -> None: ...
+    def try_draw(self, callback: Callable[[Frame], Any]) -> CompletedFrame: ...
+    def flush(self) -> None: ...
     def clear(self) -> None: ...
     def size(self) -> Size: ...
     def __enter__(self) -> Terminal: ...
@@ -1016,6 +1196,275 @@ def poll_event(timeout_ms: int) -> Optional[Event]:
 
 def read_event() -> Event:
     """Block until a terminal event is available."""
+
+class CursorStyle(IntEnum):
+    """Terminal cursor shape.
+
+    Maps to :class:`crossterm::cursor::SetCursorStyle`.
+    """
+
+    DefaultUserShape = ...
+    BlinkingBlock = ...
+    SteadyBlock = ...
+    BlinkingUnderline = ...
+    SteadyUnderline = ...
+    BlinkingBar = ...
+    SteadyBar = ...
+
+def show_cursor() -> None:
+    """Show the terminal cursor."""
+
+def hide_cursor() -> None:
+    """Hide the terminal cursor."""
+
+def save_cursor_position() -> None:
+    """Save the current cursor position."""
+
+def restore_cursor_position() -> None:
+    """Restore the saved cursor position."""
+
+def move_cursor_to(x: int, y: int) -> None:
+    """Move the cursor to ``(x, y)``."""
+
+def move_cursor_to_column(x: int) -> None:
+    """Move the cursor to column ``x`` on the current row."""
+
+def move_cursor_to_row(y: int) -> None:
+    """Move the cursor to row ``y`` on the current column."""
+
+def move_cursor_up(count: int = 1) -> None:
+    """Move the cursor up by ``count`` cells."""
+
+def move_cursor_down(count: int = 1) -> None:
+    """Move the cursor down by ``count`` cells."""
+
+def move_cursor_left(count: int = 1) -> None:
+    """Move the cursor left by ``count`` cells."""
+
+def move_cursor_right(count: int = 1) -> None:
+    """Move the cursor right by ``count`` cells."""
+
+def move_cursor_to_next_line(count: int = 1) -> None:
+    """Move the cursor to the next line."""
+
+def move_cursor_to_previous_line(count: int = 1) -> None:
+    """Move the cursor to the previous line."""
+
+def enable_cursor_blinking() -> None:
+    """Enable cursor blinking."""
+
+def disable_cursor_blinking() -> None:
+    """Disable cursor blinking."""
+
+def set_cursor_style(style: CursorStyle) -> None:
+    """Set the terminal cursor style."""
+
+def get_cursor_position() -> Position:
+    """Query the current cursor position."""
+
+class ClearType(IntEnum):
+    """Terminal clear mode.
+
+    Maps to :class:`crossterm::terminal::ClearType`.
+    """
+
+    All = ...
+    Purge = ...
+    FromCursorDown = ...
+    FromCursorUp = ...
+    CurrentLine = ...
+    UntilNewLine = ...
+
+def enable_raw_mode() -> None:
+    """Enable terminal raw mode."""
+
+def disable_raw_mode() -> None:
+    """Disable terminal raw mode."""
+
+def is_raw_mode_enabled() -> bool:
+    """Return whether raw mode is enabled."""
+
+def terminal_size() -> Size:
+    """Return the terminal size in columns and rows."""
+
+def terminal_window_size() -> Size:
+    """Return the terminal window size in columns and rows."""
+
+def scroll_up(count: int = 1) -> None:
+    """Scroll the terminal buffer up."""
+
+def scroll_down(count: int = 1) -> None:
+    """Scroll the terminal buffer down."""
+
+def clear_terminal(clear_type: ClearType) -> None:
+    """Clear the terminal using the given clear type."""
+
+def enter_alternate_screen() -> None:
+    """Switch to the alternate screen buffer."""
+
+def leave_alternate_screen() -> None:
+    """Leave the alternate screen buffer."""
+
+def set_terminal_title(title: str) -> None:
+    """Set the terminal window title."""
+
+def enable_line_wrap() -> None:
+    """Enable terminal line wrapping."""
+
+def disable_line_wrap() -> None:
+    """Disable terminal line wrapping."""
+
+def begin_synchronized_update() -> None:
+    """Begin a synchronized terminal update."""
+
+def end_synchronized_update() -> None:
+    """End a synchronized terminal update."""
+
+def supports_keyboard_enhancement() -> bool:
+    """Return whether the terminal supports keyboard enhancement."""
+
+class KeyboardEnhancementFlags:
+    """Keyboard enhancement protocol flags.
+
+    Maps to :class:`crossterm::event::KeyboardEnhancementFlags`.
+    """
+
+    DISAMBIGUATE_ESCAPE_CODES: KeyboardEnhancementFlags
+    REPORT_EVENT_TYPES: KeyboardEnhancementFlags
+    REPORT_ALTERNATE_KEYS: KeyboardEnhancementFlags
+    REPORT_ALL_KEYS_AS_ESCAPE_CODES: KeyboardEnhancementFlags
+    bits: int
+
+    def __or__(
+        self, other: KeyboardEnhancementFlags
+    ) -> KeyboardEnhancementFlags: ...
+    def __repr__(self) -> str: ...
+
+def enable_mouse_capture() -> None:
+    """Enable mouse event capture."""
+
+def disable_mouse_capture() -> None:
+    """Disable mouse event capture."""
+
+def enable_bracketed_paste() -> None:
+    """Enable bracketed paste mode."""
+
+def disable_bracketed_paste() -> None:
+    """Disable bracketed paste mode."""
+
+def enable_focus_change() -> None:
+    """Enable focus change events."""
+
+def disable_focus_change() -> None:
+    """Disable focus change events."""
+
+def push_keyboard_enhancement_flags(flags: KeyboardEnhancementFlags) -> None:
+    """Push keyboard enhancement flags."""
+
+def pop_keyboard_enhancement_flags() -> None:
+    """Pop keyboard enhancement flags."""
+
+class ConsoleColor(IntEnum):
+    """Console foreground/background color.
+
+    Maps to :class:`crossterm::style::Color`.
+    """
+
+    Reset = ...
+    Black = ...
+    DarkGrey = ...
+    Red = ...
+    DarkRed = ...
+    Green = ...
+    DarkGreen = ...
+    Yellow = ...
+    DarkYellow = ...
+    Blue = ...
+    DarkBlue = ...
+    Magenta = ...
+    DarkMagenta = ...
+    Cyan = ...
+    DarkCyan = ...
+    White = ...
+    Grey = ...
+    AnsiValue = ...
+    Rgb = ...
+
+class ConsoleAttribute(IntEnum):
+    """Console text attribute.
+
+    Maps to :class:`crossterm::style::Attribute`.
+    """
+
+    Reset = ...
+    Bold = ...
+    Dim = ...
+    Italic = ...
+    Underlined = ...
+    DoubleUnderlined = ...
+    Undercurled = ...
+    Underdotted = ...
+    Underdashed = ...
+    SlowBlink = ...
+    RapidBlink = ...
+    Reverse = ...
+    Hidden = ...
+    CrossedOut = ...
+    Fraktur = ...
+    NoBold = ...
+    NormalIntensity = ...
+    NoItalic = ...
+    NoUnderline = ...
+    NoBlink = ...
+    NoReverse = ...
+    NoHidden = ...
+    NotCrossedOut = ...
+    Framed = ...
+    Encircled = ...
+    OverLined = ...
+    NotFramedOrEncircled = ...
+    NotOverLined = ...
+
+def set_foreground_color(
+    color: ConsoleColor,
+    *,
+    ansi_value: Optional[int] = None,
+    rgb: Optional[Tuple[int, int, int]] = None,
+) -> None:
+    """Set the console foreground color."""
+
+def set_background_color(
+    color: ConsoleColor,
+    *,
+    ansi_value: Optional[int] = None,
+    rgb: Optional[Tuple[int, int, int]] = None,
+) -> None:
+    """Set the console background color."""
+
+def reset_color() -> None:
+    """Reset console colors to default."""
+
+def set_attribute(attribute: ConsoleAttribute) -> None:
+    """Set a console text attribute."""
+
+def print_styled_content(
+    text: str,
+    *,
+    foreground: Optional[ConsoleColor] = None,
+    background: Optional[ConsoleColor] = None,
+    attribute: Optional[ConsoleAttribute] = None,
+    foreground_ansi: Optional[int] = None,
+    background_ansi: Optional[int] = None,
+    foreground_rgb: Optional[Tuple[int, int, int]] = None,
+    background_rgb: Optional[Tuple[int, int, int]] = None,
+) -> None:
+    """Print styled text to stdout."""
+
+def print_text(text: str) -> None:
+    """Print plain text to stdout."""
+
+def flush_stdout_buffer() -> None:
+    """Flush queued stdout commands."""
 
 class Motion(IntEnum):
     """Effect motion direction.
@@ -1082,6 +1531,112 @@ class ColorSpace(IntEnum):
     Hsl = ...
     Hsv = ...
 
+class Duration:
+    """Effect duration.
+
+    Maps to :class:`tachyonfx::Duration`.
+    See https://docs.rs/tachyonfx/0.25.0/tachyonfx/struct.Duration.html
+    """
+
+    ZERO: Duration
+
+    @staticmethod
+    def from_millis(milliseconds: int) -> Duration: ...
+    @staticmethod
+    def from_secs(seconds: int) -> Duration: ...
+    def as_millis(self) -> int: ...
+    def is_zero(self) -> bool: ...
+    def __repr__(self) -> str: ...
+
+class EffectTimer:
+    """Effect timing and interpolation state.
+
+    Maps to :class:`tachyonfx::EffectTimer`.
+    See https://docs.rs/tachyonfx/0.25.0/tachyonfx/struct.EffectTimer.html
+    """
+
+    @staticmethod
+    def from_ms(
+        duration_ms: int, interpolation: Interpolation
+    ) -> EffectTimer: ...
+    def remaining_ms(self) -> int: ...
+    def duration_ms(self) -> int: ...
+    def alpha(self) -> float: ...
+    def is_reversed(self) -> bool: ...
+    def started(self) -> bool: ...
+    def is_done(self) -> bool: ...
+    def reset(self) -> None: ...
+    def __repr__(self) -> str: ...
+
+class RepeatMode(IntEnum):
+    """Effect repeat mode.
+
+    Maps to :class:`tachyonfx::fx::RepeatMode`.
+    """
+
+    Forever = ...
+    Times = ...
+    Duration = ...
+
+class RefRect:
+    """Mutable reference to a rectangle area.
+
+    Not thread-safe (``unsendable``).
+
+    Maps to :class:`tachyonfx::RefRect`.
+    """
+
+    @staticmethod
+    def new(rect: Rect) -> RefRect: ...
+    @staticmethod
+    def default() -> RefRect: ...
+    def get(self) -> Rect: ...
+    def set(self, rect: Rect) -> None: ...
+    def contains(self, x: int, y: int) -> bool: ...
+    def __repr__(self) -> str: ...
+
+class RadialPattern:
+    """Radial spatial pattern for effects.
+
+    Maps to :class:`tachyonfx::pattern::RadialPattern`.
+    """
+
+    @staticmethod
+    def center() -> RadialPattern: ...
+    @staticmethod
+    def new(center_x: float, center_y: float) -> RadialPattern: ...
+    @staticmethod
+    def with_transition(
+        center_x: float, center_y: float, transition_width: float
+    ) -> RadialPattern: ...
+    def with_transition_width(self, width: float) -> RadialPattern: ...
+    def with_center(
+        self, center_x: float, center_y: float
+    ) -> RadialPattern: ...
+
+class ExpandDirection(IntEnum):
+    """Bidirectional expand direction.
+
+    Maps to :class:`tachyonfx::fx::ExpandDirection`.
+    """
+
+    Horizontal = ...
+    Vertical = ...
+
+class EvolveSymbolSet(IntEnum):
+    """Symbol progression set for evolve effects.
+
+    Maps to :class:`tachyonfx::fx::EvolveSymbolSet`.
+    """
+
+    BlocksHorizontal = ...
+    BlocksVertical = ...
+    CircleFill = ...
+    Circles = ...
+    Quadrants = ...
+    Shaded = ...
+    Squares = ...
+
 class CellFilter:
     """Cell selection filter for effects.
 
@@ -1111,6 +1666,20 @@ class CellFilter:
     def any_of(filters: Sequence[CellFilter]) -> CellFilter: ...
     @staticmethod
     def not_(filter: CellFilter) -> CellFilter: ...
+    @staticmethod
+    def none_of(filters: Sequence[CellFilter]) -> CellFilter: ...
+    @staticmethod
+    def ref_area(ref_rect: RefRect) -> CellFilter: ...
+    @staticmethod
+    def layout(layout: Layout, index: int) -> CellFilter: ...
+    @staticmethod
+    def position_fn(callback: Callable[[int, int], bool]) -> CellFilter: ...
+    @staticmethod
+    def eval_cell(
+        callback: Callable[[str, Color, Color], bool],
+    ) -> CellFilter: ...
+    def negated(self) -> CellFilter: ...
+    def into_static(self) -> CellFilter: ...
 
 class Effect:
     """Terminal visual effect.
@@ -1130,6 +1699,20 @@ class Effect:
     def is_done(self) -> bool: ...
     def is_running(self) -> bool: ...
     def reset(self) -> None: ...
+    def get_area(self) -> Optional[Rect]: ...
+    def set_area(self, area: Rect) -> None: ...
+    def get_filter(self) -> Optional[CellFilter]: ...
+    def set_filter(self, filter: CellFilter) -> None: ...
+    def reverse(self) -> None: ...
+    def timer(self) -> Optional[EffectTimer]: ...
+    def get_timer(self) -> Optional[EffectTimer]: ...
+    def reset_timer(self) -> None: ...
+    def set_color_space(self, color_space: ColorSpace) -> None: ...
+    def with_pattern(self, pattern: RadialPattern) -> Effect: ...
+    def to_dsl(self) -> str: ...
+    def process(
+        self, duration_ms: int, buffer: Buffer, area: Rect
+    ) -> Optional[int]: ...
 
 class EffectManager:
     """Effect scheduler and processor.
@@ -1320,6 +1903,13 @@ def saturate_fg(
 ) -> Effect:
     """Adjust foreground saturation. See :func:`tachyonfx::fx::saturate_fg`."""
 
+def saturate_bg(
+    bg: float,
+    duration_ms: int,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Adjust background saturation. Convenience wrapper around :func:`saturate`."""
+
 def lighten(
     duration_ms: int,
     fg: Optional[float] = None,
@@ -1335,6 +1925,13 @@ def lighten_fg(
 ) -> Effect:
     """Lighten foreground. See :func:`tachyonfx::fx::lighten_fg`."""
 
+def lighten_bg(
+    bg: float,
+    duration_ms: int,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Lighten background. Convenience wrapper around :func:`lighten`."""
+
 def darken(
     duration_ms: int,
     fg: Optional[float] = None,
@@ -1349,6 +1946,13 @@ def darken_fg(
     interpolation: Optional[Interpolation] = None,
 ) -> Effect:
     """Darken foreground. See :func:`tachyonfx::fx::darken_fg`."""
+
+def darken_bg(
+    bg: float,
+    duration_ms: int,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Darken background. Convenience wrapper around :func:`darken`."""
 
 def hsl_shift(
     duration_ms: int,
@@ -1371,52 +1975,208 @@ def hsl_shift_fg(
 ) -> Effect:
     """Shift foreground HSL. See :func:`tachyonfx::fx::hsl_shift_fg`."""
 
+def hsl_shift_bg(
+    h: float,
+    s: float,
+    l: float,
+    duration_ms: int,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Shift background HSL. Convenience wrapper around :func:`hsl_shift`."""
+
+def evolve_effect(
+    symbols: EvolveSymbolSet,
+    duration_ms: int,
+    style: Optional[Style] = None,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Evolve cell symbols. See :func:`tachyonfx::fx::evolve`."""
+
+def evolve_into_effect(
+    symbols: EvolveSymbolSet,
+    duration_ms: int,
+    style: Optional[Style] = None,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Evolve symbols into target style. See :func:`tachyonfx::fx::evolve_into`."""
+
+def evolve_from_effect(
+    symbols: EvolveSymbolSet,
+    duration_ms: int,
+    style: Optional[Style] = None,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Evolve symbols from source style. See :func:`tachyonfx::fx::evolve_from`."""
+
+def explode_effect(
+    force: float,
+    force_rng_factor: float,
+    duration_ms: int,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Explode cells outward. See :func:`tachyonfx::fx::explode`."""
+
+def glitch_effect(
+    cell_glitch_ratio: float,
+    action_start_delay_min_ms: int,
+    action_start_delay_max_ms: int,
+    action_min_ms: int,
+    action_max_ms: int,
+    filter: Optional[CellFilter] = None,
+    seed: Optional[int] = None,
+) -> Effect:
+    """Glitch effect with randomized cell mutations. See :class:`tachyonfx::fx::Glitch`."""
+
+def translate_effect(
+    effect: Effect,
+    translate_by: Offset,
+    duration_ms: int,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Translate an effect's area. See :func:`tachyonfx::fx::translate`."""
+
+def expand_effect(
+    direction: ExpandDirection,
+    style: Style,
+    duration_ms: int,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Bidirectional expand using block characters. See :func:`tachyonfx::fx::expand`."""
+
+def stretch_effect(
+    direction: Motion,
+    style: Style,
+    duration_ms: int,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Unidirectional stretch/shrink using block characters. See :func:`tachyonfx::fx::stretch`."""
+
+def resize_area_effect(
+    initial_size: Size,
+    duration_ms: int,
+    effect: Optional[Effect] = None,
+    interpolation: Optional[Interpolation] = None,
+) -> Effect:
+    """Resize effect area over time. See :func:`tachyonfx::fx::resize_area`."""
+
+def freeze_at_effect(
+    alpha: float, set_raw_alpha: bool, effect: Effect
+) -> Effect:
+    """Freeze an effect at a given alpha. See :func:`tachyonfx::fx::freeze_at`."""
+
+def remap_alpha_effect(
+    alpha_start: float, alpha_end: float, effect: Effect
+) -> Effect:
+    """Remap effect alpha range. See :func:`tachyonfx::fx::remap_alpha`."""
+
+def never_complete_effect(effect: Effect) -> Effect:
+    """Prevent effect from completing. See :func:`tachyonfx::fx::never_complete`."""
+
+def run_once_effect(effect: Effect) -> Effect:
+    """Run effect only once. See :func:`tachyonfx::fx::run_once`."""
+
+def consume_tick_effect() -> Effect:
+    """Consume one tick without visual change. See :func:`tachyonfx::fx::consume_tick`."""
+
+def with_duration_effect(duration_ms: int, effect: Effect) -> Effect:
+    """Override effect duration. See :func:`tachyonfx::fx::with_duration`."""
+
+def timed_never_complete_effect(duration_ms: int, effect: Effect) -> Effect:
+    """Never complete for a bounded duration. See :func:`tachyonfx::fx::timed_never_complete`."""
+
 __all__ = (
     "Alignment",
     "Bar",
     "BarChart",
     "BarGroup",
+    "begin_synchronized_update",
     "Block",
     "BorderType",
     "Borders",
     "Buffer",
+    "BufferCell",
     "Cell",
     "CellFilter",
     "Clear",
+    "ClearType",
+    "clear_terminal",
     "Color",
     "ColorSpace",
+    "CompletedFrame",
+    "ConsoleAttribute",
+    "ConsoleColor",
     "Constraint",
-    "Direction",
+    "consume_tick_effect",
     "coalesce",
     "coalesce_from",
     "color_from_hex",
     "color_from_hsl",
     "color_lerp",
+    "color_to_hsl",
+    "color_to_srgb",
+    "CursorStyle",
     "darken",
+    "darken_bg",
     "darken_fg",
     "delay_effect",
+    "disable_bracketed_paste",
+    "disable_cursor_blinking",
+    "disable_focus_change",
+    "disable_line_wrap",
+    "disable_mouse_capture",
+    "disable_raw_mode",
+    "Direction",
     "dissolve",
     "dissolve_to",
+    "Duration",
     "Effect",
     "EffectManager",
+    "EffectTimer",
+    "enable_bracketed_paste",
+    "enable_cursor_blinking",
+    "enable_focus_change",
+    "enable_line_wrap",
+    "enable_mouse_capture",
+    "enable_raw_mode",
+    "end_synchronized_update",
+    "enter_alternate_screen",
+    "EvolveSymbolSet",
     "Event",
+    "evolve_effect",
+    "evolve_from_effect",
+    "evolve_into_effect",
+    "expand_effect",
+    "ExpandDirection",
+    "explode_effect",
     "fade_from",
     "fade_from_fg",
     "fade_to",
     "fade_to_fg",
     "Flex",
+    "flush_stdout_buffer",
     "Frame",
+    "freeze_at_effect",
     "Gauge",
+    "get_cursor_position",
+    "glitch_effect",
+    "hide_cursor",
     "HighlightSpacing",
     "hsl_shift",
+    "hsl_shift_bg",
     "hsl_shift_fg",
     "Interpolation",
+    "interpolate_colors",
+    "is_raw_mode_enabled",
+    "KeyboardEnhancementFlags",
     "KeyCode",
     "KeyEvent",
     "KeyEventKind",
+    "KeyEventState",
     "KeyModifiers",
     "Layout",
+    "leave_alternate_screen",
     "lighten",
+    "lighten_bg",
     "lighten_fg",
     "Line",
     "LineGauge",
@@ -1424,53 +2184,95 @@ __all__ = (
     "ListItem",
     "ListState",
     "Margin",
-    "MouseEvent",
-    "Motion",
     "Modifier",
+    "Motion",
+    "MouseButton",
+    "MouseEvent",
+    "MouseEventKind",
+    "move_cursor_down",
+    "move_cursor_left",
+    "move_cursor_right",
+    "move_cursor_to",
+    "move_cursor_to_column",
+    "move_cursor_to_next_line",
+    "move_cursor_to_previous_line",
+    "move_cursor_to_row",
+    "move_cursor_up",
+    "never_complete_effect",
     "Offset",
     "Padding",
     "paint",
     "paint_bg",
     "paint_fg",
-    "Paragraph",
     "parallel_effects",
+    "Paragraph",
     "ping_pong_effect",
     "poll_event",
+    "pop_keyboard_enhancement_flags",
     "Position",
+    "print_styled_content",
+    "print_text",
     "prolong_end_effect",
     "prolong_start_effect",
+    "push_keyboard_enhancement_flags",
+    "RadialPattern",
     "RatList",
     "RatTable",
     "read_event",
     "Rect",
+    "RefRect",
+    "remap_alpha_effect",
     "render_stateful_widget",
     "render_widget",
     "repeat_effect",
+    "RepeatMode",
     "repeating_effect",
+    "resize_area_effect",
+    "reset_color",
+    "restore_cursor_position",
     "restore_terminal",
     "Row",
+    "run_once_effect",
+    "save_cursor_position",
     "saturate",
+    "saturate_bg",
     "saturate_fg",
+    "scroll_down",
+    "scroll_up",
     "ScrollDirection",
     "Scrollbar",
     "ScrollbarOrientation",
     "ScrollbarState",
     "sequence_effects",
+    "set_attribute",
+    "set_background_color",
+    "set_cursor_style",
+    "set_foreground_color",
+    "set_terminal_title",
+    "show_cursor",
     "Size",
     "sleep_effect",
     "slide_in",
     "slide_out",
     "Span",
     "Sparkline",
+    "stretch_effect",
     "Style",
     "styled_span",
+    "supports_keyboard_enhancement",
     "sweep_in",
     "sweep_out",
     "TableState",
     "Tabs",
     "tailwind_color",
     "Terminal",
+    "terminal_size",
+    "terminal_window_size",
+    "TerminalEventKind",
     "Text",
+    "timed_never_complete_effect",
     "TitlePosition",
+    "translate_effect",
+    "with_duration_effect",
     "Wrap",
 )

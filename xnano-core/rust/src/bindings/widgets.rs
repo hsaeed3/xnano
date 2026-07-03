@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use ratatui::widgets::block::Position as TitlePosition;
+use ratatui::symbols::border;
 use ratatui::widgets::{
     Block, BorderType, Borders, Gauge, HighlightSpacing, List, ListDirection, ListItem, ListState,
     Paragraph, Wrap,
@@ -51,6 +52,68 @@ impl PyBorders {
 
     fn __repr__(&self) -> String {
         format!("{self:?}", self = self.inner)
+    }
+}
+
+#[pyclass(name = "BorderSet", module = "xnano_core._xnano_core")]
+#[derive(Clone, Copy)]
+pub struct PyBorderSet {
+    pub inner: border::Set,
+}
+
+#[pymethods]
+impl PyBorderSet {
+    #[classattr]
+    const PLAIN: Self = Self { inner: border::PLAIN };
+    #[classattr]
+    const ROUNDED: Self = Self {
+        inner: border::ROUNDED,
+    };
+    #[classattr]
+    const DOUBLE: Self = Self {
+        inner: border::DOUBLE,
+    };
+    #[classattr]
+    const THICK: Self = Self { inner: border::THICK };
+
+    #[staticmethod]
+    #[pyo3(signature = (
+        top_left,
+        top_right,
+        bottom_left,
+        bottom_right,
+        vertical_left,
+        vertical_right,
+        horizontal_top,
+        horizontal_bottom
+    ))]
+    fn new(
+        top_left: &str,
+        top_right: &str,
+        bottom_left: &str,
+        bottom_right: &str,
+        vertical_left: &str,
+        vertical_right: &str,
+        horizontal_top: &str,
+        horizontal_bottom: &str,
+    ) -> Self {
+        let leak = |value: &str| Box::leak(value.to_string().into_boxed_str());
+        Self {
+            inner: border::Set {
+                top_left: leak(top_left),
+                top_right: leak(top_right),
+                bottom_left: leak(bottom_left),
+                bottom_right: leak(bottom_right),
+                vertical_left: leak(vertical_left),
+                vertical_right: leak(vertical_right),
+                horizontal_top: leak(horizontal_top),
+                horizontal_bottom: leak(horizontal_bottom),
+            },
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("BorderSet({:?})", self.inner)
     }
 }
 
@@ -173,6 +236,12 @@ impl PyBlock {
     fn border_type(&self, border_type: PyBorderType) -> Self {
         Self {
             inner: self.inner.clone().border_type(border_type.into()),
+        }
+    }
+
+    fn border_set(&self, border_set: PyBorderSet) -> Self {
+        Self {
+            inner: self.inner.clone().border_set(border_set.inner),
         }
     }
 
@@ -616,6 +685,7 @@ impl PyClear {
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyBorders>()?;
+    m.add_class::<PyBorderSet>()?;
     m.add_class::<PyBorderType>()?;
     m.add_class::<PyTitlePosition>()?;
     m.add_class::<PyHighlightSpacing>()?;

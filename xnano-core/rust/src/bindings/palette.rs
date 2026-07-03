@@ -1,4 +1,4 @@
-use palette::{Hsl, Mix, Srgb};
+use palette::{Hsl, Mix, Srgb, IntoColor};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use ratatui::style::palette::tailwind;
@@ -20,12 +20,12 @@ fn parse_hex(value: &str) -> PyResult<Color> {
     Ok(Color::from_u32(parsed << 8 | 0xFF))
 }
 
-fn color_to_srgb(color: Color) -> Srgb<f32> {
+fn color_to_srgb_components(color: Color) -> Srgb<f32> {
     match color {
         Color::Rgb(r, g, b) => Srgb::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0),
         Color::Indexed(i) => {
             let c = Color::from_u32(i as u32);
-            color_to_srgb(c)
+            color_to_srgb_components(c)
         }
         other => {
             let value = format!("{other:?}");
@@ -61,9 +61,47 @@ fn color_from_hex(value: &str) -> PyResult<PyColor> {
 }
 
 #[pyfunction]
+fn color_to_hsl(color: PyColor) -> (f32, f32, f32) {
+    let hsl: Hsl = color_to_srgb_components(color.inner).into_color();
+    (hsl.hue.into_degrees(), hsl.saturation, hsl.lightness)
+}
+
+#[pyfunction]
+fn color_to_srgb(color: PyColor) -> (f32, f32, f32) {
+    let srgb = color_to_srgb_components(color.inner);
+    (srgb.red, srgb.green, srgb.blue)
+}
+
+#[pyfunction]
+#[pyo3(signature = (a, b, t, space="rgb"))]
+fn interpolate_colors(a: PyColor, b: PyColor, t: f32, space: &str) -> PyResult<PyColor> {
+    let t = t.clamp(0.0, 1.0);
+    let mixed = match space.to_ascii_lowercase().as_str() {
+        "hsl" => {
+            let ha: Hsl = color_to_srgb_components(a.inner).into_color();
+            let hb: Hsl = color_to_srgb_components(b.inner).into_color();
+            ha.mix(hb, t).into_color()
+        }
+        "rgb" => color_to_srgb_components(a.inner).mix(color_to_srgb_components(b.inner), t),
+        other => {
+            return Err(PyValueError::new_err(format!(
+                "unsupported color space: {other} (expected 'rgb' or 'hsl')"
+            )));
+        }
+    };
+    Ok(PyColor {
+        inner: Color::Rgb(
+            (mixed.red * 255.0).round() as u8,
+            (mixed.green * 255.0).round() as u8,
+            (mixed.blue * 255.0).round() as u8,
+        ),
+    })
+}
+
+#[pyfunction]
 fn color_lerp(a: PyColor, b: PyColor, t: f32) -> PyColor {
     let t = t.clamp(0.0, 1.0);
-    let mixed = color_to_srgb(a.inner).mix(color_to_srgb(b.inner), t);
+    let mixed = color_to_srgb_components(a.inner).mix(color_to_srgb_components(b.inner), t);
     PyColor {
         inner: Color::Rgb(
             (mixed.red * 255.0).round() as u8,
@@ -138,6 +176,9 @@ fn tailwind_color(name: &str, shade: u16) -> PyResult<PyColor> {
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(color_from_hsl, m)?)?;
     m.add_function(wrap_pyfunction!(color_from_hex, m)?)?;
+    m.add_function(wrap_pyfunction!(color_to_hsl, m)?)?;
+    m.add_function(wrap_pyfunction!(color_to_srgb, m)?)?;
+    m.add_function(wrap_pyfunction!(interpolate_colors, m)?)?;
     m.add_function(wrap_pyfunction!(color_lerp, m)?)?;
     m.add_function(wrap_pyfunction!(tailwind_color, m)?)?;
     Ok(())
