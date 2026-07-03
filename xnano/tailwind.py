@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, TypeAlias, TYPE_CHECKING
+from typing import Any, Literal, TypeAlias, TYPE_CHECKING, cast
 
 from xnano import _core
 from xnano.color import Color
@@ -872,6 +872,11 @@ else:
 """Tailwind utility classes with full IDE auto-completion."""
 
 
+def _parse_tailwind_shade(value: str) -> TailwindShade:
+    """Parse a Tailwind shade token into a typed shade literal."""
+    return cast(TailwindShade, int(value))
+
+
 def tailwind(name: str, shade: TailwindShade) -> Color:
     """Look up a color from the Tailwind CSS palette.
 
@@ -927,17 +932,24 @@ def parse_tailwind(class_name: str) -> dict[str, Any]:
     for token in tokens:
         bg_match = re.match(r"^bg-([a-z]+)-(\d+)$", token)
         if bg_match:
-            bg_color = tailwind(bg_match.group(1), int(bg_match.group(2)))  # type: ignore
+            bg_color = tailwind(
+                bg_match.group(1),
+                _parse_tailwind_shade(bg_match.group(2)),
+            )
             continue
         text_match = re.match(r"^text-([a-z]+)-(\d+)$", token)
         if text_match:
-            fg_color = tailwind(text_match.group(1), int(text_match.group(2)))  # type: ignore
+            fg_color = tailwind(
+                text_match.group(1),
+                _parse_tailwind_shade(text_match.group(2)),
+            )
             continue
         border_match = re.match(r"^border-([a-z]+)-(\d+)$", token)
         if border_match:
             border_color = tailwind(
-                border_match.group(1), int(border_match.group(2))
-            )  # type: ignore
+                border_match.group(1),
+                _parse_tailwind_shade(border_match.group(2)),
+            )
             continue
 
         if token == "text-white":

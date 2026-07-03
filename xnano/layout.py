@@ -22,6 +22,12 @@ Flex: TypeAlias = Literal[
 """Flex distribution mode for dividing remaining space among constraints."""
 
 
+ConstraintKind: TypeAlias = Literal[
+    "length", "percentage", "minimum", "maximum", "ratio", "fill"
+]
+"""The kind of layout size constraint."""
+
+
 _DIRECTION: dict[Direction, _core.Direction] = {
     "horizontal": _core.Direction.Horizontal,
     "vertical": _core.Direction.Vertical,
@@ -196,89 +202,162 @@ class Rectangle:
 Rect = Rectangle
 
 
+@dataclasses.dataclass(frozen=True, slots=True, repr=False)
 class Constraint:
-    """A layout size constraint."""
+    """A layout size constraint.
 
-    __slots__ = ("_inner",)
-    _inner: _core.Constraint
+    Attributes:
+        kind: The constraint kind.
+        value: Primary value for length, percentage, minimum, maximum, or fill.
+        numerator: Ratio numerator when ``kind`` is ``"ratio"``.
+        denominator: Ratio denominator when ``kind`` is ``"ratio"``.
+    """
 
-    def __init__(self) -> None:
-        raise TypeError(
-            "Constraint instances are created via factory methods: "
-            "Constraint.length(), Constraint.percentage(), etc."
-        )
+    kind: ConstraintKind
+    value: int = 0
+    numerator: int = 1
+    denominator: int = 1
+
+    def __post_init__(self) -> None:
+        if self.kind == "ratio" and self.denominator == 0:
+            raise ValueError(
+                "ratio constraints require a non-zero denominator"
+            )
 
     @classmethod
     def _from_core(cls, inner: _core.Constraint) -> Constraint:
-        obj = object.__new__(cls)
-        object.__setattr__(obj, "_inner", inner)
-        return obj
+        representation = repr(inner)
+        if representation.startswith("Length("):
+            return cls(kind="length", value=int(representation[7:-1]))
+        if representation.startswith("Percentage("):
+            return cls(kind="percentage", value=int(representation[11:-1]))
+        if representation.startswith("Min("):
+            return cls(kind="minimum", value=int(representation[4:-1]))
+        if representation.startswith("Max("):
+            return cls(kind="maximum", value=int(representation[4:-1]))
+        if representation.startswith("Fill("):
+            return cls(kind="fill", value=int(representation[5:-1]))
+        if representation.startswith("Ratio("):
+            parts = representation[6:-1].split(",")
+            numerator = int(parts[0].strip())
+            denominator = int(parts[1].strip())
+            return cls(
+                kind="ratio",
+                numerator=numerator,
+                denominator=denominator,
+            )
+        raise ValueError(f"unsupported core constraint: {representation!r}")
 
     def _to_core(self) -> _core.Constraint:
-        return self._inner
+        if self.kind == "length":
+            return _core.Constraint.length(self.value)
+        if self.kind == "percentage":
+            return _core.Constraint.percentage(self.value)
+        if self.kind == "minimum":
+            return _core.Constraint.min(self.value)
+        if self.kind == "maximum":
+            return _core.Constraint.max(self.value)
+        if self.kind == "ratio":
+            return _core.Constraint.ratio(self.numerator, self.denominator)
+        if self.kind == "fill":
+            return _core.Constraint.fill(self.value)
+        raise ValueError(f"unsupported constraint kind: {self.kind!r}")
 
     get_core_constraint = _to_core
 
     @classmethod
     def min(cls, value: int) -> Constraint:
-        return cls._from_core(_core.Constraint.min(value))
+        """Create a minimum-size constraint."""
+        return cls(kind="minimum", value=value)
 
     @classmethod
     def max(cls, value: int) -> Constraint:
-        return cls._from_core(_core.Constraint.max(value))
+        """Create a maximum-size constraint."""
+        return cls(kind="maximum", value=value)
 
     @classmethod
     def length(cls, value: int) -> Constraint:
-        return cls._from_core(_core.Constraint.length(value))
+        """Create a fixed-length constraint."""
+        return cls(kind="length", value=value)
 
     @classmethod
     def percentage(cls, value: int) -> Constraint:
-        return cls._from_core(_core.Constraint.percentage(value))
+        """Create a percentage-based constraint."""
+        return cls(kind="percentage", value=value)
 
     @classmethod
     def ratio(cls, numerator: int, denominator: int) -> Constraint:
-        return cls._from_core(_core.Constraint.ratio(numerator, denominator))
+        """Create a ratio-based constraint."""
+        return cls(kind="ratio", numerator=numerator, denominator=denominator)
 
     @classmethod
     def fill(cls, value: int) -> Constraint:
-        return cls._from_core(_core.Constraint.fill(value))
+        """Create a fill-weight constraint."""
+        return cls(kind="fill", value=value)
 
     @classmethod
     def from_lengths(cls, values: list[int]) -> list[Constraint]:
-        return [
-            cls._from_core(c) for c in _core.Constraint.from_lengths(values)
-        ]
+        """Create constraints from a list of fixed lengths."""
+        return [cls.length(value) for value in values]
 
     @classmethod
     def from_percentages(cls, values: list[int]) -> list[Constraint]:
-        return [
-            cls._from_core(c)
-            for c in _core.Constraint.from_percentages(values)
-        ]
+        """Create constraints from a list of percentages."""
+        return [cls.percentage(value) for value in values]
 
     @classmethod
     def from_ratios(cls, values: list[tuple[int, int]]) -> list[Constraint]:
+        """Create constraints from a list of ratios."""
         return [
-            cls._from_core(c) for c in _core.Constraint.from_ratios(values)
+            cls.ratio(numerator, denominator)
+            for numerator, denominator in values
         ]
 
     @classmethod
     def from_mins(cls, values: list[int]) -> list[Constraint]:
-        return [cls._from_core(c) for c in _core.Constraint.from_mins(values)]
+        """Create constraints from a list of minimum sizes."""
+        return [cls.min(value) for value in values]
 
     @classmethod
     def from_maxes(cls, values: list[int]) -> list[Constraint]:
-        return [cls._from_core(c) for c in _core.Constraint.from_maxes(values)]
+        """Create constraints from a list of maximum sizes."""
+        return [cls.max(value) for value in values]
 
     @classmethod
     def from_fills(cls, values: list[int]) -> list[Constraint]:
-        return [cls._from_core(c) for c in _core.Constraint.from_fills(values)]
+        """Create constraints from a list of fill weights."""
+        return [cls.fill(value) for value in values]
 
     def apply(self, length: int) -> int:
-        return self._inner.apply(length)
+        """Apply this constraint to an available length and return the result."""
+        if self.kind == "length":
+            return min(self.value, length)
+        if self.kind == "percentage":
+            return length * self.value // 100
+        if self.kind == "minimum":
+            return max(self.value, length)
+        if self.kind == "maximum":
+            return min(self.value, length)
+        if self.kind == "ratio":
+            return length * self.numerator // self.denominator
+        if self.kind == "fill":
+            return self.value
+        raise ValueError(f"unsupported constraint kind: {self.kind!r}")
 
     def __repr__(self) -> str:
-        return repr(self._inner)
+        if self.kind == "length":
+            return f"Length({self.value})"
+        if self.kind == "percentage":
+            return f"Percentage({self.value})"
+        if self.kind == "minimum":
+            return f"Min({self.value})"
+        if self.kind == "maximum":
+            return f"Max({self.value})"
+        if self.kind == "ratio":
+            return f"Ratio({self.numerator}, {self.denominator})"
+        if self.kind == "fill":
+            return f"Fill({self.value})"
+        return f"Constraint(kind={self.kind!r}, value={self.value})"
 
 
 RectangleLike: TypeAlias = Union[Rectangle, tuple[int, int, int, int]]
@@ -302,20 +381,20 @@ def _resolve_constraint(value: ConstraintLike) -> _core.Constraint:
     if isinstance(value, Constraint):
         return value._to_core()
     if isinstance(value, int):
-        return _core.Constraint.length(value)
+        return Constraint.length(value)._to_core()
     if isinstance(value, float):
-        return _core.Constraint.percentage(int(value * 100))
+        return Constraint.percentage(int(value * 100))._to_core()
     if isinstance(value, str):
         val = value.strip().lower()
         if val.endswith("%"):
-            return _core.Constraint.percentage(int(val[:-1]))
+            return Constraint.percentage(int(val[:-1]))._to_core()
         if val in ("fill", "*"):
-            return _core.Constraint.fill(1)
+            return Constraint.fill(1)._to_core()
         if val.endswith("*"):
             factor = val[:-1].strip()
-            return _core.Constraint.fill(int(factor) if factor else 1)
+            return Constraint.fill(int(factor) if factor else 1)._to_core()
         if val.isdigit():
-            return _core.Constraint.length(int(val))
+            return Constraint.length(int(val))._to_core()
     raise TypeError(f"Invalid constraint: {value!r}")
 
 
@@ -478,6 +557,7 @@ class Layout:
 __all__ = (
     "Alignment",
     "Constraint",
+    "ConstraintKind",
     "ConstraintLike",
     "Direction",
     "Flex",

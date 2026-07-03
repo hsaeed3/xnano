@@ -7,6 +7,7 @@ from typing import Any, TypeVar, cast
 
 from xnano import _core
 from xnano._convert import unwrap
+from xnano.buffer import Buffer
 from xnano.layout import (
     Position,
     Rectangle,
@@ -129,6 +130,59 @@ class Frame:
         """Return the frame counter (number of draws so far)."""
         return self._inner.count()
 
+    def get_buffer(self) -> Buffer:
+        """Return a copy of this frame's render buffer."""
+        return Buffer._from_core(self._inner.get_buffer())
+
+    def get_size(self) -> Size:
+        """Return the frame viewport size."""
+        inner = self._inner.size()
+        return Size(width=inner.width, height=inner.height)
+
+    def get_viewport(self) -> Rectangle:
+        """Return the frame viewport rectangle."""
+        return Rectangle._from_core(self._inner.viewport())
+
+
+class CompletedFrame:
+    """Terminal state captured after a successful draw."""
+
+    __slots__ = ("buffer", "area", "count")
+    buffer: Buffer
+    area: Rectangle
+    count: int
+
+    def __init__(
+        self,
+        *,
+        buffer: Buffer,
+        area: Rectangle,
+        count: int,
+    ) -> None:
+        object.__setattr__(self, "buffer", buffer)
+        object.__setattr__(self, "area", area)
+        object.__setattr__(self, "count", count)
+
+    @classmethod
+    def _from_core(cls, completed: _core.CompletedFrame) -> CompletedFrame:
+        return cls(
+            buffer=Buffer._from_core(completed.buffer),
+            area=Rectangle._from_core(completed.area),
+            count=completed.count,
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"CompletedFrame(area={self.area!r}, count={self.count}, "
+            f"buffer={self.buffer!r})"
+        )
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError("CompletedFrame is immutable")
+
+    def __delattr__(self, name: str) -> None:
+        raise AttributeError("CompletedFrame is immutable")
+
 
 class Terminal:
     """The main terminal handle for drawing to the screen."""
@@ -237,6 +291,85 @@ class Terminal:
         """Clear the terminal screen."""
         self._inner.clear()
 
+    def flush(self) -> None:
+        """Flush pending terminal output."""
+        self._inner.flush()
+
+    def try_draw(
+        self,
+        renderable: Callable[[Frame], Any]
+        | Sequence[
+            Any | tuple[Any, RectangleLike] | tuple[Any, RectangleLike, Any]
+        ]
+        | Any,
+    ) -> CompletedFrame:
+        """Execute a draw cycle and return the completed frame snapshot."""
+        if callable(renderable):
+            cb = cast(Callable[[Frame], Any], renderable)
+
+            def _bridge(native_frame: _core.Frame) -> Any:
+                frame = Frame._from_core(native_frame)
+                res = cb(frame)
+                if isinstance(res, Sequence) and not isinstance(
+                    res, (str, bytes)
+                ):
+                    for item in res:
+                        if isinstance(item, tuple):
+                            if len(item) == 2:
+                                widget, area = item
+                                frame.render_widget(
+                                    widget, _resolve_rectangle(area)
+                                )
+                            elif len(item) == 3:
+                                widget, area, state = item
+                                frame.render_stateful_widget(
+                                    widget, _resolve_rectangle(area), state
+                                )
+                            else:
+                                raise ValueError(
+                                    f"Invalid draw tuple: {item!r}. "
+                                    f"Expected 2 or 3 elements."
+                                )
+                        else:
+                            frame.render_widget(item, frame.area())
+                elif res is not None:
+                    frame.render_widget(res, frame.area())
+                return res
+
+            return CompletedFrame._from_core(self._inner.try_draw(_bridge))
+
+        def _draw_widgets(frame: Frame) -> None:
+            if isinstance(renderable, Sequence) and not isinstance(
+                renderable, (str, bytes)
+            ):
+                for item in renderable:
+                    if isinstance(item, tuple):
+                        if len(item) == 2:
+                            widget, area = item
+                            frame.render_widget(
+                                widget, _resolve_rectangle(area)
+                            )
+                        elif len(item) == 3:
+                            widget, area, state = item
+                            frame.render_stateful_widget(
+                                widget, _resolve_rectangle(area), state
+                            )
+                        else:
+                            raise ValueError(
+                                f"Invalid draw tuple: {item!r}. "
+                                f"Expected 2 or 3 elements."
+                            )
+                    else:
+                        frame.render_widget(item, frame.area())
+            else:
+                frame.render_widget(renderable, frame.area())
+
+        def _bridge(native_frame: _core.Frame) -> Any:
+            _draw_widgets(Frame._from_core(native_frame))
+            return None
+
+        return CompletedFrame._from_core(self._inner.try_draw(_bridge))
+
     def size(self) -> Size:
         """Return the current terminal size."""
         inner = self._inner.size()
@@ -264,6 +397,7 @@ def restore_terminal() -> None:
 
 
 __all__ = (
+    "CompletedFrame",
     "Frame",
     "Terminal",
     "restore_terminal",

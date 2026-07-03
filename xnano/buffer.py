@@ -9,8 +9,80 @@ from typing import Any
 from xnano import _core
 from xnano._convert import unwrap
 from xnano.color import Color
-from xnano.layout import Rectangle, RectangleLike
+from xnano.layout import Position, Rectangle, RectangleLike
 from xnano.style import Modifier, Style
+from xnano.text import Line
+
+
+class BufferCell:
+    """A single character cell in a render buffer."""
+
+    __slots__ = ("_inner",)
+    _inner: _core.BufferCell
+
+    def __init__(self) -> None:
+        raise TypeError(
+            "BufferCell instances must be created using BufferCell.new() "
+            "or BufferCell.empty()"
+        )
+
+    @classmethod
+    def _from_core(cls, inner: _core.BufferCell) -> BufferCell:
+        obj = object.__new__(cls)
+        object.__setattr__(obj, "_inner", inner)
+        return obj
+
+    def _to_core(self) -> _core.BufferCell:
+        return self._inner
+
+    @classmethod
+    def new(cls, symbol: str) -> BufferCell:
+        """Create a buffer cell with the given symbol."""
+        return cls._from_core(_core.BufferCell.new(symbol))
+
+    @classmethod
+    def empty(cls) -> BufferCell:
+        """Create an empty buffer cell."""
+        return cls._from_core(_core.BufferCell.EMPTY)
+
+    @property
+    def symbol(self) -> str:
+        """The character symbol displayed in this cell."""
+        return self._inner.symbol
+
+    @property
+    def foreground(self) -> Color:
+        """The foreground color of this cell."""
+        return Color.from_native(self._inner.fg)
+
+    @property
+    def background(self) -> Color:
+        """The background color of this cell."""
+        return Color.from_native(self._inner.bg)
+
+    @property
+    def modifier(self) -> Modifier:
+        """The style modifiers applied to this cell."""
+        return Modifier._from_core(self._inner.modifier)
+
+    def get_style(self) -> Style:
+        """Return the combined style of this cell."""
+        return Style._from_core(self._inner.style)
+
+    def reset(self) -> None:
+        """Reset this cell to the default empty state."""
+        self._inner.reset()
+
+    def set_symbol(self, symbol: str) -> BufferCell:
+        """Return this cell with an updated symbol."""
+        return self._from_core(self._inner.set_symbol(symbol))
+
+    def set_style(self, style: Style) -> BufferCell:
+        """Return this cell with an updated style."""
+        return self._from_core(self._inner.set_style(style._to_core()))
+
+    def __repr__(self) -> str:
+        return repr(self._inner)
 
 
 class Buffer:
@@ -51,6 +123,27 @@ class Buffer:
 
         resolved_area = _resolve_rectangle(area)
         return cls._from_core(_core.Buffer.empty(resolved_area._to_core()))
+
+    @classmethod
+    def filled(cls, area: RectangleLike, cell: BufferCell) -> Buffer:
+        """Create a buffer filled with a single cell value."""
+        from xnano.layout import _resolve_rectangle
+
+        resolved_area = _resolve_rectangle(area)
+        return cls._from_core(
+            _core.Buffer.filled(resolved_area._to_core(), cell._to_core())
+        )
+
+    @classmethod
+    def with_lines(cls, lines: Sequence[str | Line]) -> Buffer:
+        """Create a buffer from plain or styled lines."""
+        native_lines: list[_core.Line] = []
+        for line in lines:
+            if isinstance(line, str):
+                native_lines.append(_core.Line.raw(line))
+            else:
+                native_lines.append(line._to_core())
+        return cls._from_core(_core.Buffer.with_lines(native_lines))
 
     @property
     def area(self) -> Rectangle:
@@ -147,6 +240,64 @@ class Buffer:
                 renderable,
                 _resolve_rectangle(area) if area is not None else self.area,
             )
+
+    def get_cell(self, x: int, y: int) -> BufferCell | None:
+        """Return the buffer cell at the given coordinates, if present."""
+        native_cell = self._inner.cell(x, y)
+        if native_cell is None:
+            return None
+        return BufferCell._from_core(native_cell)
+
+    def set_cell(
+        self,
+        x: int,
+        y: int,
+        symbol: str,
+        style: Style,
+    ) -> None:
+        """Set a single cell at the given coordinates."""
+        self._inner.set_cell(x, y, symbol, style._to_core())
+
+    def set_line(
+        self,
+        y: int,
+        line: str | Line,
+        *,
+        x: int = 0,
+        maximum_width: int | None = None,
+    ) -> tuple[int, int]:
+        """Write a line into the buffer and return the ending coordinates."""
+        native_line = (
+            _core.Line.raw(line) if isinstance(line, str) else line._to_core()
+        )
+        return self._inner.set_line(y, native_line, x, maximum_width)
+
+    def set_style(self, area: RectangleLike, style: Style) -> None:
+        """Apply a style to every cell in the given area."""
+        from xnano.layout import _resolve_rectangle
+
+        resolved_area = _resolve_rectangle(area)
+        self._inner.set_style(resolved_area._to_core(), style._to_core())
+
+    def resize(self, area: RectangleLike) -> None:
+        """Resize the buffer to a new area."""
+        from xnano.layout import _resolve_rectangle
+
+        resolved_area = _resolve_rectangle(area)
+        self._inner.resize(resolved_area._to_core())
+
+    def get_index_of(self, x: int, y: int) -> int:
+        """Return the flat buffer index for the given coordinates."""
+        return self._inner.index_of(x, y)
+
+    def get_position_of(self, index: int) -> Position:
+        """Return the coordinates for a flat buffer index."""
+        native_position = self._inner.pos_of(index)
+        return Position(x=native_position.x, y=native_position.y)
+
+    def get_content(self) -> list[BufferCell]:
+        """Return every cell in the buffer."""
+        return [BufferCell._from_core(cell) for cell in self._inner.content()]
 
     def cell_symbol(self, x: int, y: int) -> str:
         """Return the character symbol printed at the given coordinates."""
@@ -258,4 +409,9 @@ def render_stateful_widget(
     )
 
 
-__all__ = ("Buffer", "render_stateful_widget", "render_widget")
+__all__ = (
+    "Buffer",
+    "BufferCell",
+    "render_stateful_widget",
+    "render_widget",
+)

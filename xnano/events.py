@@ -90,6 +90,108 @@ def read_event() -> Event:
     return Event._from_core(_core.read_event())
 
 
+class KeyboardEnhancementFlags:
+    """Keyboard enhancement protocol flags."""
+
+    __slots__ = ("_inner",)
+    _inner: _core.KeyboardEnhancementFlags
+
+    def __init__(self) -> None:
+        raise TypeError(
+            "KeyboardEnhancementFlags instances are created via class methods."
+        )
+
+    @classmethod
+    def disambiguate_escape_codes(cls) -> KeyboardEnhancementFlags:
+        """Return the disambiguate escape codes flag."""
+        return cls._from_core(
+            _core.KeyboardEnhancementFlags.DISAMBIGUATE_ESCAPE_CODES
+        )
+
+    @classmethod
+    def report_event_types(cls) -> KeyboardEnhancementFlags:
+        """Return the report event types flag."""
+        return cls._from_core(
+            _core.KeyboardEnhancementFlags.REPORT_EVENT_TYPES
+        )
+
+    @classmethod
+    def report_alternate_keys(cls) -> KeyboardEnhancementFlags:
+        """Return the report alternate keys flag."""
+        return cls._from_core(
+            _core.KeyboardEnhancementFlags.REPORT_ALTERNATE_KEYS
+        )
+
+    @classmethod
+    def report_all_keys_as_escape_codes(cls) -> KeyboardEnhancementFlags:
+        """Return the report all keys as escape codes flag."""
+        return cls._from_core(
+            _core.KeyboardEnhancementFlags.REPORT_ALL_KEYS_AS_ESCAPE_CODES
+        )
+
+    @classmethod
+    def _from_core(
+        cls,
+        flags: _core.KeyboardEnhancementFlags,
+    ) -> KeyboardEnhancementFlags:
+        obj = object.__new__(cls)
+        object.__setattr__(obj, "_inner", flags)
+        return obj
+
+    def _to_core(self) -> _core.KeyboardEnhancementFlags:
+        return self._inner
+
+    def __or__(
+        self, other: KeyboardEnhancementFlags
+    ) -> KeyboardEnhancementFlags:
+        return self._from_core(self._inner | other._inner)
+
+    def __repr__(self) -> str:
+        return repr(self._inner)
+
+
+def enable_mouse_capture() -> None:
+    """Enable mouse event capture."""
+    _core.enable_mouse_capture()
+
+
+def disable_mouse_capture() -> None:
+    """Disable mouse event capture."""
+    _core.disable_mouse_capture()
+
+
+def enable_bracketed_paste() -> None:
+    """Enable bracketed paste mode."""
+    _core.enable_bracketed_paste()
+
+
+def disable_bracketed_paste() -> None:
+    """Disable bracketed paste mode."""
+    _core.disable_bracketed_paste()
+
+
+def enable_focus_change() -> None:
+    """Enable focus change events."""
+    _core.enable_focus_change()
+
+
+def disable_focus_change() -> None:
+    """Disable focus change events."""
+    _core.disable_focus_change()
+
+
+def push_keyboard_enhancement_flags(
+    flags: KeyboardEnhancementFlags,
+) -> None:
+    """Push keyboard enhancement flags to the terminal."""
+    _core.push_keyboard_enhancement_flags(flags._to_core())
+
+
+def pop_keyboard_enhancement_flags() -> None:
+    """Pop keyboard enhancement flags from the terminal."""
+    _core.pop_keyboard_enhancement_flags()
+
+
 def dispatch(
     event: Event,
     target: Any | Sequence[Any],
@@ -132,7 +234,16 @@ def dispatch(
 __all__ = (
     "Event",
     "EventKind",
-    "poll_event",
-    "read_event",
+    "KeyboardEnhancementFlags",
+    "disable_bracketed_paste",
+    "disable_focus_change",
+    "disable_mouse_capture",
     "dispatch",
+    "enable_bracketed_paste",
+    "enable_focus_change",
+    "enable_mouse_capture",
+    "poll_event",
+    "pop_keyboard_enhancement_flags",
+    "push_keyboard_enhancement_flags",
+    "read_event",
 )
