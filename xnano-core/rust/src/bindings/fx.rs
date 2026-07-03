@@ -1,16 +1,21 @@
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
+
+use ratatui_core::buffer::Cell as CoreCell;
+use ratatui_core::layout::{Offset as CoreOffset, Position as CorePosition};
 use tachyonfx::{
-    fx::{self, RepeatMode},
-    CellFilter, ColorSpace, Effect, EffectManager, EffectTimer, Interpolation, Motion, SimpleRng,
+    fx::{self, EvolveSymbolSet, ExpandDirection, RepeatMode},
+    pattern::RadialPattern,
+    ref_count, CellFilter, ColorSpace, Duration, Effect, EffectManager, EffectTimer,
+    Interpolation, IntoEffect, Motion, RefRect, SimpleRng,
 };
 
 use super::buffer::PyBuffer;
 use super::convert_core::{
-    sync_from_core_buffer, sync_to_core_buffer, to_core_color, to_core_margin, to_core_rect,
-    to_core_style,
+    from_core_color, sync_from_core_buffer, sync_to_core_buffer, to_core_color,
+    to_core_margin, to_core_rect, to_core_style,
 };
-use super::layout::{PyMargin, PyRect};
+use super::layout::{PyLayout, PyMargin, PyOffset, PyRect, PySize};
 use super::style::{PyColor, PyStyle};
 
 fn make_timer(duration_ms: u32, interpolation: Option<PyInterpolation>) -> EffectTimer {
@@ -138,6 +143,238 @@ impl From<PyColorSpace> for ColorSpace {
     }
 }
 
+#[pyclass(name = "Duration", module = "xnano_core._xnano_core", eq)]
+#[derive(Clone, Copy, PartialEq)]
+pub struct PyDuration {
+    inner: Duration,
+}
+
+#[pymethods]
+impl PyDuration {
+    #[classattr]
+    fn ZERO() -> Self {
+        Self {
+            inner: Duration::ZERO,
+        }
+    }
+
+    #[staticmethod]
+    fn from_millis(milliseconds: u32) -> Self {
+        Self {
+            inner: Duration::from_millis(milliseconds),
+        }
+    }
+
+    #[staticmethod]
+    fn from_secs(seconds: u32) -> Self {
+        Self {
+            inner: Duration::from_secs(seconds),
+        }
+    }
+
+    fn as_millis(&self) -> u32 {
+        self.inner.as_millis()
+    }
+
+    fn is_zero(&self) -> bool {
+        self.inner.is_zero()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Duration({}ms)", self.inner.as_millis())
+    }
+}
+
+#[pyclass(name = "EffectTimer", module = "xnano_core._xnano_core")]
+#[derive(Clone, Copy)]
+pub struct PyEffectTimer {
+    inner: EffectTimer,
+}
+
+#[pymethods]
+impl PyEffectTimer {
+    #[staticmethod]
+    fn from_ms(duration_ms: u32, interpolation: PyInterpolation) -> Self {
+        Self {
+            inner: EffectTimer::from_ms(duration_ms, interpolation.into()),
+        }
+    }
+
+    fn remaining_ms(&self) -> u32 {
+        self.inner.remaining().as_millis()
+    }
+
+    fn duration_ms(&self) -> u32 {
+        self.inner.duration().as_millis()
+    }
+
+    fn alpha(&self) -> f32 {
+        self.inner.alpha()
+    }
+
+    fn is_reversed(&self) -> bool {
+        self.inner.is_reversed()
+    }
+
+    fn started(&self) -> bool {
+        self.inner.started()
+    }
+
+    fn is_done(&self) -> bool {
+        self.inner.done()
+    }
+
+    fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "EffectTimer(remaining={}ms, duration={}ms)",
+            self.remaining_ms(),
+            self.duration_ms()
+        )
+    }
+}
+
+#[pyclass(name = "RepeatMode", module = "xnano_core._xnano_core", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq)]
+pub enum PyRepeatMode {
+    Forever,
+    Times,
+    Duration,
+}
+
+#[pyclass(name = "RefRect", module = "xnano_core._xnano_core", unsendable)]
+#[derive(Clone)]
+pub struct PyRefRect {
+    inner: RefRect,
+}
+
+#[pymethods]
+impl PyRefRect {
+    #[staticmethod]
+    fn new(rect: PyRect) -> Self {
+        Self {
+            inner: RefRect::new(to_core_rect(rect.inner)),
+        }
+    }
+
+    #[staticmethod]
+    fn default() -> Self {
+        Self {
+            inner: RefRect::default(),
+        }
+    }
+
+    fn get(&self) -> PyRect {
+        let rect = self.inner.get();
+        PyRect {
+            inner: ratatui::layout::Rect::new(rect.x, rect.y, rect.width, rect.height),
+        }
+    }
+
+    fn set(&self, rect: PyRect) {
+        self.inner.set(to_core_rect(rect.inner));
+    }
+
+    fn contains(&self, x: u16, y: u16) -> bool {
+        self.inner.contains(CorePosition::new(x, y))
+    }
+
+    fn __repr__(&self) -> String {
+        let rect = self.inner.get();
+        format!(
+            "RefRect(x={}, y={}, width={}, height={})",
+            rect.x, rect.y, rect.width, rect.height
+        )
+    }
+}
+
+#[pyclass(name = "RadialPattern", module = "xnano_core._xnano_core")]
+#[derive(Clone, Copy)]
+pub struct PyRadialPattern {
+    inner: RadialPattern,
+}
+
+#[pymethods]
+impl PyRadialPattern {
+    #[staticmethod]
+    fn center() -> Self {
+        Self {
+            inner: RadialPattern::center(),
+        }
+    }
+
+    #[staticmethod]
+    fn new(center_x: f32, center_y: f32) -> Self {
+        Self {
+            inner: RadialPattern::new(center_x, center_y),
+        }
+    }
+
+    #[staticmethod]
+    fn with_transition(center_x: f32, center_y: f32, transition_width: f32) -> Self {
+        Self {
+            inner: RadialPattern::with_transition((center_x, center_y), transition_width),
+        }
+    }
+
+    fn with_transition_width(&self, width: f32) -> Self {
+        Self {
+            inner: self.inner.with_transition_width(width),
+        }
+    }
+
+    fn with_center(&self, center_x: f32, center_y: f32) -> Self {
+        Self {
+            inner: self.inner.with_center((center_x, center_y)),
+        }
+    }
+}
+
+#[pyclass(name = "ExpandDirection", module = "xnano_core._xnano_core", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq)]
+pub enum PyExpandDirection {
+    Horizontal,
+    Vertical,
+}
+
+impl From<PyExpandDirection> for ExpandDirection {
+    fn from(value: PyExpandDirection) -> Self {
+        match value {
+            PyExpandDirection::Horizontal => ExpandDirection::Horizontal,
+            PyExpandDirection::Vertical => ExpandDirection::Vertical,
+        }
+    }
+}
+
+#[pyclass(name = "EvolveSymbolSet", module = "xnano_core._xnano_core", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq)]
+pub enum PyEvolveSymbolSet {
+    BlocksHorizontal,
+    BlocksVertical,
+    CircleFill,
+    Circles,
+    Quadrants,
+    Shaded,
+    Squares,
+}
+
+impl From<PyEvolveSymbolSet> for EvolveSymbolSet {
+    fn from(value: PyEvolveSymbolSet) -> Self {
+        match value {
+            PyEvolveSymbolSet::BlocksHorizontal => EvolveSymbolSet::BlocksHorizontal,
+            PyEvolveSymbolSet::BlocksVertical => EvolveSymbolSet::BlocksVertical,
+            PyEvolveSymbolSet::CircleFill => EvolveSymbolSet::CircleFill,
+            PyEvolveSymbolSet::Circles => EvolveSymbolSet::Circles,
+            PyEvolveSymbolSet::Quadrants => EvolveSymbolSet::Quadrants,
+            PyEvolveSymbolSet::Shaded => EvolveSymbolSet::Shaded,
+            PyEvolveSymbolSet::Squares => EvolveSymbolSet::Squares,
+        }
+    }
+}
+
 #[pyclass(name = "CellFilter", module = "xnano_core._xnano_core", unsendable)]
 #[derive(Clone)]
 pub struct PyCellFilter {
@@ -223,6 +460,70 @@ impl PyCellFilter {
             inner: CellFilter::Not(Box::new(filter.inner)),
         }
     }
+
+    #[staticmethod]
+    fn none_of(filters: Vec<PyCellFilter>) -> Self {
+        Self {
+            inner: CellFilter::NoneOf(filters.into_iter().map(|f| f.inner).collect()),
+        }
+    }
+
+    #[staticmethod]
+    fn ref_area(ref_rect: PyRefRect) -> Self {
+        Self {
+            inner: CellFilter::RefArea(ref_rect.inner.clone()),
+        }
+    }
+
+    #[staticmethod]
+    fn layout(layout: PyLayout, index: u16) -> Self {
+        Self {
+            inner: CellFilter::Layout(layout.core_layout(), index),
+        }
+    }
+
+    #[staticmethod]
+    fn position_fn(callback: PyObject) -> Self {
+        let cb = callback;
+        Self {
+            inner: CellFilter::PositionFn(ref_count(move |pos: CorePosition| {
+                Python::with_gil(|py| {
+                    cb.call1(py, (pos.x, pos.y))
+                        .and_then(|value| value.extract::<bool>(py))
+                        .unwrap_or(false)
+                })
+            })),
+        }
+    }
+
+    #[staticmethod]
+    fn eval_cell(callback: PyObject) -> Self {
+        let cb = callback;
+        Self {
+            inner: CellFilter::eval_cell(move |cell: &CoreCell| {
+                Python::with_gil(|py| {
+                    let fg = PyColor::from(from_core_color(cell.fg));
+                    let bg = PyColor::from(from_core_color(cell.bg));
+                    let args = (cell.symbol(), fg, bg);
+                    cb.call1(py, args)
+                        .and_then(|value| value.extract::<bool>(py))
+                        .unwrap_or(false)
+                })
+            }),
+        }
+    }
+
+    fn negated(&self) -> Self {
+        Self {
+            inner: self.inner.clone().negated(),
+        }
+    }
+
+    fn into_static(&self) -> Self {
+        Self {
+            inner: self.inner.clone().into_static(),
+        }
+    }
 }
 
 #[pyclass(name = "Effect", module = "xnano_core._xnano_core", unsendable)]
@@ -277,6 +578,70 @@ impl PyEffect {
 
     fn reset(&mut self) {
         self.inner.reset();
+    }
+
+    fn get_area(&self) -> Option<PyRect> {
+        self.inner.area().map(|rect| PyRect {
+            inner: ratatui::layout::Rect::new(rect.x, rect.y, rect.width, rect.height),
+        })
+    }
+
+    fn set_area(&mut self, area: PyRect) {
+        self.inner.set_area(to_core_rect(area.inner));
+    }
+
+    fn get_filter(&self) -> Option<PyCellFilter> {
+        self.inner.cell_filter().cloned().map(|filter| PyCellFilter { inner: filter })
+    }
+
+    fn set_filter(&mut self, filter: PyCellFilter) {
+        self.inner.filter(filter.inner);
+    }
+
+    fn reverse(&mut self) {
+        self.inner.reverse();
+    }
+
+    fn get_timer(&self) -> Option<PyEffectTimer> {
+        self.inner.timer().map(|timer| PyEffectTimer { inner: timer })
+    }
+
+    fn timer(&self) -> Option<PyEffectTimer> {
+        self.get_timer()
+    }
+
+    fn reset_timer(&mut self) {
+        if let Some(timer) = self.inner.timer_mut() {
+            timer.reset();
+        }
+    }
+
+    fn set_color_space(&mut self, color_space: PyColorSpace) {
+        self.inner.set_color_space(color_space.into());
+    }
+
+    fn with_pattern(&self, pattern: PyRadialPattern) -> Self {
+        Self {
+            inner: self.inner.clone().with_pattern(pattern.inner),
+        }
+    }
+
+    fn to_dsl(&self) -> PyResult<String> {
+        self.inner
+            .to_dsl()
+            .map(|expr| expr.to_string())
+            .map_err(|err| PyRuntimeError::new_err(format!("{err:?}")))
+    }
+
+    fn process(&mut self, duration_ms: u32, buffer: &mut PyBuffer, area: PyRect) -> Option<u32> {
+        let mut core = sync_to_core_buffer(&buffer.inner);
+        let overflow = self.inner.process(
+            Duration::from_millis(duration_ms),
+            &mut core,
+            to_core_rect(area.inner),
+        );
+        sync_from_core_buffer(&core, &mut buffer.inner);
+        overflow.map(|d| d.as_millis())
     }
 }
 
@@ -619,6 +984,14 @@ fn saturate_fg(fg: f32, duration_ms: u32, interpolation: Option<PyInterpolation>
 }
 
 #[pyfunction]
+#[pyo3(signature = (bg, duration_ms, interpolation=None))]
+fn saturate_bg(bg: f32, duration_ms: u32, interpolation: Option<PyInterpolation>) -> PyEffect {
+    PyEffect {
+        inner: fx::saturate(None, Some(bg), make_timer(duration_ms, interpolation)),
+    }
+}
+
+#[pyfunction]
 #[pyo3(signature = (duration_ms, fg=None, bg=None, interpolation=None))]
 fn lighten(
     duration_ms: u32,
@@ -640,6 +1013,14 @@ fn lighten_fg(fg: f32, duration_ms: u32, interpolation: Option<PyInterpolation>)
 }
 
 #[pyfunction]
+#[pyo3(signature = (bg, duration_ms, interpolation=None))]
+fn lighten_bg(bg: f32, duration_ms: u32, interpolation: Option<PyInterpolation>) -> PyEffect {
+    PyEffect {
+        inner: fx::lighten(None, Some(bg), make_timer(duration_ms, interpolation)),
+    }
+}
+
+#[pyfunction]
 #[pyo3(signature = (duration_ms, fg=None, bg=None, interpolation=None))]
 fn darken(
     duration_ms: u32,
@@ -657,6 +1038,14 @@ fn darken(
 fn darken_fg(fg: f32, duration_ms: u32, interpolation: Option<PyInterpolation>) -> PyEffect {
     PyEffect {
         inner: fx::darken_fg(fg, make_timer(duration_ms, interpolation)),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (bg, duration_ms, interpolation=None))]
+fn darken_bg(bg: f32, duration_ms: u32, interpolation: Option<PyInterpolation>) -> PyEffect {
+    PyEffect {
+        inner: fx::darken(None, Some(bg), make_timer(duration_ms, interpolation)),
     }
 }
 
@@ -714,6 +1103,241 @@ fn hsl_shift_fg(
             [h, s, l],
             make_timer(duration_ms, interpolation),
         ),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (h, s, l, duration_ms, interpolation=None))]
+fn hsl_shift_bg(
+    h: f32,
+    s: f32,
+    l: f32,
+    duration_ms: u32,
+    interpolation: Option<PyInterpolation>,
+) -> PyEffect {
+    PyEffect {
+        inner: fx::hsl_shift(
+            None,
+            Some([h, s, l]),
+            make_timer(duration_ms, interpolation),
+        ),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (symbols, duration_ms, style=None, interpolation=None))]
+fn evolve_effect(
+    symbols: PyEvolveSymbolSet,
+    duration_ms: u32,
+    style: Option<PyStyle>,
+    interpolation: Option<PyInterpolation>,
+) -> PyEffect {
+    let timer = make_timer(duration_ms, interpolation);
+    let set: EvolveSymbolSet = symbols.into();
+    PyEffect {
+        inner: if let Some(style) = style {
+            fx::evolve((set, to_core_style(style.inner)), timer)
+        } else {
+            fx::evolve(set, timer)
+        },
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (symbols, duration_ms, style=None, interpolation=None))]
+fn evolve_into_effect(
+    symbols: PyEvolveSymbolSet,
+    duration_ms: u32,
+    style: Option<PyStyle>,
+    interpolation: Option<PyInterpolation>,
+) -> PyEffect {
+    let timer = make_timer(duration_ms, interpolation);
+    let set: EvolveSymbolSet = symbols.into();
+    PyEffect {
+        inner: if let Some(style) = style {
+            fx::evolve_into((set, to_core_style(style.inner)), timer)
+        } else {
+            fx::evolve_into(set, timer)
+        },
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (symbols, duration_ms, style=None, interpolation=None))]
+fn evolve_from_effect(
+    symbols: PyEvolveSymbolSet,
+    duration_ms: u32,
+    style: Option<PyStyle>,
+    interpolation: Option<PyInterpolation>,
+) -> PyEffect {
+    let timer = make_timer(duration_ms, interpolation);
+    let set: EvolveSymbolSet = symbols.into();
+    PyEffect {
+        inner: if let Some(style) = style {
+            fx::evolve_from((set, to_core_style(style.inner)), timer)
+        } else {
+            fx::evolve_from(set, timer)
+        },
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (force, force_rng_factor, duration_ms, interpolation=None))]
+fn explode_effect(
+    force: f32,
+    force_rng_factor: f32,
+    duration_ms: u32,
+    interpolation: Option<PyInterpolation>,
+) -> PyEffect {
+    PyEffect {
+        inner: fx::explode(force, force_rng_factor, make_timer(duration_ms, interpolation)),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (
+    cell_glitch_ratio,
+    action_start_delay_min_ms,
+    action_start_delay_max_ms,
+    action_min_ms,
+    action_max_ms,
+    filter=None,
+    seed=None
+))]
+fn glitch_effect(
+    cell_glitch_ratio: f32,
+    action_start_delay_min_ms: u32,
+    action_start_delay_max_ms: u32,
+    action_min_ms: u32,
+    action_max_ms: u32,
+    filter: Option<PyCellFilter>,
+    seed: Option<u32>,
+) -> PyEffect {
+    let base = fx::Glitch::builder()
+        .cell_glitch_ratio(cell_glitch_ratio)
+        .action_start_delay_ms(action_start_delay_min_ms..action_start_delay_max_ms)
+        .action_ms(action_min_ms..action_max_ms);
+    let glitch = match (filter, seed) {
+        (Some(filter), Some(seed)) => base
+            .selection(filter.inner)
+            .rng(SimpleRng::new(seed))
+            .build(),
+        (Some(filter), None) => base.selection(filter.inner).build(),
+        (None, Some(seed)) => base.rng(SimpleRng::new(seed)).build(),
+        (None, None) => base.build(),
+    };
+    PyEffect {
+        inner: glitch.into_effect(),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (effect, translate_by, duration_ms, interpolation=None))]
+fn translate_effect(
+    effect: PyEffect,
+    translate_by: PyOffset,
+    duration_ms: u32,
+    interpolation: Option<PyInterpolation>,
+) -> PyEffect {
+    PyEffect {
+        inner: fx::translate(
+            effect.inner,
+            CoreOffset {
+                x: translate_by.inner.x,
+                y: translate_by.inner.y,
+            },
+            make_timer(duration_ms, interpolation),
+        ),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (direction, style, duration_ms, interpolation=None))]
+fn expand_effect(
+    direction: PyExpandDirection,
+    style: PyStyle,
+    duration_ms: u32,
+    interpolation: Option<PyInterpolation>,
+) -> PyEffect {
+    PyEffect {
+        inner: fx::expand(direction.into(), to_core_style(style.inner), make_timer(duration_ms, interpolation)),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (direction, style, duration_ms, interpolation=None))]
+fn stretch_effect(
+    direction: PyMotion,
+    style: PyStyle,
+    duration_ms: u32,
+    interpolation: Option<PyInterpolation>,
+) -> PyEffect {
+    PyEffect {
+        inner: fx::stretch(direction.into(), to_core_style(style.inner), make_timer(duration_ms, interpolation)),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (initial_size, duration_ms, effect=None, interpolation=None))]
+#[allow(deprecated)]
+fn resize_area_effect(
+    initial_size: PySize,
+    duration_ms: u32,
+    effect: Option<PyEffect>,
+    interpolation: Option<PyInterpolation>,
+) -> PyEffect {
+    let size = ratatui_core::layout::Size::new(initial_size.inner.width, initial_size.inner.height);
+    PyEffect {
+        inner: fx::resize_area(effect.map(|e| e.inner), size, make_timer(duration_ms, interpolation)),
+    }
+}
+
+#[pyfunction]
+fn freeze_at_effect(alpha: f32, set_raw_alpha: bool, effect: PyEffect) -> PyEffect {
+    PyEffect {
+        inner: fx::freeze_at(alpha, set_raw_alpha, effect.inner),
+    }
+}
+
+#[pyfunction]
+fn remap_alpha_effect(alpha_start: f32, alpha_end: f32, effect: PyEffect) -> PyEffect {
+    PyEffect {
+        inner: fx::remap_alpha(alpha_start, alpha_end, effect.inner),
+    }
+}
+
+#[pyfunction]
+fn never_complete_effect(effect: PyEffect) -> PyEffect {
+    PyEffect {
+        inner: fx::never_complete(effect.inner),
+    }
+}
+
+#[pyfunction]
+fn run_once_effect(effect: PyEffect) -> PyEffect {
+    PyEffect {
+        inner: fx::run_once(effect.inner),
+    }
+}
+
+#[pyfunction]
+fn consume_tick_effect() -> PyEffect {
+    PyEffect {
+        inner: fx::consume_tick(),
+    }
+}
+
+#[pyfunction]
+fn with_duration_effect(duration_ms: u32, effect: PyEffect) -> PyEffect {
+    PyEffect {
+        inner: fx::with_duration(Duration::from_millis(duration_ms), effect.inner),
+    }
+}
+
+#[pyfunction]
+fn timed_never_complete_effect(duration_ms: u32, effect: PyEffect) -> PyEffect {
+    PyEffect {
+        inner: fx::timed_never_complete(Duration::from_millis(duration_ms), effect.inner),
     }
 }
 
@@ -775,6 +1399,13 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyMotion>()?;
     m.add_class::<PyInterpolation>()?;
     m.add_class::<PyColorSpace>()?;
+    m.add_class::<PyDuration>()?;
+    m.add_class::<PyEffectTimer>()?;
+    m.add_class::<PyRepeatMode>()?;
+    m.add_class::<PyRefRect>()?;
+    m.add_class::<PyRadialPattern>()?;
+    m.add_class::<PyExpandDirection>()?;
+    m.add_class::<PyEvolveSymbolSet>()?;
     m.add_class::<PyCellFilter>()?;
     m.add_class::<PyEffectManager>()?;
     m.add_function(wrap_pyfunction!(fade_to_fg, m)?)?;
@@ -803,11 +1434,31 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(prolong_end_effect, m)?)?;
     m.add_function(wrap_pyfunction!(saturate, m)?)?;
     m.add_function(wrap_pyfunction!(saturate_fg, m)?)?;
+    m.add_function(wrap_pyfunction!(saturate_bg, m)?)?;
     m.add_function(wrap_pyfunction!(lighten, m)?)?;
     m.add_function(wrap_pyfunction!(lighten_fg, m)?)?;
+    m.add_function(wrap_pyfunction!(lighten_bg, m)?)?;
     m.add_function(wrap_pyfunction!(darken, m)?)?;
     m.add_function(wrap_pyfunction!(darken_fg, m)?)?;
+    m.add_function(wrap_pyfunction!(darken_bg, m)?)?;
     m.add_function(wrap_pyfunction!(hsl_shift, m)?)?;
     m.add_function(wrap_pyfunction!(hsl_shift_fg, m)?)?;
+    m.add_function(wrap_pyfunction!(hsl_shift_bg, m)?)?;
+    m.add_function(wrap_pyfunction!(evolve_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(evolve_into_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(evolve_from_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(explode_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(glitch_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(translate_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(expand_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(stretch_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(resize_area_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(freeze_at_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(remap_alpha_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(never_complete_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(run_once_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(consume_tick_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(with_duration_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(timed_never_complete_effect, m)?)?;
     Ok(())
 }

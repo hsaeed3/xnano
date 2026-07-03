@@ -1,3 +1,4 @@
+use palette::Hsl;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use ratatui::style::{Color, Modifier, Style};
@@ -80,6 +81,21 @@ impl PyColor {
         }
     }
 
+    #[staticmethod]
+    fn from_hsl(h: f32, s: f32, l: f32) -> Self {
+        Self {
+            inner: Color::from_hsl(Hsl::new(h, s, l)),
+        }
+    }
+
+    fn to_u32(&self) -> u32 {
+        match self.inner {
+            Color::Rgb(r, g, b) => u32::from(r) << 16 | u32::from(g) << 8 | u32::from(b),
+            Color::Indexed(value) => u32::from(value),
+            _ => 0,
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}", self = self.inner)
     }
@@ -150,6 +166,26 @@ impl PyModifier {
         }
     }
 
+    fn __and__(&self, other: Self) -> Self {
+        Self {
+            inner: self.inner & other.inner,
+        }
+    }
+
+    fn contains(&self, other: Self) -> bool {
+        self.inner.contains(other.inner)
+    }
+
+    fn intersection(&self, other: Self) -> Self {
+        Self {
+            inner: self.inner.intersection(other.inner),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}", self = self.inner)
     }
@@ -212,6 +248,36 @@ impl PyStyle {
         Self {
             inner: self.inner.patch(other.inner),
         }
+    }
+
+    fn get_fg(&self) -> Option<PyColor> {
+        self.inner.fg.map(PyColor::from)
+    }
+
+    fn get_bg(&self) -> Option<PyColor> {
+        self.inner.bg.map(PyColor::from)
+    }
+
+    fn get_modifiers(&self) -> PyModifier {
+        PyModifier {
+            inner: self.inner.add_modifier,
+        }
+    }
+
+    fn get_sub_modifiers(&self) -> PyModifier {
+        PyModifier {
+            inner: self.inner.sub_modifier,
+        }
+    }
+
+    fn underline_color(&self, color: PyColor) -> Self {
+        Self {
+            inner: self.inner.underline_color(color.inner),
+        }
+    }
+
+    fn get_underline_color(&self) -> Option<PyColor> {
+        self.inner.underline_color.map(PyColor::from)
     }
 
     fn __repr__(&self) -> String {

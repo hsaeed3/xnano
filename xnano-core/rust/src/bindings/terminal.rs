@@ -1,15 +1,16 @@
 use std::time::Duration;
 
 use crossterm::event::{
-    self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
-    MouseEventKind,
+    self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton,
+    MouseEvent, MouseEventKind,
 };
 use pyo3::prelude::*;
 use ratatui::Frame;
 use ratatui::{init, restore, DefaultTerminal};
 
-use super::buffer::{render_stateful_inner, render_widget_inner};
+use super::buffer::{render_stateful_inner, render_widget_inner, PyBuffer};
 use super::convert_core::{sync_from_core_buffer, sync_to_core_buffer, to_core_rect};
+use super::frame_ext::frame_hide_cursor;
 use super::fx::PyEffectManager;
 use super::layout::{PyRect, PySize};
 use super::widgets_extra::PyPosition;
@@ -62,7 +63,7 @@ impl PyFrame {
     }
 
     fn hide_cursor(&mut self) {
-        // Ratatui only shows the cursor when `set_cursor_position` is called.
+        frame_hide_cursor(self.frame_mut());
     }
 
     fn process_effects(
@@ -84,6 +85,43 @@ impl PyFrame {
     fn count(&self) -> usize {
         self.frame().count()
     }
+
+    fn buffer(&mut self) -> PyBuffer {
+        PyBuffer {
+            inner: self.frame_mut().buffer_mut().clone(),
+        }
+    }
+
+    fn get_buffer(&mut self) -> PyBuffer {
+        self.buffer()
+    }
+
+    fn size(&self) -> PySize {
+        let area = self.frame().area();
+        PySize {
+            inner: ratatui::layout::Size {
+                width: area.width,
+                height: area.height,
+            },
+        }
+    }
+
+    fn viewport(&self) -> PyRect {
+        PyRect {
+            inner: self.frame().area(),
+        }
+    }
+}
+
+/// Snapshot of terminal state after a successful draw.
+#[pyclass(name = "CompletedFrame", module = "xnano_core._xnano_core")]
+pub struct PyCompletedFrame {
+    #[pyo3(get)]
+    pub buffer: PyBuffer,
+    #[pyo3(get)]
+    pub area: PyRect,
+    #[pyo3(get)]
+    pub count: usize,
 }
 
 #[pyclass(name = "KeyEventKind", module = "xnano_core._xnano_core", eq, eq_int)]
@@ -104,6 +142,58 @@ impl From<KeyEventKind> for PyKeyEventKind {
     }
 }
 
+#[pyclass(name = "KeyEventState", module = "xnano_core._xnano_core")]
+#[derive(Clone, Copy)]
+pub struct PyKeyEventState {
+    #[pyo3(get)]
+    pub bits: u8,
+}
+
+#[pymethods]
+impl PyKeyEventState {
+    #[classattr]
+    const NONE: Self = Self { bits: 0 };
+
+    #[classattr]
+    const KEYPAD: Self = Self {
+        bits: KeyEventState::KEYPAD.bits(),
+    };
+
+    #[classattr]
+    const CAPS_LOCK: Self = Self {
+        bits: KeyEventState::CAPS_LOCK.bits(),
+    };
+
+    #[classattr]
+    const NUM_LOCK: Self = Self {
+        bits: KeyEventState::NUM_LOCK.bits(),
+    };
+
+    fn keypad(&self) -> bool {
+        KeyEventState::from_bits_truncate(self.bits).contains(KeyEventState::KEYPAD)
+    }
+
+    fn caps_lock(&self) -> bool {
+        KeyEventState::from_bits_truncate(self.bits).contains(KeyEventState::CAPS_LOCK)
+    }
+
+    fn num_lock(&self) -> bool {
+        KeyEventState::from_bits_truncate(self.bits).contains(KeyEventState::NUM_LOCK)
+    }
+
+    fn __repr__(&self) -> String {
+        format!("KeyEventState(bits={})", self.bits)
+    }
+}
+
+impl From<KeyEventState> for PyKeyEventState {
+    fn from(value: KeyEventState) -> Self {
+        Self {
+            bits: value.bits(),
+        }
+    }
+}
+
 #[pyclass(name = "KeyModifiers", module = "xnano_core._xnano_core")]
 #[derive(Clone, Copy)]
 pub struct PyKeyModifiers {
@@ -113,8 +203,42 @@ pub struct PyKeyModifiers {
 
 #[pymethods]
 impl PyKeyModifiers {
+    #[classattr]
+    const NONE: Self = Self { bits: 0 };
+
+    #[classattr]
+    const SHIFT: Self = Self {
+        bits: KeyModifiers::SHIFT.bits(),
+    };
+
+    #[classattr]
+    const CONTROL: Self = Self {
+        bits: KeyModifiers::CONTROL.bits(),
+    };
+
+    #[classattr]
+    const ALT: Self = Self {
+        bits: KeyModifiers::ALT.bits(),
+    };
+
+    #[classattr]
+    const SUPER: Self = Self {
+        bits: KeyModifiers::SUPER.bits(),
+    };
+
+    #[classattr]
+    const HYPER: Self = Self {
+        bits: KeyModifiers::HYPER.bits(),
+    };
+
+    #[classattr]
+    const META: Self = Self {
+        bits: KeyModifiers::META.bits(),
+    };
+
     fn contains(&self, other: Self) -> bool {
-        KeyModifiers::from_bits_truncate(self.bits).contains(KeyModifiers::from_bits_truncate(other.bits))
+        KeyModifiers::from_bits_truncate(self.bits)
+            .contains(KeyModifiers::from_bits_truncate(other.bits))
     }
 
     fn control(&self) -> bool {
@@ -127,6 +251,28 @@ impl PyKeyModifiers {
 
     fn alt(&self) -> bool {
         KeyModifiers::from_bits_truncate(self.bits).contains(KeyModifiers::ALT)
+    }
+
+    fn super_(&self) -> bool {
+        KeyModifiers::from_bits_truncate(self.bits).contains(KeyModifiers::SUPER)
+    }
+
+    fn meta(&self) -> bool {
+        KeyModifiers::from_bits_truncate(self.bits).contains(KeyModifiers::META)
+    }
+
+    fn hyper(&self) -> bool {
+        KeyModifiers::from_bits_truncate(self.bits).contains(KeyModifiers::HYPER)
+    }
+
+    fn __or__(&self, other: Self) -> Self {
+        Self {
+            bits: self.bits | other.bits,
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("KeyModifiers(bits={})", self.bits)
     }
 }
 
@@ -159,6 +305,15 @@ pub enum PyKeyCode {
     Delete,
     F,
     Null,
+    CapsLock,
+    ScrollLock,
+    NumLock,
+    PrintScreen,
+    Pause,
+    Menu,
+    KeypadBegin,
+    Media,
+    Modifier,
     Other,
 }
 
@@ -182,7 +337,75 @@ fn key_code_name(code: &KeyCode) -> PyKeyCode {
         KeyCode::Delete => PyKeyCode::Delete,
         KeyCode::F(_) => PyKeyCode::F,
         KeyCode::Null => PyKeyCode::Null,
-        _ => PyKeyCode::Other,
+        KeyCode::CapsLock => PyKeyCode::CapsLock,
+        KeyCode::ScrollLock => PyKeyCode::ScrollLock,
+        KeyCode::NumLock => PyKeyCode::NumLock,
+        KeyCode::PrintScreen => PyKeyCode::PrintScreen,
+        KeyCode::Pause => PyKeyCode::Pause,
+        KeyCode::Menu => PyKeyCode::Menu,
+        KeyCode::KeypadBegin => PyKeyCode::KeypadBegin,
+        KeyCode::Media(_) => PyKeyCode::Media,
+        KeyCode::Modifier(_) => PyKeyCode::Modifier,
+    }
+}
+
+#[pyclass(name = "MouseButton", module = "xnano_core._xnano_core", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum PyMouseButton {
+    Left,
+    Right,
+    Middle,
+    NoButton,
+}
+
+impl From<MouseButton> for PyMouseButton {
+    fn from(button: MouseButton) -> Self {
+        match button {
+            MouseButton::Left => PyMouseButton::Left,
+            MouseButton::Right => PyMouseButton::Right,
+            MouseButton::Middle => PyMouseButton::Middle,
+        }
+    }
+}
+
+#[pyclass(name = "MouseEventKind", module = "xnano_core._xnano_core", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum PyMouseEventKind {
+    Down,
+    Up,
+    Drag,
+    Moved,
+    ScrollDown,
+    ScrollUp,
+    ScrollLeft,
+    ScrollRight,
+}
+
+impl PyMouseEventKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            PyMouseEventKind::Down => "down",
+            PyMouseEventKind::Up => "up",
+            PyMouseEventKind::Drag => "drag",
+            PyMouseEventKind::Moved => "moved",
+            PyMouseEventKind::ScrollDown => "scroll_down",
+            PyMouseEventKind::ScrollUp => "scroll_up",
+            PyMouseEventKind::ScrollLeft => "scroll_left",
+            PyMouseEventKind::ScrollRight => "scroll_right",
+        }
+    }
+}
+
+fn mouse_event_kind(value: MouseEventKind) -> (PyMouseEventKind, PyMouseButton) {
+    match value {
+        MouseEventKind::Down(btn) => (PyMouseEventKind::Down, btn.into()),
+        MouseEventKind::Up(btn) => (PyMouseEventKind::Up, btn.into()),
+        MouseEventKind::Drag(btn) => (PyMouseEventKind::Drag, btn.into()),
+        MouseEventKind::Moved => (PyMouseEventKind::Moved, PyMouseButton::NoButton),
+        MouseEventKind::ScrollDown => (PyMouseEventKind::ScrollDown, PyMouseButton::NoButton),
+        MouseEventKind::ScrollUp => (PyMouseEventKind::ScrollUp, PyMouseButton::NoButton),
+        MouseEventKind::ScrollLeft => (PyMouseEventKind::ScrollLeft, PyMouseButton::NoButton),
+        MouseEventKind::ScrollRight => (PyMouseEventKind::ScrollRight, PyMouseButton::NoButton),
     }
 }
 
@@ -190,41 +413,60 @@ fn key_code_name(code: &KeyCode) -> PyKeyCode {
 #[derive(Clone)]
 pub struct PyMouseEvent {
     #[pyo3(get)]
-    pub kind: String,
+    pub event_kind: PyMouseEventKind,
+    #[pyo3(get)]
+    pub mouse_button: PyMouseButton,
     #[pyo3(get)]
     pub x: u16,
     #[pyo3(get)]
     pub y: u16,
     #[pyo3(get)]
-    pub button: String,
+    pub modifiers: PyKeyModifiers,
+    kind: String,
+    button: String,
+}
+
+#[pymethods]
+impl PyMouseEvent {
+    #[getter]
+    fn kind(&self) -> &str {
+        &self.kind
+    }
+
+    #[getter]
+    fn button(&self) -> &str {
+        &self.button
+    }
+
+    #[getter]
+    fn column(&self) -> u16 {
+        self.x
+    }
+
+    #[getter]
+    fn row(&self) -> u16 {
+        self.y
+    }
 }
 
 impl From<MouseEvent> for PyMouseEvent {
     fn from(event: MouseEvent) -> Self {
-        let (kind, button) = match event.kind {
-            MouseEventKind::Down(btn) => ("down", mouse_button_name(btn)),
-            MouseEventKind::Up(btn) => ("up", mouse_button_name(btn)),
-            MouseEventKind::Drag(btn) => ("drag", mouse_button_name(btn)),
-            MouseEventKind::Moved => ("moved", "none"),
-            MouseEventKind::ScrollDown => ("scroll_down", "none"),
-            MouseEventKind::ScrollUp => ("scroll_up", "none"),
-            MouseEventKind::ScrollLeft => ("scroll_left", "none"),
-            MouseEventKind::ScrollRight => ("scroll_right", "none"),
+        let (event_kind, mouse_button) = mouse_event_kind(event.kind);
+        let button = match mouse_button {
+            PyMouseButton::Left => "left".into(),
+            PyMouseButton::Right => "right".into(),
+            PyMouseButton::Middle => "middle".into(),
+            PyMouseButton::NoButton => "none".into(),
         };
         Self {
-            kind: kind.into(),
+            kind: event_kind.as_str().into(),
+            button,
+            event_kind,
+            mouse_button,
             x: event.column,
             y: event.row,
-            button: button.into(),
+            modifiers: event.modifiers.into(),
         }
-    }
-}
-
-fn mouse_button_name(button: MouseButton) -> &'static str {
-    match button {
-        MouseButton::Left => "left",
-        MouseButton::Right => "right",
-        MouseButton::Middle => "middle",
     }
 }
 
@@ -238,19 +480,32 @@ pub struct PyKeyEvent {
     pub modifiers: PyKeyModifiers,
     #[pyo3(get)]
     pub code_name: PyKeyCode,
+    #[pyo3(get)]
+    pub state: PyKeyEventState,
 }
 
 #[pymethods]
 impl PyKeyEvent {
+    fn char_value(&self) -> Option<char> {
+        match self.code {
+            KeyCode::Char(c) => Some(c),
+            _ => None,
+        }
+    }
+
+    fn function_number(&self) -> Option<u8> {
+        match self.code {
+            KeyCode::F(n) => Some(n),
+            _ => None,
+        }
+    }
+
     fn is_char(&self, ch: char) -> bool {
         matches!(self.code, KeyCode::Char(c) if c == ch)
     }
 
     fn char(&self) -> Option<char> {
-        match self.code {
-            KeyCode::Char(c) => Some(c),
-            _ => None,
-        }
+        self.char_value()
     }
 
     fn is_up(&self) -> bool {
@@ -293,6 +548,46 @@ impl PyKeyEvent {
         self.code == KeyCode::PageDown
     }
 
+    fn is_home(&self) -> bool {
+        self.code == KeyCode::Home
+    }
+
+    fn is_end(&self) -> bool {
+        self.code == KeyCode::End
+    }
+
+    fn is_insert(&self) -> bool {
+        self.code == KeyCode::Insert
+    }
+
+    fn is_delete(&self) -> bool {
+        self.code == KeyCode::Delete
+    }
+
+    fn is_null(&self) -> bool {
+        self.code == KeyCode::Null
+    }
+
+    fn is_back_tab(&self) -> bool {
+        self.code == KeyCode::BackTab
+    }
+
+    fn is_function_key(&self) -> bool {
+        matches!(self.code, KeyCode::F(_))
+    }
+
+    fn is_caps_lock(&self) -> bool {
+        self.code == KeyCode::CapsLock
+    }
+
+    fn is_scroll_lock(&self) -> bool {
+        self.code == KeyCode::ScrollLock
+    }
+
+    fn is_num_lock(&self) -> bool {
+        self.code == KeyCode::NumLock
+    }
+
     fn __repr__(&self) -> String {
         format!("KeyEvent({:?}, {:?})", self.code, self.kind)
     }
@@ -305,6 +600,31 @@ impl From<KeyEvent> for PyKeyEvent {
             kind: event.kind.into(),
             modifiers: event.modifiers.into(),
             code_name: key_code_name(&event.code),
+            state: event.state.into(),
+        }
+    }
+}
+
+#[pyclass(name = "TerminalEventKind", module = "xnano_core._xnano_core", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum PyTerminalEventKind {
+    Key,
+    Resize,
+    Paste,
+    Mouse,
+    FocusGained,
+    FocusLost,
+}
+
+impl PyTerminalEventKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            PyTerminalEventKind::Key => "key",
+            PyTerminalEventKind::Resize => "resize",
+            PyTerminalEventKind::Paste => "paste",
+            PyTerminalEventKind::Mouse => "mouse",
+            PyTerminalEventKind::FocusGained => "focus_gained",
+            PyTerminalEventKind::FocusLost => "focus_lost",
         }
     }
 }
@@ -313,7 +633,7 @@ impl From<KeyEvent> for PyKeyEvent {
 #[derive(Clone)]
 pub struct PyEvent {
     #[pyo3(get)]
-    pub kind: String,
+    pub event_kind: PyTerminalEventKind,
     #[pyo3(get)]
     pub key: Option<PyKeyEvent>,
     #[pyo3(get)]
@@ -324,6 +644,15 @@ pub struct PyEvent {
     pub paste: Option<String>,
     #[pyo3(get)]
     pub mouse: Option<PyMouseEvent>,
+    kind: String,
+}
+
+#[pymethods]
+impl PyEvent {
+    #[getter]
+    fn kind(&self) -> &str {
+        &self.kind
+    }
 }
 
 #[pyclass(name = "Terminal", module = "xnano_core._xnano_core", unsendable)]
@@ -350,6 +679,48 @@ impl PyTerminal {
             })
             .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))?;
         Ok(())
+    }
+
+    fn try_draw(&mut self, callback: PyObject) -> PyResult<PyCompletedFrame> {
+        let mut callback_error: Option<PyErr> = None;
+        let completed = self
+            .inner
+            .try_draw(|frame| {
+                Python::with_gil(|py| -> Result<(), std::io::Error> {
+                    let py_frame = PyFrame::from_frame(frame);
+                    match callback.call1(py, (py_frame,)) {
+                        Ok(_) => Ok(()),
+                        Err(err) => {
+                            callback_error = Some(err);
+                            Err(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "Python draw callback failed",
+                            ))
+                        }
+                    }
+                })
+            })
+            .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))?;
+
+        if let Some(err) = callback_error {
+            return Err(err);
+        }
+
+        Ok(PyCompletedFrame {
+            buffer: PyBuffer {
+                inner: completed.buffer.clone(),
+            },
+            area: PyRect {
+                inner: completed.area,
+            },
+            count: completed.count,
+        })
+    }
+
+    fn flush(&mut self) -> PyResult<()> {
+        self.inner
+            .flush()
+            .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))
     }
 
     fn clear(&mut self) -> PyResult<()> {
@@ -401,7 +772,8 @@ fn read_event() -> PyResult<PyEvent> {
         event::read().map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))?;
     Ok(match event {
         Event::Key(key) => PyEvent {
-            kind: "key".into(),
+            event_kind: PyTerminalEventKind::Key,
+            kind: PyTerminalEventKind::Key.as_str().into(),
             key: Some(key.into()),
             width: None,
             height: None,
@@ -409,7 +781,8 @@ fn read_event() -> PyResult<PyEvent> {
             mouse: None,
         },
         Event::Resize(width, height) => PyEvent {
-            kind: "resize".into(),
+            event_kind: PyTerminalEventKind::Resize,
+            kind: PyTerminalEventKind::Resize.as_str().into(),
             key: None,
             width: Some(width),
             height: Some(height),
@@ -417,7 +790,8 @@ fn read_event() -> PyResult<PyEvent> {
             mouse: None,
         },
         Event::Paste(text) => PyEvent {
-            kind: "paste".into(),
+            event_kind: PyTerminalEventKind::Paste,
+            kind: PyTerminalEventKind::Paste.as_str().into(),
             key: None,
             width: None,
             height: None,
@@ -425,15 +799,26 @@ fn read_event() -> PyResult<PyEvent> {
             mouse: None,
         },
         Event::Mouse(mouse) => PyEvent {
-            kind: "mouse".into(),
+            event_kind: PyTerminalEventKind::Mouse,
+            kind: PyTerminalEventKind::Mouse.as_str().into(),
             key: None,
             width: None,
             height: None,
             paste: None,
             mouse: Some(mouse.into()),
         },
-        _ => PyEvent {
-            kind: "other".into(),
+        Event::FocusGained => PyEvent {
+            event_kind: PyTerminalEventKind::FocusGained,
+            kind: PyTerminalEventKind::FocusGained.as_str().into(),
+            key: None,
+            width: None,
+            height: None,
+            paste: None,
+            mouse: None,
+        },
+        Event::FocusLost => PyEvent {
+            event_kind: PyTerminalEventKind::FocusLost,
+            kind: PyTerminalEventKind::FocusLost.as_str().into(),
             key: None,
             width: None,
             height: None,
@@ -445,12 +830,17 @@ fn read_event() -> PyResult<PyEvent> {
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyFrame>()?;
+    m.add_class::<PyCompletedFrame>()?;
     m.add_class::<PyTerminal>()?;
     m.add_class::<PyKeyEventKind>()?;
+    m.add_class::<PyKeyEventState>()?;
     m.add_class::<PyKeyModifiers>()?;
     m.add_class::<PyKeyCode>()?;
+    m.add_class::<PyMouseButton>()?;
+    m.add_class::<PyMouseEventKind>()?;
     m.add_class::<PyMouseEvent>()?;
     m.add_class::<PyKeyEvent>()?;
+    m.add_class::<PyTerminalEventKind>()?;
     m.add_class::<PyEvent>()?;
     m.add_function(wrap_pyfunction!(restore_terminal, m)?)?;
     m.add_function(wrap_pyfunction!(poll_event, m)?)?;

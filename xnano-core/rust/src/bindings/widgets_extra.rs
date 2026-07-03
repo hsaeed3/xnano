@@ -1,15 +1,22 @@
+use std::rc::Rc;
+
 use pyo3::prelude::*;
 use pyo3::types::PyList;
-use ratatui::layout::{Constraint, Position};
+use ratatui::buffer::Buffer;
+use ratatui::layout::{Constraint, Position, Rect};
+use ratatui::symbols::Marker;
+use ratatui::text::Line;
 use ratatui::widgets::block::Padding;
+use ratatui::widgets::canvas::{Canvas, Circle, Line as CanvasLine, Points, Rectangle};
 use ratatui::widgets::{
-    Bar, BarChart, BarGroup, Cell, LineGauge, Row, Scrollbar,
-    ScrollbarOrientation, ScrollbarState, ScrollDirection, Sparkline, Table, TableState, Tabs,
+    Axis, Bar, BarChart, BarGroup, Cell, Chart, Dataset, GraphType, LegendPosition, LineGauge, Row,
+    Scrollbar, ScrollbarOrientation, ScrollbarState, ScrollDirection, Sparkline, Table, TableState,
+    Tabs, Widget,
 };
 
 use super::convert::{extract_line, extract_text};
-use super::layout::{PyConstraint, PyDirection};
-use super::style::PyStyle;
+use super::layout::{PyAlignment, PyConstraint, PyDirection};
+use super::style::{PyColor, PyStyle};
 use super::widgets::{PyBlock, PyHighlightSpacing};
 
 fn extract_constraints(values: &Bound<'_, PyList>) -> PyResult<Vec<Constraint>> {
@@ -914,6 +921,537 @@ impl PyBarChart {
     }
 }
 
+#[pyclass(name = "GraphType", module = "xnano_core._xnano_core", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq)]
+pub enum PyGraphType {
+    Scatter,
+    Line,
+    Bar,
+}
+
+impl From<PyGraphType> for GraphType {
+    fn from(value: PyGraphType) -> Self {
+        match value {
+            PyGraphType::Scatter => GraphType::Scatter,
+            PyGraphType::Line => GraphType::Line,
+            PyGraphType::Bar => GraphType::Bar,
+        }
+    }
+}
+
+#[pyclass(name = "LegendPosition", module = "xnano_core._xnano_core", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq)]
+pub enum PyLegendPosition {
+    Top,
+    TopRight,
+    TopLeft,
+    Left,
+    Right,
+    Bottom,
+    BottomRight,
+    BottomLeft,
+}
+
+impl From<PyLegendPosition> for LegendPosition {
+    fn from(value: PyLegendPosition) -> Self {
+        match value {
+            PyLegendPosition::Top => LegendPosition::Top,
+            PyLegendPosition::TopRight => LegendPosition::TopRight,
+            PyLegendPosition::TopLeft => LegendPosition::TopLeft,
+            PyLegendPosition::Left => LegendPosition::Left,
+            PyLegendPosition::Right => LegendPosition::Right,
+            PyLegendPosition::Bottom => LegendPosition::Bottom,
+            PyLegendPosition::BottomRight => LegendPosition::BottomRight,
+            PyLegendPosition::BottomLeft => LegendPosition::BottomLeft,
+        }
+    }
+}
+
+#[pyclass(name = "Marker", module = "xnano_core._xnano_core", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq)]
+pub enum PyMarker {
+    Dot,
+    Block,
+    Bar,
+    Braille,
+    HalfBlock,
+}
+
+impl From<PyMarker> for Marker {
+    fn from(value: PyMarker) -> Self {
+        match value {
+            PyMarker::Dot => Marker::Dot,
+            PyMarker::Block => Marker::Block,
+            PyMarker::Bar => Marker::Bar,
+            PyMarker::Braille => Marker::Braille,
+            PyMarker::HalfBlock => Marker::HalfBlock,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct OwnedDataset {
+    name: Option<Line<'static>>,
+    data: Vec<(f64, f64)>,
+    marker: Marker,
+    graph_type: GraphType,
+    style: ratatui::style::Style,
+}
+
+#[pyclass(name = "Dataset", module = "xnano_core._xnano_core")]
+#[derive(Clone)]
+pub struct PyDataset {
+    name: Option<Line<'static>>,
+    data: Vec<(f64, f64)>,
+    marker: Marker,
+    graph_type: GraphType,
+    style: ratatui::style::Style,
+}
+
+#[pymethods]
+impl PyDataset {
+    #[staticmethod]
+    fn default() -> Self {
+        Self {
+            name: None,
+            data: Vec::new(),
+            marker: Marker::Dot,
+            graph_type: GraphType::Scatter,
+            style: ratatui::style::Style::default(),
+        }
+    }
+
+    fn name(&self, value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let line = extract_line(value)?;
+        Ok(Self {
+            name: Some(line),
+            ..self.clone()
+        })
+    }
+
+    fn data(&self, values: Vec<(f64, f64)>) -> Self {
+        Self {
+            data: values,
+            ..self.clone()
+        }
+    }
+
+    fn marker(&self, value: PyMarker) -> Self {
+        Self {
+            marker: value.into(),
+            ..self.clone()
+        }
+    }
+
+    fn graph_type(&self, value: PyGraphType) -> Self {
+        Self {
+            graph_type: value.into(),
+            ..self.clone()
+        }
+    }
+
+    fn style(&self, value: PyStyle) -> Self {
+        Self {
+            style: value.inner,
+            ..self.clone()
+        }
+    }
+}
+
+impl From<PyDataset> for OwnedDataset {
+    fn from(value: PyDataset) -> Self {
+        Self {
+            name: value.name,
+            data: value.data,
+            marker: value.marker,
+            graph_type: value.graph_type,
+            style: value.style,
+        }
+    }
+}
+
+#[pyclass(name = "Axis", module = "xnano_core._xnano_core")]
+#[derive(Clone)]
+pub struct PyAxis {
+    inner: Axis<'static>,
+}
+
+#[pymethods]
+impl PyAxis {
+    #[staticmethod]
+    fn default() -> Self {
+        Self {
+            inner: Axis::default(),
+        }
+    }
+
+    fn title(&self, value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let line = extract_line(value)?;
+        Ok(Self {
+            inner: self.inner.clone().title(line),
+        })
+    }
+
+    fn bounds(&self, bounds: [f64; 2]) -> Self {
+        Self {
+            inner: self.inner.clone().bounds(bounds),
+        }
+    }
+
+    fn labels(&self, values: &Bound<'_, PyList>) -> PyResult<Self> {
+        let labels: Vec<Line<'static>> = values
+            .iter()
+            .map(|item| extract_line(&item))
+            .collect::<PyResult<_>>()?;
+        Ok(Self {
+            inner: self.inner.clone().labels(labels),
+        })
+    }
+
+    fn style(&self, value: PyStyle) -> Self {
+        Self {
+            inner: self.inner.clone().style(value.inner),
+        }
+    }
+
+    fn labels_alignment(&self, alignment: PyAlignment) -> Self {
+        Self {
+            inner: self.inner.clone().labels_alignment(alignment.into()),
+        }
+    }
+}
+
+#[pyclass(name = "Chart", module = "xnano_core._xnano_core")]
+#[derive(Clone)]
+pub struct PyChart {
+    block: Option<ratatui::widgets::Block<'static>>,
+    x_axis: Axis<'static>,
+    y_axis: Axis<'static>,
+    datasets: Vec<OwnedDataset>,
+    style: ratatui::style::Style,
+    hidden_legend_constraints: (Constraint, Constraint),
+    legend_position: Option<LegendPosition>,
+}
+
+impl PyChart {
+    pub fn render_to(&self, area: Rect, buffer: &mut Buffer) {
+        let datasets: Vec<Dataset<'_>> = self
+            .datasets
+            .iter()
+            .map(|dataset| {
+                let mut built = Dataset::default()
+                    .data(dataset.data.as_slice())
+                    .marker(dataset.marker)
+                    .graph_type(dataset.graph_type)
+                    .style(dataset.style);
+                if let Some(ref name) = dataset.name {
+                    built = built.name(name.clone());
+                }
+                built
+            })
+            .collect();
+
+        let mut chart = Chart::new(datasets)
+            .x_axis(self.x_axis.clone())
+            .y_axis(self.y_axis.clone())
+            .style(self.style)
+            .hidden_legend_constraints(self.hidden_legend_constraints)
+            .legend_position(self.legend_position);
+        if let Some(ref block) = self.block {
+            chart = chart.block(block.clone());
+        }
+        chart.render(area, buffer);
+    }
+}
+
+#[pymethods]
+impl PyChart {
+    #[staticmethod]
+    fn new(datasets: &Bound<'_, PyList>) -> PyResult<Self> {
+        let datasets: Vec<OwnedDataset> = datasets
+            .iter()
+            .map(|item| {
+                item.extract::<PyRef<PyDataset>>()
+                    .map(|dataset| dataset.clone().into())
+                    .map_err(|_| pyo3::exceptions::PyTypeError::new_err("expected Dataset"))
+            })
+            .collect::<PyResult<_>>()?;
+        Ok(Self {
+            block: None,
+            x_axis: Axis::default(),
+            y_axis: Axis::default(),
+            datasets,
+            style: ratatui::style::Style::default(),
+            hidden_legend_constraints: (Constraint::Ratio(1, 4), Constraint::Ratio(1, 4)),
+            legend_position: Some(LegendPosition::default()),
+        })
+    }
+
+    fn block(&self, block: PyBlock) -> Self {
+        Self {
+            block: Some(block.inner),
+            ..self.clone()
+        }
+    }
+
+    fn style(&self, value: PyStyle) -> Self {
+        Self {
+            style: value.inner,
+            ..self.clone()
+        }
+    }
+
+    fn x_axis(&self, axis: PyAxis) -> Self {
+        Self {
+            x_axis: axis.inner,
+            ..self.clone()
+        }
+    }
+
+    fn y_axis(&self, axis: PyAxis) -> Self {
+        Self {
+            y_axis: axis.inner,
+            ..self.clone()
+        }
+    }
+
+    fn hidden_legend_constraints(&self, width: PyConstraint, height: PyConstraint) -> Self {
+        Self {
+            hidden_legend_constraints: (width.inner, height.inner),
+            ..self.clone()
+        }
+    }
+
+    #[pyo3(signature = (position=None))]
+    fn legend_position(&self, position: Option<PyLegendPosition>) -> Self {
+        Self {
+            legend_position: position.map(Into::into),
+            ..self.clone()
+        }
+    }
+}
+
+#[derive(Clone)]
+enum CanvasShape {
+    Line {
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        color: ratatui::style::Color,
+    },
+    Points {
+        coords: Vec<(f64, f64)>,
+        color: ratatui::style::Color,
+    },
+    Rectangle {
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        color: ratatui::style::Color,
+    },
+    Circle {
+        x: f64,
+        y: f64,
+        radius: f64,
+        color: ratatui::style::Color,
+    },
+}
+
+#[derive(Clone)]
+struct CanvasLabel {
+    x: f64,
+    y: f64,
+    line: Line<'static>,
+}
+
+#[pyclass(name = "Canvas", module = "xnano_core._xnano_core")]
+#[derive(Clone)]
+pub struct PyCanvas {
+    block: Option<ratatui::widgets::Block<'static>>,
+    x_bounds: [f64; 2],
+    y_bounds: [f64; 2],
+    background_color: ratatui::style::Color,
+    marker: Marker,
+    shapes: Vec<CanvasShape>,
+    labels: Vec<CanvasLabel>,
+}
+
+impl PyCanvas {
+    pub fn render_to(&self, area: Rect, buffer: &mut Buffer) {
+        let shapes = Rc::new(self.shapes.clone());
+        let labels = Rc::new(self.labels.clone());
+        let shapes_draw = Rc::clone(&shapes);
+        let labels_draw = Rc::clone(&labels);
+        let mut canvas = Canvas::default()
+            .x_bounds(self.x_bounds)
+            .y_bounds(self.y_bounds)
+            .background_color(self.background_color)
+            .marker(self.marker);
+        if let Some(ref block) = self.block {
+            canvas = canvas.block(block.clone());
+        }
+        canvas
+            .paint(move |ctx| {
+                for shape in shapes_draw.iter() {
+                    match shape {
+                        CanvasShape::Line {
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                            color,
+                        } => ctx.draw(&CanvasLine {
+                            x1: *x1,
+                            y1: *y1,
+                            x2: *x2,
+                            y2: *y2,
+                            color: *color,
+                        }),
+                        CanvasShape::Points { coords, color } => ctx.draw(&Points {
+                            coords: coords.as_slice(),
+                            color: *color,
+                        }),
+                        CanvasShape::Rectangle {
+                            x,
+                            y,
+                            width,
+                            height,
+                            color,
+                        } => ctx.draw(&Rectangle {
+                            x: *x,
+                            y: *y,
+                            width: *width,
+                            height: *height,
+                            color: *color,
+                        }),
+                        CanvasShape::Circle {
+                            x,
+                            y,
+                            radius,
+                            color,
+                        } => ctx.draw(&Circle {
+                            x: *x,
+                            y: *y,
+                            radius: *radius,
+                            color: *color,
+                        }),
+                    }
+                }
+                for label in labels_draw.iter() {
+                    ctx.print(label.x, label.y, label.line.clone());
+                }
+            })
+            .render(area, buffer);
+    }
+}
+
+#[pymethods]
+impl PyCanvas {
+    #[staticmethod]
+    fn default() -> Self {
+        Self {
+            block: None,
+            x_bounds: [0.0, 0.0],
+            y_bounds: [0.0, 0.0],
+            background_color: ratatui::style::Color::Reset,
+            marker: Marker::Braille,
+            shapes: Vec::new(),
+            labels: Vec::new(),
+        }
+    }
+
+    fn block(&self, block: PyBlock) -> Self {
+        Self {
+            block: Some(block.inner),
+            ..self.clone()
+        }
+    }
+
+    fn x_bounds(&self, bounds: [f64; 2]) -> Self {
+        Self {
+            x_bounds: bounds,
+            ..self.clone()
+        }
+    }
+
+    fn y_bounds(&self, bounds: [f64; 2]) -> Self {
+        Self {
+            y_bounds: bounds,
+            ..self.clone()
+        }
+    }
+
+    fn background_color(&self, color: PyColor) -> Self {
+        Self {
+            background_color: color.inner,
+            ..self.clone()
+        }
+    }
+
+    fn marker(&self, value: PyMarker) -> Self {
+        Self {
+            marker: value.into(),
+            ..self.clone()
+        }
+    }
+
+    fn line(&self, x1: f64, y1: f64, x2: f64, y2: f64, color: PyColor) -> Self {
+        let mut shapes = self.shapes.clone();
+        shapes.push(CanvasShape::Line {
+            x1,
+            y1,
+            x2,
+            y2,
+            color: color.inner,
+        });
+        Self { shapes, ..self.clone() }
+    }
+
+    fn points(&self, coords: Vec<(f64, f64)>, color: PyColor) -> Self {
+        let mut shapes = self.shapes.clone();
+        shapes.push(CanvasShape::Points {
+            coords,
+            color: color.inner,
+        });
+        Self { shapes, ..self.clone() }
+    }
+
+    fn rectangle(&self, x: f64, y: f64, width: f64, height: f64, color: PyColor) -> Self {
+        let mut shapes = self.shapes.clone();
+        shapes.push(CanvasShape::Rectangle {
+            x,
+            y,
+            width,
+            height,
+            color: color.inner,
+        });
+        Self { shapes, ..self.clone() }
+    }
+
+    fn circle(&self, x: f64, y: f64, radius: f64, color: PyColor) -> Self {
+        let mut shapes = self.shapes.clone();
+        shapes.push(CanvasShape::Circle {
+            x,
+            y,
+            radius,
+            color: color.inner,
+        });
+        Self { shapes, ..self.clone() }
+    }
+
+    fn print(&self, x: f64, y: f64, content: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let line = extract_line(content)?;
+        let mut labels = self.labels.clone();
+        labels.push(CanvasLabel { x, y, line });
+        Ok(Self {
+            labels,
+            ..self.clone()
+        })
+    }
+}
+
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyPadding>()?;
     m.add_class::<PyPosition>()?;
@@ -931,5 +1469,12 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyBar>()?;
     m.add_class::<PyBarGroup>()?;
     m.add_class::<PyBarChart>()?;
+    m.add_class::<PyGraphType>()?;
+    m.add_class::<PyLegendPosition>()?;
+    m.add_class::<PyMarker>()?;
+    m.add_class::<PyDataset>()?;
+    m.add_class::<PyAxis>()?;
+    m.add_class::<PyChart>()?;
+    m.add_class::<PyCanvas>()?;
     Ok(())
 }
