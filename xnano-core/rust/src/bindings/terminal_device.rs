@@ -13,7 +13,7 @@ use pyo3::prelude::*;
 use super::crossterm_exec::{execute_stdout, io_to_py};
 use super::layout::PySize;
 
-#[pyclass(name = "ClearType", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "ClearType", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyClearType {
     All,
@@ -37,92 +37,156 @@ impl From<PyClearType> for ClearType {
     }
 }
 
-#[pyfunction]
-fn enable_raw_mode() -> PyResult<()> {
+pub(crate) fn enable_raw_mode_impl() -> PyResult<()> {
     ct_enable_raw_mode().map_err(io_to_py)
 }
 
-#[pyfunction]
-fn disable_raw_mode() -> PyResult<()> {
+pub(crate) fn disable_raw_mode_impl() -> PyResult<()> {
     ct_disable_raw_mode().map_err(io_to_py)
 }
 
-#[pyfunction]
-fn is_raw_mode_enabled() -> PyResult<bool> {
+pub(crate) fn is_raw_mode_enabled_impl() -> PyResult<bool> {
     ct_is_raw_mode_enabled().map_err(io_to_py)
 }
 
-#[pyfunction]
-fn terminal_size() -> PyResult<PySize> {
+pub(crate) fn terminal_size_impl() -> PyResult<PySize> {
     let (width, height) = size().map_err(io_to_py)?;
     Ok(PySize {
         inner: ratatui::layout::Size::new(width, height),
     })
 }
 
-#[pyfunction]
-fn terminal_window_size() -> PyResult<PySize> {
+pub(crate) fn terminal_window_size_impl() -> PyResult<PySize> {
     let window = window_size().map_err(io_to_py)?;
     Ok(PySize {
         inner: ratatui::layout::Size::new(window.columns, window.rows),
     })
 }
 
+pub(crate) fn scroll_up_impl(count: u16) -> PyResult<()> {
+    execute_stdout(ScrollUp(count))
+}
+
+pub(crate) fn scroll_down_impl(count: u16) -> PyResult<()> {
+    execute_stdout(ScrollDown(count))
+}
+
+pub(crate) fn clear_terminal_impl(clear_type: PyClearType) -> PyResult<()> {
+    execute_stdout(Clear(clear_type.into()))
+}
+
+pub(crate) fn enter_alternate_screen_impl() -> PyResult<()> {
+    execute_stdout(EnterAlternateScreen)
+}
+
+pub(crate) fn leave_alternate_screen_impl() -> PyResult<()> {
+    execute_stdout(LeaveAlternateScreen)
+}
+
+pub(crate) fn set_terminal_title_impl(title: &str) -> PyResult<()> {
+    execute_stdout(SetTitle(title))
+}
+
+pub(crate) fn enable_line_wrap_impl() -> PyResult<()> {
+    execute_stdout(EnableLineWrap)
+}
+
+pub(crate) fn disable_line_wrap_impl() -> PyResult<()> {
+    execute_stdout(DisableLineWrap)
+}
+
+pub(crate) fn begin_synchronized_update_impl() -> PyResult<()> {
+    execute_stdout(BeginSynchronizedUpdate)
+}
+
+pub(crate) fn end_synchronized_update_impl() -> PyResult<()> {
+    execute_stdout(EndSynchronizedUpdate)
+}
+
+pub(crate) fn supports_keyboard_enhancement_impl() -> PyResult<bool> {
+    ct_supports_keyboard_enhancement().map_err(io_to_py)
+}
+
+#[pyfunction]
+fn enable_raw_mode() -> PyResult<()> {
+    enable_raw_mode_impl()
+}
+
+#[pyfunction]
+fn disable_raw_mode() -> PyResult<()> {
+    disable_raw_mode_impl()
+}
+
+#[pyfunction]
+fn is_raw_mode_enabled() -> PyResult<bool> {
+    is_raw_mode_enabled_impl()
+}
+
+#[pyfunction]
+fn terminal_size() -> PyResult<PySize> {
+    terminal_size_impl()
+}
+
+#[pyfunction]
+fn terminal_window_size() -> PyResult<PySize> {
+    terminal_window_size_impl()
+}
+
 #[pyfunction]
 #[pyo3(signature = (count=1))]
 fn scroll_up(count: u16) -> PyResult<()> {
-    execute_stdout(ScrollUp(count))
+    scroll_up_impl(count)
 }
 
 #[pyfunction]
 #[pyo3(signature = (count=1))]
 fn scroll_down(count: u16) -> PyResult<()> {
-    execute_stdout(ScrollDown(count))
+    scroll_down_impl(count)
 }
 
 #[pyfunction]
 fn clear_terminal(clear_type: PyClearType) -> PyResult<()> {
-    execute_stdout(Clear(clear_type.into()))
+    clear_terminal_impl(clear_type)
 }
 
 #[pyfunction]
 fn enter_alternate_screen() -> PyResult<()> {
-    execute_stdout(EnterAlternateScreen)
+    enter_alternate_screen_impl()
 }
 
 #[pyfunction]
 fn leave_alternate_screen() -> PyResult<()> {
-    execute_stdout(LeaveAlternateScreen)
+    leave_alternate_screen_impl()
 }
 
 #[pyfunction]
 fn set_terminal_title(title: &str) -> PyResult<()> {
-    execute_stdout(SetTitle(title))
+    set_terminal_title_impl(title)
 }
 
 #[pyfunction]
 fn enable_line_wrap() -> PyResult<()> {
-    execute_stdout(EnableLineWrap)
+    enable_line_wrap_impl()
 }
 
 #[pyfunction]
 fn disable_line_wrap() -> PyResult<()> {
-    execute_stdout(DisableLineWrap)
+    disable_line_wrap_impl()
 }
 
 #[pyfunction]
 fn begin_synchronized_update() -> PyResult<()> {
-    execute_stdout(BeginSynchronizedUpdate)
+    begin_synchronized_update_impl()
 }
 
 #[pyfunction]
 fn end_synchronized_update() -> PyResult<()> {
-    execute_stdout(EndSynchronizedUpdate)
+    end_synchronized_update_impl()
 }
 
 #[pyfunction]
 fn supports_keyboard_enhancement() -> PyResult<bool> {
-    ct_supports_keyboard_enhancement().map_err(io_to_py)
+    supports_keyboard_enhancement_impl()
 }
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
