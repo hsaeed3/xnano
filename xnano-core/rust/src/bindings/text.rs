@@ -7,7 +7,7 @@ use super::convert::{extract_line, extract_span};
 use super::layout::PyAlignment;
 use super::style::{PyColor, PyModifier, PyStyle};
 
-#[pyclass(name = "Span", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Span", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PySpan {
     pub inner: Span<'static>,
@@ -92,7 +92,7 @@ impl PySpan {
     }
 }
 
-#[pyclass(name = "Line", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Line", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyLine {
     pub inner: Line<'static>,
@@ -192,7 +192,7 @@ impl PyLine {
     }
 }
 
-#[pyclass(name = "Text", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Text", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyText {
     pub inner: Text<'static>,

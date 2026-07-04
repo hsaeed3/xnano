@@ -11,7 +11,7 @@ use super::convert::{extract_line, extract_span, extract_text};
 use super::layout::{PyAlignment, PyRect};
 use super::style::PyStyle;
 
-#[pyclass(name = "Borders", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Borders", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyBorders {
     pub inner: Borders,
@@ -55,7 +55,7 @@ impl PyBorders {
     }
 }
 
-#[pyclass(name = "BorderSet", module = "xnano_core._xnano_core")]
+#[pyclass(name = "BorderSet", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyBorderSet {
     pub inner: border::Set,
@@ -117,7 +117,7 @@ impl PyBorderSet {
     }
 }
 
-#[pyclass(name = "BorderType", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "BorderType", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyBorderType {
     Plain,
@@ -141,7 +141,7 @@ impl From<PyBorderType> for BorderType {
     }
 }
 
-#[pyclass(name = "TitlePosition", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "TitlePosition", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyTitlePosition {
     Top,
@@ -157,7 +157,7 @@ impl From<PyTitlePosition> for TitlePosition {
     }
 }
 
-#[pyclass(name = "HighlightSpacing", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "HighlightSpacing", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyHighlightSpacing {
     Always,
@@ -175,7 +175,7 @@ impl From<PyHighlightSpacing> for HighlightSpacing {
     }
 }
 
-#[pyclass(name = "Wrap", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Wrap", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyWrap {
     pub inner: Wrap,
@@ -192,7 +192,7 @@ impl PyWrap {
     }
 }
 
-#[pyclass(name = "Block", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Block", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyBlock {
     pub inner: Block<'static>,
@@ -319,7 +319,7 @@ impl PyBlock {
     }
 }
 
-#[pyclass(name = "Paragraph", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Paragraph", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyParagraph {
     pub inner: Paragraph<'static>,
@@ -387,7 +387,7 @@ impl PyParagraph {
     }
 }
 
-#[pyclass(name = "ListItem", module = "xnano_core._xnano_core")]
+#[pyclass(name = "ListItem", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyListItem {
     pub inner: ListItem<'static>,
@@ -414,7 +414,7 @@ impl PyListItem {
     }
 }
 
-#[pyclass(name = "ListDirection", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "ListDirection", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyListDirection {
     TopToBottom,
@@ -430,7 +430,7 @@ impl From<PyListDirection> for ListDirection {
     }
 }
 
-#[pyclass(name = "RatList", module = "xnano_core._xnano_core")]
+#[pyclass(name = "RatList", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyRatList {
     pub inner: List<'static>,
@@ -535,7 +535,7 @@ impl PyRatList {
     }
 }
 
-#[pyclass(name = "ListState", module = "xnano_core._xnano_core")]
+#[pyclass(name = "ListState", module = "xnano_core.rust.native")]
 pub struct PyListState {
     pub inner: ListState,
 }
@@ -601,7 +601,7 @@ impl PyListState {
     }
 }
 
-#[pyclass(name = "Gauge", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Gauge", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyGauge {
     pub inner: Gauge<'static>,
@@ -671,7 +671,7 @@ impl PyGauge {
     }
 }
 
-#[pyclass(name = "Clear", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Clear", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyClear;
 

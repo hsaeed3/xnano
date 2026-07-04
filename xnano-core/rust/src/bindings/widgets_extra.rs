@@ -32,7 +32,7 @@ fn extract_constraints(values: &Bound<'_, PyList>) -> PyResult<Vec<Constraint>> 
         .collect()
 }
 
-#[pyclass(name = "Padding", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Padding", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyPadding {
     pub inner: Padding,
@@ -85,7 +85,7 @@ impl PyPadding {
     }
 }
 
-#[pyclass(name = "Position", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Position", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyPosition {
     pub inner: Position,
@@ -116,7 +116,7 @@ impl PyPosition {
     };
 }
 
-#[pyclass(name = "Cell", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Cell", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyCell {
     pub inner: Cell<'static>,
@@ -146,7 +146,7 @@ impl PyCell {
     }
 }
 
-#[pyclass(name = "Row", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Row", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyRow {
     pub inner: Row<'static>,
@@ -214,7 +214,7 @@ impl PyRow {
     }
 }
 
-#[pyclass(name = "RatTable", module = "xnano_core._xnano_core")]
+#[pyclass(name = "RatTable", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyRatTable {
     pub inner: Table<'static>,
@@ -321,7 +321,7 @@ impl PyRatTable {
     }
 }
 
-#[pyclass(name = "TableState", module = "xnano_core._xnano_core")]
+#[pyclass(name = "TableState", module = "xnano_core.rust.native")]
 pub struct PyTableState {
     pub inner: TableState,
 }
@@ -418,7 +418,7 @@ impl PyTableState {
     }
 }
 
-#[pyclass(name = "ScrollbarOrientation", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "ScrollbarOrientation", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyScrollbarOrientation {
     VerticalRight,
@@ -438,7 +438,7 @@ impl From<PyScrollbarOrientation> for ScrollbarOrientation {
     }
 }
 
-#[pyclass(name = "Scrollbar", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Scrollbar", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyScrollbar {
     pub inner: Scrollbar<'static>,
@@ -500,7 +500,7 @@ impl PyScrollbar {
     }
 }
 
-#[pyclass(name = "ScrollDirection", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "ScrollDirection", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyScrollDirection {
     Forward,
@@ -516,7 +516,7 @@ impl From<PyScrollDirection> for ScrollDirection {
     }
 }
 
-#[pyclass(name = "ScrollbarState", module = "xnano_core._xnano_core")]
+#[pyclass(name = "ScrollbarState", module = "xnano_core.rust.native")]
 pub struct PyScrollbarState {
     pub inner: ScrollbarState,
 }
@@ -565,7 +565,7 @@ impl PyScrollbarState {
     }
 }
 
-#[pyclass(name = "Tabs", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Tabs", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyTabs {
     pub inner: Tabs<'static>,
@@ -648,7 +648,7 @@ impl PyTabs {
     }
 }
 
-#[pyclass(name = "Sparkline", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Sparkline", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PySparkline {
     pub inner: Sparkline<'static>,
@@ -707,7 +707,7 @@ impl PySparkline {
     }
 }
 
-#[pyclass(name = "LineGauge", module = "xnano_core._xnano_core")]
+#[pyclass(name = "LineGauge", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyLineGauge {
     pub inner: LineGauge<'static>,
@@ -760,7 +760,7 @@ impl PyLineGauge {
     }
 }
 
-#[pyclass(name = "Bar", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Bar", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyBar {
     pub inner: Bar<'static>,
@@ -816,7 +816,7 @@ impl PyBar {
     }
 }
 
-#[pyclass(name = "BarGroup", module = "xnano_core._xnano_core")]
+#[pyclass(name = "BarGroup", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyBarGroup {
     pub inner: BarGroup<'static>,
@@ -840,7 +840,7 @@ impl PyBarGroup {
     }
 }
 
-#[pyclass(name = "BarChart", module = "xnano_core._xnano_core")]
+#[pyclass(name = "BarChart", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyBarChart {
     pub inner: BarChart<'static>,
@@ -921,7 +921,7 @@ impl PyBarChart {
     }
 }
 
-#[pyclass(name = "GraphType", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "GraphType", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyGraphType {
     Scatter,
@@ -939,7 +939,7 @@ impl From<PyGraphType> for GraphType {
     }
 }
 
-#[pyclass(name = "LegendPosition", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "LegendPosition", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyLegendPosition {
     Top,
@@ -967,7 +967,7 @@ impl From<PyLegendPosition> for LegendPosition {
     }
 }
 
-#[pyclass(name = "Marker", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "Marker", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyMarker {
     Dot,
@@ -998,7 +998,7 @@ struct OwnedDataset {
     style: ratatui::style::Style,
 }
 
-#[pyclass(name = "Dataset", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Dataset", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyDataset {
     name: Option<Line<'static>>,
@@ -1070,7 +1070,7 @@ impl From<PyDataset> for OwnedDataset {
     }
 }
 
-#[pyclass(name = "Axis", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Axis", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyAxis {
     inner: Axis<'static>,
@@ -1121,7 +1121,7 @@ impl PyAxis {
     }
 }
 
-#[pyclass(name = "Chart", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Chart", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyChart {
     block: Option<ratatui::widgets::Block<'static>>,
@@ -1266,7 +1266,7 @@ struct CanvasLabel {
     line: Line<'static>,
 }
 
-#[pyclass(name = "Canvas", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Canvas", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyCanvas {
     block: Option<ratatui::widgets::Block<'static>>,
