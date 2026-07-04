@@ -1,1 +1,1 @@
-from ._xnano_core import *
+"""xnano-core"""
