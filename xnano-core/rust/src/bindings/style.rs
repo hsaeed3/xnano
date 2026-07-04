@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use ratatui::style::{Color, Modifier, Style};
 use std::str::FromStr;
 
-#[pyclass(name = "Color", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Color", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyColor {
     pub inner: Color,
@@ -111,7 +111,7 @@ impl PyColor {
     }
 }
 
-#[pyclass(name = "Modifier", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Modifier", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyModifier {
     pub inner: Modifier,
@@ -191,7 +191,7 @@ impl PyModifier {
     }
 }
 
-#[pyclass(name = "Style", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Style", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyStyle {
     pub inner: Style,

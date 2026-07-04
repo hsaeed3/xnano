@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 
 use super::crossterm_exec::execute_stdout;
 
-#[pyclass(name = "KeyboardEnhancementFlags", module = "xnano_core._xnano_core")]
+#[pyclass(name = "KeyboardEnhancementFlags", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyKeyboardEnhancementFlags {
     #[pyo3(get)]
@@ -53,44 +53,78 @@ impl From<PyKeyboardEnhancementFlags> for KeyboardEnhancementFlags {
     }
 }
 
+pub(crate) fn enable_mouse_capture_impl() -> PyResult<()> {
+    execute_stdout(EnableMouseCapture)
+}
+
+pub(crate) fn disable_mouse_capture_impl() -> PyResult<()> {
+    execute_stdout(DisableMouseCapture)
+}
+
+pub(crate) fn enable_bracketed_paste_impl() -> PyResult<()> {
+    execute_stdout(EnableBracketedPaste)
+}
+
+pub(crate) fn disable_bracketed_paste_impl() -> PyResult<()> {
+    execute_stdout(DisableBracketedPaste)
+}
+
+pub(crate) fn enable_focus_change_impl() -> PyResult<()> {
+    execute_stdout(EnableFocusChange)
+}
+
+pub(crate) fn disable_focus_change_impl() -> PyResult<()> {
+    execute_stdout(DisableFocusChange)
+}
+
+pub(crate) fn push_keyboard_enhancement_flags_impl(
+    flags: PyKeyboardEnhancementFlags,
+) -> PyResult<()> {
+    execute_stdout(PushKeyboardEnhancementFlags(flags.into()))
+}
+
+pub(crate) fn pop_keyboard_enhancement_flags_impl() -> PyResult<()> {
+    execute_stdout(PopKeyboardEnhancementFlags)
+}
+
 #[pyfunction]
 fn enable_mouse_capture() -> PyResult<()> {
-    execute_stdout(EnableMouseCapture)
+    enable_mouse_capture_impl()
 }
 
 #[pyfunction]
 fn disable_mouse_capture() -> PyResult<()> {
-    execute_stdout(DisableMouseCapture)
+    disable_mouse_capture_impl()
 }
 
 #[pyfunction]
 fn enable_bracketed_paste() -> PyResult<()> {
-    execute_stdout(EnableBracketedPaste)
+    enable_bracketed_paste_impl()
 }
 
 #[pyfunction]
 fn disable_bracketed_paste() -> PyResult<()> {
-    execute_stdout(DisableBracketedPaste)
+    disable_bracketed_paste_impl()
 }
 
 #[pyfunction]
 fn enable_focus_change() -> PyResult<()> {
-    execute_stdout(EnableFocusChange)
+    enable_focus_change_impl()
 }
 
 #[pyfunction]
 fn disable_focus_change() -> PyResult<()> {
-    execute_stdout(DisableFocusChange)
+    disable_focus_change_impl()
 }
 
 #[pyfunction]
 fn push_keyboard_enhancement_flags(flags: PyKeyboardEnhancementFlags) -> PyResult<()> {
-    execute_stdout(PushKeyboardEnhancementFlags(flags.into()))
+    push_keyboard_enhancement_flags_impl(flags)
 }
 
 #[pyfunction]
 fn pop_keyboard_enhancement_flags() -> PyResult<()> {
-    execute_stdout(PopKeyboardEnhancementFlags)
+    pop_keyboard_enhancement_flags_impl()
 }
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
