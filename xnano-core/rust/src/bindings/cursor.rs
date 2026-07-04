@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 use super::crossterm_exec::{execute_stdout, io_to_py};
 use super::widgets_extra::PyPosition;
 
-#[pyclass(name = "CursorStyle", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "CursorStyle", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyCursorStyle {
     DefaultUserShape,
@@ -34,98 +34,166 @@ impl From<PyCursorStyle> for SetCursorStyle {
     }
 }
 
+pub(crate) fn show_cursor_impl() -> PyResult<()> {
+    execute_stdout(Show)
+}
+
+pub(crate) fn hide_cursor_impl() -> PyResult<()> {
+    execute_stdout(Hide)
+}
+
+pub(crate) fn save_cursor_position_impl() -> PyResult<()> {
+    execute_stdout(SavePosition)
+}
+
+pub(crate) fn restore_cursor_position_impl() -> PyResult<()> {
+    execute_stdout(RestorePosition)
+}
+
+pub(crate) fn move_cursor_to_impl(x: u16, y: u16) -> PyResult<()> {
+    execute_stdout(MoveTo(x, y))
+}
+
+pub(crate) fn move_cursor_to_column_impl(x: u16) -> PyResult<()> {
+    execute_stdout(MoveToColumn(x))
+}
+
+pub(crate) fn move_cursor_to_row_impl(y: u16) -> PyResult<()> {
+    execute_stdout(MoveToRow(y))
+}
+
+pub(crate) fn move_cursor_up_impl(count: u16) -> PyResult<()> {
+    execute_stdout(MoveUp(count))
+}
+
+pub(crate) fn move_cursor_down_impl(count: u16) -> PyResult<()> {
+    execute_stdout(MoveDown(count))
+}
+
+pub(crate) fn move_cursor_left_impl(count: u16) -> PyResult<()> {
+    execute_stdout(MoveLeft(count))
+}
+
+pub(crate) fn move_cursor_right_impl(count: u16) -> PyResult<()> {
+    execute_stdout(MoveRight(count))
+}
+
+pub(crate) fn move_cursor_to_next_line_impl(count: u16) -> PyResult<()> {
+    execute_stdout(MoveToNextLine(count))
+}
+
+pub(crate) fn move_cursor_to_previous_line_impl(count: u16) -> PyResult<()> {
+    execute_stdout(MoveToPreviousLine(count))
+}
+
+pub(crate) fn enable_cursor_blinking_impl() -> PyResult<()> {
+    execute_stdout(EnableBlinking)
+}
+
+pub(crate) fn disable_cursor_blinking_impl() -> PyResult<()> {
+    execute_stdout(DisableBlinking)
+}
+
+pub(crate) fn set_cursor_style_impl(style: PyCursorStyle) -> PyResult<()> {
+    execute_stdout(SetCursorStyle::from(style))
+}
+
+pub(crate) fn get_cursor_position_impl() -> PyResult<PyPosition> {
+    let (x, y) = position().map_err(io_to_py)?;
+    Ok(PyPosition {
+        inner: ratatui::layout::Position { x, y },
+    })
+}
+
 #[pyfunction]
 fn show_cursor() -> PyResult<()> {
-    execute_stdout(Show)
+    show_cursor_impl()
 }
 
 #[pyfunction]
 fn hide_cursor() -> PyResult<()> {
-    execute_stdout(Hide)
+    hide_cursor_impl()
 }
 
 #[pyfunction]
 fn save_cursor_position() -> PyResult<()> {
-    execute_stdout(SavePosition)
+    save_cursor_position_impl()
 }
 
 #[pyfunction]
 fn restore_cursor_position() -> PyResult<()> {
-    execute_stdout(RestorePosition)
+    restore_cursor_position_impl()
 }
 
 #[pyfunction]
 fn move_cursor_to(x: u16, y: u16) -> PyResult<()> {
-    execute_stdout(MoveTo(x, y))
+    move_cursor_to_impl(x, y)
 }
 
 #[pyfunction]
 fn move_cursor_to_column(x: u16) -> PyResult<()> {
-    execute_stdout(MoveToColumn(x))
+    move_cursor_to_column_impl(x)
 }
 
 #[pyfunction]
 fn move_cursor_to_row(y: u16) -> PyResult<()> {
-    execute_stdout(MoveToRow(y))
+    move_cursor_to_row_impl(y)
 }
 
 #[pyfunction]
 #[pyo3(signature = (count=1))]
 fn move_cursor_up(count: u16) -> PyResult<()> {
-    execute_stdout(MoveUp(count))
+    move_cursor_up_impl(count)
 }
 
 #[pyfunction]
 #[pyo3(signature = (count=1))]
 fn move_cursor_down(count: u16) -> PyResult<()> {
-    execute_stdout(MoveDown(count))
+    move_cursor_down_impl(count)
 }
 
 #[pyfunction]
 #[pyo3(signature = (count=1))]
 fn move_cursor_left(count: u16) -> PyResult<()> {
-    execute_stdout(MoveLeft(count))
+    move_cursor_left_impl(count)
 }
 
 #[pyfunction]
 #[pyo3(signature = (count=1))]
 fn move_cursor_right(count: u16) -> PyResult<()> {
-    execute_stdout(MoveRight(count))
+    move_cursor_right_impl(count)
 }
 
 #[pyfunction]
 #[pyo3(signature = (count=1))]
 fn move_cursor_to_next_line(count: u16) -> PyResult<()> {
-    execute_stdout(MoveToNextLine(count))
+    move_cursor_to_next_line_impl(count)
 }
 
 #[pyfunction]
 #[pyo3(signature = (count=1))]
 fn move_cursor_to_previous_line(count: u16) -> PyResult<()> {
-    execute_stdout(MoveToPreviousLine(count))
+    move_cursor_to_previous_line_impl(count)
 }
 
 #[pyfunction]
 fn enable_cursor_blinking() -> PyResult<()> {
-    execute_stdout(EnableBlinking)
+    enable_cursor_blinking_impl()
 }
 
 #[pyfunction]
 fn disable_cursor_blinking() -> PyResult<()> {
-    execute_stdout(DisableBlinking)
+    disable_cursor_blinking_impl()
 }
 
 #[pyfunction]
 fn set_cursor_style(style: PyCursorStyle) -> PyResult<()> {
-    execute_stdout(SetCursorStyle::from(style))
+    set_cursor_style_impl(style)
 }
 
 #[pyfunction]
 fn get_cursor_position() -> PyResult<PyPosition> {
-    let (x, y) = position().map_err(io_to_py)?;
-    Ok(PyPosition {
-        inner: ratatui::layout::Position { x, y },
-    })
+    get_cursor_position_impl()
 }
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
