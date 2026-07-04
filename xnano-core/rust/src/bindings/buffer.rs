@@ -1,3 +1,7 @@
+use std::cell::Cell as StdCell;
+use std::rc::Rc;
+
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use ratatui::buffer::{Buffer, Cell};
@@ -16,7 +20,7 @@ use super::widgets_extra::{
     PySparkline, PyTableState, PyTabs,
 };
 
-#[pyclass(name = "BufferCell", module = "xnano_core._xnano_core")]
+#[pyclass(name = "BufferCell", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyBufferCell {
     pub inner: Cell,
@@ -95,7 +99,7 @@ impl PyBufferCell {
     }
 }
 
-#[pyclass(name = "Buffer", module = "xnano_core._xnano_core")]
+#[pyclass(name = "Buffer", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyBuffer {
     pub inner: Buffer,
@@ -679,6 +683,98 @@ fn modifier_to_ansi(modifier: Modifier) -> String {
     }
 }
 
+/// Mutable view onto a live buffer, valid only for the duration of a drawable callback.
+#[pyclass(name = "BufferMutView", module = "xnano_core.rust.native", unsendable)]
+#[derive(Clone)]
+pub struct PyBufferMutView {
+    ptr: usize,
+    alive: Rc<StdCell<bool>>,
+}
+
+impl PyBufferMutView {
+    pub fn wrap(buffer: &mut Buffer) -> Self {
+        Self {
+            ptr: buffer as *mut Buffer as usize,
+            alive: Rc::new(StdCell::new(true)),
+        }
+    }
+
+    pub fn invalidate(&self) {
+        self.alive.set(false);
+    }
+
+    fn buffer_mut(&self) -> PyResult<&mut Buffer> {
+        if !self.alive.get() {
+            return Err(PyRuntimeError::new_err("BufferMutView expired"));
+        }
+        Ok(unsafe { &mut *(self.ptr as *mut Buffer) })
+    }
+}
+
+#[pymethods]
+impl PyBufferMutView {
+    fn get_area(&self) -> PyResult<PyRect> {
+        Ok(PyRect {
+            inner: self.buffer_mut()?.area,
+        })
+    }
+
+    fn area(&self) -> PyResult<PyRect> {
+        self.get_area()
+    }
+
+    fn get_cell(&self, x: u16, y: u16) -> PyResult<Option<PyBufferCell>> {
+        let buffer = self.buffer_mut()?;
+        check_local_coords(buffer, x, y)?;
+        let position = local_position(buffer, x, y);
+        Ok(buffer
+            .cell(position)
+            .map(|cell| PyBufferCell { inner: cell.clone() }))
+    }
+
+    fn set_cell(
+        &self,
+        x: u16,
+        y: u16,
+        symbol: &str,
+        style: PyStyle,
+    ) -> PyResult<()> {
+        let buffer = self.buffer_mut()?;
+        check_local_coords(buffer, x, y)?;
+        let position = local_position(buffer, x, y);
+        if let Some(cell) = buffer.cell_mut(position) {
+            cell.set_symbol(symbol).set_style(style.inner);
+            Ok(())
+        } else {
+            Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                "position ({x}, {y}) out of bounds"
+            )))
+        }
+    }
+
+    fn set_string(
+        &self,
+        x: u16,
+        y: u16,
+        string: &str,
+        style: PyStyle,
+    ) -> PyResult<()> {
+        let buffer = self.buffer_mut()?;
+        if x >= buffer.area.width || y >= buffer.area.height {
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                "position ({x}, {y}) out of bounds"
+            )));
+        }
+        buffer.set_string(x, y, string, style.inner);
+        Ok(())
+    }
+
+    fn set_style(&self, area: PyRect, style: PyStyle) -> PyResult<()> {
+        self.buffer_mut()?.set_style(area.inner, style.inner);
+        Ok(())
+    }
+}
+
 /// Render any supported widget into a buffer region.
 #[pyfunction]
 pub fn render_widget(
@@ -703,6 +799,7 @@ pub fn render_stateful_widget(
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyBufferCell>()?;
     m.add_class::<PyBuffer>()?;
+    m.add_class::<PyBufferMutView>()?;
     m.add_function(wrap_pyfunction!(render_widget, m)?)?;
     m.add_function(wrap_pyfunction!(render_stateful_widget, m)?)?;
     Ok(())

@@ -1,14 +1,16 @@
 use std::time::Duration;
 
 use crossterm::event::{
-    self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton,
-    MouseEvent, MouseEventKind,
+    self, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent,
+    MouseEventKind,
 };
 use pyo3::prelude::*;
 use ratatui::Frame;
 use ratatui::{init, restore, DefaultTerminal};
 
 use super::buffer::{render_stateful_inner, render_widget_inner, PyBuffer};
+use super::crossterm_exec::io_to_py;
+use super::engine::events::PyEvent;
 use super::convert_core::{sync_from_core_buffer, sync_to_core_buffer, to_core_rect};
 use super::frame_ext::frame_hide_cursor;
 use super::fx::PyEffectManager;
@@ -16,7 +18,7 @@ use super::layout::{PyRect, PySize};
 use super::widgets_extra::PyPosition;
 
 /// Frame context valid only for the duration of a `Terminal.draw` callback.
-#[pyclass(name = "Frame", module = "xnano_core._xnano_core", unsendable)]
+#[pyclass(name = "Frame", module = "xnano_core.rust.native", unsendable)]
 pub struct PyFrame {
     ptr: usize,
 }
@@ -30,7 +32,7 @@ impl PyFrame {
         unsafe { &mut *(self.ptr as *mut Frame<'_>) }
     }
 
-    fn from_frame(frame: &mut Frame<'_>) -> Self {
+    pub(crate) fn from_frame(frame: &mut Frame<'_>) -> Self {
         Self {
             ptr: (frame as *mut Frame<'_>) as usize,
         }
@@ -114,7 +116,7 @@ impl PyFrame {
 }
 
 /// Snapshot of terminal state after a successful draw.
-#[pyclass(name = "CompletedFrame", module = "xnano_core._xnano_core")]
+#[pyclass(name = "CompletedFrame", module = "xnano_core.rust.native")]
 pub struct PyCompletedFrame {
     #[pyo3(get)]
     pub buffer: PyBuffer,
@@ -124,7 +126,7 @@ pub struct PyCompletedFrame {
     pub count: usize,
 }
 
-#[pyclass(name = "KeyEventKind", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "KeyEventKind", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyKeyEventKind {
     Press,
@@ -142,7 +144,7 @@ impl From<KeyEventKind> for PyKeyEventKind {
     }
 }
 
-#[pyclass(name = "KeyEventState", module = "xnano_core._xnano_core")]
+#[pyclass(name = "KeyEventState", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyKeyEventState {
     #[pyo3(get)]
@@ -194,7 +196,7 @@ impl From<KeyEventState> for PyKeyEventState {
     }
 }
 
-#[pyclass(name = "KeyModifiers", module = "xnano_core._xnano_core")]
+#[pyclass(name = "KeyModifiers", module = "xnano_core.rust.native")]
 #[derive(Clone, Copy)]
 pub struct PyKeyModifiers {
     #[pyo3(get)]
@@ -284,7 +286,7 @@ impl From<KeyModifiers> for PyKeyModifiers {
     }
 }
 
-#[pyclass(name = "KeyCode", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "KeyCode", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyKeyCode {
     Char,
@@ -349,7 +351,7 @@ fn key_code_name(code: &KeyCode) -> PyKeyCode {
     }
 }
 
-#[pyclass(name = "MouseButton", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "MouseButton", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyMouseButton {
     Left,
@@ -368,7 +370,7 @@ impl From<MouseButton> for PyMouseButton {
     }
 }
 
-#[pyclass(name = "MouseEventKind", module = "xnano_core._xnano_core", eq, eq_int)]
+#[pyclass(name = "MouseEventKind", module = "xnano_core.rust.native", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyMouseEventKind {
     Down,
@@ -409,7 +411,7 @@ fn mouse_event_kind(value: MouseEventKind) -> (PyMouseEventKind, PyMouseButton) 
     }
 }
 
-#[pyclass(name = "MouseEvent", module = "xnano_core._xnano_core")]
+#[pyclass(name = "MouseEvent", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyMouseEvent {
     #[pyo3(get)]
@@ -470,7 +472,7 @@ impl From<MouseEvent> for PyMouseEvent {
     }
 }
 
-#[pyclass(name = "KeyEvent", module = "xnano_core._xnano_core")]
+#[pyclass(name = "KeyEvent", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PyKeyEvent {
     code: KeyCode,
@@ -605,57 +607,7 @@ impl From<KeyEvent> for PyKeyEvent {
     }
 }
 
-#[pyclass(name = "TerminalEventKind", module = "xnano_core._xnano_core", eq, eq_int)]
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum PyTerminalEventKind {
-    Key,
-    Resize,
-    Paste,
-    Mouse,
-    FocusGained,
-    FocusLost,
-}
-
-impl PyTerminalEventKind {
-    fn as_str(self) -> &'static str {
-        match self {
-            PyTerminalEventKind::Key => "key",
-            PyTerminalEventKind::Resize => "resize",
-            PyTerminalEventKind::Paste => "paste",
-            PyTerminalEventKind::Mouse => "mouse",
-            PyTerminalEventKind::FocusGained => "focus_gained",
-            PyTerminalEventKind::FocusLost => "focus_lost",
-        }
-    }
-}
-
-#[pyclass(name = "Event", module = "xnano_core._xnano_core")]
-#[derive(Clone)]
-pub struct PyEvent {
-    #[pyo3(get)]
-    pub event_kind: PyTerminalEventKind,
-    #[pyo3(get)]
-    pub key: Option<PyKeyEvent>,
-    #[pyo3(get)]
-    pub width: Option<u16>,
-    #[pyo3(get)]
-    pub height: Option<u16>,
-    #[pyo3(get)]
-    pub paste: Option<String>,
-    #[pyo3(get)]
-    pub mouse: Option<PyMouseEvent>,
-    kind: String,
-}
-
-#[pymethods]
-impl PyEvent {
-    #[getter]
-    fn kind(&self) -> &str {
-        &self.kind
-    }
-}
-
-#[pyclass(name = "Terminal", module = "xnano_core._xnano_core", unsendable)]
+#[pyclass(name = "Terminal", module = "xnano_core.rust.native", unsendable)]
 pub struct PyTerminal {
     inner: DefaultTerminal,
 }
@@ -757,75 +709,25 @@ fn restore_terminal() {
 }
 
 #[pyfunction]
-fn poll_event(timeout_ms: u64) -> PyResult<Option<PyEvent>> {
-    if !event::poll(Duration::from_millis(timeout_ms))
-        .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))?
-    {
+fn poll_event(py: Python<'_>, timeout_ms: u64) -> PyResult<Option<PyEvent>> {
+    let ready = py
+        .allow_threads(|| event::poll(Duration::from_millis(timeout_ms)))
+        .map_err(io_to_py)?;
+    py.check_signals()?;
+    if !ready {
         return Ok(None);
     }
-    read_event().map(Some)
+    let ev = py.allow_threads(event::read).map_err(io_to_py)?;
+    Ok(Some(PyEvent::from_crossterm(ev)))
 }
 
 #[pyfunction]
-fn read_event() -> PyResult<PyEvent> {
-    let event =
-        event::read().map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))?;
-    Ok(match event {
-        Event::Key(key) => PyEvent {
-            event_kind: PyTerminalEventKind::Key,
-            kind: PyTerminalEventKind::Key.as_str().into(),
-            key: Some(key.into()),
-            width: None,
-            height: None,
-            paste: None,
-            mouse: None,
-        },
-        Event::Resize(width, height) => PyEvent {
-            event_kind: PyTerminalEventKind::Resize,
-            kind: PyTerminalEventKind::Resize.as_str().into(),
-            key: None,
-            width: Some(width),
-            height: Some(height),
-            paste: None,
-            mouse: None,
-        },
-        Event::Paste(text) => PyEvent {
-            event_kind: PyTerminalEventKind::Paste,
-            kind: PyTerminalEventKind::Paste.as_str().into(),
-            key: None,
-            width: None,
-            height: None,
-            paste: Some(text),
-            mouse: None,
-        },
-        Event::Mouse(mouse) => PyEvent {
-            event_kind: PyTerminalEventKind::Mouse,
-            kind: PyTerminalEventKind::Mouse.as_str().into(),
-            key: None,
-            width: None,
-            height: None,
-            paste: None,
-            mouse: Some(mouse.into()),
-        },
-        Event::FocusGained => PyEvent {
-            event_kind: PyTerminalEventKind::FocusGained,
-            kind: PyTerminalEventKind::FocusGained.as_str().into(),
-            key: None,
-            width: None,
-            height: None,
-            paste: None,
-            mouse: None,
-        },
-        Event::FocusLost => PyEvent {
-            event_kind: PyTerminalEventKind::FocusLost,
-            kind: PyTerminalEventKind::FocusLost.as_str().into(),
-            key: None,
-            width: None,
-            height: None,
-            paste: None,
-            mouse: None,
-        },
-    })
+fn read_event(py: Python<'_>) -> PyResult<PyEvent> {
+    loop {
+        if let Some(ev) = poll_event(py, u64::MAX / 2)? {
+            return Ok(ev);
+        }
+    }
 }
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -840,8 +742,6 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyMouseEventKind>()?;
     m.add_class::<PyMouseEvent>()?;
     m.add_class::<PyKeyEvent>()?;
-    m.add_class::<PyTerminalEventKind>()?;
-    m.add_class::<PyEvent>()?;
     m.add_function(wrap_pyfunction!(restore_terminal, m)?)?;
     m.add_function(wrap_pyfunction!(poll_event, m)?)?;
     m.add_function(wrap_pyfunction!(read_event, m)?)?;
