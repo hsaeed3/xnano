@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 
 use super::super::terminal::{PyKeyEvent, PyMouseEvent};
 
-#[pyclass(name = "TerminalEventKind", module = "xnano_core.rust.engine", eq, eq_int)]
+#[pyclass(name = "CoreTerminalEventKind", module = "xnano_core.rust.engine", eq, eq_int)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyTerminalEventKind {
     Key,
@@ -15,14 +15,14 @@ pub enum PyTerminalEventKind {
     Tick,
 }
 
-#[pyclass(name = "TickEvent", module = "xnano_core.rust.engine")]
+#[pyclass(name = "CoreTickEvent", module = "xnano_core.rust.engine")]
 #[derive(Clone, Copy)]
 pub struct PyTickEvent {
     #[pyo3(get)]
     pub elapsed_ms: u64,
 }
 
-#[pyclass(name = "Event", module = "xnano_core.rust.engine")]
+#[pyclass(name = "CoreEvent", module = "xnano_core.rust.engine")]
 #[derive(Clone)]
 pub struct PyEvent {
     #[pyo3(get)]

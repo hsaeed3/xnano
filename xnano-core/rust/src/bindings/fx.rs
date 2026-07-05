@@ -152,11 +152,9 @@ pub struct PyDuration {
 #[pymethods]
 impl PyDuration {
     #[classattr]
-    fn ZERO() -> Self {
-        Self {
-            inner: Duration::ZERO,
-        }
-    }
+    const ZERO: Self = Self {
+        inner: Duration::ZERO,
+    };
 
     #[staticmethod]
     fn from_millis(milliseconds: u32) -> Self {

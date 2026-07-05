@@ -9,7 +9,7 @@ use ratatui::Frame;
 use super::content_bridge::{render_content, PyRenderContent};
 use super::super::layout::{PyConstraint, PyDirection, PyMargin};
 
-#[pyclass(name = "RenderNode", module = "xnano_core.rust.engine", unsendable)]
+#[pyclass(name = "CoreRenderNode", module = "xnano_core.rust.engine", unsendable)]
 #[derive(Clone)]
 pub struct PyRenderNode {
     pub(crate) x: Option<u16>,
@@ -23,6 +23,8 @@ pub struct PyRenderNode {
     pub(crate) content: PyRenderContent,
     pub(crate) cursor_hint: Option<(u16, u16)>,
     pub(crate) effect_key: Option<String>,
+    pub(crate) z: i32,
+    pub(crate) visible: bool,
     pub(crate) children: Vec<PyRenderNode>,
 }
 
@@ -39,6 +41,8 @@ impl PyRenderNode {
         content: Option<PyRenderContent>,
         cursor_hint: Option<(u16, u16)>,
         effect_key: Option<String>,
+        z: i32,
+        visible: bool,
         children: Option<Vec<PyRenderNode>>,
     ) -> Self {
         Self {
@@ -53,6 +57,8 @@ impl PyRenderNode {
             content: content.unwrap_or_else(PyRenderContent::empty),
             cursor_hint,
             effect_key,
+            z,
+            visible,
             children: children.unwrap_or_default(),
         }
     }
@@ -66,6 +72,7 @@ impl PyRenderNode {
         x = None, y = None, width = None, height = None,
         direction = None, gap = 0, constraints = None, margin = None,
         content = None, cursor_hint = None, effect_key = None,
+        z = 0, visible = true,
         children = None,
     ))]
     fn new(
@@ -80,18 +87,21 @@ impl PyRenderNode {
         content: Option<PyRenderContent>,
         cursor_hint: Option<(u16, u16)>,
         effect_key: Option<String>,
+        z: i32,
+        visible: bool,
         children: Option<Vec<PyRenderNode>>,
     ) -> Self {
         Self::make(
             x, y, width, height, direction, gap, constraints, margin, content, cursor_hint,
-            effect_key, children,
+            effect_key, z, visible, children,
         )
     }
 
     #[staticmethod]
     fn leaf(content: PyRenderContent) -> Self {
         Self::make(
-            None, None, None, None, None, 0, None, None, Some(content), None, None, None,
+            None, None, None, None, None, 0, None, None, Some(content), None, None, 0, true,
+            None,
         )
     }
 
@@ -115,6 +125,8 @@ impl PyRenderNode {
             None,
             None,
             None,
+            0,
+            true,
             Some(children),
         )
     }
@@ -139,6 +151,8 @@ impl PyRenderNode {
             None,
             None,
             None,
+            0,
+            true,
             Some(children),
         )
     }
@@ -157,6 +171,8 @@ impl PyRenderNode {
             None,
             None,
             None,
+            0,
+            true,
             Some(children),
         )
     }
@@ -171,6 +187,14 @@ impl PyRenderNode {
 
     fn get_effect_key(&self) -> Option<String> {
         self.effect_key.clone()
+    }
+
+    fn get_z(&self) -> i32 {
+        self.z
+    }
+
+    fn is_visible(&self) -> bool {
+        self.visible
     }
 
     fn has_absolute_geometry(&self) -> bool {
@@ -223,6 +247,10 @@ pub(crate) fn render_node_to_buffer(
     node: &PyRenderNode,
     ctx: &mut RenderContext,
 ) -> PyResult<Option<Position>> {
+    if !node.visible {
+        return Ok(None);
+    }
+
     let rect = if node.has_absolute_geometry() {
         node.absolute_rect()
     } else {
@@ -247,29 +275,45 @@ pub(crate) fn render_node_to_buffer(
             Some(m) => apply_margin(rect, m),
             None => rect,
         };
-        let child_areas: Vec<Rect> = if node.children.iter().all(|c| c.has_absolute_geometry()) {
-            node.children.iter().map(|c| c.absolute_rect()).collect()
+
+        let child_areas: Vec<Rect> =
+            if node.children.iter().all(|c| c.has_absolute_geometry()) {
+                node.children.iter().map(|c| c.absolute_rect()).collect()
+            } else {
+                Layout::default()
+                    .direction(
+                        node.direction
+                            .map(Into::into)
+                            .unwrap_or(ratatui::layout::Direction::Vertical),
+                    )
+                    .constraints(
+                        node.constraints
+                            .iter()
+                            .cloned()
+                            .map(|c| c.inner)
+                            .collect::<Vec<_>>(),
+                    )
+                    .spacing(node.gap)
+                    .split(inner_rect)
+                    .to_vec()
+            };
+
+        let needs_sort = node.children.iter().any(|c| c.z != 0);
+        if needs_sort {
+            let mut order: Vec<usize> = (0..node.children.len()).collect();
+            order.sort_by_key(|&i| node.children[i].z);
+            for i in order {
+                if let Some(pos) =
+                    render_node_to_buffer(buffer, child_areas[i], &node.children[i], ctx)?
+                {
+                    cursor_target = Some(pos);
+                }
+            }
         } else {
-            Layout::default()
-                .direction(
-                    node.direction
-                        .map(Into::into)
-                        .unwrap_or(ratatui::layout::Direction::Vertical),
-                )
-                .constraints(
-                    node.constraints
-                        .iter()
-                        .cloned()
-                        .map(|c| c.inner)
-                        .collect::<Vec<_>>(),
-                )
-                .spacing(node.gap)
-                .split(inner_rect)
-                .to_vec()
-        };
-        for (child, child_area) in node.children.iter().zip(child_areas.iter()) {
-            if let Some(pos) = render_node_to_buffer(buffer, *child_area, child, ctx)? {
-                cursor_target = Some(pos);
+            for (child, child_area) in node.children.iter().zip(child_areas.iter()) {
+                if let Some(pos) = render_node_to_buffer(buffer, *child_area, child, ctx)? {
+                    cursor_target = Some(pos);
+                }
             }
         }
     }

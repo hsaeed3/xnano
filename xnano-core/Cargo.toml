@@ -28,4 +28,4 @@ tachyonfx = "0.25"
 
 [package.metadata.maturin]
 name = "xnano_core"
-python-source = "python/xnano_core"
+python-source = "python"
