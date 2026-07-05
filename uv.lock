@@ -2321,12 +2321,6 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
-benchmark = [
-    { name = "psutil" },
-    { name = "pytermgui" },
-    { name = "textual" },
-    { name = "urwid" },
-]
 dev = [
     { name = "black" },
     { name = "griffe-typingdoc" },
@@ -2351,12 +2345,6 @@ dev = [
 requires-dist = [{ name = "xnano-core", editable = "xnano-core" }]
 
 [package.metadata.requires-dev]
-benchmark = [
-    { name = "psutil" },
-    { name = "pytermgui" },
-    { name = "textual" },
-    { name = "urwid" },
-]
 dev = [
     { name = "black" },
     { name = "griffe-typingdoc" },
