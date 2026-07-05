@@ -31,8 +31,4 @@ impl TickClock {
     pub fn reset(&mut self) {
         self.last_tick = Instant::now();
     }
-
-    pub fn interval_ms(&self) -> u64 {
-        self.interval.as_millis() as u64
-    }
 }

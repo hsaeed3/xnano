@@ -12,7 +12,7 @@ pub(crate) enum RenderContentInner {
     Drawable(Py<PyAny>),
 }
 
-#[pyclass(name = "RenderContent", module = "xnano_core.rust.engine", unsendable)]
+#[pyclass(name = "CoreRenderContent", module = "xnano_core.rust.engine", unsendable)]
 pub struct PyRenderContent {
     pub(crate) inner: RenderContentInner,
 }

@@ -14,7 +14,7 @@ use super::events::PyEvent;
 use super::panic_hook::{install_restore_panic_hook, PanicHookGuard};
 use super::render_tree::{render_node, render_node_to_buffer, PyRenderNode, RenderContext};
 use super::super::convert_core::{sync_from_core_buffer, sync_to_core_buffer, to_core_rect};
-use super::super::crossterm_exec::io_to_py;
+use super::super::crossterm_exec::{flush_stdout, io_to_py};
 use super::super::cursor::{
     get_cursor_position_impl, hide_cursor_impl, move_cursor_to_impl, restore_cursor_position_impl,
     save_cursor_position_impl, set_cursor_style_impl, show_cursor_impl, PyCursorStyle,
@@ -38,7 +38,7 @@ use super::super::terminal_device::{
 use super::super::buffer::PyBuffer;
 use super::super::widgets_extra::PyPosition;
 
-#[pyclass(name = "TerminalRef", module = "xnano_core.rust.engine", unsendable)]
+#[pyclass(name = "CoreTerminalRef", module = "xnano_core.rust.engine", unsendable)]
 pub struct PyTerminalRef {
     ptr: usize,
 }
@@ -123,7 +123,7 @@ impl PyTerminalRef {
     }
 }
 
-#[pyclass(name = "Session", module = "xnano_core.rust.engine", unsendable)]
+#[pyclass(name = "CoreSession", module = "xnano_core.rust.engine", unsendable)]
 pub struct PySession {
     terminal: Option<DefaultTerminal>,
     offscreen_buffer: Option<Buffer>,
@@ -134,6 +134,7 @@ pub struct PySession {
     bracketed_paste: bool,
     focus_change: bool,
     alternate_screen: bool,
+    synchronized_updates: bool,
     cursor_visible: bool,
     cursor_style: PyCursorStyle,
     title: Option<String>,
@@ -160,6 +161,7 @@ impl PySession {
             bracketed_paste: false,
             focus_change: false,
             alternate_screen: true,
+            synchronized_updates: false,
             cursor_visible: true,
             cursor_style: PyCursorStyle::DefaultUserShape,
             title: None,
@@ -182,6 +184,7 @@ impl PySession {
             bracketed_paste: false,
             focus_change: false,
             alternate_screen: false,
+            synchronized_updates: false,
             cursor_visible: false,
             cursor_style: PyCursorStyle::DefaultUserShape,
             title: None,
@@ -261,6 +264,16 @@ impl PySession {
 
     #[pyo3(signature = (timeout_ms = 16))]
     fn poll_event(&mut self, py: Python<'_>, timeout_ms: u64) -> PyResult<Option<PyEvent>> {
+        if self.terminal.is_none() {
+            py.check_signals()?;
+            if self.tick_clock.due() {
+                let elapsed = self.tick_clock.elapsed_since_last_tick_ms();
+                self.tick_clock.reset();
+                return Ok(Some(PyEvent::tick(elapsed)));
+            }
+            return Ok(None);
+        }
+
         let user_budget = Duration::from_millis(timeout_ms);
         let tick_budget = self.tick_clock.time_until_tick();
         let budget = tick_budget.min(user_budget);
@@ -505,16 +518,43 @@ impl PySession {
     }
 
     fn begin_synchronized_update(&mut self) -> PyResult<()> {
-        begin_synchronized_update_impl()
+        begin_synchronized_update_impl()?;
+        self.synchronized_updates = true;
+        Ok(())
     }
 
     fn end_synchronized_update(&mut self) -> PyResult<()> {
-        end_synchronized_update_impl()
+        end_synchronized_update_impl()?;
+        self.synchronized_updates = false;
+        Ok(())
+    }
+
+    fn teardown_device_state(&mut self) {
+        // Always emit the disable sequences — ratatui::restore() does not
+        // turn off mouse capture, and the mirror flags can be wrong after an
+        // abnormal exit.  Ignore errors: cleanup must be best-effort.
+        let _ = disable_mouse_capture_impl();
+        self.mouse_capture = false;
+        let _ = disable_bracketed_paste_impl();
+        self.bracketed_paste = false;
+        let _ = disable_focus_change_impl();
+        self.focus_change = false;
+        if self.synchronized_updates {
+            let _ = end_synchronized_update_impl();
+            self.synchronized_updates = false;
+        }
+        if !self.cursor_visible {
+            let _ = show_cursor_impl();
+            self.cursor_visible = true;
+        }
+        let _ = flush_stdout();
     }
 
     fn restore(&mut self) -> PyResult<()> {
-        if self.terminal.take().is_some() {
+        self.teardown_device_state();
+        if self.terminal.is_some() {
             restore();
+            self.terminal.take();
         }
         self._panic_hook_guard = None;
         Ok(())

@@ -19,32 +19,50 @@ mod widgets_extra;
 
 use pyo3::prelude::*;
 
-pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    layout::register(m)?;
-    style::register(m)?;
-    palette::register(m)?;
-    text::register(m)?;
-    widgets::register(m)?;
-    widgets_extra::register(m)?;
-    buffer::register(m)?;
-    terminal::register(m)?;
-    cursor::register(m)?;
-    terminal_device::register(m)?;
-    event_setup::register(m)?;
-    command::register(m)?;
-    fx::register(m)?;
+pub fn register(native: &Bound<'_, PyModule>) -> PyResult<()> {
+    layout::register(native)?;
+    style::register(native)?;
+    palette::register(native)?;
+    text::register(native)?;
+    widgets::register(native)?;
+    widgets_extra::register(native)?;
+    buffer::register(native)?;
+    terminal::register(native)?;
+    cursor::register(native)?;
+    terminal_device::register(native)?;
+    event_setup::register(native)?;
+    command::register(native)?;
+    fx::register(native)?;
 
-    let engine = PyModule::new(m.py(), "engine")?;
+    let engine = PyModule::new(native.py(), "engine")?;
     engine::register(&engine)?;
-    m.py()
-        .import("sys")?
-        .getattr("modules")?
-        .set_item("xnano_core.rust.engine", &engine)?;
-    m.add("engine", &engine)?;
+    engine.setattr(
+        "__name__",
+        pyo3::intern!(native.py(), "xnano_core.rust.engine"),
+    )?;
+    engine.setattr(
+        "__package__",
+        pyo3::intern!(native.py(), "xnano_core.rust"),
+    )?;
+    engine.setattr(
+        "__doc__",
+        "xnano_core.rust.engine\n\n\
+         Runtime shim for the Rust-implemented engine submodule. Importing\n\
+         :mod:`xnano_core.rust.native` registers the real module object on\n\
+         ``sys.modules`` under this name.",
+    )?;
 
-    m.add("Event", engine.getattr("Event")?)?;
-    m.add("TickEvent", engine.getattr("TickEvent")?)?;
-    m.add("TerminalEventKind", engine.getattr("TerminalEventKind")?)?;
+    let sys_modules = native.py().import("sys")?.getattr("modules")?;
+    sys_modules.set_item("xnano_core.rust.native", native)?;
+    sys_modules.set_item("xnano_core.rust.engine", &engine)?;
+
+    native.add("engine", &engine)?;
+    native.add("CoreEvent", engine.getattr("CoreEvent")?)?;
+    native.add("CoreTickEvent", engine.getattr("CoreTickEvent")?)?;
+    native.add(
+        "CoreTerminalEventKind",
+        engine.getattr("CoreTerminalEventKind")?,
+    )?;
 
     Ok(())
 }
