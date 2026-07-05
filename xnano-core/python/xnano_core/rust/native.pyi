@@ -11,6 +11,12 @@ from enum import IntEnum
 from types import ModuleType
 from typing import Any, Optional, Tuple, Type, overload
 
+from xnano_core.rust.engine import (
+    CoreEvent as CoreEvent,
+    CoreTickEvent as CoreTickEvent,
+    CoreTerminalEventKind as CoreTerminalEventKind,
+)
+
 engine: ModuleType
 """Stateful engine submodule (:mod:`xnano_core.rust.engine`)."""
 
@@ -1264,33 +1270,6 @@ class KeyEvent:
     def is_num_lock(self) -> bool: ...
     def __repr__(self) -> str: ...
 
-class TerminalEventKind(IntEnum):
-    """Terminal input event category (re-exported from :mod:`xnano_core.rust.engine`)."""
-
-    Key = ...
-    Resize = ...
-    Paste = ...
-    Mouse = ...
-    FocusGained = ...
-    FocusLost = ...
-    Tick = ...
-
-class TickEvent:
-    """Synthetic tick payload (re-exported from :mod:`xnano_core.rust.engine`)."""
-
-    elapsed_ms: int
-
-class Event:
-    """Terminal input event (re-exported from :mod:`xnano_core.rust.engine`)."""
-
-    kind: TerminalEventKind
-    key: Optional[KeyEvent]
-    width: Optional[int]
-    height: Optional[int]
-    paste: Optional[str]
-    mouse: Optional[MouseEvent]
-    tick: Optional[TickEvent]
-
 class Terminal:
     """Ratatui terminal handle.
 
@@ -1318,10 +1297,10 @@ class Terminal:
 def restore_terminal() -> None:
     """Restore the terminal to its pre-ratatui state."""
 
-def poll_event(timeout_ms: int) -> Optional[Event]:
+def poll_event(timeout_ms: int) -> Optional[CoreEvent]:
     """Poll for a terminal event with a timeout in milliseconds."""
 
-def read_event() -> Event:
+def read_event() -> CoreEvent:
     """Block until a terminal event is available."""
 
 class CursorStyle(IntEnum):
@@ -2226,7 +2205,9 @@ __all__ = (
     "LegendPosition",
     "LayoutSpacing",
     "Marker",
-    "TickEvent",
+    "CoreEvent",
+    "CoreTickEvent",
+    "CoreTerminalEventKind",
     "engine",
     "begin_synchronized_update",
     "Block",
@@ -2280,7 +2261,7 @@ __all__ = (
     "end_synchronized_update",
     "enter_alternate_screen",
     "EvolveSymbolSet",
-    "Event",
+
     "evolve_effect",
     "evolve_from_effect",
     "evolve_into_effect",
@@ -2407,7 +2388,7 @@ __all__ = (
     "Terminal",
     "terminal_size",
     "terminal_window_size",
-    "TerminalEventKind",
+
     "Text",
     "timed_never_complete_effect",
     "TitlePosition",

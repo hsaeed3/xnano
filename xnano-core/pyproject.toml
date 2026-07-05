@@ -4,9 +4,10 @@ build-backend = "maturin"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-module-name = "xnano_core._xnano_core"
+module-name = "xnano_core.rust.native"
 python-source = "python/"
 strip = false
+package = true
 
 [project]
 name = "xnano-core"
@@ -66,6 +67,12 @@ benchmark = [
 PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
 MACOSX_DEPLOYMENT_TARGET = "27.0"
 MACOS_DEPLOYMENT_TARGET = "27.0"
+
+[tool.ty.environment]
+extra-paths = ["python"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 79
