@@ -7,6 +7,7 @@ managed = true
 
 [tool.uv.build-backend]
 module-root = ""
+packae = true
 
 [tool.uv.sources]
 xnano-core = { workspace = true }
@@ -66,15 +67,12 @@ dev = [
     "mkdocs-click",
     "mkdocstrings-python",
 ]
-benchmark = [
-    "textual",
-    "pytermgui",
-    "urwid",
-    "psutil",
-]
 
 [tool.maturin.env]
 PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
+
+[tool.ty.environment]
+extra-paths = ["xnano-core/python"]
 
 [tool.ruff]
 line-length = 79
