@@ -18,8 +18,11 @@ from typing import (
 
 from xnano_core.core import (
     CoreEvent,
+    CoreKeyBinding,
     CoreTickEvent,
 )
+
+_BINDING_CACHE: dict[str, CoreKeyBinding] = {}
 
 from xnano.beta.utils.events import (
     get_keyboard_binding_tuple_from_native_event,
@@ -269,11 +272,15 @@ class KeyboardEventData(AbstractEventData):
         Returns:
             True if the keyboard event matches the binding, False otherwise.
         """
-        if not self._binding_tuple:
-            _set_keyboard_event_data_binding_tuple(self)
-
         for binding in bindings:
-            if self.binding == binding:
+            b = _BINDING_CACHE.get(binding)
+            if b is None:
+                try:
+                    b = CoreKeyBinding.parse(binding)
+                except Exception:
+                    continue
+                _BINDING_CACHE[binding] = b
+            if b.matches(self._native_event):
                 return True
         return False
 
@@ -378,7 +385,7 @@ class Event:
 
     @property
     def clipboard_event(self) -> ClipboardEventData | None:
-        """Clipboard payload when :attr:`kind` is ``"clipboard"``."""
+        """Clipboard payload when ``kind`` is ``"clipboard"``."""
         if self.type != "clipboard":
             return None
         return self.data  # ty: ignore[invalid-return-type]
@@ -392,14 +399,14 @@ class Event:
 
     @property
     def focus_event(self) -> FocusEventData | None:
-        """Focus payload when :attr:`kind` is ``"focus"``."""
+        """Focus payload when ``kind`` is ``"focus"``."""
         if self.type != "focus":
             return None
         return self.data  # ty: ignore[invalid-return-type]
 
     @property
     def keyboard_event(self) -> KeyboardEventData | None:
-        """Keyboard payload when :attr:`kind` is ``"keyboard"``."""
+        """Keyboard payload when ``kind`` is ``"keyboard"``."""
         if self.type != "keyboard":
             return None
         return self.data  # ty: ignore[invalid-return-type]
@@ -455,7 +462,7 @@ class Event:
 
     @property
     def resize_event(self) -> ResizeEventData | None:
-        """Resize payload when :attr:`kind` is ``"resize"``."""
+        """Resize payload when ``kind`` is ``"resize"``."""
         if self.type != "resize":
             return None
         return self.data  # ty: ignore[invalid-return-type]
