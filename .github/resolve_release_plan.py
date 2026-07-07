@@ -156,9 +156,8 @@ def resolve_plan(
     versions_unchanged = manifest_core_on_pypi and manifest_xnano_on_pypi
 
     has_release_tag = is_core_tag or is_xnano_tag
-    tag_already_published = (
-        (is_core_tag and tag_core_on_pypi)
-        or (is_xnano_tag and tag_xnano_on_pypi)
+    tag_already_published = (is_core_tag and tag_core_on_pypi) or (
+        is_xnano_tag and tag_xnano_on_pypi
     )
 
     if tag_already_published:
