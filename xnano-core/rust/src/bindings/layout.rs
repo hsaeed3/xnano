@@ -6,7 +6,7 @@ use ratatui::layout::{
     Spacing,
 };
 
-#[pyclass(name = "Rect", module = "xnano_core.rust.native")]
+#[pyclass(name = "Rect", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyRect {
     pub inner: Rect,
@@ -144,7 +144,7 @@ impl PyRect {
     }
 }
 
-#[pyclass(name = "Margin", module = "xnano_core.rust.native")]
+#[pyclass(name = "Margin", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyMargin {
     pub inner: Margin,
@@ -178,7 +178,7 @@ impl PyMargin {
     }
 }
 
-#[pyclass(name = "Direction", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "Direction", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyDirection {
     Horizontal,
@@ -194,7 +194,7 @@ impl From<PyDirection> for Direction {
     }
 }
 
-#[pyclass(name = "Alignment", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "Alignment", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyAlignment {
     Left,
@@ -212,7 +212,7 @@ impl From<PyAlignment> for Alignment {
     }
 }
 
-#[pyclass(name = "Flex", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "Flex", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyFlex {
     Legacy,
@@ -236,7 +236,7 @@ impl From<PyFlex> for Flex {
     }
 }
 
-#[pyclass(name = "Constraint", module = "xnano_core.rust.native")]
+#[pyclass(name = "Constraint", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyConstraint {
     pub inner: Constraint,
@@ -344,7 +344,7 @@ impl PyConstraint {
     }
 }
 
-#[pyclass(name = "Offset", module = "xnano_core.rust.native")]
+#[pyclass(name = "Offset", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyOffset {
     pub inner: Offset,
@@ -371,7 +371,7 @@ impl PyOffset {
     }
 }
 
-#[pyclass(name = "Size", module = "xnano_core.rust.native")]
+#[pyclass(name = "Size", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PySize {
     pub inner: Size,
@@ -404,7 +404,7 @@ impl PySize {
     }
 }
 
-#[pyclass(name = "LayoutSpacing", module = "xnano_core.rust.native")]
+#[pyclass(name = "LayoutSpacing", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone)]
 pub enum PyLayoutSpacing {
     Space(u16),
@@ -502,7 +502,7 @@ impl LayoutSpec {
     }
 }
 
-#[pyclass(name = "Layout", module = "xnano_core.rust.native")]
+#[pyclass(name = "Layout", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone)]
 pub struct PyLayout {
     spec: LayoutSpec,

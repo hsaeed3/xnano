@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 
 use super::crossterm_exec::{execute_stdout, flush_stdout};
 
-#[pyclass(name = "ConsoleColor", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "ConsoleColor", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyConsoleColor {
     Reset,
@@ -63,7 +63,7 @@ fn parse_console_color(
     }
 }
 
-#[pyclass(name = "ConsoleAttribute", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "ConsoleAttribute", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyAttribute {
     Reset,

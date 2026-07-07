@@ -15,7 +15,7 @@ name = "xnano-core"
 dynamic = ["version", "readme"]
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "Core Rust bindings for the xnano TUI framework."
-license = "Apache-2.0"
+license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 classifiers = [

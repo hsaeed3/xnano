@@ -9,7 +9,7 @@ use ratatui::Frame;
 use super::content_bridge::{render_content, PyRenderContent};
 use super::super::layout::{PyConstraint, PyDirection, PyMargin};
 
-#[pyclass(name = "CoreRenderNode", module = "xnano_core.rust.engine", unsendable)]
+#[pyclass(name = "CoreRenderNode", module = "xnano_core.rust.engine", unsendable, from_py_object)]
 #[derive(Clone)]
 pub struct PyRenderNode {
     pub(crate) x: Option<u16>,

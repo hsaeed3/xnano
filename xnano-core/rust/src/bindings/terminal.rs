@@ -126,7 +126,7 @@ pub struct PyCompletedFrame {
     pub count: usize,
 }
 
-#[pyclass(name = "KeyEventKind", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "KeyEventKind", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyKeyEventKind {
     Press,
@@ -144,7 +144,7 @@ impl From<KeyEventKind> for PyKeyEventKind {
     }
 }
 
-#[pyclass(name = "KeyEventState", module = "xnano_core.rust.native")]
+#[pyclass(name = "KeyEventState", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyKeyEventState {
     #[pyo3(get)]
@@ -196,7 +196,7 @@ impl From<KeyEventState> for PyKeyEventState {
     }
 }
 
-#[pyclass(name = "KeyModifiers", module = "xnano_core.rust.native")]
+#[pyclass(name = "KeyModifiers", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyKeyModifiers {
     #[pyo3(get)]
@@ -286,7 +286,7 @@ impl From<KeyModifiers> for PyKeyModifiers {
     }
 }
 
-#[pyclass(name = "KeyCode", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "KeyCode", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyKeyCode {
     Char,
@@ -351,7 +351,7 @@ fn key_code_name(code: &KeyCode) -> PyKeyCode {
     }
 }
 
-#[pyclass(name = "MouseButton", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "MouseButton", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyMouseButton {
     Left,
@@ -370,7 +370,7 @@ impl From<MouseButton> for PyMouseButton {
     }
 }
 
-#[pyclass(name = "MouseEventKind", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "MouseEventKind", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyMouseEventKind {
     Down,
@@ -411,7 +411,7 @@ fn mouse_event_kind(value: MouseEventKind) -> (PyMouseEventKind, PyMouseButton) 
     }
 }
 
-#[pyclass(name = "MouseEvent", module = "xnano_core.rust.native")]
+#[pyclass(name = "MouseEvent", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone)]
 pub struct PyMouseEvent {
     #[pyo3(get)]
@@ -472,7 +472,7 @@ impl From<MouseEvent> for PyMouseEvent {
     }
 }
 
-#[pyclass(name = "KeyEvent", module = "xnano_core.rust.native")]
+#[pyclass(name = "KeyEvent", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone)]
 pub struct PyKeyEvent {
     code: KeyCode,
@@ -619,26 +619,26 @@ impl PyTerminal {
         Self { inner: init() }
     }
 
-    fn draw(&mut self, callback: PyObject) -> PyResult<()> {
+    fn draw(&mut self, callback: Py<PyAny>) -> PyResult<()> {
         self.inner
             .draw(|frame| {
-                if let Err(err) = Python::with_gil(|py| {
+                if let Err(err) = Python::attach(|py| {
                     let py_frame = PyFrame::from_frame(frame);
                     callback.call1(py, (py_frame,))
                 }) {
-                    Python::with_gil(|py| err.print(py));
+                    Python::attach(|py| err.print(py));
                 }
             })
             .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))?;
         Ok(())
     }
 
-    fn try_draw(&mut self, callback: PyObject) -> PyResult<PyCompletedFrame> {
+    fn try_draw(&mut self, callback: Py<PyAny>) -> PyResult<PyCompletedFrame> {
         let mut callback_error: Option<PyErr> = None;
         let completed = self
             .inner
             .try_draw(|frame| {
-                Python::with_gil(|py| -> Result<(), std::io::Error> {
+                Python::attach(|py| -> Result<(), std::io::Error> {
                     let py_frame = PyFrame::from_frame(frame);
                     match callback.call1(py, (py_frame,)) {
                         Ok(_) => Ok(()),
@@ -711,13 +711,13 @@ fn restore_terminal() {
 #[pyfunction]
 fn poll_event(py: Python<'_>, timeout_ms: u64) -> PyResult<Option<PyEvent>> {
     let ready = py
-        .allow_threads(|| event::poll(Duration::from_millis(timeout_ms)))
+        .detach(|| event::poll(Duration::from_millis(timeout_ms)))
         .map_err(io_to_py)?;
     py.check_signals()?;
     if !ready {
         return Ok(None);
     }
-    let ev = py.allow_threads(event::read).map_err(io_to_py)?;
+    let ev = py.detach(event::read).map_err(io_to_py)?;
     Ok(Some(PyEvent::from_crossterm(ev)))
 }
 

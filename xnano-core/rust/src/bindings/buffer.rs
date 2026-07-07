@@ -20,7 +20,7 @@ use super::widgets_extra::{
     PySparkline, PyTableState, PyTabs,
 };
 
-#[pyclass(name = "BufferCell", module = "xnano_core.rust.native")]
+#[pyclass(name = "BufferCell", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone)]
 pub struct PyBufferCell {
     pub inner: Cell,
@@ -99,7 +99,7 @@ impl PyBufferCell {
     }
 }
 
-#[pyclass(name = "Buffer", module = "xnano_core.rust.native")]
+#[pyclass(name = "Buffer", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone)]
 pub struct PyBuffer {
     pub inner: Buffer,
@@ -684,7 +684,7 @@ fn modifier_to_ansi(modifier: Modifier) -> String {
 }
 
 /// Mutable view onto a live buffer, valid only for the duration of a drawable callback.
-#[pyclass(name = "BufferMutView", module = "xnano_core.rust.native", unsendable)]
+#[pyclass(name = "BufferMutView", module = "xnano_core.rust.native", unsendable, from_py_object)]
 #[derive(Clone)]
 pub struct PyBufferMutView {
     ptr: usize,
