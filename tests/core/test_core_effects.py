@@ -10,7 +10,11 @@ from xnano_core.rust.native import (
     sequence_effects,
     sleep_effect,
 )
-from xnano_core.rust.engine import CoreRenderContent, CoreRenderNode, CoreSession
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 
 
 def test_effect_builder_returns_effect() -> None:

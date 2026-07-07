@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from xnano_core.rust.native import ClearType
-from xnano_core.rust.engine import CoreRenderContent, CoreRenderNode, CoreSession
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 
 
 def test_offscreen_title_roundtrip(offscreen_session: CoreSession) -> None:
@@ -23,7 +27,9 @@ def test_clear_and_scroll_do_not_raise(offscreen_session: CoreSession) -> None:
     offscreen_session.scroll_down(1)
 
 
-def test_cursor_hint_smoke(offscreen_session: CoreSession, sample_paragraph) -> None:
+def test_cursor_hint_smoke(
+    offscreen_session: CoreSession, sample_paragraph
+) -> None:
     node = CoreRenderNode(
         content=CoreRenderContent.widget(sample_paragraph),
         cursor_hint=(1, 1),

@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import xnano_core.rust.native as rust
-from xnano_core.rust.engine import CoreEvent, CoreTerminalEventKind, CoreTickEvent
+from xnano_core.rust.engine import (
+    CoreEvent,
+    CoreTerminalEventKind,
+    CoreTickEvent,
+)
 
 from conftest import requires_input
 

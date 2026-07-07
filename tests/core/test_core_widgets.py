@@ -15,7 +15,11 @@ from xnano_core.rust.native import (
     Style,
     Text,
 )
-from xnano_core.rust.engine import CoreRenderContent, CoreRenderNode, CoreSession
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 
 
 def test_paragraph_with_block_title(offscreen_session: CoreSession) -> None:
@@ -25,12 +29,16 @@ def test_paragraph_with_block_title(offscreen_session: CoreSession) -> None:
         .title("title")
         .border_style(Style.default())
     )
-    offscreen_session.render(CoreRenderNode.leaf(CoreRenderContent.widget(widget)))
+    offscreen_session.render(
+        CoreRenderNode.leaf(CoreRenderContent.widget(widget))
+    )
     text = "\n".join(offscreen_session.buffer_snapshot().to_string_lines())
     assert "widget-body" in text
 
 
-def test_stateful_list_renders_selection(offscreen_session: CoreSession) -> None:
+def test_stateful_list_renders_selection(
+    offscreen_session: CoreSession,
+) -> None:
     items = [ListItem.new("alpha"), ListItem.new("beta")]
     widget = RatList.new(items)
     state = ListState()
@@ -47,7 +55,9 @@ def test_styled_text_spans(offscreen_session: CoreSession) -> None:
     line = Line.from_spans([Span.styled("styled-bit", Style.default())])
     text = Text.from_lines([line])
     widget = Paragraph.new(text)
-    offscreen_session.render(CoreRenderNode.leaf(CoreRenderContent.widget(widget)))
+    offscreen_session.render(
+        CoreRenderNode.leaf(CoreRenderContent.widget(widget))
+    )
     assert "styled-bit" in "\n".join(
         offscreen_session.buffer_snapshot().to_string_lines()
     )

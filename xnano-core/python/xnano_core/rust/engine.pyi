@@ -44,7 +44,6 @@ from xnano_core.rust.native import (
     Size,
 )
 
-
 CoreDrawableCallback = Callable[[Buffer, Rect], None]
 """Signature for :meth:`CoreRenderContent.drawable` callbacks.
 
@@ -56,7 +55,6 @@ Any exception raised inside the callback is captured by the engine, propagated
 back to the outer :meth:`CoreSession.render` call, and re-raised as a Python
 exception without leaving the terminal in a broken state.
 """
-
 
 class CoreTerminalEventKind:
     """Discriminator for :class:`CoreEvent`.
@@ -82,7 +80,6 @@ class CoreTerminalEventKind:
     FocusLost: CoreTerminalEventKind
     Tick: CoreTerminalEventKind
 
-
 class CoreTickEvent:
     """Synthetic clock tick emitted by :class:`CoreSession`.
 
@@ -97,7 +94,6 @@ class CoreTickEvent:
     """
 
     elapsed_ms: int
-
 
 class CoreEvent:
     """Unified event delivered by the session event loop.
@@ -124,7 +120,6 @@ class CoreEvent:
     paste: Optional[str]
     mouse: Optional[MouseEvent]
     tick: Optional[CoreTickEvent]
-
 
 class CoreRenderContent:
     """Tagged payload that a :class:`CoreRenderNode` paints into its rect.
@@ -238,7 +233,6 @@ class CoreRenderContent:
             ``True`` if the variant is ``Drawable``, ``False`` otherwise.
         """
         ...
-
 
 class CoreRenderNode:
     """A single node in the render tree.
@@ -478,7 +472,6 @@ class CoreRenderNode:
         """
         ...
 
-
 class CoreTerminalRef:
     """Scope-guarded handle to the live ratatui ``DefaultTerminal``.
 
@@ -535,7 +528,6 @@ class CoreTerminalRef:
             A :class:`~xnano_core.rust.native.Size`.
         """
         ...
-
 
 class CoreSession:
     """Owner of the terminal, event loop, effects, and device state.
@@ -992,7 +984,6 @@ class CoreSession:
             ``False`` so any in-flight exception continues to propagate.
         """
         ...
-
 
 __all__ = (
     "CoreSession",

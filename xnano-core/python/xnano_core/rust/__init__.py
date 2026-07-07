@@ -74,7 +74,6 @@ __all__ = (
     "end_synchronized_update",
     "enter_alternate_screen",
     "EvolveSymbolSet",
-
     "evolve_effect",
     "evolve_from_effect",
     "evolve_into_effect",
@@ -201,7 +200,6 @@ __all__ = (
     "Terminal",
     "terminal_size",
     "terminal_window_size",
-
     "Text",
     "timed_never_complete_effect",
     "TitlePosition",

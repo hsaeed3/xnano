@@ -5,7 +5,11 @@ from __future__ import annotations
 import xnano_core.rust.engine as engine
 import xnano_core.rust.native as rust
 from xnano_core.rust.native import Constraint, Paragraph
-from xnano_core.rust.engine import CoreRenderContent, CoreRenderNode, CoreSession
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 
 from conftest import draw_glyph_content, glyph_at
 
