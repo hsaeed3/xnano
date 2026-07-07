@@ -530,12 +530,13 @@ def tailwind(palette: str, shade: int) -> Color:
     try:
         r, g, b = int(native_c.r), int(native_c.g), int(native_c.b)
     except AttributeError:
-        # Fall back to repr parsing: "Color::Rgb { r: 59, g: 130, b: 246 }"
         import re as _re
 
-        m = _re.search(
-            r"r:\s*(\d+),\s*g:\s*(\d+),\s*b:\s*(\d+)", repr(native_c)
-        )
+        s = repr(native_c)
+        # "Rgb(59, 130, 246)" or "Color::Rgb { r: 59, g: 130, b: 246 }"
+        m = _re.search(r"Rgb\((\d+),\s*(\d+),\s*(\d+)\)", s)
+        if not m:
+            m = _re.search(r"r:\s*(\d+),\s*g:\s*(\d+),\s*b:\s*(\d+)", s)
         if m:
             r, g, b = int(m.group(1)), int(m.group(2)), int(m.group(3))
         else:
