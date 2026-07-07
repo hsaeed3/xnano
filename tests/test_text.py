@@ -185,6 +185,32 @@ def test_mixed_string_and_text_list() -> None:
     assert isinstance(node.text, LineNode)
 
 
+def test_list_with_embedded_newlines_produces_textnode() -> None:
+    logo = "line one\nline two\nline three"
+    t = Text(
+        [
+            Text("\n"),
+            Text(logo, color="teal"),
+            Text("footer"),
+        ]
+    )
+    node = t.get_node(_ctx())
+    assert isinstance(node, ParagraphNode)
+    assert isinstance(node.text, TextNode)
+    assert len(node.text.lines) == 6
+
+
+def test_list_with_embedded_newlines_preserves_line_content() -> None:
+    t = Text([Text("alpha\nbeta", color="red")])
+    node = t.get_node(_ctx())
+    assert isinstance(node, ParagraphNode)
+    text_node = node.text
+    assert isinstance(text_node, TextNode)
+    assert text_node.lines[0].content == "alpha"
+    assert text_node.lines[1].content == "beta"
+    assert text_node.lines[0].color == "red"
+
+
 # ---------------------------------------------------------------------------
 # get_node — multi-line (paragraph) mode → ParagraphNode wrapping TextNode
 # ---------------------------------------------------------------------------

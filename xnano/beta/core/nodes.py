@@ -727,6 +727,8 @@ class NodeAssembler:
         area: Area,
         session: "Session[Any]",
         z: int,
+        *,
+        effect_key: str | None = None,
     ) -> None:
         from xnano_core.rust import native
         from xnano.beta.utils import native_types
@@ -792,7 +794,12 @@ class NodeAssembler:
             )
             if style is not None:
                 paragraph = paragraph.style(style)
-            session.render_native(native_rect, paragraph, z=effective_z)
+            session.render_native(
+                native_rect,
+                paragraph,
+                z=effective_z,
+                effect_key=effect_key,
+            )
             return
 
         if isinstance(node, ListNode):

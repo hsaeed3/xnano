@@ -15,6 +15,7 @@ from xnano.beta.hooks import (
 from xnano.beta.utils.core import (
     evaluate_state_expression,
     get_first_function_parameter_type,
+    get_function_extra_parameter_count,
 )
 from xnano.beta.utils.native_types import get_area_from_native_rect
 
@@ -27,9 +28,14 @@ if TYPE_CHECKING:
 
 def invoke_hook(handler: Any, bound_self: Any, ctx: "Context[Any]") -> Any:
     """Invoke ``handler`` with the right arity."""
-    if getattr(handler, "__self__", None) is not None:
-        return handler(ctx)
     from xnano.beta.context import Context as ContextClass
+
+    bound_instance = getattr(handler, "__self__", None)
+    if bound_instance is not None:
+        function = getattr(handler, "__func__", handler)
+        if get_function_extra_parameter_count(function) == 0:
+            return handler()
+        return handler(ctx)
 
     param_type = get_first_function_parameter_type(handler)
     if param_type is ContextClass:
@@ -379,6 +385,8 @@ def register_default_hooks(terminal: "Terminal[Any]") -> None:
     from xnano.beta.exceptions import Exit
 
     def _handle_ctrl_c(ctx: "Context[Any]") -> None:
+        if ctx.terminal is not None:
+            ctx.terminal.request_exit()
         raise Exit()
 
     setattr(_handle_ctrl_c, _EventHooksRegistry.ON_KEYBOARD_HOOK_ATTR, True)

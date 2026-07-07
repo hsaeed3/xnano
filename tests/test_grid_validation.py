@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
-from conftest import assign_attr, invalid_field
+from helpers import assign_attr, invalid_field
 from xnano.beta.core.renderable import Renderable
 from xnano.beta.exceptions import FieldValidationError
 from xnano.beta import Field, Grid

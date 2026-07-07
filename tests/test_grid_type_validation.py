@@ -11,7 +11,7 @@ from typing import Literal, TypedDict
 import pytest
 from pydantic import BaseModel, Field as PydanticField
 
-from conftest import assign_attr, invalid_field
+from helpers import assign_attr, invalid_field
 from xnano.beta import Field, Grid, Text
 from xnano.beta.core.renderable import Renderable
 from xnano.beta.exceptions import FieldValidationError
@@ -99,7 +99,7 @@ def test_literal_layout_field_rejects_invalid_on_init() -> None:
 def test_union_layout_field_accepts_str_and_renderable() -> None:
     grid = TypedLayoutGrid()
     assert grid.body == "hello"
-    grid.set_field("body", Text(content="styled"))
+    grid.grid_set_field("body", Text(content="styled"))
     assert isinstance(grid.body, Text)
 
 
@@ -223,7 +223,7 @@ def test_pydantic_nested_model_layout_field() -> None:
 def test_set_field_validates_under_strict_grid() -> None:
     grid = LooseSetFieldGrid()
     with pytest.raises(FieldValidationError, match="name"):
-        grid.set_field("name", 123)
+        grid.grid_set_field("name", 123)
 
 
 def test_set_field_allows_valid_renderable() -> None:
@@ -231,7 +231,7 @@ def test_set_field_allows_valid_renderable() -> None:
         body: Renderable = invalid_field("hi")
 
     panel = Panel()
-    panel.set_field("body", Text(content="ok"))
+    panel.grid_set_field("body", Text(content="ok"))
     assert isinstance(panel.body, Text)
 
 
@@ -244,7 +244,7 @@ def test_set_field_position_does_not_validate_value() -> None:
     panel._grid_last_slot_areas = {
         "body": Area(x=0, y=0, width=4, height=2),
     }
-    panel.set_field("body", position=(2, 0))
+    panel.grid_set_field("body", position=(2, 0))
     assert panel.field_position("body")[0] == 2
 
 

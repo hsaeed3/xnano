@@ -130,7 +130,7 @@ def test_set_field_slide_and_position() -> None:
     grid = ClickGrid()
     grid._grid_last_parent_area = Area(x=0, y=0, width=20, height=10)
     grid._grid_last_slot_areas = {"body": Area(x=0, y=0, width=6, height=3)}
-    grid.set_field("body", slide=["x"], position=(4, 0))
+    grid.grid_set_field("body", slide=["x"], position=(4, 0))
     assert grid._grid_field_info("body").slide == ["x"]
     assert grid.field_position("body") == (4, 0)
 
