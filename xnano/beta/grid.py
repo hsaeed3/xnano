@@ -126,6 +126,7 @@ from xnano.beta.fields import (
     UNSET,
     GridFieldInfo,
     Field,
+    _normalize_flex,
     _normalize_slide_axes,
 )
 from xnano.beta.types import Area, Border, Direction, Side, PaddingLike
@@ -187,7 +188,7 @@ _GRID_FIELD_IMMUTABLE_KEYS: frozenset[str] = frozenset(
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class _GridLayoutConstraint:
-    kind: Literal["length", "percentage", "fill", "content"]
+    kind: Literal["length", "percentage", "fill", "content", "min"]
     value: int = 1
 
 
@@ -276,26 +277,82 @@ def _merge_grid_settings(
     return merged
 
 
+def _grid_frame_size_for_field(
+    field: GridFieldInfo,
+    direction: Direction,
+) -> int:
+    size = 0
+    if field.border is not None:
+        sides = field.border_sides
+        if direction == "vertical":
+            if sides is None:
+                size += 2
+            else:
+                if "top" in sides:
+                    size += 1
+                if "bottom" in sides:
+                    size += 1
+        else:
+            if sides is None:
+                size += 2
+            else:
+                if "left" in sides:
+                    size += 1
+                if "right" in sides:
+                    size += 1
+
+    if field.padding is not None:
+        from xnano.beta.types import Padding
+
+        padding = Padding.parse(field.padding)
+        if direction == "vertical":
+            size += padding.vertical
+        else:
+            size += padding.horizontal
+
+    return size
+
+
+def _grid_min_size_for_field(
+    field: GridFieldInfo,
+    direction: Direction,
+) -> int:
+    frame_size = _grid_frame_size_for_field(field, direction)
+    if frame_size > 0:
+        return frame_size + 1
+    return 0
+
+
 def _layout_constraint_for_field(
     field: GridFieldInfo,
+    direction: Direction,
     content_length: int | None = None,
 ) -> _GridLayoutConstraint:
+    min_size = _grid_min_size_for_field(field, direction)
+    frame_size = _grid_frame_size_for_field(field, direction)
     if field.fit:
+        val = (
+            content_length if content_length is not None else 0
+        ) + frame_size
         return _GridLayoutConstraint(
             "content",
-            max(0, content_length if content_length is not None else 0),
+            max(min_size, val),
         )
     size = field.size
     if size is not None:
         if isinstance(size, tuple):
-            return _GridLayoutConstraint("percentage", int(size[0] * 100))
+            pct = size[1] if direction == "vertical" else size[0]
+            return _GridLayoutConstraint("percentage", int(pct * 100))
         if isinstance(size, float):
             return _GridLayoutConstraint("percentage", int(size * 100))
         if isinstance(size, int):
-            return _GridLayoutConstraint("length", size)
-    return _GridLayoutConstraint(
-        "fill", field.flex if field.flex is not None else 1
-    )
+            return _GridLayoutConstraint("length", max(min_size, size))
+    flex_weight = field.flex if field.flex is not None else 1
+    if flex_weight == 0:
+        return _GridLayoutConstraint("min", max(min_size, 1))
+    if min_size > 0:
+        return _GridLayoutConstraint("min", min_size)
+    return _GridLayoutConstraint("fill", flex_weight)
 
 
 def _build_grid_init(
@@ -543,10 +600,10 @@ class _GridMeta(type):
                 continue
             if getattr(base, "_grid_has_slide_fields", False):
                 has_slide_fields = True
-            if getattr(base, "_grid_needs_mouse_geometry", False):
+            if getattr(base, "_grid_has_mouse_geometry", False):
                 needs_mouse_geometry = True
         setattr(cls, "_grid_has_slide_fields", has_slide_fields)
-        setattr(cls, "_grid_needs_mouse_geometry", needs_mouse_geometry)
+        setattr(cls, "_grid_has_mouse_geometry", needs_mouse_geometry)
 
         # 5. Precompute static layout data
         needs_dynamic = any(
@@ -560,7 +617,11 @@ class _GridMeta(type):
                 if field.visible is False:
                     continue
                 static_names.append(field_name)
-                static_constraints.append(_layout_constraint_for_field(field))
+                static_constraints.append(
+                    _layout_constraint_for_field(
+                        field, cfg.get("direction", "vertical")
+                    )
+                )
 
         setattr(cls, "_grid_needs_dynamic_layout", needs_dynamic)
         setattr(cls, "_grid_static_field_names", static_names)
@@ -653,7 +714,7 @@ class Grid(metaclass=_GridMeta):
     _grid_field_handlers: ClassVar[dict[str, Any]] = {}
     _grid_field_annotations: ClassVar[dict[str, Any]] = {}
     _grid_has_slide_fields: ClassVar[bool] = False
-    _grid_needs_mouse_geometry: ClassVar[bool] = False
+    _grid_has_mouse_geometry: ClassVar[bool] = False
     _grid_frame: ClassVar[Frame | None] = None
     _grid_direction: ClassVar[Direction] = "vertical"
     _grid_gap: ClassVar[int] = 0
@@ -857,7 +918,7 @@ class Grid(metaclass=_GridMeta):
         return bool(overrides)
 
     def _grid_needs_mouse_geometry(self) -> bool:
-        if type(self)._grid_needs_mouse_geometry:
+        if type(self)._grid_has_mouse_geometry:
             return True
         overrides = getattr(self, "_grid_field_overrides", None)
         if overrides and any(field.slide for field in overrides.values()):
@@ -948,6 +1009,11 @@ class Grid(metaclass=_GridMeta):
                 field_config = {
                     **field_config,
                     "slide": _normalize_slide_axes(field_config["slide"]),
+                }
+            if "flex" in field_config:
+                field_config = {
+                    **field_config,
+                    "flex": _normalize_flex(field_config["flex"]),
                 }
             overrides = self.__dict__.setdefault("_grid_field_overrides", {})
             overrides[name] = dataclasses.replace(
@@ -1077,7 +1143,9 @@ class Grid(metaclass=_GridMeta):
                 active_fields.append(field)
                 active_values.append(value)
                 active_constraints.append(
-                    _layout_constraint_for_field(field, content_length)
+                    _layout_constraint_for_field(
+                        field, self._grid_direction, content_length
+                    )
                 )
 
         if not active_names:

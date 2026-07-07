@@ -175,6 +175,71 @@ Example:
 """
 
 
+Flex: TypeAlias = (
+    int
+    | Literal[
+        "flex-1",
+        "flex-auto",
+        "flex-initial",
+        "flex-none",
+        "grow",
+        "grow-0",
+        "shrink",
+        "shrink-0",
+    ]
+)
+"""Relative fill weight for proportional layout, or a Tailwind flex utility.
+
+Numeric values set the fill weight directly. Tailwind classes map to
+proportional grow weights:
+
+    ``"flex-1"``, ``"flex-auto"``, ``"grow"``, ``"shrink"`` → weight ``1``
+    ``"flex-initial"``, ``"flex-none"``, ``"grow-0"``, ``"shrink-0"`` → weight ``0``
+"""
+
+
+_FLEX_CLASS_WEIGHTS: dict[str, int] = {
+    "flex-1": 1,
+    "flex-auto": 1,
+    "grow": 1,
+    "shrink": 1,
+    "flex-initial": 0,
+    "flex-none": 0,
+    "grow-0": 0,
+    "shrink-0": 0,
+}
+
+
+def resolve_flex_weight(flex: Flex | None) -> int | None:
+    """Normalize a ``Flex`` value to a numeric fill weight.
+
+    Args:
+        flex: A numeric fill weight or Tailwind flex utility class.
+
+    Returns:
+        The resolved fill weight, or ``None`` when ``flex`` is ``None``.
+
+    Raises:
+        ValueError: If ``flex`` is an unrecognized flex utility class.
+        TypeError: If ``flex`` is not a supported type.
+    """
+    if flex is None:
+        return None
+    if isinstance(flex, int):
+        return flex
+    if isinstance(flex, str):
+        if flex not in _FLEX_CLASS_WEIGHTS:
+            raise ValueError(
+                f"flex must be an int or a supported Tailwind flex class, "
+                f"got {flex!r}"
+            )
+        return _FLEX_CLASS_WEIGHTS[flex]
+    raise TypeError(
+        f"flex must be an int or a supported Tailwind flex class, "
+        f"got {type(flex).__name__}"
+    )
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Padding:
     """The padding applied around a rectangular area.
@@ -198,9 +263,7 @@ class Padding:
     @classmethod
     def parse(
         cls,
-        padding: (
-            "int | tuple[int, int] | tuple[int, int, int, int] | Padding"
-        ),
+        padding: PaddingLike | None,
     ) -> Padding:
         """Normalize any accepted padding form into a ``Padding``.
 
@@ -222,13 +285,18 @@ class Padding:
         if len(padding) == 2:
             vertical, horizontal = padding
             return cls(
-                top=vertical,
-                right=horizontal,
-                bottom=vertical,
-                left=horizontal,
+                top=vertical if vertical is not None else 0,
+                right=horizontal if horizontal is not None else 0,
+                bottom=vertical if vertical is not None else 0,
+                left=horizontal if horizontal is not None else 0,
             )
         top, right, bottom, left = padding
-        return cls(top=top, right=right, bottom=bottom, left=left)
+        return cls(
+            top=top if top is not None else 0,
+            right=right if right is not None else 0,
+            bottom=bottom if bottom is not None else 0,
+            left=left if left is not None else 0,
+        )
 
     @property
     def horizontal(self) -> int:
@@ -367,6 +435,8 @@ __all__ = (
     "CanvasMarkerLike",
     "Side",
     "SizePercentage",
+    "Flex",
+    "resolve_flex_weight",
     "Padding",
     "Size",
     "Area",

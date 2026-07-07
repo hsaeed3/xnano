@@ -27,6 +27,12 @@ from xnano.beta.frame import Frame, FrameTitlePosition
 UNSET = object()
 
 
+def _normalize_flex(
+    flex: types.Flex | None,
+) -> int | None:
+    return types.resolve_flex_weight(flex)
+
+
 def _normalize_slide_axes(
     slide: Sequence[types.Axis] | None,
 ) -> list[str]:
@@ -72,8 +78,9 @@ class GridFieldInfo:
         background: The background color of this field's frame area.
         size: Fixed size as a percentage of the parent area's axis length. Ignored when `
             `fit`` is ``True``.
-        flex: Relative fill weight when ``size`` is ``None``. Higher values claim proportionally
-            more space.
+        flex: Relative fill weight when ``size`` is ``None``. Accepts an integer weight or a
+            Tailwind flex utility such as ``"flex-1"`` or ``"grow"``. Higher values claim
+            proportionally more space.
         fit: Size the field to its content each frame. When set, ``size`` becomes a maximum clamp.
         gap: The gap between fields in this field or area.
         direction: The direction in which content within this field or area should be laid out.
@@ -125,7 +132,11 @@ class GridFieldInfo:
     size: types.SizePercentage | None = None
     """Fixed size as a percentage of the parent area's axis length. Ignored when ``fit`` is ``True``."""
     flex: int | None = None
-    """Relative fill weight when ``size`` is ``None``. Higher values claim proportionally more space."""
+    """Relative fill weight when ``size`` is ``None``.
+
+    Stored as a resolved integer weight after Tailwind flex utilities are
+    normalized.
+    """
     fit: bool | None = None
     """Size the field to its content each frame. When set, ``size`` becomes a maximum clamp."""
     gap: int | None = None
@@ -169,7 +180,7 @@ def Field(
     color: ColorLike | None = None,
     background: ColorLike | None = None,
     size: types.SizePercentage | None = None,
-    flex: int | None = None,
+    flex: types.Flex | None = None,
     fit: bool | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
@@ -197,7 +208,7 @@ def Field(
     color: ColorLike | None = None,
     background: ColorLike | None = None,
     size: types.SizePercentage | None = None,
-    flex: int | None = None,
+    flex: types.Flex | None = None,
     fit: bool | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
@@ -224,7 +235,7 @@ def Field(
     color: ColorLike | None = None,
     background: ColorLike | None = None,
     size: types.SizePercentage | None = None,
-    flex: int | None = None,
+    flex: types.Flex | None = None,
     fit: bool | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
@@ -252,7 +263,7 @@ def Field(
     color: ColorLike | None = None,
     background: ColorLike | None = None,
     size: types.SizePercentage | None = None,
-    flex: int | None = None,
+    flex: types.Flex | None = None,
     fit: bool | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
@@ -279,7 +290,7 @@ def Field(
     color: ColorLike | None = None,
     background: ColorLike | None = None,
     size: types.SizePercentage | None = None,
-    flex: int | None = None,
+    flex: types.Flex | None = None,
     fit: bool | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
@@ -309,8 +320,9 @@ def Field(
         background: The background color of this field's frame area.
         size: Fixed size as a percentage of the parent area's axis length. Ignored when `
             `fit`` is ``True``.
-        flex: Relative fill weight when ``size`` is ``None``. Higher values claim proportionally
-            more space.
+        flex: Relative fill weight when ``size`` is ``None``. Accepts an integer weight or a
+            Tailwind flex utility such as ``"flex-1"`` or ``"grow"``. Higher values claim
+            proportionally more space.
         fit: Size the field to its content each frame. When set, ``size`` becomes a maximum clamp.
         gap: The gap between fields in this field or area.
         direction: The direction in which content within this field or area should be laid out.
@@ -340,7 +352,7 @@ def Field(
         modifiers=modifiers,
         background=background,
         size=size,
-        flex=flex,
+        flex=_normalize_flex(flex),
         fit=fit,
         gap=gap,
         direction=direction,

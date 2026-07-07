@@ -212,7 +212,7 @@ def get_native_padding_from_padding_like(
     if value is None:
         return None
     if not isinstance(value, Padding):
-        padding = Padding.parse(value)  # type: ignore
+        padding = Padding.parse(value)
     else:
         padding = value
     return native.Padding.new(
@@ -388,6 +388,8 @@ def get_native_layout_constraint_from_constraint(
         return native.Constraint.percentage(constraint.value)
     if constraint.kind == "content":
         return native.Constraint.length(constraint.value)
+    if constraint.kind == "min":
+        return native.Constraint.min(constraint.value)
     return native.Constraint.fill(constraint.value)
 
 
