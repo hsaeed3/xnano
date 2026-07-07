@@ -263,19 +263,34 @@ class StackNode(AbstractRenderNode):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SparklineBarItem:
+    """A single bar in a :class:`SparklineNode`.
+
+    Attributes:
+        value: Numeric height of the bar.
+        color: Per-bar foreground color; ``None`` uses the node default.
+    """
+
+    value: int
+    color: ColorLike | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class SparklineNode(AbstractRenderNode):
     """A sparkline (mini bar chart) widget.
 
     Attributes:
         data: Sequence of non-negative sample values.
+        bars: Optional per-bar items with individual colors.
         max_value: Explicit y-axis ceiling; ``None`` = auto-scale.
-        color: Bar foreground color.
+        color: Default bar foreground color.
         background: Widget background color.
         absent_value_color: Color applied to zero/absent samples.
         absent_value_symbol: Glyph for absent samples (default ``""``).
     """
 
     data: list[int] = dataclasses.field(default_factory=list)
+    bars: list[SparklineBarItem] | None = None
     max_value: int | None = None
     color: ColorLike | None = None
     background: ColorLike | None = None
@@ -896,7 +911,20 @@ class NodeAssembler:
             return
 
         if isinstance(node, SparklineNode):
-            spark = native.Sparkline.new(node.data)
+            if node.bars is not None:
+                native_bars: list[Any] = []
+                for bar in node.bars:
+                    native_bar = native.SparklineBar.new(bar.value)
+                    if bar.color is not None:
+                        bar_style = native_types.get_native_style_from_kwargs(
+                            color=bar.color
+                        )
+                        if bar_style is not None:
+                            native_bar = native_bar.style(bar_style)
+                    native_bars.append(native_bar)
+                spark = native.Sparkline.from_bars(native_bars)
+            else:
+                spark = native.Sparkline.new(node.data)
             if node.max_value is not None:
                 spark = spark.max(node.max_value)
             style = native_types.get_native_style_from_kwargs(
@@ -1258,6 +1286,7 @@ __all__ = (
     "FrameNode",
     "ContainerNode",
     "StackNode",
+    "SparklineBarItem",
     "SparklineNode",
     "LineGaugeNode",
     "BarChartNode",

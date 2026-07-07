@@ -13,7 +13,6 @@ from xnano.beta.color import Color
 from xnano.beta.components import (
     AbstractComponent,
     ComponentRenderContext,
-    Text,
 )
 from xnano.beta.effects import (
     AbstractEffect,
@@ -59,6 +58,5 @@ __all__ = (
     "on_click",
     "on_tick",
     "Terminal",
-    "Text",
     "render",
 )
