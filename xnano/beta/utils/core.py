@@ -11,6 +11,7 @@ StateT = TypeVar("StateT")
 
 
 _FIRST_PARAM_TYPE_CACHE: dict[Callable, type | None] = {}
+_EXTRA_PARAM_COUNT_CACHE: dict[Callable, int] = {}
 _STATE_SAFE_BUILTINS: dict[str, Any] = {
     "len": len,
     "str": str,
@@ -85,6 +86,7 @@ def get_first_function_parameter_type(function: Callable) -> type | None:
     parameters = list(signature.parameters.values())
     if not parameters:
         _FIRST_PARAM_TYPE_CACHE[function] = None
+        return None
 
     first_parameter = parameters[0]
     if first_parameter.name in ("self", "cls"):
@@ -106,3 +108,32 @@ def get_first_function_parameter_type(function: Callable) -> type | None:
 
     _FIRST_PARAM_TYPE_CACHE[function] = None
     return None
+
+
+def get_function_extra_parameter_count(function: Callable) -> int:
+    """Return parameters after ``self`` / ``cls`` on a callable.
+
+    Args:
+        function: The callable to inspect.
+
+    Returns:
+        The number of parameters following ``self`` or ``cls``.
+    """
+    if function in _EXTRA_PARAM_COUNT_CACHE:
+        return _EXTRA_PARAM_COUNT_CACHE[function]
+
+    try:
+        signature = inspect.signature(function)
+    except (TypeError, ValueError):
+        _EXTRA_PARAM_COUNT_CACHE[function] = 0
+        return 0
+
+    parameters = list(signature.parameters.values())
+    if not parameters:
+        _EXTRA_PARAM_COUNT_CACHE[function] = 0
+        return 0
+
+    start = 1 if parameters[0].name in ("self", "cls") else 0
+    count = len(parameters) - start
+    _EXTRA_PARAM_COUNT_CACHE[function] = count
+    return count

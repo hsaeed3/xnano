@@ -11,7 +11,7 @@ from xnano.beta.types import Alignment, CharacterModifier
 if TYPE_CHECKING:
     from xnano.beta.color import ColorLike
     from xnano.beta.components.abstract import ComponentRenderContext
-    from xnano.beta.core.nodes import AbstractRenderNode
+    from xnano.beta.core.nodes import AbstractRenderNode, LineNode
 
 
 @dataclasses.dataclass
@@ -88,6 +88,38 @@ class Text(AbstractComponent):
             modifiers=list(self.modifiers),
         )
 
+    def _leaf_children_have_embedded_newlines(
+        self,
+        children: list[Text],
+    ) -> bool:
+        """Return whether any leaf child contains embedded newlines."""
+        for child in children:
+            if isinstance(child.content, str) and "\n" in child.content:
+                return True
+        return False
+
+    def _build_line_nodes_from_leaf_children(
+        self,
+        children: list[Text],
+    ) -> list[LineNode]:
+        """Expand leaf children into one line node per text row."""
+        from xnano.beta.core.nodes import LineNode
+
+        line_nodes: list[LineNode] = []
+        for child in children:
+            if not isinstance(child.content, str):
+                continue
+            for segment in child.content.split("\n"):
+                line_nodes.append(
+                    LineNode(
+                        content=segment,
+                        color=child.color,
+                        background=child.background,
+                        modifiers=list(child.modifiers),
+                    )
+                )
+        return line_nodes
+
     def _to_line_node(self, ctx: ComponentRenderContext) -> AbstractRenderNode:
         from xnano.beta.core.nodes import LineNode, SpanNode
 
@@ -139,7 +171,24 @@ class Text(AbstractComponent):
         all_leaves = all(child._is_leaf() for child in children)
 
         if all_leaves:
-            # All children are plain strings → one line of spans
+            if self._leaf_children_have_embedded_newlines(children):
+                text_node = TextNode(
+                    lines=self._build_line_nodes_from_leaf_children(children),
+                    color=self.color,
+                    background=self.background,
+                    modifiers=self.modifiers,
+                    align=self.align,
+                )
+                return ParagraphNode(
+                    text=text_node,
+                    color=self.color,
+                    background=self.background,
+                    modifiers=self.modifiers,
+                    align=self.align,
+                    wrap=self.wrap,
+                )
+
+            # All children are plain strings on one row → inline spans
             spans: list[SpanNode] = []
             for child in children:
                 node = child._to_span_node()

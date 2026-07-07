@@ -249,6 +249,16 @@ class KeyboardEventData(AbstractEventData):
         # when hit
         return self._binding_tuple[0]  # ty: ignore[not-subscriptable]
 
+    @property
+    def character(self) -> str | None:
+        """The printable character emitted by this key press, if any."""
+        character = self._native_event.char()
+        if character is None:
+            character = self._native_event.char_value()
+        if character is None:
+            return None
+        return str(character)
+
     def matches(self, *bindings: KeyboardBinding) -> bool:
         """Checks if this keyboard event matches any of the provided keyboard
         bindings.

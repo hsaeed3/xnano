@@ -55,6 +55,8 @@ class RenderRequest(Generic[StateT]):
     """Z-index that determines paint layering order within the viewport."""
     state: StateT | None = None
     """Optional user-defined state passed alongside this render request."""
+    effect_key: str | None = None
+    """Optional effect lookup key recorded for this render request."""
 
 
 @dataclasses.dataclass(slots=True)
@@ -146,6 +148,7 @@ class Session(Generic[StateT]):
                 width=request.native_rect.width,
                 height=request.native_rect.height,
                 content=content,
+                effect_key=request.effect_key,
                 z=request.z,
             )
         if len(children) == 1:
@@ -222,7 +225,12 @@ class Session(Generic[StateT]):
         )
 
     def render_native(
-        self, rect: native.Rect, content: Any, *, z: int = 0
+        self,
+        rect: native.Rect,
+        content: Any,
+        *,
+        z: int = 0,
+        effect_key: str | None = None,
     ) -> None:
         """Enqueue a native widget for rendering at ``rect``.
 
@@ -230,9 +238,15 @@ class Session(Generic[StateT]):
             rect: The ``native.Rect`` area to draw.
             content: The native content to draw.
             z: The ``z``-index to draw at.
+            effect_key: Optional key for :meth:`grid_play_effect` lookups.
         """
         self._render_requests.append(
-            RenderRequest(native_rect=rect, native_content=content, z=z)
+            RenderRequest(
+                native_rect=rect,
+                native_content=content,
+                z=z,
+                effect_key=effect_key,
+            )
         )
 
     def render_native_with_state(
@@ -264,6 +278,7 @@ class Session(Generic[StateT]):
         ctx: ComponentRenderContext[StateT],
         *,
         fill_area: bool = False,
+        effect_key: str | None = None,
     ) -> None:
         """Draw a component into the session at the given area.
 
@@ -306,6 +321,7 @@ class Session(Generic[StateT]):
             node,  # type: ignore
             draw_area,
             z=component.z,
+            effect_key=effect_key,
         )
         component.after_render(ctx, area)
 
@@ -336,9 +352,16 @@ class Session(Generic[StateT]):
         area: Area,
         *,
         z: int = 0,
+        effect_key: str | None = None,
     ) -> None:
         """Lower a render IR node to native widgets via the assembler."""
-        self._assembler.lower_node_to_native(node, area, self, z)
+        self._assembler.lower_node_to_native(
+            node,
+            area,
+            self,
+            z,
+            effect_key=effect_key,
+        )
 
     def grid_paint_frame(
         self,
@@ -446,6 +469,44 @@ class Session(Generic[StateT]):
 
         return 0
 
+    def grid_play_effect(
+        self,
+        effect: Any,
+        *,
+        fields: list[str] | None = None,
+        key: str | None = None,
+    ) -> bool:
+        """Bind and run an effect on one or more layout field areas.
+
+        Args:
+            effect: A :class:`~xnano_core.rust.native.Effect` instance.
+            fields: Layout field names to target. When omitted or empty, no
+                effect is started.
+            key: Optional unique effect id prefix. Each field uses
+                ``field_name`` when omitted, or ``{key}:{field_name}`` when set.
+
+        Returns:
+            ``True`` when at least one field area was found and an effect
+            started.
+        """
+        if not fields:
+            return False
+
+        started = False
+        for field_name in fields:
+            area = self._core_session.effect_area_for(field_name)
+            if area is None:
+                continue
+            effect_id = (
+                f"{key}:{field_name}" if key is not None else field_name
+            )
+            self._core_session.add_unique_effect(
+                effect_id,
+                effect.with_area(area),
+            )
+            started = True
+        return started
+
     def grid_paint_slot(
         self,
         value: Any,
@@ -453,6 +514,7 @@ class Session(Generic[StateT]):
         field: "GridFieldInfo | None",
         *,
         parent_z: int = 0,
+        effect_key: str | None = None,
     ) -> None:
         """Dispatch-render a layout field's value into ``area``."""
         from xnano.beta.components.abstract import (
@@ -474,11 +536,18 @@ class Session(Generic[StateT]):
         if isinstance(value, AbstractComponent):
             terminal = _ACTIVE_TERMINAL.get()
             ctx = ComponentRenderContext(area=area, terminal=terminal)
-            self.render_component(value, area, ctx)
+            fill_area = not bool(field is not None and field.fit)
+            self.render_component(
+                value,
+                area,
+                ctx,
+                fill_area=fill_area,
+                effect_key=effect_key,
+            )
             return
 
         if isinstance(value, AbstractRenderNode):
-            self.paint_node(value, area, z=parent_z)
+            self.paint_node(value, area, z=parent_z, effect_key=effect_key)
             return
 
         node = ParagraphNode(
@@ -491,4 +560,4 @@ class Session(Generic[StateT]):
             align=field.align if field is not None else None,
             z=parent_z,
         )
-        self.paint_node(node, area, z=parent_z)
+        self.paint_node(node, area, z=parent_z, effect_key=effect_key)

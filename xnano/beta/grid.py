@@ -6,12 +6,15 @@ import dataclasses
 import inspect
 import sys
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
     Literal,
+    Sequence,
     TypeAlias,
     TypedDict,
+    overload,
 )
 
 if sys.version_info < (3, 11):
@@ -21,6 +24,14 @@ else:
 
 from xnano.beta.color import ColorLike
 from xnano.beta.frame import Frame, FrameTitlePosition
+
+if TYPE_CHECKING:
+    from xnano.beta.effects import (
+        AbstractEffect,
+        EffectInterpolation,
+        EffectMotion,
+        KnownEffectKind,
+    )
 from xnano.beta.fields import (
     UNSET,
     GridFieldInfo,
@@ -481,6 +492,67 @@ class Grid(metaclass=_GridMeta):
     (``class Dashboard(Grid, direction="horizontal", gap=1): ...``),
     in a class-level :attr:`grid_settings` dict, or both — values in
     :attr:`grid_settings` override matching header kwargs.
+
+    Examples:
+
+    Layout fields render content; ``state=True`` fields hold app data.
+    Nested ``Grid`` subclasses compose larger layouts:
+
+    ```python
+    from xnano.beta import Field, Grid, Terminal
+
+    class Sidebar(Grid, direction="vertical"):
+        nav: str = Field(default="Home", border="rounded", flex=1)
+
+    class App(Grid, direction="horizontal", gap=1):
+        sidebar: Sidebar = Field(default_factory=Sidebar, size=0.25)
+        content: str = Field(default="Main area", flex=1)
+
+        selected: int = Field(default=0, state=True)
+
+    Terminal().run(App())
+    ```
+
+    Event hooks register handlers on the grid class. Use ``@on_click`` to
+    scope mouse handlers to a layout field's region:
+
+    ```python
+    from xnano.beta import (
+        Context,
+        Field,
+        Grid,
+        Terminal,
+        on_click,
+        on_keyboard,
+        on_tick,
+    )
+
+    class Counter(Grid, direction="vertical", gap=1):
+        label: str = Field(default="Count: 0", size=1)
+        body: str = Field(default="Click me", flex=1)
+
+        count: int = Field(default=0, state=True)
+
+        @on_keyboard("up")
+        def increment(self) -> None:
+            self.count += 1
+            self.label = f"Count: {self.count}"
+
+        @on_keyboard("down")
+        def decrement(self) -> None:
+            self.count -= 1
+            self.label = f"Count: {self.count}"
+
+        @on_click("body")
+        def on_body(self, ctx: Context) -> None:
+            self.body = "Clicked!"
+
+        @on_tick(1000)
+        def reset_body(self) -> None:
+            self.body = "Click me"
+
+    Terminal().run(Counter())
+    ```
     """
 
     grid_settings: ClassVar[GridSettings] = {}
@@ -584,6 +656,106 @@ class Grid(metaclass=_GridMeta):
         with ``Field(default=...)``, ``default_factory``, or ``__post_init__``.
         """
 
+    @overload
+    def grid_play_effect(
+        self,
+        effect: AbstractEffect,
+        *,
+        fields: list[str] | None = None,
+        key: str | None = None,
+    ) -> bool: ...
+
+    @overload
+    def grid_play_effect(
+        self,
+        effect: KnownEffectKind,
+        *,
+        duration_ms: int = 300,
+        color: ColorLike | None = None,
+        background: ColorLike | None = None,
+        direction: EffectMotion | None = None,
+        gradient_length: int | None = None,
+        randomness: int | None = None,
+        interpolation: EffectInterpolation | None = None,
+        effects: Sequence[AbstractEffect] | None = None,
+        child: AbstractEffect | None = None,
+        times: int | None = None,
+        fields: list[str] | None = None,
+        key: str | None = None,
+    ) -> bool: ...
+
+    def grid_play_effect(
+        self,
+        effect: KnownEffectKind | AbstractEffect,
+        *,
+        duration_ms: int = 300,
+        color: ColorLike | None = None,
+        background: ColorLike | None = None,
+        direction: EffectMotion | None = None,
+        gradient_length: int | None = None,
+        randomness: int | None = None,
+        interpolation: EffectInterpolation | None = None,
+        effects: Sequence[AbstractEffect] | None = None,
+        child: AbstractEffect | None = None,
+        times: int | None = None,
+        fields: list[str] | None = None,
+        key: str | None = None,
+    ) -> bool:
+        """Run a visual effect on one or more layout field areas.
+
+        Each layout field is tagged with its name as an effect key during
+        rendering, so effects can target field content rects on the frame
+        after :meth:`grid_render`.
+
+        Pass a custom :class:`~xnano.beta.effect.AbstractEffect` subclass or
+        provide a known effect kind with typed keyword arguments.
+
+        Args:
+            effect: A built effect instance or a known effect kind string.
+            duration_ms: Duration of the effect in milliseconds.
+            color: Foreground or accent color for color-driven effects.
+            background: Background color for two-color effects.
+            direction: Motion direction for slide and sweep effects.
+            gradient_length: Gradient length for slide and sweep effects.
+            randomness: Randomness for slide and sweep effects.
+            interpolation: Interpolation curve for the effect.
+            effects: Child effects for sequence and parallel composition.
+            child: Child effect for repeat and delay composition.
+            times: Repeat count for repeat effects.
+            fields: Layout field names to target. When omitted or empty, no
+                effect is started.
+            key: Optional unique effect id prefix. Each field uses
+                ``field_name`` when omitted, or ``{key}:{field_name}`` when set.
+
+        Returns:
+            ``True`` when at least one field area was found and an effect
+            started.
+        """
+        from xnano.beta.effects import resolve_native_effect
+        from xnano.beta.terminal import _ACTIVE_TERMINAL
+
+        terminal = _ACTIVE_TERMINAL.get()
+        if terminal is None:
+            return False
+        native_effect = resolve_native_effect(
+            effect,
+            duration_ms=duration_ms,
+            color=color,
+            background=background,
+            direction=direction,
+            gradient_length=gradient_length,
+            randomness=randomness,
+            interpolation=interpolation,
+            effects=effects,
+            child=child,
+            times=times,
+        )
+        return terminal.session.grid_play_effect(
+            native_effect,
+            fields=fields,
+            key=key,
+        )
+
     def _grid_field_info(self, name: str) -> GridFieldInfo:
         overrides = getattr(self, "_grid_field_overrides", None)
         if overrides and name in overrides:
@@ -645,7 +817,7 @@ class Grid(metaclass=_GridMeta):
             return True
         return _resolve_grid_mouse_handler(self, field_name) is not None
 
-    def set_field(
+    def grid_set_field(
         self,
         name: str,
         value: Any = UNSET,
@@ -660,7 +832,7 @@ class Grid(metaclass=_GridMeta):
         """
         if name in self._grid_state_fields:
             raise TypeError(
-                f"set_field() cannot be used on state field {name!r} on "
+                f"grid_set_field() cannot be used on state field {name!r} on "
                 f"{type(self).__name__}"
             )
         if name not in self._grid_fields:
@@ -671,13 +843,13 @@ class Grid(metaclass=_GridMeta):
         forbidden = _GRID_FIELD_IMMUTABLE_KEYS & field_config.keys()
         if forbidden:
             raise TypeError(
-                f"set_field() does not accept {', '.join(sorted(forbidden))}"
+                f"grid_set_field() does not accept {', '.join(sorted(forbidden))}"
             )
 
         unknown = set(field_config) - _GRID_FIELD_CONFIG_KEYS
         if unknown:
             raise TypeError(
-                "set_field() got unexpected keyword arguments: "
+                "grid_set_field() got unexpected keyword arguments: "
                 f"{', '.join(sorted(unknown))}"
             )
 
@@ -861,7 +1033,13 @@ class Grid(metaclass=_GridMeta):
                 )
             if value is None:
                 continue
-            session.grid_paint_slot(value, paint_area, field, parent_z=self.z)
+            session.grid_paint_slot(
+                value,
+                paint_area,
+                field,
+                parent_z=self.z,
+                effect_key=field_name,
+            )
 
 
 def _grid_slide_paint_area(

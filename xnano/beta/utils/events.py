@@ -222,7 +222,13 @@ def get_keyboard_binding_tuple_from_native_event(
         if character == " ":
             key = "space"
         elif character is not None and len(character) == 1:
-            key = character.lower()
+            code = ord(character)
+            if 1 <= code <= 26:
+                key = chr(ord("a") + code - 1)
+                if not event.modifiers.control():
+                    modifiers.append("ctrl")
+            else:
+                key = character.lower()
         elif event.code_name == native.KeyCode.PrintScreen:
             key = "printscreen"
         elif event.code_name == native.KeyCode.Pause:
@@ -248,7 +254,7 @@ def get_keyboard_binding_tuple_from_native_event(
         modifiers.append("alt")
     if event.modifiers.shift():
         modifiers.append("shift")
-    if event.modifiers.control():
+    if event.modifiers.control() and "ctrl" not in modifiers:
         modifiers.append("ctrl")
 
     _KEY_RESOLUTION_CACHE[cache_key] = (modifiers, key)

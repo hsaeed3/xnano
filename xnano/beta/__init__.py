@@ -15,6 +15,10 @@ from xnano.beta.components import (
     ComponentRenderContext,
     Text,
 )
+from xnano.beta.effects import (
+    AbstractEffect,
+    Effect,
+)
 from xnano.beta.context import Context
 from xnano.beta.exceptions import Exit
 from xnano.beta.fields import Field
@@ -37,8 +41,10 @@ __all__ = (
     "Renderable",
     "Color",
     "AbstractComponent",
+    "AbstractEffect",
     "ComponentRenderContext",
     "Context",
+    "Effect",
     "Exit",
     "Field",
     "Grid",
