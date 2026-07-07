@@ -7,7 +7,7 @@ managed = true
 
 [tool.uv.build-backend]
 module-root = ""
-packae = true
+package = true
 
 [tool.uv.sources]
 xnano-core = { workspace = true }
@@ -36,11 +36,12 @@ classifiers = [
 ]
 dependencies = [
     "pydantic-core>=2.0.0",
-    "xnano-core>=0.0.1",
+    "xnano-core==0.0.1",
 ]
 
 [dependency-groups]
 dev = [
+    "maturin>=1.9.4,<2.0",
     "prek",
     "logfire",
     "black",

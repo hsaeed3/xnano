@@ -17,6 +17,8 @@ from xnano_core.rust.engine import (
     CoreTerminalEventKind as CoreTerminalEventKind,
 )
 
+__version__: str
+
 engine: ModuleType
 """Stateful engine submodule (:mod:`xnano_core.rust.engine`)."""
 

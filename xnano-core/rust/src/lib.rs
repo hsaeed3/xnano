@@ -6,5 +6,7 @@ use pyo3::prelude::*;
 // ``xnano_core.rust.native``.
 #[pymodule]
 fn native(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    bindings::register(module)
+    bindings::register(module)?;
+    module.add("__version__", env!("CARGO_PKG_VERSION"))?;
+    Ok(())
 }
