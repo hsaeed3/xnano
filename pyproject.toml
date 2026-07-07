@@ -1,15 +1,25 @@
 [build-system]
-requires = ["maturin>=1.7,<2.0"]
-build-backend = "maturin"
+requires = ["uv_build>=0.11.26,<0.12"]
+build-backend = "uv_build"
 
-[tool.maturin]
-features = ["pyo3/extension-module"]
-module-name = "xnano._core"
-python-source = ""
+[tool.uv]
+managed = true
+
+[tool.uv.build-backend]
+module-root = ""
+packae = true
+
+[tool.uv.sources]
+xnano-core = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "xnano-core"
+]
 
 [project]
 name = "xnano"
-version = "0.99.2"
+version = "0.99.5"
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "A simple python **tui** framework built on top of the ``[ratatui](https://ratatui.rs)`` and ``[tachyonfx](https://github.com/ratatui/tachyonfx)`` rust crates."
 readme = "README.md"
@@ -23,6 +33,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
+]
+dependencies = [
+    "pydantic-core>=2.0.0",
+    "xnano-core>=0.0.1",
 ]
 
 [dependency-groups]
@@ -53,16 +67,19 @@ dev = [
     "mkdocs-material",
     "mkdocs-click",
     "mkdocstrings-python",
+
+    # basemodel testing
+    "pydantic>=2.0.0"
 ]
-benchmark = [
-    "textual",
-    "pytermgui",
-    "urwid",
-    "psutil",
-]
+
+[tool.pytest.ini_options]
+pythonpath = ["tests"]
 
 [tool.maturin.env]
 PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
+
+[tool.ty.environment]
+extra-paths = ["xnano-core/python"]
 
 [tool.ruff]
 line-length = 79

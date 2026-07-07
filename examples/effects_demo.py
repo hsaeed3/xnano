@@ -1,196 +1,160 @@
 """xnano example — effects_demo.py
 
-Visual effects and animation transitions demo powered by tachyonfx (xnano.effect).
+Visual effects and animation demo — press C / F / D / S to switch modes.
 """
 
 from __future__ import annotations
 
-import sys
+import math
 import time
 
-from xnano.color import Color
-from xnano.effects import (
-    EffectManager,
-    coalesce,
-    delay,
-    dissolve,
-    fade_from_fg,
-    fade_to_fg,
-    ping_pong,
-    repeating,
-    slide_in,
-    slide_out,
-    sweep_in,
+from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
+from xnano.beta.components import Text
+from xnano.beta.color import tailwind
+from xnano.beta.effects import AbstractEffect, Effect
+
+
+_LOGO = (
+    "   ___                 _   _   \n"
+    "  / _ \\               | | (_)  \n"
+    " / /_\\ \\_ __   ___  __| |  _  ___  _ __  _   _ \n"
+    " |  _  | '_ \\ / _ \\/ _` | | |/ _ \\| '_ \\| | | |\n"
+    " | | | | | | |  __/ (_| | | | (_) | | | | |_| |\n"
+    " \\_| |_/_| |_|\\___|\\__,_| |_|\\___/|_| |_|\\__, |\n"
+    "                         / |             __/ |\n"
+    "                        |__/            |___/ \n"
 )
-from xnano.events import poll_event
-from xnano.layout import Constraint, Layout
-from xnano.style import Borders, Style
-from xnano.tailwind import tailwind
-from xnano.terminal import Frame, Terminal
-from xnano.text import Line
-from xnano.widgets import Block, Paragraph
+
+_EFFECTS = {
+    "c": "Coalesce (Typewriter Assemble)",
+    "f": "Fade (Teal ↔ Purple)",
+    "d": "Dissolve (Random Pixel Fade)",
+    "s": "Sweep In (Laser Scanner)",
+}
+
+_PALETTES = {
+    "c": [tailwind("teal", 400), tailwind("cyan", 400), tailwind("sky", 400)],
+    "f": [
+        tailwind("teal", 400),
+        tailwind("violet", 400),
+        tailwind("purple", 400),
+    ],
+    "d": [
+        tailwind("slate", 600),
+        tailwind("teal", 300),
+        tailwind("slate", 400),
+    ],
+    "s": [tailwind("teal", 500), tailwind("teal", 300), tailwind("cyan", 500)],
+}
+
+_EFFECT_DURATION_MS = 900
 
 
-class EffectsDemo:
-    def __init__(self) -> None:
-        self.effect_manager = EffectManager()
-        self.delta_ms = 16
+def _pulsing_color(palette: list, phase: float) -> str:
+    t = (math.sin(phase) + 1) / 2
+    idx = int(t * (len(palette) - 1))
+    c = palette[min(idx, len(palette) - 1)]
+    return f"#{c.r:02x}{c.g:02x}{c.b:02x}"
 
-        # Style Definitions
-        self.bg_style = Style(background="#0f172a")  # Slate 900
-        self.border_style = Style(foreground=tailwind("teal", 500))
-        self.header_style = Style(
-            foreground="white",
-            background=tailwind("teal", 900),
-            modifiers="bold",
+
+def _build_canvas_effect(key: str) -> AbstractEffect:
+    accent = _PALETTES[key][0]
+    accent_color = f"#{accent.r:02x}{accent.g:02x}{accent.b:02x}"
+    if key == "c":
+        return Effect("coalesce", duration_ms=_EFFECT_DURATION_MS)
+    if key == "f":
+        violet = tailwind("violet", 400)
+        return Effect(
+            "fade",
+            color=f"#{violet.r:02x}{violet.g:02x}{violet.b:02x}",
+            duration_ms=_EFFECT_DURATION_MS,
         )
-        self.instruction_style = Style(
-            foreground=tailwind("slate", 400), modifiers="italic"
-        )
+    if key == "d":
+        return Effect("dissolve", duration_ms=_EFFECT_DURATION_MS)
+    return Effect(
+        "sweep_in",
+        direction="left_to_right",
+        gradient_length=14,
+        randomness=2,
+        color=accent_color,
+        duration_ms=_EFFECT_DURATION_MS,
+    )
 
-        # Set up a continuous background pulse effect on the main header
-        # Using a ping-pong fade of the foreground from cyan to indigo
-        pulse = ping_pong(
-            fade_to_fg(
-                duration_ms=1500,
-                color=tailwind("indigo", 400),
-            )
-        )
-        self.effect_manager.add_unique("header_pulse", pulse)
 
-        self.current_effect_name = "None"
-        self.trigger_coalesce()  # Trigger initial effect
-
-    def trigger_coalesce(self) -> None:
-        self.current_effect_name = "Coalesce (Typewriter Assemble)"
-        # Coalesce letters of text into place over 1000ms
-        eff = coalesce(duration_ms=1200)
-        self.effect_manager.add_unique("demo_card", eff)
-
-    def trigger_fade(self) -> None:
-        self.current_effect_name = "Fade (Teal ↔ Purple)"
-        # Fade foreground color to violet
-        eff = ping_pong(
-            fade_to_fg(
-                duration_ms=1000,
-                color=tailwind("violet", 400),
-            )
-        )
-        self.effect_manager.add_unique("demo_card", eff)
-
-    def trigger_dissolve(self) -> None:
-        self.current_effect_name = "Dissolve (Random Pixel Fade)"
-        # Dissolve cells over 1500ms
-        eff = dissolve(duration_ms=1500)
-        self.effect_manager.add_unique("demo_card", eff)
-
-    def trigger_sweep(self) -> None:
-        self.current_effect_name = "Sweep In (Laser Scanner)"
-        # Sweep effect from left to right: direction, gradient_length, randomness, color, duration_ms
-        eff = sweep_in(
-            "left_to_right",
-            5,
-            0,
-            tailwind("teal", 500),
-            800,
-        )
-        self.effect_manager.add_unique("demo_card", eff)
-
-    def draw(self, frame: Frame) -> None:
-        area = frame.area()
-
-        # Layout: Header (1), Content Area (fill), Help Footer (2)
-        layout = Layout(
-            direction="vertical",
-            constraints=[
-                Constraint.length(1),
-                Constraint.fill(1),
-                Constraint.length(3),
-            ],
-        )
-        splits = layout.split(area)
-        header_area, content_area, footer_area = (
-            splits[0],
-            splits[1],
-            splits[2],
-        )
-
-        # 1. Header Banner
-        header = Paragraph(
-            Line("  TACHYONFX VISUAL EFFECTS ANIMATION DEMO  "),
-            style=self.header_style,
-        )
-        frame.render_widget(header, header_area)
-
-        # 2. Main Content Card
-        card = Paragraph(
-            "\n"
-            "   ___                 _   _   \n"
-            "  / _ \\               | | (_)  \n"
-            " / /_\\ \\_ __   ___  __| |  _  ___  _ __  _   _ \n"
-            " |  _  | '_ \\ / _ \\/ _` | | |/ _ \\| '_ \\| | | |\n"
-            " | | | | | | |  __/ (_| | | | (_) | | | | |_| |\n"
-            " \\_| |_/_| |_|\\___|\\__,_| |_|\\___/|_| |_|\\__, |\n"
-            "                         / |             __/ |\n"
-            "                        |__/            |___/ \n"
-            "\n"
-            f"          [ CURRENT EFFECT: {self.current_effect_name} ]\n"
-            "          (Animations render smoothly at 60 FPS in pure rust/python)",
-            block=Block(
-                title=" Animation Canvas ",
-                borders="all",
-                border_type="double",
-                border_style=self.border_style,
-            ),
-            style=Style(foreground=tailwind("teal", 400)),
-        )
-        frame.render_widget(card, content_area)
-
-        # 3. Footer instructions
-        footer = Paragraph(
+class EffectsDemo(Grid, direction="vertical"):
+    header: str = Field(
+        default="  TACHYONFX VISUAL EFFECTS ANIMATION DEMO  ",
+        size=1,
+        color="white",
+        background=tailwind("teal", 900),
+        modifiers=["bold"],
+    )
+    canvas: Text = Field(
+        default=Text(""),
+        border="double",
+        border_color=tailwind("teal", 500),
+        title=" Animation Canvas ",
+    )
+    footer: str = Field(
+        default=(
             "Press keys to trigger animations:\n"
             "  [C] Coalesce  ●  [F] Pulse Fade  ●  [D] Dissolve  ●  [S] Laser Sweep\n"
-            "  [Ctrl+C] Quit Demo",
-            style=self.instruction_style,
+            "  [Ctrl+C] Quit Demo"
+        ),
+        size=3,
+        color=tailwind("slate", 400),
+        modifiers=["italic"],
+    )
+
+    current_key: str = Field(default="c", state=True)
+    phase: float = Field(default=0.0, state=True)
+    start_time: float = Field(default_factory=time.time, state=True)
+
+    def _switch_effect(self, key: str) -> None:
+        self.current_key = key
+        self.phase = 0.0
+        self.grid_play_effect(_build_canvas_effect(key), fields=["canvas"])
+
+    @on_keyboard("c")
+    def _coalesce(self) -> None:
+        self._switch_effect("c")
+
+    @on_keyboard("f")
+    def _fade(self) -> None:
+        self._switch_effect("f")
+
+    @on_keyboard("d")
+    def _dissolve(self) -> None:
+        self._switch_effect("d")
+
+    @on_keyboard("s")
+    def _sweep(self) -> None:
+        self._switch_effect("s")
+
+    @on_tick
+    def _tick(self) -> None:
+        self.phase += 0.08
+
+    def grid_render(self) -> None:
+        palette = _PALETTES[self.current_key]
+        color = _pulsing_color(palette, self.phase)
+        effect_name = _EFFECTS[self.current_key]
+
+        self.canvas = Text(
+            [
+                Text("\n"),
+                Text(_LOGO, color=color),
+                Text(
+                    f"\n          [ CURRENT EFFECT: {effect_name} ]\n",
+                    color=tailwind("teal", 300),
+                ),
+                Text(
+                    "          (Animations render smoothly at 60 FPS in pure rust/python)",
+                    color=tailwind("slate", 500),
+                ),
+            ]
         )
-        frame.render_widget(footer, footer_area)
-
-        # Process active effects
-        frame.process_effects(
-            self.effect_manager, getattr(self, "delta_ms", 16), area
-        )
-
-
-def main() -> None:
-    demo = EffectsDemo()
-    last_tick = time.time()
-
-    with Terminal() as term:
-        term.clear()
-
-        while True:
-            # Poll for input with a tiny 16ms wait to achieve 60 FPS update rate!
-            event = poll_event(16)
-            if event and event.key and event.key.is_press:
-                if event.key.matches("ctrl+c") or event.key.matches("q"):
-                    break
-                elif event.key.matches("c"):
-                    demo.trigger_coalesce()
-                elif event.key.matches("f"):
-                    demo.trigger_fade()
-                elif event.key.matches("d"):
-                    demo.trigger_dissolve()
-                elif event.key.matches("s"):
-                    demo.trigger_sweep()
-
-            # Calculate time delta for fluid animation processing
-            now = time.time()
-            delta_ms = int((now - last_tick) * 1000)
-            last_tick = now
-            demo.delta_ms = delta_ms
-
-            term.draw(demo.draw)
 
 
 if __name__ == "__main__":
-    main()
+    Terminal(tick_interval=16).run(EffectsDemo())
