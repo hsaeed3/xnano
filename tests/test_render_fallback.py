@@ -259,7 +259,9 @@ def test_border_title_in_top() -> None:
 
 
 def test_border_title_in_bottom() -> None:
-    result = _apply_border(["content"], "rounded", None, "", "MyTitle", "bottom")
+    result = _apply_border(
+        ["content"], "rounded", None, "", "MyTitle", "bottom"
+    )
     assert "MyTitle" in result[-1]
     assert "MyTitle" not in result[0]
 
@@ -291,7 +293,9 @@ def test_border_color_prefix_wraps_chars() -> None:
 
 
 def test_border_multiline_content() -> None:
-    result = _apply_border(["line one", "line two"], "rounded", None, "", None, None)
+    result = _apply_border(
+        ["line one", "line two"], "rounded", None, "", None, None
+    )
     assert result[0].startswith("╭")
     assert "│" in result[1]
     assert "│" in result[2]
@@ -355,7 +359,7 @@ def _call_render(**kwargs):
         text = kw.get("sep", " ").join(str(a) for a in args)
         printed.append(text)
 
-    builtins.print = fake_print # type: ignore
+    builtins.print = fake_print  # type: ignore
     try:
         renderables = kwargs.pop("renderables", ("hello",))
         _render_to_stdout(
