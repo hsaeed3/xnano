@@ -43,7 +43,7 @@ class Text(AbstractComponent):
     ``modifiers``.  ``align`` and ``wrap`` apply at the paragraph level.
     """
 
-    content: str | list[Text] = dataclasses.field(default="")
+    content: str | Text | list[str | Text] = dataclasses.field(default="")
     color: ColorLike | None = None
     background: ColorLike | None = None
     modifiers: tuple[CharacterModifier, ...] = ()
@@ -51,13 +51,38 @@ class Text(AbstractComponent):
     wrap: bool = True
 
     def _is_leaf(self) -> bool:
+        """True when this node holds a plain string (no nested Text children)."""
         return isinstance(self.content, str)
+
+    def _as_children(self) -> list[Text]:
+        """Normalize content to a flat list of Text children."""
+        if isinstance(self.content, str):
+            return [self]
+        if isinstance(self.content, Text):
+            return [self.content]
+        result: list[Text] = []
+        for item in self.content:
+            if isinstance(item, str):
+                result.append(Text(item))
+            else:
+                result.append(item)
+        return result
 
     def _to_span_node(self) -> AbstractRenderNode:
         from xnano.beta.core.nodes import SpanNode
 
+        if isinstance(self.content, str):
+            text_str = self.content
+        elif isinstance(self.content, Text):
+            text_str = (
+                self.content.content
+                if isinstance(self.content.content, str)
+                else ""
+            )
+        else:
+            text_str = ""
         return SpanNode(
-            content=self.content if isinstance(self.content, str) else "",
+            content=text_str,
             color=self.color,
             background=self.background,
             modifiers=list(self.modifiers),
@@ -73,8 +98,9 @@ class Text(AbstractComponent):
                 background=self.background,
                 modifiers=list(self.modifiers),
             )
+        children = self._as_children()
         spans: list[SpanNode] = []
-        for child in self.content:
+        for child in children:
             node = child._to_span_node()
             if isinstance(node, SpanNode):
                 spans.append(node)
@@ -93,6 +119,7 @@ class Text(AbstractComponent):
             TextNode,
         )
 
+        # Leaf: single string — paragraph wrapping plain text
         if isinstance(self.content, str):
             return ParagraphNode(
                 text=self.content,
@@ -103,10 +130,16 @@ class Text(AbstractComponent):
                 wrap=self.wrap,
             )
 
-        children = self.content
+        # Single nested Text — delegate
+        if isinstance(self.content, Text):
+            return self.content.get_node(ctx)
+
+        # List variant: normalise to Text children
+        children = self._as_children()
         all_leaves = all(child._is_leaf() for child in children)
 
         if all_leaves:
+            # All children are plain strings → one line of spans
             spans: list[SpanNode] = []
             for child in children:
                 node = child._to_span_node()
@@ -127,6 +160,7 @@ class Text(AbstractComponent):
                 wrap=self.wrap,
             )
 
+        # Mixed or multi-line: each child is a line
         line_nodes: list[LineNode] = []
         for child in children:
             node = child._to_line_node(ctx)
