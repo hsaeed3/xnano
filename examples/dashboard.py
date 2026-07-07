@@ -15,21 +15,21 @@ from xnano.beta import (
     on_tick,
 )
 from xnano.beta.components import Sparkline, Text
-from xnano.beta.color import tailwind
+from xnano.beta.color import tailwind_color
 
 
 _GRADIENT = [
-    tailwind("sky", 400),
-    tailwind("teal", 400),
-    tailwind("emerald", 400),
-    tailwind("lime", 400),
-    tailwind("amber", 400),
-    tailwind("orange", 500),
-    tailwind("red", 500),
-    tailwind("pink", 500),
-    tailwind("purple", 500),
-    tailwind("indigo", 500),
-    tailwind("blue", 500),
+    tailwind_color("sky", 400),
+    tailwind_color("teal", 400),
+    tailwind_color("emerald", 400),
+    tailwind_color("lime", 400),
+    tailwind_color("amber", 400),
+    tailwind_color("orange", 500),
+    tailwind_color("red", 500),
+    tailwind_color("pink", 500),
+    tailwind_color("purple", 500),
+    tailwind_color("indigo", 500),
+    tailwind_color("blue", 500),
 ]
 
 
@@ -68,16 +68,16 @@ def _build_gauge(
         [
             Text(
                 f"  {label}: {ratio * 100:.1f}%\n",
-                color=tailwind("slate", 300),
+                color=tailwind_color("slate", 300),
             ),
             Text("█" * filled, color=fill_color),
-            Text("░" * (width - filled), color=tailwind("slate", 700)),
+            Text("░" * (width - filled), color=tailwind_color("slate", 700)),
         ]
     )
 
 
 def _build_table(processes: list, selected: int) -> Text:
-    dim = tailwind("slate", 500)
+    dim = tailwind_color("slate", 500)
     lines: list[str | Text] = [
         Text(
             [
@@ -90,7 +90,7 @@ def _build_table(processes: list, selected: int) -> Text:
         Text("  " + "─" * 44 + "\n", color=dim),
     ]
     for i, (name, cpu, ram, status) in enumerate(processes):
-        selected_bg = tailwind("violet", 900)
+        selected_bg = tailwind_color("violet", 900)
         if i == selected:
             lines.append(
                 Text(
@@ -103,18 +103,18 @@ def _build_table(processes: list, selected: int) -> Text:
                         ),
                         Text(
                             f"{cpu:>6}",
-                            color=tailwind("emerald", 400),
+                            color=tailwind_color("emerald", 400),
                             modifiers=("bold",),
                             background=selected_bg,
                         ),
                         Text(
                             f"  {ram:>8}",
-                            color=tailwind("sky", 400),
+                            color=tailwind_color("sky", 400),
                             background=selected_bg,
                         ),
                         Text(
                             f"  {status}\n",
-                            color=tailwind("slate", 500),
+                            color=tailwind_color("slate", 500),
                             background=selected_bg,
                         ),
                     ]
@@ -125,9 +125,13 @@ def _build_table(processes: list, selected: int) -> Text:
                 Text(
                     [
                         Text(f"  {name:<16}", color="white"),
-                        Text(f"{cpu:>6}", color=tailwind("emerald", 400)),
-                        Text(f"  {ram:>8}", color=tailwind("sky", 400)),
-                        Text(f"  {status}\n", color=tailwind("slate", 500)),
+                        Text(
+                            f"{cpu:>6}", color=tailwind_color("emerald", 400)
+                        ),
+                        Text(f"  {ram:>8}", color=tailwind_color("sky", 400)),
+                        Text(
+                            f"  {status}\n", color=tailwind_color("slate", 500)
+                        ),
                     ]
                 )
             )
@@ -139,14 +143,14 @@ class GaugesPanel(Grid, direction="vertical", gap=1):
         default=Text(""),
         size=3,
         border="rounded",
-        border_color=tailwind("violet", 500),
+        border_color=tailwind_color("violet", 500),
         title=" Memory Info ",
     )
     disk: Text = Field(
         default=Text(""),
         size=3,
         border="rounded",
-        border_color=tailwind("violet", 500),
+        border_color=tailwind_color("violet", 500),
         title=" Disk Storage ",
     )
 
@@ -155,7 +159,7 @@ class LeftPanel(Grid, direction="vertical"):
     cpu: Sparkline = Field(
         default_factory=Sparkline,
         border="rounded",
-        border_color=tailwind("violet", 500),
+        border_color=tailwind_color("violet", 500),
         title=" CPU Usage History (%) ",
     )
     gauges: GaugesPanel = Field(default_factory=GaugesPanel, size=9)
@@ -166,7 +170,7 @@ class MainContent(Grid, direction="horizontal", gap=1):
     right: Text = Field(
         default=Text(""),
         border="rounded",
-        border_color=tailwind("violet", 500),
+        border_color=tailwind_color("violet", 500),
         title=" Active Processes ",
     )
 
@@ -176,14 +180,14 @@ class Dashboard(Grid, direction="vertical"):
         default="   SUPER COOL VERY IMPORTANT DASHBOARD   ",
         size=1,
         color="white",
-        background=tailwind("violet", 950),
+        background=tailwind_color("violet", 950),
         modifiers=["bold"],
     )
     main: MainContent = Field(default_factory=MainContent)
     footer: str = Field(
         default="  [Ctrl+C] Quit  ●  [Up/Down] Navigate Table  ",
         size=1,
-        color=tailwind("slate", 500),
+        color=tailwind_color("slate", 500),
     )
 
     cpu_history: list = Field(
@@ -231,13 +235,13 @@ class Dashboard(Grid, direction="vertical"):
             self.memory_ratio,
             "RAM",
             gauge_width,
-            f"#{tailwind('sky', 400).r:02x}{tailwind('sky', 400).g:02x}{tailwind('sky', 400).b:02x}",
+            f"#{tailwind_color('sky', 400).r:02x}{tailwind_color('sky', 400).g:02x}{tailwind_color('sky', 400).b:02x}",
         )
         self.main.left.gauges.disk = _build_gauge(
             self.disk_percent / 100,
             "Disk Space",
             gauge_width,
-            f"#{tailwind('rose', 400).r:02x}{tailwind('rose', 400).g:02x}{tailwind('rose', 400).b:02x}",
+            f"#{tailwind_color('rose', 400).r:02x}{tailwind_color('rose', 400).g:02x}{tailwind_color('rose', 400).b:02x}",
         )
         self.main.right = _build_table(self.processes, self.selected_row)
 

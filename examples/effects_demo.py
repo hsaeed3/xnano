@@ -10,7 +10,7 @@ import time
 
 from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
 from xnano.beta.components import Text
-from xnano.beta.color import tailwind
+from xnano.beta.color import tailwind_color
 from xnano.beta.effects import AbstractEffect, Effect
 
 
@@ -33,18 +33,26 @@ _EFFECTS = {
 }
 
 _PALETTES = {
-    "c": [tailwind("teal", 400), tailwind("cyan", 400), tailwind("sky", 400)],
+    "c": [
+        tailwind_color("teal", 400),
+        tailwind_color("cyan", 400),
+        tailwind_color("sky", 400),
+    ],
     "f": [
-        tailwind("teal", 400),
-        tailwind("violet", 400),
-        tailwind("purple", 400),
+        tailwind_color("teal", 400),
+        tailwind_color("violet", 400),
+        tailwind_color("purple", 400),
     ],
     "d": [
-        tailwind("slate", 600),
-        tailwind("teal", 300),
-        tailwind("slate", 400),
+        tailwind_color("slate", 600),
+        tailwind_color("teal", 300),
+        tailwind_color("slate", 400),
     ],
-    "s": [tailwind("teal", 500), tailwind("teal", 300), tailwind("cyan", 500)],
+    "s": [
+        tailwind_color("teal", 500),
+        tailwind_color("teal", 300),
+        tailwind_color("cyan", 500),
+    ],
 }
 
 _EFFECT_DURATION_MS = 900
@@ -63,7 +71,7 @@ def _build_canvas_effect(key: str) -> AbstractEffect:
     if key == "c":
         return Effect("coalesce", duration_ms=_EFFECT_DURATION_MS)
     if key == "f":
-        violet = tailwind("violet", 400)
+        violet = tailwind_color("violet", 400)
         return Effect(
             "fade",
             color=f"#{violet.r:02x}{violet.g:02x}{violet.b:02x}",
@@ -86,13 +94,13 @@ class EffectsDemo(Grid, direction="vertical"):
         default="  TACHYONFX VISUAL EFFECTS ANIMATION DEMO  ",
         size=1,
         color="white",
-        background=tailwind("teal", 900),
+        background=tailwind_color("teal", 900),
         modifiers=["bold"],
     )
     canvas: Text = Field(
         default=Text(""),
         border="double",
-        border_color=tailwind("teal", 500),
+        border_color=tailwind_color("teal", 500),
         title=" Animation Canvas ",
     )
     footer: str = Field(
@@ -102,7 +110,7 @@ class EffectsDemo(Grid, direction="vertical"):
             "  [Ctrl+C] Quit Demo"
         ),
         size=3,
-        color=tailwind("slate", 400),
+        color=tailwind_color("slate", 400),
         modifiers=["italic"],
     )
 
@@ -146,11 +154,11 @@ class EffectsDemo(Grid, direction="vertical"):
                 Text(_LOGO, color=color),
                 Text(
                     f"\n          [ CURRENT EFFECT: {effect_name} ]\n",
-                    color=tailwind("teal", 300),
+                    color=tailwind_color("teal", 300),
                 ),
                 Text(
                     "          (Animations render smoothly at 60 FPS in pure rust/python)",
-                    color=tailwind("slate", 500),
+                    color=tailwind_color("slate", 500),
                 ),
             ]
         )

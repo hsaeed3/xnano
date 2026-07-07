@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.beta.color import Color, tailwind
+from xnano.beta.color import Color, tailwind_color
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +168,7 @@ def test_color_is_frozen() -> None:
 
 
 def test_tailwind_returns_color() -> None:
-    c = tailwind("blue", 500)
+    c = tailwind_color("blue", 500)
     assert isinstance(c, Color)
     assert 0 <= c.r <= 255
     assert 0 <= c.g <= 255
@@ -176,12 +176,12 @@ def test_tailwind_returns_color() -> None:
 
 
 def test_tailwind_is_cached() -> None:
-    c1 = tailwind("red", 500)
-    c2 = tailwind("red", 500)
+    c1 = tailwind_color("red", 500)
+    c2 = tailwind_color("red", 500)
     assert c1 is c2
 
 
 def test_tailwind_different_shades_differ() -> None:
-    light = tailwind("blue", 100)
-    dark = tailwind("blue", 900)
+    light = tailwind_color("blue", 100)
+    dark = tailwind_color("blue", 900)
     assert (light.r, light.g, light.b) != (dark.r, dark.g, dark.b)
