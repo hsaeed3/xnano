@@ -62,7 +62,7 @@
 
     // ─── Pre-baked grain frames ──────────────────────────────────────────────
     // Instead of live random noise generation (very high CPU fill / recalculation),
-    // we pre-bake a pool of static noise canvases once at startup. 
+    // we pre-bake a pool of static noise canvases once at startup.
     // Cycling through a small set of random frames produces the exact same organic
     // shimmering grain effect with absolute ZERO runtime JS compute!
     const GRAIN_SIZE         = 128; // tiny texture, tiled

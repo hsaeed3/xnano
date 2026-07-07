@@ -9,7 +9,7 @@ from xnano.beta.fields import Field, UNSET
 
 def invalid_field(default: Any) -> Any:
     """Mark an intentionally invalid ``Field(default=...)`` for negative tests."""
-    return cast(Any, Field(default=default)) # type: ignore
+    return cast(Any, Field(default=default))  # type: ignore
 
 
 def assign_attr(instance: object, name: str, value: object) -> None:
