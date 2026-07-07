@@ -8,7 +8,7 @@ from xnano_core.rust.native import __version__ as __xnano_core_version__
 
 __all__ = ("VERSION", "check_xnano_core_version")
 
-VERSION = "0.99.8"
+VERSION = "0.99.10"
 """The version of xnano.
 
 This version specifier is guaranteed to be compliant with the [specification],
