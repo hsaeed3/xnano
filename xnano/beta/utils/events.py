@@ -264,65 +264,21 @@ def get_keyboard_binding_tuple_from_native_event(
 def get_keyboard_event_kind_from_native_event(
     event: native.KeyEvent,
 ) -> KeyboardEventKind:
-    """Maps a native ``KeyEvent`` from ``ratatui`` to the corresponding ``xnano``
-    style keyboard event kind.
-
-    Args:
-        event: The native ``KeyEvent`` from ``ratatui`` to map.
-
-    Returns:
-        The corresponding ``xnano`` style keyboard event kind.
-    """
-    if event.kind == native.KeyEventKind.Press:
-        return "press"
-    elif event.kind == native.KeyEventKind.Release:
-        return "release"
-    elif event.kind == native.KeyEventKind.Repeat:
-        return "repeat"
-    else:
-        raise ValueError(
-            f"Could not resolve keyboard event kind from native event: {event!r}"
-        )
+    """Maps a native ``KeyEvent`` kind string to an ``xnano`` keyboard event kind."""
+    return event.keyboard_kind_str()  # type: ignore[return-value]
 
 
 def get_mouse_event_kind_from_native_event(
     event: native.MouseEvent,
 ) -> MouseEventKind:
-    """Maps a native ``MouseEvent`` from ``ratatui`` to the corresponding ``xnano``
-    style mouse event kind.
-
-    Args:
-        event: The native ``MouseEvent`` from ``ratatui`` to map.
-
-    Returns:
-        The corresponding ``xnano`` style mouse event kind.
-    """
-    if event.event_kind == native.MouseEventKind.Down:
-        return "press"
-    elif event.event_kind == native.MouseEventKind.Up:
-        return "release"
-    elif event.event_kind == native.MouseEventKind.Drag:
-        return "drag"
-    elif event.event_kind == native.MouseEventKind.Moved:
-        return "move"
-    elif event.event_kind == native.MouseEventKind.ScrollUp:
-        return "scroll_up"
-    elif event.event_kind == native.MouseEventKind.ScrollDown:
-        return "scroll_down"
-    elif event.event_kind == native.MouseEventKind.ScrollLeft:
-        return "scroll_left"
-    elif event.event_kind == native.MouseEventKind.ScrollRight:
-        return "scroll_right"
-    else:
-        raise ValueError(
-            f"Could not resolve mouse event kind from native event: {event!r}"
-        )
+    """Maps a native ``MouseEvent`` kind string to an ``xnano`` mouse event kind."""
+    return event.xnano_kind_str()  # type: ignore[return-value]
 
 
 def get_event_data_from_core_event(
     event: core.CoreEvent,
 ) -> xnano_events.EventData | None:
-    """Parses an ``xnano_core.core.CoreEvent`` into into a corresponding
+    """Parses an ``xnano_core.core.CoreEvent`` into a corresponding
     ``xnano.events.EventData`` instance.
 
     Args:
@@ -331,28 +287,34 @@ def get_event_data_from_core_event(
     Returns:
         The corresponding ``xnano.events.EventData`` instance.
     """
-    if event.key is not None:
-        return xnano_events.KeyboardEventData(_native_event=event.key)
-    elif event.mouse is not None:
+    kind = event.kind_str()
+
+    if kind == "key":
+        key = event.key
+        assert key is not None
+        return xnano_events.KeyboardEventData(_native_event=key)
+
+    if kind == "mouse":
+        m = event.mouse
+        assert m is not None
         return xnano_events.MouseEventData(
-            kind=get_mouse_event_kind_from_native_event(event.mouse),
-            x=event.mouse.x,
-            y=event.mouse.y,
-            button=event.mouse.button,  # ty: ignore[invalid-argument-type]
+            kind=m.xnano_kind_str(),  # type: ignore[arg-type]
+            x=m.x,
+            y=m.y,
+            button=m.xnano_button_str(),  # type: ignore[arg-type]
         )
 
-    if event.kind == core.CoreTerminalEventKind.Resize:
+    if kind == "resize":
         if event.width is None or event.height is None:
             return None
         return xnano_events.ResizeEventData(
             width=event.width, height=event.height
         )
-    elif event.kind == core.CoreTerminalEventKind.Paste:
+
+    if kind == "paste":
         return xnano_events.ClipboardEventData(text=event.paste)
-    elif event.kind in (
-        core.CoreTerminalEventKind.FocusGained,
-        core.CoreTerminalEventKind.FocusLost,
-    ):
+
+    if kind in ("focus_gained", "focus_lost"):
         return xnano_events.FocusEventData()
 
     return None
