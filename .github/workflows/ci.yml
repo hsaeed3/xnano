@@ -14,8 +14,40 @@ env:
   UV_PYTHON: "3.13"
 
 jobs:
+  resolve-release:
+    name: resolve release plan
+    runs-on: ubuntu-latest
+    outputs:
+      tag_package: ${{ steps.plan.outputs.tag_package }}
+      tag_version: ${{ steps.plan.outputs.tag_version }}
+      manifest_xnano_version: ${{ steps.plan.outputs.manifest_xnano_version }}
+      manifest_core_version: ${{ steps.plan.outputs.manifest_core_version }}
+      pinned_core_version: ${{ steps.plan.outputs.pinned_core_version }}
+      pypi_xnano_latest: ${{ steps.plan.outputs.pypi_xnano_latest }}
+      pypi_core_latest: ${{ steps.plan.outputs.pypi_core_latest }}
+      pinned_core_on_pypi: ${{ steps.plan.outputs.pinned_core_on_pypi }}
+      tag_core_on_pypi: ${{ steps.plan.outputs.tag_core_on_pypi }}
+      tag_xnano_on_pypi: ${{ steps.plan.outputs.tag_xnano_on_pypi }}
+      run_tests: ${{ steps.plan.outputs.run_tests }}
+      run_core_pipeline: ${{ steps.plan.outputs.run_core_pipeline }}
+      run_xnano_pipeline: ${{ steps.plan.outputs.run_xnano_pipeline }}
+      use_workspace_core: ${{ steps.plan.outputs.use_workspace_core }}
+      use_pypi_core: ${{ steps.plan.outputs.use_pypi_core }}
+      should_publish_core: ${{ steps.plan.outputs.should_publish_core }}
+      should_publish_xnano: ${{ steps.plan.outputs.should_publish_xnano }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: resolve release plan
+        id: plan
+        env:
+          FULL_BUILD_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'Full Build') }}
+        run: python3 .github/resolve_release_plan.py
+
   test-python:
     name: test ${{ matrix.python-version }}
+    needs: resolve-release
+    if: needs.resolve-release.outputs.run_tests == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -31,11 +63,11 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: install rust stable
-        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        if: needs.resolve-release.outputs.use_workspace_core == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: cache rust
-        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        if: needs.resolve-release.outputs.use_workspace_core == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: xnano-core
@@ -48,25 +80,21 @@ jobs:
       - name: install deps
         run: uv sync --group dev
 
-      - name: resolve pinned xnano-core version
-        if: startsWith(github.ref, 'refs/tags/xnano/')
-        id: xnano-core-version
-        run: |
-          version="$(uv run .github/get_pinned_xnano_core_version.py)"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
       - name: install xnano-core from PyPI
-        if: startsWith(github.ref, 'refs/tags/xnano/')
-        run: uv pip install "xnano-core==${{ steps.xnano-core-version.outputs.version }}"
+        if: needs.resolve-release.outputs.use_pypi_core == 'true'
+        run: >-
+          uv pip install
+          "xnano-core==${{ needs.resolve-release.outputs.pinned_core_version }}"
 
       - name: build workspace xnano-core
-        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        if: needs.resolve-release.outputs.use_workspace_core == 'true'
         run: uv run maturin develop --uv
         working-directory: xnano-core
         env:
           RUST_BACKTRACE: 1
 
-      - run: uv pip install -e .
+      - name: install xnano from repository
+        run: uv pip install -e .
         env:
           RUST_BACKTRACE: 1
 
@@ -74,6 +102,8 @@ jobs:
 
   test-os:
     name: test on ${{ matrix.os }}
+    needs: resolve-release
+    if: needs.resolve-release.outputs.run_tests == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -84,11 +114,11 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: install rust stable
-        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        if: needs.resolve-release.outputs.use_workspace_core == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: cache rust
-        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        if: needs.resolve-release.outputs.use_workspace_core == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: xnano-core
@@ -99,25 +129,21 @@ jobs:
       - name: install deps
         run: uv sync --group dev
 
-      - name: resolve pinned xnano-core version
-        if: startsWith(github.ref, 'refs/tags/xnano/')
-        id: xnano-core-version
-        run: |
-          version="$(uv run .github/get_pinned_xnano_core_version.py)"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
       - name: install xnano-core from PyPI
-        if: startsWith(github.ref, 'refs/tags/xnano/')
-        run: uv pip install "xnano-core==${{ steps.xnano-core-version.outputs.version }}"
+        if: needs.resolve-release.outputs.use_pypi_core == 'true'
+        run: >-
+          uv pip install
+          "xnano-core==${{ needs.resolve-release.outputs.pinned_core_version }}"
 
       - name: build workspace xnano-core
-        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        if: needs.resolve-release.outputs.use_workspace_core == 'true'
         run: uv run maturin develop --uv
         working-directory: xnano-core
         env:
           RUST_BACKTRACE: 1
 
-      - run: uv pip install -e .
+      - name: install xnano from repository
+        run: uv pip install -e .
         env:
           RUST_BACKTRACE: 1
 
@@ -125,10 +151,8 @@ jobs:
 
   build-xnano-core-sdist:
     name: build xnano-core sdist
-    if: >-
-      startsWith(github.ref, 'refs/tags/xnano-core/') ||
-      github.ref == 'refs/heads/main' ||
-      contains(github.event.pull_request.labels.*.name, 'Full Build')
+    needs: resolve-release
+    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -150,10 +174,8 @@ jobs:
     name: >-
       build xnano-core on ${{ matrix.os }}
       (${{ matrix.target || 'native' }}${{ matrix.manylinux && format(' - {0}', matrix.manylinux) || '' }})
-    if: >-
-      startsWith(github.ref, 'refs/tags/xnano-core/') ||
-      github.ref == 'refs/heads/main' ||
-      contains(github.event.pull_request.labels.*.name, 'Full Build')
+    needs: resolve-release
+    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -211,11 +233,8 @@ jobs:
 
   test-xnano-core-wheel-install:
     name: test xnano-core wheel install on ${{ matrix.os }}
-    needs: [build-xnano-core-wheels]
-    if: >-
-      startsWith(github.ref, 'refs/tags/xnano-core/') ||
-      github.ref == 'refs/heads/main' ||
-      contains(github.event.pull_request.labels.*.name, 'Full Build')
+    needs: [resolve-release, build-xnano-core-wheels]
+    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -243,41 +262,35 @@ jobs:
 
   build-xnano:
     name: build xnano sdist and wheel
-    if: >-
-      startsWith(github.ref, 'refs/tags/xnano/') ||
-      github.ref == 'refs/heads/main' ||
-      contains(github.event.pull_request.labels.*.name, 'Full Build')
+    needs: resolve-release
+    if: needs.resolve-release.outputs.run_xnano_pipeline == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
       - name: install rust stable
-        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        if: needs.resolve-release.outputs.use_workspace_core == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: resolve pinned xnano-core version
-        id: xnano-core-version
-        run: |
-          version="$(uv run .github/get_pinned_xnano_core_version.py)"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
       - name: build xnano against workspace xnano-core
-        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        if: needs.resolve-release.outputs.use_workspace_core == 'true'
         run: |
           uv sync --group dev
           cd xnano-core
           uv run maturin develop --uv
 
       - name: install xnano-core from PyPI
-        if: startsWith(github.ref, 'refs/tags/xnano/')
-        run: uv pip install "xnano-core==${{ steps.xnano-core-version.outputs.version }}"
+        if: needs.resolve-release.outputs.use_pypi_core == 'true'
+        run: >-
+          uv pip install
+          "xnano-core==${{ needs.resolve-release.outputs.pinned_core_version }}"
 
       - name: build distributions
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/xnano/* ]]; then
+          if [[ "${{ needs.resolve-release.outputs.use_pypi_core }}" == "true" ]]; then
             uv build --no-sources --out-dir dist
           else
             uv build --out-dir dist
@@ -296,6 +309,7 @@ jobs:
     name: release xnano-core
     needs:
       [
+        resolve-release,
         test-python,
         test-os,
         build-xnano-core-sdist,
@@ -303,8 +317,7 @@ jobs:
         test-xnano-core-wheel-install,
       ]
     if: >-
-      github.event_name == 'push' &&
-      startsWith(github.ref, 'refs/tags/xnano-core/') &&
+      needs.resolve-release.outputs.should_publish_core == 'true' &&
       needs.test-python.result == 'success' &&
       needs.test-os.result == 'success' &&
       needs.build-xnano-core-sdist.result == 'success' &&
@@ -327,6 +340,11 @@ jobs:
       - name: check package version
         run: uv run .github/check_version.py
 
+      - name: confirm version is not already on PyPI
+        run: python3 .github/confirm_not_on_pypi.py xnano-core
+        env:
+          TAG_VERSION: ${{ needs.resolve-release.outputs.tag_version }}
+
       - name: get dist artifacts
         uses: actions/download-artifact@v6
         with:
@@ -347,10 +365,9 @@ jobs:
 
   release-xnano:
     name: release xnano
-    needs: [test-python, test-os, build-xnano]
+    needs: [resolve-release, test-python, test-os, build-xnano]
     if: >-
-      github.event_name == 'push' &&
-      startsWith(github.ref, 'refs/tags/xnano/') &&
+      needs.resolve-release.outputs.should_publish_xnano == 'true' &&
       needs.test-python.result == 'success' &&
       needs.test-os.result == 'success' &&
       needs.build-xnano.result == 'success'
@@ -371,14 +388,15 @@ jobs:
       - name: check package version
         run: uv run .github/check_version.py
 
-      - name: resolve pinned xnano-core version
-        id: xnano-core-version
-        run: |
-          version="$(uv run .github/get_pinned_xnano_core_version.py)"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
       - name: verify pinned xnano-core is on PyPI
-        run: uv pip install "xnano-core==${{ steps.xnano-core-version.outputs.version }}"
+        run: >-
+          uv pip install
+          "xnano-core==${{ needs.resolve-release.outputs.pinned_core_version }}"
+
+      - name: confirm version is not already on PyPI
+        run: python3 .github/confirm_not_on_pypi.py xnano
+        env:
+          TAG_VERSION: ${{ needs.resolve-release.outputs.tag_version }}
 
       - name: get dist artifacts
         uses: actions/download-artifact@v6
