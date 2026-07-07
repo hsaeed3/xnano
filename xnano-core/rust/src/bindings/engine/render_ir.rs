@@ -115,7 +115,7 @@ pub enum IrCanvasShape {
     Points { coords: Vec<(f64, f64)>, color: Color },
     Rect   { x: f64, y: f64, width: f64, height: f64, color: Color },
     Circle { x: f64, y: f64, radius: f64, color: Color },
-    Print  { x: f64, y: f64, text: String },
+    Print  { x: f64, y: f64, line: Line<'static> },
 }
 
 // ── Inner IR enum ─────────────────────────────────────────────────────────────
@@ -675,11 +675,20 @@ impl CoreRenderIR {
                             radius: s.get_item(3)?.extract()?,
                             color: s.get_item(4)?.extract::<PyColor>()?.inner,
                         }),
-                        "print" => Ok(IrCanvasShape::Print {
-                            x: s.get_item(1)?.extract()?,
-                            y: s.get_item(2)?.extract()?,
-                            text: s.get_item(3)?.extract::<String>()?,
-                        }),
+                        "print" => {
+                            let x: f64 = s.get_item(1)?.extract()?;
+                            let y: f64 = s.get_item(2)?.extract()?;
+                            // spans: list of (content, fg, bg, modifiers)
+                            let spans: Vec<(String, Option<PyColor>, Option<PyColor>, Vec<PyModifier>)> =
+                                s.get_item(3)?.extract()?;
+                            let rat_spans: Vec<Span<'static>> = spans
+                                .into_iter()
+                                .map(|(content, fg, bg, mods)| {
+                                    Span::styled(content, build_style(fg, bg, &mods))
+                                })
+                                .collect();
+                            Ok(IrCanvasShape::Print { x, y, line: Line::from(rat_spans) })
+                        }
                         other => Err(pyo3::exceptions::PyValueError::new_err(format!(
                             "unknown canvas shape tag: {other:?}"
                         ))),
@@ -952,7 +961,7 @@ impl CoreRenderIR {
                 let mut point_data: Vec<(Vec<(f64, f64)>, Color)> = Vec::new();
                 let mut rect_data: Vec<(f64, f64, f64, f64, Color)> = Vec::new();
                 let mut circle_data: Vec<(f64, f64, f64, Color)> = Vec::new();
-                let mut print_data: Vec<(f64, f64, String)> = Vec::new();
+                let mut print_data: Vec<(f64, f64, Line<'static>)> = Vec::new();
                 // shape_kinds: one entry per shape in original order
                 let mut shape_kinds: Vec<(u8, usize)> = Vec::new();
 
@@ -974,9 +983,9 @@ impl CoreRenderIR {
                             shape_kinds.push((3, circle_data.len()));
                             circle_data.push((*x, *y, *radius, *color));
                         }
-                        IrCanvasShape::Print { x, y, text } => {
+                        IrCanvasShape::Print { x, y, line } => {
                             shape_kinds.push((4, print_data.len()));
-                            print_data.push((*x, *y, text.clone()));
+                            print_data.push((*x, *y, line.clone()));
                         }
                     }
                 }
@@ -1007,8 +1016,8 @@ impl CoreRenderIR {
                                 ctx.draw(&Circle { x, y, radius, color });
                             }
                             4 => {
-                                let (x, y, ref text) = print_data[*idx];
-                                ctx.print(x, y, Line::raw(text.clone()));
+                                let (x, y, ref line) = print_data[*idx];
+                                ctx.print(x, y, line.clone());
                             }
                             _ => {}
                         }
