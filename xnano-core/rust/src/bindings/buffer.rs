@@ -483,7 +483,7 @@ impl PyBuffer {
     fn to_ansi_lines(&self, clip_bottom: bool) -> Vec<String> {
         let width = self.inner.area.width as usize;
         let height = self.inner.area.height as usize;
-        
+
         let mut last_non_empty_row = height;
         if clip_bottom {
             for row in (0..height).rev() {
@@ -522,13 +522,13 @@ impl PyBuffer {
                 }
             }
         }
-        
+
         let target_height = last_non_empty_row;
         let mut lines = Vec::with_capacity(target_height);
-        
+
         for row in 0..target_height {
             let mut line = String::new();
-            
+
             let mut last_active_col = width;
             for col in (0..width).rev() {
                 let cell = &self.inner[(col as u16, row as u16)];
@@ -560,14 +560,14 @@ impl PyBuffer {
             let mut current_fg = Color::Reset;
             let mut current_bg = Color::Reset;
             let mut current_modifier = Modifier::empty();
-            
+
             for col in 0..last_active_col {
                 let cell = &self.inner[(col as u16, row as u16)];
-                
+
                 let fg_changed = cell.fg != current_fg;
                 let bg_changed = cell.bg != current_bg;
                 let mod_changed = cell.modifier != current_modifier;
-                
+
                 if fg_changed || bg_changed || mod_changed {
                     if mod_changed && !cell.modifier.contains(current_modifier) {
                         line.push_str("\x1b[0m");
@@ -575,7 +575,7 @@ impl PyBuffer {
                         current_bg = Color::Reset;
                         current_modifier = Modifier::empty();
                     }
-                    
+
                     if cell.fg != current_fg {
                         line.push_str(&color_to_ansi_fg(cell.fg));
                         current_fg = cell.fg;
@@ -589,7 +589,7 @@ impl PyBuffer {
                         current_modifier = cell.modifier;
                     }
                 }
-                
+
                 let symbol = cell.symbol();
                 if symbol.is_empty() {
                     line.push(' ');
@@ -597,7 +597,7 @@ impl PyBuffer {
                     line.push_str(symbol);
                 }
             }
-            
+
             line.push_str("\x1b[0m");
             lines.push(line);
         }

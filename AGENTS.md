@@ -190,7 +190,7 @@ All functions must be named using the following conventions:
  - Function names that are not class methods **must never** be a single word.
    - NOTE: This is not a rule 100% of the time. For example, one of the ``zyx`` library's main user facing abstractions are called `semantic operations`, which are llm-powered operations that perform various tasks on python objects. **ONLY IF** a function is intended or implemented as one of the core features and/or user facing abstractions **AND** it's usage is presented in documentation as ``import module`` then ``module.fn()`` ``module.fn2()`` then it may be a single word.
      - Example: The semantic operations in ``zyx`` are named ``zyx.edit(...)`` (uses an LLM to edit python objects), ``zyx.parse(...)`` (confidence based LLM parsing), ``zyx.run(...)`` (standard agent loop).
-  
+
 Below is a structured list of common function types and how they should be named:
 
 **Case**: For class methods that return one of their own properties and/or
@@ -313,7 +313,7 @@ attributes.
          # because it is a function
          def get_some_private_attribute(self) -> str:
             """This is a property.
-            
+
             Returns:
                The value of the attribute.
             """
@@ -345,7 +345,7 @@ being used.
    def my_function(my_type : (
       int | bool | SomeModel | SomeOtherModel
    )) -> ...
-   
+
    def my_function(
       my_type: (
          int
