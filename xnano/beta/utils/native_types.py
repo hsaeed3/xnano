@@ -74,6 +74,23 @@ _NATIVE_DIRECTION_TYPES: dict[Direction, native.Direction] = {
 }
 
 
+_NATIVE_SCROLLBAR_ORIENTATION_TYPES: dict[Any, Any] = {
+    "vertical_right": native.ScrollbarOrientation.VerticalRight,
+    "vertical_left": native.ScrollbarOrientation.VerticalLeft,
+    "horizontal_bottom": native.ScrollbarOrientation.HorizontalBottom,
+    "horizontal_top": native.ScrollbarOrientation.HorizontalTop,
+}
+
+
+_NATIVE_MARKER_TYPES: dict[Any, Any] = {
+    "dot": native.Marker.Dot,
+    "block": native.Marker.Block,
+    "bar": native.Marker.Bar,
+    "braille": native.Marker.Braille,
+    "half_block": native.Marker.HalfBlock,
+}
+
+
 _NATIVE_MODIFIER_TYPES: dict[CharacterModifier, native.Modifier] = {
     "bold": native.Modifier.BOLD,
     "dim": native.Modifier.DIM,
@@ -372,6 +389,33 @@ def get_native_layout_constraint_from_constraint(
     if constraint.kind == "content":
         return native.Constraint.length(constraint.value)
     return native.Constraint.fill(constraint.value)
+
+
+def get_native_table_constraints(
+    widths: list[int | float] | None,
+    column_count: int,
+) -> list[Any]:
+    """Build a ``list[native.Constraint]`` for a table's column widths.
+
+    Args:
+        widths: Per-column width spec.  ``int`` = fixed char width;
+            ``float`` ``0.0``–``1.0`` = percentage; ``None`` = equal fill.
+        column_count: Number of columns (used when ``widths`` is ``None``).
+
+    Returns:
+        A list of ``native.Constraint`` objects, one per column.
+    """
+    if widths is None:
+        return [native.Constraint.fill(1)] * max(column_count, 1)
+    result: list[Any] = []
+    for w in widths:
+        if isinstance(w, float):
+            result.append(
+                native.Constraint.percentage(max(1, min(100, int(w * 100))))
+            )
+        else:
+            result.append(native.Constraint.length(max(1, int(w))))
+    return result
 
 
 def apply_style_kwargs_on_native_obj(
