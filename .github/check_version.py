@@ -41,6 +41,10 @@ def get_declared_version(package: str) -> str | None:
     """Return the version declared in the package manifest."""
     config = PACKAGES[package]
     path = config["path"]
+
+    if isinstance(path, str):
+        path = Path(path)
+
     if not path.is_file():
         print(f'✖ path "{path}" does not exist')
         return None
@@ -64,7 +68,9 @@ def main() -> int:
     parsed = parse_release_tag(version_ref)
     if parsed is None:
         print(f'✖ "{version_ref}" is not a supported release tag')
-        print('  expected: refs/tags/xnano-core/v<version> or refs/tags/xnano/v<version>')
+        print(
+            "  expected: refs/tags/xnano-core/v<version> or refs/tags/xnano/v<version>"
+        )
         return 1
 
     package, tag_version = parsed

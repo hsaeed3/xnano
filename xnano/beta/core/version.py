@@ -8,7 +8,7 @@ from xnano_core.rust.native import __version__ as __xnano_core_version__
 
 __all__ = ("VERSION", "check_xnano_core_version")
 
-VERSION = "0.99.4"
+VERSION = "0.99.5"
 """The version of xnano.
 
 This version specifier is guaranteed to be compliant with the [specification],
@@ -20,7 +20,7 @@ introduced by [PEP 440].
 
 # !! THIS MUST MATCH THE VERSION CONSTRAINT IN THE `pyproject.toml`
 # !! DEPENDENCIES
-_COMPATIBLE_XNANO_CORE_VERSION = "0.0.2"
+_COMPATIBLE_XNANO_CORE_VERSION = "0.0.3"
 
 
 def check_xnano_core_version() -> bool:
@@ -35,7 +35,9 @@ def _ensure_xnano_core_version() -> None:  # pragma: no cover
             from importlib.metadata import distribution
 
             dist = distribution("xnano")
-            if getattr(getattr(dist.origin, "dir_info", None), "editable", False):
+            if getattr(
+                getattr(dist.origin, "dir_info", None), "editable", False
+            ):
                 raise_error = False
 
         if raise_error:

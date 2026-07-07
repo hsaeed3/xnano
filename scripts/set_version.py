@@ -40,9 +40,7 @@ EDITABLE_FILES: tuple[str, ...] = (
 )
 """Paths this script is allowed to modify, relative to the repository root."""
 
-VERSION_PATTERN = re.compile(
-    r"^v?(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)$"
-)
+VERSION_PATTERN = re.compile(r"^v?(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)$")
 """PEP 440-style release versions accepted by this script."""
 
 _XNANO_PROJECT_VERSION = re.compile(
@@ -54,7 +52,9 @@ _CARGO_PACKAGE_VERSION = re.compile(
     r'^version = "([^"]+)"$',
     re.MULTILINE,
 )
-_VERSION_PY_XNANO = re.compile(r'^VERSION = "(?P<version>[^"]+)"$', re.MULTILINE)
+_VERSION_PY_XNANO = re.compile(
+    r'^VERSION = "(?P<version>[^"]+)"$', re.MULTILINE
+)
 _VERSION_PY_CORE = re.compile(
     r'^_COMPATIBLE_XNANO_CORE_VERSION = "(?P<version>[^"]+)"$',
     re.MULTILINE,
@@ -115,7 +115,9 @@ def read_text_file(relative_path: str) -> str:
     ensure_editable_path(relative_path)
     path = REPO_ROOT / relative_path
     if not path.is_file():
-        raise VersionSyncError(f'Editable file "{relative_path}" does not exist.')
+        raise VersionSyncError(
+            f'Editable file "{relative_path}" does not exist.'
+        )
     return path.read_text(encoding="utf-8")
 
 
@@ -178,7 +180,7 @@ def extract_first_match(
     """
     match = pattern.search(content)
     if match is None:
-        raise VersionSyncError(f'Could not find {label} in repository files.')
+        raise VersionSyncError(f"Could not find {label} in repository files.")
     return match.group(1)
 
 
@@ -231,7 +233,7 @@ def apply_single_replacement(
     updated, count = pattern.subn(replacement, content, count=1)
     if count != 1:
         message = (
-            f'Expected exactly one replacement for {label}, found {count}.'
+            f"Expected exactly one replacement for {label}, found {count}."
         )
         raise VersionSyncError(message)
     return updated, count

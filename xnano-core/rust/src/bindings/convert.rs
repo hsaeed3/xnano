@@ -13,7 +13,7 @@ pub fn extract_span(value: &Bound<'_, PyAny>) -> PyResult<Span<'static>> {
     if let Ok(style) = value.extract::<PyRef<PyStyle>>() {
         return Ok(Span::styled(String::new(), style.inner));
     }
-    if let Ok(text) = value.downcast::<PyString>() {
+    if let Ok(text) = value.cast::<PyString>() {
         return Ok(Span::raw(text.to_string()));
     }
     Err(PyTypeError::new_err(format!(
@@ -29,10 +29,10 @@ pub fn extract_line(value: &Bound<'_, PyAny>) -> PyResult<Line<'static>> {
     if let Ok(span) = value.extract::<PyRef<PySpan>>() {
         return Ok(Line::from(span.inner.clone()));
     }
-    if let Ok(text) = value.downcast::<PyString>() {
+    if let Ok(text) = value.cast::<PyString>() {
         return Ok(Line::from(text.to_string()));
     }
-    if let Ok(list) = value.downcast::<PyList>() {
+    if let Ok(list) = value.cast::<PyList>() {
         let spans: PyResult<Vec<Span<'static>>> =
             list.iter().map(|item| extract_span(&item)).collect();
         return Ok(Line::from(spans?));
@@ -53,10 +53,10 @@ pub fn extract_text(value: &Bound<'_, PyAny>) -> PyResult<Text<'static>> {
     if let Ok(span) = value.extract::<PyRef<PySpan>>() {
         return Ok(Text::from(Line::from(span.inner.clone())));
     }
-    if let Ok(s) = value.downcast::<PyString>() {
+    if let Ok(s) = value.cast::<PyString>() {
         return Ok(Text::from(s.to_string()));
     }
-    if let Ok(list) = value.downcast::<PyList>() {
+    if let Ok(list) = value.cast::<PyList>() {
         if list.is_empty() {
             return Ok(Text::default());
         }

@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 use super::crossterm_exec::{execute_stdout, io_to_py};
 use super::widgets_extra::PyPosition;
 
-#[pyclass(name = "CursorStyle", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "CursorStyle", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PyCursorStyle {
     DefaultUserShape,

@@ -27,14 +27,16 @@ def read_repo_version(path: Path, label: str) -> str:
 
     match = _PACKAGE_VERSION.search(path.read_text(encoding="utf-8"))
     if match is None:
-        raise RuntimeError(f'Could not find version in {label} ({path}).')
+        raise RuntimeError(f"Could not find version in {label} ({path}).")
 
     return match.group(1)
 
 
 def read_pinned_core_version(pyproject_path: Path) -> str:
     """Read the pinned ``xnano-core`` dependency from ``pyproject.toml``."""
-    match = _PINNED_CORE_VERSION.search(pyproject_path.read_text(encoding="utf-8"))
+    match = _PINNED_CORE_VERSION.search(
+        pyproject_path.read_text(encoding="utf-8")
+    )
     if match is None:
         raise RuntimeError("Could not find xnano-core pin in pyproject.toml.")
     return match.group(1)
@@ -202,7 +204,9 @@ def main() -> int:
     """Entry point for GitHub Actions and local debugging."""
     github_ref = os.environ.get("GITHUB_REF", "")
     event_name = os.environ.get("GITHUB_EVENT_NAME", "")
-    full_build_label = os.environ.get("FULL_BUILD_LABEL", "false").lower() == "true"
+    full_build_label = (
+        os.environ.get("FULL_BUILD_LABEL", "false").lower() == "true"
+    )
 
     try:
         plan = resolve_plan(github_ref, event_name, full_build_label)

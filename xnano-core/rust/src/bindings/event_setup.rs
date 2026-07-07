@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 
 use super::crossterm_exec::execute_stdout;
 
-#[pyclass(name = "KeyboardEnhancementFlags", module = "xnano_core.rust.native")]
+#[pyclass(name = "KeyboardEnhancementFlags", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyKeyboardEnhancementFlags {
     #[pyo3(get)]

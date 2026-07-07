@@ -12,14 +12,14 @@ pub(crate) enum RenderContentInner {
     Drawable(Py<PyAny>),
 }
 
-#[pyclass(name = "CoreRenderContent", module = "xnano_core.rust.engine", unsendable)]
+#[pyclass(name = "CoreRenderContent", module = "xnano_core.rust.engine", unsendable, from_py_object)]
 pub struct PyRenderContent {
     pub(crate) inner: RenderContentInner,
 }
 
 impl Clone for PyRenderContent {
     fn clone(&self) -> Self {
-        Python::with_gil(|py| Self {
+        Python::attach(|py| Self {
             inner: match &self.inner {
                 RenderContentInner::Empty => RenderContentInner::Empty,
                 RenderContentInner::Widget(widget) => {
@@ -87,10 +87,10 @@ pub(crate) fn render_content(
 ) -> PyResult<()> {
     match &content.inner {
         RenderContentInner::Empty => Ok(()),
-        RenderContentInner::Widget(w) => Python::with_gil(|py| {
+        RenderContentInner::Widget(w) => Python::attach(|py| {
             render_widget_inner(w.bind(py), PyRect { inner: rect }, buf)
         }),
-        RenderContentInner::Stateful { widget, state } => Python::with_gil(|py| {
+        RenderContentInner::Stateful { widget, state } => Python::attach(|py| {
             render_stateful_inner(
                 widget.bind(py),
                 PyRect { inner: rect },
@@ -98,7 +98,7 @@ pub(crate) fn render_content(
                 buf,
             )
         }),
-        RenderContentInner::Drawable(cb) => Python::with_gil(|py| {
+        RenderContentInner::Drawable(cb) => Python::attach(|py| {
             let buf_view = PyBufferMutView::wrap(buf);
             let rect_arg = PyRect { inner: rect };
             cb.call1(py, (buf_view.clone(), rect_arg))?;

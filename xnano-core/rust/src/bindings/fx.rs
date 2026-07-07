@@ -25,7 +25,7 @@ fn make_timer(duration_ms: u32, interpolation: Option<PyInterpolation>) -> Effec
     }
 }
 
-#[pyclass(name = "Motion", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "Motion", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyMotion {
     UpToDown,
@@ -45,7 +45,7 @@ impl From<PyMotion> for Motion {
     }
 }
 
-#[pyclass(name = "Interpolation", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "Interpolation", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyInterpolation {
     BackIn,
@@ -125,7 +125,7 @@ impl From<PyInterpolation> for Interpolation {
     }
 }
 
-#[pyclass(name = "ColorSpace", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "ColorSpace", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyColorSpace {
     Rgb,
@@ -143,7 +143,7 @@ impl From<PyColorSpace> for ColorSpace {
     }
 }
 
-#[pyclass(name = "Duration", module = "xnano_core.rust.native", eq)]
+#[pyclass(name = "Duration", module = "xnano_core.rust.native", eq, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub struct PyDuration {
     inner: Duration,
@@ -183,7 +183,7 @@ impl PyDuration {
     }
 }
 
-#[pyclass(name = "EffectTimer", module = "xnano_core.rust.native")]
+#[pyclass(name = "EffectTimer", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyEffectTimer {
     inner: EffectTimer,
@@ -235,7 +235,7 @@ impl PyEffectTimer {
     }
 }
 
-#[pyclass(name = "RepeatMode", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "RepeatMode", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyRepeatMode {
     Forever,
@@ -243,7 +243,7 @@ pub enum PyRepeatMode {
     Duration,
 }
 
-#[pyclass(name = "RefRect", module = "xnano_core.rust.native", unsendable)]
+#[pyclass(name = "RefRect", module = "xnano_core.rust.native", unsendable, from_py_object)]
 #[derive(Clone)]
 pub struct PyRefRect {
     inner: RefRect,
@@ -289,7 +289,7 @@ impl PyRefRect {
     }
 }
 
-#[pyclass(name = "RadialPattern", module = "xnano_core.rust.native")]
+#[pyclass(name = "RadialPattern", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyRadialPattern {
     inner: RadialPattern,
@@ -331,7 +331,7 @@ impl PyRadialPattern {
     }
 }
 
-#[pyclass(name = "ExpandDirection", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "ExpandDirection", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyExpandDirection {
     Horizontal,
@@ -347,7 +347,7 @@ impl From<PyExpandDirection> for ExpandDirection {
     }
 }
 
-#[pyclass(name = "EvolveSymbolSet", module = "xnano_core.rust.native", eq, eq_int)]
+#[pyclass(name = "EvolveSymbolSet", module = "xnano_core.rust.native", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyEvolveSymbolSet {
     BlocksHorizontal,
@@ -373,7 +373,7 @@ impl From<PyEvolveSymbolSet> for EvolveSymbolSet {
     }
 }
 
-#[pyclass(name = "CellFilter", module = "xnano_core.rust.native", unsendable)]
+#[pyclass(name = "CellFilter", module = "xnano_core.rust.native", unsendable, from_py_object)]
 #[derive(Clone)]
 pub struct PyCellFilter {
     pub inner: CellFilter,
@@ -481,11 +481,11 @@ impl PyCellFilter {
     }
 
     #[staticmethod]
-    fn position_fn(callback: PyObject) -> Self {
+    fn position_fn(callback: Py<PyAny>) -> Self {
         let cb = callback;
         Self {
             inner: CellFilter::PositionFn(ref_count(move |pos: CorePosition| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     cb.call1(py, (pos.x, pos.y))
                         .and_then(|value| value.extract::<bool>(py))
                         .unwrap_or(false)
@@ -495,11 +495,11 @@ impl PyCellFilter {
     }
 
     #[staticmethod]
-    fn eval_cell(callback: PyObject) -> Self {
+    fn eval_cell(callback: Py<PyAny>) -> Self {
         let cb = callback;
         Self {
             inner: CellFilter::eval_cell(move |cell: &CoreCell| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let fg = PyColor::from(from_core_color(cell.fg));
                     let bg = PyColor::from(from_core_color(cell.bg));
                     let args = (cell.symbol(), fg, bg);
@@ -524,7 +524,7 @@ impl PyCellFilter {
     }
 }
 
-#[pyclass(name = "Effect", module = "xnano_core.rust.native", unsendable)]
+#[pyclass(name = "Effect", module = "xnano_core.rust.native", unsendable, from_py_object)]
 #[derive(Clone)]
 pub struct PyEffect {
     pub inner: Effect,

@@ -54,27 +54,27 @@ impl PyTerminalRef {
 
 #[pymethods]
 impl PyTerminalRef {
-    fn draw(&mut self, callback: PyObject) -> PyResult<()> {
+    fn draw(&mut self, callback: Py<PyAny>) -> PyResult<()> {
         let terminal = self.terminal_mut()?;
         terminal
             .draw(|frame| {
-                if let Err(err) = Python::with_gil(|py| {
+                if let Err(err) = Python::attach(|py| {
                     let py_frame = PyFrame::from_frame(frame);
                     callback.call1(py, (py_frame,))
                 }) {
-                    Python::with_gil(|py| err.print(py));
+                    Python::attach(|py| err.print(py));
                 }
             })
             .map_err(io_to_py)?;
         Ok(())
     }
 
-    fn try_draw(&mut self, callback: PyObject) -> PyResult<PyCompletedFrame> {
+    fn try_draw(&mut self, callback: Py<PyAny>) -> PyResult<PyCompletedFrame> {
         let terminal = self.terminal_mut()?;
         let mut callback_error: Option<PyErr> = None;
         let completed = terminal
             .try_draw(|frame| {
-                Python::with_gil(|py| -> Result<(), std::io::Error> {
+                Python::attach(|py| -> Result<(), std::io::Error> {
                     let py_frame = PyFrame::from_frame(frame);
                     match callback.call1(py, (py_frame,)) {
                         Ok(_) => Ok(()),
@@ -279,13 +279,13 @@ impl PySession {
         let budget = tick_budget.min(user_budget);
 
         let ready = py
-            .allow_threads(|| event::poll(budget))
+            .detach(|| event::poll(budget))
             .map_err(io_to_py)?;
 
         py.check_signals()?;
 
         if ready {
-            let ev = py.allow_threads(event::read).map_err(io_to_py)?;
+            let ev = py.detach(event::read).map_err(io_to_py)?;
             return Ok(Some(PyEvent::from_crossterm(ev)));
         }
         if self.tick_clock.due() {
@@ -579,9 +579,9 @@ impl PySession {
     #[pyo3(signature = (exc_type = None, exc_value = None, traceback = None))]
     fn __exit__(
         &mut self,
-        exc_type: Option<PyObject>,
-        exc_value: Option<PyObject>,
-        traceback: Option<PyObject>,
+        exc_type: Option<Py<PyAny>>,
+        exc_value: Option<Py<PyAny>>,
+        traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         let _ = (exc_type, exc_value, traceback);
         self.restore()?;
