@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import time
 
-from xnano.beta import Field, Grid, Terminal, Text, on_keyboard, on_tick
+from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
+from xnano.beta.components import Text
 from xnano.beta.color import tailwind
 
 
