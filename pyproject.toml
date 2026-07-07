@@ -35,6 +35,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "pydantic-core>=2.47.0",
     "xnano-core>=0.0.1",
 ]
 
