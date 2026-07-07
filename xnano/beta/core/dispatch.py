@@ -172,18 +172,18 @@ def pump_tick(terminal: "Terminal[Any]") -> None:
         interval = entry["interval"]
         handler = entry["handler"]
         if interval > 0:
-            elapsed = now - terminal._tick_last_ms
+            elapsed = now - entry["last_fire_ms"]
             if elapsed < interval:
                 continue
         grid = resolve_hook_grid(terminal, handler)
         invoke_hook(handler, grid, ctx)
+        entry["last_fire_ms"] = now
     for entry in terminal._hooks.on_state_hooks:
         expression = entry["expression"]
         handler = entry["handler"]
         if evaluate_state_expression(expression, terminal.state):
             grid = resolve_hook_grid(terminal, handler)
             invoke_hook(handler, grid, ctx)
-    terminal._tick_last_ms = now
 
 
 def dispatch_hooks(terminal: "Terminal[Any]", ctx: "Context[Any]") -> None:
@@ -354,6 +354,7 @@ def merge_hooks(
             _OnTickHookFunctionEntry(
                 interval=entry["interval"],
                 handler=handler,
+                last_fire_ms=0.0,
             )
         )
 
