@@ -26,8 +26,12 @@ jobs:
       pypi_xnano_latest: ${{ steps.plan.outputs.pypi_xnano_latest }}
       pypi_core_latest: ${{ steps.plan.outputs.pypi_core_latest }}
       pinned_core_on_pypi: ${{ steps.plan.outputs.pinned_core_on_pypi }}
+      manifest_core_on_pypi: ${{ steps.plan.outputs.manifest_core_on_pypi }}
+      manifest_xnano_on_pypi: ${{ steps.plan.outputs.manifest_xnano_on_pypi }}
+      versions_unchanged: ${{ steps.plan.outputs.versions_unchanged }}
       tag_core_on_pypi: ${{ steps.plan.outputs.tag_core_on_pypi }}
       tag_xnano_on_pypi: ${{ steps.plan.outputs.tag_xnano_on_pypi }}
+      run_workflow: ${{ steps.plan.outputs.run_workflow }}
       run_tests: ${{ steps.plan.outputs.run_tests }}
       run_core_pipeline: ${{ steps.plan.outputs.run_core_pipeline }}
       run_xnano_pipeline: ${{ steps.plan.outputs.run_xnano_pipeline }}
@@ -322,11 +326,11 @@ jobs:
       ]
     if: >-
       needs.resolve-release.outputs.should_publish_core == 'true' &&
-      needs.test-python.result == 'success' &&
-      needs.test-os.result == 'success' &&
-      needs.build-xnano-core-sdist.result == 'success' &&
-      needs.build-xnano-core-wheels.result == 'success' &&
-      needs.test-xnano-core-wheel-install.result == 'success'
+      (needs.test-python.result == 'success' || needs.test-python.result == 'skipped') &&
+      (needs.test-os.result == 'success' || needs.test-os.result == 'skipped') &&
+      (needs.build-xnano-core-sdist.result == 'success' || needs.build-xnano-core-sdist.result == 'skipped') &&
+      (needs.build-xnano-core-wheels.result == 'success' || needs.build-xnano-core-wheels.result == 'skipped') &&
+      (needs.test-xnano-core-wheel-install.result == 'success' || needs.test-xnano-core-wheel-install.result == 'skipped')
     runs-on: ubuntu-latest
 
     environment:
@@ -367,14 +371,24 @@ jobs:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: uv publish
 
+      - name: create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: xnano-core ${{ needs.resolve-release.outputs.tag_version }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*
+
   release-xnano:
     name: release xnano
     needs: [resolve-release, test-python, test-os, build-xnano]
     if: >-
       needs.resolve-release.outputs.should_publish_xnano == 'true' &&
-      needs.test-python.result == 'success' &&
-      needs.test-os.result == 'success' &&
-      needs.build-xnano.result == 'success'
+      (needs.test-python.result == 'success' || needs.test-python.result == 'skipped') &&
+      (needs.test-os.result == 'success' || needs.test-os.result == 'skipped') &&
+      (needs.build-xnano.result == 'success' || needs.build-xnano.result == 'skipped')
     runs-on: ubuntu-latest
 
     environment:
@@ -418,3 +432,13 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: uv publish
+
+      - name: create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: xnano ${{ needs.resolve-release.outputs.tag_version }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*
