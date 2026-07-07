@@ -10,6 +10,7 @@ from xnano_core.rust.engine import CoreRenderNode, CoreSession
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _offscreen() -> CoreSession:
     return CoreSession.offscreen(40, 12)
 
@@ -26,6 +27,7 @@ def _text(lines: list[str]) -> str:
 
 # ── IrLine factory methods ────────────────────────────────────────────────────
 
+
 class TestIrLine:
     def test_raw_constructs(self) -> None:
         line = IrLine.raw("hello")
@@ -36,7 +38,9 @@ class TestIrLine:
         assert line is not None
 
     def test_from_spans_constructs(self) -> None:
-        line = IrLine.from_spans([("span-a", None, None, []), ("span-b", None, None, [])])
+        line = IrLine.from_spans(
+            [("span-a", None, None, []), ("span-b", None, None, [])]
+        )
         assert line is not None
 
     def test_raw_renders_text(self) -> None:
@@ -54,6 +58,7 @@ class TestIrLine:
 
 
 # ── CoreRenderIR.measure ──────────────────────────────────────────────────────
+
 
 class TestCoreRenderIRMeasure:
     def test_clear_measure(self) -> None:
@@ -75,7 +80,9 @@ class TestCoreRenderIRMeasure:
         assert h == 1
 
     def test_paragraph_raw_measure(self) -> None:
-        w, h = CoreRenderIR.paragraph_raw("para-text", None, None, [], None, False).measure()
+        w, h = CoreRenderIR.paragraph_raw(
+            "para-text", None, None, [], None, False
+        ).measure()
         assert w == 9
         assert h == 1
 
@@ -85,54 +92,74 @@ class TestCoreRenderIRMeasure:
         assert h == 1
 
     def test_sparkline_measure(self) -> None:
-        w, h = CoreRenderIR.sparkline([1, 2, 3], None, None, None, None, None).measure()
+        w, h = CoreRenderIR.sparkline(
+            [1, 2, 3], None, None, None, None, None
+        ).measure()
         assert w == 0
         assert h == 1
 
     def test_line_gauge_measure(self) -> None:
-        w, h = CoreRenderIR.line_gauge(0.5, None, None, None, None, None).measure()
+        w, h = CoreRenderIR.line_gauge(
+            0.5, None, None, None, None, None
+        ).measure()
         assert w == 0
         assert h == 1
 
     def test_scrollbar_vertical_measure(self) -> None:
-        w, h = CoreRenderIR.scrollbar(0, 100, 0, None, None, None, None, None, None).measure()
+        w, h = CoreRenderIR.scrollbar(
+            0, 100, 0, None, None, None, None, None, None
+        ).measure()
         assert w == 1
         assert h == 0
 
     def test_scrollbar_horizontal_measure(self) -> None:
-        w, h = CoreRenderIR.scrollbar(2, 100, 0, None, None, None, None, None, None).measure()
+        w, h = CoreRenderIR.scrollbar(
+            2, 100, 0, None, None, None, None, None, None
+        ).measure()
         assert w == 0
         assert h == 1
 
     def test_tabs_measure(self) -> None:
         titles = [IrLine.raw("Tab1"), IrLine.raw("Tab2")]
-        w, h = CoreRenderIR.tabs(titles, 0, None, None, None, None, None, " ", " ").measure()
+        w, h = CoreRenderIR.tabs(
+            titles, 0, None, None, None, None, None, " ", " "
+        ).measure()
         assert h == 1
 
     def test_canvas_measure(self) -> None:
-        w, h = CoreRenderIR.canvas([], (0.0, 1.0), (0.0, 1.0), None, None).measure()
+        w, h = CoreRenderIR.canvas(
+            [], (0.0, 1.0), (0.0, 1.0), None, None
+        ).measure()
         assert w == 0
         assert h == 0
 
     def test_list_empty_measure(self) -> None:
-        w, h = CoreRenderIR.list([], None, None, None, None, None, ">> ").measure()
+        w, h = CoreRenderIR.list(
+            [], None, None, None, None, None, ">> "
+        ).measure()
         assert w == 0
         assert h == 1
 
     def test_list_nonempty_measure_height(self) -> None:
         items = [IrLine.raw("a"), IrLine.raw("b"), IrLine.raw("c")]
-        w, h = CoreRenderIR.list(items, None, None, None, None, None, "").measure()
+        w, h = CoreRenderIR.list(
+            items, None, None, None, None, None, ""
+        ).measure()
         assert h == 3
 
     def test_table_measure_row_count(self) -> None:
-        row = ([( IrLine.raw("cell"), None, None, [])], None, None, 1)
+        row = ([(IrLine.raw("cell"), None, None, [])], None, None, 1)
         _w, h = CoreRenderIR.table(
             [row, row],
-            None, None,
+            None,
+            None,
             [(2, 1.0)],
             0,
-            None, None,
-            None, None, None,
+            None,
+            None,
+            None,
+            None,
+            None,
         ).measure()
         assert h == 2
 
@@ -144,8 +171,11 @@ class TestCoreRenderIRMeasure:
             None,
             [(2, 1.0)],
             0,
-            None, None,
-            None, None, None,
+            None,
+            None,
+            None,
+            None,
+            None,
         ).measure()
         assert h == 2  # 1 header + 1 body row
 
@@ -163,12 +193,15 @@ class TestCoreRenderIRMeasure:
     def test_bar_chart_measure(self) -> None:
         bar = (5, "bar", None, None, None, None, None)
         group = (None, [bar])
-        w, h = CoreRenderIR.bar_chart([group], 1, 0, 0, None, False, None, None, None).measure()
+        w, h = CoreRenderIR.bar_chart(
+            [group], 1, 0, 0, None, False, None, None, None
+        ).measure()
         assert w == 0
         assert h == 0
 
 
 # ── CoreRenderContent.ir predicate ───────────────────────────────────────────
+
 
 class TestCoreRenderContentIr:
     def test_is_ir_true_for_ir_content(self) -> None:
@@ -180,6 +213,7 @@ class TestCoreRenderContentIr:
 
     def test_is_ir_false_for_widget(self) -> None:
         from xnano_core.rust.native import Paragraph
+
         assert not CoreRenderContent.widget(Paragraph.new("x")).is_ir()
 
     def test_is_empty_false_for_ir(self) -> None:
@@ -194,6 +228,7 @@ class TestCoreRenderContentIr:
 
 # ── CoreRenderIR render-to-buffer correctness ─────────────────────────────────
 
+
 class TestCoreRenderIRRenders:
     def test_span_renders(self) -> None:
         ir = CoreRenderIR.span("span-text", None, None, [])
@@ -204,11 +239,15 @@ class TestCoreRenderIRRenders:
         assert "line-text" in _text(_render(ir))
 
     def test_paragraph_raw_renders(self) -> None:
-        ir = CoreRenderIR.paragraph_raw("para-raw", None, None, [], None, False)
+        ir = CoreRenderIR.paragraph_raw(
+            "para-raw", None, None, [], None, False
+        )
         assert "para-raw" in _text(_render(ir))
 
     def test_paragraph_lines_renders(self) -> None:
-        ir = CoreRenderIR.paragraph_lines([IrLine.raw("para-line")], None, None, [], None, False)
+        ir = CoreRenderIR.paragraph_lines(
+            [IrLine.raw("para-line")], None, None, [], None, False
+        )
         assert "para-line" in _text(_render(ir))
 
     def test_text_raw_renders(self) -> None:
@@ -216,7 +255,9 @@ class TestCoreRenderIRRenders:
         assert "text-raw" in _text(_render(ir))
 
     def test_text_lines_renders(self) -> None:
-        ir = CoreRenderIR.text_lines([IrLine.raw("text-line")], None, None, [], None)
+        ir = CoreRenderIR.text_lines(
+            [IrLine.raw("text-line")], None, None, [], None
+        )
         assert "text-line" in _text(_render(ir))
 
     def test_list_renders_items(self) -> None:
@@ -239,7 +280,9 @@ class TestCoreRenderIRRenders:
         _render(ir)  # must not raise
 
     def test_sparkline_renders(self) -> None:
-        ir = CoreRenderIR.sparkline([1, 2, 3, 4, 5], None, None, None, None, None)
+        ir = CoreRenderIR.sparkline(
+            [1, 2, 3, 4, 5], None, None, None, None, None
+        )
         _render(ir)  # must not raise
 
     def test_line_gauge_renders(self) -> None:
@@ -247,12 +290,16 @@ class TestCoreRenderIRRenders:
         _render(ir)
 
     def test_scrollbar_renders(self) -> None:
-        ir = CoreRenderIR.scrollbar(0, 100, 10, None, None, None, None, None, None)
+        ir = CoreRenderIR.scrollbar(
+            0, 100, 10, None, None, None, None, None, None
+        )
         _render(ir)
 
     def test_tabs_renders_titles(self) -> None:
         titles = [IrLine.raw("Tab-A"), IrLine.raw("Tab-B")]
-        ir = CoreRenderIR.tabs(titles, 0, None, None, None, None, None, " ", " ")
+        ir = CoreRenderIR.tabs(
+            titles, 0, None, None, None, None, None, " ", " "
+        )
         text = _text(_render(ir))
         assert "Tab-A" in text
         assert "Tab-B" in text
@@ -262,11 +309,15 @@ class TestCoreRenderIRRenders:
         row = ([cell], None, None, 1)
         ir = CoreRenderIR.table(
             [row],
-            None, None,
+            None,
+            None,
             [(2, 1.0)],
             0,
-            None, None,
-            None, None, None,
+            None,
+            None,
+            None,
+            None,
+            None,
         )
         assert "cell-data" in _text(_render(ir))
 
@@ -278,7 +329,9 @@ class TestCoreRenderIRRenders:
         # bar tuple: (value, label, text_value, bar_fg, bar_bg, value_fg, value_bg)
         bar = (5, "bar", None, None, None, None, None)
         group = (None, [bar])
-        ir = CoreRenderIR.bar_chart([group], 1, 0, 0, None, False, None, None, None)
+        ir = CoreRenderIR.bar_chart(
+            [group], 1, 0, 0, None, False, None, None, None
+        )
         _render(ir)
 
     def test_ir_content_via_leaf_node(self) -> None:
@@ -293,21 +346,26 @@ class TestCoreRenderIRRenders:
 
 # ── Engine module exports Stage 1 types ───────────────────────────────────────
 
+
 def test_engine_exports_core_render_ir() -> None:
     import xnano_core.rust.engine as engine
+
     assert hasattr(engine, "CoreRenderIR")
 
 
 def test_engine_exports_ir_line() -> None:
     import xnano_core.rust.engine as engine
+
     assert hasattr(engine, "IrLine")
 
 
 def test_core_module_exports_core_render_ir() -> None:
     import xnano_core.core as core
+
     assert hasattr(core, "CoreRenderIR")
 
 
 def test_core_module_exports_ir_line() -> None:
     import xnano_core.core as core
+
     assert hasattr(core, "IrLine")

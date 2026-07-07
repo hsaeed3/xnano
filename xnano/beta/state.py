@@ -53,9 +53,7 @@ class State:
         try:
             cls._state_annotations = get_type_hints(cls)
         except Exception:
-            cls._state_annotations = dict(
-                getattr(cls, "__annotations__", {})
-            )
+            cls._state_annotations = dict(getattr(cls, "__annotations__", {}))
 
     def __init__(self, **values: Any) -> None:
         for name, value in values.items():
