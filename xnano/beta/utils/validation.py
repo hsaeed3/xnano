@@ -5,9 +5,10 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import enum
-import inspect
 import functools
+import inspect
 import time
+import types
 import uuid
 from collections.abc import Sequence as AbcSequence
 from typing import (
@@ -36,6 +37,11 @@ from pydantic_core import (
 _SCHEMA_VALIDATOR_CACHE: dict[Any, SchemaValidator] = {}
 _RENDERABLE_SCHEMA: Any | None = None
 _RENDERABLE_ANNOTATION: Any | None = None
+
+
+def _is_union_origin(origin: object | None) -> bool:
+    """Return whether ``origin`` is a union type from ``typing`` or ``types``."""
+    return origin is Union or origin is types.UnionType
 
 
 _PRIMITIVE_SCHEMAS: dict[type, Any] = {
@@ -114,10 +120,8 @@ def infer_pydantic_core_schema_name(annotation: type) -> str:
     Returns:
         The ``pydantic_core`` schema name string for the given type.
     """
-    from typing import get_origin, get_args, Union
-
     origin = get_origin(annotation)
-    if origin is Union:
+    if _is_union_origin(origin):
         args = get_args(annotation)
         if type(None) in args:
             return "nullable"
@@ -239,7 +243,7 @@ def _build_core_schema(annotation: Any) -> Any:
             ]
         )
 
-    if origin is Union:
+    if _is_union_origin(origin):
         non_none = [a for a in args if a is not type(None)]
         if len(non_none) == 1 and len(args) == 2:
             return core_schema.nullable_schema(_build_core_schema(non_none[0]))

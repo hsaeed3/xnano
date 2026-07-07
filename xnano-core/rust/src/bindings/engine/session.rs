@@ -5,7 +5,7 @@ use crossterm::event;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
+use ratatui::layout::{Rect, Size};
 use ratatui::{init, restore, DefaultTerminal};
 use tachyonfx::EffectManager;
 
@@ -460,10 +460,22 @@ impl PySession {
     }
 
     fn get_size(&self) -> PyResult<PySize> {
+        if let Some(buffer) = &self.offscreen_buffer {
+            let area = buffer.area();
+            return Ok(PySize {
+                inner: Size::new(area.width, area.height),
+            });
+        }
         terminal_size_impl()
     }
 
     fn get_window_size(&self) -> PyResult<PySize> {
+        if let Some(buffer) = &self.offscreen_buffer {
+            let area = buffer.area();
+            return Ok(PySize {
+                inner: Size::new(area.width, area.height),
+            });
+        }
         terminal_window_size_impl()
     }
 
