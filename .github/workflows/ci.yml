@@ -275,6 +275,10 @@ jobs:
       - name: install uv
         uses: astral-sh/setup-uv@v7
 
+      - name: prepare python environment for PyPI xnano-core
+        if: needs.resolve-release.outputs.use_pypi_core == 'true'
+        run: uv sync --group dev --no-install-project
+
       - name: build xnano against workspace xnano-core
         if: needs.resolve-release.outputs.use_workspace_core == 'true'
         run: |
@@ -338,7 +342,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
 
       - name: check package version
-        run: uv run .github/check_version.py
+        run: python3 .github/check_version.py
 
       - name: confirm version is not already on PyPI
         run: python3 .github/confirm_not_on_pypi.py xnano-core
@@ -385,8 +389,11 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
 
+      - name: prepare python environment
+        run: uv sync --group dev --no-install-project
+
       - name: check package version
-        run: uv run .github/check_version.py
+        run: python3 .github/check_version.py
 
       - name: verify pinned xnano-core is on PyPI
         run: >-
