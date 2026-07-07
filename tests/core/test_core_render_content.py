@@ -20,7 +20,11 @@ from xnano_core.rust.native import (
     Style,
     TableState,
 )
-from xnano_core.rust.engine import CoreRenderContent, CoreRenderNode, CoreSession
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 
 
 def test_empty_content_predicates() -> None:
@@ -50,7 +54,7 @@ def test_drawable_writes_into_buffer(offscreen_session: CoreSession) -> None:
     def draw(buffer: BufferMutView, rect: Rect) -> None:
         buffer.set_string(2, 2, "X", Style.default())
 
-    content = CoreRenderContent.drawable(draw) # type: ignore
+    content = CoreRenderContent.drawable(draw)  # type: ignore
     assert content.is_drawable()
 
     offscreen_session.render(CoreRenderNode.leaf(content))
@@ -66,7 +70,7 @@ def test_drawable_exception_propagates_from_render(
 
     with pytest.raises(ValueError, match="drawable failure"):
         offscreen_session.render(
-            CoreRenderNode.leaf(CoreRenderContent.drawable(draw)) # type: ignore
+            CoreRenderNode.leaf(CoreRenderContent.drawable(draw))  # type: ignore
         )
 
 

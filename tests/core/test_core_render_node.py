@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from xnano_core.rust.native import Constraint, Margin, Paragraph
-from xnano_core.rust.engine import CoreRenderContent, CoreRenderNode, CoreSession
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 
 from conftest import draw_glyph_content, glyph_at
 
@@ -15,7 +19,9 @@ def _flattened_text(session: CoreSession) -> str:
 def test_leaf_renders_widget_text(
     offscreen_session: CoreSession, sample_paragraph: Paragraph
 ) -> None:
-    offscreen_session.render(CoreRenderNode.leaf(CoreRenderContent.widget(sample_paragraph)))
+    offscreen_session.render(
+        CoreRenderNode.leaf(CoreRenderContent.widget(sample_paragraph))
+    )
     assert "hello, xnano-core" in _flattened_text(offscreen_session)
 
 
@@ -72,7 +78,9 @@ def test_stack_factory_sets_absolute_geometry() -> None:
     assert node.has_absolute_geometry()
 
 
-def test_effect_key_recorded_area(offscreen_session: CoreSession, sample_paragraph) -> None:
+def test_effect_key_recorded_area(
+    offscreen_session: CoreSession, sample_paragraph
+) -> None:
     node = CoreRenderNode(
         content=CoreRenderContent.widget(sample_paragraph),
         effect_key="hero",

@@ -30,9 +30,8 @@ def test_rect_inner_margin() -> None:
 
 def test_layout_split_vertical() -> None:
     area = Rect(0, 0, 10, 10)
-    chunks = (
-        Layout.vertical([Constraint.length(3), Constraint.min(0)])
-        .split(area)
+    chunks = Layout.vertical([Constraint.length(3), Constraint.min(0)]).split(
+        area
     )
     assert len(chunks) == 2
     assert chunks[0].height == 3
@@ -41,10 +40,9 @@ def test_layout_split_vertical() -> None:
 
 def test_layout_split_horizontal() -> None:
     area = Rect(0, 0, 12, 4)
-    chunks = (
-        Layout.horizontal([Constraint.percentage(25), Constraint.percentage(75)])
-        .split(area)
-    )
+    chunks = Layout.horizontal(
+        [Constraint.percentage(25), Constraint.percentage(75)]
+    ).split(area)
     assert chunks[0].width == 3
     assert chunks[1].width == 9
 

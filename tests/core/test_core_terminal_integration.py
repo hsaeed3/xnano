@@ -62,7 +62,9 @@ def test_poll_event_releases_gil() -> None:
         done.set()
         worker.join(timeout=1.0)
 
-    assert counter["n"] > 0, "background thread should run while poll_event blocks"
+    assert counter["n"] > 0, (
+        "background thread should run while poll_event blocks"
+    )
 
 
 @requires_tty

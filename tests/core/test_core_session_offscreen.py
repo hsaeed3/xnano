@@ -7,7 +7,11 @@ import time
 import pytest
 
 from xnano_core.rust.native import Color, paint_fg, sleep_effect
-from xnano_core.rust.engine import CoreRenderContent, CoreRenderNode, CoreSession
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 
 
 def test_offscreen_factory_sets_frame_area() -> None:
@@ -34,7 +38,9 @@ def test_context_manager_restore_offscreen() -> None:
     # Offscreen sessions have no terminal; restore must not raise.
 
 
-def test_device_state_defaults_offscreen(offscreen_session: CoreSession) -> None:
+def test_device_state_defaults_offscreen(
+    offscreen_session: CoreSession,
+) -> None:
     assert not offscreen_session.is_raw_mode_enabled()
     assert not offscreen_session.is_mouse_capture_enabled()
     assert not offscreen_session.is_bracketed_paste_enabled()
