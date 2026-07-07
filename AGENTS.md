@@ -376,3 +376,28 @@ being used.
       """This is a function."""
       return my_type
    ```
+
+## Testing, Linting, and Formatting
+
+### TESTING
+
+All testing is done through ``pytest``, all code changes must be followed by running:
+
+```uv run pytest``
+
+### LINTING
+
+All linting & pre-commit configuration is handled through ``ruff`` and ``prek`` all code
+changes must be followed by running:
+
+``uv run prek run --all-files``
+
+### xnano-core SPECIFIC RULES
+
+**ANY** changes to ``xnano-core`` must be followed by running:
+
+```bash
+cd xnano-core
+cargo clean
+maturin develop --uv
+```
