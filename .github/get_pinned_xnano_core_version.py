@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Print the pinned ``xnano-core`` version from the root ``pyproject.toml``."""
 
+import re
 import sys
-import tomllib
 from pathlib import Path
+
+
+_PINNED_CORE_VERSION = re.compile(r"""["']xnano-core==([^"']+)["']""")
 
 
 def main() -> int:
@@ -12,14 +15,13 @@ def main() -> int:
         print("✖ pyproject.toml not found", file=sys.stderr)
         return 1
 
-    data = tomllib.loads(pyproject_path.read_text())
-    for dependency in data["project"]["dependencies"]:
-        if dependency.startswith("xnano-core=="):
-            print(dependency.removeprefix("xnano-core=="))
-            return 0
+    match = _PINNED_CORE_VERSION.search(pyproject_path.read_text())
+    if match is None:
+        print("✖ xnano-core pin not found in pyproject.toml", file=sys.stderr)
+        return 1
 
-    print("✖ xnano-core pin not found in pyproject.toml", file=sys.stderr)
-    return 1
+    print(match.group(1))
+    return 0
 
 
 if __name__ == "__main__":
