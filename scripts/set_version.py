@@ -59,9 +59,15 @@ _VERSION_PY_CORE = re.compile(
     r'^_COMPATIBLE_XNANO_CORE_VERSION = "(?P<version>[^"]+)"$',
     re.MULTILINE,
 )
-_README_MIN_VERSION = re.compile(r"``(\d+\.\d+\.\d+)``\+ version")
-_README_PIP_INSTALL = re.compile(r'pip install "xnano>=(\d+\.\d+\.\d+)"')
-_README_UV_ADD = re.compile(r'uv add "xnano>=(\d+\.\d+\.\d+)"')
+_README_MIN_VERSION = re.compile(
+    r"``(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)``\+ version"
+)
+_README_PIP_INSTALL = re.compile(
+    r'pip install "xnano>=(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)"'
+)
+_README_UV_ADD = re.compile(
+    r'uv add "xnano>=(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)"'
+)
 
 
 @dataclasses.dataclass(frozen=True)
