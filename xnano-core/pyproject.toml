@@ -82,7 +82,7 @@ PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
 MACOSX_DEPLOYMENT_TARGET = "11.0"
 
 [tool.uv]
-package = false
+package = true
 
 [tool.ty.environment]
 extra-paths = ["python"]
