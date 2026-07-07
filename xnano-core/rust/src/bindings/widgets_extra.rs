@@ -10,8 +10,8 @@ use ratatui::widgets::block::Padding;
 use ratatui::widgets::canvas::{Canvas, Circle, Line as CanvasLine, Points, Rectangle};
 use ratatui::widgets::{
     Axis, Bar, BarChart, BarGroup, Cell, Chart, Dataset, GraphType, LegendPosition, LineGauge, Row,
-    Scrollbar, ScrollbarOrientation, ScrollbarState, ScrollDirection, Sparkline, Table, TableState,
-    Tabs, Widget,
+    Scrollbar, ScrollbarOrientation, ScrollbarState, ScrollDirection, Sparkline, SparklineBar,
+    Table, TableState, Tabs, Widget,
 };
 
 use super::convert::{extract_line, extract_text};
@@ -648,6 +648,28 @@ impl PyTabs {
     }
 }
 
+#[pyclass(name = "SparklineBar", module = "xnano_core.rust.native")]
+#[derive(Clone)]
+pub struct PySparklineBar {
+    pub inner: SparklineBar,
+}
+
+#[pymethods]
+impl PySparklineBar {
+    #[staticmethod]
+    fn new(value: u64) -> Self {
+        Self {
+            inner: SparklineBar::from(value),
+        }
+    }
+
+    fn style(&self, style: PyStyle) -> Self {
+        Self {
+            inner: self.inner.style(Some(style.inner)),
+        }
+    }
+}
+
 #[pyclass(name = "Sparkline", module = "xnano_core.rust.native")]
 #[derive(Clone)]
 pub struct PySparkline {
@@ -670,10 +692,43 @@ impl PySparkline {
         }
     }
 
+    #[staticmethod]
+    fn from_bars(bars: &Bound<'_, PyList>) -> PyResult<Self> {
+        let items: Vec<SparklineBar> = bars
+            .iter()
+            .map(|item| {
+                item.extract::<PyRef<PySparklineBar>>()
+                    .map(|bar| bar.inner)
+                    .map_err(|_| {
+                        pyo3::exceptions::PyTypeError::new_err("expected SparklineBar")
+                    })
+            })
+            .collect::<PyResult<_>>()?;
+        Ok(Self {
+            inner: Sparkline::default().data(items),
+        })
+    }
+
     fn data(&self, data: Vec<u64>) -> Self {
         Self {
             inner: self.inner.clone().data(&data),
         }
+    }
+
+    fn bars(&self, bars: &Bound<'_, PyList>) -> PyResult<Self> {
+        let items: Vec<SparklineBar> = bars
+            .iter()
+            .map(|item| {
+                item.extract::<PyRef<PySparklineBar>>()
+                    .map(|bar| bar.inner)
+                    .map_err(|_| {
+                        pyo3::exceptions::PyTypeError::new_err("expected SparklineBar")
+                    })
+            })
+            .collect::<PyResult<_>>()?;
+        Ok(Self {
+            inner: self.inner.clone().data(items),
+        })
     }
 
     fn block(&self, block: PyBlock) -> Self {
@@ -1464,6 +1519,7 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyScrollDirection>()?;
     m.add_class::<PyScrollbarState>()?;
     m.add_class::<PyTabs>()?;
+    m.add_class::<PySparklineBar>()?;
     m.add_class::<PySparkline>()?;
     m.add_class::<PyLineGauge>()?;
     m.add_class::<PyBar>()?;
