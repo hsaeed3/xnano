@@ -28,7 +28,7 @@ class Context(Generic[StateT]):
     """
 
     event: Event | None
-    terminal: "Terminal[StateT] | None"
+    terminal: "Terminal[StateT]"
     state: StateT | None
 
     @property
