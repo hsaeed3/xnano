@@ -1,4 +1,94 @@
-"""xnano.beta.grid"""
+"""xnano.beta.grid
+
+---
+
+This module provides the `Grid` base class and related types for building
+structured, declarative terminal user interfaces. Grids use annotated
+`Field` descriptors to define slots/areas with associated layout, sizing,
+and style information, and can be configured via the `GridSettings` class.
+Grids support flex-style, nested, and stateful layouts, with unified
+rendering and event integration.
+
+Example:
+
+    **Defining a Grid:**
+
+    ```python
+    from xnano.beta import Grid, Field
+
+    class MyGrid(Grid):
+        # title and content are renderable fields if annotated with
+        # ``xnano.beta.Field`` and will be displayed on the terminal when
+        # ran
+        title: str = Field(default="My Grid")
+        content: str = Field(default="Hello, world!")
+
+        # data & context are stateful fields and have no rendering
+        # behavior
+        context: dict[str, Any] | None = None
+        data: int = Field(default=0, state=True)
+    ```
+
+    **Nested Grids:**
+
+    Grids can also be nested within other grids to create more complex
+    layouts
+
+    ```python
+    class Box(Grid, direction="vertical", gap=1):
+        text: str = Field(default="")
+
+    class Container(Grid):
+        left: Box = Field()
+        right: Box = Field()
+    ```
+
+    **Configuring Settings:**
+
+    You can apply ``xnano.beta.GridSettings`` to a ``Grid`` in one
+    of three ways:
+
+        On the class header:
+
+        ```python
+        class MyGrid(Grid, direction="horizontal", gap=1):
+            ...
+        ```
+
+        In a class-level, pydantic-like ``grid_settings`` dict:
+
+        ```python
+        class MyGrid(Grid):
+            grid_settings = {
+                "direction": "horizontal",
+                "gap": 1,
+            }
+            ...
+
+        class MyGrid(Grid):
+            grid_settings: GridSettings = GridSettings(
+                direction="horizontal",
+                gap=1,
+            )
+            ...
+        ```
+
+    **Hooks:**
+
+    You can add event hooks, which can be triggered by various event types,
+    (see ``xnano.beta.hooks`` for all possible hooks), and provide a access
+    to the runtime context of the live terminal session.
+
+    ```python
+    from xnano.beta import Grid, Field, Context
+    from xnano.beta.hooks import on_keyboard
+
+    class MyGrid(Grid):
+        @on_keyboard("a")
+        def on_a(self, ctx: Context) -> None:
+            self.data += 1
+    ```
+"""
 
 from __future__ import annotations
 
@@ -490,8 +580,8 @@ class Grid(metaclass=_GridMeta):
 
     Grid-scoped settings may be declared on the class header
     (``class Dashboard(Grid, direction="horizontal", gap=1): ...``),
-    in a class-level :attr:`grid_settings` dict, or both — values in
-    :attr:`grid_settings` override matching header kwargs.
+    in a class-level ``grid_settings`` dict, or both — values in
+    ``grid_settings`` override matching header kwargs.
 
     Examples:
 
@@ -705,9 +795,9 @@ class Grid(metaclass=_GridMeta):
 
         Each layout field is tagged with its name as an effect key during
         rendering, so effects can target field content rects on the frame
-        after :meth:`grid_render`.
+        after ``grid_render``.
 
-        Pass a custom :class:`~xnano.beta.effect.AbstractEffect` subclass or
+        Pass a custom ``AbstractEffect`` subclass or
         provide a known effect kind with typed keyword arguments.
 
         Args:

@@ -1,4 +1,36 @@
-"""xnano.beta.hooks"""
+"""xnano.beta.hooks
+
+Event hook handlers for creating reactive grids within your terminal
+applications.
+
+This module provides a set of `@on_<event>` decorators which can be annotated
+onto methods of a ``Grid`` subclass to handle various events.
+
+Example:
+
+    ```python
+    from xnano.beta import Grid, Field, Context
+    from xnano.beta.hooks import on_keyboard
+
+    class MyGrid(Grid):
+        # annotate your field as an ``xnano.beta.Field`` to make it renderable
+        # on the terminal by default
+        counter: int = Field(default=0)
+
+        @on_keyboard("a")
+        def on_a(self, ctx: Context) -> None:
+            self.counter += 1
+    ```
+
+    You can try running this example with the following code:
+
+    ```python
+    from xnano.beta import Terminal
+
+    with Terminal() as terminal:
+        terminal.run(MyGrid())
+    ```
+"""
 
 from __future__ import annotations
 
@@ -505,8 +537,7 @@ def on_click(
 ) -> "EventHookFunction | Callable[[EventHookFunction], EventHookFunction]":
     """Register a click handler for a grid layout field.
 
-    Example::
-
+    Example:
         @on_click("body")
         def highlight_body(self, ctx: Context) -> None:
             self.body = Paragraph("clicked", color="red")
@@ -620,8 +651,7 @@ def on_state(
     attributes should be referenced; the evaluation namespace is intentionally
     restricted to safe built-ins.
 
-    Example::
-
+    Example:
         @on_state("count > 0")
         def _on_positive_count(self, ctx: Context[AppState]) -> None:
             self.counter_label = f"Count: {ctx.get_state().count}"

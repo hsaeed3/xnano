@@ -47,7 +47,20 @@ class Terminal(Generic[StateT]):
 
     ``Terminal`` owns the ``CoreSession`` lifecycle, binds the context variable,
     drains events, and dispatches hooks.  Use as a context manager or call
-    :meth:`run` directly with a root :class:`~xnano.grid.abstract.Grid`.
+    the function ``Terminal.run`` directly with a root ``Grid`` instance.
+
+    Example:
+        >>> with Terminal() as terminal:
+        ...     terminal.run(Grid.new([
+        ...         Text.new("Hello, world!"),
+        ...     ]))
+
+        **With State:**
+
+        >>> with Terminal(state=State(name="John")) as terminal:
+        ...     terminal.run(Grid.new([
+        ...         Text.new("Hello, {terminal.state.name}!"),
+        ...     ]))
 
     Attributes:
         title: Optional window title set on session entry.
@@ -55,7 +68,7 @@ class Terminal(Generic[StateT]):
         bracketed_paste: Enable bracketed paste sequences.
         synchronized_updates: Enable synchronized output on supported hosts.
         tick_interval: Minimum time between ticks, in milliseconds.
-        state: User state threaded into every :class:`~xnano.context.Context`.
+        state: User state threaded into every ``Context``.
     """
 
     __slots__ = (

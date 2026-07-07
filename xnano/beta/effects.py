@@ -99,8 +99,8 @@ KnownEffectKind: TypeAlias = Literal[
     "repeat",
     "delay",
 ]
-"""Built-in effect kinds that can be composed through :func:`Effect` or
-:meth:`~xnano.beta.grid.Grid.grid_play_effect`.
+"""Built-in effect kinds that can be composed through ``Effect`` or
+``Grid.grid_play_effect``.
 
 Values:
     ``"fade"``: Fade foreground color to a target.
@@ -198,7 +198,7 @@ class AbstractEffect(abc.ABC):
 
     Subclasses describe effect intent with ``xnano`` types and literals.
     The framework lowers them to native tachyonfx effects through
-    :meth:`build_native_effect`.
+    ``build_native_effect``.
     """
 
     duration_ms: int = dataclasses.field(default=300, kw_only=True)
@@ -214,7 +214,7 @@ class AbstractEffect(abc.ABC):
         """Lower this effect description to a native effect instance.
 
         Returns:
-            A native :class:`~xnano_core.rust.native.Effect` ready to run.
+            A native ``Effect`` ready to run.
         """
 
 
@@ -675,7 +675,7 @@ def resolve_effect(
     child: AbstractEffect | None = None,
     times: int | None = None,
 ) -> AbstractEffect:
-    """Resolve an effect description into an :class:`AbstractEffect`.
+    """Resolve an effect description into an ``AbstractEffect``.
 
     Args:
         effect: A built effect instance or a known effect kind string.
@@ -691,7 +691,7 @@ def resolve_effect(
         times: Repeat count for repeat effects.
 
     Returns:
-        A resolved :class:`AbstractEffect` instance.
+        A resolved ``AbstractEffect`` instance.
     """
     if isinstance(effect, AbstractEffect):
         return effect
@@ -740,7 +740,7 @@ def resolve_native_effect(
         times: Repeat count for repeat effects.
 
     Returns:
-        A native :class:`~xnano_core.rust.native.Effect` instance.
+        A native ``Effect`` instance.
     """
     return resolve_effect(
         effect,
@@ -821,7 +821,7 @@ def Effect(
         times: Repeat count for repeat effects.
 
     Returns:
-        A resolved :class:`AbstractEffect` instance.
+        A resolved ``AbstractEffect`` instance.
     """
     return resolve_effect(
         effect,

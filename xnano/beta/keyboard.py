@@ -1,4 +1,8 @@
-"""xnano.keyboard"""
+"""xnano.keyboard
+
+Aliases for keyboard-specific (non-event) related types used by
+``xnano.beta.events`` and ``xnano.beta.hooks``.
+"""
 
 from __future__ import annotations
 
