@@ -69,7 +69,7 @@ Values:
 
 
 Direction: TypeAlias = Literal["horizontal", "vertical"]
-"""The direction in which content within a grid field or area should be 
+"""The direction in which content within a grid field or area should be
 laid out.
 
 Values:
@@ -113,6 +113,40 @@ This can be represented as one of the following options:
     - A tuple of two integers as (vertical, horizontal)
     - A tuple of four integers as (top, right, bottom, left)
     - A ``Padding`` instance
+"""
+
+
+ScrollbarOrientationLike: TypeAlias = Literal[
+    "vertical_right",
+    "vertical_left",
+    "horizontal_bottom",
+    "horizontal_top",
+]
+"""The orientation of a scrollbar widget.
+
+Values:
+    ``"vertical_right"``: Vertical scrollbar on the right edge.
+    ``"vertical_left"``: Vertical scrollbar on the left edge.
+    ``"horizontal_bottom"``: Horizontal scrollbar on the bottom edge.
+    ``"horizontal_top"``: Horizontal scrollbar on the top edge.
+"""
+
+
+CanvasMarkerLike: TypeAlias = Literal[
+    "dot",
+    "block",
+    "bar",
+    "braille",
+    "half_block",
+]
+"""The marker glyph set used when drawing on a Canvas widget.
+
+Values:
+    ``"dot"``: Single-pixel dots.
+    ``"block"``: Full-block characters.
+    ``"bar"``: Horizontal bar characters.
+    ``"braille"``: Braille dot matrix (highest resolution).
+    ``"half_block"``: Half-block characters.
 """
 
 
@@ -318,3 +352,22 @@ class Area:
             x = self.x
         y = self.y + (self.height - height) // 2
         return Area(x=x, y=y, width=width, height=height)
+
+
+__all__ = (
+    "Alignment",
+    "Axis",
+    "Border",
+    "Coordinate",
+    "Corner",
+    "Direction",
+    "CharacterModifier",
+    "PaddingLike",
+    "ScrollbarOrientationLike",
+    "CanvasMarkerLike",
+    "Side",
+    "SizePercentage",
+    "Padding",
+    "Size",
+    "Area",
+)

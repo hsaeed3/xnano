@@ -85,7 +85,7 @@ class GridFieldInfo:
     """Whether this field is visible on the live terminal display."""
     modifiers: Sequence[types.CharacterModifier] | None = None
     """Modifiers to apply to all characters within this field.
-    
+
     This can be a list of any of the following modifiers:
         - ``"bold"``: Renders the content in bold.
         - ``"dim"``: The content is rendered with reduced intensity.
@@ -108,7 +108,7 @@ class GridFieldInfo:
     gap: int | None = None
     """The gap between fields in this field or area."""
     direction: types.Direction | None = None
-    """The direction in which content within this field or area should be 
+    """The direction in which content within this field or area should be
     laid out.
     """
     align: types.Alignment | None = None
