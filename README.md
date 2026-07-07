@@ -25,3 +25,31 @@ Or use ``uv``:
 ```bash
 uv add "xnano>=0.99.5"
 ```
+
+---
+
+## Examples
+
+**Agent Chat**
+
+[View Example](https://github.com/hsaeed3/xnano/blob/main/examples/agent_chat.py)
+
+![Example](./docs/assets/demos/agent_chat.gif)
+
+### Dashboard
+
+[View Example](https://github.com/hsaeed3/xnano/blob/main/examples/dashboard.py)
+
+![Example](./docs/assets/demos/dashboard.gif)
+
+### Effects Demo
+
+[View Example](https://github.com/hsaeed3/xnano/blob/main/examples/effects_demo.py)
+
+![Example](./docs/assets/demos/effects_demo.gif)
+
+### Tab Navigation
+
+[View Example](https://github.com/hsaeed3/xnano/blob/main/examples/tabs_nav.py)
+
+![Example](./docs/assets/demos/tabs_nav.gif)
