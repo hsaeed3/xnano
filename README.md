@@ -22,17 +22,17 @@ Furthermore, `xnano` itself uses the [`pydantic-core`](https://github.com/pydant
 ## Installation
 
 > [!WARNING]
-> Ensure to install the ``0.99.6``+ version of ``xnano`` to ensure correct
+> Ensure to install the ``0.99.7``+ version of ``xnano`` to ensure correct
 > dependency and API resolution.
 
 ```bash
-pip install "xnano>=0.99.6"
+pip install "xnano>=0.99.7"
 ```
 
 Or use ``uv``:
 
 ```bash
-uv add "xnano>=0.99.6"
+uv add "xnano>=0.99.7"
 ```
 
 ---
