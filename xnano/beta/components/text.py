@@ -21,18 +21,18 @@ class Text(AbstractComponent):
     Three usage modes, all through one class:
 
     **Leaf** — a single styled string (renders as ``SpanNode`` when nested,
-    ``ParagraphNode`` at top level)::
+    ``ParagraphNode`` at top level):
 
         Text("hello world", color="red", modifiers=("bold",))
 
     **Line** — inline spans composed via a list of ``Text`` children where
-    every child is itself a leaf (renders as ``LineNode``)::
+    every child is itself a leaf (renders as ``LineNode``):
 
         Text([Text("Hello ", color="cyan"), Text("world", color="red")])
 
     **Paragraph** — multiple lines composed via a list of ``Text`` children
     where at least one child is itself a line (renders as ``ParagraphNode``
-    wrapping a ``TextNode``)::
+    wrapping a ``TextNode``):
 
         Text([
             Text([Text("Hello ", color="cyan"), Text("world")]),

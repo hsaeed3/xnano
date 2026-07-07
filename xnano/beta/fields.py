@@ -1,4 +1,18 @@
-"""xnano.beta.fields"""
+"""xnano.beta.fields
+
+Provides a set of `Field` descriptors for defining and annotating grid
+fields with layout, sizing, and style information.
+
+Example:
+    ```python
+    from xnano.beta import Grid, Field
+
+    class MyGrid(Grid):
+        title: str = Field(default="My Grid")
+        content: str = Field(default="Hello, world!")
+        data: int = Field(default=0, state=True)
+    ```
+"""
 
 from __future__ import annotations
 
@@ -33,6 +47,15 @@ def _normalize_slide_axes(
 class GridFieldInfo:
     """Descriptor class for layout, frame and additional rendering metadata for
     a field within a grid.
+
+    Example:
+        ```python
+        from xnano.beta import Grid, Field
+
+        class MyGrid(Grid):
+            title: str = Field(default="My Grid")
+            data: int = Field(default=0, state=True)
+        ```
 
     Attributes:
         default: Static default value for this field.

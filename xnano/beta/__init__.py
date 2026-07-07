@@ -8,18 +8,13 @@ All exports and components currently within ``xnano`` are all
 within this submodule.
 """
 
-from xnano.beta.core.renderable import Renderable, render
-from xnano.beta.color import Color
-from xnano.beta.components import (
-    AbstractComponent,
-    ComponentRenderContext,
-)
-from xnano.beta.effects import (
-    AbstractEffect,
-    Effect,
-)
+# [@target]
+# The exports within this module were reduced purely on `v0.99.6` for
+# ergonomics and readability purposes.
+# The current set of exports that xnano exports at the top level are still very open
+# for intepretation.
+from xnano.beta.core.renderable import render
 from xnano.beta.context import Context
-from xnano.beta.exceptions import Exit
 from xnano.beta.fields import Field
 from xnano.beta.grid import Grid, GridSettings
 from xnano.beta.hooks import (
@@ -35,16 +30,9 @@ from xnano.beta.hooks import (
 )
 from xnano.beta.terminal import Terminal
 
-
 __all__ = (
-    "Renderable",
-    "Color",
-    "AbstractComponent",
-    "AbstractEffect",
-    "ComponentRenderContext",
+    "render",
     "Context",
-    "Effect",
-    "Exit",
     "Field",
     "Grid",
     "GridSettings",
@@ -58,5 +46,4 @@ __all__ = (
     "on_click",
     "on_tick",
     "Terminal",
-    "render",
 )
