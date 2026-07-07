@@ -127,9 +127,7 @@ DEMOS: tuple[Demo, ...] = (
 
             Terminal().run(App())
         """),
-        steps=(
-            "Sleep 1.5s",
-        ),
+        steps=("Sleep 1.5s",),
     ),
     Demo(
         name="keyboard_events",
@@ -233,9 +231,7 @@ DEMOS: tuple[Demo, ...] = (
 
             Terminal().run(Clock())
         """),
-        steps=(
-            "Sleep 3.5s",
-        ),
+        steps=("Sleep 3.5s",),
     ),
     Demo(
         name="state_context",
@@ -263,9 +259,7 @@ DEMOS: tuple[Demo, ...] = (
             with Terminal(state=AppState(username="hammad")) as t:
                 t.run(App())
         """),
-        steps=(
-            "Sleep 1.5s",
-        ),
+        steps=("Sleep 1.5s",),
     ),
     Demo(
         name="custom_component",
@@ -300,18 +294,16 @@ DEMOS: tuple[Demo, ...] = (
 
             Terminal().run(StatusBoard())
         """),
-        steps=(
-            "Sleep 1.5s",
-        ),
+        steps=("Sleep 1.5s",),
     ),
 )
 
 
-def build_tape(demo: Demo, output: Path, output_rel: Path, code_path: Path) -> str:
+def build_tape(
+    demo: Demo, output: Path, output_rel: Path, code_path: Path
+) -> str:
     python = sys.executable
-    demo_env = [
-        f'Env {key} "{value}"' for key, value in demo.tape_env
-    ]
+    demo_env = [f'Env {key} "{value}"' for key, value in demo.tape_env]
     lines = [
         f"Output {output_rel.as_posix()}",
         TERMINAL_SETTINGS,
@@ -437,9 +429,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
 
     demos = (
-        [d for d in DEMOS if d.name == args.demo]
-        if args.demo
-        else list(DEMOS)
+        [d for d in DEMOS if d.name == args.demo] if args.demo else list(DEMOS)
     )
 
     vhs_path = require_tool("vhs") if not args.dry_run else ""
