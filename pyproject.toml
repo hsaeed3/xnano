@@ -19,7 +19,7 @@ members = [
 
 [project]
 name = "xnano"
-version = "0.99.10"
+version = "0.99.4"
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "A simple python **tui** framework built on top of the ``[ratatui](https://ratatui.rs)`` and ``[tachyonfx](https://github.com/ratatui/tachyonfx)`` rust crates."
 readme = "README.md"
