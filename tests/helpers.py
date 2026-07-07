@@ -14,4 +14,4 @@ def invalid_field(default: Any) -> Any:
 
 def assign_attr(instance: object, name: str, value: object) -> None:
     """Assign an attribute while bypassing static type checks in tests."""
-    object.__setattr__(instance, name, value)
+    setattr(instance, name, value)
