@@ -1,24 +1,19 @@
 """xnano example — agent_chat.py
 
-Interactive, dynamic terminal simulation of an AI developer assistant.
+Interactive terminal simulation of an AI developer assistant.
 """
 
 from __future__ import annotations
 
 import math
-import sys
 import time
 
-from xnano.color import Color
-from xnano.events import Event, EventHandler, on_key, poll_event
-from xnano.layout import Constraint, Layout, Rectangle
-from xnano.style import Borders, Style
-from xnano.tailwind import tailwind
-from xnano.terminal import Frame, Terminal
-from xnano.text import Line, Span, Text
-from xnano.widgets import Block, ListItem, ListState, ListView, Paragraph
+from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
+from xnano.beta.components import Text
+from xnano.beta.color import tailwind
 
-COMMANDS = [
+
+_COMMANDS = [
     ("/quit", "Quit the application"),
     ("/home", "Return to the welcome screen"),
     ("/new", "Start a new session"),
@@ -28,64 +23,217 @@ COMMANDS = [
 ]
 
 
-def get_pulsing_color(t: float, offset: int) -> Color:
-    """Compute a pulsing gradient color based on time and vertical offset."""
+def _pulsing_color(t: float, offset: int) -> str:
     phase = (t + offset * 0.8) % (2 * math.pi)
-    val = math.sin(phase) * 0.5 + 0.5  # 0.0 to 1.0
+    val = math.sin(phase) * 0.5 + 0.5
     if val < 0.33:
-        return tailwind("indigo", 400)
+        c = tailwind("indigo", 400)
     elif val < 0.66:
-        return tailwind("purple", 500)
+        c = tailwind("purple", 500)
     else:
-        return tailwind("fuchsia", 400)
+        c = tailwind("fuchsia", 400)
+    return f"#{c.r:02x}{c.g:02x}{c.b:02x}"
 
 
-class AgentChatApp:
-    def __init__(self) -> None:
-        self.input_text = ""
-        # Chat messages: list of dict representing history items
-        self.messages: list[dict] = [
-            {
-                "type": "agent",
-                "text": "Hello! Onwards!",
-            }
-        ]
+def _render_messages(messages: list[dict], height: int) -> Text:
+    lines: list[str | Text] = []
+    for msg in messages:
+        kind = msg.get("type", "")
+        text = msg.get("text", "")
+        command = msg.get("command", "")
+        description = msg.get("description", "")
+        output = msg.get("output", "")
+        status = msg.get("status", "")
+        t = msg.get("_tick", 0.0)
 
-        # State for scrollable list of messages
-        self.list_state = ListState()
+        if kind == "user":
+            lines.append(
+                Text(
+                    [
+                        Text(
+                            "❯ ",
+                            color=tailwind("sky", 400),
+                            modifiers=("bold",),
+                        ),
+                        Text(text + "\n", color="white", modifiers=("bold",)),
+                    ]
+                )
+            )
+            lines.append(Text("\n"))
 
-        # Autocomplete state
-        self.autocomplete_index = 0
+        elif kind == "agent":
+            lines.append(
+                Text(
+                    [
+                        Text(
+                            "◆ Agent: ",
+                            color=tailwind("emerald", 400),
+                            modifiers=("bold",),
+                        ),
+                        Text(text + "\n", color=tailwind("emerald", 100)),
+                    ]
+                )
+            )
+            lines.append(Text("\n"))
 
-        # Step simulation state
-        self.simulated_steps: list[dict] = []
-        self.simulated_step_index = 0
-        self.step_timer = 0.0
+        elif kind == "system":
+            lines.append(
+                Text(
+                    [
+                        Text(
+                            "ℹ ",
+                            color=tailwind("slate", 400),
+                            modifiers=("italic",),
+                        ),
+                        Text(
+                            text + "\n",
+                            color=tailwind("slate", 400),
+                            modifiers=("italic",),
+                        ),
+                    ]
+                )
+            )
+            lines.append(Text("\n"))
 
-        # Pre-compiled styles (Dark themed black/slate)
-        self.bg_style = Style(background="black")
-        self.user_style = Style(
-            foreground=tailwind("sky", 400), modifiers="bold"
+        elif kind == "task":
+            if status == "active":
+                c1 = _pulsing_color(t, 0)
+                c2 = _pulsing_color(t, 1)
+                c3 = _pulsing_color(t, 2)
+            else:
+                c1 = c2 = c3 = (
+                    f"#{tailwind('violet', 700).r:02x}{tailwind('violet', 700).g:02x}{tailwind('violet', 700).b:02x}"
+                )
+            lines.append(
+                Text(
+                    [
+                        Text("┃ ", color=c1),
+                        Text(
+                            "◆ Run ",
+                            color=tailwind("purple", 400),
+                            modifiers=("bold",),
+                        ),
+                        Text(
+                            command + "\n", color="white", modifiers=("bold",)
+                        ),
+                    ]
+                )
+            )
+            lines.append(
+                Text(
+                    [
+                        Text("┃ ", color=c2),
+                        Text(
+                            "  " + description + "\n",
+                            color=tailwind("slate", 400),
+                        ),
+                    ]
+                )
+            )
+            if output:
+                lines.append(
+                    Text(
+                        [
+                            Text("┃ ", color=c3),
+                            Text(
+                                "  " + output + "\n",
+                                color=tailwind("slate", 300),
+                                background="#251b30",
+                            ),
+                        ]
+                    )
+                )
+            lines.append(Text("\n"))
+
+    if not lines:
+        return Text("")
+
+    # Only show the last `height` lines worth of content (auto-scroll)
+    visible = lines[-max(1, height) :]
+    return Text(visible)
+
+
+def _render_autocomplete(
+    matches: list[tuple[str, str]], selected: int
+) -> Text:
+    parts: list[str | Text] = []
+    for idx, (cmd, desc) in enumerate(matches):
+        is_sel = idx == selected
+        prefix = " ❯ " if is_sel else "   "
+        bg = tailwind("purple", 950) if is_sel else None
+        cmd_color = (
+            tailwind("purple", 300) if is_sel else tailwind("purple", 400)
         )
-        self.agent_style = Style(
-            foreground=tailwind("emerald", 400), modifiers="bold"
+        desc_color = (
+            tailwind("slate", 100) if is_sel else tailwind("slate", 400)
         )
-        self.system_style = Style(
-            foreground=tailwind("slate", 400), modifiers="italic"
+        parts.append(
+            Text(
+                [
+                    Text(prefix, color=tailwind("purple", 400), background=bg),
+                    Text(
+                        f"{cmd:<12}",
+                        color=cmd_color,
+                        modifiers=("bold",) if is_sel else (),
+                        background=bg,
+                    ),
+                    Text(f" {desc}\n", color=desc_color, background=bg),
+                ]
+            )
         )
-        self.border_style = Style(foreground=tailwind("slate", 700))
-        self.input_style = Style(foreground="white", background="black")
+    return Text(parts)
 
-    def add_message(self, sender: str, text: str) -> None:
-        self.messages.append({"type": sender.lower(), "text": text})
 
-    def trigger_agent_response(self, prompt: str) -> None:
-        self.messages.append({"type": "user", "text": prompt})
+class AgentChat(Grid, direction="vertical", background="black"):
+    history: Text = Field(
+        default=Text(""),
+        border="rounded",
+        border_color=tailwind("slate", 700),
+        title=" Developer Agent Terminal ",
+        title_position="top",
+        background="black",
+    )
+    autocomplete: Text | None = Field(
+        default=None,
+        border="rounded",
+        border_color=tailwind("slate", 700),
+        title=" Commands Autocomplete ",
+        background="black",
+    )
+    prompt: str = Field(
+        default="▋",
+        size=3,
+        border="rounded",
+        border_color=tailwind("slate", 700),
+        title=" Prompt Assistant (Type / for commands) ",
+        color="white",
+        background="black",
+    )
 
-        # Simple simulated responses based on keywords
-        lowered = prompt.lower()
-        if "test" in lowered or "run" in lowered or "check" in lowered:
-            self.simulated_steps = [
+    input_text: str = Field(default="", state=True)
+    messages: list = Field(
+        default_factory=lambda: [{"type": "agent", "text": "Hello! Onwards!"}],
+        state=True,
+    )
+    autocomplete_index: int = Field(default=0, state=True)
+    sim_steps: list = Field(default_factory=list, state=True)
+    sim_index: int = Field(default=0, state=True)
+    sim_timer: float = Field(default=0.0, state=True)
+    tick_time: float = Field(default=0.0, state=True)
+
+    def _matches(self) -> list[tuple[str, str]]:
+        if not self.input_text.startswith("/"):
+            return []
+        return [(c, d) for c, d in _COMMANDS if c.startswith(self.input_text)]
+
+    def _add(self, kind: str, **kwargs: str) -> None:
+        self.messages = [*self.messages, {"type": kind, **kwargs}]
+
+    def _trigger_response(self, prompt: str) -> None:
+        self._add("user", text=prompt)
+        low = prompt.lower()
+        if any(kw in low for kw in ("test", "run", "check")):
+            steps: list[dict] = [
                 {
                     "type": "task",
                     "command": "uv run pytest -q 2>&1",
@@ -97,7 +245,7 @@ class AgentChatApp:
                 },
                 {
                     "type": "task",
-                    "command": "cargo check 2>&1 && uv run mypy python/slash 2>&1",
+                    "command": "cargo check 2>&1 && uv run mypy python/ 2>&1",
                     "description": "Check Rust compile and mypy",
                     "status": "pending",
                     "output": "Compiling pyo3-build-config v0.23.5...",
@@ -106,456 +254,182 @@ class AgentChatApp:
                 },
                 {
                     "type": "agent",
-                    "text": "I have run the tests and static check suites. Everything compiles, type-checks, and passes tests perfectly!",
+                    "text": "Tests and static checks passed perfectly!",
                 },
             ]
         else:
-            self.simulated_steps = [
+            steps = [
                 {
                     "type": "task",
                     "command": f'xnano-search --query "{prompt}"',
                     "description": "Search codebase for context",
                     "status": "active",
-                    "output": "Searching xnano/text.py and xnano/widget.py...",
+                    "output": "Searching xnano/text.py...",
                     "duration": 1.2,
                     "next_output": "Found 12 matches in 3 files.",
                 },
                 {
                     "type": "agent",
-                    "text": f"I searched the codebase for context on your query. Let me know if you would like me to draft a plan or run tests!",
+                    "text": "Searched the codebase. Let me know if you'd like a plan or tests!",
                 },
             ]
+        first = dict(steps[0])
+        first["_tick"] = self.tick_time
+        self.messages = [*self.messages, first]
+        self.sim_steps = steps
+        self.sim_index = 0
+        self.sim_timer = time.time()
 
-        # Append first task
-        first_step = self.simulated_steps[0]
-        self.messages.append(dict(first_step))
-        self.simulated_step_index = 0
-        self.step_timer = time.time()
+    def _execute_command(self, cmd: str) -> None:
+        cmd = cmd.strip()
+        base = cmd.split()[0] if cmd else ""
+        if base == "/quit":
+            from xnano.beta import Exit
 
-    def get_matching_commands(self) -> list[tuple[str, str]]:
-        if not self.input_text.startswith("/"):
-            return []
-        return [
-            (cmd, desc)
-            for cmd, desc in COMMANDS
-            if cmd.startswith(self.input_text)
-        ]
+            raise Exit
+        elif base == "/home":
+            self.messages = [
+                {"type": "agent", "text": "Hello! How can I help you today?"}
+            ]
+        elif base == "/new":
+            self.messages = [
+                {"type": "system", "text": "New session started."}
+            ]
+        elif base == "/fork":
+            self._add(
+                "system",
+                text="Forking session... Created peer agent: 190ddc39",
+            )
+        elif base == "/compact":
+            kept = (
+                self.messages[-2:] if len(self.messages) > 2 else self.messages
+            )
+            self.messages = [
+                *kept,
+                {"type": "system", "text": "History compacted."},
+            ]
+        elif base == "/copy":
+            self._add(
+                "system", text="Copied last agent response to clipboard."
+            )
+        else:
+            self._add("system", text=f"Unknown command: {base}")
 
-    def autocomplete_text(self) -> None:
-        matches = self.get_matching_commands()
+    @on_keyboard("enter")
+    def _enter(self) -> None:
+        matches = self._matches()
+        if matches and 0 <= self.autocomplete_index < len(matches):
+            cmd, _ = matches[self.autocomplete_index]
+            self._execute_command(cmd)
+            self.input_text = ""
+            self.autocomplete_index = 0
+        elif self.input_text.strip():
+            self._trigger_response(self.input_text)
+            self.input_text = ""
+
+    @on_keyboard("backspace")
+    def _backspace(self) -> None:
+        self.input_text = self.input_text[:-1]
+        self.autocomplete_index = 0
+
+    @on_keyboard("tab")
+    def _tab(self) -> None:
+        matches = self._matches()
         if matches and 0 <= self.autocomplete_index < len(matches):
             cmd, _ = matches[self.autocomplete_index]
             self.input_text = cmd + " "
             self.autocomplete_index = 0
 
-    def navigate_autocomplete(self, direction: int) -> None:
-        matches = self.get_matching_commands()
-        if not matches:
+    @on_keyboard("up")
+    def _up(self) -> None:
+        matches = self._matches()
+        if matches:
+            self.autocomplete_index = (self.autocomplete_index - 1) % len(
+                matches
+            )
+
+    @on_keyboard("down")
+    def _down(self) -> None:
+        matches = self._matches()
+        if matches:
+            self.autocomplete_index = (self.autocomplete_index + 1) % len(
+                matches
+            )
+
+    @on_tick
+    def _tick(self) -> None:
+        self.tick_time = time.time() * 6.0
+        if not self.sim_steps:
             return
-        self.autocomplete_index = (self.autocomplete_index + direction) % len(
-            matches
-        )
-
-    def execute_command(self, cmd: str) -> None:
-        cmd_clean = cmd.strip()
-        self.add_message("User", cmd_clean)
-
-        parts = cmd_clean.split()
-        base_cmd = parts[0] if parts else ""
-
-        if base_cmd == "/quit":
-            raise SystemExit
-        elif base_cmd == "/home":
-            self.messages = [
-                {
-                    "type": "agent",
-                    "text": "Hello! I am your Antigravity coding assistant. How can I help you today?",
-                }
-            ]
-            self.list_state.select(0)
-        elif base_cmd == "/new":
-            self.messages = []
-            self.add_message("System", "New session started. History cleared.")
-        elif base_cmd == "/fork":
-            self.add_message(
-                "System",
-                "Forking session... Created peer agent with Conversation ID: 190ddc39",
-            )
-        elif base_cmd == "/compact":
-            if len(self.messages) > 2:
-                self.messages = self.messages[-2:]
-                self.add_message(
-                    "System", "History compacted to last 2 messages."
-                )
-            else:
-                self.add_message("System", "History is already compact.")
-        elif base_cmd == "/copy":
-            self.add_message(
-                "System", "Copied last agent response to clipboard."
-            )
-        else:
-            self.add_message("System", f"Unknown command: {base_cmd}")
-
-    def update(self) -> None:
-        # Step simulation logic
-        if self.simulated_steps:
-            elapsed = time.time() - self.step_timer
-            current_step = self.simulated_steps[self.simulated_step_index]
-
-            if elapsed >= current_step.get("duration", 1.0):
-                # Complete the current active task message
-                # Find it in self.messages
-                for msg in reversed(self.messages):
-                    if msg.get("type") == "task" and msg.get(
-                        "command"
-                    ) == current_step.get("command"):
-                        msg["status"] = "success"
-                        msg["output"] = current_step.get("next_output", "")
-                        break
-
-                # Advance to next step
-                self.simulated_step_index += 1
-                if self.simulated_step_index < len(self.simulated_steps):
-                    next_step = self.simulated_steps[self.simulated_step_index]
-                    if next_step.get("type") == "task":
-                        next_step["status"] = "active"
-                        self.messages.append(dict(next_step))
-                        self.step_timer = time.time()
-                    else:
-                        # Agent final text response
-                        self.messages.append(dict(next_step))
-                        self.simulated_steps = []
-                        self.simulated_step_index = 0
-                else:
-                    self.simulated_steps = []
-                    self.simulated_step_index = 0
-
-    def draw(self, frame: Frame) -> None:
-        area = frame.area()
-
-        # Determine if autocomplete menu is open
-        matches = self.get_matching_commands()
-        is_menu_open = len(matches) > 0
-
-        # Vertical split: Chat History vs Autocomplete Menu vs Input Box
-        if is_menu_open:
-            layout = Layout(
-                direction="vertical",
-                constraints=[
-                    Constraint.fill(1),
-                    Constraint.length(len(matches) + 2),
-                    Constraint.length(3),
-                ],
-            )
-            splits = layout.split(area)
-            history_area, menu_area, input_area = (
-                splits[0],
-                splits[1],
-                splits[2],
-            )
-        else:
-            layout = Layout(
-                direction="vertical",
-                constraints=[Constraint.fill(1), Constraint.length(3)],
-            )
-            splits = layout.split(area)
-            history_area, input_area = splits[0], splits[1]
-            menu_area = None
-
-        # 1. Render Autocomplete Menu if open
-        if is_menu_open and menu_area is not None:
-            menu_lines = []
-            for idx, (cmd, desc) in enumerate(matches):
-                is_selected = idx == self.autocomplete_index
-                prefix = " ❯ " if is_selected else "   "
-
-                cmd_style = (
-                    Style(foreground=tailwind("purple", 300), modifiers="bold")
-                    if is_selected
-                    else Style(foreground=tailwind("purple", 400))
-                )
-                desc_style = (
-                    Style(foreground=tailwind("slate", 100))
-                    if is_selected
-                    else Style(foreground=tailwind("slate", 400))
-                )
-                bg = (
-                    Style(background=tailwind("purple", 950))
-                    if is_selected
-                    else Style(background="#1e1e2e")
-                )
-
-                line_content = Line(
-                    [
-                        Span(
-                            prefix,
-                            style=bg.patch(
-                                Style(foreground=tailwind("purple", 400))
-                            ),
-                        ),
-                        Span(f"{cmd:<12}", style=bg.patch(cmd_style)),
-                        Span(f" {desc}", style=bg.patch(desc_style)),
+        step = self.sim_steps[self.sim_index]
+        if time.time() - self.sim_timer >= step.get("duration", 1.0):
+            for msg in reversed(self.messages):
+                if msg.get("type") == "task" and msg.get(
+                    "command"
+                ) == step.get("command"):
+                    updated = {
+                        **msg,
+                        "status": "success",
+                        "output": step.get("next_output", ""),
+                    }
+                    idx = self.messages.index(msg)
+                    self.messages = [
+                        *self.messages[:idx],
+                        updated,
+                        *self.messages[idx + 1 :],
                     ]
-                )
-                menu_lines.append(line_content)
-
-            menu_widget = Paragraph(
-                Text(menu_lines),
-                block=Block(
-                    title=" Commands Autocomplete ",
-                    borders="all",
-                    border_type="rounded",
-                    border_style=self.border_style,
-                    style=self.bg_style,
-                ),
-            )
-            frame.render_widget(menu_widget, menu_area)
-
-        # 2. Render Chat History Panel
-        history_items = []
-        for msg in self.messages:
-            msg_type = msg.get("type", "")
-
-            if msg_type == "user":
-                history_items.append(
-                    ListItem(
-                        Line(
-                            [
-                                Span(
-                                    "❯ ",
-                                    foreground=tailwind("sky", 400),
-                                    modifiers="bold",
-                                ),
-                                Span(
-                                    msg.get("text", ""),
-                                    foreground="white",
-                                    modifiers="bold",
-                                ),
-                            ]
-                        )
-                    )
-                )
-                history_items.append(ListItem(""))
-
-            elif msg_type == "agent":
-                history_items.append(
-                    ListItem(
-                        Line(
-                            [
-                                Span("◆ Agent: ", style=self.agent_style),
-                                Span(
-                                    msg.get("text", ""),
-                                    foreground=tailwind("emerald", 100),
-                                ),
-                            ]
-                        )
-                    )
-                )
-                history_items.append(ListItem(""))
-
-            elif msg_type == "system":
-                history_items.append(
-                    ListItem(
-                        Line(
-                            [
-                                Span("ℹ ", style=self.system_style),
-                                Span(
-                                    msg.get("text", ""),
-                                    style=self.system_style,
-                                ),
-                            ]
-                        )
-                    )
-                )
-                history_items.append(ListItem(""))
-
-            elif msg_type == "task":
-                status = msg.get("status", "")
-                command = msg.get("command", "")
-                description = msg.get("description", "")
-                output = msg.get("output", "")
-
-                # Determine pulsing vs static bar colors based on status and time
-                if status == "active":
-                    t = time.time() * 6.0
-                    color1 = get_pulsing_color(t, 0)
-                    color2 = get_pulsing_color(t, 1)
-                    color3 = get_pulsing_color(t, 2)
+                    break
+            self.sim_index += 1
+            if self.sim_index < len(self.sim_steps):
+                nxt = dict(self.sim_steps[self.sim_index])
+                if nxt.get("type") == "task":
+                    nxt["status"] = "active"
+                    nxt["_tick"] = self.tick_time
+                    self.messages = [*self.messages, nxt]
+                    self.sim_timer = time.time()
                 else:
-                    color1 = color2 = color3 = tailwind("violet", 700)
+                    self.messages = [*self.messages, nxt]
+                    self.sim_steps = []
+            else:
+                self.sim_steps = []
 
-                # Line 1: Bar prefix + Command name
-                history_items.append(
-                    ListItem(
-                        Line(
-                            [
-                                Span("┃ ", foreground=color1),
-                                Span(
-                                    "◆ Run ",
-                                    foreground=tailwind("purple", 400),
-                                    modifiers="bold",
-                                ),
-                                Span(
-                                    command,
-                                    foreground="white",
-                                    modifiers="bold",
-                                ),
-                            ]
-                        )
-                    )
-                )
-                # Line 2: Bar prefix + Description
-                history_items.append(
-                    ListItem(
-                        Line(
-                            [
-                                Span("┃ ", foreground=color2),
-                                Span(
-                                    "  " + description,
-                                    foreground=tailwind("slate", 400),
-                                ),
-                            ]
-                        )
-                    )
-                )
-                # Line 3 (Optional): Bar prefix + Output logs in a dark highlighted box (matching ss2)
-                if output:
-                    history_items.append(
-                        ListItem(
-                            Line(
-                                [
-                                    Span("┃ ", foreground=color3),
-                                    Span(
-                                        "  " + output,
-                                        foreground=tailwind("slate", 300),
-                                        background="#251b30",
-                                    ),
-                                ]
-                            )
-                        )
-                    )
-                # Spacer line following task section
-                history_items.append(ListItem(""))
+    @on_keyboard
+    def _char(self, ctx) -> None:
+        kbd = ctx.keyboard
+        if kbd is None:
+            return
+        char = getattr(kbd, "character", None)
+        if (
+            char
+            and len(char) == 1
+            and char not in ("\n", "\r", "\t", "\x7f", "\x08")
+        ):
+            self.input_text = self.input_text + char
+            self.autocomplete_index = 0
 
-        # Auto-scroll history list state to bottom
-        if history_items:
-            self.list_state.select(len(history_items) - 1)
-
-        history_list = ListView(
-            history_items,
-            block=Block(
-                title=" Developer Agent Terminal ",
-                title_alignment="center",
-                borders="all",
-                border_type="rounded",
-                border_style=self.border_style,
-                style=self.bg_style,
-            ),
-            style=self.bg_style,
+    def grid_render(self) -> None:
+        matches = self._matches()
+        annotated = [
+            {**m, "_tick": self.tick_time}
+            if m.get("type") == "task" and m.get("status") == "active"
+            else m
+            for m in self.messages
+        ]
+        history_rows = max(
+            4, self.rows - 3 - (len(matches) + 2 if matches else 0) - 2
         )
-        frame.render_stateful_widget(
-            history_list, history_area, self.list_state
-        )
+        self.history = _render_messages(annotated, history_rows)
 
-        # 3. Render Input Field Panel
-        display_input = self.input_text + "▋"
-        input_widget = Paragraph(
-            display_input,
-            block=Block(
-                title=" Prompt Assistant (Type / for commands) ",
-                borders="all",
-                border_type="rounded",
-                border_style=self.border_style,
-                style=self.bg_style,
-            ),
-            style=self.input_style,
-        )
-        frame.render_widget(input_widget, input_area)
-
-
-def main() -> None:
-    app = AgentChatApp()
-    handler = EventHandler()
-
-    @handler.on_key("ctrl+c")
-    def handle_ctrl_c(event) -> None:
-        raise SystemExit
-
-    @handler.on_key("enter")
-    def handle_enter(event) -> None:
-        matches = app.get_matching_commands()
         if matches:
-            if 0 <= app.autocomplete_index < len(matches):
-                cmd, _ = matches[app.autocomplete_index]
-                app.execute_command(cmd)
-                app.input_text = ""
-                app.autocomplete_index = 0
+            self.grid_set_field("autocomplete", size=len(matches) + 2)
+            self.autocomplete = _render_autocomplete(
+                matches, self.autocomplete_index
+            )
         else:
-            if app.input_text.strip():
-                app.trigger_agent_response(app.input_text)
-                app.input_text = ""
+            self.autocomplete = None
 
-    @handler.on_key("backspace")
-    def handle_backspace(event) -> None:
-        app.input_text = app.input_text[:-1]
-        app.autocomplete_index = 0
-
-    @handler.on_key("up")
-    def handle_up(event) -> None:
-        matches = app.get_matching_commands()
-        if matches:
-            app.navigate_autocomplete(-1)
-        else:
-            app.list_state.select_previous()
-
-    @handler.on_key("down")
-    def handle_down(event) -> None:
-        matches = app.get_matching_commands()
-        if matches:
-            app.navigate_autocomplete(1)
-        else:
-            app.list_state.select_next()
-
-    @handler.on_key("tab")
-    def handle_tab(event) -> None:
-        app.autocomplete_text()
-
-    # Handle text input
-    @handler.on_key()
-    def handle_char(event) -> None:
-        if event.char is not None and len(event.char) == 1:
-            app.input_text += event.char
-            app.autocomplete_index = 0
-
-    with Terminal() as term:
-        term.clear()
-
-        while True:
-            # Low latency event loop for smooth typewriter animation
-            event = poll_event(15)
-            if event:
-                if event.key and event.key.is_press:
-                    if event.key.matches("ctrl+c"):
-                        break
-                    elif event.key.matches("enter"):
-                        handle_enter(event.key)
-                    elif event.key.matches("backspace"):
-                        handle_backspace(event.key)
-                    elif event.key.matches("up"):
-                        handle_up(event.key)
-                    elif event.key.matches("down"):
-                        handle_down(event.key)
-                    elif event.key.matches("tab"):
-                        handle_tab(event.key)
-                    else:
-                        handle_char(event.key)
-
-            app.update()
-            term.draw(app.draw)
+        self.prompt = self.input_text + "▋"
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except SystemExit:
-        pass
+    Terminal(tick_interval=15).run(AgentChat())

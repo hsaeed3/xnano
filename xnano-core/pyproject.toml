@@ -1,0 +1,93 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "xnano_core.rust.native"
+python-source = "python/"
+strip = false
+package = true
+
+[project]
+name = "xnano-core"
+version = "0.0.1"
+authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
+description = "A simple python **tui** framework built on top of the ``[ratatui](https://ratatui.rs)`` and ``[tachyonfx](https://github.com/ratatui/tachyonfx)`` rust crates."
+readme = "README.md"
+license = {"file" = "LICENSE"}
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+
+[dependency-groups]
+dev = [
+    "prek",
+    "logfire",
+    "black",
+    # SORT!
+    "isort",
+    "ruff",
+    "uv",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "twine>=6.1.0",
+    # type checking!
+    # another banger from astral.sh
+    "ty",
+
+    # all examples use marimo in favor of jupyter because marimo
+    # is very good :)
+    "marimo",
+
+    # docs (zensical is a project by the mkdocs-material team, that
+    # aims to be the successor to mkdocs-material and mkdocs itself)
+    "zensical",
+    "griffe-typingdoc",
+    "mkdocs-material",
+    "mkdocs-click",
+    "mkdocstrings-python",
+]
+benchmark = [
+    "textual",
+    "pytermgui",
+    "urwid",
+    "psutil",
+]
+
+[tool.maturin.env]
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
+MACOSX_DEPLOYMENT_TARGET = "27.0"
+MACOS_DEPLOYMENT_TARGET = "27.0"
+
+[tool.ty.environment]
+extra-paths = ["python"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.format]
+line-ending = "auto"
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+
+[tool.ruff.lint]
+preview = true
+select = [
+    "E301",
+    "E302",
+    "E303",
+    "E305",
+]

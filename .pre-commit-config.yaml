@@ -1,0 +1,49 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=750']
+        exclude: ^uv.lock$
+      - id: check-toml
+      - id: check-yaml
+        args:
+          - --unsafe
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.9
+    hooks:
+      - id: ruff
+        name: Run Linter Check (Ruff)
+        args: [--fix, --unsafe-fixes]
+      - id: ruff-format
+        name: Run Formatter (Ruff)
+        args: [--config, pyproject.toml]
+
+  - repo: local
+    hooks:
+      - id: uv-lock-check
+        name: Check uv.lock is up-to-date
+        entry: uv
+        args: [lock, --check]
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
+      - id: uv-sync-check
+        name: Verify dependencies can be installed
+        entry: uv
+        args: [sync, --check]
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
+      - id: ty-check
+        name: Run Type Check (ty)
+        entry: uv
+        args: [run, ty, check]
+        language: system
+        types: [python]
+        pass_filenames: false

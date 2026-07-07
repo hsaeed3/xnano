@@ -1,0 +1,67 @@
+"""xnano.beta.components.sparkline"""
+
+from __future__ import annotations
+
+import dataclasses
+from typing import TYPE_CHECKING
+
+from xnano.beta.components.abstract import AbstractComponent
+
+if TYPE_CHECKING:
+    from xnano.beta.color import ColorLike
+    from xnano.beta.components.abstract import ComponentRenderContext
+    from xnano.beta.core.nodes import (
+        AbstractRenderNode,
+        SparklineBarItem,
+        SparklineNode,
+    )
+
+
+@dataclasses.dataclass
+class Sparkline(AbstractComponent):
+    """Sparkline chart backed by the native ratatui widget.
+
+    Fills the layout slot it is placed in and scales bar heights across the
+    full vertical area.  Supply ``colors`` with one entry per sample to tint
+    individual bars — useful for gradients across a time series.
+    """
+
+    data: list[int] = dataclasses.field(default_factory=list)
+    """Sequence of non-negative sample values."""
+    colors: tuple[ColorLike, ...] | None = None
+    """Optional per-bar foreground colors, one per ``data`` entry."""
+    max_value: int | None = None
+    """Explicit y-axis ceiling; ``None`` auto-scales to the dataset max."""
+    color: ColorLike | None = None
+    """Default bar color when ``colors`` is omitted."""
+    background: ColorLike | None = None
+    """Widget background color."""
+    absent_value_color: ColorLike | None = None
+    """Color applied to zero or absent samples."""
+    absent_value_symbol: str | None = None
+    """Glyph drawn for absent samples."""
+    fit_content: bool = dataclasses.field(default=False, kw_only=True)
+
+    def get_node(self, ctx: ComponentRenderContext) -> AbstractRenderNode:
+        from xnano.beta.core.nodes import SparklineBarItem, SparklineNode
+
+        bars: list[SparklineBarItem] | None = None
+        if self.colors is not None:
+            bars = [
+                SparklineBarItem(value=value, color=color)
+                for value, color in zip(self.data, self.colors, strict=True)
+            ]
+        return SparklineNode(
+            data=self.data,
+            bars=bars,
+            max_value=self.max_value,
+            color=self.color,
+            background=self.background,
+            absent_value_color=self.absent_value_color,
+            absent_value_symbol=self.absent_value_symbol,
+            z=self.z,
+            visible=self.visible,
+        )
+
+
+__all__ = ("Sparkline",)
