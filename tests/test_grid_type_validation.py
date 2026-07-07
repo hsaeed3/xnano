@@ -12,7 +12,8 @@ import pytest
 from pydantic import BaseModel, Field as PydanticField
 
 from helpers import assign_attr, invalid_field
-from xnano.beta import Field, Grid, Text
+from xnano.beta import Field, Grid
+from xnano.beta.components import Text
 from xnano.beta.core.renderable import Renderable
 from xnano.beta.exceptions import FieldValidationError
 from xnano.beta.types import Area

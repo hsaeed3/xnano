@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.beta import Field, Grid, Terminal, Text
+from xnano.beta import Field, Grid, Terminal
+from xnano.beta.components import Text
 from xnano.beta.exceptions import FieldValidationError
 from xnano.beta.fields import UNSET
 from xnano.beta.types import Area

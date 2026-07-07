@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from xnano.beta import Field, Grid, Text
+from xnano.beta import Field, Grid
+from xnano.beta.components import Text
 from xnano_core.core import CoreSession
 from xnano_core.rust import native
 from xnano.beta.core.session import Session
