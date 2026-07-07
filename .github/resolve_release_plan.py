@@ -121,9 +121,7 @@ def resolve_plan(
 
     is_core_tag = tag_package == "xnano-core"
     is_xnano_tag = tag_package == "xnano"
-    is_main = github_ref == "refs/heads/main"
     is_pull_request = event_name == "pull_request"
-    is_dev_build = is_main or (is_pull_request and full_build_label)
 
     if is_core_tag and tag_version != manifest_core:
         raise RuntimeError(
@@ -153,18 +151,47 @@ def resolve_plan(
         fetch_pypi_has_version("xnano", tag_version) if is_xnano_tag else False
     )
 
-    run_core_pipeline = is_core_tag or is_dev_build
-    run_xnano_pipeline = (is_xnano_tag and pinned_core_on_pypi) or is_dev_build
-    run_tests = is_core_tag or is_xnano_tag or is_main or is_pull_request
+    manifest_core_on_pypi = fetch_pypi_has_version("xnano-core", manifest_core)
+    manifest_xnano_on_pypi = fetch_pypi_has_version("xnano", manifest_xnano)
+    versions_unchanged = manifest_core_on_pypi and manifest_xnano_on_pypi
+
+    has_release_tag = is_core_tag or is_xnano_tag
+    tag_already_published = (
+        (is_core_tag and tag_core_on_pypi)
+        or (is_xnano_tag and tag_xnano_on_pypi)
+    )
+
+    if tag_already_published:
+        run_workflow = False
+    elif has_release_tag:
+        run_workflow = True
+    elif is_pull_request and (full_build_label or not versions_unchanged):
+        run_workflow = True
+    else:
+        # Plain main pushes and PRs with unchanged published versions skip CI.
+        run_workflow = False
+
+    run_tests = run_workflow
+    run_core_pipeline = run_workflow and (
+        is_core_tag or (is_pull_request and full_build_label)
+    )
+    run_xnano_pipeline = run_workflow and (
+        (is_xnano_tag and pinned_core_on_pypi)
+        or (is_pull_request and full_build_label)
+    )
 
     use_workspace_core = not is_xnano_tag
     use_pypi_core = is_xnano_tag
 
     should_publish_core = (
-        is_core_tag and not tag_core_on_pypi and tag_version == manifest_core
+        run_workflow
+        and is_core_tag
+        and not tag_core_on_pypi
+        and tag_version == manifest_core
     )
     should_publish_xnano = (
-        is_xnano_tag
+        run_workflow
+        and is_xnano_tag
         and pinned_core_on_pypi
         and not tag_xnano_on_pypi
         and tag_version == manifest_xnano
@@ -181,8 +208,12 @@ def resolve_plan(
         "pypi_xnano_latest": pypi_xnano_latest,
         "pypi_core_latest": pypi_core_latest,
         "pinned_core_on_pypi": pinned_core_on_pypi,
+        "manifest_core_on_pypi": manifest_core_on_pypi,
+        "manifest_xnano_on_pypi": manifest_xnano_on_pypi,
+        "versions_unchanged": versions_unchanged,
         "tag_core_on_pypi": tag_core_on_pypi,
         "tag_xnano_on_pypi": tag_xnano_on_pypi,
+        "run_workflow": run_workflow,
         "run_tests": run_tests,
         "run_core_pipeline": run_core_pipeline,
         "run_xnano_pipeline": run_xnano_pipeline,
