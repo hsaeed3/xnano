@@ -72,6 +72,9 @@ dev = [
     "pydantic>=2.0.0"
 ]
 
+[tool.pytest.ini_options]
+pythonpath = ["tests"]
+
 [tool.maturin.env]
 PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
 
