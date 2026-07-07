@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from typing import Any
 
-from xnano.beta.types import Area, Padding, Size
+from xnano.beta.types import Area, Flex, Padding, Size, resolve_flex_weight
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +34,7 @@ def test_padding_parse_instance_is_identity() -> None:
 
 
 def test_padding_parse_none_returns_zero() -> None:
-    p = Padding.parse(None)  # ty: ignore[invalid-argument-type]
+    p = Padding.parse(None)
     assert (p.top, p.right, p.bottom, p.left) == (0, 0, 0, 0)
 
 
@@ -194,3 +195,40 @@ def test_area_is_frozen() -> None:
     a = Area(x=0, y=0, width=10, height=5)
     with pytest.raises((AttributeError, TypeError)):
         a.x = 99  # ty: ignore[invalid-assignment]
+
+
+# ---------------------------------------------------------------------------
+# Flex / resolve_flex_weight
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("flex", "expected"),
+    [
+        (None, None),
+        (1, 1),
+        (3, 3),
+        ("flex-1", 1),
+        ("flex-auto", 1),
+        ("grow", 1),
+        ("shrink", 1),
+        ("flex-initial", 0),
+        ("flex-none", 0),
+        ("grow-0", 0),
+        ("shrink-0", 0),
+    ],
+)
+def test_resolve_flex_weight(flex: Flex | None, expected: int | None) -> None:
+    assert resolve_flex_weight(flex) == expected
+
+
+def test_resolve_flex_weight_rejects_unknown_class() -> None:
+    invalid_flex: Any = "flex-2"
+    with pytest.raises(ValueError, match="flex must be an int"):
+        resolve_flex_weight(invalid_flex)
+
+
+def test_resolve_flex_weight_rejects_invalid_type() -> None:
+    invalid_flex: Any = 1.5
+    with pytest.raises(TypeError, match="flex must be an int"):
+        resolve_flex_weight(invalid_flex)
