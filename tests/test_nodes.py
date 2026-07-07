@@ -40,7 +40,7 @@ def test_span_node_defaults() -> None:
 def test_span_node_frozen() -> None:
     s = SpanNode(content="x")
     with pytest.raises((AttributeError, TypeError)):
-        s.content = "y"  # type: ignore[misc]
+        s.content = "y"  # ty: ignore[invalid-assignment]
 
 
 def test_span_node_measure() -> None:

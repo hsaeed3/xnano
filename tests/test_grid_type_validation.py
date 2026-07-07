@@ -11,6 +11,7 @@ from typing import Literal, TypedDict
 import pytest
 from pydantic import BaseModel, Field as PydanticField
 
+from conftest import assign_attr, invalid_field
 from xnano.beta import Field, Grid, Text
 from xnano.beta.core.renderable import Renderable
 from xnano.beta.exceptions import FieldValidationError
@@ -47,7 +48,7 @@ class TypedLayoutGrid(Grid):
     status: Status = Field(default=Status.ON, state=True)
     when: datetime.datetime = Field(
         default_factory=lambda: datetime.datetime(
-            2026, 1, 1, tzinfo=datetime.UTC
+            2026, 1, 1, tzinfo=datetime.timezone.utc
         ),
         state=True,
     )
@@ -89,7 +90,7 @@ def test_literal_layout_field_validates() -> None:
 
 def test_literal_layout_field_rejects_invalid_on_init() -> None:
     class LiteralPanel(Grid):
-        mode: Literal["on", "off"] = Field(default="maybe")  # type: ignore[arg-type]
+        mode: Literal["on", "off"] = invalid_field("maybe")
 
     with pytest.raises(FieldValidationError, match="mode"):
         LiteralPanel()
@@ -116,7 +117,7 @@ def test_enum_state_field_accepts_member() -> None:
 
 def test_enum_state_field_rejects_raw_string_without_strict() -> None:
     grid = TypedLayoutGrid()
-    grid.status = "off"  # type: ignore[assignment]
+    assign_attr(grid, "status", "off")
     assert grid.status == "off"
 
 
@@ -126,14 +127,14 @@ def test_enum_state_field_rejects_with_strict_runtime() -> None:
 
     grid = StrictEnumGrid()
     with pytest.raises(FieldValidationError, match="status"):
-        grid.status = "cyan"  # type: ignore[assignment]
+        assign_attr(grid, "status", "cyan")
 
 
 def test_datetime_state_field_with_strict() -> None:
     class StrictDateGrid(Grid):
         when: datetime.datetime = Field(
             default_factory=lambda: datetime.datetime(
-                2026, 1, 1, tzinfo=datetime.UTC
+                2026, 1, 1, tzinfo=datetime.timezone.utc
             ),
             state=True,
             strict=True,
@@ -141,7 +142,7 @@ def test_datetime_state_field_with_strict() -> None:
 
     grid = StrictDateGrid()
     with pytest.raises(FieldValidationError, match="when"):
-        grid.when = "not-a-datetime"  # type: ignore[assignment]
+        assign_attr(grid, "when", "not-a-datetime")
 
 
 def test_uuid_state_field_with_strict() -> None:
@@ -154,7 +155,7 @@ def test_uuid_state_field_with_strict() -> None:
 
     grid = StrictUuidGrid()
     with pytest.raises(FieldValidationError, match="uid"):
-        grid.uid = "not-a-uuid"  # type: ignore[assignment]
+        assign_attr(grid, "uid", "not-a-uuid")
 
 
 def test_pydantic_model_state_field_accepts_instance() -> None:
@@ -170,7 +171,7 @@ def test_pydantic_model_state_field_rejects_dict_with_strict() -> None:
 
     grid = StrictConfigGrid()
     with pytest.raises(FieldValidationError, match="config"):
-        grid.config = {"theme": "light"}  # type: ignore[assignment]
+        assign_attr(grid, "config", {"theme": "light"})
 
 
 def test_dataclass_state_field_accepts_instance() -> None:
@@ -189,7 +190,7 @@ def test_dataclass_state_field_rejects_wrong_type_with_strict() -> None:
 
     grid = StrictMetricsGrid()
     with pytest.raises(FieldValidationError, match="metrics"):
-        grid.metrics = "not-metrics"  # type: ignore[assignment]
+        assign_attr(grid, "metrics", "not-metrics")
 
 
 def test_nested_grid_and_component_validate_on_init() -> None:
@@ -200,7 +201,7 @@ def test_nested_grid_and_component_validate_on_init() -> None:
 
 def test_nested_grid_rejects_wrong_type() -> None:
     class Bad(StrictLayoutGrid):
-        child: ChildGrid = Field(default=Text(content="nope"))  # type: ignore[arg-type]
+        child: ChildGrid = invalid_field(Text(content="nope"))
 
     with pytest.raises(FieldValidationError, match="child"):
         Bad()
@@ -208,7 +209,7 @@ def test_nested_grid_rejects_wrong_type() -> None:
 
 def test_pydantic_model_layout_field_rejects_dict() -> None:
     class Bad(PydanticLayoutGrid):
-        payload: ConfigModel = Field(default={"theme": "x"})  # type: ignore[arg-type]
+        payload: ConfigModel = invalid_field({"theme": "x"})
 
     with pytest.raises(FieldValidationError, match="payload"):
         Bad()
@@ -227,7 +228,7 @@ def test_set_field_validates_under_strict_grid() -> None:
 
 def test_set_field_allows_valid_renderable() -> None:
     class Panel(Grid):
-        body: Renderable = Field(default="hi")
+        body: Renderable = invalid_field("hi")
 
     panel = Panel()
     panel.set_field("body", Text(content="ok"))
@@ -249,7 +250,7 @@ def test_set_field_position_does_not_validate_value() -> None:
 
 def test_field_validation_error_wraps_validation_error() -> None:
     class Bad(Grid):
-        n: int = Field(default="x")
+        n: int = invalid_field("x")
 
     with pytest.raises(FieldValidationError) as exc:
         Bad()
@@ -270,7 +271,7 @@ def test_none_layout_value_skips_validation() -> None:
 def test_strict_child_state_field_validates_on_assignment() -> None:
     grid = StrictLayoutGrid()
     with pytest.raises(FieldValidationError, match="value"):
-        grid.child.value = "bad"  # type: ignore[assignment]
+        assign_attr(grid.child, "value", "bad")
 
 
 def test_init_validation_coerces_nothing_for_layout_fields() -> None:

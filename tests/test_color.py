@@ -37,7 +37,7 @@ def test_from_name_custom_alpha() -> None:
 
 def test_from_name_unknown_raises() -> None:
     with pytest.raises(KeyError):
-        Color.from_name("notacolor")  # type: ignore[arg-type]
+        Color.from_name("notacolor")  # ty: ignore[invalid-argument-type]
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ def test_from_rgba_four_component() -> None:
 
 def test_from_rgba_wrong_length_raises() -> None:
     with pytest.raises(ValueError):
-        Color.from_rgba((10, 20))  # type: ignore[arg-type]
+        Color.from_rgba((10, 20))  # ty: ignore[invalid-argument-type]
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@ def test_parse_invalid_hex_raises() -> None:
 
 def test_parse_invalid_type_raises() -> None:
     with pytest.raises((ValueError, TypeError)):
-        Color.parse(42)  # type: ignore[arg-type]
+        Color.parse(42)  # ty: ignore[invalid-argument-type]
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +159,7 @@ def test_color_inequality() -> None:
 def test_color_is_frozen() -> None:
     c = Color(r=1, g=2, b=3)
     with pytest.raises((AttributeError, TypeError)):
-        c.r = 99  # type: ignore[misc]
+        c.r = 99  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
