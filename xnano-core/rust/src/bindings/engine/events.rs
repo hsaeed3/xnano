@@ -114,6 +114,23 @@ impl PyEvent {
     }
 }
 
+#[pymethods]
+impl PyEvent {
+    /// Returns the event type as a string without any Python-side comparison.
+    /// Values: "key", "resize", "paste", "mouse", "focus_gained", "focus_lost", "tick".
+    fn kind_str(&self) -> &'static str {
+        match self.kind {
+            PyTerminalEventKind::Key => "key",
+            PyTerminalEventKind::Resize => "resize",
+            PyTerminalEventKind::Paste => "paste",
+            PyTerminalEventKind::Mouse => "mouse",
+            PyTerminalEventKind::FocusGained => "focus_gained",
+            PyTerminalEventKind::FocusLost => "focus_lost",
+            PyTerminalEventKind::Tick => "tick",
+        }
+    }
+}
+
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyTerminalEventKind>()?;
     m.add_class::<PyTickEvent>()?;

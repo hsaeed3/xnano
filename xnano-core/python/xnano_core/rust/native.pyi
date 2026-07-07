@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from enum import IntEnum
 from types import ModuleType
-from typing import Any, Optional, Tuple, Type, overload
+from typing import Any, Literal, Optional, Tuple, Type, overload
 
 from xnano_core.rust.engine import (
     CoreEvent as CoreEvent,
@@ -1249,6 +1249,26 @@ class MouseEvent:
     row: int
     modifiers: KeyModifiers
 
+    def xnano_kind_str(
+        self,
+    ) -> Literal[
+        "press",
+        "release",
+        "drag",
+        "move",
+        "scroll_up",
+        "scroll_down",
+        "scroll_left",
+        "scroll_right",
+    ]:
+        """Return the event kind as an xnano string."""
+        ...
+    def xnano_button_str(
+        self,
+    ) -> Literal["left", "right", "middle", "unknown"]:
+        """Return the mouse button as a string."""
+        ...
+
 class KeyEvent:
     """Keyboard event data.
 
@@ -1284,6 +1304,9 @@ class KeyEvent:
     def is_caps_lock(self) -> bool: ...
     def is_scroll_lock(self) -> bool: ...
     def is_num_lock(self) -> bool: ...
+    def keyboard_kind_str(self) -> Literal["press", "release", "repeat"]:
+        """Return the event kind as a string: ``"press"``, ``"release"``, or ``"repeat"``."""
+        ...
     def __repr__(self) -> str: ...
 
 class Terminal:

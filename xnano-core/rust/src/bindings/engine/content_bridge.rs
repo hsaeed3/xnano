@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
+use super::render_ir::CoreRenderIR;
 use super::super::buffer::{render_stateful_inner, render_widget_inner, PyBufferMutView};
 use super::super::layout::PyRect;
 
@@ -10,6 +11,7 @@ pub(crate) enum RenderContentInner {
     Widget(Py<PyAny>),
     Stateful { widget: Py<PyAny>, state: Py<PyAny> },
     Drawable(Py<PyAny>),
+    Ir(Py<CoreRenderIR>),
 }
 
 #[pyclass(name = "CoreRenderContent", module = "xnano_core.rust.engine", unsendable, from_py_object)]
@@ -32,6 +34,7 @@ impl Clone for PyRenderContent {
                 RenderContentInner::Drawable(callback) => {
                     RenderContentInner::Drawable(callback.clone_ref(py))
                 }
+                RenderContentInner::Ir(ir) => RenderContentInner::Ir(ir.clone_ref(py)),
             },
         })
     }
@@ -67,6 +70,13 @@ impl PyRenderContent {
         }
     }
 
+    #[staticmethod]
+    fn ir(ir: Py<CoreRenderIR>) -> Self {
+        Self {
+            inner: RenderContentInner::Ir(ir),
+        }
+    }
+
     fn is_empty(&self) -> bool {
         matches!(self.inner, RenderContentInner::Empty)
     }
@@ -77,6 +87,10 @@ impl PyRenderContent {
 
     fn is_drawable(&self) -> bool {
         matches!(self.inner, RenderContentInner::Drawable(_))
+    }
+
+    fn is_ir(&self) -> bool {
+        matches!(self.inner, RenderContentInner::Ir(_))
     }
 }
 
@@ -104,6 +118,9 @@ pub(crate) fn render_content(
             cb.call1(py, (buf_view.clone(), rect_arg))?;
             buf_view.invalidate();
             Ok(())
+        }),
+        RenderContentInner::Ir(ir) => Python::attach(|py| {
+            ir.borrow(py).render_to_buffer(rect, buf)
         }),
     }
 }

@@ -449,6 +449,26 @@ impl PyMouseEvent {
     fn row(&self) -> u16 {
         self.y
     }
+
+    /// Returns the xnano-style mouse kind string ("press", "release", "drag",
+    /// "move", "scroll_up", "scroll_down", "scroll_left", "scroll_right").
+    fn xnano_kind_str(&self) -> &'static str {
+        match self.event_kind {
+            PyMouseEventKind::Down => "press",
+            PyMouseEventKind::Up => "release",
+            PyMouseEventKind::Drag => "drag",
+            PyMouseEventKind::Moved => "move",
+            PyMouseEventKind::ScrollDown => "scroll_down",
+            PyMouseEventKind::ScrollUp => "scroll_up",
+            PyMouseEventKind::ScrollLeft => "scroll_left",
+            PyMouseEventKind::ScrollRight => "scroll_right",
+        }
+    }
+
+    /// Returns the xnano-style mouse button string ("left", "right", "middle", "none").
+    fn xnano_button_str(&self) -> &str {
+        &self.button
+    }
 }
 
 impl From<MouseEvent> for PyMouseEvent {
@@ -488,14 +508,14 @@ pub struct PyKeyEvent {
 
 #[pymethods]
 impl PyKeyEvent {
-    fn char_value(&self) -> Option<char> {
+    pub(crate) fn char_value(&self) -> Option<char> {
         match self.code {
             KeyCode::Char(c) => Some(c),
             _ => None,
         }
     }
 
-    fn function_number(&self) -> Option<u8> {
+    pub(crate) fn function_number(&self) -> Option<u8> {
         match self.code {
             KeyCode::F(n) => Some(n),
             _ => None,
@@ -590,8 +610,27 @@ impl PyKeyEvent {
         self.code == KeyCode::NumLock
     }
 
+    /// Returns "press", "release", or "repeat" — no Python comparison needed.
+    fn keyboard_kind_str(&self) -> &'static str {
+        match self.kind {
+            PyKeyEventKind::Press => "press",
+            PyKeyEventKind::Release => "release",
+            PyKeyEventKind::Repeat => "repeat",
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("KeyEvent({:?}, {:?})", self.code, self.kind)
+    }
+}
+
+impl PyKeyEvent {
+    pub(crate) fn raw_code(&self) -> &KeyCode {
+        &self.code
+    }
+
+    pub(crate) fn raw_modifiers(&self) -> KeyModifiers {
+        KeyModifiers::from_bits_truncate(self.modifiers.bits)
     }
 }
 
