@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import types
+from typing import cast
+
 import pytest
 
 from xnano.beta import Context, on_click, on_mouse, Field, Grid
@@ -28,16 +31,22 @@ def test_on_click_registers_field_handler_by_name() -> None:
     panel = Panel()
     handler = _resolve_grid_mouse_handler(panel, "body")
     assert handler is not None
-    assert handler.__name__ == "highlight_body"
+    assert cast(types.FunctionType, handler).__name__ == "highlight_body"
 
 
 def test_on_click_binds_at_class_level() -> None:
-    assert Panel._grid_field_handlers["body"].__name__ == "highlight_body"
+    assert (
+        cast(types.FunctionType, Panel._grid_field_handlers["body"]).__name__
+        == "highlight_body"
+    )
 
 
 def test_on_mouse_field_param_registers_handler() -> None:
     assert (
-        HeaderPanel._grid_field_handlers["header"].__name__
+        cast(
+            types.FunctionType,
+            HeaderPanel._grid_field_handlers["header"],
+        ).__name__
         == "on_header_click"
     )
 

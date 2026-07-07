@@ -42,7 +42,7 @@ def test_frame_with_title_position_is_not_empty() -> None:
 def test_frame_is_frozen() -> None:
     f = Frame(border="plain")
     with pytest.raises((AttributeError, TypeError)):
-        f.border = "rounded"  # type: ignore[misc]
+        f.border = "rounded"  # ty: ignore[invalid-assignment]
 
 
 def test_frame_all_attrs_set() -> None:

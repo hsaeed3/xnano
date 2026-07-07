@@ -172,7 +172,8 @@ def test_list_of_leaf_texts_span_content() -> None:
     assert isinstance(node, ParagraphNode)
     line = node.text
     assert isinstance(line, LineNode)
-    contents = [s.content for s in line.content]  # type: ignore[union-attr]
+    assert isinstance(line.content, list)
+    contents = [s.content for s in line.content]
     assert "A" in contents
     assert "B" in contents
 

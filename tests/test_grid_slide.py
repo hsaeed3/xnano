@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from xnano.beta import Context, on_mouse, Field, Grid, Terminal
+from xnano.beta.events import Event
 from xnano.beta.hooks import _EventHooksRegistry
 from xnano.beta.grid import _GridSlideCapture, _grid_slide_paint_area
 from xnano.beta.terminal import _ACTIVE_TERMINAL
@@ -108,12 +110,15 @@ def test_slide_capture_updates_position_on_drag() -> None:
         slot_area=Area(x=0, y=0, width=6, height=3),
         grab_x=1,
         grab_y=1,
-        slide_axes=("x", "y"),
+        slide_axes=["x", "y"],
     )
 
     terminal._dispatch_field_mouse(
         Context(
-            event=_MouseEvent(_Mouse(kind="drag", x=6, y=4)),
+            event=cast(
+                Event | None,
+                _MouseEvent(_Mouse(kind="drag", x=6, y=4)),
+            ),
             terminal=terminal,
             state=None,
         )
@@ -141,11 +146,14 @@ def test_drag_hook_fires_while_sliding() -> None:
         slot_area=Area(x=0, y=0, width=6, height=3),
         grab_x=0,
         grab_y=0,
-        slide_axes=("x",),
+        slide_axes=["x"],
     )
     terminal._dispatch_field_mouse(
         Context(
-            event=_MouseEvent(_Mouse(kind="drag", x=7, y=0)),
+            event=cast(
+                Event | None,
+                _MouseEvent(_Mouse(kind="drag", x=7, y=0)),
+            ),
             terminal=terminal,
             state=None,
         )

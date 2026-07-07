@@ -33,7 +33,7 @@ def test_padding_parse_instance_is_identity() -> None:
 
 
 def test_padding_parse_none_returns_zero() -> None:
-    p = Padding.parse(None)  # type: ignore[arg-type]
+    p = Padding.parse(None)  # ty: ignore[invalid-argument-type]
     assert (p.top, p.right, p.bottom, p.left) == (0, 0, 0, 0)
 
 
@@ -65,7 +65,7 @@ def test_padding_vertical() -> None:
 def test_padding_is_frozen() -> None:
     p = Padding(top=1, right=2, bottom=3, left=4)
     with pytest.raises((AttributeError, TypeError)):
-        p.top = 99  # type: ignore[misc]
+        p.top = 99  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ def test_size_equality() -> None:
 def test_size_is_frozen() -> None:
     s = Size(width=1, height=2)
     with pytest.raises((AttributeError, TypeError)):
-        s.width = 99  # type: ignore[misc]
+        s.width = 99  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -193,4 +193,4 @@ def test_fit_content_minimum_one() -> None:
 def test_area_is_frozen() -> None:
     a = Area(x=0, y=0, width=10, height=5)
     with pytest.raises((AttributeError, TypeError)):
-        a.x = 99  # type: ignore[misc]
+        a.x = 99  # ty: ignore[invalid-assignment]
