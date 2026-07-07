@@ -34,9 +34,9 @@ class SpecBlock:
     tag: str
     body: list[str]  # stripped comment text, one item per source line
     file: Path
-    line: int        # 1-indexed line number of the [@tag] comment
+    line: int  # 1-indexed line number of the [@tag] comment
     body_start: int  # 1-indexed first body line
-    body_end: int    # 1-indexed exclusive end (body_start + len(body))
+    body_end: int  # 1-indexed exclusive end (body_start + len(body))
 
     @property
     def short_path(self) -> str:
@@ -108,7 +108,7 @@ def save_block(block: SpecBlock, new_body: list[str]) -> None:
         for ln in new_body
     ]
     start = block.body_start - 1  # 0-indexed inclusive
-    end = block.body_end - 1      # 0-indexed exclusive
+    end = block.body_end - 1  # 0-indexed exclusive
     raw[start:end] = new_lines
     block.file.write_text("".join(raw), encoding="utf-8")
     block.body = list(new_body)
@@ -153,18 +153,24 @@ def _render_list(blocks: list[SpecBlock], selected: int, height: int) -> Text:
         tag_c = _V300 if sel else _V500
         file_c = _S200 if sel else _S400
         parts.append(
-            Text([
-                Text(prefix, color=_V400, background=bg),
-                Text(
-                    f"[@{b.tag}]",
-                    color=tag_c,
-                    modifiers=("bold",) if sel else (),
-                    background=bg,
-                ),
-                Text("\n"),
-                Text("    ", background=bg),
-                Text(f"{b.short_path}:{b.line}\n", color=file_c, background=bg),
-            ])
+            Text(
+                [
+                    Text(prefix, color=_V400, background=bg),
+                    Text(
+                        f"[@{b.tag}]",
+                        color=tag_c,
+                        modifiers=("bold",) if sel else (),
+                        background=bg,
+                    ),
+                    Text("\n"),
+                    Text("    ", background=bg),
+                    Text(
+                        f"{b.short_path}:{b.line}\n",
+                        color=file_c,
+                        background=bg,
+                    ),
+                ]
+            )
         )
     return Text(parts)
 
@@ -175,7 +181,9 @@ def _render_detail(
     edit_text: str,
 ) -> Text:
     if block is None:
-        return Text("  select a block to view", color=_S500, modifiers=("italic",))
+        return Text(
+            "  select a block to view", color=_S500, modifiers=("italic",)
+        )
 
     parts: list[str | Text] = [
         Text(f"[@{block.tag}]\n", color=_V300, modifiers=("bold",)),
@@ -234,7 +242,9 @@ class SpecApp(Grid, direction="horizontal", gap=1, background="black"):
             right_border = _S700
 
         self.grid_set_field("left", title=left_title)
-        self.grid_set_field("right", title=right_title, border_color=right_border)
+        self.grid_set_field(
+            "right", title=right_title, border_color=right_border
+        )
 
     @on_keyboard("up")
     def _up(self) -> None:
@@ -269,6 +279,7 @@ class SpecApp(Grid, direction="horizontal", gap=1, background="black"):
         if not self.edit_mode:
             if char == "q":
                 from xnano.beta.exceptions import Exit
+
                 raise Exit
             elif char == "j" and self.blocks:
                 self.selected = (self.selected + 1) % len(self.blocks)
@@ -298,6 +309,7 @@ class SpecApp(Grid, direction="horizontal", gap=1, background="black"):
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def _usage() -> None:
     print(
