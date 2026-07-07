@@ -31,9 +31,11 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: install rust stable
+        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
         uses: dtolnay/rust-toolchain@stable
 
       - name: cache rust
+        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: xnano-core
@@ -46,7 +48,20 @@ jobs:
       - name: install deps
         run: uv sync --group dev
 
-      - run: uv run maturin develop --uv
+      - name: resolve pinned xnano-core version
+        if: startsWith(github.ref, 'refs/tags/xnano/')
+        id: xnano-core-version
+        run: |
+          version="$(uv run .github/get_pinned_xnano_core_version.py)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: install xnano-core from PyPI
+        if: startsWith(github.ref, 'refs/tags/xnano/')
+        run: uv pip install "xnano-core==${{ steps.xnano-core-version.outputs.version }}"
+
+      - name: build workspace xnano-core
+        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        run: uv run maturin develop --uv
         working-directory: xnano-core
         env:
           RUST_BACKTRACE: 1
@@ -69,9 +84,11 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: install rust stable
+        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
         uses: dtolnay/rust-toolchain@stable
 
       - name: cache rust
+        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: xnano-core
@@ -82,7 +99,20 @@ jobs:
       - name: install deps
         run: uv sync --group dev
 
-      - run: uv run maturin develop --uv
+      - name: resolve pinned xnano-core version
+        if: startsWith(github.ref, 'refs/tags/xnano/')
+        id: xnano-core-version
+        run: |
+          version="$(uv run .github/get_pinned_xnano_core_version.py)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: install xnano-core from PyPI
+        if: startsWith(github.ref, 'refs/tags/xnano/')
+        run: uv pip install "xnano-core==${{ steps.xnano-core-version.outputs.version }}"
+
+      - name: build workspace xnano-core
+        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
+        run: uv run maturin develop --uv
         working-directory: xnano-core
         env:
           RUST_BACKTRACE: 1
@@ -220,6 +250,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: install rust stable
+        if: ${{ !startsWith(github.ref, 'refs/tags/xnano/') }}
         uses: dtolnay/rust-toolchain@stable
 
       - name: install uv
@@ -238,7 +269,7 @@ jobs:
           cd xnano-core
           uv run maturin develop --uv
 
-      - name: build xnano against PyPI xnano-core
+      - name: install xnano-core from PyPI
         if: startsWith(github.ref, 'refs/tags/xnano/')
         run: uv pip install "xnano-core==${{ steps.xnano-core-version.outputs.version }}"
 
@@ -265,18 +296,18 @@ jobs:
       [
         test-python,
         test-os,
-        test-xnano-core-wheel-install,
         build-xnano-core-sdist,
         build-xnano-core-wheels,
+        test-xnano-core-wheel-install,
       ]
     if: >-
       github.event_name == 'push' &&
       startsWith(github.ref, 'refs/tags/xnano-core/') &&
       needs.test-python.result == 'success' &&
       needs.test-os.result == 'success' &&
-      needs.test-xnano-core-wheel-install.result == 'success' &&
       needs.build-xnano-core-sdist.result == 'success' &&
-      needs.build-xnano-core-wheels.result == 'success'
+      needs.build-xnano-core-wheels.result == 'success' &&
+      needs.test-xnano-core-wheel-install.result == 'success'
     runs-on: ubuntu-latest
 
     environment:
