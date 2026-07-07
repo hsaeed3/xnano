@@ -13,17 +13,17 @@ A simple python **tui** framework built on top of the [ratatui](https://ratatui.
 ## Installation
 
 > [!WARNING]
-> Ensure to install the ``0.99.5``+ version of ``xnano`` to ensure correct
+> Ensure to install the ``0.99.6``+ version of ``xnano`` to ensure correct
 > dependency and API resolution.
 
 ```bash
-pip install "xnano>=0.99.5"
+pip install "xnano>=0.99.6"
 ```
 
 Or use ``uv``:
 
 ```bash
-uv add "xnano>=0.99.5"
+uv add "xnano>=0.99.6"
 ```
 
 ---
