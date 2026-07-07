@@ -57,6 +57,8 @@ class RenderRequest(Generic[StateT]):
     """Optional user-defined state passed alongside this render request."""
     effect_key: str | None = None
     """Optional effect lookup key recorded for this render request."""
+    ir_content: Any | None = None
+    """Optional ``CoreRenderIR`` object (bypasses native widget wrapping)."""
 
 
 @dataclasses.dataclass(slots=True)
@@ -136,7 +138,9 @@ class Session(Generic[StateT]):
 
         children: list[Any] = [None] * len(requests)
         for index, request in enumerate(requests):
-            if request.state is None:
+            if request.ir_content is not None:
+                content = core.CoreRenderContent.ir(request.ir_content)
+            elif request.state is None:
                 content = core.CoreRenderContent.widget(request.native_content)
             else:
                 content = core.CoreRenderContent.stateful(
@@ -178,7 +182,7 @@ class Session(Generic[StateT]):
         return rect
 
     def get_viewport_area(self) -> Area:
-        """Return the current viewport as a :class:`~xnano.grid.types.GridArea`."""
+        """Return the current viewport as an ``Area``."""
         return Area(
             x=0,
             y=0,
@@ -238,7 +242,7 @@ class Session(Generic[StateT]):
             rect: The ``native.Rect`` area to draw.
             content: The native content to draw.
             z: The ``z``-index to draw at.
-            effect_key: Optional key for :meth:`grid_play_effect` lookups.
+            effect_key: Optional key for ``grid_play_effect`` lookups.
         """
         self._render_requests.append(
             RenderRequest(
@@ -268,6 +272,29 @@ class Session(Generic[StateT]):
         self._render_requests.append(
             RenderRequest(
                 native_rect=rect, native_content=content, state=state, z=z
+            )
+        )
+
+    def render_ir(
+        self,
+        rect: native.Rect,
+        ir: Any,
+        *,
+        z: int = 0,
+        effect_key: str | None = None,
+    ) -> None:
+        """Enqueue a ``CoreRenderIR`` for rendering at ``rect``.
+
+        This path avoids the Python→Rust native-widget wrapping layer;
+        the IR is rendered entirely in Rust on the next commit.
+        """
+        self._render_requests.append(
+            RenderRequest(
+                native_rect=rect,
+                native_content=None,
+                z=z,
+                effect_key=effect_key,
+                ir_content=ir,
             )
         )
 
@@ -479,7 +506,7 @@ class Session(Generic[StateT]):
         """Bind and run an effect on one or more layout field areas.
 
         Args:
-            effect: A :class:`~xnano_core.rust.native.Effect` instance.
+            effect: A ``Effect`` instance.
             fields: Layout field names to target. When omitted or empty, no
                 effect is started.
             key: Optional unique effect id prefix. Each field uses
