@@ -88,6 +88,7 @@ class _OnMouseHookFunctionEntry(TypedDict):
 class _OnTickHookFunctionEntry(TypedDict):
     interval: int
     handler: EventHookFunction
+    last_fire_ms: float
 
 
 class _OnStateHookFunctionEntry(TypedDict):
@@ -197,6 +198,7 @@ class _EventHooksRegistry:
                 _OnTickHookFunctionEntry(
                     interval=interval_milliseconds,
                     handler=handler,
+                    last_fire_ms=0.0,
                 )
             )
         if hasattr(handler, self.ON_STATE_HOOK_ATTR):
@@ -285,6 +287,7 @@ class _EventHooksRegistry:
                         _OnTickHookFunctionEntry(
                             interval=interval_milliseconds,
                             handler=member,
+                            last_fire_ms=0.0,
                         )
                     )
                 if hasattr(member, cls.ON_STATE_HOOK_ATTR):
