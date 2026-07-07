@@ -90,7 +90,7 @@ bindings/
 
 ### `xnano` — Python framework
 
-**Location:** `xnano/` (depends on `xnano-core>=0.0.1`).
+**Location:** `xnano/` (depends on `xnano-core>=0.0.2`).
 
 All implementation lives under **`xnano.beta`**. The root `xnano` package is a thin shell (`from xnano import Text`).
 
