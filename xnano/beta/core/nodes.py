@@ -264,7 +264,7 @@ class StackNode(AbstractRenderNode):
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class SparklineBarItem:
-    """A single bar in a :class:`SparklineNode`.
+    """A single bar in a ``SparklineNode``.
 
     Attributes:
         value: Numeric height of the bar.
@@ -325,7 +325,7 @@ class LineGaugeNode(AbstractRenderNode):
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class BarItem:
-    """A single bar in a :class:`BarChartNode` group.
+    """A single bar in a ``BarChartNode`` group.
 
     Attributes:
         value: Numeric height of the bar.
@@ -344,7 +344,7 @@ class BarItem:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class BarGroupItem:
-    """A group of bars in a :class:`BarChartNode`.
+    """A group of bars in a ``BarChartNode``.
 
     Attributes:
         bars: The bars in this group.
@@ -386,7 +386,7 @@ class BarChartNode(AbstractRenderNode):
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class TableCellItem:
-    """A single cell in a :class:`TableRowItem`.
+    """A single cell in a ``TableRowItem``.
 
     Attributes:
         content: Cell content — plain string, a styled line, or a span.
@@ -405,7 +405,7 @@ class TableCellItem:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class TableRowItem:
-    """A row in a :class:`TableNode`.
+    """A row in a ``TableNode``.
 
     Attributes:
         cells: The cells in this row.
@@ -515,7 +515,7 @@ class TabsNode(AbstractRenderNode):
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class CanvasLine:
-    """A straight line drawn on a :class:`CanvasNode`."""
+    """A straight line drawn on a ``CanvasNode``."""
 
     x1: float
     y1: float
@@ -526,7 +526,7 @@ class CanvasLine:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class CanvasPoints:
-    """A scatter of points drawn on a :class:`CanvasNode`."""
+    """A scatter of points drawn on a ``CanvasNode``."""
 
     coords: list[tuple[float, float]] = dataclasses.field(default_factory=list)
     color: ColorLike = "white"
@@ -534,7 +534,7 @@ class CanvasPoints:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class CanvasRectangle:
-    """An axis-aligned rectangle drawn on a :class:`CanvasNode`."""
+    """An axis-aligned rectangle drawn on a ``CanvasNode``."""
 
     x: float
     y: float
@@ -545,7 +545,7 @@ class CanvasRectangle:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class CanvasCircle:
-    """A circle drawn on a :class:`CanvasNode`."""
+    """A circle drawn on a ``CanvasNode``."""
 
     x: float
     y: float
@@ -555,7 +555,7 @@ class CanvasCircle:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class CanvasPrint:
-    """Text printed at a canvas coordinate on a :class:`CanvasNode`."""
+    """Text printed at a canvas coordinate on a ``CanvasNode``."""
 
     x: float
     y: float
@@ -565,7 +565,7 @@ class CanvasPrint:
 CanvasShape: TypeAlias = (
     CanvasLine | CanvasPoints | CanvasRectangle | CanvasCircle | CanvasPrint
 )
-"""Union of all shape types accepted by :class:`CanvasNode`."""
+"""Union of all shape types accepted by ``CanvasNode``."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -620,20 +620,6 @@ class NodeAssembler:
                 )
         return extra
 
-    @staticmethod
-    def _measure_paragraph_body(text: "str | TextNode | LineNode") -> Size:
-        if isinstance(text, str):
-            if not text:
-                return Size(width=0, height=1)
-            lines = text.split("\n")
-            return Size(
-                width=max(len(line) for line in lines),
-                height=len(lines),
-            )
-        if isinstance(text, TextNode):
-            return text.get_size()
-        return Size(width=text.get_width(), height=1)
-
     @classmethod
     def measure_node(cls, node: AbstractRenderNode) -> Size:
         """Measures the size of the content within this node.
@@ -644,96 +630,414 @@ class NodeAssembler:
         if hasattr(node, "visible") and not node.visible:
             return Size(width=0, height=0)
 
-        if isinstance(node, SpanNode):
-            return Size(width=len(node.content), height=1)
-        elif isinstance(node, LineNode):
-            return Size(width=node.get_width(), height=1)
-        elif isinstance(node, TextNode):
-            return node.get_size()
-        elif isinstance(node, ParagraphNode):
-            return cls._measure_paragraph_body(node.text)
-        elif isinstance(node, ListNode):
-            if not node.items:
-                return Size(width=0, height=1)
-            symbol_width = len(node.highlight_symbol)
-            widths: list[int] = []
-            for item in node.items:
-                if isinstance(item, LineNode):
-                    widths.append(item.get_width())
-                elif isinstance(item, SpanNode):
-                    widths.append(len(item.content))
-                else:
-                    widths.append(len(item))
-            return Size(
-                width=max(widths) + symbol_width,
-                height=len(node.items),
-            )
-        elif isinstance(node, ProgressBarNode):
-            return Size(width=0, height=1)
-        elif isinstance(node, ClearNode):
-            return Size(width=0, height=0)
-        elif isinstance(node, FrameNode):
+        # Container nodes that recurse must stay in Python.
+        if isinstance(node, FrameNode):
             child_size = cls.measure_node(node.child)
             overhead = cls._frame_length_overhead(node.frame, "vertical")
             return Size(
                 width=child_size.width + overhead,
                 height=child_size.height + overhead,
             )
-        elif isinstance(node, ContainerNode):
+        if isinstance(node, ContainerNode):
             if not node.children:
                 return Size(width=0, height=0)
             sizes = [cls.measure_node(child) for child in node.children]
             if node.direction == "horizontal":
                 return Size(
-                    width=sum(size.width for size in sizes)
+                    width=sum(s.width for s in sizes)
                     + node.gap * (len(sizes) - 1),
-                    height=max(size.height for size in sizes),
+                    height=max(s.height for s in sizes),
                 )
-            else:
-                return Size(
-                    width=max(size.width for size in sizes),
-                    height=sum(size.height for size in sizes)
-                    + node.gap * (len(sizes) - 1),
-                )
-        elif isinstance(node, StackNode):
+            return Size(
+                width=max(s.width for s in sizes),
+                height=sum(s.height for s in sizes)
+                + node.gap * (len(sizes) - 1),
+            )
+        if isinstance(node, StackNode):
             if not node.children:
                 return Size(width=0, height=0)
             sizes = [cls.measure_node(child) for child in node.children]
             return Size(
-                width=max(size.width for size in sizes),
-                height=max(size.height for size in sizes),
+                width=max(s.width for s in sizes),
+                height=max(s.height for s in sizes),
             )
 
-        elif isinstance(node, SparklineNode):
-            return Size(width=0, height=1)
+        # All leaf nodes: delegate to CoreRenderIR.measure() (pure Rust, no widget build).
+        ir = cls._build_leaf_ir(node)
+        if ir is not None:
+            w, h = ir.measure()
+            return Size(width=w, height=h)
+        return Size(width=0, height=0)
 
-        elif isinstance(node, LineGaugeNode):
-            return Size(width=0, height=1)
+    # ── IR helpers ────────────────────────────────────────────────────────────
 
-        elif isinstance(node, BarChartNode):
-            return Size(width=0, height=0)
+    @staticmethod
+    def _c(color: "Any") -> "Any":
+        from xnano.beta.utils.native_types import (
+            get_native_color_from_color_like,
+        )
 
-        elif isinstance(node, TableNode):
-            row_count = len(node.rows)
-            if node.header is not None:
-                row_count += 1
-            if node.footer is not None:
-                row_count += 1
-            return Size(width=0, height=row_count)
+        return get_native_color_from_color_like(color)
 
-        elif isinstance(node, ScrollbarNode):
-            if node.orientation in ("horizontal_bottom", "horizontal_top"):
-                return Size(width=0, height=1)
-            return Size(width=1, height=0)
+    @staticmethod
+    def _mods(modifiers: "list[Any]") -> "list[Any]":
+        from xnano.beta.utils.native_types import _NATIVE_MODIFIER_TYPES
 
-        elif isinstance(node, TabsNode):
-            return Size(width=0, height=1)
+        return (
+            [_NATIVE_MODIFIER_TYPES[m] for m in modifiers] if modifiers else []
+        )
 
-        elif isinstance(node, CanvasNode):
-            return Size(width=0, height=0)
+    @staticmethod
+    def _align(alignment: "str | None") -> "int | None":
+        if alignment == "left":
+            return 0
+        if alignment == "center":
+            return 1
+        if alignment == "right":
+            return 2
+        return None
 
-        else:
-            return Size(width=0, height=0)
+    _SCROLLBAR_ORIENT: "dict[str, int]" = {
+        "vertical_right": 0,
+        "vertical_left": 1,
+        "horizontal_bottom": 2,
+        "horizontal_top": 3,
+    }
+    _MARKER_INT: "dict[str, int]" = {
+        "dot": 0,
+        "block": 1,
+        "bar": 2,
+        "braille": 3,
+        "half_block": 4,
+    }
+
+    @classmethod
+    def _ir_line(cls, node: "Any") -> "Any":
+        """Convert str / SpanNode / LineNode → IrLine (single Rust call)."""
+        from xnano_core.core import IrLine
+
+        if isinstance(node, str):
+            return IrLine.raw(node)
+        if isinstance(node, SpanNode):
+            return IrLine.from_spans(
+                [
+                    (
+                        node.content,
+                        cls._c(node.color),
+                        cls._c(node.background),
+                        cls._mods(node.modifiers),
+                    )
+                ]
+            )
+        # LineNode
+        fg = cls._c(node.color)
+        bg = cls._c(node.background)
+        mods = cls._mods(node.modifiers)
+        if isinstance(node.content, str) or node.content is None:
+            return IrLine.styled(node.content or "", fg, bg, mods)
+        spans = [
+            (
+                s.content,
+                cls._c(s.color),
+                cls._c(s.background),
+                cls._mods(s.modifiers),
+            )
+            for s in node.content
+        ]
+        return IrLine.from_spans(spans)
+
+    @classmethod
+    def _table_widths(
+        cls, column_widths: "Any", col_count: int
+    ) -> "list[tuple[int, float]]":
+        if column_widths is None:
+            return [(2, 1.0)] * col_count  # Fill(1) for each column
+        result = []
+        for w in column_widths:
+            if isinstance(w, float):
+                result.append((1, w * 100.0))  # Percentage
+            else:
+                result.append((0, float(w)))  # Length
+        return result
+
+    @classmethod
+    def _build_leaf_ir(cls, node: "AbstractRenderNode") -> "Any | None":
+        """Build a CoreRenderIR for a leaf node; return None for containers."""
+        from xnano_core.core import CoreRenderIR, IrLine
+
+        if isinstance(node, ClearNode):
+            return CoreRenderIR.clear()
+
+        if isinstance(node, SpanNode):
+            return CoreRenderIR.span(
+                node.content,
+                cls._c(node.color),
+                cls._c(node.background),
+                cls._mods(node.modifiers),
+            )
+
+        if isinstance(node, LineNode):
+            return CoreRenderIR.line(cls._ir_line(node))
+
+        if isinstance(node, TextNode):
+            fg = cls._c(node.color)
+            bg = cls._c(node.background)
+            mods = cls._mods(list(node.modifiers))
+            align = cls._align(node.align)
+            if node.lines:
+                lines = [cls._ir_line(ln) for ln in node.lines]
+                return CoreRenderIR.text_lines(lines, fg, bg, mods, align)
+            return CoreRenderIR.text_raw(node.content, fg, bg, mods, align)
+
+        if isinstance(node, ParagraphNode):
+            fg = cls._c(node.color)
+            bg = cls._c(node.background)
+            mods = cls._mods(list(node.modifiers))
+            align = cls._align(node.align)
+            text = node.text
+            if isinstance(text, str):
+                return CoreRenderIR.paragraph_raw(
+                    text, fg, bg, mods, align, node.wrap
+                )
+            if isinstance(text, TextNode):
+                if text.lines:
+                    lines = [cls._ir_line(ln) for ln in text.lines]
+                    return CoreRenderIR.paragraph_lines(
+                        lines, fg, bg, mods, align, node.wrap
+                    )
+                return CoreRenderIR.paragraph_raw(
+                    text.content, fg, bg, mods, align, node.wrap
+                )
+            # LineNode body
+            return CoreRenderIR.paragraph_lines(
+                [cls._ir_line(text)], fg, bg, mods, align, node.wrap
+            )
+
+        if isinstance(node, ListNode):
+            ir_items = [cls._ir_line(item) for item in node.items]
+            return CoreRenderIR.list(
+                ir_items,
+                node.selected,
+                cls._c(node.color),
+                cls._c(node.background),
+                cls._c(node.highlight_color),
+                cls._c(node.highlight_background),
+                node.highlight_symbol,
+            )
+
+        if isinstance(node, ProgressBarNode):
+            return CoreRenderIR.progress_bar(
+                node.progress,
+                node.label,
+                cls._c(node.color),
+                cls._c(node.background),
+            )
+
+        if isinstance(node, SparklineNode):
+            # Per-bar colors can't be expressed in CoreRenderIR; fall back to native.
+            if node.bars is not None:
+                return None
+            return CoreRenderIR.sparkline(
+                node.data,
+                node.max_value,
+                cls._c(node.color),
+                cls._c(node.background),
+                cls._c(node.absent_value_color),
+                node.absent_value_symbol,
+            )
+
+        if isinstance(node, LineGaugeNode):
+            return CoreRenderIR.line_gauge(
+                node.progress,
+                node.label,
+                cls._c(node.color),
+                cls._c(node.background),
+                cls._c(node.filled_color),
+                cls._c(node.unfilled_color),
+            )
+
+        if isinstance(node, BarChartNode):
+            groups = []
+            for g in node.groups:
+                bars = []
+                for b in g.bars:
+                    bars.append(
+                        (
+                            b.value,
+                            b.label,
+                            b.text_value,
+                            cls._c(b.color),
+                            None,
+                            cls._c(b.value_color),
+                            None,
+                        )
+                    )
+                groups.append((g.label, bars))
+            return CoreRenderIR.bar_chart(
+                groups,
+                node.bar_width,
+                node.bar_gap,
+                node.group_gap,
+                node.max_value,
+                node.direction == "horizontal",
+                cls._c(node.color),
+                cls._c(node.value_color),
+                cls._c(node.label_color),
+            )
+
+        if isinstance(node, TableNode):
+
+            def _ir_cell(c: "TableCellItem | str"):
+                if isinstance(c, str):
+                    return (IrLine.raw(c), None, None, [])
+                return (
+                    cls._ir_line(
+                        c.content
+                        if not isinstance(c.content, str)
+                        else c.content
+                    ),
+                    cls._c(c.color),
+                    cls._c(c.background),
+                    cls._mods(c.modifiers),
+                )
+
+            def _ir_row(r: "TableRowItem"):
+                return (
+                    [_ir_cell(c) for c in r.cells],
+                    cls._c(r.color),
+                    cls._c(r.background),
+                    r.height,
+                )
+
+            col_count = max((len(r.cells) for r in node.rows), default=1)
+            return CoreRenderIR.table(
+                [_ir_row(r) for r in node.rows],
+                _ir_row(node.header) if node.header is not None else None,
+                _ir_row(node.footer) if node.footer is not None else None,
+                cls._table_widths(node.column_widths, col_count),
+                node.column_spacing,
+                node.selected_row,
+                node.selected_column,
+                cls._c(node.highlight_color),
+                cls._c(node.highlight_background),
+                node.highlight_symbol,
+            )
+
+        if isinstance(node, ScrollbarNode):
+            return CoreRenderIR.scrollbar(
+                cls._SCROLLBAR_ORIENT.get(node.orientation, 0),
+                node.content_length,
+                node.position,
+                node.viewport_length,
+                cls._c(node.color),
+                cls._c(node.thumb_color),
+                cls._c(node.track_color),
+                node.begin_symbol,
+                node.end_symbol,
+            )
+
+        if isinstance(node, TabsNode):
+            titles = [cls._ir_line(t) for t in node.titles]
+            return CoreRenderIR.tabs(
+                titles,
+                node.selected or 0,
+                cls._c(node.color),
+                cls._c(node.background),
+                cls._c(node.highlight_color),
+                cls._c(node.highlight_background),
+                node.divider,
+                node.padding_left,
+                node.padding_right,
+            )
+
+        if isinstance(node, CanvasNode):
+            from xnano.beta.utils.native_types import (
+                get_native_color_from_color_like,
+            )
+            from xnano_core.rust import native as _native
+
+            shapes = []
+            for shape in node.shapes:
+                if isinstance(shape, CanvasLine):
+                    c = (
+                        get_native_color_from_color_like(shape.color)
+                        or _native.Color.WHITE
+                    )
+                    shapes.append(
+                        ("line", shape.x1, shape.y1, shape.x2, shape.y2, c)
+                    )
+                elif isinstance(shape, CanvasPoints):
+                    c = (
+                        get_native_color_from_color_like(shape.color)
+                        or _native.Color.WHITE
+                    )
+                    shapes.append(("points", list(shape.coords), c))
+                elif isinstance(shape, CanvasRectangle):
+                    c = (
+                        get_native_color_from_color_like(shape.color)
+                        or _native.Color.WHITE
+                    )
+                    shapes.append(
+                        (
+                            "rect",
+                            shape.x,
+                            shape.y,
+                            shape.width,
+                            shape.height,
+                            c,
+                        )
+                    )
+                elif isinstance(shape, CanvasCircle):
+                    c = (
+                        get_native_color_from_color_like(shape.color)
+                        or _native.Color.WHITE
+                    )
+                    shapes.append(
+                        ("circle", shape.x, shape.y, shape.radius, c)
+                    )
+                elif isinstance(shape, CanvasPrint):
+                    content = shape.content
+                    if isinstance(content, str):
+                        spans = [(content, None, None, [])]
+                    elif isinstance(content, LineNode):
+                        if isinstance(content.content, list):
+                            spans = [
+                                (
+                                    s.content,
+                                    cls._c(s.color),
+                                    cls._c(s.background),
+                                    cls._mods(s.modifiers),
+                                )
+                                for s in content.content
+                            ]
+                        else:
+                            spans = [
+                                (
+                                    content.content or "",
+                                    cls._c(content.color),
+                                    cls._c(content.background),
+                                    cls._mods(content.modifiers),
+                                )
+                            ]
+                    else:  # SpanNode
+                        spans = [
+                            (
+                                content.content,
+                                cls._c(content.color),
+                                cls._c(content.background),
+                                cls._mods(content.modifiers),
+                            )
+                        ]
+                    shapes.append(("print", shape.x, shape.y, spans))
+            return CoreRenderIR.canvas(
+                shapes,
+                node.x_bounds,
+                node.y_bounds,
+                cls._c(node.background),
+                cls._MARKER_INT.get(node.marker) if node.marker else None,
+            )
+
+        return None
 
     @classmethod
     def lower_node_to_native(
@@ -745,7 +1049,6 @@ class NodeAssembler:
         *,
         effect_key: str | None = None,
     ) -> None:
-        from xnano_core.rust import native
         from xnano.beta.utils import native_types
 
         if hasattr(node, "visible") and not node.visible:
@@ -754,128 +1057,7 @@ class NodeAssembler:
 
         native_rect = native_types.get_native_rect_from_area(area)
 
-        if isinstance(node, ClearNode):
-            session.render_native(native_rect, native.Clear(), z=effective_z)
-            return
-
-        if isinstance(node, SpanNode):
-            native_span = native_types.get_native_span_from_span_node(node)
-            native_line = native.Line.from_spans([native_span])
-            native_text = native.Text.from_lines([native_line])
-            paragraph = native.Paragraph.new(native_text)
-            session.render_native(native_rect, paragraph, z=effective_z)
-            return
-
-        if isinstance(node, LineNode):
-            native_line = native_types.get_native_line_from_line_node(node)
-            native_text = native.Text.from_lines([native_line])
-            paragraph = native.Paragraph.new(native_text)
-            session.render_native(native_rect, paragraph, z=effective_z)
-            return
-
-        if isinstance(node, TextNode):
-            native_text = native_types.get_native_text_from_text_node(node)
-            paragraph = native.Paragraph.new(native_text)
-            style = native_types.get_native_style_from_kwargs(
-                color=node.color,
-                background=node.background,
-                modifiers=list(node.modifiers),
-            )
-            if style is not None:
-                paragraph = paragraph.style(style)
-            session.render_native(native_rect, paragraph, z=effective_z)
-            return
-
-        if isinstance(node, ParagraphNode):
-            text = node.text
-            if isinstance(text, str):
-                native_text = native.Text.raw(text)
-            elif isinstance(text, TextNode):
-                native_text = native_types.get_native_text_from_text_node(text)
-            else:
-                native_line = native_types.get_native_line_from_line_node(text)
-                native_text = native.Text.from_lines([native_line])
-            paragraph = native.Paragraph.new(native_text)
-            if node.wrap:
-                paragraph = paragraph.wrap(native.Wrap(True))
-            if node.align is not None:
-                paragraph = paragraph.alignment(
-                    native_types._NATIVE_ALIGNMENT_TYPES[node.align]
-                )
-            style = native_types.get_native_style_from_kwargs(
-                color=node.color,
-                background=node.background,
-                modifiers=list(node.modifiers),
-            )
-            if style is not None:
-                paragraph = paragraph.style(style)
-            session.render_native(
-                native_rect,
-                paragraph,
-                z=effective_z,
-                effect_key=effect_key,
-            )
-            return
-
-        if isinstance(node, ListNode):
-            items: list[Any] = []
-            for item in node.items:
-                if isinstance(item, LineNode):
-                    native_line = native_types.get_native_line_from_line_node(
-                        item
-                    )
-                    items.append(
-                        native.ListItem.new(
-                            native.Text.from_lines([native_line])
-                        )
-                    )
-                elif isinstance(item, SpanNode):
-                    native_span = native_types.get_native_span_from_span_node(
-                        item
-                    )
-                    items.append(
-                        native.ListItem.new(
-                            native.Text.from_lines(
-                                [native.Line.from_spans([native_span])]
-                            )
-                        )
-                    )
-                else:
-                    items.append(
-                        native.ListItem.new(native.Text.raw(str(item)))
-                    )
-            rat_list = native.RatList.new(items)
-            highlight_style = native_types.get_native_style_from_kwargs(
-                color=node.highlight_color,
-                background=node.highlight_background,
-            )
-            if highlight_style is not None:
-                rat_list = rat_list.highlight_style(highlight_style)
-            rat_list = rat_list.highlight_symbol(node.highlight_symbol)
-            if node.selected is not None:
-                list_state = native.ListState()
-                list_state.select(node.selected)
-                session.render_native_with_state(
-                    native_rect, rat_list, list_state, z=effective_z
-                )
-            else:
-                session.render_native(native_rect, rat_list, z=effective_z)
-            return
-
-        if isinstance(node, ProgressBarNode):
-            gauge = native.Gauge.default()
-            clamped = max(0.0, min(1.0, node.progress))
-            gauge = gauge.ratio(clamped)
-            if node.label is not None:
-                gauge = gauge.label(node.label)
-            style = native_types.get_native_style_from_kwargs(
-                color=node.color, background=node.background
-            )
-            if style is not None:
-                gauge = gauge.style(style)
-            session.render_native(native_rect, gauge, z=effective_z)
-            return
-
+        # Container nodes must stay Python-side (they call session layout methods).
         if isinstance(node, FrameNode):
             inner_area = session.grid_paint_frame(
                 area, node.frame, z=effective_z
@@ -888,14 +1070,12 @@ class NodeAssembler:
         if isinstance(node, ContainerNode):
             if not node.children:
                 return
-            from xnano.beta.utils.native_types import _NATIVE_DIRECTION_TYPES
+            from xnano.beta.grid import _GridLayoutConstraint
 
-            constraints: list[Any] = []
-            for child in node.children:
-                child_size = cls.measure_node(child)
-                from xnano.beta.grid import _GridLayoutConstraint
-
-                constraints.append(_GridLayoutConstraint(kind="fill", value=1))
+            constraints = [
+                _GridLayoutConstraint(kind="fill", value=1)
+                for _ in node.children
+            ]
             child_areas = session.grid_split_layout(
                 area, node.direction, node.gap, constraints
             )
@@ -910,345 +1090,36 @@ class NodeAssembler:
                 cls.lower_node_to_native(child, area, session, effective_z)
             return
 
-        if isinstance(node, SparklineNode):
-            if node.bars is not None:
-                native_bars: list[Any] = []
-                for bar in node.bars:
-                    native_bar = native.SparklineBar.new(bar.value)
-                    if bar.color is not None:
-                        bar_style = native_types.get_native_style_from_kwargs(
-                            color=bar.color
-                        )
-                        if bar_style is not None:
-                            native_bar = native_bar.style(bar_style)
-                    native_bars.append(native_bar)
-                spark = native.Sparkline.from_bars(native_bars)
-            else:
-                spark = native.Sparkline.new(node.data)
+        # Sparkline with per-bar colors: native path (CoreRenderIR can't express per-bar styles).
+        if isinstance(node, SparklineNode) and node.bars is not None:
+            from xnano_core.rust import native
+
+            native_bars: list[Any] = []
+            for bar in node.bars:
+                native_bar = native.SparklineBar.new(bar.value)
+                if bar.color is not None:
+                    bar_style = native_types.get_native_style_from_kwargs(
+                        color=bar.color
+                    )
+                    if bar_style is not None:
+                        native_bar = native_bar.style(bar_style)
+                native_bars.append(native_bar)
+            spark = native.Sparkline.from_bars(native_bars)
             if node.max_value is not None:
                 spark = spark.max(node.max_value)
-            style = native_types.get_native_style_from_kwargs(
-                color=node.color, background=node.background
-            )
-            if style is not None:
-                spark = spark.style(style)
-            if node.absent_value_color is not None:
-                av_style = native_types.get_native_style_from_kwargs(
-                    color=node.absent_value_color
-                )
-                if av_style is not None:
-                    spark = spark.absent_value_style(av_style)
-            if node.absent_value_symbol is not None:
-                spark = spark.absent_value_symbol(node.absent_value_symbol)
+            if node.color is not None:
+                s = native_types.get_native_style_from_kwargs(color=node.color)
+                if s is not None:
+                    spark = spark.style(s)
             session.render_native(native_rect, spark, z=effective_z)
             return
 
-        if isinstance(node, LineGaugeNode):
-            lg = native.LineGauge.new().ratio(
-                max(0.0, min(1.0, node.progress))
+        # Leaf nodes → single CoreRenderIR construction + enqueue.
+        ir = cls._build_leaf_ir(node)
+        if ir is not None:
+            session.render_ir(
+                native_rect, ir, z=effective_z, effect_key=effect_key
             )
-            if node.label is not None:
-                lg = lg.label(node.label)
-            style = native_types.get_native_style_from_kwargs(
-                color=node.color, background=node.background
-            )
-            if style is not None:
-                lg = lg.style(style)
-            if node.filled_color is not None:
-                fs = native_types.get_native_style_from_kwargs(
-                    color=node.filled_color
-                )
-                if fs is not None:
-                    lg = lg.filled_style(fs)
-            if node.unfilled_color is not None:
-                us = native_types.get_native_style_from_kwargs(
-                    color=node.unfilled_color
-                )
-                if us is not None:
-                    lg = lg.unfilled_style(us)
-            session.render_native(native_rect, lg, z=effective_z)
-            return
-
-        if isinstance(node, BarChartNode):
-            native_groups: list[Any] = []
-            for g in node.groups:
-                native_bars: list[Any] = []
-                for b in g.bars:
-                    nb = native.Bar.new(b.value, b.label)
-                    if b.text_value is not None:
-                        nb = nb.text_value(b.text_value)
-                    if b.color is not None:
-                        s = native_types.get_native_style_from_kwargs(
-                            color=b.color
-                        )
-                        if s is not None:
-                            nb = nb.style(s)
-                    if b.value_color is not None:
-                        vs = native_types.get_native_style_from_kwargs(
-                            color=b.value_color
-                        )
-                        if vs is not None:
-                            nb = nb.value_style(vs)
-                    native_bars.append(nb)
-                native_groups.append(native.BarGroup.new(native_bars))
-            chart = native.BarChart.new(native_groups)
-            chart = (
-                chart.bar_width(node.bar_width)
-                .bar_gap(node.bar_gap)
-                .group_gap(node.group_gap)
-            )
-            if node.max_value is not None:
-                chart = chart.max(node.max_value)
-            from xnano.beta.utils.native_types import (
-                _NATIVE_DIRECTION_TYPES as _DIR,
-            )
-
-            chart = chart.direction(_DIR[node.direction])
-            if node.color is not None:
-                s = native_types.get_native_style_from_kwargs(color=node.color)
-                if s is not None:
-                    chart = chart.bar_style(s)
-            if node.value_color is not None:
-                vs = native_types.get_native_style_from_kwargs(
-                    color=node.value_color
-                )
-                if vs is not None:
-                    chart = chart.value_style(vs)
-            if node.label_color is not None:
-                ls = native_types.get_native_style_from_kwargs(
-                    color=node.label_color
-                )
-                if ls is not None:
-                    chart = chart.label_style(ls)
-            session.render_native(native_rect, chart, z=effective_z)
-            return
-
-        if isinstance(node, TableNode):
-            from xnano.beta.utils.native_types import (
-                get_native_table_constraints,
-            )
-
-            def _cell_to_native(c: "TableCellItem | str") -> Any:
-                if isinstance(c, str):
-                    return native.Cell.new(native.Text.raw(c))
-                content = c.content
-                if isinstance(content, str):
-                    cell_text: Any = native.Text.raw(content)
-                elif isinstance(content, LineNode):
-                    cell_text = native.Text.from_lines(
-                        [native_types.get_native_line_from_line_node(content)]
-                    )
-                else:
-                    cell_text = native.Text.from_lines(
-                        [
-                            native.Line.from_spans(
-                                [
-                                    native_types.get_native_span_from_span_node(
-                                        content
-                                    )
-                                ]
-                            )
-                        ]
-                    )
-                cell = native.Cell.new(cell_text)
-                style = native_types.get_native_style_from_kwargs(
-                    color=c.color,
-                    background=c.background,
-                    modifiers=c.modifiers,
-                )
-                if style is not None:
-                    cell = cell.style(style)
-                return cell
-
-            def _row_to_native(r: "TableRowItem") -> Any:
-                native_cells = [_cell_to_native(c) for c in r.cells]
-                row = native.Row.new(native_cells)
-                if r.height != 1:
-                    row = row.height(r.height)
-                style = native_types.get_native_style_from_kwargs(
-                    color=r.color, background=r.background
-                )
-                if style is not None:
-                    row = row.style(style)
-                return row
-
-            native_rows = [_row_to_native(r) for r in node.rows]
-            col_count = max((len(r.cells) for r in node.rows), default=1)
-            constraints = get_native_table_constraints(
-                node.column_widths, col_count
-            )
-            rat_table = native.RatTable.new(native_rows, constraints)
-            rat_table = rat_table.column_spacing(node.column_spacing)
-            if node.header is not None:
-                rat_table = rat_table.header(_row_to_native(node.header))
-            if node.footer is not None:
-                rat_table = rat_table.footer(_row_to_native(node.footer))
-            if node.highlight_symbol is not None:
-                rat_table = rat_table.highlight_symbol(node.highlight_symbol)
-            if (
-                node.highlight_color is not None
-                or node.highlight_background is not None
-            ):
-                hl = native_types.get_native_style_from_kwargs(
-                    color=node.highlight_color,
-                    background=node.highlight_background,
-                )
-                if hl is not None:
-                    rat_table = rat_table.row_highlight_style(hl)
-
-            if (
-                node.selected_row is not None
-                or node.selected_column is not None
-            ):
-                table_state = native.TableState()
-                if node.selected_row is not None:
-                    table_state.select(node.selected_row)
-                if node.selected_column is not None:
-                    table_state.select_column(node.selected_column)
-                session.render_native_with_state(
-                    native_rect, rat_table, table_state, z=effective_z
-                )
-            else:
-                session.render_native(native_rect, rat_table, z=effective_z)
-            return
-
-        if isinstance(node, ScrollbarNode):
-            from xnano.beta.utils.native_types import (
-                _NATIVE_SCROLLBAR_ORIENTATION_TYPES,
-            )
-
-            sb = native.Scrollbar.new(
-                _NATIVE_SCROLLBAR_ORIENTATION_TYPES[node.orientation]
-            )
-            sb = sb.begin_symbol(node.begin_symbol)
-            sb = sb.end_symbol(node.end_symbol)
-            if node.color is not None:
-                s = native_types.get_native_style_from_kwargs(color=node.color)
-                if s is not None:
-                    sb = sb.style(s)
-            if node.thumb_color is not None:
-                ts = native_types.get_native_style_from_kwargs(
-                    color=node.thumb_color
-                )
-                if ts is not None:
-                    sb = sb.thumb_style(ts)
-            if node.track_color is not None:
-                trs = native_types.get_native_style_from_kwargs(
-                    color=node.track_color
-                )
-                if trs is not None:
-                    sb = sb.track_style(trs)
-            state = native.ScrollbarState(node.content_length)
-            state.set_position(node.position)
-            if node.viewport_length is not None:
-                state = state.viewport_content_length(node.viewport_length)
-            session.render_native_with_state(
-                native_rect, sb, state, z=effective_z
-            )
-            return
-
-        if isinstance(node, TabsNode):
-            from xnano.beta.utils.native_types import (
-                get_native_line_from_line_node,
-                get_native_span_from_span_node,
-            )
-
-            def _title_to_native_line(t: "str | LineNode | SpanNode") -> Any:
-                if isinstance(t, str):
-                    return native.Line.raw(t)
-                if isinstance(t, LineNode):
-                    return get_native_line_from_line_node(t)
-                return native.Line.from_spans(
-                    [get_native_span_from_span_node(t)]
-                )
-
-            native_titles = [_title_to_native_line(t) for t in node.titles]
-            tabs = native.Tabs.new(native_titles)
-            if node.selected is not None:
-                tabs = tabs.select(node.selected)
-            if node.divider is not None:
-                tabs = tabs.divider(node.divider)
-            tabs = tabs.padding_left(node.padding_left).padding_right(
-                node.padding_right
-            )
-            style = native_types.get_native_style_from_kwargs(
-                color=node.color, background=node.background
-            )
-            if style is not None:
-                tabs = tabs.style(style)
-            hl = native_types.get_native_style_from_kwargs(
-                color=node.highlight_color,
-                background=node.highlight_background,
-            )
-            if hl is not None:
-                tabs = tabs.highlight_style(hl)
-            session.render_native(native_rect, tabs, z=effective_z)
-            return
-
-        if isinstance(node, CanvasNode):
-            from xnano.beta.utils.native_types import (
-                _NATIVE_MARKER_TYPES,
-                get_native_color_from_color_like,
-                get_native_line_from_line_node,
-                get_native_span_from_span_node,
-            )
-
-            canvas = native.Canvas.default()
-            canvas = canvas.x_bounds(node.x_bounds).y_bounds(node.y_bounds)
-            if node.background is not None:
-                bg = get_native_color_from_color_like(node.background)
-                if bg is not None:
-                    canvas = canvas.background_color(bg)
-            if node.marker is not None:
-                canvas = canvas.marker(_NATIVE_MARKER_TYPES[node.marker])
-            for shape in node.shapes:
-                if isinstance(shape, CanvasLine):
-                    c = (
-                        get_native_color_from_color_like(shape.color)
-                        or native.Color.WHITE
-                    )
-                    canvas = canvas.line(
-                        shape.x1, shape.y1, shape.x2, shape.y2, c
-                    )
-                elif isinstance(shape, CanvasPoints):
-                    c = (
-                        get_native_color_from_color_like(shape.color)
-                        or native.Color.WHITE
-                    )
-                    canvas = canvas.points(shape.coords, c)
-                elif isinstance(shape, CanvasRectangle):
-                    c = (
-                        get_native_color_from_color_like(shape.color)
-                        or native.Color.WHITE
-                    )
-                    canvas = canvas.rectangle(
-                        shape.x, shape.y, shape.width, shape.height, c
-                    )
-                elif isinstance(shape, CanvasCircle):
-                    c = (
-                        get_native_color_from_color_like(shape.color)
-                        or native.Color.WHITE
-                    )
-                    canvas = canvas.circle(shape.x, shape.y, shape.radius, c)
-                elif isinstance(shape, CanvasPrint):
-                    content = shape.content
-                    if isinstance(content, str):
-                        print_text: Any = native.Text.raw(content)
-                    elif isinstance(content, LineNode):
-                        print_text = native.Text.from_lines(
-                            [get_native_line_from_line_node(content)]
-                        )
-                    else:
-                        print_text = native.Text.from_lines(
-                            [
-                                native.Line.from_spans(
-                                    [get_native_span_from_span_node(content)]
-                                )
-                            ]
-                        )
-                    canvas = canvas.print(shape.x, shape.y, print_text)
-            session.render_native(native_rect, canvas, z=effective_z)
-            return
 
 
 RenderNode: TypeAlias = (

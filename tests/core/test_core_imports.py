@@ -16,6 +16,9 @@ def test_engine_submodule_exports() -> None:
         "CoreTerminalEventKind",
         "CoreTerminalRef",
         "CoreTickEvent",
+        "CoreRenderIR",
+        "IrLine",
+        "CoreKeyBinding",
     }
     assert expected.issubset(set(dir(engine)))
 
