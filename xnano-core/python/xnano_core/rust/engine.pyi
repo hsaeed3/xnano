@@ -25,7 +25,7 @@ framework. It exposes:
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any, Optional
+from typing import Any, List, Literal, Optional, Tuple
 
 from xnano_core.rust.native import (
     Buffer,
@@ -43,6 +43,227 @@ from xnano_core.rust.native import (
     Rect,
     Size,
 )
+
+# ── Stage 1: Render IR ────────────────────────────────────────────────────────
+
+class IrLine:
+    """A pre-built ratatui ``Line<'static>`` constructed in a single boundary crossing."""
+
+    @staticmethod
+    def raw(content: str) -> IrLine:
+        """Build an unstyled line from a plain string."""
+        ...
+
+    @staticmethod
+    def styled(
+        content: str,
+        fg: Any | None = None,
+        bg: Any | None = None,
+        modifiers: List[Any] = ...,
+    ) -> IrLine:
+        """Build a uniformly styled line."""
+        ...
+
+    @staticmethod
+    def from_spans(
+        spans: List[Tuple[str, Any, Any, List[Any]]],
+    ) -> IrLine:
+        """Build a line from a list of ``(content, fg, bg, modifiers)`` tuples."""
+        ...
+
+class CoreRenderIR:
+    """IR node that carries all widget data for a single widget.
+
+    The entire data needed to build and render a ratatui widget is passed in
+    one Python→Rust boundary crossing instead of 3-4.  ``measure()`` returns
+    the natural size without rendering; ``CoreRenderContent.ir(ir)`` schedules
+    rendering entirely on the Rust side.
+    """
+
+    @staticmethod
+    def span(
+        content: str,
+        fg: Any | None = None,
+        bg: Any | None = None,
+        modifiers: List[Any] = ...,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def line(line: IrLine) -> CoreRenderIR: ...
+    @staticmethod
+    def text_raw(
+        content: str,
+        fg: Any | None = None,
+        bg: Any | None = None,
+        modifiers: List[Any] = ...,
+        align: int | None = None,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def text_lines(
+        lines: List[IrLine],
+        fg: Any | None = None,
+        bg: Any | None = None,
+        modifiers: List[Any] = ...,
+        align: int | None = None,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def paragraph_raw(
+        content: str,
+        fg: Any | None = None,
+        bg: Any | None = None,
+        modifiers: List[Any] = ...,
+        align: int | None = None,
+        wrap: bool = False,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def paragraph_lines(
+        lines: List[IrLine],
+        fg: Any | None = None,
+        bg: Any | None = None,
+        modifiers: List[Any] = ...,
+        align: int | None = None,
+        wrap: bool = False,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def list(
+        items: List[IrLine],
+        selected: int | None = None,
+        fg: Any | None = None,
+        bg: Any | None = None,
+        highlight_fg: Any | None = None,
+        highlight_bg: Any | None = None,
+        highlight_symbol: str = "",
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def progress_bar(
+        progress: float,
+        label: str | None = None,
+        fg: Any | None = None,
+        bg: Any | None = None,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def clear() -> CoreRenderIR: ...
+    @staticmethod
+    def sparkline(
+        data: List[int],
+        max_value: int | None = None,
+        fg: Any | None = None,
+        bg: Any | None = None,
+        absent_value_fg: Any | None = None,
+        absent_value_symbol: str | None = None,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def line_gauge(
+        progress: float,
+        label: str | None = None,
+        fg: Any | None = None,
+        bg: Any | None = None,
+        filled_fg: Any | None = None,
+        unfilled_fg: Any | None = None,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def bar_chart(
+        groups: List[
+            Tuple[
+                Optional[str],
+                List[Tuple[int, str, Optional[str], Any, Any, Any, Any]],
+            ]
+        ],
+        bar_width: int = 1,
+        bar_gap: int = 0,
+        group_gap: int = 0,
+        max_value: int | None = None,
+        horizontal: bool = False,
+        bar_fg: Any | None = None,
+        value_fg: Any | None = None,
+        label_fg: Any | None = None,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def table(
+        rows: List[Any],
+        header: Any | None = None,
+        footer: Any | None = None,
+        widths: List[Tuple[int, float]] = ...,
+        column_spacing: int = 0,
+        selected_row: int | None = None,
+        selected_column: int | None = None,
+        highlight_fg: Any | None = None,
+        highlight_bg: Any | None = None,
+        highlight_symbol: str | None = None,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def scrollbar(
+        orientation: int,
+        content_length: int,
+        position: int,
+        viewport_length: int | None = None,
+        fg: Any | None = None,
+        thumb_fg: Any | None = None,
+        track_fg: Any | None = None,
+        begin_symbol: str | None = None,
+        end_symbol: str | None = None,
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def tabs(
+        titles: List[IrLine],
+        selected: int = 0,
+        fg: Any | None = None,
+        bg: Any | None = None,
+        highlight_fg: Any | None = None,
+        highlight_bg: Any | None = None,
+        divider: str | None = None,
+        padding_left: str = " ",
+        padding_right: str = " ",
+    ) -> CoreRenderIR: ...
+    @staticmethod
+    def canvas(
+        shapes: List[Any] = ...,
+        x_bounds: Tuple[float, float] = ...,
+        y_bounds: Tuple[float, float] = ...,
+        background: Any | None = None,
+        marker: int | None = None,
+    ) -> CoreRenderIR: ...
+    def measure(self) -> Tuple[int, int]:
+        """Return the natural ``(width, height)`` of this IR node in character cells."""
+        ...
+
+# ── Stage 2: Key binding ──────────────────────────────────────────────────────
+
+class CoreKeyBinding:
+    """Parsed form of an xnano keyboard binding string such as ``"ctrl+q"``.
+
+    Matching is performed entirely in Rust — no Python string manipulation per
+    event.  Instances should be cached and reused across multiple events.
+    """
+
+    @staticmethod
+    def parse(binding: str) -> CoreKeyBinding:
+        """Parse a binding string into a ``CoreKeyBinding``.
+
+        Args:
+            binding: An ``xnano``-style binding string such as ``"ctrl+q"``,
+                ``"shift+up"``, ``"f5"``, or ``"enter"``.
+
+        Returns:
+            A ``CoreKeyBinding`` ready for :meth:`matches` calls.
+
+        Raises:
+            ValueError: If the binding string is empty, contains an unknown
+                modifier, or names an unrecognised key.
+        """
+        ...
+
+    def matches(self, event: KeyEvent) -> bool:
+        """Return ``True`` if ``event`` matches this binding.
+
+        Args:
+            event: A native :class:`~xnano_core.rust.native.KeyEvent`.
+
+        Returns:
+            ``True`` when the key code and modifier flags all match.
+        """
+        ...
+
+    def __repr__(self) -> str: ...
 
 CoreDrawableCallback = Callable[[Buffer, Rect], None]
 """Signature for :meth:`CoreRenderContent.drawable` callbacks.
@@ -120,6 +341,14 @@ class CoreEvent:
     paste: Optional[str]
     mouse: Optional[MouseEvent]
     tick: Optional[CoreTickEvent]
+
+    def kind_str(
+        self,
+    ) -> Literal[
+        "key", "resize", "paste", "mouse", "focus_gained", "focus_lost", "tick"
+    ]:
+        """Return the event kind as a lowercase string."""
+        ...
 
 class CoreRenderContent:
     """Tagged payload that a :class:`CoreRenderNode` paints into its rect.
@@ -210,6 +439,21 @@ class CoreRenderContent:
         """
         ...
 
+    @staticmethod
+    def ir(ir: CoreRenderIR) -> CoreRenderContent:
+        """Wrap a :class:`CoreRenderIR` for rendering entirely in Rust.
+
+        No Python widget construction occurs during :meth:`CoreSession.render`;
+        the IR is lowered to a ratatui widget and painted in a single Rust call.
+
+        Args:
+            ir: A :class:`CoreRenderIR` produced by one of its factory methods.
+
+        Returns:
+            A ``CoreRenderContent`` whose :meth:`is_ir` returns ``True``.
+        """
+        ...
+
     def is_empty(self) -> bool:
         """Whether this content variant is :meth:`empty`.
 
@@ -231,6 +475,14 @@ class CoreRenderContent:
 
         Returns:
             ``True`` if the variant is ``Drawable``, ``False`` otherwise.
+        """
+        ...
+
+    def is_ir(self) -> bool:
+        """Whether this content variant is an :meth:`ir` node.
+
+        Returns:
+            ``True`` if the variant is ``Ir``, ``False`` otherwise.
         """
         ...
 
@@ -989,6 +1241,9 @@ __all__ = (
     "CoreSession",
     "CoreRenderNode",
     "CoreRenderContent",
+    "CoreRenderIR",
+    "IrLine",
+    "CoreKeyBinding",
     "CoreEvent",
     "CoreTickEvent",
     "CoreTerminalEventKind",
