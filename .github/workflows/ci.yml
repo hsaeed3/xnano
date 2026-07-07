@@ -199,7 +199,9 @@ jobs:
           args: --release --out dist --interpreter 3.10
           rust-toolchain: stable
 
-      - run: twine check --strict dist/*
+      - name: check wheels
+        working-directory: xnano-core
+        run: twine check --strict dist/*
 
       - uses: actions/upload-artifact@v5
         with:
