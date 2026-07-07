@@ -8,19 +8,23 @@ import pytest
 
 from xnano_core.rust.native import (
     Block,
-    BufferMutView,
+    Buffer,
     Constraint,
     Paragraph,
     Rect,
     Style,
 )
-from xnano_core.rust.engine import CoreRenderContent, CoreRenderNode, CoreSession
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 
 
 def draw_glyph_content(symbol: str) -> CoreRenderContent:
     """Build drawable content that paints a single glyph at the cell origin."""
 
-    def draw(buffer: BufferMutView, rect: Rect) -> None:
+    def draw(buffer: Buffer, rect: Rect) -> None:
         buffer.set_string(0, 0, symbol, Style.default())
 
     return CoreRenderContent.drawable(draw)
