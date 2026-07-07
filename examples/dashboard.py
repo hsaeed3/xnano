@@ -7,11 +7,16 @@ from __future__ import annotations
 
 import random
 
-from xnano.beta import Field, Grid, Terminal, Text, on_keyboard, on_tick
+from xnano.beta import (
+    Field,
+    Grid,
+    Terminal,
+    on_keyboard,
+    on_tick,
+)
+from xnano.beta.components import Sparkline, Text
 from xnano.beta.color import tailwind
 
-
-_SPARK = " ▁▂▃▄▅▆▇█"
 
 _GRADIENT = [
     tailwind("sky", 400),
@@ -30,30 +35,28 @@ _GRADIENT = [
 
 def _gradient_hex(i: int, total: int) -> str:
     if total <= 1:
-        c = _GRADIENT[0]
-        return f"#{c.r:02x}{c.g:02x}{c.b:02x}"
+        color = _GRADIENT[0]
+        return f"#{color.r:02x}{color.g:02x}{color.b:02x}"
     pos = (i / (total - 1)) * (len(_GRADIENT) - 1)
     idx = min(int(pos), len(_GRADIENT) - 2)
     t = pos - idx
-    a, b = _GRADIENT[idx], _GRADIENT[idx + 1]
-    return f"#{int(a.r + (b.r - a.r) * t):02x}{int(a.g + (b.g - a.g) * t):02x}{int(a.b + (b.b - a.b) * t):02x}"
+    start, end = _GRADIENT[idx], _GRADIENT[idx + 1]
+    red = int(start.r + (end.r - start.r) * t)
+    green = int(start.g + (end.g - start.g) * t)
+    blue = int(start.b + (end.b - start.b) * t)
+    return f"#{red:02x}{green:02x}{blue:02x}"
 
 
-def _build_sparkline(history: list[int], width: int) -> Text:
+def _build_sparkline(history: list[int], width: int) -> Sparkline:
     data = (
         history[-width:]
         if len(history) >= width
         else [0] * (width - len(history)) + history
     )
-    return Text(
-        [
-            Text(
-                _SPARK[min(int(v / 100 * (len(_SPARK) - 1)), len(_SPARK) - 1)],
-                color=_gradient_hex(i, width),
-                modifiers=("bold",),
-            )
-            for i, v in enumerate(data)
-        ]
+    return Sparkline(
+        data=data,
+        colors=tuple(_gradient_hex(i, width) for i in range(len(data))),
+        max_value=100,
     )
 
 
@@ -149,13 +152,13 @@ class GaugesPanel(Grid, direction="vertical", gap=1):
 
 
 class LeftPanel(Grid, direction="vertical"):
-    cpu: Text = Field(
-        default=Text(""),
+    cpu: Sparkline = Field(
+        default_factory=Sparkline,
         border="rounded",
         border_color=tailwind("violet", 500),
         title=" CPU Usage History (%) ",
     )
-    gauges: GaugesPanel = Field(default_factory=GaugesPanel)
+    gauges: GaugesPanel = Field(default_factory=GaugesPanel, size=9)
 
 
 class MainContent(Grid, direction="horizontal", gap=1):
