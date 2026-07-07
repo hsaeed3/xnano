@@ -83,6 +83,7 @@ def test_package_root_all_matches_exports() -> None:
         "CoreEvent",
         "CoreTickEvent",
         "CoreTerminalEventKind",
+        "__version__",
     }
 
 
