@@ -20,7 +20,7 @@ introduced by [PEP 440].
 
 # !! THIS MUST MATCH THE VERSION CONSTRAINT IN THE `pyproject.toml`
 # !! DEPENDENCIES
-_COMPATIBLE_XNANO_CORE_VERSION = "0.0.1"
+_COMPATIBLE_XNANO_CORE_VERSION = "0.0.2"
 
 
 def check_xnano_core_version() -> bool:
