@@ -15,6 +15,9 @@ import re
 from typing import Any, ClassVar, Literal, TypeAlias, Union, cast
 
 
+_TAILWIND_CACHE: dict[tuple[str, int], Color] = {}
+
+
 ColorLike: TypeAlias = Union["ColorName", str, "ColorTuple", "Color"]
 """A color-like input.
 
@@ -190,6 +193,42 @@ ColorName: TypeAlias = Literal[
     "yellowgreen",
 ]
 """Known color names ported from ``pydantic_extra_types.Color``."""
+
+
+TailwindColorName: TypeAlias = Literal[
+    "amber",
+    "black",
+    "blue",
+    "cyan",
+    "emerald",
+    "fuchsia",
+    "gray",
+    "green",
+    "indigo",
+    "lime",
+    "neutral",
+    "orange",
+    "pink",
+    "purple",
+    "red",
+    "rose",
+    "sky",
+    "slate",
+    "stone",
+    "teal",
+    "violet",
+    "white",
+    "yellow",
+    "zinc",
+]
+"""Known color palette names from Tailwind CSS."""
+
+
+TailwindColorShade: TypeAlias = Literal[
+    50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950
+]
+"""Accepted color shade values for setting tailwind colors, including all officially supported
+Tailwind CSS shade values."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, repr=False)
@@ -491,15 +530,44 @@ class Color:
             )
 
 
-_TAILWIND_CACHE: dict[tuple[str, int], Color] = {}
+def pydantic_color(color: ColorName) -> Color:
+    """Creates a new ``Color`` instance from a known color name derived
+    from the ``pydantic_extra_types.Color.COLORS_BY_NAME`` dictionary.
+
+    Example:
+        ```python
+        from xnano import pydantic_color
+
+        c = pydantic_color("blue")
+        ```
+
+    Args:
+        color: The name of the color to create.
+
+    Returns:
+        The color created from the name.
+    """
+    return Color.from_name(color)
 
 
-def tailwind(palette: str, shade: int) -> Color:
-    """Resolve a Tailwind CSS palette swatch to an xnano :class:`Color`.
+def tailwind_color(
+    palette: TailwindColorName, shade: TailwindColorShade = 500
+) -> Color:
+    """Resolve a Tailwind CSS palette swatch to an xnano ``Color`` instance.
 
     Calls the ``xnano_core`` native ``tailwind_color`` function internally and
-    converts the result to an xnano :class:`Color` — no native types are
+    converts the result to an xnano ``Color`` — no native types are
     exposed to the caller.
+
+    Example:
+
+        ```python
+        from xnano import tailwind, Field
+
+        class MyGrid(Grid):
+            header = Field(background=tailwind("blue", 600))
+            body = Field(color=tailwind("slate", 200))
+        ```
 
     Args:
         palette: Tailwind palette name, e.g. ``"blue"``, ``"slate"``,
@@ -507,15 +575,7 @@ def tailwind(palette: str, shade: int) -> Color:
         shade: Shade level: ``50``, ``100``, ``200``, …, ``900``, ``950``.
 
     Returns:
-        The resolved :class:`Color` for the given palette swatch.
-
-    Example::
-
-        from xnano import tailwind, Field
-
-        class MyGrid(Grid):
-            header = Field(background=tailwind("blue", 600))
-            body = Field(color=tailwind("slate", 200))
+        The resolved ``Color`` for the given palette swatch.
     """
     key = (palette, shade)
     cached = _TAILWIND_CACHE.get(key)
@@ -555,5 +615,6 @@ __all__ = (
     "ColorTuple",
     "ColorName",
     "Color",
-    "tailwind",
+    "pydantic_color",
+    "tailwind_color",
 )

@@ -10,7 +10,7 @@ import time
 
 from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
 from xnano.beta.components import Text
-from xnano.beta.color import tailwind
+from xnano.beta.color import tailwind_color
 
 
 _COMMANDS = [
@@ -27,11 +27,11 @@ def _pulsing_color(t: float, offset: int) -> str:
     phase = (t + offset * 0.8) % (2 * math.pi)
     val = math.sin(phase) * 0.5 + 0.5
     if val < 0.33:
-        c = tailwind("indigo", 400)
+        c = tailwind_color("indigo", 400)
     elif val < 0.66:
-        c = tailwind("purple", 500)
+        c = tailwind_color("purple", 500)
     else:
-        c = tailwind("fuchsia", 400)
+        c = tailwind_color("fuchsia", 400)
     return f"#{c.r:02x}{c.g:02x}{c.b:02x}"
 
 
@@ -52,7 +52,7 @@ def _render_messages(messages: list[dict], height: int) -> Text:
                     [
                         Text(
                             "❯ ",
-                            color=tailwind("sky", 400),
+                            color=tailwind_color("sky", 400),
                             modifiers=("bold",),
                         ),
                         Text(text + "\n", color="white", modifiers=("bold",)),
@@ -67,10 +67,12 @@ def _render_messages(messages: list[dict], height: int) -> Text:
                     [
                         Text(
                             "◆ Agent: ",
-                            color=tailwind("emerald", 400),
+                            color=tailwind_color("emerald", 400),
                             modifiers=("bold",),
                         ),
-                        Text(text + "\n", color=tailwind("emerald", 100)),
+                        Text(
+                            text + "\n", color=tailwind_color("emerald", 100)
+                        ),
                     ]
                 )
             )
@@ -82,12 +84,12 @@ def _render_messages(messages: list[dict], height: int) -> Text:
                     [
                         Text(
                             "ℹ ",
-                            color=tailwind("slate", 400),
+                            color=tailwind_color("slate", 400),
                             modifiers=("italic",),
                         ),
                         Text(
                             text + "\n",
-                            color=tailwind("slate", 400),
+                            color=tailwind_color("slate", 400),
                             modifiers=("italic",),
                         ),
                     ]
@@ -102,7 +104,7 @@ def _render_messages(messages: list[dict], height: int) -> Text:
                 c3 = _pulsing_color(t, 2)
             else:
                 c1 = c2 = c3 = (
-                    f"#{tailwind('violet', 700).r:02x}{tailwind('violet', 700).g:02x}{tailwind('violet', 700).b:02x}"
+                    f"#{tailwind_color('violet', 700).r:02x}{tailwind_color('violet', 700).g:02x}{tailwind_color('violet', 700).b:02x}"
                 )
             lines.append(
                 Text(
@@ -110,7 +112,7 @@ def _render_messages(messages: list[dict], height: int) -> Text:
                         Text("┃ ", color=c1),
                         Text(
                             "◆ Run ",
-                            color=tailwind("purple", 400),
+                            color=tailwind_color("purple", 400),
                             modifiers=("bold",),
                         ),
                         Text(
@@ -125,7 +127,7 @@ def _render_messages(messages: list[dict], height: int) -> Text:
                         Text("┃ ", color=c2),
                         Text(
                             "  " + description + "\n",
-                            color=tailwind("slate", 400),
+                            color=tailwind_color("slate", 400),
                         ),
                     ]
                 )
@@ -137,7 +139,7 @@ def _render_messages(messages: list[dict], height: int) -> Text:
                             Text("┃ ", color=c3),
                             Text(
                                 "  " + output + "\n",
-                                color=tailwind("slate", 300),
+                                color=tailwind_color("slate", 300),
                                 background="#251b30",
                             ),
                         ]
@@ -160,17 +162,25 @@ def _render_autocomplete(
     for idx, (cmd, desc) in enumerate(matches):
         is_sel = idx == selected
         prefix = " ❯ " if is_sel else "   "
-        bg = tailwind("purple", 950) if is_sel else None
+        bg = tailwind_color("purple", 950) if is_sel else None
         cmd_color = (
-            tailwind("purple", 300) if is_sel else tailwind("purple", 400)
+            tailwind_color("purple", 300)
+            if is_sel
+            else tailwind_color("purple", 400)
         )
         desc_color = (
-            tailwind("slate", 100) if is_sel else tailwind("slate", 400)
+            tailwind_color("slate", 100)
+            if is_sel
+            else tailwind_color("slate", 400)
         )
         parts.append(
             Text(
                 [
-                    Text(prefix, color=tailwind("purple", 400), background=bg),
+                    Text(
+                        prefix,
+                        color=tailwind_color("purple", 400),
+                        background=bg,
+                    ),
                     Text(
                         f"{cmd:<12}",
                         color=cmd_color,
@@ -188,7 +198,7 @@ class AgentChat(Grid, direction="vertical", background="black"):
     history: Text = Field(
         default=Text(""),
         border="rounded",
-        border_color=tailwind("slate", 700),
+        border_color=tailwind_color("slate", 700),
         title=" Developer Agent Terminal ",
         title_position="top",
         background="black",
@@ -196,7 +206,7 @@ class AgentChat(Grid, direction="vertical", background="black"):
     autocomplete: Text | None = Field(
         default=None,
         border="rounded",
-        border_color=tailwind("slate", 700),
+        border_color=tailwind_color("slate", 700),
         title=" Commands Autocomplete ",
         background="black",
     )
@@ -204,7 +214,7 @@ class AgentChat(Grid, direction="vertical", background="black"):
         default="▋",
         size=3,
         border="rounded",
-        border_color=tailwind("slate", 700),
+        border_color=tailwind_color("slate", 700),
         title=" Prompt Assistant (Type / for commands) ",
         color="white",
         background="black",
@@ -284,7 +294,7 @@ class AgentChat(Grid, direction="vertical", background="black"):
         cmd = cmd.strip()
         base = cmd.split()[0] if cmd else ""
         if base == "/quit":
-            from xnano.beta import Exit
+            from xnano.beta.exceptions import Exit
 
             raise Exit
         elif base == "/home":

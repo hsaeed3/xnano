@@ -9,7 +9,7 @@ import time
 
 from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
 from xnano.beta.components import Text
-from xnano.beta.color import tailwind
+from xnano.beta.color import tailwind_color
 
 
 _TABS = ["System Monitor", "Configuration", "Log Viewer"]
@@ -28,14 +28,14 @@ _LOGS = [
 
 def _tab_bar(selected: int) -> Text:
     border_color = [
-        tailwind("emerald", 500),
-        tailwind("amber", 500),
-        tailwind("indigo", 500),
+        tailwind_color("emerald", 500),
+        tailwind_color("amber", 500),
+        tailwind_color("indigo", 500),
     ][selected]
     accent = [
-        tailwind("emerald", 400),
-        tailwind("amber", 400),
-        tailwind("indigo", 400),
+        tailwind_color("emerald", 400),
+        tailwind_color("amber", 400),
+        tailwind_color("indigo", 400),
     ][selected]
     parts: list[str | Text] = []
     for i, name in enumerate(_TABS):
@@ -46,7 +46,7 @@ def _tab_bar(selected: int) -> Text:
                 )
             )
         else:
-            parts.append(Text(f" {name} ", color=tailwind("slate", 500)))
+            parts.append(Text(f" {name} ", color=tailwind_color("slate", 500)))
         if i < len(_TABS) - 1:
             parts.append(Text(" │ ", color=border_color))
     return Text(parts)
@@ -59,11 +59,13 @@ def _monitor_screen(elapsed: float) -> Text:
             [
                 Text(
                     f"  {label}: {ratio * 100:.0f}%\n",
-                    color=tailwind("slate", 300),
+                    color=tailwind_color("slate", 300),
                 ),
                 Text("  "),
                 Text("█" * filled, color=color),
-                Text("░" * (width - filled), color=tailwind("slate", 700)),
+                Text(
+                    "░" * (width - filled), color=tailwind_color("slate", 700)
+                ),
                 Text("\n"),
             ]
         )
@@ -89,23 +91,23 @@ def _monitor_screen(elapsed: float) -> Text:
             gauge(
                 "CPU Load",
                 cpu,
-                f"#{tailwind('emerald', 400).r:02x}{tailwind('emerald', 400).g:02x}{tailwind('emerald', 400).b:02x}",
+                f"#{tailwind_color('emerald', 400).r:02x}{tailwind_color('emerald', 400).g:02x}{tailwind_color('emerald', 400).b:02x}",
             ),
             Text("\n"),
             gauge(
                 "Memory  ",
                 mem,
-                f"#{tailwind('teal', 400).r:02x}{tailwind('teal', 400).g:02x}{tailwind('teal', 400).b:02x}",
+                f"#{tailwind_color('teal', 400).r:02x}{tailwind_color('teal', 400).g:02x}{tailwind_color('teal', 400).b:02x}",
             ),
             Text("\n"),
             gauge(
                 "Disk     ",
                 disk,
-                f"#{tailwind('cyan', 400).r:02x}{tailwind('cyan', 400).g:02x}{tailwind('cyan', 400).b:02x}",
+                f"#{tailwind_color('cyan', 400).r:02x}{tailwind_color('cyan', 400).g:02x}{tailwind_color('cyan', 400).b:02x}",
             ),
             Text("\n\n"),
-            Text("  CPU Load History\n", color=tailwind("slate", 400)),
-            Text(f"  {spark}", color=tailwind("emerald", 400)),
+            Text("  CPU Load History\n", color=tailwind_color("slate", 400)),
+            Text(f"  {spark}", color=tailwind_color("emerald", 400)),
         ]
     )
 
@@ -134,21 +136,21 @@ class TabNav(Grid, direction="vertical"):
         default=Text(""),
         size=3,
         border="rounded",
-        border_color=tailwind("emerald", 500),
+        border_color=tailwind_color("emerald", 500),
         title=" Multi-Screen Demonstration App (Switch with Left/Right) ",
     )
     screen: Text = Field(
         default=Text(""),
         border="rounded",
-        border_color=tailwind("emerald", 500),
-        color=tailwind("slate", 300),
+        border_color=tailwind_color("emerald", 500),
+        color=tailwind_color("slate", 300),
     )
     status: str = Field(
         default="",
         size=3,
         border="rounded",
-        border_color=tailwind("slate", 700),
-        color=tailwind("slate", 400),
+        border_color=tailwind_color("slate", 700),
+        color=tailwind_color("slate", 400),
     )
 
     selected_tab: int = Field(default=0, state=True)
@@ -167,9 +169,9 @@ class TabNav(Grid, direction="vertical"):
         elapsed = time.time() - self.start_time
 
         accent = [
-            tailwind("emerald", 500),
-            tailwind("amber", 500),
-            tailwind("indigo", 500),
+            tailwind_color("emerald", 500),
+            tailwind_color("amber", 500),
+            tailwind_color("indigo", 500),
         ][tab]
         accent_hex = f"#{accent.r:02x}{accent.g:02x}{accent.b:02x}"
 
@@ -184,7 +186,7 @@ class TabNav(Grid, direction="vertical"):
         elif tab == 1:
             self.screen = Text(
                 _config_screen(elapsed),
-                color=tailwind("zinc", 100),
+                color=tailwind_color("zinc", 100),
             )
         else:
             self.screen = Text(_logs_screen(elapsed))
