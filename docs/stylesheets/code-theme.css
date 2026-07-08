@@ -1,0 +1,226 @@
+/*
+ * xnano documentation code theme
+ *
+ * Restrained One Dark Pro semantics: most tokens stay at the default
+ * foreground; only keywords, strings, types, classes, and functions
+ * pick up accent colour. Surfaces follow xnano site chrome.
+ */
+
+/* ── Semantic token palette ─────────────────────────────────────────────── */
+
+[data-md-color-scheme="default"] {
+    --xn-code-bg: #eeecdf;
+    --xn-code-fg: #383a42;
+    --xn-code-line-highlight: #e4e2d4;
+
+    --xn-code-comment: #6b7280;
+    --xn-code-keyword: #a626a4;
+    --xn-code-decorator: rgb#597fa1;
+    --xn-code-namespace: #383a42;
+    --xn-code-class: #c18401;
+    --xn-code-builtin: #0184bc;
+    --xn-code-function: #4078a8;
+    --xn-code-string: #50a14f;
+    --xn-code-number: #986801;
+    --xn-code-constant: #986801;
+    --xn-code-self: #c18401;
+    --xn-code-operator: #383a42;
+    --xn-code-punctuation: #4a4d56;
+}
+
+[data-md-color-scheme="slate"] {
+    --xn-code-bg: #1e2028;
+    --xn-code-fg: #abb2bf;
+    --xn-code-line-highlight: #262a33;
+
+    --xn-code-comment: #5c6370;
+    --xn-code-keyword: #c678dd;
+    --xn-code-decorator: #80bbeb;
+    --xn-code-namespace: #abb2bf;
+    --xn-code-class: #e5c07b;
+    --xn-code-builtin: #56b6c2;
+    --xn-code-function: #61afef;
+    --xn-code-string: #98c379;
+    --xn-code-number: #d19a66;
+    --xn-code-constant: #d19a66;
+    --xn-code-self: #e5c07b;
+    --xn-code-operator: #abb2bf;
+    --xn-code-punctuation: #8b909a;
+}
+
+/* ── Code block surfaces ────────────────────────────────────────────────── */
+
+.highlight,
+.highlight > pre,
+.highlight > pre > code,
+.md-typeset .highlight > pre > code {
+    background-color: var(--xn-code-bg);
+    color: var(--xn-code-fg);
+}
+
+.md-typeset code {
+    background-color: color-mix(in srgb, var(--xn-code-bg) 82%, var(--xn-code-fg));
+    color: var(--xn-code-fg);
+    border-radius: var(--radius-1);
+    box-decoration-break: clone;
+}
+
+.md-typeset a > code {
+    color: inherit;
+}
+
+.md-typeset pre > code {
+    background-color: transparent;
+    color: var(--xn-code-fg);
+}
+
+/* ── Line highlights & anchors ────────────────────────────────────────────── */
+
+.highlight .hll,
+.md-typeset .highlight .hll {
+    background-color: var(--xn-code-line-highlight);
+}
+
+.highlight .codelineno,
+.md-typeset .highlight .codelineno {
+    color: var(--xn-code-comment);
+}
+
+/* ── Comments ───────────────────────────────────────────────────────────── */
+
+.highlight .c,
+.highlight .ch,
+.highlight .cm,
+.highlight .c1,
+.highlight .cp,
+.highlight .cpf,
+.highlight .cs {
+    color: var(--xn-code-comment);
+    font-style: italic;
+}
+
+/* ── Keywords ─────────────────────────────────────────────────────────────── */
+
+.highlight .k,
+.highlight .kd,
+.highlight .kn,
+.highlight .kp,
+.highlight .kr,
+.highlight .kt {
+    color: var(--xn-code-keyword);
+}
+
+/* ── Decorators ───────────────────────────────────────────────────────────── */
+
+.highlight .nd {
+    color: var(--xn-code-decorator);
+}
+
+/* ── Names — inherit foreground (Field, header, direction, Terminal, …) ── */
+
+.highlight .n,
+.highlight .na,
+.highlight .no,
+.highlight .nv,
+.highlight .vc,
+.highlight .vg,
+.highlight .vi,
+.highlight .vm,
+.highlight .nx,
+.highlight .py,
+.highlight .nn,
+.highlight .nt {
+    color: var(--xn-code-fg);
+}
+
+/* ── Types, classes, calls ────────────────────────────────────────────────── */
+
+.highlight .nc,
+.highlight .ne,
+.highlight .ni,
+.highlight .nl {
+    color: var(--xn-code-class);
+}
+
+.highlight .nf,
+.highlight .fm {
+    color: var(--xn-code-function);
+}
+
+.highlight .nb {
+    color: var(--xn-code-builtin);
+}
+
+.highlight .bp {
+    color: var(--xn-code-self);
+}
+
+/* ── Strings ──────────────────────────────────────────────────────────────── */
+
+.highlight .s,
+.highlight .sa,
+.highlight .sb,
+.highlight .sc,
+.highlight .dl,
+.highlight .sd,
+.highlight .s2,
+.highlight .sh,
+.highlight .si,
+.highlight .sx,
+.highlight .ss,
+.highlight .se {
+    color: var(--xn-code-string);
+}
+
+/* ── Numbers & constants ──────────────────────────────────────────────────── */
+
+.highlight .m,
+.highlight .mb,
+.highlight .mf,
+.highlight .mh,
+.highlight .mi,
+.highlight .mo,
+.highlight .il,
+.highlight .kc,
+.highlight .l,
+.highlight .ld {
+    color: var(--xn-code-number);
+}
+
+/* ── Operators & punctuation ────────────────────────────────────────────── */
+
+.highlight .o,
+.highlight .ow {
+    color: var(--xn-code-operator);
+}
+
+.highlight .p {
+    color: var(--xn-code-punctuation);
+}
+
+/* ── Misc / diff / errors ─────────────────────────────────────────────────── */
+
+.highlight .ge,
+.highlight .gh,
+.highlight .go,
+.highlight .gp,
+.highlight .gr,
+.highlight .gs,
+.highlight .gu,
+.highlight .esc,
+.highlight .x {
+    color: var(--xn-code-fg);
+}
+
+.highlight .gd,
+.highlight .err {
+    color: #e06c75;
+}
+
+.highlight .gi {
+    color: var(--xn-code-string);
+}
+
+.highlight .err {
+    background-color: color-mix(in srgb, #e06c75 12%, transparent);
+}
