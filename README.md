@@ -1,4 +1,4 @@
-![xnano Agent Chat](./docs/assets/examples/agent_chat-dark.gif)
+![xnano Demo](./docs/assets/examples/demo-dark.gif)
 
 # __xnano__
 
@@ -35,9 +35,20 @@ Or use ``uv``:
 uv add "xnano>=1.0.0b2"
 ```
 
+> [!TIP]
+> Try running the `python -m xnano` or `uv run xnano` commands to test out the built in demo application.
+
 ---
 
 ## Examples
+
+You can view the code for these examples here: [examples](./examples).
+
+![xnano Agent Chat Demo](./docs/assets/examples/agent_chat-dark.gif)
+
+![xnano Feed Demo](./docs/assets/examples/feed-dark.gif)
+
+![xnano Kanban Demo](./docs/assets/examples/kanban-dark.gif)
 
 ### Your first render
 
