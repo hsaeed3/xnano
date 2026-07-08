@@ -203,7 +203,7 @@ def _render_detail(
 class SpecApp(Grid, direction="horizontal", gap=1, background="black"):
     left: Text = Field(
         default=Text(""),
-        size=0.3,
+        width="30%",
         border="rounded",
         border_color=_S700,
         title=" xnano-spec  j/k: nav  e: edit  q: quit ",
@@ -211,7 +211,7 @@ class SpecApp(Grid, direction="horizontal", gap=1, background="black"):
     )
     right: Text = Field(
         default=Text(""),
-        flex=1,
+        width="1fr",
         border="rounded",
         border_color=_S700,
         title=" Detail ",
