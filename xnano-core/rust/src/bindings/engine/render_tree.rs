@@ -252,10 +252,18 @@ pub(crate) fn render_node_to_buffer(
     }
 
     let rect = if node.has_absolute_geometry() {
-        node.absolute_rect()
+        // Clamp to the buffer's current bounds so that a terminal resize
+        // occurring between layout and commit never causes an out-of-bounds
+        // buffer index (the ratatui panic "index outside of buffer").
+        let abs = node.absolute_rect();
+        abs.intersection(buffer.area)
     } else {
         area
     };
+
+    if rect.is_empty() {
+        return Ok(None);
+    }
 
     if let Some(key) = &node.effect_key {
         ctx.record_effect_area(key.clone(), rect);
@@ -278,7 +286,10 @@ pub(crate) fn render_node_to_buffer(
 
         let child_areas: Vec<Rect> =
             if node.children.iter().all(|c| c.has_absolute_geometry()) {
-                node.children.iter().map(|c| c.absolute_rect()).collect()
+                node.children
+                    .iter()
+                    .map(|c| c.absolute_rect().intersection(buffer.area))
+                    .collect()
             } else {
                 Layout::default()
                     .direction(
