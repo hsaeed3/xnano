@@ -21,7 +21,9 @@ from generate_concept_demos import DEMOS, _DEMO_MAP  # noqa: E402
 
 
 def _run_demo(name: str, code: str) -> tuple[str, str]:
-    with tempfile.NamedTemporaryFile("w", suffix=f"-{name}.py", delete=False) as handle:
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=f"-{name}.py", delete=False
+    ) as handle:
         handle.write(code)
         path = Path(handle.name)
 

@@ -42,10 +42,7 @@ def is_vhs_mono_mode() -> bool:
 
 def is_vhs_docs_background_mode() -> bool:
     """Return whether widget backgrounds should match the docs page."""
-    return (
-        os.environ.get("XNANO_VHS_DOCS_BG") == "1"
-        or is_vhs_mono_mode()
-    )
+    return os.environ.get("XNANO_VHS_DOCS_BG") == "1" or is_vhs_mono_mode()
 
 
 def get_vhs_color_cache_token() -> str:

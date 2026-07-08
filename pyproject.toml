@@ -39,6 +39,9 @@ dependencies = [
     "xnano-core==0.0.5",
 ]
 
+[project.scripts]
+xnano = "xnano.__main__:main"
+
 [dependency-groups]
 dev = [
     "maturin>=1.9.4,<2.0",
