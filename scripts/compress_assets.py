@@ -72,7 +72,8 @@ def compress_gif(path: Path, dry_run: bool) -> tuple[int, int]:
                 "gifsicle",
                 "--optimize=3",
                 "--lossy=80",
-                "--output", str(tmp_path),
+                "--output",
+                str(tmp_path),
                 str(path),
             ],
             capture_output=True,
@@ -111,15 +112,26 @@ def format_delta(original: int, compressed: int) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Compress PNG/GIF assets in-place.")
-    parser.add_argument("--dry-run", action="store_true", help="report sizes without writing")
-    parser.add_argument("--no-gif", action="store_true", help="skip GIF compression")
-    parser.add_argument("--no-png", action="store_true", help="skip PNG compression")
+    parser = argparse.ArgumentParser(
+        description="Compress PNG/GIF assets in-place."
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="report sizes without writing"
+    )
+    parser.add_argument(
+        "--no-gif", action="store_true", help="skip GIF compression"
+    )
+    parser.add_argument(
+        "--no-png", action="store_true", help="skip PNG compression"
+    )
     args = parser.parse_args()
 
     has_gifsicle = shutil.which("gifsicle") is not None
     if not args.no_gif and not has_gifsicle:
-        print("warning: gifsicle not found — skipping GIFs (brew install gifsicle)", file=sys.stderr)
+        print(
+            "warning: gifsicle not found — skipping GIFs (brew install gifsicle)",
+            file=sys.stderr,
+        )
         args.no_gif = True
 
     pngs = sorted(REPO_ROOT.rglob("*.png")) if not args.no_png else []
@@ -138,10 +150,14 @@ def main() -> int:
             total_compressed += compressed
             delta = format_delta(original, compressed)
             relative = path.relative_to(REPO_ROOT)
-            print(f"{label}png  {relative}  {format_size(original)} → {format_size(compressed)}  ({delta})")
+            print(
+                f"{label}png  {relative}  {format_size(original)} → {format_size(compressed)}  ({delta})"
+            )
         except Exception as exc:
             errors.append((path, str(exc)))
-            print(f"error  {path.relative_to(REPO_ROOT)}  {exc}", file=sys.stderr)
+            print(
+                f"error  {path.relative_to(REPO_ROOT)}  {exc}", file=sys.stderr
+            )
 
     for path in gifs:
         try:
@@ -150,10 +166,14 @@ def main() -> int:
             total_compressed += compressed
             delta = format_delta(original, compressed)
             relative = path.relative_to(REPO_ROOT)
-            print(f"{label}gif  {relative}  {format_size(original)} → {format_size(compressed)}  ({delta})")
+            print(
+                f"{label}gif  {relative}  {format_size(original)} → {format_size(compressed)}  ({delta})"
+            )
         except Exception as exc:
             errors.append((path, str(exc)))
-            print(f"error  {path.relative_to(REPO_ROOT)}  {exc}", file=sys.stderr)
+            print(
+                f"error  {path.relative_to(REPO_ROOT)}  {exc}", file=sys.stderr
+            )
 
     total_saved = total_original - total_compressed
     print()
