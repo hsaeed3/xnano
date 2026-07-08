@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use crossterm::cursor::MoveTo;
 use crossterm::event;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Rect, Size};
-use ratatui::{init, restore, DefaultTerminal};
+use ratatui::{
+    init, restore, try_init_with_options, DefaultTerminal, TerminalOptions, Viewport,
+};
 use tachyonfx::EffectManager;
 
 use super::clock::TickClock;
@@ -14,7 +17,7 @@ use super::events::PyEvent;
 use super::panic_hook::{install_restore_panic_hook, PanicHookGuard};
 use super::render_tree::{render_node, render_node_to_buffer, PyRenderNode, RenderContext};
 use super::super::convert_core::{sync_from_core_buffer, sync_to_core_buffer, to_core_rect};
-use super::super::crossterm_exec::{flush_stdout, io_to_py};
+use super::super::crossterm_exec::{execute_stdout, flush_stdout, io_to_py};
 use super::super::cursor::{
     get_cursor_position_impl, hide_cursor_impl, move_cursor_to_impl, restore_cursor_position_impl,
     save_cursor_position_impl, set_cursor_style_impl, show_cursor_impl, PyCursorStyle,
@@ -141,16 +144,30 @@ pub struct PySession {
     last_frame_at: Instant,
     last_frame_area: Option<Rect>,
     effect_areas: HashMap<String, Rect>,
+    inline_height: Option<u16>,
     _panic_hook_guard: Option<PanicHookGuard>,
 }
 
 #[pymethods]
 impl PySession {
     #[staticmethod]
-    #[pyo3(signature = (*, tick_rate_ms = None))]
-    fn init(tick_rate_ms: Option<u64>) -> PyResult<Self> {
+    #[pyo3(signature = (*, tick_rate_ms = None, inline_height = None))]
+    fn init(tick_rate_ms: Option<u64>, inline_height: Option<u16>) -> PyResult<Self> {
         let panic_guard = install_restore_panic_hook();
-        let terminal = init();
+        // ``inline_height`` selects an inline viewport that reserves a fixed
+        // number of rows in the main screen buffer (no alternate screen), so
+        // rendered content sits inline with prior terminal output. When it is
+        // ``None`` the session claims the full alternate screen as before.
+        let (terminal, alternate_screen) = match inline_height {
+            Some(height) => {
+                let terminal = try_init_with_options(TerminalOptions {
+                    viewport: Viewport::Inline(height.max(1)),
+                })
+                .map_err(io_to_py)?;
+                (terminal, false)
+            }
+            None => (init(), true),
+        };
         Ok(Self {
             terminal: Some(terminal),
             offscreen_buffer: None,
@@ -160,7 +177,7 @@ impl PySession {
             mouse_capture: false,
             bracketed_paste: false,
             focus_change: false,
-            alternate_screen: true,
+            alternate_screen,
             synchronized_updates: false,
             cursor_visible: true,
             cursor_style: PyCursorStyle::DefaultUserShape,
@@ -168,6 +185,7 @@ impl PySession {
             last_frame_at: Instant::now(),
             last_frame_area: None,
             effect_areas: HashMap::new(),
+            inline_height,
             _panic_hook_guard: Some(panic_guard),
         })
     }
@@ -191,6 +209,7 @@ impl PySession {
             last_frame_at: Instant::now(),
             last_frame_area: Some(Rect::new(0, 0, width, height)),
             effect_areas: HashMap::new(),
+            inline_height: None,
             _panic_hook_guard: None,
         })
     }
@@ -483,6 +502,23 @@ impl PySession {
         self.last_frame_area.map(|r| PyRect { inner: r })
     }
 
+    fn get_viewport_area(&mut self) -> PyResult<PyRect> {
+        // The live viewport area — for inline sessions this is offset from the
+        // screen origin (e.g. positioned at the cursor row), so callers must
+        // build render geometry relative to it rather than assuming ``(0, 0)``.
+        if let Some(terminal) = self.terminal.as_mut() {
+            Ok(PyRect {
+                inner: terminal.get_frame().area(),
+            })
+        } else if let Some(buffer) = &self.offscreen_buffer {
+            Ok(PyRect {
+                inner: buffer.area,
+            })
+        } else {
+            Err(PyRuntimeError::new_err("session closed"))
+        }
+    }
+
     fn is_raw_mode_enabled(&self) -> bool {
         self.raw_mode
     }
@@ -501,6 +537,14 @@ impl PySession {
 
     fn is_alternate_screen_enabled(&self) -> bool {
         self.alternate_screen
+    }
+
+    fn is_inline(&self) -> bool {
+        self.inline_height.is_some()
+    }
+
+    fn get_inline_height(&self) -> Option<u16> {
+        self.inline_height
     }
 
     fn is_cursor_visible(&self) -> bool {
@@ -565,7 +609,19 @@ impl PySession {
     fn restore(&mut self) -> PyResult<()> {
         self.teardown_device_state();
         if self.terminal.is_some() {
-            restore();
+            if self.inline_height.is_some() {
+                // Inline sessions never entered the alternate screen, so keep
+                // the rendered content in the main buffer, drop the cursor just
+                // past the viewport (so any following shell prompt lands below
+                // the content), and disable raw mode.
+                if let Some(area) = self.last_frame_area {
+                    let _ = execute_stdout(MoveTo(0, area.bottom()));
+                }
+                let _ = disable_raw_mode_impl();
+                let _ = flush_stdout();
+            } else {
+                restore();
+            }
             self.terminal.take();
         }
         self._panic_hook_guard = None;
