@@ -86,9 +86,29 @@ class ExampleConfig:
     height: int = 900
     font_size: int = 13
     padding: int = 20
+    script: str | None = None
+    """Override the default ``examples/{name}.py`` script path (repo-relative)."""
 
 
 EXAMPLES: tuple[ExampleConfig, ...] = (
+    ExampleConfig(
+        name="demo",
+        script="xnano/beta/core/demo.py",
+        height=600,
+        launch_delay="2s",
+        steps=(
+            "Sleep 800ms",
+            'Type "2"',
+            "Sleep 600ms",
+            'Type "3"',
+            "Sleep 600ms",
+            'Type "4"',
+            "Sleep 600ms",
+            'Type "1"',
+            "Sleep 600ms",
+        ),
+        record_delay="1s",
+    ),
     ExampleConfig(
         name="feed",
         launch_delay="2.5s",
@@ -260,7 +280,11 @@ def generate(
     dry_run: bool,
     quiet: bool,
 ) -> None:
-    script = EXAMPLES_DIR / f"{example.name}.py"
+    script = (
+        REPO_ROOT / example.script
+        if example.script is not None
+        else EXAMPLES_DIR / f"{example.name}.py"
+    )
     if not script.exists():
         print(f"  skip {example.name} — {script} not found", file=sys.stderr)
         return
