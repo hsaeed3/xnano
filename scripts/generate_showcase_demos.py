@@ -157,7 +157,9 @@ EXAMPLES: tuple[ExampleConfig, ...] = (
     ),
 )
 
-_EXAMPLE_MAP: dict[str, ExampleConfig] = {example.name: example for example in EXAMPLES}
+_EXAMPLE_MAP: dict[str, ExampleConfig] = {
+    example.name: example for example in EXAMPLES
+}
 
 
 def _output_name(example: str, theme_key: str, variant: VariantKey) -> str:
@@ -205,11 +207,11 @@ def build_tape(
     variant: VariantKey,
 ) -> str:
     output_rel = output_path.relative_to(REPO_ROOT)
-    env_lines = [
-        f'Env {key} "{value}"' for key, value in example.env
-    ]
+    env_lines = [f'Env {key} "{value}"' for key, value in example.env]
     env_lines.extend(_vhs_env_lines(theme_key, variant))
-    launch_command = f"uv run python {script_path.relative_to(REPO_ROOT).as_posix()}"
+    launch_command = (
+        f"uv run python {script_path.relative_to(REPO_ROOT).as_posix()}"
+    )
     return build_run_tape(
         output=output_rel,
         settings=_base_settings(theme_key, variant, example),
@@ -333,11 +335,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
 
-    examples = (
-        [_EXAMPLE_MAP[args.example]]
-        if args.example
-        else list(EXAMPLES)
-    )
+    examples = [_EXAMPLE_MAP[args.example]] if args.example else list(EXAMPLES)
     themes = [args.theme] if args.theme else list(THEMES)
     variants = [args.variant] if args.variant else list(VARIANTS)
 
@@ -357,7 +355,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if not args.dry_run:
         total = len(examples) * len(themes) * len(variants)
-        print(f"\nDone — {total} GIF(s) in {OUTPUT_DIR.relative_to(REPO_ROOT)}/")
+        print(
+            f"\nDone — {total} GIF(s) in {OUTPUT_DIR.relative_to(REPO_ROOT)}/"
+        )
 
     return 0
 
