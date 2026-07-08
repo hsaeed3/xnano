@@ -13,6 +13,7 @@ import math
 import random
 from typing import Callable
 
+from xnano import __version__
 from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
 from xnano.beta.color import (
     Color,
@@ -41,11 +42,30 @@ _SPECTRUM: list[Color] = [
 """Cyclic gradient ring used for the banner and all accents."""
 
 _SWATCH_PALETTES: list[TailwindColorName] = [
-    "sky", "cyan", "teal", "emerald", "lime", "amber", "orange",
-    "red", "rose", "fuchsia", "violet", "indigo", "blue", "slate",
+    "sky",
+    "cyan",
+    "teal",
+    "emerald",
+    "lime",
+    "amber",
+    "orange",
+    "red",
+    "rose",
+    "fuchsia",
+    "violet",
+    "indigo",
+    "blue",
+    "slate",
 ]
 _SWATCH_SHADES: list[TailwindColorShade] = [
-    200, 300, 400, 500, 600, 700, 800, 900,
+    200,
+    300,
+    400,
+    500,
+    600,
+    700,
+    800,
+    900,
 ]
 
 _MODIFIERS: list[tuple[CharacterModifier, str]] = [
@@ -70,15 +90,14 @@ _TABS = ["Home", "Palette", "Type", "Charts", "About"]
 _SPARK_BLOCKS = " ▁▂▃▄▅▆▇█"
 
 
-# Each glyph is five equal-width rows; "#" is a filled cell.
-_GLYPHS: dict[str, list[str]] = {
-    "X": ["#   #", " # # ", "  #  ", " # # ", "#   #"],
-    "N": ["#   #", "##  #", "# # #", "#  ##", "#   #"],
-    "A": [" ### ", "#   #", "#####", "#   #", "#   #"],
-    "O": [" ### ", "#   #", "#   #", "#   #", " ### "],
-}
-_WORDMARK = "XNANO"
-_GLYPH_GAP = 2
+_ASCII_BANNER = r"""
+ /$$   /$$ /$$$$$$$   /$$$$$$  /$$$$$$$   /$$$$$$
+|  $$ /$$/| $$__  $$ |____  $$| $$__  $$ /$$__  $$
+ \  $$$$/ | $$  \ $$  /$$$$$$$| $$  \ $$| $$  \ $$
+  >$$  $$ | $$  | $$ /$$__  $$| $$  | $$| $$  | $$
+ /$$/\  $$| $$  | $$|  $$$$$$$| $$  | $$|  $$$$$$/
+|__/  \__/|__/  |__/ \_______/|__/  |__/ \______/
+"""
 
 
 def _color_hex(color: Color) -> str:
@@ -104,34 +123,20 @@ def _spectrum_hex(position: float) -> str:
     )
 
 
-def _wordmark_rows() -> list[str]:
-    """Compose the five doubled-width rows of the ``XNANO`` wordmark."""
-    rows: list[str] = []
-    for row_index in range(5):
-        segments: list[str] = []
-        for letter in _WORDMARK:
-            source = _GLYPHS[letter][row_index]
-            segments.append(
-                "".join("██" if cell == "#" else "  " for cell in source)
-            )
-        rows.append((" " * _GLYPH_GAP).join(segments))
-    return rows
-
-
-_WORDMARK_ROWS = _wordmark_rows()
-_WORDMARK_WIDTH = max(len(row) for row in _WORDMARK_ROWS)
+_BANNER_ROWS = [line for line in _ASCII_BANNER.splitlines() if line.strip()]
+_BANNER_WIDTH = max(len(row) for row in _BANNER_ROWS)
 
 
 def _banner(tick: float) -> Text:
     """Build the animated gradient wordmark plus tagline."""
     lines: list[str | Text] = [Text("")]
-    for row in _WORDMARK_ROWS:
+    for row in _BANNER_ROWS:
         spans: list[str | Text] = []
         for column, char in enumerate(row):
             if char == " ":
                 spans.append(Text(" "))
                 continue
-            hue = column / _WORDMARK_WIDTH * 1.4 - tick * 0.012
+            hue = column / _BANNER_WIDTH * 1.4 - tick * 0.012
             spans.append(Text(char, color=_spectrum_hex(hue)))
         lines.append(Text(spans))
     lines.append(Text(""))
@@ -143,7 +148,6 @@ def _banner(tick: float) -> Text:
         )
     )
     return Text(lines, align="center")
-
 
 
 def _tab_bar(selected: int, tick: float) -> Text:
@@ -160,9 +164,7 @@ def _tab_bar(selected: int, tick: float) -> Text:
             )
         )
         if index < len(_TABS) - 1:
-            parts.append(
-                Text("   ·   ", color=tailwind_color("slate", 800))
-            )
+            parts.append(Text("   ·   ", color=tailwind_color("slate", 800)))
     return Text(parts)
 
 
@@ -185,7 +187,9 @@ def _gauge(label: str, ratio: float, width: int, color: str) -> Text:
             Text(f"  {label:<12}", color=tailwind_color("slate", 300)),
             Text("█" * filled, color=color),
             Text("░" * (width - filled), color=tailwind_color("slate", 700)),
-            Text(f"  {ratio * 100:4.0f}%\n", color=tailwind_color("slate", 500)),
+            Text(
+                f"  {ratio * 100:4.0f}%\n", color=tailwind_color("slate", 500)
+            ),
         ]
     )
 
@@ -209,16 +213,12 @@ def _home_panel(demo: "Demo") -> Text:
             Text(
                 [
                     Text("  ◆ ", color=_spectrum_hex(hue)),
-                    Text(
-                        feature + "\n", color=tailwind_color("slate", 300)
-                    ),
+                    Text(feature + "\n", color=tailwind_color("slate", 300)),
                 ]
             )
         )
     lines.append(Text("\n"))
-    lines.append(
-        Text("  live\n", color=tailwind_color("slate", 500))
-    )
+    lines.append(Text("  live\n", color=tailwind_color("slate", 500)))
     lines.append(Text("  "))
     lines.append(_spark(demo.history[-56:], 100, demo.tick))
     return Text(lines)
@@ -372,9 +372,7 @@ def _about_panel(demo: "Demo") -> Text:
                         f"{name:<18}",
                         color=tailwind_color("slate", 200),
                     ),
-                    Text(
-                        detail + "\n", color=tailwind_color("slate", 500)
-                    ),
+                    Text(detail + "\n", color=tailwind_color("slate", 500)),
                 ]
             )
         )
@@ -400,17 +398,16 @@ _PANELS: list[Callable[["Demo"], Text]] = [
 ]
 
 
-
 class Demo(Grid, direction="vertical", gap=0):
     """The ``xnano`` feature-tour splash application."""
 
     header: str = Field(
-        default="  ◆ xnano  ·  v1.0.0b2  ·  a terminal ui framework",
+        default=f"  ◆ xnano  ·  v{__version__}  ·  a terminal ui framework",
         height=1,
         color=tailwind_color("sky", 400),
         modifiers=["bold"],
     )
-    banner: Text = Field(default=Text(""), height=8)
+    banner: Text = Field(default=Text(""), height=9)
     tabs: Text = Field(default=Text(""), height=1)
     body: Text = Field(
         default=Text(""),
@@ -470,9 +467,7 @@ class Demo(Grid, direction="vertical", gap=0):
 
         self.history.pop(0)
         drift = random.randint(-12, 12)
-        self.history.append(
-            max(0, min(100, self.history[-1] + drift))
-        )
+        self.history.append(max(0, min(100, self.history[-1] + drift)))
         self.history_2.pop(0)
         self.history_2.append(
             max(0, min(100, self.history_2[-1] + random.randint(-12, 12)))
@@ -490,12 +485,9 @@ class Demo(Grid, direction="vertical", gap=0):
         self.banner = _banner(self.tick)
         self.tabs = _tab_bar(self.selected_tab, self.tick)
         self.body = _PANELS[self.selected_tab](self)
-        self.grid_set_field(
-            "body", title=f" {_TABS[self.selected_tab]} "
-        )
+        self.grid_set_field("body", title=f" {_TABS[self.selected_tab]} ")
         self.footer = (
-            "  [←/→ h/l] switch   [1-5] jump   [q] quit"
-            "     xnano showcase"
+            "  [←/→ h/l] switch   [1-5] jump   [q] quit     xnano showcase"
         )
 
 
@@ -505,3 +497,7 @@ def run_demo() -> None:
 
 
 __all__ = ("Demo", "run_demo")
+
+
+if __name__ == "__main__":
+    run_demo()

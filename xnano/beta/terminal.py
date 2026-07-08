@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextvars
 import dataclasses
+import signal
 import warnings
 from typing import Any, Callable, Generic, Sequence, TypeVar, TYPE_CHECKING
 
@@ -145,6 +146,8 @@ class Terminal(Generic[StateT]):
         "_width_sizing",
         "_height_sizing",
         "_root_width_sizing",
+        "_prev_sigterm",
+        "_prev_sighup",
         "title",
         "mouse_events",
         "bracketed_paste",
@@ -202,6 +205,15 @@ class Terminal(Generic[StateT]):
         self._run_field: Any = None
         self._inline_height: int | None = None
         self._pending_enter: bool = False
+        self._prev_sigterm: Any = None
+        self._prev_sighup: Any = None
+
+    def _on_exit_signal(
+        self,
+        signum: int,
+        frame: Any,  # noqa: ARG002
+    ) -> None:
+        self._exit_requested = True
 
     def __enter__(self) -> "Terminal[StateT]":
         if self._is_live:
@@ -215,6 +227,19 @@ class Terminal(Generic[StateT]):
         self._pending_enter = True
         self._drain_pending_hooks()
         self._register_default_hooks()
+        # Install signal handlers so SIGTERM / SIGHUP (e.g. terminal window
+        # closed) flow through the normal exit path instead of killing the
+        # process before terminal restore can run.  signal.signal() is only
+        # valid on the main thread; silently skip if called elsewhere.
+        try:
+            self._prev_sigterm = signal.signal(
+                signal.SIGTERM, self._on_exit_signal
+            )
+            self._prev_sighup = signal.signal(
+                signal.SIGHUP, self._on_exit_signal
+            )
+        except (OSError, ValueError):
+            pass
         return self
 
     def _ensure_session(self) -> None:
@@ -261,6 +286,15 @@ class Terminal(Generic[StateT]):
             self._exit_requested = False
             self._inline_height = None
             self._root_width_sizing = None
+            try:
+                if self._prev_sigterm is not None:
+                    signal.signal(signal.SIGTERM, self._prev_sigterm)
+                    self._prev_sigterm = None
+                if self._prev_sighup is not None:
+                    signal.signal(signal.SIGHUP, self._prev_sighup)
+                    self._prev_sighup = None
+            except (OSError, ValueError):
+                pass
 
     def _render_frame(
         self,
