@@ -112,9 +112,13 @@ fn sync_cell_from_core(src: &ratatui_core::buffer::Cell, dst: &mut ratatui::buff
 }
 
 pub fn sync_to_core_buffer(src: &RtBuffer) -> CoreBuffer {
-    let mut dst = CoreBuffer::empty(to_core_rect(src.area));
-    for y in 0..src.area.height {
-        for x in 0..src.area.width {
+    // ``Buffer`` indexes by absolute cell coordinates, so iterate the area's
+    // real bounds — inline viewports are offset from the screen origin and a
+    // relative ``0..height`` walk would index outside the buffer.
+    let area = src.area;
+    let mut dst = CoreBuffer::empty(to_core_rect(area));
+    for y in area.top()..area.bottom() {
+        for x in area.left()..area.right() {
             sync_cell_to_core(&src[(x, y)], &mut dst[(x, y)]);
         }
     }
@@ -122,9 +126,16 @@ pub fn sync_to_core_buffer(src: &RtBuffer) -> CoreBuffer {
 }
 
 pub fn sync_from_core_buffer(src: &CoreBuffer, dst: &mut RtBuffer) {
-    let area = to_core_rect(dst.area);
-    for y in 0..area.height.min(src.area.height) {
-        for x in 0..area.width.min(src.area.width) {
+    // Copy back over the overlapping absolute region of both buffers so the
+    // walk stays within bounds for offset (inline) viewports.
+    let dst_area = dst.area;
+    let src_area = src.area;
+    let x0 = dst_area.left().max(src_area.x);
+    let y0 = dst_area.top().max(src_area.y);
+    let x1 = dst_area.right().min(src_area.x + src_area.width);
+    let y1 = dst_area.bottom().min(src_area.y + src_area.height);
+    for y in y0..y1 {
+        for x in x0..x1 {
             sync_cell_from_core(&src[(x, y)], &mut dst[(x, y)]);
         }
     }
