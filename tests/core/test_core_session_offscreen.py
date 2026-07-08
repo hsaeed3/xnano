@@ -49,6 +49,11 @@ def test_device_state_defaults_offscreen(
     assert not offscreen_session.is_cursor_visible()
 
 
+def test_offscreen_is_not_inline(offscreen_session: CoreSession) -> None:
+    assert offscreen_session.is_inline() is False
+    assert offscreen_session.get_inline_height() is None
+
+
 def test_poll_event_returns_none_without_tick_clock(
     offscreen_session: CoreSession,
 ) -> None:
