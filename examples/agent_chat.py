@@ -212,7 +212,7 @@ class AgentChat(Grid, direction="vertical", background="black"):
     )
     prompt: str = Field(
         default="▋",
-        size=3,
+        height=3,
         border="rounded",
         border_color=tailwind_color("slate", 700),
         title=" Prompt Assistant (Type / for commands) ",
@@ -431,7 +431,7 @@ class AgentChat(Grid, direction="vertical", background="black"):
         self.history = _render_messages(annotated, history_rows)
 
         if matches:
-            self.grid_set_field("autocomplete", size=len(matches) + 2)
+            self.grid_set_field("autocomplete", height=len(matches) + 2)
             self.autocomplete = _render_autocomplete(
                 matches, self.autocomplete_index
             )

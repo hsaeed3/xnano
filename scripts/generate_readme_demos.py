@@ -114,12 +114,12 @@ DEMOS: tuple[Demo, ...] = (
                 title: str = Field("This is a title.", align="center")
 
             class Sidebar(Grid, direction="vertical"):
-                title: SidebarTitle = Field(default_factory=SidebarTitle, size=0.1)
-                nav: str = Field(default="- Home", size=0.9, flex="flex-auto")
+                title: SidebarTitle = Field(default_factory=SidebarTitle, height="10%")
+                nav: str = Field(default="- Home", height="1fr")
 
             class App(Grid, direction="horizontal", gap=1):
-                sidebar: Sidebar = Field(default_factory=Sidebar, size=0.25)
-                content: str = Field(default="Main area", flex=1, border="rounded")
+                sidebar: Sidebar = Field(default_factory=Sidebar, width="25%")
+                content: str = Field(default="Main area", width="1fr", border="rounded")
 
                 @on_keyboard("q")
                 def quit(self, ctx: Context) -> None:
@@ -137,8 +137,8 @@ DEMOS: tuple[Demo, ...] = (
             from xnano.beta.hooks import on_keyboard
 
             class Counter(Grid, direction="vertical", gap=1):
-                label: str = Field(default="Count: 0", size=1)
-                hint: str = Field(default="Press up/down · q to quit", size=1)
+                label: str = Field(default="Count: 0", height=1)
+                hint: str = Field(default="Press up/down · q to quit", height=1)
                 count: int = Field(default=0, state=True)
 
                 @on_keyboard("up")
@@ -178,8 +178,8 @@ DEMOS: tuple[Demo, ...] = (
 
 
             class App(Grid, direction="vertical", gap=1):
-                button: str = Field(default="[ Click me ]", size=3, border="rounded")
-                status: str = Field(default="Waiting...", flex=1)
+                button: str = Field(default="[ Click me ]", height=3, border="rounded")
+                status: str = Field(default="Waiting...", height="1fr")
 
                 @on_click("button")
                 def on_button(self, ctx: Context) -> None:
@@ -216,7 +216,7 @@ DEMOS: tuple[Demo, ...] = (
             from xnano.beta.hooks import on_tick, on_keyboard
 
             class Clock(Grid, direction="vertical"):
-                time_display: str = Field(default="", size=3, border="rounded")
+                time_display: str = Field(default="", height=3, border="rounded")
 
                 def __post_init__(self) -> None:
                     self.time_display = time.strftime("%H:%M:%S")
@@ -246,8 +246,8 @@ DEMOS: tuple[Demo, ...] = (
                 username: str = "guest"
 
             class App(Grid, direction="vertical", gap=1):
-                header: str = Field(default="", size=1)
-                body: str = Field(default="Press q to quit", flex=1)
+                header: str = Field(default="", height=1)
+                body: str = Field(default="Press q to quit", height="1fr")
 
                 def grid_render(self) -> None:
                     self.header = f"Hello, {self.state.username}!"
@@ -283,9 +283,9 @@ DEMOS: tuple[Demo, ...] = (
 
 
             class StatusBoard(Grid, direction="vertical", gap=1):
-                ok: Badge = Field(default_factory=lambda: Badge(label="● OK", color=tailwind_color("emerald", 500)), size=1)
-                warn: Badge = Field(default_factory=lambda: Badge(label="● Warning", color="yellow"), size=1)
-                err: Badge = Field(default_factory=lambda: Badge(label="● Error", color=pydantic_color("palevioletred")), size=1)
+                ok: Badge = Field(default_factory=lambda: Badge(label="● OK", color=tailwind_color("emerald", 500)), height=1)
+                warn: Badge = Field(default_factory=lambda: Badge(label="● Warning", color="yellow"), height=1)
+                err: Badge = Field(default_factory=lambda: Badge(label="● Error", color=pydantic_color("palevioletred")), height=1)
 
                 @on_keyboard("q")
                 def quit(self, ctx: Context) -> None:

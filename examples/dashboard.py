@@ -141,14 +141,14 @@ def _build_table(processes: list, selected: int) -> Text:
 class GaugesPanel(Grid, direction="vertical", gap=1):
     mem: Text = Field(
         default=Text(""),
-        size=3,
+        height=3,
         border="rounded",
         border_color=tailwind_color("violet", 500),
         title=" Memory Info ",
     )
     disk: Text = Field(
         default=Text(""),
-        size=3,
+        height=3,
         border="rounded",
         border_color=tailwind_color("violet", 500),
         title=" Disk Storage ",
@@ -162,11 +162,11 @@ class LeftPanel(Grid, direction="vertical"):
         border_color=tailwind_color("violet", 500),
         title=" CPU Usage History (%) ",
     )
-    gauges: GaugesPanel = Field(default_factory=GaugesPanel, size=9)
+    gauges: GaugesPanel = Field(default_factory=GaugesPanel, height=9)
 
 
 class MainContent(Grid, direction="horizontal", gap=1):
-    left: LeftPanel = Field(default_factory=LeftPanel, size=0.40)
+    left: LeftPanel = Field(default_factory=LeftPanel, width="40%")
     right: Text = Field(
         default=Text(""),
         border="rounded",
@@ -178,7 +178,7 @@ class MainContent(Grid, direction="horizontal", gap=1):
 class Dashboard(Grid, direction="vertical"):
     header: str = Field(
         default="   SUPER COOL VERY IMPORTANT DASHBOARD   ",
-        size=1,
+        height=1,
         color="white",
         background=tailwind_color("violet", 950),
         modifiers=["bold"],
@@ -186,7 +186,7 @@ class Dashboard(Grid, direction="vertical"):
     main: MainContent = Field(default_factory=MainContent)
     footer: str = Field(
         default="  [Ctrl+C] Quit  ●  [Up/Down] Navigate Table  ",
-        size=1,
+        height=1,
         color=tailwind_color("slate", 500),
     )
 

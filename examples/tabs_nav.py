@@ -134,7 +134,7 @@ def _logs_screen(elapsed: float) -> str:
 class TabNav(Grid, direction="vertical"):
     tab_bar: Text = Field(
         default=Text(""),
-        size=3,
+        height=3,
         border="rounded",
         border_color=tailwind_color("emerald", 500),
         title=" Multi-Screen Demonstration App (Switch with Left/Right) ",
@@ -147,7 +147,7 @@ class TabNav(Grid, direction="vertical"):
     )
     status: str = Field(
         default="",
-        size=3,
+        height=3,
         border="rounded",
         border_color=tailwind_color("slate", 700),
         color=tailwind_color("slate", 400),
