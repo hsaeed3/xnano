@@ -1,0 +1,63 @@
+/* ── Showcase GIF hover: monotone → color ─────────────────────────────── */
+
+.xnano-showcase {
+    position: relative;
+    margin: 1.25rem 0;
+    border-radius: 12px;
+    overflow: hidden;
+    line-height: 0;
+    cursor: default;
+    display: grid;
+}
+
+/* MkDocs wraps images in <p>; let children share one grid cell. */
+.xnano-showcase > p {
+    display: contents;
+    margin: 0;
+}
+
+.xnano-showcase img {
+    grid-area: 1 / 1;
+    width: 100%;
+    border-radius: 12px;
+    display: none;
+    transition: opacity 0.45s ease;
+}
+
+/* Theme-aware visibility (mono + color pairs). */
+[data-md-color-scheme="default"] .xnano-showcase .demo-light { display: block; }
+[data-md-color-scheme="default"] .xnano-showcase .demo-dark  { display: none; }
+
+[data-md-color-scheme="slate"] .xnano-showcase .demo-dark  { display: block; }
+[data-md-color-scheme="slate"] .xnano-showcase .demo-light { display: none; }
+
+/* Stack color above mono; default to monotone. */
+.xnano-showcase .showcase-mono {
+    z-index: 1;
+    opacity: 1;
+}
+
+.xnano-showcase .showcase-color {
+    z-index: 2;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Hover: crossfade to full color (CSS + JS class for reliability). */
+.xnano-showcase:hover .showcase-color,
+.xnano-showcase:focus-within .showcase-color,
+.xnano-showcase.is-color .showcase-color {
+    opacity: 1;
+}
+
+.xnano-showcase:hover .showcase-mono,
+.xnano-showcase:focus-within .showcase-mono,
+.xnano-showcase.is-color .showcase-mono {
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .xnano-showcase img {
+        transition: none;
+    }
+}
