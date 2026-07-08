@@ -56,21 +56,19 @@ dev = [
     # type checking!
     # another banger from astral.sh
     "ty",
-
     # all examples use marimo in favor of jupyter because marimo
     # is very good :)
     "marimo",
-
     # docs (zensical is a project by the mkdocs-material team, that
     # aims to be the successor to mkdocs-material and mkdocs itself)
     "zensical",
+    "termynal>=0.14.0",
     "griffe-typingdoc",
     "mkdocs-material",
     "mkdocs-click",
     "mkdocstrings-python",
-
     # basemodel testing
-    "pydantic>=2.0.0"
+    "pydantic>=2.0.0",
 ]
 
 [tool.pytest.ini_options]
