@@ -181,24 +181,9 @@ def field_frame(field: Any) -> Any | None:
     Returns:
         A ``Frame`` when the field defines any chrome, otherwise ``None``.
     """
-    if field is None:
-        return None
-    from xnano.beta.frame import Frame
+    from xnano.beta.frame import frame_from_field
 
-    frame = Frame(
-        background=field.background,
-        border=field.border,
-        border_color=field.border_color,
-        border_sides=(
-            list(field.border_sides)
-            if field.border_sides is not None
-            else None
-        ),
-        title=field.title,
-        title_position=field.title_position,
-        padding=field.padding,
-    )
-    return None if frame.is_empty() else frame
+    return frame_from_field(field)
 
 
 def measure_renderable_in_field(

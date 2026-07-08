@@ -480,6 +480,43 @@ class Terminal(Generic[StateT]):
         self._inline_height = resolved.inline_height
         self._root_width_sizing = resolved.root_width_sizing
 
+    def _recreate_session(self, resolved: _ResolvedRun) -> None:
+        """Tear down the live session so the next access recreates it.
+
+        Used when a one-shot :meth:`render` needs a different inline viewport
+        height than the session that is already open.
+        """
+        if self._session is not None:
+            self._session.leave()
+            self._session = None
+        self._apply_resolved_run(resolved)
+        self._pending_enter = True
+
+    def _prepare_render_session(
+        self,
+        renderables: Sequence[Any],
+        field: Any,
+    ) -> None:
+        """Resolve viewport sizing for a one-shot render and prepare the session.
+
+        Each :meth:`render` call is content-sized. When an inline session is
+        already open but the new content needs a different inline viewport
+        height, the existing session is torn down and recreated on the next
+        paint.
+        """
+        resolved = self._resolve_run(renderables, is_grid=False, field=field)
+        if self._session is None:
+            self._apply_resolved_run(resolved)
+            return
+        if self._session._is_offscreen:
+            self._root_width_sizing = resolved.root_width_sizing
+            return
+        current_inline = self._session._core_session.get_inline_height()
+        if resolved.inline_height != current_inline:
+            self._recreate_session(resolved)
+        else:
+            self._root_width_sizing = resolved.root_width_sizing
+
     def render(
         self,
         *renderables: Any,
@@ -525,13 +562,7 @@ class Terminal(Generic[StateT]):
         auto_entered = not self._is_live
         if auto_entered:
             self.__enter__()
-        # Resolve the viewport/root sizing when the underlying session has not
-        # been created yet — either from the auto-enter above or a deferred
-        # context-manager entry that has not rendered anything.
-        if self._session is None:
-            self._apply_resolved_run(
-                self._resolve_run(items, is_grid=False, field=field)
-            )
+        self._prepare_render_session(items, field)
         try:
             self._render_frame(renderables=items, field=field)
         finally:
