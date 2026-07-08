@@ -16,7 +16,10 @@ import time
 
 from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
 from xnano.beta.components import Sparkline, Text
-from xnano.beta.components.abstract import AbstractComponent, ComponentRenderContext
+from xnano.beta.components.abstract import (
+    AbstractComponent,
+    ComponentRenderContext,
+)
 from xnano.beta.color import ColorLike, tailwind_color
 
 
@@ -25,52 +28,58 @@ from xnano.beta.color import ColorLike, tailwind_color
 _SERVICES = ["api", "cache", "db", "worker"]
 
 _SVC_COLORS = {
-    "api":    tailwind_color("sky",    400),
-    "cache":  tailwind_color("teal",   400),
-    "db":     tailwind_color("violet", 400),
-    "worker": tailwind_color("amber",  400),
+    "api": tailwind_color("sky", 400),
+    "cache": tailwind_color("teal", 400),
+    "db": tailwind_color("violet", 400),
+    "worker": tailwind_color("amber", 400),
 }
 
 _SVC_TEXT = {
-    "api":    tailwind_color("sky",    500),
-    "cache":  tailwind_color("teal",   500),
-    "db":     tailwind_color("violet", 500),
-    "worker": tailwind_color("amber",  500),
+    "api": tailwind_color("sky", 500),
+    "cache": tailwind_color("teal", 500),
+    "db": tailwind_color("violet", 500),
+    "worker": tailwind_color("amber", 500),
 }
 
 _SVC_FILL = {
-    "api":    tailwind_color("sky",    800),
-    "cache":  tailwind_color("teal",   800),
-    "db":     tailwind_color("violet", 800),
-    "worker": tailwind_color("amber",  800),
+    "api": tailwind_color("sky", 800),
+    "cache": tailwind_color("teal", 800),
+    "db": tailwind_color("violet", 800),
+    "worker": tailwind_color("amber", 800),
 }
 
 _STATUS_LABELS = {
-    "ok":   ("●", tailwind_color("emerald", 400)),
-    "warn": ("◆", tailwind_color("amber",   400)),
-    "crit": ("✖", tailwind_color("rose",    500)),
+    "ok": ("●", tailwind_color("emerald", 400)),
+    "warn": ("◆", tailwind_color("amber", 400)),
+    "crit": ("✖", tailwind_color("rose", 500)),
 }
 
 _HISTORY_LEN = 80
-_LOG_LEN     = 9
+_LOG_LEN = 9
 
 _ENDPOINTS = {
-    "api":    ["/v2/users", "/v2/auth", "/v2/sessions", "/v2/profile", "/v2/metrics"],
-    "cache":  ["/get", "/set", "/invalidate", "/ttl"],
-    "db":     ["/query", "/insert", "/update", "/health"],
+    "api": [
+        "/v2/users",
+        "/v2/auth",
+        "/v2/sessions",
+        "/v2/profile",
+        "/v2/metrics",
+    ],
+    "cache": ["/get", "/set", "/invalidate", "/ttl"],
+    "db": ["/query", "/insert", "/update", "/health"],
     "worker": ["/submit", "/status", "/cancel", "/queue"],
 }
 _METHODS = {
-    "api":    ["GET", "GET", "GET", "POST", "DELETE"],
-    "cache":  ["GET", "GET", "POST"],
-    "db":     ["GET", "GET", "POST", "PUT"],
+    "api": ["GET", "GET", "GET", "POST", "DELETE"],
+    "cache": ["GET", "GET", "POST"],
+    "db": ["GET", "GET", "POST", "PUT"],
     "worker": ["POST", "GET", "GET"],
 }
 _METHOD_COLORS = {
-    "GET":    tailwind_color("sky",    400),
-    "POST":   tailwind_color("violet", 400),
-    "PUT":    tailwind_color("amber",  400),
-    "DELETE": tailwind_color("rose",   400),
+    "GET": tailwind_color("sky", 400),
+    "POST": tailwind_color("violet", 400),
+    "PUT": tailwind_color("amber", 400),
+    "DELETE": tailwind_color("rose", 400),
 }
 _BASE_LATENCY = {"api": 42, "cache": 4, "db": 78, "worker": 185}
 
@@ -82,7 +91,7 @@ def _color_hex(c) -> str:
 # ── Simulated metrics ─────────────────────────────────────────────────────────
 
 _BASES_RPS = {"api": 280.0, "cache": 510.0, "db": 120.0, "worker": 75.0}
-_BASES_ERR = {"api": 0.8,   "cache": 0.3,   "db":  1.2,  "worker": 2.1}
+_BASES_ERR = {"api": 0.8, "cache": 0.3, "db": 1.2, "worker": 2.1}
 
 
 def _smooth(data: list[float], alpha: float = 0.14) -> list[float]:
@@ -126,24 +135,38 @@ def _service_status(err_pct: float) -> str:
 
 
 def _gen_event(svc: str, err_pct: float) -> tuple:
-    method   = random.choice(_METHODS[svc])
+    method = random.choice(_METHODS[svc])
     endpoint = f"/{svc}{random.choice(_ENDPOINTS[svc])}"
     if random.random() < err_pct / 100.0:
         status = random.choice([400, 404, 429, 500, 503])
     else:
         status = {"GET": 200, "POST": 201, "DELETE": 204}.get(method, 200)
     base = _BASE_LATENCY[svc]
-    latency = base * random.randint(3, 8) if status >= 500 else max(1, int(base * random.gauss(1.0, 0.3)))
+    latency = (
+        base * random.randint(3, 8)
+        if status >= 500
+        else max(1, int(base * random.gauss(1.0, 0.3)))
+    )
     return (time.strftime("%H:%M:%S"), method, endpoint, status, latency, svc)
 
 
 def _build_spark(history: list[float], color) -> Sparkline:
-    n    = _HISTORY_LEN
-    data = [int(v) for v in (history[-n:] if len(history) >= n else [0] * (n - len(history)) + history)]
-    return Sparkline(data=data, color=_color_hex(color), max_value=max(max(data), 1))
+    n = _HISTORY_LEN
+    data = [
+        int(v)
+        for v in (
+            history[-n:]
+            if len(history) >= n
+            else [0] * (n - len(history)) + history
+        )
+    ]
+    return Sparkline(
+        data=data, color=_color_hex(color), max_value=max(max(data), 1)
+    )
 
 
 # ── Custom components ─────────────────────────────────────────────────────────
+
 
 @dataclasses.dataclass
 class ServiceGraph(AbstractComponent):
@@ -154,39 +177,57 @@ class ServiceGraph(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import CanvasLine, CanvasNode, CanvasPrint, SpanNode
+        from xnano.beta.core.nodes import (
+            CanvasLine,
+            CanvasNode,
+            CanvasPrint,
+            SpanNode,
+        )
 
         smoothed = _smooth(self.data, alpha=0.12)
         n = len(smoothed)
         if n < 2:
-            return CanvasNode(shapes=[], x_bounds=(0.0, 1.0), y_bounds=(0.0, 1.0))
+            return CanvasNode(
+                shapes=[], x_bounds=(0.0, 1.0), y_bounds=(0.0, 1.0)
+            )
 
         fill_hex = _color_hex(self.fill_color or tailwind_color("sky", 800))
         edge_hex = _color_hex(self.edge_color or tailwind_color("sky", 400))
-        max_v    = max(self.max_v, 1.0)
-        axis_c   = tailwind_color("slate", 600)
-        shapes   = []
+        max_v = max(self.max_v, 1.0)
+        axis_c = tailwind_color("slate", 600)
+        shapes = []
 
         for i, v in enumerate(smoothed):
             if v > 0.0:
-                shapes.append(CanvasLine(x1=float(i), y1=0.0, x2=float(i), y2=v, color=fill_hex))
+                shapes.append(
+                    CanvasLine(
+                        x1=float(i), y1=0.0, x2=float(i), y2=v, color=fill_hex
+                    )
+                )
 
         for i in range(1, n):
-            shapes.append(CanvasLine(
-                x1=float(i - 1), y1=smoothed[i - 1],
-                x2=float(i),     y2=smoothed[i],
-                color=edge_hex,
-            ))
+            shapes.append(
+                CanvasLine(
+                    x1=float(i - 1),
+                    y1=smoothed[i - 1],
+                    x2=float(i),
+                    y2=smoothed[i],
+                    color=edge_hex,
+                )
+            )
 
         for frac in (0.25, 0.5, 0.75, 1.0):
             val = max_v * frac
-            shapes.append(CanvasPrint(
-                x=0.5, y=val,
-                content=SpanNode(
-                    content=f"{val:.0f}" if max_v >= 10 else f"{val:.1f}",
-                    color=axis_c,
-                ),
-            ))
+            shapes.append(
+                CanvasPrint(
+                    x=0.5,
+                    y=val,
+                    content=SpanNode(
+                        content=f"{val:.0f}" if max_v >= 10 else f"{val:.1f}",
+                        color=axis_c,
+                    ),
+                )
+            )
 
         return CanvasNode(
             shapes=shapes,
@@ -203,30 +244,69 @@ class ServiceTable(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import SpanNode, TableCellItem, TableNode, TableRowItem
+        from xnano.beta.core.nodes import (
+            SpanNode,
+            TableCellItem,
+            TableNode,
+            TableRowItem,
+        )
 
-        dim    = tailwind_color("slate", 500)
-        header = TableRowItem(cells=[
-            TableCellItem(content="",          color=dim),
-            TableCellItem(content=" Service ", color=dim),
-            TableCellItem(content=" RPS  ",   color=dim),
-            TableCellItem(content=" Err% ",   color=dim),
-            TableCellItem(content=" p95 ",    color=dim),
-        ], height=1)
+        dim = tailwind_color("slate", 500)
+        header = TableRowItem(
+            cells=[
+                TableCellItem(content="", color=dim),
+                TableCellItem(content=" Service ", color=dim),
+                TableCellItem(content=" RPS  ", color=dim),
+                TableCellItem(content=" Err% ", color=dim),
+                TableCellItem(content=" p95 ", color=dim),
+            ],
+            height=1,
+        )
 
         tbl_rows = []
         for svc, rps, err_pct, p95, status in self.rows:
             sym, sc = _STATUS_LABELS[status]
-            err_c = (tailwind_color("emerald", 400) if err_pct < 2.0
-                     else tailwind_color("amber", 400) if err_pct < 8.0
-                     else tailwind_color("rose",  500))
-            tbl_rows.append(TableRowItem(cells=[
-                TableCellItem(content=SpanNode(content=f" {sym} ", color=sc, modifiers=["bold"])),
-                TableCellItem(content=SpanNode(content=f" {svc:<7}", color=_SVC_TEXT[svc], modifiers=["bold"])),
-                TableCellItem(content=f" {rps:>5.0f} ",   color=tailwind_color("slate", 600)),
-                TableCellItem(content=SpanNode(content=f" {err_pct:>4.1f}% ", color=err_c)),
-                TableCellItem(content=f" {p95:>3.0f}ms",  color=tailwind_color("slate", 600)),
-            ], height=1))
+            err_c = (
+                tailwind_color("emerald", 400)
+                if err_pct < 2.0
+                else tailwind_color("amber", 400)
+                if err_pct < 8.0
+                else tailwind_color("rose", 500)
+            )
+            tbl_rows.append(
+                TableRowItem(
+                    cells=[
+                        TableCellItem(
+                            content=SpanNode(
+                                content=f" {sym} ",
+                                color=sc,
+                                modifiers=["bold"],
+                            )
+                        ),
+                        TableCellItem(
+                            content=SpanNode(
+                                content=f" {svc:<7}",
+                                color=_SVC_TEXT[svc],
+                                modifiers=["bold"],
+                            )
+                        ),
+                        TableCellItem(
+                            content=f" {rps:>5.0f} ",
+                            color=tailwind_color("slate", 600),
+                        ),
+                        TableCellItem(
+                            content=SpanNode(
+                                content=f" {err_pct:>4.1f}% ", color=err_c
+                            )
+                        ),
+                        TableCellItem(
+                            content=f" {p95:>3.0f}ms",
+                            color=tailwind_color("slate", 600),
+                        ),
+                    ],
+                    height=1,
+                )
+            )
 
         return TableNode(
             rows=tbl_rows,
@@ -251,9 +331,9 @@ class ErrorGauge(AbstractComponent):
         if self.ratio < 0.02:
             filled = tailwind_color("emerald", 500)
         elif self.ratio < 0.08:
-            filled = tailwind_color("amber",   400)
+            filled = tailwind_color("amber", 400)
         else:
-            filled = tailwind_color("rose",    500)
+            filled = tailwind_color("rose", 500)
 
         return LineGaugeNode(
             progress=min(1.0, self.ratio / 0.20),
@@ -279,7 +359,7 @@ class EndpointChart(AbstractComponent):
             return BarChartNode(groups=[], direction="vertical", max_value=1)
 
         max_v = max(count for _, count in self.endpoints) or 1
-        c     = self.accent or tailwind_color("sky", 500)
+        c = self.accent or tailwind_color("sky", 500)
 
         groups = [
             BarGroupItem(bars=[BarItem(value=count, label=label[:7], color=c)])
@@ -304,36 +384,83 @@ class EventLog(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import SpanNode, TableCellItem, TableNode, TableRowItem
+        from xnano.beta.core.nodes import (
+            SpanNode,
+            TableCellItem,
+            TableNode,
+            TableRowItem,
+        )
 
-        dim    = tailwind_color("slate", 500)
-        header = TableRowItem(cells=[
-            TableCellItem(content=" Time    ", color=dim),
-            TableCellItem(content=" Method ", color=dim),
-            TableCellItem(content=" Endpoint                  ", color=dim),
-            TableCellItem(content=" Status ", color=dim),
-            TableCellItem(content=" Latency ", color=dim),
-            TableCellItem(content=" Service ", color=dim),
-        ], height=1)
+        dim = tailwind_color("slate", 500)
+        header = TableRowItem(
+            cells=[
+                TableCellItem(content=" Time    ", color=dim),
+                TableCellItem(content=" Method ", color=dim),
+                TableCellItem(
+                    content=" Endpoint                  ", color=dim
+                ),
+                TableCellItem(content=" Status ", color=dim),
+                TableCellItem(content=" Latency ", color=dim),
+                TableCellItem(content=" Service ", color=dim),
+            ],
+            height=1,
+        )
 
         rows = []
         for ts, method, endpoint, status, latency, svc in self.events:
-            sc = (tailwind_color("emerald", 400) if status < 300
-                  else tailwind_color("amber",   400) if status < 500
-                  else tailwind_color("rose",    400))
-            lc = (tailwind_color("emerald", 400) if latency < 50
-                  else tailwind_color("amber",   400) if latency < 200
-                  else tailwind_color("rose",    400))
+            sc = (
+                tailwind_color("emerald", 400)
+                if status < 300
+                else tailwind_color("amber", 400)
+                if status < 500
+                else tailwind_color("rose", 400)
+            )
+            lc = (
+                tailwind_color("emerald", 400)
+                if latency < 50
+                else tailwind_color("amber", 400)
+                if latency < 200
+                else tailwind_color("rose", 400)
+            )
             mc = _METHOD_COLORS.get(method, tailwind_color("slate", 500))
 
-            rows.append(TableRowItem(cells=[
-                TableCellItem(content=f" {ts}  ",                           color=tailwind_color("slate", 600)),
-                TableCellItem(content=SpanNode(content=f" {method:<6} ",    color=mc)),
-                TableCellItem(content=f" {endpoint:<28}",                   color=tailwind_color("slate", 600)),
-                TableCellItem(content=SpanNode(content=f"  {status}  ",     color=sc, modifiers=["bold"])),
-                TableCellItem(content=SpanNode(content=f" {latency:>5}ms ", color=lc)),
-                TableCellItem(content=SpanNode(content=f" {svc:<8}",        color=_SVC_TEXT[svc])),
-            ], height=1))
+            rows.append(
+                TableRowItem(
+                    cells=[
+                        TableCellItem(
+                            content=f" {ts}  ",
+                            color=tailwind_color("slate", 600),
+                        ),
+                        TableCellItem(
+                            content=SpanNode(
+                                content=f" {method:<6} ", color=mc
+                            )
+                        ),
+                        TableCellItem(
+                            content=f" {endpoint:<28}",
+                            color=tailwind_color("slate", 600),
+                        ),
+                        TableCellItem(
+                            content=SpanNode(
+                                content=f"  {status}  ",
+                                color=sc,
+                                modifiers=["bold"],
+                            )
+                        ),
+                        TableCellItem(
+                            content=SpanNode(
+                                content=f" {latency:>5}ms ", color=lc
+                            )
+                        ),
+                        TableCellItem(
+                            content=SpanNode(
+                                content=f" {svc:<8}", color=_SVC_TEXT[svc]
+                            )
+                        ),
+                    ],
+                    height=1,
+                )
+            )
 
         return TableNode(
             rows=rows,
@@ -345,26 +472,59 @@ class EventLog(AbstractComponent):
 
 # ── Layout ────────────────────────────────────────────────────────────────────
 
+
 class SparkRow(Grid, direction="horizontal", gap=1):
-    s_api:    Sparkline = Field(default_factory=Sparkline, border="plain",
-                                border_color=tailwind_color("sky",    700), title=" api ")
-    s_cache:  Sparkline = Field(default_factory=Sparkline, border="plain",
-                                border_color=tailwind_color("teal",   700), title=" cache ")
-    s_db:     Sparkline = Field(default_factory=Sparkline, border="plain",
-                                border_color=tailwind_color("violet", 700), title=" db ")
-    s_worker: Sparkline = Field(default_factory=Sparkline, border="plain",
-                                border_color=tailwind_color("amber",  700), title=" worker ")
+    s_api: Sparkline = Field(
+        default_factory=Sparkline,
+        border="plain",
+        border_color=tailwind_color("sky", 700),
+        title=" api ",
+    )
+    s_cache: Sparkline = Field(
+        default_factory=Sparkline,
+        border="plain",
+        border_color=tailwind_color("teal", 700),
+        title=" cache ",
+    )
+    s_db: Sparkline = Field(
+        default_factory=Sparkline,
+        border="plain",
+        border_color=tailwind_color("violet", 700),
+        title=" db ",
+    )
+    s_worker: Sparkline = Field(
+        default_factory=Sparkline,
+        border="plain",
+        border_color=tailwind_color("amber", 700),
+        title=" worker ",
+    )
 
 
 class GaugeStack(Grid, direction="vertical", gap=0):
-    g0: ErrorGauge = Field(default_factory=ErrorGauge, height=3,
-                           border="plain", border_color=tailwind_color("slate", 800))
-    g1: ErrorGauge = Field(default_factory=ErrorGauge, height=3,
-                           border="plain", border_color=tailwind_color("slate", 800))
-    g2: ErrorGauge = Field(default_factory=ErrorGauge, height=3,
-                           border="plain", border_color=tailwind_color("slate", 800))
-    g3: ErrorGauge = Field(default_factory=ErrorGauge, height=3,
-                           border="plain", border_color=tailwind_color("slate", 800))
+    g0: ErrorGauge = Field(
+        default_factory=ErrorGauge,
+        height=3,
+        border="plain",
+        border_color=tailwind_color("slate", 800),
+    )
+    g1: ErrorGauge = Field(
+        default_factory=ErrorGauge,
+        height=3,
+        border="plain",
+        border_color=tailwind_color("slate", 800),
+    )
+    g2: ErrorGauge = Field(
+        default_factory=ErrorGauge,
+        height=3,
+        border="plain",
+        border_color=tailwind_color("slate", 800),
+    )
+    g3: ErrorGauge = Field(
+        default_factory=ErrorGauge,
+        height=3,
+        border="plain",
+        border_color=tailwind_color("slate", 800),
+    )
 
 
 class RightPanel(Grid, direction="vertical", gap=1):
@@ -416,7 +576,7 @@ class GraphPanel(Grid, direction="vertical", gap=1):
 
 class MainArea(Grid, direction="horizontal", gap=1):
     graphs: GraphPanel = Field(default_factory=GraphPanel, width="62%")
-    right:  RightPanel = Field(default_factory=RightPanel)
+    right: RightPanel = Field(default_factory=RightPanel)
 
 
 class ApiMonitor(Grid, direction="vertical"):
@@ -433,14 +593,19 @@ class ApiMonitor(Grid, direction="vertical"):
         color=tailwind_color("slate", 600),
     )
 
-    rps_history:   dict = Field(default_factory=_seed_rps, state=True)
-    err_history:   dict = Field(default_factory=_seed_err, state=True)
-    selected:      int  = Field(default=0, state=True)
-    p95:           dict = Field(
-        default_factory=lambda: {"api": 42.0, "cache": 8.0, "db": 94.0, "worker": 210.0},
+    rps_history: dict = Field(default_factory=_seed_rps, state=True)
+    err_history: dict = Field(default_factory=_seed_err, state=True)
+    selected: int = Field(default=0, state=True)
+    p95: dict = Field(
+        default_factory=lambda: {
+            "api": 42.0,
+            "cache": 8.0,
+            "db": 94.0,
+            "worker": 210.0,
+        },
         state=True,
     )
-    event_log:     list = Field(default_factory=list, state=True)
+    event_log: list = Field(default_factory=list, state=True)
     endpoint_hits: dict = Field(
         default_factory=lambda: {svc: {} for svc in _SERVICES},
         state=True,
@@ -460,15 +625,21 @@ class ApiMonitor(Grid, direction="vertical"):
 
     @on_tick(500)
     def _tick(self) -> None:
-        rps  = {svc: list(v) for svc, v in self.rps_history.items()}
-        err  = {svc: list(v) for svc, v in self.err_history.items()}
-        p95  = dict(self.p95)
+        rps = {svc: list(v) for svc, v in self.rps_history.items()}
+        err = {svc: list(v) for svc, v in self.err_history.items()}
+        p95 = dict(self.p95)
         hits = {svc: dict(h) for svc, h in self.endpoint_hits.items()}
         new_events: list = []
 
         for svc in _SERVICES:
-            rps[svc].append(max(0.0, rps[svc][-1] + random.gauss(0, _BASES_RPS[svc] * 0.02)))
-            err[svc].append(max(0.0, min(20.0, err[svc][-1] + random.gauss(0, 0.10))))
+            rps[svc].append(
+                max(
+                    0.0, rps[svc][-1] + random.gauss(0, _BASES_RPS[svc] * 0.02)
+                )
+            )
+            err[svc].append(
+                max(0.0, min(20.0, err[svc][-1] + random.gauss(0, 0.10)))
+            )
             p95[svc] = max(1.0, p95[svc] + random.gauss(0, 2.0))
             if len(rps[svc]) > _HISTORY_LEN:
                 rps[svc].pop(0)
@@ -481,16 +652,16 @@ class ApiMonitor(Grid, direction="vertical"):
                 ep = ev[2]
                 hits[svc][ep] = hits[svc].get(ep, 0) + 1
 
-        self.rps_history   = rps
-        self.err_history   = err
-        self.p95           = p95
+        self.rps_history = rps
+        self.err_history = err
+        self.p95 = p95
         self.endpoint_hits = hits
-        self.event_log     = (self.event_log + new_events)[-_LOG_LEN:]
+        self.event_log = (self.event_log + new_events)[-_LOG_LEN:]
 
     def grid_render(self) -> None:
-        rps     = self.rps_history
-        err     = self.err_history
-        p95     = self.p95
+        rps = self.rps_history
+        err = self.err_history
+        p95 = self.p95
         sel_svc = _SERVICES[self.selected]
 
         # Main filled-area graph
@@ -505,19 +676,25 @@ class ApiMonitor(Grid, direction="vertical"):
         # Service label strip
         rps_now = rps[sel_svc][-1]
         err_now = err[sel_svc][-1]
-        self.main.graphs.svc_label = Text([
-            Text(f"  {sel_svc.upper()}  ", color=_SVC_TEXT[sel_svc], modifiers=("bold",)),
-            Text(
-                f"{rps_now:.0f} rps  ·  {err_now:.1f}% err  ·  {p95[sel_svc]:.0f}ms p95",
-                color=tailwind_color("slate", 500),
-            ),
-        ])
+        self.main.graphs.svc_label = Text(
+            [
+                Text(
+                    f"  {sel_svc.upper()}  ",
+                    color=_SVC_TEXT[sel_svc],
+                    modifiers=("bold",),
+                ),
+                Text(
+                    f"{rps_now:.0f} rps  ·  {err_now:.1f}% err  ·  {p95[sel_svc]:.0f}ms p95",
+                    color=tailwind_color("slate", 500),
+                ),
+            ]
+        )
 
         # Sparklines
         sp = self.main.graphs.sparks
-        sp.s_api    = _build_spark(rps["api"],    _SVC_COLORS["api"])
-        sp.s_cache  = _build_spark(rps["cache"],  _SVC_COLORS["cache"])
-        sp.s_db     = _build_spark(rps["db"],     _SVC_COLORS["db"])
+        sp.s_api = _build_spark(rps["api"], _SVC_COLORS["api"])
+        sp.s_cache = _build_spark(rps["cache"], _SVC_COLORS["cache"])
+        sp.s_db = _build_spark(rps["db"], _SVC_COLORS["db"])
         sp.s_worker = _build_spark(rps["worker"], _SVC_COLORS["worker"])
 
         # Event log
@@ -525,20 +702,32 @@ class ApiMonitor(Grid, direction="vertical"):
 
         # Service table
         tbl_rows = [
-            (svc, rps[svc][-1], err[svc][-1], p95[svc], _service_status(err[svc][-1]))
+            (
+                svc,
+                rps[svc][-1],
+                err[svc][-1],
+                p95[svc],
+                _service_status(err[svc][-1]),
+            )
             for svc in _SERVICES
         ]
-        self.main.right.table = ServiceTable(rows=tbl_rows, selected=self.selected)
+        self.main.right.table = ServiceTable(
+            rows=tbl_rows, selected=self.selected
+        )
 
         # Error gauges
         g = self.main.right.gauges
         for attr, svc in zip(("g0", "g1", "g2", "g3"), _SERVICES):
-            setattr(g, attr, ErrorGauge(service=svc, ratio=err[svc][-1] / 100.0))
+            setattr(
+                g, attr, ErrorGauge(service=svc, ratio=err[svc][-1] / 100.0)
+            )
 
         # Endpoint chart for selected service
         sel_hits = self.endpoint_hits[sel_svc]
-        top_eps  = sorted(sel_hits.items(), key=lambda x: x[1], reverse=True)[:5]
-        ep_data  = [(ep.split("/")[-1][:8], cnt) for ep, cnt in top_eps]
+        top_eps = sorted(sel_hits.items(), key=lambda x: x[1], reverse=True)[
+            :5
+        ]
+        ep_data = [(ep.split("/")[-1][:8], cnt) for ep, cnt in top_eps]
         self.main.right.endpoint_chart = EndpointChart(
             endpoints=ep_data,
             accent=_SVC_COLORS[sel_svc],
@@ -546,13 +735,17 @@ class ApiMonitor(Grid, direction="vertical"):
 
         # Header
         total_rps = sum(v[-1] for v in rps.values())
-        alerts    = sum(1 for svc in _SERVICES if _service_status(err[svc][-1]) != "ok")
+        alerts = sum(
+            1 for svc in _SERVICES if _service_status(err[svc][-1]) != "ok"
+        )
         self.header = (
             f"  API HEALTH MONITOR  ·  {total_rps:.0f} rps total  ·  "
             f"{'● all healthy' if not alerts else f'✖ {alerts} alert(s)'}  ·  "
             f"{time.strftime('%H:%M:%S')}"
         )
-        self.footer = f"  [↑↓] cycle service  ·  showing: {sel_svc}  ·  [q] Quit"
+        self.footer = (
+            f"  [↑↓] cycle service  ·  showing: {sel_svc}  ·  [q] Quit"
+        )
 
 
 if __name__ == "__main__":

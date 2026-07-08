@@ -596,7 +596,9 @@ def generate(
     tape_body = build_tape(demo, output, theme_key)
 
     if dry_run:
-        print(f"# {demo.name} [{theme_key}] -> {output.relative_to(REPO_ROOT)}")
+        print(
+            f"# {demo.name} [{theme_key}] -> {output.relative_to(REPO_ROOT)}"
+        )
         print(tape_body)
         return
 
@@ -613,7 +615,9 @@ def generate(
 
     try:
         label = THEMES[theme_key]
-        print(f"Recording {demo.name} [{label}] -> {output.relative_to(REPO_ROOT)}")
+        print(
+            f"Recording {demo.name} [{label}] -> {output.relative_to(REPO_ROOT)}"
+        )
         run_vhs(vhs, tape_path, quiet=quiet)
         optimize(output)
     finally:
@@ -655,7 +659,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    selected = [_DEMO_MAP[name] for name in args.demos] if args.demos else list(DEMOS)
+    selected = (
+        [_DEMO_MAP[name] for name in args.demos] if args.demos else list(DEMOS)
+    )
     themes = [args.theme] if args.theme else list(THEMES)
     vhs = require_vhs() if not args.dry_run else ""
 
@@ -671,7 +677,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if not args.dry_run:
         total = len(selected) * len(themes)
-        print(f"\nDone — {total} GIF(s) in {OUTPUT_DIR.relative_to(REPO_ROOT)}/")
+        print(
+            f"\nDone — {total} GIF(s) in {OUTPUT_DIR.relative_to(REPO_ROOT)}/"
+        )
 
     return 0
 
