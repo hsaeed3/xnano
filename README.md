@@ -1,4 +1,4 @@
-![xnano Agent Chat](./docs/assets/demos/agent_chat.gif)
+![xnano Agent Chat](./docs/assets/examples/agent_chat-dark.gif)
 
 # __xnano__
 
@@ -39,13 +39,61 @@ uv add "xnano>=1.0.0b2"
 
 ## Examples
 
+### Your first render
+
+The easiest way to get started is to render some text to the terminal inline — no app loop needed.
+
+```python
+from xnano.beta import Terminal
+from xnano.beta.components import Text
+
+Terminal().render(
+    Text("Hello from xnano!", color="violet", modifiers=["bold"])
+)
+```
+
+![Your first render](./docs/assets/concepts/render_text-dark.gif)
+
+You can pass multiple renderables — they stack vertically:
+
+```python
+Terminal().render(
+    Text("● Done: ", color="emerald-400", modifiers=["bold"]),
+    Text("All 12 checks passed.", color="slate-400"),
+)
+```
+
+![Multiple renderables](./docs/assets/concepts/render_multiple-dark.gif)
+
+---
+
+### Styled text
+
+`Text` composes rich inline content with colors, modifiers, and nesting:
+
+```python
+from xnano.beta.components import Text
+
+message = Text([
+    Text("● ", color="emerald-400"),
+    Text("Done: ", color="white", modifiers=["bold"]),
+    Text("all tests passed\n", color="slate-300"),
+])
+
+Terminal().render(message)
+```
+
+![Styled text](./docs/assets/concepts/styled_text-dark.gif)
+
+Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or plain names (`"white"`, `"red"`).
+
+---
+
 ### Hello World
 
 The minimal xnano app. Define a `Grid` subclass with annotated `Field` slots, then pass an instance to `Terminal().run()`. The terminal takes over the screen, renders each frame, and cleans up on exit.
 
 ```python
-# xnano may remind you of `pydantic` in many places, this is
-# one of them.
 from xnano.beta import Grid, Field, Terminal
 from xnano.beta.color import tailwind_color
 from xnano.beta.hooks import on_tick
@@ -66,7 +114,7 @@ class App(Grid):
 Terminal().run(App())
 ```
 
-![Hello World](./docs/assets/demos/example_hello_world.gif)
+![Hello World](./docs/assets/concepts/hello_grid-dark.gif)
 
 ---
 
@@ -100,7 +148,7 @@ class App(Grid, direction="horizontal", gap=1):
 Terminal().run(App())
 ```
 
-![Layout & Nesting](./docs/assets/demos/example_layout_nesting.jpg)
+![Layout & Nesting](./docs/assets/concepts/grid_nested-dark.gif)
 
 ---
 
@@ -135,7 +183,7 @@ class Counter(Grid, direction="vertical", gap=1):
 Terminal().run(Counter())
 ```
 
-![Keyboard Events](./docs/assets/demos/example_keyboard_events.gif)
+![Keyboard Events](./docs/assets/concepts/hooks_keyboard-dark.gif)
 
 ---
 
@@ -162,7 +210,7 @@ class App(Grid, direction="vertical", gap=1):
 Terminal(mouse_events=True).run(App())
 ```
 
-![Click Handlers](./docs/assets/demos/example_click_handlers.gif)
+![Click Handlers](./docs/assets/concepts/hooks_click-dark.gif)
 
 ---
 
@@ -192,7 +240,7 @@ class Clock(Grid, direction="vertical"):
 Terminal().run(Clock())
 ```
 
-![Timed Updates](./docs/assets/demos/example_timed_updates.gif)
+![Timed Updates](./docs/assets/concepts/hooks_tick-dark.gif)
 
 ---
 
@@ -224,7 +272,7 @@ with Terminal(state=AppState(username="hammad")) as t:
     t.run(App())
 ```
 
-![State & Context Manager](./docs/assets/demos/example_state_context.gif)
+![State & Context Manager](./docs/assets/concepts/terminal_state-dark.gif)
 
 ---
 
@@ -263,4 +311,4 @@ class StatusBoard(Grid, direction="vertical", gap=1):
 Terminal().run(StatusBoard())
 ```
 
-![Custom Components](./docs/assets/demos/example_custom_component.gif)
+![Custom Components](./docs/assets/concepts/terminal_render-dark.gif)
