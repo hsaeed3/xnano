@@ -59,7 +59,7 @@
 /* Description elements: closer to headers, serif styling */
 .md-typeset description {
     font-family: "Iosevka Web", monospace !important;
-    font-size: 01em !important;
+    font-size: 1.1em !important;
     letter-spacing: var(--font-letterspacing-0-5);
 }
 
@@ -75,6 +75,17 @@
     border-bottom: var(--border-size-1) dashed;
     padding-bottom: 0.8rem;
     border-color: #21252B;
+}
+
+/* Slight right padding on pre to ensure margin is hit */
+.md-typeset pre {
+    padding-right: var(--size-2);
+}
+
+/* Add left+right padding on md-content */
+.md-content {
+    padding-left: var(--size-4);
+    padding-right: var(--size-4);
 }
 
 /* Index hero ASCII title (injected by hero.js) */
