@@ -35,6 +35,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 EDITABLE_FILES: tuple[str, ...] = (
     "pyproject.toml",
     "xnano-core/Cargo.toml",
+    "xnano/__init__.py",
     "xnano/beta/core/version.py",
     "README.md",
 )
@@ -51,6 +52,9 @@ _XNANO_CORE_PIN = re.compile(r'"xnano-core==([^"]+)"')
 _CARGO_PACKAGE_VERSION = re.compile(
     r'^version = "([^"]+)"$',
     re.MULTILINE,
+)
+_INIT_PY_VERSION = re.compile(
+    r'^__version__ = "(?P<version>[^"]+)"$', re.MULTILINE
 )
 _VERSION_PY_XNANO = re.compile(
     r'^VERSION = "(?P<version>[^"]+)"$', re.MULTILINE
@@ -291,6 +295,25 @@ def sync_cargo_toml(state: VersionState) -> bool:
     return write_text_file("xnano-core/Cargo.toml", content)
 
 
+def sync_xnano_init(state: VersionState) -> bool:
+    """Synchronize ``xnano/__init__.py``.
+
+    Args:
+        state: Target versions to write.
+
+    Returns:
+        ``True`` when the file changed.
+    """
+    content = read_text_file("xnano/__init__.py")
+    content, _ = apply_single_replacement(
+        content,
+        _INIT_PY_VERSION,
+        f'__version__ = "{state.xnano}"',
+        "xnano __version__ constant",
+    )
+    return write_text_file("xnano/__init__.py", content)
+
+
 def sync_version_module(state: VersionState) -> bool:
     """Synchronize ``xnano/beta/core/version.py``.
 
@@ -364,6 +387,7 @@ def collect_drift(state: VersionState) -> list[str]:
 
     pyproject = read_text_file("pyproject.toml")
     cargo = read_text_file("xnano-core/Cargo.toml")
+    xnano_init = read_text_file("xnano/__init__.py")
     version_py = read_text_file("xnano/beta/core/version.py")
     readme = read_text_file("README.md")
 
@@ -394,6 +418,15 @@ def collect_drift(state: VersionState) -> list[str]:
                 "xnano-core Cargo package version",
             ),
             state.xnano_core,
+        ),
+        (
+            "__init__.py __version__",
+            extract_first_match(
+                _INIT_PY_VERSION,
+                xnano_init,
+                "xnano __version__ constant",
+            ),
+            state.xnano,
         ),
         (
             "version.py VERSION",
@@ -464,6 +497,8 @@ def sync_version_files(state: VersionState) -> list[str]:
         changed.append("pyproject.toml")
     if sync_cargo_toml(state):
         changed.append("xnano-core/Cargo.toml")
+    if sync_xnano_init(state):
+        changed.append("xnano/__init__.py")
     if sync_version_module(state):
         changed.append("xnano/beta/core/version.py")
     if sync_readme(state):
