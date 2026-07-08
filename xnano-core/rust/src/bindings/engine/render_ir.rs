@@ -765,6 +765,31 @@ fn line_width(line: &Line<'_>) -> usize {
 
 // ── Rust-internal rendering ───────────────────────────────────────────────────
 
+/// Split a style into (text-with-bg-on-spans, paragraph-without-bg).
+///
+/// Ratatui's `Paragraph::style()` calls `buf.set_style(rect, style)` which
+/// flood-fills the entire allocated rect with the background color before
+/// any characters are drawn.  Pushing `bg` down onto each span instead makes
+/// ratatui paint background behind actual character cells only, so
+/// `Field(background="violet")` covers the text span rather than the whole
+/// slot.
+///
+/// The text is cloned once (unavoidable — the caller needs an owned `Text`)
+/// and styles are patched in place, so no per-span content is re-allocated.
+fn split_bg_to_content(text: &Text<'static>, style: &Style) -> (Text<'static>, Style) {
+    let Some(bg_color) = style.bg else {
+        return (text.clone(), *style);
+    };
+    let bg_only = Style::new().bg(bg_color);
+    let mut styled = text.clone();
+    for line in &mut styled.lines {
+        for span in &mut line.spans {
+            span.style = span.style.patch(bg_only);
+        }
+    }
+    (styled, Style { bg: None, ..*style })
+}
+
 impl CoreRenderIR {
     pub(crate) fn render_to_buffer(&self, rect: Rect, buf: &mut Buffer) -> PyResult<()> {
         match &self.inner {
@@ -778,11 +803,16 @@ impl CoreRenderIR {
             }
 
             RenderIrInner::Text { text, style } => {
-                Widget::render(Paragraph::new(text.clone()).style(*style), rect, buf);
+                // Move bg off the Paragraph container (which would flood-fill the
+                // entire rect) and onto the Text content so background only covers
+                // character cells, not trailing empty space.
+                let (styled_text, para_style) = split_bg_to_content(text, style);
+                Widget::render(Paragraph::new(styled_text).style(para_style), rect, buf);
             }
 
             RenderIrInner::Paragraph { text, style, align, wrap } => {
-                let mut para = Paragraph::new(text.clone()).style(*style);
+                let (styled_text, para_style) = split_bg_to_content(text, style);
+                let mut para = Paragraph::new(styled_text).style(para_style);
                 if *wrap { para = para.wrap(Wrap { trim: true }); }
                 if let Some(a) = align { para = para.alignment(*a); }
                 Widget::render(para, rect, buf);
