@@ -44,8 +44,7 @@ def read_pinned_core_version(pyproject_path: Path) -> str:
 
 def normalize_tag_version(version: str) -> str:
     """Normalize git tag versions to manifest-style PEP 440 strings."""
-    version = version.lower()
-    return version.replace("a", "-alpha").replace("b", "-beta")
+    return version.lower()
 
 
 def parse_release_tag(ref: str) -> tuple[str, str] | None:
