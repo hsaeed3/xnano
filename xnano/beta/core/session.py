@@ -165,7 +165,12 @@ class Session(Generic[StateT]):
         self._core_session.render(node)
 
     def get_native_viewport_area(self) -> native.Rect:
-        """Return the current viewport as a ``native.Rect``."""
+        """Return the current viewport as a ``native.Rect``.
+
+        For inline sessions the viewport is offset from the screen origin, so
+        this returns the terminal's true frame area (position included) rather
+        than assuming ``(0, 0)``.
+        """
         if (
             self._terminal_width is not None
             and self._terminal_height is not None
@@ -176,8 +181,7 @@ class Session(Generic[StateT]):
                 width=self._terminal_width,
                 height=self._terminal_height,
             )
-        size = self._core_session.get_size()
-        rect = native.Rect(x=0, y=0, width=size.width, height=size.height)
+        rect = self._core_session.get_viewport_area()
         self._last_viewport = rect
         return rect
 
@@ -563,7 +567,16 @@ class Session(Generic[StateT]):
         if isinstance(value, AbstractComponent):
             terminal = _ACTIVE_TERMINAL.get()
             ctx = ComponentRenderContext(area=area, terminal=terminal)
-            fill_area = not bool(field is not None and field.fit)
+            # A content-sized (``fit``) field already carries a slot matching
+            # its content, so the component renders at its natural size rather
+            # than stretching to fill.
+            fill_area = not (
+                field is not None
+                and (
+                    (field.width is not None and field.width.is_fit)
+                    or (field.height is not None and field.height.is_fit)
+                )
+            )
             self.render_component(
                 value,
                 area,

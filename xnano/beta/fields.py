@@ -22,15 +22,10 @@ from typing import Any, Callable, Literal, Sequence, TypeVar, overload
 from xnano.beta import types
 from xnano.beta.color import ColorLike, Color
 from xnano.beta.frame import Frame, FrameTitlePosition
+from xnano.beta.sizing import Sizing, SizingLike
 
 
 UNSET = object()
-
-
-def _normalize_flex(
-    flex: types.Flex | None,
-) -> int | None:
-    return types.resolve_flex_weight(flex)
 
 
 def _normalize_slide_axes(
@@ -76,12 +71,12 @@ class GridFieldInfo:
             "reversed".
         color: The foreground color of content within this field.
         background: The background color of this field's frame area.
-        size: Fixed size as a percentage of the parent area's axis length. Ignored when `
-            `fit`` is ``True``.
-        flex: Relative fill weight when ``size`` is ``None``. Accepts an integer weight or a
-            Tailwind flex utility such as ``"flex-1"`` or ``"grow"``. Higher values claim
-            proportionally more space.
-        fit: Size the field to its content each frame. When set, ``size`` becomes a maximum clamp.
+        width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
+            or a ``Sizing``). Drives the split constraint in horizontal layouts;
+            shrinks the slot along the cross axis otherwise.
+        height: Vertical extent sizing (``3``, ``"50%"``, ``"1fr"``, ``"fit"``,
+            or a ``Sizing``). Drives the split constraint in vertical layouts;
+            shrinks the slot along the cross axis otherwise.
         gap: The gap between fields in this field or area.
         direction: The direction in which content within this field or area should be laid out.
         align: The horizontal alignment of content within this field's area.
@@ -129,16 +124,20 @@ class GridFieldInfo:
     """The foreground color of content within this field."""
     background: ColorLike | None = None
     """The background color of this field's frame area."""
-    size: types.SizePercentage | None = None
-    """Fixed size as a percentage of the parent area's axis length. Ignored when ``fit`` is ``True``."""
-    flex: int | None = None
-    """Relative fill weight when ``size`` is ``None``.
+    width: "Sizing | None" = None
+    """Sizing intent for the field's horizontal extent.
 
-    Stored as a resolved integer weight after Tailwind flex utilities are
-    normalized.
+    Accepts any :class:`~xnano.beta.sizing.Sizing` or shorthand (``10`` cells,
+    ``"50%"``, ``"1fr"``, ``"fit"``). When the grid lays out horizontally this
+    drives the split constraint; otherwise it shrinks the slot to this width.
     """
-    fit: bool | None = None
-    """Size the field to its content each frame. When set, ``size`` becomes a maximum clamp."""
+    height: "Sizing | None" = None
+    """Sizing intent for the field's vertical extent.
+
+    Accepts any :class:`~xnano.beta.sizing.Sizing` or shorthand (``3`` cells,
+    ``"50%"``, ``"1fr"``, ``"fit"``). When the grid lays out vertically this
+    drives the split constraint; otherwise it shrinks the slot to this height.
+    """
     gap: int | None = None
     """The gap between fields in this field or area."""
     direction: types.Direction | None = None
@@ -179,9 +178,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
-    size: types.SizePercentage | None = None,
-    flex: types.Flex | None = None,
-    fit: bool | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
     align: types.Alignment | None = None,
@@ -207,9 +205,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
-    size: types.SizePercentage | None = None,
-    flex: types.Flex | None = None,
-    fit: bool | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
     align: types.Alignment | None = None,
@@ -234,9 +231,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
-    size: types.SizePercentage | None = None,
-    flex: types.Flex | None = None,
-    fit: bool | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
     align: types.Alignment | None = None,
@@ -262,9 +258,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
-    size: types.SizePercentage | None = None,
-    flex: types.Flex | None = None,
-    fit: bool | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
     align: types.Alignment | None = None,
@@ -289,9 +284,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
-    size: types.SizePercentage | None = None,
-    flex: types.Flex | None = None,
-    fit: bool | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
     align: types.Alignment | None = None,
@@ -318,12 +312,12 @@ def Field(
             "reversed".
         color: The foreground color of content within this field.
         background: The background color of this field's frame area.
-        size: Fixed size as a percentage of the parent area's axis length. Ignored when `
-            `fit`` is ``True``.
-        flex: Relative fill weight when ``size`` is ``None``. Accepts an integer weight or a
-            Tailwind flex utility such as ``"flex-1"`` or ``"grow"``. Higher values claim
-            proportionally more space.
-        fit: Size the field to its content each frame. When set, ``size`` becomes a maximum clamp.
+        width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
+            or a ``Sizing``). Drives the split constraint in horizontal layouts;
+            shrinks the slot along the cross axis otherwise.
+        height: Vertical extent sizing (``3``, ``"50%"``, ``"1fr"``, ``"fit"``,
+            or a ``Sizing``). Drives the split constraint in vertical layouts;
+            shrinks the slot along the cross axis otherwise.
         gap: The gap between fields in this field or area.
         direction: The direction in which content within this field or area should be laid out.
         align: The horizontal alignment of content within this field's area.
@@ -351,9 +345,8 @@ def Field(
         color=color,
         modifiers=modifiers,
         background=background,
-        size=size,
-        flex=_normalize_flex(flex),
-        fit=fit,
+        width=Sizing.parse(width),
+        height=Sizing.parse(height),
         gap=gap,
         direction=direction,
         align=align,

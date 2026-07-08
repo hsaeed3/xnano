@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, TYPE_CHECKING
+from typing import Any, Sequence, TYPE_CHECKING
 
 from xnano.beta.hooks import (
     _EventHooksRegistry,
@@ -129,21 +129,251 @@ def resolve_hook_grid(terminal: "Terminal[Any]", handler: Any) -> Any | None:
     return None
 
 
-def render_frame(terminal: "Terminal[Any]", root: Any) -> None:
-    from xnano.beta.grid import Grid
+def measure_renderable(root: Any) -> tuple[int, int]:
+    """Return ``(width, height)`` for a non-Grid renderable from its content.
 
+    Measurement is session-independent, so this may be called before a
+    terminal session is entered (to size an inline viewport, for example).
+
+    Args:
+        root: A renderable value — a component, render node, string, or any
+            value with a string representation.
+
+    Returns:
+        The measured ``(width, height)`` in terminal cells.
+    """
+    from xnano.beta.components.abstract import (
+        AbstractComponent,
+        ComponentRenderContext,
+    )
+    from xnano.beta.core.nodes import AbstractRenderNode, NodeAssembler
+    from xnano.beta.types import Area
+
+    if isinstance(root, AbstractComponent):
+        ctx = ComponentRenderContext(area=Area(x=0, y=0, width=0, height=0))
+        if type(root).get_size is not AbstractComponent.get_size:
+            size = root.get_size(ctx)
+            return size.width, size.height
+        if type(root).get_node is not AbstractComponent.get_node:
+            node = root.get_node(ctx)
+            if node is not None:
+                size = NodeAssembler.measure_node(node)
+                return size.width, size.height
+        return 0, 0
+
+    if isinstance(root, AbstractRenderNode):
+        size = NodeAssembler.measure_node(root)
+        return size.width, size.height
+
+    text = root if isinstance(root, str) else str(root)
+    lines = text.splitlines() or [""]
+    width = max((len(line) for line in lines), default=0)
+    return width, len(lines)
+
+
+def field_frame(field: Any) -> Any | None:
+    """Build a ``Frame`` from a ``GridFieldInfo``'s chrome, or ``None``.
+
+    Args:
+        field: The ``GridFieldInfo`` describing border, padding, and title, or
+            ``None``.
+
+    Returns:
+        A ``Frame`` when the field defines any chrome, otherwise ``None``.
+    """
+    if field is None:
+        return None
+    from xnano.beta.frame import Frame
+
+    frame = Frame(
+        background=field.background,
+        border=field.border,
+        border_color=field.border_color,
+        border_sides=(
+            list(field.border_sides)
+            if field.border_sides is not None
+            else None
+        ),
+        title=field.title,
+        title_position=field.title_position,
+        padding=field.padding,
+    )
+    return None if frame.is_empty() else frame
+
+
+def measure_renderable_in_field(
+    renderable: Any, field: Any
+) -> tuple[int, int]:
+    """Return ``(width, height)`` for a renderable including field chrome.
+
+    Args:
+        renderable: The renderable value to measure.
+        field: The ``GridFieldInfo`` whose border/padding overhead is added to
+            the measured content size, or ``None``.
+
+    Returns:
+        The measured ``(width, height)`` in terminal cells including any frame
+        overhead.
+    """
+    from xnano.beta.core.nodes import NodeAssembler
+
+    width, height = measure_renderable(renderable)
+    frame = field_frame(field)
+    if frame is not None:
+        width += NodeAssembler._frame_length_overhead(frame, "horizontal")
+        height += NodeAssembler._frame_length_overhead(frame, "vertical")
+    return width, height
+
+
+def measure_renderables_height(
+    renderables: "Sequence[Any]", field: Any = None
+) -> int:
+    """Return the summed content height of a sequence of renderables.
+
+    Args:
+        renderables: The renderable values to measure.
+        field: Optional ``GridFieldInfo`` whose border/padding overhead is
+            included in each renderable's measured height.
+
+    Returns:
+        The total measured height in terminal rows (at least ``0``).
+    """
+    total = 0
+    for renderable in renderables:
+        _, height = measure_renderable_in_field(renderable, field)
+        total += max(height, 0)
+    return total
+
+
+def resolve_root_area(
+    terminal: "Terminal[Any]",
+    viewport: "Area",
+    *,
+    renderables: "Sequence[Any] | None" = None,
+    field: Any = None,
+):
+    """Constrain the viewport to the root box's width sizing.
+
+    The root box's height is already baked into the viewport (inline height or
+    fullscreen), so only its width sizing needs to be resolved here.
+
+    Runs every frame, so the common cases short-circuit before any content
+    measurement: fill and unbounded ``fit`` widths let the content size itself
+    (each renderable is clamped to the viewport downstream), and fixed
+    ``cells`` / ``percent`` / ``ratio`` widths never need to measure content.
+
+    Args:
+        terminal: The active terminal (holds the resolved root width sizing).
+        viewport: The full viewport area to constrain.
+        renderables: The inline renderables being drawn, measured only for a
+            bounded ``fit`` width. ``None`` for a ``Grid`` (whose intrinsic
+            width is not measured, so it fills the viewport width).
+        field: The shared style field for ``renderables`` (its chrome is
+            included when measuring).
+
+    Returns:
+        The root box ``Area`` within the viewport (``viewport`` itself when no
+        constraint applies).
+    """
+    sizing = terminal._root_width_sizing
+    if sizing is None or sizing.is_fill:
+        return viewport
+    # Unbounded ``fit`` needs no root constraint — the content already sizes
+    # itself, and re-measuring here would duplicate the per-renderable pass.
+    if sizing.is_fit and sizing.minimum is None and sizing.maximum is None:
+        return viewport
+
+    content_width = 0
+    if sizing.is_fit:
+        if renderables is None:
+            return viewport
+        content_width = max(
+            (
+                measure_renderable_in_field(renderable, field)[0]
+                for renderable in renderables
+            ),
+            default=0,
+        )
+        if content_width <= 0:
+            return viewport
+
+    width = sizing.resolve(viewport.width, content_width)
+    width = max(1, min(width, viewport.width))
+    if width >= viewport.width:
+        return viewport
+
+    from xnano.beta.types import Area
+
+    return Area(
+        x=viewport.x, y=viewport.y, width=width, height=viewport.height
+    )
+
+
+def render_frame(
+    terminal: "Terminal[Any]",
+    root: Any = None,
+    *,
+    renderables: "Sequence[Any] | None" = None,
+    field: Any = None,
+) -> None:
+    """Paint one frame.
+
+    A ``Grid`` ``root`` drives the full layout engine; otherwise the frame is a
+    sequence of inline ``renderables`` sharing one style ``field``, stacked
+    downward from the root box's top-left corner. A lone ``root`` renderable is
+    treated as a one-item inline sequence.
+    """
+    from xnano.beta.grid import Grid
+    from xnano.beta.fields import GridFieldInfo
+    from xnano.beta.types import Area
+
+    is_grid = isinstance(root, Grid)
     terminal._field_hits.clear()
     terminal._attached_frame_grids.clear()
     terminal._mouse_geometry_active = (
-        terminal.mouse_events
-        and isinstance(root, Grid)
-        and root._grid_needs_mouse_geometry()
+        terminal.mouse_events and is_grid and root._grid_needs_mouse_geometry()
     )
     sess = terminal.session
     sess.begin_frame()
     viewport = get_area_from_native_rect(sess.get_native_viewport_area())
-    if isinstance(root, Grid):
-        root._grid_build_frame(viewport, sess)
+
+    if is_grid:
+        root_area = resolve_root_area(terminal, viewport)
+        root._grid_build_frame(root_area, sess)
+        sess.commit_requests()
+        return
+
+    # Inline content: the root box may be offset from the screen origin (inline
+    # sessions), so stack content downward from its own top-left corner.
+    items = renderables if renderables is not None else ()
+    if not items and root is not None:
+        items = (root,)
+    slot_field = field if field is not None else GridFieldInfo()
+    root_area = resolve_root_area(
+        terminal, viewport, renderables=items, field=slot_field
+    )
+    frame = field_frame(slot_field)
+    offset_y = 0
+    for renderable in items:
+        width, height = measure_renderable_in_field(renderable, slot_field)
+        width = min(width, root_area.width) if width > 0 else root_area.width
+        remaining = root_area.height - offset_y
+        height = min(height, remaining) if height > 0 else remaining
+        if height <= 0:
+            break
+        area = Area(
+            x=root_area.x,
+            y=root_area.y + offset_y,
+            width=width,
+            height=height,
+        )
+        if frame is not None:
+            inner = sess.grid_paint_frame(area, frame)
+            sess.grid_paint_slot(renderable, inner, slot_field)
+        else:
+            sess.grid_paint_slot(renderable, area, slot_field)
+        offset_y += height
+
     sess.commit_requests()
 
 

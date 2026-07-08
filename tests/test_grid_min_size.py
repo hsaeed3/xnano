@@ -17,13 +17,13 @@ def test_grid_min_size_with_border() -> None:
     assert constraint.kind == "min"
     assert constraint.value == 3
 
-    grid.grid_set_field("body", size=1)
+    grid.grid_set_field("body", height=1)
     field = grid._grid_field_info("body")
     constraint = _layout_constraint_for_field(field, "vertical")
     assert constraint.kind == "length"
     assert constraint.value == 3
 
-    grid.grid_set_field("body", size=5)
+    grid.grid_set_field("body", height=5)
     field = grid._grid_field_info("body")
     constraint = _layout_constraint_for_field(field, "vertical")
     assert constraint.kind == "length"

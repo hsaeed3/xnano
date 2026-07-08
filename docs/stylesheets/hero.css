@@ -58,12 +58,20 @@
 
 /* ---- Navbar Logo Styling ---- */
 /* Use highly specific selectors to override Material's default 1.2rem logo constraints */
+.md-header__button.md-logo {
+    margin-left: -0.3rem;
+    padding-left: 0;
+}
+
 .md-header__button.md-logo .zyx-nav-logo-wrapper,
 .md-header__button.md-logo .zyx-nav-logo-image {
-    height: 1.8rem !important;
-    /* Increase to match search bar */
+    height: 1.5rem !important;
     width: auto !important;
     vertical-align: middle;
+}
+
+.md-header__button.md-logo .zyx-nav-logo-wrapper {
+    transform: translateY(0.15rem);
 }
 
 .zyx-nav-logo-wrapper {

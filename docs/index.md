@@ -16,4 +16,9 @@ title: " "
 
 ---
 
-``xnano`` is a fun little **TUI framework** for python powered completely by the **rust** ``ratatui`` and ``tachyonfx`` libraries.
+xnano is a modern TUI framework for python designed to simplify the process of putting and interacting with stuff on your terminal, built on rust.
+
+Fast and flexible, xnano gives you a simple [Pydantic](https://github.com/pydantic/pydantic) like API for rendering to the terminal and interacting with its components in a way that plays nicely with your brain.
+
+*[Pydantic]: Data validation library using Python type hints.
+*[TUI]: A text-based user interface (your terminal applications).

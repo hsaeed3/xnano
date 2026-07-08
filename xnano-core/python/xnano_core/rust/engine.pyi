@@ -809,17 +809,27 @@ class CoreSession:
     """
 
     @staticmethod
-    def init(*, tick_rate_ms: Optional[int] = None) -> CoreSession:
+    def init(
+        *,
+        tick_rate_ms: Optional[int] = None,
+        inline_height: Optional[int] = None,
+    ) -> CoreSession:
         """Claim the terminal and construct a live session.
 
         Installs a panic hook that restores the terminal on abnormal exit.
-        Enters the alternate screen and enables raw mode.
+        Enables raw mode. When ``inline_height`` is ``None`` the session enters
+        the alternate screen and claims the full viewport; when it is set the
+        session uses an inline viewport of that many rows in the main screen
+        buffer (no alternate screen), leaving prior terminal output intact.
 
         Args:
             tick_rate_ms: If set, the session's event loop emits
                 :class:`CoreTerminalEventKind.Tick` events at this cadence.
                 If ``None`` or ``0``, ticks are disabled and
                 :meth:`poll_event` / :meth:`read_event` never yield ``Tick``.
+            inline_height: If set, reserve this many rows for an inline
+                viewport instead of entering the alternate screen. Values are
+                clamped to a minimum of ``1``.
 
         Returns:
             A live ``CoreSession``.
@@ -1106,6 +1116,23 @@ class CoreSession:
         """
         ...
 
+    def get_viewport_area(self) -> Rect:
+        """Return the terminal's current viewport rect.
+
+        Unlike :meth:`get_last_frame_area`, this is available before the first
+        render. For inline sessions the rect is offset from the screen origin
+        (positioned at the reserved viewport rows), so render geometry must be
+        built relative to it.
+
+        Returns:
+            The :class:`~xnano_core.rust.native.Rect` of the live viewport, or
+            the offscreen buffer area for offscreen sessions.
+
+        Raises:
+            RuntimeError: If the session has been closed.
+        """
+        ...
+
     def is_raw_mode_enabled(self) -> bool:
         """Return the session's mirror of raw-mode state.
 
@@ -1143,6 +1170,23 @@ class CoreSession:
 
         Returns:
             ``True`` if the alternate screen is active.
+        """
+        ...
+
+    def is_inline(self) -> bool:
+        """Return whether the session uses an inline viewport.
+
+        Returns:
+            ``True`` if the session was created with an inline viewport.
+        """
+        ...
+
+    def get_inline_height(self) -> Optional[int]:
+        """Return the inline viewport height, if any.
+
+        Returns:
+            The reserved inline row count, or ``None`` for full-screen or
+            offscreen sessions.
         """
         ...
 
