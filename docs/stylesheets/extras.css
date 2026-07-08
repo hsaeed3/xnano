@@ -1,67 +1,43 @@
 @import url("https://unpkg.com/open-props");
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;500;600&display=swap");
 @import url('https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght,MONO@0,300..800,1;1,300..800,1&display=swap');
 @import url("https://iosevka-webfonts.github.io/iosevka/Iosevka.css");
+@import url('https://fonts.googleapis.com/css2?family=Geist+Pixel:ELSH@60&display=swap');
 
-@font-face {
-    font-family: "iA Writer Quattro S";
-    src: url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Regular.woff2") format("woff2"),
-        url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Regular.woff") format("woff");
+.geist-pixel {
+    font-family: "Geist Pixel", sans-serif;
+    font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
-    font-display: swap;
-}
+    font-variation-settings:
+      "ELSH" 60;
+  }
 
-@font-face {
-    font-family: "iA Writer Quattro S";
-    src: url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Italic.woff2") format("woff2"),
-        url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Italic.woff") format("woff");
-    font-weight: 400;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "iA Writer Quattro S";
-    src: url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Bold.woff2") format("woff2"),
-        url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Bold.woff") format("woff");
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "iA Writer Quattro S";
-    src: url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-BoldItalic.woff2") format("woff2"),
-        url("https://raw.githubusercontent.com/iaolo/iA-Fonts/master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-BoldItalic.woff") format("woff");
-    font-weight: 700;
-    font-style: italic;
-    font-display: swap;
-}
 
 :root {
     --md-code-font: "Google Sans Code", system-ui, -apple-system, BlinkMacSystemFont,
         'Segoe UI', sans-serif;
 }
 
-.md-typeset,
 .md-typeset p,
 .md-typeset li,
 .md-typeset dd,
 .md-typeset td {
     font-family: "Iosevka Web", monospace !important;
     line-height: var(--font-lineheight-3) !important;
-    font-weight: var(--font-weight-5);
+    font-weight: var(--font-weight-4);
     letter-spacing: var(--font-letterspacing-0-5);
     text-rendering: geometricPrecision !important;
+    font-size: 16px;
+    transform: scaleX(1.03);
 }
 
 /* Description elements: closer to headers, serif styling */
+.md-typeset dd,
 .md-typeset description {
-    font-family: "Iosevka Web", monospace !important;
+    font-family: "Geist Pixel", monospace !important;
     font-size: 1.1em !important;
-    letter-spacing: var(--font-letterspacing-0-5);
 }
+
 
 .md-typeset h1,
 .md-typeset h2,
@@ -69,12 +45,13 @@
 .md-typeset h4,
 .md-typeset h5,
 .md-typeset h6 {
-    font-family: 'iA Writer Quattro S', serif !important;
+    font-family: 'Geist Pixel' !important;
     margin-bottom: 0.35em !important;
-    font-weight: var(--font-weight-4) !important;
+    font-size: 1.7em !important;
     border-bottom: var(--border-size-1) dashed;
     padding-bottom: 0.8rem;
     border-color: #21252B;
+    font-weight: normal !important;
 }
 
 /* Slight right padding on pre to ensure margin is hit */
@@ -209,14 +186,11 @@
     gap: var(--size-3);
     margin-top: 0; /* override theme .highlight span.filename { margin-top: 1em } */
     padding: var(--size-2) 1.1764705882em; /* match .md-typeset pre > code horizontal padding */
-    font-family: var(--md-code-font), monospace;
+    font-family: "Geist Pixel", monospace;
     font-size: 0.78em;
-    font-weight: var(--font-weight-6);
+    font-weight: 400;
     letter-spacing: var(--font-letterspacing-2);
     text-transform: uppercase;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    border-bottom: var(--border-size-1) solid;
 }
 
 .highlight > span.filename .code-lang {
@@ -254,3 +228,25 @@
     color: #85acfa;
     opacity: 0.85;
 }
+
+/* ── Theme-aware demo GIFs ─────────────────────────────────────────────── */
+.xnano-demo {
+    margin: 1.25rem 0;
+    border-radius: 12px;
+    overflow: hidden;
+    line-height: 0;
+}
+
+.xnano-demo img {
+    width: 100%;
+    display: none;
+    border-radius: 12px;
+}
+
+/* Light mode (default scheme): show light variant */
+[data-md-color-scheme="default"] .xnano-demo .demo-light { display: block; }
+[data-md-color-scheme="default"] .xnano-demo .demo-dark  { display: none; }
+
+/* Dark mode (slate scheme): show dark variant */
+[data-md-color-scheme="slate"] .xnano-demo .demo-dark  { display: block; }
+[data-md-color-scheme="slate"] .xnano-demo .demo-light { display: none; }

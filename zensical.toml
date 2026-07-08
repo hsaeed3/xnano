@@ -12,15 +12,63 @@ Copyright &copy; 2026 Hammad Saeed
 """
 
 nav = [
-    { "Introduction" = "index.md" },
-    { "Concepts" = [
-        { "Terminal" = "concepts/terminal.md" },
+    { "xnano" = [
+        { "Introduction" = "index.md" },
+        { "Concepts" = [
+            "api/concepts/getting-started.md",
+            "api/concepts/terminal.md",
+            "api/concepts/grid.md",
+            "api/concepts/sizing.md",
+            "api/concepts/hooks.md",
+        ]},
+        { "API Reference" = [
+            "api/index.md",
+            { "xnano.beta.core" = [
+                { "xnano.beta.core.dispatch" = "api/core/dispatch.md" },
+                { "xnano.beta.core.nodes" = "api/core/nodes.md" },
+                { "xnano.beta.core.renderable" = "api/core/renderable.md" },
+                { "xnano.beta.core.session" = "api/core/session.md" },
+            ]},
+            { "xnano.beta.components" = [
+                { "xnano.beta.components.abstract" = "api/components/abstract.md" },
+                { "xnano.beta.components.sparkline" = "api/components/sparkline.md" },
+                { "xnano.beta.components.text" = "api/components/text.md" },
+            ]},
+            { "xnano.beta.color" = "api/color.md" },
+            { "xnano.beta.context" = "api/context.md" },
+            { "xnano.beta.cursor" = "api/cursor.md" },
+            { "xnano.beta.device" = "api/device.md" },
+            { "xnano.beta.effects" = "api/effects.md" },
+            { "xnano.beta.events" = "api/events.md" },
+            { "xnano.beta.exceptions" = "api/exceptions.md" },
+            { "xnano.beta.fields" = "api/fields.md" },
+            { "xnano.beta.frame" = "api/frame.md" },
+            { "xnano.beta.grid" = "api/grid.md" },
+            { "xnano.beta.hooks" = "api/hooks.md" },
+            { "xnano.beta.keyboard" = "api/keyboard.md" },
+            { "xnano.beta.mouse" = "api/mouse.md" },
+            { "xnano.beta.sizing" = "api/sizing.md" },
+            { "xnano.beta.state" = "api/state.md" },
+            { "xnano.beta.terminal" = "api/terminal.md" },
+            { "xnano.beta.types" = "api/types.md" },
+        ]},
     ]},
+    { "xnano-core" = [
+        { "Overview" = "xnano-core/overview.md" },
+        { "Core Terminal Engine" = "xnano-core/engine.md" },
+        { "Native Rust Bindings" = "xnano-core/native.md" },
+        { "API Reference" = [
+            {"xnano-core.rust.native" = "xnano-core/api/native.md"},
+            {"xnano-core.rust.engine" = "xnano-core/api/engine.md"},
+        ]}
+    ]}
 ]
 
 extra_css = [
     "stylesheets/extras.css",
+    "stylesheets/showcase-hover.css",
     "stylesheets/hero.css",
+    "stylesheets/code-theme.css",
     "stylesheets/mkdocstrings.css",
     "stylesheets/components.css",
 ]
@@ -28,6 +76,7 @@ extra_css = [
 extra_javascript = [
     "js/code-lang.js",
     "js/custom.js",
+    "js/showcase-hover.js",
     "js/hero.js",
     "https://unpkg.com/katex@0/dist/katex.min.js",
     "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
@@ -55,7 +104,7 @@ features = [
     "navigation.instant.progress",
     "navigation.path",
     # "navigation.prune",
-    "navigation.tabs",
+    # "navigation.tabs",
     "navigation.top",
     # "navigation.sections",
     "navigation.tracking",
@@ -82,8 +131,8 @@ toggle.icon = "lucide/moon"
 toggle.name = "Switch to light mode"
 
 [project.theme.font]
-text = "iA Writer Quattro S"
-code = "Zed Mono"
+text = "Geist Pixel"
+code = "Iosevka Web"
 
 [project.home]
 tagline = "fun llm functions and assorted knick-knacks."
