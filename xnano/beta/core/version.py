@@ -8,7 +8,7 @@ from xnano_core.rust.native import __version__ as __xnano_core_version__
 
 __all__ = ("VERSION", "check_xnano_core_version")
 
-VERSION = "1.0.0b1"
+VERSION = "1.0.0b2"
 """The version of xnano.
 
 This version specifier is guaranteed to be compliant with the [specification],
@@ -20,7 +20,7 @@ introduced by [PEP 440].
 
 # !! THIS MUST MATCH THE VERSION CONSTRAINT IN THE `pyproject.toml`
 # !! DEPENDENCIES
-_COMPATIBLE_XNANO_CORE_VERSION = "0.0.4"
+_COMPATIBLE_XNANO_CORE_VERSION = "0.0.5"
 
 
 def check_xnano_core_version() -> bool:
