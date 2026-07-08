@@ -567,7 +567,16 @@ class Session(Generic[StateT]):
         if isinstance(value, AbstractComponent):
             terminal = _ACTIVE_TERMINAL.get()
             ctx = ComponentRenderContext(area=area, terminal=terminal)
-            fill_area = not bool(field is not None and field.fit)
+            # A content-sized (``fit``) field already carries a slot matching
+            # its content, so the component renders at its natural size rather
+            # than stretching to fill.
+            fill_area = not (
+                field is not None
+                and (
+                    (field.width is not None and field.width.is_fit)
+                    or (field.height is not None and field.height.is_fit)
+                )
+            )
             self.render_component(
                 value,
                 area,
