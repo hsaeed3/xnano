@@ -245,7 +245,13 @@ def measure_renderables_height(
     return total
 
 
-def resolve_root_area(terminal: "Terminal[Any]", viewport: "Area", root: Any):
+def resolve_root_area(
+    terminal: "Terminal[Any]",
+    viewport: "Area",
+    *,
+    renderables: "Sequence[Any] | None" = None,
+    field: Any = None,
+):
     """Constrain the viewport to the root box's width sizing.
 
     The root box's height is already baked into the viewport (inline height or
@@ -259,7 +265,11 @@ def resolve_root_area(terminal: "Terminal[Any]", viewport: "Area", root: Any):
     Args:
         terminal: The active terminal (holds the resolved root width sizing).
         viewport: The full viewport area to constrain.
-        root: The renderable being drawn (used to measure bounded ``fit``).
+        renderables: The inline renderables being drawn, measured only for a
+            bounded ``fit`` width. ``None`` for a ``Grid`` (whose intrinsic
+            width is not measured, so it fills the viewport width).
+        field: The shared style field for ``renderables`` (its chrome is
+            included when measuring).
 
     Returns:
         The root box ``Area`` within the viewport (``viewport`` itself when no
@@ -275,7 +285,15 @@ def resolve_root_area(terminal: "Terminal[Any]", viewport: "Area", root: Any):
 
     content_width = 0
     if sizing.is_fit:
-        content_width = _measure_root_content_width(root)
+        if renderables is None:
+            return viewport
+        content_width = max(
+            (
+                measure_renderable_in_field(renderable, field)[0]
+                for renderable in renderables
+            ),
+            default=0,
+        )
         if content_width <= 0:
             return viewport
 
@@ -291,83 +309,70 @@ def resolve_root_area(terminal: "Terminal[Any]", viewport: "Area", root: Any):
     )
 
 
-def _measure_root_content_width(root: Any) -> int:
-    """Return the intrinsic content width of a non-Grid root, or ``0``."""
-    from xnano.beta.terminal import _RenderConfig
+def render_frame(
+    terminal: "Terminal[Any]",
+    root: Any = None,
+    *,
+    renderables: "Sequence[Any] | None" = None,
+    field: Any = None,
+) -> None:
+    """Paint one frame.
 
-    if isinstance(root, _RenderConfig):
-        return max(
-            (
-                measure_renderable_in_field(renderable, root.field)[0]
-                for renderable in root.renderables
-            ),
-            default=0,
-        )
+    A ``Grid`` ``root`` drives the full layout engine; otherwise the frame is a
+    sequence of inline ``renderables`` sharing one style ``field``, stacked
+    downward from the root box's top-left corner. A lone ``root`` renderable is
+    treated as a one-item inline sequence.
+    """
     from xnano.beta.grid import Grid
-
-    if isinstance(root, Grid):
-        # Grid intrinsic width is not measured — fall back to full width.
-        return 0
-    return measure_renderable(root)[0]
-
-
-def render_frame(terminal: "Terminal[Any]", root: Any) -> None:
-    from xnano.beta.grid import Grid
-    from xnano.beta.terminal import _RenderConfig
+    from xnano.beta.fields import GridFieldInfo
     from xnano.beta.types import Area
 
+    is_grid = isinstance(root, Grid)
     terminal._field_hits.clear()
     terminal._attached_frame_grids.clear()
     terminal._mouse_geometry_active = (
-        terminal.mouse_events
-        and isinstance(root, Grid)
-        and root._grid_needs_mouse_geometry()
+        terminal.mouse_events and is_grid and root._grid_needs_mouse_geometry()
     )
     sess = terminal.session
     sess.begin_frame()
     viewport = get_area_from_native_rect(sess.get_native_viewport_area())
-    root_area = resolve_root_area(terminal, viewport, root)
 
-    if isinstance(root, Grid):
+    if is_grid:
+        root_area = resolve_root_area(terminal, viewport)
         root._grid_build_frame(root_area, sess)
+        sess.commit_requests()
+        return
 
-    elif isinstance(root, _RenderConfig):
-        # The root box may be offset from the screen origin (inline sessions),
-        # so stack content downward from its own top-left corner.
-        frame = field_frame(root.field)
-        offset_y = 0
-        for renderable in root.renderables:
-            width, height = measure_renderable_in_field(renderable, root.field)
-            width = (
-                min(width, root_area.width) if width > 0 else root_area.width
-            )
-            remaining = root_area.height - offset_y
-            height = min(height, remaining) if height > 0 else remaining
-            if height <= 0:
-                break
-            area = Area(
-                x=root_area.x,
-                y=root_area.y + offset_y,
-                width=width,
-                height=height,
-            )
-            if frame is not None:
-                inner = sess.grid_paint_frame(area, frame)
-                sess.grid_paint_slot(renderable, inner, root.field)
-            else:
-                sess.grid_paint_slot(renderable, area, root.field)
-            offset_y += height
-
-    else:
-        from xnano.beta.fields import GridFieldInfo
-
-        width, height = measure_renderable(root)
+    # Inline content: the root box may be offset from the screen origin (inline
+    # sessions), so stack content downward from its own top-left corner.
+    items = renderables if renderables is not None else ()
+    if not items and root is not None:
+        items = (root,)
+    slot_field = field if field is not None else GridFieldInfo()
+    root_area = resolve_root_area(
+        terminal, viewport, renderables=items, field=slot_field
+    )
+    frame = field_frame(slot_field)
+    offset_y = 0
+    for renderable in items:
+        width, height = measure_renderable_in_field(renderable, slot_field)
         width = min(width, root_area.width) if width > 0 else root_area.width
-        height = (
-            min(height, root_area.height) if height > 0 else root_area.height
+        remaining = root_area.height - offset_y
+        height = min(height, remaining) if height > 0 else remaining
+        if height <= 0:
+            break
+        area = Area(
+            x=root_area.x,
+            y=root_area.y + offset_y,
+            width=width,
+            height=height,
         )
-        area = Area(x=root_area.x, y=root_area.y, width=width, height=height)
-        sess.grid_paint_slot(root, area, GridFieldInfo())
+        if frame is not None:
+            inner = sess.grid_paint_frame(area, frame)
+            sess.grid_paint_slot(renderable, inner, slot_field)
+        else:
+            sess.grid_paint_slot(renderable, area, slot_field)
+        offset_y += height
 
     sess.commit_requests()
 

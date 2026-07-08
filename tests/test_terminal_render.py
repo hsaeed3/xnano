@@ -7,10 +7,11 @@ sessions so no TTY is required.
 
 from __future__ import annotations
 
+import pytest
+
 from xnano.beta import Field, Grid, Sizing, Terminal
 from xnano.beta.components import Text
 from xnano.beta.core import dispatch
-from xnano.beta.terminal import _RenderConfig
 
 
 # ---------------------------------------------------------------------------
@@ -142,23 +143,27 @@ def test_render_offscreen_stays_full_viewport_session() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _RenderConfig dispatch
+# inline renderables dispatch (renderables + field kwargs)
 # ---------------------------------------------------------------------------
 
 
-def test_render_config_paints_config_content() -> None:
+def test_render_frame_paints_inline_renderables() -> None:
     from xnano.beta.fields import GridFieldInfo
 
     terminal = Terminal.offscreen(cols=30, rows=5)
-    config = _RenderConfig(
-        renderables=("alpha", "beta"),
-        field=GridFieldInfo(),
-        auto_resize=False,
+    terminal._render_frame(
+        renderables=("alpha", "beta"), field=GridFieldInfo()
     )
-    terminal._render_frame(config)
     lines = [line.rstrip() for line in terminal.get_output().splitlines()]
     assert lines[0] == "alpha"
     assert lines[1] == "beta"
+
+
+def test_render_frame_paints_lone_root_renderable() -> None:
+    terminal = Terminal.offscreen(cols=30, rows=5)
+    terminal._render_frame("solo")
+    lines = [line.rstrip() for line in terminal.get_output().splitlines()]
+    assert lines[0] == "solo"
 
 
 # ---------------------------------------------------------------------------
@@ -191,55 +196,68 @@ def test_fresh_terminal_has_no_inline_height() -> None:
 
 # ---------------------------------------------------------------------------
 # Terminal viewport resolution (root sizing → Viewport)
+#
+# ``_resolve_run`` is pure: it returns a ``_ResolvedRun`` rather than mutating
+# the terminal, so these assert on the returned value.
 # ---------------------------------------------------------------------------
 
 
 def test_resolve_run_grid_defaults_to_fullscreen() -> None:
     terminal: Terminal = Terminal()
-    terminal._resolve_run(["x"], is_grid=True, field=None)
+    resolved = terminal._resolve_run(["x"], is_grid=True, field=None)
     # A Grid defaults to fill height → full-screen (no inline viewport).
-    assert terminal._inline_height is None
-    assert terminal._root_width_sizing == Sizing.fraction(1)
+    assert resolved.inline_height is None
+    assert resolved.root_width_sizing == Sizing.fraction(1)
 
 
 def test_resolve_run_leaf_defaults_to_inline_fit() -> None:
     terminal: Terminal = Terminal()
-    terminal._resolve_run(["hi\nthere"], is_grid=False, field=None)
+    resolved = terminal._resolve_run(["hi\nthere"], is_grid=False, field=None)
     # A leaf defaults to fit height → inline viewport sized to content.
-    assert terminal._inline_height == 2
-    assert terminal._root_width_sizing == Sizing.fit()
+    assert resolved.inline_height == 2
+    assert resolved.root_width_sizing == Sizing.fit()
 
 
 def test_resolve_run_explicit_cells_height_is_inline() -> None:
     terminal: Terminal = Terminal(height=5)
-    terminal._resolve_run(["x"], is_grid=True, field=None)
+    resolved = terminal._resolve_run(["x"], is_grid=True, field=None)
     # An explicit finite height forces an inline viewport even for a Grid.
-    assert terminal._inline_height == 5
+    assert resolved.inline_height == 5
 
 
 def test_resolve_run_explicit_fill_height_is_fullscreen() -> None:
     terminal: Terminal = Terminal(height="1fr")
-    terminal._resolve_run(["hi"], is_grid=False, field=None)
+    resolved = terminal._resolve_run(["hi"], is_grid=False, field=None)
     # An explicit fill height forces full-screen even for a leaf.
-    assert terminal._inline_height is None
+    assert resolved.inline_height is None
 
 
 def test_resolve_run_records_explicit_width_sizing() -> None:
     terminal: Terminal = Terminal(width=40)
-    terminal._resolve_run(["hi"], is_grid=False, field=None)
-    assert terminal._root_width_sizing == Sizing.cells(40)
+    resolved = terminal._resolve_run(["hi"], is_grid=False, field=None)
+    assert resolved.root_width_sizing == Sizing.cells(40)
 
 
 def test_resolve_run_fit_grid_falls_back_to_fullscreen() -> None:
     # A Grid has no measurable intrinsic height, so an explicit fit height
-    # cannot reserve an inline viewport and must fall back to full-screen.
+    # cannot reserve an inline viewport and must fall back to full-screen —
+    # and it warns rather than silently overriding the request.
     terminal: Terminal = Terminal(height="fit")
-    terminal._resolve_run(["x"], is_grid=True, field=None)
-    assert terminal._inline_height is None
+    with pytest.warns(UserWarning, match="has no effect for a Grid"):
+        resolved = terminal._resolve_run(["x"], is_grid=True, field=None)
+    assert resolved.inline_height is None
 
 
 def test_resolve_run_cells_height_grid_is_inline() -> None:
     # A fixed cells height needs no measurement, so it works for a Grid.
     terminal: Terminal = Terminal(height=8)
+    resolved = terminal._resolve_run(["x"], is_grid=True, field=None)
+    assert resolved.inline_height == 8
+
+
+def test_resolve_run_returns_result_without_mutating_terminal() -> None:
+    # The resolution is a returned value, not a side effect.
+    terminal: Terminal = Terminal(height=5)
     terminal._resolve_run(["x"], is_grid=True, field=None)
-    assert terminal._inline_height == 8
+    assert terminal._inline_height is None
+    assert terminal._root_width_sizing is None
