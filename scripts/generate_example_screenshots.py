@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate example GIFs for all xnano example scripts.
 
-Produces one GIF per example per theme (Gruvbox Dark + Gruvbox Light) and
+Produces one GIF per example per theme (docs dark + light palettes) and
 writes them to docs/assets/examples/.
 
 Requirements:
@@ -30,10 +30,15 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = REPO_ROOT / "examples"
 OUTPUT_DIR = REPO_ROOT / "docs" / "assets" / "examples"
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+
+sys.path.insert(0, str(SCRIPTS_DIR))
+from vhs_doc_themes import get_margin_fill, get_theme_name  # noqa: E402
+from vhs_tape import build_run_tape  # noqa: E402
 
 THEMES = {
-    "dark": "Gruvbox Dark",
-    "light": "Gruvbox Light",
+    "dark": "GruvboxDark",
+    "light": "AtomOneLight",
 }
 
 _BASE_SETTINGS = """
@@ -58,9 +63,6 @@ Set Theme "{theme}"
 Env TERM "xterm-256color"
 Env COLORTERM "truecolor"
 """.strip()
-
-_DARK_MARGIN = "#1d2021"   # Gruvbox dark bg0_h
-_LIGHT_MARGIN = "#f2e5bc"  # Gruvbox light bg0_h
 
 
 @dataclass(frozen=True)
@@ -138,10 +140,9 @@ _EXAMPLE_MAP: dict[str, ExampleConfig] = {e.name: e for e in EXAMPLES}
 
 
 def _base_settings(theme_key: str) -> str:
-    margin_fill = _DARK_MARGIN if theme_key == "dark" else _LIGHT_MARGIN
     return _BASE_SETTINGS.format(
-        theme=THEMES[theme_key],
-        margin_fill=margin_fill,
+        theme=get_theme_name(theme_key),
+        margin_fill=get_margin_fill(theme_key),
     )
 
 
@@ -151,26 +152,18 @@ def build_tape(
     output_path: Path,
     theme_key: str,
 ) -> str:
-    python = sys.executable
     output_rel = output_path.relative_to(REPO_ROOT)
-    env_lines = [f'Env {k} "{v}"' for k, v in example.env]
-
-    lines = [
-        f"Output {output_rel.as_posix()}",
-        _base_settings(theme_key),
-        *env_lines,
-        "Hide",
-        f'Type "{python} {script_path.as_posix()}"',
-        "Enter",
-        f"Sleep {example.launch_delay}",
-        "Show",
-        *example.steps,
-        f"Sleep {example.record_delay}",
-        "Hide",
-        "Ctrl+C",
-        "Sleep 300ms",
-    ]
-    return "\n".join(lines) + "\n"
+    env_lines = [f'Env {key} "{value}"' for key, value in example.env]
+    return build_run_tape(
+        output=output_rel,
+        settings=_base_settings(theme_key),
+        launch_command=f"scripts/vhs-example {example.name}",
+        steps=example.steps,
+        launch_delay=example.launch_delay,
+        record_delay=example.record_delay,
+        env_lines=env_lines,
+        quit_key="q",
+    )
 
 
 def require_vhs() -> str:
@@ -218,7 +211,9 @@ def generate(
     tape_body = build_tape(example, script, output, theme_key)
 
     if dry_run:
-        print(f"# {example.name} [{theme_key}] -> {output.relative_to(REPO_ROOT)}")
+        print(
+            f"# {example.name} [{theme_key}] -> {output.relative_to(REPO_ROOT)}"
+        )
         print(tape_body)
         return
 
@@ -276,20 +271,26 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
 
-    examples = (
-        [_EXAMPLE_MAP[args.example]] if args.example else list(EXAMPLES)
-    )
+    examples = [_EXAMPLE_MAP[args.example]] if args.example else list(EXAMPLES)
     themes = [args.theme] if args.theme else list(THEMES)
 
     vhs = require_vhs() if not args.dry_run else ""
 
     for example in examples:
         for theme_key in themes:
-            generate(example, theme_key, vhs=vhs, dry_run=args.dry_run, quiet=args.quiet)
+            generate(
+                example,
+                theme_key,
+                vhs=vhs,
+                dry_run=args.dry_run,
+                quiet=args.quiet,
+            )
 
     if not args.dry_run:
         total = len(examples) * len(themes)
-        print(f"\nDone — {total} GIF(s) in {OUTPUT_DIR.relative_to(REPO_ROOT)}/")
+        print(
+            f"\nDone — {total} GIF(s) in {OUTPUT_DIR.relative_to(REPO_ROOT)}/"
+        )
 
     return 0
 
