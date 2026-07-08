@@ -65,14 +65,14 @@ def test_vertical_height_fit() -> None:
     assert areas["body"].height == 8
 
 
-def test_width_height_take_precedence_over_legacy_size() -> None:
+def test_fixed_height_wins_over_fill_sibling() -> None:
     class App(Grid):
-        # ``height`` should win over the legacy ``size`` knob.
-        top: str = Field(default="t", height=3, size=0.9)
+        top: str = Field(default="t", height=3)
         rest: str = Field(default="r", height="1fr")
 
     areas = _slot_areas(App(), 20, 10)
     assert areas["top"].height == 3
+    assert areas["rest"].height == 7
 
 
 # ---------------------------------------------------------------------------
