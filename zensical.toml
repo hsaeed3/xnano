@@ -13,6 +13,9 @@ Copyright &copy; 2026 Hammad Saeed
 
 nav = [
     { "Introduction" = "index.md" },
+    { "Concepts" = [
+        { "Terminal" = "concepts/terminal.md" },
+    ]},
 ]
 
 extra_css = [
@@ -20,13 +23,11 @@ extra_css = [
     "stylesheets/hero.css",
     "stylesheets/mkdocstrings.css",
     "stylesheets/components.css",
-    "stylesheets/termynal.css",
 ]
 
 extra_javascript = [
     "js/code-lang.js",
     "js/custom.js",
-    "js/termynal.js",
     "js/hero.js",
     "https://unpkg.com/katex@0/dist/katex.min.js",
     "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
@@ -196,3 +197,9 @@ show_input = true
 include_requirejs = true
 
 [project.plugins.search]
+
+[project.markdown_extensions.termynal]
+include_assets = true
+title = "bash"
+buttons = "macos"
+prompt_literal_start = ["$"]
