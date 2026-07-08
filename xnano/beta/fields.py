@@ -22,6 +22,7 @@ from typing import Any, Callable, Literal, Sequence, TypeVar, overload
 from xnano.beta import types
 from xnano.beta.color import ColorLike, Color
 from xnano.beta.frame import Frame, FrameTitlePosition
+from xnano.beta.sizing import Sizing, SizingLike
 
 
 UNSET = object()
@@ -76,6 +77,12 @@ class GridFieldInfo:
             "reversed".
         color: The foreground color of content within this field.
         background: The background color of this field's frame area.
+        width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
+            or a ``Sizing``). Drives the split constraint in horizontal layouts
+            (over ``size`` / ``flex`` / ``fit``); shrinks the slot otherwise.
+        height: Vertical extent sizing (``3``, ``"50%"``, ``"1fr"``, ``"fit"``,
+            or a ``Sizing``). Drives the split constraint in vertical layouts
+            (over ``size`` / ``flex`` / ``fit``); shrinks the slot otherwise.
         size: Fixed size as a percentage of the parent area's axis length. Ignored when `
             `fit`` is ``True``.
         flex: Relative fill weight when ``size`` is ``None``. Accepts an integer weight or a
@@ -129,6 +136,22 @@ class GridFieldInfo:
     """The foreground color of content within this field."""
     background: ColorLike | None = None
     """The background color of this field's frame area."""
+    width: "Sizing | None" = None
+    """Sizing intent for the field's horizontal extent.
+
+    Accepts any :class:`~xnano.beta.sizing.Sizing` or shorthand (``10`` cells,
+    ``"50%"``, ``"1fr"``, ``"fit"``). When the grid lays out horizontally this
+    drives the split constraint (taking precedence over the legacy ``size`` /
+    ``flex`` / ``fit`` knobs); otherwise it shrinks the slot to this width.
+    """
+    height: "Sizing | None" = None
+    """Sizing intent for the field's vertical extent.
+
+    Accepts any :class:`~xnano.beta.sizing.Sizing` or shorthand (``3`` cells,
+    ``"50%"``, ``"1fr"``, ``"fit"``). When the grid lays out vertically this
+    drives the split constraint (taking precedence over the legacy ``size`` /
+    ``flex`` / ``fit`` knobs); otherwise it shrinks the slot to this height.
+    """
     size: types.SizePercentage | None = None
     """Fixed size as a percentage of the parent area's axis length. Ignored when ``fit`` is ``True``."""
     flex: int | None = None
@@ -179,6 +202,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     size: types.SizePercentage | None = None,
     flex: types.Flex | None = None,
     fit: bool | None = None,
@@ -207,6 +232,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     size: types.SizePercentage | None = None,
     flex: types.Flex | None = None,
     fit: bool | None = None,
@@ -234,6 +261,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     size: types.SizePercentage | None = None,
     flex: types.Flex | None = None,
     fit: bool | None = None,
@@ -262,6 +291,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     size: types.SizePercentage | None = None,
     flex: types.Flex | None = None,
     fit: bool | None = None,
@@ -289,6 +320,8 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    width: SizingLike | None = None,
+    height: SizingLike | None = None,
     size: types.SizePercentage | None = None,
     flex: types.Flex | None = None,
     fit: bool | None = None,
@@ -318,6 +351,12 @@ def Field(
             "reversed".
         color: The foreground color of content within this field.
         background: The background color of this field's frame area.
+        width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
+            or a ``Sizing``). Drives the split constraint in horizontal layouts
+            (over ``size`` / ``flex`` / ``fit``); shrinks the slot otherwise.
+        height: Vertical extent sizing (``3``, ``"50%"``, ``"1fr"``, ``"fit"``,
+            or a ``Sizing``). Drives the split constraint in vertical layouts
+            (over ``size`` / ``flex`` / ``fit``); shrinks the slot otherwise.
         size: Fixed size as a percentage of the parent area's axis length. Ignored when `
             `fit`` is ``True``.
         flex: Relative fill weight when ``size`` is ``None``. Accepts an integer weight or a
@@ -351,6 +390,8 @@ def Field(
         color=color,
         modifiers=modifiers,
         background=background,
+        width=Sizing.parse(width),
+        height=Sizing.parse(height),
         size=size,
         flex=_normalize_flex(flex),
         fit=fit,
