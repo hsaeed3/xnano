@@ -24,6 +24,11 @@ from xnano.beta.types import (
     PaddingLike,
     Side,
 )
+from xnano.beta.utils.vhs_recording import (
+    ColorRole,
+    get_vhs_color_cache_token,
+    remap_color_for_vhs,
+)
 
 if TYPE_CHECKING:
     from xnano.beta.cursor import CursorStyle
@@ -143,20 +148,25 @@ def get_area_from_native_rect(rect: native.Rect) -> Area:
 
 def get_native_color_from_color_like(
     color: ColorLike | None,
+    *,
+    role: ColorRole = "foreground",
 ) -> native.Color | None:
     """Parses a ``ColorLike`` input into a ratatui native ``Color``
     binding.
 
     Args:
         color: The color to parse.
+        role: Whether the color is used as foreground or background.
 
     Returns:
         The parsed ``native.Color`` binding.
     """
+    color = remap_color_for_vhs(color, role=role)
     if color is None:
         return None
 
-    key = ("xnano", color)
+    cache_token = get_vhs_color_cache_token()
+    key = ("xnano", color, role, cache_token)
     if key in _NATIVE_COLOR_CACHE:
         return _NATIVE_COLOR_CACHE[key]
 
@@ -239,8 +249,11 @@ def get_native_style_from_kwargs(
     Returns:
         The built ``native.Style`` binding.
     """
-    native_color = get_native_color_from_color_like(color)
-    native_background = get_native_color_from_color_like(background)
+    native_color = get_native_color_from_color_like(color, role="foreground")
+    native_background = get_native_color_from_color_like(
+        background,
+        role="background",
+    )
     native_modifier = get_native_modifier_from_modifiers(modifiers)
 
     if (
@@ -271,7 +284,11 @@ def get_native_block_from_frame(frame: Frame) -> native.Block | None:
     """
     if frame.is_empty():
         return None
-    block = native.Block.bordered()
+    block = (
+        native.Block.bordered()
+        if frame.border is not None
+        else native.Block.new()
+    )
     if frame.border_sides is not None:
         sides = native.Borders.NONE
         for side in frame.border_sides:

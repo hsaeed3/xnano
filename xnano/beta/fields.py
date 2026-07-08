@@ -70,7 +70,9 @@ class GridFieldInfo:
             including "bold", "dim", "italic", "underline", "slow_blink", "rapid_blink",
             "reversed".
         color: The foreground color of content within this field.
-        background: The background color of this field's frame area.
+        background: The background color behind this field's text cells. Pair
+            with a filling ``width`` for a full-width bar; fills the framed
+            content area when the field also defines border/title/padding chrome.
         width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
             or a ``Sizing``). Drives the split constraint in horizontal layouts;
             shrinks the slot along the cross axis otherwise.
@@ -123,7 +125,14 @@ class GridFieldInfo:
     color: ColorLike | None = None
     """The foreground color of content within this field."""
     background: ColorLike | None = None
-    """The background color of this field's frame area."""
+    """The background color of content within this field.
+
+    Paints behind the field's text cells only, not the whole slot — so a plain
+    ``background`` reads as an accent behind the content. Pair it with a filling
+    ``width`` (e.g. ``width="1fr"``) for a full-width bar such as a header or
+    status line. When the field also defines border, title, or padding chrome,
+    this color fills the framed content area instead.
+    """
     width: "Sizing | None" = None
     """Sizing intent for the field's horizontal extent.
 
@@ -311,7 +320,9 @@ def Field(
             including "bold", "dim", "italic", "underline", "slow_blink", "rapid_blink",
             "reversed".
         color: The foreground color of content within this field.
-        background: The background color of this field's frame area.
+        background: The background color behind this field's text cells. Pair
+            with a filling ``width`` for a full-width bar; fills the framed
+            content area when the field also defines border/title/padding chrome.
         width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
             or a ``Sizing``). Drives the split constraint in horizontal layouts;
             shrinks the slot along the cross axis otherwise.

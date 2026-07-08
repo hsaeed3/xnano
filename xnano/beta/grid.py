@@ -1167,18 +1167,9 @@ class Grid(metaclass=_GridMeta):
         return bool(field.visible)
 
     def _grid_field_frame(self, field: GridFieldInfo) -> Frame | None:
-        f = Frame(
-            background=field.background,
-            border=field.border,
-            border_color=field.border_color,
-            border_sides=list(field.border_sides)
-            if field.border_sides is not None
-            else None,
-            title=field.title,
-            title_position=field.title_position,
-            padding=field.padding,
-        )
-        return None if f.is_empty() else f
+        from xnano.beta.frame import frame_from_field
+
+        return frame_from_field(field)
 
     def _grid_register_field_hit(
         self,

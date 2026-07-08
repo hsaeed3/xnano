@@ -677,7 +677,15 @@ class NodeAssembler:
             get_native_color_from_color_like,
         )
 
-        return get_native_color_from_color_like(color)
+        return get_native_color_from_color_like(color, role="foreground")
+
+    @staticmethod
+    def _bg(color: "Any") -> "Any":
+        from xnano.beta.utils.native_types import (
+            get_native_color_from_color_like,
+        )
+
+        return get_native_color_from_color_like(color, role="background")
 
     @staticmethod
     def _mods(modifiers: "list[Any]") -> "list[Any]":
@@ -724,14 +732,14 @@ class NodeAssembler:
                     (
                         node.content,
                         cls._c(node.color),
-                        cls._c(node.background),
+                        cls._bg(node.background),
                         cls._mods(node.modifiers),
                     )
                 ]
             )
         # LineNode
         fg = cls._c(node.color)
-        bg = cls._c(node.background)
+        bg = cls._bg(node.background)
         mods = cls._mods(node.modifiers)
         if isinstance(node.content, str) or node.content is None:
             return IrLine.styled(node.content or "", fg, bg, mods)
@@ -739,7 +747,7 @@ class NodeAssembler:
             (
                 s.content,
                 cls._c(s.color),
-                cls._c(s.background),
+                cls._bg(s.background),
                 cls._mods(s.modifiers),
             )
             for s in node.content
@@ -772,7 +780,7 @@ class NodeAssembler:
             return CoreRenderIR.span(
                 node.content,
                 cls._c(node.color),
-                cls._c(node.background),
+                cls._bg(node.background),
                 cls._mods(node.modifiers),
             )
 
@@ -781,7 +789,7 @@ class NodeAssembler:
 
         if isinstance(node, TextNode):
             fg = cls._c(node.color)
-            bg = cls._c(node.background)
+            bg = cls._bg(node.background)
             mods = cls._mods(list(node.modifiers))
             align = cls._align(node.align)
             if node.lines:
@@ -791,7 +799,7 @@ class NodeAssembler:
 
         if isinstance(node, ParagraphNode):
             fg = cls._c(node.color)
-            bg = cls._c(node.background)
+            bg = cls._bg(node.background)
             mods = cls._mods(list(node.modifiers))
             align = cls._align(node.align)
             text = node.text
@@ -819,9 +827,9 @@ class NodeAssembler:
                 ir_items,
                 node.selected,
                 cls._c(node.color),
-                cls._c(node.background),
+                cls._bg(node.background),
                 cls._c(node.highlight_color),
-                cls._c(node.highlight_background),
+                cls._bg(node.highlight_background),
                 node.highlight_symbol,
             )
 
@@ -830,7 +838,7 @@ class NodeAssembler:
                 node.progress,
                 node.label,
                 cls._c(node.color),
-                cls._c(node.background),
+                cls._bg(node.background),
             )
 
         if isinstance(node, SparklineNode):
@@ -841,7 +849,7 @@ class NodeAssembler:
                 node.data,
                 node.max_value,
                 cls._c(node.color),
-                cls._c(node.background),
+                cls._bg(node.background),
                 cls._c(node.absent_value_color),
                 node.absent_value_symbol,
             )
@@ -851,7 +859,7 @@ class NodeAssembler:
                 node.progress,
                 node.label,
                 cls._c(node.color),
-                cls._c(node.background),
+                cls._bg(node.background),
                 cls._c(node.filled_color),
                 cls._c(node.unfilled_color),
             )
@@ -897,7 +905,7 @@ class NodeAssembler:
                         else c.content
                     ),
                     cls._c(c.color),
-                    cls._c(c.background),
+                    cls._bg(c.background),
                     cls._mods(c.modifiers),
                 )
 
@@ -905,7 +913,7 @@ class NodeAssembler:
                 return (
                     [_ir_cell(c) for c in r.cells],
                     cls._c(r.color),
-                    cls._c(r.background),
+                    cls._bg(r.background),
                     r.height,
                 )
 
@@ -919,7 +927,7 @@ class NodeAssembler:
                 node.selected_row,
                 node.selected_column,
                 cls._c(node.highlight_color),
-                cls._c(node.highlight_background),
+                cls._bg(node.highlight_background),
                 node.highlight_symbol,
             )
 
@@ -942,9 +950,9 @@ class NodeAssembler:
                 titles,
                 node.selected or 0,
                 cls._c(node.color),
-                cls._c(node.background),
+                cls._bg(node.background),
                 cls._c(node.highlight_color),
-                cls._c(node.highlight_background),
+                cls._bg(node.highlight_background),
                 node.divider,
                 node.padding_left,
                 node.padding_right,
@@ -1005,7 +1013,7 @@ class NodeAssembler:
                                 (
                                     s.content,
                                     cls._c(s.color),
-                                    cls._c(s.background),
+                                    cls._bg(s.background),
                                     cls._mods(s.modifiers),
                                 )
                                 for s in content.content
@@ -1015,7 +1023,7 @@ class NodeAssembler:
                                 (
                                     content.content or "",
                                     cls._c(content.color),
-                                    cls._c(content.background),
+                                    cls._bg(content.background),
                                     cls._mods(content.modifiers),
                                 )
                             ]
@@ -1024,7 +1032,7 @@ class NodeAssembler:
                             (
                                 content.content,
                                 cls._c(content.color),
-                                cls._c(content.background),
+                                cls._bg(content.background),
                                 cls._mods(content.modifiers),
                             )
                         ]
@@ -1033,7 +1041,7 @@ class NodeAssembler:
                 shapes,
                 node.x_bounds,
                 node.y_bounds,
-                cls._c(node.background),
+                cls._bg(node.background),
                 cls._MARKER_INT.get(node.marker) if node.marker else None,
             )
 
