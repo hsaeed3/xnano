@@ -33,7 +33,6 @@ def parse_release_tag(ref: str) -> tuple[str, str] | None:
 
     package = match.group(1).lower()
     version = match.group(2).lower()
-    version = version.replace("a", "-alpha").replace("b", "-beta")
     return package, version
 
 

@@ -6,7 +6,7 @@ A simple python **tui** framework built on top of the [ratatui](https://ratatui.
 
 > [!IMPORTANT]
 > The ``xnano`` library is currently going through a complete rebuild of it's primary purpose and API. As the
-> package is still in beta, expect frequent changes from all package versions ``0.99.xx`` and above until
+> package is still in beta, expect frequent changes from all package versions ``1.0.0bx`` and above until
 > the stable ``1.0.0`` release.
 >
 > Docs will soon be available at: [xnano.hammad.app](https://xnano.hammad.app).
