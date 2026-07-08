@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.beta.frame import Frame
+from xnano.beta.fields import GridFieldInfo
+from xnano.beta.frame import Frame, frame_from_field
 
 
 def test_frame_default_is_empty() -> None:
@@ -43,6 +44,19 @@ def test_frame_is_frozen() -> None:
     f = Frame(border="plain")
     with pytest.raises((AttributeError, TypeError)):
         f.border = "rounded"  # ty: ignore[invalid-assignment]
+
+
+def test_frame_from_field_background_only_is_none() -> None:
+    assert frame_from_field(GridFieldInfo(background="violet")) is None
+
+
+def test_frame_from_field_background_with_border() -> None:
+    frame = frame_from_field(
+        GridFieldInfo(background="slate-800", border="rounded")
+    )
+    assert frame is not None
+    assert frame.background == "slate-800"
+    assert frame.border == "rounded"
 
 
 def test_frame_all_attrs_set() -> None:

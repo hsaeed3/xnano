@@ -12,6 +12,8 @@ from xnano.beta.events import (
 )
 
 if TYPE_CHECKING:
+    from xnano.beta.cursor import Cursor
+    from xnano.beta.device import Device
     from xnano.beta.terminal import Terminal
 
 
@@ -52,12 +54,12 @@ class Context(Generic[StateT]):
         return self.state
 
     @property
-    def cursor(self) -> Any:
+    def cursor(self) -> Cursor | None:
         """Live cursor controller, forwarded from the active terminal."""
         return None if self.terminal is None else self.terminal.cursor
 
     @property
-    def device(self) -> Any:
+    def device(self) -> Device | None:
         """Live device controller, forwarded from the active terminal."""
         return None if self.terminal is None else self.terminal.device
 
