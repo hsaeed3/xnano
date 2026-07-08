@@ -64,7 +64,56 @@ class Frame:
         )
 
 
+def field_has_frame_chrome(field: object) -> bool:
+    """Whether a field defines border, title, or padding chrome.
+
+    Args:
+        field: A ``GridFieldInfo``-like object with optional frame attributes.
+
+    Returns:
+        True when the field has structural frame chrome beyond text styling.
+    """
+    return (
+        getattr(field, "border", None) is not None
+        or getattr(field, "title", None) is not None
+        or getattr(field, "padding", None) is not None
+    )
+
+
+def frame_from_field(field: object | None) -> Frame | None:
+    """Build a ``Frame`` from a field's chrome, or ``None`` when absent.
+
+    Text-only ``background`` on a field styles rendered content and is not
+    promoted to frame fill unless border, title, or padding chrome is present.
+
+    Args:
+        field: The field describing border, padding, title, and optional fill.
+
+    Returns:
+        A ``Frame`` when the field defines any chrome, otherwise ``None``.
+    """
+    if field is None:
+        return None
+
+    has_frame_chrome = field_has_frame_chrome(field)
+    border_sides = getattr(field, "border_sides", None)
+    frame = Frame(
+        background=getattr(field, "background", None)
+        if has_frame_chrome
+        else None,
+        border=getattr(field, "border", None),
+        border_color=getattr(field, "border_color", None),
+        border_sides=list(border_sides) if border_sides is not None else None,
+        title=getattr(field, "title", None),
+        title_position=getattr(field, "title_position", None),
+        padding=getattr(field, "padding", None),
+    )
+    return None if frame.is_empty() else frame
+
+
 __all__ = (
     "Frame",
     "FrameTitlePosition",
+    "field_has_frame_chrome",
+    "frame_from_field",
 )

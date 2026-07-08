@@ -63,6 +63,7 @@ def test_field_frame_none_when_no_chrome() -> None:
     assert dispatch.field_frame(GridFieldInfo()) is None
     assert dispatch.field_frame(None) is None
     assert dispatch.field_frame(GridFieldInfo(border="plain")) is not None
+    assert dispatch.field_frame(GridFieldInfo(background="violet")) is None
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +116,53 @@ def test_render_paints_single_line() -> None:
     assert lines[0] == "hi, how are you?"
     # Remaining rows stay blank — content is not stretched to fill the screen.
     assert all(line == "" for line in lines[1:])
+
+
+def test_render_paints_embedded_newlines() -> None:
+    terminal = Terminal.offscreen(cols=50, rows=6)
+    terminal.render("line one\n\nline three")
+    lines = [line.rstrip() for line in terminal.get_output().splitlines()]
+    assert lines[0] == "line one"
+    assert lines[1] == ""
+    assert lines[2] == "line three"
+
+
+def test_render_resolve_inline_height_grows_with_multiline_content() -> None:
+    terminal: Terminal = Terminal()
+    single = terminal._resolve_run(
+        ["hello, world!"], is_grid=False, field=None
+    )
+    multi = terminal._resolve_run(
+        ["this will be updated in 1 second: \n\nhello, world!"],
+        is_grid=False,
+        field=None,
+    )
+    assert single.inline_height == 1
+    assert multi.inline_height == 3
+
+
+def test_render_prepare_session_recreates_when_inline_height_changes() -> None:
+    from unittest import mock
+
+    terminal: Terminal = Terminal()
+    terminal._is_live = True
+    terminal._pending_enter = False
+    core_session = mock.Mock()
+    core_session.get_inline_height.return_value = 1
+    session = mock.Mock()
+    session._is_offscreen = False
+    session._core_session = core_session
+    terminal._session = session
+
+    terminal._prepare_render_session(
+        ["this will be updated in 1 second: \n\nhello, world!"],
+        None,
+    )
+
+    session.leave.assert_called_once()
+    assert terminal._session is None
+    assert terminal._inline_height == 3
+    assert terminal._pending_enter is True
 
 
 def test_render_stacks_multiple_renderables() -> None:
