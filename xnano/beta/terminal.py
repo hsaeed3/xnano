@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextvars
 import dataclasses
+import warnings
 from typing import Any, Callable, Generic, Sequence, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -41,13 +42,18 @@ from xnano.beta.types import Area, Coordinate
 StateT = TypeVar("StateT")
 
 
-@dataclasses.dataclass(slots=True)
-class _RenderConfig:
-    """Carries non-Grid run/render configuration for the event loop."""
+@dataclasses.dataclass(frozen=True, slots=True)
+class _ResolvedRun:
+    """The viewport/root sizing resolved for a single ``run`` / ``render``.
 
-    renderables: tuple[Any, ...]
-    field: Any  # GridFieldInfo — imported lazily to avoid circular deps
-    auto_resize: bool
+    Returned by :meth:`Terminal._resolve_run` so the resolution is an explicit
+    value rather than a hidden mutation. The terminal stores its fields where
+    frame-time consumers read them (the inline height for session creation, the
+    root width sizing for per-frame area resolution).
+    """
+
+    inline_height: int | None
+    root_width_sizing: "Sizing"
 
 
 _ACTIVE_TERMINAL: contextvars.ContextVar["Terminal[Any] | None"] = (
@@ -132,7 +138,8 @@ class Terminal(Generic[StateT]):
         "_tick_last_ms",
         "_cursor",
         "_device",
-        "_run_config",
+        "_run_renderables",
+        "_run_field",
         "_inline_height",
         "_pending_enter",
         "_width_sizing",
@@ -191,7 +198,8 @@ class Terminal(Generic[StateT]):
         self._tick_last_ms: float = 0.0
         self._cursor: Any = None
         self._device: Any = None
-        self._run_config: _RenderConfig | None = None
+        self._run_renderables: tuple[Any, ...] | None = None
+        self._run_field: Any = None
         self._inline_height: int | None = None
         self._pending_enter: bool = False
 
@@ -254,8 +262,16 @@ class Terminal(Generic[StateT]):
             self._inline_height = None
             self._root_width_sizing = None
 
-    def _render_frame(self, root: Any) -> None:
-        _dispatch.render_frame(self, root)
+    def _render_frame(
+        self,
+        root: Any = None,
+        *,
+        renderables: tuple[Any, ...] | None = None,
+        field: Any = None,
+    ) -> None:
+        _dispatch.render_frame(
+            self, root, renderables=renderables, field=field
+        )
 
     def _pump_events(self) -> None:
         _dispatch.pump_events(self)
@@ -409,14 +425,18 @@ class Terminal(Generic[StateT]):
         renderables: Sequence[Any],
         is_grid: bool,
         field: Any,
-    ) -> None:
+    ) -> _ResolvedRun:
         """Resolve the viewport and root width sizing for a run/render.
 
         The terminal's own height sizing selects the viewport: ``fill`` (the
         default for a ``Grid``) claims the full alternate screen, while any
         finite height (the default ``fit`` for other content) reserves an
         inline viewport. The width sizing constrains the root box within that
-        viewport. Sets ``_inline_height`` and ``_root_width_sizing``.
+        viewport.
+
+        Returns a :class:`_ResolvedRun`; the caller is responsible for wiring
+        its fields onto the terminal so the resolution is explicit rather than
+        a side effect.
         """
         from xnano.beta.sizing import Sizing
 
@@ -426,15 +446,39 @@ class Terminal(Generic[StateT]):
         width_sizing = self._width_sizing or (
             Sizing.fraction(1) if is_grid else Sizing.fit()
         )
-        self._root_width_sizing = width_sizing
-        # A ``Grid`` has no measurable intrinsic height, so a ``fit`` height
-        # for one can't reserve an inline viewport — fall back to full-screen.
-        if height_sizing.is_fill or (is_grid and height_sizing.is_fit):
-            self._inline_height = None
+        # A ``Grid`` has no measurable intrinsic height, so a ``fit`` height for
+        # one can't reserve an inline viewport — fall back to full-screen. This
+        # only arises from an explicit ``Terminal(height="fit")``, so surface it
+        # rather than silently overriding the request.
+        fit_grid = is_grid and height_sizing.is_fit
+        if fit_grid:
+            warnings.warn(
+                "Terminal(height='fit') has no effect for a Grid: a Grid has "
+                "no measurable intrinsic height, so it renders full-screen. "
+                "Use a fixed height (e.g. Terminal(height=24)) to reserve an "
+                "inline viewport.",
+                UserWarning,
+                stacklevel=3,
+            )
+        if height_sizing.is_fill or fit_grid:
+            inline_height = None
         else:
-            self._inline_height = self._resolve_inline_height(
+            inline_height = self._resolve_inline_height(
                 height_sizing, renderables, field
             )
+        return _ResolvedRun(
+            inline_height=inline_height, root_width_sizing=width_sizing
+        )
+
+    def _apply_resolved_run(self, resolved: _ResolvedRun) -> None:
+        """Store a ``_ResolvedRun`` where frame-time consumers read it.
+
+        ``_inline_height`` is consumed once when the deferred session is created
+        (:meth:`_ensure_session`); ``_root_width_sizing`` is consumed every
+        frame when resolving the root area.
+        """
+        self._inline_height = resolved.inline_height
+        self._root_width_sizing = resolved.root_width_sizing
 
     def render(
         self,
@@ -476,11 +520,7 @@ class Terminal(Generic[StateT]):
             padding=padding,
             gap=gap,
         )
-        config = _RenderConfig(
-            renderables=tuple(renderables),
-            field=field,
-            auto_resize=False,
-        )
+        items = tuple(renderables)
 
         auto_entered = not self._is_live
         if auto_entered:
@@ -489,9 +529,11 @@ class Terminal(Generic[StateT]):
         # been created yet — either from the auto-enter above or a deferred
         # context-manager entry that has not rendered anything.
         if self._session is None:
-            self._resolve_run(renderables, is_grid=False, field=field)
+            self._apply_resolved_run(
+                self._resolve_run(items, is_grid=False, field=field)
+            )
         try:
-            self._render_frame(config)
+            self._render_frame(renderables=items, field=field)
         finally:
             if auto_entered:
                 self.__exit__()
@@ -560,43 +602,52 @@ class Terminal(Generic[StateT]):
         # been created yet — either from the auto-enter above or a deferred
         # context-manager entry.
         if self._session is None:
-            self._resolve_run(renderables, is_grid=is_grid, field=field)
+            self._apply_resolved_run(
+                self._resolve_run(renderables, is_grid=is_grid, field=field)
+            )
         self._exit_requested = False
 
         _resize_hook: Any = None
 
-        # Single Grid → full-screen path (unchanged behaviour)
+        # Single Grid → full-screen path (unchanged behaviour). Non-Grid content
+        # renders inline: the renderables and their shared style field are kept
+        # on the terminal so the render loop and the resize hook can repaint.
+        grid_root: Any = None
         if is_grid:
-            root: Any = renderables[0]
-            self._track_frame_grid(root)
-            self._run_config = None
+            grid_root = renderables[0]
+            self._track_frame_grid(grid_root)
+            self._run_renderables = None
+            self._run_field = None
         else:
-            config = _RenderConfig(
-                renderables=tuple(renderables),
-                field=field,
-                auto_resize=auto_resize,
-            )
-            self._run_config = config
-            root = config
+            self._run_renderables = tuple(renderables)
+            self._run_field = field
 
             if auto_resize:
                 _terminal = self
 
                 def _resize_hook(ctx: Any) -> None:  # type: ignore[misc]
-                    if _terminal._run_config is not None:
-                        _terminal._render_frame(_terminal._run_config)
+                    if _terminal._run_renderables is not None:
+                        _terminal._render_frame(
+                            renderables=_terminal._run_renderables,
+                            field=_terminal._run_field,
+                        )
 
                 self._hooks.on_resize_hooks.append(_resize_hook)
 
         try:
             while not self._exit_requested:
-                self._render_frame(root)
+                self._render_frame(
+                    grid_root,
+                    renderables=self._run_renderables,
+                    field=self._run_field,
+                )
                 self._pump_events()
                 self._pump_tick()
         except (KeyboardInterrupt, Exit):
             pass
         finally:
-            self._run_config = None
+            self._run_renderables = None
+            self._run_field = None
             if _resize_hook is not None:
                 try:
                     self._hooks.on_resize_hooks.remove(_resize_hook)
