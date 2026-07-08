@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from xnano.beta.context import Context
     from xnano.beta.fields import Field
     from xnano.beta.grid import Grid, GridSettings
+    from xnano.beta.sizing import Sizing
     from xnano.beta.hooks import (
         on_event,
         on_resize,
@@ -59,6 +60,11 @@ def __getattr__(name: str):
         from xnano.beta.grid import GridSettings
 
         return GridSettings
+
+    if name == "Sizing":
+        from xnano.beta.sizing import Sizing
+
+        return Sizing
 
     if name == "on_event":
         from xnano.beta.hooks import on_event
@@ -119,6 +125,7 @@ __all__ = (
     "Field",
     "Grid",
     "GridSettings",
+    "Sizing",
     "on_event",
     "on_resize",
     "on_focus",

@@ -92,7 +92,7 @@ def _build_canvas_effect(key: str) -> AbstractEffect:
 class EffectsDemo(Grid, direction="vertical"):
     header: str = Field(
         default="  TACHYONFX VISUAL EFFECTS ANIMATION DEMO  ",
-        size=1,
+        height=1,
         color="white",
         background=tailwind_color("teal", 900),
         modifiers=["bold"],
@@ -109,7 +109,7 @@ class EffectsDemo(Grid, direction="vertical"):
             "  [C] Coalesce  ●  [F] Pulse Fade  ●  [D] Dissolve  ●  [S] Laser Sweep\n"
             "  [Ctrl+C] Quit Demo"
         ),
-        size=3,
+        height=3,
         color=tailwind_color("slate", 400),
         modifiers=["italic"],
     )

@@ -1,6 +1,7 @@
 @import url("https://unpkg.com/open-props");
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;500;600&display=swap");
 @import url('https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght,MONO@0,300..800,1;1,300..800,1&display=swap');
+@import url("https://iosevka-webfonts.github.io/iosevka/Iosevka.css");
 
 @font-face {
     font-family: "iA Writer Quattro S";
@@ -48,17 +49,18 @@
 .md-typeset li,
 .md-typeset dd,
 .md-typeset td {
-    font-family: "iA Writer Quattro S", Georgia, "Times New Roman", serif;
+    font-family: "Iosevka Web", monospace !important;
     line-height: var(--font-lineheight-3) !important;
     font-weight: var(--font-weight-5);
-    letter-spacing: var(--font-letterspacing-0);
+    letter-spacing: var(--font-letterspacing-0-5);
     text-rendering: geometricPrecision !important;
 }
 
 /* Description elements: closer to headers, serif styling */
 .md-typeset description {
-    font-family: "IBM Plex Serif", Georgia, "Times New Roman", serif !important;
-    font-size: 0.95em !important;
+    font-family: "Iosevka Web", monospace !important;
+    font-size: 01em !important;
+    letter-spacing: var(--font-letterspacing-0-5);
 }
 
 .md-typeset h1,
@@ -67,7 +69,7 @@
 .md-typeset h4,
 .md-typeset h5,
 .md-typeset h6 {
-    font-family: 'IBM Plex Serif', serif !important;
+    font-family: 'iA Writer Quattro S', serif !important;
     margin-bottom: 0.35em !important;
     font-weight: var(--font-weight-4) !important;
     border-bottom: var(--border-size-1) dashed;
