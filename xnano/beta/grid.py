@@ -122,6 +122,7 @@ if TYPE_CHECKING:
         EffectMotion,
         KnownEffectKind,
     )
+    from xnano.beta.sizing import Sizing
 from xnano.beta.fields import (
     UNSET,
     GridFieldInfo,
@@ -188,8 +189,11 @@ _GRID_FIELD_IMMUTABLE_KEYS: frozenset[str] = frozenset(
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class _GridLayoutConstraint:
-    kind: Literal["length", "percentage", "fill", "content", "min"]
+    kind: Literal[
+        "length", "percentage", "fill", "content", "min", "max", "ratio"
+    ]
     value: int = 1
+    value2: int = 1
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -323,6 +327,120 @@ def _grid_min_size_for_field(
     return 0
 
 
+def _field_axis_sizing(
+    field: GridFieldInfo,
+    direction: Direction,
+) -> "Sizing | None":
+    """Return the per-axis ``Sizing`` that drives ``field``'s split constraint.
+
+    The split constraint runs along the parent's layout ``direction`` — the
+    field's ``height`` sizing for vertical layouts, ``width`` for horizontal.
+    """
+    return field.height if direction == "vertical" else field.width
+
+
+def _field_needs_content_measure(
+    field: GridFieldInfo,
+    direction: Direction,
+) -> bool:
+    """Return whether ``field`` must measure its content to lay out."""
+    if field.fit:
+        return True
+    axis_sizing = _field_axis_sizing(field, direction)
+    return axis_sizing is not None and axis_sizing.is_fit
+
+
+def _sizing_to_constraint(
+    sizing: "Sizing",
+    min_size: int,
+    frame_size: int,
+    content_length: int | None,
+) -> _GridLayoutConstraint:
+    """Lower a unified ``Sizing`` to a grid layout constraint."""
+    if sizing.kind == "cells":
+        length = sizing.value
+        if sizing.minimum is not None:
+            length = max(length, sizing.minimum)
+        if sizing.maximum is not None:
+            length = min(length, sizing.maximum)
+        return _GridLayoutConstraint("length", max(min_size, length))
+    if sizing.kind == "percent":
+        return _GridLayoutConstraint("percentage", sizing.value)
+    if sizing.kind == "ratio":
+        return _GridLayoutConstraint("ratio", sizing.value, sizing.denominator)
+    if sizing.kind == "fit":
+        length = (content_length if content_length is not None else 0) + (
+            frame_size
+        )
+        if sizing.minimum is not None:
+            length = max(length, sizing.minimum)
+        if sizing.maximum is not None:
+            length = min(length, sizing.maximum)
+        return _GridLayoutConstraint("content", max(min_size, length))
+    # fraction / fill
+    weight = sizing.value
+    if weight == 0:
+        return _GridLayoutConstraint("min", max(min_size, 1))
+    if min_size > 0:
+        return _GridLayoutConstraint("min", min_size)
+    return _GridLayoutConstraint("fill", weight)
+
+
+def _apply_cross_axis_sizing(
+    session: Any,
+    slot_area: Area,
+    field: GridFieldInfo,
+    value: Any,
+    direction: Direction,
+) -> Area:
+    """Constrain a slot along its cross axis per the field's cross sizing.
+
+    The split lays fields out along the parent's ``direction`` (using the
+    matching axis ``Sizing``); this shrinks the resulting slot along the *other*
+    axis when that axis carries a non-fill ``Sizing``, keeping both ``width``
+    and ``height`` meaningful in any grid. Cross-constrained slots align to the
+    slot's top-left corner. A no-op (single attribute check) when no cross-axis
+    sizing is set.
+    """
+    cross = field.width if direction == "vertical" else field.height
+    if cross is None or cross.is_fill:
+        return slot_area
+
+    cross_direction: Direction = (
+        "horizontal" if direction == "vertical" else "vertical"
+    )
+    available = (
+        slot_area.width
+        if cross_direction == "horizontal"
+        else slot_area.height
+    )
+    content: int | None = None
+    if cross.is_fit:
+        measured = session.grid_measure_slot(value, cross_direction, field)
+        if measured <= 0:
+            return slot_area
+        content = measured + _grid_frame_size_for_field(field, cross_direction)
+
+    length = cross.resolve(available, content)
+    length = max(1, min(length, available))
+    if length >= available:
+        return slot_area
+
+    if cross_direction == "horizontal":
+        return Area(
+            x=slot_area.x,
+            y=slot_area.y,
+            width=length,
+            height=slot_area.height,
+        )
+    return Area(
+        x=slot_area.x,
+        y=slot_area.y,
+        width=slot_area.width,
+        height=length,
+    )
+
+
 def _layout_constraint_for_field(
     field: GridFieldInfo,
     direction: Direction,
@@ -330,6 +448,13 @@ def _layout_constraint_for_field(
 ) -> _GridLayoutConstraint:
     min_size = _grid_min_size_for_field(field, direction)
     frame_size = _grid_frame_size_for_field(field, direction)
+    # A per-axis ``Sizing`` takes precedence over the legacy size/flex/fit
+    # knobs, lowering onto the same underlying constraint model.
+    axis_sizing = _field_axis_sizing(field, direction)
+    if axis_sizing is not None:
+        return _sizing_to_constraint(
+            axis_sizing, min_size, frame_size, content_length
+        )
     if field.fit:
         val = (
             content_length if content_length is not None else 0
@@ -606,8 +731,11 @@ class _GridMeta(type):
         setattr(cls, "_grid_has_mouse_geometry", needs_mouse_geometry)
 
         # 5. Precompute static layout data
+        _direction = cfg.get("direction", "vertical")
         needs_dynamic = any(
-            f.fit or isinstance(f.size, float) or f.visible is None
+            _field_needs_content_measure(f, _direction)
+            or isinstance(f.size, float)
+            or f.visible is None
             for f in fields.values()
         )
         static_names: list[str] = []
@@ -1135,7 +1263,7 @@ class Grid(metaclass=_GridMeta):
                 if not self._grid_resolve_visible(field, value):
                     continue
                 content_length: int | None = None
-                if field.fit:
+                if _field_needs_content_measure(field, self._grid_direction):
                     content_length = session.grid_measure_slot(
                         value, self._grid_direction, field
                     )
@@ -1168,6 +1296,9 @@ class Grid(metaclass=_GridMeta):
             field_name = active_names[index]
             field = active_fields[index]
             value = active_values[index]
+            slot_area = _apply_cross_axis_sizing(
+                session, slot_area, field, value, self._grid_direction
+            )
             self._grid_last_slot_areas[field_name] = slot_area
             slide_axes = field.slide or []
             paint_area = _grid_slide_paint_area(

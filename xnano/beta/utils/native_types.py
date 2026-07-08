@@ -386,10 +386,14 @@ def get_native_layout_constraint_from_constraint(
         return native.Constraint.length(constraint.value)
     if constraint.kind == "percentage":
         return native.Constraint.percentage(constraint.value)
+    if constraint.kind == "ratio":
+        return native.Constraint.ratio(constraint.value, constraint.value2)
     if constraint.kind == "content":
         return native.Constraint.length(constraint.value)
     if constraint.kind == "min":
         return native.Constraint.min(constraint.value)
+    if constraint.kind == "max":
+        return native.Constraint.max(constraint.value)
     return native.Constraint.fill(constraint.value)
 
 
