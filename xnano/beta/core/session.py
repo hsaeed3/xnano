@@ -561,6 +561,13 @@ class Session(Generic[StateT]):
         from xnano.beta.grid import Grid
 
         if isinstance(value, Grid):
+            # Re-register nested grids every frame (the render path clears
+            # ``_attached_frame_grids`` at the start of each paint).
+            terminal = _ACTIVE_TERMINAL.get()
+            if terminal is not None:
+                from xnano.beta.core.dispatch import track_frame_grid
+
+                track_frame_grid(terminal, value)
             value._grid_build_frame(area, self)
             return
 

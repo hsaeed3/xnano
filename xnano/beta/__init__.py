@@ -27,6 +27,8 @@ if TYPE_CHECKING:
         on_focus,
         on_clipboard,
         on_state,
+        on_field,
+        on_poll,
         on_keyboard,
         on_mouse,
         on_click,
@@ -91,6 +93,16 @@ def __getattr__(name: str):
 
         return on_state
 
+    if name == "on_field":
+        from xnano.beta.hooks import on_field
+
+        return on_field
+
+    if name == "on_poll":
+        from xnano.beta.hooks import on_poll
+
+        return on_poll
+
     if name == "on_keyboard":
         from xnano.beta.hooks import on_keyboard
 
@@ -131,6 +143,8 @@ __all__ = (
     "on_focus",
     "on_clipboard",
     "on_state",
+    "on_field",
+    "on_poll",
     "on_keyboard",
     "on_mouse",
     "on_click",
