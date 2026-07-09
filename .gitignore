@@ -1,3 +1,4 @@
+.benchmarks/
 .workspace/
 .ruff_cache/
 .DS_Store
