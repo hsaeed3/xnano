@@ -96,6 +96,36 @@ class _OnStateHookFunctionEntry(TypedDict):
     handler: EventHookFunction
 
 
+class _OnFieldHookFunctionEntry(TypedDict):
+    expression: str
+    handler: EventHookFunction
+
+
+PollWhen: TypeAlias = Literal["idle", "frame"]
+"""When an ``@on_poll`` hook fires.
+
+Values:
+    ``"idle"``: Fires when an event poll returns no input within the tick
+        interval — an idle hook, distinct from the interval-gated ``on_tick``.
+    ``"frame"``: Fires once per render-loop iteration, regardless of events.
+"""
+
+
+class _OnPollHookFunctionEntry(TypedDict):
+    when: PollWhen
+    handler: EventHookFunction
+
+
+FocusHookKind: TypeAlias = Literal["gained", "lost"]
+"""Whether a field ``@on_focus`` hook fires on gain, loss, or both (``None``)."""
+
+
+class _OnFocusHookFunctionEntry(TypedDict):
+    field: str | None
+    kind: FocusHookKind | None
+    handler: EventHookFunction
+
+
 @dataclasses.dataclass(slots=True)
 class _EventHooksRegistry:
     """Internal utility class for managing event hook registration within
@@ -108,7 +138,10 @@ class _EventHooksRegistry:
     ON_RESIZE_HOOK_ATTR: ClassVar[str] = "__xnano_on_resize__"
     ON_CLIPBOARD_HOOK_ATTR: ClassVar[str] = "__xnano_on_clipboard__"
     ON_FOCUS_HOOK_ATTR: ClassVar[str] = "__xnano_on_focus__"
+    ON_FOCUS_FIELD_ATTR: ClassVar[str] = "__xnano_on_focus_field__"
+    ON_FOCUS_KIND_ATTR: ClassVar[str] = "__xnano_on_focus_kind__"
     ON_POLL_HOOK_ATTR: ClassVar[str] = "__xnano_on_poll__"
+    ON_POLL_WHEN_ATTR: ClassVar[str] = "__xnano_on_poll_when__"
     ON_TICK_HOOK_ATTR: ClassVar[str] = "__xnano_on_tick__"
     ON_STATE_HOOK_ATTR: ClassVar[str] = "__xnano_on_state__"
     ON_KEYBOARD_FILTER_ATTR: ClassVar[str] = "__xnano_on_keyboard_filter__"
@@ -116,6 +149,8 @@ class _EventHooksRegistry:
     ON_MOUSE_FIELD_ATTR: ClassVar[str] = "__xnano_on_mouse_field__"
     ON_TICK_INTERVAL_ATTR: ClassVar[str] = "__xnano_on_tick_interval__"
     ON_STATE_EXPRESSION_ATTR: ClassVar[str] = "__xnano_on_state_expression__"
+    ON_FIELD_HOOK_ATTR: ClassVar[str] = "__xnano_on_field__"
+    ON_FIELD_EXPRESSION_ATTR: ClassVar[str] = "__xnano_on_field_expression__"
 
     on_event_hooks: list[EventHookFunction] = dataclasses.field(
         default_factory=list, init=False
@@ -132,16 +167,19 @@ class _EventHooksRegistry:
     on_clipboard_hooks: list[EventHookFunction] = dataclasses.field(
         default_factory=list, init=False
     )
-    on_focus_hooks: list[EventHookFunction] = dataclasses.field(
+    on_focus_hooks: list[_OnFocusHookFunctionEntry] = dataclasses.field(
         default_factory=list, init=False
     )
-    on_poll_hooks: list[EventHookFunction] = dataclasses.field(
-        default_factory=list
+    on_poll_hooks: list[_OnPollHookFunctionEntry] = dataclasses.field(
+        default_factory=list, init=False
     )
     on_tick_hooks: list[_OnTickHookFunctionEntry] = dataclasses.field(
         default_factory=list, init=False
     )
     on_state_hooks: list[_OnStateHookFunctionEntry] = dataclasses.field(
+        default_factory=list, init=False
+    )
+    on_field_hooks: list[_OnFieldHookFunctionEntry] = dataclasses.field(
         default_factory=list, init=False
     )
 
@@ -185,9 +223,18 @@ class _EventHooksRegistry:
         if hasattr(handler, self.ON_CLIPBOARD_HOOK_ATTR):
             self.on_clipboard_hooks.append(handler)
         if hasattr(handler, self.ON_FOCUS_HOOK_ATTR):
-            self.on_focus_hooks.append(handler)
+            self.on_focus_hooks.append(
+                _OnFocusHookFunctionEntry(
+                    field=getattr(handler, self.ON_FOCUS_FIELD_ATTR, None),
+                    kind=getattr(handler, self.ON_FOCUS_KIND_ATTR, None),
+                    handler=handler,
+                )
+            )
         if hasattr(handler, self.ON_POLL_HOOK_ATTR):
-            self.on_poll_hooks.append(handler)
+            when = getattr(handler, self.ON_POLL_WHEN_ATTR, "idle")
+            self.on_poll_hooks.append(
+                _OnPollHookFunctionEntry(when=when, handler=handler)
+            )
         if hasattr(handler, self.ON_TICK_HOOK_ATTR):
             interval_milliseconds = getattr(
                 handler,
@@ -205,6 +252,14 @@ class _EventHooksRegistry:
             expression = getattr(handler, self.ON_STATE_EXPRESSION_ATTR, "")
             self.on_state_hooks.append(
                 _OnStateHookFunctionEntry(
+                    expression=expression,
+                    handler=handler,
+                )
+            )
+        if hasattr(handler, self.ON_FIELD_HOOK_ATTR):
+            expression = getattr(handler, self.ON_FIELD_EXPRESSION_ATTR, "")
+            self.on_field_hooks.append(
+                _OnFieldHookFunctionEntry(
                     expression=expression,
                     handler=handler,
                 )
@@ -228,6 +283,7 @@ class _EventHooksRegistry:
             cls.ON_POLL_HOOK_ATTR,
             cls.ON_TICK_HOOK_ATTR,
             cls.ON_STATE_HOOK_ATTR,
+            cls.ON_FIELD_HOOK_ATTR,
         )
 
         for base in component_class.__mro__:
@@ -274,9 +330,20 @@ class _EventHooksRegistry:
                 if hasattr(member, cls.ON_CLIPBOARD_HOOK_ATTR):
                     registry.on_clipboard_hooks.append(member)
                 if hasattr(member, cls.ON_FOCUS_HOOK_ATTR):
-                    registry.on_focus_hooks.append(member)
+                    registry.on_focus_hooks.append(
+                        _OnFocusHookFunctionEntry(
+                            field=getattr(
+                                member, cls.ON_FOCUS_FIELD_ATTR, None
+                            ),
+                            kind=getattr(member, cls.ON_FOCUS_KIND_ATTR, None),
+                            handler=member,
+                        )
+                    )
                 if hasattr(member, cls.ON_POLL_HOOK_ATTR):
-                    registry.on_poll_hooks.append(member)
+                    when = getattr(member, cls.ON_POLL_WHEN_ATTR, "idle")
+                    registry.on_poll_hooks.append(
+                        _OnPollHookFunctionEntry(when=when, handler=member)
+                    )
                 if hasattr(member, cls.ON_TICK_HOOK_ATTR):
                     interval_milliseconds = getattr(
                         member,
@@ -296,6 +363,16 @@ class _EventHooksRegistry:
                     )
                     registry.on_state_hooks.append(
                         _OnStateHookFunctionEntry(
+                            expression=expression,
+                            handler=member,
+                        )
+                    )
+                if hasattr(member, cls.ON_FIELD_HOOK_ATTR):
+                    expression = getattr(
+                        member, cls.ON_FIELD_EXPRESSION_ATTR, ""
+                    )
+                    registry.on_field_hooks.append(
+                        _OnFieldHookFunctionEntry(
                             expression=expression,
                             handler=member,
                         )
@@ -631,10 +708,75 @@ def on_resize(fn: EventHookFunction) -> EventHookFunction:
     return _decorate_hook_function(fn)
 
 
-def on_focus(fn: EventHookFunction) -> EventHookFunction:
-    """Register a hook fired on terminal focus events."""
-    setattr(fn, _EventHooksRegistry.ON_FOCUS_HOOK_ATTR, True)
-    return _decorate_hook_function(fn)
+@overload
+def on_focus(handler: EventHookFunction, /) -> EventHookFunction: ...
+@overload
+def on_focus(
+    field: str,
+    /,
+    *,
+    kind: FocusHookKind | None = None,
+) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@overload
+def on_focus(
+    *,
+    field: str | None = None,
+    kind: FocusHookKind | None = None,
+) -> Callable[[EventHookFunction], EventHookFunction]: ...
+def on_focus(
+    handler_or_field: "EventHookFunction | str | None" = None,
+    /,
+    *,
+    field: str | None = None,
+    kind: FocusHookKind | None = None,
+) -> "EventHookFunction | Callable[[EventHookFunction], EventHookFunction]":
+    """Register a focus hook for the terminal window or a grid field.
+
+    Bare ``@on_focus`` fires on OS-level terminal focus gained/lost events.
+    Pass a field name to listen for application field focus instead — the
+    caret moving onto/off an editable ``Text(input=True)`` field:
+
+        @on_focus
+        def _window(self, ctx: Context) -> None:
+            ...  # terminal focus
+
+        @on_focus("prompt")
+        def _prompt_focused(self) -> None:
+            self.status = "editing prompt"
+
+        @on_focus("prompt", kind="lost")
+        def _prompt_blurred(self) -> None:
+            self.status = "left prompt"
+    """
+
+    def _decorate(
+        fn: EventHookFunction,
+        *,
+        field_name: str | None,
+        focus_kind: FocusHookKind | None,
+    ) -> EventHookFunction:
+        setattr(fn, _EventHooksRegistry.ON_FOCUS_HOOK_ATTR, True)
+        if field_name is not None:
+            setattr(fn, _EventHooksRegistry.ON_FOCUS_FIELD_ATTR, field_name)
+        if focus_kind is not None:
+            setattr(fn, _EventHooksRegistry.ON_FOCUS_KIND_ATTR, focus_kind)
+        return _decorate_hook_function(fn)
+
+    if callable(handler_or_field):
+        return _decorate(
+            handler_or_field,
+            field_name=field,
+            focus_kind=kind,
+        )
+
+    resolved_field = (
+        handler_or_field if isinstance(handler_or_field, str) else field
+    )
+
+    def decorator(fn: EventHookFunction) -> EventHookFunction:
+        return _decorate(fn, field_name=resolved_field, focus_kind=kind)
+
+    return decorator
 
 
 def on_clipboard(fn: EventHookFunction) -> EventHookFunction:
@@ -672,12 +814,120 @@ def on_state(
     return decorator
 
 
+def on_field(
+    expression: str,
+) -> Callable[[EventHookFunction], EventHookFunction]:
+    """Fire the decorated handler each tick when ``expression`` is truthy
+    against the grid's own field values.
+
+    Unlike ``on_state``, which evaluates against the terminal's shared
+    ``State`` object, ``on_field`` evaluates against the grid instance
+    itself — its layout and state fields are available by name.
+
+    Example:
+        @on_field("config['name'] == 'john'")
+        def _on_john(self) -> None:
+            self.current_text = "Hello, John!"
+
+        @on_field("count > 0")
+        def _show_count(self) -> None:
+            self.label = f"Count: {self.count}"
+    """
+
+    def decorator(fn: EventHookFunction) -> EventHookFunction:
+        setattr(fn, _EventHooksRegistry.ON_FIELD_HOOK_ATTR, True)
+        setattr(fn, _EventHooksRegistry.ON_FIELD_EXPRESSION_ATTR, expression)
+        return _decorate_hook_function(fn)
+
+    return decorator
+
+
+@overload
+def on_poll(handler: EventHookFunction, /) -> EventHookFunction: ...
+@overload
+def on_poll(
+    when: PollWhen = "idle",
+    /,
+) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@overload
+def on_poll(
+    *,
+    when: PollWhen,
+) -> Callable[[EventHookFunction], EventHookFunction]: ...
+def on_poll(
+    handler_or_when: "EventHookFunction | PollWhen | None" = None,
+    /,
+    *,
+    when: PollWhen | None = None,
+) -> "EventHookFunction | Callable[[EventHookFunction], EventHookFunction]":
+    """Register a poll hook that fires on idle event waits or every frame.
+
+    Args:
+        handler_or_when: A handler (``@on_poll`` bare form, defaults to
+            ``"idle"``) or a ``PollWhen`` value (``@on_poll("frame")``).
+        when: Keyword form of the poll mode.
+
+    Returns:
+        The decorated hook function, or a decorator.
+
+    Example:
+        @on_poll
+        def _idle_work(self) -> None:
+            self.status = "waiting…"
+
+        @on_poll("frame")
+        def _each_frame(self) -> None:
+            self.frame_count += 1
+
+        @on_poll(when="idle")
+        def _also_idle(self, ctx: Context) -> None:
+            ...
+    """
+
+    def _validate_when(resolved_when: PollWhen) -> None:
+        if resolved_when not in ("idle", "frame"):
+            raise TypeError(
+                "on_poll expects when='idle' or when='frame', got "
+                f"{resolved_when!r}"
+            )
+
+    def _decorate(
+        fn: EventHookFunction, resolved_when: PollWhen
+    ) -> EventHookFunction:
+        _validate_when(resolved_when)
+        setattr(fn, _EventHooksRegistry.ON_POLL_HOOK_ATTR, True)
+        setattr(fn, _EventHooksRegistry.ON_POLL_WHEN_ATTR, resolved_when)
+        return _decorate_hook_function(fn)
+
+    if callable(handler_or_when):
+        return _decorate(handler_or_when, when if when is not None else "idle")
+
+    resolved: PollWhen
+    if handler_or_when is not None:
+        resolved = handler_or_when
+    elif when is not None:
+        resolved = when
+    else:
+        resolved = "idle"
+
+    _validate_when(resolved)
+
+    def decorator(fn: EventHookFunction) -> EventHookFunction:
+        return _decorate(fn, resolved)
+
+    return decorator
+
+
 __all__ = (
+    "PollWhen",
+    "FocusHookKind",
     "on_event",
     "on_resize",
     "on_focus",
     "on_clipboard",
     "on_state",
+    "on_field",
+    "on_poll",
     "on_keyboard",
     "on_mouse",
     "on_click",

@@ -1046,6 +1046,10 @@ class Grid(metaclass=_GridMeta):
             value = getattr(self, field_name, None)
             if isinstance(value, Grid) and value._grid_needs_mouse_geometry():
                 return True
+            from xnano.beta.focus import is_input_text
+
+            if is_input_text(value):
+                return True
         return False
 
     def _grid_field_position(self, name: str) -> tuple[int, int]:
@@ -1081,7 +1085,11 @@ class Grid(metaclass=_GridMeta):
     ) -> bool:
         if field.slide:
             return True
-        return _resolve_grid_mouse_handler(self, field_name) is not None
+        if _resolve_grid_mouse_handler(self, field_name) is not None:
+            return True
+        from xnano.beta.focus import is_input_text
+
+        return is_input_text(getattr(self, field_name, None))
 
     def grid_set_field(
         self,

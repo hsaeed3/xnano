@@ -140,14 +140,38 @@ class ClipboardEventData(AbstractEventData):
     """The text that was pasted."""
 
 
+FocusEventKind: TypeAlias = Literal[
+    "gained",
+    "lost",
+    "field_gained",
+    "field_lost",
+]
+"""How a focus change was triggered.
+
+Values:
+    ``"gained"`` / ``"lost"``: The terminal window gained or lost OS focus.
+    ``"field_gained"`` / ``"field_lost"``: A grid field gained or lost
+        application focus (editable ``Text`` input).
+"""
+
+
 @dataclasses.dataclass(slots=True, frozen=True)
 class FocusEventData(AbstractEventData):
-    """Marker sub-event for terminal focus events."""
+    """Focus change event — terminal window or grid field.
+
+    Attributes:
+        kind: Terminal gained/lost, or field gained/lost.
+        field: Layout field name when ``kind`` is a field focus change.
+    """
 
     type: ClassVar[Literal["focus"]] = "focus"
     """The type of event this sub-event represents. Always "focus" for
     ``FocusEvent``.
     """
+    kind: FocusEventKind | None = None
+    """Terminal or field focus transition kind."""
+    field: str | None = None
+    """Layout field name for field-level focus changes."""
 
 
 def _set_keyboard_event_data_binding_tuple(

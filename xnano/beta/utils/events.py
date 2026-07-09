@@ -314,7 +314,9 @@ def get_event_data_from_core_event(
     if kind == "paste":
         return xnano_events.ClipboardEventData(text=event.paste)
 
-    if kind in ("focus_gained", "focus_lost"):
-        return xnano_events.FocusEventData()
+    if kind == "focus_gained":
+        return xnano_events.FocusEventData(kind="gained")
+    if kind == "focus_lost":
+        return xnano_events.FocusEventData(kind="lost")
 
     return None
