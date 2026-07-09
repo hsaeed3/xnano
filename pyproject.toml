@@ -54,6 +54,7 @@ dev = [
     "uv",
     "pytest",
     "pytest-asyncio",
+    "pytest-benchmark>=5.1.0",
     "pytest-cov",
     "twine>=6.1.0",
     # type checking!
