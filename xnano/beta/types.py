@@ -150,6 +150,29 @@ Values:
 """
 
 
+GraphTypeLike: TypeAlias = Literal["line", "scatter", "bar"]
+"""How a ``Chart`` dataset is plotted.
+
+Values:
+    ``"line"``: Connect points with lines.
+    ``"scatter"``: Draw points without connecting lines.
+    ``"bar"``: Draw each point as a vertical bar.
+"""
+
+
+LegendPositionLike: TypeAlias = Literal[
+    "top",
+    "top_right",
+    "top_left",
+    "left",
+    "right",
+    "bottom",
+    "bottom_right",
+    "bottom_left",
+]
+"""Placement of a ``Chart``'s legend within its area."""
+
+
 Side: TypeAlias = Literal["top", "bottom", "left", "right"]
 """A single side of a of a rectangular grid area within the
 main terminal grid.
@@ -433,6 +456,8 @@ __all__ = (
     "PaddingLike",
     "ScrollbarOrientationLike",
     "CanvasMarkerLike",
+    "GraphTypeLike",
+    "LegendPositionLike",
     "Side",
     "SizePercentage",
     "Flex",
