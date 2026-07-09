@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from xnano.beta.color import ColorLike
     from xnano.beta.components.abstract import ComponentRenderContext
     from xnano.beta.core.nodes import AbstractRenderNode, LineNode
+    from xnano.beta.events import KeyboardEventData
 
 
 @dataclasses.dataclass
@@ -39,6 +40,14 @@ class Text(AbstractComponent):
             Text("Second line", color="blue"),
         ])
 
+    **Input** — set ``input=True`` on a leaf ``Text`` placed in a grid field
+    to make it focusable and editable (tab order, caret, placeholder):
+
+        class Form(Grid):
+            name: Text = Field(
+                default=Text("", input=True, placeholder="your name"),
+            )
+
     All modes share the same styling params: ``color``, ``background``,
     ``modifiers``.  ``align`` and ``wrap`` apply at the paragraph level.
     """
@@ -49,10 +58,91 @@ class Text(AbstractComponent):
     modifiers: tuple[CharacterModifier, ...] = ()
     align: Alignment | None = None
     wrap: bool = True
+    input: bool = False
+    """When ``True`` on a leaf ``Text``, the component is an editable field
+    that participates in field focus (tab order) and receives keyboard input
+    while focused."""
+    placeholder: str | Text | None = None
+    """Shown when ``input`` is enabled, the content is empty, and the field
+    is not focused.  A string is rendered dim; a ``Text`` keeps its styling."""
+    cursor: int | None = None
+    """Caret index into ``content`` when ``input`` is enabled; ``None`` means
+    the end of the string."""
+    _input_focused: bool = dataclasses.field(
+        default=False, init=False, repr=False, compare=False
+    )
 
     def _is_leaf(self) -> bool:
         """True when this node holds a plain string (no nested Text children)."""
         return isinstance(self.content, str)
+
+    @property
+    def value(self) -> str:
+        """Plain-string content for leaf ``Text``; empty string otherwise."""
+        if isinstance(self.content, str):
+            return self.content
+        return ""
+
+    @value.setter
+    def value(self, text: str) -> None:
+        self.content = text
+        if self.cursor is not None:
+            self.cursor = max(0, min(self.cursor, len(text)))
+
+    def handle_keyboard(self, keyboard: KeyboardEventData) -> bool:
+        """Apply a keyboard event when this is an editable input.
+
+        Args:
+            keyboard: The keyboard sub-event to apply.
+
+        Returns:
+            ``True`` when the event was consumed by this input.
+        """
+        from xnano.beta.focus import apply_text_keyboard
+
+        return apply_text_keyboard(self, keyboard)
+
+    def _placeholder_string(self) -> str | None:
+        if self.placeholder is None:
+            return None
+        if isinstance(self.placeholder, str):
+            return self.placeholder
+        if isinstance(self.placeholder, Text) and isinstance(
+            self.placeholder.content, str
+        ):
+            return self.placeholder.content
+        return None
+
+    def _input_display_content(self) -> tuple[str, ColorLike | None, bool]:
+        """Return ``(text, color_override, is_placeholder)`` for input mode."""
+        if not isinstance(self.content, str):
+            return ("", None, False)
+        if (
+            self.content == ""
+            and not self._input_focused
+            and self.placeholder is not None
+        ):
+            if isinstance(self.placeholder, Text):
+                if isinstance(self.placeholder.content, str):
+                    return (
+                        self.placeholder.content,
+                        self.placeholder.color or "gray",
+                        True,
+                    )
+            else:
+                return (self.placeholder, "gray", True)
+        if self._input_focused and self.input:
+            position = (
+                self.cursor if self.cursor is not None else len(self.content)
+            )
+            position = max(0, min(position, len(self.content)))
+            # Visible caret between characters (hardware cursor is also moved).
+            return (
+                self.content[:position] + "▌" + self.content[position:],
+                None,
+                False,
+            )
+        return (self.content, None, False)
 
     def _as_children(self) -> list[Text]:
         """Normalize content to a flat list of Text children."""
@@ -153,11 +243,22 @@ class Text(AbstractComponent):
 
         # Leaf: single string — paragraph wrapping plain text
         if isinstance(self.content, str):
+            text_str = self.content
+            color = self.color
+            modifiers = self.modifiers
+            if self.input:
+                text_str, color_override, is_placeholder = (
+                    self._input_display_content()
+                )
+                if color_override is not None:
+                    color = color_override
+                if is_placeholder and not modifiers:
+                    modifiers = ("dim",)
             return ParagraphNode(
-                text=self.content,
-                color=self.color,
+                text=text_str,
+                color=color,
                 background=self.background,
-                modifiers=self.modifiers,
+                modifiers=modifiers,
                 align=self.align,
                 wrap=self.wrap,
             )

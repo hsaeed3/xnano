@@ -14,6 +14,21 @@ class Exit(BaseException):
     """
 
 
+class HookError(RuntimeError):
+    """Raised when an ``@on_*`` hook fails in a way that needs a clear surface.
+
+    The default dispatch policy logs the original exception and re-raises it
+    unchanged so callers see the real traceback.  ``HookError`` is available
+    for libraries that want to wrap hook failures explicitly.
+    """
+
+    def __init__(self, hook_name: str, cause: BaseException) -> None:
+        self.hook_name = hook_name
+        self.cause = cause
+        super().__init__(f"Hook {hook_name!r} raised: {cause!r}")
+        self.__cause__ = cause
+
+
 class FieldValidationError(ValueError):
     """Exception raised when a ``pydantic-core`` validation error occurs during
     the strict validation of a grid field attribute(s).
@@ -46,6 +61,7 @@ class TerminalNotActiveError(RuntimeError):
 
 __all__ = (
     "Exit",
+    "HookError",
     "FieldValidationError",
     "TerminalNotActiveError",
 )

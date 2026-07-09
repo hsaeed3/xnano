@@ -148,6 +148,9 @@ class Terminal(Generic[StateT]):
         "_root_width_sizing",
         "_prev_sigterm",
         "_prev_sighup",
+        "_field_focus",
+        "_field_focus_announced",
+        "_last_field_focus_event",
         "title",
         "mouse_events",
         "bracketed_paste",
@@ -207,6 +210,9 @@ class Terminal(Generic[StateT]):
         self._pending_enter: bool = False
         self._prev_sigterm: Any = None
         self._prev_sighup: Any = None
+        self._field_focus: Any = None
+        self._field_focus_announced: bool = False
+        self._last_field_focus_event: Any = None
 
     def _on_exit_signal(
         self,
@@ -382,6 +388,35 @@ class Terminal(Generic[StateT]):
 
     def request_exit(self) -> None:
         self._exit_requested = True
+
+    @property
+    def field_focus(self) -> Any:
+        """The currently focused layout field (``FieldFocus``), if any."""
+        return self._field_focus
+
+    def focus_field(self, grid: Any, field_name: str) -> bool:
+        """Focus an editable ``Text`` layout field on ``grid``."""
+        from xnano.beta.focus import set_field_focus
+
+        return set_field_focus(self, grid, field_name)
+
+    def blur_field(self) -> None:
+        """Clear application field focus."""
+        from xnano.beta.focus import clear_field_focus
+
+        clear_field_focus(self)
+
+    def focus_next(self) -> bool:
+        """Move field focus to the next editable input (tab order)."""
+        from xnano.beta.focus import cycle_field_focus
+
+        return cycle_field_focus(self, reverse=False)
+
+    def focus_previous(self) -> bool:
+        """Move field focus to the previous editable input."""
+        from xnano.beta.focus import cycle_field_focus
+
+        return cycle_field_focus(self, reverse=True)
 
     def get_output(self) -> str:
         """Return the offscreen buffer text (only valid for offscreen sessions)."""
@@ -708,8 +743,20 @@ class Terminal(Generic[StateT]):
                 )
                 self._pump_events()
                 self._pump_tick()
+                # Frame polls fire once per loop iteration, after events/ticks.
+                _dispatch.pump_poll(self, when="frame")
         except (KeyboardInterrupt, Exit):
             pass
+        except Exception:
+            # Fail-fast: log and re-raise.  ``finally`` (and the caller's
+            # ``with Terminal()`` if any) still restores the host terminal so
+            # raw mode / alt-screen cannot stick after a hook crash.
+            import logging
+
+            logging.getLogger("xnano").exception(
+                "Uncaught exception in Terminal.run(); restoring terminal"
+            )
+            raise
         finally:
             self._run_renderables = None
             self._run_field = None
