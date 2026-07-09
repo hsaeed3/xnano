@@ -12,6 +12,8 @@ from xnano.beta.types import (
     CanvasMarkerLike,
     CharacterModifier,
     Direction,
+    GraphTypeLike,
+    LegendPositionLike,
     Padding,
     ScrollbarOrientationLike,
     Size,
@@ -589,6 +591,66 @@ class CanvasNode(AbstractRenderNode):
     visible: bool = True
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ChartDataset:
+    """A single plotted series in a ``ChartNode``.
+
+    Attributes:
+        data: ``(x, y)`` sample points in logical coordinates.
+        name: Legend label for the series.
+        color: Series line/point color.
+        marker: Glyph set used to paint the series; ``None`` = ratatui default.
+        graph_type: How the series is plotted (line, scatter, or bar).
+    """
+
+    data: list[tuple[float, float]] = dataclasses.field(default_factory=list)
+    name: str | None = None
+    color: ColorLike | None = None
+    marker: CanvasMarkerLike | None = None
+    graph_type: GraphTypeLike = "line"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ChartAxis:
+    """An axis specification for a ``ChartNode``.
+
+    Attributes:
+        title: Axis title text.
+        bounds: Logical ``(min, max)`` range of the axis.
+        labels: Tick labels drawn along the axis.
+        color: Axis line + label color.
+    """
+
+    title: str | None = None
+    bounds: tuple[float, float] | None = None
+    labels: list[str] | None = None
+    color: ColorLike | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ChartNode(AbstractRenderNode):
+    """A line/scatter/bar chart with axes and an optional legend.
+
+    Rendered through the native ratatui ``Chart`` widget (no ``CoreRenderIR``
+    representation), so it fills the slot it is placed in.
+
+    Attributes:
+        datasets: The plotted series.
+        x_axis: Optional x-axis specification.
+        y_axis: Optional y-axis specification.
+        color: Overall widget foreground style.
+        legend_position: Where the legend is drawn; ``None`` hides it.
+    """
+
+    datasets: list[ChartDataset] = dataclasses.field(default_factory=list)
+    x_axis: ChartAxis | None = None
+    y_axis: ChartAxis | None = None
+    color: ColorLike | None = None
+    legend_position: LegendPositionLike | None = "top_right"
+    z: int = 0
+    visible: bool = True
+
+
 class NodeAssembler:
     """Assembles ``xnano.beta.core.nodes.AbstractRenderNode`` trees into ratatui
     native widgets through ``xnano-core``.
@@ -1122,6 +1184,94 @@ class NodeAssembler:
             session.render_native(native_rect, spark, z=effective_z)
             return
 
+        # Chart: native path (CoreRenderIR has no chart representation).
+        if isinstance(node, ChartNode):
+            from xnano_core.rust import native
+
+            graph_types = {
+                "scatter": native.GraphType.Scatter,
+                "line": native.GraphType.Line,
+                "bar": native.GraphType.Bar,
+            }
+            markers = {
+                "dot": native.Marker.Dot,
+                "block": native.Marker.Block,
+                "bar": native.Marker.Bar,
+                "braille": native.Marker.Braille,
+                "half_block": native.Marker.HalfBlock,
+            }
+            legend_positions = {
+                "top": native.LegendPosition.Top,
+                "top_right": native.LegendPosition.TopRight,
+                "top_left": native.LegendPosition.TopLeft,
+                "left": native.LegendPosition.Left,
+                "right": native.LegendPosition.Right,
+                "bottom": native.LegendPosition.Bottom,
+                "bottom_right": native.LegendPosition.BottomRight,
+                "bottom_left": native.LegendPosition.BottomLeft,
+            }
+
+            def _build_axis(spec: "ChartAxis") -> Any:
+                axis = native.Axis.default()
+                if spec.title is not None:
+                    axis = axis.title(spec.title)
+                if spec.bounds is not None:
+                    axis = axis.bounds(spec.bounds)
+                if spec.labels is not None:
+                    axis = axis.labels(spec.labels)
+                if spec.color is not None:
+                    style = native_types.get_native_style_from_kwargs(
+                        color=spec.color
+                    )
+                    if style is not None:
+                        axis = axis.style(style)
+                return axis
+
+            datasets: list[Any] = []
+            for dataset in node.datasets:
+                native_dataset = native.Dataset.default().data(dataset.data)
+                if dataset.name is not None:
+                    native_dataset = native_dataset.name(dataset.name)
+                native_dataset = native_dataset.graph_type(
+                    graph_types.get(dataset.graph_type, native.GraphType.Line)
+                )
+                if dataset.marker is not None:
+                    native_dataset = native_dataset.marker(
+                        markers.get(dataset.marker, native.Marker.Braille)
+                    )
+                series_color = (
+                    dataset.color if dataset.color is not None else node.color
+                )
+                if series_color is not None:
+                    style = native_types.get_native_style_from_kwargs(
+                        color=series_color
+                    )
+                    if style is not None:
+                        native_dataset = native_dataset.style(style)
+                datasets.append(native_dataset)
+
+            chart = native.Chart.new(datasets)
+            if node.x_axis is not None:
+                chart = chart.x_axis(_build_axis(node.x_axis))
+            if node.y_axis is not None:
+                chart = chart.y_axis(_build_axis(node.y_axis))
+            if node.color is not None:
+                style = native_types.get_native_style_from_kwargs(
+                    color=node.color
+                )
+                if style is not None:
+                    chart = chart.style(style)
+            if node.legend_position is None:
+                chart = chart.legend_position(None)
+            else:
+                chart = chart.legend_position(
+                    legend_positions.get(
+                        node.legend_position, native.LegendPosition.TopRight
+                    )
+                )
+            session.render_native(native_rect, chart, z=effective_z)
+            return
+
         # Leaf nodes → single CoreRenderIR construction + enqueue.
         ir = cls._build_leaf_ir(node)
         if ir is not None:
@@ -1149,6 +1299,7 @@ RenderNode: TypeAlias = (
     | ScrollbarNode
     | TabsNode
     | CanvasNode
+    | ChartNode
 )
 """Collective alias for all render node types."""
 
@@ -1173,6 +1324,9 @@ __all__ = (
     "ScrollbarNode",
     "TabsNode",
     "CanvasNode",
+    "ChartDataset",
+    "ChartAxis",
+    "ChartNode",
     "RenderNode",
     "NodeAssembler",
 )
