@@ -77,6 +77,12 @@ Env COLORTERM "truecolor"
 
 @dataclass(frozen=True)
 class ExampleConfig:
+    """Recording settings for one showcase application.
+
+    Dimensions belong to the example instead of a site-wide canvas so compact
+    applications do not inherit the empty space needed by dashboards.
+    """
+
     name: str
     steps: tuple[str, ...] = field(default_factory=tuple)
     launch_delay: str = "2s"
