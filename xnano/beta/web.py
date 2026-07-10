@@ -7,7 +7,7 @@ Web host for xnano grids — the browser analogue of ``Terminal``.
 Renders a grid to HTML via flexbox + htmx, owns per-visitor or shared
 sessions, and dispatches browser events into the same ``@on_*`` hook
 paths the terminal loop uses. Custom HTTP routes are declared with
-``@on_get`` / ``@on_post`` from ``xnano.beta.requests``.
+``@on_get_request`` / ``@on_post_request`` from ``xnano.beta.requests``.
 """
 
 from __future__ import annotations
@@ -95,9 +95,7 @@ class _WebKeyboardEventData:
 class _WebEvent:
     """Duck-typed ``Event`` shell carrying one browser sub-event."""
 
-    def __init__(
-        self, *, keyboard: Any = None, mouse: Any = None
-    ) -> None:
+    def __init__(self, *, keyboard: Any = None, mouse: Any = None) -> None:
         self._keyboard = keyboard
         self._mouse = mouse
 
@@ -140,8 +138,9 @@ class _WebSession:
         self.controller = WebController()
         self.controller.grid_observer = self._observe_grid
         self._hooks = _EventHooksRegistry()
-        self._attached_grids: dict[int, Any] = {}
+        self._attached_grids: set[int] = set()
         self._attached_frame_grids: list[Any] = []
+        self._attached_grid_classes: set[type] = set()
         self._request_hooks: list[_OnRequestHookEntry] = []
         self._request_hook_grids: dict[int, Any] = {}
 
@@ -152,7 +151,7 @@ class _WebSession:
         self._collect_request_hooks(grid)
 
     def _collect_request_hooks(self, grid: Any) -> None:
-        """Register ``@on_get`` / ``@on_post`` handlers for ``grid``.
+        """Register ``@on_get_request`` / ``@on_post_request`` handlers for ``grid``.
 
         Bound once per grid instance so nested grids can contribute
         routes without double-binding on every paint.
@@ -207,9 +206,7 @@ class _WebSession:
             grid, field_name = info
             handler = _resolve_grid_mouse_handler(grid, field_name)
             if handler is not None:
-                mouse = MouseEventData(
-                    kind="press", x=0, y=0, button="left"
-                )
+                mouse = MouseEventData(kind="press", x=0, y=0, button="left")
                 ctx = self._make_context(_WebEvent(mouse=mouse))
                 invoke_hook(handler, grid, ctx)
         self.pump()
@@ -263,7 +260,7 @@ class _WebSession:
         method: HttpMethod,
         path: str,
     ) -> str:
-        """Fire matching ``@on_get`` / ``@on_post`` hooks, then re-render.
+        """Fire matching ``@on_get_request`` / ``@on_post_request`` hooks, then re-render.
 
         Args:
             method: HTTP method of the request.
@@ -299,9 +296,7 @@ class _WebSession:
         """
         hooks = self._hooks
         if not (
-            hooks.on_tick_hooks
-            or hooks.on_state_hooks
-            or hooks.on_field_hooks
+            hooks.on_tick_hooks or hooks.on_state_hooks or hooks.on_field_hooks
         ):
             return None
         intervals = [
@@ -359,7 +354,7 @@ def _source_grid_class(source: Any) -> type | None:
         source: A ``Grid`` instance or callable factory (often the class).
 
     Returns:
-        The class to scan for ``@on_get`` / ``@on_post``, or ``None``.
+        The class to scan for ``@on_get_request`` / ``@on_post_request``, or ``None``.
     """
     if source is None:
         return None
@@ -389,14 +384,12 @@ class Web:
     Supported hooks per event: ``@on_click`` / field ``@on_mouse``
     (element clicks), ``@on_keyboard`` / ``@on_event`` (browser keydown),
     ``@on_tick`` / ``@on_state`` / ``@on_field`` (htmx polling),
-    ``@on_get`` / ``@on_post`` (custom HTTP routes via htmx or navigation),
+    ``@on_get_request`` / ``@on_post_request`` (custom HTTP routes via htmx or navigation),
     and editable ``Text(input=True)`` fields sync through real ``<input>``
     elements. Effects, focus cycling, and slide are terminal-only.
     """
 
-    def __init__(
-        self, *, state: Any = None, title: str | None = None
-    ) -> None:
+    def __init__(self, *, state: Any = None, title: str | None = None) -> None:
         self.state = state
         self.title = title
         self._source: Any = None
@@ -408,9 +401,7 @@ class Web:
     def _is_factory(self) -> bool:
         from xnano.grid import Grid
 
-        return callable(self._source) and not isinstance(
-            self._source, Grid
-        )
+        return callable(self._source) and not isinstance(self._source, Grid)
 
     def _make_session(self) -> _WebSession:
         grid = self._source() if self._is_factory() else self._source
@@ -502,10 +493,8 @@ class Web:
         """Run one poll tick on the default session and re-render."""
         return self._ensure_default_session().dispatch_tick()
 
-    def dispatch_request(
-        self, method: HttpMethod, path: str
-    ) -> str:
-        """Fire an ``@on_get`` / ``@on_post`` hook on the default session.
+    def dispatch_request(self, method: HttpMethod, path: str) -> str:
+        """Fire an ``@on_get_request`` / ``@on_post_request`` hook on the default session.
 
         Args:
             method: ``"GET"`` or ``"POST"``.
@@ -601,16 +590,10 @@ class Web:
         if full_page is None:
             hx = request.headers.get("hx-request", "").lower()
             full_page = hx not in ("true", "1")
-        content = (
-            self.build_page(body, session=session)
-            if full_page
-            else body
-        )
+        content = self.build_page(body, session=session) if full_page else body
         response = HTMLResponse(content)
         if cookie is not None:
-            response.set_cookie(
-                _SESSION_COOKIE, cookie, httponly=True
-            )
+            response.set_cookie(_SESSION_COOKIE, cookie, httponly=True)
         return response
 
     # ── server ────────────────────────────────────────────────────────
@@ -639,14 +622,12 @@ class Web:
 
         def _with_cookie(response: Any, cookie: str | None) -> Any:
             if cookie is not None:
-                response.set_cookie(
-                    _SESSION_COOKIE, cookie, httponly=True
-                )
+                response.set_cookie(_SESSION_COOKIE, cookie, httponly=True)
             return response
 
         async def index(request: Any) -> Any:
             session, cookie = self._session_for_request(request)
-            # Fire root ``@on_get("/")`` hooks before the first paint.
+            # Fire root ``@on_get_request("/")`` hooks before the first paint.
             body = session.dispatch_request("GET", "/")
             page = self.build_page(body, session=session)
             return _with_cookie(HTMLResponse(page), cookie)
@@ -667,17 +648,13 @@ class Web:
 
         async def tick_endpoint(request: Any) -> Any:
             session, cookie = self._session_for_request(request)
-            return _with_cookie(
-                HTMLResponse(session.dispatch_tick()), cookie
-            )
+            return _with_cookie(HTMLResponse(session.dispatch_tick()), cookie)
 
         async def input_endpoint(request: Any) -> Any:
             session, cookie = self._session_for_request(request)
             target_id = request.path_params["target_id"]
             form = await request.form()
-            session.dispatch_input(
-                target_id, str(form.get("value", ""))
-            )
+            session.dispatch_input(target_id, str(form.get("value", "")))
             return _with_cookie(Response(status_code=204), cookie)
 
         routes: list[Any] = [
@@ -688,9 +665,7 @@ class Web:
                 methods=["POST"],
             ),
             Route("/xnano/key", endpoint=key_endpoint, methods=["POST"]),
-            Route(
-                "/xnano/tick", endpoint=tick_endpoint, methods=["POST"]
-            ),
+            Route("/xnano/tick", endpoint=tick_endpoint, methods=["POST"]),
             Route(
                 "/xnano/input/{target_id}",
                 endpoint=input_endpoint,
@@ -698,7 +673,7 @@ class Web:
             ),
         ]
 
-        # Custom ``@on_get`` / ``@on_post`` routes (skip ``/`` GET — that
+        # Custom ``@on_get_request`` / ``@on_post_request`` routes (skip ``/`` GET — that
         # is already the index endpoint, which fires those hooks).
         seen_routes: set[tuple[str, str]] = {("GET", "/")}
         for entry in self._discover_request_routes():
@@ -716,12 +691,8 @@ class Web:
                 request_path: str = path,
             ) -> Any:
                 async def request_endpoint(request: Any) -> Any:
-                    session, cookie = self._session_for_request(
-                        request
-                    )
-                    body = session.dispatch_request(
-                        http_method, request_path
-                    )
+                    session, cookie = self._session_for_request(request)
+                    body = session.dispatch_request(http_method, request_path)
                     return self._response_for_session(
                         session,
                         body,
@@ -729,9 +700,7 @@ class Web:
                         cookie=cookie,
                         HTMLResponse=HTMLResponse,
                         # POST is almost always an htmx swap target.
-                        full_page=(
-                            None if http_method == "GET" else False
-                        ),
+                        full_page=(None if http_method == "GET" else False),
                     )
 
                 return request_endpoint

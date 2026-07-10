@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from xnano.beta.components.text import Text
-from xnano.beta.requests import on_get, on_post
+from xnano.beta.requests import on_get_request, on_post_request
 from xnano.fields import Field
 from xnano.grid import Grid
 from xnano.hooks import on_click, on_field, on_keyboard, on_tick
@@ -103,16 +103,16 @@ class RequestHookGrid(Grid, direction="vertical", gap=1):
     count: int = Field(default=0, state=True)
     visits: int = Field(default=0, state=True)
 
-    @on_post("/increment")
+    @on_post_request("/increment")
     def _increment(self) -> None:
         self.count += 1
         self.label = f"Count: {self.count}"
 
-    @on_get("/status")
+    @on_get_request("/status")
     def _status(self) -> None:
         self.label = f"status:{self.count}"
 
-    @on_get("/")
+    @on_get_request("/")
     def _visit(self) -> None:
         self.visits += 1
 
