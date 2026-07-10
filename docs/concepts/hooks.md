@@ -117,3 +117,17 @@ Terminal(mouse_events=True).run(App())
 Other hooks cover raw events, resize, focus, polling, field expressions, and
 shared state. See the [`xnano.hooks` reference](../api/hooks.md) for their full
 signatures.
+
+??? note "Beta: HTTP request hooks"
+
+    When a grid is hosted by [Web UI]{data-preview}, methods marked with
+    `@on_get_request` / `@on_post_request` become Starlette routes. After a
+    handler runs, the session re-renders — full page for ordinary navigation,
+    `#xnano-app` fragment for htmx. The same `@on_click`, `@on_keyboard`, and
+    `@on_tick` hooks still work in the browser via built-in htmx endpoints.
+
+    Under `Terminal` those request decorators only attach metadata; they never
+    fire during a TUI frame. Details live under [Request hooks]{data-preview}.
+
+[Web UI]: ../beta/webui/index.md
+[Request hooks]: ../beta/webui/requests.md
