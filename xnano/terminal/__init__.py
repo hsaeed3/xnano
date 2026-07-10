@@ -762,6 +762,12 @@ class Terminal(Generic[StateT]):
                 self._hooks.on_resize_hooks.append(_resize_hook)
 
         try:
+            if is_grid:
+                # Load the focus helpers before CoreSession claims the terminal.
+                # This keeps one-time Python import work out of the interval
+                # between entering the alternate screen and painting frame one.
+                from xnano import focus as _focus  # noqa: F401
+
             while not self._exit_requested:
                 self._render_frame(
                     grid_root,
