@@ -70,9 +70,7 @@ def collect_focusable_fields(terminal: Terminal[Any]) -> list[FieldFocus]:
                 key = (id(grid), field_name)
                 if key not in seen:
                     seen.add(key)
-                    result.append(
-                        FieldFocus(grid=grid, field_name=field_name)
-                    )
+                    result.append(FieldFocus(grid=grid, field_name=field_name))
             elif hasattr(value, "_grid_fields"):
                 # Nested grids are also listed in _attached_frame_grids when
                 # painted; no need to recurse here.

@@ -297,11 +297,15 @@ def get_event_data_from_core_event(
     if kind == "mouse":
         m = event.mouse
         assert m is not None
+        native_button = m.xnano_button_str()
+        # Scroll/move events carry no pressed button; the native layer
+        # reports "none", which isn't a ``MouseButton`` value.
+        button = "unknown" if native_button == "none" else native_button
         return xnano_events.MouseEventData(
             kind=m.xnano_kind_str(),  # type: ignore[arg-type]
             x=m.x,
             y=m.y,
-            button=m.xnano_button_str(),  # type: ignore[arg-type]
+            button=button,  # type: ignore[arg-type]
         )
 
     if kind == "resize":

@@ -171,6 +171,7 @@ class Series(ComponentDescriptor):
     kind: GraphTypeLike | None = None
 
     if TYPE_CHECKING:
+
         def __new__(cls, *args: Any, **kwargs: Any) -> Any: ...
 
     def resolve_label(self) -> str:

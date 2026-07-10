@@ -536,15 +536,18 @@ def pump_tick(terminal: "Terminal[Any]") -> None:
 
 
 def _handle_focus_navigation(terminal: "Terminal[Any]", keyboard: Any) -> bool:
-    """Handle tab / backtab for field focus. Returns True if consumed."""
+    """Handle tab / backtab for field focus. Returns True if consumed.
+
+    Only reserves the key when a field actually receives focus — with no
+    focusable fields (or only one, already focused), tab/backtab fall
+    through to the app's own ``@on_keyboard("tab")`` hooks.
+    """
     from xnano.beta.focus import cycle_field_focus
 
     if keyboard.matches("tab"):
-        cycle_field_focus(terminal, reverse=False)
-        return True
+        return cycle_field_focus(terminal, reverse=False)
     if keyboard.matches("backtab"):
-        cycle_field_focus(terminal, reverse=True)
-        return True
+        return cycle_field_focus(terminal, reverse=True)
     return False
 
 

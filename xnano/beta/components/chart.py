@@ -120,9 +120,7 @@ class Chart(AbstractComponent, metaclass=DeclarativeComponentMeta):
                 else self.kind
             )
             label = (
-                descriptor.resolve_label()
-                if descriptor is not None
-                else name
+                descriptor.resolve_label() if descriptor is not None else name
             )
             resolved.append((label, points, color, kind))
         return resolved

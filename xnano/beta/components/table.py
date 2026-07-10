@@ -125,9 +125,7 @@ class Table(AbstractComponent, metaclass=DeclarativeComponentMeta):
 
     def _resolve_columns(self) -> list[Column]:
         if self._declared:
-            return [
-                cast(Column, column) for column in self._declared.values()
-            ]
+            return [cast(Column, column) for column in self._declared.values()]
         if self.columns is not None:
             return self._columns_from_arg(self.columns)
         return self._infer_columns()

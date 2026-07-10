@@ -433,6 +433,14 @@ def _decorate_on_tick_hook(
     return _decorate_hook_function(fn)
 
 
+_MOUSE_KINDS_WITH_BUTTON = frozenset({"press", "release", "drag"})
+"""``MouseEventKind`` values that carry a real pressed button.
+
+``move`` and the ``scroll_*`` kinds always report no button on the native
+side, so a button filter would never match them.
+"""
+
+
 def _decorate_on_mouse_hook(
     fn: EventHookFunction,
     *,
@@ -451,10 +459,15 @@ def _decorate_on_mouse_hook(
     Returns:
         The decorated hook function.
     """
-    selected_buttons = buttons if buttons else ("left",)
     selected_kind: MouseEventKind | None = (
         kind if kind is not None else "press"
     )
+    if buttons:
+        selected_buttons = buttons
+    elif selected_kind in _MOUSE_KINDS_WITH_BUTTON:
+        selected_buttons = ("left",)
+    else:
+        selected_buttons = ()
     setattr(fn, _EventHooksRegistry.ON_MOUSE_HOOK_ATTR, True)
     setattr(
         fn,
