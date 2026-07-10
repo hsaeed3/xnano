@@ -4,4 +4,4 @@
 >>> from xnano.beta import Grid, Field, Terminal
 """
 
-__version__ = "1.0.0b3"
+__version__ = "1.0.0b4"
