@@ -94,6 +94,7 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
+import itertools
 import sys
 from typing import (
     TYPE_CHECKING,
@@ -112,7 +113,7 @@ else:
 
 from xnano.color import ColorLike
 from xnano.core.controllers.abstract import LayoutConstraint
-from xnano.frame import Frame, FrameTitlePosition
+from xnano.frame import Frame, FrameTitlePosition, frame_from_field
 
 if TYPE_CHECKING:
     from xnano.effects import (
@@ -701,6 +702,14 @@ class _GridMeta(type):
         setattr(cls, "_grid_state_fields", state_fields)
         setattr(cls, "_grid_defaults", defaults)
         setattr(cls, "_grid_field_annotations", field_annotations)
+        setattr(
+            cls,
+            "_grid_field_frames",
+            {
+                field_name: frame_from_field(field)
+                for field_name, field in fields.items()
+            },
+        )
 
         # 4. Collect field-click handlers declared via on_mouse(field=...) / on_click(...)
         field_handlers = _collect_field_mouse_handlers(cls, namespace, fields)
@@ -836,6 +845,7 @@ class Grid(metaclass=_GridMeta):
     _grid_static_field_names: ClassVar[list[str]] = []
     _grid_static_constraints: ClassVar[list[_GridLayoutConstraint]] = []
     _grid_defaults: ClassVar[dict[str, Any]] = {}
+    _grid_field_frames: ClassVar[dict[str, Frame | None]] = {}
 
     visible: bool = True
     """Whether this grid is rendered in the live session."""
@@ -891,10 +901,13 @@ class Grid(metaclass=_GridMeta):
     def _grid_validate_init(self) -> None:
         if not self._grid_strict:
             return
-        for name, field in {
-            **self._grid_fields,
-            **self._grid_state_fields,
-        }.items():
+        fields = self._grid_fields.items()
+        state_fields = (
+            (name, field)
+            for name, field in self._grid_state_fields.items()
+            if not field.strict
+        )
+        for name, field in itertools.chain(fields, state_fields):
             value = getattr(self, name, None)
             validated = self._grid_validate_field(name, value, field=field)
             if validated is not value:
@@ -1172,10 +1185,13 @@ class Grid(metaclass=_GridMeta):
             return value is not None
         return bool(field.visible)
 
-    def _grid_field_frame(self, field: GridFieldInfo) -> Frame | None:
-        from xnano.frame import frame_from_field
-
-        return frame_from_field(field)
+    def _grid_field_frame(
+        self, name: str, field: GridFieldInfo
+    ) -> Frame | None:
+        overrides = getattr(self, "_grid_field_overrides", None)
+        if overrides and name in overrides:
+            return frame_from_field(field)
+        return self._grid_field_frames[name]
 
     def _grid_register_field_hit(
         self,
@@ -1280,6 +1296,13 @@ class Grid(metaclass=_GridMeta):
             active_constraints,
         )
 
+        from xnano.terminal import _ACTIVE_TERMINAL
+
+        terminal = _ACTIVE_TERMINAL.get()
+        collect_mouse_geometry = bool(
+            terminal is not None and terminal._mouse_geometry_active
+        )
+
         for index, slot_area in enumerate(slot_areas):
             field_name = active_names[index]
             field = active_fields[index]
@@ -1295,7 +1318,9 @@ class Grid(metaclass=_GridMeta):
                 slide_axes,
                 self._grid_field_position(field_name),
             )
-            if self._grid_field_needs_hit(field_name, field):
+            if collect_mouse_geometry and self._grid_field_needs_hit(
+                field_name, field
+            ):
                 self._grid_register_field_hit(
                     field_name,
                     paint_area,
@@ -1303,7 +1328,7 @@ class Grid(metaclass=_GridMeta):
                     parent_area=area,
                     slide_axes=slide_axes,
                 )
-            field_frame = self._grid_field_frame(field)
+            field_frame = self._grid_field_frame(field_name, field)
             if field_frame is not None:
                 paint_area = session.paint_frame(
                     paint_area, field_frame, z=self.z

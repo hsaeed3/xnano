@@ -39,6 +39,8 @@ if TYPE_CHECKING:
 
 
 _NATIVE_COLOR_CACHE: dict[tuple[int, int, int, float], native.Color] = {}
+_NATIVE_COLOR_OBJECT_CACHE: dict[Color, native.Color] = {}
+_NATIVE_COLOR_STRING_CACHE: dict[str, native.Color] = {}
 
 
 _NATIVE_BORDER_TYPES: dict[Border, native.BorderType] = {
@@ -140,6 +142,14 @@ def get_native_color_from_color_like(
     """
     if color is None:
         return None
+    if isinstance(color, Color):
+        cached_color = _NATIVE_COLOR_OBJECT_CACHE.get(color)
+        if cached_color is not None:
+            return cached_color
+    if isinstance(color, str):
+        cached_string = _NATIVE_COLOR_STRING_CACHE.get(color)
+        if cached_string is not None:
+            return cached_string
 
     parsed = Color.parse(color)
     key = (parsed.r, parsed.g, parsed.b, parsed.a)
@@ -149,6 +159,10 @@ def get_native_color_from_color_like(
 
     native_color = native.Color.rgb(parsed.r, parsed.g, parsed.b)
     _NATIVE_COLOR_CACHE[key] = native_color
+    if isinstance(color, Color):
+        _NATIVE_COLOR_OBJECT_CACHE[color] = native_color
+    if isinstance(color, str):
+        _NATIVE_COLOR_STRING_CACHE[color] = native_color
     return native_color
 
 
