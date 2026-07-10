@@ -3,11 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use ratatui::restore;
 
-use super::super::crossterm_exec::flush_stdout;
-use super::super::event_setup::{
-    disable_bracketed_paste_impl, disable_focus_change_impl, disable_mouse_capture_impl,
-};
-use super::super::terminal_device::end_synchronized_update_impl;
+use super::terminal_reset::emit_terminal_reset_sequences;
 
 pub(crate) struct PanicHookGuard {
     previous: Arc<Mutex<Option<Box<dyn Fn(&PanicHookInfo<'_>) + Sync + Send>>>>,
@@ -18,12 +14,11 @@ pub(crate) fn install_restore_panic_hook() -> PanicHookGuard {
     let shared = Arc::new(Mutex::new(Some(previous)));
     let hook_shared = Arc::clone(&shared);
     panic::set_hook(Box::new(move |info| {
-        let _ = disable_mouse_capture_impl();
-        let _ = disable_bracketed_paste_impl();
-        let _ = disable_focus_change_impl();
-        let _ = end_synchronized_update_impl();
-        let _ = flush_stdout();
+        // Same comprehensive reset used by CoreSession.restore so a panic
+        // cannot leave mouse / sync / SGR modes armed for the next process.
+        emit_terminal_reset_sequences();
         restore();
+        emit_terminal_reset_sequences();
         if let Ok(guard) = hook_shared.lock() {
             if let Some(ref hook) = *guard {
                 hook(info);
