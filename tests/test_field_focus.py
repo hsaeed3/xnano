@@ -228,7 +228,9 @@ def test_terminal_focus_helpers() -> None:
     grid = _Form()
     term._attached_frame_grids = [grid]
     # Bind hooks
-    for entry in _EventHooksRegistry.from_component_class(_Form).on_focus_hooks:
+    for entry in _EventHooksRegistry.from_component_class(
+        _Form
+    ).on_focus_hooks:
         handler = entry["handler"]
         name = getattr(handler, "__name__", None)
         if name and hasattr(grid, name):

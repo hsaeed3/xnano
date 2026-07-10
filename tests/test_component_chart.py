@@ -88,17 +88,13 @@ def test_empty_series_default_bounds() -> None:
 
 
 def test_multi_series_creates_datasets() -> None:
-    node = Chart(
-        series={"cpu": [1, 2], "mem": [3, 4]}
-    ).get_node(_ctx())
+    node = Chart(series={"cpu": [1, 2], "mem": [3, 4]}).get_node(_ctx())
     assert isinstance(node, ChartNode)
     assert [dataset.name for dataset in node.datasets] == ["cpu", "mem"]
 
 
 def test_default_palette_cycles_colors() -> None:
-    node = Chart(
-        series={"a": [1], "b": [2], "c": [3]}
-    ).get_node(_ctx())
+    node = Chart(series={"a": [1], "b": [2], "c": [3]}).get_node(_ctx())
     assert isinstance(node, ChartNode)
     colors = [dataset.color for dataset in node.datasets]
     assert colors == ["cyan", "magenta", "green"]
@@ -177,9 +173,9 @@ def test_subclass_captures_declared_series() -> None:
 
 
 def test_subclass_applies_series_styling() -> None:
-    node = Latency(
-        series={"p50": [1, 2, 3], "p99": [4, 5, 6]}
-    ).get_node(_ctx())
+    node = Latency(series={"p50": [1, 2, 3], "p99": [4, 5, 6]}).get_node(
+        _ctx()
+    )
     assert isinstance(node, ChartNode)
     by_name = {dataset.name: dataset for dataset in node.datasets}
     assert by_name["p50"].color == "green"
@@ -189,9 +185,9 @@ def test_subclass_applies_series_styling() -> None:
 
 
 def test_subclass_orders_declared_series_first() -> None:
-    node = Latency(
-        series={"extra": [9], "p99": [2], "p50": [1]}
-    ).get_node(_ctx())
+    node = Latency(series={"extra": [9], "p99": [2], "p50": [1]}).get_node(
+        _ctx()
+    )
     assert isinstance(node, ChartNode)
     names = [dataset.name for dataset in node.datasets]
     assert names == ["p50", "99th", "extra"]

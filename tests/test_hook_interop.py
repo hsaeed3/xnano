@@ -55,9 +55,7 @@ class _StubTerminal:
     _hooks: _EventHooksRegistry = dataclasses.field(
         default_factory=_EventHooksRegistry
     )
-    _attached_frame_grids: list[Any] = dataclasses.field(
-        default_factory=list
-    )
+    _attached_frame_grids: list[Any] = dataclasses.field(default_factory=list)
 
     def attach(self, grid: Any) -> None:
         collected = _EventHooksRegistry.from_component_class(type(grid))
@@ -122,9 +120,7 @@ class _StubTerminal:
 
     def fire_keyboard(self, handler_name: str) -> None:
         """Directly invoke a keyboard handler by name (skips event routing)."""
-        ctx = Context(
-            event=None, terminal=cast(Any, self), state=self.state
-        )
+        ctx = Context(event=None, terminal=cast(Any, self), state=self.state)
         for entry in self._hooks.on_keyboard_hooks:
             h = entry["handler"]
             if getattr(h, "__name__", None) == handler_name:
@@ -360,7 +356,9 @@ class _IntervalGrid(Grid):
     slow_ticks: int = Field(default=0, state=True)
     field_ticks: int = Field(default=0, state=True)
 
-    @on_tick(9_999_999)  # only fires once: first pump_tick has elapsed≥interval
+    @on_tick(
+        9_999_999
+    )  # only fires once: first pump_tick has elapsed≥interval
     def _slow(self) -> None:
         self.slow_ticks += 1
 
@@ -381,7 +379,7 @@ def test_interval_tick_fires_once_field_hook_fires_every_tick() -> None:
     for _ in range(3):
         pump_tick(cast(Any, terminal))
 
-    assert grid.slow_ticks == 1   # fired once on first pump_tick
+    assert grid.slow_ticks == 1  # fired once on first pump_tick
     assert grid.field_ticks == 3  # fired on every tick
 
 
@@ -919,9 +917,7 @@ def test_missing_field_returns_false() -> None:
 def test_division_by_zero_returns_false() -> None:
     grid = _SafeGrid()
     # denominator is 0 — expression would raise ZeroDivisionError
-    assert not evaluate_state_expression(
-        "count / denominator > 1", grid
-    )
+    assert not evaluate_state_expression("count / denominator > 1", grid)
 
 
 def test_syntax_error_returns_false() -> None:
@@ -1138,9 +1134,7 @@ def test_parent_used_alone_has_only_parent_hook() -> None:
     registry_child = _EventHooksRegistry.from_component_class(_ChildGrid)
     assert len(registry_child.on_field_hooks) == 2
 
-    registry_grand = _EventHooksRegistry.from_component_class(
-        _GrandchildGrid
-    )
+    registry_grand = _EventHooksRegistry.from_component_class(_GrandchildGrid)
     assert len(registry_grand.on_field_hooks) == 3
 
 

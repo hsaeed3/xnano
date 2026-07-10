@@ -110,9 +110,9 @@ def test_line_style_explicit_filled_and_unfilled() -> None:
 
 
 def test_bar_threads_color_and_background() -> None:
-    node = Progress(
-        value=0.5, color="blue", background="black"
-    ).get_node(_ctx())
+    node = Progress(value=0.5, color="blue", background="black").get_node(
+        _ctx()
+    )
     assert isinstance(node, ProgressBarNode)
     assert node.color == "blue"
     assert node.background == "black"

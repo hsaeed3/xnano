@@ -32,7 +32,9 @@ def test_infers_columns_from_dict_keys() -> None:
     node = Table(data=_ROWS).get_node(_ctx())
     assert isinstance(node, TableNode)
     assert node.header is not None
-    headers = [c.content if hasattr(c, "content") else c for c in node.header.cells]  # type: ignore[union-attr]
+    headers = [
+        c.content if hasattr(c, "content") else c for c in node.header.cells
+    ]  # type: ignore[union-attr]
     assert headers == ["Service", "Status", "Latency"]
 
 
@@ -74,8 +76,7 @@ def test_columns_list_selects_and_orders() -> None:
     assert isinstance(node, TableNode)
     assert node.header is not None
     headers = [
-        c.content if hasattr(c, "content") else c
-        for c in node.header.cells
+        c.content if hasattr(c, "content") else c for c in node.header.cells
     ]
     assert headers == ["Latency", "Service"]
 
@@ -87,8 +88,7 @@ def test_columns_dict_with_header_string() -> None:
     assert isinstance(node, TableNode)
     assert node.header is not None
     headers = [
-        c.content if hasattr(c, "content") else c
-        for c in node.header.cells
+        c.content if hasattr(c, "content") else c for c in node.header.cells
     ]
     assert headers == ["Svc", "State"]
 
@@ -136,8 +136,7 @@ def test_subclass_renders_declared_columns() -> None:
     assert isinstance(node, TableNode)
     assert node.header is not None
     headers = [
-        c.content if hasattr(c, "content") else c
-        for c in node.header.cells
+        c.content if hasattr(c, "content") else c for c in node.header.cells
     ]
     assert headers == ["Service", "Status", "Latency"]
 
