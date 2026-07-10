@@ -34,6 +34,51 @@ maturin develop --uv
 uv run mkdocs serve                  # local docs server
 ```
 
+### Docs demo GIFs (VHS)
+`scripts/generate_xnano_demos.py` records the `docs/assets/xnano-*.gif`
+feature-tour GIFs with [VHS](https://github.com/charmbracelet/vhs)
+(`.tape` files interpreted by the `vhs` CLI, `brew install vhs`).
+```bash
+uv run python scripts/generate_xnano_demos.py               # all demos
+uv run python scripts/generate_xnano_demos.py --demo title  # one demo
+uv run python scripts/generate_xnano_demos.py --dry-run     # print tape only
+vhs themes                                                   # list built-in theme names
+```
+VHS quirks worth knowing before touching `Demo` settings in that script:
+- `Set WindowBar` has no "off"/"none" value — the only way to omit the
+  macOS traffic-light chrome is to not emit the `Set WindowBar` line at
+  all (an empty string in the settings block, not a keyword).
+- `Set Padding <n>` is a single value applied to all four sides, but the
+  *rendered* padding is not guaranteed symmetric: VHS rasterizes the pty
+  at a fixed cell size derived from `FontSize`/`LineHeight`, so leftover
+  pixels after fitting whole character rows/columns into `Height`/`Width`
+  get distributed unevenly (usually more slack on one edge). Columns
+  tend to divide evenly in practice; rows are the common offender. Fix
+  by nudging `Height` until the terminal's row count comes out even —
+  probe cheaply with a throwaway tape that types a Python one-liner
+  printing `shutil.get_terminal_size()` and captures it with the
+  `Screenshot "<path>.png"` tape command (near-instant, no full
+  recording), e.g.:
+  ```
+  Output "/tmp/probe.gif"
+  Set Width 1000
+  Set Height 230
+  Set Padding 12
+  Hide
+  Type "python3 -c 'import shutil; print(shutil.get_terminal_size())' > /tmp/size.txt"
+  Enter
+  Sleep 300ms
+  Show
+  Screenshot "/tmp/probe.png"
+  ```
+- Centering content within an odd leftover row/column count also biases
+  visually — see `xnano/core/demo/title.py`'s `_build_watercolor_frame`,
+  which had to switch from floor to ceiling division on the vertical
+  leftover to stop the wordmark from reading as shifted upward.
+- `Env COLORTERM "truecolor"` is required for the watercolor gradient to
+  render — without it VHS's pty falls back to a 16-color ANSI palette
+  and gradients collapse to a single flat tone.
+
 ---
 
 ## Architecture

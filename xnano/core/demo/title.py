@@ -183,7 +183,9 @@ def _build_watercolor_frame(
     width = max(columns, _TITLE_WIDTH)
     height = max(rows, len(_TITLE_ROWS))
     logo_left = max(0, (width - _TITLE_WIDTH) // 2)
-    logo_top = max(0, (height - len(_TITLE_ROWS)) // 2)
+    # Bias any odd leftover row upward (ceiling, not floor) so the
+    # wordmark reads as vertically centered instead of sitting high.
+    logo_top = max(0, (height - len(_TITLE_ROWS) + 1) // 2)
     sample_width = 2
     lines: list[str | Text] = []
 
@@ -274,8 +276,8 @@ class TitleSplash(Grid):
     def grid_render(self) -> None:
         """Refresh the animated wash and centered ink wordmark."""
         self.canvas = _build_watercolor_frame(
-            self.columns,
-            self.rows,
+            max(self.columns, 1),
+            max(self.rows, 1),
             self.phase,
             self.watercolor_seed,
         )
