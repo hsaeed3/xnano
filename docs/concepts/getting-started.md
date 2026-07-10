@@ -8,10 +8,11 @@ icon: "lucide/sparkles"
 xnano is a terminal UI framework built on Rust. The Python API is deliberately model-like — you declare what you want and xnano handles the rendering, event loop, and teardown. If you've used Pydantic or dataclasses the shape of it will feel familiar immediately.
 
 Starting with the 1.0.0 documentation, this declarative model is the foundation
-for more than full-screen terminal apps. A model-like command API is planned
-for the beta surface, followed by a web UI renderer that can reuse grids and
-unified components. The terminal APIs on this page are available now; planned
-APIs are labeled as previews in their own sections.
+for more than full-screen terminal apps. The [beta surface](../beta/overview.md)
+already prototypes a [command CLI](../beta/commands/index.md) and a
+[web UI host](../beta/webui/index.md) that reuse grids and components. The
+terminal APIs on this page are the stable path; beta pages are labeled as
+previews.
 
 ---
 
