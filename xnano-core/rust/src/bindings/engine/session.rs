@@ -237,13 +237,15 @@ impl PySession {
                         }
                     };
 
-                    let mut core = sync_to_core_buffer(frame.buffer_mut());
-                    effect_manager.process_effects(
-                        tachyonfx::Duration::from_millis(elapsed_ms),
-                        &mut core,
-                        to_core_rect(area),
-                    );
-                    sync_from_core_buffer(&core, frame.buffer_mut());
+                    if effect_manager.is_running() {
+                        let mut core = sync_to_core_buffer(frame.buffer_mut());
+                        effect_manager.process_effects(
+                            tachyonfx::Duration::from_millis(elapsed_ms),
+                            &mut core,
+                            to_core_rect(area),
+                        );
+                        sync_from_core_buffer(&core, frame.buffer_mut());
+                    }
 
                     match cursor {
                         Some(pos) if cursor_visible => frame.set_cursor_position(pos),
@@ -263,13 +265,15 @@ impl PySession {
 
             render_node_to_buffer(buffer, area, node, &mut ctx)?;
 
-            let mut core = sync_to_core_buffer(buffer);
-            self.effect_manager.process_effects(
-                tachyonfx::Duration::from_millis(elapsed_ms),
-                &mut core,
-                to_core_rect(area),
-            );
-            sync_from_core_buffer(&core, buffer);
+            if self.effect_manager.is_running() {
+                let mut core = sync_to_core_buffer(buffer);
+                self.effect_manager.process_effects(
+                    tachyonfx::Duration::from_millis(elapsed_ms),
+                    &mut core,
+                    to_core_rect(area),
+                );
+                sync_from_core_buffer(&core, buffer);
+            }
 
             if let Some(err) = ctx.error.take() {
                 return Err(err);
