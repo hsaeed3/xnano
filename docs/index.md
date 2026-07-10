@@ -303,6 +303,28 @@ Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or pla
 
 ---
 
-## Next Steps
+## The rest of the terminal loop
 
-Continue with the [Getting Started](api/concepts/getting-started.md) guide, or jump straight into the [API Reference]{data-preview}.
+The 1.0.0 release establishes the shared UI model used by xnano's terminal
+renderer. `Grid`, components, controllers, and render nodes now keep layout
+declarations separate from the interface that paints them.
+
+Work following 1.0.0 extends that model in two directions:
+
+- A model-like command syntax in the beta API will let command-line programs
+  declare commands, arguments, and options with the same typed style used for
+  grids. This completes the path from ordinary command output to an
+  interactive terminal interface.
+- An optional web UI engine will render the same grids and unified components
+  in the browser using Tailwind and HTMX. It will also introduce declarative
+  requests and endpoints. Event hooks will follow the familiar xnano hook
+  model, although that part of the API is still being designed.
+
+These APIs are not part of the current terminal guide. The
+[Web UI page](webui/index.md) will hold the preview documentation as the public
+surface settles.
+
+## Next steps
+
+Continue with [Getting started](concepts/getting-started.md), explore the
+[component catalog](components/index.md), or open the [API reference](api/index.md).

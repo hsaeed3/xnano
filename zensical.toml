@@ -15,12 +15,27 @@ nav = [
     { "xnano" = [
         { "Introduction" = "index.md" },
         { "Concepts" = [
-            "api/concepts/getting-started.md",
-            "api/concepts/terminal.md",
-            "api/concepts/grid.md",
-            "api/concepts/sizing.md",
-            "api/concepts/hooks.md",
+            "concepts/getting-started.md",
+            "concepts/terminal.md",
+            "concepts/grid.md",
+            "concepts/sizing.md",
+            "concepts/hooks.md",
         ]},
+        { "Components" = [
+            "components/index.md",
+            "components/text.md",
+            "components/table.md",
+            "components/chart.md",
+            "components/progress.md",
+            "components/sparkline.md",
+            "components/schema.md",
+        ]},
+        { "Terminal" = [
+            "terminal/index.md",
+            "terminal/cursor.md",
+            "terminal/device.md",
+        ]},
+        { "Web UI" = "webui/index.md" },
         { "API Reference" = [
             "api/index.md",
             { "xnano.core" = [
@@ -150,12 +165,12 @@ code = "Iosevka Web"
 tagline = "fun llm functions and assorted knick-knacks."
 gradient_hsla = "hsla(0, 0%, 100%, 0)"
 description = """
-A fun **"anti-framework"** for doing useful things with agents and LLMs.
+Declarative terminal interfaces in Python, powered by Rust.
 """
 
 [[project.home.buttons]]
 name = "Getting Started"
-url = "api/concepts/getting-started"
+url = "concepts/getting-started"
 theme = "md-button"
 
 [[project.home.buttons]]
@@ -165,13 +180,13 @@ theme = "md-button"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
-link = "https://github.com/hsaeed3/zyx"
-name = "ZYX - GitHub"
+link = "https://github.com/hsaeed3/xnano"
+name = "xnano - GitHub"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/python"
-link = "https://pypi.org/project/zyx"
-name = "ZYX - PyPI"
+link = "https://pypi.org/project/xnano"
+name = "xnano - PyPI"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/linkedin"
