@@ -703,20 +703,29 @@ impl PyBufferMutView {
         self.alive.set(false);
     }
 
-    fn buffer_mut(&self) -> PyResult<&mut Buffer> {
+    /// Run `f` against the wrapped buffer while the view is still alive.
+    ///
+    /// The mutable borrow is scoped to the closure rather than returned
+    /// from `&self`, so the pointer-backed access stays sound by
+    /// construction: the view is `unsendable` and the borrow can never
+    /// outlive this call.
+    fn with_buffer_mut<R>(
+        &self,
+        f: impl FnOnce(&mut Buffer) -> PyResult<R>,
+    ) -> PyResult<R> {
         if !self.alive.get() {
             return Err(PyRuntimeError::new_err("BufferMutView expired"));
         }
-        Ok(unsafe { &mut *(self.ptr as *mut Buffer) })
+        // SAFETY: `ptr` points at the live buffer for the duration of the
+        // drawable callback; `alive` is flipped before it dangles.
+        f(unsafe { &mut *(self.ptr as *mut Buffer) })
     }
 }
 
 #[pymethods]
 impl PyBufferMutView {
     fn get_area(&self) -> PyResult<PyRect> {
-        Ok(PyRect {
-            inner: self.buffer_mut()?.area,
-        })
+        self.with_buffer_mut(|buffer| Ok(PyRect { inner: buffer.area }))
     }
 
     fn area(&self) -> PyResult<PyRect> {
@@ -724,12 +733,13 @@ impl PyBufferMutView {
     }
 
     fn get_cell(&self, x: u16, y: u16) -> PyResult<Option<PyBufferCell>> {
-        let buffer = self.buffer_mut()?;
-        check_local_coords(buffer, x, y)?;
-        let position = local_position(buffer, x, y);
-        Ok(buffer
-            .cell(position)
-            .map(|cell| PyBufferCell { inner: cell.clone() }))
+        self.with_buffer_mut(|buffer| {
+            check_local_coords(buffer, x, y)?;
+            let position = local_position(buffer, x, y);
+            Ok(buffer
+                .cell(position)
+                .map(|cell| PyBufferCell { inner: cell.clone() }))
+        })
     }
 
     fn set_cell(
@@ -739,17 +749,18 @@ impl PyBufferMutView {
         symbol: &str,
         style: PyStyle,
     ) -> PyResult<()> {
-        let buffer = self.buffer_mut()?;
-        check_local_coords(buffer, x, y)?;
-        let position = local_position(buffer, x, y);
-        if let Some(cell) = buffer.cell_mut(position) {
-            cell.set_symbol(symbol).set_style(style.inner);
-            Ok(())
-        } else {
-            Err(pyo3::exceptions::PyIndexError::new_err(format!(
-                "position ({x}, {y}) out of bounds"
-            )))
-        }
+        self.with_buffer_mut(|buffer| {
+            check_local_coords(buffer, x, y)?;
+            let position = local_position(buffer, x, y);
+            if let Some(cell) = buffer.cell_mut(position) {
+                cell.set_symbol(symbol).set_style(style.inner);
+                Ok(())
+            } else {
+                Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "position ({x}, {y}) out of bounds"
+                )))
+            }
+        })
     }
 
     fn set_string(
@@ -759,19 +770,22 @@ impl PyBufferMutView {
         string: &str,
         style: PyStyle,
     ) -> PyResult<()> {
-        let buffer = self.buffer_mut()?;
-        if x >= buffer.area.width || y >= buffer.area.height {
-            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
-                "position ({x}, {y}) out of bounds"
-            )));
-        }
-        buffer.set_string(x, y, string, style.inner);
-        Ok(())
+        self.with_buffer_mut(|buffer| {
+            if x >= buffer.area.width || y >= buffer.area.height {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "position ({x}, {y}) out of bounds"
+                )));
+            }
+            buffer.set_string(x, y, string, style.inner);
+            Ok(())
+        })
     }
 
     fn set_style(&self, area: PyRect, style: PyStyle) -> PyResult<()> {
-        self.buffer_mut()?.set_style(area.inner, style.inner);
-        Ok(())
+        self.with_buffer_mut(|buffer| {
+            buffer.set_style(area.inner, style.inner);
+            Ok(())
+        })
     }
 }
 

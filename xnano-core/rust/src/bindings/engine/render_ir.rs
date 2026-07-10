@@ -710,30 +710,28 @@ impl CoreRenderIR {
     // ── Measure ───────────────────────────────────────────────────────────────
 
     fn measure(&self) -> (u16, u16) {
+        // Widths are measured in display cells (unicode-aware), not bytes —
+        // byte lengths over-measure any non-ASCII content and break `fit`
+        // sizing upstream.
         match &self.inner {
-            RenderIrInner::Span { content, .. } => (content.len() as u16, 1),
-            RenderIrInner::Line { line } => (line_width(line) as u16, 1),
+            RenderIrInner::Span { content, .. } => {
+                (Span::raw(content.as_str()).width() as u16, 1)
+            }
+            RenderIrInner::Line { line } => (line.width() as u16, 1),
             RenderIrInner::Text { text, .. } => {
                 let h = text.lines.len().max(1) as u16;
-                let w = text.lines.iter().map(line_width).max().unwrap_or(0) as u16;
-                (w, h)
+                (text.width() as u16, h)
             }
             RenderIrInner::Paragraph { text, .. } => {
                 let h = text.lines.len().max(1) as u16;
-                let w = text.lines.iter().map(line_width).max().unwrap_or(0) as u16;
-                (w, h)
+                (text.width() as u16, h)
             }
             RenderIrInner::List { items, highlight_symbol, .. } => {
                 if items.is_empty() {
                     return (0, 1);
                 }
-                let sym_w = highlight_symbol.len() as u16;
-                let w = items
-                    .iter()
-                    .flat_map(|t| t.lines.iter())
-                    .map(line_width)
-                    .max()
-                    .unwrap_or(0) as u16;
+                let sym_w = Span::raw(highlight_symbol.as_str()).width() as u16;
+                let w = items.iter().map(|t| t.width()).max().unwrap_or(0) as u16;
                 (w + sym_w, items.len() as u16)
             }
             RenderIrInner::ProgressBar { .. } => (0, 1),
@@ -757,10 +755,6 @@ impl CoreRenderIR {
             RenderIrInner::Canvas { .. } => (0, 0),
         }
     }
-}
-
-fn line_width(line: &Line<'_>) -> usize {
-    line.spans.iter().map(|s| s.content.len()).sum()
 }
 
 // ── Rust-internal rendering ───────────────────────────────────────────────────
