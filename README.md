@@ -1,4 +1,4 @@
-![xnano Demo](./docs/assets/examples/demo-dark.gif)
+![xnano Title Animation](./docs/assets/xnano-title.gif)
 
 # __xnano__
 
