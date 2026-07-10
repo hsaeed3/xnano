@@ -1140,6 +1140,34 @@ def test_parent_used_alone_has_only_parent_hook() -> None:
     assert len(registry_grand.on_field_hooks) == 3
 
 
+def test_overridden_hook_registers_once() -> None:
+    # A subclass overriding a parent's hook method must shadow it — both
+    # collected members rebind to the same bound method, so registering
+    # both would fire the override twice per event.
+    class _OverrideParent(Grid):
+        flag: bool = Field(default=False, state=True)
+        fired: int = Field(default=0, state=True)
+
+        @on_field("flag")
+        def react(self) -> None:
+            self.fired += 1
+
+    class _OverrideChild(_OverrideParent):
+        @on_field("flag")
+        def react(self) -> None:
+            self.fired += 10
+
+    registry = _EventHooksRegistry.from_component_class(_OverrideChild)
+    assert len(registry.on_field_hooks) == 1
+
+    grid = _OverrideChild()
+    terminal = _StubTerminal()
+    terminal.attach(grid)
+    grid.flag = True
+    pump_tick(cast(Any, terminal))
+    assert grid.fired == 10
+
+
 # ---------------------------------------------------------------------------
 # 13. Multi-grid isolation and cross-grid independence
 # ---------------------------------------------------------------------------

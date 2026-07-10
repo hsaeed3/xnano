@@ -78,6 +78,13 @@ def test_parse_percent_string() -> None:
     assert Sizing.parse("75%") == Sizing.percent(75)
 
 
+def test_parse_percent_string_is_literal() -> None:
+    # ``"1%"`` is one percent — the 0..=1 fraction rule only applies to
+    # bare floats, never to explicit ``%`` strings.
+    parsed = Sizing.parse("1%")
+    assert parsed is not None and parsed.value == 1
+
+
 def test_parse_fr_string() -> None:
     assert Sizing.parse("3fr") == Sizing.fraction(3)
 
