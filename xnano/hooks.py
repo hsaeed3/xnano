@@ -483,7 +483,7 @@ def _decorate_on_mouse_hook(
 def on_keyboard(
     key: KeyboardBinding,
     /,
-    *,
+    *keys: KeyboardBinding,
     kind: KeyboardEventKind | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
 @overload
