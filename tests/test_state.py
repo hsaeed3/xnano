@@ -6,7 +6,7 @@ import pytest
 from pydantic_core import ValidationError
 
 from helpers import assign_attr
-from xnano.beta.state import State
+from xnano.state import State
 
 
 def test_state_accepts_keyword_initialization() -> None:

@@ -23,18 +23,21 @@ from typing import Any, cast
 
 from xnano_core.core import CoreSession
 
-from xnano.beta import Field, Grid, on_field, on_tick
-from xnano.beta.core.dispatch import pump_tick
-from xnano.beta.core.session import Session
-from xnano.beta.hooks import (
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.core.dispatch import pump_tick
+from xnano.core.controllers.terminal import TerminalController
+from xnano.hooks import (
     _EventHooksRegistry,
     _OnFieldHookFunctionEntry,
     _OnStateHookFunctionEntry,
     _OnTickHookFunctionEntry,
+    on_field,
+    on_tick,
 )
-from xnano.beta.state import State
-from xnano.beta.types import Area
-from xnano.beta.utils.core import evaluate_state_expression
+from xnano.state import State
+from xnano.types import Area
+from xnano.utils.core import evaluate_state_expression
 
 
 # ---------------------------------------------------------------------------
@@ -95,27 +98,27 @@ class _StubTerminal:
 
 def _make_offscreen(
     width: int = 80, height: int = 24
-) -> tuple[CoreSession, Session]:
+) -> tuple[CoreSession, TerminalController]:
     core = CoreSession.offscreen(width=width, height=height)
-    sess = Session(
+    sess = TerminalController(
         core, terminal_width=width, terminal_height=height, is_offscreen=True
     )
     return core, sess
 
 
-def _one_frame(grid: Grid, sess: Session, area: Area) -> None:
-    sess.begin_frame()
+def _one_frame(grid: Grid, sess: TerminalController, area: Area) -> None:
+    sess.begin_viewport_frame()
     grid._grid_build_frame(area, sess)
     sess.commit_requests()
 
 
 def _frame_and_tick(
     grid: Grid,
-    sess: Session,
+    sess: TerminalController,
     area: Area,
     terminal: _StubTerminal,
 ) -> None:
-    sess.begin_frame()
+    sess.begin_viewport_frame()
     grid._grid_build_frame(area, sess)
     sess.commit_requests()
     pump_tick(cast(Any, terminal))
@@ -583,7 +586,7 @@ def test_bench_mixed_hooks_no_terminal_state(benchmark) -> None:
 def test_bench_mixed_hooks_with_terminal_state(benchmark) -> None:
     grid = _MixedHookGrid()
 
-    from xnano.beta.hooks import on_state
+    from xnano.hooks import on_state
 
     class _WithStateGrid(_MixedHookGrid):
         state_fired: bool = Field(default=False, state=True)

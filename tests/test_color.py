@@ -1,10 +1,10 @@
-"""Tests for xnano.beta.color — Color, tailwind."""
+"""Tests for xnano.color — Color, tailwind."""
 
 from __future__ import annotations
 
 import pytest
 
-from xnano.beta.color import Color, tailwind_color
+from xnano.color import Color, tailwind_color
 
 
 # ---------------------------------------------------------------------------

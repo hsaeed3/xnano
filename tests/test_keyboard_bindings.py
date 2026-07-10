@@ -7,7 +7,7 @@ from typing import cast
 
 from xnano_core.rust import native
 
-from xnano.beta.utils.events import (
+from xnano.utils.events import (
     get_keyboard_binding_tuple_from_native_event,
 )
 

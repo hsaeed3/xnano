@@ -1,27 +1,23 @@
-"""Tests for xnano.beta.core.nodes — render IR nodes and NodeAssembler."""
+"""Tests for xnano.core.nodes.terminal — render IR nodes."""
 
 from __future__ import annotations
 
 import pytest
 
-from xnano.beta.core.nodes import (
+from xnano.core.nodes.terminal import (
     ClearNode,
     ContainerNode,
     FrameNode,
     LineNode,
     ListNode,
-    NodeAssembler,
     ParagraphNode,
     ProgressBarNode,
     SpanNode,
     StackNode,
     TextNode,
 )
-from xnano.beta.frame import Frame
-from xnano.beta.types import Size
-
-
-assembler = NodeAssembler()
+from xnano.frame import Frame
+from xnano.types import Size
 
 
 # ---------------------------------------------------------------------------
@@ -44,12 +40,12 @@ def test_span_node_frozen() -> None:
 
 
 def test_span_node_measure() -> None:
-    size = assembler.measure_node(SpanNode(content="hello"))
+    size = (SpanNode(content="hello")).measure()
     assert size == Size(width=5, height=1)
 
 
 def test_span_node_measure_empty() -> None:
-    size = assembler.measure_node(SpanNode(content=""))
+    size = (SpanNode(content="")).measure()
     assert size == Size(width=0, height=1)
 
 
@@ -74,13 +70,13 @@ def test_line_node_none_width() -> None:
 
 
 def test_line_node_measure_string() -> None:
-    size = assembler.measure_node(LineNode(content="hello world"))
+    size = (LineNode(content="hello world")).measure()
     assert size == Size(width=11, height=1)
 
 
 def test_line_node_measure_spans() -> None:
     node = LineNode(content=[SpanNode(content="abc"), SpanNode(content="de")])
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size == Size(width=5, height=1)
 
 
@@ -110,7 +106,7 @@ def test_text_node_get_size_empty() -> None:
 
 def test_text_node_invisible_measures_zero() -> None:
     node = TextNode(content="hello", visible=False)
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size == Size(width=0, height=0)
 
 
@@ -121,19 +117,19 @@ def test_text_node_invisible_measures_zero() -> None:
 
 def test_paragraph_node_measure_string() -> None:
     node = ParagraphNode(text="hello")
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size == Size(width=5, height=1)
 
 
 def test_paragraph_node_measure_multiline_string() -> None:
     node = ParagraphNode(text="hello\nworld!")
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size == Size(width=6, height=2)
 
 
 def test_paragraph_node_measure_empty() -> None:
     node = ParagraphNode(text="")
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size == Size(width=0, height=1)
 
 
@@ -142,20 +138,20 @@ def test_paragraph_node_measure_text_node() -> None:
         lines=[LineNode(content="hi"), LineNode(content="there!")]
     )
     node = ParagraphNode(text=text_node)
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size == Size(width=6, height=2)
 
 
 def test_paragraph_node_measure_line_node() -> None:
     line = LineNode(content="line content")
     node = ParagraphNode(text=line)
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size == Size(width=12, height=1)
 
 
 def test_paragraph_node_invisible_measures_zero() -> None:
     node = ParagraphNode(text="hello", visible=False)
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size == Size(width=0, height=0)
 
 
@@ -166,20 +162,20 @@ def test_paragraph_node_invisible_measures_zero() -> None:
 
 def test_list_node_measure_strings() -> None:
     node = ListNode(items=["alpha", "beta"])
-    size = assembler.measure_node(node)
+    size = (node).measure()
     symbol_w = len(node.highlight_symbol)
     assert size.height == 2
     assert size.width == 5 + symbol_w
 
 
 def test_list_node_measure_empty() -> None:
-    size = assembler.measure_node(ListNode(items=[]))
+    size = (ListNode(items=[])).measure()
     assert size == Size(width=0, height=1)
 
 
 def test_list_node_measure_line_items() -> None:
     node = ListNode(items=[LineNode(content="hello"), LineNode(content="hi")])
-    size = assembler.measure_node(node)
+    size = (node).measure()
     symbol_w = len(node.highlight_symbol)
     assert size.height == 2
     assert size.width == 5 + symbol_w
@@ -187,7 +183,7 @@ def test_list_node_measure_line_items() -> None:
 
 def test_list_node_measure_span_items() -> None:
     node = ListNode(items=[SpanNode(content="ab"), SpanNode(content="cde")])
-    size = assembler.measure_node(node)
+    size = (node).measure()
     symbol_w = len(node.highlight_symbol)
     assert size.height == 2
     assert size.width == 3 + symbol_w
@@ -206,7 +202,7 @@ def test_progress_bar_node_defaults() -> None:
 
 
 def test_progress_bar_measure() -> None:
-    size = assembler.measure_node(ProgressBarNode(progress=0.5))
+    size = (ProgressBarNode(progress=0.5)).measure()
     assert size == Size(width=0, height=1)
 
 
@@ -216,7 +212,7 @@ def test_progress_bar_measure() -> None:
 
 
 def test_clear_node_measures_zero() -> None:
-    size = assembler.measure_node(ClearNode())
+    size = (ClearNode()).measure()
     assert size == Size(width=0, height=0)
 
 
@@ -228,7 +224,7 @@ def test_clear_node_measures_zero() -> None:
 def test_frame_node_measure_adds_border_overhead() -> None:
     child = ParagraphNode(text="hello")
     node = FrameNode(frame=Frame(border="rounded"), child=child)
-    size = assembler.measure_node(node)
+    size = (node).measure()
     # border adds 2 on each axis
     assert size.width == 5 + 2
     assert size.height == 1 + 2
@@ -237,7 +233,7 @@ def test_frame_node_measure_adds_border_overhead() -> None:
 def test_frame_node_measure_no_border() -> None:
     child = ParagraphNode(text="hi")
     node = FrameNode(frame=Frame(), child=child)
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size.width == 2
     assert size.height == 1
 
@@ -245,7 +241,7 @@ def test_frame_node_measure_no_border() -> None:
 def test_frame_node_measure_with_padding() -> None:
     child = ParagraphNode(text="hi")
     node = FrameNode(frame=Frame(padding=1), child=child)
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size.width == 2 + 2
     assert size.height == 1 + 2
 
@@ -260,7 +256,7 @@ def test_container_node_horizontal_measure() -> None:
         direction="horizontal",
         children=[ParagraphNode(text="abc"), ParagraphNode(text="de")],
     )
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size.width == 3 + 2
     assert size.height == 1
 
@@ -270,7 +266,7 @@ def test_container_node_vertical_measure() -> None:
         direction="vertical",
         children=[ParagraphNode(text="abc"), ParagraphNode(text="de")],
     )
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size.width == 3
     assert size.height == 1 + 1
 
@@ -281,13 +277,13 @@ def test_container_node_gap_added() -> None:
         children=[ParagraphNode(text="a"), ParagraphNode(text="b")],
         gap=2,
     )
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size.width == 1 + 1 + 2
 
 
 def test_container_node_empty_measures_zero() -> None:
     node = ContainerNode(direction="vertical", children=[])
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size == Size(width=0, height=0)
 
 
@@ -303,13 +299,13 @@ def test_stack_node_takes_max_of_children() -> None:
             ParagraphNode(text="hi"),
         ]
     )
-    size = assembler.measure_node(node)
+    size = (node).measure()
     assert size.width == 5
     assert size.height == 1
 
 
 def test_stack_node_empty_measures_zero() -> None:
-    size = assembler.measure_node(StackNode(children=[]))
+    size = (StackNode(children=[])).measure()
     assert size == Size(width=0, height=0)
 
 
@@ -325,7 +321,7 @@ def test_nested_frame_in_container() -> None:
     container = ContainerNode(
         direction="horizontal", children=[framed, ParagraphNode(text="x")]
     )
-    size = assembler.measure_node(container)
+    size = (container).measure()
     assert size.width == (3 + 2) + 1
     assert size.height == max(1 + 2, 1)
 
@@ -337,6 +333,6 @@ def test_stack_inside_container() -> None:
     container = ContainerNode(
         direction="vertical", children=[stack, ParagraphNode(text="!")]
     )
-    size = assembler.measure_node(container)
+    size = (container).measure()
     assert size.width == 5
     assert size.height == 1 + 1

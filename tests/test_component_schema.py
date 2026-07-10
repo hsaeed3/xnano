@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from xnano.beta.components.schema import (
+from xnano.components.schema import (
     Column,
     ComponentDescriptor,
     DeclarativeComponentMeta,

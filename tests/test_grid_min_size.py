@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from xnano.beta import Field, Grid
-from xnano.beta.grid import _layout_constraint_for_field
+from xnano.fields import Field
+from xnano.grid import Grid, _layout_constraint_for_field
 
 
 def test_grid_min_size_with_border() -> None:
