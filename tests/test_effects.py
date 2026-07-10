@@ -47,6 +47,15 @@ def test_resolve_native_effect_accepts_subclass() -> None:
     assert isinstance(native_effect, native.Effect)
 
 
+def test_effect_cell_filter_is_lowered() -> None:
+    effect = CoalesceEffect(
+        duration_ms=120,
+        cell_filter="background_only",
+    )
+    native_effect = resolve_native_effect(effect)
+    assert native_effect.get_filter() is not None
+
+
 def test_resolve_native_effect_accepts_kind_string() -> None:
     native_effect = resolve_native_effect("dissolve", duration_ms=180)
     assert isinstance(native_effect, native.Effect)

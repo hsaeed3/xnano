@@ -7,15 +7,10 @@ use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Rect, Size};
-use ratatui::{
-    init, restore, try_init_with_options, DefaultTerminal, TerminalOptions, Viewport,
-};
+use ratatui::{init, restore, try_init_with_options, DefaultTerminal, TerminalOptions, Viewport};
 use tachyonfx::EffectManager;
 
-use super::clock::TickClock;
-use super::events::PyEvent;
-use super::panic_hook::{install_restore_panic_hook, PanicHookGuard};
-use super::render_tree::{render_node, render_node_to_buffer, PyRenderNode, RenderContext};
+use super::super::buffer::PyBuffer;
 use super::super::convert_core::{sync_from_core_buffer, sync_to_core_buffer, to_core_rect};
 use super::super::crossterm_exec::{execute_stdout, flush_stdout, io_to_py};
 use super::super::cursor::{
@@ -28,6 +23,7 @@ use super::super::event_setup::{
     pop_keyboard_enhancement_flags_impl, push_keyboard_enhancement_flags_impl,
     PyKeyboardEnhancementFlags,
 };
+use super::terminal_reset::emit_terminal_reset_sequences;
 use super::super::frame_ext::frame_hide_cursor;
 use super::super::fx::PyEffect;
 use super::super::layout::{PyRect, PySize};
@@ -38,10 +34,17 @@ use super::super::terminal_device::{
     leave_alternate_screen_impl, scroll_down_impl, scroll_up_impl, set_terminal_title_impl,
     terminal_size_impl, terminal_window_size_impl, PyClearType,
 };
-use super::super::buffer::PyBuffer;
 use super::super::widgets_extra::PyPosition;
+use super::clock::TickClock;
+use super::events::PyEvent;
+use super::panic_hook::{install_restore_panic_hook, PanicHookGuard};
+use super::render_tree::{render_node, render_node_to_buffer, PyRenderNode, RenderContext};
 
-#[pyclass(name = "CoreTerminalRef", module = "xnano_core.rust.engine", unsendable)]
+#[pyclass(
+    name = "CoreTerminalRef",
+    module = "xnano_core.rust.engine",
+    unsendable
+)]
 pub struct PyTerminalRef {
     ptr: usize,
 }
@@ -301,9 +304,7 @@ impl PySession {
         let tick_budget = self.tick_clock.time_until_tick();
         let budget = tick_budget.min(user_budget);
 
-        let ready = py
-            .detach(|| event::poll(budget))
-            .map_err(io_to_py)?;
+        let ready = py.detach(|| event::poll(budget)).map_err(io_to_py)?;
 
         py.check_signals()?;
 
@@ -344,9 +345,7 @@ impl PySession {
     }
 
     fn effect_area_for(&self, key: &str) -> Option<PyRect> {
-        self.effect_areas
-            .get(key)
-            .map(|r| PyRect { inner: *r })
+        self.effect_areas.get(key).map(|r| PyRect { inner: *r })
     }
 
     fn buffer_snapshot(&mut self) -> PyResult<PyBuffer> {
@@ -355,9 +354,7 @@ impl PySession {
                 inner: t.get_frame().buffer_mut().clone(),
             })
         } else if let Some(b) = &self.offscreen_buffer {
-            Ok(PyBuffer {
-                inner: b.clone(),
-            })
+            Ok(PyBuffer { inner: b.clone() })
         } else {
             Err(PyRuntimeError::new_err("session closed"))
         }
@@ -515,9 +512,7 @@ impl PySession {
                 inner: terminal.get_frame().area(),
             })
         } else if let Some(buffer) = &self.offscreen_buffer {
-            Ok(PyRect {
-                inner: buffer.area,
-            })
+            Ok(PyRect { inner: buffer.area })
         } else {
             Err(PyRuntimeError::new_err("session closed"))
         }
@@ -590,24 +585,23 @@ impl PySession {
     }
 
     fn teardown_device_state(&mut self) {
-        // Always emit the disable sequences — ratatui::restore() does not
-        // turn off mouse capture, and the mirror flags can be wrong after an
-        // abnormal exit.  Ignore errors: cleanup must be best-effort.
-        let _ = disable_mouse_capture_impl();
+        // Only touch the host terminal when a live session owns it. Offscreen
+        // sessions must not write escape sequences into the caller's stdout
+        // (e.g. pytest capture).
+        if self.terminal.is_some() {
+            // Always emit the reset sequences. Device state can also be changed
+            // through the native escape hatch, so the mirrors are not
+            // authoritative during cleanup. Leaving synchronized output active
+            // can make a terminal emulator retain and later misrender
+            // subsequent output. Ignore errors: cleanup must be best-effort.
+            emit_terminal_reset_sequences();
+        }
+        self.synchronized_updates = false;
         self.mouse_capture = false;
-        let _ = disable_bracketed_paste_impl();
         self.bracketed_paste = false;
-        let _ = disable_focus_change_impl();
         self.focus_change = false;
-        if self.synchronized_updates {
-            let _ = end_synchronized_update_impl();
-            self.synchronized_updates = false;
-        }
-        if !self.cursor_visible {
-            let _ = show_cursor_impl();
-            self.cursor_visible = true;
-        }
-        let _ = flush_stdout();
+        self.cursor_visible = true;
+        self.cursor_style = PyCursorStyle::DefaultUserShape;
     }
 
     fn restore(&mut self) -> PyResult<()> {
@@ -627,6 +621,10 @@ impl PySession {
                 restore();
             }
             self.terminal.take();
+            // Re-emit after leaving the alternate screen / disabling raw mode.
+            // Private modes are global, but an interrupted truecolor frame can
+            // still leave SGR sticky on the main buffer until a second reset.
+            emit_terminal_reset_sequences();
         }
         self._panic_hook_guard = None;
         Ok(())

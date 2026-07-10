@@ -400,7 +400,9 @@ class TerminalController(AbstractController, Generic[StateT]):
         if not fields:
             return False
 
-        native_effect = effect.build_native_effect()
+        native_effect = effect.apply_native_cell_filter(
+            effect.build_native_effect()
+        )
         started = False
         for field_name in fields:
             area = self._core_session.effect_area_for(field_name)

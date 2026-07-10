@@ -6,6 +6,7 @@ mod panic_hook;
 mod render_ir;
 mod render_tree;
 mod session;
+pub(crate) mod terminal_reset;
 
 use pyo3::prelude::*;
 
