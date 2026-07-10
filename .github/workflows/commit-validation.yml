@@ -1,0 +1,100 @@
+name: commit validation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "xnano/**"
+      - "xnano-core/rust/src/**"
+      - "xnano-core/python/xnano_core/**"
+      - "tests/**"
+      - "docs/**"
+      - "zensical.toml"
+  pull_request:
+    paths:
+      - "xnano/**"
+      - "xnano-core/rust/src/**"
+      - "xnano-core/python/xnano_core/**"
+      - "tests/**"
+      - "docs/**"
+      - "zensical.toml"
+
+env:
+  COLUMNS: 150
+  UV_PYTHON: "3.13"
+
+jobs:
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - "xnano/**"
+              - "xnano-core/rust/src/**"
+              - "xnano-core/python/xnano_core/**"
+              - "tests/**"
+            docs:
+              - "docs/**"
+              - "zensical.toml"
+
+  test:
+    name: quick test
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: xnano-core
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: install deps
+        run: uv sync --group dev
+
+      - name: build workspace xnano-core
+        run: uv run maturin develop --uv
+        working-directory: xnano-core
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: install xnano from repository
+        run: uv pip install -e .
+        env:
+          RUST_BACKTRACE: 1
+
+      - run: uv run pytest
+
+  docs:
+    name: build docs
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: install deps
+        run: uv sync --group dev
+
+      - run: uv run zensical build
