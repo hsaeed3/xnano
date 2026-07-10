@@ -2,6 +2,6 @@
 title: "xnano.color"
 ---
 
-# xnano.beta.color
+# xnano.color
 
-::: xnano.beta.color
+::: xnano.color

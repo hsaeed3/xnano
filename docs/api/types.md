@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.types"
+title: "xnano.types"
 ---
 
-# xnano.beta.types
+# xnano.types
 
-::: xnano.beta.types
+::: xnano.types

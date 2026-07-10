@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.effects"
+title: "xnano.effects"
 ---
 
-# xnano.beta.effects
+# xnano.effects
 
-::: xnano.beta.effects
+::: xnano.effects

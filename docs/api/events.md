@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.events"
+title: "xnano.events"
 ---
 
-# xnano.beta.events
+# xnano.events
 
-::: xnano.beta.events
+::: xnano.events

@@ -14,7 +14,7 @@ xnano is a terminal UI framework built on Rust. The Python API is deliberately m
 === "pip"
 
     ```bash
-    pip install "xnano==1.0.0b3"
+    pip install "xnano==1.0.0"
     ```
 
 === "uv"
@@ -31,9 +31,6 @@ xnano is a terminal UI framework built on Rust. The Python API is deliberately m
 
 Python 3.10+ required. The Rust extension (`xnano-core`) ships inside the wheel, so there are no system-level dependencies to manage.
 
-!!! note
-    Everything lives under `xnano.beta` while the API is being finalized. Once stable it will move to `xnano` directly.
-
 ---
 
 ## Printing to the terminal
@@ -43,8 +40,8 @@ The simplest entry point is `Terminal().render()`. It paints styled content inli
 You can pass any number of renderables. They stack vertically in the order given.
 
 ```python title="hello.py"
-from xnano.beta import Terminal
-from xnano.beta.components import Text
+from xnano import Terminal
+from xnano.components import Text
 
 Terminal().render(
     Text("Hello from xnano!", color="violet", modifiers=["bold"]),
@@ -66,8 +63,8 @@ For anything that stays on screen and responds to input, use `Terminal().run()` 
 The `@on_keyboard` decorator wires a method to a key event. The method is called by the Rust event loop, on the Python thread, whenever that key is pressed. You don't need to poll, check, or manage state yourself.
 
 ```python title="app.py" hl_lines="4 5 6 7 8 9 10"
-from xnano.beta import Field, Grid, Terminal
-from xnano.beta.hooks import on_keyboard
+from xnano import Field, Grid, Terminal
+from xnano.hooks import on_keyboard
 
 class Hello(Grid, direction="vertical"): # (1)!
     message: str = Field(default="Press q to quit.", height=1) # (2)!

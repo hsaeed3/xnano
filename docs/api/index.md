@@ -1,9 +1,9 @@
 ---
-title: "xnano.beta"
+title: "xnano"
 ---
 
 # API Reference
 
-## xnano.beta
+## xnano
 
-::: xnano.beta
+::: xnano

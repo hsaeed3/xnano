@@ -29,7 +29,7 @@ xnano-core ships two sub-packages:
 | `xnano_core.rust.native` | The full ratatui / crossterm / tachyonfx surface — widgets, layout primitives, effects, event types, and raw terminal control |
 | `xnano_core.core` | A thin session bridge that Python uses to start and drive a live render loop |
 
-You'll rarely need to think about either of these. They're the engine room; `xnano.beta` is the steering wheel.
+You'll rarely need to think about either of these. They're the engine room; `xnano` is the steering wheel.
 
 ---
 
@@ -39,7 +39,7 @@ You'll rarely need to think about either of these. They're the engine room; `xna
 Your Python Grid / Terminal call
         │
         ▼
-  xnano.beta  ──── render-node tree ────▶  xnano.beta.core.session
+  xnano  ──── render-node tree ────▶  xnano.core.controllers
                                                   │
                                                   ▼
                                          xnano_core.core  (Rust)
@@ -61,19 +61,6 @@ Your Python Grid / Terminal call
 - Running the event loop and frame timing
 - Buffer diffing and writing escape sequences to stdout
 - Visual effects via tachyonfx
-
----
-
-## Versioning
-
-xnano-core versions are pinned exactly. xnano will refuse to start if the installed version doesn't match what it was built against — the protocol between the two layers isn't stable across revisions yet.
-
-```python
-# xnano/beta/core/version.py
-_COMPATIBLE_XNANO_CORE_VERSION = "0.0.5"
-```
-
-If you hit a version mismatch error, reinstall `xnano` (it will pull the right `xnano-core` along with it) rather than upgrading `xnano-core` on its own.
 
 ---
 

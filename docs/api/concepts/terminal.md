@@ -16,8 +16,8 @@ icon: "lucide/terminal"
 Use `render()` when you want styled output in the current terminal buffer. It paints the renderables, then returns. The terminal stays in normal mode; the cursor advances below the output. This is the right choice for CLI tools that want rich output without a full TUI.
 
 ```python title="render.py"
-from xnano.beta import Terminal
-from xnano.beta.components import Text
+from xnano import Terminal
+from xnano.components import Text
 
 Terminal().render(
     Text("Build complete.", color="emerald-400", modifiers=["bold"]),
@@ -102,8 +102,8 @@ For state that belongs to the application rather than a single grid — user pre
 
 ```python title="Shared app state" hl_lines="1 2 3 4 5 11"
 from dataclasses import dataclass
-from xnano.beta import Field, Grid, Terminal
-from xnano.beta.hooks import on_keyboard
+from xnano import Field, Grid, Terminal
+from xnano.hooks import on_keyboard
 
 @dataclass
 class AppState:
