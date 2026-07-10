@@ -77,7 +77,7 @@ dev = [
     "mkdocs-material",
     "mkdocs-click",
     "mkdocstrings-python",
-    
+
     # test / beta testing related dependencies
     "pydantic>=2.0.0",
     "httpx>=0.28.1",
