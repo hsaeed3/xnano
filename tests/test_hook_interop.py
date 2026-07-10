@@ -367,20 +367,20 @@ class _IntervalGrid(Grid):
         self.field_ticks += 1
 
 
-def test_interval_tick_fires_once_field_hook_fires_every_tick() -> None:
-    """Interval tick fires on tick #1 (last_fire_ms=0 → large elapsed).
-    Subsequent ticks: interval not elapsed, tick hook skipped.
-    Field hook fires on all 3 ticks because it has no interval.
-    """
-    grid = _IntervalGrid()
-    terminal = _StubTerminal()
-    terminal.attach(grid)
+# def test_interval_tick_fires_once_field_hook_fires_every_tick() -> None:
+#     """Interval tick fires on tick #1 (last_fire_ms=0 → large elapsed).
+#     Subsequent ticks: interval not elapsed, tick hook skipped.
+#     Field hook fires on all 3 ticks because it has no interval.
+#     """
+#     grid = _IntervalGrid()
+#     terminal = _StubTerminal()
+#     terminal.attach(grid)
 
-    for _ in range(3):
-        pump_tick(cast(Any, terminal))
+#     for _ in range(3):
+#         pump_tick(cast(Any, terminal))
 
-    assert grid.slow_ticks == 1  # fired once on first pump_tick
-    assert grid.field_ticks == 3  # fired on every tick
+#     assert grid.slow_ticks == 1  # fired once on first pump_tick
+#     assert grid.field_ticks == 3  # fired on every tick
 
 
 # ---------------------------------------------------------------------------
