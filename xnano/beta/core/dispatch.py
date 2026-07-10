@@ -509,7 +509,7 @@ def pump_tick(terminal: "Terminal[Any]") -> None:
     for entry in terminal._hooks.on_tick_hooks:
         interval = entry["interval"]
         handler = entry["handler"]
-        if interval > 0:
+        if interval > 0 and entry["last_fire_ms"] is not None:
             elapsed = now - entry["last_fire_ms"]
             if elapsed < interval:
                 continue
@@ -800,7 +800,7 @@ def merge_hooks(
             _OnTickHookFunctionEntry(
                 interval=entry["interval"],
                 handler=rebind_hook_handler(entry["handler"], grid),
-                last_fire_ms=0.0,
+                last_fire_ms=None,
             )
         )
 
