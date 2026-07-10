@@ -1,8 +1,10 @@
 """xnano.beta.requests
 
+---
+
 HTTP request hooks for creating reactive grids within web applications.
 
-This module provides ``@on_get`` and ``@on_post`` decorators which can be
+This module provides ``@on_get_request`` and ``@on_post_request`` decorators which can be
 annotated onto methods of a ``Grid`` subclass to handle HTTP requests when
 the grid is served by ``Web``. Under a terminal session the decorators are
 harmless no-ops for dispatch — the methods remain on the class and never
@@ -13,19 +15,19 @@ Example:
     ```python
     from xnano.grid import Grid
     from xnano.fields import Field
-    from xnano.beta.requests import on_get, on_post
+    from xnano.beta.requests import on_get_request, on_post_request
     from xnano.beta.web import Web
 
     class Counter(Grid):
         label: str = Field(default="Count: 0")
         count: int = Field(default=0, state=True)
 
-        @on_post("/increment")
+        @on_post_request("/increment")
         def increment(self) -> None:
             self.count += 1
             self.label = f"Count: {self.count}"
 
-        @on_get("/reset")
+        @on_get_request("/reset")
         def reset(self) -> None:
             self.count = 0
             self.label = "Count: 0"
@@ -110,7 +112,7 @@ class _RequestHooksRegistry:
     def from_component_class(
         cls, component_class: type
     ) -> _RequestHooksRegistry:
-        """Collect ``@on_get`` / ``@on_post`` hooks from a component class.
+        """Collect ``@on_get_request`` / ``@on_post_request`` hooks from a component class.
 
         A name defined on a more-derived class shadows any base definition,
         matching ``_EventHooksRegistry.from_component_class``.
@@ -139,8 +141,7 @@ class _RequestHooksRegistry:
                 seen_names.add(name)
 
                 is_hook_method = any(
-                    hasattr(member, attribute)
-                    for attribute in hook_attributes
+                    hasattr(member, attribute) for attribute in hook_attributes
                 )
                 if name.startswith("_") and not is_hook_method:
                     continue
@@ -198,18 +199,18 @@ def _decorate_request_hook(
 
 
 @overload
-def on_get(
+def on_get_request(
     path: str,
     /,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
 @overload
-def on_get(
+def on_get_request(
     handler: EventHookFunction,
     /,
     *,
     path: str = "/",
 ) -> EventHookFunction: ...
-def on_get(
+def on_get_request(
     handler_or_path: "EventHookFunction | str | None" = None,
     /,
     *,
@@ -226,18 +227,18 @@ def on_get(
 
     Args:
         handler_or_path: The path string (decorator factory form) or the
-            handler when used as ``@on_get`` / ``@on_get(path=...)``.
+            handler when used as ``@on_get_request`` / ``@on_get_request(path=...)``.
         path: Explicit path when decorating a handler directly.
 
     Returns:
         The decorated hook function, or a decorator awaiting a function.
 
     Example:
-        @on_get("/status")
+        @on_get_request("/status")
         def show_status(self) -> None:
             self.label = "ok"
 
-        @on_get
+        @on_get_request
         def index(self) -> None:
             ...  # path defaults to "/"
     """
@@ -254,26 +255,24 @@ def on_get(
     )
 
     def decorator(fn: EventHookFunction) -> EventHookFunction:
-        return _decorate_request_hook(
-            fn, method="GET", path=resolved_path
-        )
+        return _decorate_request_hook(fn, method="GET", path=resolved_path)
 
     return decorator
 
 
 @overload
-def on_post(
+def on_post_request(
     path: str,
     /,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
 @overload
-def on_post(
+def on_post_request(
     handler: EventHookFunction,
     /,
     *,
     path: str = "/",
 ) -> EventHookFunction: ...
-def on_post(
+def on_post_request(
     handler_or_path: "EventHookFunction | str | None" = None,
     /,
     *,
@@ -290,14 +289,14 @@ def on_post(
 
     Args:
         handler_or_path: The path string (decorator factory form) or the
-            handler when used as ``@on_post`` / ``@on_post(path=...)``.
+            handler when used as ``@on_post_request`` / ``@on_post_request(path=...)``.
         path: Explicit path when decorating a handler directly.
 
     Returns:
         The decorated hook function, or a decorator awaiting a function.
 
     Example:
-        @on_post("/increment")
+        @on_post_request("/increment")
         def increment(self) -> None:
             self.count += 1
     """
@@ -314,15 +313,13 @@ def on_post(
     )
 
     def decorator(fn: EventHookFunction) -> EventHookFunction:
-        return _decorate_request_hook(
-            fn, method="POST", path=resolved_path
-        )
+        return _decorate_request_hook(fn, method="POST", path=resolved_path)
 
     return decorator
 
 
 __all__ = (
     "HttpMethod",
-    "on_get",
-    "on_post",
+    "on_get_request",
+    "on_post_request",
 )

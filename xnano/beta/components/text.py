@@ -18,9 +18,9 @@ class Text(BaseText):
     provides beta web-specific functionality.
     """
 
-    def get_web_node(self, ctx: "ComponentRenderContext") -> (
-        "AbstractWebNode | None"
-    ):
+    def get_web_node(
+        self, ctx: "ComponentRenderContext"
+    ) -> "AbstractWebNode | None":
         """Render this Text to a web node tree.
 
         Args:
