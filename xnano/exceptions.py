@@ -59,9 +59,30 @@ class TerminalNotActiveError(RuntimeError):
         )
 
 
+class ExtraNotInstalledError(RuntimeError):
+    """Exception called internally by the library when a component requiring additional
+    dependencies has not been satisfied.
+    """
+
+    def __init__(self, extra: str) -> None:
+        if extra == "web":
+            message = (
+                "Using the `Web` interface and associated components requires the "
+                "`starlette` and `uvicorn` packages. Install them with: \n"
+                "`pip install 'xnano[web]'`\n"
+                "or\n"
+                "`pip install starlette uvicorn`"
+            )
+        else:
+            raise ValueError(f"Unknown extra: {extra}")
+
+        super().__init__(message)
+
+
 __all__ = (
     "Exit",
     "HookError",
     "FieldValidationError",
     "TerminalNotActiveError",
+    "ExtraNotInstalledError",
 )

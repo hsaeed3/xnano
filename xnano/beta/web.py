@@ -13,8 +13,10 @@ paths the terminal loop uses. Custom HTTP routes are declared with
 from __future__ import annotations
 
 import html
-from typing import Any, cast
+from importlib.util import find_spec
+from typing import Any, cast, TYPE_CHECKING
 
+from xnano.exceptions import ExtraNotInstalledError
 from xnano.beta.controllers.web import WebController
 from xnano.beta.requests import (
     HttpMethod,
@@ -22,6 +24,12 @@ from xnano.beta.requests import (
     _RequestHooksRegistry,
 )
 from xnano.hooks import _EventHooksRegistry
+
+if TYPE_CHECKING:
+    if find_spec("starlette") is None:
+        Starlette = Any
+    else:
+        from starlette.applications import Starlette
 
 
 _SESSION_COOKIE = "xnano-session"
@@ -138,7 +146,7 @@ class _WebSession:
         self.controller = WebController()
         self.controller.grid_observer = self._observe_grid
         self._hooks = _EventHooksRegistry()
-        self._attached_grids: set[int] = set()
+        self._attached_grids: dict[int, Any] = {}
         self._attached_frame_grids: list[Any] = []
         self._attached_grid_classes: set[type] = set()
         self._request_hooks: list[_OnRequestHookEntry] = []
@@ -396,8 +404,6 @@ class Web:
         self._sessions: dict[str, _WebSession] = {}
         self._default_session: _WebSession | None = None
 
-    # ── session management ────────────────────────────────────────────
-
     def _is_factory(self) -> bool:
         from xnano.grid import Grid
 
@@ -458,8 +464,6 @@ class Web:
             grid_class
         ).all_hooks()
 
-    # ── programmatic surface (used directly and by tests) ─────────────
-
     @property
     def _controller(self) -> WebController:
         """The default session's controller (programmatic access)."""
@@ -508,8 +512,6 @@ class Web:
         return self._ensure_default_session().dispatch_request(
             method, _normalize_request_path(path)
         )
-
-    # ── page assembly ─────────────────────────────────────────────────
 
     def build_page(
         self,
@@ -596,9 +598,7 @@ class Web:
             response.set_cookie(_SESSION_COOKIE, cookie, httponly=True)
         return response
 
-    # ── server ────────────────────────────────────────────────────────
-
-    def build_app(self, grid: Any) -> Any:
+    def build_app(self, grid: Any) -> Starlette:
         """Build and return a Starlette ASGI app.
 
         Args:
@@ -615,10 +615,7 @@ class Web:
             from starlette.responses import HTMLResponse, Response
             from starlette.routing import Route
         except ImportError as error:
-            raise ImportError(
-                'the web interface requires the "web" extra: '
-                'pip install "xnano[web]"'
-            ) from error
+            raise ExtraNotInstalledError("web") from error
 
         def _with_cookie(response: Any, cookie: str | None) -> Any:
             if cookie is not None:
@@ -673,8 +670,6 @@ class Web:
             ),
         ]
 
-        # Custom ``@on_get_request`` / ``@on_post_request`` routes (skip ``/`` GET — that
-        # is already the index endpoint, which fires those hooks).
         seen_routes: set[tuple[str, str]] = {("GET", "/")}
         for entry in self._discover_request_routes():
             method = entry["method"]
@@ -735,10 +730,7 @@ class Web:
         try:
             import uvicorn
         except ImportError as error:
-            raise ImportError(
-                'the web interface requires the "web" extra: '
-                'pip install "xnano[web]"'
-            ) from error
+            raise ExtraNotInstalledError("web") from error
 
         uvicorn.run(app, host=host, port=port)
 
