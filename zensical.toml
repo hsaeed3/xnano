@@ -35,7 +35,17 @@ nav = [
             "terminal/cursor.md",
             "terminal/device.md",
         ]},
-        { "Web UI" = "webui/index.md" },
+        { "Beta" = [
+            "beta/overview.md",
+            { "Web UI" = [
+                "beta/webui/index.md",
+                "beta/webui/requests.md",
+                "beta/webui/rendering.md",
+            ]},
+            { "Commands" = [
+                "beta/commands/index.md",
+            ]},
+        ]},
         { "API Reference" = [
             "api/index.md",
             { "xnano.core" = [
