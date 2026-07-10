@@ -6,9 +6,10 @@ import pytest
 from pydantic import BaseModel
 
 from helpers import assign_attr, invalid_field
-from xnano.beta.core.renderable import Renderable
-from xnano.beta.exceptions import FieldValidationError
-from xnano.beta import Field, Grid
+from xnano.core.renderable import Renderable
+from xnano.exceptions import FieldValidationError
+from xnano.fields import Field
+from xnano.grid import Grid
 
 
 class Leaf(Grid):

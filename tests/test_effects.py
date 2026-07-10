@@ -1,10 +1,10 @@
-"""Tests for xnano.beta.effect."""
+"""Tests for xnano.effects."""
 
 from __future__ import annotations
 
 from xnano_core.rust import native
 
-from xnano.beta.effects import (
+from xnano.effects import (
     CoalesceEffect,
     DissolveEffect,
     Effect,

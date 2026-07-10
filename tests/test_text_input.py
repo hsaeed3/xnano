@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
-from xnano.beta.components.abstract import ComponentRenderContext
-from xnano.beta.components.text import Text
-from xnano.beta.core.nodes import ParagraphNode
-from xnano.beta.focus import apply_text_keyboard
-from xnano.beta.types import Area
+from xnano.components.abstract import ComponentRenderContext
+from xnano.components.text import Text
+from xnano.core.nodes.terminal import ParagraphNode
+from xnano.focus import apply_text_keyboard
+from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext:
@@ -123,7 +123,7 @@ def test_handle_keyboard_delegates() -> None:
 
 def test_placeholder_when_empty_unfocused() -> None:
     text = Text("", input=True, placeholder="type here")
-    node = text.get_node(_ctx())
+    node = text.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.text == "type here"
     assert node.color == "gray"
@@ -132,7 +132,7 @@ def test_placeholder_when_empty_unfocused() -> None:
 def test_placeholder_hidden_when_focused() -> None:
     text = Text("", input=True, placeholder="type here")
     text._input_focused = True
-    node = text.get_node(_ctx())
+    node = text.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert "▌" in str(node.text)
 
@@ -140,13 +140,13 @@ def test_placeholder_hidden_when_focused() -> None:
 def test_caret_inserted_when_focused() -> None:
     text = Text("hi", input=True, cursor=1)
     text._input_focused = True
-    node = text.get_node(_ctx())
+    node = text.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.text == "h▌i"
 
 
 def test_content_shown_when_unfocused_nonempty() -> None:
     text = Text("hello", input=True, placeholder="x")
-    node = text.get_node(_ctx())
+    node = text.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.text == "hello"

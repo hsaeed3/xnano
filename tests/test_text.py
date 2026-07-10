@@ -1,19 +1,19 @@
-"""Tests for xnano.beta.components.text — unified Text component."""
+"""Tests for xnano.components.text — unified Text component."""
 
 from __future__ import annotations
 
 import dataclasses
 import pytest
 
-from xnano.beta.components.abstract import ComponentRenderContext
-from xnano.beta.components.text import Text
-from xnano.beta.core.nodes import (
+from xnano.components.abstract import ComponentRenderContext
+from xnano.components.text import Text
+from xnano.core.nodes.terminal import (
     LineNode,
     ParagraphNode,
     SpanNode,
     TextNode,
 )
-from xnano.beta.types import Area
+from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext:
@@ -97,37 +97,37 @@ def test_is_leaf_false_with_nested_text() -> None:
 
 
 def test_leaf_get_node_returns_paragraph() -> None:
-    node = Text("hello world").get_node(_ctx())
+    node = Text("hello world").get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.text == "hello world"
 
 
 def test_leaf_get_node_propagates_color() -> None:
-    node = Text("hi", color="red").get_node(_ctx())
+    node = Text("hi", color="red").get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.color == "red"
 
 
 def test_leaf_get_node_propagates_align() -> None:
-    node = Text("hi", align="center").get_node(_ctx())
+    node = Text("hi", align="center").get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.align == "center"
 
 
 def test_leaf_get_node_propagates_wrap() -> None:
-    node = Text("hi", wrap=False).get_node(_ctx())
+    node = Text("hi", wrap=False).get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.wrap is False
 
 
 def test_leaf_get_node_propagates_modifiers() -> None:
-    node = Text("hi", modifiers=("bold", "italic")).get_node(_ctx())
+    node = Text("hi", modifiers=("bold", "italic")).get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert "bold" in node.modifiers
 
 
 def test_empty_leaf_returns_paragraph() -> None:
-    node = Text("").get_node(_ctx())
+    node = Text("").get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.text == ""
 
@@ -139,7 +139,7 @@ def test_empty_leaf_returns_paragraph() -> None:
 
 def test_single_nested_text_delegates() -> None:
     inner = Text("inner", color="blue")
-    node = Text(inner).get_node(_ctx())
+    node = Text(inner).get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.text == "inner"
 
@@ -151,14 +151,14 @@ def test_single_nested_text_delegates() -> None:
 
 def test_list_of_strings_produces_paragraph_with_line() -> None:
     t = Text(["hello ", "world"])
-    node = t.get_node(_ctx())
+    node = t.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert isinstance(node.text, LineNode)
 
 
 def test_list_of_leaf_texts_produces_spans() -> None:
     t = Text([Text("hello ", color="red"), Text("world", color="blue")])
-    node = t.get_node(_ctx())
+    node = t.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     line = node.text
     assert isinstance(line, LineNode)
@@ -168,7 +168,7 @@ def test_list_of_leaf_texts_produces_spans() -> None:
 
 def test_list_of_leaf_texts_span_content() -> None:
     t = Text([Text("A"), Text("B")])
-    node = t.get_node(_ctx())
+    node = t.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     line = node.text
     assert isinstance(line, LineNode)
@@ -180,7 +180,7 @@ def test_list_of_leaf_texts_span_content() -> None:
 
 def test_mixed_string_and_text_list() -> None:
     t = Text(["plain", Text("styled", color="cyan")])
-    node = t.get_node(_ctx())
+    node = t.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert isinstance(node.text, LineNode)
 
@@ -194,7 +194,7 @@ def test_list_with_embedded_newlines_produces_textnode() -> None:
             Text("footer"),
         ]
     )
-    node = t.get_node(_ctx())
+    node = t.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert isinstance(node.text, TextNode)
     assert len(node.text.lines) == 6
@@ -202,7 +202,7 @@ def test_list_with_embedded_newlines_produces_textnode() -> None:
 
 def test_list_with_embedded_newlines_preserves_line_content() -> None:
     t = Text([Text("alpha\nbeta", color="red")])
-    node = t.get_node(_ctx())
+    node = t.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     text_node = node.text
     assert isinstance(text_node, TextNode)
@@ -223,7 +223,7 @@ def test_multiline_produces_textnode() -> None:
             Text("Second line"),
         ]
     )
-    node = t.get_node(_ctx())
+    node = t.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert isinstance(node.text, TextNode)
 
@@ -235,7 +235,7 @@ def test_multiline_textnode_has_lines() -> None:
             Text([Text("span3")]),
         ]
     )
-    node = t.get_node(_ctx())
+    node = t.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     text_node = node.text
     assert isinstance(text_node, TextNode)
@@ -247,7 +247,7 @@ def test_deeply_nested_paragraph_color_propagated() -> None:
         [Text([Text("A"), Text("B")]), Text("C")],
         color="green",
     )
-    node = t.get_node(_ctx())
+    node = t.get_terminal_node(_ctx())
     assert isinstance(node, ParagraphNode)
     assert node.color == "green"
 
