@@ -307,11 +307,15 @@ def generate_demo(demo: Demo, theme: str, vhs: str) -> None:
     """Record one demo and optimize its GIF when gifsicle is available."""
     OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
     output = OUTPUT_DIRECTORY / f"{demo.name}-{theme}.gif"
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".tape", delete=False) as file:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".tape", delete=False
+    ) as file:
         file.write(get_tape(demo, theme, output))
         tape = pathlib.Path(file.name)
     try:
-        subprocess.run([vhs, str(tape), "--quiet"], cwd=REPOSITORY_ROOT, check=True)
+        subprocess.run(
+            [vhs, str(tape), "--quiet"], cwd=REPOSITORY_ROOT, check=True
+        )
     finally:
         tape.unlink(missing_ok=True)
     gifsicle = shutil.which("gifsicle")
@@ -333,14 +337,20 @@ def main(arguments: Sequence[str] | None = None) -> int:
     demo_map = {demo.name: demo for demo in DEMOS}
     if parsed.run_example:
         code = demo_map[parsed.run_example].code
-        exec(compile(code, parsed.run_example, "exec"), {"__name__": "__main__"})
+        exec(
+            compile(code, parsed.run_example, "exec"), {"__name__": "__main__"}
+        )
         return 0
-    selected = [demo_map[name] for name in parsed.demo] if parsed.demo else DEMOS
+    selected = (
+        [demo_map[name] for name in parsed.demo] if parsed.demo else DEMOS
+    )
     vhs = shutil.which("vhs")
     if vhs is None:
-        raise SystemExit("vhs is required to generate terminal documentation assets")
+        raise SystemExit(
+            "vhs is required to generate terminal documentation assets"
+        )
     for demo in selected:
-        for theme in ([parsed.theme] if parsed.theme else THEMES):
+        for theme in [parsed.theme] if parsed.theme else THEMES:
             generate_demo(demo, theme, vhs)
     return 0
 
