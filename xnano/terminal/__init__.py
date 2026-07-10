@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 import contextvars
 import dataclasses
 import signal
@@ -70,6 +71,24 @@ def exit_terminal() -> None:
     """
     if _ACTIVE_TERMINAL.get() is None:
         raise Exit("Terminal is not live.")
+
+
+def _atexit_restore_active_terminal() -> None:
+    """Restore any still-live terminal if the process exits without ``__exit__``.
+
+    Incomplete private-mode teardown leaves subsequent TUI apps in the same
+    host terminal painting with sticky colors until cells are force-redrawn.
+    """
+    terminal = _ACTIVE_TERMINAL.get()
+    if terminal is None or not getattr(terminal, "_is_live", False):
+        return
+    try:
+        terminal.__exit__(None, None, None)
+    except Exception:
+        pass
+
+
+atexit.register(_atexit_restore_active_terminal)
 
 
 class Terminal(Generic[StateT]):
@@ -148,6 +167,7 @@ class Terminal(Generic[StateT]):
         "_root_width_sizing",
         "_prev_sigterm",
         "_prev_sighup",
+        "_prev_sigint",
         "_field_focus",
         "_field_focus_announced",
         "_last_field_focus_event",
@@ -210,15 +230,19 @@ class Terminal(Generic[StateT]):
         self._pending_enter: bool = False
         self._prev_sigterm: Any = None
         self._prev_sighup: Any = None
+        self._prev_sigint: Any = None
         self._field_focus: Any = None
         self._field_focus_announced: bool = False
         self._last_field_focus_event: Any = None
 
     def _on_exit_signal(
         self,
-        signum: int,
+        signum: int,  # noqa: ARG002
         frame: Any,  # noqa: ARG002
     ) -> None:
+        # Soft-exit only: never raise from the handler. Raising KeyboardInterrupt
+        # mid-restore can leave private modes / SGR half-cleared for the next
+        # process sharing this terminal.
         self._exit_requested = True
 
     def __enter__(self) -> "Terminal[StateT]":
@@ -233,11 +257,15 @@ class Terminal(Generic[StateT]):
         self._pending_enter = True
         self._drain_pending_hooks()
         self._register_default_hooks()
-        # Install signal handlers so SIGTERM / SIGHUP (e.g. terminal window
-        # closed) flow through the normal exit path instead of killing the
-        # process before terminal restore can run.  signal.signal() is only
-        # valid on the main thread; silently skip if called elsewhere.
+        # Install signal handlers so SIGINT / SIGTERM / SIGHUP flow through the
+        # normal exit path instead of killing the process (or raising
+        # KeyboardInterrupt mid-restore) before terminal restore can finish.
+        # signal.signal() is only valid on the main thread; silently skip if
+        # called elsewhere.
         try:
+            self._prev_sigint = signal.signal(
+                signal.SIGINT, self._on_exit_signal
+            )
             self._prev_sigterm = signal.signal(
                 signal.SIGTERM, self._on_exit_signal
             )
@@ -271,16 +299,8 @@ class Terminal(Generic[StateT]):
             return
         try:
             if self._session is not None:
-                if self.mouse_events:
-                    try:
-                        self._session._core_session.disable_mouse_capture()
-                    except OSError:
-                        pass
-                if self.bracketed_paste:
-                    try:
-                        self._session._core_session.disable_bracketed_paste()
-                    except OSError:
-                        pass
+                # CoreSession.restore always clears mouse / paste / sync / SGR
+                # regardless of which flags this Terminal instance enabled.
                 self._session.leave()
         finally:
             if self._terminal_token is not None:
@@ -293,6 +313,9 @@ class Terminal(Generic[StateT]):
             self._inline_height = None
             self._root_width_sizing = None
             try:
+                if self._prev_sigint is not None:
+                    signal.signal(signal.SIGINT, self._prev_sigint)
+                    self._prev_sigint = None
                 if self._prev_sigterm is not None:
                     signal.signal(signal.SIGTERM, self._prev_sigterm)
                     self._prev_sigterm = None
