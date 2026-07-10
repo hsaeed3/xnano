@@ -284,45 +284,51 @@ pub(crate) fn render_node_to_buffer(
             None => rect,
         };
 
-        let child_areas: Vec<Rect> =
-            if node.children.iter().all(|c| c.has_absolute_geometry()) {
-                node.children
-                    .iter()
-                    .map(|c| c.absolute_rect().intersection(buffer.area))
-                    .collect()
-            } else {
+        let absolute_children = node.children.iter().all(|c| c.has_absolute_geometry());
+        let child_areas = if absolute_children {
+            None
+        } else {
+            Some(
                 Layout::default()
                     .direction(
                         node.direction
                             .map(Into::into)
                             .unwrap_or(ratatui::layout::Direction::Vertical),
                     )
-                    .constraints(
-                        node.constraints
-                            .iter()
-                            .cloned()
-                            .map(|c| c.inner)
-                            .collect::<Vec<_>>(),
-                    )
+                    .constraints(node.constraints.iter().map(|c| c.inner))
                     .spacing(node.gap)
-                    .split(inner_rect)
-                    .to_vec()
-            };
+                    .split(inner_rect),
+            )
+        };
 
-        let needs_sort = node.children.iter().any(|c| c.z != 0);
+        let needs_sort = node.children.windows(2).any(|pair| pair[0].z > pair[1].z);
         if needs_sort {
             let mut order: Vec<usize> = (0..node.children.len()).collect();
             order.sort_by_key(|&i| node.children[i].z);
             for i in order {
-                if let Some(pos) =
-                    render_node_to_buffer(buffer, child_areas[i], &node.children[i], ctx)?
-                {
+                let child_area = match &child_areas {
+                    Some(areas) => areas[i],
+                    None => node.children[i].absolute_rect().intersection(buffer.area),
+                };
+                if let Some(pos) = render_node_to_buffer(
+                    buffer,
+                    child_area,
+                    &node.children[i],
+                    ctx,
+                )? {
+                    cursor_target = Some(pos);
+                }
+            }
+        } else if let Some(areas) = child_areas {
+            for (child, child_area) in node.children.iter().zip(areas.iter()) {
+                if let Some(pos) = render_node_to_buffer(buffer, *child_area, child, ctx)? {
                     cursor_target = Some(pos);
                 }
             }
         } else {
-            for (child, child_area) in node.children.iter().zip(child_areas.iter()) {
-                if let Some(pos) = render_node_to_buffer(buffer, *child_area, child, ctx)? {
+            for child in &node.children {
+                let child_area = child.absolute_rect().intersection(buffer.area);
+                if let Some(pos) = render_node_to_buffer(buffer, child_area, child, ctx)? {
                     cursor_target = Some(pos);
                 }
             }
