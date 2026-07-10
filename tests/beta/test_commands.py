@@ -18,7 +18,9 @@ def test_command_decorator_and_simple_parsing() -> None:
 
     @app
     @Command.option("--count", default=1, help="Number of repetitions")
-    @Command.option(["--verbose", "-v"], is_flag=True, help="Enable verbose output")
+    @Command.option(
+        ["--verbose", "-v"], is_flag=True, help="Enable verbose output"
+    )
     def main(count: int, verbose: bool, name: str) -> None:
         runs.append((count, verbose, name))
 
@@ -42,7 +44,9 @@ def test_command_strict_validation() -> None:
     assert parsed["count"] == 42
 
     # Invalid int should raise ValueError
-    with pytest.raises(ValueError, match="Invalid value for parameter 'count'"):
+    with pytest.raises(
+        ValueError, match="Invalid value for parameter 'count'"
+    ):
         app_strict.parse_arguments(["--count", "not-an-int"])
 
     # With strict=False, invalid type should fallback to the raw value
@@ -121,6 +125,7 @@ def test_help_generation() -> None:
 
     # With subcommands
     git_app = Command(name="git")
+
     @git_app.command(name="commit", description="Record changes")
     def commit():
         pass
