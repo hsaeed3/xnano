@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 
 use ratatui_core::buffer::Cell as CoreCell;
 use ratatui_core::layout::{Offset as CoreOffset, Position as CorePosition};
+use ratatui_core::style::Color as CoreColor;
 use tachyonfx::{
     fx::{self, EvolveSymbolSet, ExpandDirection, RepeatMode},
     pattern::RadialPattern,
@@ -400,6 +401,24 @@ impl PyCellFilter {
     fn NON_EMPTY() -> Self {
         Self {
             inner: CellFilter::NonEmpty,
+        }
+    }
+
+    #[classattr]
+    fn BACKGROUND() -> Self {
+        Self {
+            inner: CellFilter::eval_cell(|cell: &CoreCell| {
+                cell.bg != CoreColor::Reset
+            }),
+        }
+    }
+
+    #[classattr]
+    fn BACKGROUND_ONLY() -> Self {
+        Self {
+            inner: CellFilter::eval_cell(|cell: &CoreCell| {
+                cell.bg != CoreColor::Reset && cell.symbol() == " "
+            }),
         }
     }
 
@@ -852,7 +871,14 @@ fn dissolve_to(
 #[pyo3(signature = (duration_ms, interpolation=None))]
 fn coalesce(duration_ms: u32, interpolation: Option<PyInterpolation>) -> PyEffect {
     PyEffect {
-        inner: fx::coalesce(make_timer(duration_ms, interpolation)),
+        // ``fx::coalesce`` clears symbols but deliberately preserves styles,
+        // making background-only cells appear immediately. xnano's effect
+        // operates on complete terminal cells, so reform from the default
+        // style and let foreground/background participate in the reveal.
+        inner: fx::coalesce_from(
+            ratatui_core::style::Style::reset(),
+            make_timer(duration_ms, interpolation),
+        ),
     }
 }
 

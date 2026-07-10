@@ -1794,6 +1794,8 @@ class CellFilter:
     ALL: CellFilter
     TEXT: CellFilter
     NON_EMPTY: CellFilter
+    BACKGROUND: CellFilter
+    BACKGROUND_ONLY: CellFilter
 
     @staticmethod
     def fg_color(color: Color) -> CellFilter: ...
