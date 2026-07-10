@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.beta import Field, Grid, Sizing, Terminal
-from xnano.beta.components import Text
-from xnano.beta.core import dispatch
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.sizing import Sizing
+from xnano.terminal import Terminal
+from xnano.components.text import Text
+from xnano.core import dispatch
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +53,7 @@ def test_measure_renderables_height_empty_is_zero() -> None:
 
 
 def test_measure_renderables_height_includes_border_overhead() -> None:
-    from xnano.beta.fields import GridFieldInfo
+    from xnano.fields import GridFieldInfo
 
     field = GridFieldInfo(border="rounded")
     # One content line plus a top and bottom border row.
@@ -58,7 +61,7 @@ def test_measure_renderables_height_includes_border_overhead() -> None:
 
 
 def test_field_frame_none_when_no_chrome() -> None:
-    from xnano.beta.fields import GridFieldInfo
+    from xnano.fields import GridFieldInfo
 
     assert dispatch.field_frame(GridFieldInfo()) is None
     assert dispatch.field_frame(None) is None
@@ -90,7 +93,7 @@ def test_resolve_inline_height_matches_content() -> None:
 
 
 def test_resolve_inline_height_includes_field_border() -> None:
-    from xnano.beta.fields import GridFieldInfo
+    from xnano.fields import GridFieldInfo
 
     terminal: Terminal = Terminal()
     field = GridFieldInfo(border="rounded")
@@ -196,7 +199,7 @@ def test_render_offscreen_stays_full_viewport_session() -> None:
 
 
 def test_render_frame_paints_inline_renderables() -> None:
-    from xnano.beta.fields import GridFieldInfo
+    from xnano.fields import GridFieldInfo
 
     terminal = Terminal.offscreen(cols=30, rows=5)
     terminal._render_frame(

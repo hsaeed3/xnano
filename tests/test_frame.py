@@ -1,11 +1,11 @@
-"""Tests for xnano.beta.frame — Frame."""
+"""Tests for xnano.frame — Frame."""
 
 from __future__ import annotations
 
 import pytest
 
-from xnano.beta.fields import GridFieldInfo
-from xnano.beta.frame import Frame, frame_from_field
+from xnano.fields import GridFieldInfo
+from xnano.frame import Frame, frame_from_field
 
 
 def test_frame_default_is_empty() -> None:

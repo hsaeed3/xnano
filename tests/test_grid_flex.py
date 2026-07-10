@@ -7,8 +7,9 @@ lower to fraction (fill) weights through ``Sizing.parse``.
 
 from __future__ import annotations
 
-from xnano.beta import Field, Grid, Sizing
-from xnano.beta.grid import _layout_constraint_for_field
+from xnano.fields import Field
+from xnano.grid import Grid, _layout_constraint_for_field
+from xnano.sizing import Sizing
 
 
 def test_field_accepts_tailwind_flex_class() -> None:

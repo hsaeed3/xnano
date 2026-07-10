@@ -6,8 +6,11 @@ slot geometry, so no TTY is required.
 
 from __future__ import annotations
 
-from xnano.beta import Field, Grid, Sizing, Terminal
-from xnano.beta.types import Area
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.sizing import Sizing
+from xnano.terminal import Terminal
+from xnano.types import Area
 
 
 def _slot_areas(grid: Grid, width: int, height: int) -> dict[str, Area]:
@@ -15,7 +18,7 @@ def _slot_areas(grid: Grid, width: int, height: int) -> dict[str, Area]:
     terminal = Terminal.offscreen(cols=width, rows=height)
     terminal._track_frame_grid(grid)
     session = terminal.session
-    session.begin_frame()
+    session.begin_viewport_frame()
     grid._grid_build_frame(Area(x=0, y=0, width=width, height=height), session)
     session.commit_requests()
     return dict(grid._grid_last_slot_areas)

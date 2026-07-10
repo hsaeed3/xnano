@@ -27,19 +27,21 @@ import dataclasses
 import enum
 from typing import Any, cast
 
-from xnano.beta import Field, Grid, on_field, on_keyboard, on_tick
-from xnano.beta.context import Context
-from xnano.beta.core.dispatch import invoke_hook, pump_tick
-from xnano.beta.hooks import (
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.hooks import on_field, on_keyboard, on_tick
+from xnano.context import Context
+from xnano.core.dispatch import invoke_hook, pump_tick
+from xnano.hooks import (
     _EventHooksRegistry,
     _OnFieldHookFunctionEntry,
     _OnKeyboardHookFunctionEntry,
     _OnStateHookFunctionEntry,
     _OnTickHookFunctionEntry,
 )
-from xnano.beta.hooks import on_state
-from xnano.beta.state import State
-from xnano.beta.utils.core import evaluate_state_expression
+from xnano.hooks import on_state
+from xnano.state import State
+from xnano.utils.core import evaluate_state_expression
 
 
 # ---------------------------------------------------------------------------
