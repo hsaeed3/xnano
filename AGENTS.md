@@ -4,156 +4,134 @@ This document details the core philosophy, system architecture, native Rust bind
 
 ## Library Structure
 
-`xnano` is a Python TUI framework. It sits on top of **`xnano-core`**, a separate package that exposes **ratatui**, **crossterm**, and **tachyonfx** through PyO3. The framework never calls those libraries directly — all terminal I/O, rendering, and effects go through `xnano_core`.
+`xnano` 1.0 is a Python TUI framework with experimental web and command-line
+surfaces. It sits on **`xnano-core`**, which exposes ratatui, crossterm, and
+tachyonfx through PyO3. The stable TUI implementation now lives directly under
+`xnano`; `xnano.beta` no longer contains the TUI framework.
 
 ```
-User app (Grid subclass + @on_* hooks)
-        │
-        ▼
-   xnano.beta          ← declarative layout, events, render IR, type conversions
-        │
-        ▼
-   xnano_core.core     ← CoreSession, CoreRenderNode, CoreRenderContent, CoreEvent
-        │
-        ▼
-   xnano_core.rust.native  ← ratatui/crossterm/tachyonfx primitives (PyO3)
-        │
-        ▼
-   xnano-core/rust/src/bindings  ← Rust wrappers around native types
+User app (Grid + Field + @on_* hooks)
+        |
+        v
+   xnano                 stable TUI API, components, layout, controllers
+        +-- xnano.beta   experimental Web, request hooks, and Command APIs
+        |
+        v
+   xnano_core.core       session, scene graph, render IR, unified events
+        |
+        v
+   xnano_core.rust.native   raw ratatui/crossterm/tachyonfx bindings
 ```
 
-### `xnano-core` — native bindings
+### `xnano` — stable Python framework
 
-**Location:** `xnano-core/` (workspace member, built with maturin).
+**Location:** `xnano/` (version 1.0.0; depends on `xnano-core==0.0.8`).
 
-#### Python package (`xnano-core/python/xnano_core/`)
+The package root lazily exports `Grid`, `Field`, `GridSettings`, `Terminal`,
+`Context`, and the stable `@on_*` decorators. Components and supporting types
+are imported from their concrete modules.
+
+```
+xnano/
+├── grid.py, fields.py       # declarative layout and field resolution
+├── terminal/                # Terminal plus cursor/device facades
+├── hooks.py, context.py     # event decorators and handler Context
+├── events.py                # unified and typed terminal events
+├── color.py, frame.py, sizing.py, types.py
+├── keyboard.py, mouse.py, focus.py, state.py, effects.py
+├── components/              # text, progress, sparkline, table, chart, schema
+├── core/
+│   ├── controllers/         # shared backend contract + terminal backend
+│   ├── nodes/               # backend-neutral and terminal render nodes
+│   ├── dispatch.py          # event/state/field/poll/tick hook dispatch
+│   ├── renderable.py        # fallback string/ANSI rendering helpers
+│   └── demo/                # built-in demo content
+├── utils/                   # conversion, event parsing, validation
+└── beta/
+    ├── web.py               # Web orchestration and browser sessions
+    ├── requests.py          # @on_get_request / @on_post_request
+    ├── commands.py          # Command CLI abstraction
+    ├── controllers/web.py   # Grid/component → HTML backend
+    ├── nodes/web.py         # web render nodes
+    └── components/text.py   # experimental web text component
+```
+
+#### Key abstractions and flow
+
+- `Grid` and `Field` provide declarative layout and state fields.
+- `Terminal` owns the `CoreSession`, run loop, viewport mode, cursor/device
+  controls, events, hooks, and offscreen sessions.
+- `AbstractController` defines backend capabilities and painting.
+  `TerminalController` is the only framework rendering layer that talks to
+  `xnano_core`; it batches `RenderRequest`s and builds `CoreRenderNode`s.
+- Stable components implement `AbstractComponent.get_node(context)`. Terminal
+  nodes lower to `CoreRenderIR` or native content through `TerminalController`.
+- A frame flows from `Terminal` to the root grid/component, through grid field
+  sizing and controller paint requests, then to `CoreSession.render()`.
+  `Terminal` polls core events and `core.dispatch` invokes hooks via `Context`.
+
+### `xnano.beta` — experimental APIs
+
+The beta namespace is the prototype surface for APIs intended to move into the
+main namespace after stabilization:
+
+- `Web` uses Starlette/uvicorn, renders grids as HTML, maintains browser
+  sessions, and reuses stable hook dispatch. It requires the `web` extra.
+- `on_get_request` and `on_post_request` declare grid HTTP routes.
+- `Command` supplies commands, options, subcommands, validation, and help.
+- The package root lazily exports those four APIs; concrete beta modules may
+  also be imported directly.
+
+### `xnano-core` — native bindings and engine
+
+**Location:** `xnano-core/` (version 0.0.8; built with maturin).
 
 | Module | Purpose |
 |--------|---------|
-| `xnano_core` | Minimal root — exports `CoreEvent`, `CoreTickEvent`, `CoreTerminalEventKind` |
-| `xnano_core.core` | **Primary API for `xnano.beta`** — re-exports the engine layer |
-| `xnano_core.rust` | Barrel import for all native primitives |
-| `xnano_core.rust.native` | Compiled extension (`native.abi3.so`) + `.pyi` stubs |
-| `xnano_core.rust.engine` | Stateful runtime submodule (registered by Rust on import) |
+| `xnano_core` | Minimal root exports for core events and native version |
+| `xnano_core.core` | Primary engine API consumed by stable `xnano` |
+| `xnano_core.rust` | Barrel import for native primitives |
+| `xnano_core.rust.native` | Compiled PyO3 extension plus type stubs |
+| `xnano_core.rust.engine` | Stateful runtime registered by Rust |
 
-**Engine types** (import via `from xnano_core.core import …`):
+Engine types imported from `xnano_core.core` include:
 
-- `CoreSession` — owns terminal lifecycle, effect manager, event loop. Use `CoreSession.init()` for live terminals or `CoreSession.offscreen(w, h)` for tests. Only type allowed to call `ratatui::init` / `restore`.
-- `CoreRenderNode` — scene-graph node with geometry, flex layout, children, z-order, and `effect_key`. Builders: `.leaf()`, `.row()`, `.column()`, `.stack()`.
-- `CoreRenderContent` — tagged payload: `.empty()`, `.widget()`, `.stateful()`, `.drawable()`.
-- `CoreEvent` / `CoreTickEvent` / `CoreTerminalEventKind` — unified input and tick events from `poll_event` / `read_event`.
-- `CoreTerminalRef` — scope-guarded escape hatch to the raw `DefaultTerminal`.
+- `CoreSession` — terminal lifecycle, viewport, effects, clock, and event loop;
+  use `.init()` for live terminals or `.offscreen()` for tests.
+- `CoreRenderNode` — scene graph with geometry, children, z-order, visibility,
+  effects, and row/column/stack builders.
+- `CoreRenderContent` — empty, widget, stateful, drawable, or `.ir()` payloads.
+- `CoreRenderIR` and `IrLine` — Rust-side widget descriptions and natural-size
+  measurement in a single Python-to-Rust boundary crossing.
+- `CoreKeyBinding` — native key-binding parsing and matching.
+- `CoreEvent`, `CoreTickEvent`, and `CoreTerminalEventKind` — unified events.
+- `CoreTerminalRef` — scope-guarded access to the live native terminal.
 
-**Native primitives** (import via `from xnano_core.rust import native`):
+Rust binding modules live in `xnano-core/rust/src/bindings/`. In addition to
+the raw layout, style, text, widget, buffer, terminal, device, and effect
+bindings, `engine/` contains `session.rs`, `render_tree.rs`,
+`content_bridge.rs`, `render_ir.rs`, `key_binding.rs`, `events.rs`, `clock.rs`,
+`terminal_reset.rs`, and `panic_hook.rs`.
 
-- **Layout:** `Rect`, `Margin`, `Direction`, `Alignment`, `Constraint`, `Layout`, …
-- **Style & text:** `Color`, `Style`, `Modifier`, `Span`, `Line`, `Text`
-- **Widgets:** `Block`, `Paragraph`, `RatList`, `RatTable`, `Gauge`, `Scrollbar`, `Chart`, …
-- **Buffer:** `Buffer`, `BufferCell`, `render_widget`, `render_stateful_widget`
-- **Terminal & device:** `Terminal`, `Frame`, `poll_event`, `read_event`, raw mode, alternate screen, cursor control
-- **Effects:** `Effect`, `EffectManager`, `fade_to`, `slide_in`, `sequence_effects`, …
-
-#### Rust crate (`xnano-core/rust/src/`)
-
-Entry point: `lib.rs` defines `#[pymodule] fn native` → published as `xnano_core.rust.native`.
-
-```
-bindings/
-├── mod.rs              # registration hub; wires engine submodule into sys.modules
-├── layout.rs           # Rect, Constraint, Layout, …
-├── style.rs            # Color, Style, Modifier
-├── palette.rs          # color math (hex, HSL, lerp, tailwind)
-├── text.rs             # Span, Line, Text
-├── widgets.rs          # Block, Paragraph, RatList, Gauge, …
-├── widgets_extra.rs    # RatTable, Scrollbar, Chart, Canvas, …
-├── buffer.rs           # Buffer, BufferCell, render_widget
-├── terminal.rs         # Frame, Terminal, KeyEvent, MouseEvent, poll/read
-├── cursor.rs           # cursor show/hide/move/style
-├── terminal_device.rs  # raw mode, size, alt screen, scroll
-├── event_setup.rs      # keyboard enhancement flags, mouse capture
-├── command.rs          # console styling (non-TUI)
-├── fx.rs               # tachyonfx effects
-├── convert.rs          # (internal) Python text extraction
-├── convert_core.rs     # (internal) ratatui ↔ ratatui-core buffer sync for effects
-├── crossterm_exec.rs   # (internal) stdout I/O
-├── frame_ext.rs        # (internal) frame cursor hide
-└── engine/
-    ├── session.rs      # CoreSession, CoreTerminalRef
-    ├── render_tree.rs  # CoreRenderNode, tree → buffer walk
-    ├── content_bridge.rs  # CoreRenderContent dispatch
-    ├── events.rs       # CoreEvent, CoreTickEvent, CoreTerminalEventKind
-    ├── clock.rs        # (internal) tick scheduling
-    └── panic_hook.rs   # (internal) terminal restore on panic
-```
-
-**Binding conventions:** Rust structs are prefixed `Py*` (e.g. `PyBuffer` → Python `Buffer`). Engine types use the `Core*` prefix. Pointer-backed handles (`Frame`, `BufferMutView`, `CoreSession`) are `unsendable`. Widget rendering resolves via registered `Py*` types, `_to_core()`, or duck-typed `.render()`.
-
-### `xnano` — Python framework
-
-**Location:** `xnano/` (depends on `xnano-core>=0.0.2`).
-
-All implementation lives under **`xnano.beta`**. The root `xnano` package is a thin shell (`from xnano import Text`).
-
-```
-xnano/beta/
-├── grid.py, fields.py       # Grid, Field, GridSettings — declarative layout
-├── terminal.py              # Terminal — session owner & event loop entry point
-├── hooks.py, context.py     # @on_* decorators, Context for handler scope
-├── events.py                # Event + typed sub-events (keyboard, mouse, resize, …)
-├── color.py, frame.py, types.py   # Color, Frame, Area, Size, Alignment, …
-├── keyboard.py, mouse.py    # key/button/modifier types
-├── cursor.py, device.py     # thin facades over native terminal control
-├── exceptions.py            # Exit, FieldValidationError, TerminalNotActiveError
-├── components/
-│   ├── abstract.py          # AbstractComponent, ComponentRenderContext
-│   └── text.py              # Text — unified text component
-├── core/
-│   ├── session.py           # Session — paint IR → CoreRenderNode bridge
-│   ├── nodes.py             # render IR (SpanNode, ParagraphNode, FrameNode, …)
-│   ├── renderable.py        # Renderable marker, render() helper
-│   └── dispatch.py          # per-frame render, event pump, hook dispatch
-└── utils/
-    ├── native_types.py      # Python ↔ native type conversions
-    ├── events.py            # CoreEvent → xnano Event parsing
-    ├── validation.py        # pydantic-core field validation
-    └── core.py              # hook arity, state expression eval
-```
-
-#### Key abstractions
-
-| Abstraction | Role |
-|-------------|------|
-| **`Grid`** | Declarative layout container. Subclass with `Field(...)` layout fields and optional `state=True` fields. Metaclass generates `__init__`, collects fields, wires mouse handlers. |
-| **`Field`** | Layout field descriptor — size/flex/fit, styling, frame, slide axes. `state=True` fields hold app state (not rendered). |
-| **`Terminal`** | Context manager / `run(grid)` entry. Wraps `CoreSession` in internal `Session`. Exposes `cursor` and `device`. `Terminal.offscreen(cols, rows)` for test buffers. |
-| **`Session`** (internal) | Batches per-frame paint requests → builds `CoreRenderNode` tree → calls `CoreSession.render()`. |
-| **Render IR** (`core/nodes.py`) | Immutable nodes (`SpanNode`, `ParagraphNode`, `FrameNode`, …) lowered to native widgets via `NodeAssembler`. |
-| **`AbstractComponent`** | User-facing renderable; implements `get_node()` → `RenderNode`. `Text` adapts to span/line/paragraph modes. |
-| **`Event` + `@on_*`** | `Event` wraps `CoreEvent`; decorators (`on_keyboard`, `on_mouse`, `on_tick`, …) register handlers on grid classes. `dispatch.py` drives the render → poll → hook loop. |
-
-#### Per-frame data flow
-
-1. `Terminal.run(grid)` opens `CoreSession`.
-2. `dispatch.render_frame()` → `Grid._grid_build_frame()` splits viewport into field areas, paints slot values.
-3. `Session` accumulates `RenderRequest`s → `commit_requests()` assembles `CoreRenderNode` tree.
-4. `CoreSession.render(root_node)` walks tree, runs effects, writes to terminal.
-5. `dispatch.pump_events()` / `pump_tick()` → `Event.from_core_event(...)` → `@on_*` handlers via `Context`.
+Rust structs use a `Py*` prefix while exported engine types use `Core*`.
+Pointer-backed handles are `unsendable`. Prefer `CoreRenderIR` for framework
+widget rendering; other `CoreRenderContent` variants bridge native/stateful
+widgets and drawable callbacks.
 
 #### Layer boundaries
 
 | Concern | Lives in |
 |---------|----------|
-| Declarative layout, hooks, field validation | `xnano.beta` |
-| Paint IR → native widget lowering | `xnano.beta.core` + `utils/native_types` |
-| Scene graph assembly, terminal lifecycle, effects | `xnano_core.core` (engine) |
-| Raw ratatui/crossterm/tachyonfx types | `xnano_core.rust.native` |
+| Stable layout, hooks, components | `xnano` |
+| Backend contract and terminal lowering | `xnano.core.controllers`, `xnano.core.nodes` |
+| Experimental HTML/HTTP and command APIs | `xnano.beta` |
+| Scene graph, terminal lifecycle, render IR, effects | `xnano_core.core` |
+| Raw ratatui/crossterm/tachyonfx bindings | `xnano_core.rust.native` |
 
-**Do not** call `native.Terminal.init()` / `restore_terminal()` or standalone `native.poll_event()` in app code — use `CoreSession` via `Terminal`. **Do not** put layout/grid logic in `xnano_core`; there is no `Grid` in the core layer.
-
-#### Public API
-
-- `xnano` → `Text`
-- `xnano.beta` → `Grid`, `Field`, `GridSettings`, `Terminal`, `Context`, `Color`, `Text`, `AbstractComponent`, `Renderable`, `render`, `@on_*` decorators, `Exit`
+Do not call native terminal initialization/restoration or standalone native
+event polling in application code; use `CoreSession` through `Terminal`. Keep
+grid/component policy in `xnano`, backend painting in controllers/nodes, and
+terminal runtime mechanics in `xnano-core`.
 
 ## Code Style & Formatting Rules
 
