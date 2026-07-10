@@ -16,13 +16,16 @@ import random
 import time
 from typing import Literal, cast
 
-from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
-from xnano.beta.components import Text
-from xnano.beta.components.abstract import (
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.terminal import Terminal
+from xnano.hooks import on_keyboard, on_tick
+from xnano.components.text import Text
+from xnano.components.abstract import (
     AbstractComponent,
     ComponentRenderContext,
 )
-from xnano.beta.color import ColorLike, tailwind_color
+from xnano.color import ColorLike, tailwind_color
 
 
 # ── Palette ───────────────────────────────────────────────────────────────────
@@ -164,8 +167,8 @@ class BoardTabs(AbstractComponent):
     counts: list = dataclasses.field(default_factory=lambda: [0, 0, 0])
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import LineNode, SpanNode, TabsNode
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import LineNode, SpanNode, TabsNode
 
         titles: list[str | LineNode | SpanNode] = [
             SpanNode(
@@ -194,8 +197,8 @@ class TaskList(AbstractComponent):
     accent_bg: ColorLike | None = dataclasses.field(default=None)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import (
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -261,8 +264,8 @@ class ActivityFeed(AbstractComponent):
     events: list = dataclasses.field(default_factory=list)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import (
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -307,8 +310,8 @@ class VelocityChart(AbstractComponent):
     accent: ColorLike | None = dataclasses.field(default=None)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import (
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import (
             CanvasLine,
             CanvasNode,
             CanvasPrint,
@@ -380,8 +383,12 @@ class PriorityBreakdown(AbstractComponent):
     all_tasks: list = dataclasses.field(default_factory=list)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import BarChartNode, BarGroupItem, BarItem
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import (
+            BarChartNode,
+            BarGroupItem,
+            BarItem,
+        )
 
         counts: dict[str, int] = {"high": 0, "mid": 0, "low": 0}
         for task in self.all_tasks:
@@ -418,8 +425,8 @@ class SprintGauge(AbstractComponent):
     filled: ColorLike | None = dataclasses.field(default=None)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import LineGaugeNode
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import LineGaugeNode
 
         return LineGaugeNode(
             progress=self.progress,

@@ -12,10 +12,13 @@ import textwrap
 import time
 from typing import Iterable, Iterator, Literal, TypeAlias
 
-from xnano.beta import Field, Grid, Terminal, on_keyboard, on_mouse, on_tick
-from xnano.beta.components import Text
-from xnano.beta.color import tailwind_color
-from xnano.beta.types import CharacterModifier
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.terminal import Terminal
+from xnano.hooks import on_keyboard, on_mouse, on_tick
+from xnano.components.text import Text
+from xnano.color import tailwind_color
+from xnano.types import CharacterModifier
 
 ToolKind: TypeAlias = Literal["read", "bash", "edit", "grep"]
 """Supported tool-call kinds shown in the transcript."""
