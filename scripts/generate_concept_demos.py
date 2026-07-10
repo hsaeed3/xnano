@@ -52,7 +52,7 @@ Set LineHeight 1.2
 Set Width {width}
 Set Height {height}
 Set Padding {padding}
-Set Margin 24
+Set Margin 12
 Set MarginFill "{margin_fill}"
 Set BorderRadius 12
 Set WindowBar Colorful
@@ -93,7 +93,7 @@ class Demo:
     """Recording width in pixels, fitted to the example's content."""
     height: int = 520
     """Recording height in pixels, fitted to the example's content."""
-    padding: int = 28
+    padding: int = 12
     """Space between the terminal content and recording edge."""
     display_width: int | None = None
     """Optional rendered width used by the matching Markdown image."""
@@ -117,8 +117,8 @@ DEMOS: tuple[Demo, ...] = (
         record_delay="500ms",
         auto_quit=False,
         width=720,
-        height=260,
-        padding=24,
+        height=180,
+        padding=12,
         display_width=520,
     ),
     Demo(
@@ -139,8 +139,8 @@ DEMOS: tuple[Demo, ...] = (
         record_delay="500ms",
         auto_quit=False,
         width=760,
-        height=300,
-        padding=24,
+        height=220,
+        padding=12,
         display_width=560,
     ),
     Demo(
@@ -164,8 +164,8 @@ DEMOS: tuple[Demo, ...] = (
         record_delay="500ms",
         auto_quit=False,
         width=780,
-        height=320,
-        padding=24,
+        height=300,
+        padding=12,
         display_width=580,
     ),
     Demo(
@@ -196,6 +196,7 @@ DEMOS: tuple[Demo, ...] = (
         """),
         steps=("Sleep 2s",),
         record_delay="500ms",
+        height=220,
     ),
     Demo(
         name="hello_grid",
@@ -216,6 +217,7 @@ DEMOS: tuple[Demo, ...] = (
         """),
         steps=("Sleep 2s",),
         record_delay="500ms",
+        height=180,
     ),
     Demo(
         name="terminal_render",
@@ -242,6 +244,7 @@ DEMOS: tuple[Demo, ...] = (
         """),
         steps=("Sleep 2s",),
         record_delay="500ms",
+        height=220,
     ),
     Demo(
         name="terminal_state",
@@ -293,6 +296,7 @@ DEMOS: tuple[Demo, ...] = (
             "Sleep 800ms",
         ),
         record_delay="500ms",
+        height=220,
     ),
     Demo(
         name="grid_basic",
@@ -320,6 +324,7 @@ DEMOS: tuple[Demo, ...] = (
         """),
         steps=("Sleep 2s",),
         record_delay="500ms",
+        height=240,
     ),
     Demo(
         name="grid_nested",
@@ -355,6 +360,7 @@ DEMOS: tuple[Demo, ...] = (
         """),
         steps=("Sleep 2s",),
         record_delay="500ms",
+        height=300,
     ),
     Demo(
         name="grid_render_method",
@@ -393,6 +399,7 @@ DEMOS: tuple[Demo, ...] = (
         """),
         steps=("Sleep 2s",),
         record_delay="500ms",
+        height=300,
     ),
     Demo(
         name="sizing_mix",
@@ -436,6 +443,7 @@ DEMOS: tuple[Demo, ...] = (
         """),
         steps=("Sleep 2s",),
         record_delay="500ms",
+        height=500,
     ),
     Demo(
         name="hooks_keyboard",
@@ -485,6 +493,7 @@ DEMOS: tuple[Demo, ...] = (
             "Sleep 600ms",
         ),
         record_delay="500ms",
+        height=280,
     ),
     Demo(
         name="hooks_tick",
@@ -517,6 +526,7 @@ DEMOS: tuple[Demo, ...] = (
         """),
         steps=("Sleep 3.5s",),
         record_delay="500ms",
+        height=260,
     ),
     Demo(
         name="hooks_click",
@@ -563,6 +573,7 @@ DEMOS: tuple[Demo, ...] = (
         launch_delay="1.5s",
         record_delay="500ms",
         env=(("XNANO_VHS_DEMO", "1"),),
+        height=260,
     ),
 )
 

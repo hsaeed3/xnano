@@ -154,18 +154,18 @@ logo = "lucide/smile"
 repo = "lucide/smile"
 
 [[project.theme.palette]]
-scheme = "default"
-primary = "custom"
-accent = "custom"
-toggle.icon = "lucide/sun"
-toggle.name = "Switch to dark mode"
-
-[[project.theme.palette]]
 scheme = "slate"
 primary = "custom"
 accent = "custom"
 toggle.icon = "lucide/moon"
 toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
 
 [project.theme.font]
 text = "Geist Pixel"
@@ -197,6 +197,11 @@ name = "xnano - GitHub"
 icon = "fontawesome/brands/python"
 link = "https://pypi.org/project/xnano"
 name = "xnano - PyPI"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/python"
+link = "https://pypi.org/project/xnano-core"
+name = "xnano-core - PyPI"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/linkedin"

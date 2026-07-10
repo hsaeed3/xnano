@@ -87,7 +87,7 @@ DEMOS: tuple[Demo, ...] = (
         # 230px yields an even terminal row count at FontSize 14 /
         # LineHeight 1.2, so the wordmark's leftover rows split evenly
         # top and bottom instead of biasing toward one edge.
-        height=230,
+        height=280,
         window_bar=False,
         border_radius=0,
         margin=0,

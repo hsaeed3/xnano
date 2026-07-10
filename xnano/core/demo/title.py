@@ -55,7 +55,7 @@ _WATERCOLOR_AURORA = (
     (83, 187, 220),
     (125, 206, 232),
 )
-"""Yellow, pink, lavender and cyan pigments from the aurora reference."""
+"""Yellow, cream, orange, pink, lavender and cyan aurora pigments."""
 
 _WatercolorPalette: TypeAlias = tuple[tuple[int, int, int], ...]
 """An ordered set of RGB pigment anchors."""
@@ -67,7 +67,7 @@ _WatercolorProfile: TypeAlias = tuple[
     float,
     float,
 ]
-"""A palette, gradient weights, offset, and cluster phase for one run."""
+"""A palette, gradient weights, offset, and bloom phase for one run."""
 
 _SPLASH_FRAMES = 107
 """Frames shown before the title dissolves into the feature panels."""
@@ -95,24 +95,15 @@ def _mix_channel(start: int, end: int, ratio: float) -> int:
 
 @functools.lru_cache(maxsize=32)
 def _get_watercolor_profile(seed: int) -> _WatercolorProfile:
-    """Build the stable pigment blend and gradient used by one launch."""
+    """Choose one reference palette and build one launch's gradient."""
     generator = random.Random(seed)
-    reference_weight = generator.random()
-    palette: list[tuple[int, int, int]] = []
-    for warm, vibrant in zip(_WATERCOLOR_SKY, _WATERCOLOR_AURORA):
-        local_weight = max(
-            0.0,
-            min(1.0, reference_weight + generator.uniform(-0.12, 0.12)),
-        )
-        palette.append(
-            (
-                _mix_channel(warm[0], vibrant[0], local_weight),
-                _mix_channel(warm[1], vibrant[1], local_weight),
-                _mix_channel(warm[2], vibrant[2], local_weight),
-            )
-        )
+    palette = (
+        _WATERCOLOR_SKY
+        if generator.getrandbits(1) == 0
+        else _WATERCOLOR_AURORA
+    )
     return (
-        tuple(palette),
+        palette,
         generator.uniform(0.36, 0.58),
         generator.uniform(-0.18, 0.18),
         generator.uniform(0.10, 0.24),
@@ -132,34 +123,41 @@ def _get_watercolor_color(
         vertical_weight,
         horizontal_weight,
         gradient_offset,
-        cluster_phase,
+        bloom_phase,
     ) = _get_watercolor_profile(watercolor_seed)
-    clustered_x = math.floor(horizontal * 32.0) / 32.0
-    clustered_y = math.floor(vertical * 18.0) / 18.0
-    slow_phase = phase * 0.28
+    slow_phase = phase * 0.18
     broad_bloom = math.sin(
-        clustered_x * 11.0
-        + math.sin(clustered_y * 7.0 - slow_phase) * 1.8
+        horizontal * 4.2
+        + math.sin(vertical * 3.1 - slow_phase) * 0.9
         + slow_phase
-        + cluster_phase
+        + bloom_phase
     )
     crossing_bloom = math.cos(
-        clustered_y * 13.0
-        - clustered_x * 5.0
-        - slow_phase * 0.7
-        + cluster_phase * 0.6
+        vertical * 5.0
+        - horizontal * 2.2
+        - slow_phase * 0.5
+        + bloom_phase * 0.6
     )
     paper_pool = math.sin(
-        (clustered_x * 9.0 + clustered_y * 17.0)
-        + slow_phase * 0.45
-        - cluster_phase * 0.35
+        horizontal * 3.0
+        + vertical * 4.1
+        + slow_phase * 0.3
+        - bloom_phase * 0.35
     )
-    position = gradient_offset
-    position += vertical * vertical_weight
-    position += horizontal * horizontal_weight
-    position += broad_bloom * 0.13
-    position += crossing_bloom * 0.09
-    position += paper_pool * 0.045
+    if palette is _WATERCOLOR_AURORA:
+        # Keep cream within the yellow crown, then wash through orange and
+        # pink before opening into lavender and cyan near the lower edge.
+        position = 0.03 + vertical * 0.82 + horizontal * 0.04
+        position += broad_bloom * 0.085
+        position += crossing_bloom * 0.05
+        position += paper_pool * 0.02
+    else:
+        position = gradient_offset
+        position += vertical * vertical_weight
+        position += horizontal * horizontal_weight
+        position += broad_bloom * 0.10
+        position += crossing_bloom * 0.06
+        position += paper_pool * 0.025
     position = max(0.0, min(0.999, position))
 
     scaled = position * (len(palette) - 1)
@@ -186,7 +184,6 @@ def _build_watercolor_frame(
     # Bias any odd leftover row upward (ceiling, not floor) so the
     # wordmark reads as vertically centered instead of sitting high.
     logo_top = max(0, (height - len(_TITLE_ROWS) + 1) // 2)
-    sample_width = 2
     lines: list[str | Text] = []
 
     for row_index in range(height):
@@ -217,7 +214,7 @@ def _build_watercolor_frame(
                     color = _LOGO_SHADOW
 
             background = _get_watercolor_color(
-                (column // sample_width * sample_width) / max(width - 1, 1),
+                column / max(width - 1, 1),
                 row_index / max(height - 1, 1),
                 phase,
                 watercolor_seed,

@@ -116,7 +116,7 @@ class App(Grid):
 Terminal().run(App())
 ```
 
-![Hello World](./docs/assets/concepts/hello_grid-dark.gif)
+![Hello World](./docs/assets/demos/example_hello_world.gif)
 
 ---
 
