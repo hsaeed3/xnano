@@ -119,11 +119,10 @@ update those values or shared state; the next frame calls the component again.
 This keeps state handling independent from the terminal node implementation
 and leaves room for another interface renderer to read the same values.
 
-!!! info "v1.0.0 roadmap"
-    The component contract is already split by interface. Beginning with the
-    v1.0.0 release line, xnano plans to add a beta web UI engine with web render
-    nodes, request and endpoint declarations, and the same grid and component
-    model used by terminal applications. A component will be able to implement
-    terminal and web representations side by side. Web rendering is not part
-    of the current public runtime yet, and the web hook API is still being
-    designed.
+!!! info "Beta web rendering"
+    The component contract is already split by interface. The
+    [beta Web UI](../beta/webui/index.md) paints the same grids in the browser
+    with [web render nodes](../beta/webui/rendering.md) and
+    [request hooks](../beta/webui/requests.md). Use
+    `xnano.beta.components.text.Text` when a field needs `get_web_node` for
+    HTML; the stable `xnano.components.Text` remains the terminal path.

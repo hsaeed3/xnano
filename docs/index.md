@@ -303,28 +303,25 @@ Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or pla
 
 ---
 
-## The rest of the terminal loop
+## Beyond the terminal
 
 The 1.0.0 release establishes the shared UI model used by xnano's terminal
-renderer. `Grid`, components, controllers, and render nodes now keep layout
+renderer. `Grid`, components, controllers, and render nodes keep layout
 declarations separate from the interface that paints them.
 
-Work following 1.0.0 extends that model in two directions:
+The [beta surface](beta/overview.md) extends that model in two directions:
 
-- A model-like command syntax in the beta API will let command-line programs
-  declare commands, arguments, and options with the same typed style used for
-  grids. This completes the path from ordinary command output to an
-  interactive terminal interface.
-- An optional web UI engine will render the same grids and unified components
-  in the browser using Tailwind and HTMX. It will also introduce declarative
-  requests and endpoints. Event hooks will follow the familiar xnano hook
-  model, although that part of the API is still being designed.
+- [Commands](beta/commands/index.md) — a model-like CLI for options, flags,
+  and subcommands with the same typed style used for grids.
+- [Web UI](beta/webui/index.md) — the same grids in the browser via Tailwind
+  and htmx, with [request hooks](beta/webui/requests.md) and
+  [web rendering](beta/webui/rendering.md) for HTML nodes and text.
 
-These APIs are not part of the current terminal guide. The
-[Web UI page](webui/index.md) will hold the preview documentation as the public
-surface settles.
+These APIs live under `xnano.beta` while the public surface settles. The
+terminal guides on this site remain the stable path.
 
 ## Next steps
 
 Continue with [Getting started](concepts/getting-started.md), explore the
-[component catalog](components/index.md), or open the [API reference](api/index.md).
+[component catalog](components/index.md), open the [beta overview](beta/overview.md),
+or jump to the [API reference](api/index.md).

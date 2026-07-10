@@ -87,9 +87,15 @@ class Command:
     help: bool = True
     """Whether to automatically generate and display a help message."""
 
-    _callback: Callable[..., Any] | None = dataclasses.field(default=None, init=False)
-    _subcommands: dict[str, Command] = dataclasses.field(default_factory=dict, init=False)
-    _parameters: list[CommandLineParameter] = dataclasses.field(default_factory=list, init=False)
+    _callback: Callable[..., Any] | None = dataclasses.field(
+        default=None, init=False
+    )
+    _subcommands: dict[str, Command] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+    _parameters: list[CommandLineParameter] = dataclasses.field(
+        default_factory=list, init=False
+    )
 
     @staticmethod
     def option(
@@ -110,6 +116,7 @@ class Command:
         Returns:
             A decorator that attaches option metadata to the decorated function.
         """
+
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             options = getattr(func, "_cli_options", None)
             if options is None:
@@ -121,13 +128,16 @@ class Command:
             else:
                 flags = list(name_or_flags)
 
-            options.append({
-                "flags": flags,
-                "default": default,
-                "help": help,
-                "is_flag": is_flag,
-            })
+            options.append(
+                {
+                    "flags": flags,
+                    "default": default,
+                    "help": help,
+                    "is_flag": is_flag,
+                }
+            )
             return func
+
         return decorator
 
     def command(
@@ -145,6 +155,7 @@ class Command:
         Returns:
             A decorator that registers the function as a subcommand.
         """
+
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             func_name = getattr(func, "__name__", None) or "command"
             cmd_name = name or func_name.replace("_", "-")
@@ -161,9 +172,12 @@ class Command:
 
             self._subcommands[cmd_name] = sub_cmd
             return func
+
         return decorator
 
-    def register_callback(self, func: Callable[..., Any]) -> Callable[..., Any]:
+    def register_callback(
+        self, func: Callable[..., Any]
+    ) -> Callable[..., Any]:
         """Registers the callback function for this command.
 
         Args:
@@ -195,6 +209,7 @@ class Command:
         signature = inspect.signature(func)
         try:
             from typing import get_type_hints
+
             type_hints = get_type_hints(func)
         except Exception:
             type_hints = {}
@@ -219,7 +234,10 @@ class Command:
             parameter_to_explicit[parameter_name] = opt
 
         for name, param in signature.parameters.items():
-            if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            if param.kind in (
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.VAR_KEYWORD,
+            ):
                 continue
 
             annotation = type_hints.get(name, Any)
@@ -238,7 +256,10 @@ class Command:
 
                 is_flag = explicit["is_flag"]
                 if is_flag is None:
-                    is_flag = (annotation is bool) or (opt_default is not UNSET and isinstance(opt_default, bool))
+                    is_flag = (annotation is bool) or (
+                        opt_default is not UNSET
+                        and isinstance(opt_default, bool)
+                    )
 
                 self._parameters.append(
                     CommandLineParameter(
@@ -254,7 +275,9 @@ class Command:
                 )
             else:
                 flag_name = "--" + name.replace("_", "-")
-                is_flag = annotation is bool or (has_default and isinstance(default, bool))
+                is_flag = annotation is bool or (
+                    has_default and isinstance(default, bool)
+                )
                 self._parameters.append(
                     CommandLineParameter(
                         parameter_name=name,
@@ -268,7 +291,9 @@ class Command:
                     )
                 )
 
-    def parse_arguments(self, arguments: list[str]) -> tuple[Command, dict[str, Any]]:
+    def parse_arguments(
+        self, arguments: list[str]
+    ) -> tuple[Command, dict[str, Any]]:
         """Parses command-line arguments.
 
         Args:
@@ -321,12 +346,14 @@ class Command:
                     else:
                         if index + 1 >= len(arguments):
                             raise ValueError(f"Option {flag} requires a value")
-                        parsed_values[param.parameter_name] = arguments[index + 1]
+                        parsed_values[param.parameter_name] = arguments[
+                            index + 1
+                        ]
                         index += 1
             else:
                 if self._subcommands and arg in self._subcommands:
                     sub_cmd = self._subcommands[arg]
-                    return sub_cmd.parse_arguments(arguments[index + 1:])
+                    return sub_cmd.parse_arguments(arguments[index + 1 :])
 
                 # Match to the first remaining positional parameter that hasn't been set yet
                 matched_param = None
@@ -339,9 +366,13 @@ class Command:
                     parsed_values[matched_param.parameter_name] = arg
                 else:
                     if self._subcommands:
-                        raise ValueError(f"Unknown command or unexpected argument: {arg}")
+                        raise ValueError(
+                            f"Unknown command or unexpected argument: {arg}"
+                        )
                     else:
-                        raise ValueError(f"Unexpected positional argument: {arg}")
+                        raise ValueError(
+                            f"Unexpected positional argument: {arg}"
+                        )
             index += 1
 
         validated_values = {}
@@ -362,7 +393,9 @@ class Command:
                     try:
                         val = validation.validate_type(val, param.annotation)
                     except Exception as err:
-                        raise ValueError(f"Invalid value for parameter '{name}': {err}")
+                        raise ValueError(
+                            f"Invalid value for parameter '{name}': {err}"
+                        )
                 else:
                     try:
                         val = validation.validate_type(val, param.annotation)
@@ -415,7 +448,9 @@ class Command:
         options_list = []
         arguments_list = []
         for param in self._parameters:
-            if param.flags is None or (not param.explicit and param.default is UNSET):
+            if param.flags is None or (
+                not param.explicit and param.default is UNSET
+            ):
                 arguments_list.append(param)
             else:
                 options_list.append(param)
@@ -452,7 +487,9 @@ class Command:
                     desc += f" [default: {opt.default}]"
                 lines.append(desc)
             if self.help:
-                lines.append(f"  {'--help, -h':<20} Show this message and exit.")
+                lines.append(
+                    f"  {'--help, -h':<20} Show this message and exit."
+                )
             lines.append("")
 
         if self._subcommands:

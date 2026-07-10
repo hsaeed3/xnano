@@ -87,3 +87,18 @@ Terminal(height=1).run(Search())
 </div>
 
 <!-- Demo key: components/text-input; viewport: 36x1 cells. -->
+
+??? note "Beta: web-capable Text"
+
+    The stable `Text` on this page targets the terminal. For browser
+    rendering under [Web UI]{data-preview}, use
+    `xnano.beta.components.text.Text` — a thin subclass that implements
+    `get_web_node` and lowers styled / multiline / input content to HTML
+    via web render nodes. Import that class when a grid field must paint
+    under both hosts; the API surface (colors, modifiers, `input=True`)
+    stays the same.
+
+    See [Web rendering]{data-preview} for node layout and placeholders.
+
+[Web UI]: ../beta/webui/index.md
+[Web rendering]: ../beta/webui/rendering.md
