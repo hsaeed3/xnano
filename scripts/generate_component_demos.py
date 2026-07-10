@@ -44,7 +44,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=620,
-        height=210,
+        height=200,
     ),
     Demo(
         "custom-badge",
@@ -80,7 +80,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=460,
-        height=200,
+        height=180,
     ),
     Demo(
         "text-input",
@@ -128,7 +128,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=440,
-        height=240,
+        height=220,
     ),
     Demo(
         "sparkline-colors",
@@ -140,7 +140,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=380,
-        height=220,
+        height=200,
     ),
     Demo(
         "table-basic",
@@ -152,7 +152,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=700,
-        height=240,
+        height=220,
     ),
     Demo(
         "table-columns",
@@ -164,7 +164,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=700,
-        height=240,
+        height=220,
     ),
     Demo(
         "table-declarative",
@@ -176,7 +176,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=700,
-        height=240,
+        height=220,
     ),
     Demo(
         "chart-lines",
@@ -188,7 +188,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=860,
-        height=440,
+        height=420,
     ),
     Demo(
         "chart-bars",
@@ -200,7 +200,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=760,
-        height=400,
+        height=380,
     ),
     Demo(
         "chart-declarative",
@@ -212,7 +212,7 @@ DEMOS: tuple[Demo, ...] = (
         ),
         auto_quit=False,
         width=820,
-        height=440,
+        height=420,
     ),
 )
 

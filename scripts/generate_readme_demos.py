@@ -38,7 +38,7 @@ Set Shell "bash"
 Set FontSize 18
 Set LineHeight 1.15
 Set Width 1200
-Set Height 700
+Set Height {height}
 Set Theme "GruvboxDark"
 Set Padding 40
 Set Margin 28
@@ -62,6 +62,8 @@ class Demo:
     steps: tuple[str, ...] = field(default_factory=tuple)
     launch_delay: str = "1.5s"
     tape_env: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+    height: int = 700
+    """Recording height in pixels, fitted to the example's content."""
 
 
 # All inline examples include a `q` quit handler so the tape exits cleanly.
@@ -105,6 +107,7 @@ DEMOS: tuple[Demo, ...] = (
             "Sleep 1s",
             "Sleep 1s",
         ),
+        height=280,
     ),
     Demo(
         name="layout_nesting",
@@ -134,6 +137,7 @@ DEMOS: tuple[Demo, ...] = (
             Terminal().run(App())
         """),
         steps=("Sleep 1.5s",),
+        height=330,
     ),
     Demo(
         name="keyboard_events",
@@ -174,6 +178,7 @@ DEMOS: tuple[Demo, ...] = (
             "Up@350ms 2",
             "Sleep 600ms",
         ),
+        height=270,
     ),
     Demo(
         name="click_handlers",
@@ -218,6 +223,7 @@ DEMOS: tuple[Demo, ...] = (
             "Show",
             "Sleep 1.5s",
         ),
+        height=350,
     ),
     Demo(
         name="timed_updates",
@@ -247,6 +253,7 @@ DEMOS: tuple[Demo, ...] = (
             Terminal().run(Clock())
         """),
         steps=("Sleep 3.5s",),
+        height=310,
     ),
     Demo(
         name="state_context",
@@ -278,6 +285,7 @@ DEMOS: tuple[Demo, ...] = (
                 t.run(App())
         """),
         steps=("Sleep 1.5s",),
+        height=270,
     ),
     Demo(
         name="custom_component",
@@ -316,6 +324,7 @@ DEMOS: tuple[Demo, ...] = (
             Terminal().run(StatusBoard())
         """),
         steps=("Sleep 1.5s",),
+        height=310,
     ),
 )
 
@@ -327,7 +336,7 @@ def build_tape(
     demo_env = [f'Env {key} "{value}"' for key, value in demo.tape_env]
     lines = [
         f"Output {output_rel.as_posix()}",
-        TERMINAL_SETTINGS,
+        TERMINAL_SETTINGS.format(height=demo.height),
         *demo_env,
         "Hide",
         f'Type "{python} {code_path.as_posix()}"',
