@@ -7,8 +7,10 @@ from typing import cast
 
 import pytest
 
-from xnano.beta import Context, on_click, on_mouse, Field, Grid
-from xnano.beta.grid import _resolve_grid_mouse_handler
+from xnano.context import Context
+from xnano.hooks import on_click, on_mouse
+from xnano.fields import Field
+from xnano.grid import Grid, _resolve_grid_mouse_handler
 
 
 class Panel(Grid):

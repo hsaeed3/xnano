@@ -12,11 +12,12 @@ import pytest
 from pydantic import BaseModel, Field as PydanticField
 
 from helpers import assign_attr, invalid_field
-from xnano.beta import Field, Grid
-from xnano.beta.components import Text
-from xnano.beta.core.renderable import Renderable
-from xnano.beta.exceptions import FieldValidationError
-from xnano.beta.types import Area
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.components.text import Text
+from xnano.core.renderable import Renderable
+from xnano.exceptions import FieldValidationError
+from xnano.types import Area
 
 
 class Status(enum.Enum):

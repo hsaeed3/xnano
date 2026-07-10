@@ -1,4 +1,4 @@
-"""Tests for xnano.beta.core.renderable — stdout fallback renderer.
+"""Tests for xnano.core.renderable — stdout fallback renderer.
 
 All tests run without a live terminal (no TTY / no _ACTIVE_TERMINAL set),
 exercising the ANSI-based fallback path directly.
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.beta.core.renderable import (
+from xnano.core.renderable import (
     _RESET,
     _ansi_color,
     _apply_border,
@@ -31,7 +31,7 @@ def _force_fallback_path():
     This fixture resets the context var to None for the duration of each test
     so the fallback renderer is always exercised.
     """
-    from xnano.beta.terminal import _ACTIVE_TERMINAL
+    from xnano.terminal import _ACTIVE_TERMINAL
 
     token = _ACTIVE_TERMINAL.set(None)
     yield

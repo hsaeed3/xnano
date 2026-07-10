@@ -20,19 +20,22 @@ from helpers import (
     type_text,
 )
 
-from xnano.beta import (
-    Field,
-    Grid,
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.hooks import (
     on_field,
     on_focus,
     on_keyboard,
     on_poll,
     on_tick,
+    _EventHooksRegistry,
 )
-from xnano.beta.components import Chart, Column, Progress, Table, Text
-from xnano.beta.components.schema import Series
-from xnano.beta.core.dispatch import pump_poll, pump_tick
-from xnano.beta.hooks import _EventHooksRegistry
+from xnano.components.chart import Chart
+from xnano.components.progress import Progress
+from xnano.components.table import Table
+from xnano.components.text import Text
+from xnano.components.schema import Column, Series
+from xnano.core.dispatch import pump_poll, pump_tick
 
 
 # ---------------------------------------------------------------------------
@@ -132,8 +135,8 @@ def test_login_form_backspace_and_cycle_wrap() -> None:
 def test_login_form_paste_into_focused_input() -> None:
     from typing import Any, cast
 
-    from xnano.beta.context import Context
-    from xnano.beta.core.dispatch import dispatch_hooks
+    from xnano.context import Context
+    from xnano.core.dispatch import dispatch_hooks
 
     form = LoginForm()
     terminal = open_offscreen_app(form)
@@ -296,8 +299,8 @@ class ChatApp(Grid):
             self.log = Text("\n".join(self.history[-4:]))
         self.prompt = Text("", input=True, placeholder="message")
         # keep focus on the new prompt instance
-        from xnano.beta.focus import set_field_focus
-        from xnano.beta.terminal import _ACTIVE_TERMINAL
+        from xnano.focus import set_field_focus
+        from xnano.terminal import _ACTIVE_TERMINAL
 
         term = _ACTIVE_TERMINAL.get()
         if term is not None:
@@ -522,7 +525,7 @@ def test_nested_panels_render_and_focus_left_input() -> None:
         assert len(terminal._attached_frame_grids) >= 3  # root + 2 panels
 
         # Explicitly focus left panel input and type.
-        from xnano.beta.focus import set_field_focus
+        from xnano.focus import set_field_focus
 
         assert set_field_focus(terminal, root.left, "field") is True
         type_text(terminal, "xy")

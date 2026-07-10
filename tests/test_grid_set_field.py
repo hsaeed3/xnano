@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.beta import Field, Grid, Terminal
-from xnano.beta.components import Text
-from xnano.beta.exceptions import FieldValidationError
-from xnano.beta.fields import UNSET
-from xnano.beta.types import Area
+from xnano.fields import Field, UNSET
+from xnano.grid import Grid
+from xnano.terminal import Terminal
+from xnano.components.text import Text
+from xnano.exceptions import FieldValidationError
+from xnano.types import Area
 
 
 class LayoutGrid(Grid):
@@ -73,11 +74,11 @@ def test_grid_slot_renders_text_component_offscreen() -> None:
     terminal = Terminal.offscreen(cols=40, rows=8)
     grid = TextGrid()
     terminal.run.__func__  # verify it's a callable
-    from xnano.beta.types import Area
+    from xnano.types import Area
 
     terminal._track_frame_grid(grid)
     sess = terminal.session
-    sess.begin_frame()
+    sess.begin_viewport_frame()
     grid._grid_build_frame(Area(x=0, y=0, width=40, height=8), sess)
     sess.commit_requests()
     output = sess.get_core_session_output_text()

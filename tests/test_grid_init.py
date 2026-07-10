@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from xnano.beta import Field, Grid
-from xnano.beta.components import Text
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.components.text import Text
 from xnano_core.core import CoreSession
 from xnano_core.rust import native
-from xnano.beta.core.session import Session
-from xnano.beta.types import Area as GridArea
+from xnano.core.controllers.terminal import TerminalController
+from xnano.types import Area as GridArea
 
 
 class Leaf(Grid):
@@ -37,7 +38,7 @@ class OptionalPanel(Grid, direction="vertical"):
 def test_nullable_layout_field_hidden_when_none() -> None:
     grid = OptionalPanel()
     core = CoreSession.offscreen(width=40, height=10)
-    session = Session(
+    session = TerminalController(
         core,
         terminal_width=40,
         terminal_height=10,
@@ -54,7 +55,7 @@ def test_nullable_layout_field_renders_when_set() -> None:
     grid = OptionalPanel()
     grid.overlay = Text("shown")
     core = CoreSession.offscreen(width=40, height=10)
-    session = Session(
+    session = TerminalController(
         core,
         terminal_width=40,
         terminal_height=10,
@@ -73,7 +74,7 @@ def test_grid_play_effect_targets_layout_field_area() -> None:
 
     grid = EffectGrid()
     core = CoreSession.offscreen(width=40, height=8)
-    session = Session(
+    session = TerminalController(
         core,
         terminal_width=40,
         terminal_height=8,
@@ -81,10 +82,10 @@ def test_grid_play_effect_targets_layout_field_area() -> None:
     )
     grid._grid_build_frame(GridArea(x=0, y=0, width=40, height=8), session)
     session.commit_requests()
-    from xnano.beta.effects import resolve_native_effect
+    from xnano.effects import resolve_effect
 
-    assert session.grid_play_effect(
-        resolve_native_effect("dissolve", duration_ms=200),
+    assert session.play_effect(
+        resolve_effect("dissolve", duration_ms=200),
         fields=["body"],
     )
     assert core.is_animating()
@@ -102,7 +103,7 @@ def test_field_text_background_does_not_paint_frame() -> None:
 
     grid = App()
     core = CoreSession.offscreen(width=40, height=6)
-    session = Session(
+    session = TerminalController(
         core,
         terminal_width=40,
         terminal_height=6,
@@ -131,7 +132,7 @@ def test_field_background_covers_text_span_only() -> None:
 
     grid = App()
     core = CoreSession.offscreen(width=40, height=6)
-    session = Session(
+    session = TerminalController(
         core,
         terminal_width=40,
         terminal_height=6,
@@ -153,7 +154,7 @@ def test_field_background_covers_text_span_only() -> None:
 def test_field_defaults_render_offscreen() -> None:
     root = Root()
     core = CoreSession.offscreen(width=40, height=8)
-    session = Session(
+    session = TerminalController(
         core,
         terminal_width=40,
         terminal_height=8,

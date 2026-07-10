@@ -5,22 +5,24 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
-from xnano.beta import Field, Grid, on_focus, on_keyboard
-from xnano.beta.components.text import Text
-from xnano.beta.context import Context
-from xnano.beta.core.dispatch import (
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.hooks import on_focus, on_keyboard
+from xnano.components.text import Text
+from xnano.context import Context
+from xnano.core.dispatch import (
     _handle_focus_navigation,
     _handle_focused_text_input,
     dispatch_hooks,
 )
-from xnano.beta.focus import (
+from xnano.focus import (
     FieldFocus,
     collect_focusable_fields,
     cycle_field_focus,
     set_field_focus,
     clear_field_focus,
 )
-from xnano.beta.hooks import _EventHooksRegistry, _OnFocusHookFunctionEntry
+from xnano.hooks import _EventHooksRegistry, _OnFocusHookFunctionEntry
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +217,7 @@ def test_enter_still_available_to_hooks() -> None:
 
 
 def test_terminal_focus_helpers() -> None:
-    from xnano.beta.terminal import Terminal
+    from xnano.terminal import Terminal
 
     term = Terminal.__new__(Terminal)
     term._field_focus = None

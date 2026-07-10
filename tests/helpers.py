@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterable, cast
 
-from xnano.beta.fields import Field, UNSET
+from xnano.fields import Field, UNSET
 
 if TYPE_CHECKING:
-    from xnano.beta.components.abstract import AbstractComponent
-    from xnano.beta.core.nodes import RenderNode
-    from xnano.beta.grid import Grid
-    from xnano.beta.terminal import Terminal
+    from xnano.components.abstract import AbstractComponent
+    from xnano.core.nodes.terminal import AbstractTerminalNode
+    from xnano.grid import Grid
+    from xnano.terminal import Terminal
 
 
 def invalid_field(default: Any) -> Any:
@@ -135,7 +135,7 @@ def open_offscreen_app(
 
     Caller should call :func:`close_offscreen_app` when finished.
     """
-    from xnano.beta.terminal import Terminal
+    from xnano.terminal import Terminal
 
     terminal = Terminal.offscreen(cols=cols, rows=rows, state=state)
     terminal.attach_grid(grid)
@@ -145,7 +145,7 @@ def open_offscreen_app(
 
 def close_offscreen_app(terminal: "Terminal[Any]") -> None:
     """Reset the active-terminal context var for an offscreen session."""
-    from xnano.beta import terminal as terminal_mod
+    import xnano.terminal as terminal_mod
 
     token = getattr(terminal, "_terminal_token", None)
     if token is not None:
@@ -163,8 +163,8 @@ def paint(terminal: "Terminal[Any]", grid: "Grid") -> str:
 
 def dispatch_key(terminal: "Terminal[Any]", keyboard: FakeKeyboard) -> None:
     """Run the full keyboard dispatch path for ``keyboard``."""
-    from xnano.beta.context import Context
-    from xnano.beta.core.dispatch import dispatch_hooks
+    from xnano.context import Context
+    from xnano.core.dispatch import dispatch_hooks
 
     event = FakeEvent(keyboard=keyboard)
     ctx = Context(
@@ -185,15 +185,15 @@ def press(terminal: "Terminal[Any]", *bindings: str) -> None:
 
 
 def render_node_to_text(
-    node: "RenderNode",
+    node: "AbstractTerminalNode",
     *,
     width: int = 40,
     height: int = 10,
 ) -> str:
-    """Render a single render-IR node offscreen and return the buffer text.
+    """Render a single terminal render node offscreen and return the buffer text.
 
     Args:
-        node: The ``RenderNode`` to lower and render.
+        node: The ``AbstractTerminalNode`` to lower and render.
         width: Offscreen viewport width in cells.
         height: Offscreen viewport height in cells.
 
@@ -202,17 +202,17 @@ def render_node_to_text(
     """
     from xnano_core.core import CoreSession
 
-    from xnano.beta.core.session import Session
-    from xnano.beta.types import Area
+    from xnano.core.controllers.terminal import TerminalController
+    from xnano.types import Area
 
     core = CoreSession.offscreen(width=width, height=height)
-    session = Session(
+    session = TerminalController(
         core,
         terminal_width=width,
         terminal_height=height,
         is_offscreen=True,
     )
-    session.begin_frame()
+    session.begin_viewport_frame()
     session.paint_node(node, Area(x=0, y=0, width=width, height=height))
     session.commit_requests()
     return session.get_core_session_output_text()
@@ -224,7 +224,8 @@ def render_component_to_text(
     width: int = 40,
     height: int = 10,
 ) -> str:
-    """Render a component offscreen via ``get_node`` and return the buffer text.
+    """Render a component offscreen via ``get_terminal_node`` and return the
+    buffer text.
 
     Args:
         component: The ``AbstractComponent`` to render.
@@ -235,12 +236,12 @@ def render_component_to_text(
         The rendered buffer as a newline-joined string. Empty when the
         component yields no node (e.g. ``visible=False``).
     """
-    from xnano.beta.components.abstract import ComponentRenderContext
-    from xnano.beta.types import Area
+    from xnano.components.abstract import ComponentRenderContext
+    from xnano.types import Area
 
     area = Area(x=0, y=0, width=width, height=height)
     ctx = ComponentRenderContext(area=area)
-    node = component.get_node(ctx)
+    node = component.get_terminal_node(ctx)
     if node is None:
         return ""
     return render_node_to_text(node, width=width, height=height)

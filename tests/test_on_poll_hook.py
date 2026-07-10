@@ -7,13 +7,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from xnano.beta import Field, Grid, on_poll
-from xnano.beta.core.dispatch import pump_events, pump_poll
-from xnano.beta.hooks import (
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.hooks import (
+    on_poll,
     PollWhen,
     _EventHooksRegistry,
     _OnPollHookFunctionEntry,
 )
+from xnano.core.dispatch import pump_events, pump_poll
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +140,7 @@ def test_pump_events_skips_idle_when_event_present(
     terminal.tick_interval = 16
     terminal._mouse_geometry_active = False
 
-    from xnano.beta import events as events_mod
+    from xnano import events as events_mod
 
     class _FakeEvent:
         def is_mouse_event(self) -> bool:
