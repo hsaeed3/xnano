@@ -99,6 +99,25 @@ Values:
 """
 
 
+EffectCellFilter: TypeAlias = Literal[
+    "all",
+    "text",
+    "non_empty",
+    "background",
+    "background_only",
+]
+"""Terminal cells selected by an effect.
+
+Values:
+    ``"all"``: Every cell in the target field area.
+    ``"text"``: Cells containing text-like characters.
+    ``"non_empty"``: Cells whose symbol is not a space.
+    ``"background"``: Cells carrying a non-reset background color.
+    ``"background_only"``: Blank cells carrying a non-reset background;
+        styled text cells are excluded.
+"""
+
+
 KnownEffectKind: TypeAlias = Literal[
     "fade",
     "fade_from",
@@ -245,6 +264,11 @@ class AbstractEffect(abc.ABC):
         kw_only=True,
     )
     """Optional interpolation curve for the effect."""
+    cell_filter: EffectCellFilter | None = dataclasses.field(
+        default=None,
+        kw_only=True,
+    )
+    """Optional terminal-cell selection applied by the controller."""
     key: str | None = dataclasses.field(default=None, kw_only=True)
     """Optional identity for this effect instance.
 
@@ -262,6 +286,22 @@ class AbstractEffect(abc.ABC):
         Returns:
             A native ``Effect`` ready to run.
         """
+
+    def apply_native_cell_filter(
+        self,
+        effect: native.Effect,
+    ) -> native.Effect:
+        """Apply this description's terminal cell filter to an effect."""
+        if self.cell_filter is None:
+            return effect
+        filters = {
+            "all": native.CellFilter.ALL,
+            "text": native.CellFilter.TEXT,
+            "non_empty": native.CellFilter.NON_EMPTY,
+            "background": native.CellFilter.BACKGROUND,
+            "background_only": native.CellFilter.BACKGROUND_ONLY,
+        }
+        return effect.with_filter(filters[self.cell_filter])
 
 
 @dataclasses.dataclass
@@ -821,7 +861,7 @@ def resolve_native_effect(
     Returns:
         A native ``Effect`` instance.
     """
-    return resolve_effect(
+    resolved = resolve_effect(
         effect,
         duration_ms=duration_ms,
         color=color,
@@ -834,7 +874,8 @@ def resolve_native_effect(
         child=child,
         times=times,
         key=key,
-    ).build_native_effect()
+    )
+    return resolved.apply_native_cell_filter(resolved.build_native_effect())
 
 
 @overload
@@ -933,6 +974,7 @@ __all__ = (
     "DissolveEffect",
     "Effect",
     "EffectColorSpace",
+    "EffectCellFilter",
     "EffectInterpolation",
     "EffectMotion",
     "FadeEffect",
