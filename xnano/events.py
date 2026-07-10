@@ -79,6 +79,16 @@ Values:
 """
 
 
+_CORE_EVENT_TYPES: dict[str, EventDataType] = {
+    "key": "keyboard",
+    "mouse": "mouse",
+    "resize": "resize",
+    "paste": "clipboard",
+    "focus_gained": "focus",
+    "focus_lost": "focus",
+}
+
+
 KeyboardEventKind: TypeAlias = Literal["press", "release", "repeat"]
 """The kind of keyboard event data available within the ``KeyboardEventData``
 of an ``Event``.
@@ -385,7 +395,11 @@ class Event:
     @property
     def type(self) -> EventDataType:
         """The type of this event's data."""
-        return self.data.type
+        if not hasattr(self, "_event_type"):
+            kind = self._core_event.kind_str()
+            event_type = _CORE_EVENT_TYPES.get(kind, "other")
+            object.__setattr__(self, "_event_type", event_type)
+        return self._event_type
 
     def is_clipboard_event(self) -> bool:
         """Return whether this is a clipboard event."""

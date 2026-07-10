@@ -86,6 +86,7 @@ class TerminalController(AbstractController, Generic[StateT]):
         "_terminal_height",
         "_last_viewport",
         "_render_requests",
+        "_native_frame_cache",
     )
 
     def __init__(
@@ -102,6 +103,7 @@ class TerminalController(AbstractController, Generic[StateT]):
         self._terminal_height = terminal_height
         self._last_viewport: native.Rect | None = None
         self._render_requests: list[RenderRequest[StateT]] = []
+        self._native_frame_cache: dict[int, tuple[Any, Any]] = {}
 
     @classmethod
     def get_capabilities(cls) -> AbstractControllerCapabilities:
@@ -289,7 +291,15 @@ class TerminalController(AbstractController, Generic[StateT]):
         z: int = 0,
     ) -> Area:
         """Paint the chrome ``frame`` around ``area`` and return the inner area."""
-        block = native_types.get_native_block_from_frame(frame)
+        cache_key = id(frame)
+        cached = self._native_frame_cache.get(cache_key)
+        if cached is not None and cached[0] is frame:
+            block = cached[1]
+        else:
+            block = native_types.get_native_block_from_frame(frame)
+            if len(self._native_frame_cache) >= 256:
+                self._native_frame_cache.clear()
+            self._native_frame_cache[cache_key] = (frame, block)
         if block is None:
             return area
 
