@@ -38,8 +38,7 @@ def build_style_attrs(
         try:
             parsed_color = Color.parse(color)
             styles["color"] = (
-                f"rgb({parsed_color.r}, {parsed_color.g}, "
-                f"{parsed_color.b})"
+                f"rgb({parsed_color.r}, {parsed_color.g}, {parsed_color.b})"
             )
         except Exception:
             pass
@@ -49,8 +48,7 @@ def build_style_attrs(
         try:
             parsed_bg = Color.parse(background)
             styles["background-color"] = (
-                f"rgb({parsed_bg.r}, {parsed_bg.g}, "
-                f"{parsed_bg.b})"
+                f"rgb({parsed_bg.r}, {parsed_bg.g}, {parsed_bg.b})"
             )
         except Exception:
             pass
@@ -92,9 +90,7 @@ def build_style_attrs(
     return classes, styles
 
 
-def _format_attributes(
-    classes: list[str], styles: dict[str, str]
-) -> str:
+def _format_attributes(classes: list[str], styles: dict[str, str]) -> str:
     """Format Tailwind classes and inline styles as HTML attributes.
 
     Args:

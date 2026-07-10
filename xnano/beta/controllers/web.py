@@ -215,9 +215,7 @@ class WebController(AbstractController):
         # Return one area per constraint; browser divides space.
         return [area] * len(constraints)
 
-    def paint_frame(
-        self, area: Area, frame: "Frame", *, z: int = 0
-    ) -> Area:
+    def paint_frame(self, area: Area, frame: "Frame", *, z: int = 0) -> Area:
         """Paint frame chrome (border, title, padding).
 
         Implements a state machine:
@@ -246,9 +244,7 @@ class WebController(AbstractController):
 
         return area
 
-    def _apply_frame(
-        self, element: _HtmlElement, frame: "Frame"
-    ) -> None:
+    def _apply_frame(self, element: _HtmlElement, frame: "Frame") -> None:
         """Apply frame chrome (border, title, padding) to an element.
 
         Args:
@@ -304,9 +300,9 @@ class WebController(AbstractController):
         if frame.title is not None:
             element.classes.append("relative")
             title_html = html.escape(frame.title)
-            pos_class = "-bottom-3" if (
-                frame.title_position == "bottom"
-            ) else "-top-3"
+            pos_class = (
+                "-bottom-3" if (frame.title_position == "bottom") else "-top-3"
+            )
             title_element = (
                 f'<span class="absolute {pos_class} left-2 px-1 '
                 f'text-xs bg-zinc-900">{title_html}</span>'
@@ -397,9 +393,7 @@ class WebController(AbstractController):
             f' class="{html.escape(" ".join(classes), quote=True)}"',
         ]
         if style_attr:
-            parts.append(
-                f' style="{html.escape(style_attr, quote=True)}"'
-            )
+            parts.append(f' style="{html.escape(style_attr, quote=True)}"')
         parts.append(
             f' hx-post="/xnano/input/{target_id}"'
             ' hx-trigger="input changed delay:300ms"'

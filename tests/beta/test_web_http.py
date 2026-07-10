@@ -97,9 +97,7 @@ async def test_post_key_route_matches_keyboard_binding() -> None:
     app = Web().build_app(grid)
     async with asgi_client(app) as client:
         await client.get("/")
-        response = await client.post(
-            "/xnano/key", params={"binding": "up"}
-        )
+        response = await client.post("/xnano/key", params={"binding": "up"})
         assert response.status_code == 200
         assert grid.count == 10
         assert "Count: 10" in response.text
@@ -110,9 +108,7 @@ async def test_post_key_route_matches_keyboard_binding() -> None:
         assert grid.count == 20
         assert "Count: 20" in response.text
 
-        response = await client.post(
-            "/xnano/key", params={"binding": "x"}
-        )
+        response = await client.post("/xnano/key", params={"binding": "x"})
         assert grid.count == 20
         assert "Count: 20" in response.text
 
@@ -158,7 +154,7 @@ async def test_post_tick_route_advances_interval_hooks() -> None:
         assert grid.ticks == ticks_after_first + 1
 
 
-# ── @on_get / @on_post HTTP routes ────────────────────────────────────
+# ── @on_get_request / @on_post_request HTTP routes ────────────────────
 
 
 @pytest.mark.asyncio
@@ -189,16 +185,12 @@ async def test_post_increment_htmx_fragment_and_state() -> None:
 
 @pytest.mark.asyncio
 async def test_get_status_full_page_vs_htmx_fragment() -> None:
-    """Same @on_get path: full page for browsers, fragment for htmx."""
+    """Same @on_get_request path: full page for browsers, fragment for htmx."""
     grid = RequestHookGrid()
     app = Web(title="request hooks").build_app(grid)
     async with asgi_client(app) as client:
-        await client.post(
-            "/increment", headers={"HX-Request": "true"}
-        )
-        await client.post(
-            "/increment", headers={"HX-Request": "true"}
-        )
+        await client.post("/increment", headers={"HX-Request": "true"})
+        await client.post("/increment", headers={"HX-Request": "true"})
         assert grid.count == 2
 
         browser = await client.get("/status")
@@ -208,9 +200,7 @@ async def test_get_status_full_page_vs_htmx_fragment() -> None:
         assert 'id="xnano-app"' in browser.text
         assert "cdn.tailwindcss.com" in browser.text
 
-        htmx = await client.get(
-            "/status", headers={"HX-Request": "true"}
-        )
+        htmx = await client.get("/status", headers={"HX-Request": "true"})
         assert htmx.status_code == 200
         assert "status:2" in htmx.text
         assert "<!doctype html>" not in htmx.text.lower()
@@ -219,7 +209,7 @@ async def test_get_status_full_page_vs_htmx_fragment() -> None:
 
 @pytest.mark.asyncio
 async def test_get_index_runs_root_on_get_each_visit() -> None:
-    """Each GET / increments the @on_get('/') visit counter."""
+    """Each GET / increments the @on_get_request('/') visit counter."""
     grid = RequestHookGrid()
     app = Web(title="request hooks").build_app(grid)
     async with asgi_client(app) as client:
@@ -236,9 +226,7 @@ async def test_unknown_route_returns_404() -> None:
     grid = RequestHookGrid()
     app = Web(title="request hooks").build_app(grid)
     async with asgi_client(app) as client:
-        await client.post(
-            "/increment", headers={"HX-Request": "true"}
-        )
+        await client.post("/increment", headers={"HX-Request": "true"})
         assert grid.count == 1
 
         response = await client.post("/nope")
@@ -248,7 +236,7 @@ async def test_unknown_route_returns_404() -> None:
 
 @pytest.mark.asyncio
 async def test_wrong_method_on_request_hook_path() -> None:
-    """GET on a POST-only @on_post path does not fire the POST handler."""
+    """GET on a POST-only @on_post_request path does not fire the POST handler."""
     grid = RequestHookGrid()
     app = Web(title="request hooks").build_app(grid)
     async with asgi_client(app) as client:
