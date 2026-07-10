@@ -8,10 +8,13 @@ from __future__ import annotations
 import math
 import time
 
-from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
-from xnano.beta.components import Text
-from xnano.beta.color import tailwind_color
-from xnano.beta.effects import AbstractEffect, Effect
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.terminal import Terminal
+from xnano.hooks import on_keyboard, on_tick
+from xnano.components.text import Text
+from xnano.color import tailwind_color
+from xnano.effects import AbstractEffect, Effect
 
 
 _LOGO = (

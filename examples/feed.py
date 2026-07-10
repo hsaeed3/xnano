@@ -14,13 +14,17 @@ import dataclasses
 import random
 import time
 
-from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
-from xnano.beta.components import Sparkline, Text
-from xnano.beta.components.abstract import (
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.terminal import Terminal
+from xnano.hooks import on_keyboard, on_tick
+from xnano.components.sparkline import Sparkline
+from xnano.components.text import Text
+from xnano.components.abstract import (
     AbstractComponent,
     ComponentRenderContext,
 )
-from xnano.beta.color import ColorLike, tailwind_color
+from xnano.color import ColorLike, tailwind_color
 
 
 # ── Services & palette ────────────────────────────────────────────────────────
@@ -176,8 +180,8 @@ class ServiceGraph(AbstractComponent):
     max_v: float = 1.0
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import (
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import (
             CanvasLine,
             CanvasNode,
             CanvasPrint,
@@ -243,8 +247,8 @@ class ServiceTable(AbstractComponent):
     selected: int = 0
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import (
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -325,8 +329,8 @@ class ErrorGauge(AbstractComponent):
     ratio: float = 0.0
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import LineGaugeNode
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import LineGaugeNode
 
         if self.ratio < 0.02:
             filled = tailwind_color("emerald", 500)
@@ -352,8 +356,12 @@ class EndpointChart(AbstractComponent):
     accent: ColorLike | None = dataclasses.field(default=None)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import BarChartNode, BarGroupItem, BarItem
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import (
+            BarChartNode,
+            BarGroupItem,
+            BarItem,
+        )
 
         if not self.endpoints:
             return BarChartNode(groups=[], direction="vertical", max_value=1)
@@ -383,8 +391,8 @@ class EventLog(AbstractComponent):
     events: list = dataclasses.field(default_factory=list)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.beta.core.nodes import (
+    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
+        from xnano.core.nodes.terminal import (
             SpanNode,
             TableCellItem,
             TableNode,

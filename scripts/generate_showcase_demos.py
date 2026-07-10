@@ -93,7 +93,7 @@ class ExampleConfig:
 EXAMPLES: tuple[ExampleConfig, ...] = (
     ExampleConfig(
         name="demo",
-        script="xnano/beta/core/demo.py",
+        script="beta/core/demo.py",
         height=600,
         launch_delay="2s",
         steps=(
