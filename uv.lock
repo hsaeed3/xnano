@@ -2529,7 +2529,7 @@ wheels = [
 
 [[package]]
 name = "xnano"
-version = "1.0.0b3"
+version = "1.0.0b4"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic-core" },
