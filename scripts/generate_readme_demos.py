@@ -70,9 +70,12 @@ DEMOS: tuple[Demo, ...] = (
     Demo(
         name="hello_world",
         code=dedent("""\
-            from xnano.beta import Grid, Field, Terminal, Context
-            from xnano.beta.color import tailwind_color
-            from xnano.beta.hooks import on_tick, on_keyboard
+            from xnano.grid import Grid
+            from xnano.fields import Field
+            from xnano.terminal import Terminal
+            from xnano.context import Context
+            from xnano.color import tailwind_color
+            from xnano.hooks import on_tick, on_keyboard
 
             class App(Grid):
                 message: str = Field(default="Hello, world!", color=tailwind_color("sky", 500))
@@ -107,8 +110,11 @@ DEMOS: tuple[Demo, ...] = (
         name="layout_nesting",
         launch_delay="1.5s",
         code=dedent("""\
-            from xnano.beta import Grid, Field, Terminal, Context
-            from xnano.beta.hooks import on_keyboard
+            from xnano.grid import Grid
+            from xnano.fields import Field
+            from xnano.terminal import Terminal
+            from xnano.context import Context
+            from xnano.hooks import on_keyboard
 
             class SidebarTitle(Grid, align="center"):
                 title: str = Field("This is a title.", align="center")
@@ -133,8 +139,11 @@ DEMOS: tuple[Demo, ...] = (
         name="keyboard_events",
         launch_delay="1.5s",
         code=dedent("""\
-            from xnano.beta import Grid, Field, Terminal, Context
-            from xnano.beta.hooks import on_keyboard
+            from xnano.grid import Grid
+            from xnano.fields import Field
+            from xnano.terminal import Terminal
+            from xnano.context import Context
+            from xnano.hooks import on_keyboard
 
             class Counter(Grid, direction="vertical", gap=1):
                 label: str = Field(default="Count: 0", height=1)
@@ -173,8 +182,11 @@ DEMOS: tuple[Demo, ...] = (
         code=dedent("""\
             import os
 
-            from xnano.beta import Grid, Field, Terminal, Context
-            from xnano.beta.hooks import on_click, on_keyboard
+            from xnano.grid import Grid
+            from xnano.fields import Field
+            from xnano.terminal import Terminal
+            from xnano.context import Context
+            from xnano.hooks import on_click, on_keyboard
 
 
             class App(Grid, direction="vertical", gap=1):
@@ -212,8 +224,11 @@ DEMOS: tuple[Demo, ...] = (
         launch_delay="1.5s",
         code=dedent("""\
             import time
-            from xnano.beta import Grid, Field, Terminal, Context
-            from xnano.beta.hooks import on_tick, on_keyboard
+            from xnano.grid import Grid
+            from xnano.fields import Field
+            from xnano.terminal import Terminal
+            from xnano.context import Context
+            from xnano.hooks import on_tick, on_keyboard
 
             class Clock(Grid, direction="vertical"):
                 time_display: str = Field(default="", height=3, border="rounded")
@@ -238,8 +253,11 @@ DEMOS: tuple[Demo, ...] = (
         launch_delay="1.5s",
         code=dedent("""\
             from dataclasses import dataclass
-            from xnano.beta import Grid, Field, Terminal, Context
-            from xnano.beta.hooks import on_keyboard
+            from xnano.grid import Grid
+            from xnano.fields import Field
+            from xnano.terminal import Terminal
+            from xnano.context import Context
+            from xnano.hooks import on_keyboard
 
             @dataclass
             class AppState:
@@ -266,11 +284,14 @@ DEMOS: tuple[Demo, ...] = (
         launch_delay="1.5s",
         code=dedent("""\
             import dataclasses
-            from xnano.beta import Grid, Field, Terminal, Context
-            from xnano.beta.color import tailwind_color, pydantic_color
-            from xnano.beta.hooks import on_keyboard
-            from xnano.beta.components.abstract import AbstractComponent, ComponentRenderContext
-            from xnano.beta.core.nodes import ParagraphNode, RenderNode
+            from xnano.grid import Grid
+            from xnano.fields import Field
+            from xnano.terminal import Terminal
+            from xnano.context import Context
+            from xnano.color import tailwind_color, pydantic_color
+            from xnano.hooks import on_keyboard
+            from xnano.components.abstract import AbstractComponent, ComponentRenderContext
+            from xnano.core.nodes.terminal import ParagraphNode, AbstractTerminalNode
 
 
             @dataclasses.dataclass
@@ -278,7 +299,7 @@ DEMOS: tuple[Demo, ...] = (
                 label: str = ""
                 color: str = "white"
 
-                def get_node(self, ctx: ComponentRenderContext) -> RenderNode:
+                def get_terminal_node(self, ctx: ComponentRenderContext) -> AbstractTerminalNode:
                     return ParagraphNode(text=self.label, color=self.color)
 
 

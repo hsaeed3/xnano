@@ -9,7 +9,7 @@ Scans Python source files for annotation blocks of the form:
     # Body line one — what needs to be done, fixed, or decided.
     # Body line two — continues until a non-comment line is hit.
 
-All found blocks surface in an xnano.beta TUI where you can navigate,
+All found blocks surface in an xnano TUI where you can navigate,
 read context, and edit body text inline (writing changes back to source).
 """
 
@@ -119,9 +119,12 @@ def save_block(block: SpecBlock, new_body: list[str]) -> None:
 # TUI
 # ---------------------------------------------------------------------------
 
-from xnano.beta import Field, Grid, Terminal, on_keyboard
-from xnano.beta.components import Text
-from xnano.beta.color import tailwind_color
+from xnano.fields import Field
+from xnano.grid import Grid
+from xnano.terminal import Terminal
+from xnano.hooks import on_keyboard
+from xnano.components.text import Text
+from xnano.color import tailwind_color
 
 _V300 = tailwind_color("violet", 300)
 _V400 = tailwind_color("violet", 400)
@@ -278,7 +281,7 @@ class SpecApp(Grid, direction="horizontal", gap=1, background="black"):
 
         if not self.edit_mode:
             if char == "q":
-                from xnano.beta.exceptions import Exit
+                from xnano.exceptions import Exit
 
                 raise Exit
             elif char == "j" and self.blocks:
