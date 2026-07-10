@@ -2,16 +2,25 @@
 
 ---
 
-Synchronize ``xnano`` and ``xnano-core`` version strings across the whitelisted
-release files in this repository.
+Synchronize ``xnano`` and ``xnano-core`` version strings across the
+whitelisted release files in this repository.
 
 Authoritative sources:
 
 - ``xnano``: ``pyproject.toml`` ``[project].version``
 - ``xnano-core``: ``xnano-core/Cargo.toml`` ``[package].version``
 
-When only one package is bumped, every file that references the other package
-is reconciled so pins and compatibility checks stay aligned.
+Files updated by this script:
+
+- ``pyproject.toml`` — xnano version + ``xnano-core==…`` dependency pin
+- ``xnano-core/Cargo.toml`` — xnano-core package version (also feeds the
+  compiled ``xnano_core.rust.native.__version__`` via
+  ``env!("CARGO_PKG_VERSION")``)
+- ``xnano/__init__.py`` — ``__version__`` constant
+
+``xnano-core/python/xnano_core/rust/native.pyi`` only declares
+``__version__: str`` (no literal to keep in sync). The runtime value is
+set from Cargo at build time.
 """
 
 from __future__ import annotations
@@ -25,10 +34,12 @@ import sys
 
 
 DEFAULT_XNANO_VERSION = "0.99.9"
-"""Default ``xnano`` version when the package is named without an explicit value."""
+"""Default ``xnano`` version when the package is named without an
+explicit value."""
 
 DEFAULT_XNANO_CORE_VERSION = "0.0.2"
-"""Default ``xnano-core`` version when the package is named without an explicit value."""
+"""Default ``xnano-core`` version when the package is named without an
+explicit value."""
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -36,10 +47,9 @@ EDITABLE_FILES: tuple[str, ...] = (
     "pyproject.toml",
     "xnano-core/Cargo.toml",
     "xnano/__init__.py",
-    "xnano/beta/core/version.py",
-    "README.md",
 )
-"""Paths this script is allowed to modify, relative to the repository root."""
+"""Paths this script is allowed to modify, relative to the repository
+root."""
 
 VERSION_PATTERN = re.compile(r"^v?(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)$")
 """PEP 440-style release versions accepted by this script."""
@@ -56,22 +66,6 @@ _CARGO_PACKAGE_VERSION = re.compile(
 _INIT_PY_VERSION = re.compile(
     r'^__version__ = "(?P<version>[^"]+)"$', re.MULTILINE
 )
-_VERSION_PY_XNANO = re.compile(
-    r'^VERSION = "(?P<version>[^"]+)"$', re.MULTILINE
-)
-_VERSION_PY_CORE = re.compile(
-    r'^_COMPATIBLE_XNANO_CORE_VERSION = "(?P<version>[^"]+)"$',
-    re.MULTILINE,
-)
-_README_MIN_VERSION = re.compile(
-    r"``(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)``\+ version"
-)
-_README_PIP_INSTALL = re.compile(
-    r'pip install "xnano>=(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)"'
-)
-_README_UV_ADD = re.compile(
-    r'uv add "xnano>=(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)"'
-)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -85,7 +79,8 @@ class VersionState:
 
 
 class VersionSyncError(RuntimeError):
-    """Raised when version files cannot be read, validated, or updated safely."""
+    """Raised when version files cannot be read, validated, or updated
+    safely."""
 
 
 def validate_version_string(version: str, label: str) -> str:
@@ -99,7 +94,8 @@ def validate_version_string(version: str, label: str) -> str:
         The validated version string.
 
     Raises:
-        VersionSyncError: If ``version`` is not a supported release string.
+        VersionSyncError: If ``version`` is not a supported release
+            string.
     """
     if not VERSION_PATTERN.fullmatch(version):
         message = (
@@ -108,6 +104,23 @@ def validate_version_string(version: str, label: str) -> str:
         )
         raise VersionSyncError(message)
     return version
+
+
+def ensure_editable_path(relative_path: str) -> None:
+    """Ensure a path is on the edit whitelist.
+
+    Args:
+        relative_path: Path relative to the repository root.
+
+    Raises:
+        VersionSyncError: If editing the path is not allowed.
+    """
+    if relative_path not in EDITABLE_FILES:
+        message = (
+            f'Refusing to edit "{relative_path}". '
+            f"Allowed paths: {', '.join(EDITABLE_FILES)}"
+        )
+        raise VersionSyncError(message)
 
 
 def read_text_file(relative_path: str) -> str:
@@ -153,23 +166,6 @@ def write_text_file(relative_path: str, content: str) -> bool:
     return True
 
 
-def ensure_editable_path(relative_path: str) -> None:
-    """Ensure a path is on the edit whitelist.
-
-    Args:
-        relative_path: Path relative to the repository root.
-
-    Raises:
-        VersionSyncError: If editing the path is not allowed.
-    """
-    if relative_path not in EDITABLE_FILES:
-        message = (
-            f'Refusing to edit "{relative_path}". '
-            f"Allowed paths: {', '.join(EDITABLE_FILES)}"
-        )
-        raise VersionSyncError(message)
-
-
 def extract_first_match(
     pattern: re.Pattern[str],
     content: str,
@@ -192,32 +188,6 @@ def extract_first_match(
     if match is None:
         raise VersionSyncError(f"Could not find {label} in repository files.")
     return match.group(1)
-
-
-def read_version_state() -> VersionState:
-    """Read authoritative versions from package manifests.
-
-    Returns:
-        The versions declared in ``pyproject.toml`` and ``Cargo.toml``.
-    """
-    pyproject = read_text_file("pyproject.toml")
-    cargo = read_text_file("xnano-core/Cargo.toml")
-
-    xnano = extract_first_match(
-        _XNANO_PROJECT_VERSION,
-        pyproject,
-        "xnano project version",
-    )
-    xnano_core = extract_first_match(
-        _CARGO_PACKAGE_VERSION,
-        cargo,
-        "xnano-core Cargo package version",
-    )
-
-    return VersionState(
-        xnano=validate_version_string(xnano, "xnano"),
-        xnano_core=validate_version_string(xnano_core, "xnano-core"),
-    )
 
 
 def apply_single_replacement(
@@ -247,6 +217,32 @@ def apply_single_replacement(
         )
         raise VersionSyncError(message)
     return updated, count
+
+
+def read_version_state() -> VersionState:
+    """Read authoritative versions from package manifests.
+
+    Returns:
+        The versions declared in ``pyproject.toml`` and ``Cargo.toml``.
+    """
+    pyproject = read_text_file("pyproject.toml")
+    cargo = read_text_file("xnano-core/Cargo.toml")
+
+    xnano = extract_first_match(
+        _XNANO_PROJECT_VERSION,
+        pyproject,
+        "xnano project version",
+    )
+    xnano_core = extract_first_match(
+        _CARGO_PACKAGE_VERSION,
+        cargo,
+        "xnano-core Cargo package version",
+    )
+
+    return VersionState(
+        xnano=validate_version_string(xnano, "xnano"),
+        xnano_core=validate_version_string(xnano_core, "xnano-core"),
+    )
 
 
 def sync_pyproject_toml(state: VersionState) -> bool:
@@ -314,66 +310,6 @@ def sync_xnano_init(state: VersionState) -> bool:
     return write_text_file("xnano/__init__.py", content)
 
 
-def sync_version_module(state: VersionState) -> bool:
-    """Synchronize ``xnano/beta/core/version.py``.
-
-    Args:
-        state: Target versions to write.
-
-    Returns:
-        ``True`` when the file changed.
-    """
-    content = read_text_file("xnano/beta/core/version.py")
-
-    content, _ = apply_single_replacement(
-        content,
-        _VERSION_PY_XNANO,
-        f'VERSION = "{state.xnano}"',
-        "xnano VERSION constant",
-    )
-    content, _ = apply_single_replacement(
-        content,
-        _VERSION_PY_CORE,
-        f'_COMPATIBLE_XNANO_CORE_VERSION = "{state.xnano_core}"',
-        "xnano-core compatibility constant",
-    )
-
-    return write_text_file("xnano/beta/core/version.py", content)
-
-
-def sync_readme(state: VersionState) -> bool:
-    """Synchronize install examples in ``README.md``.
-
-    Args:
-        state: Target versions to write.
-
-    Returns:
-        ``True`` when the file changed.
-    """
-    content = read_text_file("README.md")
-
-    content, _ = apply_single_replacement(
-        content,
-        _README_MIN_VERSION,
-        f"``{state.xnano}``+ version",
-        "README minimum version warning",
-    )
-    content, _ = apply_single_replacement(
-        content,
-        _README_PIP_INSTALL,
-        f'pip install "xnano>={state.xnano}"',
-        "README pip install example",
-    )
-    content, _ = apply_single_replacement(
-        content,
-        _README_UV_ADD,
-        f'uv add "xnano>={state.xnano}"',
-        "README uv add example",
-    )
-
-    return write_text_file("README.md", content)
-
-
 def collect_drift(state: VersionState) -> list[str]:
     """Return human-readable drift messages for the current tree.
 
@@ -388,8 +324,6 @@ def collect_drift(state: VersionState) -> list[str]:
     pyproject = read_text_file("pyproject.toml")
     cargo = read_text_file("xnano-core/Cargo.toml")
     xnano_init = read_text_file("xnano/__init__.py")
-    version_py = read_text_file("xnano/beta/core/version.py")
-    readme = read_text_file("README.md")
 
     checks = (
         (
@@ -428,51 +362,6 @@ def collect_drift(state: VersionState) -> list[str]:
             ),
             state.xnano,
         ),
-        (
-            "version.py VERSION",
-            extract_first_match(
-                _VERSION_PY_XNANO,
-                version_py,
-                "xnano VERSION constant",
-            ),
-            state.xnano,
-        ),
-        (
-            "version.py core compatibility",
-            extract_first_match(
-                _VERSION_PY_CORE,
-                version_py,
-                "xnano-core compatibility constant",
-            ),
-            state.xnano_core,
-        ),
-        (
-            "README minimum version",
-            extract_first_match(
-                _README_MIN_VERSION,
-                readme,
-                "README minimum version warning",
-            ),
-            state.xnano,
-        ),
-        (
-            "README pip install",
-            extract_first_match(
-                _README_PIP_INSTALL,
-                readme,
-                "README pip install example",
-            ),
-            state.xnano,
-        ),
-        (
-            "README uv add",
-            extract_first_match(
-                _README_UV_ADD,
-                readme,
-                "README uv add example",
-            ),
-            state.xnano,
-        ),
     )
 
     for label, actual, expected in checks:
@@ -499,10 +388,6 @@ def sync_version_files(state: VersionState) -> list[str]:
         changed.append("xnano-core/Cargo.toml")
     if sync_xnano_init(state):
         changed.append("xnano/__init__.py")
-    if sync_version_module(state):
-        changed.append("xnano/beta/core/version.py")
-    if sync_readme(state):
-        changed.append("README.md")
 
     return changed
 
@@ -558,8 +443,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         description=(
-            "Synchronize xnano and xnano-core versions across the whitelisted "
-            "release files."
+            "Synchronize xnano and xnano-core versions across the "
+            "whitelisted release files."
         ),
     )
     parser.add_argument(
@@ -567,17 +452,17 @@ def build_argument_parser() -> argparse.ArgumentParser:
         nargs="?",
         choices=("xnano", "xnano-core"),
         help=(
-            "Optional package to bump. When omitted, versions are read from "
-            "the authoritative manifests and propagated everywhere."
+            "Optional package to bump. When omitted, versions are read "
+            "from the authoritative manifests and propagated everywhere."
         ),
     )
     parser.add_argument(
         "version",
         nargs="?",
         help=(
-            "Explicit version for the selected package. When omitted with a "
-            "package argument, the script uses the cached default for that "
-            "package."
+            "Explicit version for the selected package. When omitted "
+            "with a package argument, the script uses the cached "
+            "default for that package."
         ),
     )
     parser.add_argument(
