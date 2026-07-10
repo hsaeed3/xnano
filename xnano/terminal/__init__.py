@@ -148,7 +148,6 @@ class Terminal(Generic[StateT]):
         "_is_live",
         "_has_context",
         "_attached_grids",
-        "_attached_grid_classes",
         "_attached_frame_grids",
         "_field_hits",
         "_mouse_geometry_active",
@@ -213,8 +212,9 @@ class Terminal(Generic[StateT]):
         self._renderable_overlays: list[tuple[Any, int]] = []
         self._is_live: bool = False
         self._has_context: bool = False
-        self._attached_grids: set[int] = set()
-        self._attached_grid_classes: set[type] = set()
+        # Grids whose hooks are registered, keyed by ``id`` — the value is a
+        # strong reference so the id stays unique for the terminal's life.
+        self._attached_grids: dict[int, Any] = {}
         self._attached_frame_grids: list[Any] = []
         self._field_hits: list[Any] = []
         self._mouse_geometry_active: bool = False
