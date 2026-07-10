@@ -19,7 +19,7 @@ members = [
 
 [project]
 name = "xnano"
-version = "1.0.0b4"
+version = "1.0.0"
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "A simple python **tui** framework built on top of the ``[ratatui](https://ratatui.rs)`` and ``[tachyonfx](https://github.com/ratatui/tachyonfx)`` rust crates."
 readme = "README.md"
@@ -36,7 +36,7 @@ classifiers = [
 ]
 dependencies = [
     "pydantic-core>=2.0.0",
-    "xnano-core==0.0.7",
+    "xnano-core==0.0.8",
 ]
 
 [project.optional-dependencies]
@@ -77,7 +77,8 @@ dev = [
     "mkdocs-material",
     "mkdocs-click",
     "mkdocstrings-python",
-    # basemodel testing
+    
+    # test / beta testing related dependencies
     "pydantic>=2.0.0",
     "httpx>=0.28.1",
 ]
