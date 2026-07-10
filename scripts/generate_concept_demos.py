@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate demo GIFs for the inline code examples in docs/api/concepts/.
+"""Generate fitted demo GIFs for examples in docs and docs/concepts.
 
 Each Demo corresponds to a complete, runnable code block shown in the concept
 docs. Outputs one GIF per demo per theme (docs dark + light palettes) to
@@ -31,7 +31,8 @@ from textwrap import dedent
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = REPO_ROOT / "docs" / "assets" / "concepts"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
-LAUNCHER = "scripts/vhs-demo"
+LAUNCHER = "uv run python scripts/run_vhs_demo.py"
+LAUNCHER_PATH = REPO_ROOT / "scripts" / "run_vhs_demo.py"
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 from vhs_showcase_themes import get_margin_fill, get_vhs_theme  # noqa: E402
@@ -48,9 +49,9 @@ Require python
 Set Shell "bash"
 Set FontSize 16
 Set LineHeight 1.2
-Set Width 1200
-Set Height 700
-Set Padding 36
+Set Width {width}
+Set Height {height}
+Set Padding {padding}
 Set Margin 24
 Set MarginFill "{margin_fill}"
 Set BorderRadius 12
@@ -88,6 +89,14 @@ class Demo:
     """Extra ``Env KEY "VALUE"`` lines to inject into the tape."""
     auto_quit: bool = True
     """Send ``q`` while hidden after the recording hold."""
+    width: int = 960
+    """Recording width in pixels, fitted to the example's content."""
+    height: int = 520
+    """Recording height in pixels, fitted to the example's content."""
+    padding: int = 28
+    """Space between the terminal content and recording edge."""
+    display_width: int | None = None
+    """Optional rendered width used by the matching Markdown image."""
 
 
 DEMOS: tuple[Demo, ...] = (
@@ -107,6 +116,10 @@ DEMOS: tuple[Demo, ...] = (
         steps=("Sleep 2.5s",),
         record_delay="500ms",
         auto_quit=False,
+        width=720,
+        height=260,
+        padding=24,
+        display_width=520,
     ),
     Demo(
         name="render_multiple",
@@ -125,6 +138,10 @@ DEMOS: tuple[Demo, ...] = (
         steps=("Sleep 2.5s",),
         record_delay="500ms",
         auto_quit=False,
+        width=760,
+        height=300,
+        padding=24,
+        display_width=560,
     ),
     Demo(
         name="styled_text",
@@ -146,6 +163,10 @@ DEMOS: tuple[Demo, ...] = (
         steps=("Sleep 2.5s",),
         record_delay="500ms",
         auto_quit=False,
+        width=780,
+        height=320,
+        padding=24,
+        display_width=580,
     ),
     Demo(
         name="hello_render",
@@ -548,14 +569,19 @@ DEMOS: tuple[Demo, ...] = (
 _DEMO_MAP = {demo.name: demo for demo in DEMOS}
 
 
-def _settings(theme_key: str) -> str:
+def _settings(theme_key: str, demo: Demo) -> str:
     return _BASE_SETTINGS.format(
         theme=get_vhs_theme(theme_key),
         margin_fill=get_margin_fill(theme_key),
+        width=demo.width,
+        height=demo.height,
+        padding=demo.padding,
     )
 
 
 def build_tape(demo: Demo, output: Path, theme_key: str) -> str:
+    if not LAUNCHER_PATH.is_file():
+        raise FileNotFoundError(f"VHS demo runner not found: {LAUNCHER_PATH}")
     env_lines = [f'Env {key} "{value}"' for key, value in demo.env]
     env_lines.extend(
         (
@@ -566,7 +592,7 @@ def build_tape(demo: Demo, output: Path, theme_key: str) -> str:
     launch_command = f"{LAUNCHER} {demo.name}"
     tape = build_run_tape(
         output=output.relative_to(REPO_ROOT),
-        settings=_settings(theme_key),
+        settings=_settings(theme_key, demo),
         launch_command=launch_command,
         steps=demo.steps,
         launch_delay=demo.launch_delay,
