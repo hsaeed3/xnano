@@ -122,7 +122,9 @@
     border: var(--border-size-1) solid #124ECF;
     box-shadow: #124ECF33 4px 4px 0px 0px;
     position: relative;
-    overflow: hidden; /* cleanly clips the header and code body rounded corners */
+    /* Annotation tooltips are positioned outside the code box. Clipping this
+       wrapper cuts their text off at the rounded edge. */
+    overflow: visible;
 }
 
 /*
@@ -168,7 +170,7 @@
     border: var(--border-size-1) solid #2A3856;
     box-shadow: #2A385633 4px 4px 0px 0px;
     position: relative;
-    overflow: hidden; /* cleanly clips the header and code body rounded corners */
+    overflow: visible;
 }
 
 /* Strip default borders/shadows/radius from the child pre tag so they sit perfectly in the wrapper */
@@ -191,6 +193,7 @@
     font-weight: 400;
     letter-spacing: var(--font-letterspacing-2);
     text-transform: uppercase;
+    border-radius: var(--radius-2) var(--radius-2) 0 0;
 }
 
 .highlight > span.filename .code-lang {
@@ -204,7 +207,7 @@
 
 /* Keep the code body flush with the wrapper border */
 .highlight:has(> span.filename) > pre > code {
-    border-radius: 0;
+    border-radius: 0 0 var(--radius-2) var(--radius-2);
 }
 
 [data-md-color-scheme="default"] .highlight > span.filename {
@@ -238,9 +241,18 @@
 }
 
 .xnano-demo img {
-    width: 100%;
-    display: none;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    display: block;
     border-radius: 12px;
+}
+
+/* Paired captures opt into theme switching. A single unclassified image is
+   intentionally visible in both themes. */
+.xnano-demo img.demo-light,
+.xnano-demo img.demo-dark {
+    display: none;
 }
 
 /* Light mode (default scheme): show light variant */
