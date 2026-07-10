@@ -48,9 +48,7 @@ class _StubTerminal:
     _hooks: _EventHooksRegistry = dataclasses.field(
         default_factory=_EventHooksRegistry
     )
-    _attached_frame_grids: list[Any] = dataclasses.field(
-        default_factory=list
-    )
+    _attached_frame_grids: list[Any] = dataclasses.field(default_factory=list)
 
     def attach(self, grid: Any) -> None:
         collected = _EventHooksRegistry.from_component_class(type(grid))
@@ -200,9 +198,7 @@ class _ExprGrid(Grid):
     log: list[str] = Field(
         default_factory=lambda: ["INFO", "WARNING", "ERROR"], state=True
     )
-    scores: list[int] = Field(
-        default_factory=lambda: [70, 85, 95], state=True
-    )
+    scores: list[int] = Field(default_factory=lambda: [70, 85, 95], state=True)
     username: str | None = Field(default="alice", state=True)
     denominator: int = Field(default=2, state=True)
 
@@ -331,9 +327,7 @@ def test_bench_expr_compound_and(benchmark) -> None:
 
 def test_bench_expr_float_abs(benchmark) -> None:
     grid = _ExprGrid()
-    benchmark(
-        evaluate_state_expression, "abs(progress - 0.5) < 0.05", grid
-    )
+    benchmark(evaluate_state_expression, "abs(progress - 0.5) < 0.05", grid)
 
 
 def test_bench_expr_float_threshold(benchmark) -> None:
@@ -344,9 +338,7 @@ def test_bench_expr_float_threshold(benchmark) -> None:
 def test_bench_expr_dict_get_flat(benchmark) -> None:
     grid = _ExprGrid()
     grid.config["name"] = "john"
-    benchmark(
-        evaluate_state_expression, "config.get('name') == 'john'", grid
-    )
+    benchmark(evaluate_state_expression, "config.get('name') == 'john'", grid)
 
 
 def test_bench_expr_dict_get_nested(benchmark) -> None:
@@ -384,9 +376,7 @@ def test_bench_expr_tuple_index(benchmark) -> None:
 
 def test_bench_expr_optional_none_check(benchmark) -> None:
     grid = _ExprGrid()
-    benchmark(
-        evaluate_state_expression, "username is not None", grid
-    )
+    benchmark(evaluate_state_expression, "username is not None", grid)
 
 
 def test_bench_expr_max_builtin(benchmark) -> None:
@@ -400,9 +390,7 @@ def test_bench_expr_max_builtin(benchmark) -> None:
 
 def test_bench_expr_str_conversion(benchmark) -> None:
     grid = _ExprGrid()
-    benchmark(
-        evaluate_state_expression, "str(count).startswith('4')", grid
-    )
+    benchmark(evaluate_state_expression, "str(count).startswith('4')", grid)
 
 
 def test_bench_expr_isinstance(benchmark) -> None:
@@ -427,9 +415,7 @@ def test_bench_expr_getattr_builtin(benchmark) -> None:
 def test_bench_expr_bad_expression_resilience(benchmark) -> None:
     """Safe-eval error path: expression fails, returns False."""
     grid = _ExprGrid()
-    benchmark(
-        evaluate_state_expression, "count / 0 > 1", grid
-    )
+    benchmark(evaluate_state_expression, "count / 0 > 1", grid)
 
 
 # ---------------------------------------------------------------------------
@@ -618,15 +604,11 @@ def test_bench_mixed_hooks_with_terminal_state(benchmark) -> None:
 
 
 def test_bench_registry_simple(benchmark) -> None:
-    benchmark(
-        _EventHooksRegistry.from_component_class, _CounterGrid
-    )
+    benchmark(_EventHooksRegistry.from_component_class, _CounterGrid)
 
 
 def test_bench_registry_few_hooks(benchmark) -> None:
-    benchmark(
-        _EventHooksRegistry.from_component_class, _AlwaysFiringGrid
-    )
+    benchmark(_EventHooksRegistry.from_component_class, _AlwaysFiringGrid)
 
 
 class _DeepGrid(_GrandchildGrid if False else Grid):

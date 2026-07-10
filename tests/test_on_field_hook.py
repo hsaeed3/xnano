@@ -122,9 +122,7 @@ class _StubTerminal:
     _hooks: _EventHooksRegistry = dataclasses.field(
         default_factory=_EventHooksRegistry
     )
-    _attached_frame_grids: list[Any] = dataclasses.field(
-        default_factory=list
-    )
+    _attached_frame_grids: list[Any] = dataclasses.field(default_factory=list)
 
     def _attach_grid(self, grid: Any) -> None:
         """Register a grid so resolve_hook_grid can find it."""

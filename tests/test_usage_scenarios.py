@@ -20,7 +20,15 @@ from helpers import (
     type_text,
 )
 
-from xnano.beta import Field, Grid, on_field, on_focus, on_keyboard, on_poll, on_tick
+from xnano.beta import (
+    Field,
+    Grid,
+    on_field,
+    on_focus,
+    on_keyboard,
+    on_poll,
+    on_tick,
+)
 from xnano.beta.components import Chart, Column, Progress, Table, Text
 from xnano.beta.components.schema import Series
 from xnano.beta.core.dispatch import pump_poll, pump_tick
@@ -37,15 +45,11 @@ class LoginForm(Grid):
 
     heading: str = Field(default="Sign in", height=1)
     username: Text = Field(
-        default_factory=lambda: Text(
-            "", input=True, placeholder="username"
-        ),
+        default_factory=lambda: Text("", input=True, placeholder="username"),
         height=1,
     )
     password: Text = Field(
-        default_factory=lambda: Text(
-            "", input=True, placeholder="password"
-        ),
+        default_factory=lambda: Text("", input=True, placeholder="password"),
         height=1,
     )
     status: str = Field(default="ready", height=1)
@@ -136,9 +140,7 @@ def test_login_form_paste_into_focused_input() -> None:
     try:
         type_text(terminal, "pre")
         event = FakeEvent(clipboard_text="-fix")
-        ctx = Context(
-            event=cast(Any, event), terminal=terminal, state=None
-        )
+        ctx = Context(event=cast(Any, event), terminal=terminal, state=None)
         dispatch_hooks(terminal, ctx)
         assert form.username.value == "pre-fix"
     finally:
@@ -512,7 +514,9 @@ def test_nested_panels_render_and_focus_left_input() -> None:
         out = paint(terminal, root)
         assert isinstance(out, str)
         # Nested panels re-register during paint.
-        names = {type(grid).__name__ for grid in terminal._attached_frame_grids}
+        names = {
+            type(grid).__name__ for grid in terminal._attached_frame_grids
+        }
         assert "Dual" in names
         assert "Panel" in names
         assert len(terminal._attached_frame_grids) >= 3  # root + 2 panels

@@ -8,12 +8,14 @@ output, and session status chrome.
 from __future__ import annotations
 
 import math
+import textwrap
 import time
-from typing import Literal, TypeAlias
+from typing import Iterable, Iterator, Literal, TypeAlias
 
-from xnano.beta import Field, Grid, Terminal, on_keyboard, on_tick
+from xnano.beta import Field, Grid, Terminal, on_keyboard, on_mouse, on_tick
 from xnano.beta.components import Text
 from xnano.beta.color import tailwind_color
+from xnano.beta.types import CharacterModifier
 
 ToolKind: TypeAlias = Literal["read", "bash", "edit", "grep"]
 """Supported tool-call kinds shown in the transcript."""
@@ -95,7 +97,66 @@ def _tool_rail_color(
     return _color_hex(tailwind_color("slate", 700))
 
 
-def _render_messages(messages: list[dict], height: int) -> Text:
+def _stream_chunks(text: str) -> Iterator[str]:
+    """Yield ``text`` word-by-word, simulating token-by-token output.
+
+    This is only the default source for the canned demo responses — any
+    other iterable of ``str`` chunks (a generator, a real streaming API's
+    token iterator, ...) works equally well as input to ``_begin_stream``.
+    """
+    words = text.split(" ")
+    for index, word in enumerate(words):
+        yield word if index == len(words) - 1 else word + " "
+
+
+def _wrap_body(text: str, width: int) -> list[str]:
+    """Hard-wrap ``text`` to ``width`` columns, one entry per terminal row.
+
+    Windowing/scrolling slices the rendered ``lines`` list by entry count, so
+    each entry must correspond to exactly one rendered row — relying on the
+    native widget's own word-wrap would make row count unknowable up front.
+    """
+    width = max(8, width)
+    rows: list[str] = []
+    for paragraph in text.split("\n"):
+        rows.extend(textwrap.wrap(paragraph, width=width) or [""])
+    return rows or [""]
+
+
+def _wrapped_row(
+    rows: list[str],
+    index: int,
+    *,
+    rail: str,
+    rail_color,
+    lead: str,
+    lead_color,
+    lead_modifiers: tuple[CharacterModifier, ...],
+    text_color,
+    text_background=None,
+) -> Text:
+    """Build one prefixed, wrapped row — blank lead on continuation rows."""
+    is_first = index == 0
+    return Text(
+        [
+            Text(rail, color=rail_color),
+            Text(
+                lead if is_first else " " * len(lead),
+                color=lead_color,
+                modifiers=lead_modifiers if is_first else (),
+            ),
+            Text(
+                rows[index] + "\n",
+                color=text_color,
+                background=text_background,
+            ),
+        ]
+    )
+
+
+def _build_message_lines(
+    messages: list[dict], content_width: int
+) -> list[str | Text]:
     lines: list[str | Text] = []
     for message in messages:
         kind = message.get("type", "")
@@ -108,59 +169,54 @@ def _render_messages(messages: list[dict], height: int) -> Text:
         tick = message.get("_tick", 0.0)
 
         if kind == "user":
-            lines.append(
-                Text(
-                    [
-                        Text(
-                            "❯ ",
-                            color=tailwind_color("sky", 400),
-                            modifiers=("bold",),
-                        ),
-                        Text(
-                            text + "\n",
-                            color=tailwind_color("slate", 100),
-                            modifiers=("bold",),
-                        ),
-                    ]
+            rows = _wrap_body(text, content_width - 2)
+            for index in range(len(rows)):
+                lines.append(
+                    _wrapped_row(
+                        rows,
+                        index,
+                        rail="",
+                        rail_color=None,
+                        lead="❯ ",
+                        lead_color=tailwind_color("sky", 400),
+                        lead_modifiers=("bold",),
+                        text_color=tailwind_color("slate", 100),
+                    )
                 )
-            )
             lines.append(Text("\n"))
 
         elif kind == "agent":
-            lines.append(
-                Text(
-                    [
-                        Text(
-                            "◆ ",
-                            color=tailwind_color("emerald", 400),
-                            modifiers=("bold",),
-                        ),
-                        Text(
-                            text + "\n",
-                            color=tailwind_color("emerald", 100),
-                        ),
-                    ]
+            rows = _wrap_body(text, content_width - 2)
+            for index in range(len(rows)):
+                lines.append(
+                    _wrapped_row(
+                        rows,
+                        index,
+                        rail="",
+                        rail_color=None,
+                        lead="◆ ",
+                        lead_color=tailwind_color("emerald", 400),
+                        lead_modifiers=("bold",),
+                        text_color=tailwind_color("emerald", 100),
+                    )
                 )
-            )
             lines.append(Text("\n"))
 
         elif kind == "system":
-            lines.append(
-                Text(
-                    [
-                        Text(
-                            "ℹ ",
-                            color=tailwind_color("slate", 500),
-                            modifiers=("italic",),
-                        ),
-                        Text(
-                            text + "\n",
-                            color=tailwind_color("slate", 500),
-                            modifiers=("italic",),
-                        ),
-                    ]
+            rows = _wrap_body(text, content_width - 2)
+            for index in range(len(rows)):
+                lines.append(
+                    _wrapped_row(
+                        rows,
+                        index,
+                        rail="",
+                        rail_color=None,
+                        lead="ℹ ",
+                        lead_color=tailwind_color("slate", 500),
+                        lead_modifiers=("italic",),
+                        text_color=tailwind_color("slate", 500),
+                    )
                 )
-            )
             lines.append(Text("\n"))
 
         elif kind == "tool":
@@ -171,56 +227,85 @@ def _render_messages(messages: list[dict], height: int) -> Text:
             rail_1 = _tool_rail_color(status, tick, 0, tool_kind)
             rail_2 = _tool_rail_color(status, tick, 1, tool_kind)
             rail_3 = _tool_rail_color(status, tick, 2, tool_kind)
-            lines.append(
-                Text(
-                    [
-                        Text("┃ ", color=rail_1),
-                        Text(
-                            label + "  ",
-                            color=accent,
-                            modifiers=("bold",),
-                        ),
-                        Text(
-                            command + "\n",
-                            color=tailwind_color("slate", 100),
-                            modifiers=("bold",),
-                        ),
-                    ]
+
+            command_rows = _wrap_body(command, content_width - len(label) - 4)
+            for index in range(len(command_rows)):
+                lines.append(
+                    _wrapped_row(
+                        command_rows,
+                        index,
+                        rail="┃ ",
+                        rail_color=rail_1,
+                        lead=label + "  " if index == 0 else "",
+                        lead_color=accent,
+                        lead_modifiers=("bold",),
+                        text_color=tailwind_color("slate", 100),
+                    )
                 )
-            )
+
             if description:
-                lines.append(
-                    Text(
-                        [
-                            Text("┃ ", color=rail_2),
-                            Text(
-                                "  " + description + "\n",
-                                color=tailwind_color("slate", 400),
-                            ),
-                        ]
+                description_rows = _wrap_body(description, content_width - 4)
+                for index in range(len(description_rows)):
+                    lines.append(
+                        _wrapped_row(
+                            description_rows,
+                            index,
+                            rail="┃ ",
+                            rail_color=rail_2,
+                            lead="  ",
+                            lead_color=None,
+                            lead_modifiers=(),
+                            text_color=tailwind_color("slate", 400),
+                        )
                     )
-                )
+
             if output:
-                output_bg = tailwind_color("slate", 900)
-                lines.append(
-                    Text(
-                        [
-                            Text("┃ ", color=rail_3),
-                            Text(
-                                "  " + output + "\n",
-                                color=tailwind_color("slate", 300),
-                                background=_color_hex(output_bg),
-                            ),
-                        ]
+                output_bg = _color_hex(tailwind_color("slate", 900))
+                output_rows = _wrap_body(output, content_width - 4)
+                for index in range(len(output_rows)):
+                    lines.append(
+                        _wrapped_row(
+                            output_rows,
+                            index,
+                            rail="┃ ",
+                            rail_color=rail_3,
+                            lead="  ",
+                            lead_color=None,
+                            lead_modifiers=(),
+                            text_color=tailwind_color("slate", 300),
+                            text_background=output_bg,
+                        )
                     )
-                )
             lines.append(Text("\n"))
 
-    if not lines:
-        return Text("")
+    return lines
 
-    visible = lines[-max(1, height * 3) :]
-    return Text(visible)
+
+def _windowed_history(
+    lines: list[str | Text],
+    height: int,
+    scroll_offset: int,
+) -> tuple[Text, int, bool]:
+    """Slice ``lines`` to the visible window for ``scroll_offset``.
+
+    ``scroll_offset`` counts entries up from the bottom (``0`` = pinned to
+    the latest message). New messages append at the bottom without moving
+    an existing scroll position, matching typical chat/log viewers.
+
+    Returns:
+        ``(text, clamped_offset, is_scrolled)`` — the rendered ``Text``, the
+            offset clamped to the available history, and whether the view
+            is scrolled away from the bottom.
+    """
+    if not lines:
+        return Text(""), 0, False
+
+    window = max(1, height)
+    max_offset = max(0, len(lines) - window)
+    clamped = max(0, min(scroll_offset, max_offset))
+    end = len(lines) - clamped
+    start = max(0, end - window)
+    return Text(lines[start:end]), clamped, clamped > 0
 
 
 def _render_autocomplete(
@@ -301,7 +386,7 @@ class AgentChat(Grid, direction="vertical", gap=0):
     )
     footer: str = Field(
         default=(
-            "  [/] commands  [tab] complete  [↑↓] navigate  "
+            "  [/] commands  [tab] complete  [↑↓/wheel] navigate/scroll  "
             "[enter] send  [q] quit"
         ),
         height=1,
@@ -311,9 +396,13 @@ class AgentChat(Grid, direction="vertical", gap=0):
     input_text: str = Field(default="", state=True)
     messages: list = Field(default_factory=lambda: list(_WELCOME), state=True)
     autocomplete_index: int = Field(default=0, state=True)
+    scroll_offset: int = Field(default=0, state=True)
     sim_steps: list = Field(default_factory=list, state=True)
     sim_index: int = Field(default=0, state=True)
     sim_timer: float = Field(default=0.0, state=True)
+    stream_chunks: list = Field(default_factory=list, state=True)
+    stream_index: int = Field(default=0, state=True)
+    stream_message_index: int = Field(default=-1, state=True)
     tick_time: float = Field(default=0.0, state=True)
     token_count: float = Field(default=12.4, state=True)
 
@@ -329,6 +418,45 @@ class AgentChat(Grid, direction="vertical", gap=0):
     def _add(self, kind: str, **kwargs: str) -> None:
         self.messages = [*self.messages, {"type": kind, **kwargs}]
 
+    def _begin_stream(self, source: Iterable[str]) -> None:
+        """Start revealing a new agent message incrementally from ``source``.
+
+        ``source`` is consumed eagerly into state — a plain list, a
+        generator, or a real streaming API's token iterator all work, since
+        a ``Grid`` state field must hold a concrete value rather than a
+        live iterator.
+        """
+        self.messages = [*self.messages, {"type": "agent", "text": ""}]
+        self.stream_chunks = list(source)
+        self.stream_index = 0
+        self.stream_message_index = len(self.messages) - 1
+
+    def _advance_stream(self) -> bool:
+        """Reveal the next chunk of the in-progress stream, if any.
+
+        Returns:
+            ``True`` while a stream is active (whether or not a chunk was
+                applied this call), so the tick loop's normal step-advance
+                logic is skipped for its entire duration.
+        """
+        if self.stream_message_index < 0:
+            return False
+        if self.stream_index >= len(self.stream_chunks):
+            self.stream_message_index = -1
+            self.stream_chunks = []
+            self.stream_index = 0
+            return False
+        chunk = self.stream_chunks[self.stream_index]
+        message = self.messages[self.stream_message_index]
+        updated = {**message, "text": message.get("text", "") + chunk}
+        self.messages = [
+            *self.messages[: self.stream_message_index],
+            updated,
+            *self.messages[self.stream_message_index + 1 :],
+        ]
+        self.stream_index += 1
+        return True
+
     def _start_simulation(self, steps: list[dict]) -> None:
         if not steps:
             return
@@ -336,10 +464,16 @@ class AgentChat(Grid, direction="vertical", gap=0):
         if first.get("type") == "tool":
             first["status"] = "active"
             first["_tick"] = self.tick_time
-        self.messages = [*self.messages, first]
-        self.sim_steps = steps
-        self.sim_index = 0
-        self.sim_timer = time.time()
+            self.messages = [*self.messages, first]
+            self.sim_steps = steps
+            self.sim_index = 0
+            self.sim_timer = time.time()
+        elif first.get("type") == "agent":
+            self._begin_stream(_stream_chunks(first.get("text", "")))
+            self.sim_steps = []
+        else:
+            self.messages = [*self.messages, first]
+            self.sim_steps = []
 
     def _trigger_response(self, prompt: str) -> None:
         self._add("user", text=prompt)
@@ -441,7 +575,13 @@ class AgentChat(Grid, direction="vertical", gap=0):
 
         self._start_simulation(steps)
 
-    def _execute_command(self, command: str) -> None:
+    def _last_agent_text(self) -> str | None:
+        for message in reversed(self.messages):
+            if message.get("type") == "agent":
+                return message.get("text")
+        return None
+
+    def _execute_command(self, command: str, ctx) -> None:
         command = command.strip()
         base = command.split()[0] if command else ""
         if base == "/help":
@@ -473,10 +613,21 @@ class AgentChat(Grid, direction="vertical", gap=0):
                 ),
             )
         elif base == "/copy":
-            self._add(
-                "system",
-                text="Copied last agent response to clipboard.",
-            )
+            text = self._last_agent_text()
+            if text is None:
+                self._add("system", text="No agent response to copy yet.")
+            elif ctx.terminal is not None and ctx.terminal.copy_to_clipboard(
+                text
+            ):
+                self._add(
+                    "system",
+                    text="Copied last agent response to clipboard.",
+                )
+            else:
+                self._add(
+                    "system",
+                    text="Clipboard copy isn't supported here.",
+                )
         elif base == "/fork":
             self._add(
                 "system",
@@ -486,11 +637,11 @@ class AgentChat(Grid, direction="vertical", gap=0):
             self._add("system", text=f"Unknown command: {base}")
 
     @on_keyboard("enter")
-    def _enter(self) -> None:
+    def _enter(self, ctx) -> None:
         matches = self._matches()
         if matches and 0 <= self.autocomplete_index < len(matches):
             command, _ = matches[self.autocomplete_index]
-            self._execute_command(command)
+            self._execute_command(command, ctx)
             self.input_text = ""
             self.autocomplete_index = 0
         elif self.input_text.strip():
@@ -517,6 +668,8 @@ class AgentChat(Grid, direction="vertical", gap=0):
             self.autocomplete_index = (self.autocomplete_index - 1) % len(
                 matches
             )
+        else:
+            self.scroll_offset += 3
 
     @on_keyboard("down")
     def _down(self) -> None:
@@ -525,6 +678,16 @@ class AgentChat(Grid, direction="vertical", gap=0):
             self.autocomplete_index = (self.autocomplete_index + 1) % len(
                 matches
             )
+        else:
+            self.scroll_offset = max(0, self.scroll_offset - 3)
+
+    @on_mouse(kind="scroll_up")
+    def _scroll_up(self) -> None:
+        self.scroll_offset += 3
+
+    @on_mouse(kind="scroll_down")
+    def _scroll_down(self) -> None:
+        self.scroll_offset = max(0, self.scroll_offset - 3)
 
     @on_keyboard("q")
     def _quit(self, ctx) -> None:
@@ -533,6 +696,8 @@ class AgentChat(Grid, direction="vertical", gap=0):
     @on_tick
     def _tick(self) -> None:
         self.tick_time = time.time() * 10.0
+        if self._advance_stream():
+            return
         if not self.sim_steps:
             return
         step = self.sim_steps[self.sim_index]
@@ -565,6 +730,9 @@ class AgentChat(Grid, direction="vertical", gap=0):
                 next_step["_tick"] = self.tick_time
                 self.messages = [*self.messages, next_step]
                 self.sim_timer = time.time()
+            elif next_step.get("type") == "agent":
+                self._begin_stream(_stream_chunks(next_step.get("text", "")))
+                self.sim_steps = []
             else:
                 self.messages = [*self.messages, next_step]
                 self.sim_steps = []
@@ -599,7 +767,23 @@ class AgentChat(Grid, direction="vertical", gap=0):
             6,
             self.rows - 2 - autocomplete_rows - 5,
         )
-        self.history = _render_messages(annotated, history_rows)
+        # -2 for the rounded border; a little extra margin for row prefixes.
+        content_width = max(20, self.columns - 6)
+        history_lines = _build_message_lines(annotated, content_width)
+        history_text, clamped_offset, is_scrolled = _windowed_history(
+            history_lines, history_rows, self.scroll_offset
+        )
+        self.history = history_text
+        if clamped_offset != self.scroll_offset:
+            self.scroll_offset = clamped_offset
+        self.grid_set_field(
+            "history",
+            title=(
+                " Conversation · scrolled ↑ · ↓/wheel to catch up "
+                if is_scrolled
+                else " Conversation "
+            ),
+        )
 
         if matches:
             self.grid_set_field("autocomplete", height=autocomplete_rows)
