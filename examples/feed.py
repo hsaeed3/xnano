@@ -619,6 +619,10 @@ class ApiMonitor(Grid, direction="vertical"):
         state=True,
     )
 
+    def __post_init__(self) -> None:
+        """Seed live request data so every panel is populated on frame one."""
+        self._update_metrics()
+
     @on_keyboard("up")
     def _up(self) -> None:
         self.selected = (self.selected - 1) % len(_SERVICES)
@@ -633,6 +637,10 @@ class ApiMonitor(Grid, direction="vertical"):
 
     @on_tick(500)
     def _tick(self) -> None:
+        self._update_metrics()
+
+    def _update_metrics(self) -> None:
+        """Generate and store the next batch of simulated API metrics."""
         rps = {svc: list(v) for svc, v in self.rps_history.items()}
         err = {svc: list(v) for svc, v in self.err_history.items()}
         p95 = dict(self.p95)

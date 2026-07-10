@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import inspect
 import logging
 import time
@@ -52,6 +51,10 @@ def run_awaitable(awaitable: Awaitable[Any]) -> Any:
             ``asyncio.run``).
         TypeError: If ``awaitable`` is not a coroutine object.
     """
+    # Async hooks are optional. Keep asyncio and its comparatively large
+    # import graph out of the synchronous startup and first-render path.
+    import asyncio
+
     try:
         asyncio.get_running_loop()
     except RuntimeError:
@@ -187,6 +190,9 @@ def mouse_matches(mouse: Any, entry: "_OnMouseHookFunctionEntry") -> bool:
 
 
 def resolve_hook_grid(terminal: "Terminal[Any]", handler: Any) -> Any | None:
+    bound_instance = getattr(handler, "__self__", None)
+    if bound_instance is not None:
+        return bound_instance
     owner_name = getattr(handler, "__qualname__", "").split(".", 1)[0]
     for grid in reversed(terminal._attached_frame_grids):
         if type(grid).__name__ == owner_name:
@@ -492,6 +498,30 @@ def pump_events(terminal: "Terminal[Any]") -> None:
         pump_poll(terminal, "idle")
         return
     while core_event is not None:
+        kind = core_event.kind_str()
+        hooks = terminal._hooks
+        has_consumers = bool(hooks.on_event_hooks)
+        if kind == "key":
+            has_consumers = has_consumers or bool(hooks.on_keyboard_hooks)
+        elif kind == "mouse":
+            has_consumers = (
+                has_consumers
+                or terminal._mouse_geometry_active
+                or bool(hooks.on_mouse_hooks)
+            )
+        elif kind == "resize":
+            has_consumers = has_consumers or bool(hooks.on_resize_hooks)
+        elif kind == "paste":
+            has_consumers = (
+                has_consumers
+                or terminal._field_focus is not None
+                or bool(hooks.on_clipboard_hooks)
+            )
+        elif kind in ("focus_gained", "focus_lost"):
+            has_consumers = has_consumers or bool(hooks.on_focus_hooks)
+        if not has_consumers:
+            core_event = terminal.session.poll_core_event(timeout=-1)
+            continue
         wrapped = Event(core_event)
         ctx = Context(event=wrapped, terminal=terminal, state=terminal.state)
         dispatch_hooks(terminal, ctx)
@@ -501,11 +531,17 @@ def pump_events(terminal: "Terminal[Any]") -> None:
 
 
 def pump_tick(terminal: "Terminal[Any]") -> None:
+    hooks = terminal._hooks
+    if not (
+        hooks.on_tick_hooks or hooks.on_state_hooks or hooks.on_field_hooks
+    ):
+        return
+
     from xnano.context import Context
 
-    now = time.monotonic() * 1000
-    ctx = Context(event=None, terminal=terminal, state=terminal.state)
-    for entry in terminal._hooks.on_tick_hooks:
+    now = time.monotonic() * 1000 if hooks.on_tick_hooks else 0.0
+    ctx: Context[Any] | None = None
+    for entry in hooks.on_tick_hooks:
         interval = entry["interval"]
         handler = entry["handler"]
         if interval > 0 and entry["last_fire_ms"] is not None:
@@ -513,15 +549,21 @@ def pump_tick(terminal: "Terminal[Any]") -> None:
             if elapsed < interval:
                 continue
         grid = resolve_hook_grid(terminal, handler)
+        if ctx is None:
+            ctx = Context(event=None, terminal=terminal, state=terminal.state)
         invoke_hook(handler, grid, ctx)
         entry["last_fire_ms"] = now
-    for entry in terminal._hooks.on_state_hooks:
+    for entry in hooks.on_state_hooks:
         expression = entry["expression"]
         handler = entry["handler"]
         if evaluate_state_expression(expression, terminal.state):
             grid = resolve_hook_grid(terminal, handler)
+            if ctx is None:
+                ctx = Context(
+                    event=None, terminal=terminal, state=terminal.state
+                )
             invoke_hook(handler, grid, ctx)
-    for entry in terminal._hooks.on_field_hooks:
+    for entry in hooks.on_field_hooks:
         expression = entry["expression"]
         handler = entry["handler"]
         # Prefer the bound instance over resolve_hook_grid — the latter
@@ -531,6 +573,10 @@ def pump_tick(terminal: "Terminal[Any]") -> None:
         if grid is None:
             grid = resolve_hook_grid(terminal, handler)
         if grid is not None and evaluate_state_expression(expression, grid):
+            if ctx is None:
+                ctx = Context(
+                    event=None, terminal=terminal, state=terminal.state
+                )
             invoke_hook(handler, grid, ctx)
 
 
@@ -749,9 +795,16 @@ def rebind_hook_handler(handler: Any, grid: Any) -> Any:
 def merge_hooks(
     terminal: "Terminal[Any]", other: _EventHooksRegistry, grid: Any = None
 ) -> None:
-    terminal._hooks.on_event_hooks.extend(other.on_event_hooks)
-    terminal._hooks.on_resize_hooks.extend(other.on_resize_hooks)
-    terminal._hooks.on_clipboard_hooks.extend(other.on_clipboard_hooks)
+    terminal._hooks.on_event_hooks.extend(
+        rebind_hook_handler(handler, grid) for handler in other.on_event_hooks
+    )
+    terminal._hooks.on_resize_hooks.extend(
+        rebind_hook_handler(handler, grid) for handler in other.on_resize_hooks
+    )
+    terminal._hooks.on_clipboard_hooks.extend(
+        rebind_hook_handler(handler, grid)
+        for handler in other.on_clipboard_hooks
+    )
 
     for entry in other.on_focus_hooks:
         terminal._hooks.on_focus_hooks.append(
