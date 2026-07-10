@@ -255,7 +255,11 @@ class Sizing:
         if token in _FLEX_CLASS_WEIGHTS:
             return cls.fraction(_FLEX_CLASS_WEIGHTS[token])
         if token.endswith("%"):
-            return cls.percent(float(token[:-1]))
+            # A ``%`` string is always a literal percentage — ``"1%"`` means
+            # one percent, unlike the bare-float form where ``0..=1`` reads
+            # as a fraction (``0.5`` → 50%).
+            pct = float(token[:-1])
+            return cls(kind="percent", value=max(0, min(100, int(round(pct)))))
         if token.endswith("fr"):
             weight = token[:-2].strip() or "1"
             return cls.fraction(int(weight))

@@ -741,9 +741,7 @@ class _GridMeta(type):
                     continue
                 static_names.append(field_name)
                 static_constraints.append(
-                    _layout_constraint_for_field(
-                        field, cfg.get("direction", "vertical")
-                    )
+                    _layout_constraint_for_field(field, _direction)
                 )
 
         setattr(cls, "_grid_needs_dynamic_layout", needs_dynamic)

@@ -20,7 +20,6 @@ from xnano.hooks import (
 )
 from xnano.utils.core import (
     evaluate_state_expression,
-    get_first_function_parameter_type,
     get_function_extra_parameter_count,
 )
 from xnano.utils.native_types import get_area_from_native_rect
@@ -73,9 +72,12 @@ def run_awaitable(awaitable: Awaitable[Any]) -> Any:
 
 
 def _call_hook(handler: Any, bound_self: Any, ctx: "Context[Any]") -> Any:
-    """Invoke ``handler`` with the right arity (sync call only)."""
-    from xnano.context import Context as ContextClass
+    """Invoke ``handler`` with the right arity (sync call only).
 
+    Handlers may take zero extra parameters or a single ``Context``,
+    whether they are bound methods, unbound methods resolved against a
+    live grid (``bound_self``), or free functions.
+    """
     bound_instance = getattr(handler, "__self__", None)
     if bound_instance is not None:
         function = getattr(handler, "__func__", handler)
@@ -83,11 +85,13 @@ def _call_hook(handler: Any, bound_self: Any, ctx: "Context[Any]") -> Any:
             return handler()
         return handler(ctx)
 
-    param_type = get_first_function_parameter_type(handler)
-    if param_type is ContextClass:
-        return handler(ctx)
+    count = get_function_extra_parameter_count(handler)
     if bound_self is not None:
+        if count == 0:
+            return handler(bound_self)
         return handler(bound_self, ctx)
+    if count == 0:
+        return handler()
     return handler(ctx)
 
 
@@ -119,32 +123,18 @@ def grid_clamp_slide_position(
     slide_axes: tuple[str, ...],
     position: "Coordinate",
 ) -> "Coordinate":
-    x = position[0]
-    y = position[1]
-    if "x" in slide_axes:
-        x = max(0, min(x, parent_area.width - slot_area.width))
-    if "y" in slide_axes:
-        y = max(0, min(y, parent_area.height - slot_area.height))
-    return (x, y)
+    from xnano.grid import _grid_clamp_slide_position
+
+    return _grid_clamp_slide_position(
+        parent_area, slot_area, list(slide_axes), position
+    )
 
 
 def resolve_grid_mouse_handler(grid: "Grid", field_name: str) -> Any | None:
     """Return the field-bound mouse handler for ``field_name`` on ``grid``."""
-    for cls in type(grid).__mro__:
-        if not (isinstance(cls, type)):
-            continue
-        from xnano.grid import Grid as GridClass
+    from xnano.grid import _resolve_grid_mouse_handler
 
-        if not issubclass(cls, GridClass):
-            continue
-        handlers = cls.__dict__.get("_grid_field_handlers")
-        if not isinstance(handlers, dict) or field_name not in handlers:
-            continue
-        attr = handlers[field_name]
-        if not hasattr(attr, _EventHooksRegistry.ON_MOUSE_HOOK_ATTR):
-            return None
-        return attr.__get__(grid, cls)
-    return None
+    return _resolve_grid_mouse_handler(grid, field_name)
 
 
 def field_mouse_handler_matches(handler: Any, mouse: Any) -> bool:
@@ -190,12 +180,21 @@ def mouse_matches(mouse: Any, entry: "_OnMouseHookFunctionEntry") -> bool:
 
 
 def resolve_hook_grid(terminal: "Terminal[Any]", handler: Any) -> Any | None:
+    """Return the grid instance a hook handler belongs to, if any.
+
+    Bound methods carry their own instance. Unbound handlers fall back to
+    matching the class named in their ``__qualname__`` against the frame's
+    painted grids (including base classes, so a hook declared on a parent
+    grid class resolves for a subclass instance).
+    """
     bound_instance = getattr(handler, "__self__", None)
     if bound_instance is not None:
         return bound_instance
     owner_name = getattr(handler, "__qualname__", "").split(".", 1)[0]
+    if not owner_name:
+        return None
     for grid in reversed(terminal._attached_frame_grids):
-        if type(grid).__name__ == owner_name:
+        if any(base.__name__ == owner_name for base in type(grid).__mro__):
             return grid
     return None
 
@@ -490,8 +489,11 @@ def pump_events(terminal: "Terminal[Any]") -> None:
     from xnano.context import Context
     from xnano.events import Event
 
+    # ``poll_core_event(timeout=0)`` blocks until input arrives, which would
+    # stall the render loop for a ``Terminal(tick_interval=0)`` — clamp to a
+    # 1ms wait so ticks and repaints keep flowing.
     core_event = terminal.session.poll_core_event(
-        timeout=terminal.tick_interval
+        timeout=max(1, terminal.tick_interval)
     )
     if core_event is None:
         # Idle: the blocking poll returned no input within the tick window.
@@ -759,13 +761,23 @@ def update_slide_capture(
 
 
 def track_frame_grid(terminal: "Terminal[Any]", grid: Any) -> None:
-    grid_class = type(grid)
-    if grid_class not in terminal._attached_grid_classes:
-        collected = _EventHooksRegistry.from_component_class(grid_class)
+    """Register ``grid`` for this frame, merging its hooks on first sight.
+
+    Hooks are registered once per grid *instance* and bound to it, so two
+    live grids of the same class each receive their own events — a
+    per-class guard would leave every instance after the first without
+    hooks (or firing with the wrong ``self``). Registration is permanent
+    for the terminal's lifetime; grids are meant to be stable instances,
+    not rebuilt every frame.
+    """
+    attached = terminal._attached_grids
+    if id(grid) not in attached:
+        collected = _EventHooksRegistry.from_component_class(type(grid))
         merge_hooks(terminal, collected, grid=grid)
-        terminal._attached_grid_classes.add(grid_class)
+        # The strong reference keeps ``id(grid)`` unique for the life of
+        # the terminal (bound hook handlers hold the instance anyway).
+        attached[id(grid)] = grid
     terminal._attached_frame_grids.append(grid)
-    terminal._attached_grids.add(id(grid))
 
 
 def rebind_hook_handler(handler: Any, grid: Any) -> Any:

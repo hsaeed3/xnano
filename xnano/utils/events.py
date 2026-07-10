@@ -18,9 +18,8 @@ from typing import (
 from xnano_core import core
 from xnano_core.rust import native
 
-import xnano.events as xnano_events
-
 if TYPE_CHECKING:
+    import xnano.events as xnano_events
     from xnano.events import KeyboardEventKind, MouseEventKind
     from xnano.keyboard import KeyboardModifier
 
@@ -48,7 +47,7 @@ _SPECIAL_KEYBOARD_KEYS_DICT: dict[str, native.KeyCode] = {
     "space": native.KeyCode.Char,
 }
 _KEY_RESOLUTION_CACHE: dict[
-    tuple[int, str | None, int | None],
+    tuple[int, str | None, int | None, int],
     tuple[list[KeyboardModifier], str | None],
 ] = {}
 
@@ -157,10 +156,19 @@ def get_keyboard_binding_tuple_from_native_event(
     Returns:
         The corresponding ``xnano`` style keyboard binding string.
     """
+    # The resolved tuple includes the held modifiers, so the cache key must
+    # too — otherwise ``a`` and ``alt+a`` collide on the same entry and the
+    # second press reports the first press's modifiers.
+    modifier_bits = (
+        (4 if event.modifiers.control() else 0)
+        | (2 if event.modifiers.alt() else 0)
+        | (1 if event.modifiers.shift() else 0)
+    )
     cache_key = (
         int(event.code_name),
         event.char(),
         event.function_number(),
+        modifier_bits,
     )
     if cache_key in _KEY_RESOLUTION_CACHE:
         return _KEY_RESOLUTION_CACHE[cache_key]
@@ -287,6 +295,11 @@ def get_event_data_from_core_event(
     Returns:
         The corresponding ``xnano.events.EventData`` instance.
     """
+    # Imported at call time: ``xnano.events`` imports this module at its own
+    # top level, so a module-level import here is circular whenever
+    # ``xnano.utils.events`` happens to be imported first.
+    import xnano.events as xnano_events
+
     kind = event.kind_str()
 
     if kind == "key":

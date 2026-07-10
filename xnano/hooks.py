@@ -50,7 +50,6 @@ from typing import (
     overload,
 )
 
-from xnano.utils.core import get_first_function_parameter_type
 from xnano.context import Context
 from xnano.events import KeyboardEventKind, MouseEventKind, EventDataType
 from xnano.keyboard import KeyboardBinding
@@ -286,12 +285,20 @@ class _EventHooksRegistry:
             cls.ON_FIELD_HOOK_ATTR,
         )
 
+        # A name defined on a more-derived class shadows any base definition —
+        # without this, overriding a hook method registers both the override
+        # and the base member, which rebind to the same bound method and fire
+        # twice per event.
+        seen_names: set[str] = set()
         for base in component_class.__mro__:
             if base is object:
                 continue
             for name, member in base.__dict__.items():
                 if not callable(member):
                     continue
+                if name in seen_names:
+                    continue
+                seen_names.add(name)
 
                 is_hook_method = any(
                     hasattr(member, attribute) for attribute in hook_attributes
@@ -483,7 +490,7 @@ def _decorate_on_mouse_hook(
 def on_keyboard(
     key: KeyboardBinding,
     /,
-    *,
+    *keys: KeyboardBinding,
     kind: KeyboardEventKind | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
 @overload

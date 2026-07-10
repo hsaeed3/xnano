@@ -647,3 +647,39 @@ def test_hook_exception_logs_and_terminal_still_paints(
         assert "recovered" in out
     finally:
         close_offscreen_app(terminal)
+
+
+# ---------------------------------------------------------------------------
+# Scenario — two instances of one grid class each receive their own hooks
+# ---------------------------------------------------------------------------
+
+
+class _Tally(Grid):
+    label: str = Field(default="", height=1)
+    count: int = Field(default=0, state=True)
+
+    @on_keyboard("k")
+    def bump(self) -> None:
+        self.count += 1
+
+
+def test_same_grid_class_instances_each_receive_hooks() -> None:
+    # Hook registration is per instance — a per-class guard would leave
+    # every instance after the first without hooks (or firing on the
+    # wrong ``self``).
+    first = _Tally()
+    second = _Tally()
+    terminal = open_offscreen_app(first)
+    try:
+        terminal.attach_grid(second)
+        press(terminal, "k")
+        assert first.count == 1
+        assert second.count == 1
+
+        # Re-attaching an already-known instance must not double-register.
+        terminal.attach_grid(first)
+        press(terminal, "k")
+        assert first.count == 2
+        assert second.count == 2
+    finally:
+        close_offscreen_app(terminal)
