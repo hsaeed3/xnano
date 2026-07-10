@@ -7,6 +7,12 @@ icon: "lucide/sparkles"
 
 xnano is a terminal UI framework built on Rust. The Python API is deliberately model-like — you declare what you want and xnano handles the rendering, event loop, and teardown. If you've used Pydantic or dataclasses the shape of it will feel familiar immediately.
 
+Starting with the 1.0.0 documentation, this declarative model is the foundation
+for more than full-screen terminal apps. A model-like command API is planned
+for the beta surface, followed by a web UI renderer that can reuse grids and
+unified components. The terminal APIs on this page are available now; planned
+APIs are labeled as previews in their own sections.
+
 ---
 
 ## Install
@@ -50,8 +56,8 @@ Terminal().render(
 ```
 
 <div class="xnano-demo" markdown>
-![hello render dark](../../assets/concepts/hello_render-dark.gif){.demo-dark}
-![hello render light](../../assets/concepts/hello_render-light.gif){.demo-light}
+![hello render dark](../assets/concepts/hello_render-dark.gif){.demo-dark}
+![hello render light](../assets/concepts/hello_render-light.gif){.demo-light}
 </div>
 
 ---
@@ -82,8 +88,8 @@ Terminal().run(Hello()) # (4)!
 4. `run()` enters the alternate screen and starts the Rust event loop. It returns when the loop exits.
 
 <div class="xnano-demo" markdown>
-![hello grid dark](../../assets/concepts/hello_grid-dark.gif){.demo-dark}
-![hello grid light](../../assets/concepts/hello_grid-light.gif){.demo-light}
+![hello grid dark](../assets/concepts/hello_grid-dark.gif){.demo-dark}
+![hello grid light](../assets/concepts/hello_grid-light.gif){.demo-light}
 </div>
 
 ---
