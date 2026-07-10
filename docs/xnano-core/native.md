@@ -4,7 +4,7 @@ title: "Native Rust Bindings"
 
 # Native Bindings
 
-`xnano_core.rust.native` is a flat re-export of everything compiled into the Rust extension. You don't need to use any of this directly — `xnano.beta` wraps all of it. But if you're curious about what's underneath, or you're contributing to xnano internals, this is the map.
+`xnano_core.rust.native` is a flat re-export of everything compiled into the Rust extension. You don't need to use any of this directly — `xnano` wraps all of it. But if you're curious about what's underneath, or you're contributing to xnano internals, this is the map.
 
 ---
 
@@ -97,7 +97,7 @@ The `Buffer` is the off-screen cell grid ratatui renders into each frame. xnano-
 
 ## Effects (tachyonfx)
 
-tachyonfx effects operate on the `Buffer` after it's been rendered. From Python, you access them through `xnano.beta.effects.Effect` — the native types below are what that wraps.
+tachyonfx effects operate on the `Buffer` after it's been rendered. From Python, you access them through `xnano.effects.Effect` — the native types below are what that wraps.
 
 | Symbol | What it does |
 |---|---|
@@ -108,7 +108,7 @@ tachyonfx effects operate on the `Buffer` after it's been rendered. From Python,
 **Effect constructors:**
 
 ```python
-from xnano.beta.effects import Effect
+from xnano.effects import Effect
 
 # Typewriter assemble
 Effect("coalesce", duration_ms=600)

@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.frame"
+title: "xnano.frame"
 ---
 
-# xnano.beta.frame
+# xnano.frame
 
-::: xnano.beta.frame
+::: xnano.frame

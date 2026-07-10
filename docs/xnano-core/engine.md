@@ -6,7 +6,7 @@ title: "Core Terminal Engine"
 
 `xnano_core.rust.engine` (exposed as `xnano_core.core`) is the Rust-side session and render tree that sits directly above crossterm/ratatui. It owns the terminal for the lifetime of an application, drives the event loop, manages effects, and renders scene-graph trees to the screen.
 
-You don't use this module directly — `xnano.beta` is the Python API. This page documents the primitives for contributors or anyone building on top of the core.
+You don't use this module directly — `xnano` is the Python API. This page documents the primitives for contributors or anyone building on top of the core.
 
 ---
 

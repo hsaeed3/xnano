@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.exceptions"
+title: "xnano.exceptions"
 ---
 
-# xnano.beta.exceptions
+# xnano.exceptions
 
-::: xnano.beta.exceptions
+::: xnano.exceptions

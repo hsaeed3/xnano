@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.sizing"
+title: "xnano.sizing"
 ---
 
-# xnano.beta.sizing
+# xnano.sizing
 
-::: xnano.beta.sizing
+::: xnano.sizing
