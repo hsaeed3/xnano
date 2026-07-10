@@ -2,17 +2,9 @@
 
 # __xnano__
 
-A simple python **tui** framework built on top of the [ratatui](https://ratatui.rs) and [tachyonfx](https://github.com/ratatui/tachyonfx) rust libraries.
+> A simple python **tui** framework built on top of the [ratatui](https://ratatui.rs) and [tachyonfx](https://github.com/ratatui/tachyonfx) rust libraries.
 
-> [!IMPORTANT]
-> The ``xnano`` library is currently going through a complete rebuild of it's primary purpose and API. As the
-> package is still in beta, expect frequent changes from all package versions ``1.0.0bx`` and above until
-> the stable ``1.0.0`` release.
->
-> Docs will soon be available at: [xnano.hammad.app](https://xnano.hammad.app).
->
-
-xnano is a modern, lighweight and incredibly declarative TUI framework for Python. It is built on top of the [xnano-core](https://github.com/hsaeed3/xnano/tree/main/xnano-core) rust library, which provides the core rendering and event handling capabilities through:
+xnano is a modern, lightweight and incredibly declarative TUI framework for Python. It is built on top of the [xnano-core](https://github.com/hsaeed3/xnano/tree/main/xnano-core) rust library, which provides the core rendering and event handling capabilities through:
 
 - [ratatui](https://ratatui.rs) A Rust library for building terminal user interfaces.
 - [tachyonfx](https://github.com/ratatui/tachyonfx) Rust library for adding effects and animations to ratatui applications.
@@ -21,18 +13,14 @@ Furthermore, `xnano` itself uses the [`pydantic-core`](https://github.com/pydant
 
 ## Installation
 
-> [!WARNING]
-> Ensure to install the ``1.0.0b4``+ version of ``xnano`` to ensure correct
-> dependency and API resolution.
-
 ```bash
-pip install "xnano>=1.0.0b4"
+pip install xnano
 ```
 
 Or use ``uv``:
 
 ```bash
-uv add "xnano>=1.0.0b4"
+uv add xnano
 ```
 
 > [!TIP]
@@ -55,8 +43,8 @@ You can view the code for these examples here: [examples](./examples).
 The easiest way to get started is to render some text to the terminal inline — no app loop needed.
 
 ```python
-from xnano.beta import Terminal
-from xnano.beta.components import Text
+from xnano.terminal import Terminal
+from xnano.components.text import Text
 
 Terminal().render(
     Text("Hello from xnano!", color="violet", modifiers=["bold"])
@@ -83,7 +71,8 @@ Terminal().render(
 `Text` composes rich inline content with colors, modifiers, and nesting:
 
 ```python
-from xnano.beta.components import Text
+from xnano.terminal import Terminal
+from xnano.components.text import Text
 
 message = Text([
     Text("● ", color="emerald-400"),
@@ -105,9 +94,11 @@ Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or pla
 The minimal xnano app. Define a `Grid` subclass with annotated `Field` slots, then pass an instance to `Terminal().run()`. The terminal takes over the screen, renders each frame, and cleans up on exit.
 
 ```python
-from xnano.beta import Grid, Field, Terminal
-from xnano.beta.color import tailwind_color
-from xnano.beta.hooks import on_tick
+from xnano.grid import Grid
+from xnano.fields import Field
+from xnano.terminal import Terminal
+from xnano.color import tailwind_color
+from xnano.hooks import on_tick
 
 class App(Grid):
     message: str = Field(default="Hello, world!", color=tailwind_color("sky", 500))
@@ -138,8 +129,11 @@ Any field with a type annotation is set with `Field(strict=True)` and is validat
 Grids compose naturally — nest one `Grid` inside another as a `Field` value. Direction (`"horizontal"` / `"vertical"`) and `gap` control how fields are laid out. Use `size` (absolute columns/rows or a `0.0–1.0` fraction) and `flex` (fill weight) to proportion each slot.
 
 ```python
-from xnano.beta import Grid, Field, Terminal, Context
-from xnano.beta.hooks import on_keyboard
+from xnano.grid import Grid
+from xnano.fields import Field
+from xnano.terminal import Terminal
+from xnano.context import Context
+from xnano.hooks import on_keyboard
 
 class SidebarTitle(Grid, align="center"):
     title: str = Field("This is a title.", align="center")
@@ -168,8 +162,11 @@ Terminal().run(App())
 Use `@on_keyboard` to bind methods to key names or sequences. The decorated method receives an optional `Context` argument that exposes the live terminal. State fields (`state=True`) hold app data without rendering — update them and reference them from layout fields.
 
 ```python
-from xnano.beta import Grid, Field, Terminal, Context
-from xnano.beta.hooks import on_keyboard
+from xnano.grid import Grid
+from xnano.fields import Field
+from xnano.terminal import Terminal
+from xnano.context import Context
+from xnano.hooks import on_keyboard
 
 class Counter(Grid, direction="vertical", gap=1):
     label: str = Field(default="Count: 0", size=1)
@@ -203,8 +200,11 @@ Terminal().run(Counter())
 Pass `mouse_events=True` to `Terminal` to enable mouse input. Use `@on_click("field_name")` to scope a handler to the rendered area of a specific field — the handler fires only when that region is clicked.
 
 ```python
-from xnano.beta import Grid, Field, Terminal, Context
-from xnano.beta.hooks import on_click, on_keyboard
+from xnano.grid import Grid
+from xnano.fields import Field
+from xnano.terminal import Terminal
+from xnano.context import Context
+from xnano.hooks import on_click, on_keyboard
 
 class App(Grid, direction="vertical", gap=1):
     button: str = Field(default="[ Click me ]", size=3, border="rounded")
@@ -230,9 +230,12 @@ Terminal(mouse_events=True).run(App())
 `@on_tick(interval_ms)` fires a method on a recurring timer. Use it for clocks, progress indicators, polling, or any periodic UI refresh without blocking the event loop.
 
 ```python
-from xnano.beta import Grid, Field, Terminal, Context
-from xnano.beta.hooks import on_tick, on_keyboard
 import time
+from xnano.grid import Grid
+from xnano.fields import Field
+from xnano.terminal import Terminal
+from xnano.context import Context
+from xnano.hooks import on_tick, on_keyboard
 
 class Clock(Grid, direction="vertical"):
     time_display: str = Field(default="", size=3, border="rounded")
@@ -261,8 +264,11 @@ Pass any object as `state` to `Terminal` to thread shared data through the sessi
 
 ```python
 from dataclasses import dataclass
-from xnano.beta import Grid, Field, Terminal, Context
-from xnano.beta.hooks import on_keyboard
+from xnano.grid import Grid
+from xnano.fields import Field
+from xnano.terminal import Terminal
+from xnano.context import Context
+from xnano.hooks import on_keyboard
 
 @dataclass
 class AppState:
@@ -289,15 +295,18 @@ with Terminal(state=AppState(username="hammad")) as t:
 
 ### Custom Components
 
-`AbstractComponent` lets you build reusable widgets that map directly to the render tree. Subclass it as a dataclass and implement `get_node()` — return any `RenderNode` (paragraph, list, progress bar, table, etc.) and xnano handles the rest. Components slot into `Grid` fields like any other value.
+`AbstractComponent` lets you build reusable widgets that map directly to the render tree. Subclass it as a dataclass and implement `get_terminal_node()` — return any `AbstractTerminalNode` (paragraph, list, progress bar, table, etc.) and xnano handles the rest. Components slot into `Grid` fields like any other value.
 
 ```python
 import dataclasses
-from xnano.beta import Grid, Field, Terminal, Context
-from xnano.beta.color import tailwind_color, pydantic_color
-from xnano.beta.hooks import on_keyboard
-from xnano.beta.components.abstract import AbstractComponent, ComponentRenderContext
-from xnano.beta.core.nodes import ParagraphNode, RenderNode
+from xnano.grid import Grid
+from xnano.fields import Field
+from xnano.terminal import Terminal
+from xnano.context import Context
+from xnano.color import tailwind_color, pydantic_color
+from xnano.hooks import on_keyboard
+from xnano.components.abstract import AbstractComponent, ComponentRenderContext
+from xnano.core.nodes.terminal import ParagraphNode, AbstractTerminalNode
 
 
 @dataclasses.dataclass
@@ -305,7 +314,7 @@ class Badge(AbstractComponent):
     label: str = ""
     color: str = "white"
 
-    def get_node(self, ctx: ComponentRenderContext) -> RenderNode:
+    def get_terminal_node(self, ctx: ComponentRenderContext) -> AbstractTerminalNode:
         return ParagraphNode(text=self.label, color=self.color)
 
 

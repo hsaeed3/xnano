@@ -23,34 +23,46 @@ nav = [
         ]},
         { "API Reference" = [
             "api/index.md",
-            { "xnano.beta.core" = [
-                { "xnano.beta.core.dispatch" = "api/core/dispatch.md" },
-                { "xnano.beta.core.nodes" = "api/core/nodes.md" },
-                { "xnano.beta.core.renderable" = "api/core/renderable.md" },
-                { "xnano.beta.core.session" = "api/core/session.md" },
+            { "xnano.core" = [
+                { "xnano.core.controllers" = [
+                    { "xnano.core.controllers.abstract" = "api/core/controllers/abstract.md" },
+                    { "xnano.core.controllers.terminal" = "api/core/controllers/terminal.md" },
+                ]},
+                { "xnano.core.dispatch" = "api/core/dispatch.md" },
+                { "xnano.core.nodes" = [
+                    { "xnano.core.nodes.abstract" = "api/core/nodes/abstract.md" },
+                    { "xnano.core.nodes.terminal" = "api/core/nodes/terminal.md" },
+                ]},
+                { "xnano.core.renderable" = "api/core/renderable.md" },
             ]},
-            { "xnano.beta.components" = [
-                { "xnano.beta.components.abstract" = "api/components/abstract.md" },
-                { "xnano.beta.components.sparkline" = "api/components/sparkline.md" },
-                { "xnano.beta.components.text" = "api/components/text.md" },
+            { "xnano.components" = [
+                { "xnano.components.abstract" = "api/components/abstract.md" },
+                { "xnano.components.chart" = "api/components/chart.md" },
+                { "xnano.components.progress" = "api/components/progress.md" },
+                { "xnano.components.schema" = "api/components/schema.md" },
+                { "xnano.components.sparkline" = "api/components/sparkline.md" },
+                { "xnano.components.table" = "api/components/table.md" },
+                { "xnano.components.text" = "api/components/text.md" },
             ]},
-            { "xnano.beta.color" = "api/color.md" },
-            { "xnano.beta.context" = "api/context.md" },
-            { "xnano.beta.cursor" = "api/cursor.md" },
-            { "xnano.beta.device" = "api/device.md" },
-            { "xnano.beta.effects" = "api/effects.md" },
-            { "xnano.beta.events" = "api/events.md" },
-            { "xnano.beta.exceptions" = "api/exceptions.md" },
-            { "xnano.beta.fields" = "api/fields.md" },
-            { "xnano.beta.frame" = "api/frame.md" },
-            { "xnano.beta.grid" = "api/grid.md" },
-            { "xnano.beta.hooks" = "api/hooks.md" },
-            { "xnano.beta.keyboard" = "api/keyboard.md" },
-            { "xnano.beta.mouse" = "api/mouse.md" },
-            { "xnano.beta.sizing" = "api/sizing.md" },
-            { "xnano.beta.state" = "api/state.md" },
-            { "xnano.beta.terminal" = "api/terminal.md" },
-            { "xnano.beta.types" = "api/types.md" },
+            { "xnano.terminal" = [
+                { "xnano.terminal" = "api/terminal.md" },
+                { "xnano.terminal.cursor" = "api/terminal/cursor.md" },
+                { "xnano.terminal.device" = "api/terminal/device.md" },
+            ]},
+            { "xnano.color" = "api/color.md" },
+            { "xnano.effects" = "api/effects.md" },
+            { "xnano.events" = "api/events.md" },
+            { "xnano.exceptions" = "api/exceptions.md" },
+            { "xnano.fields" = "api/fields.md" },
+            { "xnano.focus" = "api/focus.md" },
+            { "xnano.frame" = "api/frame.md" },
+            { "xnano.grid" = "api/grid.md" },
+            { "xnano.hooks" = "api/hooks.md" },
+            { "xnano.keyboard" = "api/keyboard.md" },
+            { "xnano.mouse" = "api/mouse.md" },
+            { "xnano.sizing" = "api/sizing.md" },
+            { "xnano.state" = "api/state.md" },
+            { "xnano.types" = "api/types.md" },
         ]},
     ]},
     { "xnano-core" = [
@@ -142,13 +154,13 @@ A fun **"anti-framework"** for doing useful things with agents and LLMs.
 """
 
 [[project.home.buttons]]
-name = "Beta API"
-url = "beta/overview"
+name = "Getting Started"
+url = "api/concepts/getting-started"
 theme = "md-button"
 
 [[project.home.buttons]]
-name = "Documentation"
-url = "documentation/getting-started"
+name = "API Reference"
+url = "api"
 theme = "md-button"
 
 [[project.extra.social]]

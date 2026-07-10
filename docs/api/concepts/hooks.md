@@ -14,7 +14,7 @@ Hooks are methods on your `Grid` decorated with `@on_keyboard`, `@on_tick`, `@on
 Respond to a key press by decorating any method with `@on_keyboard("key")`. The method is called once per matching key event. Multiple methods can match the same key and will all fire in declaration order.
 
 ```python title="keyboard.py"
-from xnano.beta.hooks import on_keyboard
+from xnano.hooks import on_keyboard
 
 class App(Grid, direction="vertical"):
     @on_keyboard("q")
@@ -33,8 +33,8 @@ class App(Grid, direction="vertical"):
 A counter app that increments and decrements with the arrow keys shows the pattern clearly:
 
 ```python title="counter.py"
-from xnano.beta import Field, Grid, Terminal
-from xnano.beta.hooks import on_keyboard
+from xnano import Field, Grid, Terminal
+from xnano.hooks import on_keyboard
 
 class Counter(Grid, direction="vertical", gap=1):
     label: str = Field(default="Count: 0", height=1, border="rounded", border_color="violet-500", title=" Counter ")
@@ -97,8 +97,8 @@ def on_any_key(self, ctx) -> None:
 
 ```python title="clock.py"
 import time
-from xnano.beta import Field, Grid, Terminal
-from xnano.beta.hooks import on_keyboard, on_tick
+from xnano import Field, Grid, Terminal
+from xnano.hooks import on_keyboard, on_tick
 
 class Clock(Grid, direction="vertical", gap=1):
     display: str = Field(default="", height=3, border="rounded", border_color="teal-500", title=" Clock ")
@@ -133,8 +133,8 @@ Terminal(tick_interval=1000).run(Clock())
 `@on_click` responds to mouse clicks on a named field. Requires `Terminal(mouse_events=True)`. Pass the field name as a string — the method fires when the user clicks anywhere inside that field's rendered area.
 
 ```python title="click.py"
-from xnano.beta import Field, Grid, Terminal
-from xnano.beta.hooks import on_click, on_keyboard
+from xnano import Field, Grid, Terminal
+from xnano.hooks import on_click, on_keyboard
 
 class App(Grid, direction="vertical", gap=1):
     button: str = Field(default="  [ Click me ]  ", height=3, border="rounded", border_color="violet-500")
@@ -164,7 +164,7 @@ Terminal(mouse_events=True).run(App())
 `@on_state` fires when a `state=True` field changes value. Use it to react to state changes without putting logic in every place that writes the field — keep the side effects in one place.
 
 ```python title="on_state.py"
-from xnano.beta.hooks import on_state
+from xnano.hooks import on_state
 
 class App(Grid, direction="vertical"):
     display: str = Field(default="", height=1)
@@ -198,4 +198,4 @@ def submit(self, ctx) -> None:
 Multiple hooks matching the same event fire in declaration order. Parent grid hooks fire before child grid hooks when nested layouts are in use.
 
 !!! warning
-    Exceptions raised inside hooks propagate out of the event loop and leave the terminal in raw mode. Use `ctx.terminal.request_exit()` to stop cleanly, or raise `xnano.beta.exceptions.Exit` as a last resort. Never let an uncaught exception escape a hook in production code.
+    Exceptions raised inside hooks propagate out of the event loop and leave the terminal in raw mode. Use `ctx.terminal.request_exit()` to stop cleanly, or raise `xnano.exceptions.Exit` as a last resort. Never let an uncaught exception escape a hook in production code.

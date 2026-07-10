@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.components.sparkline"
+title: "xnano.components.sparkline"
 ---
 
-# xnano.beta.components.sparkline
+# xnano.components.sparkline
 
-::: xnano.beta.components.sparkline
+::: xnano.components.sparkline

@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.components.abstract"
+title: "xnano.components.abstract"
 ---
 
-# xnano.beta.components.abstract
+# xnano.components.abstract
 
-::: xnano.beta.components.abstract
+::: xnano.components.abstract

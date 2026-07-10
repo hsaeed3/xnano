@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.mouse"
+title: "xnano.mouse"
 ---
 
-# xnano.beta.mouse
+# xnano.mouse
 
-::: xnano.beta.mouse
+::: xnano.mouse

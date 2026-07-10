@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.fields"
+title: "xnano.fields"
 ---
 
-# xnano.beta.fields
+# xnano.fields
 
-::: xnano.beta.fields
+::: xnano.fields

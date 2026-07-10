@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.grid"
+title: "xnano.grid"
 ---
 
-# xnano.beta.grid
+# xnano.grid
 
-::: xnano.beta.grid
+::: xnano.grid
