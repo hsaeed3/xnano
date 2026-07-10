@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextvars
 import inspect
+import types
 from typing import Any, Callable, TypeVar
 
 
@@ -12,6 +13,10 @@ StateT = TypeVar("StateT")
 
 _FIRST_PARAM_TYPE_CACHE: dict[Callable, type | None] = {}
 _EXTRA_PARAM_COUNT_CACHE: dict[Callable, int] = {}
+_COMPILED_EXPRESSION_CACHE: dict[str, types.CodeType | None] = {}
+"""Compiled ``eval`` code objects for ``evaluate_state_expression``, keyed
+by expression source. ``None`` marks an expression that failed to compile,
+so a persistently invalid expression is not recompiled on every call."""
 _STATE_SAFE_BUILTINS: dict[str, Any] = {
     "len": len,
     "str": str,
@@ -32,6 +37,29 @@ _STATE_SAFE_BUILTINS: dict[str, Any] = {
 }
 
 
+def get_compiled_state_expression(expression: str) -> types.CodeType | None:
+    """Return the cached compiled code object for ``expression``.
+
+    Compiles and caches on first use; a source that fails to compile is
+    cached as ``None`` so it is not retried on every call.
+
+    Args:
+        expression: The expression source to compile.
+
+    Returns:
+        The compiled code object, or ``None`` when ``expression`` does not
+            compile.
+    """
+    if expression in _COMPILED_EXPRESSION_CACHE:
+        return _COMPILED_EXPRESSION_CACHE[expression]
+    try:
+        code = compile(expression, "<state-expression>", "eval")
+    except SyntaxError:
+        code = None
+    _COMPILED_EXPRESSION_CACHE[expression] = code
+    return code
+
+
 def evaluate_state_expression(
     expression: str,
     state: StateT,
@@ -39,7 +67,9 @@ def evaluate_state_expression(
     """Evaluate ``expression`` against ``state``'s attributes.
 
     Safe eval — globals are restricted to a small whitelist. Returns ``False``
-    on any exception, including ``AttributeError``.
+    on any exception, including ``AttributeError``. The expression is
+    compiled once and cached by source, since hooks re-evaluate the same
+    expression on every tick/frame.
 
     Args:
         expression: The expression to evaluate.
@@ -50,14 +80,15 @@ def evaluate_state_expression(
     """
     if state is None:
         return False
+    code = get_compiled_state_expression(expression)
+    if code is None:
+        return False
     try:
         ns: dict[str, Any] = {}
         if hasattr(state, "__dict__"):
             ns.update(vars(state))
         ns["state"] = state
-        return bool(
-            eval(expression, {"__builtins__": _STATE_SAFE_BUILTINS}, ns)
-        )  # noqa: S307
+        return bool(eval(code, {"__builtins__": _STATE_SAFE_BUILTINS}, ns))  # noqa: S307
     except Exception:
         return False
 

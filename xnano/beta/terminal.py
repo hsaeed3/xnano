@@ -422,6 +422,33 @@ class Terminal(Generic[StateT]):
         """Return the offscreen buffer text (only valid for offscreen sessions)."""
         return self.session.get_core_session_output_text()
 
+    def copy_to_clipboard(self, text: str) -> bool:
+        """Copy ``text`` to the system clipboard via an OSC 52 escape.
+
+        Works over SSH and in most modern terminal emulators (iTerm2,
+        Kitty, WezTerm, Windows Terminal, VS Code's integrated terminal)
+        without a subprocess or platform-specific clipboard tool. Not
+        forwarded by tmux/screen unless clipboard passthrough is enabled
+        there, and silently does nothing on unsupported terminals.
+
+        Args:
+            text: The text to place on the system clipboard.
+
+        Returns:
+            ``True`` when the escape sequence was written, ``False`` when
+                this is an offscreen session (no real terminal to write to).
+        """
+        if self._session is None or self._session._is_offscreen:
+            return False
+        import base64
+
+        from xnano_core.rust import native
+
+        payload = base64.b64encode(text.encode("utf-8")).decode("ascii")
+        native.print_text(f"\x1b]52;c;{payload}\x07")
+        native.flush_stdout_buffer()
+        return True
+
     def _build_render_field(
         self,
         *,
