@@ -14,8 +14,8 @@ A `Grid` is the main building block of an xnano app. You subclass it, add typed 
 Every field you declare becomes one slot in the grid. The type annotation tells xnano what kind of content to expect; `str` fields render as text, nested `Grid` subclasses render as sub-layouts. The `Field()` call controls every display option — sizing, color, border, title, alignment.
 
 ```python title="app.py"
-from xnano.beta import Field, Grid, Terminal
-from xnano.beta.hooks import on_keyboard
+from xnano import Field, Grid, Terminal
+from xnano.hooks import on_keyboard
 
 class App(Grid, direction="vertical"):
     header: str = Field(default="My App", height=1, color="white", background="violet")

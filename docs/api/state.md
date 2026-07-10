@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.state"
+title: "xnano.state"
 ---
 
-# xnano.beta.state
+# xnano.state
 
-::: xnano.beta.state
+::: xnano.state

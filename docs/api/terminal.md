@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.terminal"
+title: "xnano.terminal"
 ---
 
-# xnano.beta.terminal
+# xnano.terminal
 
-::: xnano.beta.terminal
+::: xnano.terminal

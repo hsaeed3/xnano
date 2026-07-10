@@ -54,23 +54,18 @@ Fast and flexible, xnano gives you a simple [Pydantic](https://github.com/pydant
 
 ## Installation
 
-!!! note "Pre-Release"
-
-    Until the v1.0.0 stable release, xnano will be released as v1.0.0b(x) versions. Ensure to install the latest version of xnano
-    available on PyPI to ensure your install matches the [API Reference]{data-preview}.
-
 You can install xnano with your favorite package manager on python 3.10+.
 
 === "pip"
 
     ```bash
-    pip install "xnano==1.0.0b3"
+    pip install "xnano==1.0.0"
     ```
 
 === "uv"
 
     ```bash
-    uv pip install "xnano==1.0.0b3"
+    uv pip install "xnano==1.0.0"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -79,7 +74,7 @@ You can install xnano with your favorite package manager on python 3.10+.
 === "poetry"
 
     ```bash
-    poetry install "xnano==1.0.0b3"
+    poetry install "xnano==1.0.0"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -88,7 +83,7 @@ You can install xnano with your favorite package manager on python 3.10+.
 === "conda"
 
     ```bash
-    conda install "xnano==1.0.0b3"
+    conda install "xnano==1.0.0"
     ```
 
 ---
@@ -98,8 +93,8 @@ You can install xnano with your favorite package manager on python 3.10+.
 The easiest way to get started is to render some text to the terminal. You can do this by calling the `render` method on the `Terminal` class.
 
 ```python
-from xnano.beta import Terminal
-from xnano.beta.components import Text
+from xnano import Terminal
+from xnano.components import Text
 
 Terminal().render(
     Text("Hello from xnano!", color="violet", modifiers=["bold"])
@@ -132,7 +127,7 @@ Terminal().render(
 Layouts work like Pydantic models. Inherit from `Grid`, add typed fields, and xnano handles the rest. Field order is layout order.
 
 ```python
-from xnano.beta import Field, Grid, Terminal
+from xnano import Field, Grid, Terminal
 
 class App(Grid, direction="vertical"):
     header: str = Field(default="My App", height=1, color="white", background="violet")
@@ -173,8 +168,8 @@ Terminal().run(App())
 Decorate a method with `@on_keyboard` and it fires when that key is pressed. Fields marked `state=True` trigger a re-render whenever they change.
 
 ```python
-from xnano.beta import Field, Grid, Terminal
-from xnano.beta.hooks import on_keyboard
+from xnano import Field, Grid, Terminal
+from xnano.hooks import on_keyboard
 
 class Counter(Grid, direction="vertical", gap=1):
     label: str = Field(default="Count: 0", height=1)
@@ -221,8 +216,8 @@ Use `@on_tick` to run something on a repeating interval. Pass a number of millis
 
 ```python
 import time
-from xnano.beta import Field, Grid, Terminal
-from xnano.beta.hooks import on_tick
+from xnano import Field, Grid, Terminal
+from xnano.hooks import on_tick
 
 class Clock(Grid, direction="vertical"):
     display: str = Field(default="", height=3, border="rounded", title=" Time ")
@@ -288,7 +283,7 @@ Terminal().run(App())
 Use `Text` to compose rich inline content with colors, modifiers, and nesting:
 
 ```python
-from xnano.beta.components import Text
+from xnano.components import Text
 
 message = Text([
     Text("● ", color="emerald-400"),
@@ -310,6 +305,4 @@ Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or pla
 
 ## Next Steps
 
-xnano is currently in beta with its API rapidly evolving. For the time being, the shape of the API is not yet solid enough to warrant
-a full documentation site. Until then, you can refer to the [API Reference]{data-preview} that will be updated in real time to reflect
-the latest changes.
+Continue with the [Getting Started](api/concepts/getting-started.md) guide, or jump straight into the [API Reference]{data-preview}.

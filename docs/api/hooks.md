@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.hooks"
+title: "xnano.hooks"
 ---
 
-# xnano.beta.hooks
+# xnano.hooks
 
-::: xnano.beta.hooks
+::: xnano.hooks

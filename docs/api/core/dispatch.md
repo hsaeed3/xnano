@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.core.dispatch"
+title: "xnano.core.dispatch"
 ---
 
-# xnano.beta.core.dispatch
+# xnano.core.dispatch
 
-::: xnano.beta.core.dispatch
+::: xnano.core.dispatch

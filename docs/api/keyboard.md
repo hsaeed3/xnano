@@ -1,7 +1,7 @@
 ---
-title: "xnano.beta.keyboard"
+title: "xnano.keyboard"
 ---
 
-# xnano.beta.keyboard
+# xnano.keyboard
 
-::: xnano.beta.keyboard
+::: xnano.keyboard
