@@ -499,10 +499,11 @@ class FrameNode(AbstractTerminalNode):
         if not self.visible:
             return Size(width=0, height=0)
         child_size = self.child.measure()
-        overhead = _frame_length_overhead(self.frame, "vertical")
         return Size(
-            width=child_size.width + overhead,
-            height=child_size.height + overhead,
+            width=child_size.width
+            + _frame_length_overhead(self.frame, "horizontal"),
+            height=child_size.height
+            + _frame_length_overhead(self.frame, "vertical"),
         )
 
     def lower(

@@ -246,6 +246,22 @@ def test_frame_node_measure_with_padding() -> None:
     assert size.height == 1 + 2
 
 
+def test_frame_node_measure_asymmetric_padding() -> None:
+    # (vertical, horizontal) padding — each axis carries its own overhead.
+    child = ParagraphNode(text="hi")
+    node = FrameNode(frame=Frame(padding=(1, 3)), child=child)
+    size = (node).measure()
+    assert size.width == 2 + 6
+    assert size.height == 1 + 2
+
+
+def test_paragraph_node_measure_unicode_width() -> None:
+    # Widths are display cells, not UTF-8 bytes.
+    assert ParagraphNode(text="héllo").measure().width == 5
+    # CJK characters are two cells wide.
+    assert ParagraphNode(text="你好").measure().width == 4
+
+
 # ---------------------------------------------------------------------------
 # ContainerNode
 # ---------------------------------------------------------------------------
