@@ -13,14 +13,34 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from xnano.beta.commands import Command
     from xnano.beta.requests import on_get_request, on_post_request
+    from xnano.beta.tailwind import (
+        TailwindClass,
+        TailwindStyle,
+        register_tailwind_class_group,
+        resolve_tailwind_classes,
+    )
     from xnano.beta.web import Web
 
 
 __all__ = (
     "Command",
+    "TailwindClass",
+    "TailwindStyle",
     "on_get_request",
     "on_post_request",
+    "register_tailwind_class_group",
+    "resolve_tailwind_classes",
     "Web",
+)
+
+
+_TAILWIND_EXPORTS = frozenset(
+    {
+        "TailwindClass",
+        "TailwindStyle",
+        "register_tailwind_class_group",
+        "resolve_tailwind_classes",
+    }
 )
 
 
@@ -29,6 +49,11 @@ def __getattr__(name: str):
         from xnano.beta.commands import Command
 
         return Command
+
+    elif name in _TAILWIND_EXPORTS:
+        from xnano.beta import tailwind
+
+        return getattr(tailwind, name)
 
     elif name == "on_get_request":
         from xnano.beta.requests import on_get_request
