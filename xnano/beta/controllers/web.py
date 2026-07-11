@@ -21,6 +21,7 @@ from xnano.core.controllers.abstract import (
 from xnano.types import Area
 
 if TYPE_CHECKING:
+    from xnano.beta.tailwind import TailwindStyle
     from xnano.core.controllers.abstract import AbstractLayoutConstraint
     from xnano.fields import GridFieldInfo
     from xnano.frame import Frame
@@ -63,7 +64,9 @@ class _HtmlElement:
         parts: list[str] = [f"<{tag}"]
 
         if self.classes:
-            class_attr = " ".join(self.classes)
+            # De-duplicate (first occurrence wins) — raw Tailwind
+            # classes and frame-derived classes can overlap.
+            class_attr = " ".join(dict.fromkeys(self.classes))
             parts.append(f' class="{html.escape(class_attr, quote=True)}"')
 
         if self.styles:
@@ -244,14 +247,27 @@ class WebController(AbstractController):
 
         return area
 
-    def _apply_frame(self, element: _HtmlElement, frame: "Frame") -> None:
+    def _apply_frame(
+        self,
+        element: _HtmlElement,
+        frame: "Frame",
+        resolved: "TailwindStyle | None" = None,
+    ) -> None:
         """Apply frame chrome (border, title, padding) to an element.
 
         Args:
             element: The HTML element to decorate.
             frame: Frame with border, title, padding, etc.
+            resolved: The field's lowered Tailwind classes, when it has
+                any — frame values the classes already cover are
+                skipped because the raw classes style them natively.
         """
-        if frame.border is not None:
+        border_covered = (
+            resolved is not None
+            and resolved.border is not None
+            and frame.border == resolved.border
+        )
+        if frame.border is not None and not border_covered:
             element.classes.append("border")
             if frame.border == "rounded":
                 element.classes.append("rounded-lg")
@@ -262,9 +278,16 @@ class WebController(AbstractController):
             elif frame.border == "thick":
                 element.classes.append("border-2")
 
+        if frame.border is not None:
+            border_color_covered = (
+                resolved is not None
+                and resolved.border_color is not None
+                and frame.border_color == resolved.border_color
+            )
             if frame.border_color is None:
-                element.classes.append("border-zinc-600")
-            else:
+                if not border_covered:
+                    element.classes.append("border-zinc-600")
+            elif not border_color_covered:
                 from xnano.color import Color
 
                 try:
@@ -275,7 +298,12 @@ class WebController(AbstractController):
                 except Exception:
                     pass
 
-        if frame.background is not None:
+        background_covered = (
+            resolved is not None
+            and resolved.background is not None
+            and frame.background == resolved.background
+        )
+        if frame.background is not None and not background_covered:
             from xnano.color import Color
 
             try:
@@ -290,12 +318,18 @@ class WebController(AbstractController):
             from xnano.types import Padding
 
             padding = Padding.parse(frame.padding)
-            element.styles["padding"] = (
-                f"{padding.top * 0.25}rem "
-                f"{padding.right * 0.5}rem "
-                f"{padding.bottom * 0.25}rem "
-                f"{padding.left * 0.5}rem"
+            padding_covered = (
+                resolved is not None
+                and resolved.padding is not None
+                and padding == resolved.padding
             )
+            if not padding_covered:
+                element.styles["padding"] = (
+                    f"{padding.top * 0.25}rem "
+                    f"{padding.right * 0.5}rem "
+                    f"{padding.bottom * 0.25}rem "
+                    f"{padding.left * 0.5}rem"
+                )
 
         if frame.title is not None:
             element.classes.append("relative")
@@ -310,7 +344,10 @@ class WebController(AbstractController):
             element.children.insert(0, title_element)
 
     def _apply_field_sizing(
-        self, element: _HtmlElement, field: "GridFieldInfo | None"
+        self,
+        element: _HtmlElement,
+        field: "GridFieldInfo | None",
+        resolved: "TailwindStyle | None" = None,
     ) -> None:
         """Apply width/height sizing to a field wrapper element.
 
@@ -320,11 +357,25 @@ class WebController(AbstractController):
         Args:
             element: The HTML element to size.
             field: The field with width/height sizing info (or None).
+            resolved: The field's lowered Tailwind classes, when it has
+                any — sizing the classes already cover is skipped
+                because the raw classes size the element natively.
         """
         if field is None:
             return
 
-        if field.width is not None:
+        width_covered = (
+            resolved is not None
+            and resolved.width is not None
+            and field.width == resolved.width
+        )
+        height_covered = (
+            resolved is not None
+            and resolved.height is not None
+            and field.height == resolved.height
+        )
+
+        if field.width is not None and not width_covered:
             sizing = field.width
             if sizing.kind == "fraction":
                 element.styles["flex-grow"] = str(sizing.value)
@@ -337,7 +388,7 @@ class WebController(AbstractController):
             elif sizing.kind == "fit":
                 element.classes.append("flex-none")
 
-        if field.height is not None:
+        if field.height is not None and not height_covered:
             sizing = field.height
             if sizing.kind == "cells":
                 element.styles["height"] = f"{sizing.value * 1.5}rem"
@@ -428,25 +479,67 @@ class WebController(AbstractController):
 
         wrapper = _HtmlElement()
 
+        resolved: "TailwindStyle | None" = None
+        if field is not None and field.class_name:
+            from xnano.beta.tailwind import resolve_tailwind_classes
+
+            resolved = resolve_tailwind_classes(field.class_name)
+            # Raw classes go out verbatim — the browser's Tailwind
+            # runtime honors every one, including classes the terminal
+            # cannot lower (shadow-*, hover:*, ...).
+            wrapper.classes.extend(field.class_name)
+
         if field is not None:
-            self._apply_field_sizing(wrapper, field)
+            self._apply_field_sizing(wrapper, field, resolved)
 
         if field is not None:
             from xnano.beta.nodes.web import build_style_attrs
 
+            # A derived inline style is skipped when the merged field
+            # value equals the class-derived one (the raw class already
+            # covers it); a differing value means an explicit kwarg
+            # overrode the class, and inline styles beat classes.
+            def _covered(field_value: Any, derived_value: Any) -> bool:
+                return (
+                    resolved is not None
+                    and derived_value is not None
+                    and field_value == derived_value
+                )
+
+            derived_modifiers = resolved.modifiers if resolved else None
             classes, styles = build_style_attrs(
-                color=field.color,
-                background=field.background,
-                modifiers=(
-                    tuple(field.modifiers) if field.modifiers else None
+                color=(
+                    None
+                    if _covered(field.color, resolved and resolved.color)
+                    else field.color
                 ),
-                align=field.align,
+                background=(
+                    None
+                    if _covered(
+                        field.background, resolved and resolved.background
+                    )
+                    else field.background
+                ),
+                modifiers=(
+                    None
+                    if (
+                        field.modifiers
+                        and derived_modifiers
+                        and tuple(field.modifiers) == derived_modifiers
+                    )
+                    else (tuple(field.modifiers) if field.modifiers else None)
+                ),
+                align=(
+                    None
+                    if _covered(field.align, resolved and resolved.align)
+                    else field.align
+                ),
             )
             wrapper.classes.extend(classes)
             wrapper.styles.update(styles)
 
         if self._pending_frame is not None:
-            self._apply_frame(wrapper, self._pending_frame)
+            self._apply_frame(wrapper, self._pending_frame, resolved)
             self._pending_frame = None
 
         if effect_key is not None and self._grid_stack:

@@ -129,7 +129,14 @@ from xnano.fields import (
     Field,
     _normalize_slide_axes,
 )
-from xnano.types import Area, Border, Direction, Side, PaddingLike
+from xnano.types import (
+    Area,
+    Border,
+    Direction,
+    Padding,
+    PaddingLike,
+    Side,
+)
 
 
 _GRID_RESERVED: frozenset[str] = frozenset(
@@ -144,6 +151,22 @@ _GRID_RESERVED: frozenset[str] = frozenset(
 
 
 _FIELD_MOUSE_KINDS: frozenset[str] = frozenset({"press", "drag", "release"})
+
+
+_GRID_MODIFIER_FLAG_KEYS: tuple[str, ...] = (
+    "bold",
+    "dim",
+    "italic",
+    "underline",
+    "slow_blink",
+    "rapid_blink",
+    "reversed",
+)
+"""Boolean ``grid_set_field`` keys that toggle character modifiers.
+
+``GridFieldInfo`` stores modifiers as a single ``modifiers`` sequence,
+so these flags are translated into it before ``dataclasses.replace``.
+"""
 
 
 _GRID_FIELD_CONFIG_KEYS: frozenset[str] = frozenset(
@@ -164,6 +187,9 @@ _GRID_FIELD_CONFIG_KEYS: frozenset[str] = frozenset(
         "title",
         "title_position",
         "padding",
+        "margin",
+        "modifiers",
+        "class_name",
         "bold",
         "dim",
         "italic",
@@ -304,15 +330,106 @@ def _grid_frame_size_for_field(
                     size += 1
 
     if field.padding is not None:
-        from xnano.types import Padding
-
         padding = Padding.parse(field.padding)
         if direction == "vertical":
             size += padding.vertical
         else:
             size += padding.horizontal
 
+    if field.margin is not None:
+        margin = Padding.parse(field.margin)
+        if direction == "vertical":
+            size += margin.vertical
+        else:
+            size += margin.horizontal
+
     return size
+
+
+def _apply_field_modifier_flags(
+    field_config: dict[str, Any],
+    current_modifiers: Sequence[str] | None,
+) -> dict[str, Any]:
+    """Translate boolean modifier flags into a ``modifiers`` sequence.
+
+    ``grid_set_field(bold=True)`` toggles the ``"bold"`` modifier on
+    top of the config's ``modifiers`` (when given) or the field's
+    current modifiers; ``bold=False`` removes it. The flag keys are
+    consumed so ``dataclasses.replace`` only sees real
+    ``GridFieldInfo`` attributes.
+    """
+    translated = dict(field_config)
+    base = translated.get("modifiers")
+    if base is None:
+        base = current_modifiers or ()
+    modifiers = list(base)
+    for key in _GRID_MODIFIER_FLAG_KEYS:
+        if key not in translated:
+            continue
+        enabled = bool(translated.pop(key))
+        if enabled and key not in modifiers:
+            modifiers.append(key)
+        elif not enabled and key in modifiers:
+            modifiers.remove(key)
+    translated["modifiers"] = tuple(modifiers)
+    return translated
+
+
+def _expand_field_class_name_config(
+    field_config: dict[str, Any],
+) -> dict[str, Any]:
+    """Expand a ``class_name`` config entry into derived field attributes.
+
+    Lowers the Tailwind classes through ``xnano.beta.tailwind`` (a lazy
+    import, so the stable path never pays for it) and fills in every
+    derived attribute the caller did not pass explicitly — explicit
+    keys always win, matching ``xnano.fields.Field``.
+    """
+    from xnano.beta.tailwind import (
+        normalize_tailwind_classes,
+        resolve_tailwind_classes,
+    )
+
+    tokens = normalize_tailwind_classes(field_config["class_name"])
+    resolved = resolve_tailwind_classes(tokens)
+    expanded = dict(field_config)
+    expanded["class_name"] = tokens
+    derived_keys = (
+        "color",
+        "background",
+        "border",
+        "border_color",
+        "border_sides",
+        "padding",
+        "margin",
+        "gap",
+        "width",
+        "height",
+        "align",
+        "direction",
+    )
+    for key in derived_keys:
+        value = getattr(resolved, key)
+        if value is not None and key not in field_config:
+            expanded[key] = value
+    if resolved.modifiers and "modifiers" not in field_config:
+        expanded["modifiers"] = resolved.modifiers
+    return expanded
+
+
+def _grid_inset_area_for_margin(
+    area: Area,
+    margin: Padding,
+) -> Area:
+    """Shrink ``area`` by ``margin`` on each side, clamped to >= 0 size."""
+    width = max(0, area.width - margin.horizontal)
+    height = max(0, area.height - margin.vertical)
+    return Area(
+        x=area.x + min(margin.left, area.width),
+        y=area.y + min(margin.top, area.height),
+        width=width,
+        height=height,
+    )
 
 
 def _grid_min_size_for_field(
@@ -1137,6 +1254,13 @@ class Grid(metaclass=_GridMeta):
             )
 
         if field_config:
+            if "class_name" in field_config:
+                field_config = _expand_field_class_name_config(field_config)
+            if any(key in field_config for key in _GRID_MODIFIER_FLAG_KEYS):
+                field_config = _apply_field_modifier_flags(
+                    field_config,
+                    self._grid_field_info(name).modifiers,
+                )
             if "slide" in field_config:
                 field_config = {
                     **field_config,
@@ -1316,6 +1440,10 @@ class Grid(metaclass=_GridMeta):
                 slide_axes,
                 self._grid_field_position(field_name),
             )
+            if field.margin is not None:
+                paint_area = _grid_inset_area_for_margin(
+                    paint_area, Padding.parse(field.margin)
+                )
             if collect_mouse_geometry and self._grid_field_needs_hit(
                 field_name, field
             ):
