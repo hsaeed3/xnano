@@ -17,15 +17,40 @@ Example:
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable, Literal, Sequence, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Literal,
+    Sequence,
+    TypeAlias,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from xnano import types
 from xnano.color import ColorLike
 from xnano.frame import Frame, FrameTitlePosition
 from xnano.sizing import Sizing, SizingLike
 
+if TYPE_CHECKING:
+    from xnano.beta.tailwind import TailwindClass
+
 
 UNSET = object()
+
+
+ClassNameLike: TypeAlias = Union[
+    "TailwindClass",
+    str,
+    "list[TailwindClass | str]",
+]
+"""Tailwind classes as a single class, a space-separated string, or a
+list of class tokens. See ``xnano.beta.tailwind.TailwindClass`` for the
+full supported vocabulary; unknown tokens are carried verbatim to the
+web backend and ignored by the terminal.
+"""
 
 
 def _normalize_slide_axes(
@@ -173,6 +198,20 @@ class GridFieldInfo:
     """The padding to be applied around the content area of this field."""
     slide: list[str] | None = None
     """The axes along which this field may slide within its parent grid."""
+    class_name: tuple[str, ...] | None = None
+    """Tailwind CSS class tokens attached to this field.
+
+    Normalized from the ``class_name`` argument to ``Field``. The web
+    backend emits these classes verbatim; the terminal backend renders
+    through the lowered attributes instead.
+    """
+    margin: types.PaddingLike | None = None
+    """The margin to be applied around the outer area of this field.
+
+    Also populated by Tailwind ``m*-{n}`` classes through
+    ``class_name``; the terminal insets the field's slot by this
+    amount before painting.
+    """
 
 
 @overload
@@ -198,7 +237,9 @@ def Field(
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
+    margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    class_name: ClassNameLike | None = None,
 ) -> Any: ...
 
 
@@ -225,7 +266,9 @@ def Field(
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
+    margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    class_name: ClassNameLike | None = None,
 ) -> _T: ...
 
 
@@ -251,7 +294,9 @@ def Field(
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
+    margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    class_name: ClassNameLike | None = None,
 ) -> _T: ...
 
 
@@ -278,7 +323,9 @@ def Field(
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
+    margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    class_name: ClassNameLike | None = None,
 ) -> Any: ...
 
 
@@ -304,7 +351,9 @@ def Field(
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
+    margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    class_name: ClassNameLike | None = None,
 ) -> GridFieldInfo:
     """Create a new grid field info instance.
 
@@ -341,11 +390,55 @@ def Field(
         title_position: The alignment of the title within the outer frame of this
             field's area.
         padding: The padding to be applied around the content area of this field.
+        margin: The margin to be applied around the outer area of this field.
         slide: The axes along which this field may slide within its parent grid.
+        class_name: Tailwind CSS classes styling this field — a space-separated
+            string or a sequence of class tokens. Classes are lowered into the
+            standard field attributes (see ``xnano.beta.tailwind``); an explicit
+            keyword argument always overrides a class-derived value. Classes
+            with no terminal equivalent are ignored by the terminal backend and
+            emitted verbatim by the web backend.
 
     Returns:
-        A new ``GridFieldInfo`` instance with all display/layout metadata.
+        A new ``GridFieldInfo`` instance with all display/layout metadata,
+        including the normalized ``class_name`` tokens.
     """
+    tokens: tuple[str, ...] | None = None
+    if class_name is not None:
+        from xnano.beta.tailwind import (
+            normalize_tailwind_classes,
+            resolve_tailwind_classes,
+        )
+
+        tokens = normalize_tailwind_classes(class_name)
+        resolved = resolve_tailwind_classes(tokens)
+        if color is None:
+            color = resolved.color
+        if background is None:
+            background = resolved.background
+        if border is None:
+            border = resolved.border
+        if border_color is None:
+            border_color = resolved.border_color
+        if border_sides is None:
+            border_sides = resolved.border_sides
+        if padding is None:
+            padding = resolved.padding
+        if margin is None:
+            margin = resolved.margin
+        if gap is None:
+            gap = resolved.gap
+        if width is None:
+            width = resolved.width
+        if height is None:
+            height = resolved.height
+        if modifiers is None and resolved.modifiers:
+            modifiers = resolved.modifiers
+        if align is None:
+            align = resolved.align
+        if direction is None:
+            direction = resolved.direction
+
     return GridFieldInfo(
         default=default,
         default_factory=default_factory,
@@ -367,11 +460,14 @@ def Field(
         title=title,
         title_position=title_position,
         padding=padding,
+        margin=margin,
         slide=_normalize_slide_axes(slide),
+        class_name=tokens,
     )  # type: ignore[return-value]
 
 
 __all__ = (
+    "ClassNameLike",
     "Field",
     "GridFieldInfo",
     "UNSET",
