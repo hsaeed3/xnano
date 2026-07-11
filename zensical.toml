@@ -74,6 +74,21 @@ nav = [
                 { "xnano.terminal.cursor" = "api/terminal/cursor.md" },
                 { "xnano.terminal.device" = "api/terminal/device.md" },
             ]},
+            { "xnano.beta" = [
+                { "xnano.beta" = "api/beta/index.md" },
+                { "xnano.beta.commands" = "api/beta/commands.md" },
+                { "xnano.beta.requests" = "api/beta/requests.md" },
+                { "xnano.beta.web" = "api/beta/web.md" },
+                { "xnano.beta.components" = [
+                    { "xnano.beta.components.text" = "api/beta/components/text.md" },
+                ]},
+                { "xnano.beta.controllers" = [
+                    { "xnano.beta.controllers.web" = "api/beta/controllers/web.md" },
+                ]},
+                { "xnano.beta.nodes" = [
+                    { "xnano.beta.nodes.web" = "api/beta/nodes/web.md" },
+                ]},
+            ]},
             { "xnano.color" = "api/color.md" },
             { "xnano.effects" = "api/effects.md" },
             { "xnano.events" = "api/events.md" },
