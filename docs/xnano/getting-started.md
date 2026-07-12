@@ -70,7 +70,7 @@ The main featureset of the library revolves around it's rust-based terminal rend
 
     The following example is interactive and can be run directly in the browser by hitting the <kbd>Run</kbd> button.
 
-```pyodide install="xnano>=1.0.5"
+```pyodide install="xnano==1.0.5"
 from xnano import Field, BaseGrid, render
 
 class App(BaseGrid, direction="horizontal"):
@@ -103,6 +103,10 @@ class App(BaseGrid):
 
 Web().run(App())
 ```
+
+## Next Steps
+
+Currently this site is still a work in progress. Complete walkthroughs and documentation for both <code>xnano</code> and <code>xnano-core</code> are coming soon.
 
 [xnano]: ./getting-started.md
 [xnano-core]: ../xnano-core/overview.md

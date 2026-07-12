@@ -310,5 +310,3 @@ Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or pla
 
 As of v1.0.4, the documentation for xnano is still a heavy work in progress. Complete
 guides and tutorials will be available very soon.
-
-[API Reference]: api/index.md
