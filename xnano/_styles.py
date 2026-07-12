@@ -2,24 +2,9 @@
 
 ---
 
-Tailwind CSS utility-class support for grids, shared by the terminal
-and web backends. The ``TailwindClass`` Literal alias enumerates every
-supported class; ``resolve_tailwind_classes`` lowers a class string or
-sequence into a ``Style`` expressed in xnano's own vocabulary
-(``Color`` bindings, ``Padding``, ``Sizing``, borders, modifiers).
-
-The terminal backend renders the lowered values through the existing
-field pipeline; classes with no terminal equivalent are silently
-ignored there and carried verbatim to the web backend through
-``Style.passthrough_classes``.
-
-Resolution is organized as one handler per utility group (color,
-spacing, border, typography, sizing, flex), mirroring the controller
-and node plugin patterns — register additional groups with
-``register_tailwind_class_group``.
-
-The generated Tailwind ``Literal`` vocabulary lives in
-``xnano._tailwind_classes`` and is re-exported here for autocomplete.
+Shared styling: ``Style``, Tailwind utility resolution, and related
+helpers for grids and components. Terminal and web backends lower the
+same style model to cells or CSS as needed.
 """
 
 from __future__ import annotations
@@ -166,7 +151,9 @@ class _TailwindStyleBuilder:
         horizontal = _cells_for_units(units, "horizontal")
         if prefix_axis == "":
             sides.update(
-                top=vertical, bottom=vertical, left=horizontal,
+                top=vertical,
+                bottom=vertical,
+                left=horizontal,
                 right=horizontal,
             )
         elif prefix_axis == "x":
@@ -307,17 +294,17 @@ class ColorClassGroup(AbstractTailwindClassGroup):
     def match(self, token: str) -> bool:
         for prefix in ("text-", "bg-", "border-"):
             if token.startswith(prefix):
-                suffix = token[len(prefix):]
+                suffix = token[len(prefix) :]
                 return _color_binding_from_suffix(suffix) is not None
         return False
 
     def apply(self, token: str, style: _TailwindStyleBuilder) -> None:
         if token.startswith("text-"):
-            style.color = token[len("text-"):]
+            style.color = token[len("text-") :]
         elif token.startswith("bg-"):
-            style.background = token[len("bg-"):]
+            style.background = token[len("bg-") :]
         else:
-            style.border_color = token[len("border-"):]
+            style.border_color = token[len("border-") :]
 
 
 class SpacingClassGroup(AbstractTailwindClassGroup):
@@ -649,9 +636,7 @@ def _resolve_tokens(tokens: tuple[str, ...]) -> Style:
         else None
     )
     margin = (
-        types.Padding(**builder.margin_sides)
-        if builder.margin_sides
-        else None
+        types.Padding(**builder.margin_sides) if builder.margin_sides else None
     )
     return Style(
         color=builder.color,

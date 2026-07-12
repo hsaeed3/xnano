@@ -1,23 +1,11 @@
 """xnano.effects
 
-Declarative, controller-agnostic descriptions of visual effects that can be
-played against one or more ``BaseGrid`` layout fields.
+---
 
-Every ``AbstractEffect`` subclass here only describes *intent* — duration,
-interpolation, color, motion, composition — using ``xnano`` types and
-literals. Nothing in this module assumes a terminal. The terminal-only
-lowering of a description to a ``tachyonfx`` native effect lives in
-``xnano.tui.effects``, which the terminal controller calls. A future web
-controller would instead dispatch over these same dataclasses to a CSS
-transition/animation.
-
-``key`` lives on ``AbstractEffect`` (alongside ``duration_ms`` and
-``interpolation``) rather than being passed separately wherever an effect
-is played, because it is the effect's own dedup/identity — the same
-category of thing as its duration, not a per-call detail like which fields
-to target this time. A controller's ``play_effect(effect, *, fields=...)``
-reads ``effect.key`` itself rather than accepting a redundant ``key``
-argument.
+Declarative visual effect descriptions for ``BaseGrid`` layout fields
+(duration, motion, color, composition). Host controllers lower these
+intents to their platform (for example terminal effects via
+``xnano.tui.effects``).
 """
 
 from __future__ import annotations

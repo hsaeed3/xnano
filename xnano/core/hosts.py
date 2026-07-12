@@ -1,4 +1,10 @@
-"""xnano.core.hosts"""
+"""xnano.core.hosts
+
+---
+
+Shared host contract for terminal, web, and CLI sessions: navigation,
+``perform``, and device / cursor / actions / stage access.
+"""
 
 from __future__ import annotations
 
@@ -13,8 +19,8 @@ from xnano.core.exceptions import HookError
 _MAX_PERFORM_DEPTH: int = 32
 """Maximum actions drained from a single ``perform`` chain.
 
-Runaway action → hook → action loops raise :class:`HookError` instead
-of overflowing the call stack.
+Runaway action → hook → action loops raise ``HookError`` instead of
+overflowing the call stack.
 """
 
 
@@ -28,18 +34,18 @@ def get_active_host() -> "AbstractHost | None":
     """Return the host bound to the current context, if any.
 
     Returns:
-        The active :class:`AbstractHost`, or ``None`` when no host has
+        The active ``AbstractHost``, or ``None`` when no host has
         entered the context.
     """
     return _ACTIVE_HOST.get()
 
 
 class RouteTable:
-    """Route key → interface factory; single default route today.
+    """Maps route keys to interface factories for host navigation.
 
-    Hosts resolve their active root through this table so tui window
-    swaps and webui page routes share one funnel. Factories are called
-    on :meth:`resolve` so each navigation can materialize a fresh
+    Hosts resolve their active root through this table so terminal
+    window swaps and web page routes share one funnel. Factories are
+    called on ``resolve`` so each navigation can materialize a fresh
     root when desired.
     """
 
@@ -75,7 +81,7 @@ class RouteTable:
 
         Args:
             key: Route key to resolve. When ``None``, uses
-                :attr:`default_key`.
+                ``default_key``.
 
         Returns:
             The factory result for the resolved key.
@@ -86,8 +92,7 @@ class RouteTable:
         resolved_key = self._default_key if key is None else key
         if resolved_key is None:
             raise KeyError(
-                "No route key provided and no default route is "
-                "registered."
+                "No route key provided and no default route is registered."
             )
         factory = self._routes.get(resolved_key)
         if factory is None:
@@ -109,11 +114,11 @@ class RouteTable:
 
 
 class AbstractHost(abc.ABC):
-    """Shared host contract: hooks, state, pump, facades, lifecycle.
+    """Shared host contract for terminal, web, and CLI sessions.
 
-    ``Terminal``, web sessions, and the CLI runner implement this
-    surface so dispatch, ``perform``, navigation, and
-    device/cursor/actions/stage facades stay one shape.
+    ``Terminal``, web sessions, and the CLI runner implement this so
+    dispatch, ``perform``, navigation, and device / cursor / actions /
+    stage access share one shape.
 
     Duck surface expected by shared dispatch helpers (subclasses
     typically initialize these in ``__init__``):
@@ -140,19 +145,19 @@ class AbstractHost(abc.ABC):
     @property
     @abc.abstractmethod
     def device(self) -> AbstractDevice:
-        """Live device facade for this host session."""
+        """Device controls for this host (title, clear, size, clipboard)."""
 
     @property
     @abc.abstractmethod
     def cursor(self) -> AbstractCursor:
-        """Live cursor facade for this host session."""
+        """Cursor / caret controls for this host (visibility and style)."""
 
     @property
     def actions(self) -> Any:
-        """``Actions`` facade bound to this host (lazy import).
+        """Perform synthetic input and requests against this host.
 
         Returns:
-            An ``Actions`` instance from ``xnano.actions``.
+            An ``Actions`` helper bound to this host.
         """
         if self._actions is None:
             from xnano.core.actions import Actions
@@ -162,10 +167,10 @@ class AbstractHost(abc.ABC):
 
     @property
     def stage(self) -> Any:
-        """``Stage`` facade bound to this host (lazy import).
+        """Layout map and cell-level paint / wireframe for this host.
 
         Returns:
-            A :class:`~xnano.stage.Stage` for layout/paint access.
+            A ``Stage`` for layout lookup and overlay painting.
         """
         if self._stage is None:
             from xnano.core.stage import Stage
@@ -175,7 +180,7 @@ class AbstractHost(abc.ABC):
 
     @property
     def routes(self) -> RouteTable:
-        """Route table used by :meth:`navigate`."""
+        """Route table used by ``navigate``."""
         return self._routes
 
     @property
@@ -188,8 +193,7 @@ class AbstractHost(abc.ABC):
 
         Re-entrancy: when already dispatching, ``action`` is queued and
         drained after the current pass completes — never nested. A
-        chain longer than ``_MAX_PERFORM_DEPTH`` raises
-        :class:`~xnano.exceptions.HookError`.
+        chain longer than ``_MAX_PERFORM_DEPTH`` raises ``HookError``.
 
         Args:
             action: An object exposing ``to_event()`` (typically an
@@ -232,21 +236,26 @@ class AbstractHost(abc.ABC):
         if callable(to_event):
             event = to_event()
 
+        from typing import Any as TypingAny, cast
+
         from xnano import _dispatch
         from xnano.context import Context
 
+        # Hosts (Terminal, WebSession) duck-type the Terminal surface
+        # that dispatch_hooks expects.
+        host = cast(TypingAny, self)
         ctx = Context(
             event=event,
-            terminal=self,  # type: ignore[arg-type]
+            terminal=host,
             state=self.state,
         )
-        _dispatch.dispatch_hooks(self, ctx)  # type: ignore[arg-type]
+        _dispatch.dispatch_hooks(host, ctx)
 
     def navigate(self, key: str) -> None:
-        """Swap the active root via :class:`RouteTable`.
+        """Swap the active root using the route table.
 
-        Resolves ``key``, stores the result as :attr:`active_root`, and
-        notifies subclasses through :meth:`on_navigate`.
+        Resolves ``key``, stores the result as ``active_root``, and
+        notifies subclasses through ``on_navigate``.
 
         Args:
             key: Registered route key.
@@ -259,7 +268,7 @@ class AbstractHost(abc.ABC):
         self.on_navigate(key, root)
 
     def on_navigate(self, key: str, root: Any) -> None:
-        """Hook invoked after a successful :meth:`navigate`.
+        """Hook invoked after a successful ``navigate``.
 
         Subclasses override to reattach hooks, update the controller
         root, or map the key to a URL path. Default is a no-op.

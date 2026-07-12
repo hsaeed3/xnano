@@ -1,25 +1,12 @@
 """xnano.tui.nodes
 
-The terminal's node types: text, panels, charts, tables, and everything
-else a `BaseGrid` can paint into a region of the screen. Every concrete node
-here (`SpanNode`, `ParagraphNode`, `FrameNode`, ...) implements its own
-drawing behavior directly, instead of being matched from the outside by a
-central dispatcher that checks "is this a paragraph? a table? a chart?"
-one type at a time.
+---
 
-Most nodes only need to implement `to_ir`, returning a `CoreRenderIR` —
-a lightweight, mostly-Rust description that a controller can paint
-directly. A handful of nodes have no such representation, either always
-(a chart) or only in a particular case (a sparkline with per-bar colors,
-where the shared color of a whole bar can't be expressed in the IR); those
-override `lower` directly and build native content themselves.
-
-A container node (`FrameNode`, `ContainerNode`, `StackNode`) never needs
-to know what kind of node its children are — it measures and lowers them
-by calling `child.measure()` / `child.lower(...)`, the same two methods
-every node defines. That's the whole point of putting this behavior on
-the node: nothing outside this module has to change when a new node type
-is added.
+Terminal node types (text, panels, charts, tables, and other drawable
+content). Most nodes implement ``to_ir`` and return a ``CoreRenderIR``
+the controller can paint; a few override ``lower`` when IR cannot
+express the content. Containers measure and lower children through the
+shared node methods.
 """
 
 from __future__ import annotations

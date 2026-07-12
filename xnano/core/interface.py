@@ -2,9 +2,8 @@
 
 ---
 
-``AbstractInterface`` is the DSL base every visual surface (grid, and
-eventually components) shares: named fields, live ``FieldState``, and
-hook scanning. Layout-specific behavior stays on ``BaseGrid``.
+``AbstractInterface`` base for surfaces with named fields and live
+``FieldState``. Layout-specific behavior stays on ``BaseGrid``.
 """
 
 from __future__ import annotations
@@ -21,9 +20,7 @@ class AbstractInterface:
     """Shared base for surfaces with named fields and live field state.
 
     ``BaseGrid`` subclasses this so field change notification and
-    per-instance ``FieldState`` live beneath layout. Components may
-    inherit later once their dataclass construction is compatible with
-    the field metaclass.
+    per-instance ``FieldState`` live beneath layout.
     """
 
     _field_states: dict[str, FieldState]

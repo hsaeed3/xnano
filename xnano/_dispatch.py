@@ -1,4 +1,9 @@
-"""xnano._dispatch"""
+"""xnano._dispatch
+
+---
+
+Shared event, state, field, poll, and tick dispatch for hosts.
+"""
 
 from __future__ import annotations
 
@@ -130,7 +135,9 @@ def grid_clamp_slide_position(
     )
 
 
-def resolve_grid_mouse_handler(grid: "BaseGrid", field_name: str) -> Any | None:
+def resolve_grid_mouse_handler(
+    grid: "BaseGrid", field_name: str
+) -> Any | None:
     """Return the field-bound mouse handler for ``field_name`` on ``grid``."""
     from xnano.grid import _resolve_grid_mouse_handler
 
@@ -522,9 +529,7 @@ def _paint_stage_overlay(
     try:
         from xnano._types import Size
 
-        stage.set_size(
-            Size(width=viewport.width, height=viewport.height)
-        )
+        stage.set_size(Size(width=viewport.width, height=viewport.height))
     except Exception:
         pass
     canvas = None
@@ -683,7 +688,6 @@ def _handle_focused_text_input(
     text = focused_input_text(terminal)
     if text is None:
         return False
-    # Prefer the component-owned path when present.
     handle = getattr(text, "handle_keyboard", None)
     if callable(handle):
         return bool(handle(keyboard))

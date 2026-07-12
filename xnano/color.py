@@ -1,9 +1,8 @@
 """xnano.color
 
-Functional color types and utilities. This module ports many of it's
-primitives directly from the ``pydantic_extra_types.Color`` module.
+---
 
-You can view the original source code here: [Pydantic Extra Types Color](https://github.com/pydantic/pydantic-extra-types/blob/main/pydantic_extra_types/color.py)
+Color types and utilities (parse, convert, Tailwind named colors).
 """
 
 from __future__ import annotations

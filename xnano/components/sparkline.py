@@ -1,4 +1,9 @@
-"""xnano.components.sparkline"""
+"""xnano.components.sparkline
+
+---
+
+``Sparkline`` component for compact inline bar charts.
+"""
 
 from __future__ import annotations
 
@@ -15,10 +20,10 @@ if TYPE_CHECKING:
 
 @dataclasses.dataclass
 class Sparkline(AbstractComponent):
-    """Sparkline chart backed by the native ratatui widget.
+    """Compact inline bar chart for a sequence of samples.
 
     Fills the layout slot it is placed in and scales bar heights across the
-    full vertical area.  Supply ``colors`` with one entry per sample to tint
+    full vertical area. Supply ``colors`` with one entry per sample to tint
     individual bars — useful for gradients across a time series.
     """
 
