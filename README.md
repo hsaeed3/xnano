@@ -17,13 +17,13 @@ Furthermore, `xnano` itself uses the [`pydantic-core`](https://github.com/pydant
 ## Installation
 
 ```bash
-pip install "xnano>=1.0.5"
+pip install "xnano>=1.0.6"
 ```
 
 Or use ``uv``:
 
 ```bash
-uv add "xnano>=1.0.5"
+uv add "xnano>=1.0.6"
 ```
 
 > [!TIP]

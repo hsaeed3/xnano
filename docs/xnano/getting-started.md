@@ -22,13 +22,13 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "pip"
 
     ```bash
-    pip install "xnano>=1.0.5"
+    pip install "xnano>=1.0.6"
     ```
 
 === "uv"
 
     ```bash
-    uv pip install "xnano>=1.0.5"
+    uv pip install "xnano>=1.0.6"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -37,7 +37,7 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "poetry"
 
     ```bash
-    poetry install "xnano>=1.0.5"
+    poetry install "xnano>=1.0.6"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -46,7 +46,7 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "conda"
 
     ```bash
-    conda install "xnano>=1.0.5"
+    conda install "xnano>=1.0.6"
     ```
 
 ## What is xnano?
