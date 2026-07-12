@@ -8,12 +8,13 @@ flags) for a live ``Terminal`` session.
 
 from __future__ import annotations
 
-from typing import Any, Literal, TypeAlias, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
-from xnano_core.rust import native
+import xnano_core.rust.native as native
 
-from xnano.core.device import AbstractDevice
 from xnano._types import Size
+from xnano.core.device import AbstractDevice
+
 
 if TYPE_CHECKING:
     from xnano.tui.terminal import Terminal

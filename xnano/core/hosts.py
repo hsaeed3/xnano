@@ -9,6 +9,7 @@ Shared host contract for terminal, web, and CLI sessions: navigation,
 from __future__ import annotations
 
 import abc
+import collections
 import contextvars
 from typing import Any, Callable
 
@@ -130,7 +131,7 @@ class AbstractHost(abc.ABC):
     """
 
     def __init__(self) -> None:
-        self._perform_queue: list[Any] = []
+        self._perform_queue: collections.deque[Any] = collections.deque()
         self._dispatching: bool = False
         self._routes: RouteTable = RouteTable()
         self._active_root: Any = None
@@ -219,7 +220,7 @@ class AbstractHost(abc.ABC):
                             f"({_MAX_PERFORM_DEPTH})"
                         ),
                     )
-                next_action = self._perform_queue.pop(0)
+                next_action = self._perform_queue.popleft()
                 self._dispatch_performed_action(next_action)
                 depth += 1
         finally:
@@ -236,7 +237,8 @@ class AbstractHost(abc.ABC):
         if callable(to_event):
             event = to_event()
 
-        from typing import Any as TypingAny, cast
+        from typing import Any as TypingAny
+        from typing import cast
 
         from xnano import _dispatch
         from xnano.context import Context

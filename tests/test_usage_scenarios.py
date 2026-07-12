@@ -20,8 +20,13 @@ from helpers import (
     type_text,
 )
 
-from xnano.fields import Field
-from xnano.grid import BaseGrid
+from xnano._dispatch import pump_poll, pump_tick
+from xnano._function_hooks import _EventHooksRegistry
+from xnano.components.chart import Chart
+from xnano.components.progress import Progress
+from xnano.components.schema import Column, Series
+from xnano.components.table import Table
+from xnano.components.text import Text
 from xnano.events import (
     on_field,
     on_focus,
@@ -29,13 +34,8 @@ from xnano.events import (
     on_poll,
     on_tick,
 )
-from xnano._function_hooks import _EventHooksRegistry
-from xnano.components.chart import Chart
-from xnano.components.progress import Progress
-from xnano.components.table import Table
-from xnano.components.text import Text
-from xnano.components.schema import Column, Series
-from xnano._dispatch import pump_poll, pump_tick
+from xnano.fields import Field
+from xnano.grid import BaseGrid
 
 
 # ---------------------------------------------------------------------------
@@ -135,8 +135,8 @@ def test_login_form_backspace_and_cycle_wrap() -> None:
 def test_login_form_paste_into_focused_input() -> None:
     from typing import Any, cast
 
-    from xnano.context import Context
     from xnano._dispatch import dispatch_hooks
+    from xnano.context import Context
 
     form = LoginForm()
     terminal = open_offscreen_app(form)

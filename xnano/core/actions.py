@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import functools
 from typing import Any, ClassVar, TypeAlias
 
 from xnano._types import KeyboardBinding, MouseButton
@@ -60,6 +61,7 @@ NormalizedBinding: TypeAlias = tuple[frozenset[str], str]
 """A normalized keyboard binding as ``(modifiers, key)``."""
 
 
+@functools.lru_cache(maxsize=512)
 def normalize_binding(binding: str) -> NormalizedBinding | None:
     """Normalize a ``ctrl+shift+k`` style binding for comparison.
 
@@ -630,7 +632,8 @@ class KeyboardAction(Action):
         if not self.bindings:
             return True
 
-        actual = _event_keyboard_normalized(keyboard)
+        actual: NormalizedBinding | None = None
+        actual_resolved = False
         for binding in self.bindings:
             if binding is None:
                 return True
@@ -639,6 +642,9 @@ class KeyboardAction(Action):
                     return True
             except Exception:
                 pass
+            if not actual_resolved:
+                actual = _event_keyboard_normalized(keyboard)
+                actual_resolved = True
             wanted = normalize_binding(str(binding))
             if wanted is not None and actual is not None and wanted == actual:
                 return True

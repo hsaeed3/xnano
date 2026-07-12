@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from xnano_core.rust.native import Constraint, Margin, Paragraph
+from conftest import draw_glyph_content, glyph_at
 from xnano_core.rust.engine import (
     CoreRenderContent,
     CoreRenderNode,
     CoreSession,
 )
-
-from conftest import draw_glyph_content, glyph_at
+from xnano_core.rust.native import Constraint, Margin, Paragraph
 
 
 def _flattened_text(session: CoreSession) -> str:

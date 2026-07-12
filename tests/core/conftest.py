@@ -5,7 +5,11 @@ from __future__ import annotations
 import sys
 
 import pytest
-
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 from xnano_core.rust.native import (
     Block,
     Buffer,
@@ -13,11 +17,6 @@ from xnano_core.rust.native import (
     Paragraph,
     Rect,
     Style,
-)
-from xnano_core.rust.engine import (
-    CoreRenderContent,
-    CoreRenderNode,
-    CoreSession,
 )
 
 

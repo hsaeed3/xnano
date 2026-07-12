@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from helpers import assign_attr, invalid_field
 from pydantic import BaseModel
 
-from helpers import assign_attr, invalid_field
 from xnano._renderable import Renderable
 from xnano.core.exceptions import FieldValidationError
 from xnano.fields import Field

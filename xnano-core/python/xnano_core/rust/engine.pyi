@@ -24,7 +24,7 @@ framework. It exposes:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+import collections.abc
 from typing import Any, List, Literal, Optional, Tuple
 
 from xnano_core.rust.native import (
@@ -265,7 +265,7 @@ class CoreKeyBinding:
 
     def __repr__(self) -> str: ...
 
-CoreDrawableCallback = Callable[[Buffer, Rect], None]
+CoreDrawableCallback = collections.abc.Callable[[Buffer, Rect], None]
 """Signature for :meth:`CoreRenderContent.drawable` callbacks.
 
 The callback receives a mutable :class:`~xnano_core.rust.native.Buffer` view
@@ -526,14 +526,14 @@ class CoreRenderNode:
         height: Optional[int] = None,
         direction: Optional[Direction] = None,
         gap: int = 0,
-        constraints: Optional[Sequence[Constraint]] = None,
+        constraints: Optional[collections.abc.Sequence[Constraint]] = None,
         margin: Optional[Margin] = None,
         content: Optional[CoreRenderContent] = None,
         cursor_hint: Optional[tuple[int, int]] = None,
         effect_key: Optional[str] = None,
         z: int = 0,
         visible: bool = True,
-        children: Optional[Sequence[CoreRenderNode]] = None,
+        children: Optional[collections.abc.Sequence[CoreRenderNode]] = None,
     ) -> None:
         """Construct a render node.
 
@@ -594,9 +594,9 @@ class CoreRenderNode:
 
     @staticmethod
     def row(
-        children: Sequence[CoreRenderNode],
+        children: collections.abc.Sequence[CoreRenderNode],
         *,
-        constraints: Optional[Sequence[Constraint]] = None,
+        constraints: Optional[collections.abc.Sequence[Constraint]] = None,
         gap: int = 0,
         margin: Optional[Margin] = None,
     ) -> CoreRenderNode:
@@ -617,9 +617,9 @@ class CoreRenderNode:
 
     @staticmethod
     def column(
-        children: Sequence[CoreRenderNode],
+        children: collections.abc.Sequence[CoreRenderNode],
         *,
-        constraints: Optional[Sequence[Constraint]] = None,
+        constraints: Optional[collections.abc.Sequence[Constraint]] = None,
         gap: int = 0,
         margin: Optional[Margin] = None,
     ) -> CoreRenderNode:
@@ -644,7 +644,7 @@ class CoreRenderNode:
         y: int,
         width: int,
         height: int,
-        children: Sequence[CoreRenderNode],
+        children: collections.abc.Sequence[CoreRenderNode],
     ) -> CoreRenderNode:
         """Construct an absolute-geometry stacking context.
 
@@ -736,7 +736,7 @@ class CoreTerminalRef:
         __module__: Always ``"xnano_core.rust.engine"``.
     """
 
-    def draw(self, callback: Callable[[Any], Any]) -> None:
+    def draw(self, callback: collections.abc.Callable[[Any], Any]) -> None:
         """Run a direct-draw callback against a fresh terminal frame.
 
         The callback receives a native ``Frame`` handle. Errors raised inside
@@ -749,7 +749,9 @@ class CoreTerminalRef:
         """
         ...
 
-    def try_draw(self, callback: Callable[[Any], Any]) -> CompletedFrame:
+    def try_draw(
+        self, callback: collections.abc.Callable[[Any], Any]
+    ) -> CompletedFrame:
         """Run a direct-draw callback and return frame metadata on success.
 
         Errors raised inside the callback are propagated as Python

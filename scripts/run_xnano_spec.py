@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 from typing import Iterator
 
+
 # ---------------------------------------------------------------------------
 # Scanner
 # ---------------------------------------------------------------------------
@@ -119,12 +120,13 @@ def save_block(block: SpecBlock, new_body: list[str]) -> None:
 # TUI
 # ---------------------------------------------------------------------------
 
+from xnano.color import tailwind_color
+from xnano.components.text import Text
+from xnano.events import on_keyboard
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.tui import Terminal
-from xnano.events import on_keyboard
-from xnano.components.text import Text
-from xnano.color import tailwind_color
+
 
 _V300 = tailwind_color("violet", 300)
 _V400 = tailwind_color("violet", 400)

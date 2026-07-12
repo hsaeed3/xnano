@@ -13,7 +13,6 @@ import abc
 import dataclasses
 from typing import Any, Literal, Sequence, TypeAlias
 
-from xnano.color import ColorLike
 from xnano._styles import Style
 from xnano._types import (
     Alignment,
@@ -28,6 +27,7 @@ from xnano._types import (
     ScrollbarOrientationLike,
     Side,
 )
+from xnano.color import ColorLike
 
 
 InterfaceKind: TypeAlias = Literal["tui", "webui"]

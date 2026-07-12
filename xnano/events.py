@@ -11,43 +11,40 @@ from __future__ import annotations
 import abc
 import dataclasses
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
-    Generic,
     Literal,
     TypeAlias,
     TypeVar,
-    TypedDict,
     Union,
-    TYPE_CHECKING,
     overload,
 )
 
 from xnano_core.core import (
     CoreEvent,
     CoreKeyBinding,
-    CoreTickEvent,
 )
+
 
 _BINDING_CACHE: dict[str, CoreKeyBinding] = {}
 
 from xnano._event_processing import (
+    get_event_data_from_core_event,
     get_keyboard_binding_tuple_from_native_event,
     get_keyboard_event_kind_from_native_event,
-    get_mouse_event_kind_from_native_event,
-    get_event_data_from_core_event,
 )
 from xnano._types import (
-    KnownKeyboardBinding,
     KeyboardBinding,
     KeyboardKey,
     KeyboardModifier,
+    MouseButton,
 )
-from xnano._types import MouseButton
+
 
 if TYPE_CHECKING:
-    from xnano_core.rust import native
+    import xnano_core.rust.native as native
 
 
 StateT = TypeVar("StateT")
@@ -687,16 +684,14 @@ class Event:
         )
 
 
-from xnano.context import Context
 from xnano._function_hooks import (
+    _PENDING_HOOKS,
     EventHookFunction,
     FocusHookKind,
     PollWhen,
     _EventHooksRegistry,
-    _PENDING_HOOKS,
 )
-from xnano._types import KeyboardBinding
-from xnano._types import MouseButton
+from xnano._types import KeyboardBinding, MouseButton
 
 
 def _auto_register_hook_function(fn: EventHookFunction) -> EventHookFunction:
@@ -708,7 +703,7 @@ def _auto_register_hook_function(fn: EventHookFunction) -> EventHookFunction:
     Returns:
         The hook function.
     """
-    from xnano.tui import _ACTIVE_TERMINAL
+    from xnano.tui.terminal import _ACTIVE_TERMINAL
 
     terminal = _ACTIVE_TERMINAL.get()
     if terminal is not None:

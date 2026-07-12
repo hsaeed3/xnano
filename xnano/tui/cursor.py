@@ -8,13 +8,14 @@ Terminal cursor controls (visibility, style, position) for a live
 
 from __future__ import annotations
 
-from typing import Any, Literal, TypeAlias, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
-from xnano_core.rust import native
+import xnano_core.rust.native as native
 
+from xnano import _core_bindings as native_types
 from xnano._types import Coordinate
 from xnano.core.device import AbstractCursor
-from xnano import _core_bindings as native_types
+
 
 if TYPE_CHECKING:
     from xnano.tui.terminal import Terminal

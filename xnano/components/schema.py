@@ -21,11 +21,12 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, Callable, TypeAlias, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, TypeAlias
+
 
 if TYPE_CHECKING:
-    from xnano.color import ColorLike
     from xnano._types import Alignment, GraphTypeLike
+    from xnano.color import ColorLike
 
 
 ColorResolver: TypeAlias = Any

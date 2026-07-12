@@ -23,20 +23,20 @@ from typing import Any, cast
 
 from xnano_core.core import CoreSession
 
-from xnano.fields import Field
-from xnano.grid import BaseGrid
 from xnano._dispatch import pump_tick
-from xnano.core.controllers.tui import TerminalController
-from xnano.events import on_field, on_tick
 from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnFieldHookFunctionEntry,
     _OnStateHookFunctionEntry,
     _OnTickHookFunctionEntry,
 )
-from xnano.state import State
-from xnano._types import Area
 from xnano._introspection import evaluate_state_expression
+from xnano._types import Area
+from xnano.core.controllers.tui import TerminalController
+from xnano.events import on_field, on_tick
+from xnano.fields import Field
+from xnano.grid import BaseGrid
+from xnano.state import State
 
 
 # ---------------------------------------------------------------------------

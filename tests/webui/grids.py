@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from xnano.components.text import Text
-from xnano.webui.requests import on_get_request, on_post_request
+from xnano.events import on_click, on_field, on_keyboard, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.events import on_click, on_field, on_keyboard, on_tick
+from xnano.webui.requests import on_get_request, on_post_request
 
 
 class SimpleGrid(BaseGrid, direction="horizontal", gap=1):

@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable, ClassVar, TypeAlias, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeAlias, cast
 
 from xnano.components.abstract import AbstractComponent
 from xnano.components.schema import (
@@ -16,6 +16,7 @@ from xnano.components.schema import (
     ComponentDescriptor,
     DeclarativeComponentMeta,
 )
+
 
 if TYPE_CHECKING:
     from xnano.color import ColorLike
