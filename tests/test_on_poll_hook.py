@@ -7,14 +7,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from xnano.fields import Field
-from xnano.grid import BaseGrid
-from xnano.events import on_poll, PollWhen
+from xnano._dispatch import pump_events, pump_poll
 from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnPollHookFunctionEntry,
 )
-from xnano._dispatch import pump_events, pump_poll
+from xnano.events import PollWhen, on_poll
+from xnano.fields import Field
+from xnano.grid import BaseGrid
 
 
 # ---------------------------------------------------------------------------

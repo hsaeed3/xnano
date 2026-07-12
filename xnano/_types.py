@@ -11,25 +11,21 @@ helpers for editable ``Text`` input.
 from __future__ import annotations
 
 import dataclasses
-import re
 from typing import (
-    Any,
-    Callable,
-    Literal,
-    Sequence,
     TYPE_CHECKING,
+    Any,
+    Literal,
     TypeAlias,
     Union,
 )
 
-from xnano.color import Color, ColorLike
+from xnano.color import ColorLike
+
 
 if TYPE_CHECKING:
     from xnano.components.text import Text
-    from xnano.events import KeyboardEventData
-    from xnano.grid import BaseGrid
-    from xnano.events import FocusHookKind
-    from xnano.tui import Terminal
+    from xnano.events import FocusHookKind, KeyboardEventData
+    from xnano.tui.terminal import Terminal
 
 
 Alignment: TypeAlias = Literal["left", "right", "center"]
@@ -1295,8 +1291,8 @@ def _fire_field_focus_hooks(
     *,
     kind: "FocusHookKind",
 ) -> None:
-    from xnano.context import Context
     from xnano._dispatch import invoke_hook, resolve_hook_grid
+    from xnano.context import Context
     from xnano.events import FocusEventData
 
     focus_data = FocusEventData(

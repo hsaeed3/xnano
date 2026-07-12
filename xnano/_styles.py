@@ -16,16 +16,6 @@ import math
 from typing import Literal, Sequence
 
 from xnano import _types as types
-from xnano.color import _TAILWIND_NAMES, _TAILWIND_SHADES, ColorLike
-from xnano._types import (
-    Area,
-    Padding,
-    PaddingLike,
-    Size,
-    Sizing,
-    SizingKind,
-    SizingLike,
-)
 from xnano._tailwind_classes import (
     KNOWN_TAILWIND_CLASSES,
     TailwindBorderClass,
@@ -37,6 +27,16 @@ from xnano._tailwind_classes import (
     TailwindSpacingClass,
     TailwindTypographyClass,
 )
+from xnano._types import (
+    Area,
+    Padding,
+    PaddingLike,
+    Size,
+    Sizing,
+    SizingKind,
+    SizingLike,
+)
+from xnano.color import _TAILWIND_NAMES, _TAILWIND_SHADES, ColorLike
 
 
 _SPACING_UNITS: frozenset[str] = frozenset(

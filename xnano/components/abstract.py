@@ -11,15 +11,15 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, Generic, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from xnano._types import Size
 
+
 if TYPE_CHECKING:
+    from xnano._types import Area, Frame
     from xnano.tui.nodes import AbstractTerminalNode
-    from xnano._types import Frame
-    from xnano.tui import Terminal
-    from xnano._types import Area
+    from xnano.tui.terminal import Terminal
 
 
 StateT = TypeVar("StateT")

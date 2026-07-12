@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from xnano._types import Frame
 from xnano.core.content import (
     AbstractContent,
     CellCanvas,
@@ -32,7 +33,6 @@ from xnano.tui.nodes import (
     SpanNode,
     TextNode,
 )
-from xnano._types import Frame
 
 
 def lower_content(

@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, ClassVar, Literal, Sequence, TypeAlias, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeAlias
+
 
 if TYPE_CHECKING:
-    from xnano.tui._node_base_tmp import AbstractNode
+    from xnano._types import Area, Direction, Frame
     from xnano.fields import GridFieldInfo
-    from xnano._types import Frame
-    from xnano._types import Area, Direction
+    from xnano.tui._node_base_tmp import AbstractNode
 
 
 LayoutConstraintKind: TypeAlias = Literal[

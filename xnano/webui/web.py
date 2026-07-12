@@ -9,20 +9,21 @@ xnano grids.
 from __future__ import annotations
 
 import html
-from importlib.util import find_spec
-from typing import Any, TYPE_CHECKING
+import importlib.util
+from typing import TYPE_CHECKING, Any
 
-from xnano.core.exceptions import ExtraNotInstalledError
-from xnano.core.controllers.webui import WebController
-from xnano.webui.requests import HttpMethod
-from xnano.webui.session import WebSession
 from xnano._function_hooks import (
     _OnRequestHookEntry,
     _RequestHooksRegistry,
 )
+from xnano.core.controllers.webui import WebController
+from xnano.core.exceptions import ExtraNotInstalledError
+from xnano.webui.requests import HttpMethod
+from xnano.webui.session import WebSession
+
 
 if TYPE_CHECKING:
-    if find_spec("starlette") is None:
+    if importlib.util.find_spec("starlette") is None:
         Starlette = Any
     else:
         from starlette.applications import Starlette

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Sequence
 
+import xnano_core.rust.native as native
+
 from xnano.color import Color, ColorLike
 from xnano.effects import (
     AbstractEffect,
@@ -37,7 +39,6 @@ from xnano.effects import (
     SweepOutEffect,
     resolve_effect,
 )
-from xnano_core.rust import native
 
 
 _MOTION_TO_NATIVE: dict[EffectMotion, native.Motion] = {

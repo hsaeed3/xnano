@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import pytest
 
+from xnano import _dispatch as dispatch
+from xnano._types import Sizing
+from xnano.components.text import Text
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano._types import Sizing
 from xnano.tui import Terminal
-from xnano.components.text import Text
-from xnano import _dispatch as dispatch
 
 
 # ---------------------------------------------------------------------------

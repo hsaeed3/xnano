@@ -8,6 +8,7 @@ Runtime shim for the Rust-implemented engine submodule. Importing
 import importlib
 import sys
 
+
 _DOC = __doc__
 
 importlib.import_module("xnano_core.rust.native")

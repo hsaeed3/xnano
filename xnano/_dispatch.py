@@ -10,9 +10,9 @@ from __future__ import annotations
 import inspect
 import logging
 import time
-from typing import Any, Awaitable, Coroutine, Sequence, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Awaitable, Coroutine, Sequence, cast
 
-from xnano.core.exceptions import Exit
+from xnano._core_bindings import get_area_from_native_rect
 from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnFieldHookFunctionEntry,
@@ -27,17 +27,44 @@ from xnano._introspection import (
     evaluate_state_expression,
     get_function_extra_parameter_count,
 )
-from xnano._core_bindings import get_area_from_native_rect
+from xnano.core.exceptions import Exit
+
 
 if TYPE_CHECKING:
-    from xnano.context import Context
-    from xnano.grid import BaseGrid, _GridSlideCapture
     from xnano._function_hooks import PollWhen
-    from xnano.tui import Terminal
     from xnano._types import Area, Coordinate
+    from xnano.context import Context
+    from xnano.grid import BaseGrid
+    from xnano.tui.terminal import Terminal
 
 
 _logger = logging.getLogger("xnano.hooks")
+_KEYBOARD_ACTION_CACHE: dict[tuple[tuple[Any, ...], Any], Any] = {}
+_MOUSE_ACTION_CACHE: dict[tuple[tuple[Any, ...], Any], Any] = {}
+
+
+class _KeyboardEventShell:
+    """Allocation-light event view used by cached keyboard Actions."""
+
+    __slots__ = ("keyboard_event",)
+
+    def __init__(self, keyboard_event: Any) -> None:
+        self.keyboard_event = keyboard_event
+
+    def is_keyboard_event(self) -> bool:
+        return True
+
+
+class _MouseEventShell:
+    """Allocation-light event view used by cached mouse Actions."""
+
+    __slots__ = ("mouse_event",)
+
+    def __init__(self, mouse_event: Any) -> None:
+        self.mouse_event = mouse_event
+
+    def is_mouse_event(self) -> bool:
+        return True
 
 
 def run_awaitable(awaitable: Awaitable[Any]) -> Any:
@@ -166,62 +193,24 @@ def keyboard_matches(kbd: Any, entry: "_OnKeyboardHookFunctionEntry") -> bool:
     """
     from xnano.core.actions import Action
 
-    bindings: tuple = entry["bindings"]
-    wanted_kind = entry["kind"]
-    action = Action.keyboard(*bindings, kind=wanted_kind)
-
-    class _Shell:
-        def is_keyboard_event(self) -> bool:
-            return True
-
-        def is_mouse_event(self) -> bool:
-            return False
-
-        def is_resize_event(self) -> bool:
-            return False
-
-        def is_clipboard_event(self) -> bool:
-            return False
-
-        def is_focus_event(self) -> bool:
-            return False
-
-        @property
-        def keyboard_event(self) -> Any:
-            return kbd
-
-    return action.matches(_Shell())
+    cache_key = (entry["bindings"], entry["kind"])
+    action = _KEYBOARD_ACTION_CACHE.get(cache_key)
+    if action is None:
+        action = Action.keyboard(*entry["bindings"], kind=entry["kind"])
+        _KEYBOARD_ACTION_CACHE[cache_key] = action
+    return action.matches(_KeyboardEventShell(kbd))
 
 
 def mouse_matches(mouse: Any, entry: "_OnMouseHookFunctionEntry") -> bool:
     """Match a mouse payload against a hook entry via ``Action.matches``."""
     from xnano.core.actions import Action
 
-    buttons: tuple = entry["buttons"]
-    wanted_kind = entry["kind"]
-    action = Action.mouse(*buttons, kind=wanted_kind)
-
-    class _Shell:
-        def is_keyboard_event(self) -> bool:
-            return False
-
-        def is_mouse_event(self) -> bool:
-            return True
-
-        def is_resize_event(self) -> bool:
-            return False
-
-        def is_clipboard_event(self) -> bool:
-            return False
-
-        def is_focus_event(self) -> bool:
-            return False
-
-        @property
-        def mouse_event(self) -> Any:
-            return mouse
-
-    return action.matches(_Shell())
+    cache_key = (entry["buttons"], entry["kind"])
+    action = _MOUSE_ACTION_CACHE.get(cache_key)
+    if action is None:
+        action = Action.mouse(*cast(Any, entry["buttons"]), kind=entry["kind"])
+        _MOUSE_ACTION_CACHE[cache_key] = action
+    return action.matches(_MouseEventShell(mouse))
 
 
 def resolve_hook_grid(terminal: "Terminal[Any]", handler: Any) -> Any | None:
@@ -257,12 +246,12 @@ def measure_renderable(root: Any) -> tuple[int, int]:
     Returns:
         The measured ``(width, height)`` in terminal cells.
     """
+    from xnano._types import Area
     from xnano.components.abstract import (
         AbstractComponent,
         ComponentRenderContext,
     )
     from xnano.tui.nodes import AbstractTerminalNode
-    from xnano._types import Area
 
     if isinstance(root, AbstractComponent):
         ctx = ComponentRenderContext(area=Area(x=0, y=0, width=0, height=0))
@@ -422,9 +411,9 @@ def render_frame(
     downward from the root box's top-left corner. A lone ``root`` renderable is
     treated as a one-item inline sequence.
     """
-    from xnano.grid import BaseGrid
-    from xnano.fields import GridFieldInfo
     from xnano._types import Area
+    from xnano.fields import GridFieldInfo
+    from xnano.grid import BaseGrid
 
     is_grid = isinstance(root, BaseGrid)
     terminal._field_hits.clear()

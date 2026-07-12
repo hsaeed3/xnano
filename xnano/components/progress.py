@@ -8,9 +8,10 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from xnano.components.abstract import AbstractComponent
+
 
 if TYPE_CHECKING:
     from xnano.color import ColorLike

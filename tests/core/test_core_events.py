@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import xnano_core.rust.native as rust
+from conftest import requires_input
 from xnano_core.rust.engine import (
     CoreEvent,
     CoreTerminalEventKind,
     CoreTickEvent,
 )
-
-from conftest import requires_input
 
 
 def test_tick_event_type_exposes_elapsed_ms() -> None:

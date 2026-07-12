@@ -13,11 +13,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+
 SCRIPTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPTS_DIR.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from generate_concept_demos import DEMOS, _DEMO_MAP  # noqa: E402
+from generate_concept_demos import DEMOS  # noqa: E402
 
 
 def _run_demo(name: str, code: str) -> tuple[str, str]:

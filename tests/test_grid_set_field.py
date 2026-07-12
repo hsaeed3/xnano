@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.fields import Field, UNSET
-from xnano.grid import BaseGrid
-from xnano.tui import Terminal
 from xnano.components.text import Text
 from xnano.core.exceptions import FieldValidationError
-from xnano._types import Area
+from xnano.fields import UNSET, Field
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
 
 
 class LayoutGrid(BaseGrid):

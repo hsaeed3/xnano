@@ -14,17 +14,17 @@ import dataclasses
 import random
 import time
 
-from xnano.fields import Field
-from xnano.grid import BaseGrid
-from xnano.tui import Terminal
-from xnano.events import on_keyboard, on_tick
-from xnano.components.sparkline import Sparkline
-from xnano.components.text import Text
+from xnano.color import ColorLike, tailwind_color
 from xnano.components.abstract import (
     AbstractComponent,
     ComponentRenderContext,
 )
-from xnano.color import ColorLike, tailwind_color
+from xnano.components.sparkline import Sparkline
+from xnano.components.text import Text
+from xnano.events import on_keyboard, on_tick
+from xnano.fields import Field
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
 
 
 # ── Services & palette ────────────────────────────────────────────────────────

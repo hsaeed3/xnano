@@ -8,12 +8,11 @@ __version__ = "1.0.0"
 
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
-    from xnano.core.actions import Action
-    from xnano.context import Context
-    from xnano.fields import Field
-    from xnano.grid import BaseGrid, Grid, GridSettings
     from xnano._styles import Style
+    from xnano.context import Context
+    from xnano.core.actions import Action
     from xnano.events import (
         on,
         on_click,
@@ -28,7 +27,9 @@ if TYPE_CHECKING:
         on_state,
         on_tick,
     )
-    from xnano.tui import Terminal
+    from xnano.fields import Field
+    from xnano.grid import BaseGrid, Grid, GridSettings
+    from xnano.tui.terminal import Terminal
 
 
 __all__ = (
@@ -152,7 +153,7 @@ def __getattr__(name: str):
         return on_tick
 
     elif name == "Terminal":
-        from xnano.tui import Terminal
+        from xnano.tui.terminal import Terminal
 
         return Terminal
 

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.fields import GridFieldInfo
 from xnano._types import Frame, frame_from_field
+from xnano.fields import GridFieldInfo
 
 
 def test_frame_default_is_empty() -> None:

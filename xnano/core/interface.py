@@ -8,12 +8,13 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from xnano.fields import FieldState
 
+
 if TYPE_CHECKING:
-    from xnano.fields import FieldInfo
+    pass
 
 
 class AbstractInterface:

@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterable, cast
 
-from xnano.fields import Field, UNSET
+from xnano.fields import Field
+
 
 if TYPE_CHECKING:
     from xnano.components.abstract import AbstractComponent
-    from xnano.tui.nodes import AbstractTerminalNode
     from xnano.grid import BaseGrid
     from xnano.tui import Terminal
+    from xnano.tui.nodes import AbstractTerminalNode
 
 
 def invalid_field(default: Any) -> Any:
@@ -163,8 +164,8 @@ def paint(terminal: "Terminal[Any]", grid: "BaseGrid") -> str:
 
 def dispatch_key(terminal: "Terminal[Any]", keyboard: FakeKeyboard) -> None:
     """Run the full keyboard dispatch path for ``keyboard``."""
-    from xnano.context import Context
     from xnano._dispatch import dispatch_hooks
+    from xnano.context import Context
 
     event = FakeEvent(keyboard=keyboard)
     ctx = Context(
@@ -202,8 +203,8 @@ def render_node_to_text(
     """
     from xnano_core.core import CoreSession
 
-    from xnano.core.controllers.tui import TerminalController
     from xnano._types import Area
+    from xnano.core.controllers.tui import TerminalController
 
     core = CoreSession.offscreen(width=width, height=height)
     session = TerminalController(
@@ -236,8 +237,8 @@ def render_component_to_text(
         The rendered buffer as a newline-joined string. Empty when the
         component yields no node (e.g. ``visible=False``).
     """
-    from xnano.components.abstract import ComponentRenderContext
     from xnano._types import Area
+    from xnano.components.abstract import ComponentRenderContext
 
     area = Area(x=0, y=0, width=width, height=height)
     ctx = ComponentRenderContext(area=area)

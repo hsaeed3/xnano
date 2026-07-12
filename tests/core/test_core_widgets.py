@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 from xnano_core.rust.native import (
     Block,
     Borders,
-    BorderSet,
     Line,
     ListItem,
     ListState,
@@ -14,11 +18,6 @@ from xnano_core.rust.native import (
     Span,
     Style,
     Text,
-)
-from xnano_core.rust.engine import (
-    CoreRenderContent,
-    CoreRenderNode,
-    CoreSession,
 )
 
 

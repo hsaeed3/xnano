@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import pytest
-
-from xnano_core.core import CoreKeyBinding
-import xnano_core.rust.engine as engine
 import xnano_core.core as core
+import xnano_core.rust.engine as engine
+from xnano_core.core import CoreKeyBinding
 
 
 # ── Exports ───────────────────────────────────────────────────────────────────

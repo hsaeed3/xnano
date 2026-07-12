@@ -102,30 +102,25 @@ from typing import (
     overload,
 )
 
-if sys.version_info < (3, 11):
-    from typing_extensions import dataclass_transform, NotRequired, Unpack
-else:
-    from typing import dataclass_transform, NotRequired, Unpack
 
+if sys.version_info < (3, 11):
+    from typing_extensions import NotRequired, Unpack, dataclass_transform
+else:
+    from typing import NotRequired, Unpack, dataclass_transform
+
+from xnano._types import Frame, FrameTitlePosition, frame_from_field
 from xnano.color import ColorLike
 from xnano.core.controllers.abstract import LayoutConstraint
-from xnano._types import Frame, FrameTitlePosition, frame_from_field
+
 
 if TYPE_CHECKING:
+    from xnano._types import Sizing
     from xnano.effects import (
         AbstractEffect,
         EffectInterpolation,
         EffectMotion,
         KnownEffectKind,
     )
-    from xnano._types import Sizing
-from xnano.core.interface import AbstractInterface
-from xnano.fields import (
-    UNSET,
-    GridFieldInfo,
-    Field,
-    _normalize_slide_axes,
-)
 from xnano._types import (
     Area,
     Border,
@@ -133,6 +128,13 @@ from xnano._types import (
     Padding,
     PaddingLike,
     Side,
+)
+from xnano.core.interface import AbstractInterface
+from xnano.fields import (
+    UNSET,
+    Field,
+    GridFieldInfo,
+    _normalize_slide_axes,
 )
 
 
@@ -999,8 +1001,8 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             return value
         from pydantic_core import ValidationError
 
-        from xnano.core.exceptions import FieldValidationError
         from xnano._validation import validate_type
+        from xnano.core.exceptions import FieldValidationError
 
         try:
             return validate_type(value, ann)
@@ -1036,7 +1038,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     @property
     def state(self) -> Any:
         """Return the active terminal's shared state, or ``None``."""
-        from xnano.tui import _ACTIVE_TERMINAL
+        from xnano.tui.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         return None if terminal is None else terminal.state
@@ -1126,7 +1128,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             started.
         """
         from xnano.effects import resolve_effect
-        from xnano.tui import _ACTIVE_TERMINAL
+        from xnano.tui.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         if terminal is None:
@@ -1326,7 +1328,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         parent_area: Area,
         slide_axes: list[str] | None = None,
     ) -> None:
-        from xnano.tui import _ACTIVE_TERMINAL
+        from xnano.tui.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         if terminal is None or not terminal._mouse_geometry_active:
@@ -1420,7 +1422,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             active_constraints,
         )
 
-        from xnano.tui import _ACTIVE_TERMINAL
+        from xnano.tui.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         collect_mouse_geometry = bool(
