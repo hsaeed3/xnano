@@ -1,4 +1,10 @@
-"""xnano.components.text"""
+"""xnano.components.text
+
+---
+
+``Text`` component for styled strings, inline spans, paragraphs, and
+editable input fields.
+"""
 
 from __future__ import annotations
 
@@ -328,7 +334,7 @@ class Text(AbstractComponent):
     def get_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        """Lower ``compose()`` to a terminal node (compat adapter)."""
+        """Lower ``compose()`` output to a terminal render node."""
         from xnano.core.content import Native
         from xnano.tui.content_lower import lower_content
         from xnano.tui.nodes import AbstractTerminalNode as TerminalNode

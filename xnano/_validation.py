@@ -1,4 +1,9 @@
-"""xnano._validation"""
+"""xnano._validation
+
+---
+
+Runtime type and value validation helpers used by fields and CLI.
+"""
 
 from __future__ import annotations
 

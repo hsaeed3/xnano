@@ -1,4 +1,9 @@
-"""xnano.components.table"""
+"""xnano.components.table
+
+---
+
+``Table`` component for declarative, data-driven tabular layouts.
+"""
 
 from __future__ import annotations
 

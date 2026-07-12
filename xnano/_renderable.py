@@ -1,4 +1,9 @@
-"""xnano._renderable"""
+"""xnano._renderable
+
+---
+
+Fallback string and ANSI rendering helpers for simple content.
+"""
 
 from __future__ import annotations
 

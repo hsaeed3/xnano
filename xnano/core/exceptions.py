@@ -1,4 +1,10 @@
-"""xnano.core.exceptions"""
+"""xnano.core.exceptions
+
+---
+
+Framework exceptions for session exit, hook failures, field validation,
+inactive terminals, and missing optional extras.
+"""
 
 from __future__ import annotations
 

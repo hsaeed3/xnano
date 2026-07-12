@@ -167,23 +167,36 @@ def _is_focus_event(event: Any) -> bool:
 def _synthesize_event(data: Any, *, kind: str | None = None) -> Any:
     """Build an event shell for ``to_event``.
 
-    Prefers a future ``Event.synthesize`` / ``Event.from_data`` path when
-    available; otherwise returns a duck-typed shell matching the surface
-    ``dispatch_hooks`` and handlers already read from ``Event``.
+    Prefers ``Event.from_data`` for terminal event families (keyboard,
+    mouse, resize, clipboard, focus). Tick and request shells are not
+    real ``Event`` types — force the duck-typed shell so
+    ``is_tick_event`` / ``is_request_event`` and ``type`` stay honest.
     """
-    try:
-        from xnano.events import Event
-    except Exception:
-        Event = None  # type: ignore[assignment,misc]
+    terminal_kinds = {
+        "keyboard",
+        "mouse",
+        "resize",
+        "clipboard",
+        "focus",
+    }
+    resolved_kind = kind
+    if resolved_kind is None and data is not None:
+        resolved_kind = getattr(data, "type", None)
+    if resolved_kind not in terminal_kinds:
+        return _SyntheticEvent(data, kind=kind)
 
-    if Event is not None:
-        for name in ("synthesize", "from_data"):
-            factory = getattr(Event, name, None)
-            if callable(factory):
-                try:
-                    return factory(data)
-                except Exception:
-                    pass
+    try:
+        from xnano.events import Event as EventClass
+    except Exception:
+        return _SyntheticEvent(data, kind=kind)
+
+    for name in ("synthesize", "from_data"):
+        factory = getattr(EventClass, name, None)
+        if callable(factory):
+            try:
+                return factory(data)
+            except Exception:
+                pass
 
     return _SyntheticEvent(data, kind=kind)
 
@@ -641,9 +654,19 @@ class KeyboardAction(Action):
         binding = str(self.bindings[0]) if self.bindings else ""
         kind = self.kind if self.kind is not None else "press"
         try:
-            from xnano.events import Event, KeyboardEventData
+            from typing import cast
 
-            data = KeyboardEventData.from_binding(binding, kind=kind)  # type: ignore[arg-type]
+            from xnano.events import (
+                Event,
+                KeyboardEventData,
+                KeyboardEventKind,
+            )
+
+            kind_value = cast(
+                KeyboardEventKind,
+                kind if kind in ("press", "release", "repeat") else "press",
+            )
+            data = KeyboardEventData.from_binding(binding, kind=kind_value)
             return Event.from_data(data)
         except Exception:
             data = _SyntheticKeyboardEventData(binding, kind=self.kind)
@@ -695,16 +718,16 @@ class MouseAction(Action):
         Returns:
             An event shell carrying ``MouseEventData``.
         """
-        from xnano.events import MouseEventData
+        from typing import cast
 
-        button: MouseButton = (
-            self.buttons[0] if self.buttons else "left"
-        )
-        kind: MouseEventKindLike = (
+        from xnano.events import MouseEventData, MouseEventKind
+
+        button: MouseButton = self.buttons[0] if self.buttons else "left"
+        raw_kind: MouseEventKindLike = (
             self.kind if self.kind is not None else "press"
         )
         data = MouseEventData(
-            kind=kind,  # type: ignore[arg-type]
+            kind=cast(MouseEventKind, raw_kind),
             x=0,
             y=0,
             button=button,
@@ -760,10 +783,12 @@ class ClickAction(Action):
         Returns:
             An event shell carrying ``MouseEventData``.
         """
-        from xnano.events import MouseEventData
+        from typing import cast
+
+        from xnano.events import MouseEventData, MouseEventKind
 
         data = MouseEventData(
-            kind=self.kind,  # type: ignore[arg-type]
+            kind=cast(MouseEventKind, self.kind),
             x=0,
             y=0,
             button=self.button,
@@ -822,9 +847,11 @@ class FocusAction(Action):
         Returns:
             An event shell carrying ``FocusEventData``.
         """
-        from xnano.events import FocusEventData
+        from typing import cast
 
-        kind = self.kind
+        from xnano.events import FocusEventData, FocusEventKind
+
+        kind: str | None = self.kind
         if kind is None:
             if self.field is not None:
                 kind = "field_gained"
@@ -833,7 +860,10 @@ class FocusAction(Action):
         elif self.field is not None and kind in ("gained", "lost"):
             kind = f"field_{kind}"
 
-        data = FocusEventData(kind=kind, field=self.field)  # type: ignore[arg-type]
+        data = FocusEventData(
+            kind=cast(FocusEventKind | None, kind),
+            field=self.field,
+        )
         return _synthesize_event(data, kind="focus")
 
 
@@ -1168,21 +1198,21 @@ def request_action_from_filter(method: str, path: str) -> RequestAction:
 
 
 # ---------------------------------------------------------------------------
-# Context / host facade
+# Host-bound helpers
 # ---------------------------------------------------------------------------
 
 
 class Actions:
-    """Bound to a host; perform actions and expose conveniences.
+    """Perform actions against a live host from hooks or app code.
 
-    Peer of cursor/device on ``Context``: a thin facade with no state of
-    its own. ``perform`` delegates to ``host.perform(action)`` — hosts
-    synthesize the event and run the shared dispatch pump (queuing
-    re-entrant performs until the current pass completes).
+    Available as ``ctx.actions`` / ``host.actions``. ``perform``
+    delegates to ``host.perform(action)`` — hosts synthesize the event
+    and run the shared dispatch pump (queuing re-entrant performs until
+    the current pass completes).
     """
 
     def __init__(self, host: Any) -> None:
-        """Bind this facade to a live host.
+        """Bind this helper to a live host.
 
         Args:
             host: Terminal, web session, or any object implementing
@@ -1192,7 +1222,7 @@ class Actions:
 
     @property
     def host(self) -> Any:
-        """The bound host this facade performs against."""
+        """The bound host actions are performed against."""
         return self._host
 
     def perform(self, action: Action) -> None:

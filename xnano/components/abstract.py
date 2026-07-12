@@ -2,20 +2,9 @@
 
 ---
 
-`AbstractComponent` is the base every built-in component (`Text`, `Table`,
-`Chart`, `Progress`, `Sparkline`, ...) inherits from. A component composes
-one or more render nodes from a declarative definition — the same relationship
-`BaseGrid` has to `Field`, just for widget-shaped content instead of layout.
-
-A component supports an interface (terminal, web) by implementing that
-interface's `get_*_node` method: `get_terminal_node` for the terminal,
-`get_web_node` for the web. Both default to returning `None` and are
-entirely opt-in — a controller only ever calls the one method matching its
-own interface, so a terminal-only component (everything built in today)
-never has to define or think about the other one. A component that wants
-to support both interfaces implements both methods side by side, each
-free to compose a completely different node tree since the two interfaces
-have no shared node representation.
+``AbstractComponent`` base for built-in widgets. Components compose
+content or interface-specific nodes (``get_terminal_node`` /
+``get_web_node``); each method is opt-in per host kind.
 """
 
 from __future__ import annotations
@@ -38,13 +27,13 @@ StateT = TypeVar("StateT")
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class ComponentRenderContext(Generic[StateT]):
-    """Render-time scope passed to component hooks.
+    """Render-time scope passed into component paint hooks.
 
     Attributes:
-        area: The `Area` to render.
-        terminal: The `Terminal` to render.
-        state: The `StateT` to render.
-        component: The `AbstractComponent` to render.
+        area: Target area for this paint.
+        terminal: Active host when available.
+        state: Application state for this paint.
+        component: Component being rendered, when known.
     """
 
     area: "Area"
@@ -55,12 +44,11 @@ class ComponentRenderContext(Generic[StateT]):
 
 @dataclasses.dataclass
 class AbstractComponent(abc.ABC):
-    """Abstract base class for a declarative, multi-interface UI component.
+    """Base for declarative widgets used inside grids.
 
-    Every hook here is opt-in — a plain `AbstractComponent` renders as
-    nothing on every interface. Implement `get_terminal_node` and/or
-    `get_web_node` to give a component a representation on one or both
-    interfaces.
+    Override ``compose`` and/or ``get_terminal_node`` / ``get_web_node``
+    to provide a representation; unimplemented paths simply paint nothing
+    for that host kind.
     """
 
     visible: bool = dataclasses.field(default=True, kw_only=True)
@@ -119,8 +107,8 @@ class AbstractComponent(abc.ABC):
         """Compose interface-neutral ``Content`` for this component.
 
         Controllers prefer this over ``get_*_node``. Default returns
-        ``None``; components may implement Content trees while still
-        providing ``get_terminal_node`` as a temporary adapter.
+        ``None``; components may implement Content trees and/or
+        interface-specific ``get_terminal_node`` / ``get_web_node``.
 
         Args:
             ctx: Render context for this paint.

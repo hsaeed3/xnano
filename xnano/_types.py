@@ -2,46 +2,10 @@
 
 ---
 
-Private module consolidating xnano's shared type vocabulary: geometry
-(``Area``, ``Size``, ``Coordinate``), sizing (``Sizing``, ``SizingLike``),
-frame chrome (``Frame``, ``Padding``, ``Border``), keyboard/mouse event
-aliases, and field-focus helpers.
-
----
-
-The unified sizing vocabulary shared by every box in ``xnano`` — the terminal
-viewport, grid fields, and standalone renderables.
-
-A ``Sizing`` expresses one axis's *intent* rather than a resolved length:
-
-    - ``cells``     — a fixed number of terminal cells (``Constraint::Length``)
-    - ``percent``   — a percentage of the available axis (``Constraint::Percentage``)
-    - ``ratio``     — a fraction ``numerator/denominator`` of the axis (``Constraint::Ratio``)
-    - ``fraction``  — a relative fill weight (``Constraint::Fill``)
-    - ``fit``       — the measured intrinsic size of the content
-
-Every point on this spectrum resolves through the same two operations —
-measure the content, then place it — so content-driven leaves and
-constraint-driven containers compose with one model.
-
----
-
-Aliases for keyboard-specific (non-event) related types used by
-``xnano.events``.
-
----
-
-Aliases for mouse-specific (non-event) related types used by
-``xnano.events``.
-
----
-
-Field-level focus and editable ``Text`` input helpers.
-
-Terminal focus (OS window gained/lost) stays on ``@on_focus`` without a field
-name.  Field focus is the grid-field equivalent of a caret — tab order walks
-``Text(input=True)`` fields in declaration order, and the focused field
-receives printable keys / backspace / arrows.
+Shared type vocabulary: geometry (``Area``, ``Size``, ``Coordinate``),
+sizing (``Sizing``, ``SizingLike``), frame chrome (``Frame``,
+``Padding``, ``Border``), keyboard/mouse aliases, and field-focus
+helpers for editable ``Text`` input.
 """
 
 from __future__ import annotations
@@ -531,8 +495,8 @@ class Sizing:
 
     ``Sizing`` is the unified currency of layout: the same value can describe a
     grid field's width, a terminal's height, or a renderable's extent. Use the
-    constructor helpers (:meth:`cells`, :meth:`percent`, :meth:`ratio`,
-    :meth:`fraction`, :meth:`fit`) or :meth:`parse` to build one.
+    constructor helpers (``cells``, ``percent``, ``ratio``, ``fraction``,
+    ``fit``) or ``parse`` to build one.
 
     Attributes:
         kind: The kind of sizing intent.
@@ -689,13 +653,13 @@ class Sizing:
         Accepted forms:
             - ``None`` → ``None``
             - ``Sizing`` → itself
-            - ``int`` → :meth:`cells`
-            - ``float`` in ``0..=1`` → :meth:`percent`, otherwise :meth:`cells`
-            - ``"50%"`` → :meth:`percent`
-            - ``"2fr"`` → :meth:`fraction`
-            - ``"fit"`` / ``"auto"`` / ``"content"`` → :meth:`fit`
-            - ``"fill"`` / ``"grow"`` / Tailwind flex class → :meth:`fraction`
-            - a decimal string → :meth:`cells`
+            - ``int`` → ``cells``
+            - ``float`` in ``0..=1`` → ``percent``, otherwise ``cells``
+            - ``"50%"`` → ``percent``
+            - ``"2fr"`` → ``fraction``
+            - ``"fit"`` / ``"auto"`` / ``"content"`` → ``fit``
+            - ``"fill"`` / ``"grow"`` / Tailwind flex class → ``fraction``
+            - a decimal string → ``cells``
 
         Args:
             value: The value to normalize.
@@ -754,9 +718,9 @@ class Sizing:
 
 
 SizingLike: TypeAlias = Union[int, float, str, Sizing]
-"""Any value accepted where a :class:`Sizing` is expected.
+"""Any value accepted where a ``Sizing`` is expected.
 
-See :meth:`Sizing.parse` for the full list of accepted forms.
+See ``Sizing.parse`` for the full list of accepted forms.
 """
 
 

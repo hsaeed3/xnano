@@ -1,7 +1,9 @@
 """xnano.state
 
-Provides a simple data container that can be used to store and define
-new state variables dynamically.
+---
+
+Lightweight dynamic state container for simple apps (prefer dataclasses
+or models when you need a fixed schema).
 """
 
 from __future__ import annotations

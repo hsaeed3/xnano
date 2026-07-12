@@ -116,7 +116,9 @@ class Web:
     def _is_factory(self) -> bool:
         from xnano.grid import BaseGrid
 
-        return callable(self._source) and not isinstance(self._source, BaseGrid)
+        return callable(self._source) and not isinstance(
+            self._source, BaseGrid
+        )
 
     def _make_session(self) -> WebSession:
         grid = self._source() if self._is_factory() else self._source
@@ -442,8 +444,6 @@ class Web:
             raise ExtraNotInstalledError("web") from error
 
         uvicorn.run(app, host=host, port=port)
-
-
 
 
 __all__ = ("Web",)

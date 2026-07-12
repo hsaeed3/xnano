@@ -1,18 +1,10 @@
 """xnano._core_bindings
 
-Conversions between `xnano`'s own vocabulary (`Area`, `Color`, `Frame`,
-layout constraints, ...) and the `xnano_core` native bindings that
-actually draw to the terminal. This is the one place that vocabulary is
-taught how to become a real ratatui widget — everything upstream of here
-(nodes, the terminal controller, `BaseGrid`) only ever deals in `xnano` types.
+---
 
-Self-contained on purpose: it resolves colors against `xnano.color.Color`
-directly, with no VHS-recording remap layered in. That remap is a
-docs-recording concern (`xnano.utils.vhs_recording`, driven by
-`XNANO_VHS_MONO`/`XNANO_VHS_DOCS_BG` environment flags for consistent
-screenshot/tape output) that used to be wired into every color resolution
-across the whole framework — it belongs to whatever renders the docs, not
-to color resolution itself, so it isn't referenced here.
+Conversions between framework types (``Area``, ``Color``, ``Frame``,
+layout constraints, …) and ``xnano_core`` native bindings used for
+terminal drawing.
 """
 
 from __future__ import annotations
