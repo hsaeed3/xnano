@@ -10,7 +10,7 @@ from xnano.components.abstract import AbstractComponent
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
-    from xnano.core.nodes.terminal import AbstractTerminalNode
+    from xnano.tui.nodes import AbstractTerminalNode
 
 
 @dataclasses.dataclass
@@ -38,10 +38,21 @@ class Sparkline(AbstractComponent):
     """Glyph drawn for absent samples."""
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
+    def compose(self, ctx):
+        """Compose Content via Native tui payload of the existing node tree."""
+        from xnano.core.content import Native
+
+        return Native(
+            interface_kind="tui",
+            payload=self.get_terminal_node(ctx),
+            z=self.z,
+            visible=self.visible,
+        )
+
     def get_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.core.nodes.terminal import SparklineBarItem, SparklineNode
+        from xnano.tui.nodes import SparklineBarItem, SparklineNode
 
         bars: list[SparklineBarItem] | None = None
         if self.colors is not None:

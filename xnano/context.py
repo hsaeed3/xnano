@@ -5,16 +5,18 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Generic, TypeVar, TYPE_CHECKING
 
-from xnano.events import (
-    Event,
-    KeyboardEventData,
-    MouseEventData,
-)
-
 if TYPE_CHECKING:
-    from xnano.terminal import Terminal
-    from xnano.terminal.cursor import TerminalCursor
-    from xnano.terminal.device import TerminalDevice
+    from xnano.core.actions import Actions
+    from xnano.events import (
+        Event,
+        KeyboardEventData,
+        MouseEventData,
+    )
+    from xnano.core.hosts import AbstractHost
+    from xnano.core.stage import Stage
+    from xnano.tui import Terminal
+    from xnano.tui.cursor import TerminalCursor
+    from xnano.tui.device import TerminalDevice
 
 
 StateT = TypeVar("StateT")
@@ -25,13 +27,22 @@ class Context(Generic[StateT]):
     """Event hook execution context passed to every ``@on_<event>`` handler.
 
     This class should never be initialized directly, rather it is passed
-    automatically by the live terminal session to all active & condition-fulfilling
+    automatically by the live host session to all active & condition-fulfilling
     hooks.
     """
 
     event: Event | None
     terminal: "Terminal[StateT]"
     state: StateT | None
+
+    @property
+    def host(self) -> "Terminal[StateT] | AbstractHost":
+        """Active host for this context (alias of ``terminal``).
+
+        Named ``host`` so code that is interface-kind-agnostic can avoid
+        the terminal-specific attribute name. Same object as ``terminal``.
+        """
+        return self.terminal
 
     @property
     def keyboard(self) -> KeyboardEventData | None:
@@ -55,13 +66,32 @@ class Context(Generic[StateT]):
 
     @property
     def cursor(self) -> "TerminalCursor | None":
-        """Live cursor controller, forwarded from the active terminal."""
+        """Live cursor controller, forwarded from the active host."""
         return None if self.terminal is None else self.terminal.cursor
 
     @property
     def device(self) -> "TerminalDevice | None":
-        """Live device controller, forwarded from the active terminal."""
+        """Live device controller, forwarded from the active host."""
         return None if self.terminal is None else self.terminal.device
+
+    @property
+    def actions(self) -> "Actions | None":
+        """Actions facade bound to the active host (perform / press / click)."""
+        if self.terminal is None:
+            return None
+        getter = getattr(self.terminal, "actions", None)
+        if getter is None:
+            return None
+        return getter if not callable(getter) else self.terminal.actions  # type: ignore[return-value]
+
+    @property
+    def stage(self) -> "Stage | None":
+        """Stage facade for layout map / overlay paint / wireframe."""
+        if self.terminal is None:
+            return None
+        if not hasattr(self.terminal, "stage"):
+            return None
+        return self.terminal.stage  # type: ignore[return-value]
 
     def with_scope(self, **kwargs: Any) -> "Context[StateT]":
         """Return a shallow copy with the given fields replaced."""

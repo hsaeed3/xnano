@@ -1,0 +1,33 @@
+"""xnano.tui
+
+---
+
+Terminal interface kind: ``Terminal`` host, cursor/device facades, nodes,
+native effects lowering.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from xnano.tui.terminal import Terminal, _ACTIVE_TERMINAL, exit_terminal
+
+__all__ = (
+    "Terminal",
+    "_ACTIVE_TERMINAL",
+    "exit_terminal",
+)
+
+
+def __getattr__(name: str):
+    if name in ("Terminal", "_ACTIVE_TERMINAL", "exit_terminal"):
+        from xnano.tui import terminal as _terminal
+
+        return getattr(_terminal, name)
+    # Legacy alias used by a few call sites
+    if name == "exit":
+        from xnano.tui.terminal import exit_terminal
+
+        return exit_terminal
+    raise AttributeError(f"module 'xnano.tui' has no attribute {name!r}")

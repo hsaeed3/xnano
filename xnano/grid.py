@@ -2,7 +2,7 @@
 
 ---
 
-This module provides the `Grid` base class and related types for building
+This module provides the `BaseGrid` base class and related types for building
 structured, declarative terminal user interfaces. Grids use annotated
 `Field` descriptors to define slots/areas with associated layout, sizing,
 and style information, and can be configured via the `GridSettings` class.
@@ -11,16 +11,16 @@ rendering and event integration.
 
 Example:
 
-    **Defining a Grid:**
+    **Defining a BaseGrid:**
 
     ```python
-    from xnano import Grid, Field
+    from xnano import BaseGrid, Field
 
-    class MyGrid(Grid):
+    class MyGrid(BaseGrid):
         # title and content are renderable fields if annotated with
         # ``xnano.Field`` and will be displayed on the terminal when
         # ran
-        title: str = Field(default="My Grid")
+        title: str = Field(default="My BaseGrid")
         content: str = Field(default="Hello, world!")
 
         # data & context are stateful fields and have no rendering
@@ -35,37 +35,37 @@ Example:
     layouts
 
     ```python
-    class Box(Grid, direction="vertical", gap=1):
+    class Box(BaseGrid, direction="vertical", gap=1):
         text: str = Field(default="")
 
-    class Container(Grid):
+    class Container(BaseGrid):
         left: Box = Field()
         right: Box = Field()
     ```
 
     **Configuring Settings:**
 
-    You can apply ``xnano.GridSettings`` to a ``Grid`` in one
+    You can apply ``xnano.GridSettings`` to a ``BaseGrid`` in one
     of three ways:
 
         On the class header:
 
         ```python
-        class MyGrid(Grid, direction="horizontal", gap=1):
+        class MyGrid(BaseGrid, direction="horizontal", gap=1):
             ...
         ```
 
         In a class-level, pydantic-like ``grid_settings`` dict:
 
         ```python
-        class MyGrid(Grid):
+        class MyGrid(BaseGrid):
             grid_settings = {
                 "direction": "horizontal",
                 "gap": 1,
             }
             ...
 
-        class MyGrid(Grid):
+        class MyGrid(BaseGrid):
             grid_settings: GridSettings = GridSettings(
                 direction="horizontal",
                 gap=1,
@@ -76,14 +76,14 @@ Example:
     **Hooks:**
 
     You can add event hooks, which can be triggered by various event types,
-    (see ``xnano.hooks`` for all possible hooks), and provide a access
+    (see ``xnano.events`` for all possible hooks), and provide a access
     to the runtime context of the live terminal session.
 
     ```python
-    from xnano import Grid, Field, Context
-    from xnano.hooks import on_keyboard
+    from xnano import BaseGrid, Field, Context
+    from xnano.events import on_keyboard
 
-    class MyGrid(Grid):
+    class MyGrid(BaseGrid):
         @on_keyboard("a")
         def on_a(self, ctx: Context) -> None:
             self.data += 1
@@ -113,7 +113,7 @@ else:
 
 from xnano.color import ColorLike
 from xnano.core.controllers.abstract import LayoutConstraint
-from xnano.frame import Frame, FrameTitlePosition, frame_from_field
+from xnano._types import Frame, FrameTitlePosition, frame_from_field
 
 if TYPE_CHECKING:
     from xnano.effects import (
@@ -122,14 +122,15 @@ if TYPE_CHECKING:
         EffectMotion,
         KnownEffectKind,
     )
-    from xnano.sizing import Sizing
+    from xnano._types import Sizing
+from xnano.core.interface import AbstractInterface
 from xnano.fields import (
     UNSET,
     GridFieldInfo,
     Field,
     _normalize_slide_axes,
 )
-from xnano.types import (
+from xnano._types import (
     Area,
     Border,
     Direction,
@@ -213,8 +214,8 @@ _GRID_FIELD_IMMUTABLE_KEYS: frozenset[str] = frozenset(
 
 _GridLayoutConstraint = LayoutConstraint
 """Alias kept so nothing that names the old grid-private constraint type
-breaks. Layout constraints are the shared `xnano.core.controllers.abstract.LayoutConstraint`
-now, not a dataclass private to `Grid` — the same kind/weight vocabulary is
+breaks. Layout constraints are the shared `xnano.controllers.abstract.LayoutConstraint`
+now, not a dataclass private to `BaseGrid` — the same kind/weight vocabulary is
 meant to be portable to a future web controller too, not just a terminal
 split.
 """
@@ -222,7 +223,7 @@ split.
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class _GridFieldHit:
-    grid: "Grid"
+    grid: "BaseGrid"
     field_name: str
     area: Area
     slot_area: Area
@@ -232,7 +233,7 @@ class _GridFieldHit:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class _GridSlideCapture:
-    grid: "Grid"
+    grid: "BaseGrid"
     field_name: str
     parent_area: Area
     slot_area: Area
@@ -243,7 +244,7 @@ class _GridSlideCapture:
 
 class GridSettings(TypedDict, total=False):
     """Rendering, layout and frame releated settings that can be applied onto
-    a ``Grid`` subclass.
+    a ``BaseGrid`` subclass.
     """
 
     color: NotRequired[ColorLike]
@@ -380,12 +381,12 @@ def _expand_field_class_name_config(
 ) -> dict[str, Any]:
     """Expand a ``class_name`` config entry into derived field attributes.
 
-    Lowers the Tailwind classes through ``xnano.beta.tailwind`` (a lazy
+    Lowers the Tailwind classes through ``xnano._styles`` (a lazy
     import, so the stable path never pays for it) and fills in every
     derived attribute the caller did not pass explicitly — explicit
     keys always win, matching ``xnano.fields.Field``.
     """
-    from xnano.beta.tailwind import (
+    from xnano._styles import (
         normalize_tailwind_classes,
         resolve_tailwind_classes,
     )
@@ -633,6 +634,7 @@ def _build_grid_init(
             lines.append(f"    self.{name} = __defaults__['{name}']")
         else:
             lines.append(f"    self.{name} = None")
+    lines.append("    self._init_field_states()")
     lines.append("    self._grid_validate_init()")
     lines.append("    self.__post_init__()")
 
@@ -650,7 +652,7 @@ def _collect_field_mouse_handlers(
     layout_fields: dict[str, GridFieldInfo],
 ) -> dict[str, Any]:
     """Map layout field names to ``@on_mouse`` / ``@on_click`` handlers."""
-    from xnano.hooks import _EventHooksRegistry as EventHooks
+    from xnano._function_hooks import _EventHooksRegistry as EventHooks
 
     handlers: dict[str, Any] = {}
     for base in reversed(cls.__mro__):
@@ -866,7 +868,7 @@ class _GridMeta(type):
         setattr(cls, "_grid_static_constraints", static_constraints)
 
         all_fields = {**fields, **state_fields}
-        if name != "Grid" and all_fields:
+        if name not in ("BaseGrid", "Grid") and all_fields:
             type.__setattr__(
                 cls, "__init__", _build_grid_init(all_fields, defaults)
             )
@@ -874,26 +876,26 @@ class _GridMeta(type):
         return cls
 
 
-class Grid(metaclass=_GridMeta):
+class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     """Declarative layout container for a terminal-based UI.
 
-    Grid-scoped settings may be declared on the class header
-    (``class Dashboard(Grid, direction="horizontal", gap=1): ...``),
+    BaseGrid-scoped settings may be declared on the class header
+    (``class Dashboard(BaseGrid, direction="horizontal", gap=1): ...``),
     in a class-level ``grid_settings`` dict, or both — values in
     ``grid_settings`` override matching header kwargs.
 
     Examples:
 
     Layout fields render content; ``state=True`` fields hold app data.
-    Nested ``Grid`` subclasses compose larger layouts:
+    Nested ``BaseGrid`` subclasses compose larger layouts:
 
     ```python
-    from xnano import Field, Grid, Terminal
+    from xnano import Field, BaseGrid, Terminal
 
-    class Sidebar(Grid, direction="vertical"):
+    class Sidebar(BaseGrid, direction="vertical"):
         nav: str = Field(default="Home", border="rounded", height="1fr")
 
-    class App(Grid, direction="horizontal", gap=1):
+    class App(BaseGrid, direction="horizontal", gap=1):
         sidebar: Sidebar = Field(default_factory=Sidebar, width="25%")
         content: str = Field(default="Main area", width="1fr")
 
@@ -909,14 +911,14 @@ class Grid(metaclass=_GridMeta):
     from xnano import (
         Context,
         Field,
-        Grid,
+        BaseGrid,
         Terminal,
         on_click,
         on_keyboard,
         on_tick,
     )
 
-    class Counter(Grid, direction="vertical", gap=1):
+    class Counter(BaseGrid, direction="vertical", gap=1):
         label: str = Field(default="Count: 0", height=1)
         body: str = Field(default="Click me", height="1fr")
 
@@ -972,6 +974,7 @@ class Grid(metaclass=_GridMeta):
     """Terminal rows available to this grid — set by the session each frame."""
 
     def __init__(self) -> None:
+        self._init_field_states()
         self.__post_init__()
 
     def __post_init__(self) -> None:
@@ -987,7 +990,7 @@ class Grid(metaclass=_GridMeta):
             return ann
         if field.state:
             return None
-        from xnano.utils.validation import layout_field_annotation
+        from xnano._validation import layout_field_annotation
 
         return layout_field_annotation()
 
@@ -1005,8 +1008,8 @@ class Grid(metaclass=_GridMeta):
             return value
         from pydantic_core import ValidationError
 
-        from xnano.exceptions import FieldValidationError
-        from xnano.utils.validation import validate_type
+        from xnano.core.exceptions import FieldValidationError
+        from xnano._validation import validate_type
 
         try:
             return validate_type(value, ann)
@@ -1033,11 +1036,16 @@ class Grid(metaclass=_GridMeta):
         if field is not None and field.strict:
             value = self._grid_validate_field(name, value, field=field)
         object.__setattr__(self, name, value)
+        # Live FieldState dirty bit + host notification (skip private attrs
+        # and fields not yet tracked during construction).
+        if not name.startswith("_") and hasattr(self, "_field_states"):
+            if name in self._field_states or name in self._grid_fields:
+                self.mark_field_dirty(name)
 
     @property
     def state(self) -> Any:
         """Return the active terminal's shared state, or ``None``."""
-        from xnano.terminal import _ACTIVE_TERMINAL
+        from xnano.tui import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         return None if terminal is None else terminal.state
@@ -1127,7 +1135,7 @@ class Grid(metaclass=_GridMeta):
             started.
         """
         from xnano.effects import resolve_effect
-        from xnano.terminal import _ACTIVE_TERMINAL
+        from xnano.tui import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         if terminal is None:
@@ -1170,9 +1178,9 @@ class Grid(metaclass=_GridMeta):
             if self._grid_field_info(field_name).slide:
                 return True
             value = getattr(self, field_name, None)
-            if isinstance(value, Grid) and value._grid_needs_mouse_geometry():
+            if isinstance(value, BaseGrid) and value._grid_needs_mouse_geometry():
                 return True
-            from xnano.focus import is_input_text
+            from xnano._types import is_input_text
 
             if is_input_text(value):
                 return True
@@ -1213,7 +1221,7 @@ class Grid(metaclass=_GridMeta):
             return True
         if _resolve_grid_mouse_handler(self, field_name) is not None:
             return True
-        from xnano.focus import is_input_text
+        from xnano._types import is_input_text
 
         return is_input_text(getattr(self, field_name, None))
 
@@ -1267,7 +1275,7 @@ class Grid(metaclass=_GridMeta):
                     "slide": _normalize_slide_axes(field_config["slide"]),
                 }
             if "width" in field_config or "height" in field_config:
-                from xnano.sizing import Sizing
+                from xnano._types import Sizing
 
                 normalized = dict(field_config)
                 if "width" in normalized:
@@ -1324,7 +1332,7 @@ class Grid(metaclass=_GridMeta):
         parent_area: Area,
         slide_axes: list[str] | None = None,
     ) -> None:
-        from xnano.terminal import _ACTIVE_TERMINAL
+        from xnano.tui import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         if terminal is None or not terminal._mouse_geometry_active:
@@ -1418,7 +1426,7 @@ class Grid(metaclass=_GridMeta):
             active_constraints,
         )
 
-        from xnano.terminal import _ACTIVE_TERMINAL
+        from xnano.tui import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         collect_mouse_geometry = bool(
@@ -1433,6 +1441,18 @@ class Grid(metaclass=_GridMeta):
                 session, slot_area, field, value, self._grid_direction
             )
             self._grid_last_slot_areas[field_name] = slot_area
+            # Always-on LayoutMap (Stage): record geometry; never tied to
+            # wireframe — overlay only reads this map.
+            try:
+                from xnano.core.hosts import get_active_host
+
+                _host = get_active_host()
+                if _host is not None and hasattr(_host, "stage"):
+                    _host.stage.layout.record(
+                        self, field_name, slot_area, z=self.z
+                    )
+            except Exception:
+                pass
             slide_axes = field.slide or []
             paint_area = _grid_slide_paint_area(
                 area,
@@ -1456,9 +1476,15 @@ class Grid(metaclass=_GridMeta):
                 )
             field_frame = self._grid_field_frame(field_name, field)
             if field_frame is not None:
-                paint_area = session.paint_frame(
-                    paint_area, field_frame, z=self.z
-                )
+                paint_chrome = getattr(session, "paint_chrome", None)
+                if paint_chrome is not None and hasattr(field, "get_style"):
+                    paint_area = paint_chrome(
+                        paint_area, field.get_style(), z=self.z
+                    )
+                else:
+                    paint_area = session.paint_frame(
+                        paint_area, field_frame, z=self.z
+                    )
             if value is None:
                 continue
             session.paint_field_slot(
@@ -1514,13 +1540,13 @@ def _grid_clamp_slide_position(
 
 
 def _resolve_grid_mouse_handler(
-    grid: Grid, field_name: str
+    grid: BaseGrid, field_name: str
 ) -> Callable[..., Any] | None:
     """Return the field-bound mouse handler for ``field_name`` on ``grid``."""
-    from xnano.hooks import _EventHooksRegistry as EventHooks
+    from xnano._function_hooks import _EventHooksRegistry as EventHooks
 
     for cls in type(grid).__mro__:
-        if not (isinstance(cls, type) and issubclass(cls, Grid)):
+        if not (isinstance(cls, type) and issubclass(cls, BaseGrid)):
             continue
         handlers = cls.__dict__.get("_grid_field_handlers")
         if not isinstance(handlers, dict) or field_name not in handlers:
@@ -1530,3 +1556,15 @@ def _resolve_grid_mouse_handler(
             return None
         return attr.__get__(grid, cls)
     return None
+
+
+Grid = BaseGrid
+"""Deprecated alias for ``BaseGrid`` (one release)."""
+
+
+__all__ = (
+    "BaseGrid",
+    "Grid",
+    "GridSettings",
+)
+

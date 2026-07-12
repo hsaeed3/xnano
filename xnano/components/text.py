@@ -6,12 +6,13 @@ import dataclasses
 from typing import TYPE_CHECKING
 
 from xnano.components.abstract import AbstractComponent
-from xnano.types import Alignment, CharacterModifier
+from xnano._types import Alignment, CharacterModifier
 
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
-    from xnano.core.nodes.terminal import AbstractTerminalNode, LineNode
+    from xnano.tui.nodes import AbstractTerminalNode, LineNode
+    from xnano.webui.nodes import AbstractWebNode
     from xnano.events import KeyboardEventData
 
 
@@ -43,7 +44,7 @@ class Text(AbstractComponent):
     **Input** — set ``input=True`` on a leaf ``Text`` placed in a grid field
     to make it focusable and editable (tab order, caret, placeholder):
 
-        class Form(Grid):
+        class Form(BaseGrid):
             name: Text = Field(
                 default=Text("", input=True, placeholder="your name"),
             )
@@ -98,7 +99,7 @@ class Text(AbstractComponent):
         Returns:
             ``True`` when the event was consumed by this input.
         """
-        from xnano.focus import apply_text_keyboard
+        from xnano._types import apply_text_keyboard
 
         return apply_text_keyboard(self, keyboard)
 
@@ -159,7 +160,7 @@ class Text(AbstractComponent):
         return result
 
     def _to_span_node(self) -> AbstractTerminalNode:
-        from xnano.core.nodes.terminal import SpanNode
+        from xnano.tui.nodes import SpanNode
 
         if isinstance(self.content, str):
             text_str = self.content
@@ -193,7 +194,7 @@ class Text(AbstractComponent):
         children: list[Text],
     ) -> list[LineNode]:
         """Expand leaf children into one line node per text row."""
-        from xnano.core.nodes.terminal import LineNode
+        from xnano.tui.nodes import LineNode
 
         line_nodes: list[LineNode] = []
         for child in children:
@@ -213,7 +214,7 @@ class Text(AbstractComponent):
     def _to_line_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.core.nodes.terminal import LineNode, SpanNode
+        from xnano.tui.nodes import LineNode, SpanNode
 
         if isinstance(self.content, str):
             return LineNode(
@@ -235,10 +236,118 @@ class Text(AbstractComponent):
             modifiers=list(self.modifiers),
         )
 
+    def compose(self, ctx: ComponentRenderContext):
+        """Compose interface-neutral Content for this Text.
+
+        Controllers lower the result; ``get_terminal_node`` remains a
+        thin adapter that lowers the same Content for older call sites.
+        """
+        from xnano.core.content import Native, Run, TextBlock
+
+        # Leaf: single string
+        if isinstance(self.content, str):
+            text_str = self.content
+            color = self.color
+            modifiers = self.modifiers
+            if self.input:
+                text_str, color_override, is_placeholder = (
+                    self._input_display_content()
+                )
+                if color_override is not None:
+                    color = color_override
+                if is_placeholder and not modifiers:
+                    modifiers = ("dim",)
+            return TextBlock.from_plain(
+                text_str,
+                color=color,
+                background=self.background,
+                modifiers=modifiers,
+                align=self.align,
+                wrap=self.wrap,
+                z=self.z,
+                visible=self.visible,
+            )
+
+        if isinstance(self.content, Text):
+            return self.content.compose(ctx)
+
+        children = self._as_children()
+        all_leaves = all(child._is_leaf() for child in children)
+
+        # Simple one-line leaf spans → Content TextBlock. Nested lines,
+        # embedded newlines, and mixed trees keep full fidelity through
+        # Native wrapping of the existing node assembly path.
+        if all_leaves and not self._leaf_children_have_embedded_newlines(
+            children
+        ):
+            runs: list[Run] = []
+            for child in children:
+                if isinstance(child.content, str):
+                    runs.append(
+                        Run(
+                            text=child.content,
+                            color=child.color,
+                            background=child.background,
+                            modifiers=tuple(child.modifiers),
+                        )
+                    )
+            return TextBlock(
+                lines=(tuple(runs),),
+                color=self.color,
+                background=self.background,
+                modifiers=tuple(self.modifiers),
+                align=self.align,
+                wrap=self.wrap,
+                z=self.z,
+                visible=self.visible,
+            )
+
+        return Native(
+            interface_kind="tui",
+            payload=self._compose_terminal_node(ctx),
+            z=self.z,
+            visible=self.visible,
+        )
+
+    def handle_keyboard(self, keyboard: "KeyboardEventData") -> bool:
+        """Apply a keyboard event while this Text is a focused input.
+
+        Component-owned input path (replaces external-only glue). Hosts
+        call this through the shared focus dispatch.
+
+        Args:
+            keyboard: The keyboard event payload.
+
+        Returns:
+            ``True`` when the key was consumed as text editing.
+        """
+        from xnano._types import apply_text_keyboard
+
+        return apply_text_keyboard(self, keyboard)
+
     def get_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.core.nodes.terminal import (
+        """Lower ``compose()`` to a terminal node (compat adapter)."""
+        from xnano.core.content import Native
+        from xnano.tui.content_lower import lower_content
+        from xnano.tui.nodes import AbstractTerminalNode as TerminalNode
+
+        content = self.compose(ctx)
+        if content is not None:
+            if isinstance(content, Native) and isinstance(
+                content.payload, TerminalNode
+            ):
+                return content.payload
+            node = lower_content(content)
+            if node is not None:
+                return node
+        return self._compose_terminal_node(ctx)
+
+    def _compose_terminal_node(
+        self, ctx: ComponentRenderContext
+    ) -> AbstractTerminalNode:
+        from xnano.tui.nodes import (
             LineNode,
             ParagraphNode,
             SpanNode,
@@ -329,6 +438,125 @@ class Text(AbstractComponent):
         )
         return ParagraphNode(
             text=text_node,
+            color=self.color,
+            background=self.background,
+            modifiers=self.modifiers,
+            align=self.align,
+            wrap=self.wrap,
+        )
+
+    def get_web_node(
+        self, ctx: ComponentRenderContext
+    ) -> AbstractWebNode | None:
+        """Render this Text to a web node tree.
+
+        Args:
+            ctx: The render context.
+
+        Returns:
+            A web node representing this Text, or None.
+        """
+        from xnano.webui.nodes import (
+            WebParagraphNode,
+            WebSpanNode,
+        )
+
+        if isinstance(self.content, str):
+            display_text = self.content
+            display_color = self.color
+            display_modifiers = self.modifiers
+
+            if self.input and self.content == "":
+                placeholder_str = self._placeholder_string()
+                if placeholder_str is not None:
+                    display_text = placeholder_str
+                    if display_color is None:
+                        display_color = "gray"
+                    if not display_modifiers:
+                        display_modifiers = ("dim",)
+
+            return WebParagraphNode(
+                text=display_text,
+                color=display_color,
+                background=self.background,
+                modifiers=display_modifiers,
+                align=self.align,
+                wrap=self.wrap,
+            )
+
+        if isinstance(self.content, Text):
+            node = self.content.get_web_node(ctx)
+            if node is not None:
+                return node
+            if isinstance(self.content.content, str):
+                return WebParagraphNode(
+                    text=self.content.content,
+                    color=self.content.color,
+                    background=self.content.background,
+                    modifiers=self.content.modifiers,
+                    align=self.content.align,
+                    wrap=self.content.wrap,
+                )
+            return None
+
+        children = self._as_children()
+        all_leaves = all(child._is_leaf() for child in children)
+
+        if all_leaves:
+            spans: list[WebSpanNode] = []
+            for child in children:
+                if isinstance(child.content, str):
+                    spans.append(
+                        WebSpanNode(
+                            content=child.content,
+                            color=child.color,
+                            background=child.background,
+                            modifiers=child.modifiers,
+                        )
+                    )
+            return WebParagraphNode(
+                lines=(tuple(spans),),
+                color=self.color,
+                background=self.background,
+                modifiers=self.modifiers,
+                align=self.align,
+                wrap=self.wrap,
+            )
+
+        lines: list[tuple[WebSpanNode, ...]] = []
+        for child in children:
+            if child._is_leaf():
+                if isinstance(child.content, str):
+                    lines.append(
+                        (
+                            WebSpanNode(
+                                content=child.content,
+                                color=child.color,
+                                background=child.background,
+                                modifiers=child.modifiers,
+                            ),
+                        )
+                    )
+            elif isinstance(child.content, list):
+                grandchildren = child._as_children()
+                line_spans: list[WebSpanNode] = []
+                for grandchild in grandchildren:
+                    if grandchild._is_leaf() and isinstance(
+                        grandchild.content, str
+                    ):
+                        line_spans.append(
+                            WebSpanNode(
+                                content=grandchild.content,
+                                color=grandchild.color,
+                                background=grandchild.background,
+                                modifiers=grandchild.modifiers,
+                            )
+                        )
+                if line_spans:
+                    lines.append(tuple(line_spans))
+
+        return WebParagraphNode(
+            lines=tuple(lines),
             color=self.color,
             background=self.background,
             modifiers=self.modifiers,
