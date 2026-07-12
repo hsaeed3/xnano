@@ -271,14 +271,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # xnano-core's MSRV (1.88) is newer than the rust toolchain pinned
-      # by the current pyodide xbuildenv, so build against the newest
-      # prebuilt wasm-eh sysroot published by the pyodide team. Drop
-      # these overrides (and the manual sysroot install below) once
-      # `pyodide config get rust_toolchain` reaches rust 1.88+.
-      RUST_TOOLCHAIN: nightly-2025-06-27
-      RUST_EMSCRIPTEN_SYSROOT_URL: >-
-        https://github.com/pyodide/rust-emscripten-wasm-eh-sysroot/releases/download/emcc-4.0.9_nightly-2025-06-27/emcc-4.0.9_nightly-2025-06-27.tar.bz2
+      # pyodide's xbuildenv pins this rust toolchain; must be >= xnano-core's
+      # MSRV (1.88). As of the 314.x pyodide line this is a stable release,
+      # so no nightly toolchain / wasm-eh sysroot workaround is needed.
+      RUST_TOOLCHAIN: "1.93.0"
 
     steps:
       - uses: actions/checkout@v5
@@ -287,17 +283,15 @@ jobs:
         uses: actions/setup-python@v6
         with:
           # must match `pyodide config get python_version`
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: install pyodide-build
         run: pip install pyodide-build
 
-      - name: install rust toolchain with pyodide wasm-eh sysroot
+      - name: install rust toolchain
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
-          sysroot="$(rustup run "$RUST_TOOLCHAIN" rustc --print sysroot)"
-          curl -sL "$RUST_EMSCRIPTEN_SYSROOT_URL" |
-            tar -xj -C "$sysroot/lib/rustlib/"
+          rustup target add wasm32-unknown-emscripten --toolchain "$RUST_TOOLCHAIN"
 
       - name: cache rust
         uses: Swatinem/rust-cache@v2
@@ -337,7 +331,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           # must match `pyodide config get python_version`
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: install pyodide-build
         run: pip install pyodide-build
