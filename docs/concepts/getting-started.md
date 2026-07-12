@@ -20,19 +20,19 @@ path for interactive TUIs.
 
     ```bash
     # install the latest version of the library
-    pip install "xnano>=1.0.1"
+    pip install "xnano>=1.0.2"
     ```
 
 === "uv"
 
     ```bash
-    uv add "xnano>=1.0.1"
+    uv add "xnano>=1.0.2"
     ```
 
 === "poetry"
 
     ```bash
-    poetry add "xnano>=1.0.1"
+    poetry add "xnano>=1.0.2"
     ```
 
 Python 3.10+ required. The Rust extension (`xnano-core`) ships inside the wheel, so there are no system-level dependencies to manage.
