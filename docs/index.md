@@ -90,13 +90,14 @@ You can install xnano with your favorite package manager on python 3.10+.
 
 ## Your first render
 
-The easiest way to get started is to render some text to the terminal. You can do this by calling the `render` method on the `Terminal` class.
+The easiest way to get started is the print-like `render()` helper — no
+session, no event loop. It writes styled content to the terminal and returns.
 
 ```python
-from xnano import Terminal
-from xnano.components import Text
+from xnano._renderable import render
+from xnano.components.text import Text
 
-Terminal().render(
+render(
     Text("Hello from xnano!", color="violet", modifiers=["bold"])
 )
 ```
@@ -109,7 +110,10 @@ Terminal().render(
 You can pass multiple renderables too — they'll stack vertically:
 
 ```python
-Terminal().render(
+from xnano._renderable import render
+from xnano.components.text import Text
+
+render(
     Text("Success!", color="emerald-400", modifiers=["bold"]),
     Text("All 12 checks passed.", color="slate-400"),
 )
@@ -283,7 +287,8 @@ Terminal().run(App())
 Use `Text` to compose rich inline content with colors, modifiers, and nesting:
 
 ```python
-from xnano.components import Text
+from xnano._renderable import render
+from xnano.components.text import Text
 
 message = Text([
     Text("● ", color="emerald-400"),
@@ -291,7 +296,7 @@ message = Text([
     Text("all tests passed\n", color="slate-300"),
 ])
 
-Terminal().render(message)
+render(message)
 ```
 
 <div class="xnano-demo" markdown>

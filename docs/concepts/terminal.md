@@ -6,22 +6,30 @@ icon: lucide/terminal
 # Terminal sessions
 
 `Terminal` owns the output area and, for interactive applications, the event
-loop. Choose `render()` for a result that returns to the shell and `run()` for
-a grid that stays active and responds to events.
+loop. Choose `render()` for a one-frame session result that returns to the
+shell and `run()` for a grid that stays active and responds to events.
+
+For simple print-like output without a session, prefer the standalone
+[`render()`](../api/core/renderable.md) helper from `xnano._renderable`.
 
 ## Render a result
 
-`render()` paints one frame in the current screen. Multiple values are laid out
-vertically unless you pass a different field configuration.
+`Terminal().render()` paints one frame, then exits the session. Multiple
+values are laid out vertically unless you pass a different field
+configuration. Hold the frame if the process would otherwise exit immediately
+(for example in a short demo script).
 
 ```python title="result.py"
+import time
+
 from xnano import Terminal
-from xnano.components import Text
+from xnano.components.text import Text
 
 Terminal().render(
     Text("Build complete.", color="emerald-400", modifiers=["bold"]),
     Text("12 tests passed.", color="slate-400"),
 )
+time.sleep(3)
 ```
 
 <div class="xnano-demo" markdown>

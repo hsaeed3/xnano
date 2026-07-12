@@ -10,6 +10,8 @@ input. Its shape comes from `content`: a string is a paragraph, a list of leaf
 `Text` values is one composed line, and nested lists form multiple lines.
 
 ```python title="styled_text.py"
+import time
+
 from xnano.components.text import Text
 from xnano.tui import Terminal
 
@@ -20,7 +22,8 @@ message = Text(
     ]
 )
 
-Terminal(height=1).run(message)
+Terminal(height=1).render(message)
+time.sleep(3)
 ```
 
 1. Child values keep their own color, background, and character modifiers.
@@ -37,6 +40,8 @@ Use a child `Text` for each line. `align` and `wrap` belong to the outer
 paragraph.
 
 ```python title="multiline_text.py"
+import time
+
 from xnano.components.text import Text
 from xnano.tui import Terminal
 
@@ -48,7 +53,8 @@ summary = Text(
     align="right",  # (1)!
 )
 
-Terminal(width=24, height=2).run(summary)
+Terminal(width=24, height=2).render(summary)
+time.sleep(3)
 ```
 
 1. Paragraph-level alignment applies to each rendered line.

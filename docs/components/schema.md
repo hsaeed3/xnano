@@ -10,6 +10,8 @@ icon: lucide/list-tree
 configuration, much as a grid field connects a value to layout configuration.
 
 ```python title="declarative_table.py"
+import time
+
 from xnano.components.schema import Column
 from xnano.components.table import Table
 from xnano.tui import Terminal
@@ -21,7 +23,7 @@ class ServiceTable(Table):
     )
     latency: int = Column(format="{} ms", align="right")  # (1)!
 
-Terminal(width=44, height=4).run(
+Terminal(width=44, height=4).render(
     ServiceTable(
         data=[
             {"service": "api", "status": "ready", "latency": 12},
@@ -29,6 +31,7 @@ Terminal(width=44, height=4).run(
         ]
     )
 )
+time.sleep(3)
 ```
 
 1. The annotation documents the source value. `Column` holds display rules and

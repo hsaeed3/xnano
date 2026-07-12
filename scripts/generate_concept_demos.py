@@ -101,15 +101,19 @@ class Demo:
     """Optional rendered width used by the matching Markdown image."""
 
 
+# Static demos use print-like ``xnano._renderable.render`` (stdout ANSI,
+# no session enter/exit flash). Terminal session one-shots use
+# ``Terminal().render`` + ``time.sleep``. Interactive demos use
+# ``Terminal().run``.
 DEMOS: tuple[Demo, ...] = (
     Demo(
         name="render_text",
         code=_code("""
             import time
-            from xnano.tui import Terminal
+            from xnano._renderable import render
             from xnano.components.text import Text
 
-            Terminal().render(
+            render(
                 Text("Hello from xnano!", color="violet", modifiers=["bold"])
             )
             time.sleep(4)
@@ -127,10 +131,10 @@ DEMOS: tuple[Demo, ...] = (
         name="render_multiple",
         code=_code("""
             import time
-            from xnano.tui import Terminal
+            from xnano._renderable import render
             from xnano.components.text import Text
 
-            Terminal().render(
+            render(
                 Text("Success!", color="emerald-400", modifiers=["bold"]),
                 Text("All 12 checks passed.", color="slate-400"),
             )
@@ -149,7 +153,7 @@ DEMOS: tuple[Demo, ...] = (
         name="styled_text",
         code=_code("""
             import time
-            from xnano.tui import Terminal
+            from xnano._renderable import render
             from xnano.components.text import Text
 
             message = Text([
@@ -158,7 +162,7 @@ DEMOS: tuple[Demo, ...] = (
                 Text("all tests passed\\n", color="slate-300"),
             ])
 
-            Terminal().render(message)
+            render(message)
             time.sleep(4)
         """),
         launch_delay="600ms",
@@ -173,31 +177,23 @@ DEMOS: tuple[Demo, ...] = (
     Demo(
         name="hello_render",
         code=_code("""
-            from xnano.fields import Field
-            from xnano.grid import BaseGrid
-            from xnano.tui import Terminal
-            from xnano.events import on_keyboard
+            import time
+            from xnano._renderable import render
+            from xnano.components.text import Text
 
-            class Hello(BaseGrid, direction="vertical", gap=1):
-                line1: str = Field(
-                    default="Hello from xnano!",
-                    color="violet",
-                    modifiers=["bold"],
-                    height=1,
-                )
-                line2: str = Field(
-                    default="Render returns immediately — no event loop needed.",
+            render(
+                Text("Hello from xnano!", color="violet", modifiers=["bold"]),
+                Text(
+                    "Render returns immediately — no event loop needed.",
                     color="slate-400",
-                )
-
-                @on_keyboard("q")
-                def quit(self, ctx) -> None:
-                    ctx.terminal.request_exit()
-
-            Terminal().run(Hello())
+                ),
+            )
+            time.sleep(4)
         """),
-        steps=("Sleep 2s",),
+        launch_delay="600ms",
+        steps=("Sleep 2.5s",),
         record_delay="500ms",
+        auto_quit=False,
         height=220,
     ),
     Demo(
@@ -224,28 +220,20 @@ DEMOS: tuple[Demo, ...] = (
     Demo(
         name="terminal_render",
         code=_code("""
-            from xnano.fields import Field
-            from xnano.grid import BaseGrid
+            import time
             from xnano.tui import Terminal
-            from xnano.events import on_keyboard
+            from xnano.components.text import Text
 
-            class Output(BaseGrid, direction="vertical", gap=1):
-                line1: str = Field(
-                    default="Build complete.",
-                    color="emerald-400",
-                    modifiers=["bold"],
-                    height=1,
-                )
-                line2: str = Field(default="12 tests passed.", color="slate-400")
-
-                @on_keyboard("q")
-                def quit(self, ctx) -> None:
-                    ctx.terminal.request_exit()
-
-            Terminal().run(Output())
+            Terminal().render(
+                Text("Build complete.", color="emerald-400", modifiers=["bold"]),
+                Text("12 tests passed.", color="slate-400"),
+            )
+            time.sleep(4)
         """),
-        steps=("Sleep 2s",),
+        launch_delay="600ms",
+        steps=("Sleep 2.5s",),
         record_delay="500ms",
+        auto_quit=False,
         height=220,
     ),
     Demo(

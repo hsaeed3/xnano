@@ -41,15 +41,18 @@ Python 3.10+ required. The Rust extension (`xnano-core`) ships inside the wheel,
 
 ## Printing to the terminal
 
-The simplest entry point is `Terminal().render()`. It paints styled content inline in the current terminal buffer and returns immediately — no alternate screen, no event loop, no cleanup needed. It behaves like a `print()` call that understands layout and color.
+The simplest entry point is the print-like `render()` helper. It writes styled
+content to stdout and returns immediately — no session, no alternate screen,
+no event loop. It behaves like a `print()` call that understands layout and
+color.
 
 You can pass any number of renderables. They stack vertically in the order given.
 
 ```python title="hello.py"
-from xnano import Terminal
-from xnano.components import Text
+from xnano._renderable import render
+from xnano.components.text import Text
 
-Terminal().render(
+render(
     Text("Hello from xnano!", color="violet", modifiers=["bold"]),
     Text("Render returns immediately — no event loop needed.", color="slate-400"),
 )
