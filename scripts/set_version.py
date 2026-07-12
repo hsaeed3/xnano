@@ -49,14 +49,14 @@ EDITABLE_FILES: tuple[str, ...] = (
     "pyproject.toml",
     "xnano-core/Cargo.toml",
     "xnano/__init__.py",
-    "docs/core-concepts/getting-started.md",
+    "docs/xnano/getting-started.md",
     "README.md",
 )
 """Paths this script is allowed to modify, relative to the repository
 root."""
 
 MARKDOWN_INSTALL_PIN_FILES: tuple[str, ...] = (
-    "docs/core-concepts/getting-started.md",
+    "docs/xnano/getting-started.md",
     "README.md",
 )
 """Markdown files that embed ``xnano>=…`` install examples."""

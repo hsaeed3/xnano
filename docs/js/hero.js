@@ -32,6 +32,11 @@
         [25,  165, 170],  // teal
     ];
 
+    // Exposed so other scripts (nav accent) can pick colors from the same
+    // palettes without duplicating them — keyed by data-md-color-scheme
+    // value so callers don't need to know which array means what.
+    window.__xnanoAuroraPalettes = { slate: LIGHT_PAL, default: DARK_PAL };
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
     function isDark() {
         return document.body.getAttribute("data-md-color-scheme") === "slate";

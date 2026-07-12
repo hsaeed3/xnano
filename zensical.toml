@@ -12,85 +12,13 @@ Copyright &copy; 2026 Hammad Saeed
 """
 
 nav = [
+    {"Introduction" = "index.md"},
     { "xnano" = [
-        { "Introduction" = "index.md" },
-        "core-concepts/getting-started.md",
-        { "API Reference" = [
-            "api/index.md",
-            { "xnano.core" = [
-                { "xnano.core.actions" = "api/core/actions.md" },
-                { "xnano.core.content" = "api/core/content.md" },
-                { "xnano.core.hosts" = "api/core/hosts.md" },
-                { "xnano.core.stage" = "api/core/stage.md" },
-                { "xnano.core.interface" = "api/core/interface.md" },
-                { "xnano.core.device" = "api/core/device.md" },
-                { "xnano.core.exceptions" = "api/core/exceptions.md" },
-                { "xnano.core.controllers" = [
-                    { "xnano.core.controllers.abstract" = "api/core/controllers/abstract.md" },
-                    { "xnano.core.controllers.tui" = "api/core/controllers/tui.md" },
-                    { "xnano.core.controllers.webui" = "api/core/controllers/webui.md" },
-                ]},
-            ]},
-            { "xnano.components" = [
-                { "xnano.components.abstract" = "api/components/abstract.md" },
-                { "xnano.components.chart" = "api/components/chart.md" },
-                { "xnano.components.progress" = "api/components/progress.md" },
-                { "xnano.components.schema" = "api/components/schema.md" },
-                { "xnano.components.sparkline" = "api/components/sparkline.md" },
-                { "xnano.components.table" = "api/components/table.md" },
-                { "xnano.components.text" = "api/components/text.md" },
-            ]},
-            { "xnano.tui" = [
-                { "xnano.tui" = "api/tui/index.md" },
-                { "xnano.tui.terminal" = "api/tui/terminal.md" },
-                { "xnano.tui.cursor" = "api/tui/cursor.md" },
-                { "xnano.tui.device" = "api/tui/device.md" },
-                { "xnano.tui.nodes" = "api/tui/nodes.md" },
-            ]},
-            { "xnano.webui" = [
-                { "xnano.webui" = "api/webui/index.md" },
-                { "xnano.webui.web" = "api/webui/web.md" },
-                { "xnano.webui.session" = "api/webui/session.md" },
-                { "xnano.webui.requests" = "api/webui/requests.md" },
-                { "xnano.webui.nodes" = "api/webui/nodes.md" },
-                { "xnano.webui.device" = "api/webui/device.md" },
-            ]},
-            { "xnano.cli" = [
-                { "xnano.cli" = "api/cli/index.md" },
-                { "xnano.cli.command" = "api/cli/command.md" },
-            ]},
-            { "xnano.color" = "api/color.md" },
-            { "xnano.context" = "api/context.md" },
-            { "xnano.effects" = "api/effects.md" },
-            { "xnano.events" = "api/events.md" },
-            { "xnano.fields" = "api/fields.md" },
-            { "xnano.grid" = "api/grid.md" },
-            { "xnano.state" = "api/state.md" },
-            { "xnano (private)" = [
-                { "xnano._core_bindings" = "api/_core_bindings.md" },
-                { "xnano._demo" = "api/_demo.md" },
-                { "xnano._dispatch" = "api/_dispatch.md" },
-                { "xnano._event_processing" = "api/_event_processing.md" },
-                { "xnano._function_hooks" = "api/_function_hooks.md" },
-                { "xnano._introspection" = "api/_introspection.md" },
-                { "xnano._renderable" = "api/_renderable.md" },
-                { "xnano._styles" = "api/_styles.md" },
-                { "xnano._tailwind_classes" = "api/_tailwind_classes.md" },
-                { "xnano._types" = "api/_types.md" },
-                { "xnano._validation" = "api/_validation.md" },
-                { "xnano.tui._node_base_tmp" = "api/tui/_node_base_tmp.md" },
-            ]},
-        ]},
+        "xnano/getting-started.md",
     ]},
     { "xnano-core" = [
-        { "Overview" = "xnano-core/overview.md" },
-        { "Core Terminal Engine" = "xnano-core/engine.md" },
-        { "Native Rust Bindings" = "xnano-core/native.md" },
-        { "API Reference" = [
-            {"xnano-core.rust.native" = "xnano-core/api/native.md"},
-            {"xnano-core.rust.engine" = "xnano-core/api/engine.md"},
-        ]}
-    ]}
+        "xnano-core/overview.md",
+    ]},
 ]
 
 extra_css = [
@@ -100,6 +28,7 @@ extra_css = [
     "stylesheets/code-theme.css",
     "stylesheets/mkdocstrings.css",
     "stylesheets/components.css",
+    "stylesheets/nav.css",
 ]
 
 extra_javascript = [
@@ -125,6 +54,7 @@ features = [
     "content.tabs.link",
     "content.tooltips",
     "header.autohide",
+    "navigation.expand",
     "navigation.footer",
     # "navigation.instant",
     # !! prefetch should probably be enabled but its messing up the hero
@@ -135,7 +65,7 @@ features = [
     # "navigation.prune",
     # "navigation.tabs",
     "navigation.top",
-    "navigation.sections",
+    # "navigation.sections",
     "navigation.tracking",
     "search.highlight",
     "toc.follow",
@@ -277,13 +207,21 @@ extensions = ["griffe_typingdoc"]
 
 [project.plugins]
 
+# [project.plugins."mkdocs-jupyter"]
+# ignore_h1_titles = true
+# include_source = true
+# execute = false
+# allow_errors = false
+# show_input = true
+# include_requirejs = true
+
 [project.plugins.search]
 
-[project.markdown_extensions.termynal]
-include_assets = true
-title = "bash"
-buttons = "macos"
-prompt_literal_start = ["$"]
+# [project.markdown_extensions.termynal]
+# include_assets = true
+# title = "bash"
+# buttons = "macos"
+# prompt_literal_start = ["$"]
 
 # markdown-exec: client-side Pyodide editors + optional build-time exec.
 # Plugin auto-registers custom fences (incl. ``pyodide``) and injects assets.
