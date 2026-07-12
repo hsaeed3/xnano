@@ -15,12 +15,12 @@ from typing import Any, AsyncIterator
 import httpx
 import pytest
 
-from tests.beta.grids import (
+from tests.webui.grids import (
     ClickableGrid,
     InteractiveGrid,
     RequestHookGrid,
 )
-from xnano.beta.web import Web
+from xnano.webui import Web
 
 
 @asynccontextmanager

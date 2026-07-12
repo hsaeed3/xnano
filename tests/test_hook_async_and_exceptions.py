@@ -10,11 +10,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.hooks import on_tick, _EventHooksRegistry
+from xnano.grid import BaseGrid
+from xnano.events import on_tick
+from xnano._function_hooks import _EventHooksRegistry
 from xnano.context import Context
-from xnano.core.dispatch import invoke_hook, pump_tick, run_awaitable
-from xnano.exceptions import Exit, HookError
+from xnano._dispatch import invoke_hook, pump_tick, run_awaitable
+from xnano.core.exceptions import Exit, HookError
 
 
 def _ctx() -> Context[Any]:
@@ -53,7 +54,7 @@ def test_run_awaitable_rejects_nested_loop() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _AsyncTickGrid(Grid):
+class _AsyncTickGrid(BaseGrid):
     count: int = Field(default=0, state=True)
 
     @on_tick
@@ -103,13 +104,13 @@ def test_invoke_hook_awaits_free_async_function() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _BoomGrid(Grid):
+class _BoomGrid(BaseGrid):
     @on_tick
     def _explode(self) -> None:
         raise ValueError("boom")
 
 
-class _ExitGrid(Grid):
+class _ExitGrid(BaseGrid):
     @on_tick
     def _leave(self) -> None:
         raise Exit()
@@ -149,7 +150,7 @@ def test_invoke_hook_propagates_exit_without_logging(
 def test_async_hook_exception_is_logged_and_reraised(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    class _AsyncBoom(Grid):
+    class _AsyncBoom(BaseGrid):
         @on_tick
         async def _explode(self) -> None:
             await asyncio.sleep(0)
@@ -175,7 +176,7 @@ def test_hook_error_wraps_cause() -> None:
 
 
 def test_async_hook_can_raise_exit() -> None:
-    class _Ready(Grid):
+    class _Ready(BaseGrid):
         ready: bool = Field(default=True, state=True)
 
         @on_tick

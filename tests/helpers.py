@@ -8,9 +8,9 @@ from xnano.fields import Field, UNSET
 
 if TYPE_CHECKING:
     from xnano.components.abstract import AbstractComponent
-    from xnano.core.nodes.terminal import AbstractTerminalNode
-    from xnano.grid import Grid
-    from xnano.terminal import Terminal
+    from xnano.tui.nodes import AbstractTerminalNode
+    from xnano.grid import BaseGrid
+    from xnano.tui import Terminal
 
 
 def invalid_field(default: Any) -> Any:
@@ -125,7 +125,7 @@ def key_binding(*names: str) -> FakeKeyboard:
 
 
 def open_offscreen_app(
-    grid: "Grid",
+    grid: "BaseGrid",
     *,
     cols: int = 48,
     rows: int = 14,
@@ -135,7 +135,7 @@ def open_offscreen_app(
 
     Caller should call :func:`close_offscreen_app` when finished.
     """
-    from xnano.terminal import Terminal
+    from xnano.tui import Terminal
 
     terminal = Terminal.offscreen(cols=cols, rows=rows, state=state)
     terminal.attach_grid(grid)
@@ -145,7 +145,7 @@ def open_offscreen_app(
 
 def close_offscreen_app(terminal: "Terminal[Any]") -> None:
     """Reset the active-terminal context var for an offscreen session."""
-    import xnano.terminal as terminal_mod
+    import xnano.tui as terminal_mod
 
     token = getattr(terminal, "_terminal_token", None)
     if token is not None:
@@ -155,7 +155,7 @@ def close_offscreen_app(terminal: "Terminal[Any]") -> None:
     terminal._session = None
 
 
-def paint(terminal: "Terminal[Any]", grid: "Grid") -> str:
+def paint(terminal: "Terminal[Any]", grid: "BaseGrid") -> str:
     """Re-render ``grid`` and return the offscreen buffer text."""
     terminal._render_frame(grid)
     return terminal.get_output()
@@ -164,7 +164,7 @@ def paint(terminal: "Terminal[Any]", grid: "Grid") -> str:
 def dispatch_key(terminal: "Terminal[Any]", keyboard: FakeKeyboard) -> None:
     """Run the full keyboard dispatch path for ``keyboard``."""
     from xnano.context import Context
-    from xnano.core.dispatch import dispatch_hooks
+    from xnano._dispatch import dispatch_hooks
 
     event = FakeEvent(keyboard=keyboard)
     ctx = Context(
@@ -202,8 +202,8 @@ def render_node_to_text(
     """
     from xnano_core.core import CoreSession
 
-    from xnano.core.controllers.terminal import TerminalController
-    from xnano.types import Area
+    from xnano.core.controllers.tui import TerminalController
+    from xnano._types import Area
 
     core = CoreSession.offscreen(width=width, height=height)
     session = TerminalController(
@@ -237,7 +237,7 @@ def render_component_to_text(
         component yields no node (e.g. ``visible=False``).
     """
     from xnano.components.abstract import ComponentRenderContext
-    from xnano.types import Area
+    from xnano._types import Area
 
     area = Area(x=0, y=0, width=width, height=height)
     ctx = ComponentRenderContext(area=area)

@@ -8,14 +8,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.hooks import (
-    on_poll,
-    PollWhen,
+from xnano.grid import BaseGrid
+from xnano.events import on_poll, PollWhen
+from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnPollHookFunctionEntry,
 )
-from xnano.core.dispatch import pump_events, pump_poll
+from xnano._dispatch import pump_events, pump_poll
 
 
 # ---------------------------------------------------------------------------
@@ -23,7 +22,7 @@ from xnano.core.dispatch import pump_events, pump_poll
 # ---------------------------------------------------------------------------
 
 
-class _IdleGrid(Grid):
+class _IdleGrid(BaseGrid):
     idle_count: int = Field(default=0, state=True)
     frame_count: int = Field(default=0, state=True)
 
@@ -36,7 +35,7 @@ class _IdleGrid(Grid):
         self.frame_count += 1
 
 
-class _KeywordIdleGrid(Grid):
+class _KeywordIdleGrid(BaseGrid):
     hits: int = Field(default=0, state=True)
 
     @on_poll(when="idle")
@@ -78,7 +77,7 @@ def test_invalid_when_raises() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _stub_terminal(grid: Grid) -> Any:
+def _stub_terminal(grid: BaseGrid) -> Any:
     terminal = MagicMock()
     terminal.state = None
     registry = _EventHooksRegistry.from_component_class(type(grid))

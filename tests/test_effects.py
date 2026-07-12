@@ -10,20 +10,23 @@ from xnano.effects import (
     Effect,
     FadeEffect,
     SweepInEffect,
+)
+from xnano.tui.effects import (
+    build_native_effect,
     resolve_native_effect,
 )
 
 
 def test_effect_factory_builds_dissolve() -> None:
     effect = Effect("dissolve", duration_ms=250)
-    native_effect = effect.build_native_effect()
+    native_effect = build_native_effect(effect)
     assert isinstance(native_effect, native.Effect)
 
 
 def test_effect_factory_builds_fade_with_color() -> None:
     effect = Effect("fade", color="#ff00aa", duration_ms=400)
     assert isinstance(effect, FadeEffect)
-    native_effect = effect.build_native_effect()
+    native_effect = build_native_effect(effect)
     assert isinstance(native_effect, native.Effect)
 
 
@@ -37,7 +40,7 @@ def test_effect_factory_builds_sweep_in() -> None:
         duration_ms=500,
     )
     assert isinstance(effect, SweepInEffect)
-    native_effect = effect.build_native_effect()
+    native_effect = build_native_effect(effect)
     assert isinstance(native_effect, native.Effect)
 
 
@@ -64,7 +67,7 @@ def test_resolve_native_effect_accepts_kind_string() -> None:
 def test_custom_subclass_round_trip() -> None:
     effect = DissolveEffect(duration_ms=220, interpolation="cubic_out")
     assert effect.interpolation == "cubic_out"
-    native_effect = effect.build_native_effect()
+    native_effect = build_native_effect(effect)
     assert isinstance(native_effect, native.Effect)
 
 

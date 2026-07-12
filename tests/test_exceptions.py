@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.exceptions import FieldValidationError, TerminalNotActiveError
+from xnano.core.exceptions import FieldValidationError, TerminalNotActiveError
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.terminal import Terminal
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
 
 
-class _Counter(Grid):
+class _Counter(BaseGrid):
     # ``strict=True`` on a state field opts assignments (not just
     # construction) into validation — the default field-level ``strict``
     # is False, since re-validating every attribute set is not free.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from xnano.sizing import Sizing
+from xnano._types import Sizing
 
 
 # ---------------------------------------------------------------------------

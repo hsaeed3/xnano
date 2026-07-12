@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import time
 
-from tests.beta.grids import ClickableGrid, InteractiveGrid, SimpleGrid
-from xnano.beta.web import Web
+from tests.webui.grids import ClickableGrid, InteractiveGrid, SimpleGrid
+from xnano.webui import Web
 
 
 def test_dispatch_click_fires_handler() -> None:

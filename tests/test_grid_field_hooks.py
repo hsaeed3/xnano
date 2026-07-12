@@ -8,12 +8,12 @@ from typing import cast
 import pytest
 
 from xnano.context import Context
-from xnano.hooks import on_click, on_mouse
+from xnano.events import on_click, on_mouse
 from xnano.fields import Field
-from xnano.grid import Grid, _resolve_grid_mouse_handler
+from xnano.grid import BaseGrid, _resolve_grid_mouse_handler
 
 
-class Panel(Grid):
+class Panel(BaseGrid):
     body: str = Field(default="hello")
 
     @on_click("body")
@@ -21,7 +21,7 @@ class Panel(Grid):
         self.body = "clicked"
 
 
-class HeaderPanel(Grid):
+class HeaderPanel(BaseGrid):
     header: str = Field(default="title")
 
     @on_mouse(field="header", button="left", kind="press")
@@ -56,7 +56,7 @@ def test_on_mouse_field_param_registers_handler() -> None:
 def test_unknown_field_raises_at_class_creation() -> None:
     with pytest.raises(TypeError, match="not a layout field"):
 
-        class Bad(Grid):  # noqa: N801
+        class Bad(BaseGrid):  # noqa: N801
             @on_click("missing")
             def handler(self, ctx: Context) -> None:
                 pass
