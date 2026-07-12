@@ -1,16 +1,15 @@
 """xnano.effects
 
 Declarative, controller-agnostic descriptions of visual effects that can be
-played against one or more ``Grid`` layout fields.
+played against one or more ``BaseGrid`` layout fields.
 
 Every ``AbstractEffect`` subclass here only describes *intent* — duration,
 interpolation, color, motion, composition — using ``xnano`` types and
-literals. Nothing in this module assumes a terminal. The one exception is
-``build_native_effect``, which lowers a description to a ``tachyonfx``
-native effect; that lowering is terminal-only and is expected to move
-behind the terminal controller once a second (web) controller exists. A
-future web controller would dispatch over these same dataclasses to a CSS
-transition/animation instead of calling ``build_native_effect``.
+literals. Nothing in this module assumes a terminal. The terminal-only
+lowering of a description to a ``tachyonfx`` native effect lives in
+``xnano.tui.effects``, which the terminal controller calls. A future web
+controller would instead dispatch over these same dataclasses to a CSS
+transition/animation.
 
 ``key`` lives on ``AbstractEffect`` (alongside ``duration_ms`` and
 ``interpolation``) rather than being passed separately wherever an effect
@@ -27,8 +26,7 @@ import abc
 import dataclasses
 from typing import Literal, Sequence, TypeAlias, overload
 
-from xnano.color import Color, ColorLike
-from xnano_core.rust import native
+from xnano.color import ColorLike
 
 
 EffectMotion: TypeAlias = Literal[
@@ -163,98 +161,16 @@ Values:
 """
 
 
-_MOTION_TO_NATIVE: dict[EffectMotion, native.Motion] = {
-    "up_to_down": native.Motion.UpToDown,
-    "down_to_up": native.Motion.DownToUp,
-    "left_to_right": native.Motion.LeftToRight,
-    "right_to_left": native.Motion.RightToLeft,
-}
-
-_INTERPOLATION_TO_NATIVE: dict[EffectInterpolation, native.Interpolation] = {
-    "linear": native.Interpolation.Linear,
-    "smooth_step": native.Interpolation.SmoothStep,
-    "sine_in": native.Interpolation.SineIn,
-    "sine_out": native.Interpolation.SineOut,
-    "sine_in_out": native.Interpolation.SineInOut,
-    "quad_in": native.Interpolation.QuadIn,
-    "quad_out": native.Interpolation.QuadOut,
-    "quad_in_out": native.Interpolation.QuadInOut,
-    "cubic_in": native.Interpolation.CubicIn,
-    "cubic_out": native.Interpolation.CubicOut,
-    "cubic_in_out": native.Interpolation.CubicInOut,
-    "expo_in": native.Interpolation.ExpoIn,
-    "expo_out": native.Interpolation.ExpoOut,
-    "expo_in_out": native.Interpolation.ExpoInOut,
-    "bounce_in": native.Interpolation.BounceIn,
-    "bounce_out": native.Interpolation.BounceOut,
-    "bounce_in_out": native.Interpolation.BounceInOut,
-    "elastic_in": native.Interpolation.ElasticIn,
-    "elastic_out": native.Interpolation.ElasticOut,
-    "elastic_in_out": native.Interpolation.ElasticInOut,
-    "back_in": native.Interpolation.BackIn,
-    "back_out": native.Interpolation.BackOut,
-    "back_in_out": native.Interpolation.BackInOut,
-    "spring": native.Interpolation.Spring,
-}
-
-_COLOR_SPACE_TO_NATIVE: dict[EffectColorSpace, native.ColorSpace] = {
-    "rgb": native.ColorSpace.Rgb,
-    "hsl": native.ColorSpace.Hsl,
-    "hsv": native.ColorSpace.Hsv,
-}
-
-
-def _resolve_native_motion(motion: EffectMotion) -> native.Motion:
-    return _MOTION_TO_NATIVE[motion]
-
-
-def _resolve_native_interpolation(
-    interpolation: EffectInterpolation | None,
-) -> native.Interpolation | None:
-    if interpolation is None:
-        return None
-    return _INTERPOLATION_TO_NATIVE[interpolation]
-
-
-def _resolve_native_color_space(
-    color_space: EffectColorSpace | None,
-) -> native.ColorSpace | None:
-    if color_space is None:
-        return None
-    return _COLOR_SPACE_TO_NATIVE[color_space]
-
-
-_NATIVE_COLOR_CACHE: dict[tuple[int, int, int, float], native.Color] = {}
-
-
-def _require_native_color(color: ColorLike, *, label: str) -> native.Color:
-    try:
-        parsed = Color.parse(color)
-    except Exception as e:
-        raise ValueError(
-            f"{label} must resolve to a color, got {color!r}"
-        ) from e
-
-    key = (parsed.r, parsed.g, parsed.b, parsed.a)
-    cached = _NATIVE_COLOR_CACHE.get(key)
-    if cached is not None:
-        return cached
-
-    resolved = native.Color.rgb(parsed.r, parsed.g, parsed.b)
-    _NATIVE_COLOR_CACHE[key] = resolved
-    return resolved
-
-
 @dataclasses.dataclass
 class AbstractEffect(abc.ABC):
     """Abstract base for user-composed visual effects.
 
     Subclasses describe effect intent with ``xnano`` types and literals.
     A controller lowers them to whatever native effect representation it
-    understands — today that means ``build_native_effect`` to a
+    understands — today that means ``xnano.tui.effects`` lowering to a
     ``tachyonfx`` effect for the terminal controller; a web controller
     would instead dispatch over the concrete subclass to a CSS
-    transition/animation, without calling ``build_native_effect`` at all.
+    transition/animation.
     """
 
     duration_ms: int = dataclasses.field(default=300, kw_only=True)
@@ -279,30 +195,6 @@ class AbstractEffect(abc.ABC):
     field name alone.
     """
 
-    @abc.abstractmethod
-    def build_native_effect(self) -> native.Effect:
-        """Lower this effect description to a native effect instance.
-
-        Returns:
-            A native ``Effect`` ready to run.
-        """
-
-    def apply_native_cell_filter(
-        self,
-        effect: native.Effect,
-    ) -> native.Effect:
-        """Apply this description's terminal cell filter to an effect."""
-        if self.cell_filter is None:
-            return effect
-        filters = {
-            "all": native.CellFilter.ALL,
-            "text": native.CellFilter.TEXT,
-            "non_empty": native.CellFilter.NON_EMPTY,
-            "background": native.CellFilter.BACKGROUND,
-            "background_only": native.CellFilter.BACKGROUND_ONLY,
-        }
-        return effect.with_filter(filters[self.cell_filter])
-
 
 @dataclasses.dataclass
 class FadeEffect(AbstractEffect):
@@ -311,13 +203,6 @@ class FadeEffect(AbstractEffect):
     color: ColorLike = "white"
     """Target foreground color."""
 
-    def build_native_effect(self) -> native.Effect:
-        return native.fade_to_fg(
-            _require_native_color(self.color, label="color"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
-
 
 @dataclasses.dataclass
 class FadeFromEffect(AbstractEffect):
@@ -325,13 +210,6 @@ class FadeFromEffect(AbstractEffect):
 
     color: ColorLike = "white"
     """Source foreground color."""
-
-    def build_native_effect(self) -> native.Effect:
-        return native.fade_from_fg(
-            _require_native_color(self.color, label="color"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
 
 
 @dataclasses.dataclass
@@ -343,14 +221,6 @@ class FadeToEffect(AbstractEffect):
     background: ColorLike = "black"
     """Target background color."""
 
-    def build_native_effect(self) -> native.Effect:
-        return native.fade_to(
-            _require_native_color(self.color, label="color"),
-            _require_native_color(self.background, label="background"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
-
 
 @dataclasses.dataclass
 class FadeFromBothEffect(AbstractEffect):
@@ -361,35 +231,15 @@ class FadeFromBothEffect(AbstractEffect):
     background: ColorLike = "black"
     """Source background color."""
 
-    def build_native_effect(self) -> native.Effect:
-        return native.fade_from(
-            _require_native_color(self.color, label="color"),
-            _require_native_color(self.background, label="background"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
-
 
 @dataclasses.dataclass
 class DissolveEffect(AbstractEffect):
     """Random pixel dissolve transition."""
 
-    def build_native_effect(self) -> native.Effect:
-        return native.dissolve(
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
-
 
 @dataclasses.dataclass
 class CoalesceEffect(AbstractEffect):
     """Typewriter-style cell assembly."""
-
-    def build_native_effect(self) -> native.Effect:
-        return native.coalesce(
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
 
 
 @dataclasses.dataclass
@@ -410,60 +260,20 @@ class DirectionalEffect(AbstractEffect):
 class SweepInEffect(DirectionalEffect):
     """Directional sweep revealing content."""
 
-    def build_native_effect(self) -> native.Effect:
-        return native.sweep_in(
-            _resolve_native_motion(self.direction),
-            self.gradient_length,
-            self.randomness,
-            _require_native_color(self.color, label="color"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
-
 
 @dataclasses.dataclass
 class SweepOutEffect(DirectionalEffect):
     """Directional sweep hiding content."""
-
-    def build_native_effect(self) -> native.Effect:
-        return native.sweep_out(
-            _resolve_native_motion(self.direction),
-            self.gradient_length,
-            self.randomness,
-            _require_native_color(self.color, label="color"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
 
 
 @dataclasses.dataclass
 class SlideInEffect(DirectionalEffect):
     """Directional slide revealing content."""
 
-    def build_native_effect(self) -> native.Effect:
-        return native.slide_in(
-            _resolve_native_motion(self.direction),
-            self.gradient_length,
-            self.randomness,
-            _require_native_color(self.color, label="color"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
-
 
 @dataclasses.dataclass
 class SlideOutEffect(DirectionalEffect):
     """Directional slide hiding content."""
-
-    def build_native_effect(self) -> native.Effect:
-        return native.slide_out(
-            _resolve_native_motion(self.direction),
-            self.gradient_length,
-            self.randomness,
-            _require_native_color(self.color, label="color"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
 
 
 @dataclasses.dataclass
@@ -475,14 +285,6 @@ class PaintEffect(AbstractEffect):
     background: ColorLike = "black"
     """Target background color."""
 
-    def build_native_effect(self) -> native.Effect:
-        return native.paint(
-            _require_native_color(self.color, label="color"),
-            _require_native_color(self.background, label="background"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
-
 
 @dataclasses.dataclass
 class PaintForegroundEffect(AbstractEffect):
@@ -490,13 +292,6 @@ class PaintForegroundEffect(AbstractEffect):
 
     color: ColorLike = "white"
     """Target foreground color."""
-
-    def build_native_effect(self) -> native.Effect:
-        return native.paint_fg(
-            _require_native_color(self.color, label="color"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
 
 
 @dataclasses.dataclass
@@ -506,20 +301,10 @@ class PaintBackgroundEffect(AbstractEffect):
     background: ColorLike = "black"
     """Target background color."""
 
-    def build_native_effect(self) -> native.Effect:
-        return native.paint_bg(
-            _require_native_color(self.background, label="background"),
-            self.duration_ms,
-            _resolve_native_interpolation(self.interpolation),
-        )
-
 
 @dataclasses.dataclass
 class SleepEffect(AbstractEffect):
     """No-op delay used when composing effect sequences."""
-
-    def build_native_effect(self) -> native.Effect:
-        return native.sleep_effect(self.duration_ms)
 
 
 @dataclasses.dataclass
@@ -529,13 +314,6 @@ class SequenceEffect(AbstractEffect):
     effects: tuple[AbstractEffect, ...] = ()
     """Child effects to run in order."""
 
-    def build_native_effect(self) -> native.Effect:
-        if not self.effects:
-            raise ValueError("sequence effects require at least one child")
-        return native.sequence_effects(
-            [effect.build_native_effect() for effect in self.effects]
-        )
-
 
 @dataclasses.dataclass
 class ParallelEffect(AbstractEffect):
@@ -543,13 +321,6 @@ class ParallelEffect(AbstractEffect):
 
     effects: tuple[AbstractEffect, ...] = ()
     """Child effects to run in parallel."""
-
-    def build_native_effect(self) -> native.Effect:
-        if not self.effects:
-            raise ValueError("parallel effects require at least one child")
-        return native.parallel_effects(
-            [effect.build_native_effect() for effect in self.effects]
-        )
 
 
 @dataclasses.dataclass
@@ -561,16 +332,6 @@ class RepeatEffect(AbstractEffect):
     times: int | None = None
     """Number of times to repeat the child effect."""
 
-    def build_native_effect(self) -> native.Effect:
-        if self.child is None:
-            raise ValueError("repeat effects require a child effect")
-        child = self.child.build_native_effect()
-        if self.times is not None:
-            return native.repeat_effect(child, times=self.times)
-        if self.duration_ms != 300:
-            return native.repeat_effect(child, duration_ms=self.duration_ms)
-        return native.repeat_effect(child)
-
 
 @dataclasses.dataclass
 class DelayEffect(AbstractEffect):
@@ -578,14 +339,6 @@ class DelayEffect(AbstractEffect):
 
     child: AbstractEffect | None = None
     """Effect to start after the delay."""
-
-    def build_native_effect(self) -> native.Effect:
-        if self.child is None:
-            raise ValueError("delay effects require a child effect")
-        return native.delay_effect(
-            self.duration_ms,
-            self.child.build_native_effect(),
-        )
 
 
 def _normalize_child_effects(
@@ -821,63 +574,6 @@ def resolve_effect(
     )
 
 
-def resolve_native_effect(
-    effect: AbstractEffect | KnownEffectKind,
-    *,
-    duration_ms: int = 300,
-    color: ColorLike | None = None,
-    background: ColorLike | None = None,
-    direction: EffectMotion | None = None,
-    gradient_length: int | None = None,
-    randomness: int | None = None,
-    interpolation: EffectInterpolation | None = None,
-    effects: Sequence[AbstractEffect] | None = None,
-    child: AbstractEffect | None = None,
-    times: int | None = None,
-    key: str | None = None,
-) -> native.Effect:
-    """Resolve and lower an effect description to a native effect.
-
-    Terminal-only: lowers through ``AbstractEffect.build_native_effect``.
-    See the module docstring for why this lowering step is expected to
-    move behind the terminal controller rather than grow a second
-    (web) lowering path here.
-
-    Args:
-        effect: A built effect instance or a known effect kind string.
-        duration_ms: Duration of the effect in milliseconds.
-        color: Foreground or accent color for color-driven effects.
-        background: Background color for two-color effects.
-        direction: Motion direction for slide and sweep effects.
-        gradient_length: Gradient length for slide and sweep effects.
-        randomness: Randomness for slide and sweep effects.
-        interpolation: Interpolation curve for the effect.
-        effects: Child effects for sequence and parallel composition.
-        child: Child effect for repeat and delay composition.
-        times: Repeat count for repeat effects.
-        key: Identity used by a controller to de-duplicate this effect
-            per target field.
-
-    Returns:
-        A native ``Effect`` instance.
-    """
-    resolved = resolve_effect(
-        effect,
-        duration_ms=duration_ms,
-        color=color,
-        background=background,
-        direction=direction,
-        gradient_length=gradient_length,
-        randomness=randomness,
-        interpolation=interpolation,
-        effects=effects,
-        child=child,
-        times=times,
-        key=key,
-    )
-    return resolved.apply_native_cell_filter(resolved.build_native_effect())
-
-
 @overload
 def Effect(
     effect: KnownEffectKind,
@@ -994,5 +690,4 @@ __all__ = (
     "SweepInEffect",
     "SweepOutEffect",
     "resolve_effect",
-    "resolve_native_effect",
 )
