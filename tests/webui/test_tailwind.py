@@ -1,4 +1,4 @@
-"""tests.beta.test_tailwind"""
+"""tests.webui.test_tailwind"""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any, cast
 
 import pytest
 
-from xnano.beta.tailwind import (
+from xnano._styles import (
     KNOWN_TAILWIND_CLASSES,
     TailwindBorderClass,
     TailwindColorClass,
@@ -20,8 +20,8 @@ from xnano.beta.tailwind import (
 )
 from xnano.color import Color
 from xnano.fields import Field, GridFieldInfo
-from xnano.sizing import Sizing
-from xnano.types import Padding
+from xnano._types import Sizing
+from xnano._types import Padding
 
 
 TAILWIND_PALETTES = (
@@ -561,7 +561,7 @@ def test_resolution_is_cached() -> None:
 
 
 def test_register_tailwind_class_group() -> None:
-    from xnano.beta import tailwind
+    from xnano import _styles as tailwind
 
     class _AccentGroup(tailwind.AbstractTailwindClassGroup):
         def match(self, token: str) -> bool:
@@ -582,7 +582,7 @@ def test_register_tailwind_class_group() -> None:
 
 
 def test_builtin_groups_match_before_registered_groups() -> None:
-    from xnano.beta import tailwind
+    from xnano import _styles as tailwind
 
     class _HijackGroup(tailwind.AbstractTailwindClassGroup):
         def match(self, token: str) -> bool:
@@ -751,9 +751,9 @@ def test_field_keeps_unknown_classes_in_tokens() -> None:
 
 
 def test_grid_set_field_class_name_roundtrip() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         header: str = Field(default="hi")
 
     app = App()
@@ -766,9 +766,9 @@ def test_grid_set_field_class_name_roundtrip() -> None:
 
 
 def test_grid_set_field_explicit_key_wins_over_class_name() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         header: str = Field(default="hi")
 
     app = App()
@@ -778,9 +778,9 @@ def test_grid_set_field_explicit_key_wins_over_class_name() -> None:
 
 
 def test_grid_set_field_class_name_accepts_sequence() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         header: str = Field(default="hi")
 
     app = App()
@@ -792,9 +792,9 @@ def test_grid_set_field_class_name_accepts_sequence() -> None:
 
 
 def test_grid_set_field_modifier_flags_toggle() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         header: str = Field(default="hi")
 
     app = App()
@@ -810,9 +810,9 @@ def test_grid_set_field_modifier_flags_toggle() -> None:
 
 
 def test_grid_set_field_modifier_flags_on_top_of_class_name() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         header: str = Field(default="hi")
 
     app = App()
@@ -821,9 +821,9 @@ def test_grid_set_field_modifier_flags_on_top_of_class_name() -> None:
 
 
 def test_grid_set_field_modifier_flags_with_explicit_modifiers() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         header: str = Field(default="hi")
 
     app = App()
@@ -854,9 +854,9 @@ def render_grid_offscreen(grid: Any, *, cols: int = 30, rows: int = 9) -> str:
 
 
 def test_terminal_renders_class_name_field() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         content: str = Field(
             default="hello",
             class_name="border rounded p-2 m-2 text-red-500",
@@ -877,14 +877,14 @@ def test_terminal_renders_class_name_field() -> None:
 
 def test_terminal_class_name_matches_explicit_kwargs() -> None:
     """Class-derived chrome must render identically to explicit kwargs."""
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class ByClass(Grid):
+    class ByClass(BaseGrid):
         content: str = Field(
             default="hello", class_name="border p-4 text-red-500"
         )
 
-    class ByKwargs(Grid):
+    class ByKwargs(BaseGrid):
         content: str = Field(
             default="hello",
             border="plain",
@@ -898,12 +898,12 @@ def test_terminal_class_name_matches_explicit_kwargs() -> None:
 
 
 def test_terminal_margin_insets_content() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class Plain(Grid):
+    class Plain(BaseGrid):
         content: str = Field(default="hello")
 
-    class WithMargin(Grid):
+    class WithMargin(BaseGrid):
         content: str = Field(default="hello", class_name="m-4")
 
     plain_lines = render_grid_offscreen(Plain()).split("\n")
@@ -922,9 +922,9 @@ def test_terminal_margin_insets_content() -> None:
 
 
 def test_terminal_asymmetric_margin_sides() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         content: str = Field(
             default="hello", class_name="mt-4 ml-8 border"
         )
@@ -938,9 +938,9 @@ def test_terminal_asymmetric_margin_sides() -> None:
 
 
 def test_terminal_width_class_constrains_split() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid, direction="horizontal"):
+    class App(BaseGrid, direction="horizontal"):
         left: str = Field(default="L", class_name="w-8 border")
         right: str = Field(default="R", border="plain")
 
@@ -952,9 +952,9 @@ def test_terminal_width_class_constrains_split() -> None:
 
 
 def test_terminal_height_class_constrains_split() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         top: str = Field(default="T", class_name="h-16 border")
         bottom: str = Field(default="B")
 
@@ -967,9 +967,9 @@ def test_terminal_height_class_constrains_split() -> None:
 
 
 def test_terminal_ignores_web_only_classes() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         content: str = Field(
             default="hello",
             class_name="shadow-lg transition hover:bg-red-500 truncate",
@@ -980,9 +980,9 @@ def test_terminal_ignores_web_only_classes() -> None:
 
 
 def test_terminal_grid_with_multiple_class_name_fields() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid, gap=1):
+    class App(BaseGrid, gap=1):
         header: str = Field(
             default="Header", class_name="h-4 border-b font-bold"
         )
@@ -1001,15 +1001,15 @@ def test_terminal_grid_with_multiple_class_name_fields() -> None:
 
 
 def render_grid_html(grid: Any) -> str:
-    from xnano.beta.controllers.web import WebController
+    from xnano.core.controllers.webui import WebController
 
     return WebController().render_grid_html(grid)
 
 
 def test_web_emits_raw_classes_verbatim() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         header: str = Field(
             default="Dashboard",
             class_name="p-2 bg-slate-900 text-slate-100 shadow-lg",
@@ -1026,9 +1026,9 @@ def test_web_emits_raw_classes_verbatim() -> None:
 
 
 def test_web_emits_unknown_classes_verbatim() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         body: str = Field(default="x", class_name="my-custom-class md:p-8")
 
     html = render_grid_html(App())
@@ -1037,9 +1037,9 @@ def test_web_emits_unknown_classes_verbatim() -> None:
 
 
 def test_web_inline_style_when_kwarg_overrides_class() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         body: str = Field(
             default="x", color="red", class_name="text-blue-500"
         )
@@ -1050,9 +1050,9 @@ def test_web_inline_style_when_kwarg_overrides_class() -> None:
 
 
 def test_web_suppresses_covered_modifier_classes() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         body: str = Field(default="x", class_name="font-bold")
 
     html = render_grid_html(App())
@@ -1060,9 +1060,9 @@ def test_web_suppresses_covered_modifier_classes() -> None:
 
 
 def test_web_suppresses_covered_alignment() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         body: str = Field(default="x", class_name="text-center")
 
     html = render_grid_html(App())
@@ -1070,9 +1070,9 @@ def test_web_suppresses_covered_alignment() -> None:
 
 
 def test_web_suppresses_covered_sizing() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid, direction="horizontal"):
+    class App(BaseGrid, direction="horizontal"):
         left: str = Field(default="L", class_name="w-1/2")
         right: str = Field(default="R")
 
@@ -1082,9 +1082,9 @@ def test_web_suppresses_covered_sizing() -> None:
 
 
 def test_web_inline_sizing_when_kwarg_overrides_class() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid, direction="horizontal"):
+    class App(BaseGrid, direction="horizontal"):
         left: str = Field(default="L", width="75%", class_name="w-1/2")
         right: str = Field(default="R")
 
@@ -1094,9 +1094,9 @@ def test_web_inline_sizing_when_kwarg_overrides_class() -> None:
 
 
 def test_web_suppresses_covered_frame_chrome() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         body: str = Field(default="x", class_name="border rounded-lg p-1")
 
     html = render_grid_html(App())
@@ -1106,9 +1106,9 @@ def test_web_suppresses_covered_frame_chrome() -> None:
 
 
 def test_web_keeps_frame_chrome_without_class_name() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         body: str = Field(default="x", border="rounded", padding=1)
 
     html = render_grid_html(App())
@@ -1118,9 +1118,9 @@ def test_web_keeps_frame_chrome_without_class_name() -> None:
 
 
 def test_web_flex_weight_class_replaces_flex_grow_style() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         body: str = Field(default="x", class_name="flex-1")
 
     html = render_grid_html(App())
@@ -1129,9 +1129,9 @@ def test_web_flex_weight_class_replaces_flex_grow_style() -> None:
 
 
 def test_web_margin_classes_have_no_inline_margin() -> None:
-    from xnano import Grid
+    from xnano import BaseGrid
 
-    class App(Grid):
+    class App(BaseGrid):
         body: str = Field(default="x", class_name="m-4")
 
     html = render_grid_html(App())

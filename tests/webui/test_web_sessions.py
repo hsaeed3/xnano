@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import types
 
-from tests.beta.grids import InteractiveGrid
-from xnano.beta.web import Web
+from tests.webui.grids import InteractiveGrid
+from xnano.webui import Web
 
 
 def test_factory_source_creates_isolated_sessions() -> None:
@@ -22,7 +22,7 @@ def test_factory_source_creates_isolated_sessions() -> None:
 
 
 def test_grid_instance_source_shares_mutations() -> None:
-    """A Grid instance source is one shared grid across sessions."""
+    """A BaseGrid instance source is one shared grid across sessions."""
     grid = InteractiveGrid()
     web = Web()
     web._source = grid

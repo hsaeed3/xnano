@@ -7,8 +7,8 @@ from helpers import render_component_to_text
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.chart import Chart
 from xnano.components.schema import Series
-from xnano.core.nodes.terminal import ChartNode
-from xnano.types import Area
+from xnano.tui.nodes import ChartNode
+from xnano._types import Area
 
 
 def _ctx() -> ComponentRenderContext:

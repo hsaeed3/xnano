@@ -1,21 +1,21 @@
-"""Tests for xnano Grid field initialization."""
+"""Tests for xnano BaseGrid field initialization."""
 
 from __future__ import annotations
 
 from xnano.fields import Field
-from xnano.grid import Grid
+from xnano.grid import BaseGrid
 from xnano.components.text import Text
 from xnano_core.core import CoreSession
 from xnano_core.rust import native
-from xnano.core.controllers.terminal import TerminalController
-from xnano.types import Area as GridArea
+from xnano.core.controllers.tui import TerminalController
+from xnano._types import Area as GridArea
 
 
-class Leaf(Grid):
+class Leaf(BaseGrid):
     label: str = Field(default="hello")
 
 
-class Root(Grid, direction="horizontal"):
+class Root(BaseGrid, direction="horizontal"):
     left: Leaf = Field(default_factory=Leaf)
     right: Leaf = Field(default_factory=Leaf)
 
@@ -28,7 +28,7 @@ def test_default_factory_creates_instances() -> None:
     assert root.left.label == "hello"
 
 
-class OptionalPanel(Grid, direction="vertical"):
+class OptionalPanel(BaseGrid, direction="vertical"):
     body: Text = Field(default=Text("visible"))
     overlay: Text | None = Field(
         default=None, border="rounded", title="Overlay"
@@ -69,7 +69,7 @@ def test_nullable_layout_field_renders_when_set() -> None:
 
 
 def test_grid_play_effect_targets_layout_field_area() -> None:
-    class EffectGrid(Grid):
+    class EffectGrid(BaseGrid):
         body: Text = Field(default=Text("hello"))
 
     grid = EffectGrid()
@@ -92,7 +92,7 @@ def test_grid_play_effect_targets_layout_field_area() -> None:
 
 
 def test_field_text_background_does_not_paint_frame() -> None:
-    class App(Grid, direction="vertical"):
+    class App(BaseGrid, direction="vertical"):
         header: str = Field(
             default="My App",
             height=1,
@@ -121,7 +121,7 @@ def test_field_text_background_does_not_paint_frame() -> None:
 def test_field_background_covers_text_span_only() -> None:
     # A field background should paint behind the text glyphs only, not flood
     # the whole slot to the right edge. "violet" == #ee82ee.
-    class App(Grid, direction="vertical"):
+    class App(BaseGrid, direction="vertical"):
         header: str = Field(
             default="My App",
             height=1,

@@ -7,13 +7,13 @@ slot geometry, so no TTY is required.
 from __future__ import annotations
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.sizing import Sizing
-from xnano.terminal import Terminal
-from xnano.types import Area
+from xnano.grid import BaseGrid
+from xnano._types import Sizing
+from xnano.tui import Terminal
+from xnano._types import Area
 
 
-def _slot_areas(grid: Grid, width: int, height: int) -> dict[str, Area]:
+def _slot_areas(grid: BaseGrid, width: int, height: int) -> dict[str, Area]:
     """Build ``grid`` into a ``width`` x ``height`` area and return slot areas."""
     terminal = Terminal.offscreen(cols=width, rows=height)
     terminal._track_frame_grid(grid)
@@ -25,7 +25,7 @@ def _slot_areas(grid: Grid, width: int, height: int) -> dict[str, Area]:
 
 
 def test_vertical_height_cells() -> None:
-    class App(Grid):
+    class App(BaseGrid):
         header: str = Field(default="h", height=2)
         body: str = Field(default="b", height="1fr")
 
@@ -38,7 +38,7 @@ def test_vertical_height_cells() -> None:
 
 
 def test_horizontal_width_percent() -> None:
-    class Row(Grid, direction="horizontal"):
+    class Row(BaseGrid, direction="horizontal"):
         left: str = Field(default="l", width="25%")
         right: str = Field(default="r", width="1fr")
 
@@ -48,7 +48,7 @@ def test_horizontal_width_percent() -> None:
 
 
 def test_horizontal_width_ratio() -> None:
-    class Row(Grid, direction="horizontal"):
+    class Row(BaseGrid, direction="horizontal"):
         left: str = Field(default="l", width=Sizing.ratio(1, 4))
         right: str = Field(default="r", width="1fr")
 
@@ -58,7 +58,7 @@ def test_horizontal_width_ratio() -> None:
 
 
 def test_vertical_height_fit() -> None:
-    class App(Grid):
+    class App(BaseGrid):
         header: str = Field(default="one\ntwo", height="fit")
         body: str = Field(default="b", height="1fr")
 
@@ -69,7 +69,7 @@ def test_vertical_height_fit() -> None:
 
 
 def test_fixed_height_wins_over_fill_sibling() -> None:
-    class App(Grid):
+    class App(BaseGrid):
         top: str = Field(default="t", height=3)
         rest: str = Field(default="r", height="1fr")
 
@@ -84,7 +84,7 @@ def test_fixed_height_wins_over_fill_sibling() -> None:
 
 
 def test_vertical_cross_axis_width_cells() -> None:
-    class App(Grid):
+    class App(BaseGrid):
         a: str = Field(default="x", width=10, height=2)
 
     area = _slot_areas(App(), 40, 6)["a"]
@@ -94,7 +94,7 @@ def test_vertical_cross_axis_width_cells() -> None:
 
 
 def test_horizontal_cross_axis_height_cells() -> None:
-    class Row(Grid, direction="horizontal"):
+    class Row(BaseGrid, direction="horizontal"):
         a: str = Field(default="x", width="50%", height=3)
         b: str = Field(default="y", width="1fr")
 
@@ -106,7 +106,7 @@ def test_horizontal_cross_axis_height_cells() -> None:
 
 
 def test_cross_axis_fit_measures_content() -> None:
-    class App(Grid):
+    class App(BaseGrid):
         a: str = Field(default="hello", width="fit")
 
     area = _slot_areas(App(), 40, 6)["a"]
@@ -114,7 +114,7 @@ def test_cross_axis_fit_measures_content() -> None:
 
 
 def test_cross_axis_percent() -> None:
-    class App(Grid):
+    class App(BaseGrid):
         a: str = Field(default="x", width="25%")
 
     area = _slot_areas(App(), 40, 6)["a"]
@@ -122,7 +122,7 @@ def test_cross_axis_percent() -> None:
 
 
 def test_cross_axis_none_fills() -> None:
-    class App(Grid):
+    class App(BaseGrid):
         a: str = Field(default="x", height=2)
 
     area = _slot_areas(App(), 40, 6)["a"]
