@@ -22,7 +22,7 @@ terminal cursor shapes:
 | `"blinking_bar"`, `"steady_bar"` | Vertical bar |
 
 ```python title="cursor-style.py"
-from xnano.hooks import on_keyboard
+from xnano.events import on_keyboard
 
 
 @on_keyboard("i")
@@ -49,7 +49,7 @@ Coordinates are zero-based: `(0, 0)` is the top-left cell of the terminal.
 `get_position()` returns the current `(x, y)` coordinate.
 
 ```python title="cursor-position.py"
-from xnano.hooks import on_keyboard
+from xnano.events import on_keyboard
 
 
 @on_keyboard("p")

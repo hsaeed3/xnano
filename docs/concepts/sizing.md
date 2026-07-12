@@ -22,9 +22,9 @@ Fixed and fitted fields are resolved first. Percentages are resolved next,
 then fractional fields divide what remains.
 
 ```python title="sizing.py"
-from xnano import Field, Grid, Terminal
+from xnano import Field, BaseGrid, Terminal
 
-class App(Grid, direction="vertical", gap=1):
+class App(BaseGrid, direction="vertical", gap=1):
     header: str = Field(default="fixed: 1 row", height=1)  # (1)!
     summary: str = Field(default="percent: 25%", height="25%")
     body: str = Field(default="fraction: the remainder", height="1fr")  # (2)!

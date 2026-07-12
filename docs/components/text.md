@@ -11,7 +11,7 @@ input. Its shape comes from `content`: a string is a paragraph, a list of leaf
 
 ```python title="styled_text.py"
 from xnano.components.text import Text
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 message = Text(
     [
@@ -38,7 +38,7 @@ paragraph.
 
 ```python title="multiline_text.py"
 from xnano.components.text import Text
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 summary = Text(
     [
@@ -68,10 +68,10 @@ focused. `placeholder` appears only while the value is empty and unfocused.
 ```python title="text_input.py" hl_lines="8"
 from xnano.components.text import Text
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.terminal import Terminal
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
 
-class Search(Grid):
+class Search(BaseGrid):
     query: Text = Field(
         default_factory=lambda: Text("", input=True, placeholder="Search…"),  # (1)!
         height=1,
@@ -88,17 +88,13 @@ Terminal(height=1).run(Search())
 
 <!-- Demo key: components/text-input; viewport: 36x1 cells. -->
 
-??? note "Beta: web-capable Text"
+??? note "Web rendering"
 
-    The stable `Text` on this page targets the terminal. For browser
-    rendering under [Web UI]{data-preview}, use
-    `xnano.beta.components.text.Text` — a thin subclass that implements
-    `get_web_node` and lowers styled / multiline / input content to HTML
-    via web render nodes. Import that class when a grid field must paint
-    under both hosts; the API surface (colors, modifiers, `input=True`)
-    stays the same.
+    `Text` implements both `compose()` / `get_terminal_node` for the TUI and
+    `get_web_node` for the browser. The same class works under
+    [Web UI]{data-preview}; colors, modifiers, and `input=True` stay the same.
 
     See [Web rendering]{data-preview} for node layout and placeholders.
 
-[Web UI]: ../beta/webui/index.md
-[Web rendering]: ../beta/webui/rendering.md
+[Web UI]: ../webui/index.md
+[Web rendering]: ../webui/rendering.md

@@ -18,7 +18,7 @@ Most programs need one `Terminal` and one of two methods:
 
     ```python title="status.py"
     from xnano.components.text import Text
-    from xnano.terminal import Terminal
+    from xnano.tui import Terminal
 
     Terminal().render(
         Text("Build complete", color="emerald-400"),
@@ -39,12 +39,12 @@ Most programs need one `Terminal` and one of two methods:
 
     ```python title="app.py"
     from xnano.fields import Field
-    from xnano.grid import Grid
-    from xnano.hooks import on_keyboard
-    from xnano.terminal import Terminal
+    from xnano.grid import BaseGrid
+    from xnano.events import on_keyboard
+    from xnano.tui import Terminal
 
 
-    class App(Grid):
+    class App(BaseGrid):
         message: str = Field(default="Press q to leave")
 
         @on_keyboard("q")
@@ -80,7 +80,7 @@ A grid has no intrinsic height, so `height="fit"` on a grid falls back to the
 full screen and emits a warning. Use a fixed height for an inline grid.
 
 ```python title="sized.py"
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 Terminal(width=36, height=3).render(
     "A compact result",
@@ -115,7 +115,7 @@ after `run()`. Calling `run()` or `render()` directly also enters and restores
 the session automatically.
 
 ```python title="session.py"
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 with Terminal(title="Tasks", mouse_events=True) as terminal:
     terminal.run(App())
