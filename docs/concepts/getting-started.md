@@ -49,7 +49,7 @@ color.
 You can pass any number of renderables. They stack vertically in the order given.
 
 ```python title="hello.py"
-from xnano._renderable import render
+from xnano import render
 from xnano.components.text import Text
 
 render(

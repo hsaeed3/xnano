@@ -10,7 +10,7 @@ loop. Choose `render()` for a one-frame session result that returns to the
 shell and `run()` for a grid that stays active and responds to events.
 
 For simple print-like output without a session, prefer the standalone
-[`render()`](../api/core/renderable.md) helper from `xnano._renderable`.
+[`render()`](../api/core/renderable.md) helper (`from xnano import render`).
 
 ## Render a result
 
