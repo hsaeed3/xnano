@@ -15,9 +15,9 @@ import random
 import time
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.terminal import Terminal
-from xnano.hooks import on_keyboard, on_tick
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
+from xnano.events import on_keyboard, on_tick
 from xnano.components.sparkline import Sparkline
 from xnano.components.text import Text
 from xnano.components.abstract import (
@@ -181,7 +181,7 @@ class ServiceGraph(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             CanvasLine,
             CanvasNode,
             CanvasPrint,
@@ -248,7 +248,7 @@ class ServiceTable(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -330,7 +330,7 @@ class ErrorGauge(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import LineGaugeNode
+        from xnano.tui.nodes import LineGaugeNode
 
         if self.ratio < 0.02:
             filled = tailwind_color("emerald", 500)
@@ -357,7 +357,7 @@ class EndpointChart(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             BarChartNode,
             BarGroupItem,
             BarItem,
@@ -392,7 +392,7 @@ class EventLog(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -481,7 +481,7 @@ class EventLog(AbstractComponent):
 # ── Layout ────────────────────────────────────────────────────────────────────
 
 
-class SparkRow(Grid, direction="horizontal", gap=1):
+class SparkRow(BaseGrid, direction="horizontal", gap=1):
     s_api: Sparkline = Field(
         default_factory=Sparkline,
         border="plain",
@@ -508,7 +508,7 @@ class SparkRow(Grid, direction="horizontal", gap=1):
     )
 
 
-class GaugeStack(Grid, direction="vertical", gap=0):
+class GaugeStack(BaseGrid, direction="vertical", gap=0):
     g0: ErrorGauge = Field(
         default_factory=ErrorGauge,
         height=3,
@@ -535,7 +535,7 @@ class GaugeStack(Grid, direction="vertical", gap=0):
     )
 
 
-class RightPanel(Grid, direction="vertical", gap=1):
+class RightPanel(BaseGrid, direction="vertical", gap=1):
     table: ServiceTable = Field(
         default_factory=ServiceTable,
         border="rounded",
@@ -558,7 +558,7 @@ class RightPanel(Grid, direction="vertical", gap=1):
     )
 
 
-class GraphPanel(Grid, direction="vertical", gap=1):
+class GraphPanel(BaseGrid, direction="vertical", gap=1):
     svc_label: Text = Field(default=Text(""), height=1)
     main_graph: ServiceGraph = Field(
         default_factory=ServiceGraph,
@@ -582,12 +582,12 @@ class GraphPanel(Grid, direction="vertical", gap=1):
     )
 
 
-class MainArea(Grid, direction="horizontal", gap=1):
+class MainArea(BaseGrid, direction="horizontal", gap=1):
     graphs: GraphPanel = Field(default_factory=GraphPanel, width="62%")
     right: RightPanel = Field(default_factory=RightPanel)
 
 
-class ApiMonitor(Grid, direction="vertical"):
+class ApiMonitor(BaseGrid, direction="vertical"):
     header: str = Field(
         default="  API HEALTH MONITOR",
         height=1,

@@ -17,9 +17,9 @@ import time
 from typing import Literal, cast
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.terminal import Terminal
-from xnano.hooks import on_keyboard, on_tick
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
+from xnano.events import on_keyboard, on_tick
 from xnano.components.text import Text
 from xnano.components.abstract import (
     AbstractComponent,
@@ -168,7 +168,7 @@ class BoardTabs(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import LineNode, SpanNode, TabsNode
+        from xnano.tui.nodes import LineNode, SpanNode, TabsNode
 
         titles: list[str | LineNode | SpanNode] = [
             SpanNode(
@@ -198,7 +198,7 @@ class TaskList(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -265,7 +265,7 @@ class ActivityFeed(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -311,7 +311,7 @@ class VelocityChart(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             CanvasLine,
             CanvasNode,
             CanvasPrint,
@@ -384,7 +384,7 @@ class PriorityBreakdown(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             BarChartNode,
             BarGroupItem,
             BarItem,
@@ -426,7 +426,7 @@ class SprintGauge(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.core.nodes.terminal import LineGaugeNode
+        from xnano.tui.nodes import LineGaugeNode
 
         return LineGaugeNode(
             progress=self.progress,
@@ -440,7 +440,7 @@ class SprintGauge(AbstractComponent):
 # ── Layout ────────────────────────────────────────────────────────────────────
 
 
-class SprintStats(Grid, direction="vertical", gap=0):
+class SprintStats(BaseGrid, direction="vertical", gap=0):
     completion: SprintGauge = Field(
         default_factory=SprintGauge,
         height=3,
@@ -461,7 +461,7 @@ class SprintStats(Grid, direction="vertical", gap=0):
     )
 
 
-class LeftPane(Grid, direction="vertical", gap=1):
+class LeftPane(BaseGrid, direction="vertical", gap=1):
     col_tabs: BoardTabs = Field(
         default_factory=BoardTabs,
         height=3,
@@ -482,7 +482,7 @@ class LeftPane(Grid, direction="vertical", gap=1):
     )
 
 
-class RightPane(Grid, direction="vertical", gap=1):
+class RightPane(BaseGrid, direction="vertical", gap=1):
     velocity: VelocityChart = Field(
         default_factory=VelocityChart,
         border="rounded",
@@ -505,12 +505,12 @@ class RightPane(Grid, direction="vertical", gap=1):
     )
 
 
-class MainArea(Grid, direction="horizontal", gap=1):
+class MainArea(BaseGrid, direction="horizontal", gap=1):
     left: LeftPane = Field(default_factory=LeftPane, width="45%")
     right: RightPane = Field(default_factory=RightPane)
 
 
-class KanbanApp(Grid, direction="vertical"):
+class KanbanApp(BaseGrid, direction="vertical"):
     header: str = Field(
         default="  BOARD",
         height=1,

@@ -197,15 +197,15 @@ def optimize(gif: pathlib.Path) -> None:
 def run_example(name: str) -> None:
     """Launch one feature-tour stage for VHS to record."""
     if name == "title":
-        from xnano.core.demo.title import TitleSplash
-        from xnano.terminal import Terminal
+        from xnano._demo import TitleSplash
+        from xnano.tui import Terminal
 
         Terminal(title="xnano · title", tick_interval=16).run(TitleSplash())
         return
 
     if name == "panels":
-        from xnano.core.demo.panels import XnanoDemo
-        from xnano.terminal import Terminal
+        from xnano._demo import XnanoDemo
+        from xnano.tui import Terminal
 
         Terminal(title="xnano · feature tour", tick_interval=16).run(
             XnanoDemo()
