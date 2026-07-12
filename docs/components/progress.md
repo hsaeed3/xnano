@@ -10,7 +10,7 @@ a ratio directly, or provide `total` when the value is an absolute amount.
 
 ```python title="progress.py"
 from xnano.components.progress import Progress
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 Terminal(width=32, height=1).run(
     Progress(value=37, total=50, color="cyan")  # (1)!
@@ -30,7 +30,7 @@ Use `style="line"` for a thin line gauge. Set `label` to custom text or
 
 ```python title="line_progress.py"
 from xnano.components.progress import Progress
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 Terminal(width=32, height=1).run(
     Progress(

@@ -16,10 +16,10 @@ literal value, while named keys use values such as `"enter"`, `"up"`, or
 `"ctrl+c"`.
 
 ```python title="counter.py"
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_keyboard
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_keyboard
 
-class Counter(Grid, direction="vertical", gap=1):
+class Counter(BaseGrid, direction="vertical", gap=1):
     label: str = Field(default="Count: 0", height=3, border="rounded")
     hint: str = Field(default="↑ / ↓ to count · q to quit", height=1)
     count: int = Field(default=0, state=True)
@@ -59,10 +59,10 @@ the render loop.
 ```python title="clock.py"
 import time
 
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_keyboard, on_tick
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_keyboard, on_tick
 
-class Clock(Grid):
+class Clock(BaseGrid):
     display: str = Field(default="", border="rounded", title=" Clock ")
 
     @on_tick(1000)  # (1)!
@@ -89,10 +89,10 @@ Terminal().run(Clock())
 the terminal, then update ordinary grid fields inside the handler.
 
 ```python title="button.py"
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_click, on_keyboard
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_click, on_keyboard
 
-class App(Grid, direction="vertical", gap=1):
+class App(BaseGrid, direction="vertical", gap=1):
     button: str = Field(default="[ Click me ]", height=3, border="rounded")
     result: str = Field(default="Waiting...", height=1)
 
@@ -115,10 +115,10 @@ Terminal(mouse_events=True).run(App())
 </div>
 
 Other hooks cover raw events, resize, focus, polling, field expressions, and
-shared state. See the [`xnano.hooks` reference](../api/hooks.md) for their full
+shared state. See the [`xnano.events` reference](../api/events.md) for their full
 signatures.
 
-??? note "Beta: HTTP request hooks"
+??? note "HTTP request hooks"
 
     When a grid is hosted by [Web UI]{data-preview}, methods marked with
     `@on_get_request` / `@on_post_request` become Starlette routes. After a
@@ -129,5 +129,5 @@ signatures.
     Under `Terminal` those request decorators only attach metadata; they never
     fire during a TUI frame. Details live under [Request hooks]{data-preview}.
 
-[Web UI]: ../beta/webui/index.md
-[Request hooks]: ../beta/webui/requests.md
+[Web UI]: ../webui/index.md
+[Request hooks]: ../webui/requests.md

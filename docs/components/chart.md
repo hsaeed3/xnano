@@ -11,7 +11,7 @@ series colors are inferred by default.
 
 ```python title="chart.py"
 from xnano.components.chart import Chart
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 usage = Chart(
     series={
@@ -38,7 +38,7 @@ Set `kind` to `"line"`, `"scatter"`, or `"bar"`. Explicit `x_bounds` and
 
 ```python title="bar_chart.py"
 from xnano.components.chart import Chart
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 requests = Chart(
     series={"requests": [(0, 18), (1, 31), (2, 24), (3, 40)]},
@@ -67,7 +67,7 @@ kind for one series.
 ```python title="latency_chart.py"
 from xnano.components.chart import Chart
 from xnano.components.schema import Series
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 class LatencyChart(Chart):
     median = Series(label="p50", color="green")

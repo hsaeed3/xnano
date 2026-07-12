@@ -55,16 +55,16 @@ text, a table, a chart, a progress indicator, or a sparkline.
 
 ## Components and grids
 
-A `Grid` owns layout. A component owns the content painted inside one layout
-slot. This separation lets the same component be moved between grids without
-rewriting its rendering code.
+A `BaseGrid` owns layout. A component owns the content painted inside one
+layout slot. This separation lets the same component be moved between grids
+without rewriting its rendering code.
 
 ```python title="component_grid.py" hl_lines="6"
 from xnano.components.progress import Progress
 from xnano.fields import Field
-from xnano.grid import Grid
+from xnano.grid import BaseGrid
 
-class BuildStatus(Grid):
+class BuildStatus(BaseGrid):
     completion: Progress = Field(default_factory=lambda: Progress(0.72))  # (1)!
 ```
 
@@ -80,15 +80,16 @@ class BuildStatus(Grid):
 ## Building a component
 
 Subclass `AbstractComponent` and implement the renderer for each interface you
-support. Terminal components return an `AbstractTerminalNode` from
-`get_terminal_node()`. The render context carries the current area, terminal,
+support. Prefer `compose()` for interface-neutral content. Controllers also
+accept the compatibility adapter `get_terminal_node()`, which returns an
+`AbstractTerminalNode`. The render context carries the current area, terminal,
 application state, and component.
 
 ```python title="badge.py" hl_lines="10 11 12"
 import dataclasses
 
 from xnano.components.abstract import AbstractComponent, ComponentRenderContext
-from xnano.core.nodes.terminal import ParagraphNode
+from xnano.tui.nodes import ParagraphNode
 
 @dataclasses.dataclass
 class Badge(AbstractComponent):
@@ -119,10 +120,10 @@ update those values or shared state; the next frame calls the component again.
 This keeps state handling independent from the terminal node implementation
 and leaves room for another interface renderer to read the same values.
 
-!!! info "Beta web rendering"
+!!! info "Web rendering"
     The component contract is already split by interface. The
-    [beta Web UI](../beta/webui/index.md) paints the same grids in the browser
-    with [web render nodes](../beta/webui/rendering.md) and
-    [request hooks](../beta/webui/requests.md). Use
-    `xnano.beta.components.text.Text` when a field needs `get_web_node` for
-    HTML; the stable `xnano.components.Text` remains the terminal path.
+    [Web UI](../webui/index.md) paints the same grids in the browser with
+    [web render nodes](../webui/rendering.md) and
+    [request hooks](../webui/requests.md). Stable components such as
+    `xnano.components.Text` implement `get_web_node` for HTML alongside
+    terminal rendering.

@@ -12,7 +12,7 @@ configuration, much as a grid field connects a value to layout configuration.
 ```python title="declarative_table.py"
 from xnano.components.schema import Column
 from xnano.components.table import Table
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 class ServiceTable(Table):
     service: str = Column()

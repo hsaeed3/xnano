@@ -42,14 +42,14 @@ state or changes device settings.
 ```python title="state.py"
 import dataclasses
 
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_keyboard
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_keyboard
 
 @dataclasses.dataclass
 class AppState:
     theme: str = "dark"
 
-class App(Grid):
+class App(BaseGrid):
     label: str = Field(default="Theme: dark")
 
     @on_keyboard("t")
@@ -76,5 +76,5 @@ with Terminal(state=AppState()) as terminal:
 ![A terminal app toggling its theme state](../assets/concepts/terminal_state-light.gif){.demo-light width="700" loading=lazy}
 </div>
 
-The [Terminal guide](../terminal/index.md) covers offscreen sessions, device
+The [TUI guide](../terminal/index.md) covers offscreen sessions, device
 modes, and cursor control.
