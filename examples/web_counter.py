@@ -1,6 +1,6 @@
 """xnano web counter example.
 
-Demonstrates the same Grid working on both terminal and web interfaces:
+Demonstrates the same BaseGrid working on both terminal and web interfaces:
 click the box (or press the up arrow) to count, type into the name
 input, and watch the tick counter advance once per second.
 
@@ -14,13 +14,13 @@ from __future__ import annotations
 
 import sys
 
-from xnano.grid import Grid
+from xnano.grid import BaseGrid
 from xnano.fields import Field
-from xnano.hooks import on_click, on_keyboard, on_tick
-from xnano.beta.components.text import Text
+from xnano.events import on_click, on_keyboard, on_tick
+from xnano.components.text import Text
 
 
-class Counter(Grid, direction="vertical", gap=1):
+class Counter(BaseGrid, direction="vertical", gap=1):
     """A counter with click, keyboard, tick, and text-input hooks."""
 
     title: Text = Field(
@@ -67,13 +67,13 @@ def main() -> None:
     use_web = "--web" in sys.argv
 
     if use_web:
-        from xnano.beta.web import Web
+        from xnano.webui import Web
 
         # Pass the class itself for a fresh grid per browser session;
         # pass an instance (``Counter()``) to share one across visitors.
         Web(title="xnano web counter").run(Counter)
     else:
-        from xnano.terminal import Terminal
+        from xnano.tui import Terminal
 
         with Terminal() as terminal:
             terminal.run(Counter())

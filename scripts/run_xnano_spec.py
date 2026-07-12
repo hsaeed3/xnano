@@ -120,9 +120,9 @@ def save_block(block: SpecBlock, new_body: list[str]) -> None:
 # ---------------------------------------------------------------------------
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.terminal import Terminal
-from xnano.hooks import on_keyboard
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
+from xnano.events import on_keyboard
 from xnano.components.text import Text
 from xnano.color import tailwind_color
 
@@ -203,7 +203,7 @@ def _render_detail(
     return Text(parts)
 
 
-class SpecApp(Grid, direction="horizontal", gap=1, background="black"):
+class SpecApp(BaseGrid, direction="horizontal", gap=1, background="black"):
     left: Text = Field(
         default=Text(""),
         width="30%",
@@ -281,7 +281,7 @@ class SpecApp(Grid, direction="horizontal", gap=1, background="black"):
 
         if not self.edit_mode:
             if char == "q":
-                from xnano.exceptions import Exit
+                from xnano.core.exceptions import Exit
 
                 raise Exit
             elif char == "j" and self.blocks:
