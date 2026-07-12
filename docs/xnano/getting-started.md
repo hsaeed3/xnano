@@ -70,14 +70,10 @@ The main featureset of the library revolves around it's rust-based terminal rend
 
     The following example is interactive and can be run directly in the browser by hitting the <kbd>Run</kbd> button.
 
-```pyodide install="xnano==1.0.5"
-from xnano import Field, BaseGrid, render
+```pyodide install="xnano>=1.0.5"
+import xnano
 
-class App(BaseGrid, direction="horizontal"):
-    body: str = Field(default="hello, terminal!")
-    text: str = Field(default="hello, terminal again!", border="rounded")
-
-render(App())
+xnano.render("hello, terminal!", color="blue")
 ```
 
 ### Web
