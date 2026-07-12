@@ -72,14 +72,14 @@ DEMOS: tuple[Demo, ...] = (
     Demo(
         name="hello_world",
         code=dedent("""\
-            from xnano.grid import Grid
+            from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.context import Context
             from xnano.color import tailwind_color
-            from xnano.hooks import on_tick, on_keyboard
+            from xnano.events import on_tick, on_keyboard
 
-            class App(Grid):
+            class App(BaseGrid):
                 message: str = Field(default="Hello, world!", color=tailwind_color("sky", 500))
                 current_color: str = Field(default="sky", state=True)
 
@@ -113,20 +113,20 @@ DEMOS: tuple[Demo, ...] = (
         name="layout_nesting",
         launch_delay="1.5s",
         code=dedent("""\
-            from xnano.grid import Grid
+            from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.context import Context
-            from xnano.hooks import on_keyboard
+            from xnano.events import on_keyboard
 
-            class SidebarTitle(Grid, align="center"):
+            class SidebarTitle(BaseGrid, align="center"):
                 title: str = Field("This is a title.", align="center")
 
-            class Sidebar(Grid, direction="vertical"):
+            class Sidebar(BaseGrid, direction="vertical"):
                 title: SidebarTitle = Field(default_factory=SidebarTitle, height="10%")
                 nav: str = Field(default="- Home", height="1fr")
 
-            class App(Grid, direction="horizontal", gap=1):
+            class App(BaseGrid, direction="horizontal", gap=1):
                 sidebar: Sidebar = Field(default_factory=Sidebar, width="25%")
                 content: str = Field(default="Main area", width="1fr", border="rounded")
 
@@ -143,13 +143,13 @@ DEMOS: tuple[Demo, ...] = (
         name="keyboard_events",
         launch_delay="1.5s",
         code=dedent("""\
-            from xnano.grid import Grid
+            from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.context import Context
-            from xnano.hooks import on_keyboard
+            from xnano.events import on_keyboard
 
-            class Counter(Grid, direction="vertical", gap=1):
+            class Counter(BaseGrid, direction="vertical", gap=1):
                 label: str = Field(default="Count: 0", height=1)
                 hint: str = Field(default="Press up/down · q to quit", height=1)
                 count: int = Field(default=0, state=True)
@@ -187,14 +187,14 @@ DEMOS: tuple[Demo, ...] = (
         code=dedent("""\
             import os
 
-            from xnano.grid import Grid
+            from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.context import Context
-            from xnano.hooks import on_click, on_keyboard
+            from xnano.events import on_click, on_keyboard
 
 
-            class App(Grid, direction="vertical", gap=1):
+            class App(BaseGrid, direction="vertical", gap=1):
                 button: str = Field(default="[ Click me ]", height=3, border="rounded")
                 status: str = Field(default="Waiting...", height="1fr")
 
@@ -230,13 +230,13 @@ DEMOS: tuple[Demo, ...] = (
         launch_delay="1.5s",
         code=dedent("""\
             import time
-            from xnano.grid import Grid
+            from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.context import Context
-            from xnano.hooks import on_tick, on_keyboard
+            from xnano.events import on_tick, on_keyboard
 
-            class Clock(Grid, direction="vertical"):
+            class Clock(BaseGrid, direction="vertical"):
                 time_display: str = Field(default="", height=3, border="rounded")
 
                 def __post_init__(self) -> None:
@@ -260,17 +260,17 @@ DEMOS: tuple[Demo, ...] = (
         launch_delay="1.5s",
         code=dedent("""\
             from dataclasses import dataclass
-            from xnano.grid import Grid
+            from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.context import Context
-            from xnano.hooks import on_keyboard
+            from xnano.events import on_keyboard
 
             @dataclass
             class AppState:
                 username: str = "guest"
 
-            class App(Grid, direction="vertical", gap=1):
+            class App(BaseGrid, direction="vertical", gap=1):
                 header: str = Field(default="", height=1)
                 body: str = Field(default="Press q to quit", height="1fr")
 
@@ -292,14 +292,14 @@ DEMOS: tuple[Demo, ...] = (
         launch_delay="1.5s",
         code=dedent("""\
             import dataclasses
-            from xnano.grid import Grid
+            from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.context import Context
             from xnano.color import tailwind_color, pydantic_color
-            from xnano.hooks import on_keyboard
+            from xnano.events import on_keyboard
             from xnano.components.abstract import AbstractComponent, ComponentRenderContext
-            from xnano.core.nodes.terminal import ParagraphNode, AbstractTerminalNode
+            from xnano.tui.nodes import ParagraphNode, AbstractTerminalNode
 
 
             @dataclasses.dataclass
@@ -311,7 +311,7 @@ DEMOS: tuple[Demo, ...] = (
                     return ParagraphNode(text=self.label, color=self.color)
 
 
-            class StatusBoard(Grid, direction="vertical", gap=1):
+            class StatusBoard(BaseGrid, direction="vertical", gap=1):
                 ok: Badge = Field(default_factory=lambda: Badge(label="● OK", color=tailwind_color("emerald", 500)), height=1)
                 warn: Badge = Field(default_factory=lambda: Badge(label="● Warning", color="yellow"), height=1)
                 err: Badge = Field(default_factory=lambda: Badge(label="● Error", color=pydantic_color("palevioletred")), height=1)

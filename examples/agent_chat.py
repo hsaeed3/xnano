@@ -13,12 +13,12 @@ import time
 from typing import Iterable, Iterator, Literal, TypeAlias
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.terminal import Terminal
-from xnano.hooks import on_keyboard, on_mouse, on_tick
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
+from xnano.events import on_keyboard, on_mouse, on_tick
 from xnano.components.text import Text
 from xnano.color import tailwind_color
-from xnano.types import CharacterModifier
+from xnano._types import CharacterModifier
 
 ToolKind: TypeAlias = Literal["read", "bash", "edit", "grep"]
 """Supported tool-call kinds shown in the transcript."""
@@ -355,7 +355,7 @@ def _render_autocomplete(
     return Text(parts)
 
 
-class AgentChat(Grid, direction="vertical", gap=0):
+class AgentChat(BaseGrid, direction="vertical", gap=0):
     """Agent CLI with transcript, slash commands, and simulated tool calls."""
 
     header: str = Field(
@@ -426,7 +426,7 @@ class AgentChat(Grid, direction="vertical", gap=0):
 
         ``source`` is consumed eagerly into state — a plain list, a
         generator, or a real streaming API's token iterator all work, since
-        a ``Grid`` state field must hold a concrete value rather than a
+        a ``BaseGrid`` state field must hold a concrete value rather than a
         live iterator.
         """
         self.messages = [*self.messages, {"type": "agent", "text": ""}]

@@ -26,7 +26,7 @@ generate_concept_demos.OUTPUT_DIR = (
 def _demo_code(imports: str, expression: str, width: int, height: int) -> str:
     return f"""import time
 {imports}
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 Terminal(width={width}, height={height}).render({expression})
 time.sleep(3)
