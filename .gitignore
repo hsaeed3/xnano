@@ -1,6 +1,7 @@
 .benchmarks/
 .workspace/
 .ruff_cache/
+dist-wasm/
 .DS_Store
 
 # Byte-compiled / optimized / DLL files
