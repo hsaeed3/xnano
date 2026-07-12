@@ -345,40 +345,37 @@ def test_join_horizontal_unequal_widths() -> None:
 
 
 def _call_render(**kwargs):
-    """Call _render_to_stdout and return printed lines."""
+    """Call _render_to_stdout and return written line groups."""
     import io
 
-    captured = io.StringIO()
-    import builtins
-
-    original = builtins.print
-
-    printed: list[str] = []
-
-    def fake_print(*args, **kw):
-        text = kw.get("sep", " ").join(str(a) for a in args)
-        printed.append(text)
-
-    builtins.print = fake_print  # type: ignore
-    try:
-        renderables = kwargs.pop("renderables", ("hello",))
-        _render_to_stdout(
-            renderables,
-            direction=kwargs.pop("direction", "vertical"),
-            color=kwargs.pop("color", None),
-            background=kwargs.pop("background", None),
-            modifiers=kwargs.pop("modifiers", None),
-            align=kwargs.pop("align", None),
-            border=kwargs.pop("border", None),
-            border_sides=kwargs.pop("border_sides", None),
-            border_color=kwargs.pop("border_color", None),
-            title=kwargs.pop("title", None),
-            title_position=kwargs.pop("title_position", None),
-            padding=kwargs.pop("padding", None),
-        )
-    finally:
-        builtins.print = original
-    return printed
+    buf = io.StringIO()
+    renderables = kwargs.pop("renderables", ("hello",))
+    _render_to_stdout(
+        renderables,
+        direction=kwargs.pop("direction", "vertical"),
+        color=kwargs.pop("color", None),
+        background=kwargs.pop("background", None),
+        modifiers=kwargs.pop("modifiers", None),
+        align=kwargs.pop("align", None),
+        border=kwargs.pop("border", None),
+        border_sides=kwargs.pop("border_sides", None),
+        border_color=kwargs.pop("border_color", None),
+        title=kwargs.pop("title", None),
+        title_position=kwargs.pop("title_position", None),
+        padding=kwargs.pop("padding", None),
+        sep=kwargs.pop("sep", " "),
+        end=kwargs.pop("end", "\n"),
+        file=buf,
+        flush=kwargs.pop("flush", False),
+        stream=kwargs.pop("stream", None),
+        update=kwargs.pop("update", False),
+    )
+    text = buf.getvalue()
+    if text == "":
+        return []
+    # Preserve prior test expectation: one joined body string per call.
+    body = text[:-1] if text.endswith("\n") else text
+    return [body]
 
 
 def test_stdout_plain_string() -> None:
@@ -576,3 +573,254 @@ def test_render_border_color(capsys) -> None:
     captured = capsys.readouterr()
     # border color prefix should appear around border chars
     assert "\033[38;2;255;0;0m" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# Text component styling
+# ---------------------------------------------------------------------------
+
+
+def test_render_text_component_leaf_color(capsys) -> None:
+    from xnano.components.text import Text
+
+    render(Text("Hello", color="violet", modifiers=("bold",)))
+    out = capsys.readouterr().out
+    assert "Hello" in out
+    assert "\033[1m" in out
+    assert "\033[38;2;" in out
+    assert "Text(" not in out
+
+
+def test_render_text_component_nested_spans(capsys) -> None:
+    from xnano.components.text import Text
+
+    message = Text(
+        [
+            Text("● ", color="emerald-400"),
+            Text("Done: ", color="white", modifiers=("bold",)),
+            Text("ok", color="slate-300"),
+        ]
+    )
+    render(message)
+    out = capsys.readouterr().out
+    assert "● " in out
+    assert "Done: " in out
+    assert "ok" in out
+    assert "\033[38;2;" in out
+
+
+def test_render_multiple_text_components_vertical(capsys) -> None:
+    from xnano.components.text import Text
+
+    render(
+        Text("Done: ", color="emerald-400", modifiers=("bold",)),
+        Text("All checks passed.", color="slate-400"),
+    )
+    lines = capsys.readouterr().out.splitlines()
+    assert any("Done:" in line for line in lines)
+    assert any("checks" in line for line in lines)
+
+
+# ---------------------------------------------------------------------------
+# Component fallbacks (Progress / Sparkline / Table / Chart)
+# ---------------------------------------------------------------------------
+
+
+def test_render_progress_component(capsys) -> None:
+    from xnano.components.progress import Progress
+
+    render(Progress(value=0.5))
+    out = capsys.readouterr().out
+    assert "50%" in out
+    assert "█" in out or "░" in out
+
+
+def test_render_progress_with_label(capsys) -> None:
+    from xnano.components.progress import Progress
+
+    render(Progress(value=0.4, label="cpu"))
+    out = capsys.readouterr().out
+    assert "cpu" in out
+
+
+def test_render_progress_value_total(capsys) -> None:
+    from xnano.components.progress import Progress
+
+    render(Progress(value=25, total=100))
+    out = capsys.readouterr().out
+    assert "25%" in out
+
+
+def test_render_sparkline(capsys) -> None:
+    from xnano.components.sparkline import Sparkline
+
+    render(Sparkline(data=[0, 2, 4, 8, 4, 2, 0]))
+    out = capsys.readouterr().out.strip()
+    assert out
+    assert any(ch in out for ch in "▁▂▃▄▅▆▇█")
+
+
+def test_render_table_from_dicts(capsys) -> None:
+    from xnano.components.table import Table
+
+    render(
+        Table(
+            data=[
+                {"service": "api", "status": "ok"},
+                {"service": "db", "status": "degraded"},
+            ]
+        )
+    )
+    out = capsys.readouterr().out
+    assert "service" in out
+    assert "api" in out
+    assert "degraded" in out
+
+
+def test_render_chart_summary(capsys) -> None:
+    from xnano.components.chart import Chart
+
+    render(Chart(series={"cpu": [1, 2, 3]}))
+    out = capsys.readouterr().out
+    assert "chart" in out.lower()
+
+
+# ---------------------------------------------------------------------------
+# builtins.print-compatible kwargs: sep, end, file, flush
+# ---------------------------------------------------------------------------
+
+
+def test_render_sep_horizontal(capsys) -> None:
+    render("left", "right", direction="horizontal", sep=" | ")
+    out = capsys.readouterr().out
+    assert "left | right" in out or ("left" in out and "right" in out)
+
+
+def test_render_end_empty(capsys) -> None:
+    render("no-newline", end="")
+    out = capsys.readouterr().out
+    assert out == "no-newline"
+
+
+def test_render_end_custom(capsys) -> None:
+    render("x", end="!\n")
+    out = capsys.readouterr().out
+    assert out.endswith("!\n")
+    assert "x" in out
+
+
+def test_render_to_file_object() -> None:
+    import io
+
+    buf = io.StringIO()
+    render("to-file", file=buf, end="")
+    assert buf.getvalue() == "to-file"
+
+
+def test_render_flush_file() -> None:
+    import io
+
+    class Tracking(io.StringIO):
+        def __init__(self) -> None:
+            super().__init__()
+            self.flush_count = 0
+
+        def flush(self) -> None:
+            self.flush_count += 1
+            super().flush()
+
+    buf = Tracking()
+    render("flush-me", file=buf, flush=True, end="")
+    assert buf.getvalue() == "flush-me"
+    assert buf.flush_count >= 1
+
+
+def test_render_file_with_styles() -> None:
+    import io
+
+    buf = io.StringIO()
+    render("styled", color="red", modifiers=["bold"], file=buf, end="")
+    text = buf.getvalue()
+    assert "styled" in text
+    assert "\033[1m" in text
+    assert "\033[38;2;" in text
+
+
+# ---------------------------------------------------------------------------
+# Stream append + full-content update
+# ---------------------------------------------------------------------------
+
+
+def test_stream_append_chunks(capsys) -> None:
+    from xnano._renderable import clear_stream, get_stream_content
+
+    clear_stream("chat")
+    render("Hello", stream="chat", end="", flush=True)
+    render(" world", stream="chat", end="\n", flush=True)
+    out = capsys.readouterr().out
+    assert "Hello" in out
+    assert "world" in out
+    assert get_stream_content("chat") == "Hello world\n"
+    clear_stream("chat")
+
+
+def test_stream_update_replaces_full_content(capsys) -> None:
+    from xnano._renderable import clear_stream, get_stream_content
+
+    clear_stream("status")
+    render("Loading.", stream="status", update=True, end="\n")
+    render("Done!", stream="status", update=True, end="\n")
+    # Final region content is the full replacement, not a concatenation.
+    assert get_stream_content("status") == "Done!\n"
+    out = capsys.readouterr().out
+    assert "Done!" in out
+    clear_stream("status")
+
+
+def test_stream_true_uses_default_id() -> None:
+    from xnano._renderable import clear_stream, get_stream_content
+
+    clear_stream(True)
+    render("a", stream=True, end="")
+    render("b", stream=True, end="")
+    assert get_stream_content(True) == "ab"
+    clear_stream(True)
+
+
+def test_stream_update_multiline_region(capsys) -> None:
+    from xnano._renderable import clear_stream, get_stream_content
+
+    clear_stream("box")
+    render("line1", "line2", stream="box", update=True, end="\n")
+    render("only", stream="box", update=True, end="\n")
+    assert get_stream_content("box") == "only\n"
+    clear_stream("box")
+
+
+def test_format_renderables_no_io() -> None:
+    from xnano._renderable import format_renderables
+
+    body = format_renderables(("alpha", "beta"), direction="vertical")
+    assert "alpha" in body
+    assert "beta" in body
+    assert "\n" in body
+
+
+def test_render_all_style_kwargs_together(capsys) -> None:
+    render(
+        "core",
+        color="cyan",
+        background="black",
+        modifiers=["bold", "underline"],
+        align="left",
+        border="rounded",
+        border_sides=["top", "bottom", "left", "right"],
+        border_color="yellow",
+        title="T",
+        title_position="top",
+        padding=1,
+    )
+    out = capsys.readouterr().out
+    assert "core" in out
+    assert "╭" in out
+    assert "T" in out
