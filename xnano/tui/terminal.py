@@ -1,4 +1,10 @@
-"""xnano.tui.terminal"""
+"""xnano.tui.terminal
+
+---
+
+``Terminal`` host: session lifecycle, run loop, viewport sizing, and
+hook dispatch for interactive TUI apps.
+"""
 
 from __future__ import annotations
 
@@ -51,7 +57,7 @@ StateT = TypeVar("StateT")
 class _ResolvedRun:
     """The viewport/root sizing resolved for a single ``run`` / ``render``.
 
-    Returned by :meth:`Terminal._resolve_run` so the resolution is an explicit
+    Returned by ``Terminal._resolve_run`` so the resolution is an explicit
     value rather than a hidden mutation. The terminal stores its fields where
     frame-time consumers read them (the inline height for session creation, the
     root width sizing for per-frame area resolution).
@@ -573,7 +579,7 @@ class Terminal(AbstractHost, Generic[StateT]):
         inline viewport. The width sizing constrains the root box within that
         viewport.
 
-        Returns a :class:`_ResolvedRun`; the caller is responsible for wiring
+        Returns a ``_ResolvedRun``; the caller is responsible for wiring
         its fields onto the terminal so the resolution is explicit rather than
         a side effect.
         """
@@ -613,7 +619,7 @@ class Terminal(AbstractHost, Generic[StateT]):
         """Store a ``_ResolvedRun`` where frame-time consumers read it.
 
         ``_inline_height`` is consumed once when the deferred session is created
-        (:meth:`_ensure_session`); ``_root_width_sizing`` is consumed every
+        (``_ensure_session``); ``_root_width_sizing`` is consumed every
         frame when resolving the root area.
         """
         self._inline_height = resolved.inline_height
@@ -622,7 +628,7 @@ class Terminal(AbstractHost, Generic[StateT]):
     def _recreate_session(self, resolved: _ResolvedRun) -> None:
         """Tear down the live session so the next access recreates it.
 
-        Used when a one-shot :meth:`render` needs a different inline viewport
+        Used when a one-shot ``render`` needs a different inline viewport
         height than the session that is already open.
         """
         if self._session is not None:
@@ -638,7 +644,7 @@ class Terminal(AbstractHost, Generic[StateT]):
     ) -> None:
         """Resolve viewport sizing for a one-shot render and prepare the session.
 
-        Each :meth:`render` call is content-sized. When an inline session is
+        Each ``render`` call is content-sized. When an inline session is
         already open but the new content needs a different inline viewport
         height, the existing session is torn down and recreated on the next
         paint.
@@ -743,7 +749,9 @@ class Terminal(AbstractHost, Generic[StateT]):
         """
         from xnano.grid import BaseGrid
 
-        is_grid = len(renderables) == 1 and isinstance(renderables[0], BaseGrid)
+        is_grid = len(renderables) == 1 and isinstance(
+            renderables[0], BaseGrid
+        )
 
         # Non-BaseGrid content renders inline; build its style field up front so
         # the inline viewport can be sized to include any border/padding.

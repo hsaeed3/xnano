@@ -35,7 +35,9 @@ from xnano.tui.nodes import (
 from xnano._types import Frame
 
 
-def lower_content(content: AbstractContent | Any) -> AbstractTerminalNode | None:
+def lower_content(
+    content: AbstractContent | Any,
+) -> AbstractTerminalNode | None:
     """Lower a Content tree (or passthrough node) to a terminal node.
 
     Args:
@@ -222,21 +224,23 @@ def _lower_text_block(block: TextBlock) -> AbstractTerminalNode:
     )
 
 
-def _lower_cell_canvas(canvas: CellCanvas) -> AbstractTerminalNode:
+def _lower_cell_canvas(canvas: Any) -> AbstractTerminalNode:
     """Lower a CellCanvas to a non-wrapping paragraph of run-length spans."""
     rows = getattr(canvas, "rows", None)
-    if rows is None and hasattr(canvas, "as_span_rows"):
-        rows = canvas.as_span_rows()
+    as_span_rows = getattr(canvas, "as_span_rows", None)
+    if rows is None and callable(as_span_rows):
+        rows = as_span_rows()
     if not rows:
-        # Per-cell storage fallback (local Stage CellCanvas).
-        if hasattr(canvas, "get_cell"):
+        # Per-cell storage fallback (Stage paint lattice).
+        get_cell = getattr(canvas, "get_cell", None)
+        if callable(get_cell):
             lines: list[LineNode] = []
-            for y in range(getattr(canvas, "height", 0)):
+            for y in range(int(getattr(canvas, "height", 0) or 0)):
                 spans: list[SpanNode] = []
                 current = ""
                 current_style: Any = None
-                for x in range(getattr(canvas, "width", 0)):
-                    glyph, style = canvas.get_cell(x, y)
+                for x in range(int(getattr(canvas, "width", 0) or 0)):
+                    glyph, style = get_cell(x, y)
                     if current and style != current_style:
                         spans.append(
                             _span_from_cell_run(current, current_style)
@@ -250,8 +254,8 @@ def _lower_cell_canvas(canvas: CellCanvas) -> AbstractTerminalNode:
             return ParagraphNode(
                 text=TextNode(lines=lines),
                 wrap=False,
-                z=canvas.z,
-                visible=canvas.visible,
+                z=getattr(canvas, "z", 0),
+                visible=getattr(canvas, "visible", True),
             )
         return ParagraphNode(text="", wrap=False)
 

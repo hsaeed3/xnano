@@ -23,10 +23,11 @@ from xnano._function_hooks import (
 
 
 class WebSession(AbstractHost):
-    """One live grid plus its hooks — the web analogue of a terminal.
+    """One live browser grid session with hooks, state, and device access.
 
-    Declared ``AbstractHost`` subtype so dispatch, ``perform``, device /
-    cursor / stage / actions share one contract with ``Terminal``.
+    Web analogue of ``Terminal``: renders the root grid to HTML, pumps
+    tick/state/field hooks, and exposes ``device``, ``cursor``,
+    ``actions``, and ``stage``.
     """
 
     def __init__(self, grid: Any, state: Any) -> None:
@@ -47,14 +48,14 @@ class WebSession(AbstractHost):
 
     @property
     def device(self) -> AbstractDevice:
-        """Live web device facade."""
+        """Browser device controls (title, size, scroll, clipboard)."""
         if self._device is None:
             self._device = WebDevice(self)
         return self._device
 
     @property
     def cursor(self) -> AbstractCursor:
-        """Live web cursor facade."""
+        """Browser caret / pointer style controls."""
         if self._cursor is None:
             self._cursor = WebCursor(self)
         return self._cursor
@@ -275,8 +276,6 @@ document.addEventListener("keydown", function (event) {
 """
 
 
-
-# Back-compat private name used by older call sites.
 _WebSession = WebSession
 
 

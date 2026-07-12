@@ -1,16 +1,11 @@
 """xnano.core.controllers.tui
 
-The terminal controller — the concrete `AbstractController` that actually
-draws to a terminal screen through `xnano_core`. Every `BaseGrid` and every
-terminal render node ultimately calls back into one of these methods to
-get painted; this is the only place in the framework that talks to
-`xnano_core` directly for rendering.
+---
 
-If you've seen the old `xnano.beta` codebase, this is the direct successor
-to `Session` — same job, renamed methods (`paint_frame`, `split_layout`,
-`measure_field_slot`, `paint_field_slot`, ...) so it actually implements
-`AbstractController`'s contract instead of a parallel one `BaseGrid` used to
-call by convention alone.
+Terminal paint controller: the concrete ``AbstractController`` that draws
+to the screen through ``xnano_core``. Grids and terminal render nodes call
+into this controller for measure/split/paint; it is the only framework
+layer that talks to ``xnano_core`` for rendering.
 """
 
 from __future__ import annotations
@@ -75,12 +70,11 @@ class RenderRequest(Generic[StateT]):
 
 
 class TerminalController(AbstractController, Generic[StateT]):
-    """The live-terminal implementation of `AbstractController`.
+    """Live-terminal implementation of ``AbstractController``.
 
-    Owns the `xnano_core` session, batches render requests for a frame,
-    and lowers `xnano`'s own vocabulary (`Area`, `Frame`, layout
-    constraints, terminal render nodes) into native ratatui widgets — the
-    same relationship a future web controller would have to HTML instead.
+    Owns the ``xnano_core`` session, batches render requests for a frame,
+    and lowers framework types (``Area``, ``Frame``, layout constraints,
+    terminal render nodes) into native ratatui widgets.
     """
 
     __slots__ = (
@@ -561,9 +555,7 @@ class TerminalController(AbstractController, Generic[StateT]):
         from xnano.core.content import AbstractContent
 
         if isinstance(value, AbstractContent):
-            self.render_content(
-                area, value, z=parent_z, effect_key=effect_key
-            )
+            self.render_content(area, value, z=parent_z, effect_key=effect_key)
             return
 
         node = ParagraphNode(

@@ -1,4 +1,10 @@
-"""xnano.core.controllers.abstract"""
+"""xnano.core.controllers.abstract
+
+---
+
+Backend-neutral controller contract: layout constraints, capabilities,
+and paint / measure hooks shared by terminal and web controllers.
+"""
 
 from __future__ import annotations
 
@@ -85,30 +91,28 @@ class AbstractControllerCapabilities(abc.ABC):
 
 
 class AbstractController(abc.ABC):
-    """Abstract base class for the paint/measurement and render lifecycle
-    a UI host must implement.
+    """Paint, measure, and layout contract for a UI host backend.
 
-    Only the ``get_capabilities`` method is a required abstract method, all
-    other methods are opt-in depending on the interface.
+    Only ``get_capabilities`` is required; other methods are opt-in for
+    the features a given interface supports (absolute geometry, frames,
+    effects, and so on).
     """
 
     @classmethod
     @abc.abstractmethod
     def get_capabilities(cls) -> AbstractControllerCapabilities:
-        """Returns the feature capabilities this controller provides."""
+        """Return the feature capabilities this controller provides."""
 
     def commit_requests(self) -> None:
-        """Commits all active 'render requests' prepared by this controller
-        into it's output frame.
-        """
+        """Flush queued paint work for the current frame into the output."""
         return None
 
     def begin_viewport_frame(self) -> None:
-        """Begin the first frame of a render cycle within the viewport area."""
+        """Start a new render frame for the viewport."""
         return None
 
     def get_viewport_area(self) -> Area:
-        """Returns the viewport area for this controller's frame.
+        """Return the viewport area for this controller's frame.
 
         Returns:
             The viewport area for this controller's frame.
@@ -119,10 +123,10 @@ class AbstractController(abc.ABC):
         )
 
     def paint_frame(self, area: Area, frame: Frame, *, z: int = 0) -> Area:
-        """Paints a given frame onto a specified viewport area.
+        """Paint a decorative frame into ``area``.
 
-        Deprecated path — prefer :meth:`paint_chrome` with a ``Style``.
-        Default implementation remains for terminal controllers.
+        Prefer ``paint_chrome`` with a ``Style`` for new code. Controllers
+        may still implement this for direct frame painting.
 
         Args:
             area: The area to paint the frame onto.
@@ -140,9 +144,7 @@ class AbstractController(abc.ABC):
     def paint_chrome(self, area: Area, style: Any, *, z: int = 0) -> Area:
         """Paint interface-neutral chrome for ``style`` into ``area``.
 
-        Default lowers ``Style`` to a ``Frame`` and calls ``paint_frame``
-        so existing terminal/web controllers keep working until they
-        implement a native path.
+        Default lowers ``Style`` to a ``Frame`` and calls ``paint_frame``.
 
         Args:
             area: Target area.

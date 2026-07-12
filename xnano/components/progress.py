@@ -1,4 +1,9 @@
-"""xnano.components.progress"""
+"""xnano.components.progress
+
+---
+
+``Progress`` component for ratio or value/total progress indicators.
+"""
 
 from __future__ import annotations
 
@@ -22,9 +27,8 @@ class Progress(AbstractComponent):
     """Declarative progress indicator.
 
     Describe *how much* is done — as a ``0.0``–``1.0`` ratio, or a ``value``
-    out of a ``total`` — and pick a ``style``. One component covers both the
-    block ``Gauge`` and the thin ``LineGauge`` ratatui widgets, with an
-    auto-derived percentage label.
+    out of a ``total`` — and pick a ``style`` (block bar or thin line), with
+    an auto-derived percentage label.
 
         Progress(value=0.6)                      # 60% block bar
         Progress(value=70, total=100)            # derived ratio, "70%"

@@ -685,7 +685,6 @@ def _build_watercolor_frame(
     )
 
 
-
 class TitleSplash(BaseGrid):
     """A terminal-sized watercolor wash with a centered xnano wordmark."""
 

@@ -1,4 +1,10 @@
-"""xnano.core.stage"""
+"""xnano.core.stage
+
+---
+
+Layout map and cell-level paint / wireframe helpers for the active host
+(``host.stage`` / ``ctx.stage``).
+"""
 
 from __future__ import annotations
 
@@ -10,127 +16,121 @@ from xnano._types import Area, Size
 if TYPE_CHECKING:
     from xnano.core.hosts import AbstractHost
 
-try:
-    from xnano.core.content import CellCanvas, CellSpan
-except ImportError:  # content.py may land in a later wave
-    @dataclasses.dataclass(slots=True)
-    class CellSpan:
-        """One run-length styled span on a cell row.
 
-        Attributes:
-            text: Contiguous cell characters sharing one style.
-            style: Optional style payload (``Style``, color, …).
+@dataclasses.dataclass(slots=True)
+class _PaintSpan:
+    """One run-length span on a mutable paint row."""
+
+    text: str
+    """Contiguous cell characters sharing one style."""
+    style: Any = None
+    """Optional style payload for this span."""
+
+
+@dataclasses.dataclass
+class _PaintCanvas:
+    """Mutable per-cell lattice used for Stage paint and wireframe.
+
+    Distinct from content ``CellCanvas`` (immutable run-length rows).
+    Controllers lower this overlay via ``get_cell`` / ``as_span_rows``.
+    """
+
+    width: int
+    """Lattice width in cells."""
+    height: int
+    """Lattice height in cells."""
+    _cells: list[list[tuple[str, Any]]] = dataclasses.field(
+        init=False,
+        repr=False,
+    )
+
+    def __post_init__(self) -> None:
+        width = max(0, int(self.width))
+        height = max(0, int(self.height))
+        self.width = width
+        self.height = height
+        self._cells = [
+            [(" ", None) for _ in range(width)] for _ in range(height)
+        ]
+
+    def set_cell(
+        self,
+        x: int,
+        y: int,
+        char: str,
+        style: Any = None,
+    ) -> None:
+        """Write one cell, clipping out-of-bounds coordinates.
+
+        Args:
+            x: Column index.
+            y: Row index.
+            char: Character to store (first codepoint used).
+            style: Optional style payload.
         """
+        if x < 0 or y < 0 or x >= self.width or y >= self.height:
+            return
+        glyph = char[0] if char else " "
+        self._cells[y][x] = (glyph, style)
 
-        text: str
-        """Contiguous cell characters sharing one style."""
-        style: Any = None
-        """Optional style payload for this span."""
+    def get_cell(self, x: int, y: int) -> tuple[str, Any]:
+        """Return ``(char, style)`` for a cell, or a blank.
 
-    @dataclasses.dataclass
-    class CellCanvas:
-        """Minimal rectangular cell lattice used by :class:`Stage`.
+        Args:
+            x: Column index.
+            y: Row index.
 
-        Fallback used when ``xnano.content.CellCanvas`` is not yet
-        available. Stores per-cell ``(character, style)`` pairs and can
-        export run-length :class:`CellSpan` rows.
-
-        Attributes:
-            width: Lattice width in cells.
-            height: Lattice height in cells.
+        Returns:
+            The cell payload, or ``(" ", None)`` when out of bounds.
         """
+        if x < 0 or y < 0 or x >= self.width or y >= self.height:
+            return (" ", None)
+        return self._cells[y][x]
 
-        width: int
-        """Lattice width in cells."""
-        height: int
-        """Lattice height in cells."""
-        _cells: list[list[tuple[str, Any]]] = dataclasses.field(
-            init=False,
-            repr=False,
-        )
+    def fill(self, style: Any = None, char: str = " ") -> None:
+        """Fill the entire canvas with ``char`` / ``style``.
 
-        def __post_init__(self) -> None:
-            width = max(0, int(self.width))
-            height = max(0, int(self.height))
-            self.width = width
-            self.height = height
-            self._cells = [
-                [(" ", None) for _ in range(width)] for _ in range(height)
-            ]
+        Args:
+            style: Optional style payload.
+            char: Fill character (first codepoint used).
+        """
+        glyph = char[0] if char else " "
+        for y in range(self.height):
+            row = self._cells[y]
+            for x in range(self.width):
+                row[x] = (glyph, style)
 
-        def set_cell(
-            self,
-            x: int,
-            y: int,
-            char: str,
-            style: Any = None,
-        ) -> None:
-            """Write one cell, clipping out-of-bounds coordinates.
+    def as_span_rows(self) -> list[list[_PaintSpan]]:
+        """Export rows as run-length-encoded paint spans.
 
-            Args:
-                x: Column index.
-                y: Row index.
-                char: Character to store (first codepoint used).
-                style: Optional style payload.
-            """
-            if x < 0 or y < 0 or x >= self.width or y >= self.height:
-                return
-            glyph = char[0] if char else " "
-            self._cells[y][x] = (glyph, style)
-
-        def get_cell(self, x: int, y: int) -> tuple[str, Any]:
-            """Return ``(char, style)`` for a cell, or a blank.
-
-            Args:
-                x: Column index.
-                y: Row index.
-
-            Returns:
-                The cell payload, or ``(" ", None)`` when out of bounds.
-            """
-            if x < 0 or y < 0 or x >= self.width or y >= self.height:
-                return (" ", None)
-            return self._cells[y][x]
-
-        def fill(self, style: Any = None, char: str = " ") -> None:
-            """Fill the entire canvas with ``char`` / ``style``.
-
-            Args:
-                style: Optional style payload.
-                char: Fill character (first codepoint used).
-            """
-            glyph = char[0] if char else " "
-            for y in range(self.height):
-                row = self._cells[y]
-                for x in range(self.width):
-                    row[x] = (glyph, style)
-
-        def as_span_rows(self) -> list[list[CellSpan]]:
-            """Export rows as run-length-encoded :class:`CellSpan` lists.
-
-            Returns:
-                One list of spans per row.
-            """
-            rows: list[list[CellSpan]] = []
-            for y in range(self.height):
-                spans: list[CellSpan] = []
-                current_text = ""
-                current_style: Any = None
-                for x in range(self.width):
-                    glyph, style = self._cells[y][x]
-                    if current_text and style != current_style:
-                        spans.append(
-                            CellSpan(text=current_text, style=current_style)
-                        )
-                        current_text = ""
-                    current_text += glyph
-                    current_style = style
-                if current_text:
+        Returns:
+            One list of spans per row.
+        """
+        rows: list[list[_PaintSpan]] = []
+        for y in range(self.height):
+            spans: list[_PaintSpan] = []
+            current_text = ""
+            current_style: Any = None
+            for x in range(self.width):
+                glyph, style = self._cells[y][x]
+                if current_text and style != current_style:
                     spans.append(
-                        CellSpan(text=current_text, style=current_style)
+                        _PaintSpan(text=current_text, style=current_style)
                     )
-                rows.append(spans)
-            return rows
+                    current_text = ""
+                current_text += glyph
+                current_style = style
+            if current_text:
+                spans.append(
+                    _PaintSpan(text=current_text, style=current_style)
+                )
+            rows.append(spans)
+        return rows
+
+
+# Public aliases used by Stage paint/wireframe APIs and tests.
+CellSpan = _PaintSpan
+CellCanvas = _PaintCanvas
 
 
 @dataclasses.dataclass(slots=True)
@@ -158,9 +158,9 @@ class LayoutEntry:
 class LayoutMap:
     """Always-on resolved geometry for the current frame.
 
-    Hosts record ``interface`` / ``field`` → :class:`~xnano._types.Area`
-    (plus ``z``) while laying out each frame so the stage can answer
-    "where is everything" without re-running layout.
+    Hosts record ``interface`` / ``field`` → ``Area`` (plus ``z``) while
+    laying out each frame so the stage can answer where everything is
+    without re-running layout.
     """
 
     def __init__(self) -> None:
@@ -222,7 +222,7 @@ class LayoutMap:
             field: Field name, or ``None`` for the interface root.
 
         Returns:
-            The stored :class:`~xnano._types.Area`, or ``None``.
+            The stored ``Area``, or ``None``.
         """
         entry = self._index.get((id(interface), field))
         if entry is None:
@@ -233,16 +233,16 @@ class LayoutMap:
         """Return recorded entries in record order.
 
         Returns:
-            A sequence of :class:`LayoutEntry` values.
+            A sequence of ``LayoutEntry`` values.
         """
         return tuple(self._entries)
 
 
 class StageRegion:
-    """Paintable view of an :class:`~xnano._types.Area` on the Stage.
+    """Paintable view of an ``Area`` on the stage.
 
-    Coordinates passed to :meth:`paint` / :meth:`map_cells` are relative
-    to this region's top-left corner.
+    Coordinates passed to ``paint`` / ``map_cells`` are relative to this
+    region's top-left corner.
     """
 
     def __init__(self, stage: "Stage", area: Area) -> None:
@@ -269,12 +269,7 @@ class StageRegion:
             char: Character to paint (first codepoint used).
             style: Optional style payload.
         """
-        if (
-            x < 0
-            or y < 0
-            or x >= self._area.width
-            or y >= self._area.height
-        ):
+        if x < 0 or y < 0 or x >= self._area.width or y >= self._area.height:
             return
         self._stage._paint_absolute(
             self._area.x + x,
@@ -320,12 +315,11 @@ class StageRegion:
 
 
 class Stage:
-    """Imperative facade: active grid as an addressable cell lattice.
+    """Treat the active grid as an addressable cell lattice.
 
     Exposed as ``host.stage`` / ``ctx.stage``. Layout geometry is read
-    from the always-on :class:`LayoutMap`; paints accumulate into a
-    per-frame :class:`CellCanvas` overlay retrieved via
-    :meth:`take_overlay`.
+    from the always-on ``LayoutMap``; paints accumulate into a
+    per-frame ``CellCanvas`` overlay retrieved via ``take_overlay``.
     """
 
     def __init__(self, host: "AbstractHost | None" = None) -> None:
@@ -390,7 +384,7 @@ class Stage:
             area: Absolute cell area on the stage.
 
         Returns:
-            A :class:`StageRegion` bound to this stage.
+            A ``StageRegion`` bound to this stage.
         """
         return StageRegion(self, area)
 
@@ -406,7 +400,7 @@ class Stage:
             field: Field name, or ``None`` for the interface root.
 
         Returns:
-            A :class:`StageRegion`, or ``None`` if unmapped.
+            A ``StageRegion``, or ``None`` if unmapped.
         """
         area = self._layout.region_of(interface, field)
         if area is None:
@@ -445,14 +439,14 @@ class Stage:
         """Return whether wireframe mode is enabled.
 
         Returns:
-            ``True`` when :meth:`wireframe` last enabled the flag.
+            ``True`` when ``wireframe`` last enabled the flag.
         """
         return self._wireframe
 
     def take_overlay(self) -> CellCanvas | None:
-        """Return accumulated :class:`CellCanvas` paints this frame.
+        """Return accumulated ``CellCanvas`` paints this frame.
 
-        Does not clear paints; call :meth:`clear_paints` at frame end.
+        Does not clear paints; call ``clear_paints`` at frame end.
 
         Returns:
             The paint canvas if any cells were written, else ``None``.
@@ -475,10 +469,7 @@ class Stage:
                 entry
                 for entry in entries
                 if _areas_intersect(entry.area, target)
-                or (
-                    entry.interface is interface
-                    and entry.field == field
-                )
+                or (entry.interface is interface and entry.field == field)
             ]
         if self._wireframe_region is not None:
             region = self._wireframe_region
@@ -494,10 +485,10 @@ class Stage:
 
         Overlay-only: does not modify field content. Labels prefer the
         field name, falling back to the interface type name. Honors the
-        scope set by :meth:`wireframe` (full map, region, or field).
+        scope set by ``wireframe`` (full map, region, or field).
 
         Returns:
-            A wireframe :class:`CellCanvas`, or ``None``.
+            A wireframe ``CellCanvas``, or ``None``.
         """
         entries = self._wireframe_entries()
         if not entries:
@@ -527,7 +518,7 @@ class Stage:
         return canvas
 
     def _ensure_paint_canvas(self) -> CellCanvas:
-        """Return the paint canvas, allocating from :attr:`size`."""
+        """Return the paint canvas, allocating from ``size``."""
         if self._paint_canvas is None:
             size = self.size
             width = size.width

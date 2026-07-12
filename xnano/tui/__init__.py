@@ -2,8 +2,8 @@
 
 ---
 
-Terminal interface kind: ``Terminal`` host, cursor/device facades, nodes,
-native effects lowering.
+Terminal interface kind: ``Terminal`` host, cursor and device controls,
+render nodes, and native effects lowering.
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ def __getattr__(name: str):
         from xnano.tui import terminal as _terminal
 
         return getattr(_terminal, name)
-    # Legacy alias used by a few call sites
     if name == "exit":
         from xnano.tui.terminal import exit_terminal
 

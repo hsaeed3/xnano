@@ -2,10 +2,8 @@
 
 ---
 
-Also provides the public ``@on_*`` hook decorators (``on_event``,
-``on_keyboard``, ``on_mouse``, ``on_click``, ``on_resize``, ``on_focus``,
-``on_clipboard``, ``on_state``, ``on_field``, ``on_poll``, ``on_tick``)
-used to annotate ``BaseGrid`` methods for event handling.
+Unified terminal and application events, plus the public ``@on_*`` hook
+decorators used to annotate ``BaseGrid`` methods for event handling.
 """
 
 from __future__ import annotations
@@ -240,7 +238,9 @@ def parse_binding_tuple(
         return ([], "")
     modifiers_set, key = normalized
     modifiers: list[KeyboardModifier | None] = [
-        m for m in ("ctrl", "alt", "shift") if m in modifiers_set  # type: ignore[misc]
+        m
+        for m in ("ctrl", "alt", "shift")
+        if m in modifiers_set  # type: ignore[misc]
     ]
     return (modifiers, key)
 
@@ -1248,8 +1248,6 @@ def on_poll(
         return _decorate(fn, resolved)
 
     return decorator
-
-
 
 
 def on(
