@@ -1,46 +1,21 @@
 ---
-title: Beta
-icon: lucide/flask-conical
+title: Web UI & CLI
+icon: lucide/layout
 ---
 
-# Beta
+# Web UI & CLI
 
-`xnano.beta` is the prototype surface for APIs that reuse the same grids and
-components as the terminal, then target other hosts — a browser, or a
-command-line entry point. Nothing under `xnano.beta` is frozen yet. Import
-concrete modules directly; the package root only re-exports the main names.
+The former `xnano.beta` surface graduated into public packages:
+
+| Area | Module | Guide |
+|---|---|---|
+| [Web UI](../webui/index.md) | `xnano.webui` | Browser host for grids |
+| [Request hooks](../webui/requests.md) | `xnano.webui.requests` | `@on_get_request` / `@on_post_request` |
+| [Web rendering](../webui/rendering.md) | `xnano.webui.nodes` | HTML nodes and dual-host `Text` |
+| [CLI](../cli/index.md) | `xnano.cli` | Model-like command interface |
 
 ```python
-from xnano.beta.web import Web
-from xnano.beta.requests import on_get_request, on_post_request
-from xnano.beta.commands import Command
+from xnano.webui import Web
+from xnano.webui.requests import on_get_request, on_post_request
+from xnano.cli import Command
 ```
-
-## What is here
-
-| Area | Module | Role |
-|---|---|---|
-| [Web UI](webui/index.md) | `xnano.beta.web` | Browser host for grids — sessions, HTML shell, htmx routes |
-| [Request hooks](webui/requests.md) | `xnano.beta.requests` | `@on_get_request` / `@on_post_request` on grid methods |
-| [Web rendering](webui/rendering.md) | `xnano.beta.nodes.web`, `xnano.beta.components.text` | HTML nodes and web-capable `Text` |
-| [Commands](commands/index.md) | `xnano.beta.commands` | Model-like CLI for options, flags, and subcommands |
-
-The terminal guides under [Concepts](../concepts/getting-started.md) still
-describe the stable public path. Beta code sits beside that model: the same
-`Grid`, `Field`, and `@on_*` hooks, with extra entry points for web and CLI.
-
-## Install extras
-
-The web host needs Starlette and uvicorn:
-
-```bash
-pip install "xnano[web]"
-```
-
-Commands only need the base package.
-
-## Stability
-
-Treat beta docs as previews. Names, routes, and HTML details can change before
-they graduate into the main `xnano` namespace. Prefer the patterns shown in the
-pages linked above over copying private helpers from the source tree.

@@ -7,12 +7,10 @@ icon: "lucide/sparkles"
 
 xnano is a terminal UI framework built on Rust. The Python API is deliberately model-like — you declare what you want and xnano handles the rendering, event loop, and teardown. If you've used Pydantic or dataclasses the shape of it will feel familiar immediately.
 
-Starting with the 1.0.0 documentation, this declarative model is the foundation
-for more than full-screen terminal apps. The [beta surface](../beta/overview.md)
-already prototypes a [command CLI](../beta/commands/index.md) and a
-[web UI host](../beta/webui/index.md) that reuse grids and components. The
-terminal APIs on this page are the stable path; beta pages are labeled as
-previews.
+This declarative model is the foundation for more than full-screen terminal
+apps. The same grids and components also power a [CLI](../cli/index.md) and a
+[web UI host](../webui/index.md). The terminal APIs on this page are the primary
+path for interactive TUIs.
 
 ---
 
@@ -65,15 +63,15 @@ Terminal().render(
 
 ## Building an interactive app
 
-For anything that stays on screen and responds to input, use `Terminal().run()` with a `Grid`. A `Grid` is a Python class where each annotated field becomes a slot in your layout. Field declaration order is layout order — top to bottom for `direction="vertical"`, left to right for `direction="horizontal"`.
+For anything that stays on screen and responds to input, use `Terminal().run()` with a `BaseGrid`. A `BaseGrid` is a Python class where each annotated field becomes a slot in your layout. Field declaration order is layout order — top to bottom for `direction="vertical"`, left to right for `direction="horizontal"`. (`Grid` is an alias of `BaseGrid`.)
 
 The `@on_keyboard` decorator wires a method to a key event. The method is called by the Rust event loop, on the Python thread, whenever that key is pressed. You don't need to poll, check, or manage state yourself.
 
 ```python title="app.py" hl_lines="4 5 6 7 8 9 10"
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_keyboard
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_keyboard
 
-class Hello(Grid, direction="vertical"): # (1)!
+class Hello(BaseGrid, direction="vertical"): # (1)!
     message: str = Field(default="Press q to quit.", height=1) # (2)!
 
     @on_keyboard("q") # (3)!
@@ -83,7 +81,7 @@ class Hello(Grid, direction="vertical"): # (1)!
 Terminal().run(Hello()) # (4)!
 ```
 
-1. `Grid` is the base for all layouts. `direction="vertical"` stacks fields top-to-bottom; `"horizontal"` goes left-to-right.
+1. `BaseGrid` is the base for all layouts. `direction="vertical"` stacks fields top-to-bottom; `"horizontal"` goes left-to-right.
 2. `height=1` pins this field to exactly one row. Without a size constraint, a field fills the available space.
 3. `@on_keyboard` wires a method to a key. The method name is up to you.
 4. `run()` enters the alternate screen and starts the Rust event loop. It returns when the loop exits.
@@ -99,7 +97,7 @@ Terminal().run(Hello()) # (4)!
 
 When `Terminal().run(grid)` is called:
 
-1. xnano reads your `Grid` class and resolves the layout from field declarations and sizing constraints.
+1. xnano reads your `BaseGrid` class and resolves the layout from field declarations and sizing constraints.
 2. It paints the first frame to the terminal.
 3. The Rust event loop takes over — blocking on crossterm input, firing tick timers, and calling your Python hooks as events arrive.
 4. When your code calls `ctx.terminal.request_exit()`, the loop stops and the terminal is restored.

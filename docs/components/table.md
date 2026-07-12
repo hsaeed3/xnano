@@ -11,7 +11,7 @@ order.
 
 ```python title="table.py"
 from xnano.components.table import Table
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 services = Table(
     data=[
@@ -41,7 +41,7 @@ A mapping value may be a header string, an accessor function, or a `Column`.
 ```python title="table_columns.py"
 from xnano.components.schema import Column
 from xnano.components.table import Table
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 services = Table(
     data=[
@@ -72,12 +72,12 @@ Terminal(width=44, height=4).run(services)
 
 For a table shape used in several places, subclass `Table` and declare
 `Column` values as class attributes. This is the component counterpart to
-declaring `Field` values on a `Grid`.
+declaring `Field` values on a `BaseGrid`.
 
 ```python title="service_table.py"
 from xnano.components.schema import Column
 from xnano.components.table import Table
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 class ServiceTable(Table):
     service: str = Column()

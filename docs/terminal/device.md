@@ -13,7 +13,7 @@ For common settings, prefer the matching `Terminal` option. This lets xnano
 enable the mode when the session starts and disable it during teardown.
 
 ```python title="device-options.py"
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 with Terminal(
     title="Inspector",          # (1)!
@@ -52,7 +52,7 @@ session it is managing. Reserve those properties for integrations that need
 direct control. Runtime changes such as a title update are safe and useful:
 
 ```python title="live-title.py"
-from xnano.hooks import on_keyboard
+from xnano.events import on_keyboard
 
 
 @on_keyboard("t")
@@ -86,7 +86,7 @@ device operations, not layout scrolling. For scrollable application content,
 keep the offset in state and render the visible rows from that state.
 
 ```python title="clear-line.py"
-from xnano.hooks import on_keyboard
+from xnano.events import on_keyboard
 
 
 @on_keyboard("c")

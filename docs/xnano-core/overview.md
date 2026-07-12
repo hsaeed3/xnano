@@ -10,9 +10,9 @@ xnano-core is the compiled Rust extension that does the actual terminal work —
 
 ## The short version
 
-When you write a `Grid` and call `Terminal().run()`, here's what actually happens:
+When you write a `BaseGrid` and call `Terminal().run()`, here's what actually happens:
 
-1. xnano converts your Python `Grid`, `Field`, and `Text` declarations into a small intermediate representation — a tree of render nodes.
+1. xnano converts your Python `BaseGrid`, `Field`, and `Text` declarations into a small intermediate representation — a tree of render nodes.
 2. That tree gets handed to a `Session` object, which speaks to xnano-core.
 3. xnano-core (Rust) renders the tree into an off-screen buffer, diffs it against what's already on screen, and emits only the changed cells.
 
@@ -36,7 +36,7 @@ You'll rarely need to think about either of these. They're the engine room; `xna
 ## Architecture
 
 ```
-Your Python Grid / Terminal call
+Your Python BaseGrid / Terminal call
         │
         ▼
   xnano  ──── render-node tree ────▶  xnano.core.controllers

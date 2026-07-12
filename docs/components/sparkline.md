@@ -11,7 +11,7 @@ sample, or against `max_value` when you supply one.
 
 ```python title="sparkline.py"
 from xnano.components.sparkline import Sparkline
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 history = Sparkline(
     data=[2, 4, 3, 7, 5, 8, 6, 9],
@@ -36,7 +36,7 @@ missing samples appear.
 
 ```python title="sparkline_colors.py"
 from xnano.components.sparkline import Sparkline
-from xnano.terminal import Terminal
+from xnano.tui import Terminal
 
 heat = Sparkline(
     data=[1, 3, 5, 7, 9],

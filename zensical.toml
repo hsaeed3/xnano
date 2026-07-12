@@ -30,35 +30,34 @@ nav = [
             "components/sparkline.md",
             "components/schema.md",
         ]},
-        { "Terminal" = [
+        { "TUI" = [
             "terminal/index.md",
             "terminal/cursor.md",
             "terminal/device.md",
         ]},
-        { "Beta" = [
-            "beta/overview.md",
-            { "Web UI" = [
-                "beta/webui/index.md",
-                "beta/webui/requests.md",
-                "beta/webui/rendering.md",
-            ]},
-            { "Commands" = [
-                "beta/commands/index.md",
-            ]},
+        { "Web UI" = [
+            "webui/index.md",
+            "webui/requests.md",
+            "webui/rendering.md",
+        ]},
+        { "CLI" = [
+            "cli/index.md",
         ]},
         { "API Reference" = [
             "api/index.md",
             { "xnano.core" = [
+                { "xnano.core.actions" = "api/core/actions.md" },
+                { "xnano.core.content" = "api/core/content.md" },
+                { "xnano.core.hosts" = "api/core/hosts.md" },
+                { "xnano.core.stage" = "api/core/stage.md" },
+                { "xnano.core.interface" = "api/core/interface.md" },
+                { "xnano.core.device" = "api/core/device.md" },
+                { "xnano.core.exceptions" = "api/core/exceptions.md" },
                 { "xnano.core.controllers" = [
                     { "xnano.core.controllers.abstract" = "api/core/controllers/abstract.md" },
-                    { "xnano.core.controllers.terminal" = "api/core/controllers/terminal.md" },
+                    { "xnano.core.controllers.tui" = "api/core/controllers/tui.md" },
+                    { "xnano.core.controllers.webui" = "api/core/controllers/webui.md" },
                 ]},
-                { "xnano.core.dispatch" = "api/core/dispatch.md" },
-                { "xnano.core.nodes" = [
-                    { "xnano.core.nodes.abstract" = "api/core/nodes/abstract.md" },
-                    { "xnano.core.nodes.terminal" = "api/core/nodes/terminal.md" },
-                ]},
-                { "xnano.core.renderable" = "api/core/renderable.md" },
             ]},
             { "xnano.components" = [
                 { "xnano.components.abstract" = "api/components/abstract.md" },
@@ -69,40 +68,32 @@ nav = [
                 { "xnano.components.table" = "api/components/table.md" },
                 { "xnano.components.text" = "api/components/text.md" },
             ]},
-            { "xnano.terminal" = [
-                { "xnano.terminal" = "api/terminal.md" },
-                { "xnano.terminal.cursor" = "api/terminal/cursor.md" },
-                { "xnano.terminal.device" = "api/terminal/device.md" },
+            { "xnano.tui" = [
+                { "xnano.tui" = "api/tui/index.md" },
+                { "xnano.tui.terminal" = "api/tui/terminal.md" },
+                { "xnano.tui.cursor" = "api/tui/cursor.md" },
+                { "xnano.tui.device" = "api/tui/device.md" },
+                { "xnano.tui.nodes" = "api/tui/nodes.md" },
             ]},
-            { "xnano.beta" = [
-                { "xnano.beta" = "api/beta/index.md" },
-                { "xnano.beta.commands" = "api/beta/commands.md" },
-                { "xnano.beta.requests" = "api/beta/requests.md" },
-                { "xnano.beta.web" = "api/beta/web.md" },
-                { "xnano.beta.components" = [
-                    { "xnano.beta.components.text" = "api/beta/components/text.md" },
-                ]},
-                { "xnano.beta.controllers" = [
-                    { "xnano.beta.controllers.web" = "api/beta/controllers/web.md" },
-                ]},
-                { "xnano.beta.nodes" = [
-                    { "xnano.beta.nodes.web" = "api/beta/nodes/web.md" },
-                ]},
+            { "xnano.webui" = [
+                { "xnano.webui" = "api/webui/index.md" },
+                { "xnano.webui.web" = "api/webui/web.md" },
+                { "xnano.webui.session" = "api/webui/session.md" },
+                { "xnano.webui.requests" = "api/webui/requests.md" },
+                { "xnano.webui.nodes" = "api/webui/nodes.md" },
+                { "xnano.webui.device" = "api/webui/device.md" },
+            ]},
+            { "xnano.cli" = [
+                { "xnano.cli" = "api/cli/index.md" },
+                { "xnano.cli.command" = "api/cli/command.md" },
             ]},
             { "xnano.color" = "api/color.md" },
+            { "xnano.context" = "api/context.md" },
             { "xnano.effects" = "api/effects.md" },
             { "xnano.events" = "api/events.md" },
-            { "xnano.exceptions" = "api/exceptions.md" },
             { "xnano.fields" = "api/fields.md" },
-            { "xnano.focus" = "api/focus.md" },
-            { "xnano.frame" = "api/frame.md" },
             { "xnano.grid" = "api/grid.md" },
-            { "xnano.hooks" = "api/hooks.md" },
-            { "xnano.keyboard" = "api/keyboard.md" },
-            { "xnano.mouse" = "api/mouse.md" },
-            { "xnano.sizing" = "api/sizing.md" },
             { "xnano.state" = "api/state.md" },
-            { "xnano.types" = "api/types.md" },
         ]},
     ]},
     { "xnano-core" = [
