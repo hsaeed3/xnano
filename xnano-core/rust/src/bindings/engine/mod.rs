@@ -1,4 +1,4 @@
-#[cfg(feature = "terminal")]
+// Tick clock is shared by live and buffer-backed sessions (wasm).
 mod clock;
 mod content_bridge;
 pub(crate) mod events;
@@ -9,6 +9,9 @@ mod render_ir;
 mod render_tree;
 #[cfg(feature = "terminal")]
 mod session;
+// Buffer-backed CoreSession for --no-default-features (wasm / Pyodide).
+// Exposes the same type names as the live session module so the Python
+// import surface is identical; only live crossterm I/O is missing.
 #[cfg(not(feature = "terminal"))]
 mod session_stub;
 #[cfg(not(feature = "terminal"))]

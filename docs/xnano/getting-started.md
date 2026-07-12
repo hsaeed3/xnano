@@ -22,13 +22,13 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "pip"
 
     ```bash
-    pip install "xnano>=1.0.4"
+    pip install "xnano>=1.0.5"
     ```
 
 === "uv"
 
     ```bash
-    uv pip install "xnano>=1.0.4"
+    uv pip install "xnano>=1.0.5"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -37,7 +37,7 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "poetry"
 
     ```bash
-    poetry install "xnano>=1.0.4"
+    poetry install "xnano>=1.0.5"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -46,7 +46,7 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "conda"
 
     ```bash
-    conda install "xnano>=1.0.4"
+    conda install "xnano>=1.0.5"
     ```
 
 ## What is xnano?
@@ -64,24 +64,25 @@ the following interfaces.
 
 ### Terminal
 
-The main featureset of the library revolves around it's rust-based terminal rendering engine, [xnano-core]{data-preview}. 
+The main featureset of the library revolves around it's rust-based terminal rendering engine, [xnano-core]{data-preview}.
 
 !!! example "Interactive Example"
 
     The following example is interactive and can be run directly in the browser by hitting the <kbd>Run</kbd> button.
 
-```pyodide install="xnano>=1.0.4"
-from xnano import Field, BaseGrid, Terminal
+```pyodide install="xnano>=1.0.5"
+from xnano import Field, BaseGrid, render
 
-class App(BaseGrid):
-    body: str = Field(default="hello, terminal!", background="violet")
+class App(BaseGrid, direction="horizontal"):
+    body: str = Field(default="hello, terminal!")
+    text: str = Field(default="hello, terminal again!", border="rounded")
 
-Terminal().run(App())
+render(App())
 ```
 
 ### Web
 
-Rendered content is __orthogonal__ to the host interface it is displayed on, which means everything you build and render onto the terminal within xnano can also be rendered onto a webpage with no extra effort. 
+Rendered content is __orthogonal__ to the host interface it is displayed on, which means everything you build and render onto the terminal within xnano can also be rendered onto a webpage with no extra effort.
 
 !!! abstract "Web Dependencies"
 

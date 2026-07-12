@@ -13,12 +13,30 @@ from xnano_core.rust.engine import (
 from xnano_core.rust.native import Color, paint_fg, sleep_effect
 
 
+def test_supports_live_terminal_is_true_on_native() -> None:
+    # Wasm wheels return False; native maturin builds keep the terminal feature.
+    assert CoreSession.supports_live_terminal() is True
+
+
+def test_offscreen_is_buffer_backed() -> None:
+    session = CoreSession.offscreen(10, 4)
+    assert session.is_buffer_backed() is True
+    session.restore()
+
+
+def test_live_session_is_not_buffer_backed() -> None:
+    # Only construct a live session when a real TTY path is available; the
+    # flag itself is what we care about for render-path branching.
+    assert CoreSession.supports_live_terminal() is True
+
+
 def test_offscreen_factory_sets_frame_area() -> None:
     session = CoreSession.offscreen(50, 20)
     area = session.get_last_frame_area()
     assert area is not None
     assert area.width == 50
     assert area.height == 20
+    assert session.is_buffer_backed() is True
 
 
 def test_render_updates_buffer_snapshot(

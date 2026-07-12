@@ -853,6 +853,42 @@ def render(
             )
         return
 
+    # Wasm / no-live-terminal builds: use the real layout engine via a
+    # buffer-backed Terminal.render, not the ANSI text approximation.
+    try:
+        from xnano_core.core import CoreSession
+
+        buffer_backed = not CoreSession.supports_live_terminal()
+    except Exception:
+        buffer_backed = False
+
+    if buffer_backed and stream_id is None:
+        try:
+            from xnano.tui.terminal import Terminal
+
+            Terminal().render(
+                *renderables,
+                color=color,
+                background=background,
+                modifiers=modifiers,
+                align=align,
+                border=border,
+                border_sides=border_sides,
+                border_color=border_color,
+                title=title,
+                title_position=title_position,
+                padding=padding,
+                direction=direction,
+                sep=sep_value,
+                end=end_value,
+                file=file,
+                flush=flush,
+            )
+            return
+        except Exception:
+            # Fall through to the pure-Python ANSI path if core paint fails.
+            pass
+
     _render_to_stdout(
         renderables,
         direction=direction,
