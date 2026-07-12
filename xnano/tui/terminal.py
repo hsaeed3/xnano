@@ -13,7 +13,7 @@ import contextvars
 import dataclasses
 import signal
 import warnings
-from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar
+from typing import IO, TYPE_CHECKING, Any, Generic, Sequence, TextIO, TypeVar
 
 
 if TYPE_CHECKING:
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         Alignment,
         Border,
         CharacterModifier,
+        Direction,
         FrameTitlePosition,
         PaddingLike,
         Side,
@@ -661,6 +662,36 @@ class Terminal(AbstractHost, Generic[StateT]):
         else:
             self._root_width_sizing = resolved.root_width_sizing
 
+    def _render_stream_items(
+        self,
+        renderables: Sequence[Any],
+        *,
+        field: Any,
+        flush: bool = False,
+    ) -> None:
+        """Paint ``renderables`` into the live session (stream-friendly).
+
+        Used by ``xnano._renderable.render`` when an active host is present so
+        full-content stream updates re-paint without leaving the session.
+        """
+        items = tuple(renderables)
+        self._prepare_render_session(items, field)
+        self._render_frame(renderables=items, field=field)
+        if flush:
+            self._flush_session_output()
+
+    def _flush_session_output(self) -> None:
+        """Best-effort flush of the live session's output buffers."""
+        session = self._session
+        if session is None:
+            return
+        flush = getattr(session, "flush", None)
+        if callable(flush):
+            try:
+                flush()
+            except Exception:
+                pass
+
     def render(
         self,
         *renderables: Any,
@@ -675,19 +706,59 @@ class Terminal(AbstractHost, Generic[StateT]):
         title_position: FrameTitlePosition | None = None,
         padding: PaddingLike | None = None,
         gap: int | None = None,
+        direction: Direction = "vertical",
+        # builtins.print-compatible parameters
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: IO[str] | TextIO | None = None,
+        flush: bool = False,
+        # stream / live-update parameters
+        stream: str | bool | None = None,
+        update: bool = False,
     ) -> None:
         """Render renderables to the terminal once (no event loop).
 
         Each renderable is auto-sized to its content dimensions and painted
         sequentially from the top of the render area.  When called standalone
-        the session auto-enters an inline viewport sized to the content, prints
+        the session auto-enters an inline viewport sized to the content, paints
         one frame, and exits — leaving the output inline with prior terminal
         output.  When called inside an already-live session the content is
         painted into the current viewport instead.
 
         Style params (``color``, ``border``, ``padding``, etc.) apply to the
         content and mirror the options available on ``Field``.
+
+        Also accepts builtins.print-compatible ``sep`` / ``end`` / ``file`` /
+        ``flush``, plus ``stream`` / ``update`` for append-or-replace stream
+        regions (shared with ``xnano._renderable.render``).
         """
+        # Text targets, stream regions, and in-place updates share the
+        # module-level renderer (stdout ANSI and live-session paint).
+        if file is not None or stream is not None or update:
+            from xnano._renderable import render as module_render
+
+            module_render(
+                *renderables,
+                direction=direction,
+                color=color,
+                background=background,
+                modifiers=modifiers,
+                align=align,
+                border=border,
+                border_sides=border_sides,
+                border_color=border_color,
+                title=title,
+                title_position=title_position,
+                padding=padding,
+                sep=sep,
+                end=end,
+                file=file,
+                flush=flush,
+                stream=stream,
+                update=update,
+            )
+            return
+
         field = self._build_render_field(
             color=color,
             background=background,
@@ -709,6 +780,8 @@ class Terminal(AbstractHost, Generic[StateT]):
         self._prepare_render_session(items, field)
         try:
             self._render_frame(renderables=items, field=field)
+            if flush:
+                self._flush_session_output()
         finally:
             if auto_entered:
                 self.__exit__()
