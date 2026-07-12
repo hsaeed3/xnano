@@ -99,7 +99,7 @@ class Demo:
     """Optional rendered width used by the matching Markdown image."""
 
 
-# Static demos use print-like ``xnano._renderable.render`` (stdout ANSI,
+# Static demos use print-like ``xnano.render`` (stdout ANSI,
 # no session enter/exit flash). Terminal session one-shots use
 # ``Terminal().render`` + ``time.sleep``. Interactive demos use
 # ``Terminal().run``.
@@ -108,7 +108,7 @@ DEMOS: tuple[Demo, ...] = (
         name="render_text",
         code=_code("""
             import time
-            from xnano._renderable import render
+            from xnano import render
             from xnano.components.text import Text
 
             render(
@@ -129,7 +129,7 @@ DEMOS: tuple[Demo, ...] = (
         name="render_multiple",
         code=_code("""
             import time
-            from xnano._renderable import render
+            from xnano import render
             from xnano.components.text import Text
 
             render(
@@ -151,7 +151,7 @@ DEMOS: tuple[Demo, ...] = (
         name="styled_text",
         code=_code("""
             import time
-            from xnano._renderable import render
+            from xnano import render
             from xnano.components.text import Text
 
             message = Text([
@@ -176,7 +176,7 @@ DEMOS: tuple[Demo, ...] = (
         name="hello_render",
         code=_code("""
             import time
-            from xnano._renderable import render
+            from xnano import render
             from xnano.components.text import Text
 
             render(

@@ -114,14 +114,14 @@ class Demo:
     """Space between terminal content and recording edge."""
 
 
-# Static demos use the print-like ``xnano._renderable.render`` (stdout ANSI,
-# no session enter/exit flash). Interactive demos use ``Terminal().run``.
+# Static demos use the print-like ``xnano.render`` (stdout ANSI, no session
+# enter/exit flash). Interactive demos use ``Terminal().run``.
 DEMOS: tuple[Demo, ...] = (
     Demo(
         name="render_text",
         code=_code("""
             import time
-            from xnano._renderable import render
+            from xnano import render
             from xnano.components.text import Text
 
             render(
@@ -139,7 +139,7 @@ DEMOS: tuple[Demo, ...] = (
         name="render_multiple",
         code=_code("""
             import time
-            from xnano._renderable import render
+            from xnano import render
             from xnano.components.text import Text
 
             render(
@@ -158,7 +158,7 @@ DEMOS: tuple[Demo, ...] = (
         name="styled_text",
         code=_code("""
             import time
-            from xnano._renderable import render
+            from xnano import render
             from xnano.components.text import Text
 
             message = Text([

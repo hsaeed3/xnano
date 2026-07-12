@@ -94,7 +94,7 @@ The easiest way to get started is the print-like `render()` helper — no
 session, no event loop. It writes styled content to the terminal and returns.
 
 ```python
-from xnano._renderable import render
+from xnano import render
 from xnano.components.text import Text
 
 render(
@@ -110,7 +110,7 @@ render(
 You can pass multiple renderables too — they'll stack vertically:
 
 ```python
-from xnano._renderable import render
+from xnano import render
 from xnano.components.text import Text
 
 render(
@@ -287,7 +287,7 @@ Terminal().run(App())
 Use `Text` to compose rich inline content with colors, modifiers, and nesting:
 
 ```python
-from xnano._renderable import render
+from xnano import render
 from xnano.components.text import Text
 
 message = Text([

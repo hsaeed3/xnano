@@ -1,6 +1,8 @@
 """xnano
 
 >>> import xnano as x
+>>> x.render("Hello, world!", background="violet")
+
 >>> from xnano import BaseGrid, Field, Terminal
 """
 
@@ -9,6 +11,7 @@ __version__ = "1.0.1"
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from xnano._renderable import render
     from xnano._styles import Style
     from xnano.context import Context
     from xnano.core.actions import Action
@@ -31,7 +34,8 @@ if TYPE_CHECKING:
     from xnano.tui.terminal import Terminal
 
 
-__all__ = (
+__all__ = [
+    "render",
     "Action",
     "Context",
     "Field",
@@ -52,10 +56,15 @@ __all__ = (
     "on_state",
     "on_tick",
     "Terminal",
-)
+]
 
 
 def __getattr__(name: str):
+    if name == "render":
+        from xnano._renderable import render
+
+        return render
+
     if name == "Action":
         from xnano.core.actions import Action
 
@@ -160,4 +169,4 @@ def __getattr__(name: str):
 
 
 def __dir__() -> list[str]:
-    return list(__all__)
+    return __all__

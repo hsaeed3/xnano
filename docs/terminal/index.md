@@ -18,7 +18,7 @@ Most programs need one `Terminal` and one of two methods:
     stays alive, so short scripts usually sleep after painting.
 
     For print-like output with no session, prefer
-    `from xnano._renderable import render`.
+    `from xnano import render`.
 
     ```python title="status.py"
     import time
