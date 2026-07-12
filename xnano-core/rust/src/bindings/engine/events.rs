@@ -1,3 +1,4 @@
+#[cfg(feature = "terminal")]
 use crossterm::event::Event as CtEvent;
 use pyo3::prelude::*;
 
@@ -42,6 +43,7 @@ pub struct PyEvent {
 }
 
 impl PyEvent {
+    #[cfg_attr(not(feature = "terminal"), allow(dead_code))]
     pub(crate) fn tick(elapsed_ms: u64) -> Self {
         Self {
             kind: PyTerminalEventKind::Tick,
@@ -54,6 +56,7 @@ impl PyEvent {
         }
     }
 
+    #[cfg(feature = "terminal")]
     pub(crate) fn from_crossterm(ev: CtEvent) -> Self {
         match ev {
             CtEvent::Key(key) => Self {
