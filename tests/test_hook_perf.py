@@ -24,20 +24,19 @@ from typing import Any, cast
 from xnano_core.core import CoreSession
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.core.dispatch import pump_tick
-from xnano.core.controllers.terminal import TerminalController
-from xnano.hooks import (
+from xnano.grid import BaseGrid
+from xnano._dispatch import pump_tick
+from xnano.core.controllers.tui import TerminalController
+from xnano.events import on_field, on_tick
+from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnFieldHookFunctionEntry,
     _OnStateHookFunctionEntry,
     _OnTickHookFunctionEntry,
-    on_field,
-    on_tick,
 )
 from xnano.state import State
-from xnano.types import Area
-from xnano.utils.core import evaluate_state_expression
+from xnano._types import Area
+from xnano._introspection import evaluate_state_expression
 
 
 # ---------------------------------------------------------------------------
@@ -106,14 +105,14 @@ def _make_offscreen(
     return core, sess
 
 
-def _one_frame(grid: Grid, sess: TerminalController, area: Area) -> None:
+def _one_frame(grid: BaseGrid, sess: TerminalController, area: Area) -> None:
     sess.begin_viewport_frame()
     grid._grid_build_frame(area, sess)
     sess.commit_requests()
 
 
 def _frame_and_tick(
-    grid: Grid,
+    grid: BaseGrid,
     sess: TerminalController,
     area: Area,
     terminal: _StubTerminal,
@@ -125,11 +124,11 @@ def _frame_and_tick(
 
 
 # ---------------------------------------------------------------------------
-# Grid fixtures
+# BaseGrid fixtures
 # ---------------------------------------------------------------------------
 
 
-class _CounterGrid(Grid):
+class _CounterGrid(BaseGrid):
     count: int = Field(default=0, state=True)
     active: bool = Field(default=True, state=True)
     label: str = Field(default="running")
@@ -147,7 +146,7 @@ class _CounterGrid(Grid):
         self.count += 1
 
 
-class _AlwaysFiringGrid(Grid):
+class _AlwaysFiringGrid(BaseGrid):
     """All on_field hooks evaluate to true every tick."""
 
     count: int = Field(default=5, state=True)
@@ -168,8 +167,8 @@ class _AlwaysFiringGrid(Grid):
         self.calls += 1
 
 
-class _RenderGrid(Grid):
-    title: str = Field(default="Benchmark Grid", height=1)
+class _RenderGrid(BaseGrid):
+    title: str = Field(default="Benchmark BaseGrid", height=1)
     body: str = Field(
         default=(
             "frame content goes here — this simulates a typical "
@@ -179,14 +178,14 @@ class _RenderGrid(Grid):
     status: str = Field(default="ok", height=1)
 
 
-class _NestedRenderGrid(Grid):
+class _NestedRenderGrid(BaseGrid):
     header: str = Field(default="Header", height=1)
     left: _RenderGrid = Field(default_factory=_RenderGrid)
     right: _RenderGrid = Field(default_factory=_RenderGrid)
     footer: str = Field(default="Footer", height=1)
 
 
-class _ExprGrid(Grid):
+class _ExprGrid(BaseGrid):
     count: int = Field(default=42, state=True)
     active: bool = Field(default=True, state=True)
     name: str = Field(default="alice", state=True)
@@ -558,7 +557,7 @@ def test_bench_pump_tick_mixed_grid_types(benchmark) -> None:
 # ---------------------------------------------------------------------------
 
 
-class _MixedHookGrid(Grid):
+class _MixedHookGrid(BaseGrid):
     count: int = Field(default=5, state=True)
     active: bool = Field(default=True, state=True)
     label: str = Field(default="running")
@@ -586,7 +585,7 @@ def test_bench_mixed_hooks_no_terminal_state(benchmark) -> None:
 def test_bench_mixed_hooks_with_terminal_state(benchmark) -> None:
     grid = _MixedHookGrid()
 
-    from xnano.hooks import on_state
+    from xnano.events import on_state
 
     class _WithStateGrid(_MixedHookGrid):
         state_fired: bool = Field(default=False, state=True)
@@ -614,12 +613,12 @@ def test_bench_registry_few_hooks(benchmark) -> None:
     benchmark(_EventHooksRegistry.from_component_class, _AlwaysFiringGrid)
 
 
-class _DeepGrid(_GrandchildGrid if False else Grid):
+class _DeepGrid(_GrandchildGrid if False else BaseGrid):
     pass
 
 
 # Re-define inline to avoid forward-reference to test_hook_interop
-class _L0(Grid):
+class _L0(BaseGrid):
     f0: bool = Field(default=False, state=True)
 
     @on_field("f0")

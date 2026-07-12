@@ -1,23 +1,23 @@
-"""Shared Grid fixtures for beta web tests."""
+"""Shared BaseGrid fixtures for beta web tests."""
 
 from __future__ import annotations
 
-from xnano.beta.components.text import Text
-from xnano.beta.requests import on_get_request, on_post_request
+from xnano.components.text import Text
+from xnano.webui.requests import on_get_request, on_post_request
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.hooks import on_click, on_field, on_keyboard, on_tick
+from xnano.grid import BaseGrid
+from xnano.events import on_click, on_field, on_keyboard, on_tick
 
 
-class SimpleGrid(Grid, direction="horizontal", gap=1):
-    """Grid with two string fields side by side."""
+class SimpleGrid(BaseGrid, direction="horizontal", gap=1):
+    """BaseGrid with two string fields side by side."""
 
     left: str = Field(default="left", height=1)
     right: str = Field(default="right", height=1)
 
 
-class StyledGrid(Grid):
-    """Grid with styled fields."""
+class StyledGrid(BaseGrid):
+    """BaseGrid with styled fields."""
 
     title: str = Field(default="Title", color="cyan", modifiers=("bold",))
     body: str = Field(
@@ -25,8 +25,8 @@ class StyledGrid(Grid):
     )
 
 
-class FrameGrid(Grid):
-    """Grid with frame chrome."""
+class FrameGrid(BaseGrid):
+    """BaseGrid with frame chrome."""
 
     framed: str = Field(
         default="framed",
@@ -35,14 +35,14 @@ class FrameGrid(Grid):
     )
 
 
-class NestedGrid(Grid):
-    """Grid that contains another grid."""
+class NestedGrid(BaseGrid):
+    """BaseGrid that contains another grid."""
 
     inner: SimpleGrid = Field(default_factory=SimpleGrid)
 
 
-class ClickableGrid(Grid, direction="vertical", gap=1):
-    """Grid with a clickable field and state."""
+class ClickableGrid(BaseGrid, direction="vertical", gap=1):
+    """BaseGrid with a clickable field and state."""
 
     label: str = Field(default="Count: 0", height=1)
     body: str = Field(default="Click me", border="rounded")
@@ -54,8 +54,8 @@ class ClickableGrid(Grid, direction="vertical", gap=1):
         self.label = f"Count: {self.count}"
 
 
-class TextGrid(Grid):
-    """Grid using beta Text component."""
+class TextGrid(BaseGrid):
+    """BaseGrid using beta Text component."""
 
     title: Text = Field(
         default=Text("Title", color="cyan", modifiers=("bold",))
@@ -63,8 +63,8 @@ class TextGrid(Grid):
     body: str = Field(default="Body text")
 
 
-class InteractiveGrid(Grid, direction="vertical", gap=1):
-    """Grid exercising keyboard, tick, field-expression, and input hooks."""
+class InteractiveGrid(BaseGrid, direction="vertical", gap=1):
+    """BaseGrid exercising keyboard, tick, field-expression, and input hooks."""
 
     name: Text = Field(
         default_factory=lambda: Text("", input=True, placeholder="name…")
@@ -94,8 +94,8 @@ class InteractiveGrid(Grid, direction="vertical", gap=1):
         self.note = "double digits"
 
 
-class RequestHookGrid(Grid, direction="vertical", gap=1):
-    """Grid with custom HTTP request hooks and a reactive field hook."""
+class RequestHookGrid(BaseGrid, direction="vertical", gap=1):
+    """BaseGrid with custom HTTP request hooks and a reactive field hook."""
 
     label: str = Field(default="Count: 0", height=1)
     body: str = Field(default="bump", border="rounded")

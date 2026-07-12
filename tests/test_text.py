@@ -7,13 +7,13 @@ import pytest
 
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.text import Text
-from xnano.core.nodes.terminal import (
+from xnano.tui.nodes import (
     LineNode,
     ParagraphNode,
     SpanNode,
     TextNode,
 )
-from xnano.types import Area
+from xnano._types import Area
 
 
 def _ctx() -> ComponentRenderContext:

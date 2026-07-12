@@ -6,15 +6,15 @@ import dataclasses
 from typing import Any, cast
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.hooks import (
-    on_field,
+from xnano.grid import BaseGrid
+from xnano.events import on_field
+from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnFieldHookFunctionEntry,
 )
 from xnano.context import Context
-from xnano.core.dispatch import pump_tick
-from xnano.utils.core import evaluate_state_expression
+from xnano._dispatch import pump_tick
+from xnano._introspection import evaluate_state_expression
 
 
 # ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ from xnano.utils.core import evaluate_state_expression
 # ---------------------------------------------------------------------------
 
 
-class _SimpleLabelGrid(Grid):
+class _SimpleLabelGrid(BaseGrid):
     label: str = Field(default="initial")
     active: bool = Field(default=False, state=True)
     fired: bool = Field(default=False, state=True)
@@ -74,7 +74,7 @@ def test_evaluate_against_grid_string_comparison() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _NameSwitcherGrid(Grid):
+class _NameSwitcherGrid(BaseGrid):
     config: dict[str, Any] = Field(default_factory=dict, state=True)
     current_text: str = Field(default="choose a name")
     john_fired: bool = Field(default=False, state=True)

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from tests.beta.grids import RequestHookGrid
+from tests.webui.grids import RequestHookGrid
 from tests.helpers import close_offscreen_app, open_offscreen_app
-from xnano.beta.requests import on_post_request
-from xnano.beta.web import Web
+from xnano.webui.requests import on_post_request
+from xnano.webui import Web
 from xnano.fields import Field
-from xnano.grid import Grid
+from xnano.grid import BaseGrid
 
 
 def test_dispatch_request_post_mutates_state_and_html() -> None:
@@ -105,7 +105,7 @@ def test_request_hooks_do_not_fire_on_terminal_frame() -> None:
 def test_request_hook_subclass_shadows_base_handler() -> None:
     """A more-derived @on_post_request for the same path replaces the base one."""
 
-    class BaseCounter(Grid):
+    class BaseCounter(BaseGrid):
         label: str = Field(default="0")
         count: int = Field(default=0, state=True)
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tests.beta.grids import (
+from tests.webui.grids import (
     ClickableGrid,
     FrameGrid,
     NestedGrid,
@@ -10,10 +10,10 @@ from tests.beta.grids import (
     StyledGrid,
     TextGrid,
 )
-from xnano.beta.components.text import Text
-from xnano.beta.controllers.web import WebController
+from xnano.components.text import Text
+from xnano.core.controllers.webui import WebController
 from xnano.fields import Field
-from xnano.grid import Grid
+from xnano.grid import BaseGrid
 
 
 def test_simple_grid_renders_html() -> None:
@@ -46,7 +46,7 @@ def test_gap_renders_in_styles() -> None:
 def test_script_tag_escaped() -> None:
     """Script tags in field values are escaped."""
 
-    class ScriptGrid(Grid):
+    class ScriptGrid(BaseGrid):
         content: str = Field(default="<script>alert(1)</script>")
 
     grid = ScriptGrid()
@@ -116,9 +116,9 @@ def test_nested_grid_has_inner_flex() -> None:
 
 
 def test_grid_background_color() -> None:
-    """Grid-level background renders as style."""
+    """BaseGrid-level background renders as style."""
 
-    class BackgroundGrid(Grid, background="black"):
+    class BackgroundGrid(BaseGrid, background="black"):
         content: str = Field(default="text")
 
     grid = BackgroundGrid()
@@ -148,7 +148,7 @@ def test_text_component_terminal_render() -> None:
 def test_text_spans() -> None:
     """Text with multiple colored spans renders all spans."""
 
-    class SpanTestGrid(Grid):
+    class SpanTestGrid(BaseGrid):
         content: Text = Field(
             default=Text(
                 [

@@ -6,19 +6,20 @@ from dataclasses import dataclass
 from typing import cast
 
 from xnano.context import Context
-from xnano.hooks import on_mouse, _EventHooksRegistry
+from xnano.events import on_mouse
+from xnano._function_hooks import _EventHooksRegistry
 from xnano.fields import Field
-from xnano.grid import Grid, _GridSlideCapture, _grid_slide_paint_area
-from xnano.terminal import Terminal, _ACTIVE_TERMINAL
+from xnano.grid import BaseGrid, _GridSlideCapture, _grid_slide_paint_area
+from xnano.tui import Terminal, _ACTIVE_TERMINAL
 from xnano.events import Event
-from xnano.types import Area
+from xnano._types import Area
 
 
-class SlideGrid(Grid):
+class SlideGrid(BaseGrid):
     body: str = Field(default="hello", slide=["x", "y"])
 
 
-class ClickGrid(Grid):
+class ClickGrid(BaseGrid):
     body: str = Field(default="hello")
 
     @on_mouse(field="body")
@@ -26,7 +27,7 @@ class ClickGrid(Grid):
         self.body = "clicked"
 
 
-class DragHookGrid(Grid):
+class DragHookGrid(BaseGrid):
     body: str = Field(default="hello", slide=["x"])
 
     @on_mouse(field="body", kind="drag")

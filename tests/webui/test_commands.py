@@ -1,4 +1,4 @@
-"""tests.beta.test_commands"""
+"""tests.webui.test_commands"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from xnano.beta.commands import Command, HelpException
+from xnano.cli.command import Command, HelpException
 
 
 def test_command_decorator_and_simple_parsing() -> None:

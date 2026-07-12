@@ -13,10 +13,10 @@ import pytest
 from pydantic import BaseModel
 from pydantic_core import ValidationError, core_schema
 
-from xnano.grid import Grid
+from xnano.grid import BaseGrid
 from xnano.components.text import Text
-from xnano.core.renderable import Renderable
-from xnano.utils.validation import (
+from xnano._renderable import Renderable
+from xnano._validation import (
     infer_pydantic_core_schema_name,
     layout_field_annotation,
     register_validatable_type,
@@ -71,7 +71,7 @@ class OptionalTD(TypedDict, total=False):
     age: int
 
 
-class LeafGrid(Grid):
+class LeafGrid(BaseGrid):
     label: str = "leaf"
 
 

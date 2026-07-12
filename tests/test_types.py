@@ -1,11 +1,11 @@
-"""Tests for xnano.types — Padding, Size, Area."""
+"""Tests for xnano._types — Padding, Size, Area."""
 
 from __future__ import annotations
 
 import pytest
 from typing import Any
 
-from xnano.types import Area, Flex, Padding, Size, resolve_flex_weight
+from xnano._types import Area, Flex, Padding, Size, resolve_flex_weight
 
 
 # ---------------------------------------------------------------------------
