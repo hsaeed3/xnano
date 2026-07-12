@@ -1,10 +1,16 @@
 mod buffer;
+#[cfg(feature = "terminal")]
 mod command;
 mod convert;
 mod convert_core;
+#[cfg(feature = "terminal")]
 mod crossterm_exec;
+#[cfg(not(feature = "terminal"))]
+pub(crate) mod crossterm_types;
+#[cfg(feature = "terminal")]
 mod cursor;
 mod engine;
+#[cfg(feature = "terminal")]
 mod event_setup;
 mod frame_ext;
 mod fx;
@@ -12,6 +18,7 @@ mod layout;
 mod palette;
 mod style;
 mod terminal;
+#[cfg(feature = "terminal")]
 mod terminal_device;
 mod text;
 mod widgets;
@@ -28,10 +35,13 @@ pub fn register(native: &Bound<'_, PyModule>) -> PyResult<()> {
     widgets_extra::register(native)?;
     buffer::register(native)?;
     terminal::register(native)?;
-    cursor::register(native)?;
-    terminal_device::register(native)?;
-    event_setup::register(native)?;
-    command::register(native)?;
+    #[cfg(feature = "terminal")]
+    {
+        cursor::register(native)?;
+        terminal_device::register(native)?;
+        event_setup::register(native)?;
+        command::register(native)?;
+    }
     fx::register(native)?;
 
     let engine = PyModule::new(native.py(), "engine")?;

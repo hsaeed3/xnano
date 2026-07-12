@@ -1,6 +1,6 @@
 [package]
 name = "xnano-core"
-version = "0.0.8"
+version = "0.0.9"
 edition = "2024"
 license = "MIT"
 homepage = "https://github.com/hsaeed3/xnano"
@@ -24,15 +24,31 @@ name = "xnano_core"
 crate-type = ["cdylib", "rlib"]
 path = "rust/src/lib.rs"
 
+[features]
+# The crossterm-backed terminal engine. Emscripten (Pyodide/WebAssembly)
+# wheels build with --no-default-features because crossterm's event
+# machinery cannot compile to wasm (mio has no WebAssembly support);
+# those builds ship rendering primitives plus stub session classes.
+default = ["terminal"]
+# ratatui/underline-color also lives here because it enables
+# dep:crossterm inside ratatui.
+terminal = [
+    "dep:crossterm",
+    "ratatui/crossterm",
+    "ratatui/underline-color",
+]
+
 [dependencies]
-crossterm = "0.28"
+crossterm = { version = "0.28", optional = true }
 palette = "0.7"
 pyo3 = { version = "0.29.0", features = [
     "extension-module",
     "abi3-py310",
     "generate-import-lib",
 ] }
-ratatui = { version = "0.29", features = ["palette", "underline-color"] }
+ratatui = { version = "0.29", default-features = false, features = [
+    "palette",
+] }
 ratatui-core = "0.1"
 tachyonfx = "0.25"
 lru = "0.16.3"

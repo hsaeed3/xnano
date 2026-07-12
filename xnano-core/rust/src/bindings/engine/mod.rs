@@ -1,11 +1,19 @@
+#[cfg(feature = "terminal")]
 mod clock;
 mod content_bridge;
 pub(crate) mod events;
 mod key_binding;
+#[cfg(feature = "terminal")]
 mod panic_hook;
 mod render_ir;
 mod render_tree;
+#[cfg(feature = "terminal")]
 mod session;
+#[cfg(not(feature = "terminal"))]
+mod session_stub;
+#[cfg(not(feature = "terminal"))]
+use session_stub as session;
+#[cfg(feature = "terminal")]
 pub(crate) mod terminal_reset;
 
 use pyo3::prelude::*;

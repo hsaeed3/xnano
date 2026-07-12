@@ -1,15 +1,25 @@
+#[cfg(feature = "terminal")]
 use std::time::Duration;
 
+#[cfg(feature = "terminal")]
 use crossterm::event::{
     self, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent,
     MouseEventKind,
 };
 use pyo3::prelude::*;
 use ratatui::Frame;
+#[cfg(feature = "terminal")]
 use ratatui::{init, restore, DefaultTerminal};
 
 use super::buffer::{render_stateful_inner, render_widget_inner, PyBuffer};
+#[cfg(feature = "terminal")]
 use super::crossterm_exec::io_to_py;
+#[cfg(not(feature = "terminal"))]
+use super::crossterm_types::{
+    KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseButton, MouseEvent,
+    MouseEventKind,
+};
+#[cfg(feature = "terminal")]
 use super::engine::events::PyEvent;
 use super::convert_core::{sync_from_core_buffer, sync_to_core_buffer, to_core_rect};
 use super::frame_ext::frame_hide_cursor;
@@ -646,11 +656,13 @@ impl From<KeyEvent> for PyKeyEvent {
     }
 }
 
+#[cfg(feature = "terminal")]
 #[pyclass(name = "Terminal", module = "xnano_core.rust.native", unsendable)]
 pub struct PyTerminal {
     inner: DefaultTerminal,
 }
 
+#[cfg(feature = "terminal")]
 #[pymethods]
 impl PyTerminal {
     #[staticmethod]
@@ -742,11 +754,13 @@ impl PyTerminal {
     }
 }
 
+#[cfg(feature = "terminal")]
 #[pyfunction]
 fn restore_terminal() {
     restore();
 }
 
+#[cfg(feature = "terminal")]
 #[pyfunction]
 fn poll_event(py: Python<'_>, timeout_ms: u64) -> PyResult<Option<PyEvent>> {
     let ready = py
@@ -760,6 +774,7 @@ fn poll_event(py: Python<'_>, timeout_ms: u64) -> PyResult<Option<PyEvent>> {
     Ok(Some(PyEvent::from_crossterm(ev)))
 }
 
+#[cfg(feature = "terminal")]
 #[pyfunction]
 fn read_event(py: Python<'_>) -> PyResult<PyEvent> {
     loop {
@@ -772,6 +787,7 @@ fn read_event(py: Python<'_>) -> PyResult<PyEvent> {
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyFrame>()?;
     m.add_class::<PyCompletedFrame>()?;
+    #[cfg(feature = "terminal")]
     m.add_class::<PyTerminal>()?;
     m.add_class::<PyKeyEventKind>()?;
     m.add_class::<PyKeyEventState>()?;
@@ -781,8 +797,11 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyMouseEventKind>()?;
     m.add_class::<PyMouseEvent>()?;
     m.add_class::<PyKeyEvent>()?;
-    m.add_function(wrap_pyfunction!(restore_terminal, m)?)?;
-    m.add_function(wrap_pyfunction!(poll_event, m)?)?;
-    m.add_function(wrap_pyfunction!(read_event, m)?)?;
+    #[cfg(feature = "terminal")]
+    {
+        m.add_function(wrap_pyfunction!(restore_terminal, m)?)?;
+        m.add_function(wrap_pyfunction!(poll_event, m)?)?;
+        m.add_function(wrap_pyfunction!(read_event, m)?)?;
+    }
     Ok(())
 }

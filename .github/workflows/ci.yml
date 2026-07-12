@@ -264,6 +264,101 @@ jobs:
           --find-links dist --force-reinstall
       - run: uv run --no-sync python -c "import xnano_core; print(xnano_core.__version__)"
 
+  build-xnano-core-wasm:
+    name: build xnano-core wasm (pyodide/emscripten)
+    needs: resolve-release
+    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
+    runs-on: ubuntu-latest
+
+    env:
+      # xnano-core's MSRV (1.88) is newer than the rust toolchain pinned
+      # by the current pyodide xbuildenv, so build against the newest
+      # prebuilt wasm-eh sysroot published by the pyodide team. Drop
+      # these overrides (and the manual sysroot install below) once
+      # `pyodide config get rust_toolchain` reaches rust 1.88+.
+      RUST_TOOLCHAIN: nightly-2025-06-27
+      RUST_EMSCRIPTEN_SYSROOT_URL: >-
+        https://github.com/pyodide/rust-emscripten-wasm-eh-sysroot/releases/download/emcc-4.0.9_nightly-2025-06-27/emcc-4.0.9_nightly-2025-06-27.tar.bz2
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: set up python
+        uses: actions/setup-python@v6
+        with:
+          # must match `pyodide config get python_version`
+          python-version: "3.13"
+
+      - name: install pyodide-build
+        run: pip install pyodide-build
+
+      - name: install rust toolchain with pyodide wasm-eh sysroot
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          sysroot="$(rustup run "$RUST_TOOLCHAIN" rustc --print sysroot)"
+          curl -sL "$RUST_EMSCRIPTEN_SYSROOT_URL" |
+            tar -xj -C "$sysroot/lib/rustlib/"
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: xnano-core
+
+      - name: build wasm wheel
+        working-directory: xnano-core
+        env:
+          RUSTUP_TOOLCHAIN: ${{ env.RUST_TOOLCHAIN }}
+        run: pyodide build -o dist -C build-args=--no-default-features
+
+      - run: pip install -U twine
+
+      - name: check wheels
+        working-directory: xnano-core
+        run: twine check --strict dist/*
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: pypi_files_xnano_core_wasm_emscripten
+          path: xnano-core/dist
+
+  test-xnano-core-wasm-wheel:
+    name: test xnano-core wasm wheel in pyodide
+    needs: [resolve-release, build-xnano-core-wasm]
+    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: set up python
+        uses: actions/setup-python@v6
+        with:
+          # must match `pyodide config get python_version`
+          python-version: "3.13"
+
+      - name: install pyodide-build
+        run: pip install pyodide-build
+
+      - name: get dist artifacts
+        uses: actions/download-artifact@v6
+        with:
+          name: pypi_files_xnano_core_wasm_emscripten
+          path: dist
+
+      - name: create pyodide virtual environment
+        run: pyodide venv .venv-pyodide
+
+      - name: install xnano-core wasm wheel
+        run: >-
+          .venv-pyodide/bin/pip install xnano-core
+          --no-index --no-deps --find-links dist
+
+      - name: import smoke test
+        run: .venv-pyodide/bin/python .github/wasm_smoke_test.py
+
   build-xnano:
     name: build xnano sdist and wheel
     needs: resolve-release
@@ -322,7 +417,9 @@ jobs:
         test-os,
         build-xnano-core-sdist,
         build-xnano-core-wheels,
+        build-xnano-core-wasm,
         test-xnano-core-wheel-install,
+        test-xnano-core-wasm-wheel,
       ]
     if: >-
       needs.resolve-release.outputs.should_publish_core == 'true' &&
@@ -330,7 +427,9 @@ jobs:
       (needs.test-os.result == 'success' || needs.test-os.result == 'skipped') &&
       (needs.build-xnano-core-sdist.result == 'success' || needs.build-xnano-core-sdist.result == 'skipped') &&
       (needs.build-xnano-core-wheels.result == 'success' || needs.build-xnano-core-wheels.result == 'skipped') &&
-      (needs.test-xnano-core-wheel-install.result == 'success' || needs.test-xnano-core-wheel-install.result == 'skipped')
+      (needs.build-xnano-core-wasm.result == 'success' || needs.build-xnano-core-wasm.result == 'skipped') &&
+      (needs.test-xnano-core-wheel-install.result == 'success' || needs.test-xnano-core-wheel-install.result == 'skipped') &&
+      (needs.test-xnano-core-wasm-wheel.result == 'success' || needs.test-xnano-core-wasm-wheel.result == 'skipped')
     runs-on: ubuntu-latest
 
     environment:
