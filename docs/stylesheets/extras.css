@@ -18,6 +18,34 @@
         'Segoe UI', sans-serif;
 }
 
+/*
+  Collapsible admonitions (???) render as <details>/<summary>, not
+  .admonition / .admonition-title. Material stretches the summary bar with
+  margin: 0 -.6rem; keep extra right padding so the title clears the
+  chevron and the box edge. Body content gets matching side insets —
+  paragraphs use scaleX(1.03) and otherwise grow into the right border.
+*/
+.md-typeset details {
+    padding-right: var(--size-4) !important;
+}
+
+.md-typeset details > summary {
+    /* Re-sync bar stretch with the larger details padding above. */
+    margin-left: calc(-1 * var(--size-4)) !important;
+    margin-right: calc(-1 * var(--size-4)) !important;
+    /* Icon inset (left) + chevron + breathing room (right). */
+    padding-left: calc(2rem + var(--size-4) - 0.6rem) !important;
+    padding-right: calc(2rem + var(--size-4) - 0.6rem) !important;
+}
+
+.md-typeset details > summary::before {
+    left: var(--size-4) !important;
+}
+
+.md-typeset details > summary::after {
+    right: var(--size-3) !important;
+}
+
 .md-typeset p,
 .md-typeset li,
 .md-typeset dd,
@@ -28,7 +56,11 @@
     letter-spacing: var(--font-letterspacing-0-5);
     text-rendering: geometricPrecision !important;
     font-size: 16px;
+    /* scaleX expands from center by default, which shifts body text off
+       the left edge of headings/code. Anchor to the left so optical
+       widening only grows rightward and stays flush with titles. */
     transform: scaleX(1.03);
+    transform-origin: left center;
 }
 
 /* Description elements: closer to headers, serif styling */
@@ -39,7 +71,17 @@
 }
 
 
-.md-typeset h1,
+.md-typeset h1 {
+    font-family: 'Geist Pixel' !important;
+    margin-bottom: 0.35em !important;
+    font-size: 2em !important;
+    border-bottom: var(--border-size-1) dashed;
+    padding-bottom: 0.4rem;
+    border-color: #21252B;
+    font-weight: normal !important;
+}
+
+
 .md-typeset h2,
 .md-typeset h3,
 .md-typeset h4,
@@ -49,7 +91,7 @@
     margin-bottom: 0.35em !important;
     font-size: 1.7em !important;
     border-bottom: var(--border-size-1) dashed;
-    padding-bottom: 0.8rem;
+    padding-bottom: 0.4rem;
     border-color: #21252B;
     font-weight: normal !important;
 }

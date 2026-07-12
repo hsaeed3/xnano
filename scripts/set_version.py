@@ -49,14 +49,14 @@ EDITABLE_FILES: tuple[str, ...] = (
     "pyproject.toml",
     "xnano-core/Cargo.toml",
     "xnano/__init__.py",
-    "docs/concepts/getting-started.md",
+    "docs/core-concepts/getting-started.md",
     "README.md",
 )
 """Paths this script is allowed to modify, relative to the repository
 root."""
 
 MARKDOWN_INSTALL_PIN_FILES: tuple[str, ...] = (
-    "docs/concepts/getting-started.md",
+    "docs/core-concepts/getting-started.md",
     "README.md",
 )
 """Markdown files that embed ``xnano>=…`` install examples."""
@@ -456,9 +456,7 @@ def collect_drift(state: VersionState) -> list[str]:
             drift.append(f"{label}: expected {expected}, found {actual}")
 
     for relative_path in MARKDOWN_INSTALL_PIN_FILES:
-        drift.extend(
-            collect_markdown_install_pin_drift(relative_path, state)
-        )
+        drift.extend(collect_markdown_install_pin_drift(relative_path, state))
 
     return drift
 
