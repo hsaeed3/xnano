@@ -35,7 +35,6 @@ from xnano.fields import Field
 from xnano.grid import BaseGrid, _GridFieldHit, _GridSlideCapture
 from xnano.tui import Terminal
 
-
 # ---------------------------------------------------------------------------
 # 1. Action matching + to_event for each family
 # ---------------------------------------------------------------------------

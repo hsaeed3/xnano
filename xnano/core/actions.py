@@ -23,7 +23,6 @@ from typing import Any, ClassVar, TypeAlias
 
 from xnano._types import KeyboardBinding, MouseButton
 
-
 KeyboardEventKindLike: TypeAlias = str
 """Keyboard event kind filter (``"press"`` / ``"release"`` / ``"repeat"``).
 

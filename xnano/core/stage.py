@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from xnano._types import Area, Size
 
-
 if TYPE_CHECKING:
     from xnano.core.hosts import AbstractHost
 

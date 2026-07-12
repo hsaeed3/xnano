@@ -15,7 +15,6 @@ from xnano.events import on_field
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 
-
 # ---------------------------------------------------------------------------
 # Decorator registration
 # ---------------------------------------------------------------------------

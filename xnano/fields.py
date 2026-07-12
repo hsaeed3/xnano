@@ -35,7 +35,6 @@ from xnano._styles import Style
 from xnano._types import FrameTitlePosition, Sizing, SizingLike
 from xnano.color import ColorLike
 
-
 if TYPE_CHECKING:
     from xnano._styles import TailwindClass
 

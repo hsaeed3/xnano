@@ -18,7 +18,6 @@ import tempfile
 import textwrap
 from collections.abc import Sequence
 
-
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUTPUT_DIRECTORY = REPOSITORY_ROOT / "docs" / "assets" / "terminal"
 SCRIPTS_DIRECTORY = REPOSITORY_ROOT / "scripts"
@@ -29,7 +28,6 @@ from vhs_showcase_themes import (  # noqa: E402
     get_vhs_theme,
 )
 from vhs_tape import build_run_tape  # noqa: E402
-
 
 THEMES = ("dark", "light")
 

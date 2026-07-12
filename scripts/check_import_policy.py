@@ -6,7 +6,6 @@ import ast
 import pathlib
 import sys
 
-
 _PACKAGE_ROOTS: dict[str, pathlib.Path] = {
     "xnano": pathlib.Path("xnano"),
     "xnano_core": pathlib.Path("xnano-core/python/xnano_core"),

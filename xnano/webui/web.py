@@ -21,7 +21,6 @@ from xnano.core.exceptions import ExtraNotInstalledError
 from xnano.webui.requests import HttpMethod
 from xnano.webui.session import WebSession
 
-
 if TYPE_CHECKING:
     if importlib.util.find_spec("starlette") is None:
         Starlette = Any

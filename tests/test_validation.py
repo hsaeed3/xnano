@@ -23,7 +23,6 @@ from xnano._validation import (
 from xnano.components.text import Text
 from xnano.grid import BaseGrid
 
-
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------

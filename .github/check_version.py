@@ -6,7 +6,6 @@ import re
 import sys
 from pathlib import Path
 
-
 PackageConfig = dict[str, Path | str]
 
 PACKAGES: dict[str, PackageConfig] = {

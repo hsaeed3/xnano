@@ -11,7 +11,6 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-
 _PACKAGE_VERSION = re.compile(r'^version = "([^"]+)"$', re.MULTILINE)
 _PINNED_CORE_VERSION = re.compile(r'"xnano-core==([^"]+)"')
 _TAG_PATTERN = re.compile(

@@ -5,7 +5,6 @@ import re
 import sys
 from pathlib import Path
 
-
 _PINNED_CORE_VERSION = re.compile(r"""["']xnano-core==([^"']+)["']""")
 
 

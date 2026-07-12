@@ -18,7 +18,6 @@ from typing import (
 import xnano_core.rust.native as native
 from xnano_core import core
 
-
 if TYPE_CHECKING:
     import xnano.events as xnano_events
     from xnano._types import KeyboardModifier

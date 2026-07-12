@@ -11,7 +11,6 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-
 if TYPE_CHECKING:
     from xnano.core.actions import Actions
     from xnano.core.hosts import AbstractHost

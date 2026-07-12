@@ -8,7 +8,6 @@ __version__ = "1.0.1"
 
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from xnano._styles import Style
     from xnano.context import Context

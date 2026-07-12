@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 
 from xnano.fields import FieldState
 
-
 if TYPE_CHECKING:
     pass
 

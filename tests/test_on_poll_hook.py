@@ -16,7 +16,6 @@ from xnano.events import PollWhen, on_poll
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 
-
 # ---------------------------------------------------------------------------
 # Decorator registration
 # ---------------------------------------------------------------------------

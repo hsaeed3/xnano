@@ -38,7 +38,6 @@ from xnano._types import (
 )
 from xnano.color import _TAILWIND_NAMES, _TAILWIND_SHADES, ColorLike
 
-
 _SPACING_UNITS: frozenset[str] = frozenset(
     [
         "0",

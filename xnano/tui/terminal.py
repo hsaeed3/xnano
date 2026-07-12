@@ -15,7 +15,6 @@ import signal
 import warnings
 from typing import IO, TYPE_CHECKING, Any, Generic, Sequence, TextIO, TypeVar
 
-
 if TYPE_CHECKING:
     from xnano._types import (
         Alignment,
@@ -40,7 +39,6 @@ from xnano.context import Context
 from xnano.core.exceptions import Exit
 from xnano.core.hosts import AbstractHost
 from xnano.grid import BaseGrid
-
 
 if TYPE_CHECKING:
     from xnano.core.controllers.tui import TerminalController

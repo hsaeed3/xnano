@@ -40,7 +40,6 @@ from xnano.effects import (
     resolve_effect,
 )
 
-
 _MOTION_TO_NATIVE: dict[EffectMotion, native.Motion] = {
     "up_to_down": native.Motion.UpToDown,
     "down_to_up": native.Motion.DownToUp,

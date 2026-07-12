@@ -28,7 +28,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from textwrap import dedent
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = REPO_ROOT / "docs" / "assets" / "concepts"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -38,7 +37,6 @@ LAUNCHER_PATH = REPO_ROOT / "scripts" / "run_vhs_demo.py"
 sys.path.insert(0, str(SCRIPTS_DIR))
 from vhs_showcase_themes import get_margin_fill, get_vhs_theme  # noqa: E402
 from vhs_tape import build_run_tape  # noqa: E402
-
 
 THEMES = {
     "dark": "GruvboxDark",

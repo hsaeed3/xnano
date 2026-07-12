@@ -36,7 +36,6 @@ from xnano._types import (
 from xnano.color import ColorLike
 from xnano.tui._node_base_tmp import AbstractNode, NodeKind
 
-
 if TYPE_CHECKING:
     from xnano._types import Frame
     from xnano.core.controllers.abstract import (

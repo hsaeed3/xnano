@@ -18,7 +18,6 @@ from typing import (
     cast,
 )
 
-
 _TAILWIND_CACHE: dict[tuple[str, int], Color] = {}
 
 
