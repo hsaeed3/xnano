@@ -762,11 +762,7 @@ class CanvasPrint:
 
 
 CanvasShape: TypeAlias = (
-    CanvasLine
-    | CanvasPoints
-    | CanvasRectangle
-    | CanvasCircle
-    | CanvasPrint
+    CanvasLine | CanvasPoints | CanvasRectangle | CanvasCircle | CanvasPrint
 )
 """Union of shape types accepted by ``Canvas``."""
 

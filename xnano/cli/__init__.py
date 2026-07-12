@@ -1,4 +1,9 @@
-"""xnano.cli"""
+"""xnano.cli
+
+---
+
+Command-line interface helpers (``Command`` and related parsing).
+"""
 
 from __future__ import annotations
 

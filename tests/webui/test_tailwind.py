@@ -925,9 +925,7 @@ def test_terminal_asymmetric_margin_sides() -> None:
     from xnano import BaseGrid
 
     class App(BaseGrid):
-        content: str = Field(
-            default="hello", class_name="mt-4 ml-8 border"
-        )
+        content: str = Field(default="hello", class_name="mt-4 ml-8 border")
 
     lines = render_grid_offscreen(App()).split("\n")
     top_border_row = next(
@@ -1040,9 +1038,7 @@ def test_web_inline_style_when_kwarg_overrides_class() -> None:
     from xnano import BaseGrid
 
     class App(BaseGrid):
-        body: str = Field(
-            default="x", color="red", class_name="text-blue-500"
-        )
+        body: str = Field(default="x", color="red", class_name="text-blue-500")
 
     html = render_grid_html(App())
     assert "text-blue-500" in html

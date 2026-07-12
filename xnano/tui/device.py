@@ -1,4 +1,10 @@
-"""xnano.tui.device"""
+"""xnano.tui.device
+
+---
+
+Terminal device controls (title, clear, size, scroll, clipboard, mode
+flags) for a live ``Terminal`` session.
+"""
 
 from __future__ import annotations
 
@@ -34,11 +40,11 @@ _NATIVE_CLEAR_TYPES: dict[ClearType, Any] = {
 
 
 class TerminalDevice(AbstractDevice):
-    """Accessor/controller to the terminal device settings during an
-    active session.
+    """Control terminal device settings during a live session.
 
-    NOTE: This class should not be initialized on its own and is
-    instead accessible through a live ``Terminal`` session.
+    Title, clear, size, scroll, clipboard, raw mode, alternate screen,
+    mouse capture, and related flags. Obtained from ``terminal.device``
+    or ``ctx.device`` — do not construct this class yourself.
     """
 
     __slots__ = (
@@ -219,7 +225,6 @@ class TerminalDevice(AbstractDevice):
     def copy_to_clipboard(self, text: str) -> None:
         """Copy ``text`` via the host terminal's clipboard path."""
         self._terminal.copy_to_clipboard(text)
-
 
 
 __all__ = ("TerminalDevice", "ClearType")

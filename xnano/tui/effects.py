@@ -3,10 +3,7 @@
 ---
 
 Lowers neutral ``xnano.effects`` descriptions to native ``tachyonfx``
-effects. This is the terminal-only half promised by the old
-``xnano.effects`` module docstring: it dispatches over the concrete
-``AbstractEffect`` subclasses and builds a native ``tachyonfx`` effect
-for the terminal controller.
+effects for the terminal controller.
 """
 
 from __future__ import annotations
@@ -221,9 +218,7 @@ def build_native_effect(effect: AbstractEffect) -> native.Effect:
         )
     if isinstance(effect, PaintBackgroundEffect):
         return native.paint_bg(
-            _require_native_color(
-                effect.background, label="background"
-            ),
+            _require_native_color(effect.background, label="background"),
             effect.duration_ms,
             _resolve_native_interpolation(effect.interpolation),
         )
@@ -248,9 +243,7 @@ def build_native_effect(effect: AbstractEffect) -> native.Effect:
         if effect.times is not None:
             return native.repeat_effect(child, times=effect.times)
         if effect.duration_ms != 300:
-            return native.repeat_effect(
-                child, duration_ms=effect.duration_ms
-            )
+            return native.repeat_effect(child, duration_ms=effect.duration_ms)
         return native.repeat_effect(child)
     if isinstance(effect, DelayEffect):
         if effect.child is None:
@@ -277,9 +270,7 @@ def apply_native_cell_filter(
         "background": native.CellFilter.BACKGROUND,
         "background_only": native.CellFilter.BACKGROUND_ONLY,
     }
-    return native_effect.with_filter(
-        filters[effect_description.cell_filter]
-    )
+    return native_effect.with_filter(filters[effect_description.cell_filter])
 
 
 def resolve_native_effect(
@@ -336,6 +327,4 @@ def resolve_native_effect(
         times=times,
         key=key,
     )
-    return apply_native_cell_filter(
-        resolved, build_native_effect(resolved)
-    )
+    return apply_native_cell_filter(resolved, build_native_effect(resolved))

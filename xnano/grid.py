@@ -2,12 +2,8 @@
 
 ---
 
-This module provides the `BaseGrid` base class and related types for building
-structured, declarative terminal user interfaces. Grids use annotated
-`Field` descriptors to define slots/areas with associated layout, sizing,
-and style information, and can be configured via the `GridSettings` class.
-Grids support flex-style, nested, and stateful layouts, with unified
-rendering and event integration.
+``BaseGrid`` and related types for declarative layout: ``Field`` slots,
+sizing, nesting, and host-driven rendering with event hooks.
 
 Example:
 
@@ -213,12 +209,7 @@ _GRID_FIELD_IMMUTABLE_KEYS: frozenset[str] = frozenset(
 
 
 _GridLayoutConstraint = LayoutConstraint
-"""Alias kept so nothing that names the old grid-private constraint type
-breaks. Layout constraints are the shared `xnano.controllers.abstract.LayoutConstraint`
-now, not a dataclass private to `BaseGrid` — the same kind/weight vocabulary is
-meant to be portable to a future web controller too, not just a terminal
-split.
-"""
+"""Local name for the shared layout constraint type used while sizing grids."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -522,11 +513,11 @@ def _resolve_slot_area(
     """Complete a slot's geometry from the split result and its cross sizing.
 
     ``split_layout`` sizes each slot along the parent's layout axis
-    (through :func:`_layout_constraint_for_field`); this stage resolves the
+    (through ``_layout_constraint_for_field``); this stage resolves the
     *cross* axis through the same unified ``Sizing`` model, so both ``width``
     and ``height`` are first-class in any grid rather than the cross axis being
     an afterthought. Both axes therefore flow from one vocabulary — the layout
-    axis via the ratatui split, the cross axis via :meth:`Sizing.resolve`.
+    axis via the ratatui split, the cross axis via ``Sizing.resolve``.
 
     A cross-constrained slot keeps its top-left corner. When the cross axis has
     no sizing or fills (the common case), the split slot is already final and
@@ -1178,7 +1169,10 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             if self._grid_field_info(field_name).slide:
                 return True
             value = getattr(self, field_name, None)
-            if isinstance(value, BaseGrid) and value._grid_needs_mouse_geometry():
+            if (
+                isinstance(value, BaseGrid)
+                and value._grid_needs_mouse_geometry()
+            ):
                 return True
             from xnano._types import is_input_text
 
@@ -1567,4 +1561,3 @@ __all__ = (
     "Grid",
     "GridSettings",
 )
-

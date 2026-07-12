@@ -1,4 +1,9 @@
-"""xnano.components.chart"""
+"""xnano.components.chart
+
+---
+
+``Chart`` component for multi-series line and scatter plots.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""xnano.context"""
+"""xnano.context
+
+---
+
+``Context`` passed into ``@on_*`` handlers: event, host, state, and
+shortcuts for cursor, device, actions, and stage.
+"""
 
 from __future__ import annotations
 
@@ -24,11 +30,11 @@ StateT = TypeVar("StateT")
 
 @dataclasses.dataclass(slots=True, frozen=True)
 class Context(Generic[StateT]):
-    """Event hook execution context passed to every ``@on_<event>`` handler.
+    """Runtime context passed into every ``@on_*`` hook handler.
 
-    This class should never be initialized directly, rather it is passed
-    automatically by the live host session to all active & condition-fulfilling
-    hooks.
+    Carries the event, active host, and optional app state, plus shortcuts
+    for cursor, device, actions, and stage. Built by the host — do not
+    construct this yourself.
     """
 
     event: Event | None
@@ -66,17 +72,17 @@ class Context(Generic[StateT]):
 
     @property
     def cursor(self) -> "TerminalCursor | None":
-        """Live cursor controller, forwarded from the active host."""
+        """Cursor / caret controls for the active host (show, hide, style)."""
         return None if self.terminal is None else self.terminal.cursor
 
     @property
     def device(self) -> "TerminalDevice | None":
-        """Live device controller, forwarded from the active host."""
+        """Device controls for the active host (title, clear, size, clipboard)."""
         return None if self.terminal is None else self.terminal.device
 
     @property
     def actions(self) -> "Actions | None":
-        """Actions facade bound to the active host (perform / press / click)."""
+        """Perform synthetic input and requests (``press``, ``click``, …)."""
         if self.terminal is None:
             return None
         getter = getattr(self.terminal, "actions", None)
@@ -86,7 +92,7 @@ class Context(Generic[StateT]):
 
     @property
     def stage(self) -> "Stage | None":
-        """Stage facade for layout map / overlay paint / wireframe."""
+        """Layout map and cell-level paint / wireframe for the active host."""
         if self.terminal is None:
             return None
         if not hasattr(self.terminal, "stage"):

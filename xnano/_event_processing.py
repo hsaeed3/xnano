@@ -1,4 +1,9 @@
-"""xnano._event_processing"""
+"""xnano._event_processing
+
+---
+
+Parse and normalize native terminal events into framework events.
+"""
 
 from __future__ import annotations
 

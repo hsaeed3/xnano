@@ -1,4 +1,9 @@
-"""xnano.webui.nodes"""
+"""xnano.webui.nodes
+
+---
+
+Web render nodes that lower component content to HTML fragments.
+"""
 
 from __future__ import annotations
 

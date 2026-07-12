@@ -604,23 +604,29 @@ class WebController(AbstractController):
             if content is not None:
                 from xnano.core.content import Native, TextBlock, Run
 
-                if isinstance(content, Native) and content.interface_kind == "webui":
+                if (
+                    isinstance(content, Native)
+                    and content.interface_kind == "webui"
+                ):
                     node = content.payload
                 elif isinstance(content, TextBlock):
                     # Best-effort HTML from TextBlock
                     from xnano.webui.nodes import WebParagraphNode, WebSpanNode
+
                     if content.lines:
                         lines = []
                         for line in content.lines:
                             spans = []
                             for run in line:
                                 if isinstance(run, Run):
-                                    spans.append(WebSpanNode(
-                                        content=run.text,
-                                        color=run.color,
-                                        background=run.background,
-                                        modifiers=run.modifiers,
-                                    ))
+                                    spans.append(
+                                        WebSpanNode(
+                                            content=run.text,
+                                            color=run.color,
+                                            background=run.background,
+                                            modifiers=run.modifiers,
+                                        )
+                                    )
                             lines.append(tuple(spans))
                         node = WebParagraphNode(
                             lines=tuple(lines),

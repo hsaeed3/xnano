@@ -2,8 +2,8 @@
 
 ---
 
-Beta command-line interface for argument parsing and command execution,
-fully rendered using library components and features.
+Command-line interface for argument parsing and command execution,
+built with library components and validation helpers.
 """
 
 from __future__ import annotations

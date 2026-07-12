@@ -1,4 +1,10 @@
-"""xnano.tui.cursor"""
+"""xnano.tui.cursor
+
+---
+
+Terminal cursor controls (visibility, style, position) for a live
+``Terminal`` session.
+"""
 
 from __future__ import annotations
 
@@ -50,12 +56,10 @@ Values:
 
 
 class TerminalCursor(AbstractCursor):
-    """Accessor/controller to the live cursor visible on the terminal
-    screen.
+    """Show, hide, style, and move the terminal cursor.
 
-    NOTE: This class should not be initialized on it's own and is
-    instead accessible through a live ``Terminal`` session within
-    the class directly or through ``@on_<event>`` hooks.
+    Obtained from a live ``Terminal`` (``terminal.cursor`` or
+    ``ctx.cursor`` in hooks). Do not construct this class yourself.
     """
 
     __slots__ = (

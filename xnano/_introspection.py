@@ -1,4 +1,9 @@
-"""xnano._introspection"""
+"""xnano._introspection
+
+---
+
+Hook signature inspection and safe state-expression evaluation.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""xnano.core.device"""
+"""xnano.core.device
+
+---
+
+Shared device and cursor contracts for hosts (title, clear, size,
+scroll, clipboard, and caret style).
+"""
 
 from __future__ import annotations
 
@@ -54,11 +60,11 @@ Values:
 
 
 class AbstractDevice(abc.ABC):
-    """Intent-level device contract shared by tui and webui.
+    """Device controls shared by terminal and web hosts.
 
-    Interface kinds implement the mechanisms (crossterm escapes, DOM /
-    browser APIs). The DSL only speaks these intents: title, clear,
-    size, scroll, and clipboard.
+    Use via ``host.device`` / ``ctx.device`` for title, clear, size,
+    scroll, and clipboard. Each host implements the underlying
+    mechanism (terminal escapes, browser APIs).
     """
 
     @property
@@ -115,11 +121,10 @@ class AbstractDevice(abc.ABC):
 
 
 class AbstractCursor(abc.ABC):
-    """Intent-level cursor contract shared by tui and webui.
+    """Cursor / caret controls shared by terminal and web hosts.
 
-    Terminal adapters map these intents to crossterm cursor APIs.
-    Web adapters map visibility/style to caret focus and pointer
-    classes; position moves may be no-ops where unsupported.
+    Use via ``host.cursor`` / ``ctx.cursor`` for visibility and style.
+    Position moves may be no-ops on hosts without a free-moving caret.
     """
 
     @property
@@ -147,7 +152,7 @@ class AbstractCursor(abc.ABC):
         """Set the cursor shape/blink style intent.
 
         Args:
-            value: A :data:`CursorStyle` literal.
+            value: A ``CursorStyle`` literal.
         """
 
     def move_to(self, x: int, y: int) -> None:

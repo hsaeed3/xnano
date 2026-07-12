@@ -1,9 +1,12 @@
 """xnano.fields
 
-Provides a set of `Field` descriptors for defining and annotating grid
-fields with layout, sizing, and style information.
+---
+
+``Field`` descriptors for grid layout, sizing, style, and state
+attributes.
 
 Example:
+
     ```python
     from xnano import BaseGrid, Field
 
@@ -266,7 +269,6 @@ class GridFieldInfo:
         return self.get_style()
 
 
-# Canonical name per architecture plan; ``GridFieldInfo`` kept as alias.
 FieldInfo = GridFieldInfo
 
 

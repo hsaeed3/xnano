@@ -2,9 +2,8 @@
 
 ---
 
-Web implementations of ``AbstractDevice`` / ``AbstractCursor``. Thin
-adapters: page title, logical size, scroll/clipboard intents that the
-host can lower to browser APIs later.
+Browser device and cursor controls for web sessions (title, size,
+scroll, clipboard, caret style).
 """
 
 from __future__ import annotations
@@ -58,7 +57,7 @@ class WebDevice(AbstractDevice):
 
 
 class WebCursor(AbstractCursor):
-    """Browser caret / pointer style facade."""
+    """Browser caret / pointer style controls for a web session."""
 
     def __init__(self, host: Any) -> None:
         self._host = host
