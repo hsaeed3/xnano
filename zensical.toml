@@ -14,36 +14,7 @@ Copyright &copy; 2026 Hammad Saeed
 nav = [
     { "xnano" = [
         { "Introduction" = "index.md" },
-        { "Concepts" = [
-            "concepts/getting-started.md",
-            "concepts/terminal.md",
-            "concepts/grid.md",
-            "concepts/sizing.md",
-            "concepts/hooks.md",
-            "concepts/actions.md",
-        ]},
-        { "Components" = [
-            "components/index.md",
-            "components/text.md",
-            "components/table.md",
-            "components/chart.md",
-            "components/progress.md",
-            "components/sparkline.md",
-            "components/schema.md",
-        ]},
-        { "TUI" = [
-            "terminal/index.md",
-            "terminal/cursor.md",
-            "terminal/device.md",
-        ]},
-        { "Web UI" = [
-            "webui/index.md",
-            "webui/requests.md",
-            "webui/rendering.md",
-        ]},
-        { "CLI" = [
-            "cli/index.md",
-        ]},
+        "core-concepts/getting-started.md",
         { "API Reference" = [
             "api/index.md",
             { "xnano.core" = [
@@ -95,6 +66,20 @@ nav = [
             { "xnano.fields" = "api/fields.md" },
             { "xnano.grid" = "api/grid.md" },
             { "xnano.state" = "api/state.md" },
+            { "xnano (private)" = [
+                { "xnano._core_bindings" = "api/_core_bindings.md" },
+                { "xnano._demo" = "api/_demo.md" },
+                { "xnano._dispatch" = "api/_dispatch.md" },
+                { "xnano._event_processing" = "api/_event_processing.md" },
+                { "xnano._function_hooks" = "api/_function_hooks.md" },
+                { "xnano._introspection" = "api/_introspection.md" },
+                { "xnano._renderable" = "api/_renderable.md" },
+                { "xnano._styles" = "api/_styles.md" },
+                { "xnano._tailwind_classes" = "api/_tailwind_classes.md" },
+                { "xnano._types" = "api/_types.md" },
+                { "xnano._validation" = "api/_validation.md" },
+                { "xnano.tui._node_base_tmp" = "api/tui/_node_base_tmp.md" },
+            ]},
         ]},
     ]},
     { "xnano-core" = [
@@ -150,7 +135,7 @@ features = [
     # "navigation.prune",
     # "navigation.tabs",
     "navigation.top",
-    # "navigation.sections",
+    "navigation.sections",
     "navigation.tracking",
     "search.highlight",
     "toc.follow",
@@ -222,13 +207,19 @@ attr_list = {}
 footnotes = {}
 md_in_html = {}
 "mkdocs-click" = {}
+# Quoted key keeps the dotted module path (TOML nesting would break it).
+"docs_extensions.interactive" = {}
 
 [project.markdown_extensions.pymdownx]
 critic = {}
 details = {}
 keys = {}
-snippets = {}
 inlinehilite = {}
+
+# Shared markdown fragments under docs/includes/ (e.g. interactive.md).
+# Usage: --8<-- "interactive.md"
+[project.markdown_extensions.pymdownx.snippets]
+base_path = ["docs/includes"]
 
 [project.markdown_extensions.pymdownx.arithmatex]
 generic = true
@@ -286,14 +277,6 @@ extensions = ["griffe_typingdoc"]
 
 [project.plugins]
 
-[project.plugins."mkdocs-jupyter"]
-ignore_h1_titles = true
-include_source = true
-execute = false
-allow_errors = false
-show_input = true
-include_requirejs = true
-
 [project.plugins.search]
 
 [project.markdown_extensions.termynal]
@@ -301,3 +284,10 @@ include_assets = true
 title = "bash"
 buttons = "macos"
 prompt_literal_start = ["$"]
+
+# markdown-exec: client-side Pyodide editors + optional build-time exec.
+# Plugin auto-registers custom fences (incl. ``pyodide``) and injects assets.
+# Pre-install packages in fences with: ```pyodide install="xnano"
+# See https://pawamoy.github.io/markdown-exec/usage/pyodide/
+[project.plugins.markdown-exec]
+ansi = "auto"

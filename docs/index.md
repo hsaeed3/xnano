@@ -25,8 +25,6 @@ Fast and flexible, xnano gives you a simple [Pydantic](https://github.com/pydant
 *[Pydantic]: Data validation library using Python type hints.
 *[TUI]: A text-based user interface (your terminal applications).
 
-[API Reference]: api/index.md
-
 ---
 
 <div class="xnano-showcase" markdown>
@@ -308,20 +306,9 @@ Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or pla
 
 ---
 
-## Beyond the terminal
-
-The shared UI model — `BaseGrid`, components, controllers, and render nodes —
-keeps layout declarations separate from the interface that paints them. Two
-additional hosts reuse that model:
-
-- [CLI](cli/index.md) — a model-like command interface for options, flags,
-  and subcommands (`xnano.cli`).
-- [Web UI](webui/index.md) — the same grids in the browser via Tailwind and
-  htmx, with [request hooks](webui/requests.md) and
-  [web rendering](webui/rendering.md) for HTML nodes and text.
-
 ## Next steps
 
-Continue with [Getting started](concepts/getting-started.md), explore the
-[component catalog](components/index.md), open the [Web UI](webui/index.md)
-or [CLI](cli/index.md) guides, or jump to the [API reference](api/index.md).
+As of v1.0.4, the documentation for xnano is still a heavy work in progress. Complete
+guides and tutorials will be available very soon.
+
+[API Reference]: api/index.md

@@ -22,7 +22,8 @@ xnano.render("Hello from xnano!")
 ```
 
 It writes ANSI to stdout outside an active session — the preferred path for
-simple one-shot text demos. The implementation lives in `xnano._renderable`.
+simple one-shot text demos. The implementation lives in
+[`xnano._renderable`](../_renderable.md).
 
 For sized native widgets (tables, charts, progress) or session-frame painting,
 use `Terminal().render(...)` instead. Interactive grids use
