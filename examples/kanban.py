@@ -26,7 +26,6 @@ from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.tui import Terminal
 
-
 # ── Palette ───────────────────────────────────────────────────────────────────
 
 Priority = Literal["high", "mid", "low"]

@@ -23,7 +23,6 @@ from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.tui.terminal import Terminal
 
-
 _COLOR_RING = [
     tailwind_color("rose", 500),
     tailwind_color("orange", 400),

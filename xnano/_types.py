@@ -21,7 +21,6 @@ from typing import (
 
 from xnano.color import ColorLike
 
-
 if TYPE_CHECKING:
     from xnano.components.text import Text
     from xnano.events import FocusHookKind, KeyboardEventData

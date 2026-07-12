@@ -12,7 +12,6 @@ from __future__ import annotations
 import typing
 from typing import Literal, TypeAlias, Union
 
-
 # --- generated: do not hand-edit below this marker -------------------
 # Regenerate with ``uv run python scripts/generate_tailwind_literal.py``
 # and replace everything between the generated markers.

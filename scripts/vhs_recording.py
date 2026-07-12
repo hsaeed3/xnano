@@ -7,7 +7,6 @@ from typing import Literal, TypeAlias
 
 from xnano.color import ColorLike
 
-
 ColorRole: TypeAlias = Literal["foreground", "background"]
 """Whether a color is applied as foreground or background during VHS remaps."""
 

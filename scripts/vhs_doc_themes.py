@@ -7,7 +7,6 @@ VHS margin colors aligned with ``docs/stylesheets/extras.css``.
 
 from __future__ import annotations
 
-
 # Matches ``[data-md-color-scheme="default"] --md-default-bg-color``.
 DOC_BG_LIGHT = "#F4F4ED"
 """Light docs page background."""

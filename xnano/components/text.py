@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 from xnano._types import Alignment, CharacterModifier
 from xnano.components.abstract import AbstractComponent
 
-
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext

@@ -37,7 +37,6 @@ from xnano.events import (
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 
-
 # ---------------------------------------------------------------------------
 # Scenario 1 — login form: focus + Text input + enter submit + re-render
 # ---------------------------------------------------------------------------

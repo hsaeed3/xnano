@@ -16,7 +16,6 @@ from typing import Any, Callable
 from xnano.core.device import AbstractCursor, AbstractDevice
 from xnano.core.exceptions import HookError
 
-
 _MAX_PERFORM_DEPTH: int = 32
 """Maximum actions drained from a single ``perform`` chain.
 

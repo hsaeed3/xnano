@@ -24,7 +24,6 @@ from xnano.events import on_focus, on_keyboard
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 
-
 # ---------------------------------------------------------------------------
 # Decorator
 # ---------------------------------------------------------------------------

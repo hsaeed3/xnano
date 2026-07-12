@@ -28,7 +28,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, TypeAlias
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = REPO_ROOT / "examples"
 OUTPUT_DIR = REPO_ROOT / "docs" / "assets" / "examples"
@@ -41,7 +40,6 @@ from vhs_showcase_themes import (  # noqa: E402
     get_vhs_theme,
 )
 from vhs_tape import build_run_tape  # noqa: E402
-
 
 VariantKey: TypeAlias = Literal["color", "mono"]
 """Showcase recording palette — full color or single-tone foreground."""

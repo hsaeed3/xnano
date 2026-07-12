@@ -16,7 +16,6 @@ from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.tui import Terminal
 
-
 _LOGO = (
     "   ___                 _   _   \n"
     "  / _ \\               | | (_)  \n"

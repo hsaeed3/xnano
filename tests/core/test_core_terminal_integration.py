@@ -18,7 +18,6 @@ from xnano_core.rust.engine import (
     CoreTerminalEventKind,
 )
 
-
 requires_pty = pytest.mark.skipif(
     not hasattr(os, "openpty"),
     reason="requires os.openpty (POSIX pseudo-terminals)",

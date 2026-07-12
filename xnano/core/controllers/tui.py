@@ -34,7 +34,6 @@ from xnano.tui.effects import (
 )
 from xnano.tui.nodes import AbstractTerminalNode, ParagraphNode
 
-
 if TYPE_CHECKING:
     from xnano._types import Frame
     from xnano.core.controllers.abstract import AbstractLayoutConstraint

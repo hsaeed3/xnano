@@ -29,7 +29,6 @@ from xnano._introspection import (
 )
 from xnano.core.exceptions import Exit
 
-
 if TYPE_CHECKING:
     from xnano._function_hooks import PollWhen
     from xnano._types import Area, Coordinate

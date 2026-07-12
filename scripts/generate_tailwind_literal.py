@@ -12,7 +12,6 @@ the supported class vocabulary changes:
 
 from __future__ import annotations
 
-
 TAILWIND_PALETTES: list[str] = [
     "amber",
     "blue",
