@@ -270,12 +270,14 @@ impl PyStyle {
         }
     }
 
+    #[cfg(feature = "terminal")]
     fn underline_color(&self, color: PyColor) -> Self {
         Self {
             inner: self.inner.underline_color(color.inner),
         }
     }
 
+    #[cfg(feature = "terminal")]
     fn get_underline_color(&self) -> Option<PyColor> {
         self.inner.underline_color.map(PyColor::from)
     }

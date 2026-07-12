@@ -1,6 +1,10 @@
+#[cfg(feature = "terminal")]
 use crossterm::event::{KeyCode, KeyModifiers};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+
+#[cfg(not(feature = "terminal"))]
+use super::super::crossterm_types::{KeyCode, KeyModifiers};
 
 use super::super::terminal::PyKeyEvent;
 
