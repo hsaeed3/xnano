@@ -8,9 +8,9 @@ from __future__ import annotations
 import time
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.terminal import Terminal
-from xnano.hooks import on_keyboard, on_tick
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
+from xnano.events import on_keyboard, on_tick
 from xnano.components.text import Text
 from xnano.color import tailwind_color
 
@@ -134,7 +134,7 @@ def _logs_screen(elapsed: float) -> str:
     return "\n".join(_LOGS)
 
 
-class TabNav(Grid, direction="vertical"):
+class TabNav(BaseGrid, direction="vertical"):
     tab_bar: Text = Field(
         default=Text(""),
         height=3,

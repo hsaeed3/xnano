@@ -8,9 +8,9 @@ from __future__ import annotations
 import random
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.terminal import Terminal
-from xnano.hooks import on_keyboard, on_tick
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
+from xnano.events import on_keyboard, on_tick
 from xnano.components.sparkline import Sparkline
 from xnano.components.text import Text
 from xnano.color import tailwind_color
@@ -136,7 +136,7 @@ def _build_table(processes: list, selected: int) -> Text:
     return Text(lines)
 
 
-class GaugesPanel(Grid, direction="vertical", gap=1):
+class GaugesPanel(BaseGrid, direction="vertical", gap=1):
     mem: Text = Field(
         default=Text(""),
         height=3,
@@ -153,7 +153,7 @@ class GaugesPanel(Grid, direction="vertical", gap=1):
     )
 
 
-class LeftPanel(Grid, direction="vertical"):
+class LeftPanel(BaseGrid, direction="vertical"):
     cpu: Sparkline = Field(
         default_factory=Sparkline,
         border="rounded",
@@ -163,7 +163,7 @@ class LeftPanel(Grid, direction="vertical"):
     gauges: GaugesPanel = Field(default_factory=GaugesPanel, height=9)
 
 
-class MainContent(Grid, direction="horizontal", gap=1):
+class MainContent(BaseGrid, direction="horizontal", gap=1):
     left: LeftPanel = Field(default_factory=LeftPanel, width="40%")
     right: Text = Field(
         default=Text(""),
@@ -173,7 +173,7 @@ class MainContent(Grid, direction="horizontal", gap=1):
     )
 
 
-class Dashboard(Grid, direction="vertical"):
+class Dashboard(BaseGrid, direction="vertical"):
     header: str = Field(
         default="   SUPER COOL VERY IMPORTANT DASHBOARD   ",
         height=1,

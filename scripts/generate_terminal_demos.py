@@ -57,7 +57,7 @@ DEMOS = (
         get_code("""
             import time
             from xnano.components.text import Text
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
 
             Terminal().render(
                 Text("Build complete", color="emerald-400"),
@@ -73,11 +73,11 @@ DEMOS = (
         "run-interface",
         get_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.hooks import on_keyboard
-            from xnano.terminal import Terminal
+            from xnano.grid import BaseGrid
+            from xnano.events import on_keyboard
+            from xnano.tui import Terminal
 
-            class App(Grid):
+            class App(BaseGrid):
                 message: str = Field(default="Press q to leave")
 
                 @on_keyboard("q")
@@ -94,7 +94,7 @@ DEMOS = (
         "sized-inline",
         get_code("""
             import time
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
 
             Terminal(width=36, height=3).render(
                 "A compact result",
@@ -110,11 +110,11 @@ DEMOS = (
         "context-session",
         get_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.hooks import on_keyboard
-            from xnano.terminal import Terminal
+            from xnano.grid import BaseGrid
+            from xnano.events import on_keyboard
+            from xnano.tui import Terminal
 
-            class App(Grid):
+            class App(BaseGrid):
                 message: str = Field(default="Tasks · press q to leave")
 
                 @on_keyboard("q")
@@ -132,11 +132,11 @@ DEMOS = (
         "device-options",
         get_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.hooks import on_keyboard
-            from xnano.terminal import Terminal
+            from xnano.grid import BaseGrid
+            from xnano.events import on_keyboard
+            from xnano.tui import Terminal
 
-            class App(Grid):
+            class App(BaseGrid):
                 message: str = Field(default="Device modes are active · press q")
 
                 @on_keyboard("q")
@@ -160,11 +160,11 @@ DEMOS = (
         "device-live-title",
         get_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.hooks import on_keyboard
-            from xnano.terminal import Terminal
+            from xnano.grid import BaseGrid
+            from xnano.events import on_keyboard
+            from xnano.tui import Terminal
 
-            class App(Grid):
+            class App(BaseGrid):
                 message: str = Field(default="Press t to update the window title")
 
                 @on_keyboard("t")
@@ -187,11 +187,11 @@ DEMOS = (
         "device-clear-line",
         get_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.hooks import on_keyboard
-            from xnano.terminal import Terminal
+            from xnano.grid import BaseGrid
+            from xnano.events import on_keyboard
+            from xnano.tui import Terminal
 
-            class App(Grid):
+            class App(BaseGrid):
                 message: str = Field(default="Press c to clear the current line")
 
                 @on_keyboard("c")
@@ -214,11 +214,11 @@ DEMOS = (
         "cursor-style",
         get_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.hooks import on_keyboard
-            from xnano.terminal import Terminal
+            from xnano.grid import BaseGrid
+            from xnano.events import on_keyboard
+            from xnano.tui import Terminal
 
-            class App(Grid):
+            class App(BaseGrid):
                 message: str = Field(default="Press i for a steady bar cursor")
 
                 @on_keyboard("i")
@@ -241,11 +241,11 @@ DEMOS = (
         "cursor-position",
         get_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.hooks import on_keyboard
-            from xnano.terminal import Terminal
+            from xnano.grid import BaseGrid
+            from xnano.events import on_keyboard
+            from xnano.tui import Terminal
 
-            class App(Grid):
+            class App(BaseGrid):
                 message: str = Field(default="Press p to preview a cursor move")
 
                 @on_keyboard("p")

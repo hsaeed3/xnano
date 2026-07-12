@@ -9,9 +9,9 @@ import math
 import time
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.terminal import Terminal
-from xnano.hooks import on_keyboard, on_tick
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
+from xnano.events import on_keyboard, on_tick
 from xnano.components.text import Text
 from xnano.color import tailwind_color
 from xnano.effects import AbstractEffect, Effect
@@ -92,7 +92,7 @@ def _build_canvas_effect(key: str) -> AbstractEffect:
     )
 
 
-class EffectsDemo(Grid, direction="vertical"):
+class EffectsDemo(BaseGrid, direction="vertical"):
     header: str = Field(
         default="  TACHYONFX VISUAL EFFECTS ANIMATION DEMO  ",
         height=1,

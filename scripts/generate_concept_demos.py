@@ -104,7 +104,7 @@ DEMOS: tuple[Demo, ...] = (
         name="render_text",
         code=_code("""
             import time
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.components.text import Text
 
             Terminal().render(
@@ -125,7 +125,7 @@ DEMOS: tuple[Demo, ...] = (
         name="render_multiple",
         code=_code("""
             import time
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.components.text import Text
 
             Terminal().render(
@@ -147,7 +147,7 @@ DEMOS: tuple[Demo, ...] = (
         name="styled_text",
         code=_code("""
             import time
-            from xnano.terminal import Terminal
+            from xnano.tui import Terminal
             from xnano.components.text import Text
 
             message = Text([
@@ -172,11 +172,11 @@ DEMOS: tuple[Demo, ...] = (
         name="hello_render",
         code=_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard
 
-            class Hello(Grid, direction="vertical", gap=1):
+            class Hello(BaseGrid, direction="vertical", gap=1):
                 line1: str = Field(
                     default="Hello from xnano!",
                     color="violet",
@@ -202,11 +202,11 @@ DEMOS: tuple[Demo, ...] = (
         name="hello_grid",
         code=_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard
 
-            class Hello(Grid, direction="vertical"):
+            class Hello(BaseGrid, direction="vertical"):
                 message: str = Field(default="Press q to quit.", height=1)
 
                 @on_keyboard("q")
@@ -223,11 +223,11 @@ DEMOS: tuple[Demo, ...] = (
         name="terminal_render",
         code=_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard
 
-            class Output(Grid, direction="vertical", gap=1):
+            class Output(BaseGrid, direction="vertical", gap=1):
                 line1: str = Field(
                     default="Build complete.",
                     color="emerald-400",
@@ -251,15 +251,15 @@ DEMOS: tuple[Demo, ...] = (
         code=_code("""
             from dataclasses import dataclass
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard
 
             @dataclass
             class AppState:
                 theme: str = "dark"
 
-            class App(Grid, direction="vertical", gap=1):
+            class App(BaseGrid, direction="vertical", gap=1):
                 header: str = Field(
                     default="",
                     height=1,
@@ -302,11 +302,11 @@ DEMOS: tuple[Demo, ...] = (
         name="grid_basic",
         code=_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard
 
-            class App(Grid, direction="vertical"):
+            class App(BaseGrid, direction="vertical"):
                 header: str = Field(
                     default="My App",
                     height=1,
@@ -330,11 +330,11 @@ DEMOS: tuple[Demo, ...] = (
         name="grid_nested",
         code=_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard
 
-            class Sidebar(Grid, direction="vertical"):
+            class Sidebar(BaseGrid, direction="vertical"):
                 nav: str = Field(
                     default="  — Home\\n  — About\\n  — Settings",
                     border="rounded",
@@ -342,7 +342,7 @@ DEMOS: tuple[Demo, ...] = (
                 )
                 status: str = Field(default="  Ready", height=1, color="slate-500")
 
-            class App(Grid, direction="horizontal", gap=1):
+            class App(BaseGrid, direction="horizontal", gap=1):
                 sidebar: Sidebar = Field(default_factory=Sidebar, width="25%")
                 main: str = Field(
                     default="Main content area.",
@@ -366,11 +366,11 @@ DEMOS: tuple[Demo, ...] = (
         name="grid_render_method",
         code=_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard
 
-            class App(Grid, direction="vertical", gap=1):
+            class App(BaseGrid, direction="vertical", gap=1):
                 header: str = Field(
                     default="",
                     height=1,
@@ -405,11 +405,11 @@ DEMOS: tuple[Demo, ...] = (
         name="sizing_mix",
         code=_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard
 
-            class App(Grid, direction="vertical", gap=1):
+            class App(BaseGrid, direction="vertical", gap=1):
                 header: str = Field(
                     default="  fixed: height=1",
                     height=1,
@@ -449,11 +449,11 @@ DEMOS: tuple[Demo, ...] = (
         name="hooks_keyboard",
         code=_code("""
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard
 
-            class Counter(Grid, direction="vertical", gap=1):
+            class Counter(BaseGrid, direction="vertical", gap=1):
                 label: str = Field(
                     default="Count: 0",
                     height=1,
@@ -500,11 +500,11 @@ DEMOS: tuple[Demo, ...] = (
         code=_code("""
             import time
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_keyboard, on_tick
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_keyboard, on_tick
 
-            class Clock(Grid, direction="vertical", gap=1):
+            class Clock(BaseGrid, direction="vertical", gap=1):
                 display: str = Field(
                     default="",
                     height=3,
@@ -533,11 +533,11 @@ DEMOS: tuple[Demo, ...] = (
         code=_code("""
             import os
             from xnano.fields import Field
-            from xnano.grid import Grid
-            from xnano.terminal import Terminal
-            from xnano.hooks import on_click, on_keyboard
+            from xnano.grid import BaseGrid
+            from xnano.tui import Terminal
+            from xnano.events import on_click, on_keyboard
 
-            class App(Grid, direction="vertical", gap=1):
+            class App(BaseGrid, direction="vertical", gap=1):
                 button: str = Field(
                     default="  [ Click me ]  ",
                     height=3,
