@@ -19,6 +19,78 @@ nav = [
     { "xnano-core" = [
         "xnano-core/overview.md",
     ]},
+    { "API Reference" = [
+        { "xnano" = [
+            "api/xnano/xnano.md",
+            "api/xnano/_core_bindings.md",
+            "api/xnano/_demo.md",
+            "api/xnano/_dispatch.md",
+            "api/xnano/_event_processing.md",
+            "api/xnano/_function_hooks.md",
+            "api/xnano/_introspection.md",
+            "api/xnano/_renderable.md",
+            "api/xnano/_styles.md",
+            "api/xnano/_tailwind_classes.md",
+            "api/xnano/_types.md",
+            "api/xnano/_validation.md",
+            "api/xnano/color.md",
+            "api/xnano/context.md",
+            "api/xnano/effects.md",
+            "api/xnano/events.md",
+            "api/xnano/fields.md",
+            "api/xnano/grid.md",
+            "api/xnano/state.md",
+            { "cli" = [
+                "api/xnano/cli/command.md",
+            ]},
+            { "components" = [
+                "api/xnano/components/abstract.md",
+                "api/xnano/components/chart.md",
+                "api/xnano/components/progress.md",
+                "api/xnano/components/schema.md",
+                "api/xnano/components/sparkline.md",
+                "api/xnano/components/table.md",
+                "api/xnano/components/text.md",
+            ]},
+            { "core" = [
+                "api/xnano/core/actions.md",
+                "api/xnano/core/content.md",
+                "api/xnano/core/device.md",
+                "api/xnano/core/exceptions.md",
+                "api/xnano/core/hosts.md",
+                "api/xnano/core/interface.md",
+                "api/xnano/core/stage.md",
+                { "controllers" = [
+                    "api/xnano/core/controllers/abstract.md",
+                    "api/xnano/core/controllers/tui.md",
+                    "api/xnano/core/controllers/webui.md",
+                ]},
+            ]},
+            { "tui" = [
+                "api/xnano/tui/_node_base_tmp.md",
+                "api/xnano/tui/content_lower.md",
+                "api/xnano/tui/cursor.md",
+                "api/xnano/tui/device.md",
+                "api/xnano/tui/effects.md",
+                "api/xnano/tui/nodes.md",
+                "api/xnano/tui/terminal.md",
+            ]},
+            { "webui" = [
+                "api/xnano/webui/device.md",
+                "api/xnano/webui/nodes.md",
+                "api/xnano/webui/requests.md",
+                "api/xnano/webui/session.md",
+                "api/xnano/webui/web.md",
+            ]},
+        ]},
+        { "xnano-core" = [
+            "api/xnano-core/xnano-core.md",
+            "api/xnano-core/core.md",
+            { "rust" = [
+                "api/xnano-core/rust/engine.md",
+            ]},
+        ]},
+    ]},
 ]
 
 extra_css = [
@@ -54,7 +126,6 @@ features = [
     "content.tabs.link",
     "content.tooltips",
     "header.autohide",
-    "navigation.expand",
     "navigation.footer",
     # "navigation.instant",
     # !! prefetch should probably be enabled but its messing up the hero
