@@ -13,10 +13,16 @@ Most programs need one `Terminal` and one of two methods:
 
 === "Render once"
 
-    Use `render()` for output that can finish immediately, such as a status
-    message or command result.
+    Use `render()` for a one-frame session result — a status message or command
+    result that returns to the shell. The frame is only held while the process
+    stays alive, so short scripts usually sleep after painting.
+
+    For print-like output with no session, prefer
+    `from xnano._renderable import render`.
 
     ```python title="status.py"
+    import time
+
     from xnano.components.text import Text
     from xnano.tui import Terminal
 
@@ -25,6 +31,7 @@ Most programs need one `Terminal` and one of two methods:
         Text("12 tests passed", color="slate-400"),
         gap=1,
     )
+    time.sleep(3)
     ```
 
     <div class="xnano-demo" markdown>
@@ -80,6 +87,8 @@ A grid has no intrinsic height, so `height="fit"` on a grid falls back to the
 full screen and emits a warning. Use a fixed height for an inline grid.
 
 ```python title="sized.py"
+import time
+
 from xnano.tui import Terminal
 
 Terminal(width=36, height=3).render(
@@ -87,6 +96,7 @@ Terminal(width=36, height=3).render(
     border="rounded",  # (1)!
     padding=(0, 1),
 )
+time.sleep(3)
 ```
 
 1. Styling passed to `render()` or `run()` wraps non-grid content in the same

@@ -10,6 +10,8 @@ no column configuration, it reads the first row and preserves that field
 order.
 
 ```python title="table.py"
+import time
+
 from xnano.components.table import Table
 from xnano.tui import Terminal
 
@@ -22,7 +24,8 @@ services = Table(
     highlight_background="blue",
 )
 
-Terminal(width=44, height=4).run(services)
+Terminal(width=44, height=4).render(services)
+time.sleep(3)
 ```
 
 1. `selected` highlights a row and asks the native table to keep it visible.
@@ -39,6 +42,8 @@ Pass a list to select and order fields, or a mapping to configure each field.
 A mapping value may be a header string, an accessor function, or a `Column`.
 
 ```python title="table_columns.py"
+import time
+
 from xnano.components.schema import Column
 from xnano.components.table import Table
 from xnano.tui import Terminal
@@ -57,7 +62,8 @@ services = Table(
     },
 )
 
-Terminal(width=44, height=4).run(services)
+Terminal(width=44, height=4).render(services)
+time.sleep(3)
 ```
 
 1. `format` accepts a `str.format` template or a formatting function.
@@ -75,6 +81,8 @@ For a table shape used in several places, subclass `Table` and declare
 declaring `Field` values on a `BaseGrid`.
 
 ```python title="service_table.py"
+import time
+
 from xnano.components.schema import Column
 from xnano.components.table import Table
 from xnano.tui import Terminal
@@ -86,7 +94,7 @@ class ServiceTable(Table):
     )
     latency: int = Column(align="right", format="{} ms", width=10)  # (1)!
 
-Terminal(width=44, height=4).run(
+Terminal(width=44, height=4).render(
     ServiceTable(
         data=[
             {"service": "api", "status": "ready", "latency": 12},
@@ -94,6 +102,7 @@ Terminal(width=44, height=4).run(
         ]
     )
 )
+time.sleep(3)
 ```
 
 1. A column width may be a fixed cell count or a fractional share from `0.0`

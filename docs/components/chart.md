@@ -10,6 +10,8 @@ or bare y-values; bare values receive their list index as x. Axis bounds and
 series colors are inferred by default.
 
 ```python title="chart.py"
+import time
+
 from xnano.components.chart import Chart
 from xnano.tui import Terminal
 
@@ -22,7 +24,8 @@ usage = Chart(
     y_label="percent",  # (1)!
 )
 
-Terminal(width=58, height=14).run(usage)
+Terminal(width=58, height=14).render(usage)
+time.sleep(3)
 ```
 
 1. Named series also supply legend labels. Set `legend=False` to hide it.
@@ -37,6 +40,8 @@ Set `kind` to `"line"`, `"scatter"`, or `"bar"`. Explicit `x_bounds` and
 `y_bounds` are useful when several frames need a stable scale.
 
 ```python title="bar_chart.py"
+import time
+
 from xnano.components.chart import Chart
 from xnano.tui import Terminal
 
@@ -47,7 +52,8 @@ requests = Chart(
     legend=False,
 )
 
-Terminal(width=48, height=12).run(requests)
+Terminal(width=48, height=12).render(requests)
+time.sleep(3)
 ```
 
 1. `kind` is the default for every series in the chart.
@@ -65,6 +71,8 @@ reusable schema. A declaration can replace the legend label, color, or chart
 kind for one series.
 
 ```python title="latency_chart.py"
+import time
+
 from xnano.components.chart import Chart
 from xnano.components.schema import Series
 from xnano.tui import Terminal
@@ -80,7 +88,8 @@ chart = LatencyChart(
     }
 )
 
-Terminal(width=54, height=14).run(chart)
+Terminal(width=54, height=14).render(chart)
+time.sleep(3)
 ```
 
 1. Per-series `kind` overrides the chart default, so plot types can be mixed.

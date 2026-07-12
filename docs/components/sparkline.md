@@ -10,6 +10,8 @@ It fills the field containing it and scales bar height against the largest
 sample, or against `max_value` when you supply one.
 
 ```python title="sparkline.py"
+import time
+
 from xnano.components.sparkline import Sparkline
 from xnano.tui import Terminal
 
@@ -19,7 +21,8 @@ history = Sparkline(
     max_value=10,  # (1)!
 )
 
-Terminal(width=20, height=4).run(history)
+Terminal(width=20, height=4).render(history)
+time.sleep(3)
 ```
 
 1. A fixed ceiling keeps the visual scale stable as new samples arrive.
@@ -35,6 +38,8 @@ data point. `absent_value_symbol` and `absent_value_color` control how zero or
 missing samples appear.
 
 ```python title="sparkline_colors.py"
+import time
+
 from xnano.components.sparkline import Sparkline
 from xnano.tui import Terminal
 
@@ -43,7 +48,8 @@ heat = Sparkline(
     colors=("blue", "cyan", "green", "yellow", "red"),  # (1)!
 )
 
-Terminal(width=14, height=3).run(heat)
+Terminal(width=14, height=3).render(heat)
+time.sleep(3)
 ```
 
 1. `colors` and `data` must have the same length.
