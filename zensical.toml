@@ -20,6 +20,7 @@ nav = [
             "concepts/grid.md",
             "concepts/sizing.md",
             "concepts/hooks.md",
+            "concepts/actions.md",
         ]},
         { "Components" = [
             "components/index.md",
