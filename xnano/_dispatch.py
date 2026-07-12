@@ -12,7 +12,6 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any, Awaitable, Coroutine, Sequence, cast
 
-from xnano._core_bindings import get_area_from_native_rect
 from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnFieldHookFunctionEntry,
@@ -420,6 +419,8 @@ def render_frame(
     terminal._mouse_geometry_active = (
         terminal.mouse_events and is_grid and root._grid_needs_mouse_geometry()
     )
+    from xnano._core_bindings import get_area_from_native_rect
+
     sess = terminal.session
     sess.begin_viewport_frame()
     viewport = get_area_from_native_rect(sess.get_native_viewport_area())

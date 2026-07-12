@@ -313,6 +313,40 @@ def _abstract_component_to_lines(value: Any) -> list[str] | None:
     return repr(value).splitlines() or [""]
 
 
+def _base_grid_to_lines(value: Any) -> list[str] | None:
+    """Plain-text fallback for ``BaseGrid`` outside a live terminal session.
+
+    Used by Pyodide / stdout ``render()`` so interactive docs can show field
+    content without ``xnano-core``.
+    """
+    # Duck-type via ClassVar maps set by ``BaseGrid`` metaclass.
+    render_fields = getattr(type(value), "_grid_fields", None)
+    if not isinstance(render_fields, Mapping) or not render_fields:
+        return None
+
+    lines: list[str] = []
+    for name, info in render_fields.items():
+        if getattr(info, "state", False):
+            continue
+        field_value = getattr(value, name, None)
+        if field_value is None:
+            continue
+        border = getattr(info, "border", None)
+        title = getattr(info, "title", None) or (name if border else None)
+        field_lines = _renderable_to_lines(field_value)
+        if border:
+            field_lines = _apply_border(
+                field_lines,
+                border,
+                getattr(info, "border_sides", None),
+                "",
+                title,
+                getattr(info, "title_position", None),
+            )
+        lines.extend(field_lines)
+    return lines or [f"[{type(value).__name__}]"]
+
+
 def _renderable_to_lines(value: Any) -> list[str]:
     """Convert a renderable to display lines (ANSI allowed for styled Text)."""
     component_lines = _abstract_component_to_lines(value)
@@ -327,6 +361,9 @@ def _renderable_to_lines(value: Any) -> list[str]:
         for item in value:
             lines.extend(_renderable_to_lines(item))
         return lines
+    grid_lines = _base_grid_to_lines(value)
+    if grid_lines is not None:
+        return grid_lines
     return repr(value).splitlines() or [""]
 
 
@@ -709,9 +746,7 @@ def render(
     sep_value = " " if sep is None else sep
     end_value = "\n" if end is None else end
 
-    from xnano._core_bindings import get_area_from_native_rect
     from xnano.fields import GridFieldInfo
-    from xnano.tui.terminal import _ACTIVE_TERMINAL
 
     field = GridFieldInfo(
         color=color,
@@ -727,7 +762,16 @@ def render(
         direction=direction,
     )
 
-    terminal = _ACTIVE_TERMINAL.get()
+    # Native / live-session imports are deferred so pure-Python installs
+    # (e.g. Pyodide docs via micropip) can use the stdout ANSI path without
+    # ``xnano-core`` being present.
+    try:
+        from xnano.tui.terminal import _ACTIVE_TERMINAL
+
+        terminal = _ACTIVE_TERMINAL.get()
+    except ImportError:
+        terminal = None
+
     stream_id = _normalize_stream_id(stream)
 
     # Explicit non-stdout file always takes the text path, even mid-session.
@@ -757,6 +801,8 @@ def render(
     if terminal is not None and getattr(terminal, "_is_live", False):
         # Prefer the terminal's full paint path when a live session owns the
         # display — streams re-paint the whole region with the latest content.
+        from xnano._core_bindings import get_area_from_native_rect
+
         if stream_id is not None:
             region = _STREAM_REGIONS.setdefault(stream_id, _StreamRegion())
             if update or not region.renderables:
