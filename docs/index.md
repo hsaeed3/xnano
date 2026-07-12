@@ -124,12 +124,12 @@ Terminal().render(
 
 ## Building a layout
 
-Layouts work like Pydantic models. Inherit from `Grid`, add typed fields, and xnano handles the rest. Field order is layout order.
+Layouts work like Pydantic models. Inherit from `BaseGrid`, add typed fields, and xnano handles the rest. Field order is layout order. (`Grid` remains available as an alias of `BaseGrid`.)
 
 ```python
-from xnano import Field, Grid, Terminal
+from xnano import Field, BaseGrid, Terminal
 
-class App(Grid, direction="vertical"):
+class App(BaseGrid, direction="vertical"):
     header: str = Field(default="My App", height=1, color="white", background="violet")
     body:   str = Field(default="Content goes here.")
     footer: str = Field(default="[q] quit", height=1, color="slate-500")
@@ -145,11 +145,11 @@ Terminal().run(App())
 Nest grids to build more complex layouts:
 
 ```python
-class Sidebar(Grid, direction="vertical"):
+class Sidebar(BaseGrid, direction="vertical"):
     nav:    str = Field(default="- Home\n- Settings", width="20%", border="rounded")
     detail: str = Field(default="Select an item", width="1fr")
 
-class App(Grid, direction="horizontal"):
+class App(BaseGrid, direction="horizontal"):
     sidebar: Sidebar = Field(default_factory=Sidebar, width="25%")
     main:    str     = Field(default="Main area", width="1fr", border="rounded")
 
@@ -168,10 +168,10 @@ Terminal().run(App())
 Decorate a method with `@on_keyboard` and it fires when that key is pressed. Fields marked `state=True` trigger a re-render whenever they change.
 
 ```python
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_keyboard
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_keyboard
 
-class Counter(Grid, direction="vertical", gap=1):
+class Counter(BaseGrid, direction="vertical", gap=1):
     label: str = Field(default="Count: 0", height=1)
     hint:  str = Field(default="↑ / ↓ to count  ·  q to quit", height=1, color="slate-500")
 
@@ -216,10 +216,10 @@ Use `@on_tick` to run something on a repeating interval. Pass a number of millis
 
 ```python
 import time
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_tick
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_tick
 
-class Clock(Grid, direction="vertical"):
+class Clock(BaseGrid, direction="vertical"):
     display: str = Field(default="", height=3, border="rounded", title=" Time ")
 
     @on_tick(1000)
@@ -247,7 +247,7 @@ Terminal(tick_interval=16).run(MyAnimatedApp())
 Every field accepts `width=` and `height=` to control how much space it takes. You can use plain integers (cells), percentages, or fraction strings.
 
 ```python
-class Layout(Grid, direction="horizontal", gap=1):
+class Layout(BaseGrid, direction="horizontal", gap=1):
     sidebar: str = Field(default="Sidebar", width="25%",  border="rounded")
     main:    str = Field(default="Content", width="1fr",  border="rounded")
     aside:   str = Field(default="Aside",   width="20%",  border="rounded")
@@ -263,7 +263,7 @@ class Layout(Grid, direction="horizontal", gap=1):
 Mix and match freely — xnano resolves everything in one pass:
 
 ```python
-class App(Grid, direction="vertical"):
+class App(BaseGrid, direction="vertical"):
     header: str = Field(default="Header", height=1)     # always 1 row
     body:   str = Field(default="Body",   height="1fr") # fills remaining space
     footer: str = Field(default="Footer", height=3)     # always 3 rows
@@ -305,23 +305,18 @@ Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or pla
 
 ## Beyond the terminal
 
-The 1.0.0 release establishes the shared UI model used by xnano's terminal
-renderer. `Grid`, components, controllers, and render nodes keep layout
-declarations separate from the interface that paints them.
+The shared UI model — `BaseGrid`, components, controllers, and render nodes —
+keeps layout declarations separate from the interface that paints them. Two
+additional hosts reuse that model:
 
-The [beta surface](beta/overview.md) extends that model in two directions:
-
-- [Commands](beta/commands/index.md) — a model-like CLI for options, flags,
-  and subcommands with the same typed style used for grids.
-- [Web UI](beta/webui/index.md) — the same grids in the browser via Tailwind
-  and htmx, with [request hooks](beta/webui/requests.md) and
-  [web rendering](beta/webui/rendering.md) for HTML nodes and text.
-
-These APIs live under `xnano.beta` while the public surface settles. The
-terminal guides on this site remain the stable path.
+- [CLI](cli/index.md) — a model-like command interface for options, flags,
+  and subcommands (`xnano.cli`).
+- [Web UI](webui/index.md) — the same grids in the browser via Tailwind and
+  htmx, with [request hooks](webui/requests.md) and
+  [web rendering](webui/rendering.md) for HTML nodes and text.
 
 ## Next steps
 
 Continue with [Getting started](concepts/getting-started.md), explore the
-[component catalog](components/index.md), open the [beta overview](beta/overview.md),
-or jump to the [API reference](api/index.md).
+[component catalog](components/index.md), open the [Web UI](webui/index.md)
+or [CLI](cli/index.md) guides, or jump to the [API reference](api/index.md).

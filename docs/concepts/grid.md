@@ -5,8 +5,9 @@ icon: lucide/layout-dashboard
 
 # Grids and fields
 
-A `Grid` is a typed layout. Each `Field` marks one value as a visible slot, and
-the order of the declarations is the order used by the layout.
+A `BaseGrid` is a typed layout (`Grid` is an alias). Each `Field` marks one
+value as a visible slot, and the order of the declarations is the order used
+by the layout.
 
 ## Declare a layout
 
@@ -14,10 +15,10 @@ The grid direction controls the layout axis. A vertical grid places fields
 from top to bottom; a horizontal grid places them from left to right.
 
 ```python title="app.py"
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_keyboard
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_keyboard
 
-class App(Grid, direction="vertical"):
+class App(BaseGrid, direction="vertical"):
     header: str = Field(
         default="My App", height=1, color="white", background="violet"
     )
@@ -53,16 +54,16 @@ A field can contain another grid. Use `default_factory` so every parent gets a
 new child instance.
 
 ```python title="nested.py"
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_keyboard
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_keyboard
 
-class Sidebar(Grid, direction="vertical"):
+class Sidebar(BaseGrid, direction="vertical"):
     navigation: str = Field(
         default="Home\nAbout\nSettings", border="rounded"
     )
     status: str = Field(default="Ready", height=1)
 
-class App(Grid, direction="horizontal", gap=1):
+class App(BaseGrid, direction="horizontal", gap=1):
     sidebar: Sidebar = Field(default_factory=Sidebar, width="25%")  # (1)!
     main: str = Field(default="Main content", width="1fr", border="rounded")
 
@@ -87,10 +88,10 @@ the field values that should be visible. Keep the method limited to quick,
 deterministic work.
 
 ```python title="derived.py"
-from xnano import Field, Grid, Terminal
-from xnano.hooks import on_keyboard
+from xnano import Field, BaseGrid, Terminal
+from xnano.events import on_keyboard
 
-class Greeting(Grid, direction="vertical", gap=1):
+class Greeting(BaseGrid, direction="vertical", gap=1):
     header: str = Field(default="", height=1)
     body: str = Field(default="", border="rounded")
     name: str = Field(default="world", state=True)
