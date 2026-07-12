@@ -31,13 +31,13 @@ maturin develop --uv
 
 ### Docs
 ```bash
-uv run mkdocs serve                  # local docs server
+uv run mkdocs serve                  # local docs server (zensical/mkdocs)
 ```
 
 ### Docs demo GIFs (VHS)
-`scripts/generate_xnano_demos.py` records the `docs/assets/xnano-*.gif`
-feature-tour GIFs with [VHS](https://github.com/charmbracelet/vhs)
-(`.tape` files interpreted by the `vhs` CLI, `brew install vhs`).
+VHS tooling lives under `scripts/` only. Feature-tour and concept demos are
+recorded with [VHS](https://github.com/charmbracelet/vhs) (`.tape` files
+interpreted by the `vhs` CLI, `brew install vhs`).
 ```bash
 uv run python scripts/generate_xnano_demos.py               # all demos
 uv run python scripts/generate_xnano_demos.py --demo title  # one demo
@@ -72,10 +72,10 @@ VHS quirks worth knowing before touching `Demo` settings in that script:
   Screenshot "/tmp/probe.png"
   ```
 - Centering content within an odd leftover row/column count also biases
-  visually — see `xnano/core/demo/title.py`'s `_build_watercolor_frame`,
-  which had to switch from floor to ceiling division on the vertical
-  leftover to stop the wordmark from reading as shifted upward.
-- `Env COLORTERM "truecolor"` is required for the watercolor gradient to
+  visually — see `xnano/_demo.py` watercolor frame builders, which may
+  need ceiling division on the vertical leftover to keep wordmarks from
+  reading as shifted upward.
+- `Env COLORTERM "truecolor"` is required for watercolor gradients to
   render — without it VHS's pty falls back to a 16-color ANSI palette
   and gradients collapse to a single flat tone.
 
@@ -87,54 +87,63 @@ This uv workspace contains the stable Python framework (`xnano` 1.0.0) and
 the maturin-built Rust extension (`xnano-core` 0.0.8).
 
 ```
-User app (Grid + Field + @on_* hooks)
+User app (BaseGrid + Field + @on_* hooks + Action)
     ↓
-xnano               stable layout, components, events, controllers
-    ├── xnano.beta   experimental Web, HTTP hooks, and Command APIs
+xnano               public DSL: grid, fields, events, components, …
+    ├── xnano.core   host/action/content/stage/device contracts + controllers
+    ├── xnano.tui    Terminal host + native lowering
+    ├── xnano.webui  Web host + HTML/htmx
+    └── xnano.cli    Command CLI
     ↓
 xnano_core.core     session, scene graph, render IR, unified events
     ↓
 xnano_core.rust.native   raw ratatui/crossterm/tachyonfx PyO3 bindings
 ```
 
-### xnano (stable framework)
+### xnano (public DSL)
 
-The v1 TUI implementation lives directly under `xnano/`. The package root
-lazy-exports `Grid`, `Field`, `GridSettings`, `Terminal`, `Context`, and stable
-`@on_*` decorators. Import components and supporting types from their concrete
-modules.
+The package root lazy-exports `BaseGrid` (deprecated `Grid` alias),
+`GridSettings`, `Field`, `Context`, `Terminal`, `Action`, `Style`, and
+stable `@on_*` / `@on` decorators. Import components and supporting types
+from their concrete modules.
 
 Key modules:
 
-- `grid.py`, `fields.py` — declarative layout, sizing, and state fields
-- `terminal/` — `Terminal` session/run loop plus cursor and device facades
-- `hooks.py`, `context.py`, `events.py` — hooks, handler context, unified events
-- `components/` — stable text, progress, sparkline, table, chart, and schema
-- `core/controllers/abstract.py` — shared backend contract and capabilities
-- `core/controllers/terminal.py` — batches paint requests, lowers terminal
-  nodes and `CoreRenderIR`, and calls `CoreSession.render()`
-- `core/nodes/` — backend-neutral node contract and terminal render nodes
-- `core/dispatch.py` — shared event, state, field, poll, and tick dispatch
-- `utils/` — native conversions, event parsing, and field validation
+- `grid.py`, `fields.py` — `BaseGrid`, sizing, and state fields
+- `events.py` — Event types plus all `@on_*` / `@on(action)` decorators
+- `context.py`, `state.py`, `color.py`, `effects.py` — handler context,
+  app state, colors, effect *descriptions* (native lowering is TUI-only)
+- `components/` — Text, Progress, Sparkline, Table, Chart, Schema
+- `_*.py` — private internals only (types, styles, dispatch, validation,
+  core bindings, demo). Users never import `_` modules; public re-exports
+  cover the names that appear in signatures.
 
-A frame flows from `Terminal` to the root grid/component. Grid sizing emits
-paint requests through `TerminalController`, which assembles a
-`CoreRenderNode` tree for `CoreSession.render()`. `Terminal` then polls core
-events and the shared dispatch helpers invoke hooks through `Context`.
+### xnano.core (shared contracts)
 
-### xnano.beta (experimental APIs)
+Interface-neutral engines shared by every host:
 
-`xnano.beta` is no longer the TUI framework. It is the prototype namespace for
-features intended to graduate into the main API after stabilization:
+- `actions.py` — `Action` hierarchy and matching
+- `content.py` — `Content` primitives components compose into
+- `hosts.py` — `AbstractHost`, `RouteTable`, `get_active_host`
+- `interface.py` — `AbstractInterface` / field-state base
+- `device.py` — `AbstractDevice` / `AbstractCursor`
+- `stage.py` — `Stage`, `LayoutMap`, cell paint helpers
+- `exceptions.py` — `Exit`, `HookError`, validation errors, …
+- `controllers/` — `AbstractController`, `TerminalController`, `WebController`
 
-- `web.py` — Starlette/uvicorn `Web` orchestration and browser sessions
-- `requests.py` — `@on_get_request` and `@on_post_request` grid routes
-- `commands.py` — `Command`, options, subcommands, validation, and help
-- `controllers/web.py`, `nodes/web.py`, `components/text.py` — HTML backend
+### Interface kinds
 
-The web layer reuses stable grids, hooks, components, and dispatch helpers and
-requires the optional `web` extra. The beta root lazily exports `Web`,
-`Command`, `on_get_request`, and `on_post_request`.
+| Package | Role |
+|---------|------|
+| `xnano.tui` | `Terminal` host, cursor/device, render nodes, tachyonfx effects |
+| `xnano.webui` | `Web` orchestration, `WebSession` host, request hooks, HTML nodes |
+| `xnano.cli` | `Command`, options, subcommands, validation, help |
+
+A TUI frame flows from `Terminal` to the root grid/component. Grid sizing
+emits paint requests through `TerminalController`, which assembles a
+`CoreRenderNode` tree for `CoreSession.render()`. Events are polled from
+core and shared dispatch helpers invoke hooks through `Context`. Web reuses
+the same grids/hooks/components and requires the optional `web` extra.
 
 ### xnano-core (Rust extension)
 
@@ -155,11 +164,12 @@ session, render-tree, content bridge, render IR, key binding, events, clock,
 terminal reset, and panic-hook modules. Rust structs use `Py*`; engine types
 use `Core*`; pointer-backed handles are `unsendable`.
 
-**Layer boundary rule:** Keep stable layout/component policy in `xnano`,
-backend painting in controllers/nodes, experimental web/CLI APIs in
-`xnano.beta`, and terminal runtime mechanics in `xnano_core`. Application code
-must use `CoreSession` through `Terminal`, never raw native terminal lifecycle
-or standalone event polling.
+**Layer boundary rule:** Keep public DSL policy in root modules +
+`components/`, shared contracts in `xnano.core`, host implementations in
+`tui`/`webui`/`cli`, private plumbing in top-level `_*.py`, and terminal
+runtime mechanics in `xnano_core`. Application code must use `CoreSession`
+through `Terminal`, never raw native terminal lifecycle or standalone event
+polling. VHS demo tooling stays under `scripts/`.
 
 ---
 
