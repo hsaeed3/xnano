@@ -1,6 +1,6 @@
 [package]
 name = "xnano-core"
-version = "0.0.9"
+version = "0.0.10"
 edition = "2024"
 license = "MIT"
 homepage = "https://github.com/hsaeed3/xnano"
