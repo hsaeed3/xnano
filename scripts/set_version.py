@@ -19,6 +19,7 @@ Files updated by this script:
 - ``xnano/__init__.py`` — ``__version__`` constant
 - ``docs/concepts/getting-started.md`` — install pins
   (``xnano>=…`` in pip / uv / poetry examples)
+- ``README.md`` — install pins (``xnano>=…`` in pip / uv examples)
 
 ``xnano-core/python/xnano_core/rust/native.pyi`` only declares
 ``__version__: str`` (no literal to keep in sync). The runtime value is
@@ -49,9 +50,16 @@ EDITABLE_FILES: tuple[str, ...] = (
     "xnano-core/Cargo.toml",
     "xnano/__init__.py",
     "docs/concepts/getting-started.md",
+    "README.md",
 )
 """Paths this script is allowed to modify, relative to the repository
 root."""
+
+MARKDOWN_INSTALL_PIN_FILES: tuple[str, ...] = (
+    "docs/concepts/getting-started.md",
+    "README.md",
+)
+"""Markdown files that embed ``xnano>=…`` install examples."""
 
 VERSION_PATTERN = re.compile(r"^v?(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)$")
 """PEP 440-style release versions accepted by this script."""
@@ -68,8 +76,8 @@ _CARGO_PACKAGE_VERSION = re.compile(
 _INIT_PY_VERSION = re.compile(
     r'^__version__ = "(?P<version>[^"]+)"$', re.MULTILINE
 )
-_GETTING_STARTED_XNANO_PIN = re.compile(r'(["\'])xnano>=([^"\']+)\1')
-"""Install pin in getting-started examples: ``\"xnano>=…\"``."""
+_MARKDOWN_XNANO_PIN = re.compile(r'(["\'])xnano>=([^"\']+)\1')
+"""Install pin in markdown examples: ``\"xnano>=…\"`` / ``'xnano>=…'``."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -314,13 +322,14 @@ def sync_xnano_init(state: VersionState) -> bool:
     return write_text_file("xnano/__init__.py", content)
 
 
-def sync_getting_started(state: VersionState) -> bool:
-    """Synchronize install pins in ``docs/concepts/getting-started.md``.
-
-    Replaces every ``xnano>=…`` install example (pip / uv / poetry) with
-    the target ``xnano`` version.
+def sync_markdown_install_pins(
+    relative_path: str,
+    state: VersionState,
+) -> bool:
+    """Synchronize ``xnano>=…`` install pins in a markdown file.
 
     Args:
+        relative_path: Whitelisted markdown path relative to the repo root.
         state: Target versions to write.
 
     Returns:
@@ -329,9 +338,8 @@ def sync_getting_started(state: VersionState) -> bool:
     Raises:
         VersionSyncError: If no install pins are found.
     """
-    relative_path = "docs/concepts/getting-started.md"
     content = read_text_file(relative_path)
-    updated, count = _GETTING_STARTED_XNANO_PIN.subn(
+    updated, count = _MARKDOWN_XNANO_PIN.subn(
         rf"\1xnano>={state.xnano}\1",
         content,
     )
@@ -342,8 +350,8 @@ def sync_getting_started(state: VersionState) -> bool:
     return write_text_file(relative_path, updated)
 
 
-def collect_getting_started_versions(content: str) -> list[str]:
-    """Collect unique ``xnano>=…`` versions from getting-started content.
+def collect_markdown_install_pin_versions(content: str) -> list[str]:
+    """Collect unique ``xnano>=…`` versions from markdown content.
 
     Args:
         content: Markdown file contents.
@@ -352,11 +360,41 @@ def collect_getting_started_versions(content: str) -> list[str]:
         Distinct version strings found in install pins, in order.
     """
     found: list[str] = []
-    for match in _GETTING_STARTED_XNANO_PIN.finditer(content):
+    for match in _MARKDOWN_XNANO_PIN.finditer(content):
         version = match.group(2)
         if version not in found:
             found.append(version)
     return found
+
+
+def collect_markdown_install_pin_drift(
+    relative_path: str,
+    state: VersionState,
+) -> list[str]:
+    """Return drift messages for one markdown install-pin file.
+
+    Args:
+        relative_path: Whitelisted markdown path relative to the repo root.
+        state: Expected versions.
+
+    Returns:
+        Drift descriptions for mismatched or missing pins.
+    """
+    drift: list[str] = []
+    content = read_text_file(relative_path)
+    versions = collect_markdown_install_pin_versions(content)
+    label = pathlib.Path(relative_path).name
+    if not versions:
+        drift.append(
+            f"{label} xnano>= pins: expected {state.xnano}, found none"
+        )
+        return drift
+    for version in versions:
+        if version != state.xnano:
+            drift.append(
+                f"{label} xnano>= pin: expected {state.xnano}, found {version}"
+            )
+    return drift
 
 
 def collect_drift(state: VersionState) -> list[str]:
@@ -373,7 +411,6 @@ def collect_drift(state: VersionState) -> list[str]:
     pyproject = read_text_file("pyproject.toml")
     cargo = read_text_file("xnano-core/Cargo.toml")
     xnano_init = read_text_file("xnano/__init__.py")
-    getting_started = read_text_file("docs/concepts/getting-started.md")
 
     checks = (
         (
@@ -418,21 +455,10 @@ def collect_drift(state: VersionState) -> list[str]:
         if actual != expected:
             drift.append(f"{label}: expected {expected}, found {actual}")
 
-    getting_started_versions = collect_getting_started_versions(
-        getting_started
-    )
-    if not getting_started_versions:
-        drift.append(
-            "getting-started.md xnano>= pins: expected "
-            f"{state.xnano}, found none"
+    for relative_path in MARKDOWN_INSTALL_PIN_FILES:
+        drift.extend(
+            collect_markdown_install_pin_drift(relative_path, state)
         )
-    else:
-        for version in getting_started_versions:
-            if version != state.xnano:
-                drift.append(
-                    "getting-started.md xnano>= pin: expected "
-                    f"{state.xnano}, found {version}"
-                )
 
     return drift
 
@@ -454,8 +480,9 @@ def sync_version_files(state: VersionState) -> list[str]:
         changed.append("xnano-core/Cargo.toml")
     if sync_xnano_init(state):
         changed.append("xnano/__init__.py")
-    if sync_getting_started(state):
-        changed.append("docs/concepts/getting-started.md")
+    for relative_path in MARKDOWN_INSTALL_PIN_FILES:
+        if sync_markdown_install_pins(relative_path, state):
+            changed.append(relative_path)
 
     return changed
 
