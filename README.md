@@ -43,29 +43,33 @@ You can view the code for these examples here: [examples](./examples).
 
 ### Your first render
 
-The easiest way to get started is to render some text to the terminal inline — no app loop needed.
+The easiest way to get started is the print-like `render()` helper — no
+session, no event loop. It writes styled content to the terminal and returns.
 
 ```python
-from xnano.tui import Terminal
+from xnano._renderable import render
 from xnano.components.text import Text
 
-Terminal().render(
+render(
     Text("Hello from xnano!", color="violet", modifiers=["bold"])
 )
 ```
 
-![Your first render](./docs/assets/concepts/render_text-dark.gif)
+![Your first render](./docs/assets/demos/example_render_text.gif)
 
 You can pass multiple renderables — they stack vertically:
 
 ```python
-Terminal().render(
+from xnano._renderable import render
+from xnano.components.text import Text
+
+render(
     Text("● Done: ", color="emerald-400", modifiers=["bold"]),
     Text("All 12 checks passed.", color="slate-400"),
 )
 ```
 
-![Multiple renderables](./docs/assets/concepts/render_multiple-dark.gif)
+![Multiple renderables](./docs/assets/demos/example_render_multiple.gif)
 
 ---
 
@@ -74,7 +78,7 @@ Terminal().render(
 `Text` composes rich inline content with colors, modifiers, and nesting:
 
 ```python
-from xnano.tui import Terminal
+from xnano._renderable import render
 from xnano.components.text import Text
 
 message = Text([
@@ -83,10 +87,10 @@ message = Text([
     Text("all tests passed\n", color="slate-300"),
 ])
 
-Terminal().render(message)
+render(message)
 ```
 
-![Styled text](./docs/assets/concepts/styled_text-dark.gif)
+![Styled text](./docs/assets/demos/example_styled_text.gif)
 
 Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or plain names (`"white"`, `"red"`).
 
@@ -94,17 +98,23 @@ Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or pla
 
 ### Hello World
 
-The minimal xnano app. Define a `BaseGrid` subclass with annotated `Field` slots, then pass an instance to `Terminal().run()`. The terminal takes over the screen, renders each frame, and cleans up on exit.
+The minimal xnano app. Define a `BaseGrid` subclass with annotated `Field`
+slots, then pass an instance to `Terminal().run()`. The terminal takes over
+the screen, renders each frame, and cleans up on exit.
 
 ```python
 from xnano.grid import BaseGrid
 from xnano.fields import Field
 from xnano.tui import Terminal
+from xnano.context import Context
 from xnano.color import tailwind_color
-from xnano.events import on_tick
+from xnano.events import on_tick, on_keyboard
 
 class App(BaseGrid):
-    message: str = Field(default="Hello, world!", color=tailwind_color("sky", 500))
+    message: str = Field(
+        default="Hello, world!",
+        color=tailwind_color("sky", 500),
+    )
     current_color: str = Field(default="sky", state=True)
 
     @on_tick(1000)
@@ -114,7 +124,14 @@ class App(BaseGrid):
             self.grid_set_field("message", color="white")
         else:
             self.current_color = "sky"
-            self.grid_set_field("message", color=tailwind_color("sky", 500))
+            self.grid_set_field(
+                "message",
+                color=tailwind_color("sky", 500),
+            )
+
+    @on_keyboard("q")
+    def quit(self, ctx: Context) -> None:
+        ctx.terminal.request_exit()
 
 Terminal().run(App())
 ```
@@ -129,7 +146,10 @@ Any field with a type annotation is set with `Field(strict=True)` and is validat
 
 ### Layout & Nesting
 
-Grids compose naturally — nest one `BaseGrid` inside another as a `Field` value. Direction (`"horizontal"` / `"vertical"`) and `gap` control how fields are laid out. Use `size` (absolute columns/rows or a `0.0–1.0` fraction) and `flex` (fill weight) to proportion each slot.
+Grids compose naturally — nest one `BaseGrid` inside another as a `Field`
+value. Direction (`"horizontal"` / `"vertical"`) and `gap` control how fields
+are laid out. Use `width` / `height` (absolute cells, `"50%"`, or `"1fr"`) to
+proportion each slot.
 
 ```python
 from xnano.grid import BaseGrid
@@ -142,12 +162,22 @@ class SidebarTitle(BaseGrid, align="center"):
     title: str = Field("This is a title.", align="center")
 
 class Sidebar(BaseGrid, direction="vertical"):
-    title: SidebarTitle = Field(default_factory=SidebarTitle, size=0.1)
-    nav: str = Field(default="- Home", size=0.9, flex="flex-auto")
+    title: SidebarTitle = Field(
+        default_factory=SidebarTitle,
+        height="10%",
+    )
+    nav: str = Field(default="- Home", height="1fr")
 
 class App(BaseGrid, direction="horizontal", gap=1):
-    sidebar: Sidebar = Field(default_factory=Sidebar, size=0.25)
-    content: str = Field(default="Main area", flex=1, border="rounded")
+    sidebar: Sidebar = Field(
+        default_factory=Sidebar,
+        width="25%",
+    )
+    content: str = Field(
+        default="Main area",
+        width="1fr",
+        border="rounded",
+    )
 
     @on_keyboard("q")
     def quit(self, ctx: Context) -> None:
@@ -156,13 +186,16 @@ class App(BaseGrid, direction="horizontal", gap=1):
 Terminal().run(App())
 ```
 
-![Layout & Nesting](./docs/assets/concepts/grid_nested-dark.gif)
+![Layout & Nesting](./docs/assets/demos/example_layout_nesting.gif)
 
 ---
 
 ### Keyboard Events
 
-Use `@on_keyboard` to bind methods to key names or sequences. The decorated method receives an optional `Context` argument that exposes the live terminal. State fields (`state=True`) hold app data without rendering — update them and reference them from layout fields.
+Use `@on_keyboard` to bind methods to key names or sequences. The decorated
+method receives an optional `Context` argument that exposes the live terminal.
+State fields (`state=True`) hold app data without rendering — update them and
+reference them from layout fields.
 
 ```python
 from xnano.grid import BaseGrid
@@ -172,9 +205,17 @@ from xnano.context import Context
 from xnano.events import on_keyboard
 
 class Counter(BaseGrid, direction="vertical", gap=1):
-    label: str = Field(default="Count: 0", size=1)
-    hint: str = Field(default="Press up/down to change, q to quit", size=1)
-
+    label: str = Field(
+        default="Count: 0",
+        height=1,
+        border="rounded",
+        border_color="violet-500",
+    )
+    hint: str = Field(
+        default="  ↑ / ↓ to count  ·  q to quit",
+        height=1,
+        color="slate-500",
+    )
     count: int = Field(default=0, state=True)
 
     @on_keyboard("up")
@@ -194,13 +235,15 @@ class Counter(BaseGrid, direction="vertical", gap=1):
 Terminal().run(Counter())
 ```
 
-![Keyboard Events](./docs/assets/concepts/hooks_keyboard-dark.gif)
+![Keyboard Events](./docs/assets/demos/example_keyboard_events.gif)
 
 ---
 
 ### Click Handlers
 
-Pass `mouse_events=True` to `Terminal` to enable mouse input. Use `@on_click("field_name")` to scope a handler to the rendered area of a specific field — the handler fires only when that region is clicked.
+Pass `mouse_events=True` to `Terminal` to enable mouse input. Use
+`@on_click("field_name")` to scope a handler to the rendered area of a
+specific field — the handler fires only when that region is clicked.
 
 ```python
 from xnano.grid import BaseGrid
@@ -210,12 +253,21 @@ from xnano.context import Context
 from xnano.events import on_click, on_keyboard
 
 class App(BaseGrid, direction="vertical", gap=1):
-    button: str = Field(default="[ Click me ]", size=3, border="rounded")
-    status: str = Field(default="Waiting...", flex=1)
+    button: str = Field(
+        default="  [ Click me ]  ",
+        height=3,
+        border="rounded",
+        border_color="violet-500",
+    )
+    status: str = Field(
+        default="  Waiting...",
+        height=1,
+        color="slate-400",
+    )
 
     @on_click("button")
     def on_button(self, ctx: Context) -> None:
-        self.status = "Clicked!"
+        self.status = "  Clicked!"
 
     @on_keyboard("q")
     def quit(self, ctx: Context) -> None:
@@ -224,13 +276,15 @@ class App(BaseGrid, direction="vertical", gap=1):
 Terminal(mouse_events=True).run(App())
 ```
 
-![Click Handlers](./docs/assets/concepts/hooks_click-dark.gif)
+![Click Handlers](./docs/assets/demos/example_click_handlers.gif)
 
 ---
 
 ### Timed Updates
 
-`@on_tick(interval_ms)` fires a method on a recurring timer. Use it for clocks, progress indicators, polling, or any periodic UI refresh without blocking the event loop.
+`@on_tick(interval_ms)` fires a method on a recurring timer. Use it for
+clocks, progress indicators, polling, or any periodic UI refresh without
+blocking the event loop.
 
 ```python
 import time
@@ -240,30 +294,44 @@ from xnano.tui import Terminal
 from xnano.context import Context
 from xnano.events import on_tick, on_keyboard
 
-class Clock(BaseGrid, direction="vertical"):
-    time_display: str = Field(default="", size=3, border="rounded")
+class Clock(BaseGrid, direction="vertical", gap=1):
+    time_display: str = Field(
+        default="",
+        height=3,
+        border="rounded",
+        border_color="teal-500",
+        title=" Clock ",
+    )
+    hint: str = Field(
+        default="  q to quit",
+        height=1,
+        color="slate-500",
+    )
 
     def __post_init__(self) -> None:
-        self.time_display = time.strftime("%H:%M:%S")
+        self.time_display = f"  {time.strftime('%H:%M:%S')}"
 
     @on_tick(1000)
     def update_time(self) -> None:
-        self.time_display = time.strftime("%H:%M:%S")
+        self.time_display = f"  {time.strftime('%H:%M:%S')}"
 
     @on_keyboard("q")
     def quit(self, ctx: Context) -> None:
         ctx.terminal.request_exit()
 
-Terminal().run(Clock())
+Terminal(tick_interval=1000).run(Clock())
 ```
 
-![Timed Updates](./docs/assets/concepts/hooks_tick-dark.gif)
+![Timed Updates](./docs/assets/demos/example_timed_updates.gif)
 
 ---
 
 ### State & Context Manager
 
-Pass any object as `state` to `Terminal` to thread shared data through the session. Every `BaseGrid` instance can read it via `self.state`. Override `grid_render()` to recompute field values once per frame — useful when display depends on state that changes externally.
+Pass any object as `state` to `Terminal` to thread shared data through the
+session. Every `BaseGrid` instance can read it via `self.state`. Override
+`grid_render()` to recompute field values once per frame — useful when
+display depends on state that changes externally.
 
 ```python
 from dataclasses import dataclass
@@ -278,11 +346,19 @@ class AppState:
     username: str = "guest"
 
 class App(BaseGrid, direction="vertical", gap=1):
-    header: str = Field(default="", size=1)
-    body: str = Field(default="Press q to quit", flex=1)
+    header: str = Field(
+        default="",
+        height=1,
+        color="white",
+        background="violet-900",
+    )
+    body: str = Field(
+        default="Press q to quit",
+        color="slate-400",
+    )
 
     def grid_render(self) -> None:
-        self.header = f"Hello, {self.state.username}!"
+        self.header = f"  Hello, {self.state.username}!"
 
     @on_keyboard("q")
     def quit(self, ctx: Context) -> None:
@@ -292,13 +368,17 @@ with Terminal(state=AppState(username="hammad")) as t:
     t.run(App())
 ```
 
-![State & Context Manager](./docs/assets/concepts/terminal_state-dark.gif)
+![State & Context Manager](./docs/assets/demos/example_state_context.gif)
 
 ---
 
 ### Custom Components
 
-`AbstractComponent` lets you build reusable widgets that map directly to the render tree. Prefer implementing `compose()` to return interface-neutral content; `get_terminal_node()` remains a compatibility adapter that can return any `AbstractTerminalNode` (paragraph, list, progress bar, table, etc.). Components slot into `BaseGrid` fields like any other value.
+`AbstractComponent` lets you build reusable widgets that map directly to the
+render tree. Prefer implementing `compose()` to return interface-neutral
+content; `get_terminal_node()` remains a compatibility adapter that can return
+any `AbstractTerminalNode` (paragraph, list, progress bar, table, etc.).
+Components slot into `BaseGrid` fields like any other value.
 
 ```python
 import dataclasses
@@ -308,30 +388,51 @@ from xnano.tui import Terminal
 from xnano.context import Context
 from xnano.color import tailwind_color, pydantic_color
 from xnano.events import on_keyboard
-from xnano.components.abstract import AbstractComponent, ComponentRenderContext
+from xnano.components.abstract import (
+    AbstractComponent,
+    ComponentRenderContext,
+)
 from xnano.tui.nodes import ParagraphNode, AbstractTerminalNode
-
 
 @dataclasses.dataclass
 class Badge(AbstractComponent):
     label: str = ""
     color: str = "white"
 
-    def get_terminal_node(self, ctx: ComponentRenderContext) -> AbstractTerminalNode:
+    def get_terminal_node(
+        self,
+        ctx: ComponentRenderContext,
+    ) -> AbstractTerminalNode:
         return ParagraphNode(text=self.label, color=self.color)
 
-
 class StatusBoard(BaseGrid, direction="vertical", gap=1):
-    ok: Badge = Field(default_factory=lambda: Badge(label="● OK", color=tailwind_color("emerald", 500)), size=1)
-    warn: Badge = Field(default_factory=lambda: Badge(label="● Warning", color="yellow"), size=1)
-    err: Badge = Field(default_factory=lambda: Badge(label="● Error", color=pydantic_color("palevioletred")), size=1)
+    ok: Badge = Field(
+        default_factory=lambda: Badge(
+            label="● OK",
+            color=tailwind_color("emerald", 500),
+        ),
+        height=1,
+    )
+    warn: Badge = Field(
+        default_factory=lambda: Badge(
+            label="● Warning",
+            color="yellow",
+        ),
+        height=1,
+    )
+    err: Badge = Field(
+        default_factory=lambda: Badge(
+            label="● Error",
+            color=pydantic_color("palevioletred"),
+        ),
+        height=1,
+    )
 
     @on_keyboard("q")
     def quit(self, ctx: Context) -> None:
         ctx.terminal.request_exit()
 
-
 Terminal().run(StatusBoard())
 ```
 
-![Custom Components](./docs/assets/concepts/terminal_render-dark.gif)
+![Custom Components](./docs/assets/demos/example_custom_component.gif)
