@@ -1,21 +1,20 @@
 @import url("https://unpkg.com/open-props");
-@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght,MONO@0,300..800,1;1,300..800,1&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght,MONO@0,300..800,1;1,300..800,1&display=swap");
 @import url("https://iosevka-webfonts.github.io/iosevka/Iosevka.css");
-@import url('https://fonts.googleapis.com/css2?family=Geist+Pixel:ELSH@60&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Geist+Pixel:ELSH@60&display=swap");
 
 .geist-pixel {
     font-family: "Geist Pixel", sans-serif;
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
-    font-variation-settings:
-      "ELSH" 60;
-  }
-
+    font-variation-settings: "ELSH" 60;
+}
 
 :root {
-    --md-code-font: "Google Sans Code", system-ui, -apple-system, BlinkMacSystemFont,
-        'Segoe UI', sans-serif;
+    --md-code-font:
+        "Google Sans Code", system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
 }
 
 /*
@@ -70,29 +69,38 @@
     font-size: 1.1em !important;
 }
 
-
-.md-typeset h1 {
-    font-family: 'Geist Pixel' !important;
-    margin-bottom: 0.35em !important;
-    font-size: 2em !important;
-    border-bottom: var(--border-size-1) dashed;
-    padding-bottom: 0.4rem;
-    border-color: #21252B;
-    font-weight: normal !important;
-}
-
-
-.md-typeset h2,
+.md-typeset h1 .md-typeset h2,
 .md-typeset h3,
 .md-typeset h4,
 .md-typeset h5,
 .md-typeset h6 {
-    font-family: 'Geist Pixel' !important;
+    font-family: "Geist Pixel" !important;
     margin-bottom: 0.35em !important;
-    font-size: 1.7em !important;
     border-bottom: var(--border-size-1) dashed;
     padding-bottom: 0.4rem;
-    border-color: #21252B;
+    border-color: #21252b;
+    font-weight: normal !important;
+}
+
+.md-typeset h1 {
+    font-size: 2em !important;
+    font-weight: normal !important;
+}
+
+.md-typeset h2 {
+    font-size: 1.85em !important;
+    font-weight: normal !important;
+}
+
+.md-typeset h3 {
+    font-size: 1.7em !important;
+    font-weight: normal !important;
+}
+
+.md-typeset h4,
+.md-typeset h5,
+.md-typeset h6 {
+    font-size: 1.5em !important;
     font-weight: normal !important;
 }
 
@@ -127,30 +135,30 @@
   !!! LIGHT THEME COLORS !!!
 */
 [data-md-color-scheme="default"] {
-    --md-default-bg-color: #F4F4ED;
-    --md-primary-bg-color: #F4F4ED;
+    --md-default-bg-color: #f4f4ed;
+    --md-primary-bg-color: #f4f4ed;
 
     --md-accent-fg-color: #102044;
-    --md-accent-bg-color: #124ECF;
+    --md-accent-bg-color: #124ecf;
 
-    --md-footer-bg-color: #F3F1EB;
-    --md-footer-bg-color--dark: #F3F1EB;
+    --md-footer-bg-color: #f3f1eb;
+    --md-footer-bg-color--dark: #f3f1eb;
 }
 
 /*
   !!! LIGHT THEME COLOR OVERRIDES !!!
 */
 [data-md-color-scheme="default"] .md-header {
-    background-color: #F4F4ED;
+    background-color: #f4f4ed;
 }
 
 [data-md-color-scheme="default"] .md-footer-meta {
-    background-color: #F4F4ED;
+    background-color: #f4f4ed;
 }
 
 /* H1 Coloring */
 [data-md-color-scheme="default"] .md-typeset h1 {
-    color: #124ECF;
+    color: #124ecf;
 }
 
 /* Banner Announcement over Header */
@@ -161,8 +169,8 @@
 /* Code Blocks Override */
 [data-md-color-scheme="default"] .highlight {
     border-radius: var(--radius-2);
-    border: var(--border-size-1) solid #124ECF;
-    box-shadow: #124ECF33 4px 4px 0px 0px;
+    border: var(--border-size-1) solid #124ecf;
+    box-shadow: #124ecf33 4px 4px 0px 0px;
     position: relative;
     /* Annotation tooltips are positioned outside the code box. Clipping this
        wrapper cuts their text off at the rounded edge. */
@@ -176,13 +184,13 @@
     --md-default-bg-color: #141519;
     --md-primary-bg-color: #141519;
 
-    --md-primary-fg-color: #DEDCD1;
+    --md-primary-fg-color: #dedcd1;
 
     --md-accent-bg-color: #102044;
-    --md-accent-fg-color: #85ACFA;
+    --md-accent-fg-color: #85acfa;
 
-    --md-footer-bg-color: #0E1014;
-    --md-footer-bg-color--dark: #0E1014;
+    --md-footer-bg-color: #0e1014;
+    --md-footer-bg-color--dark: #0e1014;
 }
 
 /*
@@ -198,7 +206,7 @@
 
 /* H1 Coloring */
 [data-md-color-scheme="slate"] .md-typeset h1 {
-    color: #8EC6FF;
+    color: #8ec6ff;
 }
 
 /* Banner Announcement over Header */
@@ -209,8 +217,8 @@
 /* Code Blocks Override */
 [data-md-color-scheme="slate"] .highlight {
     border-radius: var(--radius-2);
-    border: var(--border-size-1) solid #2A3856;
-    box-shadow: #2A385633 4px 4px 0px 0px;
+    border: var(--border-size-1) solid #2a3856;
+    box-shadow: #2a385633 4px 4px 0px 0px;
     position: relative;
     overflow: visible;
 }
@@ -255,7 +263,7 @@
 [data-md-color-scheme="default"] .highlight > span.filename {
     background-color: #e9e7dc;
     color: #102044;
-    border-color: #85ACFA;
+    border-color: #85acfa;
 }
 
 [data-md-color-scheme="default"] .highlight > span.filename .code-lang {
@@ -266,7 +274,7 @@
 [data-md-color-scheme="slate"] .highlight > span.filename {
     background-color: #0e1014;
     color: #dedcd1;
-    border-color: #2A3856;
+    border-color: #2a3856;
 }
 
 [data-md-color-scheme="slate"] .highlight > span.filename .code-lang {
@@ -298,9 +306,17 @@
 }
 
 /* Light mode (default scheme): show light variant */
-[data-md-color-scheme="default"] .xnano-demo .demo-light { display: block; }
-[data-md-color-scheme="default"] .xnano-demo .demo-dark  { display: none; }
+[data-md-color-scheme="default"] .xnano-demo .demo-light {
+    display: block;
+}
+[data-md-color-scheme="default"] .xnano-demo .demo-dark {
+    display: none;
+}
 
 /* Dark mode (slate scheme): show dark variant */
-[data-md-color-scheme="slate"] .xnano-demo .demo-dark  { display: block; }
-[data-md-color-scheme="slate"] .xnano-demo .demo-light { display: none; }
+[data-md-color-scheme="slate"] .xnano-demo .demo-dark {
+    display: block;
+}
+[data-md-color-scheme="slate"] .xnano-demo .demo-light {
+    display: none;
+}

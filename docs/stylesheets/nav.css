@@ -1,0 +1,50 @@
+/* ── Navbar / TOC active + inactive link styling ──────────────────────────
+   Active link gets a slow two-tone shimmer, colors picked at random once
+   per page load from the same aurora palette as hero.js (see custom.js
+   `setupNavAccent`) — a single synchronous pick, not a per-frame cost.
+   The shimmer itself is a compositor-only `background-position` animation
+   (no layout/paint per frame). Inactive links get a plain color
+   transition on hover. */
+
+.md-nav__link {
+    transition: color 0.2s var(--ease-out-3);
+}
+
+.md-nav__link:not(.md-nav__link--active):hover {
+    color: var(--md-accent-fg-color);
+}
+
+.md-nav__link--active .md-ellipsis {
+    background-image: linear-gradient(
+        90deg,
+        var(--xnano-nav-c1, var(--md-accent-fg-color)),
+        var(--xnano-nav-c2, var(--md-accent-fg-color)),
+        var(--xnano-nav-c1, var(--md-accent-fg-color))
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: xnano-nav-shimmer 14s ease-in-out infinite;
+    will-change: background-position;
+}
+
+@keyframes xnano-nav-shimmer {
+    50% {
+        background-position: -100% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .md-nav__link--active .md-ellipsis {
+        animation: none;
+    }
+}
+
+/* "> " marker before the active page's title in the primary sidebar nav.
+   `color` is set explicitly since it would otherwise inherit `transparent`
+   from the gradient-clipped `.md-ellipsis` text above it. */
+.md-sidebar--primary .md-nav__link--active .md-ellipsis::before {
+    content: "> ";
+    color: var(--md-accent-fg-color);
+}

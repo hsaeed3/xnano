@@ -136,9 +136,39 @@ function openLinksInNewTab() {
     });
 }
 
+// Picks two random colors from the current theme's aurora palette (shared
+// with hero.js) once per page load and hands them to nav.css as CSS vars.
+// This is a single synchronous pick — no animation loop, no per-frame cost.
+function setupNavAccent() {
+    const palettes = window.__xnanoAuroraPalettes;
+    if (!palettes) return;
+
+    // Lighten by mixing toward white — keeps the same hue, just a lighter
+    // tint of it, rather than jumping to an unrelated color in the palette.
+    function lighten([r, g, b], amount) {
+        return [r, g, b].map(v => Math.round(v + (255 - v) * amount));
+    }
+
+    function pickColors() {
+        const scheme = document.body.getAttribute("data-md-color-scheme");
+        const palette = palettes[scheme] || palettes.slate;
+        const base = palette[Math.floor(Math.random() * palette.length)];
+        const toRgb = ([r, g, b]) => `rgb(${r}, ${g}, ${b})`;
+        document.documentElement.style.setProperty("--xnano-nav-c1", toRgb(base));
+        document.documentElement.style.setProperty("--xnano-nav-c2", toRgb(lighten(base, 0.45)));
+    }
+
+    pickColors();
+    new MutationObserver(pickColors).observe(document.body, {
+        attributes: true,
+        attributeFilter: ["data-md-color-scheme"],
+    });
+}
+
 async function main() {
     setupTermynal();
     openLinksInNewTab();
+    setupNavAccent();
 }
 
 document$.subscribe(() => {
