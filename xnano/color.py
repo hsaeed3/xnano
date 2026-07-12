@@ -905,7 +905,7 @@ def tailwind_color(
         ```python
         from xnano import tailwind, Field
 
-        class MyGrid(Grid):
+        class MyGrid(BaseGrid):
             header = Field(background=tailwind("blue", 600))
             body = Field(color=tailwind("slate", 200))
         ```

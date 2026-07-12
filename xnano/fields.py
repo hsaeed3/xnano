@@ -5,10 +5,10 @@ fields with layout, sizing, and style information.
 
 Example:
     ```python
-    from xnano import Grid, Field
+    from xnano import BaseGrid, Field
 
-    class MyGrid(Grid):
-        title: str = Field(default="My Grid")
+    class MyGrid(BaseGrid):
+        title: str = Field(default="My BaseGrid")
         content: str = Field(default="Hello, world!")
         data: int = Field(default=0, state=True)
     ```
@@ -29,13 +29,14 @@ from typing import (
     overload,
 )
 
-from xnano import types
+from xnano import _types as types
 from xnano.color import ColorLike
-from xnano.frame import Frame, FrameTitlePosition
-from xnano.sizing import Sizing, SizingLike
+from xnano._types import Frame, FrameTitlePosition
+from xnano._types import Sizing, SizingLike
+from xnano._styles import Style
 
 if TYPE_CHECKING:
-    from xnano.beta.tailwind import TailwindClass
+    from xnano._styles import TailwindClass
 
 
 UNSET = object()
@@ -47,7 +48,7 @@ ClassNameLike: TypeAlias = Union[
     "list[TailwindClass | str]",
 ]
 """Tailwind classes as a single class, a space-separated string, or a
-list of class tokens. See ``xnano.beta.tailwind.TailwindClass`` for the
+list of class tokens. See ``xnano._styles.TailwindClass`` for the
 full supported vocabulary; unknown tokens are carried verbatim to the
 web backend and ignored by the terminal.
 """
@@ -76,10 +77,10 @@ class GridFieldInfo:
 
     Example:
         ```python
-        from xnano import Grid, Field
+        from xnano import BaseGrid, Field
 
-        class MyGrid(Grid):
-            title: str = Field(default="My Grid")
+        class MyGrid(BaseGrid):
+            title: str = Field(default="My BaseGrid")
             data: int = Field(default=0, state=True)
         ```
 
@@ -212,6 +213,99 @@ class GridFieldInfo:
     ``class_name``; the terminal insets the field's slot by this
     amount before painting.
     """
+
+    def get_style(self) -> Style:
+        """Return the unified ``Style`` for this field's chrome and text.
+
+        Flat style attributes on ``FieldInfo`` remain the storage for one
+        release; this method is the single composition point consumers
+        should prefer going forward.
+
+        Returns:
+            A ``Style`` assembled from this field's style attributes.
+        """
+        modifiers = tuple(self.modifiers) if self.modifiers else ()
+        border_sides = (
+            tuple(self.border_sides) if self.border_sides is not None else None
+        )
+        classes = self.class_name if self.class_name is not None else ()
+        return Style(
+            color=self.color,
+            background=self.background,
+            border=self.border,
+            border_color=self.border_color,
+            border_sides=border_sides,
+            padding=(
+                types.Padding.parse(self.padding)
+                if self.padding is not None
+                and not isinstance(self.padding, types.Padding)
+                else self.padding  # type: ignore[arg-type]
+            ),
+            margin=(
+                types.Padding.parse(self.margin)
+                if self.margin is not None
+                and not isinstance(self.margin, types.Padding)
+                else self.margin  # type: ignore[arg-type]
+            ),
+            gap=self.gap,
+            width=self.width,
+            height=self.height,
+            modifiers=modifiers,
+            align=self.align,
+            direction=self.direction,
+            title=self.title,
+            title_position=self.title_position,
+            visible=self.visible,
+            classes=classes,
+            passthrough_classes=(),
+        )
+
+    @property
+    def style(self) -> Style:
+        """Unified styling for this field (see ``get_style``)."""
+        return self.get_style()
+
+
+# Canonical name per architecture plan; ``GridFieldInfo`` kept as alias.
+FieldInfo = GridFieldInfo
+
+
+@dataclasses.dataclass(slots=True)
+class FieldState:
+    """Per-instance live state for one field on an ``AbstractInterface``.
+
+    Attributes:
+        name: Field name on the owning interface.
+        value: Current value (mirrors the instance attribute).
+        focused: Whether this field holds application focus.
+        hovered: Whether a pointer is over this field's slot.
+        dirty: Whether the value or overrides changed since last paint.
+        slide_position: Optional drag offset for slidable fields.
+        overrides: Per-instance style/layout overrides.
+    """
+
+    name: str
+    """Field name on the owning interface."""
+    value: Any = None
+    """Current value (mirrors the instance attribute)."""
+    focused: bool = False
+    """Whether this field holds application focus."""
+    hovered: bool = False
+    """Whether a pointer is over this field's slot."""
+    dirty: bool = False
+    """Whether the value or overrides changed since last paint."""
+    slide_position: types.Coordinate | None = None
+    """Optional drag offset for slidable fields."""
+    overrides: dict[str, Any] = dataclasses.field(default_factory=dict)
+    """Per-instance style/layout overrides."""
+
+    def mark_dirty(self) -> None:
+        """Mark this field as needing a repaint / patch."""
+        self.dirty = True
+
+    def clear_dirty(self) -> None:
+        """Clear the dirty bit after a successful paint / patch."""
+        self.dirty = False
 
 
 @overload
@@ -394,7 +488,7 @@ def Field(
         slide: The axes along which this field may slide within its parent grid.
         class_name: Tailwind CSS classes styling this field — a space-separated
             string or a sequence of class tokens. Classes are lowered into the
-            standard field attributes (see ``xnano.beta.tailwind``); an explicit
+            standard field attributes (see ``xnano._styles``); an explicit
             keyword argument always overrides a class-derived value. Classes
             with no terminal equivalent are ignored by the terminal backend and
             emitted verbatim by the web backend.
@@ -405,7 +499,7 @@ def Field(
     """
     tokens: tuple[str, ...] | None = None
     if class_name is not None:
-        from xnano.beta.tailwind import (
+        from xnano._styles import (
             normalize_tailwind_classes,
             resolve_tailwind_classes,
         )
@@ -469,6 +563,8 @@ def Field(
 __all__ = (
     "ClassNameLike",
     "Field",
+    "FieldInfo",
+    "FieldState",
     "GridFieldInfo",
     "UNSET",
 )

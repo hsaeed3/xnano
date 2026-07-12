@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, get_type_hints
 
-from xnano.utils.validation import validate_type
+from xnano._validation import validate_type
 
 
 class State:

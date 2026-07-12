@@ -10,7 +10,7 @@ from xnano.components.abstract import AbstractComponent
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
-    from xnano.core.nodes.terminal import AbstractTerminalNode
+    from xnano.tui.nodes import AbstractTerminalNode
 
 
 ProgressStyle = Literal["bar", "line"]
@@ -70,10 +70,21 @@ class Progress(AbstractComponent):
             return f"{round(self.ratio * 100)}%"
         return self.label
 
+    def compose(self, ctx):
+        """Compose Content via Native tui payload of the existing node tree."""
+        from xnano.core.content import Native
+
+        return Native(
+            interface_kind="tui",
+            payload=self.get_terminal_node(ctx),
+            z=self.z,
+            visible=self.visible,
+        )
+
     def get_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.core.nodes.terminal import LineGaugeNode, ProgressBarNode
+        from xnano.tui.nodes import LineGaugeNode, ProgressBarNode
 
         ratio = self.ratio
         label = self._resolve_label()

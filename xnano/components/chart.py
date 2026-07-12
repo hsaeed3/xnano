@@ -11,12 +11,12 @@ from xnano.components.schema import (
     DeclarativeComponentMeta,
     Series,
 )
-from xnano.types import GraphTypeLike, LegendPositionLike
+from xnano._types import GraphTypeLike, LegendPositionLike
 
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
-    from xnano.core.nodes.terminal import AbstractTerminalNode
+    from xnano.tui.nodes import AbstractTerminalNode
 
 
 _DEFAULT_PALETTE: tuple[str, ...] = (
@@ -140,10 +140,21 @@ class Chart(AbstractComponent, metaclass=DeclarativeComponentMeta):
 
     # ── rendering ────────────────────────────────────────────────────────
 
+    def compose(self, ctx):
+        """Compose Content via Native tui payload of the existing node tree."""
+        from xnano.core.content import Native
+
+        return Native(
+            interface_kind="tui",
+            payload=self.get_terminal_node(ctx),
+            z=self.z,
+            visible=self.visible,
+        )
+
     def get_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             ChartAxis,
             ChartDataset,
             ChartNode,
