@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from helpers import assign_attr
 from pydantic_core import ValidationError
 
-from helpers import assign_attr
 from xnano.state import State
 
 

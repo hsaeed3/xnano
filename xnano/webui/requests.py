@@ -48,7 +48,6 @@ from typing import Callable, overload
 from xnano._function_hooks import (
     EventHookFunction,
     HttpMethod,
-    _OnRequestHookEntry,
     _RequestHooksRegistry,
 )
 

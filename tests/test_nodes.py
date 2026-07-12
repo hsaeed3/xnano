@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from xnano._types import Frame, Size
 from xnano.tui.nodes import (
     ClearNode,
     ContainerNode,
@@ -16,8 +17,6 @@ from xnano.tui.nodes import (
     StackNode,
     TextNode,
 )
-from xnano._types import Frame
-from xnano._types import Size
 
 
 # ---------------------------------------------------------------------------

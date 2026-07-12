@@ -5,14 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from xnano.context import Context
-from xnano.events import on_mouse
 from xnano._function_hooks import _EventHooksRegistry
-from xnano.fields import Field
-from xnano.grid import BaseGrid, _GridSlideCapture, _grid_slide_paint_area
-from xnano.tui import Terminal, _ACTIVE_TERMINAL
-from xnano.events import Event
 from xnano._types import Area
+from xnano.context import Context
+from xnano.events import Event, on_mouse
+from xnano.fields import Field
+from xnano.grid import BaseGrid, _grid_slide_paint_area, _GridSlideCapture
+from xnano.tui import _ACTIVE_TERMINAL, Terminal
 
 
 class SlideGrid(BaseGrid):

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from tests.webui.grids import RequestHookGrid
 from tests.helpers import close_offscreen_app, open_offscreen_app
-from xnano.webui.requests import on_post_request
-from xnano.webui import Web
+from tests.webui.grids import RequestHookGrid
 from xnano.fields import Field
 from xnano.grid import BaseGrid
+from xnano.webui import Web
+from xnano.webui.requests import on_post_request
 
 
 def test_dispatch_request_post_mutates_state_and_html() -> None:

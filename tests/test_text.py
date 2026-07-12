@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import dataclasses
-import pytest
-
+from xnano._types import Area
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.text import Text
 from xnano.tui.nodes import (
@@ -13,7 +11,6 @@ from xnano.tui.nodes import (
     SpanNode,
     TextNode,
 )
-from xnano._types import Area
 
 
 def _ctx() -> ComponentRenderContext:

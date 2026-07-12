@@ -8,15 +8,16 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, ClassVar, Sequence, TypeAlias, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar, Sequence, TypeAlias, cast
 
+from xnano._types import GraphTypeLike, LegendPositionLike
 from xnano.components.abstract import AbstractComponent
 from xnano.components.schema import (
     ComponentDescriptor,
     DeclarativeComponentMeta,
     Series,
 )
-from xnano._types import GraphTypeLike, LegendPositionLike
+
 
 if TYPE_CHECKING:
     from xnano.color import ColorLike

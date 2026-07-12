@@ -12,20 +12,20 @@ from __future__ import annotations
 
 import dataclasses
 import html
-from typing import Any, Callable, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from xnano._types import Area
 from xnano.core.controllers.abstract import (
     AbstractController,
     AbstractControllerCapabilities,
 )
-from xnano._types import Area
+
 
 if TYPE_CHECKING:
     from xnano._styles import TailwindStyle
+    from xnano._types import Direction, Frame
     from xnano.core.controllers.abstract import AbstractLayoutConstraint
     from xnano.fields import GridFieldInfo
-    from xnano._types import Frame
-    from xnano._types import Direction
 
 
 @dataclasses.dataclass
@@ -565,8 +565,8 @@ class WebController(AbstractController):
 
         self._stack[-1].children.append(wrapper)
 
-        from xnano.grid import BaseGrid
         from xnano.components.abstract import AbstractComponent
+        from xnano.grid import BaseGrid
 
         if isinstance(value, BaseGrid):
             self._stack.append(wrapper)
@@ -602,7 +602,7 @@ class WebController(AbstractController):
             content = value.compose(ctx) if hasattr(value, "compose") else None
             node = None
             if content is not None:
-                from xnano.core.content import Native, TextBlock, Run
+                from xnano.core.content import Native, Run, TextBlock
 
                 if (
                     isinstance(content, Native)

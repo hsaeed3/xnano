@@ -7,26 +7,22 @@ Parse and normalize native terminal events into framework events.
 
 from __future__ import annotations
 
-import dataclasses
 import re
 from typing import (
-    Any,
-    Generic,
-    Literal,
-    Tuple,
-    TypeAlias,
-    TypeVar,
-    TypedDict,
     TYPE_CHECKING,
+    Literal,
+    TypedDict,
+    TypeVar,
 )
 
+import xnano_core.rust.native as native
 from xnano_core import core
-from xnano_core.rust import native
+
 
 if TYPE_CHECKING:
     import xnano.events as xnano_events
-    from xnano.events import KeyboardEventKind, MouseEventKind
     from xnano._types import KeyboardModifier
+    from xnano.events import KeyboardEventKind, MouseEventKind
 
 
 StateT = TypeVar("StateT")

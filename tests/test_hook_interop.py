@@ -24,13 +24,8 @@ Sections:
 from __future__ import annotations
 
 import dataclasses
-import enum
 from typing import Any, cast
 
-from xnano.fields import Field
-from xnano.grid import BaseGrid
-from xnano.events import on_field, on_keyboard, on_tick
-from xnano.context import Context
 from xnano._dispatch import invoke_hook, pump_tick
 from xnano._function_hooks import (
     _EventHooksRegistry,
@@ -39,9 +34,12 @@ from xnano._function_hooks import (
     _OnStateHookFunctionEntry,
     _OnTickHookFunctionEntry,
 )
-from xnano.events import on_state
-from xnano.state import State
 from xnano._introspection import evaluate_state_expression
+from xnano.context import Context
+from xnano.events import on_field, on_keyboard, on_state, on_tick
+from xnano.fields import Field
+from xnano.grid import BaseGrid
+from xnano.state import State
 
 
 # ---------------------------------------------------------------------------

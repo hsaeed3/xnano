@@ -10,16 +10,16 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from xnano.core.controllers.webui import WebController
-from xnano.core.device import AbstractCursor, AbstractDevice
-from xnano.core.hosts import AbstractHost
-from xnano.webui.device import WebCursor, WebDevice
-from xnano.webui.requests import HttpMethod
 from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnRequestHookEntry,
     _RequestHooksRegistry,
 )
+from xnano.core.controllers.webui import WebController
+from xnano.core.device import AbstractCursor, AbstractDevice
+from xnano.core.hosts import AbstractHost
+from xnano.webui.device import WebCursor, WebDevice
+from xnano.webui.requests import HttpMethod
 
 
 class WebSession(AbstractHost):
@@ -115,9 +115,9 @@ class WebSession(AbstractHost):
         """
         info = self.controller.click_targets.get(target_id)
         if info is not None:
+            from xnano._dispatch import invoke_hook
             from xnano.events import MouseEventData
             from xnano.grid import _resolve_grid_mouse_handler
-            from xnano._dispatch import invoke_hook
 
             grid, field_name = info
             handler = _resolve_grid_mouse_handler(grid, field_name)
@@ -140,13 +140,12 @@ class WebSession(AbstractHost):
 
     def dispatch_keyboard(self, binding: str) -> str:
         """Fire ``@on_event`` / ``@on_keyboard`` hooks for a keypress."""
-        from xnano.core.actions import Action
-        from xnano.events import Event, KeyboardEventData
         from xnano._dispatch import (
             invoke_hook,
             keyboard_matches,
             resolve_hook_grid,
         )
+        from xnano.events import Event, KeyboardEventData
 
         keyboard = KeyboardEventData.from_binding(binding)
         event = Event.from_data(keyboard)

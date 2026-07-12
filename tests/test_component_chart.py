@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from helpers import render_component_to_text
 
+from xnano._types import Area
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.chart import Chart
 from xnano.components.schema import Series
 from xnano.tui.nodes import ChartNode
-from xnano._types import Area
 
 
 def _ctx() -> ComponentRenderContext:

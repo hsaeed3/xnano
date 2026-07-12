@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 from xnano_core.rust.native import (
     Buffer,
     BufferCell,
@@ -9,11 +14,6 @@ from xnano_core.rust.native import (
     Rect,
     Style,
     render_widget,
-)
-from xnano_core.rust.engine import (
-    CoreRenderContent,
-    CoreRenderNode,
-    CoreSession,
 )
 
 

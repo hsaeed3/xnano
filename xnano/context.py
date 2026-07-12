@@ -9,20 +9,21 @@ shortcuts for cursor, device, actions, and stage.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Generic, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
+
 
 if TYPE_CHECKING:
     from xnano.core.actions import Actions
+    from xnano.core.hosts import AbstractHost
+    from xnano.core.stage import Stage
     from xnano.events import (
         Event,
         KeyboardEventData,
         MouseEventData,
     )
-    from xnano.core.hosts import AbstractHost
-    from xnano.core.stage import Stage
-    from xnano.tui import Terminal
     from xnano.tui.cursor import TerminalCursor
     from xnano.tui.device import TerminalDevice
+    from xnano.tui.terminal import Terminal
 
 
 StateT = TypeVar("StateT")

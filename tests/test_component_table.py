@@ -6,11 +6,11 @@ import dataclasses
 
 from helpers import render_component_to_text
 
+from xnano._types import Area
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.schema import Column
 from xnano.components.table import Table
 from xnano.tui.nodes import TableNode
-from xnano._types import Area
 
 
 def _ctx() -> ComponentRenderContext:

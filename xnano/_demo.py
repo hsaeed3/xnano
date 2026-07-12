@@ -14,14 +14,14 @@ import math
 import random
 from typing import TypeAlias
 
-from xnano import __version__
+import xnano
 from xnano.color import Color, tailwind_color
 from xnano.components.sparkline import Sparkline
 from xnano.components.text import Text
+from xnano.events import on_keyboard, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.events import on_keyboard, on_tick
-from xnano.tui import Terminal
+from xnano.tui.terminal import Terminal
 
 
 _COLOR_RING = [
@@ -352,7 +352,10 @@ class XnanoDemo(BaseGrid, direction="vertical", gap=0):
                     background=accent,
                     modifiers=("bold",),
                 ),
-                Text(f" v{__version__} ", color=tailwind_color("slate", 300)),
+                Text(
+                    f" v{xnano.__version__} ",
+                    color=tailwind_color("slate", 300),
+                ),
                 Text(
                     "Python ergonomics · Rust speed",
                     color=tailwind_color("slate", 600),

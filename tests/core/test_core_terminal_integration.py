@@ -10,7 +10,7 @@ import threading
 import time
 
 import pytest
-
+from conftest import requires_tty
 from xnano_core.rust.engine import (
     CoreRenderContent,
     CoreRenderNode,
@@ -18,7 +18,6 @@ from xnano_core.rust.engine import (
     CoreTerminalEventKind,
 )
 
-from conftest import requires_tty
 
 requires_pty = pytest.mark.skipif(
     not hasattr(os, "openpty"),

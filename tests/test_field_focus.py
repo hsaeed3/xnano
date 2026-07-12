@@ -5,27 +5,24 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
-from xnano.fields import Field
-from xnano.grid import BaseGrid
-from xnano.events import on_focus, on_keyboard
-from xnano.components.text import Text
-from xnano.context import Context
 from xnano._dispatch import (
     _handle_focus_navigation,
     _handle_focused_text_input,
-    dispatch_hooks,
-)
-from xnano._types import (
-    FieldFocus,
-    collect_focusable_fields,
-    cycle_field_focus,
-    set_field_focus,
-    clear_field_focus,
 )
 from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnFocusHookFunctionEntry,
 )
+from xnano._types import (
+    clear_field_focus,
+    collect_focusable_fields,
+    cycle_field_focus,
+    set_field_focus,
+)
+from xnano.components.text import Text
+from xnano.events import on_focus, on_keyboard
+from xnano.fields import Field
+from xnano.grid import BaseGrid
 
 
 # ---------------------------------------------------------------------------

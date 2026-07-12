@@ -10,7 +10,6 @@ from __future__ import annotations
 import dataclasses
 import re
 from typing import (
-    TYPE_CHECKING,
     Any,
     ClassVar,
     Literal,

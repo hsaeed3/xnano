@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import pytest
-
+from xnano_core.rust.engine import (
+    CoreRenderContent,
+    CoreRenderNode,
+    CoreSession,
+)
 from xnano_core.rust.native import (
     BufferMutView,
     Constraint,
@@ -19,11 +23,6 @@ from xnano_core.rust.native import (
     ScrollbarState,
     Style,
     TableState,
-)
-from xnano_core.rust.engine import (
-    CoreRenderContent,
-    CoreRenderNode,
-    CoreSession,
 )
 
 

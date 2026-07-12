@@ -9,13 +9,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from xnano.fields import Field
-from xnano.grid import BaseGrid
-from xnano.events import on_tick
+from xnano._dispatch import invoke_hook, pump_tick, run_awaitable
 from xnano._function_hooks import _EventHooksRegistry
 from xnano.context import Context
-from xnano._dispatch import invoke_hook, pump_tick, run_awaitable
 from xnano.core.exceptions import Exit, HookError
+from xnano.events import on_tick
+from xnano.fields import Field
+from xnano.grid import BaseGrid
 
 
 def _ctx() -> Context[Any]:

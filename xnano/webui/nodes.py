@@ -12,9 +12,9 @@ import dataclasses
 import html
 from typing import ClassVar
 
+from xnano._types import Alignment, CharacterModifier, Direction
 from xnano.color import Color, ColorLike
 from xnano.tui._node_base_tmp import AbstractNode, NodeKind
-from xnano._types import Alignment, CharacterModifier, Direction
 
 
 def build_style_attrs(

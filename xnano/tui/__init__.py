@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
-    from xnano.tui.terminal import Terminal, _ACTIVE_TERMINAL, exit_terminal
+    from xnano.tui.terminal import _ACTIVE_TERMINAL, Terminal, exit_terminal
 
 __all__ = (
     "Terminal",
