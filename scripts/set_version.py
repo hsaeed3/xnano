@@ -17,6 +17,8 @@ Files updated by this script:
   compiled ``xnano_core.rust.native.__version__`` via
   ``env!("CARGO_PKG_VERSION")``)
 - ``xnano/__init__.py`` — ``__version__`` constant
+- ``docs/concepts/getting-started.md`` — install pins
+  (``xnano>=…`` in pip / uv / poetry examples)
 
 ``xnano-core/python/xnano_core/rust/native.pyi`` only declares
 ``__version__: str`` (no literal to keep in sync). The runtime value is
@@ -47,6 +49,7 @@ EDITABLE_FILES: tuple[str, ...] = (
     "pyproject.toml",
     "xnano-core/Cargo.toml",
     "xnano/__init__.py",
+    "docs/concepts/getting-started.md",
 )
 """Paths this script is allowed to modify, relative to the repository
 root."""
@@ -66,6 +69,10 @@ _CARGO_PACKAGE_VERSION = re.compile(
 _INIT_PY_VERSION = re.compile(
     r'^__version__ = "(?P<version>[^"]+)"$', re.MULTILINE
 )
+_GETTING_STARTED_XNANO_PIN = re.compile(
+    r'(["\'])xnano>=([^"\']+)\1'
+)
+"""Install pin in getting-started examples: ``\"xnano>=…\"``."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -310,6 +317,51 @@ def sync_xnano_init(state: VersionState) -> bool:
     return write_text_file("xnano/__init__.py", content)
 
 
+def sync_getting_started(state: VersionState) -> bool:
+    """Synchronize install pins in ``docs/concepts/getting-started.md``.
+
+    Replaces every ``xnano>=…`` install example (pip / uv / poetry) with
+    the target ``xnano`` version.
+
+    Args:
+        state: Target versions to write.
+
+    Returns:
+        ``True`` when the file changed.
+
+    Raises:
+        VersionSyncError: If no install pins are found.
+    """
+    relative_path = "docs/concepts/getting-started.md"
+    content = read_text_file(relative_path)
+    updated, count = _GETTING_STARTED_XNANO_PIN.subn(
+        rf'\1xnano>={state.xnano}\1',
+        content,
+    )
+    if count == 0:
+        raise VersionSyncError(
+            f'Could not find xnano>= install pins in "{relative_path}".'
+        )
+    return write_text_file(relative_path, updated)
+
+
+def collect_getting_started_versions(content: str) -> list[str]:
+    """Collect unique ``xnano>=…`` versions from getting-started content.
+
+    Args:
+        content: Markdown file contents.
+
+    Returns:
+        Distinct version strings found in install pins, in order.
+    """
+    found: list[str] = []
+    for match in _GETTING_STARTED_XNANO_PIN.finditer(content):
+        version = match.group(2)
+        if version not in found:
+            found.append(version)
+    return found
+
+
 def collect_drift(state: VersionState) -> list[str]:
     """Return human-readable drift messages for the current tree.
 
@@ -324,6 +376,7 @@ def collect_drift(state: VersionState) -> list[str]:
     pyproject = read_text_file("pyproject.toml")
     cargo = read_text_file("xnano-core/Cargo.toml")
     xnano_init = read_text_file("xnano/__init__.py")
+    getting_started = read_text_file("docs/concepts/getting-started.md")
 
     checks = (
         (
@@ -368,6 +421,22 @@ def collect_drift(state: VersionState) -> list[str]:
         if actual != expected:
             drift.append(f"{label}: expected {expected}, found {actual}")
 
+    getting_started_versions = collect_getting_started_versions(
+        getting_started
+    )
+    if not getting_started_versions:
+        drift.append(
+            "getting-started.md xnano>= pins: expected "
+            f"{state.xnano}, found none"
+        )
+    else:
+        for version in getting_started_versions:
+            if version != state.xnano:
+                drift.append(
+                    "getting-started.md xnano>= pin: expected "
+                    f"{state.xnano}, found {version}"
+                )
+
     return drift
 
 
@@ -388,6 +457,8 @@ def sync_version_files(state: VersionState) -> list[str]:
         changed.append("xnano-core/Cargo.toml")
     if sync_xnano_init(state):
         changed.append("xnano/__init__.py")
+    if sync_getting_started(state):
+        changed.append("docs/concepts/getting-started.md")
 
     return changed
 
