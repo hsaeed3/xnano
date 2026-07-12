@@ -25,7 +25,7 @@ from typing import Any, Callable, TypeAlias, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from xnano.color import ColorLike
-    from xnano.types import Alignment, GraphTypeLike
+    from xnano._types import Alignment, GraphTypeLike
 
 
 ColorResolver: TypeAlias = Any

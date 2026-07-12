@@ -7,10 +7,10 @@ import dataclasses
 from typing import Any, ClassVar, Literal, Sequence, TypeAlias, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from xnano.core.nodes.abstract import AbstractNode
+    from xnano.tui._node_base_tmp import AbstractNode
     from xnano.fields import GridFieldInfo
-    from xnano.frame import Frame
-    from xnano.types import Area, Direction
+    from xnano._types import Frame
+    from xnano._types import Area, Direction
 
 
 LayoutConstraintKind: TypeAlias = Literal[
@@ -49,7 +49,7 @@ class LayoutConstraint(AbstractLayoutConstraint):
 
     This is shared vocabulary, not terminal-specific: a length/percentage/
     fill/ratio weight means the same thing whether a controller resolves it
-    against terminal cells or emits it as a CSS flex-basis. `Grid` builds
+    against terminal cells or emits it as a CSS flex-basis. `BaseGrid` builds
     these directly rather than each controller inventing its own
     constraint type.
 
@@ -121,6 +121,9 @@ class AbstractController(abc.ABC):
     def paint_frame(self, area: Area, frame: Frame, *, z: int = 0) -> Area:
         """Paints a given frame onto a specified viewport area.
 
+        Deprecated path — prefer :meth:`paint_chrome` with a ``Style``.
+        Default implementation remains for terminal controllers.
+
         Args:
             area: The area to paint the frame onto.
             frame: The frame to paint.
@@ -133,6 +136,78 @@ class AbstractController(abc.ABC):
             f"{self.__class__.__name__} must implement 'paint_frame' for"
             "frame painting support."
         )
+
+    def paint_chrome(self, area: Area, style: Any, *, z: int = 0) -> Area:
+        """Paint interface-neutral chrome for ``style`` into ``area``.
+
+        Default lowers ``Style`` to a ``Frame`` and calls ``paint_frame``
+        so existing terminal/web controllers keep working until they
+        implement a native path.
+
+        Args:
+            area: Target area.
+            style: A ``Style`` (or Frame-compatible object).
+            z: Stacking order.
+
+        Returns:
+            The inner content area after chrome.
+        """
+        from xnano._types import Frame
+
+        if isinstance(style, Frame):
+            return self.paint_frame(area, style, z=z)
+        frame = Frame(
+            background=getattr(style, "background", None),
+            border=getattr(style, "border", None),
+            border_color=getattr(style, "border_color", None),
+            border_sides=(
+                list(style.border_sides)
+                if getattr(style, "border_sides", None) is not None
+                else None
+            ),
+            title=getattr(style, "title", None),
+            title_position=getattr(style, "title_position", None),
+            padding=getattr(style, "padding", None),
+        )
+        if frame.is_empty():
+            return area
+        return self.paint_frame(area, frame, z=z)
+
+    def render_content(
+        self,
+        area: Area,
+        content: Any,
+        *,
+        z: int = 0,
+        effect_key: str | None = None,
+    ) -> None:
+        """Render a neutral ``Content`` tree into ``area``.
+
+        Controllers override this to lower Content to nodes/IR/HTML.
+        Default is a no-op so hosts without Content support still run.
+
+        Args:
+            area: Target area.
+            content: A ``Content`` primitive or tree.
+            z: Stacking order.
+            effect_key: Optional effect target key.
+        """
+        return None
+
+    def notify_field_changed(
+        self,
+        interface: Any,
+        name: str,
+        state: Any,
+    ) -> None:
+        """Observe live field dirtiness from an ``AbstractInterface``.
+
+        Args:
+            interface: The interface instance that changed.
+            name: Field name.
+            state: ``FieldState`` or ``None``.
+        """
+        return None
 
     def split_layout(
         self,

@@ -5,7 +5,7 @@
 `AbstractComponent` is the base every built-in component (`Text`, `Table`,
 `Chart`, `Progress`, `Sparkline`, ...) inherits from. A component composes
 one or more render nodes from a declarative definition — the same relationship
-`Grid` has to `Field`, just for widget-shaped content instead of layout.
+`BaseGrid` has to `Field`, just for widget-shaped content instead of layout.
 
 A component supports an interface (terminal, web) by implementing that
 interface's `get_*_node` method: `get_terminal_node` for the terminal,
@@ -24,13 +24,13 @@ import abc
 import dataclasses
 from typing import Any, Generic, TypeVar, TYPE_CHECKING
 
-from xnano.types import Size
+from xnano._types import Size
 
 if TYPE_CHECKING:
-    from xnano.core.nodes.terminal import AbstractTerminalNode
-    from xnano.frame import Frame
-    from xnano.terminal import Terminal
-    from xnano.types import Area
+    from xnano.tui.nodes import AbstractTerminalNode
+    from xnano._types import Frame
+    from xnano.tui import Terminal
+    from xnano._types import Area
 
 
 StateT = TypeVar("StateT")
@@ -112,6 +112,21 @@ class AbstractComponent(abc.ABC):
         Args:
             ctx: The `ComponentRenderContext` after rendering.
             area: The `Area` after rendering.
+        """
+        return None
+
+    def compose(self, ctx: ComponentRenderContext[StateT]) -> Any | None:
+        """Compose interface-neutral ``Content`` for this component.
+
+        Controllers prefer this over ``get_*_node``. Default returns
+        ``None``; components may implement Content trees while still
+        providing ``get_terminal_node`` as a temporary adapter.
+
+        Args:
+            ctx: Render context for this paint.
+
+        Returns:
+            A ``Content`` tree, or ``None``.
         """
         return None
 

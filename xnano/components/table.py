@@ -15,7 +15,7 @@ from xnano.components.schema import (
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
-    from xnano.core.nodes.terminal import AbstractTerminalNode
+    from xnano.tui.nodes import AbstractTerminalNode
 
 
 ColumnsArg: TypeAlias = (
@@ -31,7 +31,7 @@ class Table(AbstractComponent, metaclass=DeclarativeComponentMeta):
     Feed it a list of rows — dicts, dataclasses, or arbitrary objects — and the
     columns are derived for you. Selection is a single attribute (the native
     table scrolls to keep it in view). For full control, subclass and declare
-    ``Column`` descriptors, the way a ``Grid`` declares ``Field``:
+    ``Column`` descriptors, the way a ``BaseGrid`` declares ``Field``:
 
         # data-driven — columns inferred from the dict keys
         Table(data=[{"service": "api", "status": "ok", "latency": 12}])
@@ -143,10 +143,21 @@ class Table(AbstractComponent, metaclass=DeclarativeComponentMeta):
 
     # ── rendering ────────────────────────────────────────────────────────
 
+    def compose(self, ctx):
+        """Compose Content via Native tui payload of the existing node tree."""
+        from xnano.core.content import Native
+
+        return Native(
+            interface_kind="tui",
+            payload=self.get_terminal_node(ctx),
+            z=self.z,
+            visible=self.visible,
+        )
+
     def get_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.core.nodes.terminal import (
+        from xnano.tui.nodes import (
             TableCellItem,
             TableNode,
             TableRowItem,
