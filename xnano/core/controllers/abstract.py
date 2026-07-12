@@ -12,7 +12,6 @@ import abc
 import dataclasses
 from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeAlias
 
-
 if TYPE_CHECKING:
     from xnano._types import Area, Direction, Frame
     from xnano.fields import GridFieldInfo

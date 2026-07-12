@@ -15,7 +15,6 @@ import xnano_core.rust.native as native
 from xnano._types import Size
 from xnano.core.device import AbstractDevice
 
-
 if TYPE_CHECKING:
     from xnano.tui.terminal import Terminal
 

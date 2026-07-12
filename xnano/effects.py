@@ -16,7 +16,6 @@ from typing import Literal, Sequence, TypeAlias, overload
 
 from xnano.color import ColorLike
 
-
 EffectMotion: TypeAlias = Literal[
     "up_to_down",
     "down_to_up",

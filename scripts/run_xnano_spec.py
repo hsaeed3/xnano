@@ -21,7 +21,6 @@ import sys
 from pathlib import Path
 from typing import Iterator
 
-
 # ---------------------------------------------------------------------------
 # Scanner
 # ---------------------------------------------------------------------------
@@ -126,7 +125,6 @@ from xnano.events import on_keyboard
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.tui import Terminal
-
 
 _V300 = tailwind_color("violet", 300)
 _V400 = tailwind_color("violet", 400)

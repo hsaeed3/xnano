@@ -15,7 +15,6 @@ import abc
 import dataclasses
 from typing import ClassVar, Literal, TypeAlias
 
-
 NodeKind: TypeAlias = Literal["terminal", "web"]
 
 

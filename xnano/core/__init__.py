@@ -12,7 +12,6 @@ from those modules (``xnano.core.actions``, ``xnano.core.hosts``, …).
 
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from xnano.core.actions import Action
     from xnano.core.content import Content

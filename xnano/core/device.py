@@ -13,7 +13,6 @@ from typing import Literal, TypeAlias
 
 from xnano._types import Size
 
-
 ClearType: TypeAlias = Literal[
     "all",
     "purge",

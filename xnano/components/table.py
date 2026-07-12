@@ -17,7 +17,6 @@ from xnano.components.schema import (
     DeclarativeComponentMeta,
 )
 
-
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext

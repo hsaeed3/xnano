@@ -27,7 +27,6 @@ from xnano_core.core import (
     CoreKeyBinding,
 )
 
-
 _BINDING_CACHE: dict[str, CoreKeyBinding] = {}
 
 from xnano._event_processing import (
@@ -41,7 +40,6 @@ from xnano._types import (
     KeyboardModifier,
     MouseButton,
 )
-
 
 if TYPE_CHECKING:
     import xnano_core.rust.native as native

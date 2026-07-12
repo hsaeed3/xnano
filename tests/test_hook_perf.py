@@ -38,7 +38,6 @@ from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.state import State
 
-
 # ---------------------------------------------------------------------------
 # 1. Shared helpers and grid fixtures
 # ---------------------------------------------------------------------------

@@ -27,7 +27,6 @@ from xnano._types import (
 from xnano.color import Color, ColorLike
 from xnano.core.controllers.abstract import LayoutConstraint
 
-
 if TYPE_CHECKING:
     from xnano.tui.cursor import CursorStyle
 

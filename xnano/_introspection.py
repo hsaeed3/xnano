@@ -11,7 +11,6 @@ import inspect
 import types
 from typing import Any, Callable, TypeVar
 
-
 StateT = TypeVar("StateT")
 
 

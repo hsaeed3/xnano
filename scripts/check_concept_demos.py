@@ -13,7 +13,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-
 SCRIPTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPTS_DIR.parent
 sys.path.insert(0, str(SCRIPTS_DIR))

@@ -16,7 +16,6 @@ from xnano import _core_bindings as native_types
 from xnano._types import Coordinate
 from xnano.core.device import AbstractCursor
 
-
 if TYPE_CHECKING:
     from xnano.tui.terminal import Terminal
 
