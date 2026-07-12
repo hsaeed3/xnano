@@ -13,38 +13,33 @@ import contextvars
 import dataclasses
 import signal
 import warnings
-from typing import Any, Callable, Generic, Sequence, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar
+
 
 if TYPE_CHECKING:
-    from xnano.color import ColorLike
-    from xnano._types import FrameTitlePosition
-    from xnano._types import Sizing, SizingLike
     from xnano._types import (
         Alignment,
         Border,
         CharacterModifier,
-        Direction,
+        FrameTitlePosition,
         PaddingLike,
         Side,
+        Sizing,
+        SizingLike,
     )
+    from xnano.color import ColorLike
 
-from xnano_core.core import CoreSession
-
-from xnano.context import Context
-from xnano.core.exceptions import Exit
-from xnano._core_bindings import get_area_from_native_rect
+from xnano import _dispatch
 from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnKeyboardHookFunctionEntry,
     _OnMouseHookFunctionEntry,
-    _OnStateHookFunctionEntry,
-    _OnTickHookFunctionEntry,
 )
-from xnano import _dispatch
-from xnano.events import Event
-from xnano.grid import BaseGrid, _GridSlideCapture
+from xnano.context import Context
+from xnano.core.exceptions import Exit
 from xnano.core.hosts import AbstractHost
-from xnano._types import Area, Coordinate
+from xnano.grid import BaseGrid
+
 
 if TYPE_CHECKING:
     from xnano.core.controllers.tui import TerminalController
@@ -297,6 +292,8 @@ class Terminal(AbstractHost, Generic[StateT]):
         """Create the deferred ``CoreSession`` if entry is still pending."""
         if not self._pending_enter:
             return
+        from xnano_core.core import CoreSession
+
         self._pending_enter = False
         core = CoreSession.init(
             tick_rate_ms=None, inline_height=self._inline_height
@@ -413,6 +410,8 @@ class Terminal(AbstractHost, Generic[StateT]):
         debug_wireframe: bool = False,
     ) -> "Terminal[StateT]":
         """Return a terminal backed by an offscreen (test) buffer."""
+        from xnano_core.core import CoreSession
+
         from xnano.core.controllers.tui import TerminalController
 
         terminal: Terminal[StateT] = cls(
@@ -491,7 +490,7 @@ class Terminal(AbstractHost, Generic[StateT]):
             return False
         import base64
 
-        from xnano_core.rust import native
+        import xnano_core.rust.native as native
 
         payload = base64.b64encode(text.encode("utf-8")).decode("ascii")
         native.print_text(f"\x1b]52;c;{payload}\x07")
@@ -533,7 +532,7 @@ class Terminal(AbstractHost, Generic[StateT]):
     def _query_terminal_rows(self) -> int:
         """Return the terminal's row count, or ``0`` when unavailable."""
         try:
-            from xnano_core.rust import native
+            import xnano_core.rust.native as native
 
             return native.terminal_size().height
         except Exception:

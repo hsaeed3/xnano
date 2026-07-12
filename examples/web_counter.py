@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import sys
 
-from xnano.grid import BaseGrid
-from xnano.fields import Field
-from xnano.events import on_click, on_keyboard, on_tick
 from xnano.components.text import Text
+from xnano.events import on_click, on_keyboard, on_tick
+from xnano.fields import Field
+from xnano.grid import BaseGrid
 
 
 class Counter(BaseGrid, direction="vertical", gap=1):

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from xnano.fields import Field
-from xnano.grid import BaseGrid
-from xnano.components.text import Text
 from xnano_core.core import CoreSession
 from xnano_core.rust import native
-from xnano.core.controllers.tui import TerminalController
+
 from xnano._types import Area as GridArea
+from xnano.components.text import Text
+from xnano.core.controllers.tui import TerminalController
+from xnano.fields import Field
+from xnano.grid import BaseGrid
 
 
 class Leaf(BaseGrid):

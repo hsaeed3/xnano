@@ -15,6 +15,7 @@ from collections.abc import Sequence
 import generate_concept_demos
 from generate_concept_demos import Demo, generate, require_vhs
 
+
 generate_concept_demos.OUTPUT_DIR = (
     pathlib.Path(__file__).resolve().parents[1]
     / "docs"

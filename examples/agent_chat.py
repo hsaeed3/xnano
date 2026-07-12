@@ -7,18 +7,18 @@ output, and session status chrome.
 
 from __future__ import annotations
 
-import math
 import textwrap
 import time
 from typing import Iterable, Iterator, Literal, TypeAlias
 
+from xnano._types import CharacterModifier
+from xnano.color import tailwind_color
+from xnano.components.text import Text
+from xnano.events import on_keyboard, on_mouse, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.tui import Terminal
-from xnano.events import on_keyboard, on_mouse, on_tick
-from xnano.components.text import Text
-from xnano.color import tailwind_color
-from xnano._types import CharacterModifier
+
 
 ToolKind: TypeAlias = Literal["read", "bash", "edit", "grep"]
 """Supported tool-call kinds shown in the transcript."""

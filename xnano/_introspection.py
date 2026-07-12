@@ -7,7 +7,6 @@ Hook signature inspection and safe state-expression evaluation.
 
 from __future__ import annotations
 
-import contextvars
 import inspect
 import types
 from typing import Any, Callable, TypeVar

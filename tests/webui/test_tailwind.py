@@ -18,10 +18,9 @@ from xnano._styles import (
     normalize_tailwind_classes,
     resolve_tailwind_classes,
 )
+from xnano._types import Padding, Sizing
 from xnano.color import Color
 from xnano.fields import Field, GridFieldInfo
-from xnano._types import Sizing
-from xnano._types import Padding
 
 
 TAILWIND_PALETTES = (

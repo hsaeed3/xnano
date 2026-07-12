@@ -15,8 +15,8 @@ from xnano._renderable import (
     _apply_padding,
     _build_ansi_prefix,
     _join_horizontal,
-    _renderable_to_lines,
     _render_to_stdout,
+    _renderable_to_lines,
     render,
 )
 

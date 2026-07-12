@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock
 
+from xnano._types import Area, apply_text_keyboard
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.text import Text
 from xnano.tui.nodes import ParagraphNode
-from xnano._types import apply_text_keyboard
-from xnano._types import Area
 
 
 def _ctx() -> ComponentRenderContext:

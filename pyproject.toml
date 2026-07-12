@@ -112,7 +112,17 @@ line-length = 79
 line-ending = "auto"
 
 [tool.ruff.lint.isort]
+known-first-party = ["xnano"]
+known-third-party = ["pydantic_core", "xnano_core"]
 lines-after-imports = 2
+no-lines-before = ["local-folder"]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
 
 [tool.ruff.lint]
 preview = true
@@ -121,4 +131,7 @@ select = [
     "E302",
     "E303",
     "E305",
+    "F401",
+    "I",
+    "TID252",
 ]

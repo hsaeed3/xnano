@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import time
 
+from xnano.color import tailwind_color
+from xnano.components.text import Text
+from xnano.events import on_keyboard
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.tui import Terminal
-from xnano.events import on_keyboard, on_tick
-from xnano.components.text import Text
-from xnano.color import tailwind_color
 
 
 _TABS = ["System Monitor", "Configuration", "Log Viewer"]

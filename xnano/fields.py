@@ -24,19 +24,17 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Literal,
     Sequence,
     TypeAlias,
-    TypeVar,
     Union,
     overload,
 )
 
 from xnano import _types as types
-from xnano.color import ColorLike
-from xnano._types import Frame, FrameTitlePosition
-from xnano._types import Sizing, SizingLike
 from xnano._styles import Style
+from xnano._types import FrameTitlePosition, Sizing, SizingLike
+from xnano.color import ColorLike
+
 
 if TYPE_CHECKING:
     from xnano._styles import TailwindClass

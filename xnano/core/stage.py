@@ -9,9 +9,10 @@ Layout map and cell-level paint / wireframe helpers for the active host
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from xnano._types import Area, Size
+
 
 if TYPE_CHECKING:
     from xnano.core.hosts import AbstractHost

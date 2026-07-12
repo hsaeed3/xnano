@@ -7,19 +7,20 @@ Fallback string and ANSI rendering helpers for simple content.
 
 from __future__ import annotations
 
-from typing import Any, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Sequence
+
 
 if TYPE_CHECKING:
-    from xnano.color import ColorLike
-    from xnano._types import FrameTitlePosition
     from xnano._types import (
         Alignment,
         Border,
         CharacterModifier,
         Direction,
+        FrameTitlePosition,
         PaddingLike,
         Side,
     )
+    from xnano.color import ColorLike
 
 
 _RESET = "\033[0m"
@@ -288,9 +289,9 @@ def render(
         title_position: Alignment of the border title.
         padding: Padding around the content area.
     """
-    from xnano.fields import GridFieldInfo
-    from xnano.tui import _ACTIVE_TERMINAL
     from xnano._core_bindings import get_area_from_native_rect
+    from xnano.fields import GridFieldInfo
+    from xnano.tui.terminal import _ACTIVE_TERMINAL
 
     field = GridFieldInfo(
         color=color,

@@ -7,23 +7,19 @@ Runtime type and value validation helpers used by fields and CLI.
 
 from __future__ import annotations
 
+import collections.abc
 import dataclasses
 import datetime
 import enum
 import functools
 import inspect
-import time
 import types
 import uuid
-from collections.abc import Sequence as AbcSequence
 from typing import (
     Any,
     Callable,
-    Dict,
     Generator,
     Literal,
-    TypeAlias,
-    TYPE_CHECKING,
     Union,
     get_args,
     get_origin,
@@ -31,11 +27,8 @@ from typing import (
 )
 
 from pydantic_core import (
-    core_schema,
     SchemaValidator,
-    SchemaSerializer,
-    SchemaError,
-    ValidationError,
+    core_schema,
 )
 
 
@@ -235,7 +228,10 @@ def _build_core_schema(annotation: Any) -> Any:
     origin = get_origin(annotation)
     args = get_args(annotation)
 
-    if origin is AbcSequence or annotation is AbcSequence:
+    if (
+        origin is collections.abc.Sequence
+        or annotation is collections.abc.Sequence
+    ):
         item_schema = (
             _build_core_schema(args[0]) if args else core_schema.any_schema()
         )

@@ -36,6 +36,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 from vhs_doc_themes import get_margin_fill, get_theme_name  # noqa: E402
 from vhs_tape import build_run_tape  # noqa: E402
 
+
 THEMES = {
     "dark": "GruvboxDark",
     "light": "AtomOneLight",

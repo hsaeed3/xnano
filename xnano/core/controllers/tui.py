@@ -12,11 +12,13 @@ from __future__ import annotations
 
 import dataclasses
 import threading
-from typing import Any, Generic, Sequence, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar
 
+import xnano_core.rust.native as native
 from xnano_core import core
-from xnano_core.rust import native
 
+from xnano import _core_bindings as native_types
+from xnano._types import Alignment, Area, Direction, Size
 from xnano.components.abstract import (
     AbstractComponent,
     ComponentRenderContext,
@@ -31,15 +33,14 @@ from xnano.tui.effects import (
     build_native_effect,
 )
 from xnano.tui.nodes import AbstractTerminalNode, ParagraphNode
-from xnano._types import Alignment, Area, Direction, Size
-from xnano import _core_bindings as native_types
+
 
 if TYPE_CHECKING:
+    from xnano._types import Frame
     from xnano.core.controllers.abstract import AbstractLayoutConstraint
-    from xnano.tui._node_base_tmp import AbstractNode
     from xnano.effects import AbstractEffect
     from xnano.fields import GridFieldInfo
-    from xnano._types import Frame
+    from xnano.tui._node_base_tmp import AbstractNode
 
 
 StateT = TypeVar("StateT")
@@ -512,7 +513,7 @@ class TerminalController(AbstractController, Generic[StateT]):
         from xnano.grid import BaseGrid
 
         if isinstance(value, BaseGrid):
-            from xnano.tui import _ACTIVE_TERMINAL
+            from xnano.tui.terminal import _ACTIVE_TERMINAL
 
             # Re-register nested grids every frame (the render path clears
             # ``_attached_frame_grids`` at the start of each paint).
@@ -525,7 +526,7 @@ class TerminalController(AbstractController, Generic[StateT]):
             return
 
         if isinstance(value, AbstractComponent):
-            from xnano.tui import _ACTIVE_TERMINAL
+            from xnano.tui.terminal import _ACTIVE_TERMINAL
 
             terminal = _ACTIVE_TERMINAL.get()
             ctx = ComponentRenderContext(area=area, terminal=terminal)

@@ -5,13 +5,12 @@ from __future__ import annotations
 import time
 
 import pytest
-
-from xnano_core.rust.native import Color, paint_fg, sleep_effect
 from xnano_core.rust.engine import (
     CoreRenderContent,
     CoreRenderNode,
     CoreSession,
 )
+from xnano_core.rust.native import Color, paint_fg, sleep_effect
 
 
 def test_offscreen_factory_sets_frame_area() -> None:

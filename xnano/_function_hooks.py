@@ -9,17 +9,19 @@ Registry and marker plumbing behind the public ``@on_*`` decorators in
 from __future__ import annotations
 
 import dataclasses
+import functools
 from typing import (
+    TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
     ClassVar,
     Literal,
-    TYPE_CHECKING,
     TypeAlias,
-    TypeVar,
     TypedDict,
+    TypeVar,
 )
+
 
 if TYPE_CHECKING:
     from xnano.context import Context
@@ -241,6 +243,40 @@ class _EventHooksRegistry:
         """Collects registered ``on_<event>`` hooks decorated onto methods
         within a component class.
         """
+        cached = cls._get_component_class_hooks(component_class)
+        registry = cls()
+        registry.on_event_hooks = cached.on_event_hooks.copy()
+        registry.on_keyboard_hooks = [
+            entry.copy() for entry in cached.on_keyboard_hooks
+        ]
+        registry.on_mouse_hooks = [
+            entry.copy() for entry in cached.on_mouse_hooks
+        ]
+        registry.on_resize_hooks = cached.on_resize_hooks.copy()
+        registry.on_clipboard_hooks = cached.on_clipboard_hooks.copy()
+        registry.on_focus_hooks = [
+            entry.copy() for entry in cached.on_focus_hooks
+        ]
+        registry.on_poll_hooks = [
+            entry.copy() for entry in cached.on_poll_hooks
+        ]
+        registry.on_tick_hooks = [
+            entry.copy() for entry in cached.on_tick_hooks
+        ]
+        registry.on_state_hooks = [
+            entry.copy() for entry in cached.on_state_hooks
+        ]
+        registry.on_field_hooks = [
+            entry.copy() for entry in cached.on_field_hooks
+        ]
+        return registry
+
+    @classmethod
+    @functools.cache
+    def _get_component_class_hooks(
+        cls, component_class: type
+    ) -> _EventHooksRegistry:
+        """Collect and cache the immutable hook template for a class."""
         registry = cls()
         hook_attributes = (
             cls.ON_EVENT_HOOK_ATTR,
@@ -407,6 +443,20 @@ class _RequestHooksRegistry:
         Returns:
             A registry of collected request hooks.
         """
+        cached = cls._get_component_class_hooks(component_class)
+        registry = cls()
+        registry.on_get_hooks = [entry.copy() for entry in cached.on_get_hooks]
+        registry.on_post_hooks = [
+            entry.copy() for entry in cached.on_post_hooks
+        ]
+        return registry
+
+    @classmethod
+    @functools.cache
+    def _get_component_class_hooks(
+        cls, component_class: type
+    ) -> _RequestHooksRegistry:
+        """Collect and cache the immutable request-hook template for a class."""
         registry = cls()
         hook_attributes = (
             cls.ON_GET_HOOK_ATTR,

@@ -11,15 +11,16 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING
 
-from xnano.components.abstract import AbstractComponent
 from xnano._types import Alignment, CharacterModifier
+from xnano.components.abstract import AbstractComponent
+
 
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
+    from xnano.events import KeyboardEventData
     from xnano.tui.nodes import AbstractTerminalNode, LineNode
     from xnano.webui.nodes import AbstractWebNode
-    from xnano.events import KeyboardEventData
 
 
 @dataclasses.dataclass

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import xnano_core
-import xnano_core.rust.native as rust
 import xnano_core.rust.engine as engine
+import xnano_core.rust.native as rust
 
 
 def test_engine_submodule_exports() -> None:

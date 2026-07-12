@@ -12,10 +12,16 @@ shared node methods.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, ClassVar, TypeAlias, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
-from xnano.color import ColorLike
-from xnano.tui._node_base_tmp import AbstractNode, NodeKind
+import xnano_core.rust.native as native
+from xnano_core.core import CoreRenderIR, IrLine
+
+from xnano._core_bindings import (
+    frame_length_overhead,
+    get_native_color_from_color_like,
+    get_native_style_from_kwargs,
+)
 from xnano._types import (
     Alignment,
     Area,
@@ -27,20 +33,16 @@ from xnano._types import (
     ScrollbarOrientationLike,
     Size,
 )
-from xnano._core_bindings import (
-    frame_length_overhead,
-    get_native_color_from_color_like,
-    get_native_style_from_kwargs,
-)
-from xnano_core.core import CoreRenderIR, IrLine
-from xnano_core.rust import native
+from xnano.color import ColorLike
+from xnano.tui._node_base_tmp import AbstractNode, NodeKind
+
 
 if TYPE_CHECKING:
+    from xnano._types import Frame
     from xnano.core.controllers.abstract import (
         AbstractController,
         AbstractLayoutConstraint,
     )
-    from xnano._types import Frame
 
 
 # Color resolution, style building, and frame-overhead measurement are

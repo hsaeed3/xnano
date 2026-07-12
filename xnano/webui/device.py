@@ -10,13 +10,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from xnano._types import Size
 from xnano.core.device import (
     AbstractCursor,
     AbstractDevice,
     ClearType,
     CursorStyle,
 )
-from xnano._types import Size
 
 
 class WebDevice(AbstractDevice):

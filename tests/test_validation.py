@@ -13,8 +13,6 @@ import pytest
 from pydantic import BaseModel
 from pydantic_core import ValidationError, core_schema
 
-from xnano.grid import BaseGrid
-from xnano.components.text import Text
 from xnano._renderable import Renderable
 from xnano._validation import (
     infer_pydantic_core_schema_name,
@@ -22,6 +20,8 @@ from xnano._validation import (
     register_validatable_type,
     validate_type,
 )
+from xnano.components.text import Text
+from xnano.grid import BaseGrid
 
 
 # ---------------------------------------------------------------------------

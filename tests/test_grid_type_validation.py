@@ -9,15 +9,15 @@ import uuid
 from typing import Literal, TypedDict
 
 import pytest
-from pydantic import BaseModel, Field as PydanticField
-
 from helpers import assign_attr, invalid_field
+from pydantic import BaseModel
+
+from xnano._renderable import Renderable
+from xnano._types import Area
+from xnano.components.text import Text
+from xnano.core.exceptions import FieldValidationError
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.components.text import Text
-from xnano._renderable import Renderable
-from xnano.core.exceptions import FieldValidationError
-from xnano._types import Area
 
 
 class Status(enum.Enum):

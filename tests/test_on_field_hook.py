@@ -5,16 +5,15 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, cast
 
-from xnano.fields import Field
-from xnano.grid import BaseGrid
-from xnano.events import on_field
+from xnano._dispatch import pump_tick
 from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnFieldHookFunctionEntry,
 )
-from xnano.context import Context
-from xnano._dispatch import pump_tick
 from xnano._introspection import evaluate_state_expression
+from xnano.events import on_field
+from xnano.fields import Field
+from xnano.grid import BaseGrid
 
 
 # ---------------------------------------------------------------------------

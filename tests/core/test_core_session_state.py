@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from xnano_core.rust.native import ClearType
 from xnano_core.rust.engine import (
     CoreRenderContent,
     CoreRenderNode,
     CoreSession,
 )
+from xnano_core.rust.native import ClearType
 
 
 def test_offscreen_title_roundtrip(offscreen_session: CoreSession) -> None:

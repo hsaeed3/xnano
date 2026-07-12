@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import sys
-from typing import Any, Callable, Sequence
+from typing import Any, Callable
 
 from xnano import _validation as validation
 

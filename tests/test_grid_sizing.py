@@ -6,11 +6,10 @@ slot geometry, so no TTY is required.
 
 from __future__ import annotations
 
+from xnano._types import Area, Sizing
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano._types import Sizing
 from xnano.tui import Terminal
-from xnano._types import Area
 
 
 def _slot_areas(grid: BaseGrid, width: int, height: int) -> dict[str, Area]:

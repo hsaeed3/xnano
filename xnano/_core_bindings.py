@@ -9,22 +9,24 @@ terminal drawing.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from xnano_core.rust import native
+import xnano_core.rust.native as native
 
-from xnano.color import Color, ColorLike
-from xnano.core.controllers.abstract import LayoutConstraint
-from xnano._types import Frame, FrameTitlePosition
 from xnano._types import (
     Area,
     Border,
     CharacterModifier,
     Direction,
+    Frame,
+    FrameTitlePosition,
     Padding,
     PaddingLike,
     Side,
 )
+from xnano.color import Color, ColorLike
+from xnano.core.controllers.abstract import LayoutConstraint
+
 
 if TYPE_CHECKING:
     from xnano.tui.cursor import CursorStyle
