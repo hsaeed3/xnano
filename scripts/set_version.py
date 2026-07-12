@@ -69,9 +69,7 @@ _CARGO_PACKAGE_VERSION = re.compile(
 _INIT_PY_VERSION = re.compile(
     r'^__version__ = "(?P<version>[^"]+)"$', re.MULTILINE
 )
-_GETTING_STARTED_XNANO_PIN = re.compile(
-    r'(["\'])xnano>=([^"\']+)\1'
-)
+_GETTING_STARTED_XNANO_PIN = re.compile(r'(["\'])xnano>=([^"\']+)\1')
 """Install pin in getting-started examples: ``\"xnano>=…\"``."""
 
 
@@ -335,7 +333,7 @@ def sync_getting_started(state: VersionState) -> bool:
     relative_path = "docs/concepts/getting-started.md"
     content = read_text_file(relative_path)
     updated, count = _GETTING_STARTED_XNANO_PIN.subn(
-        rf'\1xnano>={state.xnano}\1',
+        rf"\1xnano>={state.xnano}\1",
         content,
     )
     if count == 0:
