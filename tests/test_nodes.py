@@ -1,10 +1,10 @@
-"""Tests for xnano.core.nodes.terminal — render IR nodes."""
+"""Tests for xnano.tui.nodes — render IR nodes."""
 
 from __future__ import annotations
 
 import pytest
 
-from xnano.core.nodes.terminal import (
+from xnano.tui.nodes import (
     ClearNode,
     ContainerNode,
     FrameNode,
@@ -16,8 +16,8 @@ from xnano.core.nodes.terminal import (
     StackNode,
     TextNode,
 )
-from xnano.frame import Frame
-from xnano.types import Size
+from xnano._types import Frame
+from xnano._types import Size
 
 
 # ---------------------------------------------------------------------------

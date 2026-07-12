@@ -1,7 +1,7 @@
 """End-to-end usage scenarios — hooks + components working together.
 
 These are not unit checks of single conditionals. Each test builds a small
-app-like ``Grid``, drives it through an offscreen ``Terminal``, and asserts
+app-like ``BaseGrid``, drives it through an offscreen ``Terminal``, and asserts
 on rendered output and cross-feature behavior (focus → input → submit,
 table/progress/chart in one layout, tick/poll/field chains, etc.).
 """
@@ -21,21 +21,21 @@ from helpers import (
 )
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.hooks import (
+from xnano.grid import BaseGrid
+from xnano.events import (
     on_field,
     on_focus,
     on_keyboard,
     on_poll,
     on_tick,
-    _EventHooksRegistry,
 )
+from xnano._function_hooks import _EventHooksRegistry
 from xnano.components.chart import Chart
 from xnano.components.progress import Progress
 from xnano.components.table import Table
 from xnano.components.text import Text
 from xnano.components.schema import Column, Series
-from xnano.core.dispatch import pump_poll, pump_tick
+from xnano._dispatch import pump_poll, pump_tick
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ from xnano.core.dispatch import pump_poll, pump_tick
 # ---------------------------------------------------------------------------
 
 
-class LoginForm(Grid):
+class LoginForm(BaseGrid):
     """Two-field form with focus hooks and submit-on-enter."""
 
     heading: str = Field(default="Sign in", height=1)
@@ -136,7 +136,7 @@ def test_login_form_paste_into_focused_input() -> None:
     from typing import Any, cast
 
     from xnano.context import Context
-    from xnano.core.dispatch import dispatch_hooks
+    from xnano._dispatch import dispatch_hooks
 
     form = LoginForm()
     terminal = open_offscreen_app(form)
@@ -168,7 +168,7 @@ class CpuChart(Chart):
     mem = Series(color="magenta")
 
 
-class Dashboard(Grid):
+class Dashboard(BaseGrid):
     title: str = Field(default="ops", height=1)
     table: Table = Field(
         default_factory=lambda: ServicesTable(
@@ -275,7 +275,7 @@ def test_dashboard_tick_updates_progress_and_fires_on_field() -> None:
 # ---------------------------------------------------------------------------
 
 
-class ChatApp(Grid):
+class ChatApp(BaseGrid):
     log: Text = Field(
         default_factory=lambda: Text("welcome"),
         height=4,
@@ -299,8 +299,8 @@ class ChatApp(Grid):
             self.log = Text("\n".join(self.history[-4:]))
         self.prompt = Text("", input=True, placeholder="message")
         # keep focus on the new prompt instance
-        from xnano.focus import set_field_focus
-        from xnano.terminal import _ACTIVE_TERMINAL
+        from xnano._types import set_field_focus
+        from xnano.tui import _ACTIVE_TERMINAL
 
         term = _ACTIVE_TERMINAL.get()
         if term is not None:
@@ -334,7 +334,7 @@ def test_chat_prompt_type_submit_command_flow() -> None:
 # ---------------------------------------------------------------------------
 
 
-class WorkerApp(Grid):
+class WorkerApp(BaseGrid):
     label: str = Field(default="boot", height=1)
     idle_count: int = Field(default=0, state=True)
     frame_count: int = Field(default=0, state=True)
@@ -448,7 +448,7 @@ def test_worker_poll_tick_keyboard_field_chain() -> None:
 # ---------------------------------------------------------------------------
 
 
-class AsyncMeter(Grid):
+class AsyncMeter(BaseGrid):
     meter: Progress = Field(
         default_factory=lambda: Progress(value=0, total=10),
         height=3,
@@ -495,7 +495,7 @@ def test_async_tick_with_progress_and_on_field() -> None:
 # ---------------------------------------------------------------------------
 
 
-class Panel(Grid):
+class Panel(BaseGrid):
     name: str = Field(default="panel", height=1, state=True)
     field: Text = Field(
         default_factory=lambda: Text("", input=True, placeholder="…"),
@@ -503,7 +503,7 @@ class Panel(Grid):
     )
 
 
-class Dual(Grid):
+class Dual(BaseGrid):
     left: Panel = Field(default_factory=lambda: Panel(name="left"))
     right: Panel = Field(default_factory=lambda: Panel(name="right"))
 
@@ -525,7 +525,7 @@ def test_nested_panels_render_and_focus_left_input() -> None:
         assert len(terminal._attached_frame_grids) >= 3  # root + 2 panels
 
         # Explicitly focus left panel input and type.
-        from xnano.focus import set_field_focus
+        from xnano._types import set_field_focus
 
         assert set_field_focus(terminal, root.left, "field") is True
         type_text(terminal, "xy")
@@ -541,8 +541,8 @@ def test_nested_panels_render_and_focus_left_input() -> None:
 # ---------------------------------------------------------------------------
 
 
-class Picker(Grid):
-    # Note: cannot name a layout field ``rows`` — Grid owns ``rows``/``columns``.
+class Picker(BaseGrid):
+    # Note: cannot name a layout field ``rows`` — BaseGrid owns ``rows``/``columns``.
     items: Table = Field(
         default_factory=lambda: Table(
             data=[
@@ -616,7 +616,7 @@ def test_picker_keyboard_moves_selection_and_progress() -> None:
 # ---------------------------------------------------------------------------
 
 
-class BoomApp(Grid):
+class BoomApp(BaseGrid):
     label: str = Field(default="safe", height=1)
 
     @on_keyboard("x")
@@ -654,7 +654,7 @@ def test_hook_exception_logs_and_terminal_still_paints(
 # ---------------------------------------------------------------------------
 
 
-class _Tally(Grid):
+class _Tally(BaseGrid):
     label: str = Field(default="", height=1)
     count: int = Field(default=0, state=True)
 

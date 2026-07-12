@@ -28,20 +28,20 @@ import enum
 from typing import Any, cast
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.hooks import on_field, on_keyboard, on_tick
+from xnano.grid import BaseGrid
+from xnano.events import on_field, on_keyboard, on_tick
 from xnano.context import Context
-from xnano.core.dispatch import invoke_hook, pump_tick
-from xnano.hooks import (
+from xnano._dispatch import invoke_hook, pump_tick
+from xnano._function_hooks import (
     _EventHooksRegistry,
     _OnFieldHookFunctionEntry,
     _OnKeyboardHookFunctionEntry,
     _OnStateHookFunctionEntry,
     _OnTickHookFunctionEntry,
 )
-from xnano.hooks import on_state
+from xnano.events import on_state
 from xnano.state import State
-from xnano.utils.core import evaluate_state_expression
+from xnano._introspection import evaluate_state_expression
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +136,7 @@ class _StubTerminal:
 # ---------------------------------------------------------------------------
 
 
-class _SwitcherGrid(Grid):
+class _SwitcherGrid(BaseGrid):
     mode: str = Field(default="idle", state=True)
     label: str = Field(default="idle mode")
     john_count: int = Field(default=0, state=True)
@@ -221,7 +221,7 @@ def test_multiple_keyboard_presses_before_tick_last_wins() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _TrafficLightGrid(Grid):
+class _TrafficLightGrid(BaseGrid):
     color: str = Field(default="green", state=True)
     red_fires: int = Field(default=0, state=True)
     yellow_fires: int = Field(default=0, state=True)
@@ -288,7 +288,7 @@ def test_field_hook_stops_when_condition_becomes_false() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _CascadeGrid(Grid):
+class _CascadeGrid(BaseGrid):
     step: int = Field(default=0, state=True)
     stage_a_reached: bool = Field(default=False, state=True)
     stage_b_reached: bool = Field(default=False, state=True)
@@ -321,7 +321,7 @@ def test_cascade_second_step_fires_on_next_tick() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _CountdownGrid(Grid):
+class _CountdownGrid(BaseGrid):
     ticks: int = Field(default=0, state=True)
     threshold_reached: bool = Field(default=False, state=True)
 
@@ -349,7 +349,7 @@ def test_tick_increments_then_field_hook_fires_at_threshold() -> None:
     assert grid.ticks == 3 and grid.threshold_reached
 
 
-class _IntervalGrid(Grid):
+class _IntervalGrid(BaseGrid):
     """on_tick with a huge interval fires only once (first call starts from
     last_fire_ms=0, so elapsed is large enough to trip the interval gate
     immediately). on_field fires on every tick regardless.
@@ -390,7 +390,7 @@ class _IntervalGrid(Grid):
 # ---------------------------------------------------------------------------
 
 
-class _CompoundGrid(Grid):
+class _CompoundGrid(BaseGrid):
     count: int = Field(default=0, state=True)
     active: bool = Field(default=False, state=True)
     fired: bool = Field(default=False, state=True)
@@ -452,7 +452,7 @@ def test_or_expression_fires_on_either_condition() -> None:
 
 
 def test_chained_comparison_expression() -> None:
-    class _RangeGrid(Grid):
+    class _RangeGrid(BaseGrid):
         value: int = Field(default=0, state=True)
         in_range: bool = Field(default=False, state=True)
 
@@ -480,7 +480,7 @@ def test_chained_comparison_expression() -> None:
 
 
 # 7a. Optional[str] — truthiness and None check
-class _OptionalGrid(Grid):
+class _OptionalGrid(BaseGrid):
     username: str | None = Field(default=None, state=True)
     logged_in: bool = Field(default=False, state=True)
     logged_out: bool = Field(default=False, state=True)
@@ -511,7 +511,7 @@ def test_optional_field_none_check() -> None:
 
 
 # 7b. set[str] — membership test
-class _PermissionsGrid(Grid):
+class _PermissionsGrid(BaseGrid):
     roles: set[str] = Field(default_factory=set, state=True)
     is_admin: bool = Field(default=False, state=True)
     is_editor: bool = Field(default=False, state=True)
@@ -558,7 +558,7 @@ def test_set_multiple_memberships() -> None:
 
 
 # 7c. tuple — index access
-class _CoordGrid(Grid):
+class _CoordGrid(BaseGrid):
     position: tuple[int, int] = Field(default=(0, 0), state=True)
     in_positive_quadrant: bool = Field(default=False, state=True)
     at_origin: bool = Field(default=False, state=True)
@@ -589,7 +589,7 @@ def test_tuple_index_expression() -> None:
 
 
 # 7d. float — threshold and abs comparison
-class _ProgressGrid(Grid):
+class _ProgressGrid(BaseGrid):
     progress: float = Field(default=0.0, state=True)
     complete: bool = Field(default=False, state=True)
     near_half: bool = Field(default=False, state=True)
@@ -633,7 +633,7 @@ def test_float_abs_proximity_expression() -> None:
 
 
 # 7e. Nested dict — deep key access
-class _ConfigGrid(Grid):
+class _ConfigGrid(BaseGrid):
     config: dict[str, Any] = Field(default_factory=dict, state=True)
     is_admin: bool = Field(default=False, state=True)
     theme_dark: bool = Field(default=False, state=True)
@@ -670,7 +670,7 @@ def test_nested_dict_expression() -> None:
 
 
 # 7f. String operators — in, len, str() conversion
-class _StringFieldGrid(Grid):
+class _StringFieldGrid(BaseGrid):
     message: str = Field(default="", state=True)
     count: int = Field(default=0, state=True)
     has_error: bool = Field(default=False, state=True)
@@ -726,7 +726,7 @@ def test_str_conversion_expression() -> None:
 
 
 # 7g. List membership and truthiness
-class _LogGrid(Grid):
+class _LogGrid(BaseGrid):
     log: list[str] = Field(default_factory=list, state=True)
     has_warning: bool = Field(default=False, state=True)
     is_empty: bool = Field(default=False, state=True)
@@ -773,7 +773,7 @@ def test_list_truthiness_and_len() -> None:
 
 
 # 7h. max / min built-in expressions
-class _ScoreGrid(Grid):
+class _ScoreGrid(BaseGrid):
     scores: list[int] = Field(default_factory=list, state=True)
     high_score: bool = Field(default=False, state=True)
     low_score: bool = Field(default=False, state=True)
@@ -808,7 +808,7 @@ def test_min_builtin_expression() -> None:
 
 
 # 7i. isinstance and hasattr
-class _TypeCheckGrid(Grid):
+class _TypeCheckGrid(BaseGrid):
     value: Any = Field(default=None, state=True)
     is_int: bool = Field(default=False, state=True)
     has_name: bool = Field(default=False, state=True)
@@ -853,7 +853,7 @@ def test_hasattr_expression() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _StateVarGrid(Grid):
+class _StateVarGrid(BaseGrid):
     count: int = Field(default=0, state=True)
     via_state: bool = Field(default=False, state=True)
     has_count_attr: bool = Field(default=False, state=True)
@@ -906,7 +906,7 @@ def test_state_variable_getattr() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _SafeGrid(Grid):
+class _SafeGrid(BaseGrid):
     count: int = Field(default=5, state=True)
     denominator: int = Field(default=0, state=True)
 
@@ -942,7 +942,7 @@ def test_invalid_index_returns_false() -> None:
 
 
 def test_bad_expression_does_not_fire_hook() -> None:
-    class _BadExprGrid(Grid):
+    class _BadExprGrid(BaseGrid):
         count: int = Field(default=5, state=True)
         fired: bool = Field(default=False, state=True)
 
@@ -963,7 +963,7 @@ def test_bad_expression_does_not_fire_hook() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _TwoHandlerGrid(Grid):
+class _TwoHandlerGrid(BaseGrid):
     active: bool = Field(default=False, state=True)
     handler_a_count: int = Field(default=0, state=True)
     handler_b_count: int = Field(default=0, state=True)
@@ -1004,7 +1004,7 @@ def test_two_handlers_neither_fires_when_false() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _FireCountGrid(Grid):
+class _FireCountGrid(BaseGrid):
     active: bool = Field(default=True, state=True)
     fire_count: int = Field(default=0, state=True)
 
@@ -1044,7 +1044,7 @@ def test_hook_fire_count_matches_true_ticks_only() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _ParentGrid(Grid):
+class _ParentGrid(BaseGrid):
     base_flag: bool = Field(default=False, state=True)
     parent_fired: bool = Field(default=False, state=True)
 
@@ -1144,7 +1144,7 @@ def test_overridden_hook_registers_once() -> None:
     # A subclass overriding a parent's hook method must shadow it — both
     # collected members rebind to the same bound method, so registering
     # both would fire the override twice per event.
-    class _OverrideParent(Grid):
+    class _OverrideParent(BaseGrid):
         flag: bool = Field(default=False, state=True)
         fired: int = Field(default=0, state=True)
 
@@ -1173,7 +1173,7 @@ def test_overridden_hook_registers_once() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _IsolatedGrid(Grid):
+class _IsolatedGrid(BaseGrid):
     value: int = Field(default=0, state=True)
     fired: bool = Field(default=False, state=True)
     fire_count: int = Field(default=0, state=True)
@@ -1244,7 +1244,7 @@ def test_mixed_grid_types_do_not_contaminate() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _DualSourceGrid(Grid):
+class _DualSourceGrid(BaseGrid):
     grid_flag: bool = Field(default=False, state=True)
     field_hook_fired: bool = Field(default=False, state=True)
     state_hook_fired: bool = Field(default=False, state=True)
@@ -1297,7 +1297,7 @@ def test_on_field_not_confused_by_terminal_state_attribute() -> None:
     """on_field must evaluate against the grid, not terminal.state,
     even if terminal.state has a same-named attribute."""
 
-    class _AmbiguousGrid(Grid):
+    class _AmbiguousGrid(BaseGrid):
         count: int = Field(default=10, state=True)
         correct: bool = Field(default=False, state=True)
 
@@ -1320,7 +1320,7 @@ def test_on_field_not_confused_by_terminal_state_attribute() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _DictStateGrid(Grid):
+class _DictStateGrid(BaseGrid):
     config: dict[str, Any] = Field(default_factory=dict, state=True)
     display: str = Field(default="waiting")
 

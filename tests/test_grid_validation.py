@@ -6,34 +6,34 @@ import pytest
 from pydantic import BaseModel
 
 from helpers import assign_attr, invalid_field
-from xnano.core.renderable import Renderable
-from xnano.exceptions import FieldValidationError
+from xnano._renderable import Renderable
+from xnano.core.exceptions import FieldValidationError
 from xnano.fields import Field
-from xnano.grid import Grid
+from xnano.grid import BaseGrid
 
 
-class Leaf(Grid):
+class Leaf(BaseGrid):
     label: str = Field(default="hello")
 
 
-class Root(Grid, direction="horizontal"):
+class Root(BaseGrid, direction="horizontal"):
     left: Leaf = Field(default_factory=Leaf)
     right: Leaf = Field(default_factory=Leaf)
 
 
-class LooseGrid(Grid, strict=False):
+class LooseGrid(BaseGrid, strict=False):
     count: int = invalid_field("not-an-int")
 
 
-class StrictStateGrid(Grid):
+class StrictStateGrid(BaseGrid):
     count: int = 0
 
 
-class StrictRuntimeGrid(Grid):
+class StrictRuntimeGrid(BaseGrid):
     count: int = Field(default=0, state=True, strict=True)
 
 
-class ModelGrid(Grid):
+class ModelGrid(BaseGrid):
     model: "UserModel" = Field(default_factory=lambda: UserModel(name="ada"))
 
 
@@ -41,7 +41,7 @@ class UserModel(BaseModel):
     name: str
 
 
-class UnannotatedLayoutGrid(Grid):
+class UnannotatedLayoutGrid(BaseGrid):
     body = "hello"
 
 
@@ -52,7 +52,7 @@ def test_strict_init_accepts_nested_grids() -> None:
 
 
 def test_strict_init_rejects_invalid_layout_field() -> None:
-    class Bad(Grid):
+    class Bad(BaseGrid):
         label: str = invalid_field(123)
 
     with pytest.raises(FieldValidationError, match="label"):
@@ -60,7 +60,7 @@ def test_strict_init_rejects_invalid_layout_field() -> None:
 
 
 def test_strict_init_rejects_invalid_nested_grid() -> None:
-    class Bad(Grid):
+    class Bad(BaseGrid):
         child: Leaf = invalid_field(123)
 
     with pytest.raises(FieldValidationError, match="child"):
@@ -68,7 +68,7 @@ def test_strict_init_rejects_invalid_nested_grid() -> None:
 
 
 def test_strict_init_accepts_any_renderable_value() -> None:
-    class Panel(Grid):
+    class Panel(BaseGrid):
         body: Renderable = invalid_field(123)
 
     grid = Panel()
@@ -125,7 +125,7 @@ def test_state_field_with_runtime_strict_rejects_bad_assignment() -> None:
 
 
 def test_none_skips_init_validation() -> None:
-    class OptionalBody(Grid):
+    class OptionalBody(BaseGrid):
         body: Renderable | None = Field(default=None)
 
     grid = OptionalBody()

@@ -6,11 +6,11 @@ from helpers import render_component_to_text
 
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.progress import Progress
-from xnano.core.nodes.terminal import (
+from xnano.tui.nodes import (
     LineGaugeNode,
     ProgressBarNode,
 )
-from xnano.types import Area
+from xnano._types import Area
 
 
 def _ctx() -> ComponentRenderContext:

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from xnano.fields import Field
-from xnano.grid import Grid, _layout_constraint_for_field
+from xnano.grid import BaseGrid, _layout_constraint_for_field
 
 
 def test_grid_min_size_with_border() -> None:
-    class MinSizeGrid(Grid):
+    class MinSizeGrid(BaseGrid):
         body: str = Field(default="hello", border="rounded")
 
     grid = MinSizeGrid()

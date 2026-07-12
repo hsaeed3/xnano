@@ -1,22 +1,22 @@
-"""Tests for Grid.grid_set_field and grid-slot component positioning."""
+"""Tests for BaseGrid.grid_set_field and grid-slot component positioning."""
 
 from __future__ import annotations
 
 import pytest
 
 from xnano.fields import Field, UNSET
-from xnano.grid import Grid
-from xnano.terminal import Terminal
+from xnano.grid import BaseGrid
+from xnano.tui import Terminal
 from xnano.components.text import Text
-from xnano.exceptions import FieldValidationError
-from xnano.types import Area
+from xnano.core.exceptions import FieldValidationError
+from xnano._types import Area
 
 
-class LayoutGrid(Grid):
+class LayoutGrid(BaseGrid):
     body: str = Field(default="hello")
 
 
-class StatefulGrid(Grid):
+class StatefulGrid(BaseGrid):
     body: str = Field(default="hello")
     count: int = Field(default=0, state=True)
 
@@ -68,13 +68,13 @@ def test_set_field_validates_when_strict() -> None:
 
 
 def test_grid_slot_renders_text_component_offscreen() -> None:
-    class TextGrid(Grid):
+    class TextGrid(BaseGrid):
         body: Text = Field(default_factory=lambda: Text(content="hello"))
 
     terminal = Terminal.offscreen(cols=40, rows=8)
     grid = TextGrid()
     terminal.run.__func__  # verify it's a callable
-    from xnano.types import Area
+    from xnano._types import Area
 
     terminal._track_frame_grid(grid)
     sess = terminal.session
@@ -86,7 +86,7 @@ def test_grid_slot_renders_text_component_offscreen() -> None:
 
 
 def test_set_field_accepts_text_component() -> None:
-    class TextGrid(Grid):
+    class TextGrid(BaseGrid):
         body: Text = Field(default_factory=lambda: Text(content="init"))
 
     grid = TextGrid()

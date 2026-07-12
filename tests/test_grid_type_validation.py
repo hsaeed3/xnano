@@ -1,4 +1,4 @@
-"""Grid integration tests for Python and Pydantic type validation."""
+"""BaseGrid integration tests for Python and Pydantic type validation."""
 
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ from pydantic import BaseModel, Field as PydanticField
 
 from helpers import assign_attr, invalid_field
 from xnano.fields import Field
-from xnano.grid import Grid
+from xnano.grid import BaseGrid
 from xnano.components.text import Text
-from xnano.core.renderable import Renderable
-from xnano.exceptions import FieldValidationError
-from xnano.types import Area
+from xnano._renderable import Renderable
+from xnano.core.exceptions import FieldValidationError
+from xnano._types import Area
 
 
 class Status(enum.Enum):
@@ -43,7 +43,7 @@ class SettingsTD(TypedDict):
     verbose: bool
 
 
-class TypedLayoutGrid(Grid):
+class TypedLayoutGrid(BaseGrid):
     label: Literal["on", "off"] = Field(default="on")
     body: Renderable | str = Field(default="hello")
     count: int | None = Field(default=None, state=True)
@@ -62,26 +62,26 @@ class TypedLayoutGrid(Grid):
     metrics: Metrics = Field(default_factory=lambda: Metrics(0), state=True)
 
 
-class StrictLayoutGrid(Grid):
+class StrictLayoutGrid(BaseGrid):
     child: "ChildGrid" = Field(default_factory=lambda: ChildGrid())
     paragraph: Text = Field(default_factory=lambda: Text(content="hi"))
 
 
-class ChildGrid(Grid):
+class ChildGrid(BaseGrid):
     value: int = Field(default=1, state=True, strict=True)
 
 
-class PydanticLayoutGrid(Grid):
+class PydanticLayoutGrid(BaseGrid):
     payload: ConfigModel = Field(default_factory=ConfigModel)
 
 
-class PydanticNestedGrid(Grid):
+class PydanticNestedGrid(BaseGrid):
     nested: NestedConfigGrid = Field(
         default_factory=lambda: NestedConfigGrid(config=ConfigModel())
     )
 
 
-class LooseSetFieldGrid(Grid):
+class LooseSetFieldGrid(BaseGrid):
     name: str = Field(default="ok")
 
 
@@ -91,7 +91,7 @@ def test_literal_layout_field_validates() -> None:
 
 
 def test_literal_layout_field_rejects_invalid_on_init() -> None:
-    class LiteralPanel(Grid):
+    class LiteralPanel(BaseGrid):
         mode: Literal["on", "off"] = invalid_field("maybe")
 
     with pytest.raises(FieldValidationError, match="mode"):
@@ -124,7 +124,7 @@ def test_enum_state_field_rejects_raw_string_without_strict() -> None:
 
 
 def test_enum_state_field_rejects_with_strict_runtime() -> None:
-    class StrictEnumGrid(Grid):
+    class StrictEnumGrid(BaseGrid):
         status: Status = Field(default=Status.ON, state=True, strict=True)
 
     grid = StrictEnumGrid()
@@ -133,7 +133,7 @@ def test_enum_state_field_rejects_with_strict_runtime() -> None:
 
 
 def test_datetime_state_field_with_strict() -> None:
-    class StrictDateGrid(Grid):
+    class StrictDateGrid(BaseGrid):
         when: datetime.datetime = Field(
             default_factory=lambda: datetime.datetime(
                 2026, 1, 1, tzinfo=datetime.timezone.utc
@@ -148,7 +148,7 @@ def test_datetime_state_field_with_strict() -> None:
 
 
 def test_uuid_state_field_with_strict() -> None:
-    class StrictUuidGrid(Grid):
+    class StrictUuidGrid(BaseGrid):
         uid: uuid.UUID = Field(
             default_factory=lambda: uuid.UUID(int=0),
             state=True,
@@ -166,7 +166,7 @@ def test_pydantic_model_state_field_accepts_instance() -> None:
 
 
 def test_pydantic_model_state_field_rejects_dict_with_strict() -> None:
-    class StrictConfigGrid(Grid):
+    class StrictConfigGrid(BaseGrid):
         config: ConfigModel = Field(
             default_factory=ConfigModel, state=True, strict=True
         )
@@ -183,7 +183,7 @@ def test_dataclass_state_field_accepts_instance() -> None:
 
 
 def test_dataclass_state_field_rejects_wrong_type_with_strict() -> None:
-    class StrictMetricsGrid(Grid):
+    class StrictMetricsGrid(BaseGrid):
         metrics: Metrics = Field(
             default_factory=lambda: Metrics(0),
             state=True,
@@ -229,7 +229,7 @@ def test_set_field_validates_under_strict_grid() -> None:
 
 
 def test_set_field_allows_valid_renderable() -> None:
-    class Panel(Grid):
+    class Panel(BaseGrid):
         body: Renderable = invalid_field("hi")
 
     panel = Panel()
@@ -238,7 +238,7 @@ def test_set_field_allows_valid_renderable() -> None:
 
 
 def test_set_field_position_does_not_validate_value() -> None:
-    class SlidePanel(Grid):
+    class SlidePanel(BaseGrid):
         body: str = Field(default="hi", slide=["x"])
 
     panel = SlidePanel()
@@ -251,7 +251,7 @@ def test_set_field_position_does_not_validate_value() -> None:
 
 
 def test_field_validation_error_wraps_validation_error() -> None:
-    class Bad(Grid):
+    class Bad(BaseGrid):
         n: int = invalid_field("x")
 
     with pytest.raises(FieldValidationError) as exc:
@@ -263,7 +263,7 @@ def test_field_validation_error_wraps_validation_error() -> None:
 
 
 def test_none_layout_value_skips_validation() -> None:
-    class OptionalPanel(Grid):
+    class OptionalPanel(BaseGrid):
         body: Renderable | None = Field(default=None)
 
     panel = OptionalPanel()
@@ -277,7 +277,7 @@ def test_strict_child_state_field_validates_on_assignment() -> None:
 
 
 def test_init_validation_coerces_nothing_for_layout_fields() -> None:
-    class IntPanel(Grid):
+    class IntPanel(BaseGrid):
         n: int = Field(default=3)
 
     panel = IntPanel()

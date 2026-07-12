@@ -1,6 +1,6 @@
 """Tests for Terminal.render / Terminal.run inline rendering of renderables.
 
-These exercise the non-Grid rendering path — content measurement, inline
+These exercise the non-BaseGrid rendering path — content measurement, inline
 viewport sizing, and painting standalone renderables — using offscreen
 sessions so no TTY is required.
 """
@@ -10,11 +10,11 @@ from __future__ import annotations
 import pytest
 
 from xnano.fields import Field
-from xnano.grid import Grid
-from xnano.sizing import Sizing
-from xnano.terminal import Terminal
+from xnano.grid import BaseGrid
+from xnano._types import Sizing
+from xnano.tui import Terminal
 from xnano.components.text import Text
-from xnano.core import dispatch
+from xnano import _dispatch as dispatch
 
 
 # ---------------------------------------------------------------------------
@@ -218,20 +218,20 @@ def test_render_frame_paints_lone_root_renderable() -> None:
 
 
 # ---------------------------------------------------------------------------
-# run() dispatch routing (Grid vs inline)
+# run() dispatch routing (BaseGrid vs inline)
 # ---------------------------------------------------------------------------
 
 
 def _run_would_use_inline(*renderables: object) -> bool:
-    """Mirror the Grid-vs-inline branch that ``Terminal.run`` uses."""
-    return not (len(renderables) == 1 and isinstance(renderables[0], Grid))
+    """Mirror the BaseGrid-vs-inline branch that ``Terminal.run`` uses."""
+    return not (len(renderables) == 1 and isinstance(renderables[0], BaseGrid))
 
 
 def test_run_routes_single_grid_to_full_screen() -> None:
-    class MyGrid(Grid):
+    class MyGrid(BaseGrid):
         body: str = Field(default="hello")
 
-    # A lone Grid takes the full-screen path (no inline viewport).
+    # A lone BaseGrid takes the full-screen path (no inline viewport).
     assert _run_would_use_inline(MyGrid()) is False
 
 
@@ -256,7 +256,7 @@ def test_fresh_terminal_has_no_inline_height() -> None:
 def test_resolve_run_grid_defaults_to_fullscreen() -> None:
     terminal: Terminal = Terminal()
     resolved = terminal._resolve_run(["x"], is_grid=True, field=None)
-    # A Grid defaults to fill height → full-screen (no inline viewport).
+    # A BaseGrid defaults to fill height → full-screen (no inline viewport).
     assert resolved.inline_height is None
     assert resolved.root_width_sizing == Sizing.fraction(1)
 
@@ -272,7 +272,7 @@ def test_resolve_run_leaf_defaults_to_inline_fit() -> None:
 def test_resolve_run_explicit_cells_height_is_inline() -> None:
     terminal: Terminal = Terminal(height=5)
     resolved = terminal._resolve_run(["x"], is_grid=True, field=None)
-    # An explicit finite height forces an inline viewport even for a Grid.
+    # An explicit finite height forces an inline viewport even for a BaseGrid.
     assert resolved.inline_height == 5
 
 
@@ -290,17 +290,17 @@ def test_resolve_run_records_explicit_width_sizing() -> None:
 
 
 def test_resolve_run_fit_grid_falls_back_to_fullscreen() -> None:
-    # A Grid has no measurable intrinsic height, so an explicit fit height
+    # A BaseGrid has no measurable intrinsic height, so an explicit fit height
     # cannot reserve an inline viewport and must fall back to full-screen —
     # and it warns rather than silently overriding the request.
     terminal: Terminal = Terminal(height="fit")
-    with pytest.warns(UserWarning, match="has no effect for a Grid"):
+    with pytest.warns(UserWarning, match="has no effect for a BaseGrid"):
         resolved = terminal._resolve_run(["x"], is_grid=True, field=None)
     assert resolved.inline_height is None
 
 
 def test_resolve_run_cells_height_grid_is_inline() -> None:
-    # A fixed cells height needs no measurement, so it works for a Grid.
+    # A fixed cells height needs no measurement, so it works for a BaseGrid.
     terminal: Terminal = Terminal(height=8)
     resolved = terminal._resolve_run(["x"], is_grid=True, field=None)
     assert resolved.inline_height == 8
