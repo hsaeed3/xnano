@@ -34,7 +34,6 @@ import re
 import subprocess
 import sys
 
-
 DEFAULT_XNANO_VERSION = "0.99.9"
 """Default ``xnano`` version when the package is named without an
 explicit value."""

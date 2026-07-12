@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from xnano._types import Size
 
-
 if TYPE_CHECKING:
     from xnano._types import Area, Frame
     from xnano.tui.nodes import AbstractTerminalNode

@@ -8,7 +8,6 @@ import pytest
 
 from xnano._types import Area, Flex, Padding, Size, resolve_flex_weight
 
-
 # ---------------------------------------------------------------------------
 # Padding.parse
 # ---------------------------------------------------------------------------

@@ -19,7 +19,6 @@ from typing import (
     TextIO,
 )
 
-
 if TYPE_CHECKING:
     from xnano._types import (
         Alignment,

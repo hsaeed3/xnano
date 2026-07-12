@@ -23,7 +23,6 @@ import abc
 import dataclasses
 from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
-
 if TYPE_CHECKING:
     from xnano._types import Alignment, GraphTypeLike
     from xnano.color import ColorLike

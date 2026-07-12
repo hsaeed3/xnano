@@ -5,7 +5,6 @@ from __future__ import annotations
 from xnano_core.core import CoreRenderContent, CoreRenderIR, IrLine
 from xnano_core.rust.engine import CoreRenderNode, CoreSession
 
-
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 

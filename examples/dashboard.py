@@ -15,7 +15,6 @@ from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.tui import Terminal
 
-
 _GRADIENT = [
     tailwind_color("sky", 400),
     tailwind_color("teal", 400),

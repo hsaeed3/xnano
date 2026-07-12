@@ -29,7 +29,6 @@ from xnano._types import (
 )
 from xnano.color import ColorLike
 
-
 InterfaceKind: TypeAlias = Literal["tui", "webui"]
 """The interface kind a ``Native`` escape hatch targets."""
 

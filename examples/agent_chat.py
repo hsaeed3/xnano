@@ -19,7 +19,6 @@ from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.tui import Terminal
 
-
 ToolKind: TypeAlias = Literal["read", "bash", "edit", "grep"]
 """Supported tool-call kinds shown in the transcript."""
 

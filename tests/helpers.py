@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, Iterable, cast
 
 from xnano.fields import Field
 
-
 if TYPE_CHECKING:
     from xnano.components.abstract import AbstractComponent
     from xnano.grid import BaseGrid

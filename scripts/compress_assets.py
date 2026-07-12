@@ -30,7 +30,6 @@ from pathlib import Path
 
 from PIL import Image  # ty: ignore[unresolved-import]
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 

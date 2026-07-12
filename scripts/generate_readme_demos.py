@@ -43,7 +43,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from textwrap import dedent
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIRECTORY = REPOSITORY_ROOT / "docs" / "assets" / "demos"
 SCRIPTS_DIRECTORY = REPOSITORY_ROOT / "scripts"
@@ -54,7 +53,6 @@ from vhs_showcase_themes import (  # noqa: E402
     get_vhs_theme,
 )
 from vhs_tape import build_run_tape  # noqa: E402
-
 
 _THEME = "dark"
 """README demos record against the docs dark palette only."""

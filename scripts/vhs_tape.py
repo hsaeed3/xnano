@@ -10,7 +10,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-
 SHELL_ENV_LINES: tuple[str, ...] = (
     'Env PS1 ""',
     'Env PROMPT_COMMAND ""',

@@ -20,7 +20,6 @@ from xnano.core.controllers.abstract import (
     AbstractControllerCapabilities,
 )
 
-
 if TYPE_CHECKING:
     from xnano._styles import TailwindStyle
     from xnano._types import Direction, Frame

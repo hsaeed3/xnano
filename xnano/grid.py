@@ -102,7 +102,6 @@ from typing import (
     overload,
 )
 
-
 if sys.version_info < (3, 11):
     from typing_extensions import NotRequired, Unpack, dataclass_transform
 else:
@@ -111,7 +110,6 @@ else:
 from xnano._types import Frame, FrameTitlePosition, frame_from_field
 from xnano.color import ColorLike
 from xnano.core.controllers.abstract import LayoutConstraint
-
 
 if TYPE_CHECKING:
     from xnano._types import Sizing
@@ -136,7 +134,6 @@ from xnano.fields import (
     GridFieldInfo,
     _normalize_slide_axes,
 )
-
 
 _GRID_RESERVED: frozenset[str] = frozenset(
     {

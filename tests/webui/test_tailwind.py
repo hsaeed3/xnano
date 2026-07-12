@@ -22,7 +22,6 @@ from xnano._types import Padding, Sizing
 from xnano.color import Color
 from xnano.fields import Field, GridFieldInfo
 
-
 TAILWIND_PALETTES = (
     "amber",
     "blue",

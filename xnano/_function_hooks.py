@@ -22,7 +22,6 @@ from typing import (
     TypeVar,
 )
 
-
 if TYPE_CHECKING:
     from xnano.context import Context
     from xnano.events import KeyboardEventKind, MouseEventKind

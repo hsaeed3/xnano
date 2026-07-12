@@ -114,7 +114,12 @@ line-ending = "auto"
 [tool.ruff.lint.isort]
 known-first-party = ["xnano"]
 known-third-party = ["pydantic_core", "xnano_core"]
-lines-after-imports = 2
+# Automatic spacing (-1):
+# - 1 blank line between the last runtime import and `if TYPE_CHECKING:`
+# - 2 blank lines after the import / TYPE_CHECKING block before top-level
+#   content (class / function / assignment)
+# Forced `2` incorrectly puts two blanks *before* TYPE_CHECKING as well.
+lines-after-imports = -1
 no-lines-before = ["local-folder"]
 section-order = [
     "future",

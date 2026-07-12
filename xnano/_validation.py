@@ -31,7 +31,6 @@ from pydantic_core import (
     core_schema,
 )
 
-
 _SCHEMA_VALIDATOR_CACHE: dict[Any, SchemaValidator] = {}
 _RENDERABLE_SCHEMA: Any | None = None
 _RENDERABLE_ANNOTATION: Any | None = None
