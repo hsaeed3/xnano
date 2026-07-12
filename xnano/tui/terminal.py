@@ -12,6 +12,7 @@ import atexit
 import contextvars
 import dataclasses
 import signal
+import sys
 import warnings
 from typing import IO, TYPE_CHECKING, Any, Generic, Sequence, TextIO, TypeVar
 
@@ -287,13 +288,66 @@ class Terminal(AbstractHost, Generic[StateT]):
             pass
         return self
 
+    @staticmethod
+    def _supports_live_terminal() -> bool:
+        """Return whether ``xnano-core`` can claim a real terminal.
+
+        Wasm / Pyodide wheels build without the ``terminal`` cargo feature
+        and only expose buffer-backed :meth:`CoreSession.offscreen` sessions.
+        """
+        try:
+            from xnano_core.core import CoreSession
+
+            return bool(CoreSession.supports_live_terminal())
+        except Exception:
+            return False
+
     def _ensure_session(self) -> None:
-        """Create the deferred ``CoreSession`` if entry is still pending."""
+        """Create the deferred ``CoreSession`` if entry is still pending.
+
+        On builds without a live terminal (wasm), opens a buffer-backed
+        offscreen session sized to the resolved inline height so single-frame
+        :meth:`render` still uses the real layout engine.
+        """
         if not self._pending_enter:
             return
         from xnano_core.core import CoreSession
 
+        from xnano.core.controllers.tui import TerminalController
+
         self._pending_enter = False
+
+        if not CoreSession.supports_live_terminal():
+            # Buffer-backed path: no crossterm, full layout solver.
+            cols = 80
+            rows = self._inline_height or 24
+            try:
+                if (
+                    self._width_sizing is not None
+                    and self._width_sizing.kind == "cells"
+                ):
+                    cols = max(1, int(self._width_sizing.value))
+            except Exception:
+                pass
+            try:
+                if (
+                    self._height_sizing is not None
+                    and self._height_sizing.kind == "cells"
+                ):
+                    rows = max(1, int(self._height_sizing.value))
+            except Exception:
+                pass
+            core = CoreSession.offscreen(width=cols, height=rows)
+            if self.title is not None:
+                core.set_title(self.title)
+            self._session = TerminalController(
+                core,
+                terminal_width=cols,
+                terminal_height=rows,
+                is_offscreen=True,
+            )
+            return
+
         core = CoreSession.init(
             tick_rate_ms=None, inline_height=self._inline_height
         )
@@ -305,7 +359,6 @@ class Terminal(AbstractHost, Generic[StateT]):
             core.enable_bracketed_paste()
         if self.synchronized_updates:
             core.begin_synchronized_update()
-        from xnano.core.controllers.tui import TerminalController
 
         self._session = TerminalController(core)
 
@@ -772,6 +825,18 @@ class Terminal(AbstractHost, Generic[StateT]):
         )
         items = tuple(renderables)
 
+        # Wasm / headless builds: paint through a buffer-backed session and
+        # write the resulting cell text to stdout (no interactive terminal).
+        if not self._is_live and not self._supports_live_terminal():
+            self._render_buffer_backed(
+                items,
+                field=field,
+                file=file,
+                end=end if end is not None else "\n",
+                flush=flush,
+            )
+            return
+
         auto_entered = not self._is_live
         if auto_entered:
             self.__enter__()
@@ -783,6 +848,84 @@ class Terminal(AbstractHost, Generic[StateT]):
         finally:
             if auto_entered:
                 self.__exit__()
+
+    def _render_buffer_backed(
+        self,
+        renderables: Sequence[Any],
+        *,
+        field: Any,
+        file: IO[str] | TextIO | None,
+        end: str,
+        flush: bool,
+    ) -> None:
+        """Single-frame render via ``CoreSession.offscreen`` (wasm path).
+
+        Uses the real layout/constraint engine, then dumps the buffer text
+        to ``file`` (default stdout). There is no interactive event loop.
+        """
+        from xnano import _dispatch
+
+        # Prefer measured content size so the buffer matches the grid/layout.
+        width = 80
+        height = 24
+        try:
+            if field is not None and len(renderables) == 1:
+                w, h = _dispatch.measure_renderable_in_field(
+                    renderables[0], field
+                )
+                width = max(1, w)
+                height = max(1, h)
+            elif renderables:
+                total_h = 0
+                max_w = 1
+                for item in renderables:
+                    w, h = _dispatch.measure_renderable(item)
+                    max_w = max(max_w, w)
+                    total_h += h
+                width = max_w
+                height = max(1, total_h)
+        except Exception:
+            pass
+
+        if (
+            self._width_sizing is not None
+            and self._width_sizing.kind == "cells"
+        ):
+            try:
+                width = max(1, int(self._width_sizing.value))
+            except Exception:
+                pass
+        if (
+            self._height_sizing is not None
+            and self._height_sizing.kind == "cells"
+        ):
+            try:
+                height = max(1, int(self._height_sizing.value))
+            except Exception:
+                pass
+        if self._inline_height is not None:
+            height = max(1, self._inline_height)
+
+        terminal = type(self).offscreen(
+            cols=width,
+            rows=height,
+            state=self.state,
+            title=self.title,
+        )
+        try:
+            terminal._root_width_sizing = self._root_width_sizing
+            terminal._render_frame(renderables=tuple(renderables), field=field)
+            text = terminal.get_output().rstrip("\n")
+            out = sys.stdout if file is None else file
+            out.write(text)
+            out.write(end)
+            if flush:
+                try:
+                    out.flush()
+                except Exception:
+                    pass
+        finally:
+            terminal.__exit__(None, None, None)
 
     def run(
         self,
@@ -842,6 +985,15 @@ class Terminal(AbstractHost, Generic[StateT]):
                 gap=gap,
             )
         )
+
+        if not self._supports_live_terminal():
+            raise RuntimeError(
+                "Terminal.run() requires a live OS terminal and is not "
+                "available on Emscripten/WebAssembly builds. Use "
+                "Terminal.render(...) or Terminal.offscreen(...) for "
+                "single-frame buffer-backed rendering with the real layout "
+                "engine."
+            )
 
         auto_entered = not self._is_live
         if auto_entered:

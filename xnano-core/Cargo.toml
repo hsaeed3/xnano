@@ -1,6 +1,6 @@
 [package]
 name = "xnano-core"
-version = "0.0.10"
+version = "0.0.11"
 edition = "2024"
 license = "MIT"
 homepage = "https://github.com/hsaeed3/xnano"
@@ -25,10 +25,15 @@ crate-type = ["cdylib", "rlib"]
 path = "rust/src/lib.rs"
 
 [features]
-# The crossterm-backed terminal engine. Emscripten (Pyodide/WebAssembly)
+# The crossterm-backed live terminal engine. Emscripten (Pyodide/WebAssembly)
 # wheels build with --no-default-features because crossterm's event
-# machinery cannot compile to wasm (mio has no WebAssembly support);
-# those builds ship rendering primitives plus stub session classes.
+# machinery cannot compile to wasm (mio has no WebAssembly support).
+#
+# Without this feature the package still ships the full layout/render
+# engine (CoreRenderNode, CoreRenderIR, Constraint/Layout, Buffer,
+# widgets) plus a buffer-backed CoreSession.offscreen() path for
+# single-frame rendering. Only live DefaultTerminal / event I/O is
+# unavailable — CoreSession.supports_live_terminal() returns False.
 default = ["terminal"]
 # ratatui/underline-color also lives here because it enables
 # dep:crossterm inside ratatui.

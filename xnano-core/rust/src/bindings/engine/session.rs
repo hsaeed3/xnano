@@ -153,6 +153,25 @@ pub struct PySession {
 
 #[pymethods]
 impl PySession {
+    /// Whether this build can claim a live crossterm terminal.
+    ///
+    /// Always ``True`` when the ``terminal`` cargo feature is enabled.
+    /// Wasm / ``--no-default-features`` builds return ``False`` and only
+    /// support :meth:`offscreen` buffer-backed sessions.
+    #[staticmethod]
+    fn supports_live_terminal() -> bool {
+        true
+    }
+
+    /// Whether this session paints into an in-memory buffer.
+    ///
+    /// ``True`` for :meth:`offscreen` sessions (and all wasm sessions).
+    /// ``False`` for live :meth:`init` sessions that own a real terminal.
+    /// ``CoreSession.render`` uses the buffer path when this is ``True``.
+    fn is_buffer_backed(&self) -> bool {
+        self.terminal.is_none()
+    }
+
     #[staticmethod]
     #[pyo3(signature = (*, tick_rate_ms = None, inline_height = None))]
     fn init(tick_rate_ms: Option<u64>, inline_height: Option<u16>) -> PyResult<Self> {
@@ -224,45 +243,13 @@ impl PySession {
 
         let mut ctx = RenderContext::default();
 
-        if let Some(terminal) = self.terminal.as_mut() {
-            let area = terminal.get_frame().area();
-            self.last_frame_area = Some(area);
-            let cursor_visible = self.cursor_visible;
-            let effect_manager = &mut self.effect_manager;
-
-            terminal
-                .draw(|frame| {
-                    let cursor = match render_node(frame, area, node, &mut ctx) {
-                        Ok(c) => c,
-                        Err(err) => {
-                            ctx.error = Some(err);
-                            None
-                        }
-                    };
-
-                    if effect_manager.is_running() {
-                        let mut core = sync_to_core_buffer(frame.buffer_mut());
-                        effect_manager.process_effects(
-                            tachyonfx::Duration::from_millis(elapsed_ms),
-                            &mut core,
-                            to_core_rect(area),
-                        );
-                        sync_from_core_buffer(&core, frame.buffer_mut());
-                    }
-
-                    match cursor {
-                        Some(pos) if cursor_visible => frame.set_cursor_position(pos),
-                        _ => frame_hide_cursor(frame),
-                    }
-                })
-                .map_err(io_to_py)?;
-
-            if let Some(err) = ctx.error.take() {
-                return Err(err);
-            }
-            self.effect_areas = ctx.effect_areas;
-            Ok(())
-        } else if let Some(buffer) = self.offscreen_buffer.as_mut() {
+        // Buffer-backed path (offscreen sessions, and the only path on wasm
+        // builds): paint through the full layout solver into an in-memory
+        // Buffer with zero crossterm I/O. Live path uses DefaultTerminal.
+        if self.is_buffer_backed() {
+            let Some(buffer) = self.offscreen_buffer.as_mut() else {
+                return Err(PyRuntimeError::new_err("session closed"));
+            };
             let area = buffer.area;
             self.last_frame_area = Some(area);
 
@@ -282,10 +269,49 @@ impl PySession {
                 return Err(err);
             }
             self.effect_areas = ctx.effect_areas;
-            Ok(())
-        } else {
-            Err(PyRuntimeError::new_err("session closed"))
+            return Ok(());
         }
+
+        let Some(terminal) = self.terminal.as_mut() else {
+            return Err(PyRuntimeError::new_err("session closed"));
+        };
+        let area = terminal.get_frame().area();
+        self.last_frame_area = Some(area);
+        let cursor_visible = self.cursor_visible;
+        let effect_manager = &mut self.effect_manager;
+
+        terminal
+            .draw(|frame| {
+                let cursor = match render_node(frame, area, node, &mut ctx) {
+                    Ok(c) => c,
+                    Err(err) => {
+                        ctx.error = Some(err);
+                        None
+                    }
+                };
+
+                if effect_manager.is_running() {
+                    let mut core = sync_to_core_buffer(frame.buffer_mut());
+                    effect_manager.process_effects(
+                        tachyonfx::Duration::from_millis(elapsed_ms),
+                        &mut core,
+                        to_core_rect(area),
+                    );
+                    sync_from_core_buffer(&core, frame.buffer_mut());
+                }
+
+                match cursor {
+                    Some(pos) if cursor_visible => frame.set_cursor_position(pos),
+                    _ => frame_hide_cursor(frame),
+                }
+            })
+            .map_err(io_to_py)?;
+
+        if let Some(err) = ctx.error.take() {
+            return Err(err);
+        }
+        self.effect_areas = ctx.effect_areas;
+        Ok(())
     }
 
     #[pyo3(signature = (timeout_ms = 16))]

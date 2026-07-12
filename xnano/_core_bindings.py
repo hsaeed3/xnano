@@ -54,15 +54,22 @@ _NATIVE_BORDER_SIDE_TYPES: dict[Side, native.Borders] = {
 }
 
 
-_NATIVE_CURSOR_STYLE_TYPES: dict["CursorStyle", native.CursorStyle] = {
-    "default": native.CursorStyle.DefaultUserShape,
-    "blinking_block": native.CursorStyle.BlinkingBlock,
-    "steady_block": native.CursorStyle.SteadyBlock,
-    "blinking_underline": native.CursorStyle.BlinkingUnderline,
-    "steady_underline": native.CursorStyle.SteadyUnderline,
-    "blinking_bar": native.CursorStyle.BlinkingBar,
-    "steady_bar": native.CursorStyle.SteadyBar,
-}
+# native.CursorStyle only exists in terminal-feature builds; wasm builds
+# ship the layout/render engine plus a buffer-backed CoreSession, but not
+# the live cursor / device control surface.
+_NATIVE_CURSOR_STYLE_TYPES: dict["CursorStyle", native.CursorStyle] = (
+    {
+        "default": native.CursorStyle.DefaultUserShape,
+        "blinking_block": native.CursorStyle.BlinkingBlock,
+        "steady_block": native.CursorStyle.SteadyBlock,
+        "blinking_underline": native.CursorStyle.BlinkingUnderline,
+        "steady_underline": native.CursorStyle.SteadyUnderline,
+        "blinking_bar": native.CursorStyle.BlinkingBar,
+        "steady_bar": native.CursorStyle.SteadyBar,
+    }
+    if hasattr(native, "CursorStyle")
+    else {}
+)
 
 
 _NATIVE_DIRECTION_TYPES: dict[Direction, native.Direction] = {

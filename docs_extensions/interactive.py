@@ -15,7 +15,6 @@ import re
 from markdown.extensions import Extension
 from markdown.preprocessors import Preprocessor
 
-
 _TAG_RE = re.compile(
     r"<interactive(?:\s*/>|>\s*</interactive>)",
     re.IGNORECASE,

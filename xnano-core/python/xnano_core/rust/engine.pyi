@@ -795,10 +795,19 @@ class CoreSession:
 
     * **Live** (:meth:`init`): claims the real terminal, installs a panic
       hook that restores the terminal on abnormal exit, and drives the
-      full event loop.
+      full event loop. Only available when
+      :meth:`supports_live_terminal` is ``True`` (native builds with the
+      ``terminal`` cargo feature).
     * **Offscreen** (:meth:`offscreen`): allocates an in-memory buffer of
       fixed size and skips all crossterm I/O. Used for tests, snapshot
-      rendering, and running effects without a terminal.
+      rendering, wasm / Pyodide single-frame rendering, and running
+      effects without a terminal. Always available.
+
+    On Emscripten/WebAssembly wheels (built with
+    ``--no-default-features``) the layout/render engine still ships and
+    :meth:`offscreen` paints through the real constraint solver into a
+    buffer. Only live terminal I/O and interactive event polling are
+    unavailable — :meth:`supports_live_terminal` returns ``False``.
 
     Sessions are context managers: ``with CoreSession.init() as session:``
     guarantees the terminal is restored on both normal exit and exception
@@ -809,6 +818,31 @@ class CoreSession:
     Attributes:
         __module__: Always ``"xnano_core.rust.engine"``.
     """
+
+    @staticmethod
+    def supports_live_terminal() -> bool:
+        """Return whether this build can claim a live crossterm terminal.
+
+        Returns:
+            ``True`` on native wheels built with the ``terminal`` feature.
+            ``False`` on Emscripten/WebAssembly (``--no-default-features``)
+            builds, where only :meth:`offscreen` buffer-backed sessions
+            work.
+        """
+        ...
+
+    def is_buffer_backed(self) -> bool:
+        """Return whether this session paints into an in-memory buffer.
+
+        :meth:`render` uses the buffer path (full layout solver, no
+        crossterm I/O) when this is ``True``. Live :meth:`init` sessions
+        return ``False``; :meth:`offscreen` sessions (and all wasm
+        sessions) return ``True``.
+
+        Returns:
+            ``True`` for buffer-backed sessions, ``False`` for live ones.
+        """
+        ...
 
     @staticmethod
     def init(
@@ -866,10 +900,11 @@ class CoreSession:
         positioning the cursor (or hiding it) according to the last-seen
         cursor hint.
 
-        On a live session this writes to the real terminal via
-        ``Terminal::draw``. On an offscreen session it writes to the
-        internal buffer, which can be read back via
-        :meth:`buffer_snapshot`.
+        When :meth:`is_buffer_backed` is ``True`` (offscreen sessions, and
+        all sessions on wasm builds) this paints into the in-memory buffer
+        via the full layout solver with zero crossterm I/O; read the result
+        back with :meth:`buffer_snapshot`. On a live session this writes to
+        the real terminal via ``Terminal::draw``.
 
         Args:
             node: The root of the render tree for this frame.
