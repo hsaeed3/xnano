@@ -1,20 +1,36 @@
 /* ── Navbar / TOC active + inactive link styling ──────────────────────────
-   Active link gets a slow two-tone shimmer, colors picked at random once
-   per page load from the same aurora palette as hero.js (see custom.js
+   Active link in the primary sidebar nav gets a "> " marker whose color
+   shimmers slowly between two tones, picked at random once per page load
+   from a small pastel palette (see custom.js
    `setupNavAccent`) — a single synchronous pick, not a per-frame cost.
    The shimmer itself is a compositor-only `background-position` animation
-   (no layout/paint per frame). Inactive links get a plain color
-   transition on hover. */
+   (no layout/paint per frame). The TOC (secondary sidebar) gets no
+   animation at all. Inactive links get a plain color transition on
+   hover. */
 
 .md-nav__link {
     transition: color 0.2s var(--ease-out-3);
+    /* Material ships leaf links at 700 and active at 500, so "bold" on
+       active is invisible. Keep leaves regular; bold only the selection. */
+    font-weight: 400;
+    font-synthesis: weight;
 }
 
 .md-nav__link:not(.md-nav__link--active):hover {
     color: var(--md-accent-fg-color);
 }
 
-.md-nav__link--active .md-ellipsis {
+/* Section toggles / dropdowns — the labels that expand or collapse a
+   nested nav list — get bolded so they read as controls distinct from
+   plain leaf links. */
+.md-nav__item--nested > label.md-nav__link {
+    font-weight: 700;
+}
+
+/* "> " marker before the active page's title in the primary sidebar nav
+   only — the shimmer animates the marker's color, not the link text. */
+.md-sidebar--primary .md-nav__link--active .md-ellipsis::before {
+    content: "> ";
     background-image: linear-gradient(
         90deg,
         var(--xnano-nav-c1, var(--md-accent-fg-color)),
@@ -29,6 +45,21 @@
     will-change: background-position;
 }
 
+/* Current page title — link, TOC toggle label, and the ellipsis span
+   Material wraps the title in (weight must hit the span, not only the
+   anchor, or a single-weight body font can look unchanged). */
+.md-sidebar--primary .md-nav__item--active > .md-nav__link,
+.md-sidebar--primary .md-nav__link--active,
+.md-sidebar--primary .md-nav__link--active .md-ellipsis {
+    font-weight: 700 !important;
+}
+
+/* TOC (secondary): same bold active heading, no shimmer. */
+.md-sidebar--secondary .md-nav__link--active,
+.md-sidebar--secondary .md-nav__link--active .md-ellipsis {
+    font-weight: 700 !important;
+}
+
 @keyframes xnano-nav-shimmer {
     50% {
         background-position: -100% 0;
@@ -36,15 +67,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .md-nav__link--active .md-ellipsis {
+    .md-sidebar--primary .md-nav__link--active .md-ellipsis::before {
         animation: none;
     }
-}
-
-/* "> " marker before the active page's title in the primary sidebar nav.
-   `color` is set explicitly since it would otherwise inherit `transparent`
-   from the gradient-clipped `.md-ellipsis` text above it. */
-.md-sidebar--primary .md-nav__link--active .md-ellipsis::before {
-    content: "> ";
-    color: var(--md-accent-fg-color);
 }

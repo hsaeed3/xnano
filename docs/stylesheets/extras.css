@@ -138,8 +138,15 @@
     --md-default-bg-color: #f4f4ed;
     --md-primary-bg-color: #f4f4ed;
 
-    --md-accent-fg-color: #102044;
-    --md-accent-bg-color: #124ecf;
+    --xnano-accent: #5e6f96;
+    --xnano-accent-bright: #7588b6;
+    --xnano-accent-soft: #e1e5ef;
+    --xnano-accent-border: #8995b2;
+    --xnano-accent-ink: #343b50;
+    --xnano-accent-shadow: #5e6f9633;
+
+    --md-accent-fg-color: var(--xnano-accent);
+    --md-accent-bg-color: var(--xnano-accent-soft);
 
     --md-footer-bg-color: #f3f1eb;
     --md-footer-bg-color--dark: #f3f1eb;
@@ -158,7 +165,7 @@
 
 /* H1 Coloring */
 [data-md-color-scheme="default"] .md-typeset h1 {
-    color: #124ecf;
+    color: var(--xnano-accent);
 }
 
 /* Banner Announcement over Header */
@@ -169,8 +176,8 @@
 /* Code Blocks Override */
 [data-md-color-scheme="default"] .highlight {
     border-radius: var(--radius-2);
-    border: var(--border-size-1) solid #124ecf;
-    box-shadow: #124ecf33 4px 4px 0px 0px;
+    border: var(--border-size-1) solid var(--xnano-accent-border);
+    box-shadow: var(--xnano-accent-shadow) 4px 4px 0px 0px;
     position: relative;
     /* Annotation tooltips are positioned outside the code box. Clipping this
        wrapper cuts their text off at the rounded edge. */
@@ -181,13 +188,20 @@
   !!! DARK THEME COLORS !!!
 */
 [data-md-color-scheme="slate"] {
-    --md-default-bg-color: #141519;
-    --md-primary-bg-color: #141519;
+    --md-default-bg-color: #141414;
+    --md-primary-bg-color: #141414;
 
     --md-primary-fg-color: #dedcd1;
 
-    --md-accent-bg-color: #102044;
-    --md-accent-fg-color: #85acfa;
+    --xnano-accent: #b2c0df;
+    --xnano-accent-bright: #c6d0e9;
+    --xnano-accent-soft: #1B1B1B;
+    --xnano-accent-border: #212121;
+    --xnano-accent-ink: #e0e5f0;
+    --xnano-accent-shadow: #8295bd33;
+
+    --md-accent-bg-color: var(--xnano-accent-soft);
+    --md-accent-fg-color: var(--xnano-accent);
 
     --md-footer-bg-color: #0e1014;
     --md-footer-bg-color--dark: #0e1014;
@@ -197,16 +211,16 @@
   !!! DARK THEME COLOR OVERRIDES !!!
 */
 [data-md-color-scheme="slate"] .md-header {
-    background-color: #141519;
+    background-color: #141414;
 }
 
 [data-md-color-scheme="slate"] .md-footer-meta {
-    background-color: #141519;
+    background-color: #141414;
 }
 
 /* H1 Coloring */
 [data-md-color-scheme="slate"] .md-typeset h1 {
-    color: #8ec6ff;
+    color: var(--xnano-accent-bright);
 }
 
 /* Banner Announcement over Header */
@@ -217,8 +231,8 @@
 /* Code Blocks Override */
 [data-md-color-scheme="slate"] .highlight {
     border-radius: var(--radius-2);
-    border: var(--border-size-1) solid #2a3856;
-    box-shadow: #2a385633 4px 4px 0px 0px;
+    border: var(--border-size-1) solid var(--xnano-accent-border);
+    box-shadow: var(--xnano-accent-shadow) 4px 4px 0px 0px;
     position: relative;
     overflow: visible;
 }
@@ -262,40 +276,74 @@
 
 [data-md-color-scheme="default"] .highlight > span.filename {
     background-color: #e9e7dc;
-    color: #102044;
-    border-color: #85acfa;
+    color: var(--xnano-accent-ink);
+    border-color: var(--xnano-accent-border);
 }
 
 [data-md-color-scheme="default"] .highlight > span.filename .code-lang {
-    color: #124ecf;
+    color: var(--xnano-accent);
     opacity: 0.85;
 }
 
 [data-md-color-scheme="slate"] .highlight > span.filename {
     background-color: #0e1014;
     color: #dedcd1;
-    border-color: #2a3856;
+    border-color: var(--xnano-accent-border);
 }
 
 [data-md-color-scheme="slate"] .highlight > span.filename .code-lang {
-    color: #85acfa;
+    color: var(--xnano-accent);
     opacity: 0.85;
+}
+
+/*
+  Content media must stay within the typeset column — same usable width as
+  text and code blocks. Paragraphs use scaleX(1.03) for body copy, which
+  otherwise pushes images/GIFs past the right edge (clipped on medium and
+  smaller layouts, and anywhere the column is tight).
+*/
+.md-typeset img,
+.md-typeset video,
+.md-typeset picture {
+    max-width: 100%;
+    height: auto;
+    box-sizing: border-box;
+}
+
+/* Image-only (or link-wrapped image) paragraphs: no optical widen. */
+.md-typeset p:has(> img:only-child),
+.md-typeset p:has(> a:only-child > img:only-child),
+.md-typeset p:has(> picture:only-child),
+.md-typeset p:has(> a:only-child > picture:only-child) {
+    transform: none;
 }
 
 /* ── Theme-aware demo GIFs ─────────────────────────────────────────────── */
 .xnano-demo {
     margin: 1.25rem 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border-radius: 12px;
     overflow: hidden;
     line-height: 0;
 }
 
+/* MkDocs wraps images in <p>; that p inherits scaleX and clips the right edge. */
+.xnano-demo > p {
+    display: contents;
+    margin: 0;
+    transform: none;
+}
+
 .xnano-demo img {
-    width: auto;
+    width: 100%;
     max-width: 100%;
     height: auto;
     display: block;
     border-radius: 12px;
+    box-sizing: border-box;
+    object-fit: contain;
 }
 
 /* Paired captures opt into theme switching. A single unclassified image is
