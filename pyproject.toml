@@ -8,6 +8,8 @@ managed = true
 [tool.uv.build-backend]
 module-root = ""
 package = true
+source-exclude = ["/xnano/*.xni"]
+wheel-exclude = ["/xnano/*.xni"]
 
 [tool.uv.sources]
 xnano-core = { workspace = true }
@@ -19,7 +21,7 @@ members = [
 
 [project]
 name = "xnano"
-version = "1.0.10"
+version = "1.0.11"
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "A simple python **tui** framework built on top of the ``[ratatui](https://ratatui.rs)`` and ``[tachyonfx](https://github.com/ratatui/tachyonfx)`` rust crates."
 readme = "README.md"
@@ -40,6 +42,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+images = [
+    "pillow>=11.0.0",
+]
 web = [
     "starlette>=1.3.1",
     "uvicorn>=0.30.0",
@@ -86,8 +91,8 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["tests"]
-# Skip experimental beta suite during default discovery.
-# Run explicitly: uv run pytest tests/beta
+# Skip experimental suites during default discovery.
+# Run explicitly: uv run pytest tests/beta tests/experimental
 norecursedirs = [
     ".*",
     "build",
@@ -98,6 +103,7 @@ norecursedirs = [
     "*.egg",
     "venv",
     "beta",
+    "experimental",
 ]
 
 [tool.maturin.env]

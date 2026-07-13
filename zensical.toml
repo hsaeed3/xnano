@@ -41,6 +41,7 @@ nav = [
     ]},
     {"Components" = [
         "components/index.md",
+        "components/images.md",
         "components/text.md",
         "components/table.md",
         "components/progress.md",
@@ -95,6 +96,7 @@ nav = [
             "api/xnano/events.md",
             "api/xnano/fields.md",
             "api/xnano/grid.md",
+            "api/xnano/images.md",
             "api/xnano/state.md",
             { "cli" = [
                 "api/xnano/cli/command.md",

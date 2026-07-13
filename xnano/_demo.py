@@ -11,17 +11,24 @@ from __future__ import annotations
 
 import functools
 import math
+import pathlib
 import random
+import urllib.request
 from typing import TypeAlias
 
 import xnano
 from xnano.color import Color, tailwind_color
 from xnano.components.sparkline import Sparkline
 from xnano.components.text import Text
+from xnano.core.content import CellCanvas, CellSpan
 from xnano.events import on_keyboard, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
+from xnano.images import Image, ImageData
 from xnano.tui.terminal import Terminal
+
+_OptionalImage: TypeAlias = Image | None
+"""Optional image value held before a selected clip is resolved."""
 
 _COLOR_RING = [
     tailwind_color("rose", 500),
@@ -193,11 +200,99 @@ def _build_effect_menu(active_effect: str) -> Text:
     return Text(lines)
 
 
+def _build_ribbon_frame(
+    tick: int,
+    width: int,
+    height: int,
+) -> CellCanvas:
+    """Build a responsive interference field inspired by woven ribbons."""
+    palettes = (
+        "rose",
+        "orange",
+        "amber",
+        "lime",
+        "emerald",
+        "cyan",
+        "sky",
+        "violet",
+        "fuchsia",
+    )
+    shades = (300, 400, 500, 600, 700)
+    rows: list[tuple[CellSpan, ...]] = []
+    for row_index in range(max(1, height)):
+        spans: list[CellSpan] = []
+        for column in range(max(1, width)):
+            horizontal = math.sin(
+                column * 0.16 + tick * 0.09 + math.sin(row_index * 0.5)
+            )
+            vertical = math.sin(
+                row_index * 0.48 - tick * 0.07 + math.sin(column * 0.09)
+            )
+            energy = horizontal + vertical
+            glyph = (
+                "█"
+                if energy > 1.25
+                else "▓"
+                if energy > 0.55
+                else "▒"
+                if energy > -0.2
+                else "░"
+                if energy > -1
+                else " "
+            )
+            family = palettes[
+                (column // 9 + row_index // 4 + tick // 6) % len(palettes)
+            ]
+            shade = shades[min(4, int(abs(energy) * 2.2))]
+            spans.append(CellSpan(glyph, color=f"{family}-{shade}"))
+        rows.append(tuple(spans))
+    return CellCanvas(
+        width=max(1, width), height=max(1, height), rows=tuple(rows)
+    )
+
+
+def _build_orbit_frame(
+    tick: int,
+    width: int,
+    height: int,
+) -> CellCanvas:
+    """Build a Lissajous orbit with a fading twelve-sample trail."""
+    width = max(1, width)
+    height = max(1, height)
+    horizontal_radius = max(1, width // 2 - 2)
+    vertical_radius = max(1, height // 2 - 1)
+    trail: dict[tuple[int, int], int] = {}
+    for age in range(12):
+        angle = (tick - age) / 72 * math.tau
+        column = round(width / 2 + math.cos(angle) * horizontal_radius)
+        row = round(height / 2 + math.sin(angle * 2) * vertical_radius)
+        trail[(column, row)] = age
+    shades = (300, 400, 500, 600, 700, 800, 900, 950)
+    rows: list[tuple[CellSpan, ...]] = []
+    for row_index in range(height):
+        spans: list[CellSpan] = []
+        for column in range(width):
+            age = trail.get((column, row_index))
+            if age is None:
+                spans.append(CellSpan("·", color="slate-900"))
+            else:
+                glyph = "●" if age == 0 else "•"
+                spans.append(
+                    CellSpan(
+                        glyph,
+                        color=f"violet-{shades[min(age, 7)]}",
+                    )
+                )
+        rows.append(tuple(spans))
+    return CellCanvas(width=width, height=height, rows=tuple(rows))
+
+
 class LowerPanels(BaseGrid, direction="horizontal", gap=1):
-    """The pair of compact live panels below the main feature window."""
+    """Uneven live-data tiles below the main feature window."""
 
     metrics: Text = Field(
         default=Text(""),
+        width=30,
         border="rounded",
         border_color=tailwind_color("emerald", 700),
         title=" Live metrics ",
@@ -205,9 +300,16 @@ class LowerPanels(BaseGrid, direction="horizontal", gap=1):
     )
     stream: Sparkline = Field(
         default_factory=Sparkline,
+        width=22,
         border="rounded",
         border_color=tailwind_color("sky", 700),
         title=" Render stream ",
+    )
+    ribbons: CellCanvas = Field(
+        default_factory=lambda: _build_ribbon_frame(0, 16, 4),
+        border="rounded",
+        border_color=tailwind_color("rose", 700),
+        title=" Signal loom ",
     )
 
 
@@ -233,6 +335,13 @@ class SidePanels(BaseGrid, direction="vertical", gap=1):
         border="rounded",
         border_color=tailwind_color("fuchsia", 700),
         title=" Truecolor ",
+    )
+    orbit: CellCanvas = Field(
+        default_factory=lambda: _build_orbit_frame(0, 24, 6),
+        height=9,
+        border="rounded",
+        border_color=tailwind_color("violet", 700),
+        title=" Orbit ",
     )
     effects: Text = Field(
         default=Text(""),
@@ -315,18 +424,19 @@ class XnanoDemo(BaseGrid, direction="vertical", gap=0):
         if context.keyboard is None:
             return
         key = context.keyboard.key
-        if key in ("right", "l", "tab"):
+        normalized_key = key.lower() if isinstance(key, str) else key
+        if normalized_key in ("right", "l", "tab"):
             self._select_page(self.selected_page + 1)
-        elif key in ("left", "h"):
+        elif normalized_key in ("left", "h"):
             self._select_page(self.selected_page - 1)
-        elif isinstance(key, str) and key in "123":
-            self._select_page(int(key) - 1)
-        elif key in _EFFECT_NAMES:
-            self._play_panel_effect(key)
-        elif key == "space":
+        elif isinstance(normalized_key, str) and normalized_key in "123":
+            self._select_page(int(normalized_key) - 1)
+        elif normalized_key in _EFFECT_NAMES:
+            self._play_panel_effect(normalized_key)
+        elif normalized_key == "space":
             chosen_key = random.choice(tuple(_EFFECT_NAMES))
             self._play_panel_effect(chosen_key)
-        elif key in ("q", "esc"):
+        elif normalized_key in ("q", "esc"):
             context.terminal.request_exit()
 
     @on_tick
@@ -388,6 +498,20 @@ class XnanoDemo(BaseGrid, direction="vertical", gap=0):
                 _get_ring_color(index / max(stream_width, 1) - self.phase)
                 for index in range(stream_width)
             ),
+        )
+        lower = self.panels.center.lower
+        ribbon_width = max(12, lower.columns - 30 - 22 - 6)
+        ribbon_height = max(2, lower.rows - 2)
+        lower.ribbons = _build_ribbon_frame(
+            self.frame_count,
+            ribbon_width,
+            ribbon_height,
+        )
+        side = self.panels.side
+        side.orbit = _build_orbit_frame(
+            self.frame_count,
+            max(8, side.columns - 2),
+            max(3, min(7, side.rows // 5)),
         )
         self.panels.side.effects = _build_effect_menu(self.active_effect)
         self.panels.side.status = Text(
@@ -503,6 +627,9 @@ _SPLASH_FRAMES = 107
 _TRANSITION_FRAMES = 38
 """Frames used to soften the watercolor into the panel scene."""
 
+_LOGO_HOLD_FRAMES = 72
+"""Frames holding the monochrome logo between the clip and panels."""
+
 _BRIDGE_FOREGROUND = "#324537"
 """Ink color shared by the outgoing and incoming transition effects."""
 
@@ -515,10 +642,31 @@ _LOGO_INK = "#183b32"
 _LOGO_SHADOW = "#fff1cf"
 """Warm paper highlight offset behind the wordmark."""
 
+_DEMO_IMAGE_NAMES = ("luffy", "luffy_deck")
+"""Dependency-free precomputed clips eligible for random selection."""
+
+_DEMO_IMAGE_CACHE_DIRECTORY = pathlib.Path(__file__).parent
+"""Package-local directory holding ignored one-time clip caches."""
+
+_DEMO_IMAGE_SOURCE_DIRECTORY = (
+    pathlib.Path(__file__).resolve().parent.parent / "docs/assets"
+)
+"""Repository fallback used by editable/development installations."""
+
+_DEMO_IMAGE_URL_ROOT = (
+    "https://raw.githubusercontent.com/hsaeed3/xnano/main/docs/assets"
+)
+"""Remote root used once by installed packages without a local cache."""
+
 
 def _mix_channel(start: int, end: int, ratio: float) -> int:
     """Interpolate one color channel."""
     return round(start + (end - start) * ratio)
+
+
+def _should_use_demo_image() -> bool:
+    """Randomly select the dependency-free precomputed image intro."""
+    return random.getrandbits(1) == 1
 
 
 @functools.lru_cache(maxsize=32)
@@ -687,6 +835,82 @@ def _build_watercolor_frame(
     )
 
 
+@functools.lru_cache(maxsize=16)
+def _get_demo_image_data(image_name: str) -> ImageData:
+    """Resolve and decode exactly one selected optional demo clip.
+
+    Args:
+        image_name: Registered clip basename without its ``.xni`` suffix.
+
+    Returns:
+        Decoded precomputed image data.
+
+    Raises:
+        ValueError: The requested image name is not registered.
+        RuntimeError: The selected image is absent locally and cannot be
+            downloaded.
+    """
+    if image_name not in _DEMO_IMAGE_NAMES:
+        raise ValueError(f"Unknown xnano demo image: {image_name!r}.")
+
+    filename = f"{image_name}.xni"
+    cache = _DEMO_IMAGE_CACHE_DIRECTORY / filename
+    source = _DEMO_IMAGE_SOURCE_DIRECTORY / filename
+    if cache.is_file():
+        return ImageData.from_bytes(cache.read_bytes())
+
+    if source.is_file():
+        payload = source.read_bytes()
+    else:
+        request = urllib.request.Request(
+            f"{_DEMO_IMAGE_URL_ROOT}/{filename}",
+            headers={"User-Agent": "xnano-demo"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=8) as response:
+                payload = response.read()
+        except OSError as error:
+            raise RuntimeError(
+                f"The optional xnano demo clip {filename!r} was not found "
+                "locally and could not be downloaded."
+            ) from error
+
+    image_data = ImageData.from_bytes(payload)
+    try:
+        cache.write_bytes(payload)
+    except OSError:
+        pass
+    return image_data
+
+
+def _build_monochrome_logo_frame(columns: int, rows: int) -> CellCanvas:
+    """Build a centered white xnano wordmark on a black field."""
+    width = max(columns, _TITLE_WIDTH)
+    height = max(rows, len(_TITLE_ROWS))
+    logo_left = max(0, (width - _TITLE_WIDTH) // 2)
+    logo_top = max(0, (height - len(_TITLE_ROWS)) // 2)
+    canvas_rows: list[tuple[CellSpan, ...]] = []
+    for row_index in range(height):
+        if logo_top <= row_index < logo_top + len(_TITLE_ROWS):
+            title_row = _TITLE_ROWS[row_index - logo_top]
+            right_padding = width - logo_left - len(title_row)
+            canvas_rows.append(
+                (
+                    CellSpan(" " * logo_left, background="black"),
+                    CellSpan(
+                        title_row,
+                        color="white",
+                        background="black",
+                        modifiers=("bold",),
+                    ),
+                    CellSpan(" " * max(0, right_padding), background="black"),
+                )
+            )
+        else:
+            canvas_rows.append((CellSpan(" " * width, background="black"),))
+    return CellCanvas(width=width, height=height, rows=tuple(canvas_rows))
+
+
 class TitleSplash(BaseGrid):
     """A terminal-sized watercolor wash with a centered xnano wordmark."""
 
@@ -713,6 +937,53 @@ class TitleSplash(BaseGrid):
         )
 
 
+class GifSplash(BaseGrid):
+    """One precomputed clip rendered through ``xnano.images``."""
+
+    image: _OptionalImage = Field(
+        default=None,
+        width="1fr",
+        height="1fr",
+    )
+
+
+def _build_gif_splash(image_name: str) -> GifSplash:
+    """Build a splash while resolving only its selected clip.
+
+    Args:
+        image_name: Registered clip basename without ``.xni``.
+
+    Returns:
+        A non-looping splash for the selected clip.
+    """
+    splash = GifSplash()
+    splash.image = Image(
+        _get_demo_image_data(image_name),
+        fit="smart",
+        horizontal_pixels_per_cell=2,
+        correct_terminal_aspect=True,
+        loop=False,
+    )
+    return splash
+
+
+class MonochromeLogoSplash(BaseGrid):
+    """A terminal-sized black field with the xnano wordmark in white."""
+
+    canvas: CellCanvas = Field(
+        default_factory=lambda: _build_monochrome_logo_frame(1, 1),
+        width="1fr",
+        height="1fr",
+    )
+
+    def grid_render(self) -> None:
+        """Keep the white logo centered as the viewport changes."""
+        self.canvas = _build_monochrome_logo_frame(
+            max(self.columns, 1),
+            max(self.rows, 1),
+        )
+
+
 class DemoSequence(BaseGrid):
     """A seamless title-to-panels sequence for ``python -m xnano``."""
 
@@ -726,13 +997,33 @@ class DemoSequence(BaseGrid):
     showing_title: bool = Field(default=True, state=True)
     transitioning: bool = Field(default=False, state=True)
     transition_frame: int = Field(default=0, state=True)
+    use_gif: bool = Field(
+        default_factory=_should_use_demo_image,
+        state=True,
+    )
+    demo_image_name: str = Field(default="", state=True)
+    sequence_stage: str = Field(default="splash", state=True)
+
+    def __post_init__(self) -> None:
+        """Choose between watercolor and one independently loaded clip."""
+        if self.use_gif:
+            self.demo_image_name = random.choice(_DEMO_IMAGE_NAMES)
+            try:
+                self.content = _build_gif_splash(self.demo_image_name)
+            except ImportError:
+                self.use_gif = False
+                self.demo_image_name = ""
 
     def _begin_transition(self) -> None:
-        """Settle the watercolor into the shared transition wash."""
-        if not self.showing_title or self.transitioning:
+        """Fade the active splash toward its next sequence stage."""
+        if self.sequence_stage != "splash" or self.transitioning:
+            return
+        if self.use_gif:
+            self._show_logo()
             return
         self.transitioning = True
         self.transition_frame = 0
+        self.sequence_stage = "fade_to_panels"
         self.grid_play_effect(
             "fade_to",
             duration_ms=_TRANSITION_FRAMES * 16,
@@ -742,16 +1033,52 @@ class DemoSequence(BaseGrid):
             fields=["content"],
         )
 
+    def _show_logo(self) -> None:
+        """Reveal the white wordmark after the precomputed clip."""
+        self.sequence_stage = "logo"
+        self.transitioning = False
+        self.transition_frame = 0
+        self.content = MonochromeLogoSplash()
+        self.grid_play_effect(
+            "fade_from_both",
+            duration_ms=480,
+            color="black",
+            background="black",
+            interpolation="sine_in_out",
+            fields=["content"],
+        )
+
+    def _begin_panel_transition(self) -> None:
+        """Fade the current title card before installing the panel mosaic."""
+        if self.sequence_stage in ("fade_to_panels", "panels"):
+            return
+        self.sequence_stage = "fade_to_panels"
+        self.transitioning = True
+        self.transition_frame = 0
+        color = "black" if self.use_gif else _BRIDGE_FOREGROUND
+        background = "black" if self.use_gif else _BRIDGE_BACKGROUND
+        self.grid_play_effect(
+            "fade_to",
+            duration_ms=_TRANSITION_FRAMES * 16,
+            color=color,
+            background=background,
+            interpolation="sine_in_out",
+            fields=["content"],
+        )
+
     def _show_panels(self) -> None:
         """Reveal panels from the same wash used to close the title."""
         self.showing_title = False
         self.transitioning = False
+        self.sequence_stage = "panels"
         self.content = XnanoDemo()
+        color = "black" if self.use_gif else _BRIDGE_FOREGROUND
+        background = "black" if self.use_gif else _BRIDGE_BACKGROUND
         self.grid_play_effect(
             "fade_from_both",
             duration_ms=720,
-            color=_BRIDGE_FOREGROUND,
-            background=_BRIDGE_BACKGROUND,
+            color=color,
+            background=background,
             interpolation="sine_in_out",
             fields=["content"],
         )
@@ -759,16 +1086,27 @@ class DemoSequence(BaseGrid):
     @on_tick
     def _advance_sequence(self) -> None:
         """Advance the splash timer and reveal the demo panels."""
-        if not self.showing_title:
+        if self.sequence_stage == "panels":
             return
-        if self.transitioning:
+        self.frame_count += 1
+        if self.sequence_stage == "splash":
+            if self.use_gif:
+                if (
+                    isinstance(self.content, GifSplash)
+                    and isinstance(self.content.image, Image)
+                    and self.content.image.finished
+                ):
+                    self._show_logo()
+            elif self.frame_count >= _SPLASH_FRAMES:
+                self._begin_transition()
+        elif self.sequence_stage == "logo":
+            self.transition_frame += 1
+            if self.transition_frame >= _LOGO_HOLD_FRAMES:
+                self._begin_panel_transition()
+        elif self.sequence_stage == "fade_to_panels":
             self.transition_frame += 1
             if self.transition_frame >= _TRANSITION_FRAMES:
                 self._show_panels()
-            return
-        self.frame_count += 1
-        if self.frame_count >= _SPLASH_FRAMES:
-            self._begin_transition()
 
     @on_keyboard
     def _handle_keyboard(self, context) -> None:
@@ -779,7 +1117,7 @@ class DemoSequence(BaseGrid):
         if key in ("q", "esc"):
             context.terminal.request_exit()
         elif key in ("enter", "space"):
-            self._begin_transition()
+            self._begin_panel_transition()
 
 
 def run_demo() -> None:
@@ -789,7 +1127,14 @@ def run_demo() -> None:
     )
 
 
-__all__ = ("DemoSequence", "TitleSplash", "XnanoDemo", "run_demo")
+__all__ = (
+    "DemoSequence",
+    "GifSplash",
+    "MonochromeLogoSplash",
+    "TitleSplash",
+    "XnanoDemo",
+    "run_demo",
+)
 
 
 if __name__ == "__main__":
