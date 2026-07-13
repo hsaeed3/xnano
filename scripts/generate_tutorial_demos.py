@@ -1120,13 +1120,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"removed legacy {path}")
 
     selected = (
-        [_DEMO_MAP[name] for name in args.demo]
-        if args.demo
-        else list(DEMOS)
+        [_DEMO_MAP[name] for name in args.demo] if args.demo else list(DEMOS)
     )
-    themes: tuple[ThemeKey, ...] = (
-        (args.theme,) if args.theme else THEMES
-    )
+    themes: tuple[ThemeKey, ...] = (args.theme,) if args.theme else THEMES
     vhs = "" if args.dry_run else require_vhs()
 
     for demo in selected:

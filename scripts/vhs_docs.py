@@ -83,9 +83,7 @@ def purge_legacy_demo_artifacts(*, force: bool = False) -> list[str]:
         for path in sorted(directory.iterdir()):
             if path.is_file() and path.suffix.lower() in media_suffixes:
                 path.unlink(missing_ok=True)
-                removed.append(
-                    str(path.relative_to(REPOSITORY_ROOT))
-                )
+                removed.append(str(path.relative_to(REPOSITORY_ROOT)))
 
     terminal_dir = REPOSITORY_ROOT / "docs" / "assets" / "terminal"
     if terminal_dir.is_dir():
@@ -260,11 +258,7 @@ def build_settings(
     )
     # Truecolor RGB from the app bypasses VHS's 16-color mono theme.
     # Drop COLORTERM for monotone so palette + grayscale pass can win.
-    colorterm_line = (
-        ""
-        if monotone
-        else 'Env COLORTERM "truecolor"'
-    )
+    colorterm_line = "" if monotone else 'Env COLORTERM "truecolor"'
     return f'''Require python
 
 Set Shell "bash"
@@ -402,7 +396,9 @@ def build_demo_tape(
     )
     if monotone:
         # Ensure mono flag is set even if the Demo.env list omitted it.
-        if not any(line.startswith('Env XNANO_VHS_MONO ') for line in env_lines):
+        if not any(
+            line.startswith("Env XNANO_VHS_MONO ") for line in env_lines
+        ):
             env_lines.append('Env XNANO_VHS_MONO "1"')
         # Explicitly clear truecolor for the app process.
         env_lines.append('Env COLORTERM ""')
@@ -454,7 +450,9 @@ def record_demo(
     )
 
     if dry_run:
-        print(f"# {demo.name}/{theme} -> {output.relative_to(REPOSITORY_ROOT)}")
+        print(
+            f"# {demo.name}/{theme} -> {output.relative_to(REPOSITORY_ROOT)}"
+        )
         print(tape_body)
         return
 
