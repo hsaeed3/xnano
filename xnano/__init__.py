@@ -6,7 +6,7 @@
 >>> from xnano import BaseGrid, Field, Terminal
 """
 
-__version__ = "1.0.7"
+__version__ = "1.0.8"
 
 from typing import TYPE_CHECKING
 
@@ -90,8 +90,10 @@ def __getattr__(name: str):
         return BaseGrid
 
     elif name == "Grid":
-        from xnano.grid import Grid  # ty: ignore[deprecated]
         import os as _os
+
+        from xnano.grid import Grid  # ty: ignore[deprecated]
+
         _ignore = _os.environ.get("XNANO_IGNORE_DEPRECATION_WARNINGS")
         if _ignore is None or not _ignore.lower() in ["1", "true", "yes", "y"]:
             import warnings
