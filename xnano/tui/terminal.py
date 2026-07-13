@@ -864,26 +864,39 @@ class Terminal(AbstractHost, Generic[StateT]):
         to ``file`` (default stdout). There is no interactive event loop.
         """
         from xnano import _dispatch
+        from xnano.grid import BaseGrid
+
+        # A lone ``BaseGrid`` root drives the full layout engine and sizes
+        # itself to the (default or explicitly set) viewport, the same as a
+        # live terminal — its content isn't measurable in isolation the way
+        # plain renderables are, since fields can fill/fraction-size against
+        # whatever area they're given.
+        root: Any = None
+        if len(renderables) == 1 and isinstance(renderables[0], BaseGrid):
+            root = renderables[0]
 
         # Prefer measured content size so the buffer matches the grid/layout.
         width = 80
         height = 24
         try:
-            if field is not None and len(renderables) == 1:
+            if root is not None:
+                pass
+            elif field is not None and len(renderables) == 1:
                 w, h = _dispatch.measure_renderable_in_field(
                     renderables[0], field
                 )
                 width = max(1, w)
                 height = max(1, h)
             elif renderables:
-                total_h = 0
                 max_w = 1
                 for item in renderables:
-                    w, h = _dispatch.measure_renderable(item)
+                    w, _ = _dispatch.measure_renderable_in_field(item, field)
                     max_w = max(max_w, w)
-                    total_h += h
                 width = max_w
-                height = max(1, total_h)
+                height = max(
+                    1,
+                    _dispatch.measure_renderables_height(renderables, field),
+                )
         except Exception:
             pass
 
@@ -914,7 +927,11 @@ class Terminal(AbstractHost, Generic[StateT]):
         )
         try:
             terminal._root_width_sizing = self._root_width_sizing
-            terminal._render_frame(renderables=tuple(renderables), field=field)
+            terminal._render_frame(
+                root,
+                renderables=None if root is not None else tuple(renderables),
+                field=field,
+            )
             text = terminal.get_output().rstrip("\n")
             out = sys.stdout if file is None else file
             out.write(text)
