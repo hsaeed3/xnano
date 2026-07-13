@@ -13,11 +13,56 @@ Copyright &copy; 2026 Hammad Saeed
 
 nav = [
     {"Introduction" = "index.md"},
-    { "xnano" = [
-        "xnano/getting-started.md",
+    "core-concepts/getting-started.md",
+    {"Concepts" = [
+        "core-concepts/terminal.md",
+        "core-concepts/grids.md",
+        "core-concepts/fields.md",
+        "core-concepts/events.md",
+        "core-concepts/actions.md",
+        "core-concepts/context.md",
+        "core-concepts/device.md",
+        "core-concepts/styling.md",
     ]},
-    { "xnano-core" = [
-        "xnano-core/overview.md",
+    {"Beta" = [
+        "core-concepts/web.md",
+        "core-concepts/cli.md",
+    ]},
+    {"Components" = [
+        "components/index.md",
+        "components/text.md",
+        "components/table.md",
+        "components/progress.md",
+        "components/chart.md",
+        "components/sparkline.md",
+        "components/schema.md",
+    ]},
+    {"Tutorials" = [
+        "tutorials/index.md",
+        "tutorials/streaming-content.md",
+        "tutorials/text-inputs.md",
+        "tutorials/selection-list.md",
+        "tutorials/tabs.md",
+        "tutorials/nested-panels.md",
+        "tutorials/confirm-dialog.md",
+        "tutorials/live-progress.md",
+        "tutorials/composed-text.md",
+        "tutorials/shared-state.md",
+        "tutorials/action-bindings.md",
+        "tutorials/title-and-clipboard.md",
+        "tutorials/live-sparklines.md",
+        "tutorials/table-browser.md",
+        "tutorials/custom-component.md",
+        "tutorials/dual-host.md",
+        "tutorials/cli-commands.md",
+        "tutorials/scrollable-log.md",
+        "tutorials/grid-render.md",
+    ]},
+    {"Core Architecture" = [
+        "architecture/xnano-core.md",
+        "architecture/lifecycle.md",
+        "architecture/hosts-and-controllers.md",
+        "architecture/render-nodes.md",
     ]},
     { "API Reference" = [
         { "xnano" = [
@@ -100,6 +145,7 @@ extra_css = [
     "stylesheets/code-theme.css",
     "stylesheets/mkdocstrings.css",
     "stylesheets/components.css",
+    "stylesheets/watercolor.css",
     "stylesheets/nav.css",
 ]
 
@@ -137,7 +183,7 @@ features = [
     # "navigation.prune",
     # "navigation.tabs",
     "navigation.top",
-    # "navigation.sections",
+    "navigation.sections",
     "navigation.tracking",
     "search.highlight",
     "toc.follow",

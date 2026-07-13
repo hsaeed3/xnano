@@ -1,6 +1,6 @@
 ---
 title: "Getting Started"
-icon: "lucide/play"
+icon: "lucide/book-open"
 ---
 
 # Getting Started
@@ -23,13 +23,13 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "pip"
 
     ```bash
-    pip install "xnano>=1.0.10"
+    pip install "xnano>=1.0.8"
     ```
 
 === "uv"
 
     ```bash
-    uv pip install "xnano>=1.0.10"
+    uv pip install "xnano>=1.0.8"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -38,7 +38,7 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "poetry"
 
     ```bash
-    poetry install "xnano>=1.0.10"
+    poetry install "xnano>=1.0.8"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -47,7 +47,7 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "conda"
 
     ```bash
-    conda install "xnano>=1.0.10"
+    conda install "xnano>=1.0.8"
     ```
 
 ## What is xnano?
@@ -58,6 +58,38 @@ built of two rust-based dependencies:
 - [xnano-core]{data-preview} - Low level terminal rendering engine built on top of [ratatui](https://ratatui.rs) and [tachyonfx](https://github.com/ratatui/tachyonfx) specifically for xnano.
 - [pydantic-core](https://github.com/pydantic/pydantic-core) - The core of the [Pydantic](https://pydantic.dev/docs/validation/latest/get-started) library used for runtime type validation.
 
+<div class="grid-concept-diagram" role="img" aria-label="Diagram: app grid sits on xnano DSL over xnano-core, targeting terminal or browser">
+<svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <marker id="gsd-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" class="gcd-arrow-fill" />
+    </marker>
+  </defs>
+
+  <rect class="gcd-panel gcd-panel-accent" x="200" y="20" width="320" height="48" rx="12" />
+  <text class="gcd-label gcd-label-accent" x="360" y="50" text-anchor="middle">your App · grids · fields · hooks</text>
+
+  <line class="gcd-arrow" x1="360" y1="68" x2="360" y2="92" marker-end="url(#gsd-arrow)" />
+
+  <rect class="gcd-panel" x="200" y="96" width="320" height="48" rx="12" />
+  <text class="gcd-label" x="360" y="126" text-anchor="middle">xnano · public DSL</text>
+
+  <line class="gcd-arrow" x1="360" y1="144" x2="360" y2="168" marker-end="url(#gsd-arrow)" />
+
+  <rect class="gcd-panel" x="200" y="172" width="320" height="48" rx="12" />
+  <text class="gcd-label" x="360" y="202" text-anchor="middle">xnano-core · ratatui · paint</text>
+
+  <!-- Side hosts -->
+  <rect class="gcd-window" x="40" y="100" width="120" height="56" rx="10" />
+  <text class="gcd-chrome-label" x="100" y="132" text-anchor="middle">terminal</text>
+  <line class="gcd-arrow" x1="160" y1="128" x2="196" y2="128" marker-end="url(#gsd-arrow)" />
+
+  <rect class="gcd-window" x="560" y="100" width="120" height="56" rx="10" />
+  <text class="gcd-chrome-label" x="620" y="132" text-anchor="middle">browser</text>
+  <line class="gcd-arrow" x1="560" y1="128" x2="524" y2="128" marker-end="url(#gsd-arrow)" />
+</svg>
+</div>
+
 ## Supported Interfaces
 
 The core idea of xnano is to provide a unified language that can be re-used across multiple user interfaces with no extra effort. Currently, xnano supports
@@ -67,51 +99,55 @@ the following interfaces.
 
 The main featureset of the library revolves around it's rust-based terminal rendering engine, [xnano-core]{data-preview}.
 
-!!! example "Interactive Example"
+??? example "Interactive Example"
 
     The following example is interactive and can be run directly in the browser by hitting the <kbd>Run</kbd> button.
 
-```pyodide install="xnano>=1.0.10"
+    ```pyodide install="xnano>=1.0.9" exec="no"
+    import xnano
+
+    xnano.render("hello, terminal!", color="blue")
+    ```
+
+```python title="Rendering to the Terminal"
 import xnano
 
-xnano.render("hello, terminal!", color="blue")
+xnano.render("Hello from xnano!", color="pink", modifiers=["bold"])
 ```
+
+<div class="xnano-demo" markdown>
+![hello render dark](../assets/concepts/hello_render-dark.gif){.demo-dark}
+![hello render light](../assets/concepts/hello_render-light.gif){.demo-light}
+</div>
 
 ### Web
 
 Rendered content is __orthogonal__ to the host interface it is displayed on, which means everything you build and render onto the terminal within xnano can also be rendered onto a webpage with no extra effort.
 
-!!! abstract "Web Dependencies"
+??? abstract "Web Dependencies"
 
     The entire layout and component system for the WebUI engine is built on top of raw [HTMX](https://htmx.org/) and [TailwindCSS](https://tailwindcss.com/), and requires no additional dependencies aside from [starlette](https://www.starlette.io/) and [uvicorn](https://www.uvicorn.org/) to serve the application.
 
     You can use WebUI based components by installing the following extra:
 
-    ```bash
+    ```bash title="Install Web Dependencies"
     pip install "xnano[web]"
     ```
 
-```python
+```python title="Launching a Web Application"
 from xnano import Field, BaseGrid
 from xnano.webui import Web
 
 class App(BaseGrid):
     body: str = Field(default="hello, web!")
 
-Web().run(App())
-```
-
-```bash title="Output"
-INFO:     Started server process [23935]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:3000 (Press CTRL+C to quit)
+Web().run(App(), port=8000)
 ```
 
 ## Next Steps
 
 Currently this site is still a work in progress. Complete walkthroughs and documentation for both <code>xnano</code> and <code>xnano-core</code> are coming soon.
 
-[xnano]: ./getting-started.md
+[xnano]: getting-started.md
 [xnano-core]: ../architecture/xnano-core.md
 *[pydantic-core]: Data validation library written in rust.
