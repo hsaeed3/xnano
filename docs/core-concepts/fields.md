@@ -138,4 +138,14 @@ class Card(BaseGrid, direction="vertical"):
 
 The difference is that `state=True` opts a field back into `Field()`'s validation and metadata, while a plain attribute is just Python. Reach for `state=True` when you want that; reach for a plain attribute for everything else.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Layout & Fields](../sandbox/layout.md){data-preview} · [Tailwind `class_name`](../sandbox/styling.md#tailwind-class_name){data-preview}
+
+    **API**
+
+    [`Field`](../api/xnano/fields.md#xnano.fields.Field){data-preview} · [`GridFieldInfo`](../api/xnano/fields.md#xnano.fields.GridFieldInfo){data-preview}
+
 [Field]: ../api/xnano/fields.md

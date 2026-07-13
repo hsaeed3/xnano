@@ -258,6 +258,16 @@ assert target is cli
 - A shorter recipe-oriented walkthrough: [CLI Commands]{data-preview} in Tutorials
 - Interactive UI surface when you need a live session: [Terminal]{data-preview}
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Print-Compatible Options](../sandbox/rendering.md#print-compatible-options){data-preview} <small>Argument parsing remains process-side.</small>
+
+    **API**
+
+    [`Command`](../api/xnano/cli/command.md#xnano.cli.command.Command){data-preview} · [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
+
 [Command]: ../api/xnano/cli/command.md
 [Terminal]: ../api/xnano/tui/terminal.md
 [CLI Commands]: ../tutorials/cli-commands.md

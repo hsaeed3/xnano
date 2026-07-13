@@ -186,6 +186,16 @@ xnano ships a handful of components ready to use — [Text]{data-preview} for st
 
 </div>
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Component Gallery](../sandbox.md#live-examples){data-preview}
+
+    **API**
+
+    [`AbstractComponent`](../api/xnano/components/abstract.md#xnano.components.abstract.AbstractComponent){data-preview} · [`ComponentRenderContext`](../api/xnano/components/abstract.md#xnano.components.abstract.ComponentRenderContext){data-preview}
+
 [AbstractComponent]: ../api/xnano/components/abstract.md
 [BaseGrid]: ../api/xnano/grid.md
 [Text]: ../api/xnano/components/text.md

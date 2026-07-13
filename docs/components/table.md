@@ -71,5 +71,15 @@ For a table whose columns are fixed ahead of time, subclassing with `Column()` d
 
 The full parameter list — selection, highlighting, column spacing, and more — lives on the [Table]{data-preview} API reference.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Every Column Form](../sandbox/table.md#every-column-form){data-preview} · [Selection and Highlighting](../sandbox/table.md#selection-and-every-highlight-option){data-preview} · [Every Column Option](../sandbox/table.md#every-column-option){data-preview}
+
+    **API**
+
+    [`Table`](../api/xnano/components/table.md#xnano.components.table.Table){data-preview} · [`ColumnsArg`](../api/xnano/components/table.md#xnano.components.table.ColumnsArg){data-preview} · [`Column`](../api/xnano/components/schema.md#xnano.components.schema.Column){data-preview}
+
 [Table]: ../api/xnano/components/table.md
 [Schema]: schema.md

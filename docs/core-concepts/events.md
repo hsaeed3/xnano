@@ -151,6 +151,16 @@ Terminal().run(Clock())
     - `@on_poll` — fires on idle waits or every frame, for background work.
     - `@on(SAVE)` — bind a reusable [Action]{data-preview} (e.g. `Action.keyboard("ctrl+s")`) instead of repeating the same binding across handlers.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Action-Driven Frames](../sandbox/rendering.md#action-driven-frames-without-run){data-preview}
+
+    **API**
+
+    [`events`](../api/xnano/events.md){data-preview} · [`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview} · [`Context`](../api/xnano/context.md#xnano.context.Context){data-preview}
+
 [Context]: ../api/xnano/context.md
 [Terminal]: ../api/xnano/tui/terminal.md
 [Action]: ../api/xnano/core/actions.md

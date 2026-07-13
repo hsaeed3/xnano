@@ -66,4 +66,14 @@ xnano ships a handful of built-in components — `Text`, `Table`, `Progress`, `C
 
 You can also write your own. A component is just a small, well-defined contract to implement — covered in full, with a working example, at the start of that same section.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Component Gallery](../sandbox.md#live-examples){data-preview}
+
+    **API**
+
+    [`AbstractComponent`](../api/xnano/components/abstract.md#xnano.components.abstract.AbstractComponent){data-preview} · [`ComponentRenderContext`](../api/xnano/components/abstract.md#xnano.components.abstract.ComponentRenderContext){data-preview}
+
 [Components]: ../components/index.md
