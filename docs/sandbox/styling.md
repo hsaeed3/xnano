@@ -9,7 +9,7 @@ xnano uses one terminal style vocabulary across `render()`, grids, fields, and
 components. This page covers every accepted color form, modifier, frame
 option, and Tailwind utility family that lowers to terminal cells.
 
-## Every Color Input Form
+## Color Inputs
 
 `color`, `background`, and `border_color` accept a CSS color name, a Tailwind
 palette binding, hex, an RGB/RGBA tuple, or a `Color` object.
@@ -47,12 +47,12 @@ for shade in (50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950):
 print()
 ```
 
-??? example "Every Color Input Form"
+??? example "Color Inputs"
     - `color`, `background`, `border_color`: [ColorLike](../api/xnano/color.md#xnano.color.ColorLike){data-preview} or `None`.
     - Named strings: [ColorName](../api/xnano/color.md#xnano.color.ColorName){data-preview}; Tailwind strings: [TailwindColorBinding](../api/xnano/color.md#xnano.color.TailwindColorBinding){data-preview}.
     - Tuples: [ColorTuple](../api/xnano/color.md#xnano.color.ColorTuple){data-preview}; objects: [Color](../api/xnano/color.md#xnano.color.Color){data-preview}.
 
-## Every Color Palette
+## Color Palette
 
 Render the complete Tailwind terminal palette at once: every palette name,
 every shade from `50` through `950`, plus solid black and white.
@@ -89,7 +89,7 @@ rows.append(Text([
 Terminal(width=72, height=24).render(*rows)
 ```
 
-??? example "Every Color Palette"
+??? example "Color Palette"
 
     - Palette names: [TailwindColorName](../api/xnano/color.md#xnano.color.TailwindColorName){data-preview}.
     - Shade values: [TailwindColorShade](../api/xnano/color.md#xnano.color.TailwindColorShade){data-preview}.
@@ -129,7 +129,7 @@ Terminal(width=56, height=9).render(Colors())
     - `border`: [Border](../api/xnano/_types.md#xnano._types.Border){data-preview} or `None`; `padding`: [PaddingLike](../api/xnano/_styles.md#xnano._styles.PaddingLike){data-preview}.
     - `width`: [SizingLike](../api/xnano/_styles.md#xnano._styles.SizingLike){data-preview}.
 
-## Every Character Modifier
+## Character Modifiers
 
 The complete set is `bold`, `dim`, `italic`, `underline`, `slow_blink`,
 `rapid_blink`, and `reversed`. Terminal/browser support for blinking depends on
@@ -167,12 +167,12 @@ Terminal(width=48, height=6).render(ModifiedGrid())
 Grid settings also expose `dim`, `slow_blink`, `rapid_blink`, and `reversed` as
 boolean flags.
 
-??? example "Every Character Modifier"
+??? example "Character Modifiers"
     - `modifiers`: a sequence of [CharacterModifier](../api/xnano/_types.md#xnano._types.CharacterModifier){data-preview} values.
     - Values: `"bold"`, `"dim"`, `"italic"`, `"underline"`, `"slow_blink"`, `"rapid_blink"`, `"reversed"`.
     - Grid flags: `bold`, `dim`, `italic`, `underline`, `slow_blink`, `rapid_blink`, `reversed` as `bool`.
 
-## Every Border Style
+## Border Styles
 
 Use `None` for no frame, or one of the six styles below.
 
@@ -190,7 +190,7 @@ class Borders(BaseGrid, direction="vertical", gap=0):
 Terminal(width=42, height=18).render(Borders())
 ```
 
-??? example "Every Border Style"
+??? example "Border Styles"
     - `border`: [Border](../api/xnano/_types.md#xnano._types.Border){data-preview} or `None`.
     - Values: `"plain"`, `"rounded"`, `"double"`, `"thick"`, `"quadrant_inside"`, `"quadrant_outside"`.
 

@@ -8,7 +8,7 @@ icon: "lucide/chart-no-axes-combined"
 This page covers every `Chart` parameter and every `Series` descriptor option.
 Charts need vertical room, so the examples use fixed browser-safe viewports.
 
-## Both Point Forms
+## Chart Series
 
 A series accepts bare `y` values (x becomes the list index) or explicit
 `(x, y)` pairs. The mapping key becomes its default legend label.
@@ -31,7 +31,7 @@ Terminal(width=72, height=15).render(chart)
     [Chart.series]{data-preview} accepts a mapping of labels to bare y-values
     or `(x, y)` pairs, as defined by [SeriesData]{data-preview}.
 
-## Every Graph Kind
+## Graph Types and Mixed Charts
 
 `kind` is `line`, `scatter`, or `bar`. A declarative `Series` can override the
 default, so one chart may mix all three.
@@ -57,14 +57,14 @@ chart = MixedChart(
 Terminal(width=76, height=16).render(chart)
 ```
 
-??? example "Every Graph Kind"
+??? example "Graph Types and Mixed Charts"
 
     **`kind`**
 
     [Chart.kind]{data-preview} accepts every [GraphTypeLike]{data-preview}
     literal: `"line" | "scatter" | "bar"`.
 
-## Palette and Automatic Bounds
+## Palettes and Automatic Bounds
 
 `colors=None` cycles the built-in palette. A custom sequence cycles in the
 same way. `x_bounds=None` and `y_bounds=None` auto-fit the data.
@@ -134,7 +134,7 @@ Terminal(width=70, height=15).render(chart)
 
     [Chart.y_label]{data-preview} accepts `str | None`.
 
-## Legend Toggle and Every Position
+## Legend Positions
 
 `legend=False` hides it. With `legend=True`, `legend_position` accepts all
 eight values in `positions` below. Change `position` and rerun.
@@ -173,7 +173,7 @@ Terminal(width=62, height=12).render(
 )
 ```
 
-??? example "Legend Toggle and Every Position"
+??? example "Legend Positions"
 
     **`legend`**
 
@@ -186,7 +186,7 @@ Terminal(width=62, height=12).render(
     `"top_left"`, `"left"`, `"right"`, `"bottom"`, `"bottom_right"`, or
     `"bottom_left"`.
 
-## Every `Series` Option
+## Declarative Series Overrides
 
 `Series(label=None, color=None, kind=None)` derives/falls back to the chart.
 Each value can be overridden independently.
@@ -212,7 +212,7 @@ chart = Declarative(
 Terminal(width=76, height=16).render(chart)
 ```
 
-??? example "Every `Series` Option"
+??? example "Declarative Series Overrides"
 
     **`Series.label`**
 

@@ -95,7 +95,7 @@ Both descriptors are documented in full on the [Schema]{data-preview} API refere
 
     **Sandbox**
 
-    [Every Column Option](../sandbox/table.md#every-column-option){data-preview} · [Every Series Option](../sandbox/chart.md#every-series-option){data-preview}
+    [`Column`](../sandbox/table.md#column){data-preview} · [Series](../sandbox/chart.md#declarative-series-overrides){data-preview}
 
     **API**
 

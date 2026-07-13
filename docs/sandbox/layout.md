@@ -32,7 +32,7 @@ Terminal(width=64, height=9).render(DirectionDemo())
     - **`direction` options.** Use `"horizontal"` or `"vertical"`. See [Direction]{data-preview} and [GridSettings]{data-preview}.
     - **`gap` options.** Pass a non-negative terminal cell count. See [GridSettings]{data-preview}.
 
-## Every Sizing Form
+## Sizing
 
 `width` and `height` accept fixed cells, a fractional float, a percentage,
 ratio, fraction/fill weight, content sizing, or an explicit `Sizing` with
@@ -83,13 +83,13 @@ for size in sizes:
     print(size, "=>", size.resolve(available=60, content=9))
 ```
 
-??? example "Every Sizing Form"
+??? example "Sizing"
 
     - **`SizingLike` options.** [SizingLike]{data-preview} accepts an integer, float, string, or [Sizing]{data-preview}. Strings may be cell counts (`"12"`), percentages (`"50%"`), ratios (`"1/3"`), fraction weights (`"1fr"`, `"2fr"`, `"fill"`, `"grow"`), or intrinsic sizes (`"fit"`, `"auto"`, `"content"`).
     - **`SizingKind` options.** Normalized sizes use `"cells"`, `"percent"`, `"ratio"`, `"fraction"`, or `"fit"`. See [SizingKind]{data-preview}.
     - **`Sizing` constructors.** [Sizing]{data-preview} provides `cells()`, `percent()`, `ratio()`, `fraction()`, and `fit()`. Apply optional `minimum` and `maximum` clamps while constructing a fit size or through `with_bounds()`.
 
-## Cross-Axis Size and Alignment
+## Alignment
 
 A field's main-axis size participates in the grid split. Its cross-axis size
 shrinks the paint area inside that slot; `align` places it left, center, or
@@ -111,7 +111,7 @@ Terminal(width=58, height=10).render(AlignmentDemo())
 
     - **`align` options.** Use `"left"`, `"center"`, `"right"`, or `None`. See [Alignment]{data-preview} and [Field]{data-preview}.
 
-## Padding and Margin Forms
+## Padding and Margin
 
 Both accept an integer, `(vertical, horizontal)`, `(top, right, bottom, left)`,
 or a `Padding` object. `None` inside a four-tuple is treated as zero. Padding

@@ -10,7 +10,7 @@ and editable input. These examples cover every constructor option:
 `content`, `color`, `background`, `modifiers`, `align`, `wrap`, `input`,
 `placeholder`, `cursor`, `visible`, `z`, and `fit_content`.
 
-## Every Content Shape
+## Text Content
 
 ```pyodide install="xnano>=1.0.10" height="24"
 from xnano import Terminal
@@ -37,7 +37,7 @@ Terminal(width=64, height=10).render(leaf, line, paragraph, gap=1)
 `Text` children. A list of leaves is one line; nested lines or embedded
 newlines form a paragraph.
 
-??? example "Every Content Shape"
+??? example "Text Content"
     - `content`: `str | Text | list[str | Text]`; see [Text](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}.
 
 ## Foreground, Background, and Modifiers

@@ -56,7 +56,7 @@ The full parameter list — colors for the filled and unfilled portions, hiding 
 
     **Sandbox**
 
-    [Ratio and Value/Total Modes](../sandbox/progress.md#ratio-and-valuetotal-modes){data-preview} · [Every Label Mode](../sandbox/progress.md#every-label-mode){data-preview} · [Both Styles](../sandbox/progress.md#both-styles-and-every-color-control){data-preview}
+    [Ratio and Value/Total Modes](../sandbox/progress.md#ratio-and-valuetotal-modes){data-preview} · [Labels](../sandbox/progress.md#labels){data-preview} · [Styles and Colors](../sandbox/progress.md#styles-and-colors){data-preview}
 
     **API**
 
