@@ -119,7 +119,7 @@ The main featureset of the library revolves around it's rust-based terminal rend
 
     The following example is interactive and can be run directly in the browser by hitting the <kbd>Run</kbd> button.
 
-    ```pyodide install="xnano>=1.0.9" exec="no"
+    ```pyodide install="xnano>=1.0.10" exec="no"
     import xnano
 
     xnano.render("hello, terminal!", color="blue")
