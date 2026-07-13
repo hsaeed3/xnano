@@ -696,15 +696,18 @@ class Terminal(AbstractHost, Generic[StateT]):
         self,
         renderables: Sequence[Any],
         field: Any,
+        *,
+        is_grid: bool = False,
     ) -> None:
         """Resolve viewport sizing for a one-shot render and prepare the session.
 
         Each ``render`` call is content-sized. When an inline session is
         already open but the new content needs a different inline viewport
         height, the existing session is torn down and recreated on the next
-        paint.
+        paint. Pass ``is_grid=True`` when the single root is a ``BaseGrid`` so
+        height/width defaults match the interactive ``run`` path.
         """
-        resolved = self._resolve_run(renderables, is_grid=False, field=field)
+        resolved = self._resolve_run(renderables, is_grid=is_grid, field=field)
         if self._session is None:
             self._apply_resolved_run(resolved)
             return
@@ -814,20 +817,30 @@ class Terminal(AbstractHost, Generic[StateT]):
             )
             return
 
-        field = self._build_render_field(
-            color=color,
-            background=background,
-            modifiers=modifiers,
-            align=align,
-            border=border,
-            border_sides=border_sides,
-            border_color=border_color,
-            title=title,
-            title_position=title_position,
-            padding=padding,
-            gap=gap,
-        )
+        from xnano.grid import BaseGrid
+
         items = tuple(renderables)
+        # Mirror ``run``: a lone BaseGrid is the layout root, not an inline
+        # renderable. Painting it through the inline path only draws field
+        # chrome tops (a single border row) and drops the rest of the grid.
+        is_grid = len(items) == 1 and isinstance(items[0], BaseGrid)
+        field = (
+            None
+            if is_grid
+            else self._build_render_field(
+                color=color,
+                background=background,
+                modifiers=modifiers,
+                align=align,
+                border=border,
+                border_sides=border_sides,
+                border_color=border_color,
+                title=title,
+                title_position=title_position,
+                padding=padding,
+                gap=gap,
+            )
+        )
 
         # Wasm / headless builds: paint through a buffer-backed session and
         # write the resulting cell text to stdout (no interactive terminal).
@@ -844,9 +857,12 @@ class Terminal(AbstractHost, Generic[StateT]):
         auto_entered = not self._is_live
         if auto_entered:
             self.__enter__()
-        self._prepare_render_session(items, field)
+        self._prepare_render_session(items, field, is_grid=is_grid)
         try:
-            self._render_frame(renderables=items, field=field)
+            if is_grid:
+                self._render_frame(items[0])
+            else:
+                self._render_frame(renderables=items, field=field)
             if flush:
                 self._flush_session_output()
         finally:
