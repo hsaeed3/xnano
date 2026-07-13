@@ -94,7 +94,7 @@ The terminal and the browser don't treat this the same way. Classes with a cell-
 
     **Sandbox**
 
-    [Color Inputs](../sandbox/styling.md#every-color-input-form){data-preview} · [Full Palette](../sandbox/styling.md#every-color-palette){data-preview} · [Border Styles](../sandbox/styling.md#every-border-style){data-preview} · [Tailwind Classes](../sandbox/styling.md#tailwind-class_name){data-preview}
+    [Color Inputs](../sandbox/styling.md#color-inputs){data-preview} · [Color Palette](../sandbox/styling.md#color-palette){data-preview} · [Border Styles](../sandbox/styling.md#border-styles){data-preview} · [Tailwind Classes](../sandbox/styling.md#tailwind-class_name){data-preview}
 
     **API**
 

@@ -45,7 +45,7 @@ Terminal(width=52, height=12).render(*tables, gap=1)
     [Table.data]{data-preview} accepts a sequence of mappings, dataclass
     instances, or objects with readable attributes.
 
-## Every Column Form
+## Columns
 
 `columns` accepts a list of names or a mapping. Mapping values may be a header
 string, a `Column`, an accessor callable, or `None` (the default column).
@@ -70,7 +70,7 @@ mapping_form = Table(data=rows, columns={
 Terminal(width=66, height=11).render(list_form, mapping_form, gap=1)
 ```
 
-??? example "Every Column Form"
+??? example "Columns"
 
     **`columns`**
 
@@ -78,7 +78,7 @@ Terminal(width=66, height=11).render(list_form, mapping_form, gap=1)
     sequence of field names, or a mapping whose values are a header `str`,
     [Column]{data-preview}, row accessor callable, or `None`.
 
-## Selection and Every Highlight Option
+## Selection and Highlighting
 
 `selected` is a zero-based row index or `None`. `highlight_color`,
 `highlight_background`, and `highlight_symbol` independently style that row.
@@ -102,7 +102,7 @@ table = Table(
 Terminal(width=48, height=8).render(table)
 ```
 
-??? example "Selection and Every Highlight Option"
+??? example "Selection and Highlighting"
 
     **`selected`**
 
@@ -152,7 +152,7 @@ Terminal(width=48, height=8).render(
     [Table.column_spacing]{data-preview} is the non-negative number of cells
     inserted between adjacent columns.
 
-## Every `Column` Option
+## `Column`
 
 `Column` accepts `header`, `accessor`, `format`, `color`, `background`,
 `align`, and `width`. The formatter may be a format string, callable, or
@@ -198,7 +198,7 @@ table = Services(data=[
 Terminal(width=52, height=7).render(table)
 ```
 
-??? example "Every `Column` Option"
+??? example "`Column`"
 
     **`Column.header`**
 

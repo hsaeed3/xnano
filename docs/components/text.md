@@ -166,7 +166,7 @@ The full parameter list — every styling and input option `Text` accepts — li
 
     **Sandbox**
 
-    [Every Content Shape](../sandbox/text.md#every-content-shape){data-preview} · [Alignment and Wrapping](../sandbox/text.md#alignment-and-wrapping){data-preview} · [Input, Placeholder, and Cursor](../sandbox/text.md#input-placeholder-and-cursor){data-preview}
+    [Text Content](../sandbox/text.md#text-content){data-preview} · [Alignment and Wrapping](../sandbox/text.md#alignment-and-wrapping){data-preview} · [Input, Placeholder, and Cursor](../sandbox/text.md#input-placeholder-and-cursor){data-preview}
 
     **API**
 

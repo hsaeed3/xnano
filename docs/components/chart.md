@@ -72,7 +72,7 @@ The full parameter list — axis titles, explicit bounds, legend position, and m
 
     **Sandbox**
 
-    [Every Graph Kind](../sandbox/chart.md#every-graph-kind){data-preview} · [Bounds and Labels](../sandbox/chart.md#explicit-bounds-and-axis-labels){data-preview} · [Legend Positions](../sandbox/chart.md#legend-toggle-and-every-position){data-preview}
+    [Graph Types](../sandbox/chart.md#graph-types-and-mixed-charts){data-preview} · [Bounds and Labels](../sandbox/chart.md#explicit-bounds-and-axis-labels){data-preview} · [Legend Positions](../sandbox/chart.md#legend-positions){data-preview}
 
     **API**
 

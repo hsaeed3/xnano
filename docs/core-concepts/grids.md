@@ -363,7 +363,7 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 
     **Sandbox**
 
-    [Grid Direction and Gap](../sandbox/layout.md#grid-direction-and-gap){data-preview} · [Sizing](../sandbox/layout.md#every-sizing-form){data-preview} · [Nested Grids](../sandbox/layout.md#nested-grids-and-field-direction){data-preview}
+    [Grid Direction and Gap](../sandbox/layout.md#grid-direction-and-gap){data-preview} · [Sizing](../sandbox/layout.md#sizing){data-preview} · [Nested Grids](../sandbox/layout.md#nested-grids-and-field-direction){data-preview}
 
     **API**
 

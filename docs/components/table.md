@@ -75,7 +75,7 @@ The full parameter list — selection, highlighting, column spacing, and more �
 
     **Sandbox**
 
-    [Every Column Form](../sandbox/table.md#every-column-form){data-preview} · [Selection and Highlighting](../sandbox/table.md#selection-and-every-highlight-option){data-preview} · [Every Column Option](../sandbox/table.md#every-column-option){data-preview}
+    [Columns](../sandbox/table.md#columns){data-preview} · [Selection and Highlighting](../sandbox/table.md#selection-and-highlighting){data-preview} · [`Column`](../sandbox/table.md#column){data-preview}
 
     **API**
 

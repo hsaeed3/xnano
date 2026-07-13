@@ -40,7 +40,7 @@ Terminal(width=52, height=8).render(*bars, gap=1)
     [Progress.total]{data-preview} accepts `int | float | None`; `None` selects
     ratio mode.
 
-## Every Label Mode
+## Labels
 
 `label=None` derives a percentage, a string uses custom text, and `False`
 hides the label.
@@ -57,14 +57,14 @@ Terminal(width=50, height=6).render(
 )
 ```
 
-??? example "Every Label Mode"
+??? example "Labels"
 
     **`label`**
 
     [Progress.label]{data-preview} accepts a custom `str`, `None` for an
     automatic percentage, or `False` to hide the label.
 
-## Both Styles and Every Color Control
+## Styles and Colors
 
 `style` is `bar` or `line`. `color` styles the bar and is also the line's
 default filled color. `filled_color` and `unfilled_color` override the two
@@ -102,7 +102,7 @@ line_fallback = Progress(
 Terminal(width=60, height=7).render(bar, line, line_fallback, gap=1)
 ```
 
-??? example "Both Styles and Every Color Control"
+??? example "Styles and Colors"
 
     **`style`**
 
