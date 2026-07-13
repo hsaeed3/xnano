@@ -14,6 +14,17 @@ Copyright &copy; 2026 Hammad Saeed
 nav = [
     {"Introduction" = "index.md"},
     "core-concepts/getting-started.md",
+    {"Sandbox" = [
+        "sandbox.md",
+        "sandbox/rendering.md",
+        "sandbox/layout.md",
+        "sandbox/styling.md",
+        "sandbox/text.md",
+        "sandbox/table.md",
+        "sandbox/progress.md",
+        "sandbox/chart.md",
+        "sandbox/sparkline.md",
+    ]},
     {"Concepts" = [
         "core-concepts/terminal.md",
         "core-concepts/grids.md",
@@ -27,17 +38,6 @@ nav = [
     {"Beta" = [
         "core-concepts/web.md",
         "core-concepts/cli.md",
-    ]},
-    {"Sandbox" = [
-        "sandbox.md",
-        "sandbox/rendering.md",
-        "sandbox/layout.md",
-        "sandbox/styling.md",
-        "sandbox/text.md",
-        "sandbox/table.md",
-        "sandbox/progress.md",
-        "sandbox/chart.md",
-        "sandbox/sparkline.md",
     ]},
     {"Components" = [
         "components/index.md",
