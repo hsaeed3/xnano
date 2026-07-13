@@ -6,7 +6,7 @@
 >>> from xnano import BaseGrid, Field, Terminal
 """
 
-__version__ = "1.0.10"
+__version__ = "1.0.11"
 
 from typing import TYPE_CHECKING
 
