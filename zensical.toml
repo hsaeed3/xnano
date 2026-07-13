@@ -28,6 +28,17 @@ nav = [
         "core-concepts/web.md",
         "core-concepts/cli.md",
     ]},
+    {"Sandbox" = [
+        "sandbox.md",
+        "sandbox/rendering.md",
+        "sandbox/layout.md",
+        "sandbox/styling.md",
+        "sandbox/text.md",
+        "sandbox/table.md",
+        "sandbox/progress.md",
+        "sandbox/chart.md",
+        "sandbox/sparkline.md",
+    ]},
     {"Components" = [
         "components/index.md",
         "components/text.md",
