@@ -68,5 +68,15 @@ Give a series its own color or plot kind by subclassing with `Series()` descript
 
 The full parameter list — axis titles, explicit bounds, legend position, and more — lives on the [Chart]{data-preview} API reference.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Every Graph Kind](../sandbox/chart.md#every-graph-kind){data-preview} · [Bounds and Labels](../sandbox/chart.md#explicit-bounds-and-axis-labels){data-preview} · [Legend Positions](../sandbox/chart.md#legend-toggle-and-every-position){data-preview}
+
+    **API**
+
+    [`Chart`](../api/xnano/components/chart.md#xnano.components.chart.Chart){data-preview} · [`Series`](../api/xnano/components/schema.md#xnano.components.schema.Series){data-preview} · [`GraphTypeLike`](../api/xnano/_types.md#xnano._types.GraphTypeLike){data-preview}
+
 [Chart]: ../api/xnano/components/chart.md
 [Schema]: schema.md

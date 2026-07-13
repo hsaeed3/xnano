@@ -130,5 +130,15 @@ A hook rarely needs more than the event, the terminal, and the state — but a f
 - `ctx.stage` — the active host's layout map and cell-level paint, for advanced/manual drawing.
 - `ctx.has_keyboard_event()`, `ctx.has_mouse_event()`, and similar — quick predicates when a hook is bound to more than one kind of event.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Action-Driven Frames](../sandbox/rendering.md#action-driven-frames-without-run){data-preview}
+
+    **API**
+
+    [`Context`](../api/xnano/context.md#xnano.context.Context){data-preview} · [`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview}
+
 [Terminal]: ../api/xnano/tui/terminal.md
 [Context]: ../api/xnano/context.md

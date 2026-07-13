@@ -359,6 +359,16 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Grid Direction and Gap](../sandbox/layout.md#grid-direction-and-gap){data-preview} · [Sizing](../sandbox/layout.md#every-sizing-form){data-preview} · [Nested Grids](../sandbox/layout.md#nested-grids-and-field-direction){data-preview}
+
+    **API**
+
+    [`BaseGrid`](../api/xnano/grid.md#xnano.grid.BaseGrid){data-preview} · [`GridSettings`](../api/xnano/grid.md#xnano.grid.GridSettings){data-preview} · [`Field`](../api/xnano/fields.md#xnano.fields.Field){data-preview}
+
 [xnano-core]: ../architecture/xnano-core.md
 [Pydantic]: https://pydantic.dev/docs/validation/dev/api/pydantic/
 [BaseModel]: https://pydantic.dev/docs/validation/dev/api/pydantic/base_model/

@@ -91,6 +91,16 @@ Latency(series={"p50": [12, 14, 11], "p99": [88, 95, 90]})
 
 Both descriptors are documented in full on the [Schema]{data-preview} API reference, alongside [Table]{data-preview} and [Chart]{data-preview}.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Every Column Option](../sandbox/table.md#every-column-option){data-preview} · [Every Series Option](../sandbox/chart.md#every-series-option){data-preview}
+
+    **API**
+
+    [`Column`](../api/xnano/components/schema.md#xnano.components.schema.Column){data-preview} · [`Series`](../api/xnano/components/schema.md#xnano.components.schema.Series){data-preview} · [`Table`](../api/xnano/components/table.md#xnano.components.table.Table){data-preview} · [`Chart`](../api/xnano/components/chart.md#xnano.components.chart.Chart){data-preview}
+
 [Schema]: ../api/xnano/components/schema.md
 [Table]: table.md
 [Chart]: chart.md

@@ -90,4 +90,14 @@ The terminal and the browser don't treat this the same way. Classes with a cell-
 
     Keyword arguments and `class_name` aren't two competing systems — they're the same `Style` underneath, built two different ways. Reach for keywords when a value is dynamic or computed; reach for `class_name` when you're pasting in something that already looks like Tailwind, or want the browser-only utilities keywords don't cover.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Color Inputs](../sandbox/styling.md#every-color-input-form){data-preview} · [Full Palette](../sandbox/styling.md#every-color-palette){data-preview} · [Border Styles](../sandbox/styling.md#every-border-style){data-preview} · [Tailwind Classes](../sandbox/styling.md#tailwind-class_name){data-preview}
+
+    **API**
+
+    [`Style`](../api/xnano/_styles.md#xnano._styles.Style){data-preview} · [`ColorLike`](../api/xnano/color.md#xnano.color.ColorLike){data-preview} · [`CharacterModifier`](../api/xnano/_types.md#xnano._types.CharacterModifier){data-preview}
+
 [Field]: fields.md
