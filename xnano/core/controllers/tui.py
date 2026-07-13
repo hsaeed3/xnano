@@ -11,6 +11,7 @@ layer that talks to ``xnano_core`` for rendering.
 from __future__ import annotations
 
 import dataclasses
+import re
 import threading
 from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar
 
@@ -49,6 +50,108 @@ SESSION_DEVICE_LOCK: threading.RLock = threading.RLock()
 """Device lock for thread-safe access to the cursor / device configuration
 options during an active session.
 """
+
+
+_ANSI_NAMED_FOREGROUNDS: dict[str, int] = {
+    "Black": 30,
+    "Red": 31,
+    "Green": 32,
+    "Yellow": 33,
+    "Blue": 34,
+    "Magenta": 35,
+    "Cyan": 36,
+    "Gray": 37,
+    "DarkGray": 90,
+    "LightRed": 91,
+    "LightGreen": 92,
+    "LightYellow": 93,
+    "LightBlue": 94,
+    "LightMagenta": 95,
+    "LightCyan": 96,
+    "White": 97,
+}
+"""ANSI foreground codes keyed by native color representation."""
+
+
+_ANSI_MODIFIERS: dict[str, int] = {
+    "BOLD": 1,
+    "DIM": 2,
+    "ITALIC": 3,
+    "UNDERLINED": 4,
+    "SLOW_BLINK": 5,
+    "RAPID_BLINK": 6,
+    "REVERSED": 7,
+    "HIDDEN": 8,
+    "CROSSED_OUT": 9,
+}
+"""ANSI SGR codes keyed by native modifier representation."""
+
+
+def _get_ansi_color_code(
+    color: native.Color, *, background: bool
+) -> str | None:
+    """Return the SGR fragment for a native terminal color."""
+    value = repr(color)
+    named = _ANSI_NAMED_FOREGROUNDS.get(value)
+    if named is not None:
+        if background:
+            named += 10
+        return str(named)
+    match = re.fullmatch(r"Rgb\((\d+), (\d+), (\d+)\)", value)
+    if match is not None:
+        channel = 48 if background else 38
+        return f"{channel};2;{';'.join(match.groups())}"
+    match = re.fullmatch(r"Indexed\((\d+)\)", value)
+    if match is not None:
+        channel = 48 if background else 38
+        return f"{channel};5;{match.group(1)}"
+    return None
+
+
+def _get_ansi_style(cell: native.BufferCell) -> tuple[str, ...]:
+    """Return all SGR fragments needed to reproduce a buffer cell style."""
+    codes: list[str] = []
+    foreground = _get_ansi_color_code(cell.fg, background=False)
+    background = _get_ansi_color_code(cell.bg, background=True)
+    if foreground is not None:
+        codes.append(foreground)
+    if background is not None:
+        codes.append(background)
+    modifier_names = set(repr(cell.modifier).split(" | "))
+    codes.extend(
+        str(code)
+        for name, code in _ANSI_MODIFIERS.items()
+        if name in modifier_names
+    )
+    return tuple(codes)
+
+
+def _get_buffer_as_ansi(buffer: native.Buffer) -> str:
+    """Serialize a native buffer while preserving its terminal cell styles."""
+    area = buffer.area
+    lines: list[str] = []
+    for y in range(area.y, area.y + area.height):
+        cells = [buffer.cell(x, y) for x in range(area.x, area.x + area.width)]
+        while cells and (cells[-1] is None or not cells[-1].symbol.strip()):
+            cells.pop()
+
+        parts: list[str] = []
+        active_style: tuple[str, ...] = ()
+        for cell in cells:
+            if cell is None:
+                continue
+            style = _get_ansi_style(cell)
+            if style != active_style:
+                if active_style:
+                    parts.append("\x1b[0m")
+                if style:
+                    parts.append(f"\x1b[{';'.join(style)}m")
+                active_style = style
+            parts.append(cell.symbol)
+        if active_style:
+            parts.append("\x1b[0m")
+        lines.append("".join(parts))
+    return "\n".join(lines)
 
 
 @dataclasses.dataclass(slots=True)
@@ -201,6 +304,10 @@ class TerminalController(AbstractController, Generic[StateT]):
         """Return the buffered terminal output as a newline-joined string."""
         buffer = self._core_session.buffer_snapshot()
         return "\n".join(buffer.to_string_lines())
+
+    def get_core_session_output_as_ansi(self) -> str:
+        """Return buffered terminal output with ANSI cell styles preserved."""
+        return _get_buffer_as_ansi(self._core_session.buffer_snapshot())
 
     def poll_core_event(self, timeout: int = 0) -> core.CoreEvent | None:
         """Poll for a core event; returns ``None`` for offscreen sessions.
