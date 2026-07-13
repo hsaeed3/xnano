@@ -122,6 +122,16 @@ terminal.run(App()) # (1)!
 
 Everything from here — [grids]{data-preview}, [fields]{data-preview}, [events and hooks]{data-preview}, and the [device and cursor]{data-preview} a session exposes — describes what happens *inside* a `Terminal`. Start with grids to see what actually gets drawn onto it.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Terminal Viewport and Gap](../sandbox/rendering.md#terminal-viewport-and-gap){data-preview} · [Explicit Offscreen Buffer](../sandbox/rendering.md#explicit-offscreen-buffer){data-preview}
+
+    **API**
+
+    [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} · [`render()`](../api/xnano/_renderable.md#xnano._renderable.render){data-preview} · [`SizingLike`](../api/xnano/_types.md#xnano._types.SizingLike){data-preview}
+
 [Terminal]: ../api/xnano/tui/terminal.md
 [render]: ../api/xnano/_renderable.md
 [Context]: ../api/xnano/context.md

@@ -164,6 +164,16 @@ Web().run(App(), port=8000)
 
 Currently this site is still a work in progress. Complete walkthroughs and documentation for both <code>xnano</code> and <code>xnano-core</code> are coming soon.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Live Sandbox](../sandbox.md){data-preview} · [Render Style and Frame](../sandbox/rendering.md#render-style-and-frame){data-preview}
+
+    **API**
+
+    [`render()`](../api/xnano/_renderable.md#xnano._renderable.render){data-preview} · [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
+
 [xnano]: getting-started.md
 [xnano-core]: ../architecture/xnano-core.md
 *[pydantic-core]: Data validation library written in rust.

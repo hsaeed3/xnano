@@ -52,4 +52,14 @@ render(Progress(value=340, total=500, style="line", label="downloading"))
 
 The full parameter list — colors for the filled and unfilled portions, hiding the label, and more — lives on the [Progress]{data-preview} API reference.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Ratio and Value/Total Modes](../sandbox/progress.md#ratio-and-valuetotal-modes){data-preview} · [Every Label Mode](../sandbox/progress.md#every-label-mode){data-preview} · [Both Styles](../sandbox/progress.md#both-styles-and-every-color-control){data-preview}
+
+    **API**
+
+    [`Progress`](../api/xnano/components/progress.md#xnano.components.progress.Progress){data-preview} · [`ProgressStyle`](../api/xnano/components/progress.md#xnano.components.progress.ProgressStyle){data-preview}
+
 [Progress]: ../api/xnano/components/progress.md

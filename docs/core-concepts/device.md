@@ -110,6 +110,16 @@ The same goes for `device`. Raw mode, the alternate screen buffer, mouse capture
     - `cursor.move_to()` and the rest of the position/movement methods, `enable_blinking()` / `disable_blinking()` — [TerminalCursor]{data-preview} only.
     - [WebDevice]{data-preview} implements the same `Device`/`Cursor` contract for the browser host, with terminal-only members reduced to safe no-ops.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Explicit Offscreen Buffer](../sandbox/rendering.md#explicit-offscreen-buffer){data-preview} <small>Live device control is unavailable in Pyodide.</small>
+
+    **API**
+
+    [`AbstractDevice`](../api/xnano/core/device.md#xnano.core.device.AbstractDevice){data-preview} · [`TerminalDevice`](../api/xnano/tui/device.md#xnano.tui.device.TerminalDevice){data-preview} · [`TerminalCursor`](../api/xnano/tui/cursor.md#xnano.tui.cursor.TerminalCursor){data-preview}
+
 [Context]: ../api/xnano/context.md
 [Device]: ../api/xnano/core/device.md
 [Cursor]: ../api/xnano/core/device.md

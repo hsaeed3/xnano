@@ -162,5 +162,15 @@ def highlight_name_field(self) -> None:
 
 The full parameter list — every styling and input option `Text` accepts — lives on the [Text]{data-preview} API reference.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Every Content Shape](../sandbox/text.md#every-content-shape){data-preview} · [Alignment and Wrapping](../sandbox/text.md#alignment-and-wrapping){data-preview} · [Input, Placeholder, and Cursor](../sandbox/text.md#input-placeholder-and-cursor){data-preview}
+
+    **API**
+
+    [`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview} · [`Alignment`](../api/xnano/_types.md#xnano._types.Alignment){data-preview} · [`CharacterModifier`](../api/xnano/_types.md#xnano._types.CharacterModifier){data-preview}
+
 [Text]: ../api/xnano/components/text.md
 [events and hooks]: ../core-concepts/events.md

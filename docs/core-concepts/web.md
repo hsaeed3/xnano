@@ -132,6 +132,16 @@ None of that affects the core model, though: grids, fields, and hooks all mean t
 
 With both hosts in view, the rest of `core-concepts` — [grids]{data-preview}, [fields]{data-preview}, [events and hooks]{data-preview}, and [device and cursor]{data-preview} — applies equally whether the app ends up running in a `Terminal` or served with `Web`.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Live Sandbox](../sandbox.md){data-preview} <small>Starting an HTTP server remains outside Pyodide.</small>
+
+    **API**
+
+    [`Web`](../api/xnano/webui/web.md#xnano.webui.web.Web){data-preview} · [`WebSession`](../api/xnano/webui/session.md#xnano.webui.session.WebSession){data-preview}
+
 [Terminal]: ../api/xnano/tui/terminal.md
 [Web]: ../api/xnano/webui/web.md
 [grids]: grids.md
