@@ -3,6 +3,9 @@
 .xnano-showcase {
     position: relative;
     margin: 1.25rem 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border-radius: 12px;
     overflow: hidden;
     line-height: 0;
@@ -10,18 +13,24 @@
     display: grid;
 }
 
-/* MkDocs wraps images in <p>; let children share one grid cell. */
+/* MkDocs wraps images in <p>; let children share one grid cell.
+   Also drop scaleX so media doesn't spill past the content column. */
 .xnano-showcase > p {
     display: contents;
     margin: 0;
+    transform: none;
 }
 
 .xnano-showcase img {
     grid-area: 1 / 1;
     width: 100%;
+    max-width: 100%;
+    height: auto;
+    box-sizing: border-box;
     border-radius: 12px;
     display: none;
     transition: opacity 0.45s ease;
+    object-fit: contain;
 }
 
 /* Theme-aware visibility (mono + color pairs). */
