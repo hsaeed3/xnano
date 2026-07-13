@@ -522,6 +522,10 @@ class Terminal(AbstractHost, Generic[StateT]):
         """Return the offscreen buffer text (only valid for offscreen sessions)."""
         return self.session.get_core_session_output_text()
 
+    def get_output_as_ansi(self) -> str:
+        """Return offscreen buffer text with ANSI cell styles preserved."""
+        return self.session.get_core_session_output_as_ansi()
+
     def copy_to_clipboard(self, text: str) -> bool:
         """Copy ``text`` to the system clipboard via an OSC 52 escape.
 
@@ -932,7 +936,7 @@ class Terminal(AbstractHost, Generic[StateT]):
                 renderables=None if root is not None else tuple(renderables),
                 field=field,
             )
-            text = terminal.get_output().rstrip("\n")
+            text = terminal.get_output_as_ansi().rstrip("\n")
             out = sys.stdout if file is None else file
             out.write(text)
             out.write(end)
