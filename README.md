@@ -5,7 +5,7 @@
 > A simple python **tui** framework built on top of the [ratatui](https://ratatui.rs) and [tachyonfx](https://github.com/ratatui/tachyonfx) rust libraries.
 
 > [!NOTE]
-> Documentation is now available at [https://xnano.hammad.app](https://xnano.hammad.app)!
+> Documentation with examples that are runnable & editable in-browser are now available at [https://xnano.hammad.app](https://xnano.hammad.app)!
 
 xnano is a modern, lightweight and incredibly declarative TUI framework for Python. It is built on top of the [xnano-core](https://github.com/hsaeed3/xnano/tree/main/xnano-core) rust library, which provides the core rendering and event handling capabilities through:
 
