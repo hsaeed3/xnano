@@ -23,13 +23,13 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "pip"
 
     ```bash
-    pip install "xnano>=1.0.10"
+    pip install "xnano>=1.0.11"
     ```
 
 === "uv"
 
     ```bash
-    uv pip install "xnano>=1.0.10"
+    uv pip install "xnano>=1.0.11"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -38,7 +38,7 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "poetry"
 
     ```bash
-    poetry install "xnano>=1.0.10"
+    poetry install "xnano>=1.0.11"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -47,7 +47,7 @@ You can install xnano on Python 3.10+ using your favorite package manager.
 === "conda"
 
     ```bash
-    conda install "xnano>=1.0.10"
+    conda install "xnano>=1.0.11"
     ```
 
 ## What is xnano?
@@ -71,7 +71,7 @@ The main featureset of the library revolves around it's rust-based terminal rend
 
     The following example is interactive and can be run directly in the browser by hitting the <kbd>Run</kbd> button.
 
-```pyodide install="xnano>=1.0.10"
+```pyodide install="xnano>=1.0.11"
 import xnano
 
 xnano.render("hello, terminal!", color="blue")
