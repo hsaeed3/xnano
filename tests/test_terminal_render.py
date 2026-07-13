@@ -184,6 +184,27 @@ def test_render_applies_border() -> None:
     assert "boxed" in output
 
 
+def test_render_paints_basegrid_as_layout_root() -> None:
+    # Terminal.render(BaseGrid) must drive the full layout engine. The inline
+    # renderable path only paints field chrome tops (a lone border row).
+    class Card(BaseGrid, direction="vertical"):
+        heading: str = Field(
+            default="Reminder",
+            border="rounded",
+            height=1,
+        )
+        body: str = Field(default="Water the plants.", height=1)
+
+    terminal = Terminal.offscreen(cols=40, rows=10)
+    terminal.render(Card())
+    output = terminal.get_output()
+    lines = [line.rstrip() for line in output.splitlines()]
+    assert any("Reminder" in line for line in lines)
+    assert any("Water the plants." in line for line in lines)
+    assert "╭" in output
+    assert "╰" in output
+
+
 def test_render_offscreen_stays_full_viewport_session() -> None:
     # Rendering into an already-live offscreen session must not attempt to
     # switch it into an inline viewport.
