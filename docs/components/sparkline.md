@@ -54,4 +54,14 @@ Terminal(height=4).render(
 
 The full parameter list — default/absent-value colors and glyphs — lives on the [Sparkline]{data-preview} API reference.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Automatic Scale](../sandbox/sparkline.md#data-and-automatic-scale){data-preview} · [Per-Bar Colors](../sandbox/sparkline.md#global-per-bar-and-background-colors){data-preview} · [Absent Values](../sandbox/sparkline.md#absent-values-and-symbol){data-preview}
+
+    **API**
+
+    [`Sparkline`](../api/xnano/components/sparkline.md#xnano.components.sparkline.Sparkline){data-preview} · [`ColorLike`](../api/xnano/color.md#xnano.color.ColorLike){data-preview}
+
 [Sparkline]: ../api/xnano/components/sparkline.md

@@ -180,6 +180,8 @@ function setupCollapsibleNavigation() {
         if (label) {
             const text = label.textContent.trim();
             if (
+                text === "Sandbox" ||
+                text === "Components" ||
                 text === "Tutorials" ||
                 text === "Core Architecture" ||
                 text === "API Reference"

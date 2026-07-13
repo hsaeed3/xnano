@@ -153,5 +153,15 @@ All of them share the same core contract: `matches(event)` checks whether an eve
 
 The next concept, [Context]{data-preview}, is where the host, current event, shared state, and the `ctx.actions` helper come together inside a hook.
 
+??? abstract "Sandbox & API"
+
+    **Sandbox**
+
+    [Action-Driven Frames](../sandbox/rendering.md#action-driven-frames-without-run){data-preview}
+
+    **API**
+
+    [`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview} · [`Context`](../api/xnano/context.md#xnano.context.Context){data-preview}
+
 [Action]: ../api/xnano/core/actions.md
 [Context]: ../api/xnano/context.md
