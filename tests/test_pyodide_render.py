@@ -217,7 +217,9 @@ def _offscreen_dims(
     calls: list[tuple[int, int]] = []
     real_offscreen = Terminal.offscreen.__func__
 
-    def _spy(cls: type[Terminal[Any]], *, cols: int, rows: int, **kwargs: Any) -> Terminal[Any]:
+    def _spy(
+        cls: type[Terminal[Any]], *, cols: int, rows: int, **kwargs: Any
+    ) -> Terminal[Any]:
         calls.append((cols, rows))
         return real_offscreen(cls, cols=cols, rows=rows, **kwargs)
 
@@ -272,3 +274,37 @@ def test_flush_does_not_raise(capsys: pytest.CaptureFixture[str]) -> None:
     # custom file object here to assert flush-call-count against, since that
     # would require passing file= (which skips this code path entirely).
     _render("x", capsys=capsys, flush=True, end="")
+
+
+def test_cell_styles_are_preserved_as_ansi(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    out = _render(
+        "painted",
+        capsys=capsys,
+        color="#8b7fd4",
+        background=(20, 30, 40),
+        modifiers=["bold", "italic"],
+    )
+    assert "\x1b[38;2;139;127;212;48;2;20;30;40;1;3mpainted\x1b[0m" in out
+
+
+def test_grid_field_colors_are_preserved_as_ansi(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    class Hello(BaseGrid, direction="vertical"):
+        message: str = Field(
+            default="Hello, xnano!",
+            color="violet",
+            modifiers=["bold"],
+            height=1,
+        )
+        hint: str = Field(
+            default="press q to quit",
+            color="slate-500",
+            height=1,
+        )
+
+    out = _render(Hello(), capsys=capsys, height=2)
+    assert "\x1b[38;2;238;130;238;1mHello, xnano!\x1b[0m" in out
+    assert "\x1b[38;2;100;116;139mpress q to quit\x1b[0m" in out
