@@ -3,12 +3,14 @@
 .grid-concept-diagram {
     margin-left: 1.5rem;
     margin-right: 1.5rem;
-    max-width: 40rem;
+    max-width: min(40rem, 100%);
+    box-sizing: border-box;
 }
 
 .grid-concept-diagram svg {
     display: block;
     width: 100%;
+    max-width: 100%;
     height: auto;
     font-family: "Geist Pixel", "Iosevka Web", monospace;
 }
@@ -19,77 +21,92 @@
     margin-right: auto;
     margin-top: 0.75rem;
     margin-bottom: 0.25rem;
-    max-width: 22rem;
+    max-width: min(22rem, 100%);
+    box-sizing: border-box;
+}
+
+/* Medium / small viewports: drop side indent so the figure matches text width. */
+@media screen and (max-width: 76.1875em) {
+    .grid-concept-diagram {
+        margin-left: 0;
+        margin-right: 0;
+        max-width: 100%;
+    }
+
+    .grid-concept-diagram--compact {
+        margin-left: 0;
+        max-width: 100%;
+    }
 }
 
 /* Light */
 [data-md-color-scheme="default"] .grid-concept-diagram {
     --gcd-panel-bg: #eeecdf;
     --gcd-panel-border: #c8c4b4;
-    --gcd-panel-accent-bg: #e4ebf8;
-    --gcd-panel-accent-border: #124ecf;
+    --gcd-panel-accent-bg: var(--xnano-accent-soft);
+    --gcd-panel-accent-border: var(--xnano-accent-border);
     --gcd-window-bg: #f4f4ed;
     --gcd-chrome-bg: #e4e2d4;
     --gcd-dot: #b8b4a4;
     --gcd-urlbar: #f4f4ed;
-    --gcd-text: #102044;
+    --gcd-text: var(--xnano-accent-ink);
     --gcd-text-soft: #5a6478;
-    --gcd-line: #124ecf;
-    --gcd-line-soft: #a8b4c8;
-    --gcd-grid: #124ecf33;
-    --gcd-grid-fill: #124ecf0a;
-    --gcd-arrow: #124ecf;
-    --gcd-label-accent: #124ecf;
-    --gcd-cell-highlight: #124ecf28;
-    --gcd-cell-highlight-strong: #124ecf55;
-    --gcd-cell-highlight-border: #124ecf;
-    --gcd-stripe-bg: #124ecf22;
-    --gcd-stripe-fg: #124ecf66;
+    --gcd-line: var(--xnano-accent);
+    --gcd-line-soft: #aaa8c4;
+    --gcd-grid: color-mix(in srgb, var(--xnano-accent) 20%, transparent);
+    --gcd-grid-fill: color-mix(in srgb, var(--xnano-accent) 5%, transparent);
+    --gcd-arrow: var(--xnano-accent);
+    --gcd-label-accent: var(--xnano-accent);
+    --gcd-cell-highlight: color-mix(in srgb, var(--xnano-accent) 16%, transparent);
+    --gcd-cell-highlight-strong: color-mix(in srgb, var(--xnano-accent) 33%, transparent);
+    --gcd-cell-highlight-border: var(--xnano-accent-border);
+    --gcd-stripe-bg: color-mix(in srgb, var(--xnano-accent) 13%, transparent);
+    --gcd-stripe-fg: color-mix(in srgb, var(--xnano-accent) 40%, transparent);
     --gcd-z-base: #9a958833;
     --gcd-z-base-border: #9a9588;
-    --gcd-z-overlay: #124ecfcc;
-    --gcd-z-overlay-inner: #e4ebf8ee;
-    --gcd-z-connector: #124ecf55;
-    --gcd-z-label: #102044;
-    --gcd-z-label-on: #102044;
+    --gcd-z-overlay: color-mix(in srgb, var(--xnano-accent-bright) 80%, transparent);
+    --gcd-z-overlay-inner: color-mix(in srgb, var(--xnano-accent-soft) 93%, transparent);
+    --gcd-z-connector: color-mix(in srgb, var(--xnano-accent) 33%, transparent);
+    --gcd-z-label: var(--xnano-accent-ink);
+    --gcd-z-label-on: var(--xnano-accent-ink);
     --gcd-z-label-muted: #7a766c;
     --gcd-z-caption: #5a6478;
-    --gcd-z-caption-on: #124ecf;
+    --gcd-z-caption-on: var(--xnano-accent);
 }
 
 /* Dark */
 [data-md-color-scheme="slate"] .grid-concept-diagram {
     --gcd-panel-bg: #1a1c22;
-    --gcd-panel-border: #2a3856;
-    --gcd-panel-accent-bg: #161c2a;
-    --gcd-panel-accent-border: #85acfa;
+    --gcd-panel-border: var(--xnano-accent-border);
+    --gcd-panel-accent-bg: var(--xnano-accent-soft);
+    --gcd-panel-accent-border: var(--xnano-accent);
     --gcd-window-bg: #141519;
     --gcd-chrome-bg: #0e1014;
     --gcd-dot: #3a4256;
     --gcd-urlbar: #1e2028;
     --gcd-text: #dedcd1;
     --gcd-text-soft: #8b909a;
-    --gcd-line: #85acfa;
-    --gcd-line-soft: #3a4a66;
-    --gcd-grid: #85acfa44;
-    --gcd-grid-fill: #85acfa0f;
-    --gcd-arrow: #85acfa;
-    --gcd-label-accent: #8ec6ff;
-    --gcd-cell-highlight: #85acfa33;
-    --gcd-cell-highlight-strong: #85acfa66;
-    --gcd-cell-highlight-border: #85acfa;
-    --gcd-stripe-bg: #85acfa28;
-    --gcd-stripe-fg: #85acfa77;
+    --gcd-line: var(--xnano-accent);
+    --gcd-line-soft: #555272;
+    --gcd-grid: color-mix(in srgb, var(--xnano-accent) 27%, transparent);
+    --gcd-grid-fill: color-mix(in srgb, var(--xnano-accent) 6%, transparent);
+    --gcd-arrow: var(--xnano-accent);
+    --gcd-label-accent: var(--xnano-accent-bright);
+    --gcd-cell-highlight: color-mix(in srgb, var(--xnano-accent) 20%, transparent);
+    --gcd-cell-highlight-strong: color-mix(in srgb, var(--xnano-accent) 40%, transparent);
+    --gcd-cell-highlight-border: var(--xnano-accent);
+    --gcd-stripe-bg: color-mix(in srgb, var(--xnano-accent) 16%, transparent);
+    --gcd-stripe-fg: color-mix(in srgb, var(--xnano-accent) 47%, transparent);
     --gcd-z-base: #5c637033;
     --gcd-z-base-border: #5c6370;
-    --gcd-z-overlay: #85acfacf;
-    --gcd-z-overlay-inner: #1a2438ee;
-    --gcd-z-connector: #85acfa66;
+    --gcd-z-overlay: color-mix(in srgb, var(--xnano-accent) 81%, transparent);
+    --gcd-z-overlay-inner: color-mix(in srgb, var(--xnano-accent-soft) 93%, transparent);
+    --gcd-z-connector: color-mix(in srgb, var(--xnano-accent) 40%, transparent);
     --gcd-z-label: #dedcd1;
     --gcd-z-label-on: #dedcd1;
     --gcd-z-label-muted: #8b909a;
     --gcd-z-caption: #8b909a;
-    --gcd-z-caption-on: #85acfa;
+    --gcd-z-caption-on: var(--xnano-accent);
 }
 
 .grid-concept-diagram .gcd-panel {

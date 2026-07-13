@@ -1,0 +1,179 @@
+/* ── Small hand-painted details ──────────────────────────────────────────
+   Color stays on the small marks, not behind the interface. Typography,
+   theme behavior, and runnable examples stay untouched.
+
+   Grain is the same pre-baked static texture hero.js uses for the hero
+   image (a 128x128 tile of per-pixel random noise, `mix-blend-mode:
+   overlay` at 0.40 opacity) — a plain cached raster image here, so there's
+   no canvas, no JS, and no per-frame cost at all: one paint, ever. */
+
+/* One warm sunset gradient (coral -> orange -> gold -> cream), not a
+   mixed palette — cool tones (blue/green) desaturated into flat gray
+   once the grain's overlay blend landed on them. */
+[data-md-color-scheme="default"] {
+    --xnano-wash-1: #e2685c;
+    --xnano-wash-2: #ea8f4f;
+    --xnano-wash-3: #eeb057;
+    --xnano-wash-4: #f0c96e;
+    --xnano-wash-5: #f2dfa6;
+}
+
+[data-md-color-scheme="slate"] {
+    --xnano-wash-1: #b8564c;
+    --xnano-wash-2: #c07a45;
+    --xnano-wash-3: #c79650;
+    --xnano-wash-4: #c9a95f;
+    --xnano-wash-5: #cbb98a;
+}
+
+/* Homepage paths stay familiar documentation cards. On hover, the card
+   fills with its wash color and the grain tile shows through it — text
+   inverts so it stays legible against the now-solid fill. */
+.md-content__inner:has(.page-index) .grid.cards > ul > li {
+    --xnano-card-wash-a: var(--xnano-wash-1);
+    position: relative;
+    overflow: hidden;
+    background-color: transparent;
+    background-image: none;
+    border: 0.05rem solid color-mix(
+        in srgb,
+        var(--xnano-card-wash-a) 16%,
+        var(--md-default-fg-color--lightest)
+    );
+    border-radius: 0.3rem;
+    box-shadow: none;
+    padding: 0.85rem;
+    transition: background-color 200ms ease, border-color 200ms ease;
+}
+
+.md-content__inner .grid.cards > ul > li:has(.xnano-card-link) {
+    position: relative;
+}
+
+.md-content__inner .grid.cards .xnano-card-link {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: 0.3rem;
+    font-size: 0;
+}
+
+.md-content__inner
+    .grid.cards
+    > ul
+    > li
+    > p:has(> .xnano-card-link:only-child) {
+    display: contents;
+}
+
+.md-content__inner .grid.cards .xnano-card-link:focus-visible {
+    outline: 0.1rem solid var(--md-accent-fg-color);
+    outline-offset: -0.15rem;
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url("../assets/grain.png");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+    mix-blend-mode: overlay;
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li:hover::before,
+.md-content__inner:has(.page-index) .grid.cards > ul > li:focus-within::before {
+    opacity: 0.4;
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li > * {
+    position: relative;
+    z-index: 1;
+    transition: color 200ms ease;
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li:hover,
+.md-content__inner:has(.page-index) .grid.cards > ul > li:focus-within {
+    background-color: var(--xnano-card-wash-a);
+    border-color: var(--xnano-card-wash-a);
+    box-shadow: none;
+}
+
+/* Explicit near-black, not filter: invert() — the theme's default text
+   color is semi-transparent, so inverting it washes out to a low-contrast
+   gray against a mid-toned wash fill instead of real contrast. */
+.md-content__inner:has(.page-index) .grid.cards > ul > li:hover > *,
+.md-content__inner:has(.page-index) .grid.cards > ul > li:focus-within > *,
+.md-content__inner:has(.page-index) .grid.cards > ul > li:hover .twemoji,
+.md-content__inner:has(.page-index) .grid.cards > ul > li:focus-within .twemoji {
+    color: #14120f;
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li:hover hr,
+.md-content__inner:has(.page-index) .grid.cards > ul > li:focus-within hr {
+    border-bottom-color: rgba(20, 18, 15, 0.4);
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li:hover a,
+.md-content__inner:has(.page-index) .grid.cards > ul > li:focus-within a {
+    color: #14120f;
+    text-decoration-color: rgba(20, 18, 15, 0.5);
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li:nth-child(2) {
+    --xnano-card-wash-a: var(--xnano-wash-2);
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li:nth-child(3) {
+    --xnano-card-wash-a: var(--xnano-wash-3);
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li:nth-child(4) {
+    --xnano-card-wash-a: var(--xnano-wash-4);
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li:nth-child(5) {
+    --xnano-card-wash-a: var(--xnano-wash-5);
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li .twemoji {
+    color: color-mix(
+        in srgb,
+        var(--xnano-card-wash-a) 78%,
+        var(--md-default-fg-color)
+    );
+    font-size: 1.15em;
+    transform: rotate(-1.5deg);
+    transform-origin: center;
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li:nth-child(even) .twemoji {
+    transform: rotate(1.25deg);
+}
+
+.md-content__inner:has(.page-index) .grid.cards > ul > li > hr {
+    width: 2.4rem;
+    margin: 0.7rem 0 0.9rem;
+    border-bottom: 0.1rem solid color-mix(
+        in srgb,
+        var(--xnano-card-wash-a) 52%,
+        transparent
+    );
+    transform: rotate(-0.7deg);
+    transform-origin: left center;
+}
+
+@media print {
+    .md-content__inner:has(.page-index) .grid.cards > ul > li .twemoji,
+    .md-content__inner:has(.page-index) .grid.cards > ul > li > hr {
+        transform: none;
+    }
+
+    .md-content__inner:has(.page-index) .grid.cards > ul > li::before {
+        display: none;
+    }
+}
