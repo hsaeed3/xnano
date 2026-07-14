@@ -202,3 +202,23 @@ async function main() {
 document$.subscribe(() => {
     main()
 })
+
+// The context7 chat widget renders inside a closed shadow root
+// (attachShadow({ mode: "closed" })). Material's keyboard-shortcut
+// handler resolves focus via `document.activeElement.shadowRoot`,
+// which is null for closed roots, so it can't tell the widget's
+// <input> is focused and fires "n"/"p"/etc page-navigation shortcuts
+// while the user is typing a chat message. Shadow DOM event
+// retargeting still exposes the host element as event.target to
+// listeners outside the tree, so we can catch it here and stop the
+// keydown before it reaches Material's document-level bubble
+// listener (capture phase always runs before bubble phase).
+document.addEventListener(
+    "keydown",
+    (event) => {
+        if (event.target?.id === "context7-widget") {
+            event.stopPropagation();
+        }
+    },
+    true,
+);
