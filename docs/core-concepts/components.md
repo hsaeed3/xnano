@@ -62,7 +62,7 @@ class Download(BaseGrid, direction="vertical"):
 
 <br/>
 
-xnano ships a handful of built-in components — `Text`, `Table`, `Progress`, `Chart`, `Sparkline`, and `Schema` — each covered in its own page in the [Components]{data-preview} section.
+xnano ships a handful of built-in components — [Text]{data-preview}, [Table]{data-preview}, [Progress]{data-preview}, [Chart]{data-preview}, [Sparkline]{data-preview}, and [Schema]{data-preview} — each covered in its own page in the [Components]{data-preview} section.
 
 You can also write your own. A component is just a small, well-defined contract to implement — covered in full, with a working example, at the start of that same section.
 
@@ -77,3 +77,9 @@ You can also write your own. A component is just a small, well-defined contract 
     [`AbstractComponent`](../api/xnano/components/abstract.md#xnano.components.abstract.AbstractComponent){data-preview} · [`ComponentRenderContext`](../api/xnano/components/abstract.md#xnano.components.abstract.ComponentRenderContext){data-preview}
 
 [Components]: ../components/index.md
+[Text]: ../api/xnano/components/text.md
+[Table]: ../api/xnano/components/table.md
+[Progress]: ../api/xnano/components/progress.md
+[Chart]: ../api/xnano/components/chart.md
+[Sparkline]: ../api/xnano/components/sparkline.md
+[Schema]: ../api/xnano/components/schema.md

@@ -11,8 +11,8 @@ single-frame or buffer-backed and are safe in Pyodide.
 
 ## Render Style and Frame
 
-One call below exercises every content/style keyword shared by `render()` and
-`Terminal.render()`: `direction`, `color`, `background`, `modifiers`, `align`,
+One call below exercises every content/style keyword shared by [render]{data-preview} and
+[Terminal.render]{data-preview}: `direction`, `color`, `background`, `modifiers`, `align`,
 `border`, `border_sides`, `border_color`, `title`, `title_position`, and
 `padding`.
 
@@ -108,7 +108,7 @@ print("Captured repr:", repr(capture.getvalue()))
 
 Set `stream=True` for the default stream or pass a name. Calls append unless
 `update=True`, which replaces that stream's complete current value. `stream`
-and `update` are also accepted by `Terminal.render()`.
+and `update` are also accepted by [Terminal.render]{data-preview}.
 
 ```pyodide install="xnano>=1.0.10" height="16" session="render-streams"
 from xnano import render
@@ -130,7 +130,7 @@ print("After update:", repr(get_stream_content("download")))
 
 ## Terminal Viewport and Gap
 
-`Terminal.render()` adds `gap` between native renderables. `Terminal` itself
+[Terminal.render]{data-preview} adds `gap` between native renderables. [Terminal class]{data-preview} itself
 accepts `width` and `height` using the same sizing grammar as fields. Fixed
 cell sizes are the most predictable browser viewport; `fit` measures ordinary
 content, while a grid root uses the available buffer.
@@ -162,7 +162,7 @@ terminal.render(
 
 The three live-device flags and `tick_interval` configure a live OS session;
 they do not create browser input polling. `state`, `title`, `width`, `height`,
-and `debug_wireframe` are also accepted by `Terminal.offscreen()` where
+and `debug_wireframe` are also accepted by [Terminal.offscreen]{data-preview} where
 applicable.
 
 ??? example "Terminal Viewport and Gap"
@@ -178,7 +178,7 @@ applicable.
 
 ## Explicit Offscreen Buffer
 
-`Terminal.offscreen()` exposes exact `cols` and `rows`, the rendered plain
+[Terminal.offscreen]{data-preview} exposes exact `cols` and `rows`, the rendered plain
 text, and ANSI-preserving output. This is the lowest-level WASM-safe terminal
 surface.
 
@@ -221,7 +221,7 @@ to attach its hooks, perform an action, and render the changed state again.
 This gives browser examples real behavior without starting an OS event loop.
 
 ```pyodide install="xnano>=1.0.10" height="24"
-from xnano import Action, BaseGrid, Field, Terminal, on
+from xnano import Action, BaseGrid, Field, Terminal, on_action
 
 INCREMENT = Action.keyboard("right")
 
@@ -229,7 +229,7 @@ class Counter(BaseGrid, border="rounded", title="synthetic action", padding=1):
     label: str = Field(default="count: 0", align="center")
     count: int = Field(default=0, state=True)
 
-    @on(INCREMENT)
+    @on_action(INCREMENT)
     def increment(self) -> None:
         self.count += 1
         self.label = f"count: {self.count}"
@@ -252,7 +252,7 @@ finally:
 
 !!! warning "WASM boundary"
 
-    Do not replace these calls with `Terminal.run()`. xnano will
+    Do not replace these calls with [Terminal.run]{data-preview}. xnano will
     intentionally raise an error as `run()` requires ownership of a live OS terminal.
 
 [render]: ../api/xnano/_renderable.md
@@ -271,3 +271,4 @@ finally:
 [Terminal.offscreen]: ../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.offscreen
 [Action]: ../api/xnano/core/actions.md#xnano.core.actions.Action
 [Terminal.perform]: ../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.perform
+[Terminal.run]: ../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run

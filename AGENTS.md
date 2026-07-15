@@ -41,7 +41,7 @@ User app (BaseGrid + Field + @on_* hooks + Action)
 
 The package root lazily exports `BaseGrid` (with deprecated `Grid` alias),
 `GridSettings`, `Field`, `Context`, `Terminal`, `Action`, `Style`, and the
-stable `@on_*` / `@on` decorators. Import components and supporting types
+stable `@on_*` / `@on_action` decorators. Import components and supporting types
 from their concrete modules.
 
 ```

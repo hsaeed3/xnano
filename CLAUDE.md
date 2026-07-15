@@ -104,13 +104,13 @@ xnano_core.rust.native   raw ratatui/crossterm/tachyonfx PyO3 bindings
 
 The package root lazy-exports `BaseGrid` (deprecated `Grid` alias),
 `GridSettings`, `Field`, `Context`, `Terminal`, `Action`, `Style`, and
-stable `@on_*` / `@on` decorators. Import components and supporting types
+stable `@on_*` / `@on_action` decorators. Import components and supporting types
 from their concrete modules.
 
 Key modules:
 
 - `grid.py`, `fields.py` — `BaseGrid`, sizing, and state fields
-- `events.py` — Event types plus all `@on_*` / `@on(action)` decorators
+- `events.py` — Event types plus all `@on_*` / `@on_action(action)` decorators
 - `context.py`, `state.py`, `color.py`, `effects.py` — handler context,
   app state, colors, effect *descriptions* (native lowering is TUI-only)
 - `components/` — Text, Progress, Sparkline, Table, Chart, Schema

@@ -186,7 +186,7 @@ give that area the ability to:
 
 ## Creating a Grid
 
-Let's start by creating a simple grid. You'll notice very quickly that the API design for grids is heavily inspired by the [BaseModel]{data-preview} class from the
+Let's start by creating a simple grid with [BaseGrid]{data-preview}. You'll notice very quickly that the API design for grids is heavily inspired by the [BaseModel]{data-preview} class from the
 [Pydantic]{data-preview} library.
 
 ??? example "Interactive Example"
@@ -377,3 +377,4 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 [Field]: fields.md
 [GridSettings]: ../api/xnano/grid.md
 [Web]: ../api/xnano/webui/web.md
+[BaseGrid]: ../api/xnano/grid.md#xnano.grid.BaseGrid

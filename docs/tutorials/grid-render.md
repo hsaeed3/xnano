@@ -5,7 +5,7 @@ icon: "lucide/layout-grid"
 
 # grid_render
 
-`grid_render()` runs once per frame, before layout, so painted fields can be recomputed from live state. Use it when the display is derived — clocks, tab bodies, headers that read shared state — not when a single key press is enough to rewrite one field.
+[`grid_render()`](../api/xnano/grid.md#xnano.grid.BaseGrid.grid_render){data-preview} runs once per frame, before layout, so painted fields can be recomputed from live state. Use it when the display is derived — clocks, tab bodies, headers that read shared state — not when a single key press is enough to rewrite one field.
 
 ## Override the Method
 
@@ -32,7 +32,7 @@ A short `tick_interval` keeps time-based UIs redrawing. Without ticks, the host 
 
 ## Derived From State
 
-When a header depends on app-wide state (or several fields that other hooks mutate), recompute it in `grid_render` instead of repeating the same assignment in every handler.
+When a header depends on app-wide state (or several fields that other hooks mutate), recompute it in [grid_render]{data-preview} instead of repeating the same assignment in every handler.
 
 ```python title="Derived From State" hl_lines="14 15 16 17 18 19"
 import dataclasses
@@ -80,17 +80,18 @@ Terminal(state=AppState(username="hammad")).run(Shell())
 
 <br/>
 
-`examples/tabs_nav.py` and `examples/dashboard.py` do the same thing at larger scale: hooks change indices and histories, `grid_render` rebuilds the widgets.
+`examples/tabs_nav.py` and `examples/dashboard.py` do the same thing at larger scale: hooks change indices and histories, [grid_render]{data-preview} rebuilds the widgets.
 
 ## When Hooks Are Enough
 
-Update fields directly in hooks when a change is event-driven and local — increment a counter, flip a boolean, rewrite one label. Use `grid_render` when:
+Update fields directly in hooks when a change is event-driven and local — increment a counter, flip a boolean, rewrite one label. Use [grid_render]{data-preview} when:
 
 - Values depend on wall-clock time or external state that moves without a key press.
 - Several fields must stay consistent with one shared index (tabs, selected row + detail pane).
 - Components are rebuilt as values each frame (`self.table = Services(...)`, sparkline windows, and similar).
 
-Mixing both is normal: hooks mutate state; `grid_render` projects that state onto fields.
+Mixing both is normal: hooks mutate state; [grid_render]{data-preview} projects that state onto fields.
 
 [BaseGrid]: ../api/xnano/grid.md
 [Context]: ../api/xnano/context.md
+[grid_render]: ../api/xnano/grid.md#xnano.grid.BaseGrid.grid_render

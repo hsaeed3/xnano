@@ -5,13 +5,13 @@ icon: "lucide/share-2"
 
 # Shared State
 
-Pass an object to `Terminal(state=...)` and every hook can read and write it through [Context]{data-preview}. Multiple grids and handlers share one instance for the life of the session.
+Pass an object to [`Terminal(state=...)`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} and every hook can read and write it through [Context]{data-preview}. Multiple grids and handlers share one instance for the life of the session.
 
 A dataclass, a Pydantic model, or xnano's own `State` all work. Parameterize `Context[AppState]` so `ctx.get_state()` returns a typed object instead of `Any` — same idea as [typing Context by state]{data-preview}.
 
 ## Attaching State to the Terminal
 
-Define a schema, construct it once, and hand it to `Terminal`.
+Define a schema, construct it once, and hand it to [Terminal]{data-preview}.
 
 ```python title="Attaching State" hl_lines="14 15 33"
 import dataclasses
@@ -79,9 +79,10 @@ Local toggles, scroll offsets, and per-panel counters usually stay as `state=Tru
 
 <br/>
 
-To update the window title or clipboard from the same state, see [title & clipboard]{data-preview} — `ctx.device` and `ctx.get_state()` sit on the same `Context`.
+To update the window title or clipboard from the same state, see [title & clipboard]{data-preview} — `ctx.device` and `ctx.get_state()` sit on the same [Context]{data-preview}.
 
 [Context]: ../api/xnano/context.md
+[Terminal]: ../api/xnano/tui/terminal.md
 [typing Context by state]: ../core-concepts/context.md
 [fields]: ../core-concepts/fields.md
 [events & hooks]: ../core-concepts/events.md

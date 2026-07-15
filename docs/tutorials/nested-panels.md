@@ -159,7 +159,7 @@ Terminal().run(App())
 
 ??? abstract "Composition Notes"
 
-    - Use nested `BaseGrid` subclasses for stable regions; use plain strings or components when a slot is just content.
+    - Use nested [BaseGrid]{data-preview} subclasses for stable regions; use plain strings or components when a slot is just content.
     - Sizing on the parent (`width`, `height`, `fr`, `%`) controls the child's outer slot.
     - Deeper trees (header + body + footer) are the same idea stacked.
     - Overlays and confirms: [confirm dialogs]{data-preview}.

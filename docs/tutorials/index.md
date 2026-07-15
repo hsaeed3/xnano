@@ -41,7 +41,7 @@ These assume you've already read [Core Concepts]{data-preview} — especially [g
 | Tutorial | What it shows |
 |---|---|
 | [Shared State](shared-state.md) | App-wide state on `Terminal(state=...)` typed through `Context` |
-| [Action Bindings](action-bindings.md) | Reusable `Action` constants bound with `@on` |
+| [Action Bindings](action-bindings.md) | Reusable `Action` constants bound with `@on_action` |
 | [Title & Clipboard](title-and-clipboard.md) | Window titles and clipboard from `ctx.device` |
 | [Dual Host](dual-host.md) | The same grid on `Terminal` and `Web` |
 | [CLI Commands](cli-commands.md) | Options and subcommands with `xnano.cli.Command` |
