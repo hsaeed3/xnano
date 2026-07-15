@@ -192,11 +192,109 @@ function setupCollapsibleNavigation() {
     });
 }
 
+function getContext7TableRows(text) {
+    const sourceRows = text.trim().split(/\|\s+\|/);
+    if (sourceRows.length < 3) return null;
+
+    const rows = sourceRows.map((sourceRow, index) => {
+        let row = sourceRow.trim();
+        if (index === 0) row = row.replace(/^\|/, "");
+        if (index === sourceRows.length - 1) row = row.replace(/\|$/, "");
+        return row.split("|").map((cell) => cell.trim());
+    });
+    const columnCount = rows[0].length;
+    const divider = rows[1];
+    const isTable =
+        columnCount > 1 &&
+        rows.every((row) => row.length === columnCount) &&
+        divider.every((cell) => /^:?-{3,}:?$/.test(cell));
+
+    return isTable ? [rows[0], ...rows.slice(2)] : null;
+}
+
+function renderContext7Tables(shadowRoot) {
+    shadowRoot.querySelectorAll(".c7-msg.assistant p").forEach((paragraph) => {
+        const rows = getContext7TableRows(paragraph.textContent);
+        if (!rows) return;
+
+        const wrapper = document.createElement("div");
+        const table = document.createElement("table");
+        const tableHead = document.createElement("thead");
+        const tableBody = document.createElement("tbody");
+
+        wrapper.className = "c7-table-wrapper";
+        rows.forEach((row, rowIndex) => {
+            const tableRow = document.createElement("tr");
+            row.forEach((cell) => {
+                const tableCell = document.createElement(
+                    rowIndex === 0 ? "th" : "td",
+                );
+                tableCell.textContent = cell;
+                tableRow.appendChild(tableCell);
+            });
+            (rowIndex === 0 ? tableHead : tableBody).appendChild(tableRow);
+        });
+
+        table.appendChild(tableHead);
+        table.appendChild(tableBody);
+        wrapper.appendChild(table);
+        paragraph.replaceWith(wrapper);
+    });
+}
+
+async function setupContext7Widget() {
+    const host = document.getElementById("context7-widget");
+    const shadowRoot = window[Symbol.for("xnano.context7Shadow")];
+
+    if (!host || !shadowRoot) return;
+
+    const applyTheme = () => {
+        host.dataset.theme = document.body.getAttribute("data-md-color-scheme");
+    };
+
+    applyTheme();
+
+    if (!host.dataset.xnanoThemeObserver) {
+        new MutationObserver(applyTheme).observe(document.body, {
+            attributes: true,
+            attributeFilter: ["data-md-color-scheme"],
+        });
+        host.dataset.xnanoThemeObserver = "true";
+    }
+
+    if (!host.dataset.xnanoMarkdownObserver) {
+        const messages = shadowRoot.querySelector(".c7-messages");
+        if (messages) {
+            new MutationObserver(() => {
+                renderContext7Tables(shadowRoot);
+            }).observe(messages, { childList: true, subtree: true });
+            renderContext7Tables(shadowRoot);
+            host.dataset.xnanoMarkdownObserver = "true";
+        }
+    }
+
+    if (shadowRoot.querySelector("style[data-xnano-context7]")) return;
+
+    const stylesheetLink = document.querySelector(
+        'link[href*="stylesheets/context7.css"]',
+    );
+    if (!stylesheetLink) return;
+
+    const response = await fetch(stylesheetLink.href);
+    if (!response.ok) return;
+
+    const style = document.createElement("style");
+    style.dataset.xnanoContext7 = "true";
+    style.textContent = await response.text();
+    shadowRoot.appendChild(style);
+}
+
 async function main() {
     setupTermynal();
     openLinksInNewTab();
     setupNavAccent();
     setupCollapsibleNavigation();
+    await setupContext7Widget();
 }
 
 document$.subscribe(() => {
@@ -213,10 +311,21 @@ document$.subscribe(() => {
 // listeners outside the tree, so we can catch it here and stop the
 // keydown before it reaches Material's document-level bubble
 // listener (capture phase always runs before bubble phase).
+//
+// Enter is deliberately excluded: stopPropagation() during the
+// capture phase kills the event for the *entire* path, including
+// the widget's own send-on-Enter handling (widget.js falls back to
+// a document-level keydown listener + composedPath() check, since
+// the closed shadow root blocks it from using activeElement too).
+// Blocking every key except Enter still stops Material's
+// single-letter navigation shortcuts without silencing the send.
 document.addEventListener(
     "keydown",
     (event) => {
-        if (event.target?.id === "context7-widget") {
+        if (
+            event.target?.id === "context7-widget" &&
+            event.key !== "Enter"
+        ) {
             event.stopPropagation();
         }
     },
