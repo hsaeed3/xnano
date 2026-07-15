@@ -29,6 +29,23 @@ def test_default_factory_creates_instances() -> None:
     assert root.left.label == "hello"
 
 
+def test_user_class_named_grid_initializes_layout_fields() -> None:
+    """A user class named Grid must initialize values like any other grid."""
+
+    class Grid(BaseGrid):
+        color: str = Field(default="red")
+
+        def grid_render(self) -> None:
+            self.grid_set_field("color", "blue", color="blue")
+
+    grid = Grid()
+
+    assert grid.color == "red"
+    grid.grid_render()
+    assert grid.color == "blue"
+    assert grid._grid_field_info("color").color == "blue"
+
+
 class OptionalPanel(BaseGrid, direction="vertical"):
     body: Text = Field(default=Text("visible"))
     overlay: Text | None = Field(
