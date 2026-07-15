@@ -5,7 +5,7 @@ icon: "lucide/chart-spline"
 
 # Sparkline Sandbox
 
-These examples cover every `Sparkline` parameter: `data`, `colors`,
+These examples cover every [Sparkline]{data-preview} parameter: `data`, `colors`,
 `max_value`, `color`, `background`, `absent_value_color`,
 `absent_value_symbol`, `visible`, `z`, and `fit_content`.
 
@@ -138,7 +138,7 @@ Terminal(width=48, height=9).render(custom, defaults, gap=1)
 
 ## Visibility, Stacking, and Fit
 
-`Sparkline` defaults to `fit_content=False`, letting its field or viewport
+[Sparkline]{data-preview} defaults to `fit_content=False`, letting its field or viewport
 supply enough height for useful bars.
 
 ```pyodide install="xnano>=1.0.10" height="18"

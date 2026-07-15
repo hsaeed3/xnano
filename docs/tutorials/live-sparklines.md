@@ -85,7 +85,7 @@ def sample(self) -> None:
     self.readout = f"now {next_value:>3}"
 ```
 
-1. Trim after append so the window stays fixed. Reassign a new `Sparkline` each tick rather than mutating the previous instance in place.
+1. Trim after append so the window stays fixed. Reassign a new [Sparkline]{data-preview} each tick rather than mutating the previous instance in place.
 
 ## Putting It Together
 

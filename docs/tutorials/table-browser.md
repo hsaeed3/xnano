@@ -9,7 +9,7 @@ Drive a [Table]{data-preview}'s `selected` row from keyboard state, and mirror t
 
 ## A Declarative Table
 
-Subclass [Table]{data-preview} with `Column` descriptors when the schema is fixed.
+Subclass [Table]{data-preview} with [Column]{data-preview} descriptors when the schema is fixed.
 
 ??? example "Interactive Example"
 
@@ -51,7 +51,7 @@ render(Services(data=[
 
 <br/>
 
-For one-off tables, skip the subclass and pass `columns=` as a mapping of name to header text or a full `Column`.
+For one-off tables, skip the subclass and pass `columns=` as a mapping of name to header text or a full [Column]{data-preview}.
 
 ## Keyboard Selection
 
@@ -120,7 +120,7 @@ The status line is ordinary field content derived from the selected dict. Put de
 
 ??? note "Data-Driven Alternative"
 
-    If columns aren't fixed, use a plain `Table` and pass `columns=` at construction time:
+    If columns aren't fixed, use a plain [Table]{data-preview} and pass `columns=` at construction time:
 
     ```python
     Table(
@@ -136,3 +136,4 @@ The status line is ordinary field content derived from the selected dict. Put de
     Selection and rebuild work the same way.
 
 [Table]: ../api/xnano/components/table.md
+[Column]: ../api/xnano/components/schema.md#xnano.components.schema.Column

@@ -75,7 +75,10 @@ class Progress(AbstractComponent):
         return self.label
 
     def compose(self, ctx):
-        """Compose Content via Native tui payload of the existing node tree."""
+        """Compose
+        [`Content`](../core/content.md#xnano.core.content.Content){data-preview}
+        via Native tui payload of the existing node tree.
+        """
         from xnano.core.content import Native
 
         return Native(

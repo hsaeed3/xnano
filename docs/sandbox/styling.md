@@ -5,14 +5,16 @@ icon: "lucide/palette"
 
 # Styling Sandbox
 
-xnano uses one terminal style vocabulary across `render()`, grids, fields, and
+xnano uses one terminal style vocabulary across
+[`render()`](../api/xnano/_renderable.md#xnano._renderable.render){data-preview}, grids, fields, and
 components. This page covers every accepted color form, modifier, frame
 option, and Tailwind utility family that lowers to terminal cells.
 
 ## Color Inputs
 
 `color`, `background`, and `border_color` accept a CSS color name, a Tailwind
-palette binding, hex, an RGB/RGBA tuple, or a `Color` object.
+palette binding, hex, an RGB/RGBA tuple, or a
+[`Color`](../api/xnano/color.md#xnano.color.Color){data-preview} object.
 
 ```pyodide install="xnano>=1.0.10" height="19"
 from xnano import render
@@ -152,7 +154,9 @@ for modifier in modifiers:
 ```
 
 On a grid, the same choices are available as boolean class settings; on a
-field or `Text`, pass the `modifiers` sequence.
+field or
+[`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview},
+pass the `modifiers` sequence.
 
 ```pyodide install="xnano>=1.0.10" height="16"
 from xnano import BaseGrid, Field, Terminal
@@ -268,8 +272,10 @@ class TailwindDemo(BaseGrid, direction="vertical", gap=1):
 Terminal(width=62, height=10).render(TailwindDemo())
 ```
 
-Explicit `Field` keywords win over class-derived values. Unknown or web-only
-tokens remain in `Style.passthrough_classes` and are ignored by the terminal.
+Explicit [`Field`](../api/xnano/fields.md#xnano.fields.Field){data-preview}
+keywords win over class-derived values. Unknown or web-only tokens remain in
+[`Style.passthrough_classes`](../api/xnano/_styles.md#xnano._styles.Style.passthrough_classes){data-preview}
+and are ignored by the terminal.
 
 ```pyodide install="xnano>=1.0.10" height="18"
 from xnano import Field

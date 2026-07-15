@@ -49,35 +49,35 @@ SAVE = Action.keyboard("ctrl+s")
   <!-- Hook -->
   <rect class="gcd-panel" x="560" y="88" width="136" height="104" rx="14" />
   <text class="gcd-label" x="628" y="120" text-anchor="middle">hook</text>
-  <text class="gcd-chrome-label" x="628" y="148" text-anchor="middle">@on(SAVE)</text>
+  <text class="gcd-chrome-label" x="628" y="148" text-anchor="middle">@on_action(SAVE)</text>
   <text class="gcd-z-label gcd-z-label-on" x="628" y="172" text-anchor="middle">save()</text>
 </svg>
 </div>
 
 ## Binding an Action
 
-The general `@on` decorator binds a prebuilt action to a method. When an incoming event satisfies the action's filters, xnano calls the method like any other hook.
+The general `@on_action` decorator binds a prebuilt action to a method. When an incoming event satisfies the action's filters, xnano calls the method like any other hook.
 
 ```python title="Binding an Action" hl_lines="3 5"
-from xnano import Action, on
+from xnano import Action, on_action
 
 SAVE = Action.keyboard("ctrl+s") # (1)!
 
-@on(SAVE) # (2)!
+@on_action(SAVE) # (2)!
 def save(self) -> None:
     self.dirty = False
     self.status = "saved"
 ```
 
 1. `Action.keyboard(...)` accepts the same binding grammar as `@on_keyboard`: `"enter"`, `"ctrl+s"`, `"alt+left"`, and so on.
-2. `@on(SAVE)` keeps the method attached to the meaning of the constant. Changing the binding in one place updates every hook that uses it.
+2. `@on_action(SAVE)` keeps the method attached to the meaning of the constant. Changing the binding in one place updates every hook that uses it.
 
 <br/>
 
 The specialized decorators are still the clearest choice for one-off bindings. These two hooks behave the same way:
 
 ```python title="Actions and Specialized Hooks"
-@on(Action.keyboard("escape"))
+@on_action(Action.keyboard("escape"))
 def close_with_action(self) -> None: ...
 
 @on_keyboard("escape")
@@ -91,17 +91,17 @@ Reach for an `Action` when a trigger is reused, needs a meaningful name, or will
 A named action can be shared by several grids without either grid owning the physical key choice.
 
 ```python title="Reusing a Binding" hl_lines="3 8 13"
-from xnano import Action, BaseGrid, on
+from xnano import Action, BaseGrid, on_action
 
 SAVE = Action.keyboard("ctrl+s")
 
 class Editor(BaseGrid):
-    @on(SAVE)
+    @on_action(SAVE)
     def save_document(self) -> None:
         self.status = "saved"
 
 class Settings(BaseGrid):
-    @on(SAVE)
+    @on_action(SAVE)
     def save_preferences(self) -> None:
         self.status = "preferences saved"
 ```
@@ -126,7 +126,7 @@ def save_from_shortcut(self, ctx: Context) -> None:
 ```
 
 1. `host.perform(...)` is useful in tests, host integrations, and application code that already has the live host.
-2. Inside a hook, `ctx.actions` is the host-bound helper. Performing `SAVE` causes every `@on(SAVE)` hook on the active interface to run.
+2. Inside a hook, `ctx.actions` is the host-bound helper. Performing `SAVE` causes every `@on_action(SAVE)` hook on the active interface to run.
 
 For common synthetic inputs, the helper also has short methods such as `ctx.actions.press("ctrl+s")`, `click("submit")`, `focus("search")`, `paste("text")`, `resize(...)`, and `tick(...)`.
 

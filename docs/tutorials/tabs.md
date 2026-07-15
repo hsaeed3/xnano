@@ -5,7 +5,7 @@ icon: "lucide/folder"
 
 # Tabs
 
-Store the active tab as an index. Change it with the keyboard. Rebuild the tab bar and body from that index before layout — usually in `grid_render`.
+Store the active tab as an index. Change it with the keyboard. Rebuild the tab bar and body from that index before layout — usually in [grid_render]{data-preview}.
 
 ## Tab Index
 
@@ -46,7 +46,7 @@ def tab_one(self) -> None:
 
 ## Rebuilding the Screen
 
-`grid_render` runs every frame before layout. Put derived paint here so handlers stay short.
+[grid_render]{data-preview} runs every frame before layout. Put derived paint here so handlers stay short.
 
 ```python title="Rebuilding the Screen" hl_lines="1 2 3 4 5 6 7 8 9"
 def grid_render(self) -> None:
@@ -59,7 +59,7 @@ def grid_render(self) -> None:
     self.grid_set_field("screen", title=f" {TABS[self.selected_tab]} ") # (1)!
 ```
 
-1. Dynamic field props (title, border color) go through `grid_set_field` when you're not replacing the field's content.
+1. Dynamic field props (title, border color) go through [grid_set_field]{data-preview} when you're not replacing the field's content.
 
 ## Styling the Tab Bar
 
@@ -171,3 +171,5 @@ For heavier per-tab screens, assign nested grids or components to `screen` the s
 [Terminal]: ../api/xnano/tui/terminal.md
 [Context]: ../api/xnano/context.md
 [Text]: ../api/xnano/components/text.md
+[grid_render]: ../api/xnano/grid.md#xnano.grid.BaseGrid.grid_render
+[grid_set_field]: ../api/xnano/grid.md#xnano.grid.BaseGrid.grid_set_field

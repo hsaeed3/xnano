@@ -6,22 +6,22 @@ title: "xnano.events"
 
 ## Actions
 
-`events.py` describes *what happened* — a keypress, a click, a tick — after the fact. `xnano.core.actions` describes the same thing as a value: something you can build once, store, compare, and hand to `@on(...)` instead of repeating a binding across every handler that cares about it.
+`events.py` describes *what happened* — a keypress, a click, a tick — after the fact. `xnano.core.actions` describes the same thing as a value: something you can build once, store, compare, and hand to `@on_action(...)` instead of repeating a binding across every handler that cares about it.
 
 ```python
 from xnano.core.actions import Action
-from xnano.events import on
+from xnano.events import on_action
 
 SAVE = Action.keyboard("ctrl+s")
 
-@on(SAVE)
+@on_action(SAVE)
 def save(self, ctx) -> None:
     ...
 ```
 
 <br/>
 
-Every `@on_*` decorator in this module is really building one of these under the hood — `@on_keyboard("ctrl+s")` and `@on(Action.keyboard("ctrl+s"))` register the exact same hook.
+Every `@on_*` decorator in this module is really building one of these under the hood — `@on_keyboard("ctrl+s")` and `@on_action(Action.keyboard("ctrl+s"))` register the exact same hook.
 
 ### Action Types
 

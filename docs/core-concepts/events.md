@@ -149,7 +149,11 @@ Terminal().run(Clock())
     - `@on_clipboard` — a paste event.
     - `@on_state("expression")` / `@on_field("expression")` — fires each tick when a Python expression evaluated against shared state (or the grid's own fields) comes out truthy.
     - `@on_poll` — fires on idle waits or every frame, for background work.
-    - `@on(SAVE)` — bind a reusable [Action]{data-preview} (e.g. `Action.keyboard("ctrl+s")`) instead of repeating the same binding across handlers.
+    - `@on_action(SAVE)` — bind a reusable [Action]{data-preview} (e.g. `Action.keyboard("ctrl+s")`) instead of repeating the same binding across handlers.
+
+## Keep Going
+
+The [Hooks & Actions guide](../hooks/index.md){data-preview} is the complete, example-led reference: every decorator gets its own page, beside the action that can represent the same trigger. It also covers state and polling hooks that intentionally have no action counterpart, plus the GET and POST hooks used by web grids.
 
 ??? abstract "Sandbox & API"
 

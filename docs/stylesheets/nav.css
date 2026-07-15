@@ -27,6 +27,45 @@
     font-weight: 700;
 }
 
+/* Separate the complete Concepts tree from the hands-on Sandbox section. */
+.md-sidebar--primary li.xnano-sandbox-nav {
+    border-top: 1px solid var(--md-default-fg-color--lightest);
+    margin-top: 1rem;
+    padding-top: 0.875rem;
+}
+
+/* Hooks & Actions is a reference shelf rather than part of the reading
+   sequence. Keep its long page list folded until someone opens it, while
+   leaving the current hook visible when navigation lands inside it. */
+.md-sidebar--primary
+    li.xnano-hooks-nav
+    > nav.md-nav {
+    display: none;
+}
+
+.md-sidebar--primary
+    li.xnano-hooks-nav
+    > input.md-nav__toggle:checked
+    ~ nav.md-nav,
+.md-sidebar--primary
+    li.xnano-hooks-nav:has(a.md-nav__link.md-nav__link--active)
+    > nav.md-nav {
+    display: block;
+}
+
+/* Hook subsection labels organize the long reference without introducing
+   another layer of toggles inside the outer Hooks & Actions dropdown. */
+.md-sidebar--primary li.xnano-hooks-subsection > label.md-nav__link {
+    pointer-events: none;
+}
+
+.md-sidebar--primary
+    li.xnano-hooks-subsection
+    > label.md-nav__link
+    > .md-nav__icon {
+    display: none;
+}
+
 /* "> " marker before the active page's title in the primary sidebar nav
    only — the shimmer animates the marker's color, not the link text. */
 .md-sidebar--primary .md-nav__link--active .md-ellipsis::before {

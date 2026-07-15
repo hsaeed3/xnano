@@ -5,7 +5,7 @@ icon: "lucide/chart-no-axes-combined"
 
 # Chart & Series Sandbox
 
-This page covers every `Chart` parameter and every `Series` descriptor option.
+This page covers every [Chart]{data-preview} parameter and every [Series]{data-preview} descriptor option.
 Charts need vertical room, so the examples use fixed browser-safe viewports.
 
 ## Chart Series
@@ -33,7 +33,7 @@ Terminal(width=72, height=15).render(chart)
 
 ## Graph Types and Mixed Charts
 
-`kind` is `line`, `scatter`, or `bar`. A declarative `Series` can override the
+`kind` is `line`, `scatter`, or `bar`. A declarative [Series]{data-preview} can override the
 default, so one chart may mix all three.
 
 ```pyodide install="xnano>=1.0.10" height="27"
@@ -231,7 +231,7 @@ Terminal(width=76, height=16).render(chart)
 
 ## Visibility, Stacking, and Fit
 
-`Chart` defaults to `fit_content=False`, so the viewport/field supplies useful
+[Chart]{data-preview} defaults to `fit_content=False`, so the viewport/field supplies useful
 plot dimensions.
 
 ```pyodide install="xnano>=1.0.10" height="22"

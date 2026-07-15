@@ -69,7 +69,7 @@ def submit(self, ctx: Context) -> None:
 
 <br/>
 
-`ctx.keyboard` and `ctx.mouse` are `None` unless the hook that's running actually fired from that kind of event — a `@on_tick` handler's `ctx.keyboard` is always `None`, for instance.
+`ctx.keyboard` and `ctx.mouse` are `None` unless the hook that's running actually fired from that kind of event — a [`@on_tick`](../api/xnano/events.md#xnano.events.on_tick){data-preview} handler's `ctx.keyboard` is always `None`, for instance.
 
 ## Typing Context by State
 
@@ -125,9 +125,9 @@ Terminal(state=AppState()).run(Counter())
 
 A hook rarely needs more than the event, the terminal, and the state — but a few more shortcuts live on `ctx` for when it does:
 
-- `ctx.cursor` / `ctx.device` — the active host's caret and window/tab controls, covered next.
-- `ctx.actions` — perform a synthetic input against the live host, as if it had actually happened.
-- `ctx.stage` — the active host's layout map and cell-level paint, for advanced/manual drawing.
+- [`ctx.cursor`](../api/xnano/context.md#xnano.context.Context.cursor){data-preview} / [`ctx.device`](../api/xnano/context.md#xnano.context.Context.device){data-preview} — the active host's caret and window/tab controls, covered next.
+- [`ctx.actions`](../api/xnano/context.md#xnano.context.Context.actions){data-preview} — perform a synthetic input against the live host, as if it had actually happened.
+- [`ctx.stage`](../api/xnano/context.md#xnano.context.Context.stage){data-preview} — the active host's layout map and cell-level paint, for advanced/manual drawing.
 - `ctx.has_keyboard_event()`, `ctx.has_mouse_event()`, and similar — quick predicates when a hook is bound to more than one kind of event.
 
 ??? abstract "Sandbox & API"

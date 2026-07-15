@@ -61,7 +61,9 @@ the output described by Python.
 
 A terminal interface may redraw after every input event or clock tick.
 Buffer updates, cell diffs, and terminal I/O all run frequently, so xnano
-keeps that work in Rust. `CoreSession` manages the live terminal and render
+keeps that work in Rust.
+[`CoreSession`](../api/xnano-core/core.md){data-preview} manages the
+live terminal and render
 cycle, [ratatui](https://ratatui.rs) updates and diffs the buffer, and
 [tachyonfx](https://github.com/ratatui/tachyonfx) runs terminal effects.
 The normal render path crosses from Python into Rust once per frame. See
@@ -69,7 +71,10 @@ The normal render path crosses from Python into Rust once per frame. See
 
 ## Scope
 
-`xnano-core` does not define `BaseGrid`, `Field`, hooks, or components. Its
+`xnano-core` does not define
+[`BaseGrid`](../api/xnano/grid.md#xnano.grid.BaseGrid){data-preview},
+[`Field`](../api/xnano/fields.md#xnano.fields.Field){data-preview},
+hooks, or components. Its
 API deals with sessions, render nodes, key bindings, terminal events, and
 other runtime primitives.
 
@@ -89,8 +94,11 @@ open a live terminal.
 pip install xnano-core
 ```
 
-The [xnano-core]{data-preview} API reference documents `CoreSession`,
-`CoreRenderNode`, `CoreKeyBinding`, and the rest of the public runtime API.
+The [xnano-core]{data-preview} API reference documents
+[`CoreSession`](../api/xnano-core/core.md){data-preview},
+[`CoreRenderNode`](../api/xnano-core/core.md){data-preview},
+[`CoreKeyBinding`](../api/xnano-core/core.md){data-preview}, and the
+rest of the public runtime API.
 
 [Render Nodes & IR]: render-nodes.md
 [Interfaces & Hosts]: hosts-and-controllers.md
