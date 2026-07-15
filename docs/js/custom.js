@@ -210,8 +210,24 @@ function setupCollapsibleNavigation() {
         if (label) {
             const text = label.textContent.trim();
             if (
+                text === "Session & Lifecycle" ||
+                text === "User Triggered Hooks" ||
+                text === "State & Grid Field Conditions" ||
+                text === "Web Requests"
+            ) {
+                li.classList.add("xnano-hooks-subsection");
+            }
+            if (text === "Hooks & Actions") {
+                li.classList.add("xnano-hooks-nav");
+            }
+            if (text === "Sandbox") {
+                li.classList.add("xnano-sandbox-nav");
+            }
+            if (
                 text === "Sandbox" ||
+                text === "Hooks & Actions" ||
                 text === "Components" ||
+                text === "Beta" ||
                 text === "Tutorials" ||
                 text === "Core Architecture" ||
                 text === "API Reference"

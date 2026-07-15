@@ -203,7 +203,7 @@ DEMOS: tuple[Demo, ...] = (
     Demo(
         name="actions_binding",
         code=code("""
-            from xnano import Action, BaseGrid, Field, Terminal, on
+            from xnano import Action, BaseGrid, Field, Terminal, on_action
             from xnano.events import on_keyboard
 
             SAVE = Action.keyboard("ctrl+s")
@@ -217,7 +217,7 @@ DEMOS: tuple[Demo, ...] = (
                 )
                 dirty: bool = Field(default=True, state=True)
 
-                @on(SAVE)
+                @on_action(SAVE)
                 def save(self) -> None:
                     self.dirty = False
                     self.status = "saved"

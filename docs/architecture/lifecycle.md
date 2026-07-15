@@ -96,7 +96,7 @@ stages.
 ## Dispatch: matching hooks to the event
 
 `dispatch_hooks(terminal, ctx)` in `xnano._dispatch` first runs the
-terminal's `on_event_hooks`. These are the general `@on(event=...)`
+terminal's `on_event_hooks`. These are the general `@on_event`
 hooks that receive every event. It then checks
 `event.is_keyboard_event()`, `is_mouse_event()`, `is_resize_event()`,
 `is_clipboard_event()`, or `is_focus_event()` and runs the matching

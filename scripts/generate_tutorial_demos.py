@@ -960,7 +960,7 @@ DEMOS: tuple[Demo, ...] = (
                 Context,
                 Field,
                 Terminal,
-                on,
+                on_action,
             )
             from xnano.events import on_keyboard
 
@@ -976,12 +976,12 @@ DEMOS: tuple[Demo, ...] = (
                 )
                 dirty: bool = Field(default=True, state=True)
 
-                @on(SAVE)
+                @on_action(SAVE)
                 def save(self) -> None:
                     self.dirty = False
                     self.status = "saved"
 
-                @on(QUIT)
+                @on_action(QUIT)
                 def quit(self, ctx: Context) -> None:
                     ctx.terminal.request_exit()
 
