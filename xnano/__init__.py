@@ -6,7 +6,7 @@
 >>> from xnano import BaseGrid, Field, Terminal
 """
 
-__version__ = "1.0.13"
+__version__ = "1.0.14"
 
 from typing import TYPE_CHECKING
 
@@ -16,7 +16,8 @@ if TYPE_CHECKING:
     from xnano.context import Context
     from xnano.core.actions import Action
     from xnano.events import (
-        on,
+        on,  # ty: ignore[deprecated]
+        on_action,
         on_click,
         on_clipboard,
         on_event,
@@ -48,6 +49,7 @@ __all__ = [
     "GridSettings",
     "Style",
     "on",
+    "on_action",
     "on_click",
     "on_clipboard",
     "on_event",
@@ -118,9 +120,29 @@ def __getattr__(name: str):
         return Style
 
     elif name == "on":
-        from xnano.events import on
+        import os as _os
 
-        return on
+        from xnano.events import on  # ty: ignore[deprecated]
+
+        _ignore = _os.environ.get("XNANO_IGNORE_DEPRECATION_WARNINGS")
+        if _ignore is None or not _ignore.lower() in ["1", "true", "yes", "y"]:
+            import warnings
+
+            warnings.warn(
+                "on is deprecated and will be removed in a future version. "
+                "Use on_action instead.\n"
+                "You can set the `XNANO_IGNORE_DEPRECATION_WARNINGS` "
+                "environment variable to ignore this warning.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        return on  # ty: ignore[deprecated]
+
+    elif name == "on_action":
+        from xnano.events import on_action
+
+        return on_action
 
     elif name == "on_click":
         from xnano.events import on_click
