@@ -126,16 +126,21 @@ if TYPE_CHECKING:
         KnownEffectKind,
     )
 from xnano._types import (
+    Alignment,
     Area,
+    Axis,
     Border,
+    CharacterModifier,
     Direction,
     Padding,
     PaddingLike,
     Side,
+    SizingLike,
 )
 from xnano.core.interface import AbstractInterface
 from xnano.fields import (
     UNSET,
+    ClassNameLike,
     Field,
     GridFieldInfo,
     _normalize_slide_axes,
@@ -864,7 +869,7 @@ class _GridMeta(type):
         setattr(cls, "_grid_static_constraints", static_constraints)
 
         all_fields = {**fields, **state_fields}
-        if name not in ("BaseGrid", "Grid") and all_fields:
+        if all_fields:
             type.__setattr__(
                 cls, "__init__", _build_grid_init(all_fields, defaults)
             )
@@ -1230,13 +1235,71 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         value: Any = UNSET,
         *,
         position: tuple[int, int] | None = None,
-        **field_config: Any,
+        strict: bool = UNSET,
+        slide: Sequence[Axis] | None = UNSET,
+        visible: bool | None = UNSET,
+        color: ColorLike | None = UNSET,
+        background: ColorLike | None = UNSET,
+        width: SizingLike | None = UNSET,
+        height: SizingLike | None = UNSET,
+        gap: int | None = UNSET,
+        direction: Direction | None = UNSET,
+        align: Alignment | None = UNSET,
+        border: Border | None = UNSET,
+        border_sides: Sequence[Side] | None = UNSET,
+        border_color: ColorLike | None = UNSET,
+        title: str | None = UNSET,
+        title_position: FrameTitlePosition | None = UNSET,
+        padding: PaddingLike | None = UNSET,
+        margin: PaddingLike | None = UNSET,
+        modifiers: Sequence[CharacterModifier] | None = UNSET,
+        class_name: ClassNameLike | None = UNSET,
+        bold: bool = UNSET,
+        dim: bool = UNSET,
+        italic: bool = UNSET,
+        underline: bool = UNSET,
+        slow_blink: bool = UNSET,
+        rapid_blink: bool = UNSET,
+        reversed: bool = UNSET,
     ) -> None:
         """Set a layout field's runtime value and/or per-instance field metadata.
 
         Cannot be used on state fields. ``default``, ``default_factory``,
         ``init``, and ``state`` cannot be changed at runtime.
         """
+        field_config: dict[str, Any] = {
+            key: option
+            for key, option in {
+                "strict": strict,
+                "slide": slide,
+                "visible": visible,
+                "color": color,
+                "background": background,
+                "width": width,
+                "height": height,
+                "gap": gap,
+                "direction": direction,
+                "align": align,
+                "border": border,
+                "border_sides": border_sides,
+                "border_color": border_color,
+                "title": title,
+                "title_position": title_position,
+                "padding": padding,
+                "margin": margin,
+                "modifiers": modifiers,
+                "class_name": class_name,
+                "bold": bold,
+                "dim": dim,
+                "italic": italic,
+                "underline": underline,
+                "slow_blink": slow_blink,
+                "rapid_blink": rapid_blink,
+                "reversed": reversed,
+            }.items()
+            if option is not UNSET
+        }
+
         if name in self._grid_state_fields:
             raise TypeError(
                 f"grid_set_field() cannot be used on state field {name!r} on "
