@@ -21,12 +21,12 @@ members = [
 
 [project]
 name = "xnano"
-version = "1.0.14"
+version = "1.0.15"
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "A simple python **tui** framework built on top of the ``[ratatui](https://ratatui.rs)`` and ``[tachyonfx](https://github.com/ratatui/tachyonfx)`` rust crates."
 readme = "README.md"
 license = {"file" = "LICENSE"}
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: 3",
