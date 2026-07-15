@@ -160,6 +160,7 @@ extra_css = [
     "stylesheets/components.css",
     "stylesheets/watercolor.css",
     "stylesheets/nav.css",
+    "stylesheets/context7.css"
 ]
 
 extra_javascript = [
@@ -308,33 +309,33 @@ custom_fences = [
     { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
 ]
 
-[project.plugins.mkdocstrings.handlers.python]
-inventories = ["https://docs.python.org/3/objects.inv"]
-paths = ["lib/catalog", "lib/datautils", "lib/repack"]
+# [project.plugins.mkdocstrings.handlers.python]
+# inventories = ["https://docs.python.org/3/objects.inv"]
+# paths = ["lib/catalog", "lib/datautils", "lib/repack"]
 
-[project.plugins.mkdocstrings.handlers.python.options]
-docstring_style = "google"
-inherited_members = true          # false
-merge_init_into_class = true
-parameter_headings = false
-members_order = "source"
-filters = ["!^_", "^__"]
-heading_level = 2
-separate_signature = true
-docstring_section_style = "list"
-backlinks = "tree"
-show_root_heading = true
-show_root_full_path = true
-show_signature_annotations = true
-show_source = true
-show_symbol_type_heading = true
-show_symbol_type_toc = true
-show_root_toc_entry = false
-signature_crossrefs = true
-summary = true
-unwrap_annotated = true
+# [project.plugins.mkdocstrings.handlers.python.options]
+# docstring_style = "google"
+# inherited_members = true          # false
+# merge_init_into_class = true
+# parameter_headings = false
+# members_order = "source"
+# filters = ["!^_", "^__"]
+# heading_level = 2
+# separate_signature = true
+# docstring_section_style = "list"
+# backlinks = "tree"
+# show_root_heading = true
+# show_root_full_path = true
+# show_signature_annotations = true
+# show_source = true
+# show_symbol_type_heading = true
+# show_symbol_type_toc = true
+# show_root_toc_entry = false
+# signature_crossrefs = true
+# summary = true
+# unwrap_annotated = true
 
-extensions = ["griffe_typingdoc"]
+# extensions = ["griffe_typingdoc"]
 
 [project.plugins]
 

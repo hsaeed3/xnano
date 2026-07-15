@@ -1,4 +1,22 @@
 {% extends "base.html" %} {% block announce %}
+<script>
+    // Context7 creates a closed shadow root. Keep the reference returned at
+    // creation time so our own stylesheet can be appended after widget.js.
+    (() => {
+        const context7Shadow = Symbol.for("xnano.context7Shadow");
+        const attachShadow = Element.prototype.attachShadow;
+
+        Element.prototype.attachShadow = function (options) {
+            const shadowRoot = attachShadow.call(this, options);
+
+            if (this.id === "context7-widget") {
+                window[context7Shadow] = shadowRoot;
+            }
+
+            return shadowRoot;
+        };
+    })();
+</script>
 <script src="https://context7.com/widget.js" data-library="/hsaeed3/xnano" data-color="#5e6f96"></script>
 
 <p style="text-align: center">

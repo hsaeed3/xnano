@@ -55,13 +55,13 @@ You can install xnano on Python 3.10+ using your favorite package manager.
     Try xnano's built in demo by running the following command(s) in your terminal:
 
     === "python"
-    
+
         ```bash title="Run the demo"
         python -m xnano
         ```
 
     === "uv"
-    
+
         ```bash title="Run the demo"
         uv run python -m xnano
         ```
