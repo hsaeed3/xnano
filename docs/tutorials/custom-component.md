@@ -121,7 +121,7 @@ class Header(BaseGrid, direction="horizontal", gap=1):
     )
 ```
 
-1. Same as putting a `Progress` or `Table` on a field — `default_factory` builds a fresh instance per grid.
+1. Same as putting a [Progress]{data-preview} or [Table]{data-preview} on a field — `default_factory` builds a fresh instance per grid.
 
 <br/>
 

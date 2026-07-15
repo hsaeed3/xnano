@@ -36,7 +36,10 @@ class Table(AbstractComponent, metaclass=DeclarativeComponentMeta):
     Feed it a list of rows — dicts, dataclasses, or arbitrary objects — and the
     columns are derived for you. Selection is a single attribute (the native
     table scrolls to keep it in view). For full control, subclass and declare
-    ``Column`` descriptors, the way a ``BaseGrid`` declares ``Field``:
+    [`Column`](schema.md#xnano.components.schema.Column){data-preview}
+    descriptors, the way a
+    [`BaseGrid`](../grid.md#xnano.grid.BaseGrid){data-preview}
+    declares [`Field`](../fields.md#xnano.fields.Field){data-preview}:
 
         # data-driven — columns inferred from the dict keys
         Table(data=[{"service": "api", "status": "ok", "latency": 12}])
@@ -149,7 +152,10 @@ class Table(AbstractComponent, metaclass=DeclarativeComponentMeta):
     # ── rendering ────────────────────────────────────────────────────────
 
     def compose(self, ctx):
-        """Compose Content via Native tui payload of the existing node tree."""
+        """Compose
+        [`Content`](../core/content.md#xnano.core.content.Content){data-preview}
+        via Native tui payload of the existing node tree.
+        """
         from xnano.core.content import Native
 
         return Native(

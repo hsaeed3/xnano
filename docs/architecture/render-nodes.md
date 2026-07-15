@@ -76,14 +76,19 @@ painted by `xnano_core`. It covers the final render stages introduced in
 ## Nodes: `AbstractTerminalNode`
 
 Every terminal-renderable value is represented by a frozen
-`AbstractTerminalNode` dataclass from `xnano.tui.nodes`. This includes
+[`AbstractTerminalNode`](../api/xnano/tui/nodes.md#xnano.tui.nodes.AbstractTerminalNode){data-preview}
+dataclass from `xnano.tui.nodes`. This includes
 text, tables, progress bars, frames, and containers. Two methods define
 how each node is rendered:
 
-- **`to_ir()`** returns the node's `CoreRenderIR` representation or
+- **`to_ir()`** returns the node's
+  [`CoreRenderIR`](../api/xnano-core/core.md){data-preview}
+  representation or
   `None` when no IR representation exists. Most node types only
   implement this method. `SpanNode`, `TextNode`, `ProgressBarNode`, and
-  `TableNode` each call the corresponding `CoreRenderIR` constructor.
+  `TableNode` each call the corresponding
+  [`CoreRenderIR`](../api/xnano-core/core.md){data-preview}
+  constructor.
 - **`lower(area, controller, *, z, effect_key)`** paints the node into
   `area` through a controller. The default implementation (defined
   once on `AbstractTerminalNode`) calls `to_ir()` and enqueues the
@@ -91,7 +96,8 @@ how each node is rendered:
   `to_ir()` use this default without overriding `lower()`.
 
 The controller calls `node.measure()` and `node.lower(...)` without
-checking the concrete node type. `AbstractController.paint_node()`
+checking the concrete node type.
+[`AbstractController`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractController){data-preview}`.paint_node()`
 therefore works with both leaf nodes such as `SpanNode` and composite
 nodes such as `ContainerNode`.
 
@@ -102,7 +108,8 @@ the `to_ir()` path:
    a single IR representation. They divide an area among children with
    `controller.split_layout()` or paint a frame with
    `controller.paint_frame()`, then call `lower()` on each child.
-2. **Native-only widgets** (`ChartNode`) have no `CoreRenderIR`
+2. **Native-only widgets** (`ChartNode`) have no
+   [`CoreRenderIR`](../api/xnano-core/core.md){data-preview}
    representation. `lower()` builds a native `ratatui` `Chart`
    object directly (via `xnano_core.rust.native`) and calls
    `controller.render_native()` instead of `render_ir()`.
@@ -114,10 +121,19 @@ the `to_ir()` path:
 ## Content: the interface-neutral tree
 
 Nodes are specific to the terminal backend. Components first compose
-host-neutral primitives from `xnano.core.content`, including `Run`,
-`TextBlock`, `Panel`, `Stack`, `Clear`, `CellCanvas`, and `Native`.
+host-neutral primitives from `xnano.core.content`, including
+[`Run`](../api/xnano/core/content.md#xnano.core.content.Run){data-preview},
+[`TextBlock`](../api/xnano/core/content.md#xnano.core.content.TextBlock){data-preview},
+[`Panel`](../api/xnano/core/content.md#xnano.core.content.Panel){data-preview},
+[`Stack`](../api/xnano/core/content.md#xnano.core.content.Stack){data-preview},
+[`Clear`](../api/xnano/core/content.md#xnano.core.content.Clear){data-preview},
+[`CellCanvas`](../api/xnano/core/content.md#xnano.core.content.CellCanvas){data-preview},
+and
+[`Native`](../api/xnano/core/content.md#xnano.core.content.Native){data-preview}.
 `xnano.tui.content_lower.lower_content()` walks this tree and produces
-an `AbstractTerminalNode` tree. It converts a `Run` to a `SpanNode`, a
+an
+[`AbstractTerminalNode`](../api/xnano/tui/nodes.md#xnano.tui.nodes.AbstractTerminalNode){data-preview}
+tree. It converts a `Run` to a `SpanNode`, a
 `Stack` to a `ContainerNode`, and a `Panel` to a `FrameNode` around its
 lowered child. `Native(interface_kind="tui", payload=...)` lets a
 component provide an existing terminal node or backend object without
@@ -125,16 +141,20 @@ first representing that value as `Content`.
 
 ## `CoreRenderIR`: the single Python↔Rust crossing
 
-`CoreRenderIR` is exported from `xnano_core.core` and implemented in
+[`CoreRenderIR`](../api/xnano-core/core.md){data-preview} is exported
+from `xnano_core.core` and implemented in
 `xnano-core/rust/src/bindings/engine/render_ir.rs`. Its constructors pack
 widget data into Rust enum variants in one PyO3 call. Constructors
 include `span(...)`, `text_lines(...)`, `progress_bar(...)`, and
 `table(...)`. The `.measure()` method calculates size without a live
-terminal buffer. `AbstractTerminalNode.measure()` uses it during layout,
+terminal buffer.
+[`AbstractTerminalNode`](../api/xnano/tui/nodes.md#xnano.tui.nodes.AbstractTerminalNode){data-preview}`.measure()`
+uses it during layout,
 including when `xnano._dispatch.measure_renderable` resolves a root
 box's `fit` width.
 
-`IrLine` is the line-level representation. `IrLine.raw(str)` stores plain
+[`IrLine`](../api/xnano-core/core.md){data-preview} is the line-level
+representation. `IrLine.raw(str)` stores plain
 text, `IrLine.styled(...)` applies one style to a line, and
 `IrLine.from_spans([...])` combines spans with different styles. Nodes
 create these values through `_ir_line()` in `xnano.tui.nodes`. A
@@ -143,30 +163,43 @@ create these values through `_ir_line()` in `xnano.tui.nodes`. A
 
 ## From node to screen: `TerminalController`
 
-`xnano.core.controllers.tui.TerminalController` is the terminal
-implementation of `AbstractController` and the framework layer that
+[`xnano.core.controllers.tui.TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}
+is the terminal
+implementation of
+[`AbstractController`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractController){data-preview}
+and the framework layer that
 submits render work to `xnano_core`. `render_ir()` and `render_native()`
 do not paint immediately. Each appends a `RenderRequest` containing the
 native rectangle, content, z-index, and optional effect key to
 `self._render_requests`.
 
 `render_frame()` calls `commit_requests()` once per frame. The method
-combines queued requests into one `core.CoreRenderNode` tree:
+combines queued requests into one
+[`core.CoreRenderNode`](../api/xnano-core/core.md){data-preview} tree:
 
-1. Each `RenderRequest` becomes `core.CoreRenderContent.ir(...)`,
+1. Each `RenderRequest` becomes
+   [`core.CoreRenderContent`](../api/xnano-core/core.md){data-preview}`.ir(...)`,
    `.widget(...)`, or `.stateful(...)`, depending on whether it contains
    IR, a stateless native widget, or a native widget with render-time
    state such as a selection `ListState`.
-2. Each content wraps into a `core.CoreRenderNode(x, y, width, height,
+2. Each content wraps into a
+   [`core.CoreRenderNode`](../api/xnano-core/core.md){data-preview}`(x,
+   y, width, height,
    content=..., effect_key=..., z=...)`, which forms a scene graph leaf.
 3. Multiple requests are combined under a viewport-sized
-   `CoreRenderNode.stack(...)`. Requests are sorted by z-index when any
+   [`CoreRenderNode`](../api/xnano-core/core.md){data-preview}`.stack(...)`.
+   Requests are sorted by z-index when any
    request uses a non-default value.
 4. The resulting node or stack is passed to
    `self._core_session.render(node)`.
 
-`CoreSession.render()` then walks the `CoreRenderNode` tree, resolves
-each leaf's `CoreRenderContent` to a `ratatui` widget, and paints it into
+[`CoreSession.render()`](../api/xnano-core/core.md){data-preview} then
+walks the
+[`CoreRenderNode`](../api/xnano-core/core.md){data-preview} tree,
+resolves
+each leaf's
+[`CoreRenderContent`](../api/xnano-core/core.md){data-preview} to a
+`ratatui` widget, and paints it into
 the terminal buffer at the requested geometry. The buffer is diffed
 against the previous frame so only changed cells are written to the
 terminal.

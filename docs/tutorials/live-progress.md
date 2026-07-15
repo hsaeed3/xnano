@@ -66,7 +66,7 @@ render(Progress(value=0.4, style="line", label="cpu", color="sky-400"))
 
 ## On a Grid Field
 
-Use `default_factory` — `Progress` is a component instance, not a plain immutable default.
+Use `default_factory` — [Progress]{data-preview} is a component instance, not a plain immutable default.
 
 ```python title="On a Grid Field" hl_lines="5 6"
 from xnano import BaseGrid, Field
@@ -81,7 +81,7 @@ class Download(BaseGrid, direction="vertical", gap=1):
 
 ## Advancing From a Tick
 
-Keep raw counters as `state=True` fields. Rebuild a fresh `Progress` each tick and reassign the field.
+Keep raw counters as `state=True` fields. Rebuild a fresh [Progress]{data-preview} each tick and reassign the field.
 
 ```python title="Advancing From a Tick" hl_lines="12 13 14 15 16 17"
 from xnano import on_tick
@@ -101,7 +101,7 @@ def advance(self) -> None:
 ```
 
 1. `@on_tick(80)` fires every 80ms. A bare `@on_tick` fires every frame.
-2. Reassign a new `Progress` each update. The field paints whatever instance it currently holds.
+2. Reassign a new [Progress]{data-preview} each update. The field paints whatever instance it currently holds.
 
 ## Pause Toggle
 

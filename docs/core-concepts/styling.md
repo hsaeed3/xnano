@@ -5,7 +5,7 @@ icon: "lucide/palette"
 
 # Styling
 
-Every color, border, and modifier you've seen so far — `color="violet"`, `border="rounded"` — comes from one shared vocabulary. It doesn't matter whether you're styling a [Field]{data-preview}, a `GridSettings` frame, or one of the built-in components covered next: the same keywords mean the same thing everywhere.
+Every color, border, and modifier you've seen so far — `color="violet"`, `border="rounded"` — comes from one shared vocabulary. It doesn't matter whether you're styling a [Field]{data-preview}, a [GridSettings]{data-preview} frame, or one of the built-in components covered next: the same keywords mean the same thing everywhere.
 
 <div class="grid-concept-diagram" role="img" aria-label="Diagram: Field, GridSettings, and components share one Style vocabulary">
 <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" fill="none">
@@ -88,7 +88,7 @@ The terminal and the browser don't treat this the same way. Classes with a cell-
 
 ??? note "Why Both APIs Exist"
 
-    Keyword arguments and `class_name` aren't two competing systems — they're the same `Style` underneath, built two different ways. Reach for keywords when a value is dynamic or computed; reach for `class_name` when you're pasting in something that already looks like Tailwind, or want the browser-only utilities keywords don't cover.
+    Keyword arguments and `class_name` aren't two competing systems — they're the same [Style]{data-preview} underneath, built two different ways. Reach for keywords when a value is dynamic or computed; reach for `class_name` when you're pasting in something that already looks like Tailwind, or want the browser-only utilities keywords don't cover.
 
 ??? abstract "Sandbox & API"
 
@@ -101,3 +101,5 @@ The terminal and the browser don't treat this the same way. Classes with a cell-
     [`Style`](../api/xnano/_styles.md#xnano._styles.Style){data-preview} · [`ColorLike`](../api/xnano/color.md#xnano.color.ColorLike){data-preview} · [`CharacterModifier`](../api/xnano/_types.md#xnano._types.CharacterModifier){data-preview}
 
 [Field]: fields.md
+[GridSettings]: ../api/xnano/grid.md#xnano.grid.GridSettings
+[Style]: ../api/xnano/_styles.md#xnano._styles.Style

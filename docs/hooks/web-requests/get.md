@@ -3,24 +3,56 @@ title: "@on_get_request"
 icon: "lucide/download"
 ---
 
-# GET Web Requests
+# GET Request Hooks
 
-Use a GET hook when visiting a path should read, select, or refresh something without describing a mutation.
+!!! warning "Experimental"
 
-```python title="A Status Route" hl_lines="4"
+    Web request hooks are experimental and are subject to frequent changes.
+
+Use [`@on_get_request`](../../api/xnano/webui/requests.md#xnano.webui.requests.on_get_request){data-preview} when visiting a path should read, select, or refresh something without describing a mutation.
+
+## Register a Path
+
+```python title="Status Route" hl_lines="6"
+from xnano import BaseGrid, Field
 from xnano.webui.requests import on_get_request
 
 class Dashboard(BaseGrid):
+    message: str = Field(default="checking")
+
     @on_get_request("/status")
     def show_status(self) -> None:
         self.message = "Everything is healthy"
 ```
 
-Bare `@on_get_request` and `@on_get_request(path="/")` both register `/`. A leading slash is optional in the supplied path; xnano adds it during normalization.
+A leading slash is optional; xnano normalizes `"status"` to `"/status"`.
 
-## GET Action
+## Register the Root Path
 
-The associated trigger is `Action.request("GET", "/status")`. Unlike terminal action families, bind the route with `@on_get_request`, not generic `@on_action`, so it becomes part of the web application's route table.
+Bare [`@on_get_request`](../../api/xnano/webui/requests.md#xnano.webui.requests.on_get_request){data-preview} defaults to `/`:
+
+```python title="Root Route"
+@on_get_request
+def show_home(self) -> None:
+    self.page = "home"
+```
+
+The explicit keyword form is equivalent:
+
+```python title="Explicit Root Route"
+@on_get_request(path="/")
+def show_home(self) -> None:
+    self.page = "home"
+```
+
+<div class="xnano-demo" markdown>
+![GET request hook dark](../../assets/hooks/get-request-dark.gif){.demo-dark}
+![GET request hook light](../../assets/hooks/get-request-light.gif){.demo-light}
+</div>
+
+## GET Actions
+
+[`Action.request("GET", "/status")`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview} describes the associated trigger. Bind the actual route with [`@on_get_request`](../../api/xnano/webui/requests.md#xnano.webui.requests.on_get_request){data-preview}, not [`@on_action`](../on.md){data-preview}, so [`Web`](../../api/xnano/webui/web.md#xnano.webui.web.Web){data-preview} can discover it.
 
 ??? abstract "API"
 

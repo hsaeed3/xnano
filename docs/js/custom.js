@@ -205,9 +205,10 @@ function setupNavAccent() {
 }
 
 function setupCollapsibleNavigation() {
-    document.querySelectorAll("li.md-nav__item--section").forEach(li => {
-        const label = li.querySelector("label.md-nav__link .md-ellipsis");
-        if (label) {
+    document.querySelectorAll("label.md-nav__link").forEach(labelLink => {
+        const li = labelLink.closest("li.md-nav__item--nested");
+        const label = labelLink.querySelector(".md-ellipsis");
+        if (li && label) {
             const text = label.textContent.trim();
             if (
                 text === "Session & Lifecycle" ||
@@ -216,6 +217,10 @@ function setupCollapsibleNavigation() {
                 text === "Web Requests"
             ) {
                 li.classList.add("xnano-hooks-subsection");
+                const toggle = li.querySelector("input.md-nav__toggle");
+                const navigation = li.querySelector("nav.md-nav");
+                if (toggle) toggle.checked = true;
+                if (navigation) navigation.setAttribute("aria-expanded", "true");
             }
             if (text === "Hooks & Actions") {
                 li.classList.add("xnano-hooks-nav");

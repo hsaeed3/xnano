@@ -81,7 +81,7 @@ You can install xnano with your favorite package manager on python 3.10+.
 
 ## Hello World
 
-A grid, a couple of fields, a hook, and a `Terminal` to run it — that's the whole shape of an xnano app.
+A grid, a couple of fields, a hook, and a [`Terminal`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} to run it — that's the whole shape of an xnano app.
 
 ??? example "Interactive Example"
 
@@ -114,8 +114,8 @@ Terminal().run(Hello()) # (3)!
 ```
 
 1. A grid is a class; a field is a typed, styled attribute on it — this one's violet and bold.
-2. A method wrapped in `@on_keyboard` becomes a hook, fired whenever that key is pressed.
-3. `Terminal().run(...)` keeps the app alive, reading input and repainting until it exits.
+2. A method wrapped in [`@on_keyboard`](api/xnano/events.md#xnano.events.on_keyboard){data-preview} becomes a hook, fired whenever that key is pressed.
+3. [`Terminal().run(...)`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} keeps the app alive, reading input and repainting until it exits.
 
 <div class="xnano-demo" markdown>
 ![hello dark](./assets/concepts/hello_render-dark.gif){.demo-dark}

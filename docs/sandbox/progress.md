@@ -5,7 +5,7 @@ icon: "lucide/activity"
 
 # Progress Sandbox
 
-These cells cover every `Progress` parameter: `value`, `total`, `label`,
+These cells cover every [Progress]{data-preview} parameter: `value`, `total`, `label`,
 `style`, `color`, `background`, `filled_color`, `unfilled_color`, and the
 shared `visible`, `z`, and `fit_content` flags.
 
@@ -131,7 +131,7 @@ Terminal(width=60, height=7).render(bar, line, line_fallback, gap=1)
 
 ## Visibility, Stacking, and Fit
 
-`Progress` defaults to `fit_content=False`, because a useful gauge normally
+[Progress]{data-preview} defaults to `fit_content=False`, because a useful gauge normally
 fills the width supplied by its field or terminal. All components also accept
 `visible` and `z`.
 

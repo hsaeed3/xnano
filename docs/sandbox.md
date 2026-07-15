@@ -20,11 +20,15 @@ named session, but a reload—or moving to another page—starts a fresh session
 
 !!! info "What works in the browser"
 
-    `xnano.render(...)`, `Terminal.render(...)`, `Terminal.offscreen(...)`,
-    grids, styling, components, and synthetic `Action` dispatch all use the
-    real buffer-backed renderer. `Terminal.run()` deliberately raises on WASM
-    because a browser code cell cannot own a live OS terminal or its event
-    polling loop.
+    [`xnano.render(...)`](api/xnano/_renderable.md#xnano._renderable.render){data-preview},
+    [`Terminal.render(...)`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.render){data-preview},
+    [`Terminal.offscreen(...)`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.offscreen){data-preview},
+    grids, styling, components, and synthetic
+    [`Action`](api/xnano/core/actions.md#xnano.core.actions.Action){data-preview}
+    dispatch all use the real buffer-backed renderer.
+    [`Terminal.run()`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run){data-preview}
+    deliberately raises on WASM because a browser code cell cannot own a
+    live OS terminal or its event polling loop.
 
 ## Live Examples
 
@@ -34,7 +38,9 @@ named session, but a reload—or moving to another page—starts a fresh session
 
     ---
 
-    Every `render()` and `Terminal.render()` option, print-compatible output,
+    Every [`render()`](api/xnano/_renderable.md#xnano._renderable.render){data-preview} and
+    [`Terminal.render()`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.render){data-preview}
+    option, print-compatible output,
     streams, viewport sizing, offscreen buffers, and action-driven frames.
 
     [Open rendering](sandbox/rendering.md)
@@ -70,8 +76,9 @@ named session, but a reload—or moving to another page—starts a fresh session
 
     ---
 
-    Every table option and every `Column` descriptor option, with inferred,
-    overridden, and declarative schemas.
+    Every table option and every
+    [`Column`](api/xnano/components/schema.md#xnano.components.schema.Column){data-preview}
+    descriptor option, with inferred, overridden, and declarative schemas.
 
     [Open Table](sandbox/table.md)
 

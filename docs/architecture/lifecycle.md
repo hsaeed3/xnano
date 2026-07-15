@@ -11,7 +11,9 @@ intended for contributors working on `xnano`. Application-facing hook
 and event behavior is documented in [Events & Hooks]{data-preview}.
 
 The loop is implemented in `xnano._event_processing` and
-`xnano._dispatch` and driven by `Terminal.run()`. Each iteration polls
+`xnano._dispatch` and driven by
+[`Terminal.run()`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run){data-preview}.
+Each iteration polls
 for an event, normalizes it, dispatches matching hooks, and renders a
 frame.
 
@@ -55,7 +57,8 @@ frame.
 
 ## Polling
 
-`pump_events()` asks the active `xnano_core.core.CoreSession` for the
+`pump_events()` asks the active
+[`CoreSession`](../api/xnano-core/core.md){data-preview} for the
 next event through `poll_core_event()`, which blocks for up to
 `terminal.tick_interval` milliseconds. Three outcomes follow:
 
@@ -68,7 +71,8 @@ next event through `poll_core_event()`, which blocks for up to
   `on_keyboard_hooks` and resize events check `on_resize_hooks`. If the
   corresponding registry is empty, the event is dropped and polling
   continues immediately with `timeout=-1`.
-- **A hook consumes the event type:** the raw `core.CoreEvent` is
+- **A hook consumes the event type:** the raw
+  [`CoreEvent`](../api/xnano-core/core.md){data-preview} is
   normalized and passed to `dispatch_hooks()`.
 
 ## Normalizing: native event to `Event`
@@ -89,14 +93,18 @@ the `(modifiers, key)` shape produced when a binding string such as
 function_number, modifier_bits)` because this function runs for every
 key event and the same combinations occur repeatedly.
 
-The resulting `xnano.events.Event` is stored in a `Context` with the
-terminal and user state, then passed through the remaining dispatch
-stages.
+The resulting
+[`xnano.events.Event`](../api/xnano/events.md#xnano.events.Event){data-preview}
+is stored in a
+[`Context`](../api/xnano/context.md#xnano.context.Context){data-preview}
+with the terminal and user state, then passed through the remaining
+dispatch stages.
 
 ## Dispatch: matching hooks to the event
 
 `dispatch_hooks(terminal, ctx)` in `xnano._dispatch` first runs the
-terminal's `on_event_hooks`. These are the general `@on_event`
+terminal's `on_event_hooks`. These are the general
+[`@on_event`](../api/xnano/events.md#xnano.events.on_event){data-preview}
 hooks that receive every event. It then checks
 `event.is_keyboard_event()`, `is_mouse_event()`, `is_resize_event()`,
 `is_clipboard_event()`, or `is_focus_event()` and runs the matching
@@ -109,12 +117,21 @@ keyboard branch:
    consumes the key only when focus moves to a field. An
    `on_keyboard("tab")` hook still runs when no fields can receive focus.
 2. **Focused text input** (`_handle_focused_text_input`) allows an
-   editable `Text` field with input focus to consume character and edit
-   keys before any user `@on_keyboard` hook sees them.
+   editable
+   [`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}
+   field with input focus to consume character and edit
+   keys before any user
+   [`@on_keyboard`](../api/xnano/events.md#xnano.events.on_keyboard){data-preview}
+   hook sees them.
 
-Matching is implemented by `Action` in `xnano.core.actions`.
+Matching is implemented by
+[`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview}
+in `xnano.core.actions`.
 `keyboard_matches()` and `mouse_matches()` build and cache an
-`Action.keyboard(...)` or `Action.mouse(...)`, then call `.matches()`
+[`Action.keyboard(...)`](../api/xnano/core/actions.md#xnano.core.actions.KeyboardAction){data-preview}
+or
+[`Action.mouse(...)`](../api/xnano/core/actions.md#xnano.core.actions.MouseAction){data-preview},
+then call `.matches()`
 against a lightweight event object. Real device input and synthetic
 `host.perform(action)` calls therefore use the same matching logic.
 
@@ -146,35 +163,50 @@ expected to remain stable across frames.
 Two more pumps run inside the same loop iteration, independent of
 whether an event arrived:
 
-- `pump_tick()` fires `@on_tick` hooks whose interval has elapsed
-  (`interval=0` means every iteration), then evaluates `@on_state` /
-  `@on_field` expressions (`evaluate_state_expression`) against shared
+- `pump_tick()` fires
+  [`@on_tick`](../api/xnano/events.md#xnano.events.on_tick){data-preview}
+  hooks whose interval has elapsed
+  (`interval=0` means every iteration), then evaluates
+  [`@on_state`](../api/xnano/events.md#xnano.events.on_state){data-preview}
+  /
+  [`@on_field`](../api/xnano/events.md#xnano.events.on_field){data-preview}
+  expressions (`evaluate_state_expression`) against shared
   state or the grid's own fields and fires any that are newly truthy.
-- `pump_poll()` fires `@on_poll(when="idle")` after an empty poll and
+- `pump_poll()` fires
+  [`@on_poll`](../api/xnano/events.md#xnano.events.on_poll){data-preview}`(when="idle")`
+  after an empty poll and
   `when="frame"` hooks every iteration regardless of events.
 
 All three pumps call `invoke_hook()`. It resolves handler arity through
 `_call_hook` and runs coroutine results through `run_awaitable` on a new
 event loop because the TUI loop is synchronous. `Exit`,
-`KeyboardInterrupt`, and `SystemExit` propagate so `Terminal.run()` can
-restore the terminal before exiting. Other uncaught exceptions are
+`KeyboardInterrupt`, and `SystemExit` propagate so
+[`Terminal.run()`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run){data-preview}
+can restore the terminal before exiting. Other uncaught exceptions are
 logged and re-raised.
 
 ## Rendering the next frame
 
 After dispatch completes, `render_frame()` paints the next frame. A
-`BaseGrid` root follows this layout path:
+[`BaseGrid`](../api/xnano/grid.md#xnano.grid.BaseGrid){data-preview}
+root follows this layout path:
 
 1. `track_frame_grid()` registers the root. Nested grids attach lazily
-   as `TerminalController.paint_field_slot()` reaches them during
+   as
+   [`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}`.paint_field_slot()`
+   reaches them during
    painting.
-2. The first editable `Text` field receives focus on the first frame so
+2. The first editable
+   [`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}
+   field receives focus on the first frame so
    its caret is rendered before the first key event.
 3. `resolve_root_area()` constrains the viewport to the root's width
    setting. Fixed widths and bounded `fit` values require measurement;
    `fill` and unbounded `fit` values do not.
 4. `root._grid_build_frame(root_area, session)` runs the grid's own
-   layout engine. `BaseGrid` walks the fields, resolves constraints,
+   layout engine.
+   [`BaseGrid`](../api/xnano/grid.md#xnano.grid.BaseGrid){data-preview}
+   walks the fields, resolves constraints,
    and paints each field slot.
 5. Stage overlays (wireframe / paint canvas from `ctx.stage`) are
    composited at a high z-index without changing field content.
@@ -188,9 +220,12 @@ top-left corner. Each one is measured with
 height.
 
 [Render Nodes & IR]{data-preview} describes how
-`TerminalController.commit_requests()` converts queued `RenderRequest`
-objects into a `CoreRenderNode` tree and passes it to
-`CoreSession.render()`.
+[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}`.commit_requests()`
+converts queued `RenderRequest`
+objects into a
+[`CoreRenderNode`](../api/xnano-core/core.md){data-preview} tree and
+passes it to
+[`CoreSession.render()`](../api/xnano-core/core.md){data-preview}.
 
 [Events & Hooks]: ../core-concepts/events.md
 [Render Nodes & IR]: render-nodes.md

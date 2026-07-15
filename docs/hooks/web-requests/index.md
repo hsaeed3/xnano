@@ -5,20 +5,40 @@ icon: "lucide/route"
 
 # Web Request Hooks
 
-Request hooks turn grid methods into routes when the grid is hosted by `Web`. The handler changes the live session grid, then xnano renders either a full page or an `#xnano-app` fragment for an htmx request.
+!!! warning "Experimental"
 
-- [`@on_get_request`](get.md) reads or navigates to a resource.
-- [`@on_post_request`](post.md) performs a mutation and is the natural target for `hx-post`.
+    Web request hooks are experimental and are subject to frequent changes.
 
-Both decorators are harmless under `Terminal`: the method remains on the class, but no terminal event dispatches it.
+Request hooks turn grid methods into routes when the grid is hosted by [`Web`](../../api/xnano/webui/web.md#xnano.webui.web.Web){data-preview}. The method updates the live session grid, then xnano renders either a complete page or an `#xnano-app` fragment for htmx.
+
+- [`@on_get_request`](get.md){data-preview} handles reads and navigation.
+- [`@on_post_request`](post.md){data-preview} handles mutations and form-like interactions.
+
+Under [`Terminal`](../../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}, request decorators only mark the method. They do not register a route or participate in terminal event dispatch.
+
+```python title="GET and POST Routes"
+class Counter(BaseGrid):
+    @on_get_request("/status")
+    def show_status(self) -> None:
+        self.message = "ready"
+
+    @on_post_request("/increment")
+    def increment(self) -> None:
+        self.count += 1
+```
+
+<div class="xnano-demo" markdown>
+![web request hooks dark](../../assets/hooks/web-requests-dark.gif){.demo-dark}
+![web request hooks light](../../assets/hooks/web-requests-light.gif){.demo-light}
+</div>
 
 ## Request Actions
 
-`Action.request(method, path)` represents the same trigger for host-driven dispatch. Request actions are not accepted by the generic `@on_action`; use the request decorator so `Web` can register the route itself.
+[`Action.request(method, path)`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview} represents the same trigger for host-driven dispatch. Generic [`@on_action`](../on.md){data-preview} does not register HTTP routes; keep the corresponding request decorator on the route method.
 
-```python title="A Request Action"
+```python title="Request Actions"
 REFRESH = Action.request("GET", "/status")
 SUBMIT = Action.request("POST", "/save")
 ```
 
-Paths are normalized to begin with `/`, and methods are matched case-insensitively after normalization.
+Paths are normalized to begin with `/`, and methods are normalized before matching.

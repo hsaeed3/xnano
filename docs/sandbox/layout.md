@@ -5,7 +5,7 @@ icon: "lucide/layout-grid"
 
 # Layout & Fields Sandbox
 
-These examples cover every grid layout setting and every `Field` option that
+These examples cover every grid layout setting and every [Field]{data-preview} option that
 affects a static terminal frame. Styling-specific choices have their own
 [Styling sandbox](styling.md).
 
@@ -35,7 +35,7 @@ Terminal(width=64, height=9).render(DirectionDemo())
 ## Sizing
 
 `width` and `height` accept fixed cells, a fractional float, a percentage,
-ratio, fraction/fill weight, content sizing, or an explicit `Sizing` with
+ratio, fraction/fill weight, content sizing, or an explicit [Sizing]{data-preview} with
 bounds.
 
 | Form | Meaning |
@@ -114,7 +114,7 @@ Terminal(width=58, height=10).render(AlignmentDemo())
 ## Padding and Margin
 
 Both accept an integer, `(vertical, horizontal)`, `(top, right, bottom, left)`,
-or a `Padding` object. `None` inside a four-tuple is treated as zero. Padding
+or a [Padding]{data-preview} object. `None` inside a four-tuple is treated as zero. Padding
 insets content inside its frame; margin insets the whole field within its slot.
 
 ```pyodide install="xnano>=1.0.10" height="22"

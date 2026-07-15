@@ -28,19 +28,25 @@ class Text(AbstractComponent):
 
     Three usage modes, all through one class:
 
-    **Leaf** — a single styled string (renders as ``SpanNode`` when nested,
-    ``ParagraphNode`` at top level):
+    **Leaf** — a single styled string (renders as
+    [`SpanNode`](../tui/nodes.md#xnano.tui.nodes.SpanNode){data-preview} when
+    nested,
+    [`ParagraphNode`](../tui/nodes.md#xnano.tui.nodes.ParagraphNode){data-preview}
+    at top level):
 
         Text("hello world", color="red", modifiers=("bold",))
 
     **Line** — inline spans composed via a list of ``Text`` children where
-    every child is itself a leaf (renders as ``LineNode``):
+    every child is itself a leaf (renders as
+    [`LineNode`](../tui/nodes.md#xnano.tui.nodes.LineNode){data-preview}):
 
         Text([Text("Hello ", color="cyan"), Text("world", color="red")])
 
     **Paragraph** — multiple lines composed via a list of ``Text`` children
-    where at least one child is itself a line (renders as ``ParagraphNode``
-    wrapping a ``TextNode``):
+    where at least one child is itself a line (renders as
+    [`ParagraphNode`](../tui/nodes.md#xnano.tui.nodes.ParagraphNode){data-preview}
+    wrapping a
+    [`TextNode`](../tui/nodes.md#xnano.tui.nodes.TextNode){data-preview}):
 
         Text([
             Text([Text("Hello ", color="cyan"), Text("world")]),
@@ -243,10 +249,14 @@ class Text(AbstractComponent):
         )
 
     def compose(self, ctx: ComponentRenderContext):
-        """Compose interface-neutral Content for this Text.
+        """Compose interface-neutral
+        [`Content`](../core/content.md#xnano.core.content.Content){data-preview}
+        for this Text.
 
         Controllers lower the result; ``get_terminal_node`` remains a
-        thin adapter that lowers the same Content for older call sites.
+        thin adapter that lowers the same
+        [`Content`](../core/content.md#xnano.core.content.Content){data-preview}
+        for older call sites.
         """
         from xnano.core.content import Native, Run, TextBlock
 

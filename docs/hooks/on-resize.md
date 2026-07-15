@@ -3,32 +3,54 @@ title: "@on_resize"
 icon: "lucide/maximize-2"
 ---
 
-# Window Resize Events & Actions
+# Resize Hooks
 
-`@on_resize` fires after the terminal reports a new cell size. The current event's dimensions are available through `Context`.
+[`@on_resize`](../api/xnano/events.md#xnano.events.on_resize){data-preview} runs after the terminal reports a new size in cells. Layout is recalculated by the host; your handler only needs to update application policy that depends on the available width or height.
 
-```python title="Reading the New Size" hl_lines="4"
+```python title="Display the New Size" hl_lines="7"
+from xnano import BaseGrid, Context, Field
 from xnano.events import on_resize
 
 class Status(BaseGrid):
+    label: str = Field(default="waiting for resize")
+
     @on_resize
     def show_size(self, ctx: Context) -> None:
-        self.label = f"{ctx.resize.width} × {ctx.resize.height}"
+        resize = ctx.event.resize_event
+        self.label = f"{resize.width} × {resize.height}"
 ```
 
-Keep the handler about application policy; the host and controller already take care of laying the frame out again.
+## Choose an Application Layout
 
-## Resize Action
+A resize hook is also a convenient place to switch between compact and wide content.
 
-`Action.resize(width=None, height=None)` matches either dimension when supplied. Performing it is a clean way to exercise resize behavior without changing a real terminal window.
+```python title="Responsive Policy"
+@on_resize
+def choose_layout(self, ctx: Context) -> None:
+    width = ctx.event.resize_event.width
+    self.navigation = "icons" if width < 60 else "icons and labels"
+```
 
-```python title="A Synthetic Resize"
+<div class="xnano-demo" markdown>
+![resize hook dark](../assets/hooks/resize-dark.gif){.demo-dark}
+![resize hook light](../assets/hooks/resize-light.gif){.demo-light}
+</div>
+
+## Resize Actions
+
+[`Action.resize(width=None, height=None)`](../api/xnano/core/actions.md#xnano.core.actions.ResizeAction){data-preview} lets tests and other grids exercise the same behavior without resizing a real window.
+
+```python title="Synthetic Resize"
 NARROW = Action.resize(width=40, height=12)
 
 @on_action(NARROW)
 def use_compact_layout(self) -> None:
     self.mode = "compact"
+
+ctx.actions.resize(width=40, height=12)
 ```
+
+Omitted dimensions are not filtered, so [`Action.resize(width=40)`](../api/xnano/core/actions.md#xnano.core.actions.ResizeAction){data-preview} matches any height at that width.
 
 ??? abstract "API"
 
