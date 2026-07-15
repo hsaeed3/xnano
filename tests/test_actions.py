@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import cast
 
+import pytest
+
 from xnano._dispatch import dispatch_field_mouse
 from xnano._types import Area
 from xnano.context import Context
@@ -22,7 +24,7 @@ from xnano.events import (
     KeyboardEventData,
     MouseEventData,
     ResizeEventData,
-    on,
+    on_action,
     on_click,
     on_clipboard,
     on_focus,
@@ -258,13 +260,13 @@ def test_perform_runs_keyboard_hook() -> None:
     assert app.n == 1
 
 
-def test_on_decorator_with_shared_keyboard_action() -> None:
+def test_on_action_with_shared_keyboard_action() -> None:
     SAVE = Action.keyboard("ctrl+s")
 
     class App(BaseGrid):
         saved: bool = Field(default=False, state=True)
 
-        @on(SAVE)
+        @on_action(SAVE)
         def save(self, ctx) -> None:
             self.saved = True
 
@@ -276,6 +278,22 @@ def test_on_decorator_with_shared_keyboard_action() -> None:
     # Mismatched binding does not fire.
     terminal.perform(Action.keyboard("ctrl+a"))
     assert app.saved is True
+
+
+def test_deprecated_on_decorator_forwards_to_on_action() -> None:
+    from xnano.events import on  # ty: ignore[deprecated]
+
+    save = Action.keyboard("ctrl+s")
+    with pytest.warns(DeprecationWarning, match="on_action"):
+        decorator = on(save)  # ty: ignore[deprecated]
+
+    assert callable(decorator)
+
+
+def test_on_action_is_exported_from_package_root() -> None:
+    from xnano import on_action as root_on_action
+
+    assert root_on_action is on_action
 
 
 def test_perform_unscoped_mouse_hook() -> None:
@@ -302,7 +320,7 @@ def test_on_decorator_with_shared_mouse_action() -> None:
     class App(BaseGrid):
         n: int = Field(default=0, state=True)
 
-        @on(RIGHT)
+        @on_action(RIGHT)
         def right_click(self, ctx) -> None:
             self.n += 1
 
@@ -506,7 +524,7 @@ def test_field_click_via_action_to_event_and_dispatch() -> None:
         body: str = Field(default="idle")
         n: int = Field(default=0, state=True)
 
-        @on(CLICK_BODY)
+        @on_action(CLICK_BODY)
         def on_body(self, ctx) -> None:
             self.n += 1
             self.body = "clicked"

@@ -22,6 +22,7 @@ from typing import (
     overload,
 )
 
+from typing_extensions import deprecated
 from xnano_core.core import (
     CoreEvent,
     CoreKeyBinding,
@@ -1243,7 +1244,7 @@ def on_poll(
     return decorator
 
 
-def on(
+def on_action(
     action: Any,
     /,
 ) -> Callable[[EventHookFunction], EventHookFunction]:
@@ -1251,11 +1252,11 @@ def on(
 
     User-facing sugar for storing an Action on a handler. The concrete
     ``@on_keyboard`` / ``@on_click`` decorators remain preferred for
-    simple cases; ``@on`` is for shared Action constants:
+    simple cases; ``@on_action`` is for shared Action constants:
 
         SAVE = Action.keyboard("ctrl+s")
 
-        @on(SAVE)
+        @on_action(SAVE)
         def save(self, ctx): ...
 
     Args:
@@ -1308,17 +1309,38 @@ def on(
             return _decorate_on_tick_hook(fn, action.interval_ms)
         else:
             raise TypeError(
-                f"@on expects an Action instance, got {type(action)!r}"
+                f"@on_action expects an Action instance, got {type(action)!r}"
             )
         return _decorate_hook_function(fn)
 
     return decorator
 
 
+@deprecated(
+    "'on' is deprecated and will be removed in the future; use "
+    "'on_action' instead.\n\n`from xnano.events import on_action`",
+    category=DeprecationWarning,
+)
+def on(
+    action: Any,
+    /,
+) -> Callable[[EventHookFunction], EventHookFunction]:
+    """Bind an action using the deprecated ``@on`` spelling.
+
+    Args:
+        action: An ``Action`` instance.
+
+    Returns:
+        A decorator that binds the action to a hook function.
+    """
+    return on_action(action)
+
+
 __all__ = (
     "PollWhen",
     "FocusHookKind",
     "on",
+    "on_action",
     "on_event",
     "on_resize",
     "on_focus",

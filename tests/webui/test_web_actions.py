@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from tests.webui.grids import ClickableGrid, InteractiveGrid, RequestHookGrid
 from xnano.core.actions import Action
-from xnano.events import Event, KeyboardEventData, on, on_keyboard
+from xnano.events import Event, KeyboardEventData, on_action, on_keyboard
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.webui import Web
@@ -53,7 +53,7 @@ def test_web_shared_action_on_decorator() -> None:
         n: int = Field(default=0, state=True)
         label: str = Field(default="0", height=1)
 
-        @on(BUMP)
+        @on_action(BUMP)
         def bump(self, ctx) -> None:
             self.n += 1
             self.label = str(self.n)
