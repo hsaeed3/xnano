@@ -39,13 +39,14 @@ if TYPE_CHECKING:
     from xnano._styles import TailwindClass
 
 
-UNSET = object()
+UNSET: Any = object()
 
 
 ClassNameLike: TypeAlias = Union[
     "TailwindClass",
     str,
     "list[TailwindClass | str]",
+    "tuple[TailwindClass | str, ...]",
 ]
 """Tailwind classes as a single class, a space-separated string, or a
 list of class tokens. See ``xnano._styles.TailwindClass`` for the
