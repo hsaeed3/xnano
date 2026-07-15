@@ -1,4 +1,33 @@
-{% extends "base.html" %} {% block announce %}
+{% extends "base.html" %}
+
+{% block extrahead %}
+{{ super() }}
+<script>
+    (() => {
+        const styles = ["mono", "serif", "modern"];
+        const sizes = ["auto", "small", "medium", "large"];
+        let style;
+        let size;
+
+        try {
+            style = localStorage.getItem("xnano-style");
+            size = localStorage.getItem("xnano-text-size");
+        } catch (_) {
+            style = null;
+            size = null;
+        }
+
+        document.documentElement.dataset.xnanoStyle = styles.includes(style)
+            ? style
+            : "mono";
+        document.documentElement.dataset.xnanoSize = sizes.includes(size)
+            ? size
+            : "auto";
+    })();
+</script>
+{% endblock %}
+
+{% block announce %}
 <script>
     // Context7 creates a closed shadow root. Keep the reference returned at
     // creation time so our own stylesheet can be appended after widget.js.

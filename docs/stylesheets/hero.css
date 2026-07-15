@@ -10,6 +10,16 @@
     padding: 0;
 }
 
+/* The blank index title is emitted as #__skip before the hero. Keep it out
+   of layout explicitly so global heading treatments cannot draw over the
+   hero while fonts and appearance themes are loading. */
+.md-content__inner > h1#__skip {
+    border: 0 !important;
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 .zyx-hero-image {
     display: block;
     max-width: 100%;

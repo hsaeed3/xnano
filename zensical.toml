@@ -160,7 +160,8 @@ extra_css = [
     "stylesheets/components.css",
     "stylesheets/watercolor.css",
     "stylesheets/nav.css",
-    "stylesheets/context7.css"
+    "stylesheets/context7.css",
+    "stylesheets/appearance.css"
 ]
 
 extra_javascript = [

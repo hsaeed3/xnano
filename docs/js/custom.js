@@ -154,11 +154,37 @@ function setupNavAccent() {
             [165, 202, 210], // blue mist
             [190, 194, 225], // pale periwinkle
         ],
+        "serif-default": [
+            [189, 91, 88],
+            [217, 111, 85],
+            [198, 83, 101],
+            [231, 137, 92],
+        ],
+        "serif-slate": [
+            [239, 142, 115],
+            [244, 174, 121],
+            [222, 118, 130],
+            [236, 156, 104],
+        ],
+        "modern-default": [
+            [82, 121, 120],
+            [103, 146, 145],
+            [75, 133, 128],
+            [110, 151, 145],
+        ],
+        "modern-slate": [
+            [155, 199, 195],
+            [182, 217, 213],
+            [137, 189, 184],
+            [168, 207, 202],
+        ],
     };
 
     function pickColors() {
         const scheme = document.body.getAttribute("data-md-color-scheme");
-        const palette = palettes[scheme] || palettes.slate;
+        const style = document.documentElement.dataset.xnanoStyle || "mono";
+        const paletteKey = style === "mono" ? scheme : `${style}-${scheme}`;
+        const palette = palettes[paletteKey] || palettes.slate;
         const index = Math.floor(Math.random() * palette.length);
         const base = palette[index];
         const companion = palette[(index + 1) % palette.length];
@@ -171,6 +197,10 @@ function setupNavAccent() {
     new MutationObserver(pickColors).observe(document.body, {
         attributes: true,
         attributeFilter: ["data-md-color-scheme"],
+    });
+    new MutationObserver(pickColors).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["data-xnano-style"],
     });
 }
 
@@ -242,6 +272,151 @@ function renderContext7Tables(shadowRoot) {
     });
 }
 
+function applyAppearancePreference(kind, value) {
+    const attribute = kind === "style" ? "xnanoStyle" : "xnanoSize";
+    const storageKey = kind === "style" ? "xnano-style" : "xnano-text-size";
+
+    document.documentElement.dataset[attribute] = value;
+    try {
+        localStorage.setItem(storageKey, value);
+    } catch (_) {}
+
+    document
+        .querySelectorAll(`[data-appearance-kind="${kind}"]`)
+        .forEach((button) => {
+            const isSelected = button.dataset.appearanceValue === value;
+            button.classList.toggle("is-selected", isSelected);
+            button.setAttribute("aria-pressed", String(isSelected));
+        });
+
+    const context7Host = document.getElementById("context7-widget");
+    if (context7Host) context7Host.dataset[attribute] = value;
+}
+
+function setAppearanceMenuOpen(container, isOpen) {
+    const button = container.querySelector(".xnano-appearance__button");
+    const menu = container.querySelector(".xnano-appearance__menu");
+
+    container.classList.toggle("is-open", isOpen);
+    button.setAttribute("aria-expanded", String(isOpen));
+    menu.hidden = !isOpen;
+}
+
+function setupAppearanceMenu() {
+    let container = document.getElementById("xnano-appearance");
+
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "xnano-appearance";
+        container.className = "xnano-appearance";
+        container.innerHTML = `
+            <button class="xnano-appearance__button" type="button"
+                    aria-label="Open appearance settings" aria-expanded="false"
+                    aria-controls="xnano-appearance-menu">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
+                    <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.94 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.57 15 1.7 1.7 0 0 0 3 14H3v-4h.08A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.57 1.7 1.7 0 0 0 10 3.08V3h4v.08A1.7 1.7 0 0 0 15.06 4.6a1.7 1.7 0 0 0 1.88-.34L17 4.2 19.8 7l-.06.06A1.7 1.7 0 0 0 19.4 9c.24.6.82 1 1.52 1H21v4h-.08c-.68 0-1.28.4-1.52 1Z"/>
+                </svg>
+            </button>
+            <div class="xnano-appearance__menu" id="xnano-appearance-menu"
+                 role="dialog" aria-label="Appearance settings" hidden>
+                <div class="xnano-appearance__heading">Appearance</div>
+                <fieldset>
+                    <legend>Text size</legend>
+                    <div class="xnano-appearance__segments xnano-appearance__segments--size">
+                        <button type="button" data-appearance-kind="size" data-appearance-value="auto">Auto</button>
+                        <button type="button" data-appearance-kind="size" data-appearance-value="small">Small</button>
+                        <button type="button" data-appearance-kind="size" data-appearance-value="medium">Medium</button>
+                        <button type="button" data-appearance-kind="size" data-appearance-value="large">Large</button>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Style</legend>
+                    <div class="xnano-appearance__segments xnano-appearance__segments--style">
+                        <button type="button" data-appearance-kind="style" data-appearance-value="mono">
+                            <span class="xnano-appearance__sample xnano-appearance__sample--mono" aria-hidden="true">Aa</span>
+                            <span>Mono</span>
+                        </button>
+                        <button type="button" data-appearance-kind="style" data-appearance-value="serif">
+                            <span class="xnano-appearance__sample xnano-appearance__sample--serif" aria-hidden="true">Aa</span>
+                            <span>Serif</span>
+                        </button>
+                        <button type="button" data-appearance-kind="style" data-appearance-value="modern">
+                            <span class="xnano-appearance__sample xnano-appearance__sample--modern" aria-hidden="true">Aa</span>
+                            <span>Modern</span>
+                        </button>
+                    </div>
+                </fieldset>
+            </div>`;
+        document.body.appendChild(container);
+
+        const toggle = container.querySelector(".xnano-appearance__button");
+        toggle.addEventListener("click", () => {
+            setAppearanceMenuOpen(
+                container,
+                toggle.getAttribute("aria-expanded") !== "true",
+            );
+        });
+        container.querySelectorAll("[data-appearance-kind]").forEach((button) => {
+            button.addEventListener("click", () => {
+                applyAppearancePreference(
+                    button.dataset.appearanceKind,
+                    button.dataset.appearanceValue,
+                );
+            });
+        });
+        document.addEventListener("pointerdown", (event) => {
+            if (!container.contains(event.target)) {
+                setAppearanceMenuOpen(container, false);
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && container.classList.contains("is-open")) {
+                setAppearanceMenuOpen(container, false);
+                toggle.focus();
+            }
+        });
+    }
+
+    applyAppearancePreference(
+        "style",
+        document.documentElement.dataset.xnanoStyle || "mono",
+    );
+    applyAppearancePreference(
+        "size",
+        document.documentElement.dataset.xnanoSize || "auto",
+    );
+}
+
+function setupFloatingFooterAvoidance() {
+    const updateKey = Symbol.for("xnano.footerAvoidanceUpdate");
+    if (window[updateKey]) {
+        window[updateKey]();
+        return;
+    }
+
+    let frame = null;
+    const updateOffset = () => {
+        frame = null;
+        const footer = document.querySelector(".md-footer");
+        const footerTop = footer?.getBoundingClientRect().top ?? innerHeight;
+        const lift = Math.max(0, innerHeight - footerTop);
+        document.documentElement.style.setProperty(
+            "--xnano-footer-lift",
+            `${lift}px`,
+        );
+    };
+    const requestUpdate = () => {
+        if (frame === null) frame = requestAnimationFrame(updateOffset);
+    };
+
+    document.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate, { passive: true });
+    window[updateKey] = requestUpdate;
+    document.documentElement.dataset.xnanoFooterAvoidance = "true";
+    requestUpdate();
+}
+
 async function setupContext7Widget() {
     const host = document.getElementById("context7-widget");
     const shadowRoot = window[Symbol.for("xnano.context7Shadow")];
@@ -250,6 +425,10 @@ async function setupContext7Widget() {
 
     const applyTheme = () => {
         host.dataset.theme = document.body.getAttribute("data-md-color-scheme");
+        host.dataset.xnanoStyle =
+            document.documentElement.dataset.xnanoStyle || "mono";
+        host.dataset.xnanoSize =
+            document.documentElement.dataset.xnanoSize || "auto";
     };
 
     applyTheme();
@@ -294,6 +473,8 @@ async function main() {
     openLinksInNewTab();
     setupNavAccent();
     setupCollapsibleNavigation();
+    setupAppearanceMenu();
+    setupFloatingFooterAvoidance();
     await setupContext7Widget();
 }
 
