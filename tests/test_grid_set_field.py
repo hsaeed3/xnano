@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from xnano.components.text import Text
@@ -56,8 +58,9 @@ def test_set_field_rejects_unknown_field() -> None:
 
 def test_set_field_rejects_immutable_keys() -> None:
     grid = LayoutGrid()
+    set_field: Any = grid.grid_set_field
     with pytest.raises(TypeError, match="default"):
-        grid.grid_set_field("body", default="nope")
+        set_field("body", default="nope")
 
 
 def test_set_field_validates_when_strict() -> None:
