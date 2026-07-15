@@ -20,22 +20,22 @@ QUIT = Action.keyboard("q")
 
 1. `Action.keyboard(...)` takes the same binding strings as `@on_keyboard` — `"ctrl+s"`, `"q"`, `"enter"`, and so on.
 
-## Bind With `@on`
+## Bind With `@on_action`
 
-```python title="Bind With @on" hl_lines="3 4 5 6"
-from xnano import on
+```python title="Bind With @on_action" hl_lines="3 4 5 6"
+from xnano import on_action
 
-@on(SAVE)
+@on_action(SAVE)
 def save(self) -> None: # (1)!
     self.dirty = False
     self.status = "saved"
 ```
 
-1. `@on(SAVE)` fires when that action matches the live event.
+1. `@on_action(SAVE)` fires when that action matches the live event.
 
 ## Mix With `@on_keyboard`
 
-One-off keys can stay on `@on_keyboard`. Use `Action` + `@on` when the same binding is shared, tested, or performed synthetically.
+One-off keys can stay on `@on_keyboard`. Use `Action` + `@on_action` when the same binding is shared, tested, or performed synthetically.
 
 ```python title="Mix With @on_keyboard" hl_lines="3 4 5 6"
 from xnano import on_keyboard
@@ -49,7 +49,15 @@ def edit(self) -> None:
 ## A Small Editor
 
 ```python title="A Small Editor"
-from xnano import BaseGrid, Field, Terminal, Context, Action, on, on_keyboard
+from xnano import (
+    Action,
+    BaseGrid,
+    Context,
+    Field,
+    Terminal,
+    on_action,
+    on_keyboard,
+)
 
 SAVE = Action.keyboard("ctrl+s")
 QUIT = Action.keyboard("q")
@@ -59,12 +67,12 @@ class Editor(BaseGrid, direction="vertical", gap=1):
     body: str = Field(default="draft notes…", height=3, border="rounded")
     dirty: bool = Field(default=True, state=True)
 
-    @on(SAVE)
+    @on_action(SAVE)
     def save(self) -> None:
         self.dirty = False
         self.status = "saved"
 
-    @on(QUIT)
+    @on_action(QUIT)
     def quit(self, ctx: Context) -> None:
         ctx.terminal.request_exit()
 
@@ -89,7 +97,7 @@ From tests or another handler, with a live terminal:
 terminal.perform(SAVE) # (1)!
 ```
 
-1. `perform` injects the action as if the user had triggered its binding. The same `@on(SAVE)` handlers fire.
+1. `perform` injects the action as if the user had triggered its binding. The same `@on_action(SAVE)` handlers fire.
 
 <br/>
 

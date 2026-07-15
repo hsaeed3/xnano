@@ -221,7 +221,7 @@ to attach its hooks, perform an action, and render the changed state again.
 This gives browser examples real behavior without starting an OS event loop.
 
 ```pyodide install="xnano>=1.0.10" height="24"
-from xnano import Action, BaseGrid, Field, Terminal, on
+from xnano import Action, BaseGrid, Field, Terminal, on_action
 
 INCREMENT = Action.keyboard("right")
 
@@ -229,7 +229,7 @@ class Counter(BaseGrid, border="rounded", title="synthetic action", padding=1):
     label: str = Field(default="count: 0", align="center")
     count: int = Field(default=0, state=True)
 
-    @on(INCREMENT)
+    @on_action(INCREMENT)
     def increment(self) -> None:
         self.count += 1
         self.label = f"count: {self.count}"
