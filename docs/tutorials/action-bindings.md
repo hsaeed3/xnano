@@ -35,7 +35,7 @@ def save(self) -> None: # (1)!
 
 ## Mix With `@on_keyboard`
 
-One-off keys can stay on `@on_keyboard`. Use `Action` + `@on_action` when the same binding is shared, tested, or performed synthetically.
+One-off keys can stay on [`@on_keyboard`](../api/xnano/events.md#xnano.events.on_keyboard){data-preview}. Use [Action]{data-preview} + [`@on_action`](../api/xnano/events.md#xnano.events.on_action){data-preview} when the same binding is shared, tested, or performed synthetically.
 
 ```python title="Mix With @on_keyboard" hl_lines="3 4 5 6"
 from xnano import on_keyboard

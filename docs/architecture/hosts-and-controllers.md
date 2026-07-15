@@ -7,8 +7,11 @@ icon: "lucide/server"
 
 `xnano.core` defines the contracts shared by terminal and web hosts.
 These contracts separate field state, session behavior, and backend
-rendering across three classes: `AbstractInterface`, `AbstractHost`, and
-`AbstractController`.
+rendering across three classes:
+[`AbstractInterface`](../api/xnano/core/interface.md#xnano.core.interface.AbstractInterface){data-preview},
+[`AbstractHost`](../api/xnano/core/hosts.md#xnano.core.hosts.AbstractHost){data-preview},
+and
+[`AbstractController`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractController){data-preview}.
 
 <div class="grid-concept-diagram" role="img" aria-label="Diagram: an interface's field mutation notifying its host, which drives a controller to measure, layout, and paint">
 <svg viewBox="0 0 760 170" xmlns="http://www.w3.org/2000/svg" fill="none">
@@ -39,9 +42,14 @@ rendering across three classes: `AbstractInterface`, `AbstractHost`, and
 
 ## `AbstractInterface`: field state
 
-`BaseGrid` inherits from `xnano.core.interface.AbstractInterface` to
+[`BaseGrid`](../api/xnano/grid.md#xnano.grid.BaseGrid){data-preview}
+inherits from
+[`xnano.core.interface.AbstractInterface`](../api/xnano/core/interface.md#xnano.core.interface.AbstractInterface){data-preview}
+to
 manage declared fields and their per-instance `FieldState` objects.
-Layout remains the responsibility of `BaseGrid`; `AbstractInterface`
+Layout remains the responsibility of
+[`BaseGrid`](../api/xnano/grid.md#xnano.grid.BaseGrid){data-preview};
+[`AbstractInterface`](../api/xnano/core/interface.md#xnano.core.interface.AbstractInterface){data-preview}
 tracks field values and reports changes.
 
 It has two main responsibilities:
@@ -53,7 +61,8 @@ It has two main responsibilities:
   its cached value, and calls `_notify_field_changed()`.
 
 `_notify_field_changed()` is best-effort. It obtains the active host from
-`xnano.core.hosts.get_active_host()`, finds its private `_session` or
+[`xnano.core.hosts.get_active_host()`](../api/xnano/core/hosts.md#xnano.core.hosts.get_active_host){data-preview},
+finds its private `_session` or
 `controller` handle, and calls `notify_field_changed()` when that method
 is available. Notification errors are ignored. As a result, mutating a
 grid without an active host, including in a unit test, updates its state
@@ -61,41 +70,55 @@ without raising an exception.
 
 ## `AbstractHost`: shared session behavior
 
-`Terminal` and web sessions both implement
-`xnano.core.hosts.AbstractHost`. It provides behavior that is independent
+[`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
+and web sessions both implement
+[`xnano.core.hosts.AbstractHost`](../api/xnano/core/hosts.md#xnano.core.hosts.AbstractHost){data-preview}.
+It provides behavior that is independent
 of the output surface:
 
 - **Dispatch state:** `_hooks`, `_attached_grids`,
   `_attached_frame_grids`, and `state` form the common interface used by
   `xnano._dispatch`. They are documented on the class without strict
   types because dispatch accepts any compatible host, not only
-  `Terminal`.
-- **`perform(action)`:** converts an `Action`, or another object with
+  [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}.
+- **`perform(action)`:** converts an
+  [`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview},
+  or another object with
   `to_event()`, into an event and passes it to `dispatch_hooks()`.
   Reentrant calls are queued to avoid nested dispatch. A chain longer
   than `_MAX_PERFORM_DEPTH` (32) raises `HookError`, which stops actions
   that repeatedly trigger the same hook.
-- **`navigate(key)` and `RouteTable`:** map route keys to interface
+- **`navigate(key)` and
+  [`RouteTable`](../api/xnano/core/hosts.md#xnano.core.hosts.RouteTable){data-preview}:**
+  map route keys to interface
   factories. Subclasses implement `on_navigate()` when navigation also
   needs to reattach hooks or replace the controller root.
-- **Lazy `actions` and `stage` properties:** create `Actions(self)` and
-  `Stage(self)` on first access and reuse those instances afterward.
+- **Lazy `actions` and `stage` properties:** create
+  [`Actions(self)`](../api/xnano/core/actions.md#xnano.core.actions.Actions){data-preview}
+  and
+  [`Stage(self)`](../api/xnano/core/stage.md#xnano.core.stage.Stage){data-preview}
+  on first access and reuse those instances afterward.
 - **`enter_host()` and `leave_host()`:** set and clear the active host in
   `_ACTIVE_HOST`, a `contextvars.ContextVar`. Code such as
-  `AbstractInterface.mark_field_dirty()` can then find the current host
+  [`AbstractInterface`](../api/xnano/core/interface.md#xnano.core.interface.AbstractInterface){data-preview}`.mark_field_dirty()`
+  can then find the current host
   without receiving it as an argument or relying on a process-wide
   singleton.
 
 ## `AbstractController`: painting, measurement, and layout
 
-`xnano.core.controllers.abstract.AbstractController` defines the
-rendering backend API. `xnano.tui` uses `TerminalController`, while
+[`xnano.core.controllers.abstract.AbstractController`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractController){data-preview}
+defines the
+rendering backend API. `xnano.tui` uses
+[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview},
+while
 `xnano.webui` provides its own implementation. Only
 `get_capabilities()` is required. Other methods raise
 `NotImplementedError` by default, so each backend implements the
 features it supports.
 
-`AbstractControllerCapabilities` is the negotiation surface:
+[`AbstractControllerCapabilities`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractControllerCapabilities){data-preview}
+is the negotiation surface:
 
 ```python
 supports_effects: bool             # does grid_play_effect do anything?
@@ -111,35 +134,55 @@ backend features. Controller methods fall into these groups:
 - **Frame lifecycle:** `begin_viewport_frame()`, `commit_requests()`,
   `get_viewport_area()`.
 - **Chrome:** `paint_frame(area, frame)` paints borders, padding, and a
-  title. `paint_chrome(area, style)` first converts a `Style` to a
-  `Frame`, allowing callers to work directly with styles.
+  title. `paint_chrome(area, style)` first converts a
+  [`Style`](../api/xnano/_styles.md#xnano._styles.Style){data-preview}
+  to a
+  [`Frame`](../api/xnano/_types.md#xnano._types.Frame){data-preview},
+  allowing callers to work directly with styles.
 - **Layout:** `split_layout(area, direction, gap, constraints)` turns
-  an `AbstractLayoutConstraint` sequence into concrete sub-`Area`s;
+  an
+  [`AbstractLayoutConstraint`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractLayoutConstraint){data-preview}
+  sequence into concrete sub-`Area`s;
   `measure_field_slot()` sizes one slot's content ahead of layout.
 - **Content painting:** `render_content()` handles a neutral `Content`
-  tree, `render_ir()` accepts a pre-lowered `CoreRenderIR`, and
+  tree, `render_ir()` accepts a pre-lowered
+  [`CoreRenderIR`](../api/xnano-core/core.md){data-preview}, and
   `render_native()` accepts a backend-native widget without a portable
   IR form. `paint_node()` asks the node to lower itself, so the
   controller does not inspect its concrete type.
 - **Effects and fields:** `play_effect()`, `paint_field_slot()`, and
-  `notify_field_changed()`. `AbstractInterface` calls the last method
+  `notify_field_changed()`.
+  [`AbstractInterface`](../api/xnano/core/interface.md#xnano.core.interface.AbstractInterface){data-preview}
+  calls the last method
   whenever a field becomes dirty.
 
-`LayoutConstraint` in `xnano.core.controllers.abstract` is the concrete
-constraint type built by `BaseGrid`. Both controllers receive the same
+[`LayoutConstraint`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.LayoutConstraint){data-preview}
+in `xnano.core.controllers.abstract` is the concrete
+constraint type built by
+[`BaseGrid`](../api/xnano/grid.md#xnano.grid.BaseGrid){data-preview}.
+Both controllers receive the same
 constraint values. The terminal controller resolves them against cells
 through the native layout engine, while the web controller converts them
 to CSS layout values.
 
 ## Frame sequence
 
-A field change begins in `BaseGrid`, which is an `AbstractInterface`, and
-notifies the active `AbstractHost` controller. During the next
+A field change begins in
+[`BaseGrid`](../api/xnano/grid.md#xnano.grid.BaseGrid){data-preview},
+which is an
+[`AbstractInterface`](../api/xnano/core/interface.md#xnano.core.interface.AbstractInterface){data-preview},
+and
+notifies the active
+[`AbstractHost`](../api/xnano/core/hosts.md#xnano.core.hosts.AbstractHost){data-preview}
+controller. During the next
 `render_frame()`, the controller measures and lays out fields with
 `measure_field_slot()` and `split_layout()`. It then paints each field
 through `paint_field_slot()`, followed by `render_ir()`,
 `render_native()`, or `paint_node()`. The sequence is shared by
-`xnano.tui.Terminal` and `xnano.webui.Web`; their controller
+[`xnano.tui.Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
+and
+[`xnano.webui.Web`](../api/xnano/webui/web.md#xnano.webui.web.Web){data-preview};
+their controller
 implementations determine how each operation is performed.
 
 See [Event & Render Lifecycle]{data-preview} for the dispatch path and

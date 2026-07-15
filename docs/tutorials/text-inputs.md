@@ -24,7 +24,7 @@ class Form(BaseGrid, direction="vertical"):
 Terminal().run(Form())
 ```
 
-1. `input=True` turns a leaf `Text` into a text box. `placeholder` shows while the field is empty and unfocused.
+1. `input=True` turns a leaf [Text]{data-preview} into a text box. `placeholder` shows while the field is empty and unfocused.
 
 <div class="xnano-demo" markdown>
 ![text inputs dark](../assets/tutorials/text_inputs-dark.gif){.demo-dark}
@@ -35,7 +35,7 @@ Terminal().run(Form())
 
 ## Reading Content
 
-After typing, the string is on `.content` — not the field attribute itself, which is still the `Text` instance.
+After typing, the string is on `.content` — not the field attribute itself, which is still the [Text]{data-preview} instance.
 
 ```python title="Reading Content" hl_lines="6 7"
 from xnano import on_keyboard
@@ -100,13 +100,13 @@ def clear_name(self) -> None:
     self.grid_set_field("name", border_color="slate-600")
 ```
 
-1. `grid_set_field` updates layout props without replacing the `Text` (so typed content is kept).
+1. [grid_set_field]{data-preview} updates layout props without replacing the `Text` (so typed content is kept).
 
 <br/>
 
 ??? abstract "More on Text Inputs"
 
-    - `placeholder` accepts a plain string (dim by default) or a styled `Text`.
+    - `placeholder` accepts a plain string (dim by default) or a styled [Text]{data-preview}.
     - `cursor` is the caret index into `content`; leave it `None` and it tracks the end as the user types.
     - Full parameter list: the [Text]{data-preview} API reference. Focus kinds: [events & hooks]{data-preview}.
 
@@ -115,3 +115,4 @@ def clear_name(self) -> None:
 [BaseGrid]: ../api/xnano/grid.md
 [Terminal]: ../api/xnano/tui/terminal.md
 [events & hooks]: ../core-concepts/events.md
+[grid_set_field]: ../api/xnano/grid.md#xnano.grid.BaseGrid.grid_set_field

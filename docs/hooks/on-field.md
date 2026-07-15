@@ -3,11 +3,13 @@ title: "@on_field"
 icon: "lucide/grid-2x2-check"
 ---
 
-# Triggering Events on Field  Changes or Conditions
+# Field-Condition Hooks
 
-`@on_field` watches the grid's own values. Layout fields and `state=True` fields are both available by name in its expression.
+[`@on_field`](../api/xnano/events.md#xnano.events.on_field){data-preview} evaluates an expression against the current grid. Both rendered fields and `state=True` fields are available by name.
 
-```python title="Watching a Grid Field" hl_lines="6"
+## Watch a State Field
+
+```python title="Enable an Action" hl_lines="7"
 from xnano import BaseGrid, Field
 from xnano.events import on_field
 
@@ -19,11 +21,41 @@ class Checkout(BaseGrid):
         self.button = "Checkout ready"
 ```
 
-Like `@on_state`, this is level-triggered: it runs while the expression is true, not only on the instant it changes from false to true.
+## Inspect Structured Values
 
-## Actions
+Expressions can index grid-owned mappings and sequences.
 
-There is no field action. Assign the field normally and allow a tick to evaluate the predicate. When an explicit command would read more clearly than a continuously true condition, bind a named `Action` with [`@on_action`](on.md) instead.
+```python title="Read Structured Field State"
+@on_field("config['name'] == 'Ada'")
+def greet_user(self) -> None:
+    self.message = "Hello, Ada!"
+```
+
+You can combine several fields in one condition:
+
+```python title="Combine Fields"
+@on_field("email and accepted_terms")
+def enable_submit(self) -> None:
+    self.submit = "Ready"
+```
+
+## Conditions Are Level-Triggered
+
+The method runs while the expression is truthy, not only when it changes from false to true. Assign a guard field when a reaction should happen once.
+
+```python title="Run Once"
+@on_field("complete and not announced")
+def announce_completion(self) -> None:
+    self.status = "Complete"
+    self.announced = True
+```
+
+<div class="xnano-demo" markdown>
+![field hook dark](../assets/hooks/field-dark.gif){.demo-dark}
+![field hook light](../assets/hooks/field-light.gif){.demo-light}
+</div>
+
+Field conditions do not have an action counterpart. When the trigger is an explicit command rather than a continuing condition, bind a named [`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview} instead.
 
 ??? abstract "API"
 

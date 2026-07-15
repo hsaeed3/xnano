@@ -66,10 +66,6 @@
     display: none;
 }
 
-.md-sidebar--primary li.xnano-hooks-subsection > nav.md-nav {
-    display: block !important;
-}
-
 /* "> " marker before the active page's title in the primary sidebar nav
    only — the shimmer animates the marker's color, not the link text. */
 .md-sidebar--primary .md-nav__link--active .md-ellipsis::before {

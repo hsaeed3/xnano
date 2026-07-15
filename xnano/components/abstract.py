@@ -103,11 +103,15 @@ class AbstractComponent(abc.ABC):
         return None
 
     def compose(self, ctx: ComponentRenderContext[StateT]) -> Any | None:
-        """Compose interface-neutral ``Content`` for this component.
+        """Compose interface-neutral
+        [`Content`](../core/content.md#xnano.core.content.Content){data-preview}
+        for this component.
 
         Controllers prefer this over ``get_*_node``. Default returns
-        ``None``; components may implement Content trees and/or
-        interface-specific ``get_terminal_node`` / ``get_web_node``.
+        ``None``; components may implement
+        [`Content`](../core/content.md#xnano.core.content.Content){data-preview}
+        trees and/or interface-specific ``get_terminal_node`` /
+        ``get_web_node``.
 
         Args:
             ctx: Render context for this paint.

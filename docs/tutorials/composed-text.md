@@ -61,7 +61,7 @@ render(Text([
 ]))
 ```
 
-1. Each child owns its own `color` and modifiers. The outer `Text` is just the line that holds them.
+1. Each child owns its own `color` and modifiers. The outer [Text]{data-preview} is just the line that holds them.
 
 ## A Paragraph
 
@@ -92,7 +92,7 @@ class StatusBar(BaseGrid, direction="vertical"):
 
 ## Rebuilding When State Changes
 
-Store the level as `state=True` data, rebuild the composed `Text` when it changes, and reassign the field.
+Store the level as `state=True` data, rebuild the composed [Text]{data-preview} when it changes, and reassign the field.
 
 ```python title="Builder Helper" hl_lines="8 9 10 11 12 13"
 _COLORS = {

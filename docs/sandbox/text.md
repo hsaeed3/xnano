@@ -5,7 +5,8 @@ icon: "lucide/type"
 
 # Text Sandbox
 
-`Text` has one constructor for leaf text, inline spans, multi-line paragraphs,
+[`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}
+has one constructor for leaf text, inline spans, multi-line paragraphs,
 and editable input. These examples cover every constructor option:
 `content`, `color`, `background`, `modifiers`, `align`, `wrap`, `input`,
 `placeholder`, `cursor`, `visible`, `z`, and `fit_content`.
@@ -33,9 +34,10 @@ paragraph = Text([
 Terminal(width=64, height=10).render(leaf, line, paragraph, gap=1)
 ```
 
-`content` may be a string, another `Text`, or a list containing strings and
-`Text` children. A list of leaves is one line; nested lines or embedded
-newlines form a paragraph.
+`content` may be a string, another
+[`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview},
+or a list containing strings and `Text` children. A list of leaves is one
+line; nested lines or embedded newlines form a paragraph.
 
 ??? example "Text Content"
     - `content`: `str | Text | list[str | Text]`; see [Text](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}.
@@ -90,10 +92,13 @@ Terminal(width=46, height=14).render(TextLayout())
 
 ## Input, Placeholder, and Cursor
 
-An input must be a leaf `Text`. `placeholder` accepts a string or styled
-`Text`; `cursor=None` means the end, while an integer chooses a character
-index. The offscreen terminal can focus fields and accept synthetic keyboard
-actions, so this remains behavioral without `Terminal.run()`.
+An input must be a leaf
+[`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}.
+`placeholder` accepts a string or styled `Text`; `cursor=None` means the end,
+while an integer chooses a character index. The offscreen terminal can focus
+fields and accept synthetic keyboard actions, so this remains behavioral
+without
+[`Terminal.run()`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run){data-preview}.
 
 ```pyodide install="xnano>=1.0.10" height="30"
 from xnano import Action, BaseGrid, Field, Terminal
@@ -144,8 +149,9 @@ keyboard actions.
 
 All components inherit keyword-only `visible`, `z`, and `fit_content`.
 `visible=False` suppresses painting. `z` determines sibling paint order when
-areas overlap. `fit_content=True` lets `Text` measure to its content; `False`
-lets its field/viewport supply the size.
+areas overlap. `fit_content=True` lets
+[`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}
+measure to its content; `False` lets its field/viewport supply the size.
 
 ```pyodide install="xnano>=1.0.10" height="18"
 from xnano import Terminal

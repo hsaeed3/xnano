@@ -42,7 +42,9 @@ FormatResolver: TypeAlias = str | Callable[[Any], str] | None
 
 @dataclasses.dataclass
 class ComponentDescriptor:
-    """Base for declarative class-level descriptors (``Column``, ``Series``).
+    """Base for declarative class-level descriptors
+    ([`Column`](#xnano.components.schema.Column){data-preview},
+    [`Series`](#xnano.components.schema.Series){data-preview}).
 
     The owning attribute name is filled in by ``DeclarativeComponentMeta`` when
     the descriptor is captured.
@@ -53,7 +55,8 @@ class ComponentDescriptor:
 
 @dataclasses.dataclass
 class Column(ComponentDescriptor):
-    """Declares one column of a ``Table``.
+    """Declares one column of a
+    [`Table`](table.md#xnano.components.table.Table){data-preview}.
 
     Attributes:
         header: Column header text; ``None`` derives it from the attribute
@@ -158,7 +161,8 @@ class Column(ComponentDescriptor):
 
 @dataclasses.dataclass
 class Series(ComponentDescriptor):
-    """Declares one series of a ``Chart``.
+    """Declares one series of a
+    [`Chart`](chart.md#xnano.components.chart.Chart){data-preview}.
 
     Attributes:
         label: Legend label; ``None`` derives it from the attribute name.
@@ -184,12 +188,15 @@ class Series(ComponentDescriptor):
 
 
 class DeclarativeComponentMeta(abc.ABCMeta):
-    """Metaclass that captures ``ComponentDescriptor`` class attributes.
+    """Metaclass that captures
+    [`ComponentDescriptor`](#xnano.components.schema.ComponentDescriptor){data-preview}
+    class attributes.
 
     Descriptors declared on a component subclass are collected in declaration
     order (across the MRO) into ``_declared`` and removed from the class body,
     so instances never expose raw descriptor objects. Mirrors the way
-    ``xnano.grid._GridMeta`` captures ``Field`` declarations.
+    ``xnano.grid._GridMeta`` captures
+    [`Field`](../fields.md#xnano.fields.Field){data-preview} declarations.
     """
 
     _declared: dict[str, ComponentDescriptor]

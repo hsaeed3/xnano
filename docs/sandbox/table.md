@@ -5,9 +5,9 @@ icon: "lucide/table"
 
 # Table & Column Sandbox
 
-This page covers every `Table` option—`data`, `columns`, `selected`,
+This page covers every [Table]{data-preview} option—`data`, `columns`, `selected`,
 `show_header`, `column_spacing`, all three highlight controls, and the shared
-component flags—plus every `Column` descriptor option.
+component flags—plus every [Column]{data-preview} descriptor option.
 
 ## Inferred Data Shapes
 
@@ -48,7 +48,7 @@ Terminal(width=52, height=12).render(*tables, gap=1)
 ## Columns
 
 `columns` accepts a list of names or a mapping. Mapping values may be a header
-string, a `Column`, an accessor callable, or `None` (the default column).
+string, a [Column]{data-preview}, an accessor callable, or `None` (the default column).
 
 ```pyodide install="xnano>=1.0.10" height="25"
 from xnano import Terminal
@@ -154,7 +154,7 @@ Terminal(width=48, height=8).render(
 
 ## `Column`
 
-`Column` accepts `header`, `accessor`, `format`, `color`, `background`,
+[Column]{data-preview} accepts `header`, `accessor`, `format`, `color`, `background`,
 `align`, and `width`. The formatter may be a format string, callable, or
 `None`; foreground/background may be static colors, value callables, or
 `None`; alignment is `left`, `center`, `right`, or `None`; width is fixed

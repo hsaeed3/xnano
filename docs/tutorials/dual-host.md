@@ -9,7 +9,7 @@ Hand the same [BaseGrid]{data-preview} class to either [Terminal]{data-preview} 
 
 ## One Grid
 
-Nothing in the class imports `Terminal` or `Web`.
+Nothing in the class imports [Terminal]{data-preview} or [Web]{data-preview}.
 
 ```python title="One Grid" hl_lines="7 8 10 11 12 13 15 16 17"
 from xnano import BaseGrid, Field, on_keyboard, on_tick
