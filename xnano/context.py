@@ -39,7 +39,7 @@ class Context(Generic[StateT]):
 
     event: Event | None
     terminal: "Terminal[StateT]"
-    state: StateT | None
+    state: StateT
 
     @property
     def host(self) -> "Terminal[StateT] | AbstractHost":
