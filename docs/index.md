@@ -81,7 +81,7 @@ You can install xnano with your favorite package manager on python 3.10+.
 
 ## Hello World
 
-A grid, a couple of fields, a hook, and a [`Terminal`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} to run it — that's the whole shape of an xnano app.
+A [grid](api/xnano/grid.md#xnano.grid.BaseGrid){data-preview}, a couple of [fields](../api/xnano/fields#xnano.fields.Field){data-preview}, some [hooks](api/xnano/events.md#xnano.events.on_event){data-preview}, and a [`Terminal`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} to run it — that's the whole shape of an xnano app.
 
 ??? example "Interactive Example"
 
