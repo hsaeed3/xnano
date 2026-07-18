@@ -81,7 +81,7 @@ You can install xnano with your favorite package manager on python 3.10+.
 
 ## Hello World
 
-A [grid](api/xnano/grid.md#xnano.grid.BaseGrid){data-preview}, a couple of [fields](../api/xnano/fields#xnano.fields.Field){data-preview}, some [hooks](api/xnano/events.md#xnano.events.on_event){data-preview}, and a [`Terminal`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} to run it — that's the whole shape of an xnano app.
+A [grid](api/xnano/grid.md#xnano.grid.BaseGrid), a couple of [fields](../api/xnano/fields#xnano.fields.Field), some [hooks](api/xnano/events.md#xnano.events.on_event), and a [`Terminal`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal) to run it — that's the whole shape of an xnano app.
 
 ??? example "Interactive Example"
 
@@ -114,8 +114,8 @@ Terminal().run(Hello()) # (3)!
 ```
 
 1. A grid is a class; a field is a typed, styled attribute on it — this one's violet and bold.
-2. A method wrapped in [`@on_keyboard`](api/xnano/events.md#xnano.events.on_keyboard){data-preview} becomes a hook, fired whenever that key is pressed.
-3. [`Terminal().run(...)`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} keeps the app alive, reading input and repainting until it exits.
+2. A method wrapped in [`@on_keyboard`](api/xnano/events.md#xnano.events.on_keyboard) becomes a hook, fired whenever that key is pressed.
+3. [`Terminal().run(...)`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal) keeps the app alive, reading input and repainting until it exits.
 
 <div class="xnano-demo" markdown>
 ![hello dark](./assets/concepts/hello_render-dark.gif){.demo-dark}
@@ -137,7 +137,7 @@ Once you're ready to get started, try clicking on one of the following cards to 
 
     Start with the core concepts and components that make up the xnano, along with interactive examples to get you off the ground running.
 
-    [Core Concepts | Grids]{.xnano-card-link data-preview}
+    [Core Concepts | Grids]{.xnano-card-link}
 
 -   :material-puzzle:{ .lg .middle } **Components**
 
@@ -145,7 +145,7 @@ Once you're ready to get started, try clicking on one of the following cards to 
 
     Explore xnano's component API, along with built-in components and how to easily define your own.
 
-    [Components | Components]{.xnano-card-link data-preview}
+    [Components | Components]{.xnano-card-link}
 
 -   :material-school:{ .lg .middle } **Tutorials**
 
@@ -153,7 +153,7 @@ Once you're ready to get started, try clicking on one of the following cards to 
 
     Simple step-by-step tutorials for a variety of common use cases and patterns that can be implemented with xnano.
 
-    [Tutorials | Overview]{.xnano-card-link data-preview}
+    [Tutorials | Overview]{.xnano-card-link}
 
 -   :material-chip:{ .lg .middle } **Core Architecture**
 
@@ -161,7 +161,7 @@ Once you're ready to get started, try clicking on one of the following cards to 
 
     For _advanced_ developers, who want a deeper undertanding of the underlying rust-based <code>xnano-core</code> library along with xnano's core architecture and event/rendering lifecycle.
 
-    [Core Architecture | xnano-core]{.xnano-card-link data-preview}
+    [Core Architecture | xnano-core]{.xnano-card-link}
 
 -   :material-book-open-page-variant:{ .lg .middle } **API Reference**
 
@@ -169,7 +169,7 @@ Once you're ready to get started, try clicking on one of the following cards to 
 
     Complete API reference for the public classes, methods and other objects within the <code>xnano</code> and <code>xnano-core</code> packages.
 
-    [API Reference | xnano]{.xnano-card-link data-preview}
+    [API Reference | xnano]{.xnano-card-link}
 
 </div>
 
