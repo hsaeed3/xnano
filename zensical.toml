@@ -120,6 +120,7 @@ nav = [
             "api/xnano/context.md",
             "api/xnano/effects.md",
             "api/xnano/events.md",
+            "api/xnano/hooks.md",
             "api/xnano/fields.md",
             "api/xnano/grid.md",
             "api/xnano/images.md",
