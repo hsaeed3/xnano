@@ -182,3 +182,24 @@ def test_field_defaults_render_offscreen() -> None:
     session.commit_requests()
     output = session.get_core_session_output_text()
     assert output.count("hello") == 2
+
+
+def test_grid_supports_abc_mixin() -> None:
+    """BaseGrid's metaclass subclasses ABCMeta, so abstract grids work."""
+    import abc
+
+    import pytest
+
+    class AbstractWindow(BaseGrid, abc.ABC):
+        title: str = Field(default="t")
+
+        @abc.abstractmethod
+        def build(self) -> None: ...
+
+    class ConcreteWindow(AbstractWindow):
+        def build(self) -> None:
+            pass
+
+    with pytest.raises(TypeError):
+        AbstractWindow()
+    assert ConcreteWindow().title == "t"

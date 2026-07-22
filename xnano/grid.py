@@ -88,6 +88,7 @@ Example:
 
 from __future__ import annotations
 
+import abc
 import dataclasses
 import inspect
 import itertools
@@ -695,7 +696,9 @@ class _GridMetaNamespace(dict[str, Any]):
     field_specifiers=(Field, GridFieldInfo, dataclasses.field),
     kw_only_default=True,
 )
-class _GridMeta(type):
+# ABCMeta (not plain type) so grids can mix in abc.ABC:
+# ``class Window(BaseGrid, abc.ABC)`` needs the two metaclasses related.
+class _GridMeta(abc.ABCMeta):
     @classmethod
     def __prepare__(
         mcls,

@@ -85,9 +85,7 @@ def test_blockquote_is_dim() -> None:
 
 def test_fenced_python_block_is_highlighted() -> None:
     lines = markdown_lines("```python\ndef f():\n    pass\n```")
-    code_line = next(
-        line for line in lines if _plain(line).startswith("def")
-    )
+    code_line = next(line for line in lines if _plain(line).startswith("def"))
     assert code_line[0].color is not None
 
 
