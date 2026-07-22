@@ -590,9 +590,36 @@ class Text(AbstractComponent):
             A web node representing this Text, or None.
         """
         from xnano.webui.nodes import (
+            WebInputNode,
             WebParagraphNode,
+            WebRawHtmlNode,
             WebSpanNode,
         )
+
+        # Markdown renders as real semantic HTML on the web host; the
+        # renderer output is trusted framework markup.
+        if self.markdown and isinstance(self.content, str):
+            from xnano._markup import markdown_html
+
+            return WebRawHtmlNode(
+                html=markdown_html(self.content),
+                z=self.z,
+                visible=self.visible,
+            )
+
+        # Editable Text lowers to a real form field.
+        if self.input and isinstance(self.content, str):
+            return WebInputNode(
+                value=self.value,
+                placeholder=self._placeholder_string(),
+                multiline=self.multiline,
+                rows=self.rows,
+                color=self.color,
+                background=self.background,
+                modifiers=self.modifiers,
+                z=self.z,
+                visible=self.visible,
+            )
 
         markup_lines = self._markup_lines()
         if markup_lines is not None:

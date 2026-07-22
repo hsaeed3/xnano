@@ -265,10 +265,82 @@ class WebContainerNode(AbstractWebNode):
         return f"<div{attrs}>{children_html}</div>"
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WebInputNode(AbstractWebNode):
+    """An editable text field.
+
+    Attributes:
+        name: Form field name.
+        value: Current value.
+        placeholder: Placeholder shown while empty.
+        multiline: Render as ``<textarea>`` instead of ``<input>``.
+        rows: Visible rows for a multiline field.
+        color: Optional text color.
+        background: Optional background color.
+        modifiers: Text modifiers.
+    """
+
+    name: str = ""
+    value: str = ""
+    placeholder: str | None = None
+    multiline: bool = False
+    rows: int | None = None
+    color: ColorLike | None = None
+    background: ColorLike | None = None
+    modifiers: tuple[CharacterModifier, ...] = ()
+
+    def to_html(self) -> str:
+        """Render to an HTML input or textarea element."""
+        if not self.visible:
+            return ""
+        classes, styles = build_style_attrs(
+            color=self.color,
+            background=self.background,
+            modifiers=self.modifiers,
+        )
+        attrs = _format_attributes(classes, styles)
+        if self.name:
+            attrs += f' name="{html.escape(self.name, quote=True)}"'
+        if self.placeholder:
+            attrs += (
+                f' placeholder="{html.escape(self.placeholder, quote=True)}"'
+            )
+        if self.multiline:
+            rows = self.rows if self.rows is not None else 4
+            return (
+                f'<textarea rows="{rows}"{attrs}>'
+                f"{html.escape(self.value)}</textarea>"
+            )
+        value_attr = f' value="{html.escape(self.value, quote=True)}"'
+        return f'<input type="text"{value_attr}{attrs}>'
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WebRawHtmlNode(AbstractWebNode):
+    """Trusted, pre-rendered HTML emitted verbatim.
+
+    Only for framework-generated markup (the markdown renderer); user
+    content must keep flowing through the escaping node types.
+
+    Attributes:
+        html: The HTML fragment to emit unescaped.
+    """
+
+    html: str = ""
+
+    def to_html(self) -> str:
+        """Return the trusted HTML fragment as-is."""
+        if not self.visible:
+            return ""
+        return self.html
+
+
 __all__ = (
     "AbstractWebNode",
     "WebSpanNode",
     "WebParagraphNode",
     "WebContainerNode",
+    "WebInputNode",
+    "WebRawHtmlNode",
     "build_style_attrs",
 )

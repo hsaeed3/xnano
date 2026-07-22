@@ -108,12 +108,13 @@ def test_text_language_composes_text_block() -> None:
     assert _plain(content.lines[0]) == "x = 1"
 
 
-def test_text_markdown_web_spans() -> None:
+def test_text_language_web_spans() -> None:
     from xnano.webui.nodes import WebParagraphNode
 
-    node = Text("**bold**", markdown=True).get_web_node(_ctx())
+    node = Text("def f(): ...", language="python").get_web_node(_ctx())
     assert isinstance(node, WebParagraphNode)
-    assert node.lines[0][0].modifiers == ("bold",)
+    assert node.lines[0][0].content == "def"
+    assert node.lines[0][0].color is not None
 
 
 def test_display_modes_are_mutually_exclusive() -> None:

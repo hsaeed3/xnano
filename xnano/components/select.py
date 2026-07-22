@@ -280,6 +280,77 @@ class Select(AbstractComponent):
             visible=self.visible,
         )
 
+    def get_web_node(self, ctx: ComponentRenderContext) -> Any:
+        """Render this Select as a search field plus a filtered list.
+
+        Args:
+            ctx: The render context.
+
+        Returns:
+            A web node tree for this Select.
+        """
+        from xnano.core.content import Run
+        from xnano.webui.nodes import (
+            WebContainerNode,
+            WebInputNode,
+            WebParagraphNode,
+            WebSpanNode,
+        )
+
+        visible = self._filtered()
+        selected = (
+            max(0, min(self.selected, len(visible) - 1)) if visible else None
+        )
+        lines: list[tuple[WebSpanNode, ...]] = []
+        for display_index, (index, matched) in enumerate(visible):
+            block = self._entry_block(
+                self._item_text(self.items[index]), matched
+            )
+            runs = block.lines[0] if block.lines else (Run(text=block.text),)
+            is_selected = display_index == selected
+            prefix = (
+                self.highlight_symbol
+                if is_selected
+                else " " * len(self.highlight_symbol)
+            )
+            spans = [WebSpanNode(content=prefix)]
+            for run in runs:
+                spans.append(
+                    WebSpanNode(
+                        content=run.text,
+                        color=(
+                            self.highlight_color if is_selected else run.color
+                        ),
+                        background=(
+                            self.highlight_background if is_selected else None
+                        ),
+                        modifiers=run.modifiers,
+                    )
+                )
+            lines.append(tuple(spans))
+        items_node = WebParagraphNode(
+            lines=tuple(lines),
+            color=self.color,
+            background=self.background,
+            wrap=False,
+            z=self.z,
+            visible=self.visible,
+        )
+        if not self.searchable:
+            return items_node
+        return WebContainerNode(
+            children=(
+                WebInputNode(
+                    value=self.query,
+                    placeholder="type to filter",
+                ),
+                items_node,
+            ),
+            direction="vertical",
+            z=self.z,
+            visible=self.visible,
+        )
+
 
 __all__ = (
     "Select",

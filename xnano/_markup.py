@@ -395,8 +395,21 @@ def markdown_lines(content: str) -> tuple[tuple[Run, ...], ...]:
     return tuple(lines)
 
 
+@functools.lru_cache(maxsize=64)
+def markdown_html(content: str) -> str:
+    """Render markdown ``content`` to semantic HTML for the web host.
+
+    The output is framework-generated and trusted; it flows through
+    ``WebRawHtmlNode`` unescaped, unlike all user-authored content.
+    """
+    import markdown_it
+
+    return markdown_it.MarkdownIt("commonmark").render(content)
+
+
 __all__ = (
     "highlight_lines",
+    "markdown_html",
     "markdown_lines",
     "parse_ansi_lines",
     "strip_ansi_escapes",
