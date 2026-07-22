@@ -1,6 +1,8 @@
 // Tick clock is shared by live and buffer-backed sessions (wasm).
 mod clock;
 mod content_bridge;
+#[cfg(feature = "editor")]
+pub(crate) mod editor;
 pub(crate) mod events;
 mod key_binding;
 #[cfg(feature = "terminal")]
@@ -29,5 +31,7 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     key_binding::register_key_binding(m)?;
     m.add_class::<session::PySession>()?;
     m.add_class::<session::PyTerminalRef>()?;
+    #[cfg(feature = "editor")]
+    m.add_class::<editor::PyTextEditor>()?;
     Ok(())
 }

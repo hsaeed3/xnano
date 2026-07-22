@@ -17,6 +17,7 @@ __all__ = (
     "CoreRenderIR",
     "IrLine",
     "CoreKeyBinding",
+    "CoreTextEditor",
     "CoreEvent",
     "CoreTickEvent",
     "CoreTerminalEventKind",

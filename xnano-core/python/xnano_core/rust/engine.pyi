@@ -1318,6 +1318,73 @@ class CoreSession:
         """
         ...
 
+# ── Stage 8: Text editor ──────────────────────────────────────────────────────
+
+class CoreTextEditor:
+    """Stateful multi-line text editor backing editable ``Text`` fields.
+
+    Editing state (lines, cursor, undo history) lives entirely in Rust;
+    Python forwards one key event per keystroke and reads the result.
+    Instances render directly as native widget content.
+    """
+
+    def __init__(self, text: str = "", *, single_line: bool = False) -> None:
+        """Create an editor seeded with ``text``, cursor at the end.
+
+        Args:
+            text: Initial content; newlines split it into lines.
+            single_line: When ``True``, Enter is not consumed and inserted
+                newlines are replaced with spaces.
+        """
+        ...
+
+    def input(self, key: KeyEvent) -> bool:
+        """Apply a key event.
+
+        Tab, BackTab, and Esc always fall through unconsumed (focus
+        navigation and hooks own them); Enter falls through in
+        single-line mode.
+
+        Args:
+            key: A native :class:`~xnano_core.rust.native.KeyEvent`.
+
+        Returns:
+            ``True`` when the editor consumed the event.
+        """
+        ...
+
+    def insert_text(self, text: str) -> None:
+        """Insert ``text`` at the cursor (paste path)."""
+        ...
+
+    def text(self) -> str:
+        """Return the full content as a newline-joined string."""
+        ...
+
+    def set_text(self, text: str) -> None:
+        """Replace the full content, keeping the cursor at the end."""
+        ...
+
+    def lines(self) -> list[str]:
+        """Return the content as one string per line."""
+        ...
+
+    def cursor(self) -> Tuple[int, int]:
+        """Return the cursor position as ``(row, column)``."""
+        ...
+
+    def undo(self) -> bool:
+        """Undo the last edit; returns whether anything changed."""
+        ...
+
+    def redo(self) -> bool:
+        """Redo the last undone edit; returns whether anything changed."""
+        ...
+
+    def set_placeholder_text(self, text: str) -> None:
+        """Set the dim placeholder shown while the editor is empty."""
+        ...
+
 __all__ = (
     "CoreSession",
     "CoreRenderNode",
@@ -1325,6 +1392,7 @@ __all__ = (
     "CoreRenderIR",
     "IrLine",
     "CoreKeyBinding",
+    "CoreTextEditor",
     "CoreEvent",
     "CoreTickEvent",
     "CoreTerminalEventKind",

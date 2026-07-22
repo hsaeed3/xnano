@@ -875,6 +875,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tui-textarea"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a5318dd619ed73c52a9417ad19046724effc1287fb75cdcc4eca1d6ac1acbae"
+dependencies = [
+ "ratatui",
+ "unicode-width 0.2.0",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1038,7 +1048,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "xnano-core"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "crossterm",
  "lru 0.16.4",
@@ -1048,4 +1058,5 @@ dependencies = [
  "ratatui",
  "ratatui-core",
  "tachyonfx",
+ "tui-textarea",
 ]
