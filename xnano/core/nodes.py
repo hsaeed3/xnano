@@ -1,4 +1,4 @@
-"""xnano.tui._node_base_tmp
+"""xnano.core.nodes
 
 ---
 

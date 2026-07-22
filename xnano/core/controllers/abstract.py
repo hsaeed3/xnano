@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeAlias
 if TYPE_CHECKING:
     from xnano._types import Area, Direction, Frame
     from xnano.fields import GridFieldInfo
-    from xnano.tui._node_base_tmp import AbstractNode
+    from xnano.core.nodes import AbstractNode
 
 
 LayoutConstraintKind: TypeAlias = Literal[

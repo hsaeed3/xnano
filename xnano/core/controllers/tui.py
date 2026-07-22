@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from xnano.core.controllers.abstract import AbstractLayoutConstraint
     from xnano.effects import AbstractEffect
     from xnano.fields import GridFieldInfo
-    from xnano.tui._node_base_tmp import AbstractNode
+    from xnano.core.nodes import AbstractNode
 
 
 StateT = TypeVar("StateT")
