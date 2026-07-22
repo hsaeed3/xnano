@@ -143,8 +143,7 @@ class Select(AbstractComponent):
     def visible_items(self) -> tuple[str, ...]:
         """Plain text of the currently visible items, in display order."""
         return tuple(
-            self._item_text(self.items[index])
-            for index, _ in self._filtered()
+            self._item_text(self.items[index]) for index, _ in self._filtered()
         )
 
     @property
@@ -178,9 +177,7 @@ class Select(AbstractComponent):
             self.selected = max(0, min(self.selected, visible_count - 1) - 1)
             return True
         if keyboard.matches("down"):
-            self.selected = min(
-                max(0, visible_count - 1), self.selected + 1
-            )
+            self.selected = min(max(0, visible_count - 1), self.selected + 1)
             return True
         if not self.searchable:
             return False
@@ -241,9 +238,7 @@ class Select(AbstractComponent):
             max(0, min(self.selected, len(visible) - 1)) if visible else None
         )
         entries = tuple(
-            self._entry_block(
-                self._item_text(self.items[index]), matched
-            )
+            self._entry_block(self._item_text(self.items[index]), matched)
             for index, matched in visible
         )
         items_content = Items(

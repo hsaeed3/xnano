@@ -38,9 +38,9 @@ from xnano.tui.nodes import AbstractTerminalNode, ParagraphNode
 if TYPE_CHECKING:
     from xnano._types import Frame
     from xnano.core.controllers.abstract import AbstractLayoutConstraint
+    from xnano.core.nodes import AbstractNode
     from xnano.effects import AbstractEffect
     from xnano.fields import GridFieldInfo
-    from xnano.core.nodes import AbstractNode
 
 
 StateT = TypeVar("StateT")

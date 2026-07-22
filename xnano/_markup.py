@@ -130,9 +130,7 @@ def parse_ansi_lines(content: str) -> tuple[tuple[Run, ...], ...]:
 
     position = 0
     for match in _SGR_PATTERN.finditer(content):
-        emit(
-            strip_ansi_escapes(content[position : match.start()])
-        )
+        emit(strip_ansi_escapes(content[position : match.start()]))
         position = match.end()
         codes = [
             int(part) if part else 0
