@@ -472,6 +472,49 @@ class ClearNode(AbstractTerminalNode):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class EditorNode(AbstractTerminalNode):
+    """A native text-editor render node.
+
+    Rendered through the ``CoreTextEditor`` engine as native widget
+    content — the editor owns its lines, caret, and placeholder, so
+    `lower` is overridden directly rather than `to_ir`.
+
+    Attributes:
+        editor: The ``CoreTextEditor`` instance to paint.
+        rows: Preferred visible height in lines; `None` sizes to the
+            content.
+    """
+
+    editor: Any
+    rows: int | None = None
+
+    def measure(self) -> Size:
+        if not self.visible:
+            return Size(width=0, height=0)
+        lines = self.editor.lines()
+        width = max((len(line) for line in lines), default=0)
+        height = max(len(lines), self.rows or 1)
+        return Size(width=width, height=height)
+
+    def lower(
+        self,
+        area: Area,
+        controller: "AbstractController",
+        *,
+        z: int = 0,
+        effect_key: str | None = None,
+    ) -> None:
+        if not self.visible:
+            return
+        controller.render_native(
+            area,
+            self.editor,
+            z=self._effective_z(z),
+            effect_key=effect_key,
+        )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class FrameNode(AbstractTerminalNode):
     """A frame render node.
 
@@ -1297,6 +1340,7 @@ __all__ = (
     "ChartDataset",
     "ChartNode",
     "ClearNode",
+    "EditorNode",
     "ContainerNode",
     "FrameNode",
     "LineGaugeNode",

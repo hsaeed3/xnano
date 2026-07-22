@@ -9,7 +9,7 @@ editable input fields.
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from xnano._types import Alignment, CharacterModifier
 from xnano.components.abstract import AbstractComponent
@@ -81,39 +81,74 @@ class Text(AbstractComponent):
     cursor: int | None = None
     """Caret index into ``content`` when ``input`` is enabled; ``None`` means
     the end of the string."""
+    multiline: bool = False
+    """When ``True`` together with ``input``, editing is backed by the
+    native ``CoreTextEditor`` engine: multi-line content, undo/redo, and
+    an in-buffer caret. Single-line inputs keep the lightweight path."""
+    rows: int | None = None
+    """Preferred visible height (in lines) for a ``multiline`` input;
+    ``None`` sizes to the content."""
     _input_focused: bool = dataclasses.field(
         default=False, init=False, repr=False, compare=False
     )
+    _editor: Any = dataclasses.field(
+        default=None, init=False, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        if self.multiline and self.input and isinstance(self.content, str):
+            from xnano_core.core import CoreTextEditor
+
+            self._editor = CoreTextEditor(self.content)
+            placeholder = self._placeholder_string()
+            if placeholder:
+                self._editor.set_placeholder_text(placeholder)
 
     def _is_leaf(self) -> bool:
         """True when this node holds a plain string (no nested Text children)."""
         return isinstance(self.content, str)
 
     @property
+    def focusable(self) -> bool:
+        """Whether this Text participates in field focus (tab order)."""
+        return bool(self.input)
+
+    @property
+    def owns_cursor(self) -> bool:
+        """Whether this Text paints its own caret (multi-line editor)."""
+        return self._editor is not None
+
+    @property
     def value(self) -> str:
         """Plain-string content for leaf ``Text``; empty string otherwise."""
+        if self._editor is not None:
+            return self._editor.text()
         if isinstance(self.content, str):
             return self.content
         return ""
 
     @value.setter
     def value(self, text: str) -> None:
+        if self._editor is not None:
+            self._editor.set_text(text)
         self.content = text
         if self.cursor is not None:
             self.cursor = max(0, min(self.cursor, len(text)))
 
-    def handle_keyboard(self, keyboard: KeyboardEventData) -> bool:
-        """Apply a keyboard event when this is an editable input.
+    def handle_paste(self, text: str) -> bool:
+        """Insert pasted text at the caret of a multi-line editor.
 
         Args:
-            keyboard: The keyboard sub-event to apply.
+            text: The pasted clipboard text.
 
         Returns:
-            ``True`` when the event was consumed by this input.
+            ``True`` when the paste was consumed by the native editor.
         """
-        from xnano._types import apply_text_keyboard
-
-        return apply_text_keyboard(self, keyboard)
+        if self._editor is None:
+            return False
+        self._editor.insert_text(text)
+        self.content = self._editor.text()
+        return True
 
     def _placeholder_string(self) -> str | None:
         if self.placeholder is None:
@@ -260,6 +295,17 @@ class Text(AbstractComponent):
         """
         from xnano.core.content import Native, Run, TextBlock
 
+        # Native multi-line editor: the engine owns content and caret.
+        if self._editor is not None:
+            from xnano.tui.nodes import EditorNode
+
+            return Native(
+                interface_kind="tui",
+                payload=EditorNode(editor=self._editor, rows=self.rows),
+                z=self.z,
+                visible=self.visible,
+            )
+
         # Leaf: single string
         if isinstance(self.content, str):
             text_str = self.content
@@ -328,8 +374,10 @@ class Text(AbstractComponent):
     def handle_keyboard(self, keyboard: "KeyboardEventData") -> bool:
         """Apply a keyboard event while this Text is a focused input.
 
-        Component-owned input path (replaces external-only glue). Hosts
-        call this through the shared focus dispatch.
+        Component-owned input path; hosts call this through the shared
+        focus dispatch. Multi-line inputs forward the native key event
+        into the ``CoreTextEditor`` engine; single-line inputs use the
+        lightweight pure-Python path.
 
         Args:
             keyboard: The keyboard event payload.
@@ -337,6 +385,14 @@ class Text(AbstractComponent):
         Returns:
             ``True`` when the key was consumed as text editing.
         """
+        if self._editor is not None:
+            native = getattr(keyboard, "_native_event", None)
+            if native is None:
+                return False
+            consumed = bool(self._editor.input(native))
+            if consumed:
+                self.content = self._editor.text()
+            return consumed
         from xnano._types import apply_text_keyboard
 
         return apply_text_keyboard(self, keyboard)

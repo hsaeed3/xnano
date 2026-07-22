@@ -727,13 +727,15 @@ def dispatch_hooks(terminal: "Terminal[Any]", ctx: "Context[Any]") -> None:
         from xnano._types import focused_input_text
 
         text = focused_input_text(terminal)
-        if text is not None and isinstance(text.content, str):
-            paste = (
-                event.clipboard_event.text
-                if event.clipboard_event is not None
-                else None
-            )
-            if paste:
+        paste = (
+            event.clipboard_event.text
+            if event.clipboard_event is not None
+            else None
+        )
+        if text is not None and paste:
+            handle_paste = getattr(text, "handle_paste", None)
+            pasted = callable(handle_paste) and bool(handle_paste(paste))
+            if not pasted and isinstance(getattr(text, "content", None), str):
                 position = (
                     text.cursor
                     if text.cursor is not None
