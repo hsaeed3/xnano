@@ -984,6 +984,19 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     def __post_init__(self) -> None:
         """Called at the end of the generated ``__init__``. Override to run post-construction logic."""
 
+    @property
+    def focused(self) -> bool:
+        """Whether any of this grid's fields currently holds field focus.
+
+        Live alongside per-component ``focused``: derived from the same
+        per-frame focus flags, so ``self.focused`` in a hook and
+        ``@on_field("focused")`` both read the current state.
+        """
+        return any(
+            bool(getattr(getattr(self, name, None), "focused", False))
+            for name in getattr(self, "_grid_fields", {})
+        )
+
     def _grid_annotation_for_field(
         self,
         name: str,

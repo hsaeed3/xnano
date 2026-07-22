@@ -54,6 +54,17 @@ class AbstractComponent(abc.ABC):
     z: int = dataclasses.field(default=0, kw_only=True)
     fit_content: bool = dataclasses.field(default=True, kw_only=True)
 
+    @property
+    def focused(self) -> bool:
+        """Whether this component currently holds field focus.
+
+        Live alongside ``visible`` / ``z``: the focus machinery keeps
+        it in sync every frame, so ``self.name.focused`` in a hook and
+        ``@on_field("name.focused")`` both read the current state.
+        Components that never take focus always return ``False``.
+        """
+        return bool(getattr(self, "_input_focused", False))
+
     def get_frame(self) -> "Frame | None":
         """Return an optional frame panel to wrap the composed content of
         this component around.
