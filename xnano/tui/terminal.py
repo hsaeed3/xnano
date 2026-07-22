@@ -294,13 +294,12 @@ class Terminal(AbstractHost, Generic[StateT]):
 
         Wasm / Pyodide wheels build without the ``terminal`` cargo feature
         and only expose buffer-backed :meth:`CoreSession.offscreen` sessions.
+        Import errors propagate — a broken ``xnano_core`` install must
+        surface as itself, not masquerade as a wasm build.
         """
-        try:
-            from xnano_core.core import CoreSession
+        from xnano_core.core import CoreSession
 
-            return bool(CoreSession.supports_live_terminal())
-        except Exception:
-            return False
+        return bool(CoreSession.supports_live_terminal())
 
     def _ensure_session(self) -> None:
         """Create the deferred ``CoreSession`` if entry is still pending.
