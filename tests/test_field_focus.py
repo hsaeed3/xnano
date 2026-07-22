@@ -216,7 +216,7 @@ def test_enter_still_available_to_hooks() -> None:
 
 
 def test_terminal_focus_helpers() -> None:
-    from xnano.tui import Terminal
+    from xnano.terminal import Terminal
 
     term = Terminal.__new__(Terminal)
     term._field_focus = None

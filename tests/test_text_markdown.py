@@ -109,7 +109,7 @@ def test_text_language_composes_text_block() -> None:
 
 
 def test_text_language_web_spans() -> None:
-    from xnano.webui.nodes import WebParagraphNode
+    from xnano.web.nodes import WebParagraphNode
 
     node = Text("def f(): ...", language="python").get_web_node(_ctx())
     assert isinstance(node, WebParagraphNode)

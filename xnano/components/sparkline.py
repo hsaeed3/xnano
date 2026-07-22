@@ -15,7 +15,7 @@ from xnano.components.abstract import AbstractComponent
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
-    from xnano.tui.nodes import AbstractTerminalNode
+    from xnano.terminal.nodes import AbstractTerminalNode
 
 
 @dataclasses.dataclass
@@ -60,7 +60,7 @@ class Sparkline(AbstractComponent):
     def get_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.tui.nodes import SparklineBarItem, SparklineNode
+        from xnano.terminal.nodes import SparklineBarItem, SparklineNode
 
         bars: list[SparklineBarItem] | None = None
         if self.colors is not None:

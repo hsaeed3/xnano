@@ -14,7 +14,7 @@ from xnano.effects import AbstractEffect, Effect
 from xnano.events import on_keyboard, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 _LOGO = (
     "   ___                 _   _   \n"

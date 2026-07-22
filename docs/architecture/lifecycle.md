@@ -12,7 +12,7 @@ and event behavior is documented in [Events & Hooks]{data-preview}.
 
 The loop is implemented in `xnano._event_processing` and
 `xnano._dispatch` and driven by
-[`Terminal.run()`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run){data-preview}.
+[`Terminal.run()`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal.run){data-preview}.
 Each iteration polls
 for an event, normalizes it, dispatches matching hooks, and renders a
 frame.
@@ -181,7 +181,7 @@ All three pumps call `invoke_hook()`. It resolves handler arity through
 `_call_hook` and runs coroutine results through `run_awaitable` on a new
 event loop because the TUI loop is synchronous. `Exit`,
 `KeyboardInterrupt`, and `SystemExit` propagate so
-[`Terminal.run()`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run){data-preview}
+[`Terminal.run()`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal.run){data-preview}
 can restore the terminal before exiting. Other uncaught exceptions are
 logged and re-raised.
 

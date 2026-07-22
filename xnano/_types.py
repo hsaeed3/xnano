@@ -24,7 +24,7 @@ from xnano.color import ColorLike
 if TYPE_CHECKING:
     from xnano.components.text import Text
     from xnano.events import FocusHookKind, KeyboardEventData
-    from xnano.tui.terminal import Terminal
+    from xnano.terminal.terminal import Terminal
 
 
 Alignment: TypeAlias = Literal["left", "right", "center"]

@@ -5,7 +5,7 @@ from __future__ import annotations
 from xnano._types import Area
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.text import Text
-from xnano.tui.nodes import (
+from xnano.terminal.nodes import (
     LineNode,
     ParagraphNode,
     SpanNode,

@@ -18,8 +18,8 @@ if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
     from xnano.events import KeyboardEventData
-    from xnano.tui.nodes import AbstractTerminalNode, LineNode
-    from xnano.webui.nodes import AbstractWebNode
+    from xnano.terminal.nodes import AbstractTerminalNode, LineNode
+    from xnano.web.nodes import AbstractWebNode
 
 
 @dataclasses.dataclass
@@ -29,24 +29,24 @@ class Text(AbstractComponent):
     Three usage modes, all through one class:
 
     **Leaf** — a single styled string (renders as
-    [`SpanNode`](../tui/nodes.md#xnano.tui.nodes.SpanNode){data-preview} when
+    [`SpanNode`](../tui/nodes.md#xnano.terminal.nodes.SpanNode){data-preview} when
     nested,
-    [`ParagraphNode`](../tui/nodes.md#xnano.tui.nodes.ParagraphNode){data-preview}
+    [`ParagraphNode`](../tui/nodes.md#xnano.terminal.nodes.ParagraphNode){data-preview}
     at top level):
 
         Text("hello world", color="red", modifiers=("bold",))
 
     **Line** — inline spans composed via a list of ``Text`` children where
     every child is itself a leaf (renders as
-    [`LineNode`](../tui/nodes.md#xnano.tui.nodes.LineNode){data-preview}):
+    [`LineNode`](../tui/nodes.md#xnano.terminal.nodes.LineNode){data-preview}):
 
         Text([Text("Hello ", color="cyan"), Text("world", color="red")])
 
     **Paragraph** — multiple lines composed via a list of ``Text`` children
     where at least one child is itself a line (renders as
-    [`ParagraphNode`](../tui/nodes.md#xnano.tui.nodes.ParagraphNode){data-preview}
+    [`ParagraphNode`](../tui/nodes.md#xnano.terminal.nodes.ParagraphNode){data-preview}
     wrapping a
-    [`TextNode`](../tui/nodes.md#xnano.tui.nodes.TextNode){data-preview}):
+    [`TextNode`](../tui/nodes.md#xnano.terminal.nodes.TextNode){data-preview}):
 
         Text([
             Text([Text("Hello ", color="cyan"), Text("world")]),
@@ -253,7 +253,7 @@ class Text(AbstractComponent):
         return result
 
     def _to_span_node(self) -> AbstractTerminalNode:
-        from xnano.tui.nodes import SpanNode
+        from xnano.terminal.nodes import SpanNode
 
         if isinstance(self.content, str):
             text_str = self.content
@@ -287,7 +287,7 @@ class Text(AbstractComponent):
         children: list[Text],
     ) -> list[LineNode]:
         """Expand leaf children into one line node per text row."""
-        from xnano.tui.nodes import LineNode
+        from xnano.terminal.nodes import LineNode
 
         line_nodes: list[LineNode] = []
         for child in children:
@@ -307,7 +307,7 @@ class Text(AbstractComponent):
     def _to_line_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.tui.nodes import LineNode, SpanNode
+        from xnano.terminal.nodes import LineNode, SpanNode
 
         if isinstance(self.content, str):
             return LineNode(
@@ -343,7 +343,7 @@ class Text(AbstractComponent):
 
         # Native multi-line editor: the engine owns content and caret.
         if self._editor is not None:
-            from xnano.tui.nodes import EditorNode
+            from xnano.terminal.nodes import EditorNode
 
             return Native(
                 interface_kind="tui",
@@ -463,8 +463,8 @@ class Text(AbstractComponent):
     ) -> AbstractTerminalNode:
         """Lower ``compose()`` output to a terminal render node."""
         from xnano.core.content import Native
-        from xnano.tui.content_lower import lower_content
-        from xnano.tui.nodes import AbstractTerminalNode as TerminalNode
+        from xnano.terminal.content_lower import lower_content
+        from xnano.terminal.nodes import AbstractTerminalNode as TerminalNode
 
         content = self.compose(ctx)
         if content is not None:
@@ -480,7 +480,7 @@ class Text(AbstractComponent):
     def _compose_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             LineNode,
             ParagraphNode,
             SpanNode,
@@ -589,7 +589,7 @@ class Text(AbstractComponent):
         Returns:
             A web node representing this Text, or None.
         """
-        from xnano.webui.nodes import (
+        from xnano.web.nodes import (
             WebInputNode,
             WebParagraphNode,
             WebRawHtmlNode,

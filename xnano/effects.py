@@ -5,7 +5,7 @@
 Declarative visual effect descriptions for ``BaseGrid`` layout fields
 (duration, motion, color, composition). Host controllers lower these
 intents to their platform (for example terminal effects via
-``xnano.tui.effects``).
+``xnano.terminal.effects``).
 """
 
 from __future__ import annotations
@@ -154,7 +154,7 @@ class AbstractEffect(abc.ABC):
 
     Subclasses describe effect intent with ``xnano`` types and literals.
     A controller lowers them to whatever native effect representation it
-    understands — today that means ``xnano.tui.effects`` lowering to a
+    understands — today that means ``xnano.terminal.effects`` lowering to a
     ``tachyonfx`` effect for the terminal controller; a web controller
     would instead dispatch over the concrete subclass to a CSS
     transition/animation.

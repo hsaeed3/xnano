@@ -9,13 +9,13 @@ icon: "lucide/upload"
 
     Web request hooks are experimental and are subject to frequent changes.
 
-Use [`@on_post_request`](../../api/xnano/webui/requests.md#xnano.webui.requests.on_post_request){data-preview} for state-changing interactions such as submitting a form, incrementing a counter, or applying a choice.
+Use [`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} for state-changing interactions such as submitting a form, incrementing a counter, or applying a choice.
 
 ## Register a Mutation
 
 ```python title="Increment Route" hl_lines="7"
 from xnano import BaseGrid, Field
-from xnano.webui.requests import on_post_request
+from xnano.web.requests import on_post_request
 
 class Counter(BaseGrid):
     count: int = Field(default=0, state=True)
@@ -43,7 +43,7 @@ Point an htmx interaction at the same path and replace the app fragment with the
 
 For an `HX-Request`, xnano returns the `#xnano-app` fragment. Ordinary browser navigation receives the complete page.
 
-Bare [`@on_post_request`](../../api/xnano/webui/requests.md#xnano.webui.requests.on_post_request){data-preview} and [`@on_post_request(path="/")`](../../api/xnano/webui/requests.md#xnano.webui.requests.on_post_request){data-preview} register the root path, just like their GET counterparts.
+Bare [`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} and [`@on_post_request(path="/")`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} register the root path, just like their GET counterparts.
 
 <div class="xnano-demo" markdown>
 ![POST request hook dark](../../assets/hooks/post-request-dark.gif){.demo-dark}
@@ -52,8 +52,8 @@ Bare [`@on_post_request`](../../api/xnano/webui/requests.md#xnano.webui.requests
 
 ## POST Actions
 
-[`Action.request("POST", "/increment")`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview} describes the associated trigger. Keep [`@on_post_request`](../../api/xnano/webui/requests.md#xnano.webui.requests.on_post_request){data-preview} on the method so [`Web`](../../api/xnano/webui/web.md#xnano.webui.web.Web){data-preview} registers the route.
+[`Action.request("POST", "/increment")`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview} describes the associated trigger. Keep [`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} on the method so [`Web`](../../api/xnano/web/web.md#xnano.web.web.Web){data-preview} registers the route.
 
 ??? abstract "API"
 
-    [`on_post_request`](../../api/xnano/webui/requests.md#xnano.webui.requests.on_post_request){data-preview} · [`RequestAction`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview}
+    [`on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} · [`RequestAction`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview}

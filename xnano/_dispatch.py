@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from xnano._types import Area, Coordinate
     from xnano.context import Context
     from xnano.grid import BaseGrid
-    from xnano.tui.terminal import Terminal
+    from xnano.terminal.terminal import Terminal
 
 
 _logger = logging.getLogger("xnano.hooks")
@@ -249,7 +249,7 @@ def measure_renderable(root: Any) -> tuple[int, int]:
         AbstractComponent,
         ComponentRenderContext,
     )
-    from xnano.tui.nodes import AbstractTerminalNode
+    from xnano.terminal.nodes import AbstractTerminalNode
 
     if isinstance(root, AbstractComponent):
         ctx = ComponentRenderContext(area=Area(x=0, y=0, width=0, height=0))

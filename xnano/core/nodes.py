@@ -5,7 +5,7 @@
 Shared structural base for drawable nodes (z-index and visibility).
 
 Interface kinds define their own drawing methods on top of this base —
-for example ``AbstractTerminalNode`` in ``xnano.tui.nodes`` — because
+for example ``AbstractTerminalNode`` in ``xnano.terminal.nodes`` — because
 measurement and paint differ between terminal cells and browser layout.
 """
 

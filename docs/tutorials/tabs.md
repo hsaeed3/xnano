@@ -168,7 +168,7 @@ For heavier per-tab screens, assign nested grids or components to `screen` the s
 
 [BaseGrid]: ../api/xnano/grid.md
 [Field]: ../api/xnano/fields.md
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [Context]: ../api/xnano/context.md
 [Text]: ../api/xnano/components/text.md
 [grid_render]: ../api/xnano/grid.md#xnano.grid.BaseGrid.grid_render

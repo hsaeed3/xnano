@@ -36,7 +36,7 @@ import pytest
 
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 
 @pytest.fixture(autouse=True)

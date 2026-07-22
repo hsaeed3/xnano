@@ -81,7 +81,7 @@ You can install xnano with your favorite package manager on python 3.10+.
 
 ## Hello World
 
-A [grid](api/xnano/grid.md#xnano.grid.BaseGrid), a couple of [fields](../api/xnano/fields#xnano.fields.Field), some [hooks](api/xnano/events.md#xnano.events.on_event), and a [`Terminal`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal) to run it — that's the whole shape of an xnano app.
+A [grid](api/xnano/grid.md#xnano.grid.BaseGrid), a couple of [fields](../api/xnano/fields#xnano.fields.Field), some [hooks](api/xnano/events.md#xnano.events.on_event), and a [`Terminal`](api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal) to run it — that's the whole shape of an xnano app.
 
 ??? example "Interactive Example"
 
@@ -115,7 +115,7 @@ Terminal().run(Hello()) # (3)!
 
 1. A grid is a class; a field is a typed, styled attribute on it — this one's violet and bold.
 2. A method wrapped in [`@on_keyboard`](api/xnano/events.md#xnano.events.on_keyboard) becomes a hook, fired whenever that key is pressed.
-3. [`Terminal().run(...)`](api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal) keeps the app alive, reading input and repainting until it exits.
+3. [`Terminal().run(...)`](api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal) keeps the app alive, reading input and repainting until it exits.
 
 <div class="xnano-demo" markdown>
 ![hello dark](./assets/concepts/hello_render-dark.gif){.demo-dark}

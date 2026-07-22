@@ -9,7 +9,7 @@ icon: "lucide/database-zap"
 
 Use it when several grids share one state object and a grid should react to a condition without knowing which other grid changed it.
 
-Every example on this page reacts to one shared `AppState`, attached once via [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}:
+Every example on this page reacts to one shared `AppState`, attached once via [`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}:
 
 ```python title="AppState"
 import dataclasses

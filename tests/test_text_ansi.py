@@ -83,7 +83,7 @@ def test_text_ansi_composes_styled_text_block() -> None:
 
 
 def test_text_ansi_web_spans() -> None:
-    from xnano.webui.nodes import WebParagraphNode
+    from xnano.web.nodes import WebParagraphNode
 
     text = Text("\x1b[31mred\x1b[0m", ansi=True)
     node = text.get_web_node(_ctx())

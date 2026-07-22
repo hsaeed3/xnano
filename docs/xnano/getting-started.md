@@ -93,7 +93,7 @@ Rendered content is __orthogonal__ to the host interface it is displayed on, whi
 
 ```python
 from xnano import Field, BaseGrid
-from xnano.webui import Web
+from xnano.web import Web
 
 class App(BaseGrid):
     body: str = Field(default="hello, web!")

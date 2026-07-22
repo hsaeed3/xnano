@@ -9,12 +9,12 @@ icon: "lucide/route"
 
     Web request hooks are experimental and are subject to frequent changes.
 
-Request hooks turn grid methods into routes when the grid is hosted by [`Web`](../../api/xnano/webui/web.md#xnano.webui.web.Web){data-preview}. The method updates the live session grid, then xnano renders either a complete page or an `#xnano-app` fragment for htmx.
+Request hooks turn grid methods into routes when the grid is hosted by [`Web`](../../api/xnano/web/web.md#xnano.web.web.Web){data-preview}. The method updates the live session grid, then xnano renders either a complete page or an `#xnano-app` fragment for htmx.
 
 - [`@on_get_request`](get.md){data-preview} handles reads and navigation.
 - [`@on_post_request`](post.md){data-preview} handles mutations and form-like interactions.
 
-Under [`Terminal`](../../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}, request decorators only mark the method. They do not register a route or participate in terminal event dispatch.
+Under [`Terminal`](../../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}, request decorators only mark the method. They do not register a route or participate in terminal event dispatch.
 
 ```python title="GET and POST Routes"
 class Counter(BaseGrid):

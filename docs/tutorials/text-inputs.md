@@ -113,6 +113,6 @@ def clear_name(self) -> None:
 [Text]: ../api/xnano/components/text.md
 [Field]: ../api/xnano/fields.md
 [BaseGrid]: ../api/xnano/grid.md
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [events & hooks]: ../core-concepts/events.md
 [grid_set_field]: ../api/xnano/grid.md#xnano.grid.BaseGrid.grid_set_field

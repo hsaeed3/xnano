@@ -31,7 +31,7 @@ def _force_fallback_path():
     This fixture resets the context var to None for the duration of each test
     so the fallback renderer is always exercised.
     """
-    from xnano.tui import _ACTIVE_TERMINAL
+    from xnano.terminal import _ACTIVE_TERMINAL
 
     token = _ACTIVE_TERMINAL.set(None)
     yield

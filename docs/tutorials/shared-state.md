@@ -5,7 +5,7 @@ icon: "lucide/share-2"
 
 # Shared State
 
-Pass an object to [`Terminal(state=...)`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} and every hook can read and write it through [Context]{data-preview}. Multiple grids and handlers share one instance for the life of the session.
+Pass an object to [`Terminal(state=...)`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview} and every hook can read and write it through [Context]{data-preview}. Multiple grids and handlers share one instance for the life of the session.
 
 A dataclass, a Pydantic model, or xnano's own `State` all work. Parameterize `Context[AppState]` so `ctx.get_state()` returns a typed object instead of `Any` — same idea as [typing Context by state]{data-preview}.
 
@@ -82,7 +82,7 @@ Local toggles, scroll offsets, and per-panel counters usually stay as `state=Tru
 To update the window title or clipboard from the same state, see [title & clipboard]{data-preview} — `ctx.device` and `ctx.get_state()` sit on the same [Context]{data-preview}.
 
 [Context]: ../api/xnano/context.md
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [typing Context by state]: ../core-concepts/context.md
 [fields]: ../core-concepts/fields.md
 [events & hooks]: ../core-concepts/events.md

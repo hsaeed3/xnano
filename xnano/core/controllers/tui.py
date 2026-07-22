@@ -29,11 +29,11 @@ from xnano.core.controllers.abstract import (
     AbstractControllerCapabilities,
     LayoutConstraint,
 )
-from xnano.tui.effects import (
+from xnano.terminal.effects import (
     apply_native_cell_filter,
     build_native_effect,
 )
-from xnano.tui.nodes import AbstractTerminalNode, ParagraphNode
+from xnano.terminal.nodes import AbstractTerminalNode, ParagraphNode
 
 if TYPE_CHECKING:
     from xnano._types import Frame
@@ -466,7 +466,7 @@ class TerminalController(AbstractController, Generic[StateT]):
                 content = value.compose(ctx)
                 node = None
                 if content is not None:
-                    from xnano.tui.content_lower import lower_content
+                    from xnano.terminal.content_lower import lower_content
 
                     node = lower_content(content)
                 if node is None:
@@ -541,7 +541,7 @@ class TerminalController(AbstractController, Generic[StateT]):
         effect_key: str | None = None,
     ) -> None:
         """Lower neutral Content to nodes and paint into ``area``."""
-        from xnano.tui.content_lower import lower_content
+        from xnano.terminal.content_lower import lower_content
 
         node = lower_content(content)
         if node is None:
@@ -569,7 +569,7 @@ class TerminalController(AbstractController, Generic[StateT]):
         content = component.compose(ctx)
         node = None
         if content is not None:
-            from xnano.tui.content_lower import lower_content
+            from xnano.terminal.content_lower import lower_content
 
             node = lower_content(content)
         if node is None:
@@ -619,7 +619,7 @@ class TerminalController(AbstractController, Generic[StateT]):
         from xnano.grid import BaseGrid
 
         if isinstance(value, BaseGrid):
-            from xnano.tui.terminal import _ACTIVE_TERMINAL
+            from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
             # Re-register nested grids every frame (the render path clears
             # ``_attached_frame_grids`` at the start of each paint).
@@ -632,7 +632,7 @@ class TerminalController(AbstractController, Generic[StateT]):
             return
 
         if isinstance(value, AbstractComponent):
-            from xnano.tui.terminal import _ACTIVE_TERMINAL
+            from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
             terminal = _ACTIVE_TERMINAL.get()
             ctx = ComponentRenderContext(area=area, terminal=terminal)

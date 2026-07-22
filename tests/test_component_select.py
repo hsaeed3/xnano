@@ -8,8 +8,8 @@ from xnano._types import Area, is_input_text
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.select import Select, get_fuzzy_match
 from xnano.core.content import Items, Stack
-from xnano.tui.content_lower import lower_content
-from xnano.tui.nodes import ListNode
+from xnano.terminal.content_lower import lower_content
+from xnano.terminal.nodes import ListNode
 
 
 def _ctx() -> ComponentRenderContext:

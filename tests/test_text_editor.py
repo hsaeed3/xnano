@@ -8,7 +8,7 @@ from xnano._types import Area, is_input_text
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.text import Text
 from xnano.core.content import Native
-from xnano.tui.nodes import EditorNode
+from xnano.terminal.nodes import EditorNode
 
 
 def _ctx() -> ComponentRenderContext:

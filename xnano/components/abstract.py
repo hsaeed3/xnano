@@ -17,8 +17,8 @@ from xnano._types import Size
 
 if TYPE_CHECKING:
     from xnano._types import Area, Frame
-    from xnano.tui.nodes import AbstractTerminalNode
-    from xnano.tui.terminal import Terminal
+    from xnano.terminal.nodes import AbstractTerminalNode
+    from xnano.terminal.terminal import Terminal
 
 
 StateT = TypeVar("StateT")

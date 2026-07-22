@@ -12,7 +12,7 @@ from xnano.components.text import Text
 from xnano.events import on_keyboard
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 _TABS = ["System Monitor", "Configuration", "Log Viewer"]
 

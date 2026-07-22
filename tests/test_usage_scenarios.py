@@ -299,7 +299,7 @@ class ChatApp(BaseGrid):
         self.prompt = Text("", input=True, placeholder="message")
         # keep focus on the new prompt instance
         from xnano._types import set_field_focus
-        from xnano.tui import _ACTIVE_TERMINAL
+        from xnano.terminal import _ACTIVE_TERMINAL
 
         term = _ACTIVE_TERMINAL.get()
         if term is not None:

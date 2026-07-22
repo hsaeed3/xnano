@@ -290,7 +290,7 @@ class Select(AbstractComponent):
             A web node tree for this Select.
         """
         from xnano.core.content import Run
-        from xnano.webui.nodes import (
+        from xnano.web.nodes import (
             WebContainerNode,
             WebInputNode,
             WebParagraphNode,

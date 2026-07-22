@@ -98,7 +98,7 @@ An input must be a leaf
 while an integer chooses a character index. The offscreen terminal can focus
 fields and accept synthetic keyboard actions, so this remains behavioral
 without
-[`Terminal.run()`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run){data-preview}.
+[`Terminal.run()`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal.run){data-preview}.
 
 ```pyodide install="xnano>=1.0.10" height="30"
 from xnano import Action, BaseGrid, Field, Terminal

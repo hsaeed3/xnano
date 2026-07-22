@@ -319,7 +319,7 @@ The primary way to render or display content using xnano is through the terminal
 === "Running a <code>Terminal</code> session"
 
     ```python title="Terminal" hl_lines="3 4"
-    from xnano.tui import Terminal
+    from xnano.terminal import Terminal
 
     terminal = Terminal()
     terminal.run(App()) # (1)!
@@ -347,7 +347,7 @@ We can run our web application the exact same way we did with the terminal! Simp
 the [Web]{data-preview} class, and pass the grid component to it.
 
 ```python title="Web" hl_lines="3"
-from xnano.webui import Web
+from xnano.web import Web
 
 Web().run(App())
 ```
@@ -372,9 +372,9 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 [xnano-core]: ../architecture/xnano-core.md
 [Pydantic]: https://pydantic.dev/docs/validation/dev/api/pydantic/
 [BaseModel]: https://pydantic.dev/docs/validation/dev/api/pydantic/base_model/
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [render]: ../api/xnano/_renderable.md
 [Field]: fields.md
 [GridSettings]: ../api/xnano/grid.md
-[Web]: ../api/xnano/webui/web.md
+[Web]: ../api/xnano/web/web.md
 [BaseGrid]: ../api/xnano/grid.md#xnano.grid.BaseGrid

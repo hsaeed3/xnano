@@ -166,6 +166,6 @@ The [Hooks & Actions guide](../hooks/index.md){data-preview} is the complete, ex
     [`events`](../api/xnano/events.md){data-preview} · [`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview} · [`Context`](../api/xnano/context.md#xnano.context.Context){data-preview}
 
 [Context]: ../api/xnano/context.md
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [Action]: ../api/xnano/core/actions.md
 [events]: ../api/xnano/events.md

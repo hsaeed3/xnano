@@ -766,7 +766,7 @@ def render(
     # (e.g. Pyodide docs via micropip) can use the stdout ANSI path without
     # ``xnano-core`` being present.
     try:
-        from xnano.tui.terminal import _ACTIVE_TERMINAL
+        from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
     except ImportError:
@@ -864,7 +864,7 @@ def render(
 
     if buffer_backed and stream_id is None:
         try:
-            from xnano.tui.terminal import Terminal
+            from xnano.terminal.terminal import Terminal
 
             Terminal().render(
                 *renderables,

@@ -69,7 +69,7 @@ Where `Terminal().run(...)` keeps a terminal window alive, `Web().run(...)` star
 
 ```python title="Running a Web App" hl_lines="7"
 from xnano import BaseGrid, Field
-from xnano.webui import Web
+from xnano.web import Web
 
 class App(BaseGrid):
     body: str = Field(default="hello, web!")
@@ -102,7 +102,7 @@ Because a grid never references `Terminal` or `Web` directly, the exact same cla
 
 ```python title="Same Grid, Either Host"
 from xnano import BaseGrid, Field, Terminal
-from xnano.webui import Web
+from xnano.web import Web
 
 class App(BaseGrid):
     body: str = Field(default="hello!")
@@ -140,10 +140,10 @@ With both hosts in view, the rest of `core-concepts` — [grids]{data-preview}, 
 
     **API**
 
-    [`Web`](../api/xnano/webui/web.md#xnano.webui.web.Web){data-preview} · [`WebSession`](../api/xnano/webui/session.md#xnano.webui.session.WebSession){data-preview}
+    [`Web`](../api/xnano/web/web.md#xnano.web.web.Web){data-preview} · [`WebSession`](../api/xnano/web/session.md#xnano.web.session.WebSession){data-preview}
 
-[Terminal]: ../api/xnano/tui/terminal.md
-[Web]: ../api/xnano/webui/web.md
+[Terminal]: ../api/xnano/terminal/terminal.md
+[Web]: ../api/xnano/web/web.md
 [grids]: grids.md
 [fields]: fields.md
 [events and hooks]: events.md

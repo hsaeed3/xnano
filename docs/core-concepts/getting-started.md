@@ -152,7 +152,7 @@ Rendered content is __orthogonal__ to the host interface it is displayed on, whi
 
 ```python title="Launching a Web Application"
 from xnano import Field, BaseGrid
-from xnano.webui import Web
+from xnano.web import Web
 
 class App(BaseGrid):
     body: str = Field(default="hello, web!")
@@ -172,7 +172,7 @@ Currently this site is still a work in progress. Complete walkthroughs and docum
 
     **API**
 
-    [`render()`](../api/xnano/_renderable.md#xnano._renderable.render){data-preview} · [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
+    [`render()`](../api/xnano/_renderable.md#xnano._renderable.render){data-preview} · [`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}
 
 [xnano]: getting-started.md
 [xnano-core]: ../architecture/xnano-core.md

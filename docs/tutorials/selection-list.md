@@ -141,7 +141,7 @@ To change the list later, assign a new one (`self.items = [*self.items, "New"]`)
 
 [BaseGrid]: ../api/xnano/grid.md
 [Field]: ../api/xnano/fields.md
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [Context]: ../api/xnano/context.md
 [Text]: ../api/xnano/components/text.md
 [scrollable logs]: scrollable-log.md

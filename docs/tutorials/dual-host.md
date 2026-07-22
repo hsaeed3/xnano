@@ -46,7 +46,7 @@ def main() -> None:
     use_web = "--web" in sys.argv
 
     if use_web:
-        from xnano.webui import Web
+        from xnano.web import Web
 
         Web(title="counter").run(Counter) # (1)!
     else:
@@ -96,6 +96,6 @@ Keyboard hooks, ticks, clicks, fields, and components mean the same thing on bot
 For a fuller sample (text input, click target, and clock together), see `examples/web_counter.py`.
 
 [BaseGrid]: ../api/xnano/grid.md
-[Terminal]: ../api/xnano/tui/terminal.md
-[Web]: ../api/xnano/webui/web.md
+[Terminal]: ../api/xnano/terminal/terminal.md
+[Web]: ../api/xnano/web/web.md
 [device]: ../core-concepts/device.md

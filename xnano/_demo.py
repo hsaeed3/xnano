@@ -25,7 +25,7 @@ from xnano.events import on_keyboard, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.images import Image, ImageData
-from xnano.tui.terminal import Terminal
+from xnano.terminal.terminal import Terminal
 
 _OptionalImage: TypeAlias = Image | None
 """Optional image value held before a selected clip is resolved."""

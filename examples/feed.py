@@ -24,7 +24,7 @@ from xnano.components.text import Text
 from xnano.events import on_keyboard, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 # ── Services & palette ────────────────────────────────────────────────────────
 
@@ -180,7 +180,7 @@ class ServiceGraph(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             CanvasLine,
             CanvasNode,
             CanvasPrint,
@@ -247,7 +247,7 @@ class ServiceTable(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -329,7 +329,7 @@ class ErrorGauge(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import LineGaugeNode
+        from xnano.terminal.nodes import LineGaugeNode
 
         if self.ratio < 0.02:
             filled = tailwind_color("emerald", 500)
@@ -356,7 +356,7 @@ class EndpointChart(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             BarChartNode,
             BarGroupItem,
             BarItem,
@@ -391,7 +391,7 @@ class EventLog(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             SpanNode,
             TableCellItem,
             TableNode,

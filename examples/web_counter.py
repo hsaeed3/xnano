@@ -67,13 +67,13 @@ def main() -> None:
     use_web = "--web" in sys.argv
 
     if use_web:
-        from xnano.webui import Web
+        from xnano.web import Web
 
         # Pass the class itself for a fresh grid per browser session;
         # pass an instance (``Counter()``) to share one across visitors.
         Web(title="xnano web counter").run(Counter)
     else:
-        from xnano.tui import Terminal
+        from xnano.terminal import Terminal
 
         with Terminal() as terminal:
             terminal.run(Counter())

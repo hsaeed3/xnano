@@ -91,8 +91,8 @@ User app (BaseGrid + Field + @on_* hooks + Action)
     ↓
 xnano               public DSL: grid, fields, events, components, …
     ├── xnano.core   host/action/content/stage/device contracts + controllers
-    ├── xnano.tui    Terminal host + native lowering
-    ├── xnano.webui  Web host + HTML/htmx
+    ├── xnano.terminal    Terminal host + native lowering
+    ├── xnano.web  Web host + HTML/htmx
     └── xnano.cli    Command CLI
     ↓
 xnano_core.core     session, scene graph, render IR, unified events
@@ -135,8 +135,8 @@ Interface-neutral engines shared by every host:
 
 | Package | Role |
 |---------|------|
-| `xnano.tui` | `Terminal` host, cursor/device, render nodes, tachyonfx effects |
-| `xnano.webui` | `Web` orchestration, `WebSession` host, request hooks, HTML nodes |
+| `xnano.terminal` | `Terminal` host, cursor/device, render nodes, tachyonfx effects |
+| `xnano.web` | `Web` orchestration, `WebSession` host, request hooks, HTML nodes |
 | `xnano.cli` | `Command`, options, subcommands, validation, help |
 
 A TUI frame flows from `Terminal` to the root grid/component. Grid sizing
@@ -166,7 +166,7 @@ use `Core*`; pointer-backed handles are `unsendable`.
 
 **Layer boundary rule:** Keep public DSL policy in root modules +
 `components/`, shared contracts in `xnano.core`, host implementations in
-`tui`/`webui`/`cli`, private plumbing in top-level `_*.py`, and terminal
+`terminal`/`web`/`cli`, private plumbing in top-level `_*.py`, and terminal
 runtime mechanics in `xnano_core`. Application code must use `CoreSession`
 through `Terminal`, never raw native terminal lifecycle or standalone event
 polling. VHS demo tooling stays under `scripts/`.

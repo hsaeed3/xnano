@@ -70,7 +70,7 @@ without raising an exception.
 
 ## `AbstractHost`: shared session behavior
 
-[`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
+[`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}
 and web sessions both implement
 [`xnano.core.hosts.AbstractHost`](../api/xnano/core/hosts.md#xnano.core.hosts.AbstractHost){data-preview}.
 It provides behavior that is independent
@@ -80,7 +80,7 @@ of the output surface:
   `_attached_frame_grids`, and `state` form the common interface used by
   `xnano._dispatch`. They are documented on the class without strict
   types because dispatch accepts any compatible host, not only
-  [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}.
+  [`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}.
 - **`perform(action)`:** converts an
   [`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview},
   or another object with
@@ -109,10 +109,10 @@ of the output surface:
 
 [`xnano.core.controllers.abstract.AbstractController`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractController){data-preview}
 defines the
-rendering backend API. `xnano.tui` uses
+rendering backend API. `xnano.terminal` uses
 [`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview},
 while
-`xnano.webui` provides its own implementation. Only
+`xnano.web` provides its own implementation. Only
 `get_capabilities()` is required. Other methods raise
 `NotImplementedError` by default, so each backend implements the
 features it supports.
@@ -179,9 +179,9 @@ controller. During the next
 `measure_field_slot()` and `split_layout()`. It then paints each field
 through `paint_field_slot()`, followed by `render_ir()`,
 `render_native()`, or `paint_node()`. The sequence is shared by
-[`xnano.tui.Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
+[`xnano.terminal.Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}
 and
-[`xnano.webui.Web`](../api/xnano/webui/web.md#xnano.webui.web.Web){data-preview};
+[`xnano.web.Web`](../api/xnano/web/web.md#xnano.web.web.Web){data-preview};
 their controller
 implementations determine how each operation is performed.
 

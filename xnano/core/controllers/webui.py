@@ -5,7 +5,7 @@
 HTML/flexbox controller for rendering grids as web markup. Translates
 layout intent (flex direction, sizing, framing) into HTML, Tailwind,
 and htmx attributes. The ``Web`` host that owns sessions and routes
-lives in ``xnano.webui``.
+lives in ``xnano.web``.
 """
 
 from __future__ import annotations
@@ -413,7 +413,7 @@ class WebController(AbstractController):
         server-side ``Text.content`` updates and the next full render
         reflects it.
         """
-        from xnano.webui.nodes import build_style_attrs
+        from xnano.web.nodes import build_style_attrs
 
         target_id = f"i{self._target_counter}"
         self._target_counter += 1
@@ -492,7 +492,7 @@ class WebController(AbstractController):
             self._apply_field_sizing(wrapper, field, resolved)
 
         if field is not None:
-            from xnano.webui.nodes import build_style_attrs
+            from xnano.web.nodes import build_style_attrs
 
             # A derived inline style is skipped when the merged field
             # value equals the class-derived one (the raw class already
@@ -595,7 +595,7 @@ class WebController(AbstractController):
             if not value.visible:
                 return
             from xnano.components.abstract import ComponentRenderContext
-            from xnano.webui.nodes import AbstractWebNode
+            from xnano.web.nodes import AbstractWebNode
 
             ctx = ComponentRenderContext(area=area)
             content = value.compose(ctx) if hasattr(value, "compose") else None
@@ -610,7 +610,7 @@ class WebController(AbstractController):
                     node = content.payload
                 elif isinstance(content, TextBlock):
                     # Best-effort HTML from TextBlock
-                    from xnano.webui.nodes import WebParagraphNode, WebSpanNode
+                    from xnano.web.nodes import WebParagraphNode, WebSpanNode
 
                     if content.lines:
                         lines = []
@@ -659,7 +659,7 @@ class WebController(AbstractController):
                     wrapper.children.append(html.escape(str(value)))
             return
 
-        from xnano.webui.nodes import AbstractWebNode
+        from xnano.web.nodes import AbstractWebNode
 
         if isinstance(value, AbstractWebNode):
             wrapper.children.append(value.to_html())

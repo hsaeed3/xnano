@@ -266,8 +266,8 @@ assert target is cli
 
     **API**
 
-    [`Command`](../api/xnano/cli/command.md#xnano.cli.command.Command){data-preview} · [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
+    [`Command`](../api/xnano/cli/command.md#xnano.cli.command.Command){data-preview} · [`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}
 
 [Command]: ../api/xnano/cli/command.md
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [CLI Commands]: ../tutorials/cli-commands.md

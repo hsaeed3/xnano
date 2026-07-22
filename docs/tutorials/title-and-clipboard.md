@@ -23,7 +23,7 @@ def set_title(self, ctx: Context) -> None:
 
 ## Title From Shared State
 
-Pair title updates with [`Terminal(state=...)`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} when the title should track app-wide data.
+Pair title updates with [`Terminal(state=...)`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview} when the title should track app-wide data.
 
 ```python title="State First" hl_lines="4 5 6"
 import dataclasses

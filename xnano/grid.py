@@ -1062,7 +1062,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     @property
     def state(self) -> Any:
         """Return the active terminal's shared state, or ``None``."""
-        from xnano.tui.terminal import _ACTIVE_TERMINAL
+        from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         return None if terminal is None else terminal.state
@@ -1152,7 +1152,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             started.
         """
         from xnano.effects import resolve_effect
-        from xnano.tui.terminal import _ACTIVE_TERMINAL
+        from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         if terminal is None:
@@ -1410,7 +1410,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         parent_area: Area,
         slide_axes: list[str] | None = None,
     ) -> None:
-        from xnano.tui.terminal import _ACTIVE_TERMINAL
+        from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         if terminal is None or not terminal._mouse_geometry_active:
@@ -1504,7 +1504,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             active_constraints,
         )
 
-        from xnano.tui.terminal import _ACTIVE_TERMINAL
+        from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         collect_mouse_geometry = bool(

@@ -124,7 +124,7 @@ from xnano.components.text import Text
 from xnano.events import on_keyboard
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 _V300 = tailwind_color("violet", 300)
 _V400 = tailwind_color("violet", 400)
