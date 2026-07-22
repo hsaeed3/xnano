@@ -94,6 +94,54 @@ def _consume_extended_color(codes: list[int]) -> str | None:
     return None
 
 
+_MODIFIER_CLEAR_CODES: dict[int, tuple[CharacterModifier, ...]] = {
+    22: ("bold", "dim"),
+    23: ("italic",),
+    24: ("underline",),
+    25: ("slow_blink", "rapid_blink"),
+    27: ("reversed",),
+}
+
+_SgrState = tuple["str | None", "str | None", tuple[CharacterModifier, ...]]
+"""Carried SGR style: ``(color, background, modifiers)``."""
+
+
+def _apply_sgr_codes(codes: list[int], state: _SgrState) -> _SgrState:
+    """Fold a parameter list from one SGR sequence into ``state``."""
+    color, background, modifiers = state
+    while codes:
+        code = codes.pop(0)
+        if code == 0:
+            color = background = None
+            modifiers = ()
+        elif code in _SGR_MODIFIERS:
+            modifier = _SGR_MODIFIERS[code]
+            if modifier not in modifiers:
+                modifiers = (*modifiers, modifier)
+        elif code in _MODIFIER_CLEAR_CODES:
+            cleared = _MODIFIER_CLEAR_CODES[code]
+            modifiers = tuple(
+                modifier for modifier in modifiers if modifier not in cleared
+            )
+        elif 30 <= code <= 37:
+            color = _BASE_COLORS[code - 30]
+        elif 90 <= code <= 97:
+            color = _BRIGHT_COLORS[code - 90]
+        elif 40 <= code <= 47:
+            background = _BASE_COLORS[code - 40]
+        elif 100 <= code <= 107:
+            background = _BRIGHT_COLORS[code - 100]
+        elif code == 38:
+            color = _consume_extended_color(codes) or color
+        elif code == 48:
+            background = _consume_extended_color(codes) or background
+        elif code == 39:
+            color = None
+        elif code == 49:
+            background = None
+    return (color, background, modifiers)
+
+
 @functools.lru_cache(maxsize=128)
 def parse_ansi_lines(content: str) -> tuple[tuple[Run, ...], ...]:
     """Parse ANSI-escaped content into styled ``Run`` lines.
@@ -110,14 +158,12 @@ def parse_ansi_lines(content: str) -> tuple[tuple[Run, ...], ...]:
     """
     # ponytail: full-buffer re-parse per append; Rust fast path if
     # streamed logs ever get huge.
-    color: str | None = None
-    background: str | None = None
-    modifiers: tuple[CharacterModifier, ...] = ()
-
+    state: _SgrState = (None, None, ())
     lines: list[tuple[Run, ...]] = []
     runs: list[Run] = []
 
     def emit(text: str) -> None:
+        color, background, modifiers = state
         for index, segment in enumerate(text.split("\n")):
             if index > 0:
                 lines.append(tuple(runs))
@@ -140,44 +186,7 @@ def parse_ansi_lines(content: str) -> tuple[tuple[Run, ...], ...]:
             int(part) if part else 0
             for part in (match.group(1) or "0").split(";")
         ]
-        while codes:
-            code = codes.pop(0)
-            if code == 0:
-                color = background = None
-                modifiers = ()
-            elif code in _SGR_MODIFIERS:
-                modifier = _SGR_MODIFIERS[code]
-                if modifier not in modifiers:
-                    modifiers = (*modifiers, modifier)
-            elif code in (22, 23, 24, 25, 27):
-                cleared = {
-                    22: ("bold", "dim"),
-                    23: ("italic",),
-                    24: ("underline",),
-                    25: ("slow_blink", "rapid_blink"),
-                    27: ("reversed",),
-                }[code]
-                modifiers = tuple(
-                    modifier
-                    for modifier in modifiers
-                    if modifier not in cleared
-                )
-            elif 30 <= code <= 37:
-                color = _BASE_COLORS[code - 30]
-            elif 90 <= code <= 97:
-                color = _BRIGHT_COLORS[code - 90]
-            elif 40 <= code <= 47:
-                background = _BASE_COLORS[code - 40]
-            elif 100 <= code <= 107:
-                background = _BRIGHT_COLORS[code - 100]
-            elif code == 38:
-                color = _consume_extended_color(codes) or color
-            elif code == 48:
-                background = _consume_extended_color(codes) or background
-            elif code == 39:
-                color = None
-            elif code == 49:
-                background = None
+        state = _apply_sgr_codes(codes, state)
     emit(strip_ansi_escapes(content[position:]))
     lines.append(tuple(runs))
     return tuple(lines)
@@ -259,6 +268,95 @@ def highlight_lines(
 _HEADING_COLOR = "#00cdcd"
 _BULLET = "• "
 
+_INLINE_MODIFIER_OPENERS: dict[str, CharacterModifier] = {
+    "strong_open": "bold",
+    "em_open": "italic",
+}
+_INLINE_MODIFIER_CLOSERS: dict[str, CharacterModifier] = {
+    "strong_close": "bold",
+    "em_close": "italic",
+}
+
+
+def _markdown_inline_runs(
+    token: Any,
+    *,
+    color: str | None = None,
+    modifiers: tuple[CharacterModifier, ...] = (),
+) -> tuple[Run, ...]:
+    """Flatten one markdown ``inline`` token into styled runs."""
+    runs: list[Run] = []
+    active = list(modifiers)
+    for child in token.children or ():
+        if child.type in _INLINE_MODIFIER_OPENERS:
+            active.append(_INLINE_MODIFIER_OPENERS[child.type])
+        elif child.type in _INLINE_MODIFIER_CLOSERS:
+            active.remove(_INLINE_MODIFIER_CLOSERS[child.type])
+        elif child.type == "code_inline":
+            runs.append(
+                Run(
+                    text=child.content,
+                    color=color,
+                    modifiers=(*active, "reversed"),
+                )
+            )
+        elif child.type in ("text", "softbreak"):
+            text = child.content if child.type == "text" else " "
+            if text:
+                runs.append(
+                    Run(
+                        text=text,
+                        color=color,
+                        modifiers=tuple(dict.fromkeys(active)),
+                    )
+                )
+    return tuple(runs)
+
+
+def _markdown_inline_line(
+    token: Any,
+    *,
+    heading_level: int,
+    quote_depth: int,
+    list_depth: int,
+) -> tuple[Run, ...]:
+    """Render one ``inline`` token as a line, prefixed by its block
+    context (heading marker, quote marker, or list bullet)."""
+    if heading_level:
+        return (
+            Run(
+                text="#" * heading_level + " ",
+                color=_HEADING_COLOR,
+                modifiers=("dim",),
+            ),
+            *_markdown_inline_runs(
+                token, color=_HEADING_COLOR, modifiers=("bold",)
+            ),
+        )
+    if quote_depth:
+        return (
+            Run(text="> " * quote_depth, modifiers=("dim",)),
+            *_markdown_inline_runs(token, modifiers=("dim",)),
+        )
+    if list_depth:
+        return (
+            Run(text="  " * (list_depth - 1) + _BULLET, modifiers=("dim",)),
+            *_markdown_inline_runs(token),
+        )
+    return _markdown_inline_runs(token)
+
+
+def _markdown_fence_lines(token: Any) -> list[tuple[Run, ...]]:
+    """Render a fenced/indented code block, highlighting by its tag."""
+    language = (token.info or "").strip().split(" ")[0]
+    code = token.content.rstrip("\n")
+    if language:
+        return list(highlight_lines(code, language))
+    return [
+        (Run(text=line, modifiers=("dim",)),) if line else ()
+        for line in code.split("\n")
+    ]
+
 
 @functools.lru_cache(maxsize=64)
 def markdown_lines(content: str) -> tuple[tuple[Run, ...], ...]:
@@ -278,51 +376,12 @@ def markdown_lines(content: str) -> tuple[tuple[Run, ...], ...]:
     """
     import markdown_it
 
-    parser = markdown_it.MarkdownIt("commonmark")
     lines: list[tuple[Run, ...]] = []
-
-    def inline_runs(
-        token: Any,
-        *,
-        color: str | None = None,
-        modifiers: tuple[CharacterModifier, ...] = (),
-    ) -> tuple[Run, ...]:
-        runs: list[Run] = []
-        active = list(modifiers)
-        for child in token.children or ():
-            if child.type == "strong_open":
-                active.append("bold")
-            elif child.type == "strong_close":
-                active.remove("bold")
-            elif child.type == "em_open":
-                active.append("italic")
-            elif child.type == "em_close":
-                active.remove("italic")
-            elif child.type == "code_inline":
-                runs.append(
-                    Run(
-                        text=child.content,
-                        color=color,
-                        modifiers=(*active, "reversed"),
-                    )
-                )
-            elif child.type in ("text", "softbreak"):
-                text = child.content if child.type == "text" else " "
-                if text:
-                    runs.append(
-                        Run(
-                            text=text,
-                            color=color,
-                            modifiers=tuple(dict.fromkeys(active)),
-                        )
-                    )
-        return tuple(runs)
-
     quote_depth = 0
     list_depth = 0
     heading_level = 0
 
-    for token in parser.parse(content):
+    for token in markdown_it.MarkdownIt("commonmark").parse(content):
         if token.type == "blockquote_open":
             quote_depth += 1
         elif token.type == "blockquote_close":
@@ -334,7 +393,7 @@ def markdown_lines(content: str) -> tuple[tuple[Run, ...], ...]:
             if list_depth == 0:
                 lines.append(())
         elif token.type == "heading_open":
-            heading_level = len(token.tag[1:]) and int(token.tag[1:])
+            heading_level = int(token.tag[1:])
         elif token.type == "heading_close":
             heading_level = 0
             lines.append(())
@@ -342,49 +401,16 @@ def markdown_lines(content: str) -> tuple[tuple[Run, ...], ...]:
             if quote_depth == 0 and list_depth == 0:
                 lines.append(())
         elif token.type == "inline":
-            if heading_level:
-                prefix = "#" * heading_level + " "
-                lines.append(
-                    (
-                        Run(
-                            text=prefix,
-                            color=_HEADING_COLOR,
-                            modifiers=("dim",),
-                        ),
-                        *inline_runs(
-                            token,
-                            color=_HEADING_COLOR,
-                            modifiers=("bold",),
-                        ),
-                    )
+            lines.append(
+                _markdown_inline_line(
+                    token,
+                    heading_level=heading_level,
+                    quote_depth=quote_depth,
+                    list_depth=list_depth,
                 )
-            elif quote_depth:
-                lines.append(
-                    (
-                        Run(text="> " * quote_depth, modifiers=("dim",)),
-                        *inline_runs(token, modifiers=("dim",)),
-                    )
-                )
-            elif list_depth:
-                indent = "  " * (list_depth - 1)
-                lines.append(
-                    (
-                        Run(text=indent + _BULLET, modifiers=("dim",)),
-                        *inline_runs(token),
-                    )
-                )
-            else:
-                lines.append(inline_runs(token))
+            )
         elif token.type in ("fence", "code_block"):
-            language = (token.info or "").strip().split(" ")[0]
-            code = token.content.rstrip("\n")
-            if language:
-                lines.extend(highlight_lines(code, language))
-            else:
-                lines.extend(
-                    (Run(text=line, modifiers=("dim",)),) if line else ()
-                    for line in code.split("\n")
-                )
+            lines.extend(_markdown_fence_lines(token))
             lines.append(())
         elif token.type == "hr":
             lines.append((Run(text="─" * 24, modifiers=("dim",)),))

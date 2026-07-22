@@ -7,8 +7,19 @@ The modules within this script are re-exported from
 ``xnano_core.rust.engine``.
 """
 
-from xnano_core.rust.engine import *
-
+from xnano_core.rust.engine import (
+    CoreEvent,
+    CoreKeyBinding,
+    CoreRenderContent,
+    CoreRenderIR,
+    CoreRenderNode,
+    CoreSession,
+    CoreTerminalEventKind,
+    CoreTerminalRef,
+    CoreTextEditor,
+    CoreTickEvent,
+    IrLine,
+)
 
 __all__ = (
     "CoreSession",

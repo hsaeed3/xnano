@@ -734,7 +734,10 @@ def dispatch_hooks(terminal: "Terminal[Any]", ctx: "Context[Any]") -> None:
         )
         if text is not None and paste:
             handle_paste = getattr(text, "handle_paste", None)
-            pasted = callable(handle_paste) and bool(handle_paste(paste))
+            if callable(handle_paste):
+                pasted = bool(handle_paste(paste))
+            else:
+                pasted = False
             if not pasted and isinstance(getattr(text, "content", None), str):
                 position = (
                     text.cursor
