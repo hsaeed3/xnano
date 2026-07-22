@@ -2,16 +2,20 @@
 
 ---
 
-Pre-styled text ingestion: ANSI escape parsing into ``Run`` lines.
+Pre-styled text ingestion: ANSI escapes, syntax highlighting, and
+markdown, all parsed into ``Run`` lines.
 
 Everything here returns interface-neutral ``Run`` tuples, so the same
 parse feeds terminal rendering (through ``TextBlock``) and web spans.
+Pygments and markdown-it-py are imported inside the helpers to keep
+them off the package import path.
 """
 
 from __future__ import annotations
 
 import functools
 import re
+from typing import Any
 
 from xnano._types import CharacterModifier
 from xnano.core.content import Run
@@ -179,7 +183,221 @@ def parse_ansi_lines(content: str) -> tuple[tuple[Run, ...], ...]:
     return tuple(lines)
 
 
+# Fixed terminal-friendly theme: Pygments token types to run styles.
+# Colors are the same base-16 hex palette the ANSI parser emits.
+_TOKEN_STYLES: tuple[
+    tuple[str, str | None, tuple[CharacterModifier, ...]], ...
+] = (
+    ("Token.Keyword", "#cd00cd", ()),
+    ("Token.Name.Function", "#0000ee", ("bold",)),
+    ("Token.Name.Class", "#0000ee", ("bold",)),
+    ("Token.Name.Decorator", "#00cdcd", ()),
+    ("Token.Name.Builtin", "#00cdcd", ()),
+    ("Token.Literal.String", "#00cd00", ()),
+    ("Token.Literal.Number", "#cdcd00", ()),
+    ("Token.Operator", None, ()),
+    ("Token.Comment", "#7f7f7f", ("italic",)),
+)
+
+
+def _style_for_token(
+    token_type: Any,
+) -> tuple[str | None, tuple[CharacterModifier, ...]]:
+    name = str(token_type)
+    for prefix, color, modifiers in _TOKEN_STYLES:
+        if name.startswith(prefix):
+            return (color, modifiers)
+    return (None, ())
+
+
+@functools.lru_cache(maxsize=64)
+def highlight_lines(
+    content: str,
+    language: str,
+) -> tuple[tuple[Run, ...], ...]:
+    """Syntax-highlight ``content`` into styled ``Run`` lines.
+
+    Args:
+        content: Source code to highlight.
+        language: A Pygments lexer name (``"python"``, ``"rust"``, …).
+            Unknown names fall back to plain text.
+
+    Returns:
+        One tuple of ``Run`` spans per source line.
+    """
+    import pygments.lexers
+    import pygments.util
+
+    try:
+        lexer = pygments.lexers.get_lexer_by_name(language)
+    except pygments.util.ClassNotFound:
+        return tuple(
+            (Run(text=line),) if line else () for line in content.split("\n")
+        )
+
+    lines: list[tuple[Run, ...]] = []
+    runs: list[Run] = []
+    for token_type, token_text in lexer.get_tokens(content):
+        color, modifiers = _style_for_token(token_type)
+        for index, segment in enumerate(token_text.split("\n")):
+            if index > 0:
+                lines.append(tuple(runs))
+                runs.clear()
+            if segment:
+                runs.append(
+                    Run(text=segment, color=color, modifiers=modifiers)
+                )
+    if runs:
+        lines.append(tuple(runs))
+    # Pygments always terminates output with a newline; drop the
+    # resulting phantom empty last line unless the source had one.
+    if lines and not content.endswith("\n") and lines[-1] == ():
+        lines.pop()
+    return tuple(lines)
+
+
+_HEADING_COLOR = "#00cdcd"
+_BULLET = "• "
+
+
+@functools.lru_cache(maxsize=64)
+def markdown_lines(content: str) -> tuple[tuple[Run, ...], ...]:
+    """Parse markdown ``content`` into styled ``Run`` lines.
+
+    Headings render bold in an accent color, emphasis/strong map to
+    italic/bold, list items get bullets, blockquotes render dim,
+    inline code renders reversed, and fenced code blocks are
+    syntax-highlighted by their fence language tag. Tables and images
+    are out of scope and render as their plain text.
+
+    Args:
+        content: Markdown source.
+
+    Returns:
+        One tuple of ``Run`` spans per rendered line.
+    """
+    import markdown_it
+
+    parser = markdown_it.MarkdownIt("commonmark")
+    lines: list[tuple[Run, ...]] = []
+
+    def inline_runs(
+        token: Any,
+        *,
+        color: str | None = None,
+        modifiers: tuple[CharacterModifier, ...] = (),
+    ) -> tuple[Run, ...]:
+        runs: list[Run] = []
+        active = list(modifiers)
+        for child in token.children or ():
+            if child.type == "strong_open":
+                active.append("bold")
+            elif child.type == "strong_close":
+                active.remove("bold")
+            elif child.type == "em_open":
+                active.append("italic")
+            elif child.type == "em_close":
+                active.remove("italic")
+            elif child.type == "code_inline":
+                runs.append(
+                    Run(
+                        text=child.content,
+                        color=color,
+                        modifiers=(*active, "reversed"),
+                    )
+                )
+            elif child.type in ("text", "softbreak"):
+                text = child.content if child.type == "text" else " "
+                if text:
+                    runs.append(
+                        Run(
+                            text=text,
+                            color=color,
+                            modifiers=tuple(dict.fromkeys(active)),
+                        )
+                    )
+        return tuple(runs)
+
+    quote_depth = 0
+    list_depth = 0
+    heading_level = 0
+
+    for token in parser.parse(content):
+        if token.type == "blockquote_open":
+            quote_depth += 1
+        elif token.type == "blockquote_close":
+            quote_depth -= 1
+        elif token.type in ("bullet_list_open", "ordered_list_open"):
+            list_depth += 1
+        elif token.type in ("bullet_list_close", "ordered_list_close"):
+            list_depth -= 1
+            if list_depth == 0:
+                lines.append(())
+        elif token.type == "heading_open":
+            heading_level = len(token.tag[1:]) and int(token.tag[1:])
+        elif token.type == "heading_close":
+            heading_level = 0
+            lines.append(())
+        elif token.type == "paragraph_close":
+            if quote_depth == 0 and list_depth == 0:
+                lines.append(())
+        elif token.type == "inline":
+            if heading_level:
+                prefix = "#" * heading_level + " "
+                lines.append(
+                    (
+                        Run(
+                            text=prefix,
+                            color=_HEADING_COLOR,
+                            modifiers=("dim",),
+                        ),
+                        *inline_runs(
+                            token,
+                            color=_HEADING_COLOR,
+                            modifiers=("bold",),
+                        ),
+                    )
+                )
+            elif quote_depth:
+                lines.append(
+                    (
+                        Run(text="> " * quote_depth, modifiers=("dim",)),
+                        *inline_runs(token, modifiers=("dim",)),
+                    )
+                )
+            elif list_depth:
+                indent = "  " * (list_depth - 1)
+                lines.append(
+                    (
+                        Run(text=indent + _BULLET, modifiers=("dim",)),
+                        *inline_runs(token),
+                    )
+                )
+            else:
+                lines.append(inline_runs(token))
+        elif token.type in ("fence", "code_block"):
+            language = (token.info or "").strip().split(" ")[0]
+            code = token.content.rstrip("\n")
+            if language:
+                lines.extend(highlight_lines(code, language))
+            else:
+                lines.extend(
+                    (Run(text=line, modifiers=("dim",)),) if line else ()
+                    for line in code.split("\n")
+                )
+            lines.append(())
+        elif token.type == "hr":
+            lines.append((Run(text="─" * 24, modifiers=("dim",)),))
+            lines.append(())
+
+    while lines and lines[-1] == ():
+        lines.pop()
+    return tuple(lines)
+
+
 __all__ = (
+    "highlight_lines",
+    "markdown_lines",
     "parse_ansi_lines",
     "strip_ansi_escapes",
 )

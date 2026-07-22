@@ -92,6 +92,13 @@ class Text(AbstractComponent):
     """When ``True`` on a leaf ``Text``, ANSI escape sequences in
     ``content`` (subprocess output, Rich/pytest colors, …) are parsed
     into styled runs instead of rendering as raw escapes."""
+    markdown: bool = False
+    """When ``True`` on a leaf ``Text``, ``content`` is parsed as
+    markdown: headings, emphasis, lists, blockquotes, and fenced code
+    blocks (highlighted by their fence language tag)."""
+    language: str | None = None
+    """Syntax-highlight ``content`` as this language (a Pygments lexer
+    name such as ``"python"``); no markdown parsing."""
     _input_focused: bool = dataclasses.field(
         default=False, init=False, repr=False, compare=False
     )
@@ -100,10 +107,22 @@ class Text(AbstractComponent):
     )
 
     def __post_init__(self) -> None:
-        if self.ansi and self.input:
+        display_modes = [
+            name
+            for name, enabled in (
+                ("ansi", self.ansi),
+                ("markdown", self.markdown),
+                ("language", self.language is not None),
+            )
+            if enabled
+        ]
+        if len(display_modes) > 1 or (display_modes and self.input):
+            conflict = " + ".join(
+                display_modes + (["input"] if self.input else [])
+            )
             raise ValueError(
-                "Text(ansi=True) is display-only and cannot be combined "
-                "with input=True."
+                f"Text({conflict}) is invalid: ansi, markdown, language, "
+                "and input are mutually exclusive."
             )
         if self.multiline and self.input and isinstance(self.content, str):
             from xnano_core.core import CoreTextEditor
@@ -158,6 +177,24 @@ class Text(AbstractComponent):
         self._editor.insert_text(text)
         self.content = self._editor.text()
         return True
+
+    def _markup_lines(self) -> tuple[tuple[Any, ...], ...] | None:
+        """Run lines for ansi/markdown/language modes; None otherwise."""
+        if not isinstance(self.content, str):
+            return None
+        if self.ansi:
+            from xnano._markup import parse_ansi_lines
+
+            return parse_ansi_lines(self.content)
+        if self.markdown:
+            from xnano._markup import markdown_lines
+
+            return markdown_lines(self.content)
+        if self.language is not None:
+            from xnano._markup import highlight_lines
+
+            return highlight_lines(self.content, self.language)
+        return None
 
     def _placeholder_string(self) -> str | None:
         if self.placeholder is None:
@@ -315,13 +352,12 @@ class Text(AbstractComponent):
                 visible=self.visible,
             )
 
-        # Pre-styled ANSI content: parse into run lines once, render as
-        # a plain TextBlock.
-        if self.ansi and isinstance(self.content, str):
-            from xnano._markup import parse_ansi_lines
-
+        # Pre-styled content (ANSI, markdown, highlighted code): parse
+        # into run lines once, render as a plain TextBlock.
+        markup_lines = self._markup_lines()
+        if markup_lines is not None:
             return TextBlock(
-                lines=parse_ansi_lines(self.content),
+                lines=markup_lines,
                 color=self.color,
                 background=self.background,
                 modifiers=self.modifiers,
@@ -558,9 +594,8 @@ class Text(AbstractComponent):
             WebSpanNode,
         )
 
-        if self.ansi and isinstance(self.content, str):
-            from xnano._markup import parse_ansi_lines
-
+        markup_lines = self._markup_lines()
+        if markup_lines is not None:
             return WebParagraphNode(
                 lines=tuple(
                     tuple(
@@ -572,7 +607,7 @@ class Text(AbstractComponent):
                         )
                         for run in line
                     )
-                    for line in parse_ansi_lines(self.content)
+                    for line in markup_lines
                 ),
                 color=self.color,
                 background=self.background,
