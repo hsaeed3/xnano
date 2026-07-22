@@ -88,6 +88,10 @@ class Text(AbstractComponent):
     rows: int | None = None
     """Preferred visible height (in lines) for a ``multiline`` input;
     ``None`` sizes to the content."""
+    ansi: bool = False
+    """When ``True`` on a leaf ``Text``, ANSI escape sequences in
+    ``content`` (subprocess output, Rich/pytest colors, …) are parsed
+    into styled runs instead of rendering as raw escapes."""
     _input_focused: bool = dataclasses.field(
         default=False, init=False, repr=False, compare=False
     )
@@ -96,6 +100,11 @@ class Text(AbstractComponent):
     )
 
     def __post_init__(self) -> None:
+        if self.ansi and self.input:
+            raise ValueError(
+                "Text(ansi=True) is display-only and cannot be combined "
+                "with input=True."
+            )
         if self.multiline and self.input and isinstance(self.content, str):
             from xnano_core.core import CoreTextEditor
 
@@ -302,6 +311,22 @@ class Text(AbstractComponent):
             return Native(
                 interface_kind="tui",
                 payload=EditorNode(editor=self._editor, rows=self.rows),
+                z=self.z,
+                visible=self.visible,
+            )
+
+        # Pre-styled ANSI content: parse into run lines once, render as
+        # a plain TextBlock.
+        if self.ansi and isinstance(self.content, str):
+            from xnano._markup import parse_ansi_lines
+
+            return TextBlock(
+                lines=parse_ansi_lines(self.content),
+                color=self.color,
+                background=self.background,
+                modifiers=self.modifiers,
+                align=self.align,
+                wrap=self.wrap,
                 z=self.z,
                 visible=self.visible,
             )
@@ -532,6 +557,29 @@ class Text(AbstractComponent):
             WebParagraphNode,
             WebSpanNode,
         )
+
+        if self.ansi and isinstance(self.content, str):
+            from xnano._markup import parse_ansi_lines
+
+            return WebParagraphNode(
+                lines=tuple(
+                    tuple(
+                        WebSpanNode(
+                            content=run.text,
+                            color=run.color,
+                            background=run.background,
+                            modifiers=run.modifiers,
+                        )
+                        for run in line
+                    )
+                    for line in parse_ansi_lines(self.content)
+                ),
+                color=self.color,
+                background=self.background,
+                modifiers=self.modifiers,
+                align=self.align,
+                wrap=self.wrap,
+            )
 
         if isinstance(self.content, str):
             display_text = self.content
