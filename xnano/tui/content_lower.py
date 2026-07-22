@@ -17,6 +17,7 @@ from xnano.core.content import (
     CellCanvas,
     CellSpan,
     Clear,
+    Items,
     Native,
     Panel,
     Run,
@@ -29,6 +30,7 @@ from xnano.tui.nodes import (
     ContainerNode,
     FrameNode,
     LineNode,
+    ListNode,
     ParagraphNode,
     SpanNode,
     TextNode,
@@ -81,6 +83,9 @@ def lower_content(
 
     if isinstance(content, CellCanvas):
         return _lower_cell_canvas(content)
+
+    if isinstance(content, Items):
+        return _lower_items(content)
 
     if isinstance(content, Clear):
         return ClearNode(z=content.z, visible=content.visible)
@@ -221,6 +226,51 @@ def _lower_text_block(block: TextBlock) -> AbstractTerminalNode:
         wrap=block.wrap,
         z=block.z,
         visible=block.visible,
+    )
+
+
+def _lower_items(items: Items) -> AbstractTerminalNode:
+    """Lower an Items list to a selectable ``ListNode``."""
+    node_items: list[str | LineNode | SpanNode] = []
+    for entry in items.items:
+        if isinstance(entry, str):
+            node_items.append(entry)
+        elif isinstance(entry, Run):
+            node_items.append(
+                SpanNode(
+                    content=entry.text,
+                    color=entry.color,
+                    background=entry.background,
+                    modifiers=list(entry.modifiers),
+                )
+            )
+        elif entry.lines:
+            # TextBlock entry: first run line becomes the list row.
+            node_items.append(
+                LineNode(
+                    content=[
+                        SpanNode(
+                            content=run.text,
+                            color=run.color,
+                            background=run.background,
+                            modifiers=list(run.modifiers),
+                        )
+                        for run in entry.lines[0]
+                    ]
+                )
+            )
+        else:
+            node_items.append(entry.text)
+    return ListNode(
+        items=node_items,
+        selected=items.selected,
+        color=items.color,
+        background=items.background,
+        highlight_color=items.highlight_color,
+        highlight_background=items.highlight_background,
+        highlight_symbol=items.highlight_symbol,
+        z=items.z,
+        visible=items.visible,
     )
 
 
