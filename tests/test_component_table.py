@@ -10,7 +10,7 @@ from xnano._types import Area
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.schema import Column
 from xnano.components.table import Table
-from xnano.tui.nodes import TableNode
+from xnano.terminal.nodes import TableNode
 
 
 def _ctx() -> ComponentRenderContext:

@@ -24,7 +24,7 @@ from xnano.components.abstract import (
 from xnano.events import on_keyboard, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 # ── Palette ───────────────────────────────────────────────────────────────────
 
@@ -166,7 +166,7 @@ class BoardTabs(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import LineNode, SpanNode, TabsNode
+        from xnano.terminal.nodes import LineNode, SpanNode, TabsNode
 
         titles: list[str | LineNode | SpanNode] = [
             SpanNode(
@@ -196,7 +196,7 @@ class TaskList(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -263,7 +263,7 @@ class ActivityFeed(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             SpanNode,
             TableCellItem,
             TableNode,
@@ -309,7 +309,7 @@ class VelocityChart(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             CanvasLine,
             CanvasNode,
             CanvasPrint,
@@ -382,7 +382,7 @@ class PriorityBreakdown(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             BarChartNode,
             BarGroupItem,
             BarItem,
@@ -424,7 +424,7 @@ class SprintGauge(AbstractComponent):
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
     def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.tui.nodes import LineGaugeNode
+        from xnano.terminal.nodes import LineGaugeNode
 
         return LineGaugeNode(
             progress=self.progress,

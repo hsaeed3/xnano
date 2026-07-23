@@ -87,7 +87,7 @@ xnano.render("hello, terminal!", color="blue") # (1)!
 `render()` is convenient for a single frame, but most apps want to stay open — reading input, updating state, redrawing — until the user quits. That's what a `Terminal` session gives you directly:
 
 ```python title="A Persistent Session" hl_lines="3 4"
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 terminal = Terminal()
 terminal.run("hello, terminal!") # (1)!
@@ -130,9 +130,9 @@ Everything from here — [grids]{data-preview}, [fields]{data-preview}, [events 
 
     **API**
 
-    [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview} · [`render()`](../api/xnano/_renderable.md#xnano._renderable.render){data-preview} · [`SizingLike`](../api/xnano/_types.md#xnano._types.SizingLike){data-preview}
+    [`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview} · [`render()`](../api/xnano/_renderable.md#xnano._renderable.render){data-preview} · [`SizingLike`](../api/xnano/_types.md#xnano._types.SizingLike){data-preview}
 
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [render]: ../api/xnano/_renderable.md
 [Context]: ../api/xnano/context.md
 [grids]: grids.md

@@ -3,7 +3,7 @@
 Covers every Action family (matches / to_event), Terminal.offscreen perform
 paths, field-scoped click + slide via real dispatch helpers, and the
 Context.actions facade. WebUI Action vocabulary lives in
-``tests/webui/test_web_actions.py``.
+``tests/web/test_web_actions.py``.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from xnano.events import (
 )
 from xnano.fields import Field
 from xnano.grid import BaseGrid, _GridFieldHit, _GridSlideCapture
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 # ---------------------------------------------------------------------------
 # 1. Action matching + to_event for each family

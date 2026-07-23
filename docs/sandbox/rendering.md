@@ -256,7 +256,7 @@ finally:
     intentionally raise an error as `run()` requires ownership of a live OS terminal.
 
 [render]: ../api/xnano/_renderable.md
-[terminal]: ../api/xnano/tui/terminal.md
+[terminal]: ../api/xnano/terminal/terminal.md
 [Direction]: ../api/xnano/_types.md#xnano._types.Direction
 [Alignment]: ../api/xnano/_types.md#xnano._types.Alignment
 [Border]: ../api/xnano/_types.md#xnano._types.Border
@@ -266,9 +266,9 @@ finally:
 [PaddingLike]: ../api/xnano/_types.md#xnano._types.PaddingLike
 [SizingLike]: ../api/xnano/_types.md#xnano._types.SizingLike
 [ColorLike]: ../api/xnano/color.md#xnano.color.ColorLike
-[Terminal class]: ../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal
-[Terminal.render]: ../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.render
-[Terminal.offscreen]: ../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.offscreen
+[Terminal class]: ../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal
+[Terminal.render]: ../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal.render
+[Terminal.offscreen]: ../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal.offscreen
 [Action]: ../api/xnano/core/actions.md#xnano.core.actions.Action
-[Terminal.perform]: ../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.perform
-[Terminal.run]: ../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run
+[Terminal.perform]: ../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal.perform
+[Terminal.run]: ../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal.run

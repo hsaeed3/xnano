@@ -140,5 +140,5 @@ A hook rarely needs more than the event, the terminal, and the state — but a f
 
     [`Context`](../api/xnano/context.md#xnano.context.Context){data-preview} · [`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview}
 
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [Context]: ../api/xnano/context.md

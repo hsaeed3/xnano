@@ -181,7 +181,7 @@ DEMOS: tuple[Demo, ...] = (
         code=_code("""
             from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
             from xnano.context import Context
             from xnano.color import tailwind_color
             from xnano.events import on_tick, on_keyboard
@@ -227,7 +227,7 @@ DEMOS: tuple[Demo, ...] = (
         code=_code("""
             from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
             from xnano.context import Context
             from xnano.events import on_keyboard
 
@@ -267,7 +267,7 @@ DEMOS: tuple[Demo, ...] = (
         code=_code("""
             from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
             from xnano.context import Context
             from xnano.events import on_keyboard
 
@@ -318,7 +318,7 @@ DEMOS: tuple[Demo, ...] = (
             import os
             from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
             from xnano.context import Context
             from xnano.events import on_click, on_keyboard
 
@@ -370,7 +370,7 @@ DEMOS: tuple[Demo, ...] = (
             import time
             from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
             from xnano.context import Context
             from xnano.events import on_tick, on_keyboard
 
@@ -411,7 +411,7 @@ DEMOS: tuple[Demo, ...] = (
             from dataclasses import dataclass
             from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
             from xnano.context import Context
             from xnano.events import on_keyboard
 
@@ -451,7 +451,7 @@ DEMOS: tuple[Demo, ...] = (
             import dataclasses
             from xnano.grid import BaseGrid
             from xnano.fields import Field
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
             from xnano.context import Context
             from xnano.color import tailwind_color, pydantic_color
             from xnano.events import on_keyboard
@@ -459,7 +459,7 @@ DEMOS: tuple[Demo, ...] = (
                 AbstractComponent,
                 ComponentRenderContext,
             )
-            from xnano.tui.nodes import ParagraphNode, AbstractTerminalNode
+            from xnano.terminal.nodes import ParagraphNode, AbstractTerminalNode
 
             @dataclasses.dataclass
             class Badge(AbstractComponent):

@@ -103,6 +103,6 @@ render("Done!", stream="status", update=True, end="\n")
 
 [BaseGrid]: ../api/xnano/grid.md
 [Field]: ../api/xnano/fields.md
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md
 [Context]: ../api/xnano/context.md
 [render]: ../api/xnano/_renderable.md

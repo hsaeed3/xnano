@@ -147,6 +147,11 @@ pub fn render_widget_inner(
         resolved = inner;
     }
 
+    #[cfg(feature = "editor")]
+    if let Ok(editor) = resolved.extract::<PyRef<super::engine::editor::PyTextEditor>>() {
+        Widget::render(&editor.inner, area.inner, buffer);
+        return Ok(());
+    }
     if let Ok(paragraph) = resolved.extract::<PyRef<PyParagraph>>() {
         paragraph.inner.clone().render(area.inner, buffer);
         return Ok(());

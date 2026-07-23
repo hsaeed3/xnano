@@ -12,7 +12,7 @@ import pytest
 from xnano.core.exceptions import FieldValidationError, TerminalNotActiveError
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 
 class _Counter(BaseGrid):

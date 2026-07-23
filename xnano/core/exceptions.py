@@ -71,13 +71,22 @@ class ExtraNotInstalledError(RuntimeError):
     """
 
     def __init__(self, extra: str) -> None:
-        if extra == "web":
+        if extra == "requests":
+            # Kept for backward-compatible error codes. Request hooks and
+            # the Web host now use the stdlib server and need no extra.
             message = (
-                "Using the `Web` interface and associated components requires the "
-                "`starlette` and `uvicorn` packages. Install them with: \n"
-                "`pip install 'xnano[web]'`\n"
+                "The `requests` extra is no longer required: "
+                "`@on_*_request` hooks and `Web` use the built-in stdlib "
+                "server. Upgrade xnano if you still see this error from "
+                "an older install."
+            )
+        elif extra == "images":
+            message = (
+                "Image rendering requires the `pillow` package. Install "
+                "it with:\n"
+                "`pip install 'xnano[images]'`\n"
                 "or\n"
-                "`pip install starlette uvicorn`"
+                "`pip install pillow`"
             )
         else:
             raise ValueError(f"Unknown extra: {extra}")

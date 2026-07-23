@@ -17,13 +17,13 @@ Furthermore, `xnano` itself uses the [`pydantic-core`](https://github.com/pydant
 ## Installation
 
 ```bash
-pip install "xnano>=1.0.16"
+pip install "xnano>=1.1.0"
 ```
 
 Or use ``uv``:
 
 ```bash
-uv add "xnano>=1.0.16"
+uv add "xnano>=1.1.0"
 ```
 
 > [!TIP]
@@ -105,7 +105,7 @@ the screen, renders each frame, and cleans up on exit.
 ```python
 from xnano.grid import BaseGrid
 from xnano.fields import Field
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 from xnano.context import Context
 from xnano.color import tailwind_color
 from xnano.events import on_tick, on_keyboard
@@ -154,7 +154,7 @@ proportion each slot.
 ```python
 from xnano.grid import BaseGrid
 from xnano.fields import Field
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 from xnano.context import Context
 from xnano.events import on_keyboard
 
@@ -200,7 +200,7 @@ reference them from layout fields.
 ```python
 from xnano.grid import BaseGrid
 from xnano.fields import Field
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 from xnano.context import Context
 from xnano.events import on_keyboard
 
@@ -248,7 +248,7 @@ specific field — the handler fires only when that region is clicked.
 ```python
 from xnano.grid import BaseGrid
 from xnano.fields import Field
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 from xnano.context import Context
 from xnano.events import on_click, on_keyboard
 
@@ -290,7 +290,7 @@ blocking the event loop.
 import time
 from xnano.grid import BaseGrid
 from xnano.fields import Field
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 from xnano.context import Context
 from xnano.events import on_tick, on_keyboard
 
@@ -337,7 +337,7 @@ display depends on state that changes externally.
 from dataclasses import dataclass
 from xnano.grid import BaseGrid
 from xnano.fields import Field
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 from xnano.context import Context
 from xnano.events import on_keyboard
 
@@ -384,7 +384,7 @@ Components slot into `BaseGrid` fields like any other value.
 import dataclasses
 from xnano.grid import BaseGrid
 from xnano.fields import Field
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 from xnano.context import Context
 from xnano.color import tailwind_color, pydantic_color
 from xnano.events import on_keyboard
@@ -392,7 +392,7 @@ from xnano.components.abstract import (
     AbstractComponent,
     ComponentRenderContext,
 )
-from xnano.tui.nodes import ParagraphNode, AbstractTerminalNode
+from xnano.terminal.nodes import ParagraphNode, AbstractTerminalNode
 
 @dataclasses.dataclass
 class Badge(AbstractComponent):

@@ -79,8 +79,15 @@ API deals with sessions, render nodes, key bindings, terminal events, and
 other runtime primitives.
 
 This boundary keeps application-facing APIs in Python and moves terminal
-lifecycle and rendering work into Rust. [Interfaces & Hosts]{data-preview}
-describes the Python contracts that sit above the runtime.
+lifecycle and rendering work into Rust. Live TUI sessions and the web
+host's offscreen sessions both go through
+[`CoreSession`](../api/xnano-core/core.md){data-preview}
+(via
+[`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}
+and
+[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}).
+[Interfaces & Hosts]{data-preview} describes the Python contracts that sit
+above the runtime.
 
 ## Direct installation
 

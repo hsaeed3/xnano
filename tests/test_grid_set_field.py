@@ -10,7 +10,7 @@ from xnano.components.text import Text
 from xnano.core.exceptions import FieldValidationError
 from xnano.fields import UNSET, Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 
 class LayoutGrid(BaseGrid):

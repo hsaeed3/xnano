@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from xnano._types import Area, Coordinate
     from xnano.context import Context
     from xnano.grid import BaseGrid
-    from xnano.tui.terminal import Terminal
+    from xnano.terminal.terminal import Terminal
 
 
 _logger = logging.getLogger("xnano.hooks")
@@ -249,7 +249,7 @@ def measure_renderable(root: Any) -> tuple[int, int]:
         AbstractComponent,
         ComponentRenderContext,
     )
-    from xnano.tui.nodes import AbstractTerminalNode
+    from xnano.terminal.nodes import AbstractTerminalNode
 
     if isinstance(root, AbstractComponent):
         ctx = ComponentRenderContext(area=Area(x=0, y=0, width=0, height=0))
@@ -429,7 +429,7 @@ def render_frame(
         from xnano._types import (
             FieldFocus,
             ensure_default_field_focus,
-            is_input_text,
+            is_focusable_component,
             place_cursor_for_focus,
             sync_input_focus_flags,
         )
@@ -445,7 +445,7 @@ def render_frame(
             fields = getattr(type(root), "_grid_fields", {}) or {}
             for field_name in fields:
                 value = getattr(root, field_name, None)
-                if is_input_text(value):
+                if is_focusable_component(value):
                     terminal._field_focus = FieldFocus(
                         grid=root, field_name=field_name
                     )
@@ -454,7 +454,7 @@ def render_frame(
         else:
             current = terminal._field_focus
             text = getattr(current.grid, current.field_name, None)
-            if is_input_text(text):
+            if is_focusable_component(text):
                 cast(Any, text)._input_focused = True
 
         root_area = resolve_root_area(terminal, viewport)
@@ -672,9 +672,9 @@ def _handle_focused_text_input(
     terminal: "Terminal[Any]", keyboard: Any
 ) -> bool:
     """Feed a key to the focused editable Text. Returns True if consumed."""
-    from xnano._types import apply_text_keyboard, focused_input_text
+    from xnano._types import apply_text_keyboard, focused_component
 
-    text = focused_input_text(terminal)
+    text = focused_component(terminal)
     if text is None:
         return False
     handle = getattr(text, "handle_keyboard", None)
@@ -724,16 +724,21 @@ def dispatch_hooks(terminal: "Terminal[Any]", ctx: "Context[Any]") -> None:
             invoke_hook(handler, grid, ctx)
 
     elif event.is_clipboard_event():
-        from xnano._types import focused_input_text
+        from xnano._types import focused_component
 
-        text = focused_input_text(terminal)
-        if text is not None and isinstance(text.content, str):
-            paste = (
-                event.clipboard_event.text
-                if event.clipboard_event is not None
-                else None
-            )
-            if paste:
+        text = focused_component(terminal)
+        paste = (
+            event.clipboard_event.text
+            if event.clipboard_event is not None
+            else None
+        )
+        if text is not None and paste:
+            handle_paste = getattr(text, "handle_paste", None)
+            if callable(handle_paste):
+                pasted = bool(handle_paste(paste))
+            else:
+                pasted = False
+            if not pasted and isinstance(getattr(text, "content", None), str):
                 position = (
                     text.cursor
                     if text.cursor is not None
@@ -801,10 +806,10 @@ def dispatch_field_mouse(
                 slide_axes=hit.slide_axes,
             )
         if mouse.kind == "press":
-            from xnano._types import is_input_text, set_field_focus
+            from xnano._types import is_focusable_component, set_field_focus
 
             value = getattr(hit.grid, hit.field_name, None)
-            if is_input_text(value):
+            if is_focusable_component(value):
                 set_field_focus(terminal, hit.grid, hit.field_name)
         handler = resolve_grid_mouse_handler(hit.grid, hit.field_name)
         if handler is not None and field_mouse_handler_matches(handler, mouse):

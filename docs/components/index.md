@@ -5,7 +5,7 @@ icon: "lucide/box"
 
 # Components
 
-Every built-in widget xnano ships — `Text`, `Table`, `Progress`, `Chart`, `Sparkline`, `Schema` — is an [AbstractComponent]{data-preview} subclass: a small, self-contained class that knows how to measure its own size and describe its own content, independent of whatever grid or field it ends up living in.
+Every built-in widget xnano ships — `Text`, `Select`, `Table`, `Progress`, `Chart`, `Sparkline`, `Schema` — is an [AbstractComponent]{data-preview} subclass: a small, self-contained class that knows how to measure its own size and describe its own content, independent of whatever grid or field it ends up living in.
 
 A component is the same shape as a [BaseGrid]{data-preview} in spirit — self-contained, host-agnostic — but built for reuse as a *value*, not a whole app. You drop one into a `Field()`, or hand it straight to `render()`, rather than running it.
 
@@ -13,9 +13,9 @@ A component:
 
 - Measures itself <small>(`get_size()` — how much space it wants)</small>
 - Describes its own content <small>(`compose()` — what to paint, host-agnostic)</small>
-- Renders on any host with no extra code <small>(the same content tree lowers for both terminal and browser)</small>
+- Renders on any host with no extra code <small>(the same content tree lowers to the same terminal cells for TUI and web canvas)</small>
 
-<div class="grid-concept-diagram" role="img" aria-label="Diagram: a component measures size and composes host-agnostic content, which lowers to terminal cells or HTML">
+<div class="grid-concept-diagram" role="img" aria-label="Diagram: a component measures size and composes host-agnostic content, which lowers to terminal cells for both TUI and web canvas">
 <svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg" fill="none">
   <defs>
     <pattern id="cid-cell" width="12" height="12" patternUnits="userSpaceOnUse">
@@ -49,9 +49,9 @@ A component:
   <rect x="500" y="88" width="160" height="14" rx="2" fill="url(#cid-cell)" />
 
   <rect class="gcd-panel" x="480" y="132" width="200" height="64" rx="12" />
-  <text class="gcd-chrome-label" x="580" y="160" text-anchor="middle">HTML / HTMX</text>
-  <path class="gcd-line" d="M508 176 h120" stroke-width="3" stroke-linecap="round" />
-  <path class="gcd-line-soft" d="M508 188 h80" stroke-width="3" stroke-linecap="round" />
+  <text class="gcd-chrome-label" x="580" y="160" text-anchor="middle">web canvas cells</text>
+  <rect class="gcd-grid-fill" x="500" y="172" width="160" height="14" rx="2" />
+  <rect x="500" y="172" width="160" height="14" rx="2" fill="url(#cid-cell)" />
 </svg>
 </div>
 
@@ -106,7 +106,7 @@ class Badge(AbstractComponent):
 ```
 
 1. `get_size()` returns the component's preferred cell size — here, just wide enough for the text plus its border, three rows tall to fit the frame. `ctx` is a `ComponentRenderContext`, the same render-time scope every component method receives.
-2. `compose()` returns *content*, not a widget for one specific host — a `Panel` wrapping a `TextBlock`. Whatever host paints this `Badge` lowers that same tree into cells or HTML; there's nothing terminal- or browser-specific to write.
+2. `compose()` returns *content*, not a widget for one specific host — a `Panel` wrapping a `TextBlock`. Whatever host paints this `Badge` lowers that same tree into terminal cells (TUI or web canvas); there's nothing surface-specific to write.
 
 <div class="xnano-demo" markdown>
 ![custom badge dark](../assets/components/custom_badge-dark.gif){.demo-dark}
@@ -132,7 +132,7 @@ It also renders standalone, the same way a bordered string does — `render(Badg
 
 ## Built-in Components
 
-xnano ships a handful of components ready to use — [Text]{data-preview} for styled and editable strings, [Table]{data-preview} for tabular data, [Progress]{data-preview} for bars and gauges, [Chart]{data-preview} for plots and bar charts, [Sparkline]{data-preview} for compact trend lines, and [Schema]{data-preview} for rendering a Pydantic model's fields directly. Each gets its own page next, starting with `Text` — the one you'll reach for most.
+xnano ships a handful of components ready to use — [Text]{data-preview} for styled strings, editable inputs, ANSI/markdown/syntax display, [Select]{data-preview} for fuzzy-filterable pick lists, [Table]{data-preview} for tabular data, [Progress]{data-preview} for bars and gauges, [Chart]{data-preview} for plots and bar charts, [Sparkline]{data-preview} for compact trend lines, and [Schema]{data-preview} for rendering a Pydantic model's fields directly. Each gets its own page next, starting with `Text` — the one you'll reach for most.
 
 <div class="grid cards" markdown>
 
@@ -140,9 +140,17 @@ xnano ships a handful of components ready to use — [Text]{data-preview} for st
 
     ---
 
-    Styled spans, composed lines and paragraphs, plus editable text inputs.
+    Styled spans, composed lines and paragraphs, editable (multi-line) inputs, plus ANSI, markdown, and syntax-highlight display modes.
 
     [Text | Guide]{.xnano-card-link data-preview}
+
+-   :material-filter-variant:{ .lg .middle } **Select**
+
+    ---
+
+    Fuzzy-filterable pick lists with match emphasis, keyboard selection, and optional external search.
+
+    [Select | Guide]{.xnano-card-link data-preview}
 
 -   :material-table:{ .lg .middle } **Table**
 
@@ -199,12 +207,14 @@ xnano ships a handful of components ready to use — [Text]{data-preview} for st
 [AbstractComponent]: ../api/xnano/components/abstract.md
 [BaseGrid]: ../api/xnano/grid.md
 [Text]: ../api/xnano/components/text.md
+[Select]: ../api/xnano/components/select.md
 [Table]: ../api/xnano/components/table.md
 [Progress]: ../api/xnano/components/progress.md
 [Chart]: ../api/xnano/components/chart.md
 [Sparkline]: ../api/xnano/components/sparkline.md
 [Schema]: ../api/xnano/components/schema.md
 [Text | Guide]: text.md
+[Select | Guide]: select.md
 [Table | Guide]: table.md
 [Progress | Guide]: progress.md
 [Chart | Guide]: chart.md

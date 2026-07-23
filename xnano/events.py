@@ -702,7 +702,7 @@ def _auto_register_hook_function(fn: EventHookFunction) -> EventHookFunction:
     Returns:
         The hook function.
     """
-    from xnano.tui.terminal import _ACTIVE_TERMINAL
+    from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
     terminal = _ACTIVE_TERMINAL.get()
     if terminal is not None:

@@ -313,19 +313,19 @@ DEMOS: tuple[Demo, ...] = (
         name="web-requests",
         title="Web Request Hooks · Experimental",
         message="GET reads · POST mutates",
-        detail="routes render a page or htmx fragment",
+        detail="mutate state · empty response · host repaints",
     ),
     build_render_demo(
         name="get-request",
         title="@on_get_request · Experimental",
         message="GET /status → Everything is healthy",
-        detail="live session grid rendered",
+        detail="handler mutates live grid · empty response",
     ),
     build_render_demo(
         name="post-request",
         title="@on_post_request · Experimental",
         message="POST /increment → Count: 1",
-        detail="htmx swaps #xnano-app",
+        detail="handler mutates live grid · empty response",
     ),
 )
 

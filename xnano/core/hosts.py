@@ -242,8 +242,8 @@ class AbstractHost(abc.ABC):
         from xnano import _dispatch
         from xnano.context import Context
 
-        # Hosts (Terminal, WebSession) duck-type the Terminal surface
-        # that dispatch_hooks expects.
+        # Hosts (Terminal, and the web host's session terminal) duck-type
+        # the Terminal surface that dispatch_hooks expects.
         host = cast(TypingAny, self)
         ctx = Context(
             event=event,

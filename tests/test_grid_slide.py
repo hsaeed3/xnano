@@ -11,7 +11,7 @@ from xnano.context import Context
 from xnano.events import Event, on_mouse
 from xnano.fields import Field
 from xnano.grid import BaseGrid, _grid_slide_paint_area, _GridSlideCapture
-from xnano.tui import _ACTIVE_TERMINAL, Terminal
+from xnano.terminal import _ACTIVE_TERMINAL, Terminal
 
 
 class SlideGrid(BaseGrid):

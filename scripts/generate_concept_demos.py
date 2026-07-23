@@ -289,7 +289,7 @@ DEMOS: tuple[Demo, ...] = (
         name="terminal_session",
         code=code("""
             import time
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
             from xnano.components.text import Text
 
             Terminal().render(

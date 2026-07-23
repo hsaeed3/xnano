@@ -15,7 +15,7 @@ from xnano.components.abstract import AbstractComponent
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
-    from xnano.tui.nodes import AbstractTerminalNode
+    from xnano.terminal.nodes import AbstractTerminalNode
 
 
 ProgressStyle = Literal["bar", "line"]
@@ -91,7 +91,7 @@ class Progress(AbstractComponent):
     def get_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.tui.nodes import LineGaugeNode, ProgressBarNode
+        from xnano.terminal.nodes import LineGaugeNode, ProgressBarNode
 
         ratio = self.ratio
         label = self._resolve_label()

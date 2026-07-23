@@ -9,7 +9,7 @@ from __future__ import annotations
 from xnano._types import Area, Sizing
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 
 def _slot_areas(grid: BaseGrid, width: int, height: int) -> dict[str, Area]:

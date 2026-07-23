@@ -28,7 +28,7 @@ from xnano.color import Color, ColorLike
 from xnano.core.controllers.abstract import LayoutConstraint
 
 if TYPE_CHECKING:
-    from xnano.tui.cursor import CursorStyle
+    from xnano.terminal.cursor import CursorStyle
 
 
 _NATIVE_COLOR_CACHE: dict[tuple[int, int, int, float], native.Color] = {}

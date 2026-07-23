@@ -11,7 +11,7 @@ from xnano.effects import (
     FadeEffect,
     SweepInEffect,
 )
-from xnano.tui.effects import (
+from xnano.terminal.effects import (
     build_native_effect,
     resolve_native_effect,
 )

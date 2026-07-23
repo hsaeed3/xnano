@@ -20,9 +20,9 @@ if TYPE_CHECKING:
         KeyboardEventData,
         MouseEventData,
     )
-    from xnano.tui.cursor import TerminalCursor
-    from xnano.tui.device import TerminalDevice
-    from xnano.tui.terminal import Terminal
+    from xnano.terminal.cursor import TerminalCursor
+    from xnano.terminal.device import TerminalDevice
+    from xnano.terminal.terminal import Terminal
 
 
 StateT = TypeVar("StateT")

@@ -19,7 +19,7 @@ protocol.
 
 ```python
 from xnano.images import Image
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 Terminal().render(Image("photo.png"))
 Terminal().run(Image("animation.gif"))
