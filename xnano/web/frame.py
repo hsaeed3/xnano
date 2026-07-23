@@ -124,10 +124,7 @@ def serialize_rows(buffer: Any) -> tuple[Row, ...]:
                 fg = color_to_web(cell.fg)
                 bg = color_to_web(cell.bg)
                 mods = _modifier_bits(cell.modifier)
-            if (
-                started
-                and (fg, bg, mods) == (run_fg, run_bg, run_mods)
-            ):
+            if started and (fg, bg, mods) == (run_fg, run_bg, run_mods):
                 text += symbol
                 continue
             if started:

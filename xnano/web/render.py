@@ -52,6 +52,11 @@ class WebRenderer(Generic[StateT]):
         return self._terminal
 
     @property
+    def grid(self) -> Any:
+        """The grid being rendered (for request-hook dispatch)."""
+        return self._grid
+
+    @property
     def size(self) -> tuple[int, int]:
         return (self._cols, self._rows)
 

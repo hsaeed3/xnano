@@ -43,11 +43,12 @@ Example:
 
 from __future__ import annotations
 
-from typing import Callable, overload
+from typing import Any, Callable, overload
 
 from xnano._function_hooks import (
     EventHookFunction,
     HttpMethod,
+    _OnRequestHookEntry,
     _RequestHooksRegistry,
 )
 
@@ -218,8 +219,58 @@ def on_post_request(
     return decorator
 
 
+def has_request_hooks(grid_or_class: Any) -> bool:
+    """Return whether a grid (instance or class) declares any request hook."""
+    grid_class = (
+        grid_or_class
+        if isinstance(grid_or_class, type)
+        else type(grid_or_class)
+    )
+    return bool(
+        _RequestHooksRegistry.from_component_class(grid_class).all_hooks()
+    )
+
+
+def collect_request_routes(grid_class: type) -> list[_OnRequestHookEntry]:
+    """Collect ``@on_*_request`` route entries declared on a grid class."""
+    return _RequestHooksRegistry.from_component_class(grid_class).all_hooks()
+
+
+def dispatch_request(grid: Any, method: str, path: str) -> bool:
+    """Invoke matching request hooks on a live ``grid``; return matched.
+
+    Host-agnostic: the handler mutates grid state, and the host's own
+    render loop (terminal frame loop or web SSE loop) repaints. No HTML
+    is produced here.
+    """
+    from typing import cast
+
+    from xnano._dispatch import invoke_hook
+    from xnano.context import Context
+
+    normalized = _normalize_request_path(path)
+    routes = collect_request_routes(type(grid))
+    matched = False
+    # Request handlers are zero-arg methods that mutate grid state; they
+    # never read ctx.terminal, so a null host context is sufficient.
+    ctx = Context(event=None, terminal=cast(Any, None), state=None)
+    for entry in routes:
+        if entry["method"] != method or entry["path"] != normalized:
+            continue
+        name = getattr(entry["handler"], "__name__", "")
+        handler = getattr(grid, name, None)
+        if handler is None:
+            continue
+        invoke_hook(handler, grid, ctx)
+        matched = True
+    return matched
+
+
 __all__ = (
     "HttpMethod",
+    "collect_request_routes",
+    "dispatch_request",
+    "has_request_hooks",
     "on_get_request",
     "on_post_request",
 )

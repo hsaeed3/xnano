@@ -71,11 +71,12 @@ class ExtraNotInstalledError(RuntimeError):
     """
 
     def __init__(self, extra: str) -> None:
-        if extra == "web":
+        if extra == "requests":
             message = (
-                "Using the `Web` interface and associated components requires the "
-                "`starlette` and `uvicorn` packages. Install them with: \n"
-                "`pip install 'xnano[web]'`\n"
+                "Serving `@on_get_request` / `@on_post_request` routes "
+                "requires the `starlette` and `uvicorn` packages. Install "
+                "them with:\n"
+                "`pip install 'xnano[requests]'`\n"
                 "or\n"
                 "`pip install starlette uvicorn`"
             )

@@ -113,16 +113,12 @@ def test_table_renders_on_web_without_web_code() -> None:
     """The headline: a component with no get_web_node renders on web."""
 
     class Dash(BaseGrid):
-        table: Table = Field(
-            default=Table(data=[{"name": "ada", "n": 1}])
-        )
+        table: Table = Field(default=Table(data=[{"name": "ada", "n": 1}]))
 
     renderer = WebRenderer(Dash(), cols=24, rows=4)
     try:
         frame = renderer.frame()
-        text = "\n".join(
-            _row_text(frame["rows"][str(y)]) for y in range(4)
-        )
+        text = "\n".join(_row_text(frame["rows"][str(y)]) for y in range(4))
         assert "Name" in text
         assert "ada" in text
     finally:

@@ -7,22 +7,22 @@ Dependency-free web host: a stdlib ``ThreadingHTTPServer`` that serves a
 Server-Sent Events, and routes browser key/mouse/resize events back
 through the same ``xnano._dispatch`` engine the live terminal uses.
 
-No third-party dependency is required for this path. ``xnano[web]``
-(Starlette + uvicorn) is only needed for ``@on_*_request`` routes and
-production serving (see ``xnano.web.web``).
+No third-party dependency is required — request-hook routes are served
+here too. ``xnano[requests]`` (Starlette + uvicorn) is an optional
+production-serving upgrade (see ``xnano.web.web``).
 """
 
 from __future__ import annotations
 
+import concurrent.futures
 import contextlib
 import http.server
 import json
 import queue
 import secrets
 import threading
-from concurrent.futures import Future
+import urllib.parse
 from typing import Any, Callable, Iterator
-from urllib.parse import parse_qs, urlparse
 
 from xnano.web.render import WebRenderer
 
@@ -94,9 +94,9 @@ class _Session:
         self._cols = cols
         self._state = state
         self._title = title
-        self._tasks: queue.Queue[tuple[Callable[[], Any], Future] | None] = (
-            queue.Queue()
-        )
+        self._tasks: queue.Queue[
+            tuple[Callable[[], Any], concurrent.futures.Future] | None
+        ] = queue.Queue()
         # Created and only ever touched on the worker thread; typed Any
         # because callers submit lambdas that run after it is set.
         self.renderer: Any = None
@@ -126,7 +126,7 @@ class _Session:
                         future.set_exception(error)
 
     def _submit(self, fn: Callable[[], Any]) -> Any:
-        future: Future = Future()
+        future: concurrent.futures.Future = concurrent.futures.Future()
         self._tasks.put((fn, future))
         return future.result()
 
@@ -149,6 +149,15 @@ class _Session:
     def resize(self, cols: int, rows: int) -> None:
         self._submit(lambda: self.renderer.resize(cols, rows))
         self.dirty.set()
+
+    def request(self, method: str, path: str) -> bool:
+        from xnano.web.requests import dispatch_request
+
+        matched = self._submit(
+            lambda: dispatch_request(self.renderer.grid, method, path)
+        )
+        self.dirty.set()
+        return bool(matched)
 
     def close(self) -> None:
         self._submit(lambda: self.renderer.close())
@@ -205,20 +214,28 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         return ""
 
     def do_GET(self) -> None:
-        parsed = urlparse(self.path)
+        parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/":
             self._serve_shell()
         elif parsed.path == "/xnano/painter.js":
             self._serve_bytes(_read_painter_js(), "application/javascript")
         elif parsed.path == "/xnano/stream":
-            self._serve_stream(parse_qs(parsed.query))
+            self._serve_stream(urllib.parse.parse_qs(parsed.query))
+        elif ("GET", parsed.path) in self._server.request_routes:
+            self._serve_request("GET", parsed.path)
         else:
             self.send_error(404)
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/xnano/event":
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/xnano/event":
+            self._serve_event()
+        elif ("POST", parsed.path) in self._server.request_routes:
+            self._serve_request("POST", parsed.path)
+        else:
             self.send_error(404)
-            return
+
+    def _serve_event(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length) if length else b"{}"
         try:
@@ -233,6 +250,13 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             )
         else:
             session.apply_event(payload)
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _serve_request(self, method: str, path: str) -> None:
+        session = self._server.session_for(self._session_id())
+        session.request(method, path)
         self.send_response(204)
         self.send_header("Content-Length", "0")
         self.end_headers()
@@ -297,6 +321,7 @@ class NativeWebServer(http.server.ThreadingHTTPServer):
         shared: bool,
         state: Any,
         title: str,
+        grid_class: type | None = None,
     ) -> None:
         super().__init__(address, _Handler)
         self._grid_factory = grid_factory
@@ -306,6 +331,14 @@ class NativeWebServer(http.server.ThreadingHTTPServer):
         self._sessions: dict[str, _Session] = {}
         self._sessions_lock = threading.Lock()
         self.stopped = False
+        self.request_routes: set[tuple[str, str]] = set()
+        if grid_class is not None:
+            from xnano.web.requests import collect_request_routes
+
+            self.request_routes = {
+                (entry["method"], entry["path"])
+                for entry in collect_request_routes(grid_class)
+            }
 
     def session_for(self, session_id: str) -> _Session:
         key = "shared" if self._shared else (session_id or "default")
@@ -337,6 +370,7 @@ def serve_native(
     title: str,
     host: str,
     port: int,
+    grid_class: type | None = None,
 ) -> None:
     """Run the native stdlib web host until interrupted."""
     server = NativeWebServer(
@@ -345,6 +379,7 @@ def serve_native(
         shared=shared,
         state=state,
         title=title,
+        grid_class=grid_class,
     )
     print(f"xnano web → http://{host}:{port}")
     try:

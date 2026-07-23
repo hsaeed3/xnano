@@ -146,23 +146,6 @@ class AbstractComponent(abc.ABC):
         """
         return None
 
-    def get_web_node(self, ctx: ComponentRenderContext[StateT]) -> Any | None:
-        """Prepare the web render node tree for this component.
-
-        Reserved for the web interface — `xnano.core.nodes.web` doesn't
-        exist yet, so every component returns `None` here today. Typed as
-        `Any` rather than a forward reference to an `AbstractWebNode` that
-        doesn't exist yet; narrow this once that module lands.
-
-        Args:
-            ctx: The `ComponentRenderContext` to prepare the node for.
-
-        Returns:
-            The web render node for this component, or `None` (the
-            default) when it has no web representation.
-        """
-        return None
-
 
 __all__ = (
     "AbstractComponent",

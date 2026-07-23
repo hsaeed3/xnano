@@ -1,110 +1,74 @@
-"""Unit tests for @on_get_request / @on_post_request via Web.dispatch_request."""
+"""Tests for @on_get_request / @on_post_request via the host-agnostic
+request dispatcher (xnano.web.requests.dispatch_request)."""
 
 from __future__ import annotations
 
-from tests.helpers import close_offscreen_app, open_offscreen_app
 from tests.web.grids import RequestHookGrid
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.web import Web
-from xnano.web.requests import on_post_request
+from xnano.web.requests import (
+    collect_request_routes,
+    dispatch_request,
+    has_request_hooks,
+    on_post_request,
+)
 
 
-def test_dispatch_request_post_mutates_state_and_html() -> None:
-    """POST /increment increments state and the re-render reflects it."""
+def test_post_hook_mutates_state() -> None:
     grid = RequestHookGrid()
-    web = Web()
-    web.render_html(grid)
-
-    first = web.dispatch_request("POST", "/increment")
-    second = web.dispatch_request("POST", "/increment")
-
+    assert dispatch_request(grid, "POST", "/increment") is True
+    dispatch_request(grid, "POST", "/increment")
     assert grid.count == 2
-    assert "Count: 1" in first
-    assert "Count: 2" in second
-    assert "Count: 1" not in second
+    assert grid.label == "Count: 2"
 
 
-def test_dispatch_request_normalizes_path_without_leading_slash() -> None:
-    """Paths without a leading slash still match the registered route."""
+def test_path_without_leading_slash_matches() -> None:
     grid = RequestHookGrid()
-    web = Web()
-    web.render_html(grid)
-
-    web.dispatch_request("POST", "increment")
+    assert dispatch_request(grid, "POST", "increment") is True
     assert grid.count == 1
 
 
-def test_dispatch_request_wrong_method_does_not_fire_hook() -> None:
-    """GET on a POST-only path is a no-op for that handler."""
+def test_wrong_method_is_noop() -> None:
     grid = RequestHookGrid()
-    web = Web()
-    web.render_html(grid)
-
-    html_out = web.dispatch_request("GET", "/increment")
+    assert dispatch_request(grid, "GET", "/increment") is False
     assert grid.count == 0
-    assert "Count: 0" in html_out
 
 
-def test_dispatch_request_unknown_path_leaves_state_alone() -> None:
-    """Unknown paths re-render without mutating request-hook state."""
+def test_unknown_path_is_noop() -> None:
     grid = RequestHookGrid()
-    web = Web()
-    web.render_html(grid)
-    web.dispatch_request("POST", "/increment")
-    assert grid.count == 1
-
-    html_out = web.dispatch_request("POST", "/nope")
-    assert grid.count == 1
-    assert "Count: 1" in html_out
+    assert dispatch_request(grid, "POST", "/nope") is False
+    assert grid.count == 0
 
 
-def test_dispatch_request_get_reflects_prior_post_state() -> None:
-    """GET /status reads the live count after a prior POST."""
+def test_get_reflects_prior_post_state() -> None:
     grid = RequestHookGrid()
-    web = Web()
-    web.render_html(grid)
-
-    web.dispatch_request("POST", "/increment")
-    web.dispatch_request("POST", "/increment")
-    html_out = web.dispatch_request("GET", "/status")
-
+    dispatch_request(grid, "POST", "/increment")
+    dispatch_request(grid, "POST", "/increment")
+    dispatch_request(grid, "GET", "/status")
     assert grid.count == 2
     assert grid.label == "status:2"
-    assert "status:2" in html_out
 
 
-def test_dispatch_request_pumps_on_field_hooks() -> None:
-    """Request dispatch runs the same on_field pump as click/key paths."""
-    grid = RequestHookGrid()
-    web = Web()
-    web.render_html(grid)
+def test_has_request_hooks_detects_routes() -> None:
+    assert has_request_hooks(RequestHookGrid) is True
+    assert has_request_hooks(RequestHookGrid()) is True
 
-    web.dispatch_request("POST", "/increment")
-    assert grid.note == ""
-    web.dispatch_request("POST", "/increment")
-    assert grid.note == "double"
+    class Plain(BaseGrid):
+        label: str = Field(default="x")
+
+    assert has_request_hooks(Plain) is False
 
 
-def test_request_hooks_do_not_fire_on_terminal_frame() -> None:
-    """Terminal frames ignore @on_get_request/@on_post_request — only paint and TUI hooks run."""
-    grid = RequestHookGrid()
-    terminal = open_offscreen_app(grid, cols=40, rows=12)
-    try:
-        assert grid.visits == 0
-        assert grid.count == 0
-        assert grid.label == "Count: 0"
-        web = Web()
-        web.render_html(grid)
-        web.dispatch_request("POST", "/increment")
-        assert grid.count == 1
-    finally:
-        close_offscreen_app(terminal)
+def test_collect_routes_lists_method_path_pairs() -> None:
+    routes = {
+        (entry["method"], entry["path"])
+        for entry in collect_request_routes(RequestHookGrid)
+    }
+    assert ("POST", "/increment") in routes
+    assert ("GET", "/status") in routes
 
 
-def test_request_hook_subclass_shadows_base_handler() -> None:
-    """A more-derived @on_post_request for the same path replaces the base one."""
-
+def test_subclass_route_shadows_base() -> None:
     class BaseCounter(BaseGrid):
         label: str = Field(default="0")
         count: int = Field(default=0, state=True)
@@ -121,31 +85,15 @@ def test_request_hook_subclass_shadows_base_handler() -> None:
             self.label = f"derived:{self.count}"
 
     grid = DerivedCounter()
-    web = Web()
-    web.render_html(grid)
-    html_out = web.dispatch_request("POST", "/bump")
-
+    dispatch_request(grid, "POST", "/bump")
     assert grid.count == 10
     assert grid.label == "derived:10"
-    assert "derived:10" in html_out
-    assert "base:" not in html_out
 
 
-def test_factory_sessions_isolate_request_hook_state() -> None:
-    """Each factory session mutates only its own grid via request hooks."""
-    web = Web()
-    web._source = RequestHookGrid
-    first = web._make_session()
-    second = web._make_session()
-
-    first.render()
-    first.dispatch_request("POST", "/increment")
-    first.dispatch_request("POST", "/increment")
-
-    assert first.grid.count == 2
-    assert second.grid.count == 0
-
-    second.render()
-    second.dispatch_request("POST", "/increment")
-    assert first.grid.count == 2
-    assert second.grid.count == 1
+def test_isolated_grids_keep_separate_state() -> None:
+    first = RequestHookGrid()
+    second = RequestHookGrid()
+    dispatch_request(first, "POST", "/increment")
+    dispatch_request(first, "POST", "/increment")
+    assert first.count == 2
+    assert second.count == 0

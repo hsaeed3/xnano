@@ -82,15 +82,6 @@ def test_text_ansi_composes_styled_text_block() -> None:
     assert content.lines[0][1].text == " plain"
 
 
-def test_text_ansi_web_spans() -> None:
-    from xnano.web.nodes import WebParagraphNode
-
-    text = Text("\x1b[31mred\x1b[0m", ansi=True)
-    node = text.get_web_node(_ctx())
-    assert isinstance(node, WebParagraphNode)
-    assert node.lines[0][0].color == "#cd0000"
-
-
 def test_ansi_and_input_are_mutually_exclusive() -> None:
     with pytest.raises(ValueError):
         Text("x", ansi=True, input=True)
