@@ -8,14 +8,14 @@ Server-Sent Events, and routes browser key/mouse/resize events back
 through the same ``xnano._dispatch`` engine the live terminal uses.
 
 No third-party dependency is required — request-hook routes are served
-here too. ``xnano[requests]`` (Starlette + uvicorn) is an optional
-production-serving upgrade (see ``xnano.web.web``).
+here too, alongside the shell page, painter script, and SSE cell stream.
 """
 
 from __future__ import annotations
 
 import concurrent.futures
 import contextlib
+import functools
 import http.server
 import json
 import queue
@@ -235,6 +235,22 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def _handle_request_method(self, method: str) -> None:
+        path = urllib.parse.urlparse(self.path).path
+        if (method, path) in self._server.request_routes:
+            self._serve_request(method, path)
+        else:
+            self.send_error(404)
+
+    do_HEAD = functools.partialmethod(_handle_request_method, "HEAD")
+    do_PUT = functools.partialmethod(_handle_request_method, "PUT")
+    do_DELETE = functools.partialmethod(_handle_request_method, "DELETE")
+    do_CONNECT = functools.partialmethod(_handle_request_method, "CONNECT")
+    do_OPTIONS = functools.partialmethod(_handle_request_method, "OPTIONS")
+    do_TRACE = functools.partialmethod(_handle_request_method, "TRACE")
+    do_PATCH = functools.partialmethod(_handle_request_method, "PATCH")
+    do_QUERY = functools.partialmethod(_handle_request_method, "QUERY")
+
     def _serve_event(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length) if length else b"{}"
@@ -255,6 +271,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def _serve_request(self, method: str, path: str) -> None:
+        length = int(self.headers.get("Content-Length", 0))
+        if length:
+            self.rfile.read(length)
         session = self._server.session_for(self._session_id())
         session.request(method, path)
         self.send_response(204)

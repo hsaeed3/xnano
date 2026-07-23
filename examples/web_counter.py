@@ -1,8 +1,11 @@
 """xnano web counter example.
 
-Demonstrates the same BaseGrid working on both terminal and web interfaces:
-click the box (or press the up arrow) to count, type into the name
-input, and watch the tick counter advance once per second.
+Demonstrates the same BaseGrid working on both terminal and web
+interfaces: click the box (or press the up arrow) to count, type into
+the name input, and watch the tick counter advance once per second.
+
+Custom HTTP routes (``POST /increment``, ``GET /reset``) are declared
+with request hooks from ``xnano.hooks`` and work under both hosts.
 
 Usage:
     uv run python examples/web_counter.py          # terminal mode
@@ -15,13 +18,21 @@ from __future__ import annotations
 import sys
 
 from xnano.components.text import Text
-from xnano.events import on_click, on_keyboard, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
+from xnano.hooks import (
+    on_click,
+    on_keyboard,
+    on_tick,
+)
+from xnano.requests import (
+    on_get_request,
+    on_post_request,
+)
 
 
 class Counter(BaseGrid, direction="vertical", gap=1):
-    """A counter with click, keyboard, tick, and text-input hooks."""
+    """A counter with click, keyboard, tick, text-input, and HTTP hooks."""
 
     title: Text = Field(
         default=Text("xnano counter", color="cyan", modifiers=("bold",)),
@@ -48,6 +59,15 @@ class Counter(BaseGrid, direction="vertical", gap=1):
     @on_keyboard("up")
     def _key_bump(self) -> None:
         self._bump()
+
+    @on_post_request("/increment")
+    def _http_bump(self) -> None:
+        self._bump()
+
+    @on_get_request("/reset")
+    def _http_reset(self) -> None:
+        self.count = 0
+        self.label = "Count: 0"
 
     def _bump(self) -> None:
         self.count += 1

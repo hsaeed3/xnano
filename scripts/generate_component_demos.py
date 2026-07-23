@@ -175,6 +175,17 @@ DEMOS: tuple[Demo, ...] = (
         ),
         height=5,
     ),
+    _render_demo(
+        "select_basic",
+        "from xnano.components.select import Select",
+        (
+            "Select("
+            'items=("dark", "light", "dracula", "solarized"), '
+            'selected=0, highlight_background="blue"'
+            ")"
+        ),
+        height=6,
+    ),
     Demo(
         name="table_declarative",
         code=code("""

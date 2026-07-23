@@ -81,15 +81,11 @@ xnano.render("hello, terminal!", color="blue")
 
 Rendered content is __orthogonal__ to the host interface it is displayed on, which means everything you build and render onto the terminal within xnano can also be rendered onto a webpage with no extra effort.
 
-!!! abstract "Web Dependencies"
+!!! abstract "No Extra Dependencies"
 
-    The entire layout and component system for the WebUI engine is built on top of raw [HTMX](https://htmx.org/) and [TailwindCSS](https://tailwindcss.com/), and requires no additional dependencies aside from [starlette](https://www.starlette.io/) and [uvicorn](https://www.uvicorn.org/) to serve the application.
-
-    You can use WebUI based components by installing the following extra:
-
-    ```bash
-    pip install "xnano[web]"
-    ```
+    `Web` streams the same terminal cells to a browser `<canvas>` over a
+    dependency-free stdlib server — no Starlette, uvicorn, or htmx
+    required. Install `xnano` and you can serve.
 
 ```python
 from xnano import Field, BaseGrid
@@ -99,13 +95,6 @@ class App(BaseGrid):
     body: str = Field(default="hello, web!")
 
 Web().run(App())
-```
-
-```bash title="Output"
-INFO:     Started server process [23935]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:3000 (Press CTRL+C to quit)
 ```
 
 ## Next Steps

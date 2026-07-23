@@ -8,8 +8,8 @@ Runs a grid on a dependency-free native server that streams the real
 render engine's terminal cells to a ``<canvas>`` client and routes
 browser events back through the same ``@on_*`` hook paths the terminal
 loop uses, so every component renders on web identically to the
-terminal. Custom HTTP routes are declared with ``@on_get_request`` /
-``@on_post_request`` from ``xnano.web.requests``.
+terminal. Custom HTTP routes are declared with ``@on_*_request``
+decorators from ``xnano.web.requests`` (every HTTP method).
 """
 
 from __future__ import annotations

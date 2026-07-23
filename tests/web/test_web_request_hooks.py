@@ -10,7 +10,16 @@ from xnano.web.requests import (
     collect_request_routes,
     dispatch_request,
     has_request_hooks,
+    on_connect_request,
+    on_delete_request,
+    on_get_request,
+    on_head_request,
+    on_options_request,
+    on_patch_request,
     on_post_request,
+    on_put_request,
+    on_query_request,
+    on_trace_request,
 )
 
 
@@ -66,6 +75,36 @@ def test_collect_routes_lists_method_path_pairs() -> None:
     }
     assert ("POST", "/increment") in routes
     assert ("GET", "/status") in routes
+
+
+def test_all_http_method_hooks_are_collected() -> None:
+    decorators = {
+        "GET": on_get_request,
+        "HEAD": on_head_request,
+        "POST": on_post_request,
+        "PUT": on_put_request,
+        "DELETE": on_delete_request,
+        "CONNECT": on_connect_request,
+        "OPTIONS": on_options_request,
+        "TRACE": on_trace_request,
+        "PATCH": on_patch_request,
+        "QUERY": on_query_request,
+    }
+    namespace = {}
+    for method, decorator in decorators.items():
+
+        def handler(self) -> None:
+            pass
+
+        handler.__name__ = method.lower()
+        namespace[handler.__name__] = decorator(f"/{method.lower()}")(handler)
+
+    grid_class = type("AllRequestHooks", (), namespace)
+    routes = {
+        (entry["method"], entry["path"])
+        for entry in collect_request_routes(grid_class)
+    }
+    assert routes == {(method, f"/{method.lower()}") for method in decorators}
 
 
 def test_subclass_route_shadows_base() -> None:

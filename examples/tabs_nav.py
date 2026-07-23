@@ -114,18 +114,22 @@ def _monitor_screen(elapsed: float) -> Text:
     )
 
 
-def _config_screen(elapsed: float) -> str:
+def _config_screen(elapsed: float) -> Text:
     active_conns = int(20 + elapsed % 5)
-    return (
-        "\n"
-        "  DATABASE ENGINE CONFIGURATION\n"
-        "  ====================================\n\n"
-        "  [Connection Details]\n"
-        "  - DB_HOST: localhost (Active)\n"
-        "  - DB_USER: admin_postgres\n"
-        "  - SSL_MODE: require (Encrypted)\n\n"
-        f"  - Active Connections: {active_conns}\n"
-        "  - Thread Pool State: Idle"
+    return Text(
+        (
+            "# Database engine\n"
+            "\n"
+            "## Connection details\n"
+            "\n"
+            "- **DB_HOST**: `localhost` (Active)\n"
+            "- **DB_USER**: `admin_postgres`\n"
+            "- **SSL_MODE**: `require` (Encrypted)\n"
+            "\n"
+            f"- **Active connections**: {active_conns}\n"
+            "- **Thread pool state**: Idle\n"
+        ),
+        markdown=True,
     )
 
 
@@ -175,7 +179,6 @@ class TabNav(BaseGrid, direction="vertical"):
             tailwind_color("amber", 500),
             tailwind_color("indigo", 500),
         ][tab]
-        accent_hex = f"#{accent.r:02x}{accent.g:02x}{accent.b:02x}"
 
         self.grid_set_field("tab_bar", border_color=accent)
         self.grid_set_field("screen", border_color=accent)
@@ -186,10 +189,7 @@ class TabNav(BaseGrid, direction="vertical"):
         if tab == 0:
             self.screen = _monitor_screen(elapsed)
         elif tab == 1:
-            self.screen = Text(
-                _config_screen(elapsed),
-                color=tailwind_color("zinc", 100),
-            )
+            self.screen = _config_screen(elapsed)
         else:
             self.screen = Text(_logs_screen(elapsed))
 

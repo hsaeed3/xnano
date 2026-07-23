@@ -22,11 +22,11 @@ User app (BaseGrid + Field + @on_* hooks + Action)
    xnano                 public DSL: grid, fields, events, components, …
         |
         +-- xnano.core   interface-neutral contracts (host, action, content,
-        |                style consumers, stage, controllers)
+        |                style consumers, stage, nodes, controllers)
         |
         +-- xnano.terminal    Terminal host + native lowering
-        +-- xnano.web  Web host + HTML/htmx backend
-        +-- xnano.cli    Command CLI abstraction
+        +-- xnano.web         Web host (stdlib cell stream + canvas SSE)
+        +-- xnano.cli         Command CLI abstraction
         |
         v
    xnano_core.core       session, scene graph, render IR, unified events
@@ -65,7 +65,7 @@ xnano/
 ├── grid.py                # BaseGrid (+ Grid alias), GridSettings
 ├── fields.py              # Field, FieldInfo / GridFieldInfo, FieldState
 ├── components/            # Text, Table, Chart, Progress, Sparkline, Schema
-├── color.py, effects.py, events.py, context.py, state.py
+├── color.py, effects.py, events.py, context.py, state.py, hooks.py
 │
 │  ── shared contracts / engines ────────────────────────────────────────
 ├── core/
@@ -74,13 +74,14 @@ xnano/
 │   ├── hosts.py           # AbstractHost, RouteTable, get_active_host
 │   ├── interface.py       # AbstractInterface (field state base)
 │   ├── device.py          # AbstractDevice / AbstractCursor
+│   ├── nodes.py           # AbstractNode (shared z / visibility base)
 │   ├── stage.py           # Stage, LayoutMap, cell paint helpers
 │   ├── exceptions.py      # Exit, HookError, validation errors, …
-│   └── controllers/       # abstract + TerminalController + WebController
+│   └── controllers/       # abstract + TerminalController (tui)
 │
 │  ── interface kinds ───────────────────────────────────────────────────
-├── tui/                   # Terminal host, cursor, device, nodes, effects
-├── webui/                 # Web host, session, requests, HTML nodes
+├── terminal/              # Terminal host, cursor, device, nodes, effects
+├── web/                   # Web host, render, server, requests, frames
 └── cli/                   # Command CLI
 ```
 
@@ -91,34 +92,40 @@ xnano/
 - **`Action`** — declarative/imperative triggers. Events answer *"what
   happened"*; actions answer *"what to do"*. Hooks bind actions; hosts
   `perform` them. Matching is centralized on `Action.matches`.
-- **`AbstractHost`** — shared contract for `Terminal`, `WebSession`, and
-  future hosts: registry, state, pump, `perform`, device/cursor/actions/
-  stage, and `RouteTable` navigation.
+- **`AbstractHost`** — shared contract implemented by `Terminal` (live
+  or offscreen): registry, state, pump, `perform`, device/cursor/actions/
+  stage, and `RouteTable` navigation. The web host drives an offscreen
+  `Terminal` rather than a separate session type.
 - **`Content` / `Style` / `Stage`** — components compose interface-neutral
-  content; controllers lower content into TUI IR/nodes or HTML; stage
+  content; `TerminalController` lowers content into TUI IR/nodes; stage
   exposes layout maps and cell paint helpers on the active host.
 - **`Terminal`** (`xnano.terminal`) — owns `CoreSession`, the run loop,
   viewport mode, cursor/device controls, and offscreen sessions. It is
-  an `AbstractHost`.
-- **`TerminalController` / `WebController`** — backend painting only.
-  `TerminalController` is the only framework layer that talks to
-  `xnano_core` for terminal rendering.
-- A TUI frame flows from `Terminal` → root grid/component → field sizing
+  an `AbstractHost`. `Terminal.run(host=..., port=...)` can also serve
+  grid `@on_*_request` routes via `xnano.web.request_server`.
+- **`TerminalController`** — the only concrete paint controller. It is
+  the only framework layer that talks to `xnano_core` for rendering
+  (live TUI and web offscreen sessions).
+- **`Web`** (`xnano.web`) — stdlib HTTP server + canvas client; streams
+  terminal cells over SSE through `WebRenderer` (offscreen `Terminal`).
+  No HTML/htmx paint path; no separate controller backend.
+- A frame flows from `Terminal` → root grid/component → field sizing
   and controller paint requests → `CoreSession.render()`. Events are
-  polled from core and dispatched through `_dispatch` via `Context`.
+  polled from core (or synthesized from the browser) and dispatched
+  through `_dispatch` via `Context`.
 
 ### `xnano.terminal` / `xnano.web` / `xnano.cli`
 
 | Surface | Entry | Notes |
 |---------|-------|-------|
 | TUI | `from xnano.terminal import Terminal` (also root lazy export) | ratatui session, native effects lowering |
-| Web | `from xnano.web import Web` | Starlette/uvicorn, HTML flex + htmx; optional `web` extra |
-| HTTP hooks | `from xnano.web.requests import on_get_request, on_post_request` | declared on `BaseGrid` methods |
+| Web | `from xnano.web import Web` | stdlib cell stream to canvas SSE; no extra required |
+| HTTP hooks | `from xnano.web.requests import on_get_request, on_post_request, …` (also `xnano.hooks` / `xnano.requests`) | every HTTP method; declared on `BaseGrid` methods; served by `Web` or `Terminal.run` |
 | CLI | `from xnano.cli import Command` | options, subcommands, validation, help |
 
-Web reuses the same grids, hooks, components, and dispatch helpers as the
-terminal host. Do not reintroduce a `xnano.beta` product surface; beta
-docs paths are redirects only.
+Web reuses the same grids, hooks, components, dispatch helpers, and
+`TerminalController` path as the terminal host. Do not reintroduce a
+`xnano.beta` product surface; beta docs paths are redirects only.
 
 ### `xnano-core` — native bindings and engine
 

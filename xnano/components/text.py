@@ -25,27 +25,27 @@ if TYPE_CHECKING:
 class Text(AbstractComponent):
     """Unified text component that adapts its render node based on structure.
 
-    Three usage modes, all through one class:
+    Structural modes, all through one class:
 
     **Leaf** — a single styled string (renders as
-    [`SpanNode`](../tui/nodes.md#xnano.terminal.nodes.SpanNode){data-preview} when
-    nested,
-    [`ParagraphNode`](../tui/nodes.md#xnano.terminal.nodes.ParagraphNode){data-preview}
+    [`SpanNode`](../terminal/nodes.md#xnano.terminal.nodes.SpanNode){data-preview}
+    when nested,
+    [`ParagraphNode`](../terminal/nodes.md#xnano.terminal.nodes.ParagraphNode){data-preview}
     at top level):
 
         Text("hello world", color="red", modifiers=("bold",))
 
     **Line** — inline spans composed via a list of ``Text`` children where
     every child is itself a leaf (renders as
-    [`LineNode`](../tui/nodes.md#xnano.terminal.nodes.LineNode){data-preview}):
+    [`LineNode`](../terminal/nodes.md#xnano.terminal.nodes.LineNode){data-preview}):
 
         Text([Text("Hello ", color="cyan"), Text("world", color="red")])
 
     **Paragraph** — multiple lines composed via a list of ``Text`` children
     where at least one child is itself a line (renders as
-    [`ParagraphNode`](../tui/nodes.md#xnano.terminal.nodes.ParagraphNode){data-preview}
+    [`ParagraphNode`](../terminal/nodes.md#xnano.terminal.nodes.ParagraphNode){data-preview}
     wrapping a
-    [`TextNode`](../tui/nodes.md#xnano.terminal.nodes.TextNode){data-preview}):
+    [`TextNode`](../terminal/nodes.md#xnano.terminal.nodes.TextNode){data-preview}):
 
         Text([
             Text([Text("Hello ", color="cyan"), Text("world")]),
@@ -53,12 +53,24 @@ class Text(AbstractComponent):
         ])
 
     **Input** — set ``input=True`` on a leaf ``Text`` placed in a grid field
-    to make it focusable and editable (tab order, caret, placeholder):
+    to make it focusable and editable (tab order, caret, placeholder).
+    Add ``multiline=True`` (and optional ``rows``) for multi-line editing
+    backed by ``CoreTextEditor``:
 
         class Form(BaseGrid):
             name: Text = Field(
                 default=Text("", input=True, placeholder="your name"),
             )
+            notes: Text = Field(
+                default=Text("", input=True, multiline=True, rows=5),
+            )
+
+    **Display modes** (mutually exclusive with each other and with
+    ``input``) parse a leaf string before styling:
+
+    - ``ansi=True`` — SGR sequences (subprocess/Rich/pytest output)
+    - ``markdown=True`` — headings, emphasis, lists, fenced code
+    - ``language="python"`` — Pygments syntax highlighting only
 
     All modes share the same styling params: ``color``, ``background``,
     ``modifiers``.  ``align`` and ``wrap`` apply at the paragraph level.

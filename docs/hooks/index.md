@@ -24,7 +24,7 @@ The specialized hooks are usually the nicest place to begin. [`@on_keyboard("esc
 | [`@on_field`](on-field.md){data-preview} | A true grid-field expression | — |
 | [`@on_poll`](on-poll.md){data-preview} | An idle wait or every frame | — |
 
-Web grids add request hooks of their own: [`@on_get_request`](web-requests/get.md){data-preview} and [`@on_post_request`](web-requests/post.md){data-preview}.
+Request hooks are cross-host — they work under [`Web`](../api/xnano/web/web.md){data-preview} and under [`Terminal.run`](../api/xnano/terminal/terminal.md){data-preview} when you pass `host` / `port`. Every HTTP method has a decorator (`@on_get_request`, `@on_post_request`, `@on_put_request`, `@on_delete_request`, `@on_patch_request`, … — see [web requests](web-requests/index.md){data-preview}). Handlers mutate grid state only; hosts repaint on their own schedule.
 
 ## One Dispatch Path
 

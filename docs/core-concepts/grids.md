@@ -329,22 +329,16 @@ The primary way to render or display content using xnano is through the terminal
 
 ### Running a Web Application
 
-??? abstract "Web Dependencies"
+??? abstract "No Extra Dependencies"
 
-    Although the rendering engine for web applications requires no additional dependencies, xnano requires
-    the [starlette](https://www.starlette.io/) and [uvicorn](https://www.uvicorn.org/) python packages
-    to bootstrap and launch the web app itself.
-
-    You can install these dependencies by installing the <code>xnano[web]</code> extra.
-
-    ```bash
-    pip install 'xnano[web]'
-    ```
+    `Web` uses a dependency-free stdlib HTTP server and streams terminal
+    cells to a browser canvas — no Starlette, uvicorn, or htmx required.
 
 <br/>
 
-We can run our web application the exact same way we did with the terminal! Simple create a new "live session" using
-the [Web]{data-preview} class, and pass the grid component to it.
+We can run our web application the exact same way we did with the terminal!
+Simply create a new live session using the [Web]{data-preview} class, and
+pass the grid component to it.
 
 ```python title="Web" hl_lines="3"
 from xnano.web import Web
@@ -353,10 +347,7 @@ Web().run(App())
 ```
 
 ```bash title="Output"
-INFO:     Started server process [79107]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+xnano web → http://127.0.0.1:8000
 ```
 
 ??? abstract "Sandbox & API"

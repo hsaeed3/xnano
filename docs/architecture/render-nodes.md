@@ -73,13 +73,21 @@ painted by `xnano_core`. It covers the final render stages introduced in
 </svg>
 </div>
 
-## Nodes: `AbstractTerminalNode`
+## Nodes: `AbstractNode` and `AbstractTerminalNode`
+
+Shared node structure lives on
+[`AbstractNode`](../api/xnano/core/nodes.md#xnano.core.nodes.AbstractNode){data-preview}
+in `xnano.core.nodes` — a frozen base that only carries
+`kind` (`"terminal"` or `"web"`), `z`, and `visible`. Interface kinds
+define drawing methods on top of that base because measurement and paint
+differ by surface.
 
 Every terminal-renderable value is represented by a frozen
 [`AbstractTerminalNode`](../api/xnano/terminal/nodes.md#xnano.terminal.nodes.AbstractTerminalNode){data-preview}
-dataclass from `xnano.terminal.nodes`. This includes
-text, tables, progress bars, frames, and containers. Two methods define
-how each node is rendered:
+dataclass from `xnano.terminal.nodes` (a subclass of
+[`AbstractNode`](../api/xnano/core/nodes.md#xnano.core.nodes.AbstractNode){data-preview}).
+This includes text, tables, progress bars, frames, and containers. Two
+methods define how each node is rendered:
 
 - **`to_ir()`** returns the node's
   [`CoreRenderIR`](../api/xnano-core/core.md){data-preview}
@@ -120,8 +128,10 @@ the `to_ir()` path:
 
 ## Content: the interface-neutral tree
 
-Nodes are specific to the terminal backend. Components first compose
-host-neutral primitives from `xnano.core.content`, including
+Nodes that reach the paint controller are terminal nodes today — the
+web host reuses an offscreen terminal rather than lowering content into
+a separate HTML node tree. Components first compose host-neutral
+primitives from `xnano.core.content`, including
 [`Run`](../api/xnano/core/content.md#xnano.core.content.Run){data-preview},
 [`TextBlock`](../api/xnano/core/content.md#xnano.core.content.TextBlock){data-preview},
 [`Panel`](../api/xnano/core/content.md#xnano.core.content.Panel){data-preview},
@@ -138,6 +148,12 @@ tree. It converts a `Run` to a `SpanNode`, a
 lowered child. `Native(interface_kind="tui", payload=...)` lets a
 component provide an existing terminal node or backend object without
 first representing that value as `Content`.
+
+The browser never receives HTML widgets for these nodes. After
+[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}
+paints the offscreen buffer,
+[`WebRenderer`](../api/xnano/web/render.md#xnano.web.render.WebRenderer){data-preview}
+snapshots the cells and streams them to a canvas client.
 
 ## `CoreRenderIR`: the single Python↔Rust crossing
 

@@ -153,7 +153,7 @@ Terminal().run(Clock())
 
 ## Keep Going
 
-The [Hooks & Actions guide](../hooks/index.md){data-preview} is the complete, example-led reference: every decorator gets its own page, beside the action that can represent the same trigger. It also covers state and polling hooks that intentionally have no action counterpart, plus the GET and POST hooks used by web grids.
+The [Hooks & Actions guide](../hooks/index.md){data-preview} is the complete, example-led reference: every decorator gets its own page, beside the action that can represent the same trigger. It also covers state and polling hooks that intentionally have no action counterpart, plus the full set of HTTP request hooks (`@on_get_request`, `@on_post_request`, `@on_put_request`, …) used on either host.
 
 ??? abstract "Sandbox & API"
 

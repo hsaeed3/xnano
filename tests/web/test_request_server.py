@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 
 from xnano import BaseGrid, Field
-from xnano.hooks import on_get_request, on_post_request
+from xnano.requests import on_get_request, on_post_request, on_query_request
 from xnano.web.request_server import start_request_server
 
 
@@ -23,6 +23,10 @@ class Api(BaseGrid):
     @on_get_request("/status")
     def _status(self) -> None:
         self.label = f"status:{self.count}"
+
+    @on_query_request("/search")
+    def _search(self) -> None:
+        self.label = "queried"
 
 
 class Plain(BaseGrid):
@@ -59,10 +63,29 @@ def test_get_route_reads_state_over_http() -> None:
     assert server is not None
     port = server.server_address[1]
     try:
-        assert urllib.request.urlopen(
-            f"http://127.0.0.1:{port}/status"
-        ).status == 200
+        assert (
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/status").status
+            == 200
+        )
         assert grid.label == "status:5"
+    finally:
+        server.shutdown()
+
+
+def test_query_route_accepts_request_content() -> None:
+    grid = Api()
+    server = start_request_server(grid, host="127.0.0.1", port=0)
+    assert server is not None
+    port = server.server_address[1]
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}/search",
+        method="QUERY",
+        data=b"name=xnano",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    try:
+        assert urllib.request.urlopen(request).status == 200
+        assert grid.label == "queried"
     finally:
         server.shutdown()
 

@@ -116,11 +116,13 @@ keyboard branch:
 1. **Tab and backtab focus navigation** (`_handle_focus_navigation`)
    consumes the key only when focus moves to a field. An
    `on_keyboard("tab")` hook still runs when no fields can receive focus.
-2. **Focused text input** (`_handle_focused_text_input`) allows an
-   editable
-   [`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}
-   field with input focus to consume character and edit
-   keys before any user
+2. **Focused focusable component** (`_handle_focused_text_input`) feeds
+   the key to the component that currently holds field focus when that
+   value is duck-typed as focusable — `focusable` is truthy and
+   `handle_keyboard` is callable (for example
+   [`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}`(input=True)`).
+   The component's `handle_keyboard` may consume character and edit keys
+   before any user
    [`@on_keyboard`](../api/xnano/events.md#xnano.events.on_keyboard){data-preview}
    hook sees them.
 
@@ -196,10 +198,11 @@ root follows this layout path:
    [`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}`.paint_field_slot()`
    reaches them during
    painting.
-2. The first editable
-   [`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}
-   field receives focus on the first frame so
-   its caret is rendered before the first key event.
+2. The first focusable component field (duck-typed via `focusable` and
+   `handle_keyboard`, for example an editable
+   [`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview})
+   receives focus on the first frame so its caret or focus chrome is
+   rendered before the first key event.
 3. `resolve_root_area()` constrains the viewport to the root's width
    setting. Fixed widths and bounded `fit` values require measurement;
    `fill` and unbounded `fit` values do not.

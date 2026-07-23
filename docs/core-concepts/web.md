@@ -9,11 +9,22 @@ icon: "lucide/globe"
 
     This feature is experimental and is subject to frequent changes.
 
-A [Web]{data-preview} host is the browser counterpart to [Terminal]{data-preview} — instead of owning a terminal window, it owns a live web server, and instead of painting cells to a screen, it serves your app as an actual page over HTTP.
+A [Web]{data-preview} host is the browser counterpart to
+[Terminal]{data-preview} — instead of owning a terminal window, it owns a
+dependency-free HTTP server, and instead of painting cells to a local
+screen, it streams those same cells to a browser `<canvas>`.
 
-Whatever you hand a `Terminal` to run, you can hand a `Web` host too — the same class, unchanged. It doesn't know or care which host is running it: `Web` just answers keyboard events, clicks, and ticks from a browser tab instead of a terminal window, and paints HTML instead of cells.
+Whatever you hand a `Terminal` to run, you can hand a `Web` host too — the
+same class, unchanged. It doesn't know or care which host is running it:
+`Web` drives the real offscreen render engine, streams its cells over
+Server-Sent Events, and routes browser key, mouse, and resize events back
+through the same `@on_*` hook engine the terminal loop uses. There is no
+separate HTML renderer — every component looks identical on both hosts
+because both paint the same engine output.
 
-That's the idea behind calling rendered content **orthogonal** to its host: the same `App()` you'd hand to a `Terminal` is exactly what you hand to a `Web` host too.
+That's the idea behind calling rendered content **orthogonal** to its host:
+the same `App()` you'd hand to a `Terminal` is exactly what you hand to a
+`Web` host too.
 
 <div class="grid-concept-diagram" role="img" aria-label="Diagram: one App grid class handed to either Terminal or Web without changes">
 <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg" fill="none">
@@ -56,7 +67,7 @@ That's the idea behind calling rendered content **orthogonal** to its host: the 
     <circle class="gcd-dot" cx="26" cy="14" r="3.5" />
     <circle class="gcd-dot" cx="38" cy="14" r="3.5" />
     <rect class="gcd-urlbar" x="54" y="8" width="168" height="12" rx="6" />
-    <text class="gcd-chrome-label" x="138" y="17" text-anchor="middle">Web</text>
+    <text class="gcd-chrome-label" x="138" y="17" text-anchor="middle">Web · canvas</text>
     <rect class="gcd-grid-fill" x="12" y="40" width="216" height="36" rx="4" />
     <rect x="12" y="40" width="216" height="36" rx="4" fill="url(#wcd-cell)" />
   </g>
@@ -65,7 +76,8 @@ That's the idea behind calling rendered content **orthogonal** to its host: the 
 
 ## A Minimal Session
 
-Where `Terminal().run(...)` keeps a terminal window alive, `Web().run(...)` starts an actual server process and keeps *that* alive.
+Where `Terminal().run(...)` keeps a terminal window alive, `Web().run(...)`
+starts a native stdlib HTTP server and keeps *that* alive.
 
 ```python title="Running a Web App" hl_lines="7"
 from xnano import BaseGrid, Field
@@ -77,28 +89,36 @@ class App(BaseGrid):
 Web().run(App(), port=8000) # (1)!
 ```
 
-1. Don't worry about `Field()` and `BaseGrid` yet — [grids]{data-preview} and [fields]{data-preview} cover that in depth. The only new idea here is `Web` itself: the thing that takes this same grid and serves it as a page instead of a terminal frame.
+1. Don't worry about `Field()` and `BaseGrid` yet — [grids]{data-preview}
+   and [fields]{data-preview} cover that in depth. The only new idea here
+   is `Web` itself: the thing that takes this same grid and streams its
+   cells to a browser canvas instead of a terminal frame.
 
 ```bash title="Output"
-INFO:     Started server process [79107]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+xnano web → http://127.0.0.1:8000
 ```
 
-Visiting that address renders the grid as HTML, wired up with [HTMX](https://htmx.org/) so that hooks — the same `@on_keyboard`, `@on_click`, and `@on_tick` decorators a terminal app uses — fire from real browser events: a keydown in the page, a click on an element, a poll on an interval.
+Visiting that address loads a thin shell page with a full-window
+`<canvas>` and a small painter script. The server renders the grid through
+an offscreen `Terminal`, packs each frame as terminal cells (row-diffed
+over the wire), and pushes frames over an SSE stream. Browser events —
+keydown, click, resize — POST back and enter the same `@on_keyboard`,
+`@on_click`, and `@on_tick` path a terminal app uses.
 
-??? abstract "Web Dependencies"
+??? abstract "No Extra Dependencies"
 
-    `Web` needs no extra dependencies to build its HTML/HTMX layout, but running a real server does — [starlette](https://www.starlette.io/) to route requests and [uvicorn](https://www.uvicorn.org/) to serve them. Both come with the `web` extra:
+    `Web` runs on Python's stdlib HTTP server. There is no Starlette,
+    uvicorn, or htmx requirement for the default host — install `xnano`
+    and you can serve.
 
     ```bash
-    pip install "xnano[web]"
+    pip install xnano
     ```
 
 ## One Grid, Two Hosts
 
-Because a grid never references `Terminal` or `Web` directly, the exact same class can be handed to either one.
+Because a grid never references `Terminal` or `Web` directly, the exact
+same class can be handed to either one.
 
 ```python title="Same Grid, Either Host"
 from xnano import BaseGrid, Field, Terminal
@@ -111,36 +131,65 @@ Terminal().run(App())   # a terminal window
 Web().run(App())        # a browser tab
 ```
 
-Only one of these runs at a time in a given process, but nothing about `App` itself changes between them — the grid, its fields, and its hooks are the host-agnostic part; `Terminal` and `Web` are just two different stages willing to run it.
+Only one of these runs at a time in a given process, but nothing about
+`App` itself changes between them — the grid, its fields, and its hooks
+are the host-agnostic part; `Terminal` and `Web` are just two different
+stages willing to run it.
 
 ??? note "Shared vs. Per-Visitor Sessions"
 
-    Passing a `BaseGrid` *instance* to `Web().run(...)` gives every visitor the same live grid — one shared state, seen by everyone connected. Passing the *class* itself instead creates a fresh grid per browser session, the same way each terminal run starts from scratch.
+    Passing a `BaseGrid` *instance* to `Web().run(...)` gives every visitor
+    the same live grid — one shared state, seen by everyone connected.
+    Passing the *class* itself (or a factory) creates a fresh grid per
+    browser session, the same way each terminal run starts from scratch.
 
     ```python
     Web().run(Dashboard())   # shared across all visitors
     Web().run(Dashboard)     # a new session per visitor
     ```
 
+## Request Hooks on Either Host
+
+Request hooks (`@on_get_request`, `@on_post_request`, `@on_put_request`,
+`@on_delete_request`, `@on_patch_request`, and the rest of the HTTP
+method set) are cross-host. Handlers only mutate grid state; the host
+repaints on its own schedule — the cell-stream loop under `Web`, or the
+terminal frame loop when you pass `host`/`port` to `Terminal.run`. See
+[web request hooks](../hooks/web-requests/index.md).
+
 ## What Doesn't Carry Over
 
-Not everything a terminal session offers has a browser equivalent. A few [device and cursor]{data-preview} controls — raw mode, the alternate screen buffer, moving the caret to a specific cell — only make sense where there's a real terminal underneath, and reduce to harmless no-ops on `Web`. Native effects and some terminal-only sizing behavior are similarly TUI-specific.
+Not everything a terminal session offers has a browser equivalent. A few
+[device and cursor]{data-preview} controls — raw mode, the alternate screen
+buffer, moving the caret to a specific cell — only make sense where there's
+a real terminal underneath, and reduce to harmless no-ops on `Web`. Native
+effects and some terminal-only sizing behavior are similarly TUI-specific.
 
-None of that affects the core model, though: grids, fields, and hooks all mean the same thing on both hosts.
+None of that affects the core model, though: grids, fields, components, and
+hooks all mean the same thing on both hosts, because both paint the same
+render engine.
 
 ## Next Steps
 
-With both hosts in view, the rest of `core-concepts` — [grids]{data-preview}, [fields]{data-preview}, [events and hooks]{data-preview}, and [device and cursor]{data-preview} — applies equally whether the app ends up running in a `Terminal` or served with `Web`.
+With both hosts in view, the rest of `core-concepts` —
+[grids]{data-preview}, [fields]{data-preview},
+[events and hooks]{data-preview}, and [device and cursor]{data-preview} —
+applies equally whether the app ends up running in a `Terminal` or served
+with `Web`.
 
 ??? abstract "Sandbox & API"
 
     **Sandbox**
 
-    [Live Sandbox](../sandbox.md){data-preview} <small>Starting an HTTP server remains outside Pyodide.</small>
+    [Live Sandbox](../sandbox.md){data-preview} <small>Starting an HTTP
+    server remains outside Pyodide.</small>
 
     **API**
 
-    [`Web`](../api/xnano/web/web.md#xnano.web.web.Web){data-preview} · [`WebSession`](../api/xnano/web/session.md#xnano.web.session.WebSession){data-preview}
+    [`Web`](../api/xnano/web/web.md#xnano.web.web.Web){data-preview} ·
+    [`serve_native`](../api/xnano/web/server.md){data-preview} ·
+    [`WebRenderer`](../api/xnano/web/render.md){data-preview} ·
+    [`xnano.web.requests`](../api/xnano/web/requests.md){data-preview}
 
 [Terminal]: ../api/xnano/terminal/terminal.md
 [Web]: ../api/xnano/web/web.md

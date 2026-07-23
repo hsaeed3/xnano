@@ -2,48 +2,67 @@
 
 ---
 
-HTTP request hooks for creating reactive grids within web applications.
+HTTP request hooks for creating reactive grids.
 
-This module provides ``@on_get_request`` and ``@on_post_request`` decorators which can be
-annotated onto methods of a ``BaseGrid`` subclass to handle HTTP requests when
-the grid is served by ``Web``. Under a terminal session the decorators are
-harmless no-ops for dispatch — the methods remain on the class and never
-fire.
+Every standard HTTP method has a decorator — ``@on_get_request``,
+``@on_head_request``, ``@on_post_request``, ``@on_put_request``,
+``@on_delete_request``, ``@on_connect_request``, ``@on_options_request``,
+``@on_trace_request``, ``@on_patch_request``, and ``@on_query_request``.
+Annotate methods of a ``BaseGrid`` subclass; handlers mutate grid state
+only — hosts repaint on their own schedule:
+
+- Under ``Web``, routes are registered on the native stdlib server and the
+  continuous cell-stream render loop reflects the mutation next frame.
+- Under ``Terminal``, pass ``host``/``port`` to ``Terminal.run`` (or let the
+  defaults apply) and a background request server exposes the same routes
+  alongside the live TUI.
+
+The same decorators are re-exported from ``xnano.hooks`` and
+``xnano.requests``.
 
 Example:
 
     ```python
     from xnano.grid import BaseGrid
     from xnano.fields import Field
-    from xnano.web.requests import on_get_request, on_post_request
+    from xnano.web.requests import (
+        on_delete_request,
+        on_get_request,
+        on_post_request,
+        on_put_request,
+    )
     from xnano.web import Web
 
-    class Counter(BaseGrid):
+    class Items(BaseGrid):
         label: str = Field(default="Count: 0")
         count: int = Field(default=0, state=True)
 
-        @on_post_request("/increment")
-        def increment(self) -> None:
+        @on_get_request("/items")
+        def list_items(self) -> None:
+            self.label = f"Count: {self.count}"
+
+        @on_post_request("/items")
+        def create_item(self) -> None:
             self.count += 1
             self.label = f"Count: {self.count}"
 
-        @on_get_request("/reset")
-        def reset(self) -> None:
+        @on_put_request("/items")
+        def replace_items(self) -> None:
+            self.count = 1
+            self.label = "Count: 1"
+
+        @on_delete_request("/items")
+        def clear_items(self) -> None:
             self.count = 0
             self.label = "Count: 0"
 
-    Web(title="counter").run(Counter)
+    Web(title="items").run(Items)
     ```
-
-    ``Web`` registers each path as a Starlette route. Responses are full
-    HTML pages for ordinary browser navigation and ``#xnano-app`` fragments
-    for htmx requests (``HX-Request``), so buttons can wire themselves with
-    ``hx-post="/increment" hx-target="#xnano-app" hx-swap="innerHTML"``.
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable, overload
+from typing import Any, Callable
 
 from xnano._function_hooks import (
     EventHookFunction,
@@ -91,132 +110,55 @@ def _decorate_request_hook(
         The decorated hook function.
     """
     normalized = _normalize_request_path(path)
-    if method == "GET":
-        setattr(fn, _RequestHooksRegistry.ON_GET_HOOK_ATTR, True)
-    else:
-        setattr(fn, _RequestHooksRegistry.ON_POST_HOOK_ATTR, True)
+    setattr(fn, _RequestHooksRegistry.ON_REQUEST_METHOD_ATTR, method)
     setattr(fn, _RequestHooksRegistry.ON_REQUEST_PATH_ATTR, normalized)
     return fn
 
 
-@overload
-def on_get_request(
-    path: str,
-    /,
-) -> Callable[[EventHookFunction], EventHookFunction]: ...
-@overload
-def on_get_request(
-    handler: EventHookFunction,
-    /,
-    *,
-    path: str = "/",
-) -> EventHookFunction: ...
-def on_get_request(
-    handler_or_path: "EventHookFunction | str | None" = None,
-    /,
-    *,
-    path: str | None = None,
-) -> "EventHookFunction | Callable[[EventHookFunction], EventHookFunction]":
-    """Register a GET request hook for a grid method.
+def _create_request_hook(method: HttpMethod) -> Callable[..., Any]:
+    """Create the public request decorator for one HTTP method."""
 
-    When the grid is hosted by ``Web``, the path is registered as a
-    Starlette ``GET`` route. The handler runs against the live session
-    grid, then the page (or htmx fragment) is re-rendered.
+    def on_method_request(
+        handler_or_path: EventHookFunction | str | None = None,
+        /,
+        *,
+        path: str | None = None,
+    ) -> EventHookFunction | Callable[[EventHookFunction], EventHookFunction]:
+        """Register an HTTP request hook for a grid method."""
+        if callable(handler_or_path):
+            return _decorate_request_hook(
+                handler_or_path,
+                method=method,
+                path=path if path is not None else "/",
+            )
 
-    Under ``Terminal`` the decorator only marks the method — nothing is
-    dispatched and no error is raised.
-
-    Args:
-        handler_or_path: The path string (decorator factory form) or the
-            handler when used as ``@on_get_request`` / ``@on_get_request(path=...)``.
-        path: Explicit path when decorating a handler directly.
-
-    Returns:
-        The decorated hook function, or a decorator awaiting a function.
-
-    Example:
-        @on_get_request("/status")
-        def show_status(self) -> None:
-            self.label = "ok"
-
-        @on_get_request
-        def index(self) -> None:
-            ...  # path defaults to "/"
-    """
-    if callable(handler_or_path):
-        resolved = path if path is not None else "/"
-        return _decorate_request_hook(
-            handler_or_path, method="GET", path=resolved
+        resolved_path = (
+            handler_or_path
+            if isinstance(handler_or_path, str)
+            else (path if path is not None else "/")
         )
 
-    resolved_path = (
-        handler_or_path
-        if isinstance(handler_or_path, str)
-        else (path if path is not None else "/")
-    )
+        def decorator(fn: EventHookFunction) -> EventHookFunction:
+            return _decorate_request_hook(
+                fn, method=method, path=resolved_path
+            )
 
-    def decorator(fn: EventHookFunction) -> EventHookFunction:
-        return _decorate_request_hook(fn, method="GET", path=resolved_path)
+        return decorator
 
-    return decorator
+    on_method_request.__name__ = f"on_{method.lower()}_request"
+    return on_method_request
 
 
-@overload
-def on_post_request(
-    path: str,
-    /,
-) -> Callable[[EventHookFunction], EventHookFunction]: ...
-@overload
-def on_post_request(
-    handler: EventHookFunction,
-    /,
-    *,
-    path: str = "/",
-) -> EventHookFunction: ...
-def on_post_request(
-    handler_or_path: "EventHookFunction | str | None" = None,
-    /,
-    *,
-    path: str | None = None,
-) -> "EventHookFunction | Callable[[EventHookFunction], EventHookFunction]":
-    """Register a POST request hook for a grid method.
-
-    When the grid is hosted by ``Web``, the path is registered as a
-    Starlette ``POST`` route and is the natural target for htmx
-    ``hx-post`` attributes that swap ``#xnano-app``.
-
-    Under ``Terminal`` the decorator only marks the method — nothing is
-    dispatched and no error is raised.
-
-    Args:
-        handler_or_path: The path string (decorator factory form) or the
-            handler when used as ``@on_post_request`` / ``@on_post_request(path=...)``.
-        path: Explicit path when decorating a handler directly.
-
-    Returns:
-        The decorated hook function, or a decorator awaiting a function.
-
-    Example:
-        @on_post_request("/increment")
-        def increment(self) -> None:
-            self.count += 1
-    """
-    if callable(handler_or_path):
-        resolved = path if path is not None else "/"
-        return _decorate_request_hook(
-            handler_or_path, method="POST", path=resolved
-        )
-
-    resolved_path = (
-        handler_or_path
-        if isinstance(handler_or_path, str)
-        else (path if path is not None else "/")
-    )
-
-    def decorator(fn: EventHookFunction) -> EventHookFunction:
-        return _decorate_request_hook(fn, method="POST", path=resolved_path)
-
-    return decorator
+on_get_request = _create_request_hook("GET")
+on_head_request = _create_request_hook("HEAD")
+on_post_request = _create_request_hook("POST")
+on_put_request = _create_request_hook("PUT")
+on_delete_request = _create_request_hook("DELETE")
+on_connect_request = _create_request_hook("CONNECT")
+on_options_request = _create_request_hook("OPTIONS")
+on_trace_request = _create_request_hook("TRACE")
+on_patch_request = _create_request_hook("PATCH")
+on_query_request = _create_request_hook("QUERY")
 
 
 def has_request_hooks(grid_or_class: Any) -> bool:
@@ -248,6 +190,7 @@ def dispatch_request(grid: Any, method: str, path: str) -> bool:
     from xnano._dispatch import invoke_hook
     from xnano.context import Context
 
+    method = method.upper()
     normalized = _normalize_request_path(path)
     routes = collect_request_routes(type(grid))
     matched = False
@@ -271,6 +214,14 @@ __all__ = (
     "collect_request_routes",
     "dispatch_request",
     "has_request_hooks",
+    "on_connect_request",
+    "on_delete_request",
     "on_get_request",
+    "on_head_request",
+    "on_options_request",
+    "on_patch_request",
     "on_post_request",
+    "on_put_request",
+    "on_query_request",
+    "on_trace_request",
 )

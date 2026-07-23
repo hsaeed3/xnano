@@ -11,7 +11,7 @@ Every component renders on web exactly as it does in the terminal —
 there is no separate web renderer — because the server drives the real
 offscreen render engine and streams its cells.
 
-``@on_get_request`` / ``@on_post_request`` routes are served by the same
+``@on_*_request`` routes (every HTTP method) are served by the same
 server; host/port configure where it binds.
 """
 

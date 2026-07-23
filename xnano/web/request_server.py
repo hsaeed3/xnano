@@ -2,8 +2,8 @@
 
 ---
 
-A tiny stdlib HTTP server that exposes a grid's ``@on_get_request`` /
-``@on_post_request`` routes alongside a running ``Terminal``. This is
+A tiny stdlib HTTP server that exposes a grid's ``@on_*_request`` routes
+(every registered HTTP method) alongside a running ``Terminal``. This is
 what makes requests a cross-host capability: the same decorators that do
 nothing extra on their own become live HTTP endpoints when the grid is
 run with a host/port.
@@ -16,6 +16,7 @@ from the server thread is out of scope.
 
 from __future__ import annotations
 
+import functools
 import http.server
 import threading
 import urllib.parse
@@ -60,11 +61,16 @@ class _RequestHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def do_GET(self) -> None:
-        self._handle("GET")
-
-    def do_POST(self) -> None:
-        self._handle("POST")
+    do_GET = functools.partialmethod(_handle, "GET")
+    do_HEAD = functools.partialmethod(_handle, "HEAD")
+    do_POST = functools.partialmethod(_handle, "POST")
+    do_PUT = functools.partialmethod(_handle, "PUT")
+    do_DELETE = functools.partialmethod(_handle, "DELETE")
+    do_CONNECT = functools.partialmethod(_handle, "CONNECT")
+    do_OPTIONS = functools.partialmethod(_handle, "OPTIONS")
+    do_TRACE = functools.partialmethod(_handle, "TRACE")
+    do_PATCH = functools.partialmethod(_handle, "PATCH")
+    do_QUERY = functools.partialmethod(_handle, "QUERY")
 
 
 def start_request_server(

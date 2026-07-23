@@ -9,7 +9,8 @@ icon: "lucide/type"
 has one constructor for leaf text, inline spans, multi-line paragraphs,
 and editable input. These examples cover every constructor option:
 `content`, `color`, `background`, `modifiers`, `align`, `wrap`, `input`,
-`placeholder`, `cursor`, `visible`, `z`, and `fit_content`.
+`placeholder`, `cursor`, `multiline`, `rows`, `ansi`, `markdown`,
+`language`, `visible`, `z`, and `fit_content`.
 
 ## Text Content
 
@@ -144,6 +145,67 @@ keyboard actions.
     - `input`: `bool`, default `False`; see [Text.input](../api/xnano/components/text.md#xnano.components.text.Text.input){data-preview}.
     - `placeholder`: `str | Text | None`; see [Text.placeholder](../api/xnano/components/text.md#xnano.components.text.Text.placeholder){data-preview}.
     - `cursor`: `int | None`; see [Text.cursor](../api/xnano/components/text.md#xnano.components.text.Text.cursor){data-preview}.
+
+## Multi-line Editing
+
+`multiline=True` with `input=True` switches the leaf to the native
+`CoreTextEditor` path: multi-line content, undo/redo, paste, and an
+in-buffer caret. `rows` is the preferred visible height in lines.
+
+```pyodide install="xnano>=1.0.10" height="28"
+from xnano import BaseGrid, Field, Terminal
+from xnano.components.text import Text
+
+class Notes(BaseGrid, direction="vertical", border="rounded", title="notes", padding=1):
+    body: Text = Field(
+        default=Text(
+            "line one\nline two",
+            input=True,
+            multiline=True,
+            rows=4,
+            color="cyan-200",
+        ),
+        border="plain",
+        height=6,
+    )
+
+Terminal(width=48, height=10).render(Notes())
+```
+
+??? example "Multi-line Editing"
+    - `multiline`: `bool`, default `False`; see [Text.multiline](../api/xnano/components/text.md#xnano.components.text.Text.multiline){data-preview}.
+    - `rows`: `int | None`; preferred visible height for multiline inputs; see [Text.rows](../api/xnano/components/text.md#xnano.components.text.Text.rows){data-preview}.
+
+## ANSI, Markdown, and Language
+
+Display modes parse a leaf string before styling. They are mutually
+exclusive with each other and with `input` — combining them raises
+`ValueError`.
+
+```pyodide install="xnano>=1.0.10" height="36"
+from xnano import Terminal
+from xnano.components.text import Text
+
+ansi = Text("\x1b[32mpassed\x1b[0m  \x1b[31mfailed\x1b[0m", ansi=True)
+
+markdown = Text(
+    "# Title\n\n- **bold** item\n- `code` item",
+    markdown=True,
+)
+
+code = Text(
+    "def greet(name):\n    return f'hi {name}'",
+    language="python",
+)
+
+Terminal(width=52, height=14).render(ansi, markdown, code, gap=1)
+```
+
+??? example "ANSI, Markdown, and Language"
+    - `ansi`: `bool`, default `False`; parse SGR sequences into styled runs.
+    - `markdown`: `bool`, default `False`; headings, emphasis, lists, fenced code.
+    - `language`: `str | None`; Pygments lexer name for syntax highlighting only.
+    - See [Text](../api/xnano/components/text.md#xnano.components.text.Text){data-preview}.
 
 ## Visibility, Stacking, and Intrinsic Size
 

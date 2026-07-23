@@ -34,7 +34,7 @@ def get_size(self, ctx):
 
 ## Compose
 
-`compose()` returns host-agnostic content — not a terminal node. Controllers lower that tree into cells or HTML depending on the host.
+`compose()` returns host-agnostic content — not a terminal node. Controllers lower that tree into cells; both `Terminal` and `Web` paint the same engine output (live screen vs canvas stream).
 
 ```python title="Compose" hl_lines="3 4 5 6 7 8"
 from xnano.core.content import Panel, TextBlock

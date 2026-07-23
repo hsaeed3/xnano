@@ -90,10 +90,10 @@ the maturin-built Rust extension (`xnano-core` 0.0.8).
 User app (BaseGrid + Field + @on_* hooks + Action)
     ↓
 xnano               public DSL: grid, fields, events, components, …
-    ├── xnano.core   host/action/content/stage/device contracts + controllers
+    ├── xnano.core   host/action/content/stage/device/nodes + controllers
     ├── xnano.terminal    Terminal host + native lowering
-    ├── xnano.web  Web host + HTML/htmx
-    └── xnano.cli    Command CLI
+    ├── xnano.web         Web host (stdlib cell stream + canvas SSE)
+    └── xnano.cli         Command CLI
     ↓
 xnano_core.core     session, scene graph, render IR, unified events
     ↓
@@ -111,6 +111,7 @@ Key modules:
 
 - `grid.py`, `fields.py` — `BaseGrid`, sizing, and state fields
 - `events.py` — Event types plus all `@on_*` / `@on_action(action)` decorators
+- `hooks.py` — re-exports event hooks and web request hooks
 - `context.py`, `state.py`, `color.py`, `effects.py` — handler context,
   app state, colors, effect *descriptions* (native lowering is TUI-only)
 - `components/` — Text, Progress, Sparkline, Table, Chart, Schema
@@ -127,23 +128,26 @@ Interface-neutral engines shared by every host:
 - `hosts.py` — `AbstractHost`, `RouteTable`, `get_active_host`
 - `interface.py` — `AbstractInterface` / field-state base
 - `device.py` — `AbstractDevice` / `AbstractCursor`
+- `nodes.py` — `AbstractNode` (shared z / visibility base)
 - `stage.py` — `Stage`, `LayoutMap`, cell paint helpers
 - `exceptions.py` — `Exit`, `HookError`, validation errors, …
-- `controllers/` — `AbstractController`, `TerminalController`, `WebController`
+- `controllers/` — `AbstractController`, `TerminalController` (tui only)
 
 ### Interface kinds
 
 | Package | Role |
 |---------|------|
 | `xnano.terminal` | `Terminal` host, cursor/device, render nodes, tachyonfx effects |
-| `xnano.web` | `Web` orchestration, `WebSession` host, request hooks, HTML nodes |
+| `xnano.web` | `Web` orchestration, `WebRenderer` (offscreen Terminal), stdlib server, request hooks, cell frames |
 | `xnano.cli` | `Command`, options, subcommands, validation, help |
 
 A TUI frame flows from `Terminal` to the root grid/component. Grid sizing
 emits paint requests through `TerminalController`, which assembles a
 `CoreRenderNode` tree for `CoreSession.render()`. Events are polled from
 core and shared dispatch helpers invoke hooks through `Context`. Web reuses
-the same grids/hooks/components and requires the optional `web` extra.
+the same grids/hooks/components and the same offscreen `Terminal` /
+`TerminalController` path, streaming cells to a canvas over SSE — no
+extra packages and no separate HTML paint backend.
 
 ### xnano-core (Rust extension)
 
@@ -169,7 +173,8 @@ use `Core*`; pointer-backed handles are `unsendable`.
 `terminal`/`web`/`cli`, private plumbing in top-level `_*.py`, and terminal
 runtime mechanics in `xnano_core`. Application code must use `CoreSession`
 through `Terminal`, never raw native terminal lifecycle or standalone event
-polling. VHS demo tooling stays under `scripts/`.
+polling. Web must go through `Web` / `WebRenderer` (offscreen `Terminal`),
+not a parallel HTML controller. VHS demo tooling stays under `scripts/`.
 
 ---
 

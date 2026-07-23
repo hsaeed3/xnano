@@ -7,9 +7,19 @@ icon: "lucide/upload"
 
 !!! warning "Experimental"
 
-    Web request hooks are experimental and are subject to frequent changes.
+    Web request hooks are experimental and are subject to frequent
+    changes.
 
-Use [`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} for state-changing interactions such as submitting a form, incrementing a counter, or applying a choice.
+Use
+[`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+for state-changing interactions such as submitting a form, incrementing a
+counter, or applying a choice. The handler mutates grid state only; the
+host repaints on its own schedule.
+
+`POST` is one of ten method decorators. Prefer `@on_put_request` /
+`@on_patch_request` / `@on_delete_request` when the HTTP verb matters;
+every method shares this same path and host model. See the
+[method table](index.md#every-http-method){data-preview}.
 
 ## Register a Mutation
 
@@ -27,23 +37,46 @@ class Counter(BaseGrid):
         self.label = f"Count: {self.count}"
 ```
 
-## Connect htmx
+Bare
+[`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+and
+[`@on_post_request(path="/")`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+register the root path, just like their GET counterparts.
 
-Point an htmx interaction at the same path and replace the app fragment with the response.
+## Host the Routes
 
-```html title="htmx Button"
-<button
-  hx-post="/increment"
-  hx-target="#xnano-app"
-  hx-swap="innerHTML"
->
-  Increment
-</button>
+Under
+[`Web`](../../api/xnano/web/web.md#xnano.web.web.Web){data-preview}, the
+path becomes a `POST` route on the native server. Call it from any HTTP
+client — the canvas reflects the mutation on the next cell-stream frame:
+
+```python title="Web" hl_lines="2"
+from xnano.web import Web
+
+Web(title="counter").run(Counter)
+# curl -X POST http://127.0.0.1:8000/increment
 ```
 
-For an `HX-Request`, xnano returns the `#xnano-app` fragment. Ordinary browser navigation receives the complete page.
+Under
+[`Terminal`](../../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview},
+the same decorator marks the method, and
+`Terminal.run(..., host=..., port=...)` starts a background request
+server when any request hooks are present:
 
-Bare [`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} and [`@on_post_request(path="/")`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} register the root path, just like their GET counterparts.
+```python title="Terminal" hl_lines="2 3 4 5"
+from xnano.terminal import Terminal
+
+Terminal().run(
+    Counter(),
+    host="127.0.0.1",
+    port=8000,
+)
+# curl -X POST http://127.0.0.1:8000/increment  → empty 200, TUI repaints
+```
+
+Handlers never return HTML or fragments. The response is empty (`204`
+under `Web`, empty `200` under the terminal request server); the live
+session's next paint shows the new state.
 
 <div class="xnano-demo" markdown>
 ![POST request hook dark](../../assets/hooks/post-request-dark.gif){.demo-dark}
@@ -52,8 +85,13 @@ Bare [`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_
 
 ## POST Actions
 
-[`Action.request("POST", "/increment")`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview} describes the associated trigger. Keep [`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} on the method so [`Web`](../../api/xnano/web/web.md#xnano.web.web.Web){data-preview} registers the route.
+[`Action.request("POST", "/increment")`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview}
+describes the associated trigger. Keep
+[`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+on the method so the host registers the route.
 
 ??? abstract "API"
 
-    [`on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview} · [`RequestAction`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview}
+    [`on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+    ·
+    [`RequestAction`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview}

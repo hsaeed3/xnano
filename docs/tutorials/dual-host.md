@@ -72,12 +72,15 @@ uv run python app.py          # terminal
 uv run python app.py --web    # http://127.0.0.1:8000
 ```
 
-??? abstract "Web Dependencies"
+??? abstract "How Web Renders"
 
-    Building HTML/HTMX needs no extra packages, but serving a real process does — install the `web` extra for starlette and uvicorn:
+    `Web` is dependency-free: a stdlib HTTP server drives the **same**
+    offscreen render engine the terminal uses, then streams those cells to a
+    browser `<canvas>`. There is no separate HTML layout path — what you see
+    in the tab is cell-identical to `Terminal`.
 
     ```bash
-    pip install "xnano[web]"
+    pip install xnano   # Web needs no extra packages
     ```
 
 ??? note "Shared vs. Per-Visitor Sessions"
@@ -91,9 +94,11 @@ uv run python app.py --web    # http://127.0.0.1:8000
 
 ## What Carries Over
 
-Keyboard hooks, ticks, clicks, fields, and components mean the same thing on both hosts. A few [device]{data-preview} and cursor controls only apply in a real terminal and become no-ops on `Web`.
+Keyboard hooks, ticks, clicks, fields, and components mean the same thing on both hosts — and paint the same cells. A few [device]{data-preview} and cursor controls only apply in a real terminal and become no-ops on `Web`.
 
-For a fuller sample (text input, click target, and clock together), see `examples/web_counter.py`.
+Request hooks for every HTTP method (`@on_get_request`, `@on_post_request`, `@on_put_request`, `@on_delete_request`, `@on_patch_request`, …) work on `Web` out of the box. They also work under `Terminal` when you pass `host` / `port` to `Terminal.run(...)` so a background request server can expose those routes alongside the TUI.
+
+For a fuller sample (text input, click target, clock, and HTTP routes together), see `examples/web_counter.py`.
 
 [BaseGrid]: ../api/xnano/grid.md
 [Terminal]: ../api/xnano/terminal/terminal.md

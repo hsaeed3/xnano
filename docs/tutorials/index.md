@@ -14,8 +14,8 @@ These assume you've already read [Core Concepts]{data-preview} — especially [g
 | Tutorial | What it shows |
 |---|---|
 | [Streaming Content](streaming-content.md) | Live field streaming and `render(..., stream=...)` |
-| [Text Inputs](text-inputs.md) | Editable `Text(input=True)` fields, focus, and submit |
-| [Selection Lists](selection-list.md) | Keyboard-navigable lists with a live selection highlight |
+| [Text Inputs](text-inputs.md) | Editable `Text(input=True)` fields, multi-line editors, focus, and submit |
+| [Selection Lists](selection-list.md) | Filterable `Select` lists (and painting rows from scratch) |
 | [Tabs](tabs.md) | Multi-screen layouts switched from one keybinding |
 | [Confirm Dialogs](confirm-dialog.md) | A nullable overlay field as a modal confirm step |
 

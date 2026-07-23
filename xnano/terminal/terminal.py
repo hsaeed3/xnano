@@ -996,9 +996,10 @@ class Terminal(AbstractHost, Generic[StateT]):
         When ``auto_resize`` is ``True`` (default), terminal resize events
         trigger an immediate re-render so content stays correctly sized.
 
-        ``host``/``port`` are ignored unless the grid declares
-        ``@on_get_request`` / ``@on_post_request`` hooks; when it does, a
-        background HTTP server exposes those routes alongside the terminal.
+        ``host``/``port`` are ignored unless the grid declares any
+        ``@on_*_request`` hooks; when it does, a background HTTP server
+        exposes those routes (every registered method) alongside the
+        terminal.
 
         Can be called without the context manager — it auto-enters and exits.
         """
