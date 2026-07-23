@@ -14,7 +14,7 @@ from xnano._types import Sizing
 from xnano.components.text import Text
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 # ---------------------------------------------------------------------------
 # measure_renderable / measure_renderables_height

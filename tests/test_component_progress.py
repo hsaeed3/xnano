@@ -7,7 +7,7 @@ from helpers import render_component_to_text
 from xnano._types import Area
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.progress import Progress
-from xnano.tui.nodes import (
+from xnano.terminal.nodes import (
     LineGaugeNode,
     ProgressBarNode,
 )

@@ -20,7 +20,7 @@ from xnano.components.schema import (
 if TYPE_CHECKING:
     from xnano.color import ColorLike
     from xnano.components.abstract import ComponentRenderContext
-    from xnano.tui.nodes import AbstractTerminalNode
+    from xnano.terminal.nodes import AbstractTerminalNode
 
 
 ColumnsArg: TypeAlias = (
@@ -168,7 +168,7 @@ class Table(AbstractComponent, metaclass=DeclarativeComponentMeta):
     def get_terminal_node(
         self, ctx: ComponentRenderContext
     ) -> AbstractTerminalNode:
-        from xnano.tui.nodes import (
+        from xnano.terminal.nodes import (
             TableCellItem,
             TableNode,
             TableRowItem,

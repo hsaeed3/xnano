@@ -17,7 +17,7 @@ from xnano.components.text import Text
 from xnano.events import on_keyboard, on_mouse, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 ToolKind: TypeAlias = Literal["read", "bash", "edit", "grep"]
 """Supported tool-call kinds shown in the transcript."""

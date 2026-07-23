@@ -7,7 +7,7 @@ from typing import Any
 from xnano._types import Area, apply_text_keyboard
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.text import Text
-from xnano.tui.nodes import ParagraphNode
+from xnano.terminal.nodes import ParagraphNode
 
 
 def _ctx() -> ComponentRenderContext:

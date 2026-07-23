@@ -9,8 +9,8 @@ from xnano.fields import Field
 if TYPE_CHECKING:
     from xnano.components.abstract import AbstractComponent
     from xnano.grid import BaseGrid
-    from xnano.tui import Terminal
-    from xnano.tui.nodes import AbstractTerminalNode
+    from xnano.terminal import Terminal
+    from xnano.terminal.nodes import AbstractTerminalNode
 
 
 def invalid_field(default: Any) -> Any:
@@ -135,7 +135,7 @@ def open_offscreen_app(
 
     Caller should call :func:`close_offscreen_app` when finished.
     """
-    from xnano.tui import Terminal
+    from xnano.terminal import Terminal
 
     terminal = Terminal.offscreen(cols=cols, rows=rows, state=state)
     terminal.attach_grid(grid)
@@ -145,7 +145,7 @@ def open_offscreen_app(
 
 def close_offscreen_app(terminal: "Terminal[Any]") -> None:
     """Reset the active-terminal context var for an offscreen session."""
-    import xnano.tui as terminal_mod
+    import xnano.terminal as terminal_mod
 
     token = getattr(terminal, "_terminal_token", None)
     if token is not None:

@@ -47,7 +47,7 @@ Keep frame handlers short—they run on the rendering path. For work with a fixe
 ![poll hook light](../assets/hooks/poll-light.gif){.demo-light}
 </div>
 
-Polling is host lifecycle behavior, so it has no associated action. It also requires a live host cycle; do not use [`Terminal.run()`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal.run){data-preview} in Pyodide examples to demonstrate it.
+Polling is host lifecycle behavior, so it has no associated action. It also requires a live host cycle; do not use [`Terminal.run()`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal.run){data-preview} in Pyodide examples to demonstrate it.
 
 ??? abstract "API"
 

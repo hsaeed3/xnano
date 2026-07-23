@@ -24,7 +24,7 @@ from xnano.color import ColorLike
 if TYPE_CHECKING:
     from xnano.components.text import Text
     from xnano.events import FocusHookKind, KeyboardEventData
-    from xnano.tui.terminal import Terminal
+    from xnano.terminal.terminal import Terminal
 
 
 Alignment: TypeAlias = Literal["left", "right", "center"]
@@ -997,18 +997,27 @@ class FieldFocus:
     field_name: str
 
 
-def is_input_text(value: Any) -> bool:
-    """Return whether ``value`` is an editable ``Text`` component."""
-    from xnano.components.text import Text
+def is_focusable_component(value: Any) -> bool:
+    """Return whether ``value`` is a focusable, keyboard-driven component.
 
-    return isinstance(value, Text) and bool(value.input)
+    Any component that declares ``focusable`` truthy and implements
+    ``handle_keyboard`` participates in field focus — ``Text(input=True)``
+    and ``Select`` alike.
+    """
+    from xnano.components.abstract import AbstractComponent
+
+    return (
+        isinstance(value, AbstractComponent)
+        and bool(getattr(value, "focusable", False))
+        and callable(getattr(value, "handle_keyboard", None))
+    )
 
 
-def get_input_text(grid: Any, field_name: str) -> Text | None:
-    """Return the editable ``Text`` stored on ``grid.field_name``, if any."""
+def get_focusable_component(grid: Any, field_name: str) -> Any | None:
+    """Return the focusable component on ``grid.field_name``, if any."""
     value = getattr(grid, field_name, None)
-    if is_input_text(value):
-        return value  # type: ignore[return-value]
+    if is_focusable_component(value):
+        return value
     return None
 
 
@@ -1027,7 +1036,7 @@ def collect_focusable_fields(terminal: Terminal[Any]) -> list[FieldFocus]:
         )
         for field_name in fields:
             value = getattr(grid, field_name, None)
-            if is_input_text(value):
+            if is_focusable_component(value):
                 key = (id(grid), field_name)
                 if key not in seen:
                     seen.add(key)
@@ -1043,8 +1052,8 @@ def sync_input_focus_flags(terminal: Terminal[Any]) -> None:
     """Set ``Text._input_focused`` on every attached input to match focus."""
     current = getattr(terminal, "_field_focus", None)
     for target in collect_focusable_fields(terminal):
-        text = get_input_text(target.grid, target.field_name)
-        if text is None:
+        text = get_focusable_component(target.grid, target.field_name)
+        if text is None or not hasattr(text, "_input_focused"):
             continue
         text._input_focused = (
             current is not None
@@ -1053,12 +1062,12 @@ def sync_input_focus_flags(terminal: Terminal[Any]) -> None:
         )
 
 
-def focused_input_text(terminal: Terminal[Any]) -> Text | None:
-    """Return the editable ``Text`` for the current field focus, if any."""
+def focused_component(terminal: Terminal[Any]) -> Any | None:
+    """Return the focusable component for the current field focus, if any."""
     current = getattr(terminal, "_field_focus", None)
     if current is None:
         return None
-    return get_input_text(current.grid, current.field_name)
+    return get_focusable_component(current.grid, current.field_name)
 
 
 def apply_text_keyboard(text: Text, keyboard: KeyboardEventData) -> bool:
@@ -1133,8 +1142,8 @@ def apply_text_keyboard(text: Text, keyboard: KeyboardEventData) -> bool:
     return False
 
 
-def _mark_text_focused(text: Text | None, focused: bool) -> None:
-    if text is not None:
+def _mark_text_focused(text: Any | None, focused: bool) -> None:
+    if text is not None and hasattr(text, "_input_focused"):
         text._input_focused = focused
 
 
@@ -1156,7 +1165,7 @@ def set_field_focus(
     Returns:
         ``True`` when focus was set (or already there).
     """
-    text = get_input_text(grid, field_name)
+    text = get_focusable_component(grid, field_name)
     if text is None:
         return False
     previous = getattr(terminal, "_field_focus", None)
@@ -1173,7 +1182,7 @@ def set_field_focus(
         return True
 
     if previous is not None:
-        prev_text = get_input_text(previous.grid, previous.field_name)
+        prev_text = get_focusable_component(previous.grid, previous.field_name)
         _mark_text_focused(prev_text, False)
         if fire_hooks:
             _fire_field_focus_hooks(terminal, previous, kind="lost")
@@ -1197,7 +1206,7 @@ def clear_field_focus(
     previous = getattr(terminal, "_field_focus", None)
     if previous is None:
         return
-    prev_text = get_input_text(previous.grid, previous.field_name)
+    prev_text = get_focusable_component(previous.grid, previous.field_name)
     _mark_text_focused(prev_text, False)
     if fire_hooks:
         _fire_field_focus_hooks(terminal, previous, kind="lost")
@@ -1266,8 +1275,18 @@ def place_cursor_for_focus(terminal: Terminal[Any]) -> None:
     current = getattr(terminal, "_field_focus", None)
     if current is None:
         return
-    text = get_input_text(current.grid, current.field_name)
-    if text is None or not isinstance(text.content, str):
+    text = get_focusable_component(current.grid, current.field_name)
+    if text is None:
+        return
+    if getattr(text, "owns_cursor", False):
+        # The component paints its own caret (multi-line editor, list
+        # highlight); keep the hardware cursor out of the way.
+        try:
+            terminal.cursor.visible = False
+        except Exception:
+            pass
+        return
+    if not isinstance(text.content, str):
         return
     slots = getattr(current.grid, "_grid_last_slot_areas", None) or {}
     area = slots.get(current.field_name)
@@ -1360,11 +1379,11 @@ __all__ = (
     "KeyboardBinding",
     "MouseButton",
     "FieldFocus",
-    "is_input_text",
-    "get_input_text",
+    "is_focusable_component",
+    "get_focusable_component",
     "collect_focusable_fields",
     "sync_input_focus_flags",
-    "focused_input_text",
+    "focused_component",
     "apply_text_keyboard",
     "set_field_focus",
     "clear_field_focus",

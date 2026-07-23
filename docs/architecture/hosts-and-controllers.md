@@ -70,17 +70,25 @@ without raising an exception.
 
 ## `AbstractHost`: shared session behavior
 
-[`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
-and web sessions both implement
-[`xnano.core.hosts.AbstractHost`](../api/xnano/core/hosts.md#xnano.core.hosts.AbstractHost){data-preview}.
-It provides behavior that is independent
-of the output surface:
+[`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}
+is the concrete
+[`AbstractHost`](../api/xnano/core/hosts.md#xnano.core.hosts.AbstractHost){data-preview}
+implementation. Live TUI sessions run a terminal directly; the web host
+drives an **offscreen**
+[`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}
+through
+[`WebRenderer`](../api/xnano/web/render.md#xnano.web.render.WebRenderer){data-preview}
+and streams its cells to the browser. In both cases the host surface that
+dispatch, fields, and controllers talk to is a `Terminal`.
+
+[`AbstractHost`](../api/xnano/core/hosts.md#xnano.core.hosts.AbstractHost){data-preview}
+provides behavior that is independent of the output surface:
 
 - **Dispatch state:** `_hooks`, `_attached_grids`,
   `_attached_frame_grids`, and `state` form the common interface used by
   `xnano._dispatch`. They are documented on the class without strict
   types because dispatch accepts any compatible host, not only
-  [`Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}.
+  [`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}.
 - **`perform(action)`:** converts an
   [`Action`](../api/xnano/core/actions.md#xnano.core.actions.Action){data-preview},
   or another object with
@@ -105,17 +113,56 @@ of the output surface:
   without receiving it as an argument or relying on a process-wide
   singleton.
 
+### Web as a cell-streaming host
+
+[`Web`](../api/xnano/web/web.md#xnano.web.web.Web){data-preview}
+is the browser analogue of
+[`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview},
+not a second paint backend. `Web.run()` binds a dependency-free stdlib
+HTTP server that:
+
+1. Serves a minimal shell page with a `<canvas>` client
+2. Renders each frame through an offscreen
+   [`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}
+   (via
+   [`WebRenderer`](../api/xnano/web/render.md#xnano.web.render.WebRenderer){data-preview})
+3. Streams cell rows to the browser over Server-Sent Events
+4. Routes browser key, mouse, and resize events back through the same
+   `xnano._dispatch` path the live terminal uses
+
+There is no separate HTML/flex controller or session host type. Components
+render on web identically to the terminal because they use the same
+layout engine, nodes, and
+[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}.
+
+### Request hooks on either host
+
+Every HTTP method has a decorator in `xnano.web.requests` —
+`@on_get_request`, `@on_head_request`, `@on_post_request`,
+`@on_put_request`, `@on_delete_request`, `@on_connect_request`,
+`@on_options_request`, `@on_trace_request`, `@on_patch_request`,
+`@on_query_request` — also re-exported from `xnano.hooks` and
+`xnano.requests`. Declare them on grid methods. When the grid runs under
+[`Web`](../api/xnano/web/web.md#xnano.web.web.Web){data-preview},
+the native server serves those routes alongside the canvas shell. When
+it runs under
+[`Terminal.run(..., host=..., port=...)`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal.run){data-preview},
+a small companion stdlib request server (`xnano.web.request_server`)
+exposes the same routes while the TUI loop continues — request hooks are
+cross-host, not web-only.
+
 ## `AbstractController`: painting, measurement, and layout
 
 [`xnano.core.controllers.abstract.AbstractController`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractController){data-preview}
-defines the
-rendering backend API. `xnano.tui` uses
-[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview},
-while
-`xnano.webui` provides its own implementation. Only
-`get_capabilities()` is required. Other methods raise
-`NotImplementedError` by default, so each backend implements the
-features it supports.
+defines the rendering backend API. The only concrete paint implementation
+is
+[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}
+in `xnano.core.controllers.tui`. Live terminals and the web host's
+offscreen sessions both use it; there is no separate HTML controller.
+Only `get_capabilities()` is required on
+[`AbstractController`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractController){data-preview}.
+Other methods raise `NotImplementedError` by default, so future backends
+can implement the features they support.
 
 [`AbstractControllerCapabilities`](../api/xnano/core/controllers/abstract.md#xnano.core.controllers.abstract.AbstractControllerCapabilities){data-preview}
 is the negotiation surface:
@@ -124,7 +171,7 @@ is the negotiation surface:
 supports_effects: bool             # does grid_play_effect do anything?
 supports_movement: bool            # can fields be pointer-dragged?
 supports_absolute_geometry: bool   # do Area coords map to real cells,
-                                    # or are they logical/flex only?
+                                    # or are they logical only?
 ```
 
 A grid or component calls controller methods without checking the host
@@ -160,10 +207,10 @@ backend features. Controller methods fall into these groups:
 in `xnano.core.controllers.abstract` is the concrete
 constraint type built by
 [`BaseGrid`](../api/xnano/grid.md#xnano.grid.BaseGrid){data-preview}.
-Both controllers receive the same
-constraint values. The terminal controller resolves them against cells
-through the native layout engine, while the web controller converts them
-to CSS layout values.
+[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}
+resolves those values against cells through the native layout engine —
+whether the buffer is a live terminal or the offscreen buffer the web
+host snapshots for SSE.
 
 ## Frame sequence
 
@@ -178,16 +225,18 @@ controller. During the next
 `render_frame()`, the controller measures and lays out fields with
 `measure_field_slot()` and `split_layout()`. It then paints each field
 through `paint_field_slot()`, followed by `render_ir()`,
-`render_native()`, or `paint_node()`. The sequence is shared by
-[`xnano.tui.Terminal`](../api/xnano/tui/terminal.md#xnano.tui.terminal.Terminal){data-preview}
-and
-[`xnano.webui.Web`](../api/xnano/webui/web.md#xnano.webui.web.Web){data-preview};
-their controller
-implementations determine how each operation is performed.
+`render_native()`, or `paint_node()`. The sequence is the same for a
+live
+[`Terminal`](../api/xnano/terminal/terminal.md#xnano.terminal.terminal.Terminal){data-preview}
+and for the offscreen terminal owned by
+[`WebRenderer`](../api/xnano/web/render.md#xnano.web.render.WebRenderer){data-preview};
+only the destination of the painted cells differs (the host terminal
+versus an SSE stream to a canvas client).
 
 See [Event & Render Lifecycle]{data-preview} for the dispatch path and
-[Render Nodes & IR]{data-preview} for the terminal controller's render
-path.
+[Render Nodes & IR]{data-preview} for how
+[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}
+submits work to `xnano_core`.
 
 [Event & Render Lifecycle]: lifecycle.md
 [Render Nodes & IR]: render-nodes.md

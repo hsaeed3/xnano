@@ -196,14 +196,14 @@ def run_example(name: str) -> None:
     """Launch one feature-tour stage for VHS to record."""
     if name == "title":
         from xnano._demo import TitleSplash
-        from xnano.tui import Terminal
+        from xnano.terminal import Terminal
 
         Terminal(title="xnano · title", tick_interval=16).run(TitleSplash())
         return
 
     if name == "panels":
         from xnano._demo import XnanoDemo
-        from xnano.tui import Terminal
+        from xnano.terminal import Terminal
 
         Terminal(title="xnano · feature tour", tick_interval=16).run(
             XnanoDemo()

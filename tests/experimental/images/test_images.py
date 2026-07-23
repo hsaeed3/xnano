@@ -29,7 +29,7 @@ from xnano._demo import (
 from xnano._types import Area
 from xnano.components.abstract import ComponentRenderContext
 from xnano.images import Image, ImageData, ImageFrame
-from xnano.tui import Terminal
+from xnano.terminal import Terminal
 
 
 def _get_gif_bytes() -> bytes:

@@ -14,7 +14,7 @@ Copyright &copy; 2026 Hammad Saeed
 nav = [
     {"Introduction" = "index.md"},
     "core-concepts/getting-started.md",
-    {"Concepts" = [
+    { "Concepts" = [
         "core-concepts/terminal.md",
         "core-concepts/grids.md",
         "core-concepts/fields.md",
@@ -23,15 +23,15 @@ nav = [
         "core-concepts/context.md",
         "core-concepts/device.md",
         "core-concepts/styling.md",
-        {"Hooks & Actions" = [
+        { "Hooks & Actions" = [
             "hooks/index.md",
-            {"Session & Lifecycle" = [
+            { "Session & Lifecycle" = [
                 "hooks/on.md",
                 "hooks/on-event.md",
                 "hooks/on-tick.md",
                 "hooks/on-poll.md",
             ]},
-            {"User Triggered Hooks" = [
+            { "User Triggered Hooks" = [
                 "hooks/on-keyboard.md",
                 "hooks/on-mouse.md",
                 "hooks/on-click.md",
@@ -39,32 +39,33 @@ nav = [
                 "hooks/on-clipboard.md",
                 "hooks/on-focus.md",
             ]},
-            {"State & Grid Field Conditions" = [
+            { "State & Grid Field Conditions" = [
                 "hooks/on-state.md",
                 "hooks/on-field.md",
             ]},
-            {"Web Requests" = [
+            { "Web Requests" = [
                 "hooks/web-requests/index.md",
                 "hooks/web-requests/get.md",
                 "hooks/web-requests/post.md",
             ]},
         ]},
-        {"Components" = [
+        { "Components" = [
             "components/index.md",
             "components/images.md",
             "components/text.md",
+            "components/select.md",
             "components/table.md",
             "components/progress.md",
             "components/chart.md",
             "components/sparkline.md",
             "components/schema.md",
         ]},
-        {"Beta" = [
+        { "Beta" = [
             "core-concepts/web.md",
             "core-concepts/cli.md",
         ]},
     ]},
-    {"Sandbox" = [
+    { "Sandbox" = [
         "sandbox.md",
         "sandbox/rendering.md",
         "sandbox/layout.md",
@@ -75,7 +76,7 @@ nav = [
         "sandbox/chart.md",
         "sandbox/sparkline.md",
     ]},
-    {"Tutorials" = [
+    { "Tutorials" = [
         "tutorials/index.md",
         "tutorials/streaming-content.md",
         "tutorials/text-inputs.md",
@@ -96,7 +97,7 @@ nav = [
         "tutorials/scrollable-log.md",
         "tutorials/grid-render.md",
     ]},
-    {"Core Architecture" = [
+    { "Core Architecture" = [
         "architecture/xnano-core.md",
         "architecture/lifecycle.md",
         "architecture/hosts-and-controllers.md",
@@ -111,6 +112,7 @@ nav = [
             "api/xnano/_event_processing.md",
             "api/xnano/_function_hooks.md",
             "api/xnano/_introspection.md",
+            "api/xnano/_markup.md",
             "api/xnano/_renderable.md",
             "api/xnano/_styles.md",
             "api/xnano/_tailwind_classes.md",
@@ -122,7 +124,9 @@ nav = [
             "api/xnano/events.md",
             "api/xnano/fields.md",
             "api/xnano/grid.md",
+            "api/xnano/hooks.md",
             "api/xnano/images.md",
+            "api/xnano/requests.md",
             "api/xnano/state.md",
             { "cli" = [
                 "api/xnano/cli/command.md",
@@ -132,6 +136,7 @@ nav = [
                 "api/xnano/components/chart.md",
                 "api/xnano/components/progress.md",
                 "api/xnano/components/schema.md",
+                "api/xnano/components/select.md",
                 "api/xnano/components/sparkline.md",
                 "api/xnano/components/table.md",
                 "api/xnano/components/text.md",
@@ -143,28 +148,28 @@ nav = [
                 "api/xnano/core/exceptions.md",
                 "api/xnano/core/hosts.md",
                 "api/xnano/core/interface.md",
+                "api/xnano/core/nodes.md",
                 "api/xnano/core/stage.md",
                 { "controllers" = [
                     "api/xnano/core/controllers/abstract.md",
                     "api/xnano/core/controllers/tui.md",
-                    "api/xnano/core/controllers/webui.md",
                 ]},
             ]},
-            { "tui" = [
-                "api/xnano/tui/_node_base_tmp.md",
-                "api/xnano/tui/content_lower.md",
-                "api/xnano/tui/cursor.md",
-                "api/xnano/tui/device.md",
-                "api/xnano/tui/effects.md",
-                "api/xnano/tui/nodes.md",
-                "api/xnano/tui/terminal.md",
+            { "terminal" = [
+                "api/xnano/terminal/content_lower.md",
+                "api/xnano/terminal/cursor.md",
+                "api/xnano/terminal/device.md",
+                "api/xnano/terminal/effects.md",
+                "api/xnano/terminal/nodes.md",
+                "api/xnano/terminal/terminal.md",
             ]},
-            { "webui" = [
-                "api/xnano/webui/device.md",
-                "api/xnano/webui/nodes.md",
-                "api/xnano/webui/requests.md",
-                "api/xnano/webui/session.md",
-                "api/xnano/webui/web.md",
+            { "web" = [
+                "api/xnano/web/frame.md",
+                "api/xnano/web/render.md",
+                "api/xnano/web/request_server.md",
+                "api/xnano/web/requests.md",
+                "api/xnano/web/server.md",
+                "api/xnano/web/web.md",
             ]},
         ]},
         { "xnano-core" = [

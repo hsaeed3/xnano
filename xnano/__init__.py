@@ -6,7 +6,7 @@
 >>> from xnano import BaseGrid, Field, Terminal
 """
 
-__version__ = "1.0.16"
+__version__ = "1.1.0"
 
 from typing import TYPE_CHECKING
 
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
         Grid,  # ty: ignore[deprecated]
         GridSettings,
     )
-    from xnano.tui.terminal import Terminal
+    from xnano.terminal.terminal import Terminal
 
 
 __all__ = [
@@ -200,7 +200,7 @@ def __getattr__(name: str):
         return on_tick
 
     elif name == "Terminal":
-        from xnano.tui.terminal import Terminal
+        from xnano.terminal.terminal import Terminal
 
         return Terminal
 

@@ -44,7 +44,7 @@ def _render_demo(
     source = code(f"""
         import time
         {imports}
-        from xnano.tui import Terminal
+        from xnano.terminal import Terminal
 
         Terminal(height={height}).render({expression})
         time.sleep(3)
@@ -175,12 +175,23 @@ DEMOS: tuple[Demo, ...] = (
         ),
         height=5,
     ),
+    _render_demo(
+        "select_basic",
+        "from xnano.components.select import Select",
+        (
+            "Select("
+            'items=("dark", "light", "dracula", "solarized"), '
+            'selected=0, highlight_background="blue"'
+            ")"
+        ),
+        height=6,
+    ),
     Demo(
         name="table_declarative",
         code=code("""
             import time
             from xnano.components.table import Column, Table
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
 
             class Services(Table):
                 service: str = Column()
@@ -249,7 +260,7 @@ DEMOS: tuple[Demo, ...] = (
             from xnano._types import Size
             from xnano.components.abstract import AbstractComponent
             from xnano.core.content import Panel, TextBlock
-            from xnano.tui import Terminal
+            from xnano.terminal import Terminal
 
             @dataclasses.dataclass
             class Badge(AbstractComponent):

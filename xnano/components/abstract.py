@@ -17,8 +17,8 @@ from xnano._types import Size
 
 if TYPE_CHECKING:
     from xnano._types import Area, Frame
-    from xnano.tui.nodes import AbstractTerminalNode
-    from xnano.tui.terminal import Terminal
+    from xnano.terminal.nodes import AbstractTerminalNode
+    from xnano.terminal.terminal import Terminal
 
 
 StateT = TypeVar("StateT")
@@ -53,6 +53,17 @@ class AbstractComponent(abc.ABC):
     visible: bool = dataclasses.field(default=True, kw_only=True)
     z: int = dataclasses.field(default=0, kw_only=True)
     fit_content: bool = dataclasses.field(default=True, kw_only=True)
+
+    @property
+    def focused(self) -> bool:
+        """Whether this component currently holds field focus.
+
+        Live alongside ``visible`` / ``z``: the focus machinery keeps
+        it in sync every frame, so ``self.name.focused`` in a hook and
+        ``@on_field("name.focused")`` both read the current state.
+        Components that never take focus always return ``False``.
+        """
+        return bool(getattr(self, "_input_focused", False))
 
     def get_frame(self) -> "Frame | None":
         """Return an optional frame panel to wrap the composed content of
@@ -132,23 +143,6 @@ class AbstractComponent(abc.ABC):
         Returns:
             The terminal render node for this component, or `None`
             (the default) when it has no terminal representation.
-        """
-        return None
-
-    def get_web_node(self, ctx: ComponentRenderContext[StateT]) -> Any | None:
-        """Prepare the web render node tree for this component.
-
-        Reserved for the web interface — `xnano.core.nodes.web` doesn't
-        exist yet, so every component returns `None` here today. Typed as
-        `Any` rather than a forward reference to an `AbstractWebNode` that
-        doesn't exist yet; narrow this once that module lands.
-
-        Args:
-            ctx: The `ComponentRenderContext` to prepare the node for.
-
-        Returns:
-            The web render node for this component, or `None` (the
-            default) when it has no web representation.
         """
         return None
 

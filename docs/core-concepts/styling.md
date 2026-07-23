@@ -84,11 +84,16 @@ Field(class_name="text-violet-400 bg-slate-900 p-2 rounded-lg")
 
 <br/>
 
-The terminal and the browser don't treat this the same way. Classes with a cell-level meaning — color, padding, margin, border — get lowered into the exact same styling a `Field(color=..., padding=...)` call would produce, so they render identically on both hosts. Everything else (`flex-*`, `shadow-*`, `transition-*`, ...) only makes sense in a browser, and passes straight through to the rendered HTML untouched — the terminal host just ignores it.
+Classes with a cell-level meaning — color, padding, margin, border — get
+lowered into the exact same styling a `Field(color=..., padding=...)` call
+would produce, so they render identically on both hosts. Both `Terminal`
+and `Web` paint the same offscreen cell engine; browser-only utilities
+(`flex-*`, `shadow-*`, `transition-*`, ...) have no cell equivalent and
+are ignored by the layout pipeline.
 
 ??? note "Why Both APIs Exist"
 
-    Keyword arguments and `class_name` aren't two competing systems — they're the same [Style]{data-preview} underneath, built two different ways. Reach for keywords when a value is dynamic or computed; reach for `class_name` when you're pasting in something that already looks like Tailwind, or want the browser-only utilities keywords don't cover.
+    Keyword arguments and `class_name` aren't two competing systems — they're the same [Style]{data-preview} underneath, built two different ways. Reach for keywords when a value is dynamic or computed; reach for `class_name` when you're pasting in something that already looks like Tailwind.
 
 ??? abstract "Sandbox & API"
 

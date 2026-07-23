@@ -96,4 +96,4 @@ def build(verbose: bool = False) -> None:
 The same validation helpers used for fields also coerce CLI values when types are annotated.
 
 [Command]: ../api/xnano/cli/command.md
-[Terminal]: ../api/xnano/tui/terminal.md
+[Terminal]: ../api/xnano/terminal/terminal.md

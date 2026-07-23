@@ -95,7 +95,7 @@ def blink_marker(self, ctx: Context) -> None:
 
 <br/>
 
-The same goes for `device`. Raw mode, the alternate screen buffer, mouse capture, and a handful of other terminal-mode flags only exist on [TerminalDevice]{data-preview} — [WebDevice]{data-preview} has no raw mode to toggle and no alternate screen to swap to.
+The same goes for `device`. Raw mode, the alternate screen buffer, mouse capture, and other terminal-mode flags only exist on [TerminalDevice]{data-preview}; the web host drives an offscreen terminal and does not expose browser device controls.
 
 | | Terminal | Browser |
 |---|---|---|
@@ -108,7 +108,7 @@ The same goes for `device`. Raw mode, the alternate screen buffer, mouse capture
     - `device.raw_mode`, `device.alternate_screen`, `device.line_wrap`, `device.mouse_capture`, `device.bracketed_paste`, `device.focus_change`, `device.synchronized_updates` — [TerminalDevice]{data-preview} only.
     - `cursor.visible`, `cursor.style` — the shared [Cursor]{data-preview} contract, on both hosts.
     - `cursor.move_to()` and the rest of the position/movement methods, `enable_blinking()` / `disable_blinking()` — [TerminalCursor]{data-preview} only.
-    - [WebDevice]{data-preview} implements the same `Device`/`Cursor` contract for the browser host, with terminal-only members reduced to safe no-ops.
+    - The web host drives an offscreen terminal and does not expose a separate browser device implementation.
 
 ??? abstract "Sandbox & API"
 
@@ -118,11 +118,10 @@ The same goes for `device`. Raw mode, the alternate screen buffer, mouse capture
 
     **API**
 
-    [`AbstractDevice`](../api/xnano/core/device.md#xnano.core.device.AbstractDevice){data-preview} · [`TerminalDevice`](../api/xnano/tui/device.md#xnano.tui.device.TerminalDevice){data-preview} · [`TerminalCursor`](../api/xnano/tui/cursor.md#xnano.tui.cursor.TerminalCursor){data-preview}
+    [`AbstractDevice`](../api/xnano/core/device.md#xnano.core.device.AbstractDevice){data-preview} · [`TerminalDevice`](../api/xnano/terminal/device.md#xnano.terminal.device.TerminalDevice){data-preview} · [`TerminalCursor`](../api/xnano/terminal/cursor.md#xnano.terminal.cursor.TerminalCursor){data-preview}
 
 [Context]: ../api/xnano/context.md
 [Device]: ../api/xnano/core/device.md
 [Cursor]: ../api/xnano/core/device.md
-[TerminalDevice]: ../api/xnano/tui/device.md
-[TerminalCursor]: ../api/xnano/tui/cursor.md
-[WebDevice]: ../api/xnano/webui/device.md
+[TerminalDevice]: ../api/xnano/terminal/device.md
+[TerminalCursor]: ../api/xnano/terminal/cursor.md

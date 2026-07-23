@@ -73,13 +73,21 @@ painted by `xnano_core`. It covers the final render stages introduced in
 </svg>
 </div>
 
-## Nodes: `AbstractTerminalNode`
+## Nodes: `AbstractNode` and `AbstractTerminalNode`
+
+Shared node structure lives on
+[`AbstractNode`](../api/xnano/core/nodes.md#xnano.core.nodes.AbstractNode){data-preview}
+in `xnano.core.nodes` — a frozen base that only carries
+`kind` (`"terminal"` or `"web"`), `z`, and `visible`. Interface kinds
+define drawing methods on top of that base because measurement and paint
+differ by surface.
 
 Every terminal-renderable value is represented by a frozen
-[`AbstractTerminalNode`](../api/xnano/tui/nodes.md#xnano.tui.nodes.AbstractTerminalNode){data-preview}
-dataclass from `xnano.tui.nodes`. This includes
-text, tables, progress bars, frames, and containers. Two methods define
-how each node is rendered:
+[`AbstractTerminalNode`](../api/xnano/terminal/nodes.md#xnano.terminal.nodes.AbstractTerminalNode){data-preview}
+dataclass from `xnano.terminal.nodes` (a subclass of
+[`AbstractNode`](../api/xnano/core/nodes.md#xnano.core.nodes.AbstractNode){data-preview}).
+This includes text, tables, progress bars, frames, and containers. Two
+methods define how each node is rendered:
 
 - **`to_ir()`** returns the node's
   [`CoreRenderIR`](../api/xnano-core/core.md){data-preview}
@@ -120,8 +128,10 @@ the `to_ir()` path:
 
 ## Content: the interface-neutral tree
 
-Nodes are specific to the terminal backend. Components first compose
-host-neutral primitives from `xnano.core.content`, including
+Nodes that reach the paint controller are terminal nodes today — the
+web host reuses an offscreen terminal rather than lowering content into
+a separate HTML node tree. Components first compose host-neutral
+primitives from `xnano.core.content`, including
 [`Run`](../api/xnano/core/content.md#xnano.core.content.Run){data-preview},
 [`TextBlock`](../api/xnano/core/content.md#xnano.core.content.TextBlock){data-preview},
 [`Panel`](../api/xnano/core/content.md#xnano.core.content.Panel){data-preview},
@@ -130,14 +140,20 @@ host-neutral primitives from `xnano.core.content`, including
 [`CellCanvas`](../api/xnano/core/content.md#xnano.core.content.CellCanvas){data-preview},
 and
 [`Native`](../api/xnano/core/content.md#xnano.core.content.Native){data-preview}.
-`xnano.tui.content_lower.lower_content()` walks this tree and produces
+`xnano.terminal.content_lower.lower_content()` walks this tree and produces
 an
-[`AbstractTerminalNode`](../api/xnano/tui/nodes.md#xnano.tui.nodes.AbstractTerminalNode){data-preview}
+[`AbstractTerminalNode`](../api/xnano/terminal/nodes.md#xnano.terminal.nodes.AbstractTerminalNode){data-preview}
 tree. It converts a `Run` to a `SpanNode`, a
 `Stack` to a `ContainerNode`, and a `Panel` to a `FrameNode` around its
 lowered child. `Native(interface_kind="tui", payload=...)` lets a
 component provide an existing terminal node or backend object without
 first representing that value as `Content`.
+
+The browser never receives HTML widgets for these nodes. After
+[`TerminalController`](../api/xnano/core/controllers/tui.md#xnano.core.controllers.tui.TerminalController){data-preview}
+paints the offscreen buffer,
+[`WebRenderer`](../api/xnano/web/render.md#xnano.web.render.WebRenderer){data-preview}
+snapshots the cells and streams them to a canvas client.
 
 ## `CoreRenderIR`: the single Python↔Rust crossing
 
@@ -148,7 +164,7 @@ widget data into Rust enum variants in one PyO3 call. Constructors
 include `span(...)`, `text_lines(...)`, `progress_bar(...)`, and
 `table(...)`. The `.measure()` method calculates size without a live
 terminal buffer.
-[`AbstractTerminalNode`](../api/xnano/tui/nodes.md#xnano.tui.nodes.AbstractTerminalNode){data-preview}`.measure()`
+[`AbstractTerminalNode`](../api/xnano/terminal/nodes.md#xnano.terminal.nodes.AbstractTerminalNode){data-preview}`.measure()`
 uses it during layout,
 including when `xnano._dispatch.measure_renderable` resolves a root
 box's `fit` width.
@@ -157,7 +173,7 @@ box's `fit` width.
 representation. `IrLine.raw(str)` stores plain
 text, `IrLine.styled(...)` applies one style to a line, and
 `IrLine.from_spans([...])` combines spans with different styles. Nodes
-create these values through `_ir_line()` in `xnano.tui.nodes`. A
+create these values through `_ir_line()` in `xnano.terminal.nodes`. A
 `LineNode` is therefore lowered consistently whether it appears in a
 `TableNode` cell, a `ListNode` item, or another parent.
 

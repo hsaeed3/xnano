@@ -392,7 +392,18 @@ class _EventHooksRegistry:
         return registry
 
 
-HttpMethod: TypeAlias = Literal["GET", "POST"]
+HttpMethod: TypeAlias = Literal[
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "DELETE",
+    "CONNECT",
+    "OPTIONS",
+    "TRACE",
+    "PATCH",
+    "QUERY",
+]
 """HTTP methods supported by request hooks."""
 
 
@@ -408,30 +419,26 @@ class _RequestHooksRegistry:
     within grids.
     """
 
-    ON_GET_HOOK_ATTR: ClassVar[str] = "__xnano_on_get__"
-    ON_POST_HOOK_ATTR: ClassVar[str] = "__xnano_on_post__"
+    ON_REQUEST_METHOD_ATTR: ClassVar[str] = "__xnano_on_request_method__"
     ON_REQUEST_PATH_ATTR: ClassVar[str] = "__xnano_on_request_path__"
 
-    on_get_hooks: list[_OnRequestHookEntry] = dataclasses.field(
-        default_factory=list, init=False
-    )
-    on_post_hooks: list[_OnRequestHookEntry] = dataclasses.field(
+    request_hooks: list[_OnRequestHookEntry] = dataclasses.field(
         default_factory=list, init=False
     )
 
     def all_hooks(self) -> list[_OnRequestHookEntry]:
-        """Return GET and POST hooks in registration order.
+        """Return all request hooks in registration order.
 
         Returns:
-            Combined list of request hook entries.
+            Copy of registered request hook entries (every HTTP method).
         """
-        return [*self.on_get_hooks, *self.on_post_hooks]
+        return self.request_hooks.copy()
 
     @classmethod
     def from_component_class(
         cls, component_class: type
     ) -> _RequestHooksRegistry:
-        """Collect ``@on_get_request`` / ``@on_post_request`` hooks from a component class.
+        """Collect ``@on_*_request`` hooks from a component class.
 
         A name defined on a more-derived class shadows any base definition,
         matching ``_EventHooksRegistry.from_component_class``.
@@ -444,9 +451,8 @@ class _RequestHooksRegistry:
         """
         cached = cls._get_component_class_hooks(component_class)
         registry = cls()
-        registry.on_get_hooks = [entry.copy() for entry in cached.on_get_hooks]
-        registry.on_post_hooks = [
-            entry.copy() for entry in cached.on_post_hooks
+        registry.request_hooks = [
+            entry.copy() for entry in cached.request_hooks
         ]
         return registry
 
@@ -457,11 +463,6 @@ class _RequestHooksRegistry:
     ) -> _RequestHooksRegistry:
         """Collect and cache the immutable request-hook template for a class."""
         registry = cls()
-        hook_attributes = (
-            cls.ON_GET_HOOK_ATTR,
-            cls.ON_POST_HOOK_ATTR,
-        )
-
         seen_names: set[str] = set()
         for base in component_class.__mro__:
             if base is object:
@@ -473,9 +474,7 @@ class _RequestHooksRegistry:
                     continue
                 seen_names.add(name)
 
-                is_hook_method = any(
-                    hasattr(member, attribute) for attribute in hook_attributes
-                )
+                is_hook_method = hasattr(member, cls.ON_REQUEST_METHOD_ATTR)
                 if name.startswith("_") and not is_hook_method:
                     continue
 
@@ -483,20 +482,11 @@ class _RequestHooksRegistry:
                 if path is None:
                     continue
 
-                if hasattr(member, cls.ON_GET_HOOK_ATTR):
-                    registry.on_get_hooks.append(
+                method = getattr(member, cls.ON_REQUEST_METHOD_ATTR, None)
+                if method is not None:
+                    registry.request_hooks.append(
                         _OnRequestHookEntry(
-                            method="GET",
-                            path=path,
-                            handler=member,
-                        )
-                    )
-                if hasattr(member, cls.ON_POST_HOOK_ATTR):
-                    registry.on_post_hooks.append(
-                        _OnRequestHookEntry(
-                            method="POST",
-                            path=path,
-                            handler=member,
+                            method=method, path=path, handler=member
                         )
                     )
         return registry

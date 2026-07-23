@@ -7,7 +7,7 @@ icon: "lucide/type"
 
 `Text` is xnano's one component for strings — a single styled span, a line of spans stitched together, a multi-line paragraph, or an editable input, all through the same class.
 
-Every mode is the same constructor, just handed a different shape of `content`: a plain string, a list of `Text` children, or a list of lists.
+Every mode is the same constructor, just handed a different shape of `content`: a plain string, a list of `Text` children, or a list of lists. Leaf strings can also opt into display parsers (`ansi`, `markdown`, `language`) or become inputs (`input`, optionally `multiline`).
 
 <div class="grid-concept-diagram" role="img" aria-label="Diagram: Text content shapes — leaf string, line of spans, paragraph of lines">
 <svg viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg" fill="none">
@@ -152,25 +152,99 @@ Nothing else is required to make this work. Every `Text(input=True)` field on a 
 
 `placeholder` shows in place of an empty, unfocused input — a plain string renders dim by default, or pass a styled `Text` to keep full control. `cursor` is the caret's index into `content`; leave it `None` and it tracks the end of the string as the user types.
 
-Reacting to focus itself is optional, and uses the same `@on_focus` hook from [events and hooks]{data-preview} — pass the field's name to fire only when that field's focus changes:
+### Multi-line Editing
 
-```python title="Reacting to Focus" hl_lines="1"
+Add `multiline=True` (and optional `rows`) alongside `input=True` for a multi-line editor backed by the native `CoreTextEditor` — multi-line content, undo/redo, paste, and an in-buffer caret:
+
+```python title="A Multi-line Input" hl_lines="5 6 7"
+from xnano import BaseGrid, Field
+from xnano.components.text import Text
+
+class Form(BaseGrid, direction="vertical"):
+    notes: Text = Field(
+        default=Text("", input=True, multiline=True, rows=5),
+    )
+```
+
+`rows` is the preferred visible height in lines; leave it `None` to size to the content. Single-line inputs keep the lightweight caret path — only `multiline` switches to the native editor.
+
+### Focus
+
+Inputs participate in field focus through a duck-typed protocol: a truthy `focusable` property and a `handle_keyboard` method. For `Text`, `focusable` is `True` whenever `input=True`.
+
+Live focus state is exposed as `focused` on the component (and on grids for their own focus). Read it in hooks, or watch it with `@on_field("name.focused")`:
+
+```python title="Reacting to Focus" hl_lines="1 5"
 @on_focus("name", kind="gained")
 def highlight_name_field(self) -> None:
     ...
+
+@on_field("name.focused")
+def name_focus_changed(self) -> None:
+    if self.name.focused:
+        ...
 ```
 
-The full parameter list — every styling and input option `Text` accepts — lives on the [Text]{data-preview} API reference.
+The same focus machinery is shared with other focusable components such as [Select]{data-preview}.
+
+## Display Modes
+
+Leaf `Text` can parse its string before styling. These modes are **mutually exclusive** with each other and with `input` — combining them raises `ValueError`:
+
+| Mode | Flag | What it does |
+|------|------|----------------|
+| ANSI | `ansi=True` | Parse SGR escape sequences into styled runs |
+| Markdown | `markdown=True` | Headings, emphasis, lists, fenced code |
+| Language | `language="python"` | Pygments syntax highlighting only |
+
+### ANSI
+
+Handy for subprocess output, Rich, pytest, or anything that already emits ANSI SGR sequences:
+
+```python title="ANSI Content" hl_lines="3"
+from xnano.components.text import Text
+
+Text("\x1b[32mpassed\x1b[0m  \x1b[31mfailed\x1b[0m", ansi=True)
+```
+
+Without `ansi=True`, the escape codes render as raw characters. With it, they become styled runs.
+
+### Markdown
+
+`markdown=True` runs the string through markdown-it-py — headings, emphasis, lists, blockquotes, and fenced code blocks (highlighted from their fence language tag):
+
+```python title="Markdown Content" hl_lines="3 4 5 6 7"
+from xnano.components.text import Text
+
+Text(
+    "# Release notes\n\n- **bold** item\n- `code` item\n\n```python\nprint('hi')\n```",
+    markdown=True,
+)
+```
+
+### Syntax Highlighting
+
+Set `language` to a Pygments lexer name (for example `"python"`, `"rust"`, `"json"`) to highlight a code string **without** markdown parsing:
+
+```python title="Syntax Highlighting" hl_lines="3"
+from xnano.components.text import Text
+
+Text("def greet(name):\n    return f'hi {name}'", language="python")
+```
+
+Use `markdown=True` when the fence language should drive highlighting inside a document; use `language=` when the whole leaf is source code.
+
+The full parameter list — every styling, input, and display option `Text` accepts — lives on the [Text]{data-preview} API reference.
 
 ??? abstract "Sandbox & API"
 
     **Sandbox**
 
-    [Text Content](../sandbox/text.md#text-content){data-preview} · [Alignment and Wrapping](../sandbox/text.md#alignment-and-wrapping){data-preview} · [Input, Placeholder, and Cursor](../sandbox/text.md#input-placeholder-and-cursor){data-preview}
+    [Text Content](../sandbox/text.md#text-content){data-preview} · [Alignment and Wrapping](../sandbox/text.md#alignment-and-wrapping){data-preview} · [Input, Placeholder, and Cursor](../sandbox/text.md#input-placeholder-and-cursor){data-preview} · [Multi-line Editing](../sandbox/text.md#multi-line-editing){data-preview} · [ANSI, Markdown, and Language](../sandbox/text.md#ansi-markdown-and-language){data-preview}
 
     **API**
 
     [`Text`](../api/xnano/components/text.md#xnano.components.text.Text){data-preview} · [`Alignment`](../api/xnano/_types.md#xnano._types.Alignment){data-preview} · [`CharacterModifier`](../api/xnano/_types.md#xnano._types.CharacterModifier){data-preview}
 
 [Text]: ../api/xnano/components/text.md
-[events and hooks]: ../core-concepts/events.md
+[Select]: select.md

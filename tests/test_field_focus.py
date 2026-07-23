@@ -216,7 +216,7 @@ def test_enter_still_available_to_hooks() -> None:
 
 
 def test_terminal_focus_helpers() -> None:
-    from xnano.tui import Terminal
+    from xnano.terminal import Terminal
 
     term = Terminal.__new__(Terminal)
     term._field_focus = None
@@ -253,3 +253,29 @@ def test_terminal_focus_helpers() -> None:
     assert term.field_focus.field_name == "name"
     term.blur_field()
     assert term.field_focus is None
+
+
+def test_focused_property_is_live() -> None:
+    """`focused` reads like visible/z on components and grids."""
+    from xnano.components.select import Select
+
+    text = Text("", input=True)
+    select = Select(items=("a", "b"))
+    assert text.focused is False
+    assert select.focused is False
+    text._input_focused = True
+    select._input_focused = True
+    assert text.focused is True
+    assert select.focused is True
+    assert Text("display only").focused is False
+
+
+def test_grid_focused_derives_from_fields() -> None:
+    class FocusGrid(BaseGrid):
+        name: Text = Field(default=Text("", input=True))
+        label: str = Field(default="hi")
+
+    grid = FocusGrid()
+    assert grid.focused is False
+    grid.name._input_focused = True
+    assert grid.focused is True

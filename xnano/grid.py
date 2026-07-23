@@ -88,6 +88,7 @@ Example:
 
 from __future__ import annotations
 
+import abc
 import dataclasses
 import inspect
 import itertools
@@ -695,7 +696,9 @@ class _GridMetaNamespace(dict[str, Any]):
     field_specifiers=(Field, GridFieldInfo, dataclasses.field),
     kw_only_default=True,
 )
-class _GridMeta(type):
+# ABCMeta (not plain type) so grids can mix in abc.ABC:
+# ``class Window(BaseGrid, abc.ABC)`` needs the two metaclasses related.
+class _GridMeta(abc.ABCMeta):
     @classmethod
     def __prepare__(
         mcls,
@@ -981,6 +984,19 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     def __post_init__(self) -> None:
         """Called at the end of the generated ``__init__``. Override to run post-construction logic."""
 
+    @property
+    def focused(self) -> bool:
+        """Whether any of this grid's fields currently holds field focus.
+
+        Live alongside per-component ``focused``: derived from the same
+        per-frame focus flags, so ``self.focused`` in a hook and
+        ``@on_field("focused")`` both read the current state.
+        """
+        return any(
+            bool(getattr(getattr(self, name, None), "focused", False))
+            for name in getattr(self, "_grid_fields", {})
+        )
+
     def _grid_annotation_for_field(
         self,
         name: str,
@@ -1046,7 +1062,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     @property
     def state(self) -> Any:
         """Return the active terminal's shared state, or ``None``."""
-        from xnano.tui.terminal import _ACTIVE_TERMINAL
+        from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         return None if terminal is None else terminal.state
@@ -1136,7 +1152,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             started.
         """
         from xnano.effects import resolve_effect
-        from xnano.tui.terminal import _ACTIVE_TERMINAL
+        from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         if terminal is None:
@@ -1184,9 +1200,9 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 and value._grid_needs_mouse_geometry()
             ):
                 return True
-            from xnano._types import is_input_text
+            from xnano._types import is_focusable_component
 
-            if is_input_text(value):
+            if is_focusable_component(value):
                 return True
         return False
 
@@ -1225,9 +1241,9 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             return True
         if _resolve_grid_mouse_handler(self, field_name) is not None:
             return True
-        from xnano._types import is_input_text
+        from xnano._types import is_focusable_component
 
-        return is_input_text(getattr(self, field_name, None))
+        return is_focusable_component(getattr(self, field_name, None))
 
     def grid_set_field(
         self,
@@ -1394,7 +1410,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         parent_area: Area,
         slide_axes: list[str] | None = None,
     ) -> None:
-        from xnano.tui.terminal import _ACTIVE_TERMINAL
+        from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         if terminal is None or not terminal._mouse_geometry_active:
@@ -1488,7 +1504,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             active_constraints,
         )
 
-        from xnano.tui.terminal import _ACTIVE_TERMINAL
+        from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
         terminal = _ACTIVE_TERMINAL.get()
         collect_mouse_geometry = bool(
