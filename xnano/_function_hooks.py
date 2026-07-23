@@ -92,6 +92,7 @@ FocusHookKind: TypeAlias = Literal["gained", "lost"]
 
 class _OnFocusHookFunctionEntry(TypedDict):
     field: str | None
+    group: str | None
     kind: FocusHookKind | None
     handler: EventHookFunction
 
@@ -109,6 +110,7 @@ class _EventHooksRegistry:
     ON_CLIPBOARD_HOOK_ATTR: ClassVar[str] = "__xnano_on_clipboard__"
     ON_FOCUS_HOOK_ATTR: ClassVar[str] = "__xnano_on_focus__"
     ON_FOCUS_FIELD_ATTR: ClassVar[str] = "__xnano_on_focus_field__"
+    ON_FOCUS_GROUP_ATTR: ClassVar[str] = "__xnano_on_focus_group__"
     ON_FOCUS_KIND_ATTR: ClassVar[str] = "__xnano_on_focus_kind__"
     ON_POLL_HOOK_ATTR: ClassVar[str] = "__xnano_on_poll__"
     ON_POLL_WHEN_ATTR: ClassVar[str] = "__xnano_on_poll_when__"
@@ -117,6 +119,7 @@ class _EventHooksRegistry:
     ON_KEYBOARD_FILTER_ATTR: ClassVar[str] = "__xnano_on_keyboard_filter__"
     ON_MOUSE_FILTER_ATTR: ClassVar[str] = "__xnano_on_mouse_filter__"
     ON_MOUSE_FIELD_ATTR: ClassVar[str] = "__xnano_on_mouse_field__"
+    ON_MOUSE_GROUP_ATTR: ClassVar[str] = "__xnano_on_mouse_group__"
     ON_TICK_INTERVAL_ATTR: ClassVar[str] = "__xnano_on_tick_interval__"
     ON_STATE_EXPRESSION_ATTR: ClassVar[str] = "__xnano_on_state_expression__"
     ON_FIELD_HOOK_ATTR: ClassVar[str] = "__xnano_on_field__"
@@ -138,6 +141,9 @@ class _EventHooksRegistry:
         default_factory=list, init=False
     )
     on_focus_hooks: list[_OnFocusHookFunctionEntry] = dataclasses.field(
+        default_factory=list, init=False
+    )
+    on_click_group_hooks: list[EventHookFunction] = dataclasses.field(
         default_factory=list, init=False
     )
     on_poll_hooks: list[_OnPollHookFunctionEntry] = dataclasses.field(
@@ -196,10 +202,13 @@ class _EventHooksRegistry:
             self.on_focus_hooks.append(
                 _OnFocusHookFunctionEntry(
                     field=getattr(handler, self.ON_FOCUS_FIELD_ATTR, None),
+                    group=getattr(handler, self.ON_FOCUS_GROUP_ATTR, None),
                     kind=getattr(handler, self.ON_FOCUS_KIND_ATTR, None),
                     handler=handler,
                 )
             )
+        if hasattr(handler, self.ON_MOUSE_GROUP_ATTR):
+            self.on_click_group_hooks.append(handler)
         if hasattr(handler, self.ON_POLL_HOOK_ATTR):
             when = getattr(handler, self.ON_POLL_WHEN_ATTR, "idle")
             self.on_poll_hooks.append(
@@ -256,6 +265,7 @@ class _EventHooksRegistry:
         registry.on_focus_hooks = [
             entry.copy() for entry in cached.on_focus_hooks
         ]
+        registry.on_click_group_hooks = cached.on_click_group_hooks.copy()
         registry.on_poll_hooks = [
             entry.copy() for entry in cached.on_poll_hooks
         ]
@@ -337,6 +347,8 @@ class _EventHooksRegistry:
                             handler=member,
                         )
                     )
+                if hasattr(member, cls.ON_MOUSE_GROUP_ATTR):
+                    registry.on_click_group_hooks.append(member)
                 if hasattr(member, cls.ON_RESIZE_HOOK_ATTR):
                     registry.on_resize_hooks.append(member)
                 if hasattr(member, cls.ON_CLIPBOARD_HOOK_ATTR):
@@ -346,6 +358,9 @@ class _EventHooksRegistry:
                         _OnFocusHookFunctionEntry(
                             field=getattr(
                                 member, cls.ON_FOCUS_FIELD_ATTR, None
+                            ),
+                            group=getattr(
+                                member, cls.ON_FOCUS_GROUP_ATTR, None
                             ),
                             kind=getattr(member, cls.ON_FOCUS_KIND_ATTR, None),
                             handler=member,

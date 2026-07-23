@@ -2,9 +2,10 @@
 // sends key/mouse/resize events back to the server. No dependencies.
 //
 // Frame wire shape (see xnano/web/frame.py):
-//   { w, h, full, rows: { "y": [[text, fg, bg, mods], ...] }, cursor }
+//   { w, h, full, rows: { "y": [[text, fg, bg, mods], ...] }, cursor, title }
 // A span's fg/bg are "#rrggbb" or null (terminal default); mods is a
-// bitfield: bold=1 dim=2 italic=4 underline=8 reversed=16.
+// bitfield: bold=1 dim=2 italic=4 underline=8 reversed=16. "title" is
+// only present when ctx.device.title changed this frame.
 
 (function () {
   "use strict";
@@ -61,6 +62,7 @@
       }
     }
     cursor = frame.cursor;
+    if (frame.title) { document.title = frame.title; }
     paint();
   }
 

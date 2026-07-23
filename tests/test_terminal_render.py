@@ -19,6 +19,10 @@ from xnano.grid import BaseGrid
 from xnano.terminal import Terminal
 
 
+@pytest.mark.skipif(
+    not hasattr(signal, "SIGHUP"),
+    reason="SIGHUP is POSIX-only; no equivalent in Python's signal module on Windows",
+)
 def test_terminal_hangup_terminates_process() -> None:
     terminal: Terminal = Terminal()
 

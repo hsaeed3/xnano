@@ -200,6 +200,24 @@ class GridFieldInfo:
     """The padding to be applied around the content area of this field."""
     slide: list[str] | None = None
     """The axes along which this field may slide within its parent grid."""
+    group: str | None = None
+    """Terminal-global focus/event identifier. Fields on different grids
+    that share a ``group`` are addressed together by ``ctx.focus(group)``,
+    ``@on_focus(group=...)``, and ``@on_click(group=...)`` — no grid
+    reference or nesting knowledge required."""
+    autofocus: bool | None = None
+    """Whether this field receives focus by default when nothing else is
+    focused yet (preferred over declaration-order default selection)."""
+    scroll: "types.ScrollLike | None" = None
+    """Enable windowed scrolling for a container field whose content
+    overflows its slot. ``True`` scrolls along ``direction``; pass
+    ``"vertical"``/``"horizontal"`` to force an axis. See ``ctx.scroll(group)``
+    for programmatic control (``.to_bottom()``, ``.follow``)."""
+    wireframe: bool | None = None
+    """Live-toggle a debug overlay showing the cell grid this field
+    occupies. Content renders normally underneath; this only adds a thin
+    per-cell lattice on top. Toggle live via ``grid_set_field``/
+    ``grid_update_field``."""
     class_name: tuple[str, ...] | None = None
     """Tailwind CSS class tokens attached to this field.
 
@@ -333,6 +351,10 @@ def Field(
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    group: str | None = None,
+    autofocus: bool | None = None,
+    scroll: types.ScrollLike | None = None,
+    wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
 ) -> Any: ...
 
@@ -362,6 +384,10 @@ def Field(
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    group: str | None = None,
+    autofocus: bool | None = None,
+    scroll: types.ScrollLike | None = None,
+    wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
 ) -> _T: ...
 
@@ -390,6 +416,10 @@ def Field(
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    group: str | None = None,
+    autofocus: bool | None = None,
+    scroll: types.ScrollLike | None = None,
+    wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
 ) -> _T: ...
 
@@ -419,6 +449,10 @@ def Field(
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    group: str | None = None,
+    autofocus: bool | None = None,
+    scroll: types.ScrollLike | None = None,
+    wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
 ) -> Any: ...
 
@@ -447,6 +481,10 @@ def Field(
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
     slide: Sequence[types.Axis] | None = None,
+    group: str | None = None,
+    autofocus: bool | None = None,
+    scroll: types.ScrollLike | None = None,
+    wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
 ) -> GridFieldInfo:
     """Create a new grid field info instance.
@@ -556,6 +594,10 @@ def Field(
         padding=padding,
         margin=margin,
         slide=_normalize_slide_axes(slide),
+        group=group,
+        autofocus=autofocus,
+        scroll=scroll,
+        wireframe=wireframe,
         class_name=tokens,
     )  # type: ignore[return-value]
 

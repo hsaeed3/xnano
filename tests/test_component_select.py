@@ -169,3 +169,37 @@ def test_items_content_lowers_to_list_node() -> None:
     assert isinstance(node, ListNode)
     assert node.selected == 0
     assert len(node.items) == len(_ITEMS)
+
+
+def test_filtered_returns_visible_indices() -> None:
+    select = Select(items=_ITEMS, searchable=False)
+    assert select.filtered == tuple(range(len(_ITEMS)))
+
+
+def test_filtered_narrows_with_query() -> None:
+    select = Select(items=_ITEMS, query="dark")
+    assert set(select.filtered) <= set(range(len(_ITEMS)))
+    assert 0 in select.filtered  # "dark" itself
+
+
+def test_move_advances_and_retreats_selection() -> None:
+    select = Select(items=_ITEMS, searchable=False)
+    select.move(1)
+    assert select.selected == 1
+    select.move(-1)
+    assert select.selected == 0
+
+
+def test_move_clamps_to_filtered_bounds() -> None:
+    select = Select(items=_ITEMS, searchable=False)
+    select.move(1000)
+    assert select.selected == len(_ITEMS) - 1
+    select.move(-1000)
+    assert select.selected == 0
+
+
+def test_move_on_empty_filtered_view_resets_to_zero() -> None:
+    select = Select(items=_ITEMS, query="zzz-no-match")
+    select.selected = 3
+    select.move(1)
+    assert select.selected == 0

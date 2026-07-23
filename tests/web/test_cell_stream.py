@@ -123,3 +123,128 @@ def test_table_renders_on_web_without_web_code() -> None:
         assert "ada" in text
     finally:
         renderer.close()
+
+
+# ---------------------------------------------------------------------------
+# ctx.cursor / ctx.device — native to web, same as terminal
+# ---------------------------------------------------------------------------
+
+
+def test_cursor_hidden_by_default_omits_cursor_from_frame() -> None:
+    class G(BaseGrid):
+        title: Text = Field(default=Text("hi"))
+
+    renderer = WebRenderer(G(), cols=10, rows=2)
+    try:
+        renderer.terminal.cursor.visible = False
+        frame = renderer.frame()
+        assert frame["cursor"] is None
+    finally:
+        renderer.close()
+
+
+def test_cursor_moved_and_shown_appears_in_frame() -> None:
+    class G(BaseGrid):
+        title: Text = Field(default=Text("hi"))
+
+    renderer = WebRenderer(G(), cols=10, rows=2)
+    try:
+        renderer.terminal.cursor.move_to(3, 1)
+        renderer.terminal.cursor.visible = True
+        frame = renderer.frame()
+        assert frame["cursor"] == [3, 1]
+    finally:
+        renderer.close()
+
+
+def test_cursor_moves_do_not_touch_real_terminal_escapes(
+    monkeypatch,
+) -> None:
+    """Offscreen (web) cursor moves must never shell out to native escapes —
+    that would write to the server process's own stdout."""
+    import xnano.terminal.cursor as cursor_module
+
+    calls: list[str] = []
+    for name in (
+        "show_cursor",
+        "hide_cursor",
+        "move_cursor_to",
+        "set_cursor_style",
+    ):
+        monkeypatch.setattr(
+            cursor_module.native,
+            name,
+            lambda *a, name=name, **k: calls.append(name),
+        )
+
+    class G(BaseGrid):
+        title: Text = Field(default=Text("hi"))
+
+    renderer = WebRenderer(G(), cols=10, rows=2)
+    try:
+        renderer.terminal.cursor.move_to(2, 2)
+        renderer.terminal.cursor.visible = True
+        renderer.terminal.cursor.visible = False
+        renderer.terminal.cursor.style = "steady_bar"
+        assert calls == []
+    finally:
+        renderer.close()
+
+
+def test_device_title_change_is_included_in_frame() -> None:
+    class G(BaseGrid):
+        title: Text = Field(default=Text("hi"))
+
+    renderer = WebRenderer(G(), cols=10, rows=2)
+    try:
+        renderer.frame()  # first frame, no title set yet
+        renderer.terminal.device.title = "new title"
+        frame = renderer.frame()
+        assert frame["title"] == "new title"
+    finally:
+        renderer.close()
+
+
+def test_device_title_unchanged_is_not_resent() -> None:
+    class G(BaseGrid):
+        title: Text = Field(default=Text("hi"))
+
+    renderer = WebRenderer(G(), cols=10, rows=2)
+    try:
+        renderer.terminal.device.title = "same"
+        first = renderer.frame()
+        second = renderer.frame()
+        assert first.get("title") == "same"
+        assert "title" not in second
+    finally:
+        renderer.close()
+
+
+def test_device_settings_do_not_touch_native_escapes(monkeypatch) -> None:
+    import xnano.terminal.device as device_module
+
+    calls: list[str] = []
+    for name in (
+        "enable_raw_mode",
+        "clear_terminal",
+        "scroll_up",
+        "set_terminal_title",
+    ):
+        monkeypatch.setattr(
+            device_module.native,
+            name,
+            lambda *a, name=name, **k: calls.append(name),
+        )
+
+    class G(BaseGrid):
+        title: Text = Field(default=Text("hi"))
+
+    renderer = WebRenderer(G(), cols=10, rows=2)
+    try:
+        renderer.terminal.device.raw_mode = True
+        renderer.terminal.device.clear()
+        renderer.terminal.device.scroll_up()
+        renderer.terminal.device.title = "x"
+        assert calls == []
+    finally:
+        renderer.close()

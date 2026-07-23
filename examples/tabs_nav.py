@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import time
 
-from xnano.color import tailwind_color
+from xnano.color import ColorLike, tailwind_color
 from xnano.components.text import Text
 from xnano.events import on_keyboard
 from xnano.fields import Field
@@ -55,7 +55,9 @@ def _tab_bar(selected: int) -> Text:
 
 
 def _monitor_screen(elapsed: float) -> Text:
-    def gauge(label: str, ratio: float, color: str, width: int = 36) -> Text:
+    def gauge(
+        label: str, ratio: float, color: ColorLike, width: int = 36
+    ) -> Text:
         filled = int(ratio * width)
         return Text(
             [
@@ -90,23 +92,11 @@ def _monitor_screen(elapsed: float) -> Text:
     return Text(
         [
             Text("\n"),
-            gauge(
-                "CPU Load",
-                cpu,
-                f"#{tailwind_color('emerald', 400).r:02x}{tailwind_color('emerald', 400).g:02x}{tailwind_color('emerald', 400).b:02x}",
-            ),
+            gauge("CPU Load", cpu, tailwind_color("emerald", 400)),
             Text("\n"),
-            gauge(
-                "Memory  ",
-                mem,
-                f"#{tailwind_color('teal', 400).r:02x}{tailwind_color('teal', 400).g:02x}{tailwind_color('teal', 400).b:02x}",
-            ),
+            gauge("Memory  ", mem, tailwind_color("teal", 400)),
             Text("\n"),
-            gauge(
-                "Disk     ",
-                disk,
-                f"#{tailwind_color('cyan', 400).r:02x}{tailwind_color('cyan', 400).g:02x}{tailwind_color('cyan', 400).b:02x}",
-            ),
+            gauge("Disk     ", disk, tailwind_color("cyan", 400)),
             Text("\n\n"),
             Text("  CPU Load History\n", color=tailwind_color("slate", 400)),
             Text(f"  {spark}", color=tailwind_color("emerald", 400)),

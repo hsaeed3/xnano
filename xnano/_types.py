@@ -37,6 +37,12 @@ Values:
 """
 
 
+ScrollLike: TypeAlias = "bool | Literal['vertical', 'horizontal', 'auto']"
+"""``Field(scroll=...)`` value. ``True`` scrolls along the field's
+``direction``; ``"vertical"``/``"horizontal"`` force an axis; ``"auto"``
+scrolls only when content overflows the slot."""
+
+
 Axis: TypeAlias = Literal["x", "y"]
 """The axis along which a grid field or area should be laid out.
 
@@ -1021,6 +1027,126 @@ def get_focusable_component(grid: Any, field_name: str) -> Any | None:
     return None
 
 
+def field_group(grid: Any, field_name: str) -> str | None:
+    """Return the ``group`` declared on ``grid.field_name``, if any."""
+    info_getter = getattr(grid, "_grid_field_info", None)
+    if info_getter is None:
+        return None
+    try:
+        return info_getter(field_name).group
+    except (KeyError, AttributeError):
+        return None
+
+
+def collect_group_targets(terminal: Terminal[Any]) -> dict[str, FieldFocus]:
+    """Map ``group`` name -> ``(grid, field_name)`` from the last frame.
+
+    Unlike ``collect_focusable_fields``, every layout field is eligible —
+    a ``group`` can label a non-focusable field too (e.g. a scrollable
+    transcript), not just editable inputs. First occurrence wins when two
+    fields declare the same group.
+    """
+    result: dict[str, FieldFocus] = {}
+    for grid in terminal._attached_frame_grids:
+        fields = getattr(type(grid), "_grid_fields", None) or getattr(
+            grid, "_grid_fields", {}
+        )
+        for field_name in fields:
+            group = field_group(grid, field_name)
+            if group and group not in result:
+                result[group] = FieldFocus(grid=grid, field_name=field_name)
+    return result
+
+
+def resolve_group_target(
+    terminal: Terminal[Any], group: str
+) -> FieldFocus | None:
+    """Return the ``(grid, field_name)`` currently labeled ``group``."""
+    return collect_group_targets(terminal).get(group)
+
+
+def focus_group(
+    terminal: Terminal[Any],
+    group: str,
+    *,
+    fire_hooks: bool = True,
+) -> bool:
+    """Focus the field labeled ``group``, regardless of which grid it's on.
+
+    Returns:
+        ``True`` when a field with this group was found and is focusable.
+    """
+    target = resolve_group_target(terminal, group)
+    if target is None:
+        return False
+    return set_field_focus(
+        terminal, target.grid, target.field_name, fire_hooks=fire_hooks
+    )
+
+
+def focused_group_name(terminal: Terminal[Any]) -> str | None:
+    """Return the ``group`` of the currently focused field, if any."""
+    current = getattr(terminal, "_field_focus", None)
+    if current is None:
+        return None
+    return field_group(current.grid, current.field_name)
+
+
+def is_group_focused(terminal: Terminal[Any], group: str) -> bool:
+    """Return whether the field labeled ``group`` currently holds focus."""
+    return focused_group_name(terminal) == group
+
+
+@dataclasses.dataclass(slots=True)
+class ScrollHandle:
+    """Programmatic control for a ``Field(scroll=...)`` field, resolved by
+    ``group`` — see ``ctx.scroll(group)``.
+
+    Attributes:
+        offset: Items back from the end currently shown (``0`` = pinned to
+            the most recent / bottom item).
+        follow: When ``True``, the field re-pins to ``offset=0`` whenever
+            new items are appended (persists across frames).
+    """
+
+    grid: Any
+    field_name: str
+
+    @property
+    def offset(self) -> int:
+        return self.grid._grid_field_scroll_offset(self.field_name)
+
+    @offset.setter
+    def offset(self, value: int) -> None:
+        self.grid._grid_set_field_scroll_offset(self.field_name, value)
+
+    @property
+    def follow(self) -> bool:
+        return self.grid._grid_field_scroll_follow(self.field_name)
+
+    @follow.setter
+    def follow(self, value: bool) -> None:
+        self.grid._grid_set_field_scroll_follow(self.field_name, value)
+
+    def to_bottom(self) -> None:
+        """Jump to the most recent item (``offset = 0``)."""
+        self.offset = 0
+
+    def scroll_by(self, delta: int) -> None:
+        """Move the window by ``delta`` items (positive = toward older)."""
+        self.offset = max(0, self.offset + delta)
+
+
+def scroll_handle_for_group(
+    terminal: Terminal[Any], group: str
+) -> ScrollHandle | None:
+    """Return a ``ScrollHandle`` for the field labeled ``group``, if any."""
+    target = resolve_group_target(terminal, group)
+    if target is None:
+        return None
+    return ScrollHandle(grid=target.grid, field_name=target.field_name)
+
+
 def collect_focusable_fields(terminal: Terminal[Any]) -> list[FieldFocus]:
     """Collect focusable input fields in paint/declaration order.
 
@@ -1251,7 +1377,11 @@ def cycle_field_focus(
 
 
 def ensure_default_field_focus(terminal: Terminal[Any]) -> None:
-    """Focus the first input field when nothing is focused yet."""
+    """Focus the default input field when nothing is focused yet.
+
+    Prefers a field declared ``Field(autofocus=True)`` over plain
+    declaration-order (the first focusable field encountered).
+    """
     current = getattr(terminal, "_field_focus", None)
     if current is not None:
         sync_input_focus_flags(terminal)
@@ -1261,13 +1391,26 @@ def ensure_default_field_focus(terminal: Terminal[Any]) -> None:
             _fire_field_focus_hooks(terminal, current, kind="gained")
         return
     targets = collect_focusable_fields(terminal)
-    if targets:
-        set_field_focus(
-            terminal,
-            targets[0].grid,
-            targets[0].field_name,
-            fire_hooks=True,
-        )
+    if not targets:
+        return
+    pick = next(
+        (
+            target
+            for target in targets
+            if getattr(
+                target.grid._grid_field_info(target.field_name),
+                "autofocus",
+                False,
+            )
+        ),
+        targets[0],
+    )
+    set_field_focus(
+        terminal,
+        pick.grid,
+        pick.field_name,
+        fire_hooks=True,
+    )
 
 
 def place_cursor_for_focus(terminal: Terminal[Any]) -> None:
@@ -1319,16 +1462,22 @@ def _fire_field_focus_hooks(
     )
     ctx = Context(event=None, terminal=terminal, state=terminal.state)
     terminal._last_field_focus_event = focus_data
+    target_group = field_group(target.grid, target.field_name)
 
     for entry in terminal._hooks.on_focus_hooks:
         field_filter = entry["field"]
+        group_filter = entry.get("group")
         kind_filter = entry["kind"]
         handler = entry["handler"]
 
-        if field_filter is None:
+        if group_filter is not None:
+            if group_filter != target_group:
+                continue
+        elif field_filter is not None:
+            if field_filter != target.field_name:
+                continue
+        else:
             # Terminal-only focus hooks ignore field focus transitions.
-            continue
-        if field_filter != target.field_name:
             continue
         if kind_filter is not None and kind_filter != kind:
             continue
@@ -1355,6 +1504,7 @@ __all__ = (
     "Direction",
     "CharacterModifier",
     "PaddingLike",
+    "ScrollLike",
     "ScrollbarOrientationLike",
     "CanvasMarkerLike",
     "GraphTypeLike",

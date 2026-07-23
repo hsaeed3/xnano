@@ -11,13 +11,13 @@ import textwrap
 import time
 from typing import Iterable, Iterator, Literal, TypeAlias
 
-from xnano._types import CharacterModifier
-from xnano.color import tailwind_color
+from xnano.color import Color, ColorLike, tailwind_color
 from xnano.components.text import Text
 from xnano.events import on_keyboard, on_mouse, on_tick
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.terminal import Terminal
+from xnano.types import CharacterModifier
 
 ToolKind: TypeAlias = Literal["read", "bash", "edit", "grep"]
 """Supported tool-call kinds shown in the transcript."""
@@ -69,11 +69,7 @@ _WELCOME = [
 ]
 
 
-def _color_hex(color) -> str:
-    return f"#{color.r:02x}{color.g:02x}{color.b:02x}"
-
-
-def _pulsing_color(tick: float, offset: int) -> str:
+def _pulsing_color(tick: float, offset: int) -> Color:
     phase = (tick * 1.4 + offset * 1.1) % len(_PULSE_COLORS)
     index = int(phase) % len(_PULSE_COLORS)
     blend = phase - int(phase)
@@ -82,7 +78,7 @@ def _pulsing_color(tick: float, offset: int) -> str:
     red = int(current.r + (nxt.r - current.r) * blend)
     green = int(current.g + (nxt.g - current.g) * blend)
     blue = int(current.b + (nxt.b - current.b) * blend)
-    return f"#{red:02x}{green:02x}{blue:02x}"
+    return Color(r=red, g=green, b=blue)
 
 
 def _tool_rail_color(
@@ -90,13 +86,12 @@ def _tool_rail_color(
     tick: float,
     offset: int,
     tool_kind: str,
-) -> str:
+) -> ColorLike:
     if status == "active":
         return _pulsing_color(tick, offset)
     if status == "success":
-        accent = _TOOL_ACCENTS.get(tool_kind, tailwind_color("emerald", 500))
-        return _color_hex(accent)
-    return _color_hex(tailwind_color("slate", 700))
+        return _TOOL_ACCENTS.get(tool_kind, tailwind_color("emerald", 500))
+    return tailwind_color("slate", 700)
 
 
 def _stream_chunks(text: str) -> Iterator[str]:
@@ -262,7 +257,7 @@ def _build_message_lines(
                     )
 
             if output:
-                output_bg = _color_hex(tailwind_color("slate", 900))
+                output_bg = tailwind_color("slate", 900)
                 output_rows = _wrap_body(output, content_width - 4)
                 for index in range(len(output_rows)):
                     lines.append(

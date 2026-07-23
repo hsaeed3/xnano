@@ -440,17 +440,30 @@ def render_frame(
         track_frame_grid(terminal, root)
 
         # Seed focus before paint so the caret/placeholder render correctly
-        # on the first frame.
+        # on the first frame. Prefer Field(autofocus=True) over the first
+        # focusable field in declaration order.
         if getattr(terminal, "_field_focus", None) is None:
             fields = getattr(type(root), "_grid_fields", {}) or {}
+            fallback: str | None = None
+            picked: str | None = None
             for field_name in fields:
                 value = getattr(root, field_name, None)
-                if is_focusable_component(value):
-                    terminal._field_focus = FieldFocus(
-                        grid=root, field_name=field_name
-                    )
-                    cast(Any, value)._input_focused = True
+                if not is_focusable_component(value):
+                    continue
+                if fallback is None:
+                    fallback = field_name
+                if getattr(
+                    root._grid_field_info(field_name), "autofocus", False
+                ):
+                    picked = field_name
                     break
+            picked = picked or fallback
+            if picked is not None:
+                value = getattr(root, picked, None)
+                terminal._field_focus = FieldFocus(
+                    grid=root, field_name=picked
+                )
+                cast(Any, value)._input_focused = True
         else:
             current = terminal._field_focus
             text = getattr(current.grid, current.field_name, None)
@@ -771,13 +784,67 @@ def dispatch_hooks(terminal: "Terminal[Any]", ctx: "Context[Any]") -> None:
             invoke_hook(handler, grid, ctx)
 
 
+def _dispatch_group_click(
+    terminal: "Terminal[Any]",
+    grid: Any,
+    field_name: str,
+    mouse: Any,
+    ctx: "Context[Any]",
+) -> None:
+    from xnano._types import field_group
+
+    group = field_group(grid, field_name)
+    if group is None:
+        return
+    for handler in terminal._hooks.on_click_group_hooks:
+        if (
+            getattr(handler, _EventHooksRegistry.ON_MOUSE_GROUP_ATTR, None)
+            != group
+        ):
+            continue
+        if not field_mouse_handler_matches(handler, mouse):
+            continue
+        invoke_hook(handler, None, ctx)
+
+
+_SCROLL_WHEEL_STEP = 1
+
+
+def _dispatch_field_scroll(terminal: "Terminal[Any]", mouse: Any) -> bool:
+    """Adjust scroll offset for a ``Field(scroll=...)`` field under the
+    cursor. Returns ``True`` when a scrollable field was hit."""
+    coordinate = (mouse.x, mouse.y)
+    for hit in reversed(terminal._field_hits):
+        if not hit.area.contains(coordinate):
+            continue
+        field = hit.grid._grid_field_info(hit.field_name)
+        if not field.scroll:
+            continue
+        current = hit.grid._grid_field_scroll_offset(hit.field_name)
+        if mouse.kind == "scroll_up":
+            hit.grid._grid_set_field_scroll_offset(
+                hit.field_name, current + _SCROLL_WHEEL_STEP
+            )
+        elif mouse.kind == "scroll_down":
+            hit.grid._grid_set_field_scroll_offset(
+                hit.field_name, max(0, current - _SCROLL_WHEEL_STEP)
+            )
+        return True
+    return False
+
+
 def dispatch_field_mouse(
     terminal: "Terminal[Any]", ctx: "Context[Any]"
 ) -> None:
     from xnano.grid import _GridSlideCapture
 
     mouse = ctx.event.mouse_event if ctx.event is not None else None
-    if mouse is None or mouse.kind not in {"press", "drag", "release"}:
+    if mouse is None:
+        return
+    if mouse.kind in ("scroll_up", "scroll_down"):
+        _dispatch_field_scroll(terminal, mouse)
+        return
+    if mouse.kind not in {"press", "drag", "release"}:
         return
 
     capture = terminal._slide_capture
@@ -789,6 +856,9 @@ def dispatch_field_mouse(
         handler = resolve_grid_mouse_handler(capture.grid, capture.field_name)
         if handler is not None and field_mouse_handler_matches(handler, mouse):
             invoke_hook(handler, capture.grid, ctx)
+        _dispatch_group_click(
+            terminal, capture.grid, capture.field_name, mouse, ctx
+        )
         return
 
     coordinate = (mouse.x, mouse.y)
@@ -814,6 +884,7 @@ def dispatch_field_mouse(
         handler = resolve_grid_mouse_handler(hit.grid, hit.field_name)
         if handler is not None and field_mouse_handler_matches(handler, mouse):
             invoke_hook(handler, hit.grid, ctx)
+        _dispatch_group_click(terminal, hit.grid, hit.field_name, mouse, ctx)
         return
 
 
@@ -855,6 +926,13 @@ def track_frame_grid(terminal: "Terminal[Any]", grid: Any) -> None:
         # The strong reference keeps ``id(grid)`` unique for the life of
         # the terminal (bound hook handlers hold the instance anyway).
         attached[id(grid)] = grid
+        # Fired exactly once per instance, after this grid's own hooks are
+        # bound (so anything it triggers already has a live handler) and
+        # before its first paint on this terminal.
+        from xnano.context import Context
+
+        ctx = Context(event=None, terminal=terminal, state=terminal.state)
+        invoke_hook(grid.grid_post_init, None, ctx)
     terminal._attached_frame_grids.append(grid)
 
 
@@ -900,10 +978,16 @@ def merge_hooks(
         terminal._hooks.on_focus_hooks.append(
             _OnFocusHookFunctionEntry(
                 field=entry["field"],
+                group=entry["group"],
                 kind=entry["kind"],
                 handler=rebind_hook_handler(entry["handler"], grid),
             )
         )
+
+    terminal._hooks.on_click_group_hooks.extend(
+        rebind_hook_handler(handler, grid)
+        for handler in other.on_click_group_hooks
+    )
 
     for entry in other.on_poll_hooks:
         terminal._hooks.on_poll_hooks.append(
@@ -926,6 +1010,8 @@ def merge_hooks(
         handler = entry["handler"]
         if (
             getattr(handler, _EventHooksRegistry.ON_MOUSE_FIELD_ATTR, None)
+            is not None
+            or getattr(handler, _EventHooksRegistry.ON_MOUSE_GROUP_ATTR, None)
             is not None
         ):
             continue

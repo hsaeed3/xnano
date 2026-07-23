@@ -40,11 +40,20 @@ _NATIVE_CLEAR_TYPES: dict[ClearType, Any] = {
 
 
 class TerminalDevice(AbstractDevice):
-    """Control terminal device settings during a live session.
+    """Control device settings for the active session.
 
     Title, clear, size, scroll, clipboard, raw mode, alternate screen,
     mouse capture, and related flags. Obtained from ``terminal.device``
     or ``ctx.device`` — do not construct this class yourself.
+
+    Flags and title are always tracked locally, so ``ctx.device`` behaves
+    identically whether the session is a live terminal or an offscreen
+    one (tests, or a ``Web`` session — every browser visitor is served by
+    an offscreen ``Terminal`` under the hood; see
+    ``xnano.web.render.WebRenderer``). Only a *live* session additionally
+    issues the real OS terminal escape codes; an offscreen session would
+    otherwise write those escapes to whatever process happens to own
+    stdout, which is wrong for a headless web server.
     """
 
     __slots__ = (
@@ -56,6 +65,7 @@ class TerminalDevice(AbstractDevice):
         "_bracketed_paste",
         "_focus_change",
         "_synchronized_updates",
+        "_title",
     )
 
     def __init__(self, _terminal: "Terminal[Any]") -> None:
@@ -71,6 +81,13 @@ class TerminalDevice(AbstractDevice):
         self._bracketed_paste: bool = False
         self._focus_change: bool = False
         self._synchronized_updates: bool = False
+        self._title: str | None = None
+
+    def _is_live(self) -> bool:
+        """Whether this session has a real terminal attached (see
+        ``TerminalCursor._is_live`` for the same distinction)."""
+        session = getattr(self._terminal, "_session", None)
+        return session is not None and not session._is_offscreen
 
     @property
     def raw_mode(self) -> bool:
@@ -82,10 +99,11 @@ class TerminalDevice(AbstractDevice):
 
         with SESSION_DEVICE_LOCK:
             self._raw_mode = value
-            if value:
-                native.enable_raw_mode()
-            else:
-                native.disable_raw_mode()
+            if self._is_live():
+                if value:
+                    native.enable_raw_mode()
+                else:
+                    native.disable_raw_mode()
 
     @property
     def alternate_screen(self) -> bool:
@@ -97,10 +115,11 @@ class TerminalDevice(AbstractDevice):
 
         with SESSION_DEVICE_LOCK:
             self._alternate_screen = value
-            if value:
-                native.enter_alternate_screen()
-            else:
-                native.leave_alternate_screen()
+            if self._is_live():
+                if value:
+                    native.enter_alternate_screen()
+                else:
+                    native.leave_alternate_screen()
 
     @property
     def line_wrap(self) -> bool:
@@ -112,10 +131,11 @@ class TerminalDevice(AbstractDevice):
 
         with SESSION_DEVICE_LOCK:
             self._line_wrap = value
-            if value:
-                native.enable_line_wrap()
-            else:
-                native.disable_line_wrap()
+            if self._is_live():
+                if value:
+                    native.enable_line_wrap()
+                else:
+                    native.disable_line_wrap()
 
     @property
     def mouse_capture(self) -> bool:
@@ -127,10 +147,11 @@ class TerminalDevice(AbstractDevice):
 
         with SESSION_DEVICE_LOCK:
             self._mouse_capture = value
-            if value:
-                native.enable_mouse_capture()
-            else:
-                native.disable_mouse_capture()
+            if self._is_live():
+                if value:
+                    native.enable_mouse_capture()
+                else:
+                    native.disable_mouse_capture()
 
     @property
     def bracketed_paste(self) -> bool:
@@ -142,10 +163,11 @@ class TerminalDevice(AbstractDevice):
 
         with SESSION_DEVICE_LOCK:
             self._bracketed_paste = value
-            if value:
-                native.enable_bracketed_paste()
-            else:
-                native.disable_bracketed_paste()
+            if self._is_live():
+                if value:
+                    native.enable_bracketed_paste()
+                else:
+                    native.disable_bracketed_paste()
 
     @property
     def focus_change(self) -> bool:
@@ -157,10 +179,11 @@ class TerminalDevice(AbstractDevice):
 
         with SESSION_DEVICE_LOCK:
             self._focus_change = value
-            if value:
-                native.enable_focus_change()
-            else:
-                native.disable_focus_change()
+            if self._is_live():
+                if value:
+                    native.enable_focus_change()
+                else:
+                    native.disable_focus_change()
 
     @property
     def synchronized_updates(self) -> bool:
@@ -172,43 +195,48 @@ class TerminalDevice(AbstractDevice):
 
         with SESSION_DEVICE_LOCK:
             self._synchronized_updates = value
-            if value:
-                native.begin_synchronized_update()
-            else:
-                native.end_synchronized_update()
+            if self._is_live():
+                if value:
+                    native.begin_synchronized_update()
+                else:
+                    native.end_synchronized_update()
 
     def set_title(self, title: str) -> None:
         """Set the terminal window title."""
         from xnano.core.controllers.tui import SESSION_DEVICE_LOCK
 
         with SESSION_DEVICE_LOCK:
-            native.set_terminal_title(title)
+            if self._is_live():
+                native.set_terminal_title(title)
 
     def clear(self, kind: ClearType = "all") -> None:
         """Clear the terminal display."""
         from xnano.core.controllers.tui import SESSION_DEVICE_LOCK
 
         with SESSION_DEVICE_LOCK:
-            native.clear_terminal(_NATIVE_CLEAR_TYPES[kind])
+            if self._is_live():
+                native.clear_terminal(_NATIVE_CLEAR_TYPES[kind])
 
     def scroll_up(self, n: int = 1) -> None:
         """Scroll the terminal up by ``n`` lines."""
         from xnano.core.controllers.tui import SESSION_DEVICE_LOCK
 
         with SESSION_DEVICE_LOCK:
-            native.scroll_up(n)
+            if self._is_live():
+                native.scroll_up(n)
 
     def scroll_down(self, n: int = 1) -> None:
         """Scroll the terminal down by ``n`` lines."""
         from xnano.core.controllers.tui import SESSION_DEVICE_LOCK
 
         with SESSION_DEVICE_LOCK:
-            native.scroll_down(n)
+            if self._is_live():
+                native.scroll_down(n)
 
     @property
     def title(self) -> str | None:
-        """Window title last set on this device, if any."""
-        return getattr(self, "_title", None)
+        """Window/page title last set on this device, if any."""
+        return self._title
 
     @title.setter
     def title(self, value: str | None) -> None:

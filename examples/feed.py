@@ -87,10 +87,6 @@ _METHOD_COLORS = {
 _BASE_LATENCY = {"api": 42, "cache": 4, "db": 78, "worker": 185}
 
 
-def _color_hex(c) -> str:
-    return f"#{c.r:02x}{c.g:02x}{c.b:02x}"
-
-
 # ── Simulated metrics ─────────────────────────────────────────────────────────
 
 _BASES_RPS = {"api": 280.0, "cache": 510.0, "db": 120.0, "worker": 75.0}
@@ -153,7 +149,7 @@ def _gen_event(svc: str, err_pct: float) -> tuple:
     return (time.strftime("%H:%M:%S"), method, endpoint, status, latency, svc)
 
 
-def _build_spark(history: list[float], color) -> Sparkline:
+def _build_spark(history: list[float], color: ColorLike) -> Sparkline:
     n = _HISTORY_LEN
     data = [
         int(v)
@@ -163,9 +159,7 @@ def _build_spark(history: list[float], color) -> Sparkline:
             else [0] * (n - len(history)) + history
         )
     ]
-    return Sparkline(
-        data=data, color=_color_hex(color), max_value=max(max(data), 1)
-    )
+    return Sparkline(data=data, color=color, max_value=max(max(data), 1))
 
 
 # ── Custom components ─────────────────────────────────────────────────────────
@@ -174,8 +168,8 @@ def _build_spark(history: list[float], color) -> Sparkline:
 @dataclasses.dataclass
 class ServiceGraph(AbstractComponent):
     data: list = dataclasses.field(default_factory=list)
-    fill_color: object = dataclasses.field(default=None)
-    edge_color: object = dataclasses.field(default=None)
+    fill_color: ColorLike | None = dataclasses.field(default=None)
+    edge_color: ColorLike | None = dataclasses.field(default=None)
     max_v: float = 1.0
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
@@ -194,8 +188,8 @@ class ServiceGraph(AbstractComponent):
                 shapes=[], x_bounds=(0.0, 1.0), y_bounds=(0.0, 1.0)
             )
 
-        fill_hex = _color_hex(self.fill_color or tailwind_color("sky", 800))
-        edge_hex = _color_hex(self.edge_color or tailwind_color("sky", 400))
+        fill_color = self.fill_color or tailwind_color("sky", 800)
+        edge_color = self.edge_color or tailwind_color("sky", 400)
         max_v = max(self.max_v, 1.0)
         axis_c = tailwind_color("slate", 600)
         shapes = []
@@ -204,7 +198,11 @@ class ServiceGraph(AbstractComponent):
             if v > 0.0:
                 shapes.append(
                     CanvasLine(
-                        x1=float(i), y1=0.0, x2=float(i), y2=v, color=fill_hex
+                        x1=float(i),
+                        y1=0.0,
+                        x2=float(i),
+                        y2=v,
+                        color=fill_color,
                     )
                 )
 
@@ -215,7 +213,7 @@ class ServiceGraph(AbstractComponent):
                     y1=smoothed[i - 1],
                     x2=float(i),
                     y2=smoothed[i],
-                    color=edge_hex,
+                    color=edge_color,
                 )
             )
 

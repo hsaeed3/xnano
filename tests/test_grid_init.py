@@ -203,3 +203,34 @@ def test_grid_supports_abc_mixin() -> None:
     with pytest.raises(TypeError):
         AbstractWindow()
     assert ConcreteWindow().title == "t"
+
+
+def test_grid_with_only_init_false_fields_constructs() -> None:
+    """A class whose every field is init=False must not fail to define.
+
+    Regression test: the generated __init__ used to always emit a bare
+    trailing ``*`` (``def __init__(self, *):``), which is a SyntaxError
+    when there are no required/optional names left to follow it.
+    """
+
+    class AllInitFalse(BaseGrid):
+        a: str = Field(default="leaf", init=False)
+
+    instance = AllInitFalse()
+    assert instance.a == "leaf"
+
+
+def test_nested_grids_with_only_init_false_fields_construct() -> None:
+    """Nested default_factory grids where every field is init=False."""
+
+    class NestedLeaf(BaseGrid):
+        a: str = Field(default="leaf", init=False)
+
+    class NestedInner(BaseGrid):
+        leaf: NestedLeaf = Field(default_factory=NestedLeaf, init=False)
+
+    class NestedOuter(BaseGrid):
+        inner: NestedInner = Field(default_factory=NestedInner, init=False)
+
+    outer = NestedOuter()
+    assert outer.inner.leaf.a == "leaf"

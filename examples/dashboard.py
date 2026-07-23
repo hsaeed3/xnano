@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import random
 
-from xnano.color import tailwind_color
+from xnano.color import Color, tailwind_color
 from xnano.components.sparkline import Sparkline
 from xnano.components.text import Text
 from xnano.events import on_keyboard, on_tick
@@ -30,10 +30,9 @@ _GRADIENT = [
 ]
 
 
-def _gradient_hex(i: int, total: int) -> str:
+def _gradient_color(i: int, total: int) -> Color:
     if total <= 1:
-        color = _GRADIENT[0]
-        return f"#{color.r:02x}{color.g:02x}{color.b:02x}"
+        return _GRADIENT[0]
     pos = (i / (total - 1)) * (len(_GRADIENT) - 1)
     idx = min(int(pos), len(_GRADIENT) - 2)
     t = pos - idx
@@ -41,7 +40,7 @@ def _gradient_hex(i: int, total: int) -> str:
     red = int(start.r + (end.r - start.r) * t)
     green = int(start.g + (end.g - start.g) * t)
     blue = int(start.b + (end.b - start.b) * t)
-    return f"#{red:02x}{green:02x}{blue:02x}"
+    return Color(r=red, g=green, b=blue)
 
 
 def _build_sparkline(history: list[int], width: int) -> Sparkline:
@@ -52,13 +51,13 @@ def _build_sparkline(history: list[int], width: int) -> Sparkline:
     )
     return Sparkline(
         data=data,
-        colors=tuple(_gradient_hex(i, width) for i in range(len(data))),
+        colors=tuple(_gradient_color(i, width) for i in range(len(data))),
         max_value=100,
     )
 
 
 def _build_gauge(
-    ratio: float, label: str, width: int, fill_color: str
+    ratio: float, label: str, width: int, fill_color: Color
 ) -> Text:
     filled = int(ratio * width)
     return Text(
@@ -232,13 +231,13 @@ class Dashboard(BaseGrid, direction="vertical"):
             self.memory_ratio,
             "RAM",
             gauge_width,
-            f"#{tailwind_color('sky', 400).r:02x}{tailwind_color('sky', 400).g:02x}{tailwind_color('sky', 400).b:02x}",
+            tailwind_color("sky", 400),
         )
         self.main.left.gauges.disk = _build_gauge(
             self.disk_percent / 100,
             "Disk Space",
             gauge_width,
-            f"#{tailwind_color('rose', 400).r:02x}{tailwind_color('rose', 400).g:02x}{tailwind_color('rose', 400).b:02x}",
+            tailwind_color("rose", 400),
         )
         self.main.right = _build_table(self.processes, self.selected_row)
 

@@ -12,6 +12,7 @@ import dataclasses
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 if TYPE_CHECKING:
+    from xnano._types import ScrollHandle
     from xnano.core.actions import Actions
     from xnano.core.hosts import AbstractHost
     from xnano.core.stage import Stage
@@ -42,7 +43,7 @@ class Context(Generic[StateT]):
     state: StateT
 
     @property
-    def host(self) -> "Terminal[StateT] | AbstractHost":
+    def host(self) -> "AbstractHost":
         """Active host for this context (alias of ``terminal``).
 
         Named ``host`` so code that is interface-kind-agnostic can avoid
@@ -71,33 +72,52 @@ class Context(Generic[StateT]):
         return self.state
 
     @property
-    def cursor(self) -> "TerminalCursor | None":
+    def cursor(self) -> "TerminalCursor":
         """Cursor / caret controls for the active host (show, hide, style)."""
-        return None if self.terminal is None else self.terminal.cursor
+        return self.terminal.cursor
 
     @property
-    def device(self) -> "TerminalDevice | None":
+    def device(self) -> "TerminalDevice":
         """Device controls for the active host (title, clear, size, clipboard)."""
-        return None if self.terminal is None else self.terminal.device
+        return self.terminal.device
 
     @property
-    def actions(self) -> "Actions | None":
+    def actions(self) -> "Actions":
         """Perform synthetic input and requests (``press``, ``click``, …)."""
-        if self.terminal is None:
-            return None
-        getter = getattr(self.terminal, "actions", None)
-        if getter is None:
-            return None
-        return getter if not callable(getter) else self.terminal.actions  # type: ignore[return-value]
+        return self.terminal.actions
 
     @property
-    def stage(self) -> "Stage | None":
+    def stage(self) -> "Stage":
         """Layout map and cell-level paint / wireframe for the active host."""
-        if self.terminal is None:
-            return None
-        if not hasattr(self.terminal, "stage"):
-            return None
-        return self.terminal.stage  # type: ignore[return-value]
+        return self.terminal.stage
+
+    def focus(self, group: str) -> bool:
+        """Focus the field labeled ``group``, on any attached grid.
+
+        Terminal-global — no grid reference or nesting knowledge required.
+        See ``Field(group=...)``.
+        """
+        return self.terminal.focus_group(group)
+
+    @property
+    def focused_group(self) -> str | None:
+        """``group`` of the currently focused field, or ``None``."""
+        return self.terminal.focused_group
+
+    def is_focused(self, group: str) -> bool:
+        """Return whether the field labeled ``group`` currently holds focus."""
+        return self.focused_group == group
+
+    def scroll(self, group: str) -> "ScrollHandle | None":
+        """Return a scroll handle for the ``Field(scroll=...)`` field
+        labeled ``group``, or ``None`` when no such field is attached.
+
+            ctx.scroll("transcript").to_bottom()
+            ctx.scroll("transcript").follow = True
+        """
+        from xnano._types import scroll_handle_for_group
+
+        return scroll_handle_for_group(self.terminal, group)
 
     def with_scope(self, **kwargs: Any) -> "Context[StateT]":
         """Return a shallow copy with the given fields replaced."""

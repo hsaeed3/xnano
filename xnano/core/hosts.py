@@ -11,10 +11,14 @@ from __future__ import annotations
 import abc
 import collections
 import contextvars
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from xnano.core.device import AbstractCursor, AbstractDevice
 from xnano.core.exceptions import HookError
+
+if TYPE_CHECKING:
+    from xnano.core.actions import Actions
+    from xnano.core.stage import Stage
 
 _MAX_PERFORM_DEPTH: int = 32
 """Maximum actions drained from a single ``perform`` chain.
@@ -153,7 +157,7 @@ class AbstractHost(abc.ABC):
         """Cursor / caret controls for this host (visibility and style)."""
 
     @property
-    def actions(self) -> Any:
+    def actions(self) -> "Actions":
         """Perform synthetic input and requests against this host.
 
         Returns:
@@ -166,7 +170,7 @@ class AbstractHost(abc.ABC):
         return self._actions
 
     @property
-    def stage(self) -> Any:
+    def stage(self) -> "Stage":
         """Layout map and cell-level paint / wireframe for this host.
 
         Returns:

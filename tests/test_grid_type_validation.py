@@ -247,7 +247,7 @@ def test_set_field_position_does_not_validate_value() -> None:
         "body": Area(x=0, y=0, width=4, height=2),
     }
     panel.grid_set_field("body", position=(2, 0))
-    assert panel.field_position("body")[0] == 2
+    assert panel.grid_field_position("body")[0] == 2
 
 
 def test_field_validation_error_wraps_validation_error() -> None:
