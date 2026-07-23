@@ -79,9 +79,9 @@ _BORDER_SIDES = {
 
 _ALIGNMENTS = {
     None: None,
-    "left": native.Alignment.Left,
-    "center": native.Alignment.Center,
-    "right": native.Alignment.Right,
+    "left": 0,
+    "center": 1,
+    "right": 2,
 }
 _MODIFIERS = {
     "bold": native.Modifier.BOLD,

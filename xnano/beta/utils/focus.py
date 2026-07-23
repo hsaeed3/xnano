@@ -7,7 +7,7 @@ Discover, move, and synchronize focus across beta grid fields.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from xnano.beta.types import (
     FieldFocus,
@@ -79,15 +79,39 @@ def set_field_focus(
     fire_hooks: bool = True,
 ) -> bool:
     """Set the focused field and synchronize component flags."""
-    del fire_hooks
     current = getattr(terminal, "_field_focus", None)
     if current == target:
         return False
+    if current is not None and fire_hooks:
+        _dispatch_field_focus(terminal, current, "field_lost")
     setattr(terminal, "_field_focus", target)
     sync_input_focus_flags(terminal)
     if target is not None:
         setattr(terminal, "_focused_group", target.group)
+        if fire_hooks:
+            _dispatch_field_focus(terminal, target, "field_gained")
+    else:
+        setattr(terminal, "_focused_group", None)
     return True
+
+
+def _dispatch_field_focus(
+    terminal: Any,
+    target: FieldFocus,
+    kind: Literal["field_gained", "field_lost"],
+) -> None:
+    """Dispatch one field focus transition through normal beta hooks."""
+    from xnano.beta.events import Event, FocusEventData
+
+    terminal.dispatch(
+        Event.from_data(
+            FocusEventData(
+                kind=kind,
+                field=target.field_name,
+                group=target.group,
+            )
+        )
+    )
 
 
 def clear_field_focus(terminal: Any, *, fire_hooks: bool = True) -> bool:
