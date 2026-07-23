@@ -2330,7 +2330,7 @@ wheels = [
 
 [[package]]
 name = "xnano"
-version = "1.0.17"
+version = "1.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "markdown-it-py" },
