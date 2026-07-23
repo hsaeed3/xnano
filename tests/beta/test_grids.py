@@ -60,10 +60,7 @@ def test_grid_init_preserves_keyword_only_signature() -> None:
 
     signature = inspect.signature(App.__init__)
     assert "body" in signature.parameters
-    assert (
-        signature.parameters["body"].kind
-        is inspect.Parameter.KEYWORD_ONLY
-    )
+    assert signature.parameters["body"].kind is inspect.Parameter.KEYWORD_ONLY
 
 
 def test_on_state_expression_fires_via_safe_evaluator() -> None:

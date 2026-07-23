@@ -114,8 +114,24 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
             ):
                 focus = event.focus_event
                 expected = getattr(function, hooks.ON_FOCUS_KIND_ATTR, None)
-                if focus is not None and (
-                    expected is None or focus.kind == expected
+                expected_field = getattr(
+                    function, hooks.ON_FOCUS_FIELD_ATTR, None
+                )
+                expected_group = getattr(
+                    function, hooks.ON_FOCUS_GROUP_ATTR, None
+                )
+                if (
+                    focus is not None
+                    and (
+                        expected is None
+                        or focus.kind.removeprefix("field_") == expected
+                    )
+                    and (
+                        expected_field is None or focus.field == expected_field
+                    )
+                    and (
+                        expected_group is None or focus.group == expected_group
+                    )
                 ):
                     invoke_hook(handler, grid, context)
             if event.is_tick_event() and getattr(
@@ -123,7 +139,12 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
                 hooks.ON_TICK_HOOK_ATTR,
                 False,
             ):
-                invoke_hook(handler, grid, context)
+                interval = getattr(function, hooks.ON_TICK_INTERVAL_ATTR, 0)
+                key = (id(grid), getattr(function, "__name__", ""))
+                last = runtime._tick_hook_times.get(key, 0)
+                if interval <= 0 or runtime._elapsed_ms - last >= interval:
+                    runtime._tick_hook_times[key] = runtime._elapsed_ms
+                    invoke_hook(handler, grid, context)
 
 
 def dispatch_idle(root: Any, runtime: Any) -> None:
