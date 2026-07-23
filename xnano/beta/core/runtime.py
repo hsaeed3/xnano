@@ -19,6 +19,7 @@ from xnano.beta.colors import ColorLike
 from xnano.beta.core.content import Panel, Stack, TextBlock
 from xnano.beta.core.frame import Frame
 from xnano.beta.core.rendering import lower_content
+from xnano.beta.core.stage import Stage
 from xnano.beta.cursor import Cursor
 from xnano.beta.device import Device
 from xnano.beta.events import event_from_core
@@ -123,6 +124,9 @@ class Runtime(Generic[StateT]):
         self._focused_group: str | None = None
         self._token: contextvars.Token[Runtime[Any] | None] | None = None
         self._frame_commands: list[dict[str, Any]] = []
+        self._stage = Stage()
+        self._elapsed_ms = 0
+        self._tick_hook_times: dict[tuple[int, str], int] = {}
         self._signals_installed = False
         self._prev_signal_handlers: dict[signal.Signals, Any] = {}
         self._cursor = Cursor(self)
@@ -290,7 +294,7 @@ class Runtime(Generic[StateT]):
     @property
     def stage(self) -> Any:
         """Current layout stage when a grid has rendered."""
-        return getattr(self._root, "stage", None)
+        return self._stage
 
     @property
     def size(self) -> tuple[int, int]:
@@ -353,6 +357,21 @@ class Runtime(Generic[StateT]):
 
             ensure_default_field_focus(self)
             dispatch_frame(self._root, self)
+        if len(items) == 1 and isinstance(
+            getattr(type(items[0]), "_grid_fields", None), dict
+        ):
+            from xnano.beta.core.controller import TerminalController
+            from xnano.beta.types import Area
+
+            self._stage.areas.clear()
+            controller = TerminalController(self)
+            items[0]._grid_build_frame(
+                Area(x=0, y=0, width=self.size[0], height=self.size[1]),
+                controller,
+            )
+            controller.paint_stage()
+            controller.commit()
+            return self._snapshot_frame()
         styled_items = tuple(
             TextBlock(
                 text=item,
@@ -396,6 +415,10 @@ class Runtime(Generic[StateT]):
             )
         node = lower_content(content)
         self._session.render(node)
+        return self._snapshot_frame()
+
+    def _snapshot_frame(self) -> Frame:
+        """Return the rendered native buffer as one public frame."""
         self._revision += 1
         buffer = self._session.buffer_snapshot()
         text = "\n".join(buffer.to_string_lines())
@@ -438,8 +461,31 @@ class Runtime(Generic[StateT]):
         )
 
         consumed = False
+        mouse = getattr(event, "mouse_event", None)
+        if mouse is not None and mouse.field is None:
+            from xnano.beta.core.dispatch import iter_grids
+            from xnano.beta.events import Event, MouseEventData
+
+            for grid in iter_grids(self._root):
+                for hit in reversed(getattr(grid, "_grid_field_hits", ())):
+                    if hit.area.contains((mouse.x, mouse.y)):
+                        field = hit.grid._grid_field_info(hit.field_name)
+                        event = Event.from_data(
+                            MouseEventData(
+                                kind=mouse.kind,
+                                x=mouse.x,
+                                y=mouse.y,
+                                button=mouse.button,
+                                field=hit.field_name,
+                                group=field.group,
+                            )
+                        )
+                        break
         keyboard = getattr(event, "keyboard_event", None)
         if keyboard is not None:
+            if keyboard.matches("ctrl+c"):
+                self.request_exit()
+                return
             if keyboard.matches("tab"):
                 consumed = cycle_field_focus(self)
             elif keyboard.matches("shift+tab"):
@@ -450,6 +496,9 @@ class Runtime(Generic[StateT]):
                     keyboard,
                 )
         clipboard = getattr(event, "clipboard_event", None)
+        tick = getattr(event, "tick_event", None)
+        if tick is not None:
+            self._elapsed_ms += tick.elapsed_ms
         component = focused_component(self)
         if clipboard is not None and component is not None:
             paste_handler = getattr(component, "handle_paste", None)

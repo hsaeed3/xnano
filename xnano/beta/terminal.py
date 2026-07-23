@@ -262,7 +262,7 @@ class Terminal(Generic[StateT]):
         if renderables:
             runtime.set_root(renderables[0] if len(renderables) == 1 else None)
         try:
-            while runtime.pump():
+            while True:
                 runtime.render(
                     *renderables,
                     color=color,
@@ -278,6 +278,8 @@ class Terminal(Generic[StateT]):
                     gap=gap,
                     direction=direction,
                 )
+                if not runtime.pump():
+                    break
         finally:
             self.close()
 

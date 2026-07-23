@@ -1570,6 +1570,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
 
         self._grid_last_parent_area = area
         self._grid_last_slot_areas = {}
+        self._grid_field_hits = []
 
         fields = self._grid_fields
 

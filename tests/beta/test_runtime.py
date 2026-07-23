@@ -27,6 +27,93 @@ def test_offscreen_runtime_render_text() -> None:
         runtime.close()
 
 
+def test_runtime_uses_complete_grid_rendering_and_default_exit() -> None:
+    from xnano.beta.actions import Action
+    from xnano.beta.fields import Field
+    from xnano.beta.grids import BaseGrid
+
+    class App(BaseGrid):
+        name: str = Field(default="John Doe", border="rounded")
+
+        def grid_render(self) -> None:
+            self.name = "Jane Doe"
+
+    runtime = Runtime.offscreen(20, 4)
+    try:
+        app = App()
+        runtime.set_root(app)
+        frame = runtime.render()
+        assert "╭──────────────────╮" in frame.text
+        assert "│Jane Doe" in frame.text
+        assert runtime.stage.get_area("name") is not None
+        runtime.perform(Action.keyboard("ctrl+c"))
+        assert runtime.pump() is False
+    finally:
+        runtime.close()
+
+
+def test_runtime_resolves_mouse_field_for_click_hooks() -> None:
+    from xnano.beta import hooks
+    from xnano.beta.actions import Action
+    from xnano.beta.fields import Field
+    from xnano.beta.grids import BaseGrid
+
+    class App(BaseGrid):
+        button: str = Field(default="Click", group="action")
+        clicked: bool = Field(default=False, state=True)
+
+        @hooks.on_click("button")
+        def click(self) -> None:
+            self.clicked = True
+
+    runtime = Runtime.offscreen(20, 4)
+    try:
+        app = App()
+        runtime.set_root(app)
+        runtime.render()
+        runtime.perform(Action.mouse("left", kind="press"))
+        assert app.clicked is True
+    finally:
+        runtime.close()
+
+
+def test_runtime_honors_focus_filters_and_tick_intervals() -> None:
+    from xnano.beta import hooks
+    from xnano.beta.actions import Action
+    from xnano.beta.components.input import Input
+    from xnano.beta.fields import Field
+    from xnano.beta.grids import BaseGrid
+
+    class App(BaseGrid):
+        name: Input = Field(default_factory=Input, group="name")
+        focus_count: int = Field(default=0, state=True)
+        tick_count: int = Field(default=0, state=True)
+
+        @hooks.on_focus(group="name", kind="gained")
+        def focused(self) -> None:
+            self.focus_count += 1
+
+        @hooks.on_tick(100)
+        def ticked(self) -> None:
+            self.tick_count += 1
+
+    runtime = Runtime.offscreen(20, 4)
+    try:
+        app = App()
+        runtime.set_root(app)
+        runtime.render()
+        runtime.blur()
+        runtime.focus("name")
+        assert app.focus_count == 1
+        runtime.perform(Action.tick(50))
+        runtime.perform(Action.tick(49))
+        assert app.tick_count == 0
+        runtime.perform(Action.tick(1))
+        assert app.tick_count == 1
+    finally:
+        runtime.close()
+
+
 def test_runtime_focus_api() -> None:
     from xnano.beta.components.text import Text
     from xnano.beta.fields import Field
