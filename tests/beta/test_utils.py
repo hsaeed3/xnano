@@ -135,6 +135,43 @@ def test_compiled_expression_caches_bad_source_as_none() -> None:
     assert introspection.get_compiled_state_expression("a ==") is None
 
 
+def test_evaluate_state_expression_supports_common_forms() -> None:
+    class Model:
+        def __init__(self) -> None:
+            self.count = 5
+            self.loading = True
+            self.config = {"name": "john"}
+            self.items = [1, 2, 3]
+
+    ev = introspection.evaluate_state_expression
+    model = Model()
+    assert ev("count >= 5 and count <= 10", model) is True
+    assert ev("count > 9 or loading", model) is True
+    assert ev("not loading", model) is False
+    assert ev("config['name'] == 'john'", model) is True
+    assert ev("len(items) == 3", model) is True
+    assert ev("count + 1 == 6", model) is True
+    assert ev("items[0] == 1", model) is True
+
+
+def test_evaluate_state_expression_refuses_code_execution() -> None:
+    """The evaluator never executes code: dunder access and any call
+    outside the safe-builtin whitelist evaluate to ``False`` rather than
+    reaching the interpreter."""
+
+    class Model:
+        def __init__(self) -> None:
+            self.value = 1
+
+    ev = introspection.evaluate_state_expression
+    model = Model()
+    # Attribute access to dunder names is refused.
+    assert ev("state.__class__.__name__ == 'Model'", model) is False
+    # Calls to anything not in the safe-builtin whitelist are refused.
+    assert ev("open('x')", model) is False
+    assert ev("__import__('os')", model) is False
+
+
 # ── dispatch ────────────────────────────────────────────────────────────
 
 # A stand-in context; hooks under test never read it.

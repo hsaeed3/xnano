@@ -10,6 +10,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 import json
+import urllib.parse
 from typing import (
     Any,
     Callable,
@@ -20,7 +21,6 @@ from typing import (
     TypeAlias,
     TypedDict,
 )
-from urllib.parse import parse_qs
 
 EventHookFunction: TypeAlias = Callable[..., Any]
 
@@ -376,7 +376,7 @@ class Request:
         if len(body) > max_body:
             raise ValueError(f"Request body exceeds limit of {max_body} bytes")
         cleaned = _normalize_request_path(path)
-        parsed = parse_qs(query_string, keep_blank_values=True)
+        parsed = urllib.parse.parse_qs(query_string, keep_blank_values=True)
         query = {key: tuple(values) for key, values in parsed.items()}
         header_map = {
             str(key).lower(): str(value)

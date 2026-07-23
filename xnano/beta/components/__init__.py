@@ -178,7 +178,9 @@ def __getattr__(name: str) -> Any:
         from xnano.beta.components.text import Text
 
         return Text
-    raise AttributeError(f"module 'xnano.beta.components' has no attribute {name!r}")
+    raise AttributeError(
+        f"module 'xnano.beta.components' has no attribute {name!r}"
+    )
 
 
 def __dir__() -> list[str]:

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import xnano_core.rust.native as native
 from xnano_core import core
-from xnano_core.rust import native
 
 from xnano.beta.colors import get_native_color
 from xnano.beta.core.content import (

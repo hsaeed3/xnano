@@ -162,7 +162,13 @@ class _NativeWebHandler(_RequestHandler):
                 raise ValueError
             data = json.loads(self.rfile.read(length))
             event = _browser_event(data)
-        except (AttributeError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        except (
+            AttributeError,
+            KeyError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+        ):
             self.send_error(400, "Invalid browser event")
             return
         self.server.runtime.dispatch(event)

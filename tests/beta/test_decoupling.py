@@ -11,7 +11,6 @@ from xnano.beta.core.runtime import Runtime
 from xnano.beta.fields import Field
 from xnano.beta.grids import BaseGrid
 
-
 # The feature showcase deliberately reuses the stable ``xnano._demo``
 # rather than maintaining a parallel copy; every other beta module stays
 # fully decoupled from stable ``xnano``.

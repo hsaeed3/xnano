@@ -6,8 +6,8 @@ import signal
 
 from xnano.beta.core import Frame, Runtime
 from xnano.beta.core.runtime import (
-    _EXIT_SIGNALS,
     _ACTIVE_RUNTIME,
+    _EXIT_SIGNALS,
     _atexit_restore_active_runtime,
 )
 
@@ -58,7 +58,9 @@ def test_keyboard_action_edits_focused_input() -> None:
     from xnano.beta.grids import BaseGrid
 
     class Form(BaseGrid):
-        name: Input = Field(default_factory=Input, group="name", autofocus=True)
+        name: Input = Field(
+            default_factory=Input, group="name", autofocus=True
+        )
 
     runtime = Runtime.offscreen(30, 4)
     try:

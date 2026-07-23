@@ -730,7 +730,7 @@ class MarkdownViewport(Markdown):
     def compose(self, ctx: "ComponentRenderContext[Any]") -> Any:
         """Compose the blocks currently inside the viewport."""
         import xnano_core.core as core
-        from xnano_core.rust import native
+        import xnano_core.rust.native as native
 
         from xnano.beta.core.content import Native
         from xnano.beta.core.rendering import lower_content

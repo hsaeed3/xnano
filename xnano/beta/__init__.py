@@ -8,12 +8,14 @@ hooks, actions, and runtimes.
 
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError, version
+import importlib.metadata
 from typing import TYPE_CHECKING, Any
 
 try:
-    __version__ = version("xnano")
-except PackageNotFoundError:  # pragma: no cover - editable / source trees
+    __version__ = importlib.metadata.version("xnano")
+except (
+    importlib.metadata.PackageNotFoundError
+):  # pragma: no cover - editable / source trees
     __version__ = "1.1.1"
 
 if TYPE_CHECKING:

@@ -181,7 +181,7 @@ class Loader(Component):
         if isinstance(label, str):
             return label
         plain = getattr(label, "plain", None)
-        if callable(plain):
+        if plain is not None and callable(plain):
             return str(plain())
         content = getattr(label, "content", None)
         if content is not None:

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
-from xnano_core.rust import native
+import xnano_core.rust.native as native
 
 from xnano.beta.types import Size
 

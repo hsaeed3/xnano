@@ -528,11 +528,30 @@ def _layout_constraint_for_field(
     return _GridLayoutConstraint("fill", 1)
 
 
+class _FactoryDefault:
+    """Signature placeholder shown for a field with a default factory."""
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "<factory>"
+
+
+_FACTORY_DEFAULT = _FactoryDefault()
+
+
 def _build_grid_init(
     all_fields: dict[str, GridFieldInfo],
     defaults: dict[str, Any],
 ) -> Callable[..., None]:
-    _MISSING = object()
+    """Build a keyword-only ``__init__`` for a grid class.
+
+    A plain closure over the field metadata rather than generated source:
+    grid fields are keyword-only, so ``**kwargs`` matches the call
+    contract exactly, and an explicit ``__signature__`` preserves
+    introspection (``inspect.signature``, editors, help output) without
+    running ``exec``.
+    """
     factory_names = {
         name
         for name, field in all_fields.items()
@@ -551,42 +570,59 @@ def _build_grid_init(
         else:
             required.append(name)
 
-    params = ["self"]
-    if required or optional:
-        params.append("*")
-        params.extend(required)
+    accepted = frozenset(required) | frozenset(optional)
+
+    def __init__(self: Any, **kwargs: Any) -> None:
+        for name in kwargs:
+            if name not in accepted:
+                raise TypeError(
+                    f"{type(self).__name__}() got an unexpected keyword "
+                    f"argument {name!r}"
+                )
+        for name in required:
+            if name not in kwargs:
+                raise TypeError(
+                    f"{type(self).__name__}() missing required keyword-only "
+                    f"argument {name!r}"
+                )
+            setattr(self, name, kwargs[name])
         for name in optional:
-            if name in factory_names:
-                params.append(f"{name}=__missing__")
+            if name in kwargs:
+                setattr(self, name, kwargs[name])
+            elif name in factory_names:
+                setattr(self, name, defaults[name]())
             else:
-                params.append(f"{name}=__defaults__['{name}']")
+                setattr(self, name, defaults[name])
+        for name in no_init:
+            if name in factory_names:
+                setattr(self, name, defaults[name]())
+            elif name in defaults:
+                setattr(self, name, defaults[name])
+            else:
+                setattr(self, name, None)
+        self._init_field_states()
+        self._grid_validate_init()
+        self.__post_init__()
 
-    lines = [f"def __init__({', '.join(params)}):"]
-    for name in required + optional:
-        if name in factory_names:
-            lines.append(
-                f"    self.{name} = __defaults__['{name}']() "
-                f"if {name} is __missing__ else {name}"
+    parameters = [
+        inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    for name in required:
+        parameters.append(
+            inspect.Parameter(name, inspect.Parameter.KEYWORD_ONLY)
+        )
+    for name in optional:
+        default = _FACTORY_DEFAULT if name in factory_names else defaults[name]
+        parameters.append(
+            inspect.Parameter(
+                name, inspect.Parameter.KEYWORD_ONLY, default=default
             )
-        else:
-            lines.append(f"    self.{name} = {name}")
-    for name in no_init:
-        if name in factory_names:
-            lines.append(f"    self.{name} = __defaults__['{name}']()")
-        elif name in defaults:
-            lines.append(f"    self.{name} = __defaults__['{name}']")
-        else:
-            lines.append(f"    self.{name} = None")
-    lines.append("    self._init_field_states()")
-    lines.append("    self._grid_validate_init()")
-    lines.append("    self.__post_init__()")
-
-    globs: dict[str, Any] = {
-        "__defaults__": defaults,
-        "__missing__": _MISSING,
-    }
-    exec("\n".join(lines), globs)  # noqa: S102
-    return globs["__init__"]
+        )
+    # ``setattr`` (rather than a direct attribute assignment) keeps the
+    # type checker happy about stamping ``__signature__`` onto a plain
+    # function; ``inspect.signature`` reads it back either way.
+    setattr(__init__, "__signature__", inspect.Signature(parameters))
+    return __init__
 
 
 def _collect_field_mouse_handlers(

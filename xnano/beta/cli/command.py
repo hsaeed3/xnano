@@ -260,7 +260,17 @@ class Command:
                     hidden = False
                     metavar = None
                 else:
-                    assert metadata_option is not None
+                    if metadata_option is None:
+                        # Unreachable: this arm is entered only when
+                        # ``explicit`` is None, and the enclosing branch
+                        # requires ``metadata_option`` or ``explicit`` to be
+                        # set. Guard explicitly (not ``assert``, which is
+                        # stripped under ``python -O``) so the invariant
+                        # still holds in optimized builds.
+                        raise RuntimeError(
+                            "internal error: no option metadata resolved "
+                            f"for parameter {name!r}"
+                        )
                     flags = list(metadata_option.flags) or [
                         "--" + name.replace("_", "-")
                     ]
@@ -366,7 +376,13 @@ class Command:
             if parameter.choices is not None:
                 kwargs["choices"] = list(parameter.choices)
             if parameter.is_option:
-                assert parameter.flags is not None
+                if parameter.flags is None:
+                    # An option always carries flags; guard explicitly
+                    # rather than with ``assert`` (stripped under -O).
+                    raise RuntimeError(
+                        "internal error: option "
+                        f"{parameter.parameter_name!r} has no flags"
+                    )
                 if parameter.is_flag:
                     # default-True flags get --no-* style via store_false
                     if parameter.default is True:

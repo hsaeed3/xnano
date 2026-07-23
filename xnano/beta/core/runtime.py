@@ -37,8 +37,7 @@ StateT = TypeVar("StateT")
 _EXIT_SIGNALS: tuple[signal.Signals, ...] = tuple(
     resolved
     for resolved in (
-        getattr(signal, name, None)
-        for name in ("SIGINT", "SIGTERM", "SIGHUP")
+        getattr(signal, name, None) for name in ("SIGINT", "SIGTERM", "SIGHUP")
     )
     if resolved is not None
 )
@@ -453,14 +452,16 @@ class Runtime(Generic[StateT]):
         clipboard = getattr(event, "clipboard_event", None)
         component = focused_component(self)
         if clipboard is not None and component is not None:
-            handler = getattr(component, "handle_paste", None)
-            if callable(handler):
-                consumed = bool(handler(clipboard.text or "")) or consumed
+            paste_handler = getattr(component, "handle_paste", None)
+            if callable(paste_handler):
+                consumed = (
+                    bool(paste_handler(clipboard.text or "")) or consumed
+                )
         if self._root is not None and not consumed:
             dispatch_event(self._root, self, event)
-        handler = getattr(self._root, "dispatch_event", None)
-        if callable(handler):
-            handler(event, self)
+        root_dispatch = getattr(self._root, "dispatch_event", None)
+        if callable(root_dispatch):
+            root_dispatch(event, self)
 
     def play_effect(
         self,

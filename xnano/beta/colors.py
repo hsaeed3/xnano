@@ -933,7 +933,7 @@ def get_native_color(color: ColorLike | None) -> Any:
     """
     if color is None:
         return None
-    from xnano_core.rust import native
+    import xnano_core.rust.native as native
 
     parsed = Color.parse(color)
     return native.Color.rgb(parsed.r, parsed.g, parsed.b)

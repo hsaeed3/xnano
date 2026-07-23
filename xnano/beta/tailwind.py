@@ -173,6 +173,33 @@ def _color_from_class(token: str, prefix: str) -> str | None:
     return value if value else None
 
 
+# Exact-match utility class tables. Keeping the class names as data keys
+# (rather than inline string comparisons) keeps the resolver declarative
+# and its return types precise.
+_TEXT_ALIGNMENTS: frozenset[str] = frozenset({"left", "right", "center"})
+_TEXT_MODIFIER_SUFFIXES: dict[str, CharacterModifier] = {
+    "bold": "bold",
+    "italic": "italic",
+}
+_MODIFIER_CLASSES: dict[str, CharacterModifier] = {
+    "font-bold": "bold",
+    "italic": "italic",
+    "underline": "underline",
+    "opacity-50": "dim",
+}
+_DIRECTION_CLASSES: dict[str, Direction] = {
+    "flex": "horizontal",
+    "flex-row": "horizontal",
+    "flex-col": "vertical",
+}
+_BORDER_SIDE_CLASSES: dict[str, Side] = {
+    "border-t": "top",
+    "border-r": "right",
+    "border-b": "bottom",
+    "border-l": "left",
+}
+
+
 def resolve_tailwind_classes(class_name: str | Sequence[str]) -> Style:
     """Resolve supported utilities and preserve unknown classes for web."""
     tokens = normalize_tailwind_classes(class_name)
@@ -186,23 +213,18 @@ def resolve_tailwind_classes(class_name: str | Sequence[str]) -> Style:
     for token in tokens:
         if token.startswith("text-"):
             suffix = token[5:]
-            if suffix in ("left", "right", "center"):
+            if suffix in _TEXT_ALIGNMENTS:
                 values["align"] = suffix
-            elif suffix in ("bold", "italic"):
-                modifiers.append(suffix)  # ty: ignore[invalid-argument-type]
+            elif suffix in _TEXT_MODIFIER_SUFFIXES:
+                modifiers.append(_TEXT_MODIFIER_SUFFIXES[suffix])
             else:
                 values["color"] = suffix
         elif token.startswith("bg-"):
             values["background"] = token[3:]
-        elif token in ("font-bold", "italic", "underline"):
-            modifier = "bold" if token == "font-bold" else token
-            modifiers.append(modifier)  # ty: ignore[invalid-argument-type]
-        elif token == "opacity-50":
-            modifiers.append("dim")
-        elif token in ("flex", "flex-row"):
-            values["direction"] = "horizontal"
-        elif token == "flex-col":
-            values["direction"] = "vertical"
+        elif token in _MODIFIER_CLASSES:
+            modifiers.append(_MODIFIER_CLASSES[token])
+        elif token in _DIRECTION_CLASSES:
+            values["direction"] = _DIRECTION_CLASSES[token]
         elif token.startswith("gap-"):
             values["gap"] = _spacing_cells(token[4:], vertical=False)
         elif token.startswith(
@@ -223,14 +245,8 @@ def resolve_tailwind_classes(class_name: str | Sequence[str]) -> Style:
             values["border"] = (
                 "rounded" if token.startswith("rounded") else "plain"
             )
-        elif token in ("border-t", "border-r", "border-b", "border-l"):
-            side = {
-                "border-t": "top",
-                "border-r": "right",
-                "border-b": "bottom",
-                "border-l": "left",
-            }[token]
-            border_sides.append(side)  # ty: ignore[invalid-argument-type]
+        elif token in _BORDER_SIDE_CLASSES:
+            border_sides.append(_BORDER_SIDE_CLASSES[token])
         elif (color := _color_from_class(token, "border-")) is not None:
             values["border_color"] = color
         elif token.startswith("cursor-"):

@@ -12,6 +12,7 @@ from typing import Any, Iterator
 from xnano.beta import hooks
 from xnano.beta.context import Context
 from xnano.beta.utils.dispatch import invoke_hook
+from xnano.beta.utils.introspection import evaluate_state_expression
 
 
 def iter_grids(root: Any) -> Iterator[Any]:
@@ -50,9 +51,8 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
             function = getattr(handler, "__func__", handler)
             if getattr(function, hooks.ON_EVENT_HOOK_ATTR, False):
                 invoke_hook(handler, grid, context)
-            if (
-                event.is_keyboard_event()
-                and getattr(function, hooks.ON_KEYBOARD_HOOK_ATTR, False)
+            if event.is_keyboard_event() and getattr(
+                function, hooks.ON_KEYBOARD_HOOK_ATTR, False
             ):
                 bindings, kind = getattr(
                     function,
@@ -65,9 +65,8 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
                     and (not bindings or keyboard.matches(*bindings))
                 ):
                     invoke_hook(handler, grid, context)
-            if (
-                event.is_mouse_event()
-                and getattr(function, hooks.ON_MOUSE_HOOK_ATTR, False)
+            if event.is_mouse_event() and getattr(
+                function, hooks.ON_MOUSE_HOOK_ATTR, False
             ):
                 buttons, kind = getattr(
                     function,
@@ -89,12 +88,10 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
                     (kind is None or mouse.kind == kind)
                     and (not buttons or mouse.button in buttons)
                     and (
-                        expected_field is None
-                        or mouse.field == expected_field
+                        expected_field is None or mouse.field == expected_field
                     )
                     and (
-                        expected_group is None
-                        or mouse.group == expected_group
+                        expected_group is None or mouse.group == expected_group
                     )
                 ):
                     invoke_hook(handler, grid, context)
@@ -160,26 +157,19 @@ def dispatch_frame(root: Any, runtime: Any) -> None:
                 hooks.ON_STATE_EXPRESSION_ATTR,
                 None,
             )
-            if state_expression is not None and runtime.state is not None:
-                if bool(
-                    eval(  # noqa: S307
-                        state_expression,
-                        {"__builtins__": {}},
-                        vars(runtime.state),
-                    )
-                ):
-                    invoke_hook(handler, grid, context)
+            if (
+                state_expression is not None
+                and runtime.state is not None
+                and evaluate_state_expression(state_expression, runtime.state)
+            ):
+                invoke_hook(handler, grid, context)
             field_expression = getattr(
                 function,
                 hooks.ON_FIELD_EXPRESSION_ATTR,
                 None,
             )
-            if field_expression is not None and bool(
-                eval(  # noqa: S307
-                    field_expression,
-                    {"__builtins__": {}},
-                    vars(grid),
-                )
+            if field_expression is not None and evaluate_state_expression(
+                field_expression, grid
             ):
                 invoke_hook(handler, grid, context)
 

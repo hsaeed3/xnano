@@ -19,7 +19,6 @@ __all__ = (
     "Argument",
     "CliError",
     "Command",
-    "Help",
     "HelpException",
     "Option",
     "render_help",
@@ -39,12 +38,10 @@ def __getattr__(name: str) -> Any:
         from xnano.beta.cli.errors import CliError
 
         return CliError
-    if name in {"Help", "render_help"}:
+    if name == "render_help":
         from xnano.beta.cli import help as _help
 
-        if name == "Help":
-            return _help.render_help
-        return getattr(_help, name)
+        return _help.render_help
     raise AttributeError(f"module 'xnano.beta.cli' has no attribute {name!r}")
 
 
