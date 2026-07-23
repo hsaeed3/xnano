@@ -8,12 +8,13 @@ Render beta applications offscreen and expose their cell frames to browsers.
 from __future__ import annotations
 
 import html
+import http.server
 import json
 import urllib.parse
 from typing import Any, Callable
 
 from xnano.beta.core.runtime import Runtime
-from xnano.beta.server.requests import RequestServer, _RequestHandler
+from xnano.beta.server.requests import _RequestHandler
 
 _CLIENT_HTML = """<!doctype html>
 <meta charset="utf-8">
@@ -61,7 +62,7 @@ paint(); setInterval(paint,50);
 </script>"""
 
 
-class NativeWebServer(RequestServer):
+class NativeWebServer(http.server.HTTPServer):
     """Serve one application from an owned offscreen runtime.
 
     Attributes:
@@ -78,7 +79,7 @@ class NativeWebServer(RequestServer):
         >>> server.server_close()
     """
 
-    runtime: Runtime[Any]
+    runtime: Runtime[Any] | None
 
     def __init__(
         self,
@@ -93,19 +94,39 @@ class NativeWebServer(RequestServer):
         self.factory = factory
         self.root = factory()
         self.title = title
-        self.runtime = Runtime.offscreen(
-            width,
-            height,
-            state=state,
-            title=title,
-        )
-        self.runtime.set_root(self.root)
-        super().__init__(address, self.root, runtime=self.runtime)
-        self.RequestHandlerClass = _NativeWebHandler
+        self.grid = self.root
+        self.runtime = None
+        self._state = state
+        self._width = width
+        self._height = height
+        super().__init__(address, _NativeWebHandler)
+
+    def _ensure_runtime(self) -> Runtime[Any]:
+        """Create the unsendable native session on the serving thread."""
+        if self.runtime is None:
+            self.runtime = Runtime.offscreen(
+                self._width,
+                self._height,
+                state=self._state,
+                title=self.title,
+            )
+            self.runtime.set_root(self.root)
+        return self.runtime
+
+    def serve_forever(self, poll_interval: float = 0.5) -> None:
+        """Serve requests and release the runtime on its owner thread."""
+        try:
+            super().serve_forever(poll_interval)
+        finally:
+            if self.runtime is not None:
+                self.runtime.close()
+                self.runtime = None
 
     def server_close(self) -> None:
         """Close both the HTTP listener and offscreen runtime."""
-        self.runtime.close()
+        if self.runtime is not None:
+            self.runtime.close()
+            self.runtime = None
         super().server_close()
 
 
@@ -130,7 +151,7 @@ class _NativeWebHandler(_RequestHandler):
             self.wfile.write(payload)
             return
         if parsed.path == "/xnano/frame":
-            frame = self.server.runtime.render()
+            frame = self.server._ensure_runtime().render()
             payload = json.dumps(
                 {
                     "text": frame.text,
@@ -148,12 +169,14 @@ class _NativeWebHandler(_RequestHandler):
             self.end_headers()
             self.wfile.write(payload)
             return
+        self.server._ensure_runtime()
         self._dispatch_request()
 
     def do_POST(self) -> None:
         """Dispatch browser input or a declared POST route."""
         parsed = urllib.parse.urlsplit(self.path)
         if parsed.path != "/xnano/event":
+            self.server._ensure_runtime()
             self._dispatch_request()
             return
         try:
@@ -171,7 +194,7 @@ class _NativeWebHandler(_RequestHandler):
         ):
             self.send_error(400, "Invalid browser event")
             return
-        self.server.runtime.dispatch(event)
+        self.server._ensure_runtime().dispatch(event)
         self.send_response(204)
         self.end_headers()
 

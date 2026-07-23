@@ -7,7 +7,7 @@ Paint beta grids through their complete layout pipeline.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import collections.abc
 from typing import Any
 
 import xnano_core.rust.native as native
@@ -99,7 +99,7 @@ class TerminalController:
         area: Area,
         direction: str,
         gap: int,
-        constraints: Sequence[Any],
+        constraints: collections.abc.Sequence[Any],
     ) -> list[Area]:
         lowered = []
         for constraint in constraints:
@@ -145,7 +145,9 @@ class TerminalController:
             return 0
         if isinstance(value, str):
             lines = value.splitlines() or [""]
-            return len(lines) if direction == "vertical" else max(map(len, lines))
+            return (
+                len(lines) if direction == "vertical" else max(map(len, lines))
+            )
         get_size = getattr(value, "get_size", None)
         if callable(get_size):
             from xnano.beta.components.component import ComponentRenderContext
@@ -172,7 +174,9 @@ class TerminalController:
         owner: Any = None,
         owner_field_name: str | None = None,
     ) -> None:
-        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        if isinstance(value, collections.abc.Sequence) and not isinstance(
+            value, (str, bytes)
+        ):
             direction = field.direction or "vertical"
             gap = field.gap or 0
             constraints = [
