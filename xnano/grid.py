@@ -182,6 +182,7 @@ _GRID_FIELD_CONFIG_KEYS: frozenset[str] = frozenset(
         "strict",
         "slide",
         "visible",
+        "wireframe",
         "color",
         "background",
         "width",
@@ -612,13 +613,15 @@ def _build_grid_init(
         else:
             required.append(name)
 
-    params = ["self", "*"]
-    params.extend(required)
-    for name in optional:
-        if name in factory_names:
-            params.append(f"{name}=__missing__")
-        else:
-            params.append(f"{name}=__defaults__['{name}']")
+    params = ["self"]
+    if required or optional:
+        params.append("*")
+        params.extend(required)
+        for name in optional:
+            if name in factory_names:
+                params.append(f"{name}=__missing__")
+            else:
+                params.append(f"{name}=__defaults__['{name}']")
 
     lines = [f"def __init__({', '.join(params)}):"]
     for name in required + optional:
@@ -984,6 +987,24 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     def __post_init__(self) -> None:
         """Called at the end of the generated ``__init__``. Override to run post-construction logic."""
 
+    def grid_post_init(self) -> None:
+        """Called exactly once, when this grid is first attached to a live
+        terminal — after its own hooks are bound, before its first paint.
+
+        Unlike ``__post_init__`` (construction time, no terminal attached
+        yet), ``ctx``/``ctx.state`` are live here. Override with either
+        signature — the extra parameter is optional, matching every other
+        ``@on_*`` hook, dispatched by arity at runtime (see ``_call_hook``):
+
+            def grid_post_init(self) -> None: ...
+            def grid_post_init(self, ctx: Context[MyState]) -> None: ...
+
+        A static type checker sees the one-parameter form as an invalid
+        override (this base declares zero); that's a known false positive
+        for this flexible-arity hook pattern — add
+        ``# ty: ignore[invalid-method-override]`` on the override line.
+        """
+
     @property
     def focused(self) -> bool:
         """Whether any of this grid's fields currently holds field focus.
@@ -1192,7 +1213,8 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         if type(self)._grid_field_handlers:
             return True
         for field_name in self._grid_fields:
-            if self._grid_field_info(field_name).slide:
+            info = self._grid_field_info(field_name)
+            if info.slide or info.group or info.scroll:
                 return True
             value = getattr(self, field_name, None)
             if (
@@ -1230,20 +1252,119 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         self.__dict__.setdefault("_grid_field_positions", {})[name] = clamped
         return clamped
 
-    def field_position(self, name: str) -> tuple[int, int]:
+    def grid_field_position(self, name: str) -> tuple[int, int]:
         """Return the parent-relative slide offset for a layout field."""
         return self._grid_field_position(name)
+
+    def _grid_field_scroll_offset(self, name: str) -> int:
+        offsets = getattr(self, "_grid_field_scroll_offsets", None)
+        if offsets and name in offsets:
+            return offsets[name]
+        return 0
+
+    def _grid_set_field_scroll_offset(self, name: str, offset: int) -> None:
+        self.__dict__.setdefault("_grid_field_scroll_offsets", {})[name] = max(
+            0, offset
+        )
+
+    def _grid_field_scroll_follow(self, name: str) -> bool:
+        follow = getattr(self, "_grid_field_scroll_follow_flags", None)
+        if follow and name in follow:
+            return follow[name]
+        return False
+
+    def _grid_set_field_scroll_follow(self, name: str, follow: bool) -> None:
+        self.__dict__.setdefault("_grid_field_scroll_follow_flags", {})[
+            name
+        ] = follow
 
     def _grid_field_needs_hit(
         self, field_name: str, field: GridFieldInfo
     ) -> bool:
         if field.slide:
             return True
+        if field.group or field.scroll:
+            return True
         if _resolve_grid_mouse_handler(self, field_name) is not None:
             return True
         from xnano._types import is_focusable_component
 
         return is_focusable_component(getattr(self, field_name, None))
+
+    def _grid_apply_field_config(
+        self,
+        name: str,
+        field_config: dict[str, Any],
+        *,
+        caller: str,
+    ) -> None:
+        """Validate and store per-instance style/layout overrides for ``name``.
+
+        Shared by ``grid_set_field`` and ``grid_update_field`` — the only
+        difference between the two callers is which keyword arguments they
+        expose; the validation and override-storage logic is identical.
+        """
+        if name in self._grid_state_fields:
+            raise TypeError(
+                f"{caller}() cannot be used on state field {name!r} on "
+                f"{type(self).__name__}"
+            )
+        if name not in self._grid_fields:
+            raise AttributeError(
+                f"{type(self).__name__} has no layout field {name!r}"
+            )
+
+        forbidden = _GRID_FIELD_IMMUTABLE_KEYS & field_config.keys()
+        if forbidden:
+            raise TypeError(
+                f"{caller}() does not accept {', '.join(sorted(forbidden))}"
+            )
+
+        unknown = set(field_config) - _GRID_FIELD_CONFIG_KEYS
+        if unknown:
+            raise TypeError(
+                f"{caller}() got unexpected keyword arguments: "
+                f"{', '.join(sorted(unknown))}"
+            )
+
+        if not field_config:
+            return
+
+        if "class_name" in field_config:
+            field_config = _expand_field_class_name_config(field_config)
+        if any(key in field_config for key in _GRID_MODIFIER_FLAG_KEYS):
+            field_config = _apply_field_modifier_flags(
+                field_config,
+                self._grid_field_info(name).modifiers,
+            )
+        if "slide" in field_config:
+            field_config = {
+                **field_config,
+                "slide": _normalize_slide_axes(field_config["slide"]),
+            }
+        if "width" in field_config or "height" in field_config:
+            from xnano._types import Sizing
+
+            normalized = dict(field_config)
+            if "width" in normalized:
+                normalized["width"] = Sizing.parse(normalized["width"])
+            if "height" in normalized:
+                normalized["height"] = Sizing.parse(normalized["height"])
+            field_config = normalized
+
+        current = self._grid_field_info(name)
+        # A no-op toggle (setting an attribute to the value it already
+        # has) skips override creation entirely — cheap to call every
+        # frame, and doesn't permanently drop the grid out of the static
+        # layout fast path for a change that didn't change anything.
+        if all(
+            getattr(current, key) == value
+            for key, value in field_config.items()
+        ):
+            return
+
+        overrides = self.__dict__.setdefault("_grid_field_overrides", {})
+        overrides[name] = dataclasses.replace(current, **field_config)
 
     def grid_set_field(
         self,
@@ -1254,6 +1375,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         strict: bool = UNSET,
         slide: Sequence[Axis] | None = UNSET,
         visible: bool | None = UNSET,
+        wireframe: bool | None = UNSET,
         color: ColorLike | None = UNSET,
         background: ColorLike | None = UNSET,
         width: SizingLike | None = UNSET,
@@ -1282,6 +1404,10 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
 
         Cannot be used on state fields. ``default``, ``default_factory``,
         ``init``, and ``state`` cannot be changed at runtime.
+
+        For frequent, value-free style ticks (e.g. from ``on_tick`` or an
+        effect callback), prefer ``grid_update_field`` — it skips the
+        value/position handling this method carries for the general case.
         """
         field_config: dict[str, Any] = {
             key: option
@@ -1289,6 +1415,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 "strict": strict,
                 "slide": slide,
                 "visible": visible,
+                "wireframe": wireframe,
                 "color": color,
                 "background": background,
                 "width": width,
@@ -1316,56 +1443,9 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             if option is not UNSET
         }
 
-        if name in self._grid_state_fields:
-            raise TypeError(
-                f"grid_set_field() cannot be used on state field {name!r} on "
-                f"{type(self).__name__}"
-            )
-        if name not in self._grid_fields:
-            raise AttributeError(
-                f"{type(self).__name__} has no layout field {name!r}"
-            )
-
-        forbidden = _GRID_FIELD_IMMUTABLE_KEYS & field_config.keys()
-        if forbidden:
-            raise TypeError(
-                f"grid_set_field() does not accept {', '.join(sorted(forbidden))}"
-            )
-
-        unknown = set(field_config) - _GRID_FIELD_CONFIG_KEYS
-        if unknown:
-            raise TypeError(
-                "grid_set_field() got unexpected keyword arguments: "
-                f"{', '.join(sorted(unknown))}"
-            )
-
-        if field_config:
-            if "class_name" in field_config:
-                field_config = _expand_field_class_name_config(field_config)
-            if any(key in field_config for key in _GRID_MODIFIER_FLAG_KEYS):
-                field_config = _apply_field_modifier_flags(
-                    field_config,
-                    self._grid_field_info(name).modifiers,
-                )
-            if "slide" in field_config:
-                field_config = {
-                    **field_config,
-                    "slide": _normalize_slide_axes(field_config["slide"]),
-                }
-            if "width" in field_config or "height" in field_config:
-                from xnano._types import Sizing
-
-                normalized = dict(field_config)
-                if "width" in normalized:
-                    normalized["width"] = Sizing.parse(normalized["width"])
-                if "height" in normalized:
-                    normalized["height"] = Sizing.parse(normalized["height"])
-                field_config = normalized
-            overrides = self.__dict__.setdefault("_grid_field_overrides", {})
-            overrides[name] = dataclasses.replace(
-                self._grid_field_info(name),
-                **field_config,
-            )
+        self._grid_apply_field_config(
+            name, field_config, caller="grid_set_field"
+        )
 
         if position is not None:
             slot = getattr(self, "_grid_last_slot_areas", {}).get(name)
@@ -1387,6 +1467,83 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             if self._grid_strict:
                 value = self._grid_validate_field(name, value, field=field)
             object.__setattr__(self, name, value)
+
+    def grid_update_field(
+        self,
+        name: str,
+        *,
+        slide: Sequence[Axis] | None = UNSET,
+        visible: bool | None = UNSET,
+        wireframe: bool | None = UNSET,
+        color: ColorLike | None = UNSET,
+        background: ColorLike | None = UNSET,
+        width: SizingLike | None = UNSET,
+        height: SizingLike | None = UNSET,
+        gap: int | None = UNSET,
+        direction: Direction | None = UNSET,
+        align: Alignment | None = UNSET,
+        border: Border | None = UNSET,
+        border_sides: Sequence[Side] | None = UNSET,
+        border_color: ColorLike | None = UNSET,
+        title: str | None = UNSET,
+        title_position: FrameTitlePosition | None = UNSET,
+        padding: PaddingLike | None = UNSET,
+        margin: PaddingLike | None = UNSET,
+        modifiers: Sequence[CharacterModifier] | None = UNSET,
+        class_name: ClassNameLike | None = UNSET,
+        bold: bool = UNSET,
+        dim: bool = UNSET,
+        italic: bool = UNSET,
+        underline: bool = UNSET,
+        slow_blink: bool = UNSET,
+        rapid_blink: bool = UNSET,
+        reversed: bool = UNSET,
+    ) -> None:
+        """Update a layout field's style/layout attributes, live, in-place.
+
+        A narrower sibling of ``grid_set_field`` for frequent, value-free
+        attribute changes — pulsing a border color from ``on_tick``,
+        toggling a modifier from an effect callback. It has no ``value=``
+        or ``position=`` parameters at all, so a per-frame style tick never
+        pays for that method's value-validation branch. Raises the same
+        ``TypeError``/``AttributeError`` as ``grid_set_field`` for state
+        fields, unknown fields, or unknown keys.
+        """
+        field_config: dict[str, Any] = {
+            key: option
+            for key, option in {
+                "slide": slide,
+                "visible": visible,
+                "wireframe": wireframe,
+                "color": color,
+                "background": background,
+                "width": width,
+                "height": height,
+                "gap": gap,
+                "direction": direction,
+                "align": align,
+                "border": border,
+                "border_sides": border_sides,
+                "border_color": border_color,
+                "title": title,
+                "title_position": title_position,
+                "padding": padding,
+                "margin": margin,
+                "modifiers": modifiers,
+                "class_name": class_name,
+                "bold": bold,
+                "dim": dim,
+                "italic": italic,
+                "underline": underline,
+                "slow_blink": slow_blink,
+                "rapid_blink": rapid_blink,
+                "reversed": reversed,
+            }.items()
+            if option is not UNSET
+        }
+        self._grid_apply_field_config(
+            name, field_config, caller="grid_update_field"
+        )
 
     def _grid_resolve_visible(self, field: GridFieldInfo, value: Any) -> bool:
         if field.visible is None:
@@ -1571,7 +1728,15 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 field,
                 parent_z=self.z,
                 effect_key=field_name,
+                owner=self,
+                owner_field_name=field_name,
             )
+            if field.wireframe:
+                paint_wireframe = getattr(
+                    session, "paint_field_wireframe", None
+                )
+                if paint_wireframe is not None:
+                    paint_wireframe(paint_area)
 
 
 def _grid_slide_paint_area(

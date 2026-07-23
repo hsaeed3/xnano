@@ -15,7 +15,9 @@ Wire shape (one frame):
             "0": [["hi ", "#ff0000", null, 1], ["there", null, null, 0]],
             ...
         },
-        "cursor": [x, y]              # or null
+        "cursor": [x, y],             # or null (ctx.cursor state)
+        "title": "new title"          # optional — only sent when
+                                       # ctx.device.title changes
     }
 
 A span is ``[text, fg, bg, modifiers]`` where ``fg``/``bg`` are

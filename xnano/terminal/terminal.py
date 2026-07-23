@@ -16,6 +16,10 @@ import sys
 import warnings
 from typing import IO, TYPE_CHECKING, Any, Generic, Sequence, TextIO, TypeVar
 
+_SIGHUP: int | None = getattr(signal, "SIGHUP", None)
+"""``SIGHUP`` is POSIX-only (controlling-terminal hangup); ``None`` on
+Windows, where there is no equivalent exposed through ``signal``."""
+
 if TYPE_CHECKING:
     from xnano._types import (
         Alignment,
@@ -43,6 +47,8 @@ from xnano.grid import BaseGrid
 
 if TYPE_CHECKING:
     from xnano.core.controllers.tui import TerminalController
+    from xnano.terminal.cursor import TerminalCursor
+    from xnano.terminal.device import TerminalDevice
 
 
 StateT = TypeVar("StateT")
@@ -193,7 +199,6 @@ class Terminal(AbstractHost, Generic[StateT]):
         bracketed_paste: bool = False,
         synchronized_updates: bool = False,
         tick_interval: int = 16,
-        debug_wireframe: bool = False,
     ) -> None:
         from xnano._types import Sizing
 
@@ -234,8 +239,6 @@ class Terminal(AbstractHost, Generic[StateT]):
         self._cursor: Any = None
         self._device: Any = None
         self._run_renderables: tuple[Any, ...] | None = None
-        if debug_wireframe:
-            self.stage.wireframe(True)
         self._run_field: Any = None
         self._inline_height: int | None = None
         self._pending_enter: bool = False
@@ -279,9 +282,10 @@ class Terminal(AbstractHost, Generic[StateT]):
             self._prev_sigterm = signal.signal(
                 signal.SIGTERM, self._on_exit_signal
             )
-            self._prev_sighup = signal.signal(
-                signal.SIGHUP, self._on_exit_signal
-            )
+            if _SIGHUP is not None:
+                self._prev_sighup = signal.signal(
+                    _SIGHUP, self._on_exit_signal
+                )
         except (OSError, ValueError):
             pass
         return self
@@ -385,8 +389,8 @@ class Terminal(AbstractHost, Generic[StateT]):
                 if self._prev_sigterm is not None:
                     signal.signal(signal.SIGTERM, self._prev_sigterm)
                     self._prev_sigterm = None
-                if self._prev_sighup is not None:
-                    signal.signal(signal.SIGHUP, self._prev_sighup)
+                if _SIGHUP is not None and self._prev_sighup is not None:
+                    signal.signal(_SIGHUP, self._prev_sighup)
                     self._prev_sighup = None
             except (OSError, ValueError):
                 pass
@@ -456,16 +460,13 @@ class Terminal(AbstractHost, Generic[StateT]):
         rows: int = 12,
         state: StateT | None = None,
         title: str | None = None,
-        debug_wireframe: bool = False,
     ) -> "Terminal[StateT]":
         """Return a terminal backed by an offscreen (test) buffer."""
         from xnano_core.core import CoreSession
 
         from xnano.core.controllers.tui import TerminalController
 
-        terminal: Terminal[StateT] = cls(
-            title=title, state=state, debug_wireframe=debug_wireframe
-        )
+        terminal: Terminal[StateT] = cls(title=title, state=state)
         terminal._session = TerminalController(
             CoreSession.offscreen(width=cols, height=rows),
             terminal_width=cols,
@@ -496,6 +497,23 @@ class Terminal(AbstractHost, Generic[StateT]):
         from xnano._types import set_field_focus
 
         return set_field_focus(self, grid, field_name)
+
+    def focus_group(self, group: str) -> bool:
+        """Focus the field labeled ``group``, on any attached grid.
+
+        Terminal-global — no grid reference or nesting knowledge required,
+        unlike ``focus_field``. See ``Field(group=...)``.
+        """
+        from xnano._types import focus_group
+
+        return focus_group(self, group)
+
+    @property
+    def focused_group(self) -> str | None:
+        """``group`` of the currently focused field, or ``None``."""
+        from xnano._types import focused_group_name
+
+        return focused_group_name(self)
 
     def blur_field(self) -> None:
         """Clear application field focus."""
@@ -1143,7 +1161,7 @@ class Terminal(AbstractHost, Generic[StateT]):
         return (rect.width, rect.height)
 
     @property
-    def cursor(self) -> Any:
+    def cursor(self) -> "TerminalCursor":
         """Live cursor controller for this terminal session."""
         if self._cursor is None:
             from xnano.terminal.cursor import TerminalCursor
@@ -1152,7 +1170,7 @@ class Terminal(AbstractHost, Generic[StateT]):
         return self._cursor
 
     @property
-    def device(self) -> Any:
+    def device(self) -> "TerminalDevice":
         """Live device controller for this terminal session."""
         if self._device is None:
             from xnano.terminal.device import TerminalDevice

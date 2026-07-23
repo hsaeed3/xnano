@@ -62,10 +62,6 @@ _COL_BORDER = [
 _CHART_DAYS = 28
 
 
-def _color_hex(c) -> str:
-    return f"#{c.r:02x}{c.g:02x}{c.b:02x}"
-
-
 def _smooth(data: list[float], alpha: float = 0.2) -> list[float]:
     if len(data) < 2:
         return data
@@ -319,8 +315,8 @@ class VelocityChart(AbstractComponent):
         data = self.data or [0]
         n = len(data)
         max_v = max(max(data), 1)
-        area_c = _color_hex(tailwind_color("violet", 700))
-        avg_c = _color_hex(tailwind_color("violet", 400))
+        area_c = tailwind_color("violet", 700)
+        avg_c = tailwind_color("violet", 400)
         axis_c = tailwind_color("slate", 600)
         shapes = []
 
@@ -364,7 +360,7 @@ class VelocityChart(AbstractComponent):
                 y1=0.0,
                 x2=float(n - 1),
                 y2=float(max_v),
-                color=_color_hex(tailwind_color("emerald", 600)),
+                color=tailwind_color("emerald", 600),
             )
         )
 

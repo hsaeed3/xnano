@@ -147,6 +147,30 @@ class Select(AbstractComponent):
         )
 
     @property
+    def filtered(self) -> tuple[int, ...]:
+        """Indices into ``items`` currently visible, in display order.
+
+        The public counterpart of the internal match-scored ``_filtered()``
+        — use this (or ``visible_items``) instead of reaching into the
+        private method just to learn what's currently on screen.
+        """
+        return tuple(index for index, _ in self._filtered())
+
+    def move(self, delta: int) -> None:
+        """Move ``selected`` by ``delta``, clamped to the filtered view.
+
+        Equivalent to hand-clamping ``selected`` against ``filtered``
+        yourself — the safe way to move the highlight from a keyboard
+        handler without under/overflowing the visible range.
+        """
+        visible_count = len(self._filtered())
+        if visible_count == 0:
+            self.selected = 0
+            return
+        current = max(0, min(self.selected, visible_count - 1))
+        self.selected = max(0, min(visible_count - 1, current + delta))
+
+    @property
     def value(self) -> str | None:
         """Plain text of the selected item, or ``None`` when the
         filtered view is empty."""

@@ -867,6 +867,34 @@ class Color:
             f"or Color instance), got {type(color).__name__!r} instead."
         )
 
+    def as_hex(self, *, include_alpha: bool = False) -> str:
+        """Return this color as a ``#rrggbb`` (or ``#rrggbbaa``) hex string.
+
+        Args:
+            include_alpha: When ``True``, append the alpha channel as a
+                two-digit hex suffix.
+
+        Returns:
+            A lowercase, leading-``#`` hex color string.
+        """
+        hex_str = f"#{self.r:02x}{self.g:02x}{self.b:02x}"
+        if include_alpha:
+            hex_str += f"{round(self.a):02x}"
+        return hex_str
+
+    def as_rgb_tuple(
+        self, *, include_alpha: bool = False
+    ) -> "tuple[int, int, int] | tuple[int, int, int, float]":
+        """Return this color as an ``(r, g, b)`` or ``(r, g, b, a)`` tuple.
+
+        Args:
+            include_alpha: When ``True``, include the alpha channel as the
+                fourth tuple element.
+        """
+        if include_alpha:
+            return (self.r, self.g, self.b, self.a)
+        return (self.r, self.g, self.b)
+
 
 def pydantic_color(color: ColorName) -> Color:
     """Creates a new ``Color`` instance from a known color name derived

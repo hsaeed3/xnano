@@ -235,7 +235,7 @@ class AbstractController(abc.ABC):
         )
 
     def measure_field_slot(
-        self, value: Any, direction: Direction, field: GridFieldInfo
+        self, value: Any, direction: Direction, field: GridFieldInfo | None
     ) -> int:
         """Measures the size of a given slot based on a given value, direction,
         and grid field info.

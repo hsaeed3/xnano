@@ -91,6 +91,7 @@ def _terminal_with_form(form: _Form | None = None) -> tuple[Any, _Form]:
         bound.append(
             _OnFocusHookFunctionEntry(
                 field=entry["field"],
+                group=None,
                 kind=entry["kind"],
                 handler=handler,
             )
@@ -239,6 +240,7 @@ def test_terminal_focus_helpers() -> None:
         term._hooks.on_focus_hooks.append(
             _OnFocusHookFunctionEntry(
                 field=entry["field"],
+                group=None,
                 kind=entry["kind"],
                 handler=handler,
             )

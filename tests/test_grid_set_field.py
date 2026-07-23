@@ -69,6 +69,52 @@ def test_set_field_validates_when_strict() -> None:
         grid.grid_set_field("body", 123)
 
 
+def test_update_field_changes_style_without_value_param() -> None:
+    grid = LayoutGrid()
+    grid.grid_update_field("body", color="red", modifiers=["bold"])
+    field = grid._grid_field_info("body")
+    assert field.color == "red"
+    assert field.modifiers == ["bold"]
+    assert grid.body == "hello"
+
+
+def test_update_field_rejects_state_fields() -> None:
+    grid = StatefulGrid()
+    with pytest.raises(TypeError, match="state field"):
+        grid.grid_update_field("count", color="red")
+
+
+def test_update_field_rejects_unknown_field() -> None:
+    grid = LayoutGrid()
+    with pytest.raises(AttributeError, match="missing"):
+        grid.grid_update_field("missing", color="red")
+
+
+def test_set_field_is_noop_when_value_unchanged() -> None:
+    grid = LayoutGrid()
+    grid.grid_set_field("body", visible=False)
+    assert grid._grid_has_field_overrides()
+    grid.grid_set_field("body", visible=False)
+    override_after_first_change = grid._grid_field_info("body")
+    grid.grid_set_field("body", visible=False)
+    assert grid._grid_field_info("body") is override_after_first_change
+
+
+def test_set_field_creates_override_when_value_changes() -> None:
+    grid = LayoutGrid()
+    grid.grid_set_field("body", visible=False)
+    assert grid._grid_has_field_overrides()
+
+
+def test_update_field_has_no_value_or_position_parameters() -> None:
+    grid = LayoutGrid()
+    update_field: Any = grid.grid_update_field
+    with pytest.raises(TypeError):
+        update_field("body", value="nope")
+    with pytest.raises(TypeError):
+        update_field("body", position=(1, 1))
+
+
 def test_grid_slot_renders_text_component_offscreen() -> None:
     class TextGrid(BaseGrid):
         body: Text = Field(default_factory=lambda: Text(content="hello"))

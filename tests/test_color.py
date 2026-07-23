@@ -184,3 +184,33 @@ def test_tailwind_different_shades_differ() -> None:
     light = tailwind_color("blue", 100)
     dark = tailwind_color("blue", 900)
     assert (light.r, light.g, light.b) != (dark.r, dark.g, dark.b)
+
+
+# ---------------------------------------------------------------------------
+# Color.as_hex / Color.as_rgb_tuple
+# ---------------------------------------------------------------------------
+
+
+def test_as_hex_round_trips_from_hex() -> None:
+    c = Color.from_hex("#a78bfa")
+    assert c.as_hex() == "#a78bfa"
+
+
+def test_as_hex_pads_single_digit_channels() -> None:
+    c = Color(r=1, g=2, b=3)
+    assert c.as_hex() == "#010203"
+
+
+def test_as_hex_includes_alpha_when_requested() -> None:
+    c = Color(r=255, g=0, b=0, a=128)
+    assert c.as_hex(include_alpha=True) == "#ff0000" + f"{128:02x}"
+
+
+def test_as_rgb_tuple_without_alpha() -> None:
+    c = Color(r=10, g=20, b=30)
+    assert c.as_rgb_tuple() == (10, 20, 30)
+
+
+def test_as_rgb_tuple_with_alpha() -> None:
+    c = Color(r=10, g=20, b=30, a=128.0)
+    assert c.as_rgb_tuple(include_alpha=True) == (10, 20, 30, 128.0)
