@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+from xnano_core.core import CoreSession
+
 from xnano._dispatch import dispatch_field_mouse
 from xnano._types import Area
 from xnano.context import Context
-from xnano.core.controllers.tui import compute_scroll_window
+from xnano.core.controllers.tui import (
+    TerminalController,
+    compute_scroll_window,
+)
 from xnano.events import Event, MouseEventData
 from xnano.fields import Field
 from xnano.grid import BaseGrid, _GridFieldHit
-from xnano_core.core import CoreSession
-from xnano.core.controllers.tui import TerminalController
-
 
 # ---------------------------------------------------------------------------
 # compute_scroll_window — pure function
@@ -197,13 +199,17 @@ def test_wheel_up_increases_offset_on_scrollable_field() -> None:
             slide_axes=[],
         )
     )
-    event = Event.from_data(MouseEventData(kind="scroll_up", x=1, y=1, button="unknown"))
+    event = Event.from_data(
+        MouseEventData(kind="scroll_up", x=1, y=1, button="unknown")
+    )
     dispatch_field_mouse(
         terminal, Context(event=event, terminal=terminal, state=None)
     )
     assert grid._grid_field_scroll_offset("items") == 1
 
-    down_event = Event.from_data(MouseEventData(kind="scroll_down", x=1, y=1, button="unknown"))
+    down_event = Event.from_data(
+        MouseEventData(kind="scroll_down", x=1, y=1, button="unknown")
+    )
     dispatch_field_mouse(
         terminal, Context(event=down_event, terminal=terminal, state=None)
     )
@@ -228,7 +234,9 @@ def test_wheel_ignores_non_scroll_fields() -> None:
             slide_axes=[],
         )
     )
-    event = Event.from_data(MouseEventData(kind="scroll_up", x=1, y=1, button="unknown"))
+    event = Event.from_data(
+        MouseEventData(kind="scroll_up", x=1, y=1, button="unknown")
+    )
     # Should not raise even though "body" isn't scrollable.
     dispatch_field_mouse(
         terminal, Context(event=event, terminal=terminal, state=None)

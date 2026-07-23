@@ -281,11 +281,11 @@ def test_on_action_with_shared_keyboard_action() -> None:
 
 
 def test_deprecated_on_decorator_forwards_to_on_action() -> None:
-    from xnano.events import on  # ty: ignore[deprecated]
+    from xnano.events import on
 
     save = Action.keyboard("ctrl+s")
     with pytest.warns(DeprecationWarning, match="on_action"):
-        decorator = on(save)  # ty: ignore[deprecated]
+        decorator = on(save)
 
     assert callable(decorator)
 

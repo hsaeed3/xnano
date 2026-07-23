@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
+
+from typing_extensions import deprecated
 
 from xnano._types import Size
 
@@ -24,6 +26,13 @@ if TYPE_CHECKING:
 StateT = TypeVar("StateT")
 
 
+@deprecated(
+    "'xnano.components.ComponentRenderContext' is deprecated and will be "
+    "removed in v1.2; use 'xnano.beta.components.ComponentRenderContext' "
+    "instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(frozen=True, slots=True)
 class ComponentRenderContext(Generic[StateT]):
     """Render-time scope passed into component paint hooks.
@@ -41,6 +50,11 @@ class ComponentRenderContext(Generic[StateT]):
     component: "AbstractComponent | None" = None
 
 
+@deprecated(
+    "'xnano.components.AbstractComponent' is deprecated and will be removed "
+    "in v1.2; use 'xnano.beta.components.Component' instead.",
+    category=None,
+)
 @dataclasses.dataclass
 class AbstractComponent(abc.ABC):
     """Base for declarative widgets used inside grids.
@@ -49,6 +63,9 @@ class AbstractComponent(abc.ABC):
     to provide a representation; unimplemented paths simply paint nothing
     for that host kind.
     """
+
+    _xnano_component_base: ClassVar[bool] = True
+    """Marker read by ``is_component`` / focus helpers."""
 
     visible: bool = dataclasses.field(default=True, kw_only=True)
     z: int = dataclasses.field(default=0, kw_only=True)

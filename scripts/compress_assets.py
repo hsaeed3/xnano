@@ -28,7 +28,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PIL import Image  # ty: ignore[unresolved-import]
+from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

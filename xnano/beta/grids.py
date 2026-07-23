@@ -1,0 +1,1737 @@
+"""xnano.beta.grids
+
+---
+
+Build declarative layouts from named ``Field`` values. Grids can nest,
+share state, react to hooks, and use the same layout on terminal and web.
+"""
+
+from __future__ import annotations
+
+import abc
+import dataclasses
+import inspect
+import itertools
+import sys
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Sequence,
+    TypedDict,
+    overload,
+)
+
+if sys.version_info < (3, 11):
+    from typing_extensions import (
+        NotRequired,
+        Unpack,
+        dataclass_transform,
+    )
+else:
+    from typing import NotRequired, Unpack, dataclass_transform
+
+from xnano.beta.colors import ColorLike
+from xnano.beta.core.interface import AbstractInterface
+from xnano.beta.core.layout import LayoutConstraint
+from xnano.beta.fields import (
+    UNSET,
+    ClassNameLike,
+    Field,
+    GridFieldInfo,
+    _normalize_slide_axes,
+)
+from xnano.beta.types import (
+    Alignment,
+    Area,
+    Axis,
+    Border,
+    CharacterModifier,
+    Direction,
+    Frame,
+    FrameTitlePosition,
+    Padding,
+    PaddingLike,
+    Side,
+    SizingLike,
+    frame_from_field,
+)
+
+if TYPE_CHECKING:
+    from xnano.beta.effects import (
+        AbstractEffect,
+        EffectInterpolation,
+        EffectMotion,
+        KnownEffectKind,
+    )
+    from xnano.beta.types import Sizing
+
+_GRID_RESERVED: frozenset[str] = frozenset(
+    {
+        "grid_settings",
+        "visible",
+        "z",
+        "columns",
+        "rows",
+    }
+)
+
+
+_FIELD_MOUSE_KINDS: frozenset[str] = frozenset({"press", "drag", "release"})
+
+
+_GRID_MODIFIER_FLAG_KEYS: tuple[str, ...] = (
+    "bold",
+    "dim",
+    "italic",
+    "underline",
+    "slow_blink",
+    "rapid_blink",
+    "reversed",
+)
+"""Boolean ``grid_set_field`` keys that toggle character modifiers.
+
+``GridFieldInfo`` stores modifiers as a single ``modifiers`` sequence,
+so these flags are translated into it before ``dataclasses.replace``.
+"""
+
+
+_GRID_FIELD_CONFIG_KEYS: frozenset[str] = frozenset(
+    {
+        "strict",
+        "slide",
+        "visible",
+        "wireframe",
+        "color",
+        "background",
+        "width",
+        "height",
+        "gap",
+        "direction",
+        "align",
+        "border",
+        "border_sides",
+        "border_color",
+        "title",
+        "title_position",
+        "padding",
+        "margin",
+        "modifiers",
+        "class_name",
+        "bold",
+        "dim",
+        "italic",
+        "underline",
+        "slow_blink",
+        "rapid_blink",
+        "reversed",
+    }
+)
+
+
+_GRID_FIELD_IMMUTABLE_KEYS: frozenset[str] = frozenset(
+    {
+        "default",
+        "default_factory",
+        "init",
+        "state",
+    }
+)
+
+
+_GridLayoutConstraint = LayoutConstraint
+"""Local name for the shared layout constraint type used while sizing grids."""
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _GridFieldHit:
+    grid: "BaseGrid"
+    field_name: str
+    area: Area
+    slot_area: Area
+    parent_area: Area
+    slide_axes: list[str] = dataclasses.field(default_factory=list)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _GridSlideCapture:
+    grid: "BaseGrid"
+    field_name: str
+    parent_area: Area
+    slot_area: Area
+    grab_x: int
+    grab_y: int
+    slide_axes: list[str]
+
+
+class GridSettings(TypedDict, total=False):
+    """Rendering, layout, and frame settings for a ``BaseGrid`` subclass.
+
+    Attributes:
+        color: Foreground color of rendered content.
+        background: Background color of the grid frame.
+        direction: Direction used to lay out fields.
+        gap: Cells between fields.
+        border: Border style around the grid.
+        border_sides: Border sides to display.
+        border_color: Color of the border.
+        title: Text displayed in the grid frame.
+        title_position: Alignment of the frame title.
+        padding: Space between the frame and its content.
+        bold: Whether content is bold.
+        dim: Whether content is dimmed.
+        italic: Whether content is italic.
+        underline: Whether content is underlined.
+        slow_blink: Whether content blinks slowly.
+        rapid_blink: Whether content blinks rapidly.
+        reversed: Whether foreground and background are reversed.
+        strict: Whether field assignments are validated.
+    """
+
+    color: NotRequired[ColorLike]
+    """The foreground color of the grid's content."""
+    background: NotRequired[ColorLike]
+    """The background color of the grid's frame area."""
+    direction: NotRequired[Direction]
+    """The direction in which content within this grid should be laid out."""
+    gap: NotRequired[int]
+    """The gap between fields in this grid."""
+    border: NotRequired[Border]
+    """The border style to be applied onto the outer frame of the grid."""
+    border_sides: NotRequired[list[Side]]
+    """The sides of the border to be applied onto the outer frame of the grid."""
+    border_color: NotRequired[ColorLike]
+    """The color of the border."""
+    title: NotRequired[str]
+    """The title to be displayed around the outer frame of the grid."""
+    title_position: NotRequired[FrameTitlePosition]
+    """The position of the title within the outer frame of the grid."""
+    padding: NotRequired[PaddingLike]
+    """The padding to be applied around the content area of the grid."""
+    bold: NotRequired[bool]
+    """Whether the grid should be rendered in bold."""
+    dim: NotRequired[bool]
+    """Whether the grid should be rendered in dim."""
+    italic: NotRequired[bool]
+    """Whether the grid should be rendered in italic."""
+    underline: NotRequired[bool]
+    """Whether the grid should be rendered in underline."""
+    slow_blink: NotRequired[bool]
+    """Whether the grid should be rendered in slow blink."""
+    rapid_blink: NotRequired[bool]
+    """Whether the grid should be rendered in rapid blink."""
+    reversed: NotRequired[bool]
+    """Whether the grid should be rendered in reversed color."""
+    strict: NotRequired[bool]
+    """When ``True`` (the default), all field values are validated against their
+    type annotations during grid construction."""
+
+
+def _merge_grid_settings(
+    bases: tuple[type, ...],
+    class_kwargs: GridSettings,
+    declared: GridSettings | None = None,
+) -> GridSettings:
+    """Merge grid settings from bases, class-header kwargs, and body dict."""
+    merged: GridSettings = {}
+    for base in bases:
+        if base is object:
+            continue
+        parent = getattr(base, "grid_settings", None)
+        if parent:
+            merged = {**merged, **parent}
+    if class_kwargs:
+        merged = {**merged, **class_kwargs}
+    if declared:
+        merged = {**merged, **declared}
+    return merged
+
+
+def _grid_frame_size_for_field(
+    field: GridFieldInfo,
+    direction: Direction,
+) -> int:
+    size = 0
+    if field.border is not None:
+        sides = field.border_sides
+        if direction == "vertical":
+            if sides is None:
+                size += 2
+            else:
+                if "top" in sides:
+                    size += 1
+                if "bottom" in sides:
+                    size += 1
+        else:
+            if sides is None:
+                size += 2
+            else:
+                if "left" in sides:
+                    size += 1
+                if "right" in sides:
+                    size += 1
+
+    if field.padding is not None:
+        padding = Padding.parse(field.padding)
+        if direction == "vertical":
+            size += padding.vertical
+        else:
+            size += padding.horizontal
+
+    if field.margin is not None:
+        margin = Padding.parse(field.margin)
+        if direction == "vertical":
+            size += margin.vertical
+        else:
+            size += margin.horizontal
+
+    return size
+
+
+def _apply_field_modifier_flags(
+    field_config: dict[str, Any],
+    current_modifiers: Sequence[str] | None,
+) -> dict[str, Any]:
+    """Translate boolean modifier flags into a ``modifiers`` sequence.
+
+    ``grid_set_field(bold=True)`` toggles the ``"bold"`` modifier on
+    top of the config's ``modifiers`` (when given) or the field's
+    current modifiers; ``bold=False`` removes it. The flag keys are
+    consumed so ``dataclasses.replace`` only sees real
+    ``GridFieldInfo`` attributes.
+    """
+    translated = dict(field_config)
+    base = translated.get("modifiers")
+    if base is None:
+        base = current_modifiers or ()
+    modifiers = list(base)
+    for key in _GRID_MODIFIER_FLAG_KEYS:
+        if key not in translated:
+            continue
+        enabled = bool(translated.pop(key))
+        if enabled and key not in modifiers:
+            modifiers.append(key)
+        elif not enabled and key in modifiers:
+            modifiers.remove(key)
+    translated["modifiers"] = tuple(modifiers)
+    return translated
+
+
+def _expand_field_class_name_config(
+    field_config: dict[str, Any],
+) -> dict[str, Any]:
+    """Expand a ``class_name`` config entry into derived field attributes.
+
+    Resolves Tailwind classes lazily and fills in every
+    derived attribute the caller did not pass explicitly — explicit
+    keys always win, matching ``xnano.beta.fields.Field``.
+    """
+    from xnano.beta.tailwind import (
+        normalize_tailwind_classes,
+        resolve_tailwind_classes,
+    )
+
+    tokens = normalize_tailwind_classes(field_config["class_name"])
+    resolved = resolve_tailwind_classes(tokens)
+    expanded = dict(field_config)
+    expanded["class_name"] = tokens
+    derived_keys = (
+        "color",
+        "background",
+        "border",
+        "border_color",
+        "border_sides",
+        "padding",
+        "margin",
+        "gap",
+        "width",
+        "height",
+        "align",
+        "direction",
+    )
+    for key in derived_keys:
+        value = getattr(resolved, key)
+        if value is not None and key not in field_config:
+            expanded[key] = value
+    if resolved.modifiers and "modifiers" not in field_config:
+        expanded["modifiers"] = resolved.modifiers
+    return expanded
+
+
+def _grid_inset_area_for_margin(
+    area: Area,
+    margin: Padding,
+) -> Area:
+    """Shrink ``area`` by ``margin`` on each side, clamped to >= 0 size."""
+    width = max(0, area.width - margin.horizontal)
+    height = max(0, area.height - margin.vertical)
+    return Area(
+        x=area.x + min(margin.left, area.width),
+        y=area.y + min(margin.top, area.height),
+        width=width,
+        height=height,
+    )
+
+
+def _grid_min_size_for_field(
+    field: GridFieldInfo,
+    direction: Direction,
+) -> int:
+    frame_size = _grid_frame_size_for_field(field, direction)
+    if frame_size > 0:
+        return frame_size + 1
+    return 0
+
+
+def _field_axis_sizing(
+    field: GridFieldInfo,
+    direction: Direction,
+) -> "Sizing | None":
+    """Return the ``Sizing`` that drives ``field``'s layout-axis split.
+
+    The split runs along the parent's layout ``direction`` — the field's
+    ``height`` for vertical layouts, ``width`` for horizontal.
+    """
+    return field.height if direction == "vertical" else field.width
+
+
+def _field_cross_sizing(
+    field: GridFieldInfo,
+    direction: Direction,
+) -> "Sizing | None":
+    """Return the ``Sizing`` for ``field``'s cross axis (opposite the layout).
+
+    The cross axis is the one the split does not size — the field's ``width``
+    in a vertical grid, ``height`` in a horizontal one.
+    """
+    return field.width if direction == "vertical" else field.height
+
+
+def _field_needs_content_measure(
+    field: GridFieldInfo,
+    direction: Direction,
+) -> bool:
+    """Return whether ``field`` must measure its content to lay out."""
+    axis_sizing = _field_axis_sizing(field, direction)
+    return axis_sizing is not None and axis_sizing.is_fit
+
+
+def _sizing_to_constraint(
+    sizing: "Sizing",
+    min_size: int,
+    frame_size: int,
+    content_length: int | None,
+) -> _GridLayoutConstraint:
+    """Lower a unified ``Sizing`` to a grid layout constraint."""
+    if sizing.kind == "cells":
+        length = sizing.value
+        if sizing.minimum is not None:
+            length = max(length, sizing.minimum)
+        if sizing.maximum is not None:
+            length = min(length, sizing.maximum)
+        return _GridLayoutConstraint("length", max(min_size, length))
+    if sizing.kind == "percent":
+        return _GridLayoutConstraint("percentage", sizing.value)
+    if sizing.kind == "ratio":
+        return _GridLayoutConstraint("ratio", sizing.value, sizing.denominator)
+    if sizing.kind == "fit":
+        length = (content_length if content_length is not None else 0) + (
+            frame_size
+        )
+        if sizing.minimum is not None:
+            length = max(length, sizing.minimum)
+        if sizing.maximum is not None:
+            length = min(length, sizing.maximum)
+        return _GridLayoutConstraint("content", max(min_size, length))
+    # fraction / fill
+    weight = sizing.value
+    if weight == 0:
+        return _GridLayoutConstraint("min", max(min_size, 1))
+    if min_size > 0:
+        return _GridLayoutConstraint("min", min_size)
+    return _GridLayoutConstraint("fill", weight)
+
+
+def _resolve_slot_area(
+    session: Any,
+    slot_area: Area,
+    field: GridFieldInfo,
+    value: Any,
+    direction: Direction,
+) -> Area:
+    """Complete a slot's geometry from the split result and its cross sizing.
+
+    ``split_layout`` sizes each slot along the parent's layout axis
+    (through ``_layout_constraint_for_field``); this stage resolves the
+    *cross* axis through the same unified ``Sizing`` model, so both ``width``
+    and ``height`` are first-class in any grid rather than the cross axis being
+    an afterthought. Both axes therefore flow from one vocabulary — the layout
+    axis via the ratatui split, the cross axis via ``Sizing.resolve``.
+
+    A cross-constrained slot keeps its top-left corner. When the cross axis has
+    no sizing or fills (the common case), the split slot is already final and
+    this returns it unchanged after a single attribute check.
+    """
+    cross = _field_cross_sizing(field, direction)
+    if cross is None or cross.is_fill:
+        return slot_area
+
+    horizontal = direction == "vertical"
+    available = slot_area.width if horizontal else slot_area.height
+    content: int | None = None
+    if cross.is_fit:
+        cross_direction: Direction = "horizontal" if horizontal else "vertical"
+        measured = session.measure_field_slot(value, cross_direction, field)
+        if measured <= 0:
+            return slot_area
+        content = measured + _grid_frame_size_for_field(field, cross_direction)
+
+    length = max(1, min(cross.resolve(available, content), available))
+    if length >= available:
+        return slot_area
+    if horizontal:
+        return Area(
+            x=slot_area.x,
+            y=slot_area.y,
+            width=length,
+            height=slot_area.height,
+        )
+    return Area(
+        x=slot_area.x,
+        y=slot_area.y,
+        width=slot_area.width,
+        height=length,
+    )
+
+
+def _layout_constraint_for_field(
+    field: GridFieldInfo,
+    direction: Direction,
+    content_length: int | None = None,
+) -> _GridLayoutConstraint:
+    """Lower a field's layout-axis ``Sizing`` to a split constraint.
+
+    A field with no explicit sizing on the layout axis fills the available
+    space (respecting any frame-imposed minimum) — the unified equivalent of a
+    ``fraction(1)`` weight.
+    """
+    min_size = _grid_min_size_for_field(field, direction)
+    frame_size = _grid_frame_size_for_field(field, direction)
+    axis_sizing = _field_axis_sizing(field, direction)
+    if axis_sizing is not None:
+        return _sizing_to_constraint(
+            axis_sizing, min_size, frame_size, content_length
+        )
+    if min_size > 0:
+        return _GridLayoutConstraint("min", min_size)
+    return _GridLayoutConstraint("fill", 1)
+
+
+def _build_grid_init(
+    all_fields: dict[str, GridFieldInfo],
+    defaults: dict[str, Any],
+) -> Callable[..., None]:
+    _MISSING = object()
+    factory_names = {
+        name
+        for name, field in all_fields.items()
+        if field.default_factory is not None
+    }
+
+    required: list[str] = []
+    optional: list[str] = []
+    no_init: list[str] = []
+
+    for name, field in all_fields.items():
+        if field.init is False:
+            no_init.append(name)
+        elif name in defaults:
+            optional.append(name)
+        else:
+            required.append(name)
+
+    params = ["self"]
+    if required or optional:
+        params.append("*")
+        params.extend(required)
+        for name in optional:
+            if name in factory_names:
+                params.append(f"{name}=__missing__")
+            else:
+                params.append(f"{name}=__defaults__['{name}']")
+
+    lines = [f"def __init__({', '.join(params)}):"]
+    for name in required + optional:
+        if name in factory_names:
+            lines.append(
+                f"    self.{name} = __defaults__['{name}']() "
+                f"if {name} is __missing__ else {name}"
+            )
+        else:
+            lines.append(f"    self.{name} = {name}")
+    for name in no_init:
+        if name in factory_names:
+            lines.append(f"    self.{name} = __defaults__['{name}']()")
+        elif name in defaults:
+            lines.append(f"    self.{name} = __defaults__['{name}']")
+        else:
+            lines.append(f"    self.{name} = None")
+    lines.append("    self._init_field_states()")
+    lines.append("    self._grid_validate_init()")
+    lines.append("    self.__post_init__()")
+
+    globs: dict[str, Any] = {
+        "__defaults__": defaults,
+        "__missing__": _MISSING,
+    }
+    exec("\n".join(lines), globs)  # noqa: S102
+    return globs["__init__"]
+
+
+def _collect_field_mouse_handlers(
+    cls: type,
+    namespace: dict[str, Any],
+    layout_fields: dict[str, GridFieldInfo],
+) -> dict[str, Any]:
+    """Map layout field names to ``@on_mouse`` / ``@on_click`` handlers."""
+    from xnano.beta import hooks as EventHooks
+
+    handlers: dict[str, Any] = {}
+    for base in reversed(cls.__mro__):
+        if base is object or base is cls:
+            continue
+        handlers.update(getattr(base, "_grid_field_handlers", {}))
+
+    for name, member in namespace.items():
+        if not callable(member):
+            continue
+        field_name = getattr(member, EventHooks.ON_MOUSE_FIELD_ATTR, None)
+        if field_name is None:
+            continue
+        if field_name not in layout_fields:
+            raise TypeError(
+                f"{cls.__name__}.{name} is bound to field {field_name!r}, "
+                f"which is not a layout field on this grid"
+            )
+        handlers[field_name] = member
+    return handlers
+
+
+class _GridMetaNamespace(dict[str, Any]):
+    def __init__(self) -> None:
+        super().__init__()
+        self._grid_fields: dict[str, GridFieldInfo] = {}
+        self._grid_state_fields: dict[str, GridFieldInfo] = {}
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        if isinstance(value, GridFieldInfo):
+            if value.state:
+                self._grid_state_fields[key] = value
+            else:
+                self._grid_fields[key] = value
+        super().__setitem__(key, value)
+
+
+@dataclass_transform(
+    field_specifiers=(Field, GridFieldInfo, dataclasses.field),
+    kw_only_default=True,
+)
+# ABCMeta (not plain type) so grids can mix in abc.ABC:
+# ``class Window(BaseGrid, abc.ABC)`` needs the two metaclasses related.
+class _GridMeta(abc.ABCMeta):
+    @classmethod
+    def __prepare__(
+        mcls,
+        name: str,
+        bases: tuple[type, ...],
+        **grid_config: Any,
+    ) -> _GridMetaNamespace:
+        return _GridMetaNamespace()
+
+    def __new__(
+        mcls,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: _GridMetaNamespace,
+        **grid_config: Unpack[GridSettings],
+    ) -> type:
+        cls = super().__new__(mcls, name, bases, namespace)
+
+        declared = namespace.get("grid_settings")
+        cfg = _merge_grid_settings(
+            bases,
+            grid_config,
+            declared if isinstance(declared, dict) else None,
+        )
+        setattr(cls, "grid_settings", cfg)
+        setattr(cls, "_grid_strict", cfg.get("strict", True))
+
+        frame = Frame(
+            background=cfg.get("background"),
+            border=cfg.get("border"),
+            border_color=cfg.get("border_color"),
+            border_sides=cfg.get("border_sides"),
+            title=cfg.get("title"),
+            title_position=cfg.get("title_position"),
+            padding=cfg.get("padding"),
+        )
+        setattr(cls, "_grid_frame", None if frame.is_empty() else frame)
+        setattr(cls, "_grid_direction", cfg.get("direction", "vertical"))
+        setattr(cls, "_grid_gap", int(cfg.get("gap", 0)))
+
+        fields: dict[str, GridFieldInfo] = {}
+        state_fields: dict[str, GridFieldInfo] = {}
+        defaults: dict[str, Any] = {}
+        field_annotations: dict[str, Any] = {}
+
+        for base in reversed(cls.__mro__):
+            if base is cls:
+                continue
+            fields.update(getattr(base, "_grid_fields", {}))
+            state_fields.update(getattr(base, "_grid_state_fields", {}))
+            field_annotations.update(
+                getattr(base, "_grid_field_annotations", {})
+            )
+            defaults.update(getattr(base, "_grid_defaults", {}))
+
+        # 1. Explicitly-declared GridFieldInfo instances captured by _GridMetaNamespace
+        all_captured = {
+            **namespace._grid_fields,
+            **namespace._grid_state_fields,
+        }
+        for attr_name, field in all_captured.items():
+            if attr_name in _GRID_RESERVED or attr_name.startswith("_"):
+                continue
+            if field.state:
+                state_fields[attr_name] = field
+            else:
+                fields[attr_name] = field
+                # Layout fields without an explicit default start as None and
+                # stay hidden until a value is assigned.
+                if attr_name not in defaults:
+                    defaults[attr_name] = None
+            if field.default is not UNSET:
+                defaults[attr_name] = field.default
+            elif field.default_factory is not None:
+                defaults[attr_name] = field.default_factory
+
+        # 2. Type-annotated attributes that are NOT GridFieldInfo → auto state fields
+        # Python 3.14+ stores annotations lazily via __annotate_func__ instead
+        # of eagerly in __annotations__.  Use inspect.get_annotations on the
+        # already-created class to evaluate them safely.
+        try:
+            ns_annotations = inspect.get_annotations(cls, eval_str=True)
+        except Exception:
+            ns_annotations = namespace.get("__annotations__", {})
+        for attr_name, annotation in ns_annotations.items():
+            if attr_name.startswith("_") or attr_name in _GRID_RESERVED:
+                continue
+            field_annotations[attr_name] = annotation
+            if attr_name in fields or attr_name in state_fields:
+                continue
+            raw = namespace.get(attr_name, UNSET)
+            if isinstance(raw, (GridFieldInfo, type, property)):
+                continue
+            if callable(raw) and not isinstance(raw, GridFieldInfo):
+                continue
+            if raw is UNSET:
+                state_fields[attr_name] = GridFieldInfo(state=True)
+            else:
+                state_fields[attr_name] = GridFieldInfo(
+                    state=True, default=raw
+                )
+                defaults[attr_name] = raw
+
+        # 3. Remaining plain values with no type annotation → layout fields
+        for attr_name, raw in namespace.items():
+            if attr_name.startswith("_") or attr_name in _GRID_RESERVED:
+                continue
+            if attr_name in fields or attr_name in state_fields:
+                continue
+            if isinstance(raw, (type, property, GridFieldInfo)) or callable(
+                raw
+            ):
+                continue
+            fields[attr_name] = GridFieldInfo(default=raw)
+            defaults[attr_name] = raw
+
+        # Ensure all layout fields have a default (None) so __init__ never
+        # makes them required.
+        for attr_name in fields:
+            if attr_name not in defaults:
+                defaults[attr_name] = None
+
+        setattr(cls, "_grid_fields", fields)
+        setattr(cls, "_grid_state_fields", state_fields)
+        setattr(cls, "_grid_defaults", defaults)
+        setattr(cls, "_grid_field_annotations", field_annotations)
+        setattr(
+            cls,
+            "_grid_field_frames",
+            {
+                field_name: frame_from_field(field)
+                for field_name, field in fields.items()
+            },
+        )
+
+        # 4. Collect field-click handlers declared via on_mouse(field=...) / on_click(...)
+        field_handlers = _collect_field_mouse_handlers(cls, namespace, fields)
+        setattr(cls, "_grid_field_handlers", field_handlers)
+
+        has_slide_fields = any(field.slide for field in fields.values())
+        needs_mouse_geometry = bool(field_handlers) or has_slide_fields
+        for base in cls.__mro__:
+            if base is cls or base is object:
+                continue
+            if getattr(base, "_grid_has_slide_fields", False):
+                has_slide_fields = True
+            if getattr(base, "_grid_has_mouse_geometry", False):
+                needs_mouse_geometry = True
+        setattr(cls, "_grid_has_slide_fields", has_slide_fields)
+        setattr(cls, "_grid_has_mouse_geometry", needs_mouse_geometry)
+
+        # 5. Precompute static layout data
+        _direction = cfg.get("direction", "vertical")
+        needs_dynamic = any(
+            _field_needs_content_measure(f, _direction) or f.visible is None
+            for f in fields.values()
+        )
+        static_names: list[str] = []
+        static_constraints: list[_GridLayoutConstraint] = []
+        if not needs_dynamic:
+            for field_name, field in fields.items():
+                if field.visible is False:
+                    continue
+                static_names.append(field_name)
+                static_constraints.append(
+                    _layout_constraint_for_field(field, _direction)
+                )
+
+        setattr(cls, "_grid_needs_dynamic_layout", needs_dynamic)
+        setattr(cls, "_grid_static_field_names", static_names)
+        setattr(cls, "_grid_static_constraints", static_constraints)
+
+        all_fields = {**fields, **state_fields}
+        if all_fields:
+            type.__setattr__(
+                cls, "__init__", _build_grid_init(all_fields, defaults)
+            )
+
+        return cls
+
+
+class BaseGrid(AbstractInterface, metaclass=_GridMeta):
+    """Declarative layout container for a terminal-based UI.
+
+    BaseGrid-scoped settings may be declared on the class header
+    (``class Dashboard(BaseGrid, direction="horizontal", gap=1): ...``),
+    in a class-level ``grid_settings`` dict, or both — values in
+    ``grid_settings`` override matching header kwargs.
+
+    Attributes:
+        grid_settings: Class-level layout and frame configuration.
+        visible: Whether the grid is rendered.
+        z: Layering order for overlapping grids.
+        columns: Columns available during the current frame.
+        rows: Rows available during the current frame.
+
+    Examples:
+
+    Layout fields render content; ``state=True`` fields hold app data.
+    Nested ``BaseGrid`` subclasses compose larger layouts:
+
+    ```python
+    from xnano.beta import BaseGrid, Field, Terminal
+
+    class Sidebar(BaseGrid, direction="vertical"):
+        nav: str = Field(default="Home", border="rounded", height="1fr")
+
+    class App(BaseGrid, direction="horizontal", gap=1):
+        sidebar: Sidebar = Field(default_factory=Sidebar, width="25%")
+        content: str = Field(default="Main area", width="1fr")
+
+        selected: int = Field(default=0, state=True)
+
+    Terminal().run(App())
+    ```
+
+    Event hooks register handlers on the grid class. Use ``@on_click`` to
+    scope mouse handlers to a layout field's region:
+
+    ```python
+    from xnano.beta import BaseGrid, Context, Field, Terminal, hooks
+
+    class Counter(BaseGrid, direction="vertical", gap=1):
+        label: str = Field(default="Count: 0", height=1)
+        body: str = Field(default="Click me", height="1fr")
+
+        count: int = Field(default=0, state=True)
+
+        @hooks.on_keyboard("up")
+        def increment(self) -> None:
+            self.count += 1
+            self.label = f"Count: {self.count}"
+
+        @hooks.on_keyboard("down")
+        def decrement(self) -> None:
+            self.count -= 1
+            self.label = f"Count: {self.count}"
+
+        @hooks.on_click("body")
+        def on_body(self, ctx: Context) -> None:
+            self.body = "Clicked!"
+
+        @hooks.on_tick(1000)
+        def reset_body(self) -> None:
+            self.body = "Click me"
+
+    Terminal().run(Counter())
+    ```
+    """
+
+    grid_settings: ClassVar[GridSettings] = {}
+    """Class-level grid configuration, like Pydantic's ``model_config``."""
+    _grid_strict: ClassVar[bool] = True
+    _grid_fields: ClassVar[dict[str, GridFieldInfo]] = {}
+    _grid_state_fields: ClassVar[dict[str, GridFieldInfo]] = {}
+    _grid_field_handlers: ClassVar[dict[str, Any]] = {}
+    _grid_field_annotations: ClassVar[dict[str, Any]] = {}
+    _grid_has_slide_fields: ClassVar[bool] = False
+    _grid_has_mouse_geometry: ClassVar[bool] = False
+    _grid_frame: ClassVar[Frame | None] = None
+    _grid_direction: ClassVar[Direction] = "vertical"
+    _grid_gap: ClassVar[int] = 0
+    _grid_needs_dynamic_layout: ClassVar[bool] = False
+    _grid_static_field_names: ClassVar[list[str]] = []
+    _grid_static_constraints: ClassVar[list[_GridLayoutConstraint]] = []
+    _grid_defaults: ClassVar[dict[str, Any]] = {}
+    _grid_field_frames: ClassVar[dict[str, Frame | None]] = {}
+
+    visible: bool = True
+    """Whether this grid is rendered in the live session."""
+    z: int = 0
+    """Z-index used when layering overlapping grids."""
+    columns: int = 0
+    """Terminal columns available to this grid — set by the session each frame."""
+    rows: int = 0
+    """Terminal rows available to this grid — set by the session each frame."""
+
+    def __init__(self) -> None:
+        self._init_field_states()
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        """Called at the end of the generated ``__init__``. Override to run post-construction logic."""
+
+    def grid_post_init(self) -> None:
+        """Called exactly once, when this grid is first attached to a live
+        terminal — after its own hooks are bound, before its first paint.
+
+        Unlike ``__post_init__`` (construction time, no terminal attached
+        yet), ``ctx``/``ctx.state`` are live here. Override with either
+        signature — the extra parameter is optional, matching every other
+        ``@on_*`` hook, dispatched by arity at runtime (see ``_call_hook``):
+
+            def grid_post_init(self) -> None: ...
+            def grid_post_init(self, ctx: Context[MyState]) -> None: ...
+
+        A static type checker sees the one-parameter form as an invalid
+        override (this base declares zero); that's a known false positive
+        for this flexible-arity hook pattern — add
+        ``# ty: ignore[invalid-method-override]`` on the override line.
+        """
+
+    @property
+    def focused(self) -> bool:
+        """Whether any of this grid's fields currently holds field focus.
+
+        Live alongside per-component ``focused``: derived from the same
+        per-frame focus flags, so ``self.focused`` in a hook and
+        ``@on_field("focused")`` both read the current state.
+        """
+        return any(
+            bool(getattr(getattr(self, name, None), "focused", False))
+            for name in getattr(self, "_grid_fields", {})
+        )
+
+    def _grid_annotation_for_field(
+        self,
+        name: str,
+        field: GridFieldInfo,
+    ) -> Any | None:
+        ann = self._grid_field_annotations.get(name)
+        if ann is not None:
+            return ann
+        if field.state:
+            return None
+        from xnano.beta.utils.validation import layout_field_annotation
+
+        return layout_field_annotation()
+
+    def _grid_validate_field(
+        self,
+        name: str,
+        value: Any,
+        *,
+        field: GridFieldInfo,
+    ) -> Any:
+        if value is None:
+            return value
+        ann = self._grid_annotation_for_field(name, field)
+        if ann is None:
+            return value
+        from pydantic_core import ValidationError
+
+        from xnano.beta.core.exceptions import FieldValidationError
+        from xnano.beta.utils.validation import validate_type
+
+        try:
+            return validate_type(value, ann)
+        except ValidationError as exc:
+            raise FieldValidationError(name, exc) from exc
+
+    def _grid_validate_init(self) -> None:
+        if not self._grid_strict:
+            return
+        fields = self._grid_fields.items()
+        state_fields = (
+            (name, field)
+            for name, field in self._grid_state_fields.items()
+            if not field.strict
+        )
+        for name, field in itertools.chain(fields, state_fields):
+            value = getattr(self, name, None)
+            validated = self._grid_validate_field(name, value, field=field)
+            if validated is not value:
+                object.__setattr__(self, name, validated)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        field = self._grid_state_fields.get(name)
+        if field is not None and field.strict:
+            value = self._grid_validate_field(name, value, field=field)
+        object.__setattr__(self, name, value)
+        # Live FieldState dirty bit + host notification (skip private attrs
+        # and fields not yet tracked during construction).
+        if not name.startswith("_") and hasattr(self, "_field_states"):
+            if name in self._field_states or name in self._grid_fields:
+                self.mark_field_dirty(name)
+
+    @property
+    def state(self) -> Any:
+        """Return the active terminal's shared state, or ``None``."""
+        from xnano.beta.core.runtime import get_active_runtime
+
+        runtime = get_active_runtime()
+        return None if runtime is None else runtime.state
+
+    def grid_render(self) -> None:
+        """Called each frame before layout.
+
+        Override to refresh field values every frame. Initial values can be set
+        with ``Field(default=...)``, ``default_factory``, or ``__post_init__``.
+        """
+
+    @overload
+    def grid_play_effect(
+        self,
+        effect: AbstractEffect,
+        *,
+        fields: list[str] | None = None,
+    ) -> bool: ...
+
+    @overload
+    def grid_play_effect(
+        self,
+        effect: KnownEffectKind,
+        *,
+        duration_ms: int = 300,
+        color: ColorLike | None = None,
+        background: ColorLike | None = None,
+        direction: EffectMotion | None = None,
+        gradient_length: int | None = None,
+        randomness: int | None = None,
+        interpolation: EffectInterpolation | None = None,
+        effects: Sequence[AbstractEffect] | None = None,
+        child: AbstractEffect | None = None,
+        times: int | None = None,
+        fields: list[str] | None = None,
+        key: str | None = None,
+    ) -> bool: ...
+
+    def grid_play_effect(
+        self,
+        effect: KnownEffectKind | AbstractEffect,
+        *,
+        duration_ms: int = 300,
+        color: ColorLike | None = None,
+        background: ColorLike | None = None,
+        direction: EffectMotion | None = None,
+        gradient_length: int | None = None,
+        randomness: int | None = None,
+        interpolation: EffectInterpolation | None = None,
+        effects: Sequence[AbstractEffect] | None = None,
+        child: AbstractEffect | None = None,
+        times: int | None = None,
+        fields: list[str] | None = None,
+        key: str | None = None,
+    ) -> bool:
+        """Run a visual effect on one or more layout field areas.
+
+        Each layout field is tagged with its name as an effect key during
+        rendering, so effects can target field content rects on the frame
+        after ``grid_render``.
+
+        Pass a custom ``AbstractEffect`` subclass or
+        provide a known effect kind with typed keyword arguments.
+
+        Args:
+            effect: A built effect instance or a known effect kind string.
+            duration_ms: Duration of the effect in milliseconds.
+            color: Foreground or accent color for color-driven effects.
+            background: Background color for two-color effects.
+            direction: Motion direction for slide and sweep effects.
+            gradient_length: Gradient length for slide and sweep effects.
+            randomness: Randomness for slide and sweep effects.
+            interpolation: Interpolation curve for the effect.
+            effects: Child effects for sequence and parallel composition.
+            child: Child effect for repeat and delay composition.
+            times: Repeat count for repeat effects.
+            fields: Layout field names to target. When omitted or empty, no
+                effect is started.
+            key: Identity used to de-duplicate this effect per target
+                field — see ``AbstractEffect.key``. Only meaningful when
+                ``effect`` is a known-kind string; ignored when ``effect``
+                is already a built ``AbstractEffect`` instance (set
+                ``key`` on the instance itself in that case).
+
+        Returns:
+            ``True`` when at least one field area was found and an effect
+            started.
+        """
+        from xnano.beta.core.runtime import get_active_runtime
+        from xnano.beta.effects import resolve_effect
+
+        runtime = get_active_runtime()
+        if runtime is None:
+            return False
+        resolved_effect = resolve_effect(
+            effect,
+            duration_ms=duration_ms,
+            color=color,
+            background=background,
+            direction=direction,
+            gradient_length=gradient_length,
+            randomness=randomness,
+            interpolation=interpolation,
+            effects=effects,
+            child=child,
+            times=times,
+            key=key,
+        )
+        play_effect = getattr(runtime, "play_effect", None)
+        if not callable(play_effect):
+            return False
+        return bool(play_effect(resolved_effect, fields=fields))
+
+    def _grid_field_info(self, name: str) -> GridFieldInfo:
+        overrides = getattr(self, "_grid_field_overrides", None)
+        if overrides and name in overrides:
+            return overrides[name]
+        return self._grid_fields[name]
+
+    def _grid_has_field_overrides(self) -> bool:
+        overrides = getattr(self, "_grid_field_overrides", None)
+        return bool(overrides)
+
+    def _grid_needs_mouse_geometry(self) -> bool:
+        if type(self)._grid_has_mouse_geometry:
+            return True
+        overrides = getattr(self, "_grid_field_overrides", None)
+        if overrides and any(field.slide for field in overrides.values()):
+            return True
+        if type(self)._grid_field_handlers:
+            return True
+        for field_name in self._grid_fields:
+            info = self._grid_field_info(field_name)
+            if info.slide or info.group or info.scroll:
+                return True
+            value = getattr(self, field_name, None)
+            if (
+                isinstance(value, BaseGrid)
+                and value._grid_needs_mouse_geometry()
+            ):
+                return True
+            from xnano.beta.utils.focus import is_focusable_component
+
+            if is_focusable_component(value):
+                return True
+        return False
+
+    def _grid_field_position(self, name: str) -> tuple[int, int]:
+        positions = getattr(self, "_grid_field_positions", None)
+        if positions and name in positions:
+            return positions[name]
+        return (0, 0)
+
+    def _grid_set_field_position(
+        self,
+        name: str,
+        position: tuple[int, int],
+        *,
+        parent_area: Area,
+        slot_area: Area,
+    ) -> tuple[int, int]:
+        field = self._grid_field_info(name)
+        clamped = _grid_clamp_slide_position(
+            parent_area,
+            slot_area,
+            field.slide or [],
+            position,
+        )
+        self.__dict__.setdefault("_grid_field_positions", {})[name] = clamped
+        return clamped
+
+    def grid_field_position(self, name: str) -> tuple[int, int]:
+        """Return the parent-relative slide offset for a layout field."""
+        return self._grid_field_position(name)
+
+    def _grid_field_scroll_offset(self, name: str) -> int:
+        offsets = getattr(self, "_grid_field_scroll_offsets", None)
+        if offsets and name in offsets:
+            return offsets[name]
+        return 0
+
+    def _grid_set_field_scroll_offset(self, name: str, offset: int) -> None:
+        self.__dict__.setdefault("_grid_field_scroll_offsets", {})[name] = max(
+            0, offset
+        )
+
+    def _grid_field_scroll_follow(self, name: str) -> bool:
+        follow = getattr(self, "_grid_field_scroll_follow_flags", None)
+        if follow and name in follow:
+            return follow[name]
+        return False
+
+    def _grid_set_field_scroll_follow(self, name: str, follow: bool) -> None:
+        self.__dict__.setdefault("_grid_field_scroll_follow_flags", {})[
+            name
+        ] = follow
+
+    def _grid_field_needs_hit(
+        self, field_name: str, field: GridFieldInfo
+    ) -> bool:
+        if field.slide:
+            return True
+        if field.group or field.scroll:
+            return True
+        if _resolve_grid_mouse_handler(self, field_name) is not None:
+            return True
+        from xnano.beta.utils.focus import is_focusable_component
+
+        return is_focusable_component(getattr(self, field_name, None))
+
+    def _grid_apply_field_config(
+        self,
+        name: str,
+        field_config: dict[str, Any],
+        *,
+        caller: str,
+    ) -> None:
+        """Validate and store per-instance style/layout overrides for ``name``.
+
+        Shared by ``grid_set_field`` and ``grid_update_field`` — the only
+        difference between the two callers is which keyword arguments they
+        expose; the validation and override-storage logic is identical.
+        """
+        if name in self._grid_state_fields:
+            raise TypeError(
+                f"{caller}() cannot be used on state field {name!r} on "
+                f"{type(self).__name__}"
+            )
+        if name not in self._grid_fields:
+            raise AttributeError(
+                f"{type(self).__name__} has no layout field {name!r}"
+            )
+
+        forbidden = _GRID_FIELD_IMMUTABLE_KEYS & field_config.keys()
+        if forbidden:
+            raise TypeError(
+                f"{caller}() does not accept {', '.join(sorted(forbidden))}"
+            )
+
+        unknown = set(field_config) - _GRID_FIELD_CONFIG_KEYS
+        if unknown:
+            raise TypeError(
+                f"{caller}() got unexpected keyword arguments: "
+                f"{', '.join(sorted(unknown))}"
+            )
+
+        if not field_config:
+            return
+
+        if "class_name" in field_config:
+            field_config = _expand_field_class_name_config(field_config)
+        if any(key in field_config for key in _GRID_MODIFIER_FLAG_KEYS):
+            field_config = _apply_field_modifier_flags(
+                field_config,
+                self._grid_field_info(name).modifiers,
+            )
+        if "slide" in field_config:
+            field_config = {
+                **field_config,
+                "slide": _normalize_slide_axes(field_config["slide"]),
+            }
+        if "width" in field_config or "height" in field_config:
+            from xnano.beta.types import Sizing
+
+            normalized = dict(field_config)
+            if "width" in normalized:
+                normalized["width"] = Sizing.parse(normalized["width"])
+            if "height" in normalized:
+                normalized["height"] = Sizing.parse(normalized["height"])
+            field_config = normalized
+
+        current = self._grid_field_info(name)
+        # A no-op toggle (setting an attribute to the value it already
+        # has) skips override creation entirely — cheap to call every
+        # frame, and doesn't permanently drop the grid out of the static
+        # layout fast path for a change that didn't change anything.
+        if all(
+            getattr(current, key) == value
+            for key, value in field_config.items()
+        ):
+            return
+
+        overrides = self.__dict__.setdefault("_grid_field_overrides", {})
+        overrides[name] = dataclasses.replace(current, **field_config)
+
+    def grid_set_field(
+        self,
+        name: str,
+        value: Any = UNSET,
+        *,
+        position: tuple[int, int] | None = None,
+        strict: bool = UNSET,
+        slide: Sequence[Axis] | None = UNSET,
+        visible: bool | None = UNSET,
+        wireframe: bool | None = UNSET,
+        color: ColorLike | None = UNSET,
+        background: ColorLike | None = UNSET,
+        width: SizingLike | None = UNSET,
+        height: SizingLike | None = UNSET,
+        gap: int | None = UNSET,
+        direction: Direction | None = UNSET,
+        align: Alignment | None = UNSET,
+        border: Border | None = UNSET,
+        border_sides: Sequence[Side] | None = UNSET,
+        border_color: ColorLike | None = UNSET,
+        title: str | None = UNSET,
+        title_position: FrameTitlePosition | None = UNSET,
+        padding: PaddingLike | None = UNSET,
+        margin: PaddingLike | None = UNSET,
+        modifiers: Sequence[CharacterModifier] | None = UNSET,
+        class_name: ClassNameLike | None = UNSET,
+        bold: bool = UNSET,
+        dim: bool = UNSET,
+        italic: bool = UNSET,
+        underline: bool = UNSET,
+        slow_blink: bool = UNSET,
+        rapid_blink: bool = UNSET,
+        reversed: bool = UNSET,
+    ) -> None:
+        """Set a layout field's runtime value and/or per-instance field metadata.
+
+        Cannot be used on state fields. ``default``, ``default_factory``,
+        ``init``, and ``state`` cannot be changed at runtime.
+
+        For frequent, value-free style ticks (e.g. from ``on_tick`` or an
+        effect callback), prefer ``grid_update_field`` — it skips the
+        value/position handling this method carries for the general case.
+        """
+        field_config: dict[str, Any] = {
+            key: option
+            for key, option in {
+                "strict": strict,
+                "slide": slide,
+                "visible": visible,
+                "wireframe": wireframe,
+                "color": color,
+                "background": background,
+                "width": width,
+                "height": height,
+                "gap": gap,
+                "direction": direction,
+                "align": align,
+                "border": border,
+                "border_sides": border_sides,
+                "border_color": border_color,
+                "title": title,
+                "title_position": title_position,
+                "padding": padding,
+                "margin": margin,
+                "modifiers": modifiers,
+                "class_name": class_name,
+                "bold": bold,
+                "dim": dim,
+                "italic": italic,
+                "underline": underline,
+                "slow_blink": slow_blink,
+                "rapid_blink": rapid_blink,
+                "reversed": reversed,
+            }.items()
+            if option is not UNSET
+        }
+
+        self._grid_apply_field_config(
+            name, field_config, caller="grid_set_field"
+        )
+
+        if position is not None:
+            slot = getattr(self, "_grid_last_slot_areas", {}).get(name)
+            parent = getattr(self, "_grid_last_parent_area", None)
+            if slot is not None and parent is not None:
+                self._grid_set_field_position(
+                    name,
+                    position,
+                    parent_area=parent,
+                    slot_area=slot,
+                )
+            else:
+                self.__dict__.setdefault("_grid_field_positions", {})[name] = (
+                    position
+                )
+
+        if value is not UNSET:
+            field = self._grid_field_info(name)
+            if self._grid_strict:
+                value = self._grid_validate_field(name, value, field=field)
+            object.__setattr__(self, name, value)
+
+    def grid_update_field(
+        self,
+        name: str,
+        *,
+        slide: Sequence[Axis] | None = UNSET,
+        visible: bool | None = UNSET,
+        wireframe: bool | None = UNSET,
+        color: ColorLike | None = UNSET,
+        background: ColorLike | None = UNSET,
+        width: SizingLike | None = UNSET,
+        height: SizingLike | None = UNSET,
+        gap: int | None = UNSET,
+        direction: Direction | None = UNSET,
+        align: Alignment | None = UNSET,
+        border: Border | None = UNSET,
+        border_sides: Sequence[Side] | None = UNSET,
+        border_color: ColorLike | None = UNSET,
+        title: str | None = UNSET,
+        title_position: FrameTitlePosition | None = UNSET,
+        padding: PaddingLike | None = UNSET,
+        margin: PaddingLike | None = UNSET,
+        modifiers: Sequence[CharacterModifier] | None = UNSET,
+        class_name: ClassNameLike | None = UNSET,
+        bold: bool = UNSET,
+        dim: bool = UNSET,
+        italic: bool = UNSET,
+        underline: bool = UNSET,
+        slow_blink: bool = UNSET,
+        rapid_blink: bool = UNSET,
+        reversed: bool = UNSET,
+    ) -> None:
+        """Update a layout field's style/layout attributes, live, in-place.
+
+        A narrower sibling of ``grid_set_field`` for frequent, value-free
+        attribute changes — pulsing a border color from ``on_tick``,
+        toggling a modifier from an effect callback. It has no ``value=``
+        or ``position=`` parameters at all, so a per-frame style tick never
+        pays for that method's value-validation branch. Raises the same
+        ``TypeError``/``AttributeError`` as ``grid_set_field`` for state
+        fields, unknown fields, or unknown keys.
+        """
+        field_config: dict[str, Any] = {
+            key: option
+            for key, option in {
+                "slide": slide,
+                "visible": visible,
+                "wireframe": wireframe,
+                "color": color,
+                "background": background,
+                "width": width,
+                "height": height,
+                "gap": gap,
+                "direction": direction,
+                "align": align,
+                "border": border,
+                "border_sides": border_sides,
+                "border_color": border_color,
+                "title": title,
+                "title_position": title_position,
+                "padding": padding,
+                "margin": margin,
+                "modifiers": modifiers,
+                "class_name": class_name,
+                "bold": bold,
+                "dim": dim,
+                "italic": italic,
+                "underline": underline,
+                "slow_blink": slow_blink,
+                "rapid_blink": rapid_blink,
+                "reversed": reversed,
+            }.items()
+            if option is not UNSET
+        }
+        self._grid_apply_field_config(
+            name, field_config, caller="grid_update_field"
+        )
+
+    def _grid_resolve_visible(self, field: GridFieldInfo, value: Any) -> bool:
+        if field.visible is None:
+            return value is not None
+        return bool(field.visible)
+
+    def _grid_field_frame(
+        self, name: str, field: GridFieldInfo
+    ) -> Frame | None:
+        overrides = getattr(self, "_grid_field_overrides", None)
+        if overrides and name in overrides:
+            return frame_from_field(field)
+        return self._grid_field_frames[name]
+
+    def _grid_register_field_hit(
+        self,
+        field_name: str,
+        paint_area: Area,
+        *,
+        slot_area: Area,
+        parent_area: Area,
+        slide_axes: list[str] | None = None,
+    ) -> None:
+        hits = getattr(self, "_grid_field_hits", None)
+        if hits is None:
+            hits = []
+            object.__setattr__(self, "_grid_field_hits", hits)
+        hits.append(
+            _GridFieldHit(
+                grid=self,
+                field_name=field_name,
+                area=paint_area,
+                slot_area=slot_area,
+                parent_area=parent_area,
+                slide_axes=slide_axes or [],
+            )
+        )
+
+    def _grid_build_frame(self, area: Area, session: Any) -> None:
+        self.columns = area.width
+        self.rows = area.height
+        self.grid_render()
+        self._grid_assemble(area, session)
+
+    def _grid_assemble(self, area: Area, session: Any) -> None:
+        if not self.visible:
+            return
+
+        self._grid_last_parent_area = area
+        self._grid_last_slot_areas = {}
+
+        fields = self._grid_fields
+
+        if not fields:
+            if self._grid_frame is not None:
+                session.paint_frame(area, self._grid_frame, z=self.z)
+            return
+
+        active_names: list[str] = []
+        active_fields: list[GridFieldInfo] = []
+        active_values: list[Any] = []
+        active_constraints: list[_GridLayoutConstraint] = []
+
+        use_static_layout = (
+            not self._grid_needs_dynamic_layout
+            and not self._grid_has_field_overrides()
+        )
+
+        if use_static_layout:
+            for index, field_name in enumerate(self._grid_static_field_names):
+                field = self._grid_field_info(field_name)
+                value = getattr(self, field_name, None)
+                if value is None and field.visible is None:
+                    active_names.clear()
+                    break
+                active_names.append(field_name)
+                active_fields.append(field)
+                active_values.append(value)
+                active_constraints.append(self._grid_static_constraints[index])
+
+        if not active_names:
+            for field_name in fields:
+                field = self._grid_field_info(field_name)
+                value = getattr(self, field_name, None)
+                if not self._grid_resolve_visible(field, value):
+                    continue
+                content_length: int | None = None
+                if _field_needs_content_measure(field, self._grid_direction):
+                    content_length = session.measure_field_slot(
+                        value, self._grid_direction, field
+                    )
+                active_names.append(field_name)
+                active_fields.append(field)
+                active_values.append(value)
+                active_constraints.append(
+                    _layout_constraint_for_field(
+                        field, self._grid_direction, content_length
+                    )
+                )
+
+        if not active_names:
+            if self._grid_frame is not None:
+                session.paint_frame(area, self._grid_frame, z=self.z)
+            return
+
+        inner = area
+        if self._grid_frame is not None:
+            inner = session.paint_frame(area, self._grid_frame, z=self.z)
+
+        slot_areas = session.split_layout(
+            inner,
+            self._grid_direction,
+            self._grid_gap,
+            active_constraints,
+        )
+
+        collect_mouse_geometry = self._grid_needs_mouse_geometry()
+
+        for index, slot_area in enumerate(slot_areas):
+            field_name = active_names[index]
+            field = active_fields[index]
+            value = active_values[index]
+            slot_area = _resolve_slot_area(
+                session, slot_area, field, value, self._grid_direction
+            )
+            self._grid_last_slot_areas[field_name] = slot_area
+            # Always-on LayoutMap (Stage): record geometry; never tied to
+            # wireframe — overlay only reads this map.
+            from xnano.beta.core.runtime import get_active_runtime
+
+            runtime = get_active_runtime()
+            stage = None if runtime is None else runtime.stage
+            if stage is not None and hasattr(stage, "areas"):
+                stage.areas[field_name] = slot_area
+            slide_axes = field.slide or []
+            paint_area = _grid_slide_paint_area(
+                area,
+                slot_area,
+                slide_axes,
+                self._grid_field_position(field_name),
+            )
+            if field.margin is not None:
+                paint_area = _grid_inset_area_for_margin(
+                    paint_area, Padding.parse(field.margin)
+                )
+            if collect_mouse_geometry and self._grid_field_needs_hit(
+                field_name, field
+            ):
+                self._grid_register_field_hit(
+                    field_name,
+                    paint_area,
+                    slot_area=slot_area,
+                    parent_area=area,
+                    slide_axes=slide_axes,
+                )
+            field_frame = self._grid_field_frame(field_name, field)
+            if field_frame is not None:
+                paint_chrome = getattr(session, "paint_chrome", None)
+                if paint_chrome is not None and hasattr(field, "get_style"):
+                    paint_area = paint_chrome(
+                        paint_area, field.get_style(), z=self.z
+                    )
+                else:
+                    paint_area = session.paint_frame(
+                        paint_area, field_frame, z=self.z
+                    )
+            if value is None:
+                continue
+            session.paint_field_slot(
+                value,
+                paint_area,
+                field,
+                parent_z=self.z,
+                effect_key=field_name,
+                owner=self,
+                owner_field_name=field_name,
+            )
+            if field.wireframe:
+                paint_wireframe = getattr(
+                    session, "paint_field_wireframe", None
+                )
+                if paint_wireframe is not None:
+                    paint_wireframe(paint_area)
+
+
+def _grid_slide_paint_area(
+    parent_area: Area,
+    slot_area: Area,
+    slide_axes: list[str],
+    position: tuple[int, int],
+) -> Area:
+    if not slide_axes:
+        return slot_area
+
+    x = slot_area.x
+    y = slot_area.y
+    if "x" in slide_axes:
+        x = parent_area.x + position[0]
+    if "y" in slide_axes:
+        y = parent_area.y + position[1]
+
+    max_x = parent_area.x + parent_area.width - slot_area.width
+    max_y = parent_area.y + parent_area.height - slot_area.height
+    x = max(parent_area.x, min(x, max_x))
+    y = max(parent_area.y, min(y, max_y))
+    return Area(
+        x=x,
+        y=y,
+        width=slot_area.width,
+        height=slot_area.height,
+    )
+
+
+def _grid_clamp_slide_position(
+    parent_area: Area,
+    slot_area: Area,
+    slide_axes: list[str],
+    position: tuple[int, int],
+) -> tuple[int, int]:
+    x = position[0]
+    y = position[1]
+    if "x" in slide_axes:
+        x = max(0, min(x, parent_area.width - slot_area.width))
+    if "y" in slide_axes:
+        y = max(0, min(y, parent_area.height - slot_area.height))
+    return (x, y)
+
+
+def _resolve_grid_mouse_handler(
+    grid: BaseGrid, field_name: str
+) -> Callable[..., Any] | None:
+    """Return the field-bound mouse handler for ``field_name`` on ``grid``."""
+    from xnano.beta import hooks as EventHooks
+
+    for cls in type(grid).__mro__:
+        if not (isinstance(cls, type) and issubclass(cls, BaseGrid)):
+            continue
+        handlers = cls.__dict__.get("_grid_field_handlers")
+        if not isinstance(handlers, dict) or field_name not in handlers:
+            continue
+        attr = handlers[field_name]
+        if not hasattr(attr, EventHooks.ON_MOUSE_HOOK_ATTR):
+            return None
+        return attr.__get__(grid, cls)
+    return None
+
+
+__all__ = (
+    "BaseGrid",
+    "GridSettings",
+)

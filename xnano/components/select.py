@@ -14,6 +14,8 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, Sequence
 
+from typing_extensions import deprecated
+
 from xnano._types import CharacterModifier
 from xnano.components.abstract import AbstractComponent
 from xnano.components.text import Text
@@ -70,6 +72,12 @@ def get_fuzzy_match(
     return (score, tuple(indices))
 
 
+@deprecated(
+    "'xnano.components.Select' is deprecated and will be removed in v1.2; "
+    "use 'xnano.beta.components.Options' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass
 class Select(AbstractComponent):
     """Selectable, filterable list of items.

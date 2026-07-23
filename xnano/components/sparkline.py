@@ -10,6 +10,8 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING
 
+from typing_extensions import deprecated
+
 from xnano.components.abstract import AbstractComponent
 
 if TYPE_CHECKING:
@@ -18,6 +20,12 @@ if TYPE_CHECKING:
     from xnano.terminal.nodes import AbstractTerminalNode
 
 
+@deprecated(
+    "'xnano.components.Sparkline' is deprecated and will be removed in v1.2; "
+    "use 'xnano.beta.components.Bar' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass
 class Sparkline(AbstractComponent):
     """Compact inline bar chart for a sequence of samples.

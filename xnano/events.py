@@ -4,6 +4,9 @@
 
 Unified terminal and application events, plus the public ``@on_*`` hook
 decorators used to annotate ``BaseGrid`` methods for event handling.
+
+Stable events and hook decorators are deprecated for removal in v1.2. Use
+``xnano.beta.events`` and ``xnano.beta.hooks``.
 """
 
 from __future__ import annotations
@@ -138,6 +141,11 @@ class AbstractEventData(abc.ABC):
 
 
 @dataclasses.dataclass(slots=True, frozen=True)
+@deprecated(
+    "'xnano.events.ClipboardEventData' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.events.ClipboardEventData' instead.",
+    category=DeprecationWarning,
+)
 class ClipboardEventData(AbstractEventData):
     """A clipboard paste event.
 
@@ -170,6 +178,11 @@ Values:
 
 
 @dataclasses.dataclass(slots=True, frozen=True)
+@deprecated(
+    "'xnano.events.FocusEventData' is deprecated and will be removed in v1.2; "
+    "use 'xnano.beta.events.FocusEventData' instead.",
+    category=DeprecationWarning,
+)
 class FocusEventData(AbstractEventData):
     """Focus change event — terminal window or grid field.
 
@@ -195,6 +208,12 @@ _KEY_ALIASES: dict[str, str] = {
 }
 
 
+@deprecated(
+    "'xnano.events.normalize_keyboard_binding' is deprecated and will be "
+    "removed in v1.2; use 'xnano.beta.events.normalize_keyboard_binding' "
+    "instead.",
+    category=DeprecationWarning,
+)
 def normalize_keyboard_binding(
     binding: str,
 ) -> tuple[frozenset[str], str] | None:
@@ -218,6 +237,11 @@ def normalize_keyboard_binding(
     return (modifiers, key)
 
 
+@deprecated(
+    "'xnano.events.parse_binding_tuple' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.events.parse_binding_tuple' instead.",
+    category=DeprecationWarning,
+)
 def parse_binding_tuple(
     binding: str,
 ) -> tuple[list[KeyboardModifier | None], str]:
@@ -267,6 +291,11 @@ def _set_keyboard_event_data_binding_tuple(
 
 
 @dataclasses.dataclass(slots=True, frozen=True)
+@deprecated(
+    "'xnano.events.KeyboardEventData' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.events.KeyboardEventData' instead.",
+    category=DeprecationWarning,
+)
 class KeyboardEventData(AbstractEventData):
     """A keyboard input event.
 
@@ -442,6 +471,11 @@ class KeyboardEventData(AbstractEventData):
 
 
 @dataclasses.dataclass(slots=True, frozen=True)
+@deprecated(
+    "'xnano.events.MouseEventData' is deprecated and will be removed in v1.2; "
+    "use 'xnano.beta.events.MouseEventData' instead.",
+    category=DeprecationWarning,
+)
 class MouseEventData(AbstractEventData):
     """A mouse input event.
 
@@ -469,6 +503,11 @@ class MouseEventData(AbstractEventData):
 
 
 @dataclasses.dataclass(slots=True, frozen=True)
+@deprecated(
+    "'xnano.events.ResizeEventData' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.events.ResizeEventData' instead.",
+    category=DeprecationWarning,
+)
 class ResizeEventData(AbstractEventData):
     """A terminal resize event.
 
@@ -490,6 +529,11 @@ class ResizeEventData(AbstractEventData):
 
 
 @dataclasses.dataclass(slots=True, frozen=True, repr=False)
+@deprecated(
+    "'xnano.events.Event' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.events.Event' instead.",
+    category=DeprecationWarning,
+)
 class Event:
     """A unified input event from a host adapter or synthesized Action.
 
@@ -797,6 +841,11 @@ def _decorate_on_mouse_hook(
     return _decorate_hook_function(fn)
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_keyboard(
     key: KeyboardBinding,
@@ -804,12 +853,22 @@ def on_keyboard(
     *keys: KeyboardBinding,
     kind: KeyboardEventKind | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_keyboard(
     *,
     key: KeyboardBinding,
     kind: KeyboardEventKind | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_keyboard(
     handler: EventHookFunction,
@@ -818,6 +877,11 @@ def on_keyboard(
     key: KeyboardBinding | None = None,
     kind: KeyboardEventKind | None = None,
 ) -> EventHookFunction: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_keyboard(
     handler_or_key: "EventHookFunction | KeyboardBinding | None" = None,
     /,
@@ -864,6 +928,11 @@ def on_keyboard(
     return decorator
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_mouse(
     button: MouseButton,
@@ -872,6 +941,11 @@ def on_mouse(
     field: str | None = None,
     kind: MouseEventKind | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_mouse(
     *,
@@ -879,6 +953,11 @@ def on_mouse(
     field: str | None = None,
     kind: MouseEventKind | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_mouse(
     handler: EventHookFunction,
@@ -888,6 +967,11 @@ def on_mouse(
     field: str | None = None,
     kind: MouseEventKind | None = None,
 ) -> EventHookFunction: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_mouse(
     handler_or_button: "EventHookFunction | MouseButton | None" = None,
     /,
@@ -925,10 +1009,20 @@ def on_mouse(
     return decorator
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_click(
     field: str, /
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_click(
     handler: EventHookFunction,
@@ -938,6 +1032,11 @@ def on_click(
     button: MouseButton = "left",
     kind: MouseEventKind = "press",
 ) -> EventHookFunction: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_click(
     *,
@@ -945,6 +1044,11 @@ def on_click(
     button: MouseButton = "left",
     kind: MouseEventKind = "press",
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_click(
     field_or_handler: "str | EventHookFunction | None" = None,
     /,
@@ -1008,8 +1112,18 @@ def on_click(
     )
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_tick(handler: EventHookFunction, /) -> EventHookFunction: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_tick(
     interval: int,
@@ -1017,11 +1131,21 @@ def on_tick(
     *,
     interval_milliseconds: int | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_tick(
     *,
     interval_milliseconds: int,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_tick(
     handler_or_interval: "EventHookFunction | int | None" = None,
     /,
@@ -1051,6 +1175,11 @@ def on_tick(
     )
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_event(fn: EventHookFunction) -> EventHookFunction:
     """Register an event hook that triggers on every detected terminal
     event.
@@ -1065,14 +1194,29 @@ def on_event(fn: EventHookFunction) -> EventHookFunction:
     return _decorate_hook_function(fn)
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_resize(fn: EventHookFunction) -> EventHookFunction:
     """Register a hook fired on terminal resize events."""
     setattr(fn, _EventHooksRegistry.ON_RESIZE_HOOK_ATTR, True)
     return _decorate_hook_function(fn)
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_focus(handler: EventHookFunction, /) -> EventHookFunction: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_focus(
     field: str,
@@ -1080,6 +1224,11 @@ def on_focus(
     *,
     kind: FocusHookKind | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_focus(
     *,
@@ -1087,6 +1236,11 @@ def on_focus(
     group: str | None = None,
     kind: FocusHookKind | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_focus(
     handler_or_field: "EventHookFunction | str | None" = None,
     /,
@@ -1160,12 +1314,22 @@ def on_focus(
     return decorator
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_clipboard(fn: EventHookFunction) -> EventHookFunction:
     """Register a hook fired on clipboard paste events."""
     setattr(fn, _EventHooksRegistry.ON_CLIPBOARD_HOOK_ATTR, True)
     return _decorate_hook_function(fn)
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_state(
     expression: str,
 ) -> Callable[[EventHookFunction], EventHookFunction]:
@@ -1195,6 +1359,11 @@ def on_state(
     return decorator
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_field(
     expression: str,
 ) -> Callable[[EventHookFunction], EventHookFunction]:
@@ -1223,18 +1392,38 @@ def on_field(
     return decorator
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_poll(handler: EventHookFunction, /) -> EventHookFunction: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_poll(
     when: PollWhen = "idle",
     /,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 @overload
 def on_poll(
     *,
     when: PollWhen,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_poll(
     handler_or_when: "EventHookFunction | PollWhen | None" = None,
     /,
@@ -1299,6 +1488,11 @@ def on_poll(
     return decorator
 
 
+@deprecated(
+    "Stable hook decorators are deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks' instead.",
+    category=DeprecationWarning,
+)
 def on_action(
     action: Any,
     /,
@@ -1372,8 +1566,8 @@ def on_action(
 
 
 @deprecated(
-    "'on' is deprecated and will be removed in the future; use "
-    "'on_action' instead.\n\n`from xnano.events import on_action`",
+    "'xnano.events.on' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.hooks.on_action' instead.",
     category=DeprecationWarning,
 )
 def on(
@@ -1389,6 +1583,14 @@ def on(
         A decorator that binds the action to a hook function.
     """
     return on_action(action)
+
+
+setattr(
+    AbstractEventData,
+    "__deprecated__",
+    "'xnano.events.AbstractEventData' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.events.AbstractEventData' instead.",
+)
 
 
 __all__ = (
