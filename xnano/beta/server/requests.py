@@ -41,7 +41,7 @@ class RequestServer(http.server.ThreadingHTTPServer):
         runtime: Any | None = None,
     ) -> None:
         self.grid = grid() if isinstance(grid, type) else grid
-        self.runtime = runtime
+        self.runtime = runtime if runtime is not None else self.grid
         super().__init__(address, _RequestHandler)
 
 

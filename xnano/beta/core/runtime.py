@@ -10,6 +10,7 @@ from __future__ import annotations
 import atexit
 import contextvars
 import signal
+import time
 from typing import Any, Generic, Sequence, TypeVar
 
 from xnano_core.core import CoreSession
@@ -112,6 +113,7 @@ class Runtime(Generic[StateT]):
         state: StateT | None = None,
         title: str | None = None,
         surface: str = "terminal",
+        tick_interval: int = 16,
     ) -> None:
         self._session = session
         self._live = live
@@ -127,6 +129,8 @@ class Runtime(Generic[StateT]):
         self._stage = Stage()
         self._elapsed_ms = 0
         self._tick_hook_times: dict[tuple[int, str], int] = {}
+        self._tick_interval = max(1, tick_interval)
+        self._last_tick_ms = time.monotonic() * 1000
         self._signals_installed = False
         self._prev_signal_handlers: dict[signal.Signals, Any] = {}
         self._cursor = Cursor(self)
@@ -141,11 +145,17 @@ class Runtime(Generic[StateT]):
         *,
         state: StateT | None = None,
         title: str | None = None,
-        tick_interval: int | None = None,
+        tick_interval: int = 16,
     ) -> "Runtime[StateT]":
         """Create a runtime backed by the active terminal."""
-        session = CoreSession.init(tick_rate_ms=tick_interval)
-        return cls(session, live=True, state=state, title=title)
+        session = CoreSession.init(tick_rate_ms=None)
+        return cls(
+            session,
+            live=True,
+            state=state,
+            title=title,
+            tick_interval=tick_interval,
+        )
 
     @classmethod
     def offscreen(
@@ -239,6 +249,11 @@ class Runtime(Generic[StateT]):
         try:
             self._session.restore()
         finally:
+            # Runtime owns cursor/device/action proxies that point back to it,
+            # so the Python object can remain in a reference cycle after
+            # close. Release the unsendable PyO3 session now, on its owner
+            # thread, instead of leaving its destructor to a later GC pass.
+            del self._session
             self._restore_signal_handlers()
 
     def __enter__(self) -> "Runtime[StateT]":
@@ -442,13 +457,25 @@ class Runtime(Generic[StateT]):
         """Poll and dispatch at most one event."""
         if self._should_exit:
             return False
-        native_event = self._session.poll_event(max(0, int(timeout * 1000)))
+        timeout_ms = max(0, int(timeout * 1000))
+        if self._live and timeout_ms == 0:
+            timeout_ms = self._tick_interval
+        native_event = self._session.poll_event(timeout_ms)
         if native_event is not None:
             self.dispatch(event_from_core(native_event))
         elif self._root is not None:
             from xnano.beta.core.dispatch import dispatch_idle
 
             dispatch_idle(self._root, self)
+        if self._root is not None:
+            from xnano.beta.events import Event, TickEventData
+
+            now = time.monotonic() * 1000
+            elapsed_ms = max(0, int(now - self._last_tick_ms))
+            self._last_tick_ms = now
+            self.dispatch(
+                Event.from_data(TickEventData(elapsed_ms=elapsed_ms))
+            )
         return not self._should_exit
 
     def dispatch(self, event: Any) -> None:

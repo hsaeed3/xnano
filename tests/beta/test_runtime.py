@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import signal
 
+import xnano.beta.core.runtime
 from xnano.beta.core import Frame, Runtime
 from xnano.beta.core.runtime import (
     _ACTIVE_RUNTIME,
@@ -112,6 +113,83 @@ def test_runtime_honors_focus_filters_and_tick_intervals() -> None:
         assert app.tick_count == 1
     finally:
         runtime.close()
+
+
+def test_runtime_pump_ticks_mutates_and_repaints_grid(
+    monkeypatch,
+) -> None:
+    from xnano.beta import hooks
+    from xnano.beta.fields import Field
+    from xnano.beta.grids import BaseGrid
+
+    now = [100.0]
+    monkeypatch.setattr(
+        xnano.beta.core.runtime.time,
+        "monotonic",
+        lambda: now[0],
+    )
+
+    class App(BaseGrid):
+        name: str = Field(default="John Doe", border="rounded")
+
+        @hooks.on_tick(1000)
+        def on_tick_hook(self) -> None:
+            self.name += "a"
+
+    runtime = Runtime.offscreen(20, 4)
+    try:
+        app = App()
+        runtime.set_root(app)
+        assert "John Doe" in runtime.render().text
+        now[0] += 0.999
+        runtime.pump()
+        assert app.name == "John Doe"
+        now[0] += 0.001
+        runtime.pump()
+        assert app.name == "John Doea"
+        frame = runtime.render()
+        assert "John Doea" in frame.text
+        assert "╭──────────────────╮" in frame.text
+    finally:
+        runtime.close()
+
+
+def test_live_runtime_pump_uses_bounded_poll_and_ticks(
+    monkeypatch,
+) -> None:
+    from xnano.beta import hooks
+    from xnano.beta.grids import BaseGrid
+
+    class Session:
+        timeout_ms: int | None = None
+
+        def poll_event(self, timeout_ms: int):
+            self.timeout_ms = timeout_ms
+            return None
+
+    class App(BaseGrid):
+        ticked: bool = False
+
+        @hooks.on_tick
+        def on_tick_hook(self) -> None:
+            self.ticked = True
+
+    now = [100.0]
+    monkeypatch.setattr(
+        xnano.beta.core.runtime.time,
+        "monotonic",
+        lambda: now[0],
+    )
+    session = Session()
+    runtime = Runtime(
+        session,  # ty: ignore[invalid-argument-type]
+        live=True,
+        tick_interval=16,
+    )
+    runtime.set_root(App())
+    runtime.pump()
+    assert session.timeout_ms == 16
+    assert runtime._root.ticked is True
 
 
 def test_runtime_focus_api() -> None:
