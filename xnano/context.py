@@ -11,6 +11,8 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
+from typing_extensions import deprecated
+
 if TYPE_CHECKING:
     from xnano._types import ScrollHandle
     from xnano.core.actions import Actions
@@ -29,6 +31,12 @@ if TYPE_CHECKING:
 StateT = TypeVar("StateT")
 
 
+@deprecated(
+    "'xnano.Context' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.Context' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True, frozen=True)
 class Context(Generic[StateT]):
     """Runtime context passed into every ``@on_*`` hook handler.

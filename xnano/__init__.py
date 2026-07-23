@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from xnano.context import Context
     from xnano.core.actions import Action
     from xnano.events import (
-        on,  # ty: ignore[deprecated]
+        on,
         on_action,
         on_click,
         on_clipboard,
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from xnano.fields import Field
     from xnano.grid import (
         BaseGrid,
-        Grid,  # ty: ignore[deprecated]
+        Grid,
         GridSettings,
     )
     from xnano.terminal.terminal import Terminal
@@ -94,7 +94,7 @@ def __getattr__(name: str):
     elif name == "Grid":
         import os as _os
 
-        from xnano.grid import Grid  # ty: ignore[deprecated]
+        from xnano.grid import Grid
 
         _ignore = _os.environ.get("XNANO_IGNORE_DEPRECATION_WARNINGS")
         if _ignore is None or not _ignore.lower() in ["1", "true", "yes", "y"]:
@@ -107,7 +107,7 @@ def __getattr__(name: str):
                 stacklevel=2,
             )
 
-        return Grid  # ty: ignore[deprecated]
+        return Grid
 
     elif name == "GridSettings":
         from xnano.grid import GridSettings
@@ -122,7 +122,7 @@ def __getattr__(name: str):
     elif name == "on":
         import os as _os
 
-        from xnano.events import on  # ty: ignore[deprecated]
+        from xnano.events import on
 
         _ignore = _os.environ.get("XNANO_IGNORE_DEPRECATION_WARNINGS")
         if _ignore is None or not _ignore.lower() in ["1", "true", "yes", "y"]:
@@ -137,7 +137,7 @@ def __getattr__(name: str):
                 stacklevel=2,
             )
 
-        return on  # ty: ignore[deprecated]
+        return on
 
     elif name == "on_action":
         from xnano.events import on_action

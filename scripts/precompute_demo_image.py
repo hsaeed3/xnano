@@ -12,8 +12,8 @@ import pathlib
 import struct
 import zlib
 
-from PIL import Image as pillow_image  # ty: ignore[unresolved-import]
-from PIL import (  # ty: ignore[unresolved-import]
+from PIL import Image as pillow_image
+from PIL import (
     ImageSequence as pillow_image_sequence,
 )
 

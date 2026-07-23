@@ -10,6 +10,8 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeAlias, cast
 
+from typing_extensions import deprecated
+
 from xnano.components.abstract import AbstractComponent
 from xnano.components.schema import (
     Column,
@@ -29,6 +31,12 @@ ColumnsArg: TypeAlias = (
 """Optional column overrides for the data-driven ``Table`` path."""
 
 
+@deprecated(
+    "'xnano.components.Table' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.components.Table' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass
 class Table(AbstractComponent, metaclass=DeclarativeComponentMeta):
     """Declarative data table.

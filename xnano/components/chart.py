@@ -10,6 +10,8 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, ClassVar, Sequence, TypeAlias, cast
 
+from typing_extensions import deprecated
+
 from xnano._types import GraphTypeLike, LegendPositionLike
 from xnano.components.abstract import AbstractComponent
 from xnano.components.schema import (
@@ -40,6 +42,12 @@ SeriesData: TypeAlias = Sequence[Any]
 """Points for one chart series: ``(x, y)`` pairs or bare ``y`` values."""
 
 
+@deprecated(
+    "'xnano.components.Chart' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.components.Chart' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass
 class Chart(AbstractComponent, metaclass=DeclarativeComponentMeta):
     """Declarative multi-series chart.

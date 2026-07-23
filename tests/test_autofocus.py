@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from helpers import close_offscreen_app, open_offscreen_app
+
 from xnano.components.text import Text
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.terminal import Terminal
-
-from helpers import close_offscreen_app, open_offscreen_app
 
 
 def test_autofocus_wins_over_declaration_order() -> None:

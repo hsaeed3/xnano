@@ -23,6 +23,8 @@ import abc
 import dataclasses
 from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
+from typing_extensions import deprecated
+
 if TYPE_CHECKING:
     from xnano._types import Alignment, GraphTypeLike
     from xnano.color import ColorLike
@@ -40,6 +42,11 @@ FormatResolver: TypeAlias = str | Callable[[Any], str] | None
 """A ``str.format`` template, a formatter callable, or ``None``."""
 
 
+@deprecated(
+    "'xnano.components.ComponentDescriptor' is deprecated and will be removed "
+    "in v1.2; use 'xnano.beta.components.schema.ComponentDescriptor' instead.",
+    category=None,
+)
 @dataclasses.dataclass
 class ComponentDescriptor:
     """Base for declarative class-level descriptors
@@ -53,6 +60,12 @@ class ComponentDescriptor:
     name: str = dataclasses.field(default="", init=False)
 
 
+@deprecated(
+    "'xnano.components.Column' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.components.Column' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass
 class Column(ComponentDescriptor):
     """Declares one column of a
@@ -159,6 +172,12 @@ class Column(ComponentDescriptor):
         return background
 
 
+@deprecated(
+    "'xnano.components.Series' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.components.Series' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass
 class Series(ComponentDescriptor):
     """Declares one series of a

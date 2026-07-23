@@ -11,6 +11,8 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, Sequence
 
+from typing_extensions import deprecated
+
 from xnano._types import Alignment, CharacterModifier
 from xnano.components.abstract import AbstractComponent
 
@@ -21,6 +23,12 @@ if TYPE_CHECKING:
     from xnano.terminal.nodes import AbstractTerminalNode, LineNode
 
 
+@deprecated(
+    "'xnano.components.Text' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.components.Text' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass
 class Text(AbstractComponent):
     """Unified text component that adapts its render node based on structure.

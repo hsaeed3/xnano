@@ -21,7 +21,6 @@ from xnano_core import core
 from xnano import _core_bindings as native_types
 from xnano._types import Alignment, Area, Direction, Size
 from xnano.components.abstract import (
-    AbstractComponent,
     ComponentRenderContext,
 )
 from xnano.core.controllers.abstract import (
@@ -495,11 +494,13 @@ class TerminalController(AbstractController, Generic[StateT]):
         if value is None:
             return 0
 
-        if isinstance(value, AbstractComponent):
+        from xnano._types import is_component, uses_default_component_size
+
+        if is_component(value):
             ctx = ComponentRenderContext(
                 area=Area(x=0, y=0, width=0, height=0)
             )
-            if type(value).get_size is not AbstractComponent.get_size:
+            if not uses_default_component_size(value):
                 size = value.get_size(ctx)
             else:
                 content = value.compose(ctx)
@@ -509,7 +510,8 @@ class TerminalController(AbstractController, Generic[StateT]):
 
                     node = lower_content(content)
                 if node is None:
-                    node = value.get_terminal_node(ctx)
+                    get_node = getattr(value, "get_terminal_node", None)
+                    node = get_node(ctx) if callable(get_node) else None
                 size = (
                     node.measure()
                     if node is not None
@@ -607,7 +609,7 @@ class TerminalController(AbstractController, Generic[StateT]):
 
     def render_component(
         self,
-        component: AbstractComponent,
+        component: Any,
         area: Area,
         ctx: ComponentRenderContext[StateT],
         *,
@@ -619,6 +621,8 @@ class TerminalController(AbstractController, Generic[StateT]):
         Prefers ``compose()`` → Content → node lowering; falls back to
         ``get_terminal_node`` for components not yet converted.
         """
+        from xnano._types import uses_default_component_size
+
         if not component.visible:
             return
 
@@ -630,8 +634,10 @@ class TerminalController(AbstractController, Generic[StateT]):
 
             node = lower_content(content)
         if node is None:
-            node = component.get_terminal_node(ctx)
-        frame = component.get_frame()
+            get_node = getattr(component, "get_terminal_node", None)
+            node = get_node(ctx) if callable(get_node) else None
+        get_frame = getattr(component, "get_frame", None)
+        frame = get_frame() if callable(get_frame) else None
 
         if node is None and frame is None:
             component.after_render(ctx, area)
@@ -639,7 +645,7 @@ class TerminalController(AbstractController, Generic[StateT]):
 
         draw_area = area
         if component.fit_content and not fill_area:
-            if type(component).get_size is not AbstractComponent.get_size:
+            if not uses_default_component_size(component):
                 measured = component.get_size(ctx)
             elif node is not None:
                 measured = node.measure()
@@ -797,7 +803,9 @@ class TerminalController(AbstractController, Generic[StateT]):
             value._grid_build_frame(area, self)
             return
 
-        if isinstance(value, AbstractComponent):
+        from xnano._types import is_component
+
+        if is_component(value):
             from xnano.terminal.terminal import _ACTIVE_TERMINAL
 
             terminal = _ACTIVE_TERMINAL.get()

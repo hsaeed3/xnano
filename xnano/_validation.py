@@ -193,6 +193,8 @@ def _is_grid_type(annotation: Any) -> bool:
 def _is_component_type(annotation: Any) -> bool:
     if not inspect.isclass(annotation):
         return False
+    if getattr(annotation, "_xnano_component_base", False):
+        return True
     from xnano.components.abstract import AbstractComponent
 
     try:

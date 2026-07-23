@@ -244,19 +244,24 @@ def measure_renderable(root: Any) -> tuple[int, int]:
     Returns:
         The measured ``(width, height)`` in terminal cells.
     """
-    from xnano._types import Area
-    from xnano.components.abstract import (
-        AbstractComponent,
-        ComponentRenderContext,
-    )
+    from xnano._types import Area, is_component, uses_default_component_size
+    from xnano.components.abstract import ComponentRenderContext
     from xnano.terminal.nodes import AbstractTerminalNode
 
-    if isinstance(root, AbstractComponent):
+    if is_component(root):
         ctx = ComponentRenderContext(area=Area(x=0, y=0, width=0, height=0))
-        if type(root).get_size is not AbstractComponent.get_size:
+        if not uses_default_component_size(root):
             size = root.get_size(ctx)
             return size.width, size.height
-        node = root.get_terminal_node(ctx)
+        content = root.compose(ctx)
+        node = None
+        if content is not None:
+            from xnano.terminal.content_lower import lower_content
+
+            node = lower_content(content)
+        if node is None:
+            get_node = getattr(root, "get_terminal_node", None)
+            node = get_node(ctx) if callable(get_node) else None
         if node is not None:
             size = node.measure()
             return size.width, size.height

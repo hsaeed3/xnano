@@ -21,6 +21,8 @@ import dataclasses
 import functools
 from typing import Any, ClassVar, TypeAlias
 
+from typing_extensions import deprecated
+
 from xnano._types import KeyboardBinding, MouseButton
 
 KeyboardEventKindLike: TypeAlias = str
@@ -590,6 +592,12 @@ class Action(abc.ABC):
         """
 
 
+@deprecated(
+    "'xnano.core.actions.KeyboardAction' is deprecated and will be removed "
+    "in v1.2; use 'xnano.beta.actions.KeyboardAction' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True, frozen=True)
 class KeyboardAction(Action):
     """Keyboard trigger — bindings and optional press/release/repeat kind.
@@ -678,6 +686,12 @@ class KeyboardAction(Action):
             return _synthesize_event(data, kind="keyboard")
 
 
+@deprecated(
+    "'xnano.core.actions.MouseAction' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.actions.MouseAction' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True, frozen=True)
 class MouseAction(Action):
     """Mouse trigger — buttons and optional event kind.
@@ -740,6 +754,12 @@ class MouseAction(Action):
         return _synthesize_event(data, kind="mouse")
 
 
+@deprecated(
+    "'xnano.core.actions.ClickAction' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.actions.ClickAction' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True, frozen=True)
 class ClickAction(Action):
     """Click trigger — mouse press on a button, optional field scope.
@@ -801,6 +821,12 @@ class ClickAction(Action):
         return _synthesize_event(data, kind="mouse")
 
 
+@deprecated(
+    "'xnano.core.actions.FocusAction' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.actions.FocusAction' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True, frozen=True)
 class FocusAction(Action):
     """Focus trigger — terminal window or grid field focus changes.
@@ -892,6 +918,12 @@ def _focus_kinds_compatible(
     return False
 
 
+@deprecated(
+    "'xnano.core.actions.ClipboardAction' is deprecated and will be removed "
+    "in v1.2; use 'xnano.beta.actions.ClipboardAction' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True, frozen=True)
 class ClipboardAction(Action):
     """Clipboard (paste) trigger.
@@ -934,6 +966,12 @@ class ClipboardAction(Action):
         return _synthesize_event(data, kind="clipboard")
 
 
+@deprecated(
+    "'xnano.core.actions.TickAction' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.actions.TickAction' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True, frozen=True)
 class TickAction(Action):
     """Tick trigger — interval-gated host clock callbacks.
@@ -985,6 +1023,12 @@ class TickAction(Action):
         return _synthesize_event(data, kind="tick")
 
 
+@deprecated(
+    "'xnano.core.actions.ResizeAction' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.actions.ResizeAction' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True, frozen=True)
 class ResizeAction(Action):
     """Terminal resize trigger — optional exact size filters.
@@ -1045,6 +1089,12 @@ class ResizeAction(Action):
         return _synthesize_event(data, kind="resize")
 
 
+@deprecated(
+    "'xnano.core.actions.RequestAction' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.actions.RequestAction' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True, frozen=True)
 class RequestAction(Action):
     """HTTP request trigger for web host routes.
@@ -1207,6 +1257,12 @@ def request_action_from_filter(method: str, path: str) -> RequestAction:
 # ---------------------------------------------------------------------------
 
 
+@deprecated(
+    "'xnano.Actions' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.Actions' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 class Actions:
     """Perform actions against a live host from hooks or app code.
 
@@ -1325,6 +1381,14 @@ class Actions:
             interval_ms: Interval in milliseconds.
         """
         self.perform(Action.tick(interval_ms=interval_ms))
+
+
+Action = deprecated(
+    "'xnano.Action' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.Action' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)(Action)
 
 
 __all__ = (
