@@ -56,16 +56,30 @@ Values:
 
 
 class TerminalCursor(AbstractCursor):
-    """Show, hide, style, and move the terminal cursor.
+    """Show, hide, style, and move the cursor for the active session.
 
     Obtained from a live ``Terminal`` (``terminal.cursor`` or
     ``ctx.cursor`` in hooks). Do not construct this class yourself.
+
+    Position/visibility/style are always tracked locally, so ``ctx.cursor``
+    behaves identically whether the session is a live terminal or an
+    offscreen one (tests, or a ``Web`` session — every browser visitor
+    is served by an offscreen ``Terminal`` under the hood; see
+    ``xnano.web.render.WebRenderer``). Only a *live* session additionally
+    issues the real OS terminal escape codes; an offscreen session would
+    otherwise write those escapes to whatever process happens to own
+    stdout (dangerous for a web server) or block on a query with no real
+    terminal to answer it.
     """
 
     __slots__ = (
         "_terminal",
         "_style",
         "_visible",
+        "_x",
+        "_y",
+        "_saved_position",
+        "_blinking",
     )
 
     def __init__(
@@ -82,6 +96,21 @@ class TerminalCursor(AbstractCursor):
         self._terminal = _terminal
         self._visible = _visible
         self._style = _style
+        self._x = 0
+        self._y = 0
+        self._saved_position: Coordinate | None = None
+        self._blinking = True
+
+    def _is_live(self) -> bool:
+        """Whether this session has a real terminal attached.
+
+        ``False`` for offscreen sessions (tests, ``Web`` visitors) —
+        state is still tracked locally either way, but native OS escape
+        codes are only issued when there's a real terminal to receive
+        them.
+        """
+        session = getattr(self._terminal, "_session", None)
+        return session is not None and not session._is_offscreen
 
     @property
     def visible(self) -> bool:
@@ -95,10 +124,11 @@ class TerminalCursor(AbstractCursor):
         if not isinstance(value, bool):
             raise TypeError("`visible` must be a boolean.")
         self._visible = value
-        if value:
-            native.show_cursor()
-        else:
-            native.hide_cursor()
+        if self._is_live():
+            if value:
+                native.show_cursor()
+            else:
+                native.hide_cursor()
 
     @property
     def style(self) -> CursorStyle:
@@ -113,64 +143,100 @@ class TerminalCursor(AbstractCursor):
                 + ", ".join(CursorStyle.__args__)
             )
         self._style = value
-        native.set_cursor_style(native_types._NATIVE_CURSOR_STYLE_TYPES[value])
+        if self._is_live():
+            native.set_cursor_style(
+                native_types._NATIVE_CURSOR_STYLE_TYPES[value]
+            )
 
     def get_position(self) -> Coordinate:
-        """Get the current cursor position."""
-        position = native.get_cursor_position()
-        return (position.x, position.y)
+        """Get the current cursor position.
+
+        Returns the locally tracked position — reliable for both live and
+        offscreen sessions (a live terminal's own native position query
+        is not consulted, since every move already updates local state).
+        """
+        return (self._x, self._y)
 
     def save_position(self) -> None:
         """Save the current cursor position."""
-        native.save_cursor_position()
+        self._saved_position = (self._x, self._y)
+        if self._is_live():
+            native.save_cursor_position()
 
     def restore_position(self) -> None:
         """Restore the saved cursor position."""
-        native.restore_cursor_position()
+        if self._saved_position is not None:
+            self._x, self._y = self._saved_position
+        if self._is_live():
+            native.restore_cursor_position()
 
     def move_to(self, x: int, y: int) -> None:
         """Move the cursor to the given position."""
-        native.move_cursor_to(x, y)
+        self._x, self._y = x, y
+        if self._is_live():
+            native.move_cursor_to(x, y)
 
     def move_to_column(self, x: int) -> None:
         """Move the cursor to the given column."""
-        native.move_cursor_to_column(x)
+        self._x = x
+        if self._is_live():
+            native.move_cursor_to_column(x)
 
     def move_to_row(self, y: int) -> None:
         """Move the cursor to the given row."""
-        native.move_cursor_to_row(y)
+        self._y = y
+        if self._is_live():
+            native.move_cursor_to_row(y)
 
     def move_up(self, count: int = 1) -> None:
         """Move the cursor up by the given count."""
-        native.move_cursor_up(count)
+        self._y = max(0, self._y - count)
+        if self._is_live():
+            native.move_cursor_up(count)
 
     def move_down(self, count: int = 1) -> None:
         """Move the cursor down by the given count."""
-        native.move_cursor_down(count)
+        self._y += count
+        if self._is_live():
+            native.move_cursor_down(count)
 
     def move_left(self, count: int = 1) -> None:
         """Move the cursor left by the given count."""
-        native.move_cursor_left(count)
+        self._x = max(0, self._x - count)
+        if self._is_live():
+            native.move_cursor_left(count)
 
     def move_right(self, count: int = 1) -> None:
         """Move the cursor right by the given count."""
-        native.move_cursor_right(count)
+        self._x += count
+        if self._is_live():
+            native.move_cursor_right(count)
 
     def move_to_next_line(self, count: int = 1) -> None:
         """Move the cursor to the next line by the given count."""
-        native.move_cursor_to_next_line(count)
+        self._x = 0
+        self._y += count
+        if self._is_live():
+            native.move_cursor_to_next_line(count)
 
     def move_to_previous_line(self, count: int = 1) -> None:
         """Move the cursor to the previous line by the given count."""
-        native.move_cursor_to_previous_line(count)
+        self._x = 0
+        self._y = max(0, self._y - count)
+        if self._is_live():
+            native.move_cursor_to_previous_line(count)
 
     def enable_blinking(self) -> None:
         """Enable cursor blinking."""
-        native.enable_cursor_blinking()
+        self._blinking = True
+        if self._is_live():
+            native.enable_cursor_blinking()
 
     def disable_blinking(self) -> None:
         """Disable cursor blinking."""
-        native.disable_cursor_blinking()
+        self._blinking = False
+        if self._is_live():
+            native.disable_cursor_blinking()
 
 
 __all__ = ("TerminalCursor", "CursorStyle")

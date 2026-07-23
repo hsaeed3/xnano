@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 import time
 
-from xnano.color import tailwind_color
+from xnano.color import Color, tailwind_color
 from xnano.components.text import Text
 from xnano.effects import AbstractEffect, Effect
 from xnano.events import on_keyboard, on_tick
@@ -60,23 +60,21 @@ _PALETTES = {
 _EFFECT_DURATION_MS = 900
 
 
-def _pulsing_color(palette: list, phase: float) -> str:
+def _pulsing_color(palette: list, phase: float) -> Color:
     t = (math.sin(phase) + 1) / 2
     idx = int(t * (len(palette) - 1))
-    c = palette[min(idx, len(palette) - 1)]
-    return f"#{c.r:02x}{c.g:02x}{c.b:02x}"
+    return palette[min(idx, len(palette) - 1)]
 
 
 def _build_canvas_effect(key: str) -> AbstractEffect:
     accent = _PALETTES[key][0]
-    accent_color = f"#{accent.r:02x}{accent.g:02x}{accent.b:02x}"
     if key == "c":
         return Effect("coalesce", duration_ms=_EFFECT_DURATION_MS)
     if key == "f":
         violet = tailwind_color("violet", 400)
         return Effect(
             "fade",
-            color=f"#{violet.r:02x}{violet.g:02x}{violet.b:02x}",
+            color=violet,
             duration_ms=_EFFECT_DURATION_MS,
         )
     if key == "d":
@@ -86,7 +84,7 @@ def _build_canvas_effect(key: str) -> AbstractEffect:
         direction="left_to_right",
         gradient_length=14,
         randomness=2,
-        color=accent_color,
+        color=accent,
         duration_ms=_EFFECT_DURATION_MS,
     )
 

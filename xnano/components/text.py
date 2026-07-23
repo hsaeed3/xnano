@@ -9,7 +9,7 @@ editable input fields.
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from xnano._types import Alignment, CharacterModifier
 from xnano.components.abstract import AbstractComponent
@@ -110,6 +110,11 @@ class Text(AbstractComponent):
     language: str | None = None
     """Syntax-highlight ``content`` as this language (a Pygments lexer
     name such as ``"python"``); no markdown parsing."""
+    passthrough: Sequence[str] = ()
+    """Key bindings this input never captures, even while focused (e.g.
+    ``("ctrl+c", "up", "down")``) — ``handle_keyboard`` returns ``False``
+    for them immediately, so they bubble to ``@on_keyboard`` app hooks
+    instead of being consumed as text editing."""
     _input_focused: bool = dataclasses.field(
         default=False, init=False, repr=False, compare=False
     )
@@ -457,6 +462,8 @@ class Text(AbstractComponent):
         Returns:
             ``True`` when the key was consumed as text editing.
         """
+        if self.passthrough and keyboard.matches(*self.passthrough):
+            return False
         if self._editor is not None:
             native = getattr(keyboard, "_native_event", None)
             if native is None:

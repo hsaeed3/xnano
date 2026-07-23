@@ -42,6 +42,7 @@ class WebRenderer(Generic[StateT]):
         self._cols = cols
         self._rows = rows
         self._previous: tuple[Row, ...] | None = None
+        self._previous_title: str | None = None
         self._terminal: Any = Terminal.offscreen(
             cols=cols, rows=rows, state=state, title=title
         )
@@ -72,6 +73,7 @@ class WebRenderer(Generic[StateT]):
         self._cols = max(1, cols)
         self._rows = max(1, rows)
         self._previous = None
+        self._previous_title = None
         self._terminal = Terminal.offscreen(
             cols=self._cols, rows=self._rows, state=state, title=title
         )
@@ -86,15 +88,27 @@ class WebRenderer(Generic[StateT]):
         return serialize_rows(buffer)
 
     def frame(self) -> dict[str, Any]:
-        """Render one frame and return the wire dict (row-diffed)."""
+        """Render one frame and return the wire dict (row-diffed).
+
+        ``ctx.cursor``/``ctx.device`` work identically to the terminal
+        host (see ``TerminalCursor``/``TerminalDevice``) — a hook that
+        moves or shows/hides the cursor here is reflected in the browser
+        canvas exactly as it would move the real terminal caret.
+        """
         rows = self._render_rows()
+        cursor_state = self._terminal.cursor
+        cursor = cursor_state.get_position() if cursor_state.visible else None
         frame = build_frame(
             rows,
             width=self._cols,
             height=self._rows,
-            cursor=None,
+            cursor=cursor,
             previous=self._previous,
         )
+        title = self._terminal.device.title
+        if title is not None and title != self._previous_title:
+            frame["title"] = title
+            self._previous_title = title
         self._previous = rows
         return frame
 

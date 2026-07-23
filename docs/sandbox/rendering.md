@@ -147,7 +147,6 @@ terminal = Terminal(
     mouse_events=False,
     bracketed_paste=False,
     synchronized_updates=False,
-    debug_wireframe=False,
 )
 terminal.render(
     Text("first", color="cyan"),
@@ -161,9 +160,11 @@ terminal.render(
 ```
 
 The three live-device flags and `tick_interval` configure a live OS session;
-they do not create browser input polling. `state`, `title`, `width`, `height`,
-and `debug_wireframe` are also accepted by [Terminal.offscreen]{data-preview} where
-applicable.
+they do not create browser input polling. `state`, `title`, `width`, and
+`height` are also accepted by [Terminal.offscreen]{data-preview} where
+applicable. To paint layout diagnostics, use `Field(wireframe=True)` on the
+specific field you want inspected — a thin per-cell grid overlay, not a
+whole-terminal switch; see [Field]{data-preview}.
 
 ??? example "Terminal Viewport and Gap"
 
@@ -173,7 +174,6 @@ applicable.
     - **`mouse_events` options.** Use `True` to request mouse capture in a live terminal or `False` to disable it. See the [Terminal class]{data-preview}.
     - **`bracketed_paste` options.** Use `True` to request bracketed-paste mode in a live terminal or `False` to disable it. See the [Terminal class]{data-preview}.
     - **`synchronized_updates` options.** Use `True` to request synchronized terminal updates or `False` to disable them. See the [Terminal class]{data-preview}.
-    - **`debug_wireframe` options.** Use `True` to paint layout diagnostics or `False` for normal rendering. See the [Terminal class]{data-preview}.
     - **`gap` options.** Pass an integer cell count between native renderables. See [Terminal.render]{data-preview}.
 
 ## Explicit Offscreen Buffer
@@ -190,7 +190,6 @@ terminal = Terminal.offscreen(
     rows=7,
     state={"source": "sandbox"},
     title="offscreen",
-    debug_wireframe=False,
 )
 try:
     terminal.render(
@@ -212,7 +211,6 @@ finally:
     - **`rows` options.** Pass the offscreen buffer height as an exact integer cell count. See [Terminal.offscreen]{data-preview}.
     - **`state` options.** Pass any application-state object or omit it. See [Terminal.offscreen]{data-preview}.
     - **`title` options.** Pass terminal title metadata as a string or omit it. See [Terminal.offscreen]{data-preview}.
-    - **Offscreen `debug_wireframe` options.** Use `True` to paint layout diagnostics or `False` for normal rendering. See [Terminal.offscreen]{data-preview}.
 
 ## Action-Driven Frames Without `run()`
 

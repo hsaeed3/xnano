@@ -31,7 +31,7 @@ class DragHookGrid(BaseGrid):
 
     @on_mouse(field="body", kind="drag")
     def on_drag(self, ctx: Context) -> None:
-        self.body = f"x={self.field_position('body')[0]}"
+        self.body = f"x={self.grid_field_position('body')[0]}"
 
 
 def test_slide_paint_area_offsets_within_parent() -> None:
@@ -124,7 +124,7 @@ def test_slide_capture_updates_position_on_drag() -> None:
             state=None,
         )
     )
-    assert grid.field_position("body") == (5, 3)
+    assert grid.grid_field_position("body") == (5, 3)
 
 
 def test_set_field_slide_and_position() -> None:
@@ -133,7 +133,7 @@ def test_set_field_slide_and_position() -> None:
     grid._grid_last_slot_areas = {"body": Area(x=0, y=0, width=6, height=3)}
     grid.grid_set_field("body", slide=["x"], position=(4, 0))
     assert grid._grid_field_info("body").slide == ["x"]
-    assert grid.field_position("body") == (4, 0)
+    assert grid.grid_field_position("body") == (4, 0)
 
 
 def test_drag_hook_fires_while_sliding() -> None:

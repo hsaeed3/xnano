@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import sys
-from typing import Any, Callable
+from typing import Any, Callable, get_type_hints
 
 from xnano import _validation as validation
 
@@ -94,6 +94,9 @@ class Command:
     )
     _parameters: list[CommandLineParameter] = dataclasses.field(
         default_factory=list, init=False
+    )
+    _option_by_flag: dict[str, CommandLineParameter] = dataclasses.field(
+        default_factory=dict, init=False
     )
 
     @staticmethod
@@ -205,10 +208,10 @@ class Command:
         Args:
             func: The function to inspect.
         """
+        self._parameters.clear()
+        self._option_by_flag.clear()
         signature = inspect.signature(func)
         try:
-            from typing import get_type_hints
-
             type_hints = get_type_hints(func)
         except Exception:
             type_hints = {}
@@ -272,6 +275,8 @@ class Command:
                         explicit=True,
                     )
                 )
+                for flag in flags:
+                    self._option_by_flag[flag] = self._parameters[-1]
             else:
                 flag_name = "--" + name.replace("_", "-")
                 is_flag = annotation is bool or (
@@ -289,6 +294,7 @@ class Command:
                         explicit=False,
                     )
                 )
+                self._option_by_flag[flag_name] = self._parameters[-1]
 
     def parse_arguments(
         self, arguments: list[str]
@@ -307,30 +313,31 @@ class Command:
             HelpException: If help is requested.
             ValueError: If parsing or validation fails.
         """
-        option_by_flag = {}
-        for param in self._parameters:
-            if param.flags:
-                for flag in param.flags:
-                    option_by_flag[flag] = param
-
         parsed_values = {}
         positional_params = list(self._parameters)
+        positional_index = 0
+        options_enabled = True
 
         index = 0
         while index < len(arguments):
             arg = arguments[index]
 
-            if self.help and arg in ("--help", "-h"):
+            if options_enabled and arg == "--":
+                options_enabled = False
+                index += 1
+                continue
+
+            if options_enabled and self.help and arg in ("--help", "-h"):
                 raise HelpException(self)
 
-            if arg.startswith("-"):
+            if options_enabled and arg.startswith("-") and arg != "-":
                 if "=" in arg:
                     flag, val = arg.split("=", 1)
                 else:
                     flag = arg
                     val = None
 
-                param = option_by_flag.get(flag)
+                param = self._option_by_flag.get(flag)
                 if not param:
                     raise ValueError(f"Unknown option: {flag}")
 
@@ -354,15 +361,17 @@ class Command:
                     sub_cmd = self._subcommands[arg]
                     return sub_cmd.parse_arguments(arguments[index + 1 :])
 
-                # Match to the first remaining positional parameter that hasn't been set yet
-                matched_param = None
-                for p in positional_params:
-                    if p.parameter_name not in parsed_values:
-                        matched_param = p
-                        break
+                while (
+                    positional_index < len(positional_params)
+                    and positional_params[positional_index].parameter_name
+                    in parsed_values
+                ):
+                    positional_index += 1
 
-                if matched_param:
+                if positional_index < len(positional_params):
+                    matched_param = positional_params[positional_index]
                     parsed_values[matched_param.parameter_name] = arg
+                    positional_index += 1
                 else:
                     if self._subcommands:
                         raise ValueError(
@@ -470,7 +479,9 @@ class Command:
             lines.append("Arguments:")
             for arg in arguments_list:
                 help_text = arg.help or ""
-                desc = f"  {arg.parameter_name.upper():<20} {help_text}"
+                desc = (
+                    f"  {arg.parameter_name.upper():<20} {help_text}".rstrip()
+                )
                 if arg.default is not UNSET:
                     desc += f" (default: {arg.default})"
                 lines.append(desc)
@@ -481,7 +492,7 @@ class Command:
             for opt in options_list:
                 flags_str = ", ".join(opt.flags or [])
                 help_text = opt.help or ""
-                desc = f"  {flags_str:<20} {help_text}"
+                desc = f"  {flags_str:<20} {help_text}".rstrip()
                 if opt.default is not UNSET:
                     desc += f" [default: {opt.default}]"
                 lines.append(desc)

@@ -172,6 +172,45 @@ class RenderRequest(Generic[StateT]):
     """Optional ``CoreRenderIR`` object (bypasses native widget wrapping)."""
 
 
+def compute_scroll_window(
+    lengths: Sequence[int],
+    gap: int,
+    available: int,
+    offset_from_bottom: int,
+) -> tuple[int, int]:
+    """Return ``(start, end)`` indices of the suffix window that fits.
+
+    ``offset_from_bottom=0`` anchors the window at the last item (pinned
+    to bottom); larger values shift the window toward older items. Items
+    are added greedily from the anchor backward while they still fit
+    within ``available`` — always including at least one item.
+
+    Args:
+        lengths: Content length of each item along the scroll axis.
+        gap: Space reserved between consecutive items.
+        available: Total space available along the scroll axis.
+        offset_from_bottom: How many items back from the end to anchor.
+
+    Returns:
+        A ``(start, end)`` slice into ``lengths``/the source item sequence.
+    """
+    n = len(lengths)
+    if n == 0:
+        return (0, 0)
+    end = max(1, n - max(0, offset_from_bottom))
+    start = end
+    total = 0
+    while start > 0:
+        candidate = lengths[start - 1]
+        extra_gap = gap if total > 0 else 0
+        new_total = total + extra_gap + candidate
+        if new_total > available and total > 0:
+            break
+        total = new_total
+        start -= 1
+    return (start, end)
+
+
 class TerminalController(AbstractController, Generic[StateT]):
     """Live-terminal implementation of ``AbstractController``.
 
@@ -450,7 +489,7 @@ class TerminalController(AbstractController, Generic[StateT]):
         self,
         value: Any,
         direction: Direction,
-        field: "GridFieldInfo",
+        field: "GridFieldInfo | None",
     ) -> int:
         """Return the content length along ``direction`` for a slot value."""
         if value is None:
@@ -548,6 +587,24 @@ class TerminalController(AbstractController, Generic[StateT]):
             return
         self.paint_node(node, area, z=z, effect_key=effect_key)
 
+    def paint_field_wireframe(self, area: Area) -> None:
+        """Overlay a thin per-cell grid lattice across ``area``.
+
+        Content already painted into ``area`` this frame is unaffected —
+        this is a debug overlay only (``Field(wireframe=True)``), composited
+        at a high z so it's visible on top of normal content.
+        """
+        if area.width <= 0 or area.height <= 0:
+            return
+        row = "·" * area.width
+        node = ParagraphNode(
+            text="\n".join([row] * area.height),
+            color="slate-500",
+            modifiers=("dim",),
+            wrap=False,
+        )
+        self.paint_node(node, area, z=9_000)
+
     def render_component(
         self,
         component: AbstractComponent,
@@ -611,11 +668,120 @@ class TerminalController(AbstractController, Generic[StateT]):
         *,
         parent_z: int = 0,
         effect_key: str | None = None,
+        owner: Any | None = None,
+        owner_field_name: str | None = None,
     ) -> None:
-        """Dispatch-render a layout field's value into ``area``."""
+        """Dispatch-render a layout field's value into ``area``.
+
+        ``owner``/``owner_field_name`` identify the ``BaseGrid`` instance
+        and field name this value belongs to — only used for
+        ``Field(scroll=...)`` windowing, which needs a stable place to
+        persist scroll offset across frames.
+        """
         if value is None:
             return
 
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            self._paint_container_field(
+                value,
+                area,
+                field,
+                parent_z=parent_z,
+                effect_key=effect_key,
+                owner=owner,
+                owner_field_name=owner_field_name,
+            )
+            return
+
+        self._paint_scalar_field_slot(
+            value, area, field, parent_z=parent_z, effect_key=effect_key
+        )
+
+    def _paint_container_field(
+        self,
+        items: Sequence[Any],
+        area: Area,
+        field: "GridFieldInfo | None",
+        *,
+        parent_z: int = 0,
+        effect_key: str | None = None,
+        owner: Any | None = None,
+        owner_field_name: str | None = None,
+    ) -> None:
+        """Lay ``items`` out as child slots along ``field.direction``.
+
+        One level of container semantics only: each item is painted
+        through ``_paint_scalar_field_slot`` (not the full
+        ``paint_field_slot`` ladder), so a nested list/tuple item falls
+        through to its ``str()`` representation rather than being
+        expanded into a further container.
+        """
+        if not items:
+            return
+
+        direction: Direction = (
+            field.direction
+            if field is not None and field.direction is not None
+            else "vertical"
+        )
+        gap = field.gap if field is not None and field.gap else 0
+        lengths = [
+            max(1, self.measure_field_slot(item, direction, field))
+            for item in items
+        ]
+
+        start = 0
+        end = len(items)
+        if (
+            field is not None
+            and field.scroll
+            and owner is not None
+            and owner_field_name is not None
+        ):
+            available = area.height if direction == "vertical" else area.width
+            if owner._grid_field_scroll_follow(owner_field_name):
+                previous_count = getattr(
+                    owner, "_grid_field_scroll_item_counts", {}
+                ).get(owner_field_name, 0)
+                if len(items) > previous_count:
+                    owner._grid_set_field_scroll_offset(owner_field_name, 0)
+                owner.__dict__.setdefault(
+                    "_grid_field_scroll_item_counts", {}
+                )[owner_field_name] = len(items)
+            offset = owner._grid_field_scroll_offset(owner_field_name)
+            start, end = compute_scroll_window(lengths, gap, available, offset)
+            # Clamp the stored offset so it never points past the top.
+            max_offset = max(0, len(items) - 1)
+            if offset > max_offset:
+                owner._grid_set_field_scroll_offset(
+                    owner_field_name, max_offset
+                )
+
+        window_items = items[start:end]
+        window_lengths = lengths[start:end]
+        constraints = [
+            LayoutConstraint("content", length) for length in window_lengths
+        ]
+        slot_areas = self.split_layout(area, direction, gap, constraints)
+        for item, slot_area in zip(window_items, slot_areas):
+            self._paint_scalar_field_slot(
+                item,
+                slot_area,
+                field,
+                parent_z=parent_z,
+                effect_key=effect_key,
+            )
+
+    def _paint_scalar_field_slot(
+        self,
+        value: Any,
+        area: Area,
+        field: "GridFieldInfo | None",
+        *,
+        parent_z: int = 0,
+        effect_key: str | None = None,
+    ) -> None:
+        """Dispatch-render a single (non-container) field value."""
         from xnano.grid import BaseGrid
 
         if isinstance(value, BaseGrid):

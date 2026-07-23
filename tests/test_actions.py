@@ -605,7 +605,7 @@ def test_slide_drag_matches_mouse_action_and_updates_position() -> None:
 
         @on_mouse(field="body", kind="drag")
         def on_drag(self, ctx) -> None:
-            self.body = f"x={self.field_position('body')[0]}"
+            self.body = f"x={self.grid_field_position('body')[0]}"
 
     grid = SlideApp()
     terminal = Terminal(mouse_events=True)
@@ -635,7 +635,7 @@ def test_slide_drag_matches_mouse_action_and_updates_position() -> None:
             state=None,
         ),
     )
-    assert grid.field_position("body") == (7, 0)
+    assert grid.grid_field_position("body") == (7, 0)
     assert grid.body == "x=7"
 
 
@@ -663,7 +663,7 @@ def test_slide_y_axis_drag_with_action_filter() -> None:
         terminal,
         Context(event=drag, terminal=terminal, state=None),
     )
-    assert grid.field_position("panel") == (0, 5)
+    assert grid.grid_field_position("panel") == (0, 5)
 
 
 def test_slide_press_starts_capture_via_action_click_event() -> None:

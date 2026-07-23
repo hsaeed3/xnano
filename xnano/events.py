@@ -760,6 +760,7 @@ def _decorate_on_mouse_hook(
     buttons: tuple[str, ...] = (),
     kind: MouseEventKind | None = None,
     field: str | None = None,
+    group: str | None = None,
 ) -> EventHookFunction:
     """Decorate a hook function with the ``@on_mouse`` decorator.
 
@@ -768,6 +769,8 @@ def _decorate_on_mouse_hook(
         buttons: The buttons to filter the hook function by.
         kind: The kind of mouse event to filter the hook function by.
         field: The field to filter the hook function by.
+        group: The terminal-global group to filter the hook function by
+            (nesting-independent — see ``Field(group=...)``).
 
     Returns:
         The decorated hook function.
@@ -789,6 +792,8 @@ def _decorate_on_mouse_hook(
     )
     if field is not None:
         setattr(fn, _EventHooksRegistry.ON_MOUSE_FIELD_ATTR, field)
+    if group is not None:
+        setattr(fn, _EventHooksRegistry.ON_MOUSE_GROUP_ATTR, group)
     return _decorate_hook_function(fn)
 
 
@@ -933,20 +938,36 @@ def on_click(
     button: MouseButton = "left",
     kind: MouseEventKind = "press",
 ) -> EventHookFunction: ...
+@overload
 def on_click(
-    field_or_handler: "str | EventHookFunction",
+    *,
+    group: str,
+    button: MouseButton = "left",
+    kind: MouseEventKind = "press",
+) -> Callable[[EventHookFunction], EventHookFunction]: ...
+def on_click(
+    field_or_handler: "str | EventHookFunction | None" = None,
     /,
     *,
     field: str | None = None,
+    group: str | None = None,
     button: MouseButton = "left",
     kind: MouseEventKind = "press",
 ) -> "EventHookFunction | Callable[[EventHookFunction], EventHookFunction]":
-    """Register a click handler for a grid layout field.
+    """Register a click handler for a grid layout field, or a group.
+
+    A field-scoped handler binds to one field on the declaring grid class.
+    A group-scoped handler fires whenever any field sharing ``group`` is
+    clicked, regardless of which grid it lives on — see ``Field(group=...)``.
 
     Example:
         @on_click("body")
         def highlight_body(self, ctx: Context) -> None:
             self.body = Paragraph("clicked", color="red")
+
+        @on_click(group="composer")
+        def focus_composer(self, ctx: Context) -> None:
+            ctx.focus("composer")
     """
     if isinstance(field_or_handler, str):
         field_name = field_or_handler
@@ -961,13 +982,29 @@ def on_click(
 
         return decorator
 
-    if field is None:
-        raise TypeError("on_click requires a field name")
+    if field_or_handler is None:
+        if group is None and field is None:
+            raise TypeError("on_click requires a field name or a group")
+
+        def group_decorator(fn: EventHookFunction) -> EventHookFunction:
+            return _decorate_on_mouse_hook(
+                fn,
+                buttons=(button,),
+                kind=kind,
+                field=field,
+                group=group,
+            )
+
+        return group_decorator
+
+    if field is None and group is None:
+        raise TypeError("on_click requires a field name or a group")
     return _decorate_on_mouse_hook(
         field_or_handler,
         buttons=(button,),
         kind=kind,
         field=field,
+        group=group,
     )
 
 
@@ -1047,6 +1084,7 @@ def on_focus(
 def on_focus(
     *,
     field: str | None = None,
+    group: str | None = None,
     kind: FocusHookKind | None = None,
 ) -> Callable[[EventHookFunction], EventHookFunction]: ...
 def on_focus(
@@ -1054,13 +1092,17 @@ def on_focus(
     /,
     *,
     field: str | None = None,
+    group: str | None = None,
     kind: FocusHookKind | None = None,
 ) -> "EventHookFunction | Callable[[EventHookFunction], EventHookFunction]":
-    """Register a focus hook for the terminal window or a grid field.
+    """Register a focus hook for the terminal window, a field, or a group.
 
     Bare ``@on_focus`` fires on OS-level terminal focus gained/lost events.
     Pass a field name to listen for application field focus instead — the
-    caret moving onto/off an editable ``Text(input=True)`` field:
+    caret moving onto/off an editable ``Text(input=True)`` field. Pass
+    ``group=`` to listen across grids instead of one field — fires whenever
+    any field sharing that group (see ``Field(group=...)``) gains or loses
+    focus, regardless of which grid it lives on:
 
         @on_focus
         def _window(self, ctx: Context) -> None:
@@ -1073,17 +1115,24 @@ def on_focus(
         @on_focus("prompt", kind="lost")
         def _prompt_blurred(self) -> None:
             self.status = "left prompt"
+
+        @on_focus(group="composer")
+        def _composer_focused(self) -> None:
+            self.status = "editing"
     """
 
     def _decorate(
         fn: EventHookFunction,
         *,
         field_name: str | None,
+        group_name: str | None,
         focus_kind: FocusHookKind | None,
     ) -> EventHookFunction:
         setattr(fn, _EventHooksRegistry.ON_FOCUS_HOOK_ATTR, True)
         if field_name is not None:
             setattr(fn, _EventHooksRegistry.ON_FOCUS_FIELD_ATTR, field_name)
+        if group_name is not None:
+            setattr(fn, _EventHooksRegistry.ON_FOCUS_GROUP_ATTR, group_name)
         if focus_kind is not None:
             setattr(fn, _EventHooksRegistry.ON_FOCUS_KIND_ATTR, focus_kind)
         return _decorate_hook_function(fn)
@@ -1092,6 +1141,7 @@ def on_focus(
         return _decorate(
             handler_or_field,
             field_name=field,
+            group_name=group,
             focus_kind=kind,
         )
 
@@ -1100,7 +1150,12 @@ def on_focus(
     )
 
     def decorator(fn: EventHookFunction) -> EventHookFunction:
-        return _decorate(fn, field_name=resolved_field, focus_kind=kind)
+        return _decorate(
+            fn,
+            field_name=resolved_field,
+            group_name=group,
+            focus_kind=kind,
+        )
 
     return decorator
 

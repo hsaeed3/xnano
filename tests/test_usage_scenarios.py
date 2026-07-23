@@ -405,6 +405,7 @@ def _bind_all_hooks(terminal: Any, grid: Any, cls: type) -> None:
         terminal._hooks.on_focus_hooks.append(
             {
                 "field": entry["field"],
+                "group": entry.get("group"),
                 "kind": entry["kind"],
                 "handler": handler,
             }
