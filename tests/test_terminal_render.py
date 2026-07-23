@@ -7,6 +7,8 @@ sessions so no TTY is required.
 
 from __future__ import annotations
 
+import signal
+
 import pytest
 
 from xnano import _dispatch as dispatch
@@ -15,6 +17,17 @@ from xnano.components.text import Text
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.terminal import Terminal
+
+
+def test_terminal_hangup_terminates_process() -> None:
+    terminal: Terminal = Terminal()
+
+    with pytest.raises(SystemExit) as exit_info:
+        terminal._on_exit_signal(signal.SIGHUP, None)
+
+    assert exit_info.value.code == 128 + signal.SIGHUP
+    assert terminal._exit_requested is True
+
 
 # ---------------------------------------------------------------------------
 # measure_renderable / measure_renderables_height

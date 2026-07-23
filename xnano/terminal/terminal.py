@@ -248,13 +248,11 @@ class Terminal(AbstractHost, Generic[StateT]):
 
     def _on_exit_signal(
         self,
-        signum: int,  # noqa: ARG002
+        signum: int,
         frame: Any,  # noqa: ARG002
     ) -> None:
-        # Soft-exit only: never raise from the handler. Raising KeyboardInterrupt
-        # mid-restore can leave private modes / SGR half-cleared for the next
-        # process sharing this terminal.
         self._exit_requested = True
+        raise SystemExit(128 + signum)
 
     def __enter__(self) -> "Terminal[StateT]":
         if self._is_live:
