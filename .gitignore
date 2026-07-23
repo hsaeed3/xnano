@@ -3,6 +3,7 @@
 .ruff_cache/
 dist-wasm/
 .DS_Store
+.claude/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
