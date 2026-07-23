@@ -56,7 +56,7 @@ class Terminal(Generic[StateT]):
         *,
         state: StateT | None = None,
         title: str | None = None,
-        tick_interval: int | None = None,
+        tick_interval: int = 16,
     ) -> None:
         self._state = state
         self._title = title
