@@ -997,7 +997,7 @@ class FieldFocus:
     field_name: str
 
 
-def is_input_text(value: Any) -> bool:
+def is_focusable_component(value: Any) -> bool:
     """Return whether ``value`` is a focusable, keyboard-driven component.
 
     Any component that declares ``focusable`` truthy and implements
@@ -1013,10 +1013,10 @@ def is_input_text(value: Any) -> bool:
     )
 
 
-def get_input_text(grid: Any, field_name: str) -> Any | None:
+def get_focusable_component(grid: Any, field_name: str) -> Any | None:
     """Return the focusable component on ``grid.field_name``, if any."""
     value = getattr(grid, field_name, None)
-    if is_input_text(value):
+    if is_focusable_component(value):
         return value
     return None
 
@@ -1036,7 +1036,7 @@ def collect_focusable_fields(terminal: Terminal[Any]) -> list[FieldFocus]:
         )
         for field_name in fields:
             value = getattr(grid, field_name, None)
-            if is_input_text(value):
+            if is_focusable_component(value):
                 key = (id(grid), field_name)
                 if key not in seen:
                     seen.add(key)
@@ -1052,7 +1052,7 @@ def sync_input_focus_flags(terminal: Terminal[Any]) -> None:
     """Set ``Text._input_focused`` on every attached input to match focus."""
     current = getattr(terminal, "_field_focus", None)
     for target in collect_focusable_fields(terminal):
-        text = get_input_text(target.grid, target.field_name)
+        text = get_focusable_component(target.grid, target.field_name)
         if text is None or not hasattr(text, "_input_focused"):
             continue
         text._input_focused = (
@@ -1062,12 +1062,12 @@ def sync_input_focus_flags(terminal: Terminal[Any]) -> None:
         )
 
 
-def focused_input_text(terminal: Terminal[Any]) -> Any | None:
+def focused_component(terminal: Terminal[Any]) -> Any | None:
     """Return the focusable component for the current field focus, if any."""
     current = getattr(terminal, "_field_focus", None)
     if current is None:
         return None
-    return get_input_text(current.grid, current.field_name)
+    return get_focusable_component(current.grid, current.field_name)
 
 
 def apply_text_keyboard(text: Text, keyboard: KeyboardEventData) -> bool:
@@ -1165,7 +1165,7 @@ def set_field_focus(
     Returns:
         ``True`` when focus was set (or already there).
     """
-    text = get_input_text(grid, field_name)
+    text = get_focusable_component(grid, field_name)
     if text is None:
         return False
     previous = getattr(terminal, "_field_focus", None)
@@ -1182,7 +1182,7 @@ def set_field_focus(
         return True
 
     if previous is not None:
-        prev_text = get_input_text(previous.grid, previous.field_name)
+        prev_text = get_focusable_component(previous.grid, previous.field_name)
         _mark_text_focused(prev_text, False)
         if fire_hooks:
             _fire_field_focus_hooks(terminal, previous, kind="lost")
@@ -1206,7 +1206,7 @@ def clear_field_focus(
     previous = getattr(terminal, "_field_focus", None)
     if previous is None:
         return
-    prev_text = get_input_text(previous.grid, previous.field_name)
+    prev_text = get_focusable_component(previous.grid, previous.field_name)
     _mark_text_focused(prev_text, False)
     if fire_hooks:
         _fire_field_focus_hooks(terminal, previous, kind="lost")
@@ -1275,7 +1275,7 @@ def place_cursor_for_focus(terminal: Terminal[Any]) -> None:
     current = getattr(terminal, "_field_focus", None)
     if current is None:
         return
-    text = get_input_text(current.grid, current.field_name)
+    text = get_focusable_component(current.grid, current.field_name)
     if text is None:
         return
     if getattr(text, "owns_cursor", False):
@@ -1379,11 +1379,11 @@ __all__ = (
     "KeyboardBinding",
     "MouseButton",
     "FieldFocus",
-    "is_input_text",
-    "get_input_text",
+    "is_focusable_component",
+    "get_focusable_component",
     "collect_focusable_fields",
     "sync_input_focus_flags",
-    "focused_input_text",
+    "focused_component",
     "apply_text_keyboard",
     "set_field_focus",
     "clear_field_focus",

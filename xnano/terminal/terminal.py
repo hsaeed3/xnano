@@ -978,6 +978,8 @@ class Terminal(AbstractHost, Generic[StateT]):
         padding: PaddingLike | None = None,
         gap: int | None = None,
         auto_resize: bool = True,
+        host: str = "127.0.0.1",
+        port: int = 8000,
     ) -> None:
         """Enter the terminal, render content each frame, and loop until exit.
 
@@ -993,6 +995,10 @@ class Terminal(AbstractHost, Generic[StateT]):
 
         When ``auto_resize`` is ``True`` (default), terminal resize events
         trigger an immediate re-render so content stays correctly sized.
+
+        ``host``/``port`` are ignored unless the grid declares
+        ``@on_get_request`` / ``@on_post_request`` hooks; when it does, a
+        background HTTP server exposes those routes alongside the terminal.
 
         Can be called without the context manager — it auto-enters and exits.
         """
@@ -1070,6 +1076,14 @@ class Terminal(AbstractHost, Generic[StateT]):
 
                 self._hooks.on_resize_hooks.append(_resize_hook)
 
+        request_server: Any = None
+        if grid_root is not None:
+            from xnano.web.request_server import start_request_server
+
+            request_server = start_request_server(
+                grid_root, host=host, port=port
+            )
+
         try:
             if is_grid:
                 # Load the focus helpers before CoreSession claims the terminal.
@@ -1100,6 +1114,8 @@ class Terminal(AbstractHost, Generic[StateT]):
             )
             raise
         finally:
+            if request_server is not None:
+                request_server.shutdown()
             self._run_renderables = None
             self._run_field = None
             if _resize_hook is not None:

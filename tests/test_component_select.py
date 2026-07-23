@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from xnano._types import Area, is_input_text
+from xnano._types import Area, is_focusable_component
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.select import Select, get_fuzzy_match
 from xnano.core.content import Items, Stack
@@ -130,8 +130,8 @@ def test_not_searchable_ignores_typing() -> None:
 
 
 def test_select_is_focusable_component() -> None:
-    assert is_input_text(Select(items=_ITEMS))
-    assert not is_input_text(Select(items=_ITEMS, focusable=False))
+    assert is_focusable_component(Select(items=_ITEMS))
+    assert not is_focusable_component(Select(items=_ITEMS, focusable=False))
 
 
 # ---------------------------------------------------------------------------

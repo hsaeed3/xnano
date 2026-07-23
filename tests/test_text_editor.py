@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from xnano._types import Area, is_input_text
+from xnano._types import Area, is_focusable_component
 from xnano.components.abstract import ComponentRenderContext
 from xnano.components.text import Text
 from xnano.core.content import Native
@@ -37,9 +37,9 @@ def test_focus_protocol_flags() -> None:
     assert multiline.focusable and multiline.owns_cursor
     assert single.focusable and not single.owns_cursor
     assert not display.focusable
-    assert is_input_text(multiline)
-    assert is_input_text(single)
-    assert not is_input_text(display)
+    assert is_focusable_component(multiline)
+    assert is_focusable_component(single)
+    assert not is_focusable_component(display)
 
 
 def test_multiline_without_input_is_display_only() -> None:

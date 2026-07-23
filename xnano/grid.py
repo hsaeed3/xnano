@@ -1200,9 +1200,9 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 and value._grid_needs_mouse_geometry()
             ):
                 return True
-            from xnano._types import is_input_text
+            from xnano._types import is_focusable_component
 
-            if is_input_text(value):
+            if is_focusable_component(value):
                 return True
         return False
 
@@ -1241,9 +1241,9 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             return True
         if _resolve_grid_mouse_handler(self, field_name) is not None:
             return True
-        from xnano._types import is_input_text
+        from xnano._types import is_focusable_component
 
-        return is_input_text(getattr(self, field_name, None))
+        return is_focusable_component(getattr(self, field_name, None))
 
     def grid_set_field(
         self,
