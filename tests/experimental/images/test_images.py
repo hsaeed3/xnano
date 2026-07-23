@@ -14,7 +14,7 @@ import types
 from typing import Any, Callable, cast
 
 import pytest
-from PIL import Image as pillow_image  # ty: ignore[unresolved-import]
+from PIL import Image as pillow_image
 
 from xnano import _demo as demo_module
 from xnano._demo import (

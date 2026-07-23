@@ -16,6 +16,8 @@ import sys
 import warnings
 from typing import IO, TYPE_CHECKING, Any, Generic, Sequence, TextIO, TypeVar
 
+from typing_extensions import deprecated
+
 _SIGHUP: int | None = getattr(signal, "SIGHUP", None)
 """``SIGHUP`` is POSIX-only (controlling-terminal hangup); ``None`` on
 Windows, where there is no equivalent exposed through ``signal``."""
@@ -101,6 +103,12 @@ def _atexit_restore_active_terminal() -> None:
 atexit.register(_atexit_restore_active_terminal)
 
 
+@deprecated(
+    "'xnano.terminal.Terminal' is deprecated and will be removed in v1.2; "
+    "use 'xnano.beta.Terminal' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 class Terminal(AbstractHost, Generic[StateT]):
     """The active terminal screen / session.
 

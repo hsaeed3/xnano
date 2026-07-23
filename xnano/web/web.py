@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from typing_extensions import deprecated
+
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8000
 
@@ -42,6 +44,12 @@ def _grid_factory(source: Any) -> tuple[Callable[[], Any], bool, type | None]:
     )
 
 
+@deprecated(
+    "'xnano.web.Web' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.Web' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 class Web:
     """Web host for xnano grids — the browser analogue of ``Terminal``.
 

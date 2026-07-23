@@ -1809,6 +1809,14 @@ def _resolve_grid_mouse_handler(
 class Grid(BaseGrid): ...
 
 
+BaseGrid = deprecated(
+    "'xnano.BaseGrid' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.BaseGrid' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)(BaseGrid)
+
+
 __all__ = (
     "BaseGrid",
     "Grid",

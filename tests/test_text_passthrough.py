@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from helpers import close_offscreen_app, open_offscreen_app, press, type_text
+
 from xnano.components.text import Text
 from xnano.events import on_keyboard
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-
-from helpers import close_offscreen_app, open_offscreen_app, press, type_text
 
 
 def test_passthrough_key_is_not_consumed_by_input() -> None:

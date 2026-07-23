@@ -69,6 +69,7 @@ dev = [
     "pytest-asyncio",
     "pytest-benchmark>=5.1.0",
     "pytest-cov",
+    "pillow>=11.0.0",
     "twine>=6.1.0",
     # type checking!
     # another banger from astral.sh
@@ -113,6 +114,11 @@ PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
 
 [tool.ty.environment]
 extra-paths = ["xnano-core/python"]
+
+[tool.ty.rules]
+# Stable xnano deliberately remains usable while its public classes warn at
+# runtime during the v1.2 beta migration.
+deprecated = "ignore"
 
 [tool.ruff]
 line-length = 79

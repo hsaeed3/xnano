@@ -10,9 +10,17 @@ from __future__ import annotations
 
 from typing import Any, get_type_hints
 
+from typing_extensions import deprecated
+
 from xnano._validation import validate_type
 
 
+@deprecated(
+    "'xnano.State' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.State' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 class State:
     """Convenience runtime context wrapper that allows for setting
     state variables within using dot notation with no

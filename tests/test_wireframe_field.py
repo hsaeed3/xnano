@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from xnano_core.core import CoreSession
+
 from xnano._types import Area
 from xnano.core.controllers.tui import TerminalController
 from xnano.fields import Field
 from xnano.grid import BaseGrid
 from xnano.terminal import Terminal
-from xnano_core.core import CoreSession
 
 
 def _render(grid: BaseGrid, *, width: int = 10, height: int = 5) -> str:

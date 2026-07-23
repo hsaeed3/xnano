@@ -6,6 +6,10 @@ Shared type vocabulary: geometry (``Area``, ``Size``, ``Coordinate``),
 sizing (``Sizing``, ``SizingLike``), frame chrome (``Frame``,
 ``Padding``, ``Border``), keyboard/mouse aliases, and field-focus
 helpers for editable ``Text`` input.
+
+This stable vocabulary is deprecated for removal in v1.2. Import aliases,
+geometry values, and focus helpers from ``xnano.beta.types`` and
+``xnano.beta.utils.focus``.
 """
 
 from __future__ import annotations
@@ -18,6 +22,8 @@ from typing import (
     TypeAlias,
     Union,
 )
+
+from typing_extensions import deprecated
 
 from xnano.color import ColorLike
 
@@ -260,6 +266,12 @@ _FLEX_CLASS_WEIGHTS: dict[str, int] = {
 }
 
 
+@deprecated(
+    "'xnano._types.resolve_flex_weight' is deprecated and will be removed "
+    "in v1.2; use 'xnano.beta.types.resolve_flex_weight' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def resolve_flex_weight(flex: Flex | None) -> int | None:
     """Normalize a ``Flex`` value to a numeric fill weight.
 
@@ -290,6 +302,12 @@ def resolve_flex_weight(flex: Flex | None) -> int | None:
     )
 
 
+@deprecated(
+    "'xnano._types.Padding' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.types.Padding' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Padding:
     """The padding applied around a rectangular area.
@@ -359,6 +377,12 @@ class Padding:
         return self.top + self.bottom
 
 
+@deprecated(
+    "'xnano._types.Size' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.types.Size' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Size:
     """The resolved size of a rectangular grid area within the
@@ -399,6 +423,12 @@ class Size:
         return cls(width=size, height=size)
 
 
+@deprecated(
+    "'xnano._types.Area' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.types.Area' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Area:
     """A rectangular grid region within the main terminal grid or
@@ -490,6 +520,12 @@ Values:
 """
 
 
+@deprecated(
+    "'xnano._types.Sizing' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.types.Sizing' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(frozen=True, slots=True)
 class Sizing:
     """A single-axis sizing intent.
@@ -734,6 +770,12 @@ Values:
 """
 
 
+@deprecated(
+    "'xnano._types.Frame' is deprecated and will be removed in v1.2; use "
+    "'xnano.beta.types.Frame' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Frame:
     """Visual border, title, and background applied to a grid cell's outer edge.
@@ -779,6 +821,12 @@ class Frame:
         )
 
 
+@deprecated(
+    "'xnano._types.field_has_frame_chrome' is deprecated and will be removed "
+    "in v1.2; use 'xnano.beta.types.field_has_frame_chrome' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def field_has_frame_chrome(field: object) -> bool:
     """Whether a field defines border, title, or padding chrome.
 
@@ -795,6 +843,12 @@ def field_has_frame_chrome(field: object) -> bool:
     )
 
 
+@deprecated(
+    "'xnano._types.frame_from_field' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.types.frame_from_field' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def frame_from_field(field: object | None) -> Frame | None:
     """Build a ``Frame`` from a field's chrome, or ``None`` when absent.
 
@@ -990,6 +1044,12 @@ a mouse event.
 """
 
 
+@deprecated(
+    "'xnano._types.FieldFocus' is deprecated and will be removed in v1.2; "
+    "use 'xnano.beta.types.FieldFocus' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(frozen=True, slots=True)
 class FieldFocus:
     """Identity of the currently focused layout field.
@@ -1003,22 +1063,81 @@ class FieldFocus:
     field_name: str
 
 
+@deprecated(
+    "'xnano._types.is_component' is deprecated and will be removed in v1.2; "
+    "use 'xnano.beta.types.is_component' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
+def is_component(value: Any) -> bool:
+    """Return whether ``value`` is an xnano component instance.
+
+    Accepts stable ``AbstractComponent`` subclasses and beta ``Component``
+    instances (marked with ``_xnano_component_base``).
+    """
+    if value is None:
+        return False
+    if getattr(type(value), "_xnano_component_base", False):
+        return True
+    from xnano.components.abstract import AbstractComponent
+
+    return isinstance(value, AbstractComponent)
+
+
+@deprecated(
+    "'xnano._types.uses_default_component_size' is deprecated and will be "
+    "removed in v1.2; use 'xnano.beta.types.uses_default_component_size' "
+    "instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
+def uses_default_component_size(value: Any) -> bool:
+    """Return whether ``value`` still uses the component base ``get_size``.
+
+    Controllers prefer measuring composed content when the subclass has not
+    overridden ``get_size``.
+    """
+    method = getattr(type(value), "get_size", None)
+    if method is None:
+        return True
+    from xnano.components.abstract import AbstractComponent
+
+    if method is AbstractComponent.get_size:
+        return True
+    try:
+        from xnano.beta.components.component import Component as BetaComponent
+    except Exception:
+        return False
+    return method is BetaComponent.get_size
+
+
+@deprecated(
+    "'xnano._types.is_focusable_component' is deprecated and will be removed "
+    "in v1.2; use 'xnano.beta.types.is_focusable_component' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def is_focusable_component(value: Any) -> bool:
     """Return whether ``value`` is a focusable, keyboard-driven component.
 
     Any component that declares ``focusable`` truthy and implements
     ``handle_keyboard`` participates in field focus — ``Text(input=True)``
-    and ``Select`` alike.
+    and ``Select`` / beta ``Options`` alike.
     """
-    from xnano.components.abstract import AbstractComponent
-
     return (
-        isinstance(value, AbstractComponent)
+        is_component(value)
         and bool(getattr(value, "focusable", False))
         and callable(getattr(value, "handle_keyboard", None))
     )
 
 
+@deprecated(
+    "'xnano._types.get_focusable_component' is deprecated and will be "
+    "removed in v1.2; use 'xnano.beta.utils.focus.get_focusable_component' "
+    "instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def get_focusable_component(grid: Any, field_name: str) -> Any | None:
     """Return the focusable component on ``grid.field_name``, if any."""
     value = getattr(grid, field_name, None)
@@ -1097,6 +1216,12 @@ def is_group_focused(terminal: Terminal[Any], group: str) -> bool:
     return focused_group_name(terminal) == group
 
 
+@deprecated(
+    "'xnano._types.ScrollHandle' is deprecated and will be removed in v1.2; "
+    "use 'xnano.beta.types.ScrollHandle' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 @dataclasses.dataclass(slots=True)
 class ScrollHandle:
     """Programmatic control for a ``Field(scroll=...)`` field, resolved by
@@ -1147,6 +1272,13 @@ def scroll_handle_for_group(
     return ScrollHandle(grid=target.grid, field_name=target.field_name)
 
 
+@deprecated(
+    "'xnano._types.collect_focusable_fields' is deprecated and will be "
+    "removed in v1.2; use 'xnano.beta.utils.focus.collect_focusable_fields' "
+    "instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def collect_focusable_fields(terminal: Terminal[Any]) -> list[FieldFocus]:
     """Collect focusable input fields in paint/declaration order.
 
@@ -1174,6 +1306,12 @@ def collect_focusable_fields(terminal: Terminal[Any]) -> list[FieldFocus]:
     return result
 
 
+@deprecated(
+    "'xnano._types.sync_input_focus_flags' is deprecated and will be removed "
+    "in v1.2; use 'xnano.beta.utils.focus.sync_input_focus_flags' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def sync_input_focus_flags(terminal: Terminal[Any]) -> None:
     """Set ``Text._input_focused`` on every attached input to match focus."""
     current = getattr(terminal, "_field_focus", None)
@@ -1188,6 +1326,12 @@ def sync_input_focus_flags(terminal: Terminal[Any]) -> None:
         )
 
 
+@deprecated(
+    "'xnano._types.focused_component' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.utils.focus.focused_component' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def focused_component(terminal: Terminal[Any]) -> Any | None:
     """Return the focusable component for the current field focus, if any."""
     current = getattr(terminal, "_field_focus", None)
@@ -1196,6 +1340,12 @@ def focused_component(terminal: Terminal[Any]) -> Any | None:
     return get_focusable_component(current.grid, current.field_name)
 
 
+@deprecated(
+    "'xnano._types.apply_text_keyboard' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.utils.focus.apply_text_keyboard' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def apply_text_keyboard(text: Text, keyboard: KeyboardEventData) -> bool:
     """Apply a keyboard event to an editable ``Text``.
 
@@ -1273,6 +1423,12 @@ def _mark_text_focused(text: Any | None, focused: bool) -> None:
         text._input_focused = focused
 
 
+@deprecated(
+    "'xnano._types.set_field_focus' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.utils.focus.set_field_focus' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def set_field_focus(
     terminal: Terminal[Any],
     grid: Any,
@@ -1323,6 +1479,12 @@ def set_field_focus(
     return True
 
 
+@deprecated(
+    "'xnano._types.clear_field_focus' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.utils.focus.clear_field_focus' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def clear_field_focus(
     terminal: Terminal[Any],
     *,
@@ -1341,6 +1503,12 @@ def clear_field_focus(
     sync_input_focus_flags(terminal)
 
 
+@deprecated(
+    "'xnano._types.cycle_field_focus' is deprecated and will be removed in "
+    "v1.2; use 'xnano.beta.utils.focus.cycle_field_focus' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def cycle_field_focus(
     terminal: Terminal[Any],
     *,
@@ -1376,6 +1544,13 @@ def cycle_field_focus(
     return set_field_focus(terminal, pick.grid, pick.field_name)
 
 
+@deprecated(
+    "'xnano._types.ensure_default_field_focus' is deprecated and will be "
+    "removed in v1.2; use "
+    "'xnano.beta.utils.focus.ensure_default_field_focus' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def ensure_default_field_focus(terminal: Terminal[Any]) -> None:
     """Focus the default input field when nothing is focused yet.
 
@@ -1413,6 +1588,12 @@ def ensure_default_field_focus(terminal: Terminal[Any]) -> None:
     )
 
 
+@deprecated(
+    "'xnano._types.place_cursor_for_focus' is deprecated and will be removed "
+    "in v1.2; use 'xnano.beta.utils.focus.place_cursor_for_focus' instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 def place_cursor_for_focus(terminal: Terminal[Any]) -> None:
     """Move the hardware cursor into the focused input field, if any."""
     current = getattr(terminal, "_field_focus", None)

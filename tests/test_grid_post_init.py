@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+from helpers import close_offscreen_app, open_offscreen_app
+
 from xnano.context import Context
 from xnano.fields import Field
 from xnano.grid import BaseGrid
-
-from helpers import close_offscreen_app, open_offscreen_app
 
 
 def test_grid_post_init_fires_zero_arg_form() -> None:
