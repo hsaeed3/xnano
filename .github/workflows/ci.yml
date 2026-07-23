@@ -302,7 +302,9 @@ jobs:
         working-directory: xnano-core
         env:
           RUSTUP_TOOLCHAIN: ${{ env.RUST_TOOLCHAIN }}
-        run: pyodide build -o dist -C build-args=--no-default-features
+        run: >-
+          pyodide build -o dist
+          -C build-args="--no-default-features --features editor"
 
       - run: pip install -U twine
 
