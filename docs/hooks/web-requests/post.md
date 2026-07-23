@@ -11,7 +11,7 @@ icon: "lucide/upload"
     changes.
 
 Use
-[`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+[`@on_post_request`](../../api/xnano/requests.md#xnano.requests){data-preview}
 for state-changing interactions such as submitting a form, incrementing a
 counter, or applying a choice. The handler mutates grid state only; the
 host repaints on its own schedule.
@@ -38,9 +38,9 @@ class Counter(BaseGrid):
 ```
 
 Bare
-[`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+[`@on_post_request`](../../api/xnano/requests.md#xnano.requests){data-preview}
 and
-[`@on_post_request(path="/")`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+[`@on_post_request(path="/")`](../../api/xnano/requests.md#xnano.requests){data-preview}
 register the root path, just like their GET counterparts.
 
 ## Host the Routes
@@ -87,11 +87,11 @@ session's next paint shows the new state.
 
 [`Action.request("POST", "/increment")`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview}
 describes the associated trigger. Keep
-[`@on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+[`@on_post_request`](../../api/xnano/requests.md#xnano.requests){data-preview}
 on the method so the host registers the route.
 
 ??? abstract "API"
 
-    [`on_post_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_post_request){data-preview}
+    [`on_post_request`](../../api/xnano/requests.md#xnano.requests){data-preview}
     ·
     [`RequestAction`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview}

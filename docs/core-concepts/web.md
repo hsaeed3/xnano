@@ -189,7 +189,7 @@ with `Web`.
     [`Web`](../api/xnano/web/web.md#xnano.web.web.Web){data-preview} ·
     [`serve_native`](../api/xnano/web/server.md){data-preview} ·
     [`WebRenderer`](../api/xnano/web/render.md){data-preview} ·
-    [`xnano.web.requests`](../api/xnano/web/requests.md){data-preview}
+    [`xnano.requests`](../api/xnano/requests.md){data-preview}
 
 [Terminal]: ../api/xnano/terminal/terminal.md
 [Web]: ../api/xnano/web/web.md

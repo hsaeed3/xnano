@@ -51,7 +51,7 @@ common cases — [GET](get.md){data-preview} and
 way.
 
 Import from
-[`xnano.web.requests`](../../api/xnano/web/requests.md){data-preview},
+[`xnano.requests`](../../api/xnano/requests.md){data-preview},
 the barrel [`xnano.hooks`](../../api/xnano/hooks.md){data-preview}, or
 [`xnano.requests`](../../api/xnano/requests.md){data-preview}:
 
@@ -154,7 +154,7 @@ matching.
 
 ??? abstract "API"
 
-    [`xnano.web.requests`](../../api/xnano/web/requests.md){data-preview}
+    [`xnano.requests`](../../api/xnano/requests.md){data-preview}
     ·
     [`xnano.requests`](../../api/xnano/requests.md){data-preview}
     ·

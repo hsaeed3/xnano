@@ -11,7 +11,7 @@ icon: "lucide/download"
     changes.
 
 Use
-[`@on_get_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_get_request){data-preview}
+[`@on_get_request`](../../api/xnano/requests.md#xnano.requests){data-preview}
 when visiting a path should read, select, or refresh something without
 describing a mutation. The handler mutates grid state; the host repaints
 on its own schedule (cell stream under `Web`, terminal frame loop under
@@ -41,7 +41,7 @@ A leading slash is optional; xnano normalizes `"status"` to `"/status"`.
 ## Register the Root Path
 
 Bare
-[`@on_get_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_get_request){data-preview}
+[`@on_get_request`](../../api/xnano/requests.md#xnano.requests){data-preview}
 defaults to `/`:
 
 ```python title="Root Route"
@@ -98,11 +98,11 @@ Responses carry no body — hooks mutate state; they do not render HTML.
 
 [`Action.request("GET", "/status")`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview}
 describes the associated trigger. Bind the actual route with
-[`@on_get_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_get_request){data-preview},
+[`@on_get_request`](../../api/xnano/requests.md#xnano.requests){data-preview},
 not [`@on_action`](../on.md){data-preview}, so the host can discover it.
 
 ??? abstract "API"
 
-    [`on_get_request`](../../api/xnano/web/requests.md#xnano.web.requests.on_get_request){data-preview}
+    [`on_get_request`](../../api/xnano/requests.md#xnano.requests){data-preview}
     ·
     [`RequestAction`](../../api/xnano/core/actions.md#xnano.core.actions.RequestAction){data-preview}
