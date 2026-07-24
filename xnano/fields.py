@@ -5,9 +5,6 @@
 ``Field`` descriptors for grid layout, sizing, style, and state
 attributes.
 
-The stable field API is deprecated for removal in v1.2. Use
-``xnano.beta.fields`` or import ``Field`` from ``xnano.beta``.
-
 Example:
 
     ```python
@@ -29,11 +26,10 @@ from typing import (
     Callable,
     Sequence,
     TypeAlias,
+    TypeVar,
     Union,
     overload,
 )
-
-from typing_extensions import deprecated
 
 from xnano import _types as types
 from xnano._styles import Style
@@ -42,6 +38,12 @@ from xnano.color import ColorLike
 
 if TYPE_CHECKING:
     from xnano._styles import TailwindClass
+
+
+_T = TypeVar("_T")
+"""Field value type, carried through the ``Field`` overloads so a typed
+default surfaces as the attribute's type on the grid.
+"""
 
 
 UNSET: Any = object()
@@ -76,12 +78,6 @@ def _normalize_slide_axes(
     return axes
 
 
-@deprecated(
-    "'xnano.fields.GridFieldInfo' is deprecated and will be removed in v1.2; "
-    "use 'xnano.beta.fields.GridFieldInfo' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class GridFieldInfo:
     """Descriptor class for layout, frame and additional rendering metadata for
@@ -299,12 +295,6 @@ class GridFieldInfo:
 FieldInfo = GridFieldInfo
 
 
-@deprecated(
-    "'xnano.fields.FieldState' is deprecated and will be removed in v1.2; "
-    "use 'xnano.beta.fields.FieldState' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 @dataclasses.dataclass(slots=True)
 class FieldState:
     """Per-instance live state for one field on an ``AbstractInterface``.
@@ -343,11 +333,6 @@ class FieldState:
         self.dirty = False
 
 
-@deprecated(
-    "'xnano.Field' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.Field' instead.",
-    category=DeprecationWarning,
-)
 @overload
 def Field(
     default: None,
@@ -381,11 +366,6 @@ def Field(
 ) -> Any: ...
 
 
-@deprecated(
-    "'xnano.Field' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.Field' instead.",
-    category=DeprecationWarning,
-)
 @overload
 def Field(
     default: _T,
@@ -419,11 +399,6 @@ def Field(
 ) -> _T: ...
 
 
-@deprecated(
-    "'xnano.Field' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.Field' instead.",
-    category=DeprecationWarning,
-)
 @overload
 def Field(
     *,
@@ -456,11 +431,6 @@ def Field(
 ) -> _T: ...
 
 
-@deprecated(
-    "'xnano.Field' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.Field' instead.",
-    category=DeprecationWarning,
-)
 @overload
 def Field(
     *,
@@ -494,12 +464,6 @@ def Field(
 ) -> Any: ...
 
 
-@deprecated(
-    "'xnano.Field' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.Field' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 def Field(
     default: Any = UNSET,
     *,

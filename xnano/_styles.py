@@ -15,8 +15,6 @@ import functools
 import math
 from typing import Literal, Sequence
 
-from typing_extensions import deprecated
-
 from xnano import _types as types
 from xnano._tailwind_classes import (
     KNOWN_TAILWIND_CLASSES,
@@ -171,12 +169,6 @@ class _TailwindStyleBuilder:
             sides["right"] = horizontal
 
 
-@deprecated(
-    "'xnano.Style' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.Style' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Style:
     """The lowered result of resolving a set of Tailwind classes.

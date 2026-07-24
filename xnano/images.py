@@ -16,8 +16,6 @@ import time
 import zlib
 from typing import BinaryIO, Literal, TypeAlias
 
-from typing_extensions import deprecated
-
 from xnano._types import Size
 from xnano.components.abstract import AbstractComponent, ComponentRenderContext
 from xnano.core.content import CellCanvas, CellSpan
@@ -45,12 +43,6 @@ class _RasterFrame:
     duration_ms: int
 
 
-@deprecated(
-    "'xnano.images.ImageFrame' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.components.ImageFrame' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 @dataclasses.dataclass(frozen=True, slots=True)
 class ImageFrame:
     """One native-resolution RGB frame and its display duration.
@@ -66,12 +58,6 @@ class ImageFrame:
     """Display duration in milliseconds."""
 
 
-@deprecated(
-    "'xnano.images.ImageData' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.components.ImageData' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 @dataclasses.dataclass(frozen=True, slots=True)
 class ImageData:
     """Decoded image frames independent of Pillow and the render engine.
@@ -442,12 +428,6 @@ def _get_frame_as_canvas(
     )
 
 
-@deprecated(
-    "'xnano.images.Image' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.components.Image' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 @dataclasses.dataclass
 class Image(AbstractComponent):
     """A native-resolution terminal image or real-time GIF component.

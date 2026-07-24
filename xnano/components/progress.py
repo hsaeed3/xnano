@@ -10,8 +10,6 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Literal
 
-from typing_extensions import deprecated
-
 from xnano.components.abstract import AbstractComponent
 
 if TYPE_CHECKING:
@@ -24,12 +22,6 @@ ProgressStyle = Literal["bar", "line"]
 """Visual style for a ``Progress`` component."""
 
 
-@deprecated(
-    "'xnano.components.Progress' is deprecated and will be removed in v1.2; "
-    "use 'xnano.beta.components.Loader' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 @dataclasses.dataclass
 class Progress(AbstractComponent):
     """Declarative progress indicator.
