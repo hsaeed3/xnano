@@ -57,6 +57,11 @@ from xnano.beta.types import (
     SizingLike,
     frame_from_field,
 )
+from xnano.beta.utils.responsive import (
+    breakpoint_for_width,
+    collect_responsive_overrides,
+    responsive_noop,
+)
 
 if TYPE_CHECKING:
     from xnano.beta.effects import (
@@ -848,6 +853,14 @@ class _GridMeta(abc.ABCMeta):
         setattr(cls, "_grid_static_field_names", static_names)
         setattr(cls, "_grid_static_constraints", static_constraints)
 
+        # 6. Detect overridden responsive render variants once per class.
+        # An empty map lets the per-frame path skip breakpoint dispatch.
+        setattr(
+            cls,
+            "_grid_responsive_renders",
+            collect_responsive_overrides(cls, "grid_render_"),
+        )
+
         all_fields = {**fields, **state_fields}
         if all_fields:
             type.__setattr__(
@@ -943,6 +956,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     _grid_static_constraints: ClassVar[list[_GridLayoutConstraint]] = []
     _grid_defaults: ClassVar[dict[str, Any]] = {}
     _grid_field_frames: ClassVar[dict[str, Frame | None]] = {}
+    _grid_responsive_renders: ClassVar[dict[str, str]] = {}
 
     visible: bool = True
     """Whether this grid is rendered in the live session."""
@@ -1066,6 +1080,48 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
 
         Override to refresh field values every frame. Initial values can be set
         with ``Field(default=...)``, ``default_factory``, or ``__post_init__``.
+        """
+
+    @responsive_noop
+    def grid_render_extra_small(self) -> None:
+        """Refine layout when the viewport is extra small (< 40 cols).
+
+        Optional responsive counterpart to :meth:`grid_render`. Runs when
+        the window enters this size tier — on the first render and on
+        later resizes that cross into it — not every frame, so a
+        per-frame ``@on_tick`` mutation is not overwritten by a size hook
+        resetting the same field. Keep shared per-frame logic in
+        ``grid_render`` and size-specific setup here. Overriding any
+        ``grid_render_*`` variant opts the class into breakpoint dispatch;
+        a class that overrides none pays no per-frame cost.
+        """
+
+    @responsive_noop
+    def grid_render_small(self) -> None:
+        """Refine layout when the viewport is small (40–79 cols).
+
+        See :meth:`grid_render_extra_small`.
+        """
+
+    @responsive_noop
+    def grid_render_medium(self) -> None:
+        """Refine layout when the viewport is medium (80–119 cols).
+
+        See :meth:`grid_render_extra_small`.
+        """
+
+    @responsive_noop
+    def grid_render_large(self) -> None:
+        """Refine layout when the viewport is large (120–159 cols).
+
+        See :meth:`grid_render_extra_small`.
+        """
+
+    @responsive_noop
+    def grid_render_extra_large(self) -> None:
+        """Refine layout when the viewport is extra large (>= 160 cols).
+
+        See :meth:`grid_render_extra_small`.
         """
 
     @overload
@@ -1562,7 +1618,39 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         self.columns = area.width
         self.rows = area.height
         self.grid_render()
+        responsive = type(self)._grid_responsive_renders
+        if responsive:
+            self._grid_render_responsive(responsive, area)
         self._grid_assemble(area, session)
+
+    def _grid_render_responsive(
+        self, responsive: dict[str, str], area: Area
+    ) -> None:
+        """Run the render variant for the viewport, only on size changes.
+
+        These variants fire when the window crosses into a new breakpoint
+        (a resize), not every frame — so a per-frame ``@on_tick`` mutation
+        is not clobbered by a size hook resetting the same field each
+        frame. The first render establishes the initial breakpoint and
+        counts as the opening resize.
+
+        Breakpoints follow the live window, not this grid's slot, so a
+        nested grid reacts to terminal/browser resizes the same way the
+        root does. Only reached when the class overrides at least one
+        ``grid_render_*`` variant.
+        """
+        from xnano.beta.core.runtime import get_active_runtime
+
+        runtime = get_active_runtime()
+        width = runtime.size[0] if runtime is not None else area.width
+        current = breakpoint_for_width(width)
+        if runtime is not None:
+            if runtime._grid_breakpoints.get(id(self)) == current:
+                return
+            runtime._grid_breakpoints[id(self)] = current
+        method_name = responsive.get(current)
+        if method_name is not None:
+            getattr(self, method_name)()
 
     def _grid_assemble(self, area: Area, session: Any) -> None:
         if not self.visible:
@@ -1687,6 +1775,15 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                     paint_area = session.paint_frame(
                         paint_area, field_frame, z=self.z
                     )
+            # The wireframe is a debug skeleton for the field's allocated
+            # cells; paint it *before* the value so live content renders
+            # above the dotted grid rather than being covered by it.
+            if field.wireframe:
+                paint_wireframe = getattr(
+                    session, "paint_field_wireframe", None
+                )
+                if paint_wireframe is not None:
+                    paint_wireframe(paint_area, z=self.z)
             if value is None:
                 continue
             session.paint_field_slot(
@@ -1698,12 +1795,6 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 owner=self,
                 owner_field_name=field_name,
             )
-            if field.wireframe:
-                paint_wireframe = getattr(
-                    session, "paint_field_wireframe", None
-                )
-                if paint_wireframe is not None:
-                    paint_wireframe(paint_area)
 
 
 def _grid_slide_paint_area(

@@ -12,7 +12,12 @@ from typing import Any, Iterator
 from xnano.beta import hooks
 from xnano.beta.context import Context
 from xnano.beta.utils.dispatch import invoke_hook
-from xnano.beta.utils.introspection import evaluate_state_expression
+from xnano.beta.utils.introspection import (
+    _MISSING,
+    evaluate_reference_value,
+    evaluate_state_expression,
+    is_reference_expression,
+)
 
 
 def iter_grids(root: Any) -> Iterator[Any]:
@@ -147,6 +152,24 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
                     invoke_hook(handler, grid, context)
 
 
+def dispatch_post_init(root: Any, runtime: Any) -> None:
+    """Fire ``grid_post_init`` once per grid instance in the tree.
+
+    Runs the first time each grid is seen by a live or offscreen runtime,
+    after its hooks are bound and before its first paint — the beta
+    counterpart to the main API's per-instance ``track_frame_grid`` call.
+    """
+    fired = runtime._post_init_grids
+    context = Context(event=None, terminal=runtime, state=runtime.state)
+    for grid in iter_grids(root):
+        if grid is None or id(grid) in fired:
+            continue
+        fired.add(id(grid))
+        handler = getattr(grid, "grid_post_init", None)
+        if callable(handler):
+            invoke_hook(handler, None, context)
+
+
 def dispatch_idle(root: Any, runtime: Any) -> None:
     """Dispatch hooks that run when event polling returns no input."""
     context = Context(event=None, terminal=runtime, state=runtime.state)
@@ -159,6 +182,36 @@ def dispatch_idle(root: Any, runtime: Any) -> None:
                 == "idle"
             ):
                 invoke_hook(handler, grid, context)
+
+
+def _expression_hook_fires(
+    runtime: Any,
+    grid: Any,
+    function: Any,
+    kind: str,
+    expression: str,
+    target: Any,
+) -> bool:
+    """Return whether a state/field expression hook should fire this frame.
+
+    A bare reference (``@on_state("count")``) fires whenever the watched
+    value is *mutated*: the current value is compared against the last one
+    seen for this hook, and a difference triggers exactly once. Anything
+    with computation (``count > 0``) keeps the truthiness semantics, firing
+    every frame the expression holds.
+    """
+    if not is_reference_expression(expression):
+        return evaluate_state_expression(expression, target)
+    current = evaluate_reference_value(expression, target)
+    if current is _MISSING:
+        return False
+    key = (id(grid), getattr(function, "__name__", ""), kind)
+    watched = runtime._watch_values
+    previous = watched.get(key, _MISSING)
+    watched[key] = current
+    # First observation establishes a baseline without firing — nothing
+    # has been mutated yet.
+    return previous is not _MISSING and current != previous
 
 
 def dispatch_frame(root: Any, runtime: Any) -> None:
@@ -178,21 +231,31 @@ def dispatch_frame(root: Any, runtime: Any) -> None:
                 hooks.ON_STATE_EXPRESSION_ATTR,
                 None,
             )
-            if (
-                state_expression is not None
-                and runtime.state is not None
-                and evaluate_state_expression(state_expression, runtime.state)
-            ):
-                invoke_hook(handler, grid, context)
+            if state_expression is not None and runtime.state is not None:
+                if _expression_hook_fires(
+                    runtime,
+                    grid,
+                    function,
+                    "state",
+                    state_expression,
+                    runtime.state,
+                ):
+                    invoke_hook(handler, grid, context)
             field_expression = getattr(
                 function,
                 hooks.ON_FIELD_EXPRESSION_ATTR,
                 None,
             )
-            if field_expression is not None and evaluate_state_expression(
-                field_expression, grid
+            if field_expression is not None and _expression_hook_fires(
+                runtime, grid, function, "field", field_expression, grid
             ):
                 invoke_hook(handler, grid, context)
 
 
-__all__ = ("dispatch_event", "dispatch_frame", "dispatch_idle", "iter_grids")
+__all__ = (
+    "dispatch_event",
+    "dispatch_frame",
+    "dispatch_idle",
+    "dispatch_post_init",
+    "iter_grids",
+)

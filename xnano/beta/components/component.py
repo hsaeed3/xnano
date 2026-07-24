@@ -31,6 +31,10 @@ from xnano.beta.core.content import (
     Scrollbar as ScrollbarContent,
 )
 from xnano.beta.types import Size
+from xnano.beta.utils.responsive import (
+    collect_responsive_overrides,
+    responsive_noop,
+)
 
 if TYPE_CHECKING:
     from xnano.beta.events import KeyboardEventData
@@ -101,6 +105,11 @@ class _ComponentMeta(type):
                 del namespace[key]
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         cls._declared = declared  # ty: ignore[unresolved-attribute]
+        # Detect overridden responsive compose variants once per class; an
+        # empty map lets the render pipeline skip breakpoint dispatch.
+        cls._component_responsive_composes = (  # ty: ignore[unresolved-attribute]
+            collect_responsive_overrides(cls, "compose_")
+        )
         return cls
 
 
@@ -126,6 +135,7 @@ class Component(metaclass=_ComponentMeta):
 
     _xnano_component_base: ClassVar[bool] = True
     _declared: ClassVar[dict[str, Any]] = {}
+    _component_responsive_composes: ClassVar[dict[str, str]] = {}
 
     visible: bool = dataclasses.field(default=True, kw_only=True)
     """Whether this component paints at all."""
@@ -182,6 +192,60 @@ class Component(metaclass=_ComponentMeta):
 
         Returns:
             A ``Content`` tree, or ``None`` when nothing should paint.
+        """
+        return None
+
+    @responsive_noop
+    def compose_extra_small(
+        self, ctx: ComponentRenderContext[StateT]
+    ) -> Content | None:
+        """Compose content when the viewport is extra small (< 40 cols).
+
+        Optional responsive counterpart to :meth:`compose`. When
+        overridden, it is used *instead of* ``compose`` while the window
+        is in this size tier. Overriding any ``compose_*`` variant opts the
+        component into breakpoint dispatch; a component that overrides none
+        pays no per-frame cost.
+        """
+        return None
+
+    @responsive_noop
+    def compose_small(
+        self, ctx: ComponentRenderContext[StateT]
+    ) -> Content | None:
+        """Compose content when the viewport is small (40–79 cols).
+
+        See :meth:`compose_extra_small`.
+        """
+        return None
+
+    @responsive_noop
+    def compose_medium(
+        self, ctx: ComponentRenderContext[StateT]
+    ) -> Content | None:
+        """Compose content when the viewport is medium (80–119 cols).
+
+        See :meth:`compose_extra_small`.
+        """
+        return None
+
+    @responsive_noop
+    def compose_large(
+        self, ctx: ComponentRenderContext[StateT]
+    ) -> Content | None:
+        """Compose content when the viewport is large (120–159 cols).
+
+        See :meth:`compose_extra_small`.
+        """
+        return None
+
+    @responsive_noop
+    def compose_extra_large(
+        self, ctx: ComponentRenderContext[StateT]
+    ) -> Content | None:
+        """Compose content when the viewport is extra large (>= 160 cols).
+
+        See :meth:`compose_extra_small`.
         """
         return None
 

@@ -16,6 +16,7 @@ interpreter.
 from __future__ import annotations
 
 import ast
+import collections.abc
 import inspect
 import operator
 from typing import Any, Callable, TypeVar
@@ -215,13 +216,76 @@ def evaluate_state_expression(
     if tree is None:
         return False
     try:
-        names: dict[str, Any] = {}
-        if hasattr(state, "__dict__"):
-            names.update(vars(state))
-        names["state"] = state
-        return bool(_evaluate_node(tree.body, names))
+        return bool(_evaluate_node(tree.body, _build_expression_names(state)))
     except Exception:
         return False
+
+
+def _build_expression_names(state: Any) -> dict[str, Any]:
+    """Return the safe namespace an expression is evaluated against.
+
+    Object attributes and ``dict``-style state keys are both exposed as
+    bare names, so ``@on_state("value")`` reads either ``state.value`` or
+    ``state["value"]`` without the caller having to know which.
+    """
+    names: dict[str, Any] = {}
+    if isinstance(state, collections.abc.Mapping):
+        names.update(
+            (key, value)
+            for key, value in state.items()
+            if isinstance(key, str)
+        )
+    elif hasattr(state, "__dict__"):
+        names.update(vars(state))
+    names["state"] = state
+    return names
+
+
+def _is_reference_node(node: ast.AST) -> bool:
+    """Return whether ``node`` is a bare reference with no computation.
+
+    A reference is a plain name (``count``), an attribute chain
+    (``user.name``), or an indexed reference (``items[0]``) — anything an
+    ``@on_state``/``@on_field`` watcher can track for mutation rather than
+    evaluate for truthiness.
+    """
+    if isinstance(node, ast.Name):
+        return True
+    if isinstance(node, ast.Attribute):
+        return _is_reference_node(node.value)
+    if isinstance(node, ast.Subscript):
+        return _is_reference_node(node.value)
+    return False
+
+
+def is_reference_expression(expression: str) -> bool:
+    """Return whether ``expression`` is a bare reference (see above).
+
+    Bare references drive mutation-triggered hooks: the watcher fires when
+    the referenced value changes rather than each frame it is truthy.
+    """
+    tree = get_compiled_state_expression(expression)
+    return tree is not None and _is_reference_node(tree.body)
+
+
+_MISSING = object()
+
+
+def evaluate_reference_value(expression: str, state: Any) -> Any:
+    """Return the current value of a bare reference, or ``_MISSING``.
+
+    Used by mutation-triggered ``@on_state``/``@on_field`` hooks to read
+    the watched value each frame. Any evaluation error (unknown name,
+    missing attribute) resolves to ``_MISSING`` so the watcher simply
+    holds its previous value instead of firing.
+    """
+    tree = get_compiled_state_expression(expression)
+    if tree is None:
+        return _MISSING
+    try:
+        return _evaluate_node(tree.body, _build_expression_names(state))
+    except Exception:
+        return _MISSING
 
 
 def get_first_function_parameter_type(function: Callable) -> type | None:
@@ -302,8 +366,10 @@ def get_function_extra_parameter_count(function: Callable) -> int:
 
 
 __all__ = (
+    "evaluate_reference_value",
     "evaluate_state_expression",
     "get_compiled_state_expression",
     "get_first_function_parameter_type",
     "get_function_extra_parameter_count",
+    "is_reference_expression",
 )
