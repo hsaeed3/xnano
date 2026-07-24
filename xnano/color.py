@@ -18,8 +18,6 @@ from typing import (
     cast,
 )
 
-from typing_extensions import deprecated
-
 _TAILWIND_CACHE: dict[tuple[str, int], Color] = {}
 
 
@@ -545,12 +543,6 @@ _TAILWIND_SHADES: frozenset[int] = frozenset(
 )
 
 
-@deprecated(
-    "'xnano.Color' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.Color' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 @dataclasses.dataclass(frozen=True, slots=True, repr=False)
 class Color:
     """A color in the RGBA space that can be defined from a variety

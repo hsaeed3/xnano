@@ -10,8 +10,6 @@ from __future__ import annotations
 
 from typing import cast
 
-import pytest
-
 from xnano._dispatch import dispatch_field_mouse
 from xnano._types import Area
 from xnano.context import Context
@@ -280,12 +278,11 @@ def test_on_action_with_shared_keyboard_action() -> None:
     assert app.saved is True
 
 
-def test_deprecated_on_decorator_forwards_to_on_action() -> None:
+def test_on_decorator_forwards_to_on_action() -> None:
     from xnano.events import on
 
     save = Action.keyboard("ctrl+s")
-    with pytest.warns(DeprecationWarning, match="on_action"):
-        decorator = on(save)
+    decorator = on(save)
 
     assert callable(decorator)
 

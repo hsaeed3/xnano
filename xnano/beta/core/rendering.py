@@ -314,6 +314,26 @@ def lower_content(content: Any) -> core.CoreRenderNode:
         from xnano.beta.components.component import ComponentRenderContext
         from xnano.beta.types import Area
 
+        # A component with responsive compose variants swaps in the one
+        # matching the live window width; the plain `compose` handles
+        # every tier a component leaves unoverridden. Skipped entirely for
+        # content without an override map.
+        responsive = getattr(
+            type(content), "_component_responsive_composes", None
+        )
+        if responsive:
+            from xnano.beta.core.runtime import get_active_runtime
+            from xnano.beta.utils.responsive import (
+                resolve_responsive_variant,
+            )
+
+            runtime = get_active_runtime()
+            if runtime is not None:
+                variant = resolve_responsive_variant(
+                    responsive, runtime.size[0]
+                )
+                if variant is not None:
+                    compose = getattr(content, variant)
         content = compose(
             ComponentRenderContext(
                 area=Area(x=0, y=0, width=0, height=0),

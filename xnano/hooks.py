@@ -6,17 +6,12 @@ Single import location for every ``@on_*`` event hook decorator from
 ``xnano.events``. HTTP request hooks (``@on_get_request``,
 ``@on_post_request``, …) live in ``xnano.requests``.
 
-Stable hook decorators are deprecated for removal in v1.2. Use
-``xnano.beta.hooks``.
-
 Example:
 
     ```python
     from xnano.hooks import on_keyboard, on_field
     ```
 """
-
-from typing_extensions import deprecated
 
 from xnano.events import (
     on_action,
@@ -34,12 +29,6 @@ from xnano.events import (
 )
 
 
-@deprecated(
-    "'xnano.hooks.Hooks' is deprecated and will be removed in v1.2; use "
-    "the 'xnano.beta.hooks' module instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
 class Hooks:
     """Convenience class for accessing event hooks."""
 

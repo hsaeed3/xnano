@@ -152,7 +152,12 @@ def test_every_component_renders_in_every_field_profile(
             assert "Field" in frame.text
             assert "╭" in frame.text
         elif profile_name == "interactive":
-            assert "·" in frame.text
+            # The wireframe is a skeleton painted *behind* the field's
+            # content, so its dots show through wherever content leaves
+            # cells transparent. The image fills its whole area opaquely
+            # and legitimately covers the skeleton.
+            if component_name != "image":
+                assert "·" in frame.text, (component_name, profile_name)
             assert runtime.focused_group == "main"
     finally:
         runtime.close()

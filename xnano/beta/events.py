@@ -470,6 +470,18 @@ class Event:
         return None if self.keyboard_event is None else self.keyboard_event.key
 
     @property
+    def keyboard_event_kind(self) -> KeyboardEventKind | None:
+        """Keyboard event kind when this is a keyboard event."""
+        keyboard = self.keyboard_event
+        return None if keyboard is None else keyboard.kind
+
+    @property
+    def keyboard_modifiers(self) -> list[KeyboardModifier]:
+        """Modifier keys when this is a keyboard event."""
+        keyboard = self.keyboard_event
+        return [] if keyboard is None else keyboard.modifiers
+
+    @property
     def mouse_event(self) -> MouseEventData | None:
         """Mouse payload, or ``None``."""
         return self.data if isinstance(self.data, MouseEventData) else None
@@ -479,6 +491,18 @@ class Event:
         """Mouse cell position, or ``None``."""
         mouse = self.mouse_event
         return None if mouse is None else (mouse.x, mouse.y)
+
+    @property
+    def mouse_event_kind(self) -> MouseEventKind | None:
+        """Mouse event kind when this is a mouse event."""
+        mouse = self.mouse_event
+        return None if mouse is None else mouse.kind
+
+    @property
+    def mouse_button(self) -> MouseButton | None:
+        """Mouse button when this is a mouse event."""
+        mouse = self.mouse_event
+        return None if mouse is None else mouse.button
 
     @property
     def resize_event(self) -> ResizeEventData | None:
@@ -495,6 +519,12 @@ class Event:
     def clipboard_event(self) -> ClipboardEventData | None:
         """Clipboard payload, or ``None``."""
         return self.data if isinstance(self.data, ClipboardEventData) else None
+
+    @property
+    def clipboard_text(self) -> str | None:
+        """Pasted text when this is a clipboard event."""
+        clipboard = self.clipboard_event
+        return None if clipboard is None else clipboard.text
 
     @property
     def focus_event(self) -> FocusEventData | None:

@@ -6,7 +6,7 @@
 >>> from xnano import BaseGrid, Field, Terminal
 """
 
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 
 from typing import TYPE_CHECKING
 
@@ -92,20 +92,7 @@ def __getattr__(name: str):
         return BaseGrid
 
     elif name == "Grid":
-        import os as _os
-
         from xnano.grid import Grid
-
-        _ignore = _os.environ.get("XNANO_IGNORE_DEPRECATION_WARNINGS")
-        if _ignore is None or not _ignore.lower() in ["1", "true", "yes", "y"]:
-            import warnings
-
-            warnings.warn(
-                "Grid is deprecated and will be removed in a future version. Use BaseGrid instead.\n"
-                "You can set the `XNANO_IGNORE_DEPRECATION_WARNINGS` environment variable to ignore this warning.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         return Grid
 
@@ -120,22 +107,7 @@ def __getattr__(name: str):
         return Style
 
     elif name == "on":
-        import os as _os
-
         from xnano.events import on
-
-        _ignore = _os.environ.get("XNANO_IGNORE_DEPRECATION_WARNINGS")
-        if _ignore is None or not _ignore.lower() in ["1", "true", "yes", "y"]:
-            import warnings
-
-            warnings.warn(
-                "on is deprecated and will be removed in a future version. "
-                "Use on_action instead.\n"
-                "You can set the `XNANO_IGNORE_DEPRECATION_WARNINGS` "
-                "environment variable to ignore this warning.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         return on
 

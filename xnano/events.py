@@ -22,7 +22,6 @@ from typing import (
     overload,
 )
 
-from typing_extensions import deprecated
 from xnano_core.core import (
     CoreEvent,
     CoreKeyBinding,
@@ -690,7 +689,6 @@ from xnano._function_hooks import (
     PollWhen,
     _EventHooksRegistry,
 )
-from xnano._types import KeyboardBinding, MouseButton
 
 
 def _auto_register_hook_function(fn: EventHookFunction) -> EventHookFunction:
@@ -1371,16 +1369,11 @@ def on_action(
     return decorator
 
 
-@deprecated(
-    "'on' is deprecated and will be removed in the future; use "
-    "'on_action' instead.\n\n`from xnano.events import on_action`",
-    category=DeprecationWarning,
-)
 def on(
     action: Any,
     /,
 ) -> Callable[[EventHookFunction], EventHookFunction]:
-    """Bind an action using the deprecated ``@on`` spelling.
+    """Bind an action to a hook (alias for ``@on_action``).
 
     Args:
         action: An ``Action`` instance.

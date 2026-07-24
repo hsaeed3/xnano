@@ -432,12 +432,19 @@ def on_clipboard(fn: EventHookFunction) -> EventHookFunction:
 def on_state(
     expression: str,
 ) -> Callable[[EventHookFunction], EventHookFunction]:
-    """Fire the decorated handler each tick when ``expression`` is truthy
-    against the current application state's attributes.
+    """Fire the decorated handler based on the application state.
+
+    Pass an expression (``"count > 0"``) to fire each frame it is truthy
+    against the state's attributes. Pass a bare reference (``"count"``,
+    ``"user.name"``) to fire only when that value is *mutated* — once per
+    change rather than every frame.
 
     Example:
         @on_state("count > 0")
         def _on_positive_count(self, ctx): ...
+
+        @on_state("count")
+        def _on_count_changed(self, ctx): ...
     """
 
     def decorator(fn: EventHookFunction) -> EventHookFunction:
@@ -451,12 +458,19 @@ def on_state(
 def on_field(
     expression: str,
 ) -> Callable[[EventHookFunction], EventHookFunction]:
-    """Fire the decorated handler each tick when ``expression`` is truthy
-    against the grid instance's own field values.
+    """Fire the decorated handler based on this grid's own field values.
+
+    Pass an expression (``"count > 0"``) to fire each frame it is truthy
+    against the grid's fields. Pass a bare reference (``"count"``,
+    ``"items[0]"``) to fire only when that field is *mutated* — once per
+    change rather than every frame.
 
     Example:
         @on_field("count > 0")
         def _show_count(self): ...
+
+        @on_field("count")
+        def _on_count_changed(self): ...
     """
 
     def decorator(fn: EventHookFunction) -> EventHookFunction:

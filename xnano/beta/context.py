@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         MouseEventData,
     )
     from xnano.beta.types import ScrollHandle
+    from xnano.beta.utils.responsive import Breakpoint
 
 
 StateT = TypeVar("StateT")
@@ -166,6 +167,20 @@ class Context(Generic[StateT]):
             blur()
 
     @property
+    def render_size(self) -> "Breakpoint":
+        """Current viewport breakpoint tier.
+
+        The same value ``grid_render_<size>`` / ``compose_<size>`` dispatch
+        on — one of ``"extra_small"``, ``"small"``, ``"medium"``,
+        ``"large"``, ``"extra_large"`` — derived from the live window
+        width. Read it from any hook to branch on size without declaring a
+        per-tier render method.
+        """
+        from xnano.beta.utils.responsive import breakpoint_for_width
+
+        return breakpoint_for_width(self.terminal.size[0])
+
+    @property
     def focused_group(self) -> str | None:
         """``group`` of the currently focused field, or ``None``."""
         return self.terminal.focused_group
@@ -187,6 +202,10 @@ class Context(Generic[StateT]):
     def with_event(self, event: "Event | None") -> "Context[StateT]":
         """Return a copy carrying a different event."""
         return dataclasses.replace(self, event=event)
+
+    def with_scope(self, **kwargs: Any) -> "Context[StateT]":
+        """Return a shallow copy with the given fields replaced."""
+        return dataclasses.replace(self, **kwargs)
 
     def has_clipboard_event(self) -> bool:
         """Return whether this context contains a clipboard event."""

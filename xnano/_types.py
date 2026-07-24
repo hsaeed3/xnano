@@ -1003,17 +1003,50 @@ class FieldFocus:
     field_name: str
 
 
+def is_component(value: Any) -> bool:
+    """Return whether ``value`` is an xnano component instance.
+
+    Accepts stable ``AbstractComponent`` subclasses and beta ``Component``
+    instances (marked with ``_xnano_component_base``).
+    """
+    if value is None:
+        return False
+    if getattr(type(value), "_xnano_component_base", False):
+        return True
+    from xnano.components.abstract import AbstractComponent
+
+    return isinstance(value, AbstractComponent)
+
+
+def uses_default_component_size(value: Any) -> bool:
+    """Return whether ``value`` still uses the component base ``get_size``.
+
+    Controllers prefer measuring composed content when the subclass has not
+    overridden ``get_size``.
+    """
+    method = getattr(type(value), "get_size", None)
+    if method is None:
+        return True
+    from xnano.components.abstract import AbstractComponent
+
+    if method is AbstractComponent.get_size:
+        return True
+    try:
+        from xnano.beta.components.component import Component as BetaComponent
+    except Exception:
+        return False
+    return method is BetaComponent.get_size
+
+
 def is_focusable_component(value: Any) -> bool:
     """Return whether ``value`` is a focusable, keyboard-driven component.
 
     Any component that declares ``focusable`` truthy and implements
     ``handle_keyboard`` participates in field focus — ``Text(input=True)``
-    and ``Select`` alike.
+    and ``Select`` / beta ``Options`` alike.
     """
-    from xnano.components.abstract import AbstractComponent
-
     return (
-        isinstance(value, AbstractComponent)
+        is_component(value)
         and bool(getattr(value, "focusable", False))
         and callable(getattr(value, "handle_keyboard", None))
     )

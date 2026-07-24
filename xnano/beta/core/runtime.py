@@ -129,6 +129,9 @@ class Runtime(Generic[StateT]):
         self._stage = Stage()
         self._elapsed_ms = 0
         self._tick_hook_times: dict[tuple[int, str], int] = {}
+        self._post_init_grids: set[int] = set()
+        self._watch_values: dict[tuple[int, str, str], Any] = {}
+        self._grid_breakpoints: dict[int, str] = {}
         self._tick_interval = max(1, tick_interval)
         self._last_tick_ms = time.monotonic() * 1000
         self._signals_installed = False
@@ -367,9 +370,13 @@ class Runtime(Generic[StateT]):
             (self._root,) if self._root is not None else ()
         )
         if self._root is not None:
-            from xnano.beta.core.dispatch import dispatch_frame
+            from xnano.beta.core.dispatch import (
+                dispatch_frame,
+                dispatch_post_init,
+            )
             from xnano.beta.utils.focus import ensure_default_field_focus
 
+            dispatch_post_init(self._root, self)
             ensure_default_field_focus(self)
             dispatch_frame(self._root, self)
         if len(items) == 1 and isinstance(

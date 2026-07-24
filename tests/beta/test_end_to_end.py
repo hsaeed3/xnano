@@ -88,7 +88,7 @@ def test_frame_idle_state_field_and_event_hooks_repaint() -> None:
         def idle_hook(self) -> None:
             self.calls.append("idle")
 
-        @hooks.on_state("ready")
+        @hooks.on_state("ready == True")
         def state_hook(self) -> None:
             if "state" not in self.calls:
                 self.calls.append("state")

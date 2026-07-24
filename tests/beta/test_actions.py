@@ -75,9 +75,7 @@ from xnano.beta.requests import Request
             Event.from_data(
                 FocusEventData(kind="field_gained", field="editor")
             ),
-            Event.from_data(
-                FocusEventData(kind="field_lost", field="editor")
-            ),
+            Event.from_data(FocusEventData(kind="field_lost", field="editor")),
         ),
         (
             Action.clipboard("expected"),
