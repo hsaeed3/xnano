@@ -103,8 +103,6 @@ from typing import (
     overload,
 )
 
-from typing_extensions import deprecated
-
 if sys.version_info < (3, 11):
     from typing_extensions import (
         NotRequired,
@@ -1801,20 +1799,8 @@ def _resolve_grid_mouse_handler(
     return None
 
 
-@deprecated(
-    "'Grid' is deprecated and will be removed in the future; use 'BaseGrid' instead.\n\n`from xnano.grid import BaseGrid`",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
-class Grid(BaseGrid): ...
-
-
-BaseGrid = deprecated(
-    "'xnano.BaseGrid' is deprecated and will be removed in v1.2; use "
-    "'xnano.beta.BaseGrid' instead.",
-    category=DeprecationWarning,
-    stacklevel=2,
-)(BaseGrid)
+class Grid(BaseGrid):
+    """Backwards-compatible alias for :class:`BaseGrid`."""
 
 
 __all__ = (

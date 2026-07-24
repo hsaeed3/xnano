@@ -17,6 +17,7 @@ from xnano.beta.core.content import Panel, TextBlock
 from xnano.beta.core.layout import LayoutConstraint
 from xnano.beta.core.rendering import lower_content
 from xnano.beta.types import Area, Frame, Padding
+from xnano.beta.utils.responsive import resolve_responsive_variant
 
 
 class TerminalController:
@@ -216,6 +217,12 @@ class TerminalController:
             frame = value.get_frame()
             if frame is not None:
                 area = self.paint_frame(area, frame, z=value.z)
+            variant = resolve_responsive_variant(
+                getattr(type(value), "_component_responsive_composes", None),
+                self.runtime.size[0],
+            )
+            if variant is not None:
+                compose = getattr(value, variant)
             content = compose(context)
             if content is not None:
                 self._paint(
@@ -239,7 +246,10 @@ class TerminalController:
             effect_key=effect_key,
         )
 
-    def paint_field_wireframe(self, area: Area) -> None:
+    def paint_field_wireframe(self, area: Area, *, z: int = 0) -> None:
+        # Painted just beneath the field's content so live text renders
+        # above the dotted skeleton; empty content cells stay transparent
+        # and reveal the dots around it.
         self._paint(
             TextBlock(
                 text="\n".join("·" * area.width for _ in range(area.height)),
@@ -248,7 +258,7 @@ class TerminalController:
                 wrap=False,
             ),
             area,
-            z=9_000,
+            z=z - 1,
         )
 
     def paint_stage(self) -> None:
