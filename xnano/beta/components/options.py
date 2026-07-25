@@ -8,7 +8,15 @@ Display and search a list of choices with keyboard selection.
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeAlias
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Literal,
+    Sequence,
+    TypeAlias,
+    Union,
+)
 
 from xnano.beta.components.component import Component
 from xnano.beta.types import CharacterModifier
@@ -23,6 +31,30 @@ _WORD_BOUNDARIES = " _-./:"
 
 OptionsDirection: TypeAlias = Literal["top_to_bottom", "bottom_to_top"]
 """Visual order of option rows in the list."""
+
+FilterMode: TypeAlias = Union[
+    Literal["fuzzy", "prefix", "none"],
+    bool,
+    Callable[[str, str], bool],
+]
+"""How ``query`` narrows the visible items.
+
+- ``"fuzzy"`` (or ``True``): subsequence fuzzy match with scoring.
+- ``"prefix"``: keep items whose text starts with the query.
+- ``"none"`` (or ``False``): show every item; the query is ignored, so an
+  external driver can supply items that are already filtered.
+- a callable ``(query, item_text) -> bool``: keep items it returns truthy for.
+"""
+
+AcceptPolicy: TypeAlias = Literal["replace", "extend", "if_prefix_only"]
+"""How ``resolve_submission`` reconciles typed text with the highlighted row.
+
+- ``"replace"``: accept the highlighted item's text.
+- ``"extend"``: keep exactly what the user typed.
+- ``"if_prefix_only"``: keep the selection while the typed text is still an
+  incomplete prefix of it; otherwise honor the typed text (so trailing args
+  such as ``"/vibe hungry 7"`` are not dropped).
+"""
 
 OptionItem: TypeAlias = "str | Text | Option"
 """A single entry accepted by ``Options.items``."""
@@ -192,10 +224,15 @@ class Options(Component):
     """Filter text. Edited by typing while focused when ``searchable``;
     assign it from a hook to filter reactively.
     """
-    filter: bool = True
-    """Whether ``query`` fuzzy-filters the visible items. When
-    ``False`` the query is ignored and all items stay visible.
+    filter: FilterMode = "fuzzy"
+    """How ``query`` narrows the visible items — see ``FilterMode``.
+
+    ``"fuzzy"``/``True`` fuzzy-match, ``"prefix"`` prefix-match, ``"none"``/
+    ``False`` show everything (for externally filtered items), or a
+    ``(query, item_text) -> bool`` callable.
     """
+    accept: AcceptPolicy = "replace"
+    """How ``resolve_submission`` reconciles typed text with the selection."""
     searchable: bool = True
     """Whether typing while focused edits ``query`` directly."""
     selected: int = 0
@@ -226,12 +263,36 @@ class Options(Component):
     owns_cursor: bool = dataclasses.field(default=True, init=False)
     """Whether selection replaces the hardware caret."""
 
+    def _filter_mode(self) -> "str | Callable[[str, str], bool]":
+        """Normalize ``filter`` into a mode name or callable."""
+        mode = self.filter
+        if mode is True:
+            return "fuzzy"
+        if mode is False:
+            return "none"
+        return mode
+
     def _filtered(self) -> list[tuple[int, tuple[int, ...]]]:
         """Return ``(item_index, matched_indices)`` in display order."""
+        mode = self._filter_mode()
         pairs: list[tuple[int, tuple[int, ...]]]
-        if not self.filter or not self.query:
+        if mode == "none" or not self.query:
             pairs = [(index, ()) for index in range(len(self.items))]
-        else:
+        elif callable(mode):
+            pairs = [
+                (index, ())
+                for index, item in enumerate(self.items)
+                if mode(self.query, _item_text(item))
+            ]
+        elif mode == "prefix":
+            lowered = self.query.lower()
+            matched = tuple(range(len(self.query)))
+            pairs = [
+                (index, matched)
+                for index, item in enumerate(self.items)
+                if _item_text(item).lower().startswith(lowered)
+            ]
+        else:  # "fuzzy"
             scored: list[tuple[int, int, tuple[int, ...]]] = []
             for index, item in enumerate(self.items):
                 match = get_fuzzy_match(self.query, _item_text(item))
@@ -274,6 +335,61 @@ class Options(Component):
             return None
         selected = max(0, min(self.selected, len(visible) - 1))
         return self.items[visible[selected][0]]
+
+    @property
+    def selected_value(self) -> Any | None:
+        """Stable stored value of the selection (alias of ``value``).
+
+        Use with ``select_value`` to preserve a selection across item
+        rebuilds by value/id rather than by fragile filtered index.
+        """
+        return self.value
+
+    @property
+    def selected_label(self) -> str:
+        """Plain display text of the selected item, or ``""`` when empty."""
+        item = self.selected_item
+        return "" if item is None else _item_text(item)
+
+    def select_value(self, value: Any) -> bool:
+        """Select the visible item whose stored value equals ``value``.
+
+        Returns ``True`` when a match is found. The stable way to keep a
+        selection pinned across item rebuilds: store the value, rebuild
+        ``items``, then re-select by value.
+        """
+        for index, (item_index, _) in enumerate(self._filtered()):
+            if _item_value(self.items[item_index]) == value:
+                self.selected = index
+                return True
+        return False
+
+    def resolve_submission(self, typed: str) -> str:
+        """Reconcile typed composer text with the selection per ``accept``.
+
+        Removes the userland "did they Tab-complete this row or type past
+        it?" logic. See ``AcceptPolicy`` for the per-policy behavior.
+        """
+        typed = typed or ""
+        selected = self.selected_label
+        if self.accept == "extend" or not selected:
+            return typed
+        if self.accept == "replace":
+            return selected
+        # if_prefix_only
+        typed_stripped = typed.strip()
+        selected_stripped = selected.strip()
+        if not typed_stripped:
+            return selected
+        typed_lower = typed_stripped.lower()
+        selected_lower = selected_stripped.lower()
+        if typed_lower == selected_lower or typed_lower.startswith(
+            selected_lower + " "
+        ):
+            return typed
+        if selected_lower.startswith(typed_lower):
+            return selected
+        return selected
 
     def move(self, delta: int) -> None:
         """Move ``selected`` by ``delta``, skipping disabled entries.
@@ -559,6 +675,8 @@ Select = Options
 
 
 __all__ = (
+    "AcceptPolicy",
+    "FilterMode",
     "Option",
     "OptionItem",
     "Options",
