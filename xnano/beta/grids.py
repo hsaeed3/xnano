@@ -1759,14 +1759,22 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             )
         )
 
-    def _grid_build_frame(self, area: Area, session: Any) -> None:
+    def _grid_build_frame(
+        self,
+        area: Area,
+        session: Any,
+        *,
+        suppress_frame_border: bool = False,
+    ) -> None:
         self.columns = area.width
         self.rows = area.height
         self.grid_render()
         responsive = type(self)._grid_responsive_renders
         if responsive:
             self._grid_render_responsive(responsive, area)
-        self._grid_assemble(area, session)
+        self._grid_assemble(
+            area, session, suppress_frame_border=suppress_frame_border
+        )
 
     def _grid_render_responsive(
         self, responsive: dict[str, str], area: Area
@@ -1797,7 +1805,23 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         if method_name is not None:
             getattr(self, method_name)()
 
-    def _grid_assemble(self, area: Area, session: Any) -> None:
+    def _grid_frame_for_paint(self, suppress_border: bool) -> Frame | None:
+        """Return this grid's frame, dropping its border when the parent
+        Field already owns it (chrome-owns-the-border rule)."""
+        frame = self._grid_frame
+        if frame is None or not suppress_border or frame.border is None:
+            return frame
+        return dataclasses.replace(
+            frame, border=None, border_color=None, border_sides=None
+        )
+
+    def _grid_assemble(
+        self,
+        area: Area,
+        session: Any,
+        *,
+        suppress_frame_border: bool = False,
+    ) -> None:
         if not self.visible:
             return
 
@@ -1805,11 +1829,13 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         self._grid_last_slot_areas = {}
         self._grid_field_hits = []
 
+        grid_frame = self._grid_frame_for_paint(suppress_frame_border)
+
         fields = self._grid_fields
 
         if not fields:
-            if self._grid_frame is not None:
-                session.paint_frame(area, self._grid_frame, z=self.z)
+            if grid_frame is not None:
+                session.paint_frame(area, grid_frame, z=self.z)
             return
 
         active_names: list[str] = []
@@ -1865,13 +1891,13 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 )
 
         if not active_names:
-            if self._grid_frame is not None:
-                session.paint_frame(area, self._grid_frame, z=self.z)
+            if grid_frame is not None:
+                session.paint_frame(area, grid_frame, z=self.z)
             return
 
         inner = area
-        if self._grid_frame is not None:
-            inner = session.paint_frame(area, self._grid_frame, z=self.z)
+        if grid_frame is not None:
+            inner = session.paint_frame(area, grid_frame, z=self.z)
 
         slot_areas = session.split_layout(
             inner,

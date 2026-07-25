@@ -263,7 +263,14 @@ class TerminalController:
                 )
             return
         if isinstance(getattr(type(value), "_grid_fields", None), dict):
-            value._grid_build_frame(area, self)
+            # Chrome owns the border: when the Field already frames this slot
+            # with a border, the nested grid must not draw a second one.
+            value._grid_build_frame(
+                area,
+                self,
+                suppress_frame_border=getattr(field, "border", None)
+                is not None,
+            )
             return
         compose = getattr(value, "compose", None)
         if callable(compose):
