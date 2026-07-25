@@ -41,9 +41,7 @@ def test_accept_policies() -> None:
 
 
 def test_select_value_survives_rebuild() -> None:
-    opts = Options(
-        items=(Option("A", value="a"), Option("B", value="b"))
-    )
+    opts = Options(items=(Option("A", value="a"), Option("B", value="b")))
     opts.selected = 1
     assert opts.selected_value == "b"
     opts.items = (

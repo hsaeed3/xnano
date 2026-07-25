@@ -1352,7 +1352,9 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         extent = content_scroll_extent(value, axis)
         view = paint_area.height if axis == "y" else paint_area.width
         max_offset = max(0, extent - view)
-        offset = max_offset if handle.follow else min(handle.offset, max_offset)
+        offset = (
+            max_offset if handle.follow else min(handle.offset, max_offset)
+        )
         handle.offset = offset
         return offset, axis
 

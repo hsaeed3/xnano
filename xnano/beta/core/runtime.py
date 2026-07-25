@@ -466,9 +466,7 @@ class Runtime(Generic[StateT]):
         self._frame_commands.clear()
         return frame
 
-    def call_soon(
-        self, callback: Callable[..., Any], *args: Any
-    ) -> None:
+    def call_soon(self, callback: Callable[..., Any], *args: Any) -> None:
         """Schedule ``callback`` to run on the UI thread before the next pump.
 
         Thread-safe: worker threads enqueue here and the runtime drains the
@@ -538,17 +536,19 @@ class Runtime(Generic[StateT]):
         """
         if kind != "press":
             return
+        from xnano.beta.types import FieldFocus
         from xnano.beta.utils.focus import (
             is_focusable_component,
             set_field_focus,
             spatial_focus_enabled,
         )
-        from xnano.beta.types import FieldFocus
 
         if not spatial_focus_enabled(self):
             return
         value = getattr(hit.grid, hit.field_name, None)
-        if not (is_focusable_component(value) or getattr(field, "autofocus", None)):
+        if not (
+            is_focusable_component(value) or getattr(field, "autofocus", None)
+        ):
             return
         set_field_focus(
             self,

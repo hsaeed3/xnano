@@ -56,9 +56,13 @@ def test_arrow_keys_move_focus_spatially() -> None:
         runtime.set_root(app)
         runtime.render()
         ensure_default_field_focus(runtime)
-        runtime.dispatch(Event.from_data(KeyboardEventData.from_binding("down")))
+        runtime.dispatch(
+            Event.from_data(KeyboardEventData.from_binding("down"))
+        )
         assert runtime.focused_group == "b"
-        runtime.dispatch(Event.from_data(KeyboardEventData.from_binding("down")))
+        runtime.dispatch(
+            Event.from_data(KeyboardEventData.from_binding("down"))
+        )
         assert runtime.focused_group == "c"
         runtime.dispatch(Event.from_data(KeyboardEventData.from_binding("up")))
         assert runtime.focused_group == "b"
@@ -75,7 +79,9 @@ def test_click_moves_focus() -> None:
         ensure_default_field_focus(runtime)
         # Row 2 holds button C.
         runtime.dispatch(
-            Event.from_data(MouseEventData(kind="press", x=1, y=2, button="left"))
+            Event.from_data(
+                MouseEventData(kind="press", x=1, y=2, button="left")
+            )
         )
         assert runtime.focused_group == "c"
     finally:
@@ -96,12 +102,17 @@ def test_arrow_focus_disabled_without_autofocus() -> None:
         app = App()
         runtime.set_root(app)
         runtime.render()
-        from xnano.beta.utils.focus import set_field_focus, collect_focusable_fields
+        from xnano.beta.utils.focus import (
+            collect_focusable_fields,
+            set_field_focus,
+        )
 
         set_field_focus(runtime, collect_focusable_fields(runtime)[0])
         # Arrow keys are not hijacked when no field declares autofocus.
         consumed_before = runtime.focused_group
-        runtime.dispatch(Event.from_data(KeyboardEventData.from_binding("down")))
+        runtime.dispatch(
+            Event.from_data(KeyboardEventData.from_binding("down"))
+        )
         assert runtime.focused_group == consumed_before
     finally:
         runtime.close()

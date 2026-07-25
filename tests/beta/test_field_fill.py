@@ -48,8 +48,7 @@ def test_grid_update_field_toggles_fill() -> None:
         app.grid_update_field("body", fill=False)
         runtime.render()
         assert (
-            app._grid_field_frame("body", app._grid_field_info("body"))
-            is None
+            app._grid_field_frame("body", app._grid_field_info("body")) is None
         )
     finally:
         runtime.close()

@@ -86,9 +86,7 @@ def test_mouse_wheel_moves_scroll() -> None:
         runtime.render()
         for _ in range(3):
             runtime.dispatch(
-                Event.from_data(
-                    MouseEventData(kind="scroll_down", x=2, y=2)
-                )
+                Event.from_data(MouseEventData(kind="scroll_down", x=2, y=2))
             )
         assert app._grid_scroll_handle("body").offset == 9
         wheeled = runtime.render().text
