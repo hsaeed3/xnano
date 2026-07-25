@@ -485,6 +485,23 @@ class Runtime(Generic[StateT]):
             )
         return not self._should_exit
 
+    _WHEEL_STEP = 3
+
+    def _auto_scroll_wheel(self, hit: Any, field: Any, kind: str) -> None:
+        """Move a scroll field's handle when the wheel turns over it.
+
+        Wheel-to-scroll is free for any ``Field(scroll=...)``; user hooks can
+        still read/override the handle afterward.
+        """
+        if not getattr(field, "scroll", None):
+            return
+        if kind not in ("scroll_up", "scroll_down"):
+            return
+        handle = hit.grid._grid_scroll_handle(hit.field_name)
+        delta = -self._WHEEL_STEP if kind == "scroll_up" else self._WHEEL_STEP
+        handle.scroll(delta)
+        hit.grid.mark_field_dirty(hit.field_name)
+
     def dispatch(self, event: Any) -> None:
         """Dispatch one event to the root grid or component."""
         from xnano.beta.core.dispatch import dispatch_event
@@ -504,6 +521,7 @@ class Runtime(Generic[StateT]):
                 for hit in reversed(getattr(grid, "_grid_field_hits", ())):
                     if hit.area.contains((mouse.x, mouse.y)):
                         field = hit.grid._grid_field_info(hit.field_name)
+                        self._auto_scroll_wheel(hit, field, mouse.kind)
                         event = Event.from_data(
                             MouseEventData(
                                 kind=mouse.kind,

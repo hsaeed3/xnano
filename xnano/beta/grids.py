@@ -1289,27 +1289,47 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         """Return the parent-relative slide offset for a layout field."""
         return self._grid_field_position(name)
 
-    def _grid_field_scroll_offset(self, name: str) -> int:
-        offsets = getattr(self, "_grid_field_scroll_offsets", None)
-        if offsets and name in offsets:
-            return offsets[name]
-        return 0
+    def _grid_scroll_handle(self, name: str, axis: Axis = "y") -> Any:
+        """Return (creating if needed) the ``ScrollHandle`` for a field.
 
-    def _grid_set_field_scroll_offset(self, name: str, offset: int) -> None:
-        self.__dict__.setdefault("_grid_field_scroll_offsets", {})[name] = max(
-            0, offset
-        )
+        Handles are keyed by field name so the paint path and
+        ``ctx.scroll(group)`` share one mutable offset per scroll region.
+        """
+        from xnano.beta.types import ScrollHandle
 
-    def _grid_field_scroll_follow(self, name: str) -> bool:
-        follow = getattr(self, "_grid_field_scroll_follow_flags", None)
-        if follow and name in follow:
-            return follow[name]
-        return False
+        handles = getattr(self, "_grid_scroll_handles", None)
+        if handles is None:
+            handles = {}
+            object.__setattr__(self, "_grid_scroll_handles", handles)
+        handle = handles.get(name)
+        if handle is None:
+            handle = ScrollHandle(group=name, axis=axis)
+            handles[name] = handle
+        return handle
 
-    def _grid_set_field_scroll_follow(self, name: str, follow: bool) -> None:
-        self.__dict__.setdefault("_grid_field_scroll_follow_flags", {})[
-            name
-        ] = follow
+    def _grid_resolve_scroll(
+        self,
+        name: str,
+        field: GridFieldInfo,
+        value: Any,
+        paint_area: Area,
+    ) -> tuple[int, str]:
+        """Clamp and resolve a scroll field's paint offset for one frame.
+
+        Measures the content, clamps the handle offset to the available
+        range, honors ``follow`` (snap to the tail), and writes the clamped
+        offset back so ``ctx.scroll`` reflects reality.
+        """
+        from xnano.beta.core.controller import content_scroll_extent
+
+        axis = "x" if field.scroll == "horizontal" else "y"
+        handle = self._grid_scroll_handle(name, axis)
+        extent = content_scroll_extent(value, axis)
+        view = paint_area.height if axis == "y" else paint_area.width
+        max_offset = max(0, extent - view)
+        offset = max_offset if handle.follow else min(handle.offset, max_offset)
+        handle.offset = offset
+        return offset, axis
 
     def _grid_field_needs_hit(
         self, field_name: str, field: GridFieldInfo
@@ -1846,6 +1866,12 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                     paint_wireframe(paint_area, z=self.z)
             if value is None:
                 continue
+            scroll_offset = 0
+            scroll_axis = "y"
+            if field.scroll:
+                scroll_offset, scroll_axis = self._grid_resolve_scroll(
+                    field_name, field, value, paint_area
+                )
             session.paint_field_slot(
                 value,
                 paint_area,
@@ -1854,6 +1880,8 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 effect_key=field_name,
                 owner=self,
                 owner_field_name=field_name,
+                scroll_offset=scroll_offset,
+                scroll_axis=scroll_axis,
             )
 
 

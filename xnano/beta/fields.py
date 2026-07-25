@@ -215,10 +215,14 @@ class GridFieldInfo:
     """Whether this field receives focus by default when nothing else is
     focused yet (preferred over declaration-order default selection)."""
     scroll: "types.ScrollLike | None" = None
-    """Enable windowed scrolling for a container field whose content
-    overflows its slot. ``True`` scrolls along ``direction``; pass
-    ``"vertical"``/``"horizontal"`` to force an axis. See ``ctx.scroll(group)``
-    for programmatic control (``.to_bottom()``, ``.follow``)."""
+    """Enable windowed scrolling for a field whose content overflows its slot.
+
+    ``True``/``"vertical"`` scrolls rows; ``"horizontal"`` scrolls columns.
+    A scroll field reserves its full slot height (short content leaves blank
+    rows) and the mouse wheel moves it automatically. Drive it programmatically
+    through ``ctx.scroll(group)`` — ``.scroll(delta)``, ``.scroll_to(offset)``,
+    ``.scroll_to_end()`` (tail-follow). Offset ``0`` shows the top; increasing
+    the offset reveals later content."""
     wireframe: bool | None = None
     """Live-toggle a debug overlay showing the cell grid this field
     occupies. Content renders normally underneath; this only adds a thin

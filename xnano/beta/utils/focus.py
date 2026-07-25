@@ -210,13 +210,9 @@ def scroll_handle_for_group(
     target = resolve_group_target(terminal, group)
     if target is None:
         return None
-    handles = getattr(target.grid, "_grid_scroll_handles", None)
-    if handles is None:
-        handles = {}
-        object.__setattr__(target.grid, "_grid_scroll_handles", handles)
     info = target.grid._grid_field_info(target.field_name)
     axis = "x" if info.scroll == "horizontal" else "y"
-    return handles.setdefault(group, ScrollHandle(group=group, axis=axis))
+    return target.grid._grid_scroll_handle(target.field_name, axis)
 
 
 __all__ = (
