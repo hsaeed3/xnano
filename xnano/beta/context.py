@@ -9,7 +9,7 @@ layout from an event hook.
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 if TYPE_CHECKING:
     from xnano.beta.actions import Actions
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
         KeyboardEventData,
         MouseEventData,
     )
-    from xnano.beta.types import ScrollHandle
+    from xnano.beta.types import Area, ScrollHandle
     from xnano.beta.utils.responsive import Breakpoint
 
 
@@ -188,6 +188,23 @@ class Context(Generic[StateT]):
     def is_focused(self, group: str) -> bool:
         """Return whether the field labeled ``group`` currently holds focus."""
         return self.focused_group == group
+
+    def call_soon(self, callback: "Callable[..., Any]", *args: Any) -> None:
+        """Schedule ``callback`` to run on the UI thread before the next pump.
+
+        The thread-safe bridge for updating grid state from a worker thread:
+        the callback runs on the runtime's own thread, so it can freely mutate
+        components/fields without racing the renderer.
+        """
+        self.terminal.call_soon(callback, *args)
+
+    def field_area(self, name: str) -> "Area | None":
+        """Return the last painted area for field ``name``, if known.
+
+        Reads the always-on layout map so viewports and chrome math can use
+        measured slot sizes instead of guessing.
+        """
+        return self.stage.get_area(name)
 
     def scroll(self, group: str) -> "ScrollHandle | None":
         """Return a scroll handle for ``Field(scroll=...)`` labeled ``group``."""

@@ -1375,19 +1375,30 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         field_config: dict[str, Any],
         *,
         caller: str,
+        missing: str = "raise",
     ) -> None:
         """Validate and store per-instance style/layout overrides for ``name``.
 
         Shared by ``grid_set_field`` and ``grid_update_field`` — the only
         difference between the two callers is which keyword arguments they
         expose; the validation and override-storage logic is identical.
+
+        ``missing="ignore"`` turns a missing or state-only target into a
+        no-op instead of an exception, so an optional style patch (e.g. a
+        border-color pulse from ``on_tick``) never has to be wrapped in
+        ``try``/``except``. Unknown/forbidden keyword arguments still raise,
+        as those signal a programming error rather than timing.
         """
         if name in self._grid_state_fields:
+            if missing == "ignore":
+                return
             raise TypeError(
                 f"{caller}() cannot be used on state field {name!r} on "
                 f"{type(self).__name__}"
             )
         if name not in self._grid_fields:
+            if missing == "ignore":
+                return
             raise AttributeError(
                 f"{type(self).__name__} has no layout field {name!r}"
             )
@@ -1586,9 +1597,10 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         attribute changes — pulsing a border color from ``on_tick``,
         toggling a modifier from an effect callback. It has no ``value=``
         or ``position=`` parameters at all, so a per-frame style tick never
-        pays for that method's value-validation branch. Raises the same
-        ``TypeError``/``AttributeError`` as ``grid_set_field`` for state
-        fields, unknown fields, or unknown keys.
+        pays for that method's value-validation branch. Optional style
+        patches never raise: a missing or state-only ``name`` is a no-op
+        (no ``try``/``except`` needed), though unknown keyword arguments
+        still raise as a programming error.
         """
         field_config: dict[str, Any] = {
             key: option
@@ -1624,7 +1636,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             if option is not UNSET
         }
         self._grid_apply_field_config(
-            name, field_config, caller="grid_update_field"
+            name, field_config, caller="grid_update_field", missing="ignore"
         )
 
     def set_frame(
@@ -1681,6 +1693,34 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         theming a nested grid, replacing private ``_grid_frame`` mutation.
         """
         self.set_frame(background=background)
+
+    def schedule_update(
+        self,
+        callback: Callable[[], Any] | None = None,
+        *,
+        field: str | None = None,
+    ) -> None:
+        """Apply an update on the UI thread before the next frame.
+
+        The thread-safe way to reflect background work in the UI: pass a
+        ``callback`` to run on the runtime thread (so it can mutate this grid
+        without racing the renderer), and/or a ``field`` to mark dirty. Safe
+        to call from any thread; a no-op when no runtime is active.
+        """
+        from xnano.beta.core.runtime import get_active_runtime
+
+        runtime = get_active_runtime()
+
+        def _apply() -> None:
+            if callback is not None:
+                callback()
+            if field is not None:
+                self.mark_field_dirty(field)
+
+        if runtime is None:
+            _apply()
+        else:
+            runtime.call_soon(_apply)
 
     def _grid_resolve_visible(self, field: GridFieldInfo, value: Any) -> bool:
         if field.visible is None:

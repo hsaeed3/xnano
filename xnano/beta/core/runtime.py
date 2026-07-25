@@ -8,10 +8,12 @@ Own live and offscreen sessions, rendering, events, state, focus, and output.
 from __future__ import annotations
 
 import atexit
+import collections
 import contextvars
 import signal
+import threading
 import time
-from typing import Any, Generic, Sequence, TypeVar
+from typing import Any, Callable, Generic, Sequence, TypeVar
 
 from xnano_core.core import CoreSession
 
@@ -139,6 +141,10 @@ class Runtime(Generic[StateT]):
         self._cursor = Cursor(self)
         self._device = Device(self)
         self._actions = Actions(self)
+        self._call_soon_queue: collections.deque[
+            tuple[Callable[..., Any], tuple[Any, ...]]
+        ] = collections.deque()
+        self._call_soon_lock = threading.Lock()
         if title is not None:
             self._device.title = title
 
@@ -460,8 +466,30 @@ class Runtime(Generic[StateT]):
         self._frame_commands.clear()
         return frame
 
+    def call_soon(
+        self, callback: Callable[..., Any], *args: Any
+    ) -> None:
+        """Schedule ``callback`` to run on the UI thread before the next pump.
+
+        Thread-safe: worker threads enqueue here and the runtime drains the
+        queue on its own thread, so background work can mutate grid state
+        without racing the renderer.
+        """
+        with self._call_soon_lock:
+            self._call_soon_queue.append((callback, args))
+
+    def _drain_call_soon(self) -> None:
+        """Run every queued ``call_soon`` callback on the UI thread."""
+        while True:
+            with self._call_soon_lock:
+                if not self._call_soon_queue:
+                    return
+                callback, args = self._call_soon_queue.popleft()
+            callback(*args)
+
     def pump(self, timeout: float = 0.0) -> bool:
         """Poll and dispatch at most one event."""
+        self._drain_call_soon()
         if self._should_exit:
             return False
         timeout_ms = max(0, int(timeout * 1000))
