@@ -167,6 +167,10 @@ class TerminalController:
                 value = native.Constraint.min(constraint.value)
             elif constraint.kind == "max":
                 value = native.Constraint.max(constraint.value)
+            elif constraint.kind == "content":
+                # Size-to-content: a fit field claims exactly its measured
+                # content length (plus chrome), not a fill-weighted share.
+                value = native.Constraint.length(max(0, constraint.value))
             else:
                 value = native.Constraint.fill(max(1, constraint.value))
             lowered.append(value)
@@ -191,7 +195,12 @@ class TerminalController:
         ]
 
     def measure_field_slot(
-        self, value: Any, direction: str, field: Any = None
+        self,
+        value: Any,
+        direction: str,
+        field: Any = None,
+        *,
+        available_width: int = 0,
     ) -> int:
         if value is None:
             return 0
@@ -206,7 +215,7 @@ class TerminalController:
 
             size = get_size(
                 ComponentRenderContext(
-                    area=Area(x=0, y=0, width=0, height=0),
+                    area=Area(x=0, y=0, width=available_width, height=0),
                     terminal=self.runtime,
                     state=self.runtime.state,
                     component=value,

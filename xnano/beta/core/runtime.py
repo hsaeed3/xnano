@@ -502,6 +502,35 @@ class Runtime(Generic[StateT]):
         handle.scroll(delta)
         hit.grid.mark_field_dirty(hit.field_name)
 
+    def _click_to_focus(self, hit: Any, field: Any, kind: str) -> None:
+        """Focus a focusable field when it is clicked.
+
+        Opt-in with the same ``autofocus`` architecture as arrow navigation;
+        a press on a focusable (or ``autofocus``) field moves focus to it.
+        """
+        if kind != "press":
+            return
+        from xnano.beta.utils.focus import (
+            is_focusable_component,
+            set_field_focus,
+            spatial_focus_enabled,
+        )
+        from xnano.beta.types import FieldFocus
+
+        if not spatial_focus_enabled(self):
+            return
+        value = getattr(hit.grid, hit.field_name, None)
+        if not (is_focusable_component(value) or getattr(field, "autofocus", None)):
+            return
+        set_field_focus(
+            self,
+            FieldFocus(
+                grid=hit.grid,
+                field_name=hit.field_name,
+                group=field.group,
+            ),
+        )
+
     def dispatch(self, event: Any) -> None:
         """Dispatch one event to the root grid or component."""
         from xnano.beta.core.dispatch import dispatch_event
@@ -509,6 +538,8 @@ class Runtime(Generic[StateT]):
             apply_text_keyboard,
             cycle_field_focus,
             focused_component,
+            move_field_focus,
+            spatial_focus_enabled,
         )
 
         consumed = False
@@ -522,6 +553,7 @@ class Runtime(Generic[StateT]):
                     if hit.area.contains((mouse.x, mouse.y)):
                         field = hit.grid._grid_field_info(hit.field_name)
                         self._auto_scroll_wheel(hit, field, mouse.kind)
+                        self._click_to_focus(hit, field, mouse.kind)
                         event = Event.from_data(
                             MouseEventData(
                                 kind=mouse.kind,
@@ -547,6 +579,11 @@ class Runtime(Generic[StateT]):
                     focused_component(self),
                     keyboard,
                 )
+                if not consumed and spatial_focus_enabled(self):
+                    for direction in ("up", "down", "left", "right"):
+                        if keyboard.matches(direction):
+                            consumed = move_field_focus(self, direction)
+                            break
         clipboard = getattr(event, "clipboard_event", None)
         tick = getattr(event, "tick_event", None)
         if tick is not None:

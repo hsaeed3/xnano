@@ -254,6 +254,31 @@ def _merge_grid_settings(
     return merged
 
 
+def _frame_axis_size(frame: Frame | None, direction: Direction) -> int:
+    """Return the chrome thickness a grid frame consumes along an axis."""
+    if frame is None:
+        return 0
+    size = 0
+    if frame.border is not None:
+        sides = frame.border_sides
+        if direction == "vertical":
+            edges = ("top", "bottom")
+        else:
+            edges = ("left", "right")
+        size += 2 if sides is None else sum(edge in sides for edge in edges)
+    if frame.padding is not None:
+        padding = Padding.parse(frame.padding)
+        size += (
+            padding.vertical if direction == "vertical" else padding.horizontal
+        )
+    return size
+
+
+def _grid_inner_width(area: Area, frame: Frame | None) -> int:
+    """Return the content width inside a grid's own frame."""
+    return max(0, area.width - _frame_axis_size(frame, "horizontal"))
+
+
 def _grid_frame_size_for_field(
     field: GridFieldInfo,
     direction: Direction,
@@ -1336,7 +1361,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     ) -> bool:
         if field.slide:
             return True
-        if field.group or field.scroll:
+        if field.group or field.scroll or field.autofocus:
             return True
         if _resolve_grid_mouse_handler(self, field_name) is not None:
             return True
@@ -1777,8 +1802,18 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                     continue
                 content_length: int | None = None
                 if _field_needs_content_measure(field, self._grid_direction):
+                    available_width = 0
+                    if self._grid_direction == "vertical":
+                        available_width = max(
+                            0,
+                            _grid_inner_width(area, self._grid_frame)
+                            - _grid_frame_size_for_field(field, "horizontal"),
+                        )
                     content_length = session.measure_field_slot(
-                        value, self._grid_direction, field
+                        value,
+                        self._grid_direction,
+                        field,
+                        available_width=available_width,
                     )
                 active_names.append(field_name)
                 active_fields.append(field)
