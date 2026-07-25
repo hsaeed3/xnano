@@ -110,6 +110,7 @@ _GRID_FIELD_CONFIG_KEYS: frozenset[str] = frozenset(
         "wireframe",
         "color",
         "background",
+        "fill",
         "width",
         "height",
         "gap",
@@ -1410,6 +1411,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         wireframe: bool | None = UNSET,
         color: ColorLike | None = UNSET,
         background: ColorLike | None = UNSET,
+        fill: bool | None = UNSET,
         width: SizingLike | None = UNSET,
         height: SizingLike | None = UNSET,
         gap: int | None = UNSET,
@@ -1450,6 +1452,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 "wireframe": wireframe,
                 "color": color,
                 "background": background,
+                "fill": fill,
                 "width": width,
                 "height": height,
                 "gap": gap,
@@ -1509,6 +1512,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         wireframe: bool | None = UNSET,
         color: ColorLike | None = UNSET,
         background: ColorLike | None = UNSET,
+        fill: bool | None = UNSET,
         width: SizingLike | None = UNSET,
         height: SizingLike | None = UNSET,
         gap: int | None = UNSET,
@@ -1549,6 +1553,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 "wireframe": wireframe,
                 "color": color,
                 "background": background,
+                "fill": fill,
                 "width": width,
                 "height": height,
                 "gap": gap,
@@ -1576,6 +1581,61 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         self._grid_apply_field_config(
             name, field_config, caller="grid_update_field"
         )
+
+    def set_frame(
+        self,
+        frame: Frame | None = UNSET,
+        *,
+        background: ColorLike | None = UNSET,
+        border: Border | None = UNSET,
+        border_color: ColorLike | None = UNSET,
+        border_sides: Sequence[Side] | None = UNSET,
+        title: str | None = UNSET,
+        title_position: FrameTitlePosition | None = UNSET,
+        padding: PaddingLike | None = UNSET,
+    ) -> None:
+        """Set this grid instance's outer frame (chrome + background fill).
+
+        The public replacement for mutating the private ``_grid_frame``.
+        Pass a whole ``frame`` to replace it outright, or individual keyword
+        arguments to patch the current frame in place — a bare
+        ``background`` fills the grid's whole area with no border required,
+        so nested grids can be themed without any chrome. Pass ``frame=None``
+        to clear the frame.
+        """
+        if frame is not UNSET:
+            object.__setattr__(
+                self, "_grid_frame", None if frame is None else frame
+            )
+            return
+        current = getattr(self, "_grid_frame", None) or Frame()
+        patch = {
+            key: value
+            for key, value in {
+                "background": background,
+                "border": border,
+                "border_color": border_color,
+                "border_sides": border_sides,
+                "title": title,
+                "title_position": title_position,
+                "padding": padding,
+            }.items()
+            if value is not UNSET
+        }
+        if not patch:
+            return
+        updated = dataclasses.replace(current, **patch)
+        object.__setattr__(
+            self, "_grid_frame", None if updated.is_empty() else updated
+        )
+
+    def set_background(self, background: ColorLike | None) -> None:
+        """Fill this grid instance's whole area with ``background``.
+
+        Shorthand for ``set_frame(background=...)`` — the ergonomic path for
+        theming a nested grid, replacing private ``_grid_frame`` mutation.
+        """
+        self.set_frame(background=background)
 
     def _grid_resolve_visible(self, field: GridFieldInfo, value: Any) -> bool:
         if field.visible is None:
