@@ -14,7 +14,7 @@ xnano is a modern, lightweight and incredibly declarative TUI framework for Pyth
 
 Furthermore, `xnano` itself uses the [`pydantic-core`](https://github.com/pydantic/pydantic/tree/main/pydantic_core) library for type validation and similar operations.
 
-[!NOTE]
+> [!NOTE]
 > As xnano is driven by solo development, it has taken a bit of time to settle on the best version of the user facing API. All active changes to the library are currently being made under xnano.beta, which may include large, breaking changes as new features are tested and refined. This keeps the main xnano API stable while development continues.
 
 ## Installation
