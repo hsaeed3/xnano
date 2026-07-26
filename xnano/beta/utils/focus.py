@@ -188,6 +188,78 @@ def ensure_default_field_focus(terminal: Any) -> None:
         set_field_focus(terminal, target, fire_hooks=False)
 
 
+def spatial_focus_enabled(terminal: Any) -> bool:
+    """Return whether any focusable field declares ``autofocus``.
+
+    Arrow-key and click focus movement is opt-in: it activates only when the
+    app uses ``Field(autofocus=True)`` somewhere, so apps that bind arrow keys
+    themselves keep their behavior.
+    """
+    for target in collect_focusable_fields(terminal):
+        info = target.grid._grid_field_info(target.field_name)
+        if getattr(info, "autofocus", False):
+            return True
+    return False
+
+
+def _target_area(target: FieldFocus) -> Any | None:
+    """Return the last painted area for a focus target, if known."""
+    for hit in getattr(target.grid, "_grid_field_hits", ()):
+        if hit.field_name == target.field_name:
+            return hit.area
+    slots = getattr(target.grid, "_grid_last_slot_areas", None)
+    return None if not slots else slots.get(target.field_name)
+
+
+def move_field_focus(
+    terminal: Any,
+    direction: Literal["up", "down", "left", "right"],
+) -> bool:
+    """Move focus to the nearest focusable field in ``direction``.
+
+    Uses the live painted geometry of each focusable field; falls back to
+    tab-order cycling when geometry is unavailable.
+    """
+    targets = collect_focusable_fields(terminal)
+    if len(targets) < 2:
+        return False
+    forward = direction in ("down", "right")
+    current = getattr(terminal, "_field_focus", None)
+    origin = None if current is None else _target_area(current)
+    if origin is None:
+        return cycle_field_focus(terminal, 1 if forward else -1)
+    origin_x = origin.x + origin.width / 2
+    origin_y = origin.y + origin.height / 2
+    best: FieldFocus | None = None
+    best_score: float | None = None
+    for target in targets:
+        if target == current:
+            continue
+        area = _target_area(target)
+        if area is None:
+            continue
+        delta_x = (area.x + area.width / 2) - origin_x
+        delta_y = (area.y + area.height / 2) - origin_y
+        if direction == "up" and delta_y >= 0:
+            continue
+        if direction == "down" and delta_y <= 0:
+            continue
+        if direction == "left" and delta_x >= 0:
+            continue
+        if direction == "right" and delta_x <= 0:
+            continue
+        if direction in ("up", "down"):
+            score = abs(delta_y) + abs(delta_x) * 2
+        else:
+            score = abs(delta_x) + abs(delta_y) * 2
+        if best_score is None or score < best_score:
+            best_score = score
+            best = target
+    if best is None:
+        return False
+    return set_field_focus(terminal, best)
+
+
 def apply_text_keyboard(text: Any, keyboard: Any) -> bool:
     """Send keyboard input to a focused text component."""
     handler = getattr(text, "handle_keyboard", None)
@@ -210,13 +282,9 @@ def scroll_handle_for_group(
     target = resolve_group_target(terminal, group)
     if target is None:
         return None
-    handles = getattr(target.grid, "_grid_scroll_handles", None)
-    if handles is None:
-        handles = {}
-        object.__setattr__(target.grid, "_grid_scroll_handles", handles)
     info = target.grid._grid_field_info(target.field_name)
     axis = "x" if info.scroll == "horizontal" else "y"
-    return handles.setdefault(group, ScrollHandle(group=group, axis=axis))
+    return target.grid._grid_scroll_handle(target.field_name, axis)
 
 
 __all__ = (
@@ -234,10 +302,12 @@ __all__ = (
     "is_component",
     "is_focusable_component",
     "is_group_focused",
+    "move_field_focus",
     "place_cursor_for_focus",
     "resolve_group_target",
     "scroll_handle_for_group",
     "set_field_focus",
+    "spatial_focus_enabled",
     "sync_input_focus_flags",
     "uses_default_component_size",
 )

@@ -99,6 +99,7 @@ _FIELD_PROFILES: tuple[tuple[str, dict[str, Any]], ...] = (
         {
             "color": "yellow",
             "background": "blue",
+            "fill": True,
             "modifiers": ("bold", "underline"),
             "class_name": "p-1 text-red-500 bg-slate-900",
         },

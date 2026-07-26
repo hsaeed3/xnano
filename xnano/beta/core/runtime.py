@@ -8,10 +8,12 @@ Own live and offscreen sessions, rendering, events, state, focus, and output.
 from __future__ import annotations
 
 import atexit
+import collections
 import contextvars
 import signal
+import threading
 import time
-from typing import Any, Generic, Sequence, TypeVar
+from typing import Any, Callable, Generic, Sequence, TypeVar
 
 from xnano_core.core import CoreSession
 
@@ -139,6 +141,10 @@ class Runtime(Generic[StateT]):
         self._cursor = Cursor(self)
         self._device = Device(self)
         self._actions = Actions(self)
+        self._call_soon_queue: collections.deque[
+            tuple[Callable[..., Any], tuple[Any, ...]]
+        ] = collections.deque()
+        self._call_soon_lock = threading.Lock()
         if title is not None:
             self._device.title = title
 
@@ -460,8 +466,28 @@ class Runtime(Generic[StateT]):
         self._frame_commands.clear()
         return frame
 
+    def call_soon(self, callback: Callable[..., Any], *args: Any) -> None:
+        """Schedule ``callback`` to run on the UI thread before the next pump.
+
+        Thread-safe: worker threads enqueue here and the runtime drains the
+        queue on its own thread, so background work can mutate grid state
+        without racing the renderer.
+        """
+        with self._call_soon_lock:
+            self._call_soon_queue.append((callback, args))
+
+    def _drain_call_soon(self) -> None:
+        """Run every queued ``call_soon`` callback on the UI thread."""
+        while True:
+            with self._call_soon_lock:
+                if not self._call_soon_queue:
+                    return
+                callback, args = self._call_soon_queue.popleft()
+            callback(*args)
+
     def pump(self, timeout: float = 0.0) -> bool:
         """Poll and dispatch at most one event."""
+        self._drain_call_soon()
         if self._should_exit:
             return False
         timeout_ms = max(0, int(timeout * 1000))
@@ -485,6 +511,54 @@ class Runtime(Generic[StateT]):
             )
         return not self._should_exit
 
+    _WHEEL_STEP = 3
+
+    def _auto_scroll_wheel(self, hit: Any, field: Any, kind: str) -> None:
+        """Move a scroll field's handle when the wheel turns over it.
+
+        Wheel-to-scroll is free for any ``Field(scroll=...)``; user hooks can
+        still read/override the handle afterward.
+        """
+        if not getattr(field, "scroll", None):
+            return
+        if kind not in ("scroll_up", "scroll_down"):
+            return
+        handle = hit.grid._grid_scroll_handle(hit.field_name)
+        delta = -self._WHEEL_STEP if kind == "scroll_up" else self._WHEEL_STEP
+        handle.scroll(delta)
+        hit.grid.mark_field_dirty(hit.field_name)
+
+    def _click_to_focus(self, hit: Any, field: Any, kind: str) -> None:
+        """Focus a focusable field when it is clicked.
+
+        Opt-in with the same ``autofocus`` architecture as arrow navigation;
+        a press on a focusable (or ``autofocus``) field moves focus to it.
+        """
+        if kind != "press":
+            return
+        from xnano.beta.types import FieldFocus
+        from xnano.beta.utils.focus import (
+            is_focusable_component,
+            set_field_focus,
+            spatial_focus_enabled,
+        )
+
+        if not spatial_focus_enabled(self):
+            return
+        value = getattr(hit.grid, hit.field_name, None)
+        if not (
+            is_focusable_component(value) or getattr(field, "autofocus", None)
+        ):
+            return
+        set_field_focus(
+            self,
+            FieldFocus(
+                grid=hit.grid,
+                field_name=hit.field_name,
+                group=field.group,
+            ),
+        )
+
     def dispatch(self, event: Any) -> None:
         """Dispatch one event to the root grid or component."""
         from xnano.beta.core.dispatch import dispatch_event
@@ -492,6 +566,8 @@ class Runtime(Generic[StateT]):
             apply_text_keyboard,
             cycle_field_focus,
             focused_component,
+            move_field_focus,
+            spatial_focus_enabled,
         )
 
         consumed = False
@@ -504,6 +580,8 @@ class Runtime(Generic[StateT]):
                 for hit in reversed(getattr(grid, "_grid_field_hits", ())):
                     if hit.area.contains((mouse.x, mouse.y)):
                         field = hit.grid._grid_field_info(hit.field_name)
+                        self._auto_scroll_wheel(hit, field, mouse.kind)
+                        self._click_to_focus(hit, field, mouse.kind)
                         event = Event.from_data(
                             MouseEventData(
                                 kind=mouse.kind,
@@ -529,6 +607,11 @@ class Runtime(Generic[StateT]):
                     focused_component(self),
                     keyboard,
                 )
+                if not consumed and spatial_focus_enabled(self):
+                    for direction in ("up", "down", "left", "right"):
+                        if keyboard.matches(direction):
+                            consumed = move_field_focus(self, direction)
+                            break
         clipboard = getattr(event, "clipboard_event", None)
         tick = getattr(event, "tick_event", None)
         if tick is not None:

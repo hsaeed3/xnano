@@ -8,6 +8,7 @@ Paint beta grids through their complete layout pipeline.
 from __future__ import annotations
 
 import collections.abc
+import copy
 from typing import Any
 
 import xnano_core.rust.native as native
@@ -18,6 +19,56 @@ from xnano.beta.core.layout import LayoutConstraint
 from xnano.beta.core.rendering import lower_content
 from xnano.beta.types import Area, Frame, Padding
 from xnano.beta.utils.responsive import resolve_responsive_variant
+
+
+def _string_content(value: Any) -> str | None:
+    """Return the plain-string content of a value, if it has one."""
+    if isinstance(value, str):
+        return value
+    content = getattr(value, "content", None)
+    return content if isinstance(content, str) else None
+
+
+def content_scroll_extent(value: Any, axis: str) -> int:
+    """Measure a scroll field's total content extent along ``axis``.
+
+    Rows for the ``"y"`` axis, columns for ``"x"``. Falls back to a
+    component's declared size when the value is not row-oriented text.
+    """
+    text = _string_content(value)
+    if text is not None:
+        lines = text.split("\n")
+        if axis == "y":
+            return len(lines)
+        return max((len(line) for line in lines), default=0)
+    if isinstance(value, collections.abc.Sequence) and not isinstance(
+        value, (str, bytes)
+    ):
+        return sum(content_scroll_extent(item, axis) for item in value)
+    return 0
+
+
+def window_scroll_value(value: Any, offset: int, axis: str) -> Any:
+    """Return ``value`` windowed by ``offset`` cells along ``axis``.
+
+    Drops the leading ``offset`` rows/columns of plain-string content so the
+    fixed-height slot (which clips the bottom natively) shows the window.
+    Non-text values are returned unchanged.
+    """
+    if offset <= 0:
+        return value
+    text = _string_content(value)
+    if text is None:
+        return value
+    if axis == "y":
+        windowed = "\n".join(text.split("\n")[offset:])
+    else:
+        windowed = "\n".join(line[offset:] for line in text.split("\n"))
+    if isinstance(value, str):
+        return windowed
+    clone = copy.copy(value)
+    object.__setattr__(clone, "content", windowed)
+    return clone
 
 
 class TerminalController:
@@ -116,6 +167,10 @@ class TerminalController:
                 value = native.Constraint.min(constraint.value)
             elif constraint.kind == "max":
                 value = native.Constraint.max(constraint.value)
+            elif constraint.kind == "content":
+                # Size-to-content: a fit field claims exactly its measured
+                # content length (plus chrome), not a fill-weighted share.
+                value = native.Constraint.length(max(0, constraint.value))
             else:
                 value = native.Constraint.fill(max(1, constraint.value))
             lowered.append(value)
@@ -140,7 +195,12 @@ class TerminalController:
         ]
 
     def measure_field_slot(
-        self, value: Any, direction: str, field: Any = None
+        self,
+        value: Any,
+        direction: str,
+        field: Any = None,
+        *,
+        available_width: int = 0,
     ) -> int:
         if value is None:
             return 0
@@ -155,7 +215,7 @@ class TerminalController:
 
             size = get_size(
                 ComponentRenderContext(
-                    area=Area(x=0, y=0, width=0, height=0),
+                    area=Area(x=0, y=0, width=available_width, height=0),
                     terminal=self.runtime,
                     state=self.runtime.state,
                     component=value,
@@ -174,7 +234,11 @@ class TerminalController:
         effect_key: str | None = None,
         owner: Any = None,
         owner_field_name: str | None = None,
+        scroll_offset: int = 0,
+        scroll_axis: str = "y",
     ) -> None:
+        if scroll_offset > 0:
+            value = window_scroll_value(value, scroll_offset, scroll_axis)
         if isinstance(value, collections.abc.Sequence) and not isinstance(
             value, (str, bytes)
         ):
@@ -199,7 +263,14 @@ class TerminalController:
                 )
             return
         if isinstance(getattr(type(value), "_grid_fields", None), dict):
-            value._grid_build_frame(area, self)
+            # Chrome owns the border: when the Field already frames this slot
+            # with a border, the nested grid must not draw a second one.
+            value._grid_build_frame(
+                area,
+                self,
+                suppress_frame_border=getattr(field, "border", None)
+                is not None,
+            )
             return
         compose = getattr(value, "compose", None)
         if callable(compose):
