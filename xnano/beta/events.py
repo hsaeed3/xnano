@@ -50,6 +50,10 @@ FocusEventKind: TypeAlias = Literal[
 _KEY_ALIASES = {"esc": "escape", "return": "enter", " ": "space"}
 
 
+_MODIFIER_KEYS: frozenset[str] = frozenset({"ctrl", "alt", "shift"})
+"""Modifier names accepted as standalone (bare) keyboard bindings."""
+
+
 def normalize_keyboard_binding(
     binding: str,
 ) -> tuple[frozenset[str], str]:
@@ -211,8 +215,22 @@ class KeyboardEventData(AbstractEventData):
         key = self.key
         return key if isinstance(key, str) and len(key) == 1 else None
 
+    def _matches_bare_modifier(self, modifier: str) -> bool:
+        """Return whether this event is a bare ``modifier`` key press.
+
+        Covers terminals that deliver a modifier press as a key whose name is
+        (or starts with) the modifier — e.g. ``"shift"``, ``"shiftleft"``.
+        """
+        key = self.key
+        if not isinstance(key, str):
+            return False
+        return key == modifier or key.startswith(modifier)
+
     def matches(self, *bindings: KeyboardBinding) -> bool:
         """Return whether this event matches any binding.
+
+        Bare modifiers (``"shift"``, ``"ctrl"``, ``"alt"``) match a
+        modifier-only key press, not a modified key such as ``"shift+a"``.
 
         Args:
             *bindings: Candidate keyboard bindings.
@@ -220,9 +238,15 @@ class KeyboardEventData(AbstractEventData):
         Returns:
             Whether at least one binding matches.
         """
-        if self._native_event is not None:
-            native_event: Any = self._native_event
-            for binding in bindings:
+        native_event: Any = self._native_event
+        own = normalize_keyboard_binding(str(self.binding))
+        for binding in bindings:
+            modifiers, key = normalize_keyboard_binding(str(binding))
+            if not modifiers and key in _MODIFIER_KEYS:
+                if self._matches_bare_modifier(key):
+                    return True
+                continue
+            if native_event is not None:
                 try:
                     if CoreKeyBinding.parse(str(binding)).matches(
                         native_event
@@ -230,12 +254,9 @@ class KeyboardEventData(AbstractEventData):
                         return True
                 except Exception:
                     continue
-            return False
-        own = normalize_keyboard_binding(str(self.binding))
-        return any(
-            normalize_keyboard_binding(str(binding)) == own
-            for binding in bindings
-        )
+            elif (modifiers, key) == own:
+                return True
+        return False
 
 
 @dataclasses.dataclass(slots=True, frozen=True)

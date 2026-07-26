@@ -170,6 +170,21 @@ class Loader(Component):
         self._epoch_ns = time.monotonic_ns()
         self._frozen_frame = 0
 
+    def current_frame(self) -> str:
+        """Return the active spinner glyph, advanced by the framework clock.
+
+        The inline path: embed this in any ``Text``/flow content to animate a
+        spinner mid-line without a manual per-tick frame counter — e.g.
+        ``Text(content=f"{loader.current_frame()} generating…")``.
+        """
+        return self._resolved_symbols[self._spinner_frame_index()]
+
+    def inline_text(self) -> str:
+        """Return the spinner glyph plus its label for inline embedding."""
+        label = self._resolve_label_text()
+        frame = self.current_frame()
+        return frame if not label else f"{frame} {label}"
+
     def _resolve_label_text(self) -> str | None:
         label = self.label
         if label is False:

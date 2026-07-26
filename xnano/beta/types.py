@@ -607,14 +607,32 @@ def field_has_frame_chrome(field: object) -> bool:
     )
 
 
+def field_fills_background(field: object) -> bool:
+    """Return whether a field paints its background across the whole slot.
+
+    A ``fill`` value takes precedence when set; otherwise a field with a
+    ``background`` fills its slot by default (``fill=False`` opts out and
+    reverts to the accent-behind-glyphs behavior).
+    """
+    fill = getattr(field, "fill", None)
+    if fill is not None:
+        return bool(fill)
+    return getattr(field, "background", None) is not None
+
+
 def frame_from_field(field: object | None) -> Frame | None:
     """Build frame styling from a field definition."""
     if field is None:
         return None
     has_chrome = field_has_frame_chrome(field)
+    include_background = getattr(field, "background", None) is not None and (
+        has_chrome or field_fills_background(field)
+    )
     sides = getattr(field, "border_sides", None)
     frame = Frame(
-        background=getattr(field, "background", None) if has_chrome else None,
+        background=(
+            getattr(field, "background", None) if include_background else None
+        ),
         border=getattr(field, "border", None),
         border_color=getattr(field, "border_color", None),
         border_sides=list(sides) if sides is not None else None,
@@ -790,6 +808,7 @@ __all__ = (
     "Sizing",
     "SizingKind",
     "SizingLike",
+    "field_fills_background",
     "field_has_frame_chrome",
     "frame_from_field",
     "is_component",

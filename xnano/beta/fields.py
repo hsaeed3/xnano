@@ -88,9 +88,12 @@ class GridFieldInfo:
             including "bold", "dim", "italic", "underline", "slow_blink", "rapid_blink",
             "reversed".
         color: The foreground color of content within this field.
-        background: The background color behind this field's text cells. Pair
-            with a filling ``width`` for a full-width bar; fills the framed
-            content area when the field also defines border/title/padding chrome.
+        background: The background color of this field. Fills the whole slot by
+            default when set (see ``fill``); also fills the framed content area
+            when the field defines border/title/padding chrome.
+        fill: Whether ``background`` fills the whole slot. ``None`` fills when a
+            background is set; ``True`` forces a full-slot fill; ``False`` paints
+            the color only behind text glyphs.
         width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
             or a ``Sizing``). Drives the split constraint in horizontal layouts;
             shrinks the slot along the cross axis otherwise.
@@ -151,11 +154,17 @@ class GridFieldInfo:
     background: ColorLike | None = None
     """The background color of content within this field.
 
-    Paints behind the field's text cells only, not the whole slot — so a plain
-    ``background`` reads as an accent behind the content. Pair it with a filling
-    ``width`` (e.g. ``width="1fr"``) for a full-width bar such as a header or
-    status line. When the field also defines border, title, or padding chrome,
-    this color fills the framed content area instead.
+    By default a ``background`` fills the field's whole slot (``fill`` is
+    treated as ``True`` when a background is set). Pass ``fill=False`` to revert
+    to the accent-behind-glyphs behavior, where the color paints only behind
+    text cells. When the field also defines border, title, or padding chrome,
+    the color fills the framed content area regardless of ``fill``.
+    """
+    fill: bool | None = None
+    """Whether ``background`` fills the whole slot.
+
+    ``None`` (the default) fills when a ``background`` is set; ``True`` forces a
+    full-slot fill; ``False`` paints the color only behind text glyphs.
     """
     width: "Sizing | None" = None
     """Sizing intent for the field's horizontal extent.
@@ -206,10 +215,14 @@ class GridFieldInfo:
     """Whether this field receives focus by default when nothing else is
     focused yet (preferred over declaration-order default selection)."""
     scroll: "types.ScrollLike | None" = None
-    """Enable windowed scrolling for a container field whose content
-    overflows its slot. ``True`` scrolls along ``direction``; pass
-    ``"vertical"``/``"horizontal"`` to force an axis. See ``ctx.scroll(group)``
-    for programmatic control (``.to_bottom()``, ``.follow``)."""
+    """Enable windowed scrolling for a field whose content overflows its slot.
+
+    ``True``/``"vertical"`` scrolls rows; ``"horizontal"`` scrolls columns.
+    A scroll field reserves its full slot height (short content leaves blank
+    rows) and the mouse wheel moves it automatically. Drive it programmatically
+    through ``ctx.scroll(group)`` — ``.scroll(delta)``, ``.scroll_to(offset)``,
+    ``.scroll_to_end()`` (tail-follow). Offset ``0`` shows the top; increasing
+    the offset reveals later content."""
     wireframe: bool | None = None
     """Live-toggle a debug overlay showing the cell grid this field
     occupies. Content renders normally underneath; this only adds a thin
@@ -344,6 +357,7 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -377,6 +391,7 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -409,6 +424,7 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -442,6 +458,7 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -474,6 +491,7 @@ def Field(
     modifiers: Sequence[types.CharacterModifier] | None = None,
     color: ColorLike | None = None,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -507,9 +525,12 @@ def Field(
             including "bold", "dim", "italic", "underline", "slow_blink", "rapid_blink",
             "reversed".
         color: The foreground color of content within this field.
-        background: The background color behind this field's text cells. Pair
-            with a filling ``width`` for a full-width bar; fills the framed
-            content area when the field also defines border/title/padding chrome.
+        background: The background color of this field. Fills the whole slot by
+            default when set (see ``fill``); also fills the framed content area
+            when the field defines border/title/padding chrome.
+        fill: Whether ``background`` fills the whole slot. ``None`` fills when a
+            background is set; ``True`` forces a full-slot fill; ``False`` paints
+            the color only behind text glyphs.
         width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
             or a ``Sizing``). Drives the split constraint in horizontal layouts;
             shrinks the slot along the cross axis otherwise.
@@ -587,6 +608,7 @@ def Field(
         color=color,
         modifiers=modifiers,
         background=background,
+        fill=fill,
         width=Sizing.parse(width),
         height=Sizing.parse(height),
         gap=gap,

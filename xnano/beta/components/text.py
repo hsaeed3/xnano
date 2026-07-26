@@ -11,7 +11,7 @@ import dataclasses
 from typing import TYPE_CHECKING, Any, Sequence
 
 from xnano.beta.components.component import Component, ComponentRenderContext
-from xnano.beta.core.content import Native, Run, TextBlock
+from xnano.beta.core.content import Native, Panel, Run, TextBlock
 from xnano.beta.types import Alignment, CharacterModifier
 
 if TYPE_CHECKING:
@@ -51,6 +51,7 @@ class Text(Component):
         read_only: Reject edits while remaining focusable.
         tab_size: Tab width for multiline tab expansion.
         focusable: Whether this component takes field focus.
+        fill: Whether ``background`` fills the whole slot, not only glyphs.
     """
 
     content: str | Text | list[str | Text] = dataclasses.field(default="")
@@ -93,6 +94,11 @@ class Text(Component):
     """Tab width applied to multiline tab insertion and paste."""
     focusable: bool = False
     """Whether this component participates in field focus."""
+    fill: bool = False
+    """Whether ``background`` fills the whole slot rather than only the
+    text glyphs. When ``True`` short lines still paint the background across
+    the full cell width (no manual right-padding required).
+    """
 
     _editor: Any = dataclasses.field(
         default=None, init=False, repr=False, compare=False
@@ -394,7 +400,7 @@ class Text(Component):
 
     def compose(
         self, ctx: ComponentRenderContext[Any]
-    ) -> TextBlock | Native | None:
+    ) -> TextBlock | Native | Panel | None:
         """Compose interface-neutral content for this Text.
 
         Args:
@@ -402,7 +408,22 @@ class Text(Component):
 
         Returns:
             A ``TextBlock``, ``Native`` editor payload, or nested content.
+            When ``fill`` is set the block is wrapped in a background
+            ``Panel`` so the color spans the full slot.
         """
+        content = self._compose_content(ctx)
+        if (
+            self.fill
+            and self.background is not None
+            and isinstance(content, TextBlock)
+        ):
+            return Panel(child=content, background=self.background)
+        return content
+
+    def _compose_content(
+        self, ctx: ComponentRenderContext[Any]
+    ) -> TextBlock | Native | Panel | None:
+        """Compose the interface-neutral content, without fill wrapping."""
         self._sync_editor_state()
 
         if self._editor is not None:
@@ -635,7 +656,7 @@ class Text(Component):
 
     def get_terminal_node(
         self, ctx: ComponentRenderContext[Any]
-    ) -> TextBlock | Native | None:
+    ) -> TextBlock | Native | Panel | None:
         """Return composed content for terminal compatibility.
 
         Args:

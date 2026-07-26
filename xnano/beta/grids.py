@@ -110,6 +110,7 @@ _GRID_FIELD_CONFIG_KEYS: frozenset[str] = frozenset(
         "wireframe",
         "color",
         "background",
+        "fill",
         "width",
         "height",
         "gap",
@@ -251,6 +252,31 @@ def _merge_grid_settings(
     if declared:
         merged = {**merged, **declared}
     return merged
+
+
+def _frame_axis_size(frame: Frame | None, direction: Direction) -> int:
+    """Return the chrome thickness a grid frame consumes along an axis."""
+    if frame is None:
+        return 0
+    size = 0
+    if frame.border is not None:
+        sides = frame.border_sides
+        if direction == "vertical":
+            edges = ("top", "bottom")
+        else:
+            edges = ("left", "right")
+        size += 2 if sides is None else sum(edge in sides for edge in edges)
+    if frame.padding is not None:
+        padding = Padding.parse(frame.padding)
+        size += (
+            padding.vertical if direction == "vertical" else padding.horizontal
+        )
+    return size
+
+
+def _grid_inner_width(area: Area, frame: Frame | None) -> int:
+    """Return the content width inside a grid's own frame."""
+    return max(0, area.width - _frame_axis_size(frame, "horizontal"))
 
 
 def _grid_frame_size_for_field(
@@ -1288,34 +1314,56 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         """Return the parent-relative slide offset for a layout field."""
         return self._grid_field_position(name)
 
-    def _grid_field_scroll_offset(self, name: str) -> int:
-        offsets = getattr(self, "_grid_field_scroll_offsets", None)
-        if offsets and name in offsets:
-            return offsets[name]
-        return 0
+    def _grid_scroll_handle(self, name: str, axis: Axis = "y") -> Any:
+        """Return (creating if needed) the ``ScrollHandle`` for a field.
 
-    def _grid_set_field_scroll_offset(self, name: str, offset: int) -> None:
-        self.__dict__.setdefault("_grid_field_scroll_offsets", {})[name] = max(
-            0, offset
+        Handles are keyed by field name so the paint path and
+        ``ctx.scroll(group)`` share one mutable offset per scroll region.
+        """
+        from xnano.beta.types import ScrollHandle
+
+        handles = getattr(self, "_grid_scroll_handles", None)
+        if handles is None:
+            handles = {}
+            object.__setattr__(self, "_grid_scroll_handles", handles)
+        handle = handles.get(name)
+        if handle is None:
+            handle = ScrollHandle(group=name, axis=axis)
+            handles[name] = handle
+        return handle
+
+    def _grid_resolve_scroll(
+        self,
+        name: str,
+        field: GridFieldInfo,
+        value: Any,
+        paint_area: Area,
+    ) -> tuple[int, str]:
+        """Clamp and resolve a scroll field's paint offset for one frame.
+
+        Measures the content, clamps the handle offset to the available
+        range, honors ``follow`` (snap to the tail), and writes the clamped
+        offset back so ``ctx.scroll`` reflects reality.
+        """
+        from xnano.beta.core.controller import content_scroll_extent
+
+        axis = "x" if field.scroll == "horizontal" else "y"
+        handle = self._grid_scroll_handle(name, axis)
+        extent = content_scroll_extent(value, axis)
+        view = paint_area.height if axis == "y" else paint_area.width
+        max_offset = max(0, extent - view)
+        offset = (
+            max_offset if handle.follow else min(handle.offset, max_offset)
         )
-
-    def _grid_field_scroll_follow(self, name: str) -> bool:
-        follow = getattr(self, "_grid_field_scroll_follow_flags", None)
-        if follow and name in follow:
-            return follow[name]
-        return False
-
-    def _grid_set_field_scroll_follow(self, name: str, follow: bool) -> None:
-        self.__dict__.setdefault("_grid_field_scroll_follow_flags", {})[
-            name
-        ] = follow
+        handle.offset = offset
+        return offset, axis
 
     def _grid_field_needs_hit(
         self, field_name: str, field: GridFieldInfo
     ) -> bool:
         if field.slide:
             return True
-        if field.group or field.scroll:
+        if field.group or field.scroll or field.autofocus:
             return True
         if _resolve_grid_mouse_handler(self, field_name) is not None:
             return True
@@ -1329,19 +1377,30 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         field_config: dict[str, Any],
         *,
         caller: str,
+        missing: str = "raise",
     ) -> None:
         """Validate and store per-instance style/layout overrides for ``name``.
 
         Shared by ``grid_set_field`` and ``grid_update_field`` — the only
         difference between the two callers is which keyword arguments they
         expose; the validation and override-storage logic is identical.
+
+        ``missing="ignore"`` turns a missing or state-only target into a
+        no-op instead of an exception, so an optional style patch (e.g. a
+        border-color pulse from ``on_tick``) never has to be wrapped in
+        ``try``/``except``. Unknown/forbidden keyword arguments still raise,
+        as those signal a programming error rather than timing.
         """
         if name in self._grid_state_fields:
+            if missing == "ignore":
+                return
             raise TypeError(
                 f"{caller}() cannot be used on state field {name!r} on "
                 f"{type(self).__name__}"
             )
         if name not in self._grid_fields:
+            if missing == "ignore":
+                return
             raise AttributeError(
                 f"{type(self).__name__} has no layout field {name!r}"
             )
@@ -1410,6 +1469,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         wireframe: bool | None = UNSET,
         color: ColorLike | None = UNSET,
         background: ColorLike | None = UNSET,
+        fill: bool | None = UNSET,
         width: SizingLike | None = UNSET,
         height: SizingLike | None = UNSET,
         gap: int | None = UNSET,
@@ -1450,6 +1510,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 "wireframe": wireframe,
                 "color": color,
                 "background": background,
+                "fill": fill,
                 "width": width,
                 "height": height,
                 "gap": gap,
@@ -1509,6 +1570,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         wireframe: bool | None = UNSET,
         color: ColorLike | None = UNSET,
         background: ColorLike | None = UNSET,
+        fill: bool | None = UNSET,
         width: SizingLike | None = UNSET,
         height: SizingLike | None = UNSET,
         gap: int | None = UNSET,
@@ -1537,9 +1599,10 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         attribute changes — pulsing a border color from ``on_tick``,
         toggling a modifier from an effect callback. It has no ``value=``
         or ``position=`` parameters at all, so a per-frame style tick never
-        pays for that method's value-validation branch. Raises the same
-        ``TypeError``/``AttributeError`` as ``grid_set_field`` for state
-        fields, unknown fields, or unknown keys.
+        pays for that method's value-validation branch. Optional style
+        patches never raise: a missing or state-only ``name`` is a no-op
+        (no ``try``/``except`` needed), though unknown keyword arguments
+        still raise as a programming error.
         """
         field_config: dict[str, Any] = {
             key: option
@@ -1549,6 +1612,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 "wireframe": wireframe,
                 "color": color,
                 "background": background,
+                "fill": fill,
                 "width": width,
                 "height": height,
                 "gap": gap,
@@ -1574,8 +1638,91 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             if option is not UNSET
         }
         self._grid_apply_field_config(
-            name, field_config, caller="grid_update_field"
+            name, field_config, caller="grid_update_field", missing="ignore"
         )
+
+    def set_frame(
+        self,
+        frame: Frame | None = UNSET,
+        *,
+        background: ColorLike | None = UNSET,
+        border: Border | None = UNSET,
+        border_color: ColorLike | None = UNSET,
+        border_sides: Sequence[Side] | None = UNSET,
+        title: str | None = UNSET,
+        title_position: FrameTitlePosition | None = UNSET,
+        padding: PaddingLike | None = UNSET,
+    ) -> None:
+        """Set this grid instance's outer frame (chrome + background fill).
+
+        The public replacement for mutating the private ``_grid_frame``.
+        Pass a whole ``frame`` to replace it outright, or individual keyword
+        arguments to patch the current frame in place — a bare
+        ``background`` fills the grid's whole area with no border required,
+        so nested grids can be themed without any chrome. Pass ``frame=None``
+        to clear the frame.
+        """
+        if frame is not UNSET:
+            object.__setattr__(
+                self, "_grid_frame", None if frame is None else frame
+            )
+            return
+        current = getattr(self, "_grid_frame", None) or Frame()
+        patch = {
+            key: value
+            for key, value in {
+                "background": background,
+                "border": border,
+                "border_color": border_color,
+                "border_sides": border_sides,
+                "title": title,
+                "title_position": title_position,
+                "padding": padding,
+            }.items()
+            if value is not UNSET
+        }
+        if not patch:
+            return
+        updated = dataclasses.replace(current, **patch)
+        object.__setattr__(
+            self, "_grid_frame", None if updated.is_empty() else updated
+        )
+
+    def set_background(self, background: ColorLike | None) -> None:
+        """Fill this grid instance's whole area with ``background``.
+
+        Shorthand for ``set_frame(background=...)`` — the ergonomic path for
+        theming a nested grid, replacing private ``_grid_frame`` mutation.
+        """
+        self.set_frame(background=background)
+
+    def schedule_update(
+        self,
+        callback: Callable[[], Any] | None = None,
+        *,
+        field: str | None = None,
+    ) -> None:
+        """Apply an update on the UI thread before the next frame.
+
+        The thread-safe way to reflect background work in the UI: pass a
+        ``callback`` to run on the runtime thread (so it can mutate this grid
+        without racing the renderer), and/or a ``field`` to mark dirty. Safe
+        to call from any thread; a no-op when no runtime is active.
+        """
+        from xnano.beta.core.runtime import get_active_runtime
+
+        runtime = get_active_runtime()
+
+        def _apply() -> None:
+            if callback is not None:
+                callback()
+            if field is not None:
+                self.mark_field_dirty(field)
+
+        if runtime is None:
+            _apply()
+        else:
+            runtime.call_soon(_apply)
 
     def _grid_resolve_visible(self, field: GridFieldInfo, value: Any) -> bool:
         if field.visible is None:
@@ -1614,14 +1761,22 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             )
         )
 
-    def _grid_build_frame(self, area: Area, session: Any) -> None:
+    def _grid_build_frame(
+        self,
+        area: Area,
+        session: Any,
+        *,
+        suppress_frame_border: bool = False,
+    ) -> None:
         self.columns = area.width
         self.rows = area.height
         self.grid_render()
         responsive = type(self)._grid_responsive_renders
         if responsive:
             self._grid_render_responsive(responsive, area)
-        self._grid_assemble(area, session)
+        self._grid_assemble(
+            area, session, suppress_frame_border=suppress_frame_border
+        )
 
     def _grid_render_responsive(
         self, responsive: dict[str, str], area: Area
@@ -1652,7 +1807,23 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         if method_name is not None:
             getattr(self, method_name)()
 
-    def _grid_assemble(self, area: Area, session: Any) -> None:
+    def _grid_frame_for_paint(self, suppress_border: bool) -> Frame | None:
+        """Return this grid's frame, dropping its border when the parent
+        Field already owns it (chrome-owns-the-border rule)."""
+        frame = self._grid_frame
+        if frame is None or not suppress_border or frame.border is None:
+            return frame
+        return dataclasses.replace(
+            frame, border=None, border_color=None, border_sides=None
+        )
+
+    def _grid_assemble(
+        self,
+        area: Area,
+        session: Any,
+        *,
+        suppress_frame_border: bool = False,
+    ) -> None:
         if not self.visible:
             return
 
@@ -1660,11 +1831,13 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         self._grid_last_slot_areas = {}
         self._grid_field_hits = []
 
+        grid_frame = self._grid_frame_for_paint(suppress_frame_border)
+
         fields = self._grid_fields
 
         if not fields:
-            if self._grid_frame is not None:
-                session.paint_frame(area, self._grid_frame, z=self.z)
+            if grid_frame is not None:
+                session.paint_frame(area, grid_frame, z=self.z)
             return
 
         active_names: list[str] = []
@@ -1697,8 +1870,18 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                     continue
                 content_length: int | None = None
                 if _field_needs_content_measure(field, self._grid_direction):
+                    available_width = 0
+                    if self._grid_direction == "vertical":
+                        available_width = max(
+                            0,
+                            _grid_inner_width(area, self._grid_frame)
+                            - _grid_frame_size_for_field(field, "horizontal"),
+                        )
                     content_length = session.measure_field_slot(
-                        value, self._grid_direction, field
+                        value,
+                        self._grid_direction,
+                        field,
+                        available_width=available_width,
                     )
                 active_names.append(field_name)
                 active_fields.append(field)
@@ -1710,13 +1893,13 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 )
 
         if not active_names:
-            if self._grid_frame is not None:
-                session.paint_frame(area, self._grid_frame, z=self.z)
+            if grid_frame is not None:
+                session.paint_frame(area, grid_frame, z=self.z)
             return
 
         inner = area
-        if self._grid_frame is not None:
-            inner = session.paint_frame(area, self._grid_frame, z=self.z)
+        if grid_frame is not None:
+            inner = session.paint_frame(area, grid_frame, z=self.z)
 
         slot_areas = session.split_layout(
             inner,
@@ -1786,6 +1969,12 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                     paint_wireframe(paint_area, z=self.z)
             if value is None:
                 continue
+            scroll_offset = 0
+            scroll_axis = "y"
+            if field.scroll:
+                scroll_offset, scroll_axis = self._grid_resolve_scroll(
+                    field_name, field, value, paint_area
+                )
             session.paint_field_slot(
                 value,
                 paint_area,
@@ -1794,6 +1983,8 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 effect_key=field_name,
                 owner=self,
                 owner_field_name=field_name,
+                scroll_offset=scroll_offset,
+                scroll_axis=scroll_axis,
             )
 
 
