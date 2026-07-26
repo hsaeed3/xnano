@@ -16,6 +16,7 @@ from typing import (
     Sequence,
     TypeAlias,
     Union,
+    cast,
 )
 
 from xnano.beta.components.component import Component
@@ -279,10 +280,11 @@ class Options(Component):
         if mode == "none" or not self.query:
             pairs = [(index, ()) for index in range(len(self.items))]
         elif callable(mode):
+            predicate = cast("Callable[[str, str], bool]", mode)
             pairs = [
                 (index, ())
                 for index, item in enumerate(self.items)
-                if mode(self.query, _item_text(item))
+                if predicate(self.query, _item_text(item))
             ]
         elif mode == "prefix":
             lowered = self.query.lower()

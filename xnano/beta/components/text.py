@@ -422,7 +422,7 @@ class Text(Component):
 
     def _compose_content(
         self, ctx: ComponentRenderContext[Any]
-    ) -> TextBlock | Native | None:
+    ) -> TextBlock | Native | Panel | None:
         """Compose the interface-neutral content, without fill wrapping."""
         self._sync_editor_state()
 
@@ -656,7 +656,7 @@ class Text(Component):
 
     def get_terminal_node(
         self, ctx: ComponentRenderContext[Any]
-    ) -> TextBlock | Native | None:
+    ) -> TextBlock | Native | Panel | None:
         """Return composed content for terminal compatibility.
 
         Args:
