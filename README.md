@@ -31,6 +31,9 @@ uv add "xnano>=1.1.7"
 
 > [!TIP]
 > Try running the `python -m xnano` or `uv run xnano` commands to test out the built in demo application.
+> ```bash
+> uv run xnano
+> ```
 
 ---
 
