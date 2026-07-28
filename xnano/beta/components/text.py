@@ -13,12 +13,14 @@ from typing import TYPE_CHECKING, Any, Sequence
 from xnano.beta.components.component import Component, ComponentRenderContext
 from xnano.beta.core.content import Native, Panel, Run, TextBlock
 from xnano.beta.types import Alignment, CharacterModifier
+from xnano.beta.utils.deprecation import color_alias_dataclass
 
 if TYPE_CHECKING:
     from xnano.beta.colors import ColorLike
     from xnano.beta.events import KeyboardEventData
 
 
+@color_alias_dataclass
 @dataclasses.dataclass
 class Text(Component):
     """Display styled, marked-up, highlighted, or editable text.
@@ -32,7 +34,7 @@ class Text(Component):
 
     Attributes:
         content: Plain string, nested ``Text``, or list of either.
-        color: Foreground color.
+        foreground: Foreground color (deprecated alias: ``color``).
         background: Background color.
         modifiers: Character modifiers such as bold or underline.
         align: Horizontal alignment at the paragraph level.
@@ -56,8 +58,8 @@ class Text(Component):
 
     content: str | Text | list[str | Text] = dataclasses.field(default="")
     """Plain string, nested ``Text``, or a list of either."""
-    color: ColorLike | None = None
-    """Foreground color."""
+    foreground: ColorLike | None = None
+    """Foreground color (deprecated alias: ``color``)."""
     background: ColorLike | None = None
     """Background color."""
     modifiers: tuple[CharacterModifier, ...] = ()
@@ -297,7 +299,7 @@ class Text(Component):
                 if isinstance(self.placeholder.content, str):
                     return (
                         self.placeholder.content,
-                        self.placeholder.color or "gray",
+                        self.placeholder.foreground or "gray",
                         True,
                     )
             else:
@@ -343,7 +345,7 @@ class Text(Component):
             text_str = ""
         return Run(
             text=text_str,
-            color=self.color,
+            color=self.foreground,
             background=self.background,
             modifiers=tuple(self.modifiers),
         )
@@ -372,7 +374,7 @@ class Text(Component):
                     (
                         Run(
                             text=segment,
-                            color=child.color,
+                            color=child.foreground,
                             background=child.background,
                             modifiers=tuple(child.modifiers),
                         ),
@@ -385,7 +387,7 @@ class Text(Component):
         if isinstance(self.content, str):
             return TextBlock(
                 text=self.content,
-                color=self.color,
+                color=self.foreground,
                 background=self.background,
                 modifiers=tuple(self.modifiers),
             )
@@ -393,7 +395,7 @@ class Text(Component):
         spans = [child._to_span_node() for child in children]
         return TextBlock(
             lines=(tuple(spans),),
-            color=self.color,
+            color=self.foreground,
             background=self.background,
             modifiers=tuple(self.modifiers),
         )
@@ -429,7 +431,7 @@ class Text(Component):
         if self._editor is not None:
             return TextBlock(
                 text=self.value,
-                color=self.color,
+                color=self.foreground,
                 background=self.background,
                 modifiers=self.modifiers,
                 align=self.align,
@@ -442,7 +444,7 @@ class Text(Component):
         if markup_lines is not None:
             return TextBlock(
                 lines=markup_lines,
-                color=self.color,
+                color=self.foreground,
                 background=self.background,
                 modifiers=self.modifiers,
                 align=self.align,
@@ -453,7 +455,7 @@ class Text(Component):
 
         if isinstance(self.content, str):
             text_str = self.content
-            color = self.color
+            color = self.foreground
             modifiers = self.modifiers
             if self.input:
                 text_str, color_override, is_placeholder = (
@@ -489,14 +491,14 @@ class Text(Component):
                     runs.append(
                         Run(
                             text=child.content,
-                            color=child.color,
+                            color=child.foreground,
                             background=child.background,
                             modifiers=tuple(child.modifiers),
                         )
                     )
             return TextBlock(
                 lines=(tuple(runs),),
-                color=self.color,
+                color=self.foreground,
                 background=self.background,
                 modifiers=tuple(self.modifiers),
                 align=self.align,
@@ -512,7 +514,7 @@ class Text(Component):
             lines.extend(child._build_line_nodes_from_leaf_children([child]))
         return TextBlock(
             lines=tuple(lines),
-            color=self.color,
+            color=self.foreground,
             background=self.background,
             modifiers=self.modifiers,
             align=self.align,

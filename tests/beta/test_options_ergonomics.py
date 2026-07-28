@@ -64,9 +64,13 @@ def test_reserved_slot_keeps_layout_stable() -> None:
         app = App()
         runtime.set_root(app)
         runtime.render()
-        footer_y = runtime.stage.get_area("footer").y
+        first_footer = runtime.stage.get_area("footer")
+        assert first_footer is not None
+        footer_y = first_footer.y
         app.palette = Options(items=("one", "two"))
         runtime.render()
-        assert runtime.stage.get_area("footer").y == footer_y
+        second_footer = runtime.stage.get_area("footer")
+        assert second_footer is not None
+        assert second_footer.y == footer_y
     finally:
         runtime.close()

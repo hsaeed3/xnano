@@ -24,6 +24,7 @@ from xnano.beta import types
 from xnano.beta.colors import ColorLike
 from xnano.beta.tailwind import Style
 from xnano.beta.types import FrameTitlePosition, Sizing, SizingLike
+from xnano.beta.utils.deprecation import warn_color_alias
 
 if TYPE_CHECKING:
     from xnano.beta.tailwind import TailwindClass
@@ -31,6 +32,8 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 UNSET: Any = object()
+_COLOR_UNSET: Any = object()
+"""Sentinel marking the deprecated ``color`` alias as not supplied."""
 
 
 ClassNameLike: TypeAlias = Union[
@@ -87,7 +90,9 @@ class GridFieldInfo:
         modifiers: Modifiers to apply to all characters within this field. This can be a list
             including "bold", "dim", "italic", "underline", "slow_blink", "rapid_blink",
             "reversed".
-        color: The foreground color of content within this field.
+        foreground: The foreground color of content within this field.
+        color: Deprecated alias for ``foreground``; passing it emits a
+            ``DeprecationWarning`` and sets the foreground.
         background: The background color of this field. Fills the whole slot by
             default when set (see ``fill``); also fills the framed content area
             when the field defines border/title/padding chrome.
@@ -355,7 +360,8 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
     fill: bool | None = None,
     width: SizingLike | None = None,
@@ -389,7 +395,8 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
     fill: bool | None = None,
     width: SizingLike | None = None,
@@ -422,7 +429,8 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
     fill: bool | None = None,
     width: SizingLike | None = None,
@@ -456,7 +464,8 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
     fill: bool | None = None,
     width: SizingLike | None = None,
@@ -489,7 +498,8 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
     fill: bool | None = None,
     width: SizingLike | None = None,
@@ -524,7 +534,9 @@ def Field(
         modifiers: Modifiers to apply to all characters within this field. This can be a list
             including "bold", "dim", "italic", "underline", "slow_blink", "rapid_blink",
             "reversed".
-        color: The foreground color of content within this field.
+        foreground: The foreground color of content within this field.
+        color: Deprecated alias for ``foreground``; passing it emits a
+            ``DeprecationWarning`` and sets the foreground.
         background: The background color of this field. Fills the whole slot by
             default when set (see ``fill``); also fills the framed content area
             when the field defines border/title/padding chrome.
@@ -562,6 +574,10 @@ def Field(
         A new ``GridFieldInfo`` instance with all display/layout metadata,
         including the normalized ``class_name`` tokens.
     """
+    if color is not _COLOR_UNSET:
+        warn_color_alias(stacklevel=2)
+        if foreground is None:
+            foreground = color
     tokens: tuple[str, ...] | None = None
     if class_name is not None:
         from xnano.beta.tailwind import (
@@ -571,8 +587,8 @@ def Field(
 
         tokens = normalize_tailwind_classes(class_name)
         resolved = resolve_tailwind_classes(tokens)
-        if color is None:
-            color = resolved.color
+        if foreground is None:
+            foreground = resolved.color
         if background is None:
             background = resolved.background
         if border is None:
@@ -605,7 +621,7 @@ def Field(
         strict=strict,
         init=init,
         visible=visible,
-        color=color,
+        color=foreground,
         modifiers=modifiers,
         background=background,
         fill=fill,

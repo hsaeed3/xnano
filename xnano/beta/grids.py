@@ -20,6 +20,7 @@ from typing import (
     ClassVar,
     Sequence,
     TypedDict,
+    get_args,
     overload,
 )
 
@@ -559,6 +560,32 @@ def _layout_constraint_for_field(
     return _GridLayoutConstraint("fill", 1)
 
 
+def _coerce_text_field(value: str, annotation: Any) -> Any:
+    """Coerce a ``str`` to ``Text`` when the field is annotated ``Text``.
+
+    A field typed as ``Text`` (bare or in a union such as ``str | Text``)
+    may take a plain string default/value; it is wrapped in ``Text(value)``
+    so the renderer sees a component. Any other annotation leaves the
+    string untouched.
+
+    Args:
+        value: The plain string being assigned.
+        annotation: The field's type annotation, if any.
+
+    Returns:
+        A ``Text`` wrapping ``value`` when the annotation names ``Text``,
+        otherwise the original string.
+    """
+    if annotation is None:
+        return value
+    from xnano.beta.components.text import Text
+
+    candidates = get_args(annotation) or (annotation,)
+    if any(candidate is Text for candidate in candidates):
+        return Text(value)
+    return value
+
+
 class _FactoryDefault:
     """Signature placeholder shown for a field with a default factory."""
 
@@ -1086,6 +1113,10 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         field = self._grid_state_fields.get(name)
         if field is not None and field.strict:
             value = self._grid_validate_field(name, value, field=field)
+        elif isinstance(value, str) and name in self._grid_fields:
+            value = _coerce_text_field(
+                value, self._grid_field_annotations.get(name)
+            )
         object.__setattr__(self, name, value)
         # Live FieldState dirty bit + host notification (skip private attrs
         # and fields not yet tracked during construction).
@@ -1101,11 +1132,50 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         runtime = get_active_runtime()
         return None if runtime is None else runtime.state
 
+    def _grid_call_render(self) -> None:
+        """Invoke ``grid_render`` with the arity the subclass declared.
+
+        Overrides may take zero extra parameters or a single ``Context``
+        (like ``grid_post_init`` and every ``@on_*`` hook). ``invoke_hook``
+        dispatches by cached arity; the ``Context`` is built the same way
+        ``dispatch_post_init`` builds it. With no live runtime (bare
+        offscreen paint) fall back to the no-argument call.
+        """
+        from xnano.beta.core.runtime import get_active_runtime
+        from xnano.beta.utils.dispatch import invoke_hook
+        from xnano.beta.utils.introspection import (
+            get_function_extra_parameter_count,
+        )
+
+        runtime = get_active_runtime()
+        if runtime is None or (
+            get_function_extra_parameter_count(type(self).grid_render) == 0
+        ):
+            self.grid_render()
+            return
+        from xnano.beta.context import Context
+        from xnano.beta.core.dispatch import _CONTEXT_EVENT
+
+        context = Context(
+            event=_CONTEXT_EVENT, terminal=runtime, state=runtime.state
+        )
+        invoke_hook(self.grid_render, None, context)
+
     def grid_render(self) -> None:
         """Called each frame before layout.
 
         Override to refresh field values every frame. Initial values can be set
         with ``Field(default=...)``, ``default_factory``, or ``__post_init__``.
+
+        Override with either signature — the extra ``Context`` parameter is
+        optional, dispatched by arity like ``grid_post_init``:
+
+            def grid_render(self) -> None: ...
+            def grid_render(self, ctx: Context[MyState]) -> None: ...
+
+        A static type checker sees the one-parameter form as an invalid
+        override; add ``# ty: ignore[invalid-method-override]`` on the
+        override line.
         """
 
     @responsive_noop
@@ -1770,7 +1840,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     ) -> None:
         self.columns = area.width
         self.rows = area.height
-        self.grid_render()
+        self._grid_call_render()
         responsive = type(self)._grid_responsive_renders
         if responsive:
             self._grid_render_responsive(responsive, area)

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Literal, Sequence, TypeAlias
 from xnano.beta.components.component import Component
 from xnano.beta.core.content import CellCanvas, CellSpan, SparklineBar
 from xnano.beta.core.content import Sparkline as SparklineContent
+from xnano.beta.utils.deprecation import color_alias_dataclass
 
 if TYPE_CHECKING:
     from xnano.beta.colors import ColorLike
@@ -86,6 +87,7 @@ def resolve_bar_glyphs(glyphs: BarGlyphs) -> tuple[str, ...]:
     return symbols
 
 
+@color_alias_dataclass
 @dataclasses.dataclass
 class Bar(Component):
     """Compact inline bar chart for a sequence of samples.
@@ -99,7 +101,8 @@ class Bar(Component):
 
     Attributes:
         data: Sequence of sample values.
-        color: Default bar foreground color.
+        foreground: Default bar foreground color (deprecated alias:
+            ``color``).
         colors: Optional per-bar foreground colors.
         background: Widget background color.
         max_value: Explicit y-axis ceiling; ``None`` auto-scales.
@@ -111,8 +114,8 @@ class Bar(Component):
 
     data: Sequence[int | float] = dataclasses.field(default_factory=tuple)
     """Sequence of sample values."""
-    color: "ColorLike | None" = None
-    """Default bar foreground color."""
+    foreground: "ColorLike | None" = None
+    """Default bar foreground color (deprecated alias: ``color``)."""
     colors: Sequence["ColorLike"] | None = None
     """Optional per-bar foreground colors, one per ``data`` entry."""
     background: "ColorLike | None" = None
@@ -196,7 +199,7 @@ class Bar(Component):
             data=data,
             bars=bars,
             max_value=max_value,
-            color=self.color,
+            color=self.foreground,
             background=self.background,
             absent_value_color=self.absent_color,
             absent_value_symbol=self.absent_glyph,
@@ -219,7 +222,7 @@ class Bar(Component):
         for index, value in enumerate(values):
             if value <= 0:
                 glyph = absent
-                color = self.absent_color or self.color
+                color = self.absent_color or self.foreground
             else:
                 level = int(round((value / ceiling) * top))
                 level = max(0, min(top, level))
@@ -227,7 +230,7 @@ class Bar(Component):
                 if self.colors is not None:
                     color = self.colors[index]
                 else:
-                    color = self.color
+                    color = self.foreground
             spans.append(
                 CellSpan(
                     glyph,

@@ -316,7 +316,7 @@ class Runtime(Generic[StateT]):
         return self._actions
 
     @property
-    def stage(self) -> Any:
+    def stage(self) -> Stage:
         """Current layout stage when a grid has rendered."""
         return self._stage
 

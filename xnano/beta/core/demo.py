@@ -819,7 +819,7 @@ class SignalBox(BaseGrid, direction="vertical"):
         elif tab == "Spark":
             self.view = Bar(
                 data=tuple(value * 100 for value in series),
-                color=_SIGNAL_B,
+                foreground=_SIGNAL_B,
                 glyphs="braille",
             )
         else:
@@ -922,7 +922,7 @@ class DeckBox(BaseGrid, direction="vertical"):
         elif tab == "Code":
             self.view = Text(
                 content=f"{header}\n\n{_DECK_CODE}",
-                color="#d8d2cc",
+                foreground="#d8d2cc",
             )
         else:
             self.view = Text(
@@ -932,7 +932,7 @@ class DeckBox(BaseGrid, direction="vertical"):
                     "tabs and effects. Focus a box, then cycle its tabs\n"
                     "and replay an effect — every keybind does something."
                 ),
-                color="#e6ded6",
+                foreground="#e6ded6",
                 wrap=True,
             )
 
@@ -953,7 +953,7 @@ class LogBox(BaseGrid, direction="vertical"):
         visible = max(1, self.rows)
         lines = getattr(self, "_lines", None) or []
         tail = lines[-visible:] or ["ready."]
-        self.view = Text(content="\n".join(tail), color="#b0a6c8")
+        self.view = Text(content="\n".join(tail), foreground="#b0a6c8")
 
 
 # ── Columns ─────────────────────────────────────────────────────────────────
@@ -1092,7 +1092,7 @@ class Showcase(BaseGrid, direction="vertical", gap=0):
     header: Text = Field(
         default_factory=lambda: Text(
             content="  xnano · showcase",
-            color="#d8bfa8",
+            foreground="#d8bfa8",
             modifiers=("bold",),
         ),
         height=1,
@@ -1196,7 +1196,7 @@ class Showcase(BaseGrid, direction="vertical", gap=0):
         spinner = self._status_loader.current_frame()
         self.header = Text(
             content=f"  {spinner} xnano · showcase",
-            color="#d8bfa8",
+            foreground="#d8bfa8",
             modifiers=("bold",),
         )
         self.footer = Text(
@@ -1204,7 +1204,7 @@ class Showcase(BaseGrid, direction="vertical", gap=0):
                 f"  focus:{focused or '-':<8} {state}   "
                 "[ ]/1-3 tabs · arrows focus · E effect · P pause · Q quit"
             ),
-            color="#7a7290",
+            foreground="#7a7290",
         )
 
 
