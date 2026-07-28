@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 if TYPE_CHECKING:
     from xnano.beta.actions import Actions
+    from xnano.beta.core.runtime import Runtime
     from xnano.beta.core.stage import Stage
     from xnano.beta.cursor import Cursor
     from xnano.beta.device import Device
@@ -20,7 +21,9 @@ if TYPE_CHECKING:
         Event,
         KeyboardEventData,
         MouseEventData,
+        TickEventData,
     )
+    from xnano.beta.requests import Request
     from xnano.beta.types import Area, ScrollHandle
     from xnano.beta.utils.responsive import Breakpoint
 
@@ -59,23 +62,22 @@ class Context(Generic[StateT]):
         ...         ctx.state["keys"] += 1
     """
 
-    event: "Event | None"
+    event: "Event"
     """Event that triggered the hook."""
-    terminal: Any
+    terminal: "Runtime[StateT]"
     """Terminal or offscreen session handling the event."""
     state: StateT
     """Application state shared with the runtime."""
 
     @property
-    def host(self) -> Any:
+    def host(self) -> "Runtime[StateT]":
         """Session handling the event."""
         return self.terminal
 
     @property
-    def runtime(self) -> Any:
+    def runtime(self) -> "Runtime[StateT]":
         """Runtime handling the event."""
-        runtime = getattr(self.terminal, "runtime", None)
-        return self.terminal if runtime is None else runtime
+        return self.terminal
 
     @property
     def surface(self) -> str:
@@ -95,29 +97,24 @@ class Context(Generic[StateT]):
         return "terminal"
 
     @property
-    def request(self) -> Any | None:
+    def request(self) -> "Request | None":
         """HTTP request that triggered the hook, if any."""
         return getattr(self.terminal, "_beta_request", None)
 
     @property
-    def tick(self) -> Any | None:
+    def tick(self) -> "TickEventData | None":
         """Tick payload when this context was triggered by a tick."""
-        event = self.event
-        if event is None:
-            return None
-        # Tick hooks currently receive a context with no specialized
-        # payload; expose interval metadata when present.
-        return getattr(event, "tick_event", None)
+        return self.event.tick_event
 
     @property
     def keyboard(self) -> "KeyboardEventData | None":
         """Keyboard sub-event when triggered by a keyboard event."""
-        return None if self.event is None else self.event.keyboard_event
+        return self.event.keyboard_event
 
     @property
     def mouse(self) -> "MouseEventData | None":
         """Mouse sub-event when triggered by a mouse event."""
-        return None if self.event is None else self.event.mouse_event
+        return self.event.mouse_event
 
     def get_state(self) -> StateT:
         """Return the shared application state.
@@ -216,7 +213,7 @@ class Context(Generic[StateT]):
         """Return scroll state for ``group``, or ``None`` if it is unavailable."""
         return self.scroll(group)
 
-    def with_event(self, event: "Event | None") -> "Context[StateT]":
+    def with_event(self, event: "Event") -> "Context[StateT]":
         """Return a copy carrying a different event."""
         return dataclasses.replace(self, event=event)
 
@@ -226,23 +223,23 @@ class Context(Generic[StateT]):
 
     def has_clipboard_event(self) -> bool:
         """Return whether this context contains a clipboard event."""
-        return self.event is not None and self.event.is_clipboard_event()
+        return self.event.is_clipboard_event()
 
     def has_focus_event(self) -> bool:
         """Return whether this is a focus event."""
-        return self.event is not None and self.event.is_focus_event()
+        return self.event.is_focus_event()
 
     def has_keyboard_event(self) -> bool:
         """Return whether this is a keyboard event."""
-        return self.event is not None and self.event.is_keyboard_event()
+        return self.event.is_keyboard_event()
 
     def has_mouse_event(self) -> bool:
         """Return whether this is a mouse event."""
-        return self.event is not None and self.event.is_mouse_event()
+        return self.event.is_mouse_event()
 
     def has_resize_event(self) -> bool:
         """Return whether this is a resize event."""
-        return self.event is not None and self.event.is_resize_event()
+        return self.event.is_resize_event()
 
 
 __all__ = ("Context",)

@@ -335,7 +335,7 @@ class Runtime(Generic[StateT]):
         """Set the renderable used by subsequent empty renders."""
         self._root = root
 
-    def render(
+    def _render(
         self,
         *renderables: Any,
         color: ColorLike | None = None,
@@ -350,8 +350,8 @@ class Runtime(Generic[StateT]):
         padding: PaddingLike | None = None,
         gap: int = 0,
         direction: Direction = "vertical",
-    ) -> Frame:
-        """Render one frame and return its immutable snapshot.
+    ) -> None:
+        """Render one frame without serializing an offscreen snapshot.
 
         Args:
             *renderables: Grids, components, content primitives, or plain
@@ -369,8 +369,6 @@ class Runtime(Generic[StateT]):
             gap: Cells between multiple renderables.
             direction: Direction used to lay out multiple renderables.
 
-        Returns:
-            A snapshot of the rendered terminal frame.
         """
         items = renderables or (
             (self._root,) if self._root is not None else ()
@@ -399,7 +397,7 @@ class Runtime(Generic[StateT]):
             )
             controller.paint_stage()
             controller.commit()
-            return self._snapshot_frame()
+            return
         styled_items = tuple(
             TextBlock(
                 text=item,
@@ -443,6 +441,39 @@ class Runtime(Generic[StateT]):
             )
         node = lower_content(content)
         self._session.render(node)
+
+    def render(
+        self,
+        *renderables: Any,
+        color: ColorLike | None = None,
+        background: ColorLike | None = None,
+        modifiers: Sequence[CharacterModifier] | None = None,
+        align: Alignment | None = None,
+        border: Border | None = None,
+        border_sides: Sequence[Side] | None = None,
+        border_color: ColorLike | None = None,
+        title: str | None = None,
+        title_position: FrameTitlePosition | None = None,
+        padding: PaddingLike | None = None,
+        gap: int = 0,
+        direction: Direction = "vertical",
+    ) -> Frame:
+        """Render one frame and return its immutable snapshot."""
+        self._render(
+            *renderables,
+            color=color,
+            background=background,
+            modifiers=modifiers,
+            align=align,
+            border=border,
+            border_sides=border_sides,
+            border_color=border_color,
+            title=title,
+            title_position=title_position,
+            padding=padding,
+            gap=gap,
+            direction=direction,
+        )
         return self._snapshot_frame()
 
     def _snapshot_frame(self) -> Frame:

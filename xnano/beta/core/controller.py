@@ -263,6 +263,19 @@ class TerminalController:
                 )
             return
         if isinstance(getattr(type(value), "_grid_fields", None), dict):
+            # Register the field's area under its effect key so effects can
+            # target a nested-grid slot too, not only leaf components. Without
+            # this transparent anchor, ``effect_area_for(name)`` finds nothing
+            # for grid-valued fields and the effect silently no-ops. Painted
+            # just beneath the grid at an empty area, so it adds no glyphs but
+            # the effect still overlays the grid's rendered cells.
+            if effect_key is not None:
+                self._paint(
+                    TextBlock(),
+                    area,
+                    z=parent_z,
+                    effect_key=effect_key,
+                )
             # Chrome owns the border: when the Field already frames this slot
             # with a border, the nested grid must not draw a second one.
             value._grid_build_frame(

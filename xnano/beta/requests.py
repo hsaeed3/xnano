@@ -475,6 +475,7 @@ def dispatch_request(
         supplied.
     """
     from xnano.beta.context import Context
+    from xnano.beta.events import AbstractEventData, Event
     from xnano.beta.utils.dispatch import invoke_hook
 
     method = method.upper()
@@ -493,7 +494,7 @@ def dispatch_request(
             setattr(facade, "_beta_request", request_obj)
 
     ctx = Context(
-        event=None,
+        event=Event.from_data(AbstractEventData()),
         terminal=facade,
         state=getattr(runtime, "state", getattr(grid, "state", None)),
     )

@@ -7,6 +7,7 @@ Lower beta components and content primitives into ``xnano_core`` render nodes.
 
 from __future__ import annotations
 
+import collections
 from typing import Any
 
 import xnano_core.rust.native as native
@@ -253,6 +254,52 @@ def _canvas_shape(shape: Any) -> tuple[Any, ...]:
     raise TypeError(f"Unsupported canvas shape: {type(shape)!r}")
 
 
+_CELL_CANVAS_IR_CACHE_CAPACITY = 64
+_cell_canvas_ir_cache: "collections.OrderedDict[int, tuple[Any, Any]]" = (
+    collections.OrderedDict()
+)
+"""Identity-keyed LRU of lowered ``CellCanvas`` IR.
+
+Lowering a canvas rebuilds one ``IrLine`` per row and resolves a native color
+for every span, every frame — the dominant cost when painting per-pixel
+canvases (backgrounds, splashes, image frames). A canvas re-paints unchanged
+across many frames, and even animated content rebuilds only a few canvases per
+tick, so the lowered ``CoreRenderIR`` is cached and replayed. ``CoreRenderIR``
+is immutable and cloned on paint, so reusing one instance across frames is
+safe. Each entry keeps a strong reference to the source canvas so its ``id``
+can never be reused by another object while cached; the ``is`` check makes
+that explicit. Bounded so long-running animations do not grow it unbounded."""
+
+
+def _cell_canvas_ir(content: CellCanvas) -> Any:
+    """Return cached (or freshly lowered) ``CoreRenderIR`` for a canvas."""
+    key = id(content)
+    cached = _cell_canvas_ir_cache.get(key)
+    if cached is not None and cached[0] is content:
+        _cell_canvas_ir_cache.move_to_end(key)
+        return cached[1]
+    lines = [
+        core.IrLine.from_spans(
+            [
+                (
+                    span.text,
+                    get_native_color(span.color),
+                    get_native_color(span.background),
+                    _native_modifiers(span.modifiers),
+                )
+                for span in row
+            ]
+        )
+        for row in content.rows
+    ]
+    render_ir = core.CoreRenderIR.text_lines(lines)
+    _cell_canvas_ir_cache[key] = (content, render_ir)
+    _cell_canvas_ir_cache.move_to_end(key)
+    while len(_cell_canvas_ir_cache) > _CELL_CANVAS_IR_CACHE_CAPACITY:
+        _cell_canvas_ir_cache.popitem(last=False)
+    return render_ir
+
+
 def lower_content(content: Any) -> core.CoreRenderNode:
     """Lower a beta renderable into one native render node.
 
@@ -486,21 +533,7 @@ def lower_content(content: Any) -> core.CoreRenderNode:
     elif isinstance(content, Clear):
         render_ir = core.CoreRenderIR.clear()
     elif isinstance(content, CellCanvas):
-        lines = [
-            core.IrLine.from_spans(
-                [
-                    (
-                        span.text,
-                        get_native_color(span.color),
-                        get_native_color(span.background),
-                        _native_modifiers(span.modifiers),
-                    )
-                    for span in row
-                ]
-            )
-            for row in content.rows
-        ]
-        render_ir = core.CoreRenderIR.text_lines(lines)
+        render_ir = _cell_canvas_ir(content)
     elif isinstance(content, Canvas):
         render_ir = core.CoreRenderIR.canvas(
             [_canvas_shape(shape) for shape in content.shapes],

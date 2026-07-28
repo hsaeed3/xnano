@@ -139,6 +139,9 @@ pub enum RenderIrInner {
         align: Option<Alignment>,
         wrap: bool,
     },
+    GlyphOverlay {
+        lines: Vec<Line<'static>>,
+    },
     List {
         items: Vec<Text<'static>>,
         selected: Option<usize>,
@@ -287,6 +290,18 @@ impl CoreRenderIR {
             text = text.alignment(a);
         }
         Self { inner: RenderIrInner::Text { text, style } }
+    }
+
+    /// A transparent overlay of styled glyph lines.
+    ///
+    /// Unlike `text_lines`, space cells are left untouched instead of painted,
+    /// so lower-z content shows through the gaps. This is the building block
+    /// for placing centered characters over an image or animation on a higher
+    /// z without a background band swallowing everything around the glyphs.
+    #[staticmethod]
+    fn glyph_overlay(lines: Vec<PyRef<'_, PyIrLine>>) -> Self {
+        let rat_lines: Vec<Line<'static>> = lines.iter().map(|l| l.inner.clone()).collect();
+        Self { inner: RenderIrInner::GlyphOverlay { lines: rat_lines } }
     }
 
     #[staticmethod]
@@ -726,6 +741,10 @@ impl CoreRenderIR {
                 let h = text.lines.len().max(1) as u16;
                 (text.width() as u16, h)
             }
+            RenderIrInner::GlyphOverlay { lines } => {
+                let width = lines.iter().map(|l| l.width()).max().unwrap_or(0);
+                (width as u16, lines.len().max(1) as u16)
+            }
             RenderIrInner::List { items, highlight_symbol, .. } => {
                 if items.is_empty() {
                     return (0, 1);
@@ -810,6 +829,32 @@ impl CoreRenderIR {
                 if *wrap { para = para.wrap(Wrap { trim: true }); }
                 if let Some(a) = align { para = para.alignment(*a); }
                 Widget::render(para, rect, buf);
+            }
+
+            RenderIrInner::GlyphOverlay { lines } => {
+                // Paint glyph cells only; spaces are transparent so lower-z
+                // content (an image/animation beneath) shows through the gaps.
+                for (row_offset, line) in lines.iter().enumerate() {
+                    let y = rect.y.saturating_add(row_offset as u16);
+                    if y >= rect.bottom() {
+                        break;
+                    }
+                    let mut x = rect.x;
+                    for span in line.spans.iter() {
+                        for grapheme in span.content.chars() {
+                            if x >= rect.right() {
+                                break;
+                            }
+                            if grapheme != ' ' {
+                                if let Some(cell) = buf.cell_mut((x, y)) {
+                                    cell.set_char(grapheme);
+                                    cell.set_style(span.style);
+                                }
+                            }
+                            x = x.saturating_add(1);
+                        }
+                    }
+                }
             }
 
             RenderIrInner::List {
