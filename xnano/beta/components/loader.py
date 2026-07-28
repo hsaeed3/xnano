@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Literal, Sequence, TypeAlias
 
 from xnano.beta.components.component import Component
 from xnano.beta.core.content import Gauge, LineGauge, TextBlock
+from xnano.beta.utils.deprecation import color_alias_dataclass
 
 if TYPE_CHECKING:
     from xnano.beta.colors import ColorLike
@@ -70,6 +71,7 @@ def resolve_loader_symbols(symbols: LoaderSymbols) -> tuple[str, ...]:
     return frames
 
 
+@color_alias_dataclass
 @dataclasses.dataclass
 class Loader(Component):
     """Determinate progress indicator or indeterminate spinner.
@@ -87,7 +89,8 @@ class Loader(Component):
         label: Overlay text, auto percentage, nested Text, or hidden.
         symbols: Spinner frames or a named preset.
         interval: Milliseconds between spinner frames.
-        color: Primary foreground / filled color.
+        foreground: Primary foreground / filled color (deprecated alias:
+            ``color``).
         background: Widget background color.
         filled_color: Line style filled-portion color.
         unfilled_color: Line style unfilled-portion color.
@@ -106,12 +109,12 @@ class Loader(Component):
     """Spinner frames or a named preset."""
     interval: int = 80
     """Milliseconds between spinner frames."""
-    color: "ColorLike" = "green"
-    """Primary foreground / filled color."""
+    foreground: "ColorLike" = "green"
+    """Primary foreground / filled color (deprecated alias: ``color``)."""
     background: "ColorLike | None" = None
     """Widget background color."""
     filled_color: "ColorLike | None" = None
-    """Line style filled-portion color (defaults to ``color``)."""
+    """Line style filled-portion color (defaults to ``foreground``)."""
     unfilled_color: "ColorLike | None" = None
     """Line style unfilled-portion color."""
     running: bool = True
@@ -220,7 +223,7 @@ class Loader(Component):
         text = frame if not label else f"{frame} {label}"
         return TextBlock(
             text=text,
-            color=self.color,
+            color=self.foreground,
             background=self.background,
             z=self.z,
             visible=self.visible,
@@ -233,8 +236,8 @@ class Loader(Component):
             return LineGauge(
                 progress=ratio,
                 label=label,
-                color=self.color,
-                filled_color=self.filled_color or self.color,
+                color=self.foreground,
+                filled_color=self.filled_color or self.foreground,
                 unfilled_color=self.unfilled_color,
                 background=self.background,
                 z=self.z,
@@ -243,7 +246,7 @@ class Loader(Component):
         return Gauge(
             progress=ratio,
             label=label,
-            color=self.color,
+            color=self.foreground,
             background=self.background,
             z=self.z,
             visible=self.visible,
@@ -267,8 +270,8 @@ class Loader(Component):
                 return LineGauge(
                     progress=0.0,
                     label=pulse_label,
-                    color=self.color,
-                    filled_color=self.filled_color or self.color,
+                    color=self.foreground,
+                    filled_color=self.filled_color or self.foreground,
                     unfilled_color=self.unfilled_color,
                     background=self.background,
                     z=self.z,
@@ -277,7 +280,7 @@ class Loader(Component):
             return Gauge(
                 progress=0.0,
                 label=pulse_label,
-                color=self.color,
+                color=self.foreground,
                 background=self.background,
                 z=self.z,
                 visible=self.visible,

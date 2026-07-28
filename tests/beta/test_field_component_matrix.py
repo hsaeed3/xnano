@@ -97,7 +97,7 @@ _FIELD_PROFILES: tuple[tuple[str, dict[str, Any]], ...] = (
     (
         "style",
         {
-            "color": "yellow",
+            "foreground": "yellow",
             "background": "blue",
             "fill": True,
             "modifiers": ("bold", "underline"),
@@ -172,6 +172,9 @@ def test_every_field_parameter_is_explicitly_covered() -> None:
         "strict",
         "init",
         "visible",
+        # Deprecated alias for ``foreground`` (covered via the ``style``
+        # profile); kept in the signature for backward compatibility.
+        "color",
         *{name for _, profile in _FIELD_PROFILES for name in profile},
     }
     parameters = set(inspect.signature(Field).parameters)
@@ -195,7 +198,7 @@ def test_field_options_work_together_on_container_values() -> None:
     class App(BaseGrid):
         items: list[str] = Field(
             default_factory=lambda: ["one", "two", "three"],
-            color="yellow",
+            foreground="yellow",
             background="blue",
             width="fit",
             height="fit",

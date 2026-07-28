@@ -21,6 +21,7 @@ from typing import (
 
 from xnano.beta.components.component import Component
 from xnano.beta.types import CharacterModifier
+from xnano.beta.utils.deprecation import color_alias_dataclass
 
 if TYPE_CHECKING:
     from xnano.beta.colors import ColorLike
@@ -176,6 +177,7 @@ def _item_disabled(item: OptionItem) -> bool:
     return False
 
 
+@color_alias_dataclass
 @dataclasses.dataclass
 class Options(Component):
     """Always-visible, filterable choice list.
@@ -207,7 +209,8 @@ class Options(Component):
         searchable: Whether typing while focused edits ``query``.
         selected: Selection index within the *filtered* view.
         direction: Visual order of option rows.
-        color: Default foreground color for unselected rows.
+        foreground: Default foreground color for unselected rows
+            (deprecated alias: ``color``).
         background: Default background color for unselected rows.
         highlight_color: Foreground of the selected row.
         highlight_background: Background of the selected row.
@@ -240,8 +243,9 @@ class Options(Component):
     """Selection index within the *filtered* view."""
     direction: OptionsDirection = "top_to_bottom"
     """Visual order of option rows in the list."""
-    color: ColorLike | None = None
-    """Default foreground color for unselected rows."""
+    foreground: ColorLike | None = None
+    """Default foreground color for unselected rows (deprecated alias:
+    ``color``)."""
     background: ColorLike | None = None
     """Default background color for unselected rows."""
     highlight_color: ColorLike = "black"
@@ -618,7 +622,7 @@ class Options(Component):
         return Items(
             items=entries,
             selected=selected,
-            color=self.color,
+            color=self.foreground,
             background=self.background,
             highlight_color=self.highlight_color,
             highlight_background=self.highlight_background,

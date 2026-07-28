@@ -619,7 +619,7 @@ class MarkdownViewport(Markdown):
                 Run(
                     text=text,
                     modifiers=("dim",),
-                    color=self.color,
+                    color=self.foreground,
                     background=self.background,
                 ),
             ),
@@ -780,7 +780,7 @@ class MarkdownViewport(Markdown):
                 node = lower_content(
                     TextBlock(
                         lines=tuple(window),
-                        color=self.color,
+                        color=self.foreground,
                         background=self.background,
                         modifiers=self.modifiers,
                         align=self.align,

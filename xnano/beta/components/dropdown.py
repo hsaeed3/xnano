@@ -188,7 +188,9 @@ class Dropdown(Options):
                     ),
                 ),
             )
-        color = self.highlight_color if self._input_focused else self.color
+        color = (
+            self.highlight_color if self._input_focused else self.foreground
+        )
         background = (
             self.highlight_background
             if self._input_focused

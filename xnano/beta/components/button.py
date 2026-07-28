@@ -12,6 +12,7 @@ import dataclasses
 from typing import TYPE_CHECKING, Any, Sequence
 
 from xnano.beta.components.component import Component
+from xnano.beta.utils.deprecation import color_alias_dataclass
 
 if TYPE_CHECKING:
     from xnano.beta.colors import ColorLike
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from xnano.beta.events import KeyboardEventData
 
 
+@color_alias_dataclass
 @dataclasses.dataclass
 class Button(Component):
     """Focusable styled text button.
@@ -44,7 +46,7 @@ class Button(Component):
         disabled: When ``True``, paints disabled colors and ignores
             activation.
         focusable: Whether this button participates in field focus.
-        color: Idle foreground color.
+        foreground: Idle foreground color (deprecated alias: ``color``).
         background: Idle background color.
         focused_color: Foreground while focused.
         focused_background: Background while focused.
@@ -62,8 +64,8 @@ class Button(Component):
     """When ``True``, paints disabled colors and ignores activation."""
     focusable: bool = True
     """Whether this button participates in field focus (tab order)."""
-    color: ColorLike | None = None
-    """Idle foreground color."""
+    foreground: ColorLike | None = None
+    """Idle foreground color (deprecated alias: ``color``)."""
     background: ColorLike | None = None
     """Idle background color."""
     focused_color: ColorLike | None = "black"
@@ -101,7 +103,7 @@ class Button(Component):
             return (self.disabled_color, self.disabled_background)
         if self.focused:
             return (self.focused_color, self.focused_background)
-        return (self.color, self.background)
+        return (self.foreground, self.background)
 
     def handle_keyboard(self, keyboard: "KeyboardEventData") -> bool:
         """Leave keyboard activation to the grid's event hooks.

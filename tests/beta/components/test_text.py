@@ -38,9 +38,9 @@ def _kbd(**kwargs: Any) -> Any:
 
 
 def test_plain_construction() -> None:
-    text = Text("hello", color="cyan")
+    text = Text("hello", foreground="cyan")
     assert text.content == "hello"
-    assert text.color == "cyan"
+    assert text.foreground == "cyan"
     assert text.input is False
     assert text.focusable is False
     assert text.mask is None
@@ -50,7 +50,7 @@ def test_plain_construction() -> None:
 
 
 def test_nested_spans() -> None:
-    text = Text([Text("ok", color="green"), Text(" ready")])
+    text = Text([Text("ok", foreground="green"), Text(" ready")])
     assert not text._is_leaf()
     children = text._as_children()
     assert len(children) == 2
@@ -190,7 +190,7 @@ def test_markup_cache_reuses_lines() -> None:
 
 
 def test_compose_plain() -> None:
-    text = Text("hello", color="cyan")
+    text = Text("hello", foreground="cyan")
     content = text.compose(_ctx())
     assert isinstance(content, TextBlock)
     assert content.text == "hello"
@@ -200,7 +200,7 @@ def test_compose_plain() -> None:
 def test_offscreen_render_smoke() -> None:
     runtime = Runtime.offscreen(40, 10)
     try:
-        frame = runtime.render(Text("hello", color="cyan"))
+        frame = runtime.render(Text("hello", foreground="cyan"))
         assert "hello" in frame.text
     finally:
         runtime.close()
