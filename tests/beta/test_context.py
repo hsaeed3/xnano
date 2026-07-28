@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from xnano.beta.context import Context
-from xnano.beta.events import Event, KeyboardEventData
+from xnano.beta.core.runtime import Runtime
+from xnano.beta.events import AbstractEventData, Event, KeyboardEventData
 
 
 class _Facade:
@@ -28,7 +31,11 @@ class _Facade:
 def test_context_keyboard_and_focus_helpers() -> None:
     facade = _Facade()
     event = Event.from_data(KeyboardEventData.from_binding("enter"))
-    ctx = Context(event=event, terminal=facade, state={"ok": True})
+    ctx = Context(
+        event=event,
+        terminal=cast(Runtime[dict[str, bool]], facade),
+        state={"ok": True},
+    )
 
     assert ctx.has_keyboard_event()
     assert ctx.keyboard is not None
@@ -44,7 +51,11 @@ def test_context_keyboard_and_focus_helpers() -> None:
 
 def test_context_with_event() -> None:
     facade = _Facade()
-    ctx = Context(event=None, terminal=facade, state=None)
+    ctx = Context(
+        event=Event.from_data(AbstractEventData()),
+        terminal=cast(Runtime[None], facade),
+        state=None,
+    )
     event = Event.from_data(KeyboardEventData.from_binding("q"))
     next_ctx = ctx.with_event(event)
     assert next_ctx.event is event
@@ -59,7 +70,11 @@ def test_ctx_cursor_and_device_are_beta_runtime_objects() -> None:
 
     runtime = Runtime.offscreen(20, 6)
     try:
-        ctx = Context(event=None, terminal=runtime.terminal, state=None)
+        ctx = Context(
+            event=Event.from_data(AbstractEventData()),
+            terminal=runtime.terminal,
+            state=None,
+        )
         assert isinstance(ctx.cursor, Cursor)
         assert isinstance(ctx.device, Device)
         assert hasattr(ctx.cursor, "get_position")

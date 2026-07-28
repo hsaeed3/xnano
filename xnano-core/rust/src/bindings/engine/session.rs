@@ -272,6 +272,13 @@ impl PySession {
             return Ok(());
         }
 
+        // Emit the frame inside a synchronized update (DECSET 2026) so the
+        // terminal swaps the whole frame atomically instead of displaying the
+        // partial cell writes as they stream out. Without this, fast motion
+        // tears into horizontal bands that update at slightly different times.
+        // Terminals that do not support the private mode ignore the markers.
+        let already_synchronized = self.synchronized_updates;
+
         let Some(terminal) = self.terminal.as_mut() else {
             return Err(PyRuntimeError::new_err("session closed"));
         };
@@ -280,32 +287,42 @@ impl PySession {
         let cursor_visible = self.cursor_visible;
         let effect_manager = &mut self.effect_manager;
 
-        terminal
-            .draw(|frame| {
-                let cursor = match render_node(frame, area, node, &mut ctx) {
-                    Ok(c) => c,
-                    Err(err) => {
-                        ctx.error = Some(err);
-                        None
-                    }
-                };
+        if !already_synchronized {
+            let _ = begin_synchronized_update_impl();
+        }
 
-                if effect_manager.is_running() {
-                    let mut core = sync_to_core_buffer(frame.buffer_mut());
-                    effect_manager.process_effects(
-                        tachyonfx::Duration::from_millis(elapsed_ms),
-                        &mut core,
-                        to_core_rect(area),
-                    );
-                    sync_from_core_buffer(&core, frame.buffer_mut());
+        let draw_result = terminal.draw(|frame| {
+            let cursor = match render_node(frame, area, node, &mut ctx) {
+                Ok(c) => c,
+                Err(err) => {
+                    ctx.error = Some(err);
+                    None
                 }
+            };
 
-                match cursor {
-                    Some(pos) if cursor_visible => frame.set_cursor_position(pos),
-                    _ => frame_hide_cursor(frame),
-                }
-            })
-            .map_err(io_to_py)?;
+            if effect_manager.is_running() {
+                let mut core = sync_to_core_buffer(frame.buffer_mut());
+                effect_manager.process_effects(
+                    tachyonfx::Duration::from_millis(elapsed_ms),
+                    &mut core,
+                    to_core_rect(area),
+                );
+                sync_from_core_buffer(&core, frame.buffer_mut());
+            }
+
+            match cursor {
+                Some(pos) if cursor_visible => frame.set_cursor_position(pos),
+                _ => frame_hide_cursor(frame),
+            }
+        });
+
+        // Close the synchronized update even when the draw fails, so a render
+        // error never strands the terminal with buffered output held back.
+        if !already_synchronized {
+            let _ = end_synchronized_update_impl();
+        }
+
+        draw_result.map_err(io_to_py)?;
 
         if let Some(err) = ctx.error.take() {
             return Err(err);

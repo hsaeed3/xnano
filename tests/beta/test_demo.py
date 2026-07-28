@@ -8,15 +8,18 @@ import xnano._demo as stable_demo
 from xnano.beta.core import demo
 
 
-def test_no_argument_runs_stable_feature_showcase(monkeypatch) -> None:
-    """With no path, the beta entry point runs the shared flagship tour
-    from ``xnano._demo`` rather than a separate beta reimplementation."""
+def test_no_argument_runs_beta_showcase(monkeypatch) -> None:
+    """With no path, the beta entry point runs the beta-native showcase
+    rather than delegating to the stable ``xnano._demo`` feature tour."""
     calls: list[str] = []
+    monkeypatch.setattr(demo, "run_showcase", lambda: calls.append("showcase"))
+    stable_calls: list[str] = []
     monkeypatch.setattr(
-        stable_demo, "run_demo", lambda: calls.append("feature")
+        stable_demo, "run_demo", lambda: stable_calls.append("stable")
     )
     demo.run_demo()
-    assert calls == ["feature"]
+    assert calls == ["showcase"]
+    assert stable_calls == []
 
 
 def test_path_argument_opens_markdown_viewer(

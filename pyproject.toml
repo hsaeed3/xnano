@@ -21,7 +21,7 @@ members = [
 
 [project]
 name = "xnano"
-version = "1.1.5"
+version = "1.1.6"
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "A simple python **tui** framework built on top of the ``[ratatui](https://ratatui.rs)`` and ``[tachyonfx](https://github.com/ratatui/tachyonfx)`` rust crates."
 readme = "README.md"
@@ -40,7 +40,7 @@ dependencies = [
     "markdown-it-py>=3.0.0",
     "pydantic-core>=2.0.0",
     "pygments>=2.17.0",
-    "xnano-core==0.0.12",
+    "xnano-core==0.0.13",
 ]
 
 [project.optional-dependencies]

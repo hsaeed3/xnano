@@ -8,6 +8,7 @@ Parse, convert, and resolve colors shared by terminal and web rendering.
 from __future__ import annotations
 
 import dataclasses
+import functools
 import re
 from typing import (
     Any,
@@ -922,6 +923,7 @@ def pydantic_color(color: ColorName) -> Color:
     return Color.from_name(color)
 
 
+@functools.lru_cache(maxsize=1024)
 def get_native_color(color: ColorLike | None) -> Any:
     """Convert a public color value to the native renderer color.
 

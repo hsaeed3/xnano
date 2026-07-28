@@ -7,16 +7,32 @@ Collect and invoke beta hook markers for terminal, web, and synthetic events.
 
 from __future__ import annotations
 
+import functools
 from typing import Any, Iterator
 
 from xnano.beta import hooks
 from xnano.beta.context import Context
+from xnano.beta.events import AbstractEventData, Event
 from xnano.beta.utils.dispatch import invoke_hook
 from xnano.beta.utils.introspection import (
     _MISSING,
     evaluate_reference_value,
     evaluate_state_expression,
     is_reference_expression,
+)
+
+_CONTEXT_EVENT = Event.from_data(AbstractEventData())
+_HOOK_MARKERS = (
+    hooks.ON_EVENT_HOOK_ATTR,
+    hooks.ON_KEYBOARD_HOOK_ATTR,
+    hooks.ON_MOUSE_HOOK_ATTR,
+    hooks.ON_RESIZE_HOOK_ATTR,
+    hooks.ON_CLIPBOARD_HOOK_ATTR,
+    hooks.ON_FOCUS_HOOK_ATTR,
+    hooks.ON_POLL_HOOK_ATTR,
+    hooks.ON_TICK_HOOK_ATTR,
+    hooks.ON_STATE_HOOK_ATTR,
+    hooks.ON_FIELD_HOOK_ATTR,
 )
 
 
@@ -30,16 +46,27 @@ def iter_grids(root: Any) -> Iterator[Any]:
         yield from iter_grids(getattr(root, name, None))
 
 
-def _iter_handlers(grid: Any) -> Iterator[Any]:
-    """Yield marked methods once, respecting class overrides."""
+@functools.cache
+def _get_handler_names(grid_class: type) -> tuple[str, ...]:
+    """Return callable attribute names once, respecting class overrides."""
     seen: set[str] = set()
-    for base in type(grid).__mro__:
+    names: list[str] = []
+    for base in grid_class.__mro__:
         for name, member in base.__dict__.items():
             if name in seen:
                 continue
             seen.add(name)
-            if callable(member):
-                yield getattr(grid, name)
+            if callable(member) and any(
+                hasattr(member, marker) for marker in _HOOK_MARKERS
+            ):
+                names.append(name)
+    return tuple(names)
+
+
+def _iter_handlers(grid: Any) -> Iterator[Any]:
+    """Yield cached handler attributes bound to ``grid``."""
+    for name in _get_handler_names(type(grid)):
+        yield getattr(grid, name)
 
 
 def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
@@ -51,12 +78,13 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
         event: Public beta event.
     """
     context = Context(event=event, terminal=runtime, state=runtime.state)
+    event_type = event.type
     for grid in iter_grids(root):
         for handler in _iter_handlers(grid):
             function = getattr(handler, "__func__", handler)
             if getattr(function, hooks.ON_EVENT_HOOK_ATTR, False):
                 invoke_hook(handler, grid, context)
-            if event.is_keyboard_event() and getattr(
+            if event_type == "keyboard" and getattr(
                 function, hooks.ON_KEYBOARD_HOOK_ATTR, False
             ):
                 bindings, kind = getattr(
@@ -70,7 +98,7 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
                     and (not bindings or keyboard.matches(*bindings))
                 ):
                     invoke_hook(handler, grid, context)
-            if event.is_mouse_event() and getattr(
+            if event_type == "mouse" and getattr(
                 function, hooks.ON_MOUSE_HOOK_ATTR, False
             ):
                 buttons, kind = getattr(
@@ -100,19 +128,19 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
                     )
                 ):
                     invoke_hook(handler, grid, context)
-            if event.is_resize_event() and getattr(
+            if event_type == "resize" and getattr(
                 function,
                 hooks.ON_RESIZE_HOOK_ATTR,
                 False,
             ):
                 invoke_hook(handler, grid, context)
-            if event.is_clipboard_event() and getattr(
+            if event_type == "clipboard" and getattr(
                 function,
                 hooks.ON_CLIPBOARD_HOOK_ATTR,
                 False,
             ):
                 invoke_hook(handler, grid, context)
-            if event.is_focus_event() and getattr(
+            if event_type == "focus" and getattr(
                 function,
                 hooks.ON_FOCUS_HOOK_ATTR,
                 False,
@@ -139,7 +167,7 @@ def dispatch_event(root: Any, runtime: Any, event: Any) -> None:
                     )
                 ):
                     invoke_hook(handler, grid, context)
-            if event.is_tick_event() and getattr(
+            if event_type == "tick" and getattr(
                 function,
                 hooks.ON_TICK_HOOK_ATTR,
                 False,
@@ -160,7 +188,9 @@ def dispatch_post_init(root: Any, runtime: Any) -> None:
     counterpart to the main API's per-instance ``track_frame_grid`` call.
     """
     fired = runtime._post_init_grids
-    context = Context(event=None, terminal=runtime, state=runtime.state)
+    context = Context(
+        event=_CONTEXT_EVENT, terminal=runtime, state=runtime.state
+    )
     for grid in iter_grids(root):
         if grid is None or id(grid) in fired:
             continue
@@ -172,7 +202,9 @@ def dispatch_post_init(root: Any, runtime: Any) -> None:
 
 def dispatch_idle(root: Any, runtime: Any) -> None:
     """Dispatch hooks that run when event polling returns no input."""
-    context = Context(event=None, terminal=runtime, state=runtime.state)
+    context = Context(
+        event=_CONTEXT_EVENT, terminal=runtime, state=runtime.state
+    )
     for grid in iter_grids(root):
         for handler in _iter_handlers(grid):
             function = getattr(handler, "__func__", handler)
@@ -216,7 +248,9 @@ def _expression_hook_fires(
 
 def dispatch_frame(root: Any, runtime: Any) -> None:
     """Dispatch frame poll and expression hooks before painting."""
-    context = Context(event=None, terminal=runtime, state=runtime.state)
+    context = Context(
+        event=_CONTEXT_EVENT, terminal=runtime, state=runtime.state
+    )
     for grid in iter_grids(root):
         for handler in _iter_handlers(grid):
             function = getattr(handler, "__func__", handler)
