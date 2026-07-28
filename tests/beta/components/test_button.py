@@ -53,7 +53,7 @@ def test_custom_left_right_chrome() -> None:
 def test_compose_idle_uses_base_colors() -> None:
     button = Button(
         label="Ok",
-        color="green",
+        foreground="green",
         background="black",
     )
     content = button.compose(_ctx())
@@ -68,7 +68,7 @@ def test_compose_idle_uses_base_colors() -> None:
 def test_compose_focused_uses_focused_colors_and_panel() -> None:
     button = Button(
         label="Ok",
-        color="green",
+        foreground="green",
         focused_color="black",
         focused_background="yellow",
     )
@@ -136,7 +136,7 @@ def test_get_label_text_from_text_like() -> None:
 def test_button_offscreen_smoke_render() -> None:
     from xnano.beta.core.runtime import Runtime
 
-    button = Button(label="Submit", color="cyan")
+    button = Button(label="Submit", foreground="cyan")
     runtime = Runtime.offscreen(width=40, height=6)
     try:
         frame = runtime.render(button)

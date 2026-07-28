@@ -61,7 +61,7 @@ def test_colors_length_must_match_data() -> None:
 
 
 def test_default_blocks_compose_sparkline_content() -> None:
-    bar = Bar(data=[1, 3, 2], color="cyan")
+    bar = Bar(data=[1, 3, 2], foreground="cyan")
     content = bar.compose(_ctx())
     assert isinstance(content, SparklineContent)
     assert list(content.data) == [1, 3, 2]
@@ -113,7 +113,7 @@ def test_deprecated_sparkline_alias() -> None:
 def test_runtime_offscreen_render_smoke() -> None:
     runtime = Runtime.offscreen(30, 5)
     try:
-        frame = runtime.render(Bar(data=[1, 4, 2, 8, 3], color="green"))
+        frame = runtime.render(Bar(data=[1, 4, 2, 8, 3], foreground="green"))
         assert isinstance(frame.text, str)
         assert len(frame.text) > 0
     finally:
