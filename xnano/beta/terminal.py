@@ -261,9 +261,11 @@ class Terminal(Generic[StateT]):
         runtime = self._ensure_runtime(live=True)
         if renderables:
             runtime.set_root(renderables[0] if len(renderables) == 1 else None)
+        live = runtime.is_live
+        render_frame = runtime._render if live else runtime.render
         try:
             while True:
-                runtime.render(
+                render_frame(
                     *renderables,
                     color=color,
                     background=background,
@@ -278,6 +280,8 @@ class Terminal(Generic[StateT]):
                     gap=gap,
                     direction=direction,
                 )
+                if live:
+                    runtime._frame_commands.clear()
                 if not runtime.pump():
                     break
         finally:

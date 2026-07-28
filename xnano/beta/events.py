@@ -359,7 +359,8 @@ class TickEventData(AbstractEventData):
 
 
 EventData: TypeAlias = (
-    KeyboardEventData
+    AbstractEventData
+    | KeyboardEventData
     | MouseEventData
     | ResizeEventData
     | ClipboardEventData

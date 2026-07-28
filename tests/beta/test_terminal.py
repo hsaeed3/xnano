@@ -65,3 +65,24 @@ def test_terminal_run_polls_hooks_and_repaints_mutation(monkeypatch) -> None:
     assert app.ticks == 2
     assert any("updated" in frame.text for frame in frames)
     assert any("╭" in frame.text for frame in frames)
+
+
+def test_terminal_live_run_skips_unused_frame_serialization(
+    monkeypatch,
+) -> None:
+    from xnano.beta import hooks
+    from xnano.beta.grids import BaseGrid
+
+    class App(BaseGrid):
+        @hooks.on_tick
+        def stop(self, ctx) -> None:
+            ctx.terminal.request_exit()
+
+    terminal = Terminal.offscreen(cols=20, rows=4)
+    terminal.runtime._live = True
+
+    def fail_snapshot():
+        raise AssertionError("live run serialized an unused frame")
+
+    monkeypatch.setattr(terminal.runtime, "_snapshot_frame", fail_snapshot)
+    terminal.run(App())

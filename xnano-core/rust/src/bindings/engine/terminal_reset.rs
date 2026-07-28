@@ -19,12 +19,30 @@ use super::super::event_setup::{
 };
 use super::super::terminal_device::end_synchronized_update_impl;
 
-/// Comprehensive private-mode / SGR reset sequence.
+/// Comprehensive charset / private-mode / SGR reset sequence.
 ///
 /// Written in addition to typed crossterm commands so emulators that only
 /// partially honor one form still recover. Sequences that were never enabled
 /// are ignored by compliant hosts.
+///
+/// Leads with `ESC [ ! p` (DECSTR, soft terminal reset): the one sequence that
+/// returns charsets, private modes, and SGR to their power-on defaults without
+/// clearing the screen — the catch-all for whatever state a session left armed.
+/// The explicit sequences that follow are belt-and-suspenders for emulators
+/// that honor DECSTR only partially.
+///
+/// Also leads with a character-set reset — `SI` (shift-in, invoke G0 into GL) plus
+/// `ESC ( B` / `ESC ) B` (designate US-ASCII into G0/G1). Without it, a session
+/// interrupted while the terminal is shifted out to the DEC line-drawing set
+/// leaves every following byte rendered as box-drawing glyphs, so an unrelated
+/// shell in the same terminal turns unreadable. These are inert on hosts that
+/// do not implement DEC charsets (e.g. Windows conhost), so the reset stays
+/// cross-platform.
 const TERMINAL_RESET_BLOB: &[u8] = b"\
+\x1b[!p\
+\x0f\
+\x1b(B\
+\x1b)B\
 \x1b[0m\
 \x1b[39m\
 \x1b[49m\

@@ -106,6 +106,8 @@ class CoreRenderIR:
         align: int | None = None,
     ) -> CoreRenderIR: ...
     @staticmethod
+    def glyph_overlay(lines: List[IrLine]) -> CoreRenderIR: ...
+    @staticmethod
     def paragraph_raw(
         content: str,
         fg: Any | None = None,
