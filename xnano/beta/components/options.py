@@ -180,12 +180,10 @@ def _item_disabled(item: OptionItem) -> bool:
 @color_alias_dataclass
 @dataclasses.dataclass
 class Options(Component):
-    """Always-visible, filterable choice list.
+    """Always-visible, selectable choice list.
 
-    Typing while focused edits ``query`` (when ``searchable``); the
-    visible list narrows to fuzzy matches with matched characters
-    emphasized in ``match_color``. Up/down move the selection (skipping
-    disabled entries) and ``value`` reads the selected item:
+    Up/down move the selection (skipping disabled entries) and ``value``
+    reads the selected item:
 
         class Picker(BaseGrid):
             themes: Options = Field(
@@ -196,8 +194,13 @@ class Options(Component):
             def _choose(self, ctx: Context) -> None:
                 apply_theme(self.themes.value)
 
-    Set ``searchable=False`` to drive ``query`` reactively from another
-    field instead of direct typing.
+    A plain list is *not* a search box: typing-to-filter is opt-in. Set
+    ``searchable=True`` to turn the list into a fuzzy filter where printable
+    keys edit ``query`` and matched characters are emphasized in
+    ``match_color`` — a focused searchable list intentionally consumes those
+    keys, so leave it off for a list that only browses, or the keys never
+    reach your command hooks. Either way you can drive ``query`` reactively
+    from another field.
 
     Example:
         ``Options(items=("small", "medium", "large"), selected=1)``
@@ -206,7 +209,8 @@ class Options(Component):
         items: Entries to pick from (strings, ``Text``, or ``Option``).
         query: Filter text edited by typing when ``searchable``.
         filter: Whether ``query`` fuzzy-filters the visible items.
-        searchable: Whether typing while focused edits ``query``.
+        searchable: Whether typing while focused edits ``query`` (opt-in;
+            defaults to ``False`` so a plain list does not swallow keys).
         selected: Selection index within the *filtered* view.
         direction: Visual order of option rows.
         foreground: Default foreground color for unselected rows
@@ -215,6 +219,8 @@ class Options(Component):
         highlight_color: Foreground of the selected row.
         highlight_background: Background of the selected row.
         highlight_symbol: Symbol prepended to the selected row.
+        hovered: Row under the pointer (filtered-view index), or ``None``.
+        hover_symbol: Dim symbol prepended to the hovered row.
         match_color: Emphasis color for characters matched by ``query``.
         repeat_highlight_symbol: When ``True``, every row shows the
             highlight symbol (selected row still uses highlight style).
@@ -237,8 +243,13 @@ class Options(Component):
     """
     accept: AcceptPolicy = "replace"
     """How ``resolve_submission`` reconciles typed text with the selection."""
-    searchable: bool = True
-    """Whether typing while focused edits ``query`` directly."""
+    searchable: bool = False
+    """Whether typing while focused edits ``query`` directly.
+
+    Off by default: a plain ``Options`` browses with the arrow keys and lets
+    every other key reach app hooks. Turn it on to make the list a fuzzy
+    search box that consumes printable keys while focused.
+    """
     selected: int = 0
     """Selection index within the *filtered* view."""
     direction: OptionsDirection = "top_to_bottom"
@@ -254,6 +265,14 @@ class Options(Component):
     """Background of the selected row."""
     highlight_symbol: str = "> "
     """Symbol prepended to the selected row."""
+    hovered: int | None = None
+    """Row under the pointer (filtered-view index), or ``None``.
+
+    Set by :meth:`handle_hover` when mouse events are enabled; drawn as a
+    dim ``hover_symbol`` so it reads as distinct from the selection.
+    """
+    hover_symbol: str = "· "
+    """Symbol prepended to the hovered row (dim), distinct from selection."""
     match_color: ColorLike | None = "cyan"
     """Emphasis color for characters matched by ``query``."""
     repeat_highlight_symbol: bool = False
@@ -267,6 +286,10 @@ class Options(Component):
     # cursor stays hidden while focused.
     owns_cursor: bool = dataclasses.field(default=True, init=False)
     """Whether selection replaces the hardware caret."""
+    _content_area: Any = dataclasses.field(
+        default=None, init=False, repr=False, compare=False
+    )
+    """Last painted area, recorded so hover can map a pointer to a row."""
 
     def _filter_mode(self) -> "str | Callable[[str, str], bool]":
         """Normalize ``filter`` into a mode name or callable."""
@@ -538,11 +561,15 @@ class Options(Component):
             self._ensure_enabled_selection()
             return True
         character = keyboard.character
+        modifiers = keyboard.modifiers
         if (
             character is not None
             and len(character) == 1
             and character.isprintable()
             and character not in ("\n", "\r", "\t")
+            # ctrl/alt chords are app shortcuts, not search text.
+            and "ctrl" not in modifiers
+            and "alt" not in modifiers
         ):
             self.query = self.query + character
             self.selected = 0
@@ -554,9 +581,19 @@ class Options(Component):
         self,
         text: str,
         matched: tuple[int, ...],
+        hovered: bool = False,
     ) -> Any:
         """Build a ``TextBlock`` row, emphasizing fuzzy-matched chars."""
         from xnano.beta.core.content import Run, TextBlock
+
+        # A hovered row reads as a dim marker + indented label — visually
+        # apart from the selected row's bright highlight arrow.
+        if hovered:
+            return TextBlock(
+                lines=(
+                    (Run(text=self.hover_symbol + text, modifiers=("dim",)),),
+                ),
+            )
 
         # When repeating the symbol, bake it into every row and clear
         # Items' own highlight_symbol so columns stay aligned.
@@ -613,8 +650,10 @@ class Options(Component):
             self._entry_block(
                 _item_text(self.items[index]),
                 matched,
+                # Hover is its own indicator; never on the selected row.
+                hovered=position == self.hovered and position != selected,
             )
-            for index, matched in pairs
+            for position, (index, matched) in enumerate(pairs)
         )
         # When repeating the symbol, Items should not also prepend one
         # on the selected row (already baked into each entry).
@@ -674,6 +713,33 @@ class Options(Component):
             z=self.z,
             visible=self.visible,
         )
+
+    def after_render(self, ctx: "ComponentRenderContext", area: Any) -> None:
+        """Record the painted area so hover can map a pointer to a row."""
+        self._content_area = area
+
+    def handle_hover(self, x: int, y: int) -> bool:
+        """Mark the row under the pointer as hovered (mouse hover).
+
+        Hover is a *distinct* indicator from the selection: the hovered row
+        is set here and drawn with a dim ``hover_symbol``. Moving off the
+        rows clears it. Returns whether the hovered row changed.
+        """
+        del x  # rows span the full width; only the row (y) matters
+        area = self._content_area
+        if area is None:
+            return False
+        pairs = self._filtered()
+        # The query row (searchable) sits above the items; skip it.
+        top = area.y + (1 if self.searchable else 0)
+        row = y - top
+        if self.direction == "bottom_to_top" and pairs:
+            row = (len(pairs) - 1) - row
+        hovered = row if (pairs and 0 <= row < len(pairs)) else None
+        if hovered != self.hovered:
+            self.hovered = hovered
+            return True
+        return False
 
 
 # Migration alias — ``Select`` remains importable during the beta cutover.

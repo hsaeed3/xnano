@@ -112,6 +112,7 @@ _FIELD_PROFILES: tuple[tuple[str, dict[str, Any]], ...] = (
             "autofocus": True,
             "scroll": True,
             "wireframe": True,
+            "z": 1,
         },
     ),
 )
@@ -175,6 +176,9 @@ def test_every_field_parameter_is_explicitly_covered() -> None:
         # Deprecated alias for ``foreground`` (covered via the ``style``
         # profile); kept in the signature for backward compatibility.
         "color",
+        # Out-of-flow overlay: exercised on its own in test_grids, not through
+        # the in-flow render matrix (it would remove the field from layout).
+        "overlay",
         *{name for _, profile in _FIELD_PROFILES for name in profile},
     }
     parameters = set(inspect.signature(Field).parameters)
