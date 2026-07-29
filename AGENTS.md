@@ -6,27 +6,30 @@ binding structures, and high-level Python code style conventions for the
 
 ## Library Structure
 
-`xnano` 1.0 is a Python multi-surface UI framework (TUI first, with web and
-CLI hosts) built on **`xnano-core`**, which exposes ratatui, crossterm, and
+`xnano` is a Python multi-surface UI framework (TUI first, with web and CLI
+surfaces) built on **`xnano-core`**, which exposes ratatui, crossterm, and
 tachyonfx through PyO3.
 
 The public DSL (`BaseGrid`, `Field`, components, `@on_*` hooks, `Action`,
-`Style`) is interface-neutral. Concrete hosts live under `xnano.terminal`,
-`xnano.web`, and `xnano.cli`. Shared contracts and engines live under
-`xnano.core`. Private plumbing uses top-level `_*.py` modules only.
+`Style`, `render`) is interface-neutral. Presentation hosts are top-level
+modules (`xnano.terminal`, `xnano.web`) plus the `xnano.cli` package. Shared
+runtime machinery lives under `xnano.core`. Helpers live under `xnano.utils`.
+HTTP serving lives under `xnano.server`.
 
 ```
 User app (BaseGrid + Field + @on_* hooks + Action)
         |
         v
-   xnano                 public DSL: grid, fields, events, components, …
+   xnano                 public DSL: grids, fields, hooks, components, …
         |
-        +-- xnano.core   interface-neutral contracts (host, action, content,
-        |                style consumers, stage, nodes, controllers)
+        +-- xnano.core   Runtime, Frame, content, controller, stage,
+        |                dispatch, layout, exceptions, demo
         |
-        +-- xnano.terminal    Terminal host + native lowering
-        +-- xnano.web         Web host (stdlib cell stream + canvas SSE)
-        +-- xnano.cli         Command CLI abstraction
+        +-- xnano.terminal   Terminal host (wraps Runtime)
+        +-- xnano.web        Web host (offscreen Runtime + native server)
+        +-- xnano.cli        Command CLI abstraction
+        +-- xnano.server     NativeWebServer + RequestServer
+        +-- xnano.utils      focus, validation, markup, dispatch helpers
         |
         v
    xnano_core.core       session, scene graph, render IR, unified events
@@ -37,104 +40,133 @@ User app (BaseGrid + Field + @on_* hooks + Action)
 
 ### `xnano` — public DSL and package layout
 
-**Location:** `xnano/` (version 1.0.0; depends on `xnano-core==0.0.8`).
+**Location:** `xnano/` (version `1.1.7`; depends on `xnano-core==0.0.14`).
 
-The package root lazily exports `BaseGrid` (with deprecated `Grid` alias),
-`GridSettings`, `Field`, `Context`, `Terminal`, `Action`, `Style`, and the
-stable `@on_*` / `@on_action` decorators. Import components and supporting types
-from their concrete modules.
+The package root lazily exports:
+
+| Export | Module |
+|--------|--------|
+| `render` | `xnano.rendering` |
+| `Action` | `xnano.actions` |
+| `BaseGrid`, `GridSettings` | `xnano.grids` |
+| `Field` | `xnano.fields` |
+| `Context` | `xnano.context` |
+| `Terminal` | `xnano.terminal` |
+| `Web` | `xnano.web` |
+| `Runtime`, `Frame` | `xnano.core` |
+| `Style` | `xnano.tailwind` |
+| `Component` | `xnano.components` |
+| `Command` | `xnano.cli` |
+| `@on_*` / `@on_action` | `xnano.hooks` |
+| `hooks`, `requests`, `cli`, `components`, `core`, `events` | package barrels |
+
+There is **no** `Grid` alias — use `BaseGrid`. Import components and supporting
+types from their concrete modules (for example
+`from xnano.components.text import Text`).
 
 ```
 xnano/
 ├── __init__.py, __main__.py, py.typed
 │
-│  ── private internals (top-level `_` modules only) ────────────────────
-├── _types.py              # geometry, sizing, frame, keyboard/mouse/focus
-├── _styles.py             # Style + Tailwind resolver / class groups
-├── _tailwind_classes.py   # generated Tailwind Literal coverage
-├── _function_hooks.py     # hook registries, entries, markers
-├── _event_processing.py   # native → Event parsing
-├── _dispatch.py           # shared pump / layout / hook dispatch
-├── _renderable.py         # string/ANSI renderable coercion
-├── _validation.py         # field / CLI validation helpers
-├── _introspection.py      # hook-callable introspection
-├── _core_bindings.py      # framework ↔ xnano_core native conversions
-├── _demo.py               # `python -m xnano` showcase content
-│
-│  ── public DSL (interface-neutral) ────────────────────────────────────
-├── grid.py                # BaseGrid (+ Grid alias), GridSettings
+│  ── public DSL (flat modules) ────────────────────────────────────────
+├── actions.py             # Action hierarchy + Actions performer
+├── colors.py              # Color, ColorLike, Tailwind palette helpers
+├── context.py             # Context passed to hooks
+├── cursor.py              # Cursor controls
+├── device.py              # Device / display controls
+├── effects.py             # Effect descriptions (native lowering is TUI)
+├── events.py              # Event types + core→Event conversion
 ├── fields.py              # Field, FieldInfo / GridFieldInfo, FieldState
-├── components/            # Text, Table, Chart, Progress, Sparkline, Schema
-├── color.py, effects.py, events.py, context.py, state.py, hooks.py
+├── grids.py               # BaseGrid, GridSettings
+├── hooks.py               # @on_* / @on_action decorators
+├── markdown.py            # Markdown viewport + CLI document runner
+├── rendering.py           # print-like render() helper
+├── requests.py            # HTTP request hooks + Request/Response
+├── state.py               # State helper
+├── tailwind.py            # Style + Tailwind class resolution
+├── terminal.py            # Terminal host
+├── types.py               # geometry, sizing, frame, keyboard/mouse/focus
+├── web.py                 # Web host
 │
-│  ── shared contracts / engines ────────────────────────────────────────
-├── core/
-│   ├── actions.py         # Action hierarchy + matching
-│   ├── content.py         # interface-neutral Content primitives
-│   ├── hosts.py           # AbstractHost, RouteTable, get_active_host
-│   ├── interface.py       # AbstractInterface (field state base)
-│   ├── device.py          # AbstractDevice / AbstractCursor
-│   ├── nodes.py           # AbstractNode (shared z / visibility base)
-│   ├── stage.py           # Stage, LayoutMap, cell paint helpers
-│   ├── exceptions.py      # Exit, HookError, validation errors, …
-│   └── controllers/       # abstract + TerminalController (tui)
-│
-│  ── interface kinds ───────────────────────────────────────────────────
-├── terminal/              # Terminal host, cursor, device, nodes, effects
-├── web/                   # Web host, render, server, requests, frames
-└── cli/                   # Command CLI
+│  ── packages ─────────────────────────────────────────────────────────
+├── components/            # Bar, Button, Chart, Component, Dropdown,
+│                          # Image, Input, Link, Loader, Markdown,
+│                          # Options, Scrollbar, Table, Text, …
+├── core/                  # Runtime, Frame, content, controller, stage,
+│                          # dispatch, layout, interface, exceptions, demo
+├── cli/                   # Command, Option, Argument, help
+├── server/                # NativeWebServer, RequestServer
+└── utils/                 # focus, validation, markup, introspection,
+                           # dispatch, responsive, deprecation
 ```
 
 #### Key abstractions and flow
 
 - **`BaseGrid`** / **`Field`** — declarative layout and state fields.
-  Prefer subclassing `BaseGrid` (`Grid` remains a one-release alias).
+  Subclass `BaseGrid` and annotate slots with `Field(...)`. Use
+  `state=True` for non-rendered app data.
 - **`Action`** — declarative/imperative triggers. Events answer *"what
-  happened"*; actions answer *"what to do"*. Hooks bind actions; hosts
-  `perform` them. Matching is centralized on `Action.matches`.
-- **`AbstractHost`** — shared contract implemented by `Terminal` (live
-  or offscreen): registry, state, pump, `perform`, device/cursor/actions/
-  stage, and `RouteTable` navigation. The web host drives an offscreen
-  `Terminal` rather than a separate session type.
-- **`Content` / `Style` / `Stage`** — components compose interface-neutral
-  content; `TerminalController` lowers content into TUI IR/nodes; stage
-  exposes layout maps and cell paint helpers on the active host.
-- **`Terminal`** (`xnano.terminal`) — owns `CoreSession`, the run loop,
-  viewport mode, cursor/device controls, and offscreen sessions. It is
-  an `AbstractHost`. `Terminal.run(host=..., port=...)` can also serve
-  grid `@on_*_request` routes via `xnano.web.request_server`.
-- **`TerminalController`** — the only concrete paint controller. It is
-  the only framework layer that talks to `xnano_core` for rendering
-  (live TUI and web offscreen sessions).
-- **`Web`** (`xnano.web`) — stdlib HTTP server + canvas client; streams
-  terminal cells over SSE through `WebRenderer` (offscreen `Terminal`).
-  No HTML/htmx paint path; no separate controller backend.
-- A frame flows from `Terminal` → root grid/component → field sizing
-  and controller paint requests → `CoreSession.render()`. Events are
-  polled from core (or synthesized from the browser) and dispatched
-  through `_dispatch` via `Context`.
+  happened"*; actions answer *"what to do"*. Hooks bind actions; the
+  runtime's `Actions` performer synthesizes them. Matching is centralized
+  on `Action.matches`.
+- **`Runtime`** — owns a `CoreSession`, the run loop, viewport mode,
+  cursor/device controls, focus, stage, and paint pipeline. Prefer
+  `Terminal` for apps; use `Runtime` directly when you need explicit
+  session ownership. `get_active_runtime()` returns the context-local
+  active runtime.
+- **`Terminal`** (`xnano.terminal`) — presentation host over `Runtime`.
+  Selects a live session when a TTY is available, otherwise offscreen.
+  `Terminal.offscreen(...)` is the test path. `Terminal.run(...)` paints
+  and pumps events until exit; it does **not** take `host=`/`port=` —
+  use `Web` or `xnano.server` for HTTP.
+- **`Web`** (`xnano.web`) — serves the same grids/components through an
+  offscreen runtime via `xnano.server.native.serve_native` (cell stream
+  to a canvas client). Request hooks from `xnano.requests` work under
+  both terminal-adjacent servers and the web host.
+- **`TerminalController`** (`xnano.core.controller`) — the paint controller
+  that lays out grids and lowers content into a `CoreRenderNode` tree for
+  `CoreSession.render()`.
+- **`Content`** (`xnano.core.content`) — interface-neutral paint primitives
+  (`TextBlock`, `Panel`, `Stack`, gauges, plots, canvas, …). Components
+  compose these; the controller lowers them through `lower_content`.
+- **`Frame`** (`xnano.core.frame`) — immutable snapshot of a rendered
+  buffer (text/ANSI inspection in tests).
+- **`Style`** (`xnano.tailwind`) — Tailwind-like class resolution for
+  fields and grids (`class_name=`).
+- A frame flows from `Terminal`/`Runtime` → root grid/component → field
+  sizing and `TerminalController` paint requests → `CoreSession.render()`.
+  Events are polled from core (or synthesized for web) and dispatched
+  through `xnano.core.dispatch` via `Context`.
 
-### `xnano.terminal` / `xnano.web` / `xnano.cli`
+### Surfaces
 
 | Surface | Entry | Notes |
 |---------|-------|-------|
-| TUI | `from xnano.terminal import Terminal` (also root lazy export) | ratatui session, native effects lowering |
-| Web | `from xnano.web import Web` | stdlib cell stream to canvas SSE; no extra required |
-| HTTP hooks | `from xnano.web.requests import on_get_request, on_post_request, …` (also `xnano.hooks` / `xnano.requests`) | every HTTP method; declared on `BaseGrid` methods; served by `Web` or `Terminal.run` |
-| CLI | `from xnano.cli import Command` | options, subcommands, validation, help |
+| Print helper | `from xnano import render` | One-shot styled output; no event loop |
+| TUI | `from xnano.terminal import Terminal` (also root lazy export) | Live or offscreen `Runtime` |
+| Web | `from xnano.web import Web` | Offscreen runtime + `NativeWebServer` |
+| HTTP hooks | `from xnano.requests import on_get_request, …` | Declared on `BaseGrid` methods; served by `Web` / `xnano.server` |
+| CLI | `from xnano.cli import Command` | Options, subcommands, validation, help |
+| Markdown | `from xnano.markdown import run_markdown` | Also `xnano PATH.md` entrypoint |
+
+Optional extras (see root `pyproject.toml`):
+
+- `images` — Pillow for `Image` component
+- `requests` — starlette/uvicorn for request servers
 
 Web reuses the same grids, hooks, components, dispatch helpers, and
 `TerminalController` path as the terminal host. Do not reintroduce a
-`xnano.beta` product surface; beta docs paths are redirects only.
+`xnano.beta` product surface; that preview was migrated into the stable
+namespace.
 
 ### `xnano-core` — native bindings and engine
 
-**Location:** `xnano-core/` (version 0.0.8; built with maturin).
+**Location:** `xnano-core/` (version `0.0.14`; built with maturin).
 
 | Module | Purpose |
 |--------|---------|
 | `xnano_core` | Minimal root exports for core events and native version |
-| `xnano_core.core` | Primary engine API consumed by `xnano.terminal` / controllers |
+| `xnano_core.core` | Primary engine API consumed by `xnano.core.runtime` / controller |
 | `xnano_core.rust` | Barrel import for native primitives |
 | `xnano_core.rust.native` | Compiled PyO3 extension plus type stubs |
 | `xnano_core.rust.engine` | Stateful runtime registered by Rust |
@@ -149,12 +181,14 @@ Engine types imported from `xnano_core.core` include:
 - `CoreRenderIR` and `IrLine` — Rust-side widget descriptions and natural-size
   measurement in a single Python-to-Rust boundary crossing.
 - `CoreKeyBinding` — native key-binding parsing and matching.
+- `CoreTextEditor` — native text-editor state used by input-style components.
 - `CoreEvent`, `CoreTickEvent`, and `CoreTerminalEventKind` — unified events.
 - `CoreTerminalRef` — scope-guarded access to the live native terminal.
 
 Rust binding modules live in `xnano-core/rust/src/bindings/`. Engine code
 includes `session`, `render_tree`, `content_bridge`, `render_ir`,
-`key_binding`, `events`, `clock`, `terminal_reset`, and `panic_hook`.
+`key_binding`, `editor`, `events`, `clock`, `terminal_reset`, and
+`panic_hook`.
 
 Rust structs use a `Py*` prefix while exported engine types use `Core*`.
 Pointer-backed handles are `unsendable`. Prefer `CoreRenderIR` for framework
@@ -165,23 +199,24 @@ widgets and drawable callbacks.
 
 | Concern | Lives in |
 |---------|----------|
-| Public DSL (grid, fields, events, components) | `xnano` package root modules + `components/` |
-| Shared host/action/content/stage contracts | `xnano.core` |
-| Backend paint contracts | `xnano.core.controllers` |
-| Terminal host + native lowering | `xnano.terminal` |
-| Web host + HTML/HTTP | `xnano.web` |
+| Public DSL (grids, fields, events, hooks, components) | top-level modules + `components/` |
+| Runtime, paint, content primitives, stage, dispatch | `xnano.core` |
+| Terminal / web presentation hosts | `xnano.terminal`, `xnano.web` |
+| HTTP servers | `xnano.server` |
 | CLI parsing | `xnano.cli` |
-| Private plumbing | top-level `xnano/_*.py` only |
+| Shared helpers (focus, validation, markup, …) | `xnano.utils` |
 | Scene graph, terminal lifecycle, render IR | `xnano_core.core` |
 | Raw ratatui/crossterm/tachyonfx bindings | `xnano_core.rust.native` |
 
 Do not call native terminal initialization/restoration or standalone native
-event polling in application code; use `CoreSession` through `Terminal`.
-Keep grid/component policy in the public DSL, backend painting in
-controllers/nodes, and terminal runtime mechanics in `xnano-core`.
+event polling in application code; use `CoreSession` through `Runtime` /
+`Terminal`. Keep grid/component policy in the public DSL, paint lowering in
+`TerminalController` / `lower_content`, and terminal runtime mechanics in
+`xnano-core`.
 
 VHS demo recording and tape generation live under `scripts/` only — do not
-embed VHS tooling under the package.
+embed VHS tooling under the package. The feature showcase lives in
+`xnano.core.demo` and is launched by `python -m xnano` / `uv run xnano`.
 
 ## Code Style & Formatting Rules
 
@@ -200,6 +235,11 @@ Imports follow a very strict and opinionated pattern:
       Example: ``import mylib\nfrom mylib.types import ImportantType``
    2. For all other libraries the library must be imported with the ``from <library_name> import <module_name>`` pattern.
 
+3. Prefer **concrete internal modules** over package barrels when importing
+   inside the package (enforced by `scripts/check_import_policy.py`):
+   ``from xnano.components.text import Text``, not
+   ``from xnano.components import Text`` in library code.
+
 All import lines above 79 characters must be wrapped in parantheses
 with new lines.
 
@@ -216,8 +256,18 @@ Class, function, method and property names never abbreviate common words or conc
 All functions must be named using the following conventions:
 
  - Function names that are not class methods **must never** be a single word.
-   - NOTE: This is not a rule 100% of the time. For example, one of the ``zyx`` library's main user facing abstractions are called `semantic operations`, which are llm-powered operations that perform various tasks on python objects. **ONLY IF** a function is intended or implemented as one of the core features and/or user facing abstractions **AND** it's usage is presented in documentation as ``import module`` then ``module.fn()`` ``module.fn2()`` then it may be a single word.
-     - Example: The semantic operations in ``zyx`` are named ``zyx.edit(...)`` (uses an LLM to edit python objects), ``zyx.parse(...)`` (confidence based LLM parsing), ``zyx.run(...)`` (standard agent loop).
+   - NOTE: This is not a rule 100% of the time. For example, one of the
+     ``zyx`` library's main user facing abstractions are called `semantic
+     operations`, which are llm-powered operations that perform various tasks
+     on python objects. **ONLY IF** a function is intended or implemented as
+     one of the core features and/or user facing abstractions **AND** it's
+     usage is presented in documentation as ``import module`` then
+     ``module.fn()`` ``module.fn2()`` then it may be a single word.
+     - Example: The semantic operations in ``zyx`` are named ``zyx.edit(...)``
+       (uses an LLM to edit python objects), ``zyx.parse(...)`` (confidence
+       based LLM parsing), ``zyx.run(...)`` (standard agent loop).
+     - In xnano, the top-level ``render()`` helper is such a public single-word
+       API.
 
 Below is a structured list of common function types and how they should be named:
 
@@ -417,14 +467,24 @@ following a strict set of conditions based on where the type is being used.
 
 All testing is done through ``pytest``, all code changes must be followed by running:
 
-```uv run pytest``
+```bash
+uv run pytest
+```
 
 ### LINTING
 
 All linting & pre-commit configuration is handled through ``ruff`` and ``prek`` all code
 changes must be followed by running:
 
-``uv run prek run --all-files``
+```bash
+uv run prek run --all-files
+```
+
+### TYPE CHECKING
+
+```bash
+uv run ty check
+```
 
 ### xnano-core SPECIFIC RULES
 

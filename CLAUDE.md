@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Running tests
 ```bash
 uv run pytest                        # all tests
-uv run pytest tests/test_grid_init.py  # single test file
-uv run pytest tests/test_grid_init.py::test_name  # single test
+uv run pytest tests/test_grids.py    # single test file
+uv run pytest tests/test_grids.py::test_name  # single test
 ```
 
 ### Linting & formatting
@@ -72,7 +72,7 @@ VHS quirks worth knowing before touching `Demo` settings in that script:
   Screenshot "/tmp/probe.png"
   ```
 - Centering content within an odd leftover row/column count also biases
-  visually — see `xnano/_demo.py` watercolor frame builders, which may
+  visually — see `xnano/core/demo.py` watercolor frame builders, which may
   need ceiling division on the vertical leftover to keep wordmarks from
   reading as shifted upward.
 - `Env COLORTERM "truecolor"` is required for watercolor gradients to
@@ -83,17 +83,21 @@ VHS quirks worth knowing before touching `Demo` settings in that script:
 
 ## Architecture
 
-This uv workspace contains the stable Python framework (`xnano` 1.0.0) and
-the maturin-built Rust extension (`xnano-core` 0.0.8).
+This uv workspace contains the Python framework (`xnano` `1.1.7`) and the
+maturin-built Rust extension (`xnano-core` `0.0.14`). The former `xnano.beta`
+preview was migrated into the stable namespace — do not reintroduce a parallel
+beta surface.
 
 ```
 User app (BaseGrid + Field + @on_* hooks + Action)
     ↓
-xnano               public DSL: grid, fields, events, components, …
-    ├── xnano.core   host/action/content/stage/device/nodes + controllers
-    ├── xnano.terminal    Terminal host + native lowering
-    ├── xnano.web         Web host (stdlib cell stream + canvas SSE)
-    └── xnano.cli         Command CLI
+xnano               public DSL: grids, fields, hooks, components, …
+    ├── xnano.core       Runtime, Frame, content, controller, stage, dispatch
+    ├── xnano.terminal   Terminal host (wraps Runtime)
+    ├── xnano.web        Web host (offscreen Runtime + native server)
+    ├── xnano.cli        Command CLI
+    ├── xnano.server     NativeWebServer + RequestServer
+    └── xnano.utils      focus, validation, markup, helpers
     ↓
 xnano_core.core     session, scene graph, render IR, unified events
     ↓
@@ -102,52 +106,66 @@ xnano_core.rust.native   raw ratatui/crossterm/tachyonfx PyO3 bindings
 
 ### xnano (public DSL)
 
-The package root lazy-exports `BaseGrid` (deprecated `Grid` alias),
-`GridSettings`, `Field`, `Context`, `Terminal`, `Action`, `Style`, and
-stable `@on_*` / `@on_action` decorators. Import components and supporting types
-from their concrete modules.
+The package root lazy-exports `BaseGrid` (no `Grid` alias), `GridSettings`,
+`Field`, `Context`, `Terminal`, `Web`, `Runtime`, `Frame`, `Action`, `Style`,
+`Component`, `Command`, `render`, and the stable `@on_*` / `@on_action`
+decorators. Import components and supporting types from their concrete modules.
 
 Key modules:
 
-- `grid.py`, `fields.py` — `BaseGrid`, sizing, and state fields
-- `events.py` — Event types plus all `@on_*` / `@on_action(action)` decorators
-- `hooks.py` — re-exports event hooks and web request hooks
-- `context.py`, `state.py`, `color.py`, `effects.py` — handler context,
-  app state, colors, effect *descriptions* (native lowering is TUI-only)
-- `components/` — Text, Progress, Sparkline, Table, Chart, Schema
-- `_*.py` — private internals only (types, styles, dispatch, validation,
-  core bindings, demo). Users never import `_` modules; public re-exports
-  cover the names that appear in signatures.
+| Module | Role |
+|--------|------|
+| `grids.py`, `fields.py` | `BaseGrid`, `GridSettings`, sizing, state fields |
+| `hooks.py` | `@on_keyboard`, `@on_mouse`, `@on_click`, `@on_tick`, `@on_event`, `@on_focus`, `@on_clipboard`, `@on_resize`, `@on_state`, `@on_field`, `@on_poll`, `@on_action` |
+| `events.py` | Event types + `event_from_core` |
+| `actions.py` | `Action` hierarchy + `Actions` performer |
+| `context.py`, `state.py` | handler context and app state |
+| `colors.py`, `tailwind.py`, `effects.py` | colors, `Style`, effect *descriptions* |
+| `terminal.py`, `web.py` | presentation hosts |
+| `rendering.py` | print-like `render()` (no session) |
+| `requests.py` | HTTP request hooks + `Request` / `Response` |
+| `markdown.py` | markdown viewport / `xnano PATH.md` runner |
+| `types.py` | geometry, sizing, frame, keyboard/mouse/focus types |
+| `cursor.py`, `device.py` | cursor and device controls |
+| `components/` | `Text`, `Input`, `Button`, `Table`, `Chart`, `Bar`, `Loader`, `Options`, `Dropdown`, `Image`, `Link`, `Markdown`, `Scrollbar`, base `Component`, … |
+| `core/` | `Runtime`, `Frame`, content primitives, `TerminalController`, stage, dispatch, layout, exceptions, demo |
+| `cli/` | `Command`, options, help |
+| `server/` | `NativeWebServer`, `RequestServer` |
+| `utils/` | focus, validation, markup, introspection, responsive, deprecation |
 
-### xnano.core (shared contracts)
+### xnano.core (runtime and paint)
 
-Interface-neutral engines shared by every host:
+Shared engine used by every host:
 
-- `actions.py` — `Action` hierarchy and matching
-- `content.py` — `Content` primitives components compose into
-- `hosts.py` — `AbstractHost`, `RouteTable`, `get_active_host`
-- `interface.py` — `AbstractInterface` / field-state base
-- `device.py` — `AbstractDevice` / `AbstractCursor`
-- `nodes.py` — `AbstractNode` (shared z / visibility base)
-- `stage.py` — `Stage`, `LayoutMap`, cell paint helpers
+- `runtime.py` — `Runtime`, `get_active_runtime()`; owns `CoreSession`
+- `frame.py` — immutable render snapshot
+- `content.py` — interface-neutral paint primitives (`TextBlock`, `Panel`, `Stack`, gauges, plots, canvas, …)
+- `controller.py` — `TerminalController` (layout + paint requests)
+- `rendering.py` — `lower_content` (content → `CoreRenderNode`)
+- `stage.py` — `Stage`, `LayoutMap`
+- `dispatch.py` — event / idle / frame / post-init dispatch
+- `layout.py` — layout constraints
+- `interface.py` — `AbstractInterface` (field-state base for grids)
 - `exceptions.py` — `Exit`, `HookError`, validation errors, …
-- `controllers/` — `AbstractController`, `TerminalController` (tui only)
+- `demo.py` — `python -m xnano` showcase
 
-### Interface kinds
+### Surfaces
 
-| Package | Role |
-|---------|------|
-| `xnano.terminal` | `Terminal` host, cursor/device, render nodes, tachyonfx effects |
-| `xnano.web` | `Web` orchestration, `WebRenderer` (offscreen Terminal), stdlib server, request hooks, cell frames |
+| Package / module | Role |
+|------------------|------|
+| `xnano.terminal` | `Terminal` over live or offscreen `Runtime` |
+| `xnano.web` | `Web` orchestration via `serve_native` |
+| `xnano.server` | cell-stream web server + standalone request server |
 | `xnano.cli` | `Command`, options, subcommands, validation, help |
+| `xnano.rendering` | one-shot `render()` without an event loop |
 
-A TUI frame flows from `Terminal` to the root grid/component. Grid sizing
-emits paint requests through `TerminalController`, which assembles a
-`CoreRenderNode` tree for `CoreSession.render()`. Events are polled from
-core and shared dispatch helpers invoke hooks through `Context`. Web reuses
-the same grids/hooks/components and the same offscreen `Terminal` /
-`TerminalController` path, streaming cells to a canvas over SSE — no
-extra packages and no separate HTML paint backend.
+A TUI frame flows from `Terminal` → `Runtime` → root grid/component.
+Grid sizing emits paint requests through `TerminalController`, which
+assembles a `CoreRenderNode` tree for `CoreSession.render()`. Events are
+polled from core and shared dispatch helpers invoke hooks through
+`Context`. Web reuses the same grids/hooks/components and the same
+offscreen `Runtime` / `TerminalController` path, streaming cells to a
+canvas — no separate HTML paint backend.
 
 ### xnano-core (Rust extension)
 
@@ -160,21 +178,38 @@ extra packages and no separate HTML paint backend.
 - `CoreRenderIR` / `IrLine` — Rust-side widget descriptions and measurement in
   a single Python-to-Rust boundary crossing
 - `CoreKeyBinding` — native key-binding parsing and matching
+- `CoreTextEditor` — native text-editor state for input components
 - `CoreEvent`, `CoreTickEvent`, `CoreTerminalEventKind` — unified events
 - `CoreTerminalRef` — scope-guarded access to the live native terminal
 
 Rust bindings live in `xnano-core/rust/src/bindings/`. The engine includes
-session, render-tree, content bridge, render IR, key binding, events, clock,
-terminal reset, and panic-hook modules. Rust structs use `Py*`; engine types
-use `Core*`; pointer-backed handles are `unsendable`.
+session, render-tree, content bridge, render IR, key binding, editor, events,
+clock, terminal reset, and panic-hook modules. Rust structs use `Py*`; engine
+types use `Core*`; pointer-backed handles are `unsendable`.
 
-**Layer boundary rule:** Keep public DSL policy in root modules +
-`components/`, shared contracts in `xnano.core`, host implementations in
-`terminal`/`web`/`cli`, private plumbing in top-level `_*.py`, and terminal
+**Layer boundary rule:** Keep public DSL policy in top-level modules +
+`components/`, runtime/paint in `xnano.core`, presentation hosts in
+`terminal`/`web`/`cli`, HTTP in `server/`, helpers in `utils/`, and terminal
 runtime mechanics in `xnano_core`. Application code must use `CoreSession`
-through `Terminal`, never raw native terminal lifecycle or standalone event
-polling. Web must go through `Web` / `WebRenderer` (offscreen `Terminal`),
-not a parallel HTML controller. VHS demo tooling stays under `scripts/`.
+through `Runtime` / `Terminal`, never raw native terminal lifecycle or
+standalone event polling. Web must go through `Web` / `serve_native`
+(offscreen runtime), not a parallel HTML controller. VHS demo tooling stays
+under `scripts/`. Showcase content lives in `xnano.core.demo`.
+
+### Common import patterns
+
+```python
+from xnano import BaseGrid, Field, Terminal, render
+from xnano.hooks import on_keyboard, on_tick, on_click
+from xnano.components.text import Text
+from xnano.context import Context
+
+# Offscreen testing
+terminal = Terminal.offscreen(cols=40, rows=12)
+frame = terminal.render(App())
+assert "Hello" in frame.text
+terminal.close()
+```
 
 ---
 
@@ -184,11 +219,13 @@ not a parallel HTML controller. VHS demo tooling stays under `scripts/`.
 - Standard library (except `typing`): always import the module directly — `import dataclasses`, not `from dataclasses import dataclass`
 - `typing` is the exception: use `from typing import Any, TypeAlias`, etc.
 - External libraries: import module directly if primarily used at top level; use `from lib import submodule` otherwise
+- Inside the package, import from concrete modules (not barrels) — see `scripts/check_import_policy.py`
 - Lines over 79 characters must be wrapped in parentheses
 
 ### Naming
 - No abbreviations: `Terminal` not `Term`, `capabilities` not `caps` — exception only for stdlib names like `repr`
 - Multi-word function names: standalone functions must be multi-word (e.g., `get_name`, `as_rgb`, `get_name_as_rgb`)
+- Public single-word exception: top-level `render()`
 - Class methods that modify in place: single verb (`normalize()`, `capitalize()`)
 
 ### Classes
@@ -204,11 +241,11 @@ not a parallel HTML controller. VHS demo tooling stays under `scripts/`.
 ### Documentation (module headers)
 Every module must start with a header docstring:
 ```python
-"""xnano.grid"""
+"""xnano.grids"""
 ```
 Or if notes are needed:
 ```python
-"""xnano.grid
+"""xnano.grids
 
 ---
 

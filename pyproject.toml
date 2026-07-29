@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.11.26,<0.12"]
+requires = ["uv_build>=0.11.26,<0.13"]
 build-backend = "uv_build"
 
 [tool.uv]
@@ -21,7 +21,7 @@ members = [
 
 [project]
 name = "xnano"
-version = "1.1.7"
+version = "1.1.8"
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "A simple python **tui** framework built on top of the ``[ratatui](https://ratatui.rs)`` and ``[tachyonfx](https://github.com/ratatui/tachyonfx)`` rust crates."
 readme = "README.md"
