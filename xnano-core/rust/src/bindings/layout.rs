@@ -221,6 +221,12 @@ pub enum PyFlex {
     Center,
     SpaceBetween,
     SpaceAround,
+    // Added after ratatui 0.30's CSS-flexbox-aligned Flex rework: the old
+    // ratatui 0.29 `SpaceAround` behavior (equal space between items and
+    // edges) was renamed `SpaceEvenly`, while `SpaceAround` now means
+    // edge-spacing is half of between-item spacing, matching CSS. Appended
+    // at the end so existing `eq_int` discriminants stay stable.
+    SpaceEvenly,
 }
 
 impl From<PyFlex> for Flex {
@@ -232,6 +238,7 @@ impl From<PyFlex> for Flex {
             PyFlex::Center => Flex::Center,
             PyFlex::SpaceBetween => Flex::SpaceBetween,
             PyFlex::SpaceAround => Flex::SpaceAround,
+            PyFlex::SpaceEvenly => Flex::SpaceEvenly,
         }
     }
 }
@@ -455,50 +462,12 @@ impl LayoutSpec {
         layout
     }
 
+    // `ratatui::layout` is a re-export of `ratatui_core::layout` as of
+    // ratatui 0.30's crate split, so `Layout`/`Constraint`/`Flex`/
+    // `Spacing`/`Direction` are the same types either side — no
+    // conversion needed.
     pub(crate) fn to_core(&self) -> ratatui_core::layout::Layout {
-        use ratatui_core::layout::{Constraint as CoreConstraint, Flex as CoreFlex, Layout as CoreLayout, Spacing as CoreSpacing};
-
-        let constraints: Vec<CoreConstraint> = self
-            .constraints
-            .iter()
-            .copied()
-            .map(|c| match c {
-                Constraint::Min(v) => CoreConstraint::Min(v),
-                Constraint::Max(v) => CoreConstraint::Max(v),
-                Constraint::Length(v) => CoreConstraint::Length(v),
-                Constraint::Percentage(v) => CoreConstraint::Percentage(v),
-                Constraint::Ratio(n, d) => CoreConstraint::Ratio(n, d),
-                Constraint::Fill(v) => CoreConstraint::Fill(v),
-            })
-            .collect();
-
-        let spacing = match self.spacing {
-            Spacing::Space(v) => CoreSpacing::Space(v),
-            Spacing::Overlap(v) => CoreSpacing::Overlap(v),
-        };
-
-        let flex = match self.flex {
-            Flex::Legacy => CoreFlex::Legacy,
-            Flex::Start => CoreFlex::Start,
-            Flex::End => CoreFlex::End,
-            Flex::Center => CoreFlex::Center,
-            Flex::SpaceBetween => CoreFlex::SpaceBetween,
-            Flex::SpaceAround => CoreFlex::SpaceAround,
-        };
-
-        let mut layout = CoreLayout::default()
-            .direction(match self.direction {
-                Direction::Horizontal => ratatui_core::layout::Direction::Horizontal,
-                Direction::Vertical => ratatui_core::layout::Direction::Vertical,
-            })
-            .horizontal_margin(self.horizontal_margin)
-            .vertical_margin(self.vertical_margin)
-            .flex(flex)
-            .spacing(spacing);
-        if !constraints.is_empty() {
-            layout = layout.constraints(constraints);
-        }
-        layout
+        self.to_ratatui()
     }
 }
 

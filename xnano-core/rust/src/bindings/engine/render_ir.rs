@@ -932,7 +932,7 @@ impl CoreRenderIR {
                         .map(|(val, blabel, text_val, bstyle, vstyle)| {
                             let mut b = Bar::default()
                                 .value(*val)
-                                .label(blabel.as_str().into())
+                                .label(blabel.as_str())
                                 .style(*bstyle)
                                 .value_style(*vstyle);
                             if let Some(tv) = text_val { b = b.text_value(tv.clone()); }
@@ -940,7 +940,7 @@ impl CoreRenderIR {
                         })
                         .collect();
                     let mut g = BarGroup::default().bars(&rat_bars);
-                    if let Some(lbl) = group_label { g = g.label(lbl.as_str().into()); }
+                    if let Some(lbl) = group_label { g = g.label(lbl.as_str()); }
                     chart = chart.data(g);
                 }
                 Widget::render(chart, rect, buf);

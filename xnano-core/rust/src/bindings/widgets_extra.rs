@@ -6,7 +6,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Position, Rect};
 use ratatui::symbols::Marker;
 use ratatui::text::Line;
-use ratatui::widgets::block::Padding;
+use ratatui::widgets::Padding;
 use ratatui::widgets::canvas::{Canvas, Circle, Line as CanvasLine, Points, Rectangle};
 use ratatui::widgets::{
     Axis, Bar, BarChart, BarGroup, Cell, Chart, Dataset, GraphType, LegendPosition, LineGauge, Row,
