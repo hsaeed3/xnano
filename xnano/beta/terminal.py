@@ -32,6 +32,10 @@ class Terminal(Generic[StateT]):
     ``Terminal`` selects a live session when one is available and otherwise
     uses an offscreen buffer. Use :meth:`offscreen` explicitly in tests.
 
+    Pass ``mouse_events=True`` to receive clicks, drags, hovers, and wheel
+    events — required for click-to-focus and ``@on_click``/``@on_mouse``
+    hooks; it is off by default so a keyboard-only app pays nothing.
+
     Attributes:
         runtime: Runtime owned by the terminal.
         state: Application state shared with event hooks.
@@ -57,10 +61,12 @@ class Terminal(Generic[StateT]):
         state: StateT | None = None,
         title: str | None = None,
         tick_interval: int = 16,
+        mouse_events: bool = False,
     ) -> None:
         self._state = state
         self._title = title
         self._tick_interval = tick_interval
+        self._mouse_events = mouse_events
         self._runtime: Runtime[StateT] | None = None
         self.surface = "terminal"
 
@@ -102,6 +108,7 @@ class Terminal(Generic[StateT]):
                 state=self._state,
                 title=self._title,
                 tick_interval=self._tick_interval,
+                mouse_events=self._mouse_events,
             ).enter()
         else:
             self._runtime = Runtime.offscreen(

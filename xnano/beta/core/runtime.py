@@ -155,9 +155,12 @@ class Runtime(Generic[StateT]):
         state: StateT | None = None,
         title: str | None = None,
         tick_interval: int = 16,
+        mouse_events: bool = False,
     ) -> "Runtime[StateT]":
         """Create a runtime backed by the active terminal."""
         session = CoreSession.init(tick_rate_ms=None)
+        if mouse_events:
+            session.enable_mouse_capture()
         return cls(
             session,
             live=True,
@@ -397,6 +400,9 @@ class Runtime(Generic[StateT]):
             )
             controller.paint_stage()
             controller.commit()
+            from xnano.beta.utils.focus import place_cursor_for_focus
+
+            place_cursor_for_focus(self)
             return
         styled_items = tuple(
             TextBlock(
@@ -571,11 +577,11 @@ class Runtime(Generic[StateT]):
         from xnano.beta.utils.focus import (
             is_focusable_component,
             set_field_focus,
-            spatial_focus_enabled,
         )
 
-        if not spatial_focus_enabled(self):
-            return
+        # A click is an explicit focus request, so — unlike arrow-key
+        # navigation — it is always on and does not require the ``autofocus``
+        # spatial opt-in; the focusability check below still gates it.
         value = getattr(hit.grid, hit.field_name, None)
         if not (
             is_focusable_component(value) or getattr(field, "autofocus", None)
@@ -613,6 +619,10 @@ class Runtime(Generic[StateT]):
                         field = hit.grid._grid_field_info(hit.field_name)
                         self._auto_scroll_wheel(hit, field, mouse.kind)
                         self._click_to_focus(hit, field, mouse.kind)
+                        component = getattr(hit.grid, hit.field_name, None)
+                        hover = getattr(component, "handle_hover", None)
+                        if callable(hover):
+                            hover(mouse.x, mouse.y)
                         event = Event.from_data(
                             MouseEventData(
                                 kind=mouse.kind,

@@ -51,6 +51,12 @@ class Dropdown(Options):
             accepts the current selection first).
     """
 
+    searchable: bool = True
+    """Whether typing while open edits ``query``.
+
+    A dropdown is a search box when expanded, so unlike a plain ``Options``
+    list it defaults to ``True``; set ``False`` for a pick-only dropdown.
+    """
     open: bool = False
     """Whether the options list is expanded."""
     placeholder: str | Any | None = None
