@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import random
 
-from xnano.color import Color, tailwind_color
-from xnano.components.sparkline import Sparkline
+from xnano.colors import Color, tailwind_color
+from xnano.components.bar import Sparkline
 from xnano.components.text import Text
-from xnano.events import on_keyboard, on_tick
 from xnano.fields import Field
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
+from xnano.hooks import on_keyboard, on_tick
 from xnano.terminal import Terminal
 
 _GRADIENT = [
@@ -64,10 +64,12 @@ def _build_gauge(
         [
             Text(
                 f"  {label}: {ratio * 100:.1f}%\n",
-                color=tailwind_color("slate", 300),
+                foreground=tailwind_color("slate", 300),
             ),
-            Text("█" * filled, color=fill_color),
-            Text("░" * (width - filled), color=tailwind_color("slate", 700)),
+            Text("█" * filled, foreground=fill_color),
+            Text(
+                "░" * (width - filled), foreground=tailwind_color("slate", 700)
+            ),
         ]
     )
 
@@ -77,13 +79,13 @@ def _build_table(processes: list, selected: int) -> Text:
     lines: list[str | Text] = [
         Text(
             [
-                Text(f"  {'Process':<16}", color=dim),
-                Text(f"{'CPU %':>6}", color=dim),
-                Text(f"  {'Memory':>8}", color=dim),
-                Text(f"  {'Status'}\n", color=dim),
+                Text(f"  {'Process':<16}", foreground=dim),
+                Text(f"{'CPU %':>6}", foreground=dim),
+                Text(f"  {'Memory':>8}", foreground=dim),
+                Text(f"  {'Status'}\n", foreground=dim),
             ]
         ),
-        Text("  " + "─" * 44 + "\n", color=dim),
+        Text("  " + "─" * 44 + "\n", foreground=dim),
     ]
     for i, (name, cpu, ram, status) in enumerate(processes):
         selected_bg = tailwind_color("violet", 900)
@@ -93,24 +95,24 @@ def _build_table(processes: list, selected: int) -> Text:
                     [
                         Text(
                             f"→ {name:<16}",
-                            color="white",
+                            foreground="white",
                             modifiers=("bold",),
                             background=selected_bg,
                         ),
                         Text(
                             f"{cpu:>6}",
-                            color=tailwind_color("emerald", 400),
+                            foreground=tailwind_color("emerald", 400),
                             modifiers=("bold",),
                             background=selected_bg,
                         ),
                         Text(
                             f"  {ram:>8}",
-                            color=tailwind_color("sky", 400),
+                            foreground=tailwind_color("sky", 400),
                             background=selected_bg,
                         ),
                         Text(
                             f"  {status}\n",
-                            color=tailwind_color("slate", 500),
+                            foreground=tailwind_color("slate", 500),
                             background=selected_bg,
                         ),
                     ]
@@ -120,13 +122,18 @@ def _build_table(processes: list, selected: int) -> Text:
             lines.append(
                 Text(
                     [
-                        Text(f"  {name:<16}", color="white"),
+                        Text(f"  {name:<16}", foreground="white"),
                         Text(
-                            f"{cpu:>6}", color=tailwind_color("emerald", 400)
+                            f"{cpu:>6}",
+                            foreground=tailwind_color("emerald", 400),
                         ),
-                        Text(f"  {ram:>8}", color=tailwind_color("sky", 400)),
                         Text(
-                            f"  {status}\n", color=tailwind_color("slate", 500)
+                            f"  {ram:>8}",
+                            foreground=tailwind_color("sky", 400),
+                        ),
+                        Text(
+                            f"  {status}\n",
+                            foreground=tailwind_color("slate", 500),
                         ),
                     ]
                 )

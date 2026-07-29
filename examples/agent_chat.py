@@ -11,11 +11,11 @@ import textwrap
 import time
 from typing import Iterable, Iterator, Literal, TypeAlias
 
-from xnano.color import Color, ColorLike, tailwind_color
+from xnano.colors import Color, ColorLike, tailwind_color
 from xnano.components.text import Text
-from xnano.events import on_keyboard, on_mouse, on_tick
 from xnano.fields import Field
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
+from xnano.hooks import on_keyboard, on_mouse, on_tick
 from xnano.terminal import Terminal
 from xnano.types import CharacterModifier
 
@@ -136,15 +136,15 @@ def _wrapped_row(
     is_first = index == 0
     return Text(
         [
-            Text(rail, color=rail_color),
+            Text(rail, foreground=rail_color),
             Text(
                 lead if is_first else " " * len(lead),
-                color=lead_color,
+                foreground=lead_color,
                 modifiers=lead_modifiers if is_first else (),
             ),
             Text(
                 rows[index] + "\n",
-                color=text_color,
+                foreground=text_color,
                 background=text_background,
             ),
         ]
@@ -329,18 +329,18 @@ def _render_autocomplete(
                 [
                     Text(
                         prefix,
-                        color=tailwind_color("violet", 400),
+                        foreground=tailwind_color("violet", 400),
                         background=background,
                     ),
                     Text(
                         f"{command:<12}",
-                        color=command_color,
+                        foreground=command_color,
                         modifiers=("bold",) if is_selected else (),
                         background=background,
                     ),
                     Text(
                         f" {description}\n",
-                        color=description_color,
+                        foreground=description_color,
                         background=background,
                     ),
                 ]

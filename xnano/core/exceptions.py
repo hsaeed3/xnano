@@ -2,8 +2,7 @@
 
 ---
 
-Framework exceptions for session exit, hook failures, field validation,
-inactive terminals, and missing optional extras.
+Errors raised by runtimes, hooks, fields, and optional components.
 """
 
 from __future__ import annotations
@@ -11,22 +10,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pydantic_core import ValidationError
+    from pydantic_core import ValidationError as PydanticValidationError
 
 
 class Exit(BaseException):
-    """Exception that can be raised within an `@on_<event>` hook to request
-    the exit of the current live terminal session.
-    """
+    """Request that the active runtime stop."""
 
 
 class HookError(RuntimeError):
-    """Raised when an ``@on_*`` hook fails in a way that needs a clear surface.
-
-    The default dispatch policy logs the original exception and re-raises it
-    unchanged so callers see the real traceback.  ``HookError`` is available
-    for libraries that want to wrap hook failures explicitly.
-    """
+    """Report a hook failure while preserving its original cause."""
 
     def __init__(self, hook_name: str, cause: BaseException) -> None:
         self.hook_name = hook_name
@@ -36,68 +28,51 @@ class HookError(RuntimeError):
 
 
 class FieldValidationError(ValueError):
-    """Exception raised when a ``pydantic-core`` validation error occurs during
-    the strict validation of a grid field attribute(s).
-    """
+    """Report strict validation failure for a grid field."""
 
     def __init__(
         self,
         field_name: str,
-        validation_error: ValidationError,
+        validation_error: "PydanticValidationError",
     ) -> None:
-        message = (
-            "``pydantic-core.ValidationError`` occured during the initial or "
-            f"refresh validation of the ``{field_name}`` field.\n"
-            f"Error details: {validation_error.errors()}"
+        super().__init__(
+            f"Field {field_name!r} failed validation: "
+            f"{validation_error.errors()}"
         )
-        super().__init__(message)
 
 
 class TerminalNotActiveError(RuntimeError):
-    """Exception raised when a live session-based operation is attempted on a
-    terminal instance that is is not within the live session context.
-    """
+    """Report an operation that requires an active live runtime."""
 
     def __init__(self) -> None:
-        super().__init__(
-            "This terminal instance is not active. Please use the ``with Terminal(...) as terminal:`` "
-            "context manager to set this terminal as the live instance."
-        )
+        super().__init__("This operation requires an active live runtime.")
 
 
 class ExtraNotInstalledError(RuntimeError):
-    """Exception called internally by the library when a component requiring additional
-    dependencies has not been satisfied.
-    """
+    """Report a missing optional dependency."""
 
     def __init__(self, extra: str) -> None:
-        if extra == "requests":
-            # Kept for backward-compatible error codes. Request hooks and
-            # the Web host now use the stdlib server and need no extra.
+        if extra == "images":
             message = (
-                "The `requests` extra is no longer required: "
-                "`@on_*_request` hooks and `Web` use the built-in stdlib "
-                "server. Upgrade xnano if you still see this error from "
-                "an older install."
+                "Image rendering requires Pillow. Install `xnano[images]` "
+                "or `pillow`."
             )
-        elif extra == "images":
-            message = (
-                "Image rendering requires the `pillow` package. Install "
-                "it with:\n"
-                "`pip install 'xnano[images]'`\n"
-                "or\n"
-                "`pip install pillow`"
-            )
+        elif extra == "requests":
+            message = "HTTP request hooks use the standard library."
         else:
             raise ValueError(f"Unknown extra: {extra}")
-
         super().__init__(message)
 
 
+ValidationError = FieldValidationError
+XnanoError = RuntimeError
+
 __all__ = (
     "Exit",
-    "HookError",
-    "FieldValidationError",
-    "TerminalNotActiveError",
     "ExtraNotInstalledError",
+    "FieldValidationError",
+    "HookError",
+    "TerminalNotActiveError",
+    "ValidationError",
+    "XnanoError",
 )

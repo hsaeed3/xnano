@@ -2,8 +2,7 @@
 
 ---
 
-``Text`` component for styled strings, inline spans, paragraphs, and
-editable input fields.
+Display styled text, nested spans, ANSI, Markdown, or highlighted source code.
 """
 
 from __future__ import annotations
@@ -11,118 +10,125 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, Sequence
 
-from xnano._types import Alignment, CharacterModifier
-from xnano.components.abstract import AbstractComponent
+from xnano.components.component import Component, ComponentRenderContext
+from xnano.core.content import Native, Panel, Run, TextBlock
+from xnano.types import Alignment, CharacterModifier
+from xnano.utils.deprecation import color_alias_dataclass
 
 if TYPE_CHECKING:
-    from xnano.color import ColorLike
-    from xnano.components.abstract import ComponentRenderContext
+    from xnano.colors import ColorLike
     from xnano.events import KeyboardEventData
-    from xnano.terminal.nodes import AbstractTerminalNode, LineNode
 
 
+@color_alias_dataclass
 @dataclasses.dataclass
-class Text(AbstractComponent):
-    """Unified text component that adapts its render node based on structure.
+class Text(Component):
+    """Display styled, marked-up, highlighted, or editable text.
 
-    Structural modes, all through one class:
+    Nest ``Text`` values for independently styled spans. Enable ANSI,
+    Markdown, or syntax highlighting for formatted content, or set ``input``
+    to make a leaf editable.
 
-    **Leaf** — a single styled string (renders as
-    [`SpanNode`](../terminal/nodes.md#xnano.terminal.nodes.SpanNode){data-preview}
-    when nested,
-    [`ParagraphNode`](../terminal/nodes.md#xnano.terminal.nodes.ParagraphNode){data-preview}
-    at top level):
+    Example:
+        ``Text(content="Ready", color="green", modifiers=("bold",))``
 
-        Text("hello world", color="red", modifiers=("bold",))
-
-    **Line** — inline spans composed via a list of ``Text`` children where
-    every child is itself a leaf (renders as
-    [`LineNode`](../terminal/nodes.md#xnano.terminal.nodes.LineNode){data-preview}):
-
-        Text([Text("Hello ", color="cyan"), Text("world", color="red")])
-
-    **Paragraph** — multiple lines composed via a list of ``Text`` children
-    where at least one child is itself a line (renders as
-    [`ParagraphNode`](../terminal/nodes.md#xnano.terminal.nodes.ParagraphNode){data-preview}
-    wrapping a
-    [`TextNode`](../terminal/nodes.md#xnano.terminal.nodes.TextNode){data-preview}):
-
-        Text([
-            Text([Text("Hello ", color="cyan"), Text("world")]),
-            Text("Second line", color="blue"),
-        ])
-
-    **Input** — set ``input=True`` on a leaf ``Text`` placed in a grid field
-    to make it focusable and editable (tab order, caret, placeholder).
-    Add ``multiline=True`` (and optional ``rows``) for multi-line editing
-    backed by ``CoreTextEditor``:
-
-        class Form(BaseGrid):
-            name: Text = Field(
-                default=Text("", input=True, placeholder="your name"),
-            )
-            notes: Text = Field(
-                default=Text("", input=True, multiline=True, rows=5),
-            )
-
-    **Display modes** (mutually exclusive with each other and with
-    ``input``) parse a leaf string before styling:
-
-    - ``ansi=True`` — SGR sequences (subprocess/Rich/pytest output)
-    - ``markdown=True`` — headings, emphasis, lists, fenced code
-    - ``language="python"`` — Pygments syntax highlighting only
-
-    All modes share the same styling params: ``color``, ``background``,
-    ``modifiers``.  ``align`` and ``wrap`` apply at the paragraph level.
+    Attributes:
+        content: Plain string, nested ``Text``, or list of either.
+        foreground: Foreground color (deprecated alias: ``color``).
+        background: Background color.
+        modifiers: Character modifiers such as bold or underline.
+        align: Horizontal alignment at the paragraph level.
+        wrap: Whether long lines may wrap.
+        input: When ``True`` on a leaf, participates in field focus.
+        placeholder: Shown when input is empty and unfocused.
+        cursor: Caret index for single-line input; ``None`` means end.
+        multiline: Use ``CoreTextEditor`` when combined with ``input``.
+        rows: Preferred visible height for multiline input.
+        ansi: Parse ANSI SGR sequences in leaf content.
+        markdown: Parse markdown in leaf content.
+        language: Pygments lexer name for syntax highlighting.
+        passthrough: Key bindings never captured while focused.
+        mask: Single-character display mask (password style).
+        max_length: Optional clamp on the plain-string value.
+        read_only: Reject edits while remaining focusable.
+        tab_size: Tab width for multiline tab expansion.
+        focusable: Whether this component takes field focus.
+        fill: Whether ``background`` fills the whole slot, not only glyphs.
     """
 
     content: str | Text | list[str | Text] = dataclasses.field(default="")
-    color: ColorLike | None = None
+    """Plain string, nested ``Text``, or a list of either."""
+    foreground: ColorLike | None = None
+    """Foreground color (deprecated alias: ``color``)."""
     background: ColorLike | None = None
+    """Background color."""
     modifiers: tuple[CharacterModifier, ...] = ()
+    """Character modifiers such as bold or underline."""
     align: Alignment | None = None
+    """Horizontal alignment at the paragraph level."""
     wrap: bool = True
+    """Whether long lines may wrap."""
     input: bool = False
-    """When ``True`` on a leaf ``Text``, the component is an editable field
-    that participates in field focus (tab order) and receives keyboard input
-    while focused."""
+    """When ``True`` on a leaf, the component is an editable field."""
     placeholder: str | Text | None = None
-    """Shown when ``input`` is enabled, the content is empty, and the field
-    is not focused.  A string is rendered dim; a ``Text`` keeps its styling."""
+    """Shown when input is empty and unfocused."""
     cursor: int | None = None
-    """Caret index into ``content`` when ``input`` is enabled; ``None`` means
-    the end of the string."""
+    """Caret index for single-line input; ``None`` means end of string."""
     multiline: bool = False
-    """When ``True`` together with ``input``, editing is backed by the
-    native ``CoreTextEditor`` engine: multi-line content, undo/redo, and
-    an in-buffer caret. Single-line inputs keep the lightweight path."""
+    """When ``True`` with ``input``, editing uses ``CoreTextEditor``."""
     rows: int | None = None
-    """Preferred visible height (in lines) for a ``multiline`` input;
-    ``None`` sizes to the content."""
+    """Preferred visible height (lines) for a multiline input."""
     ansi: bool = False
-    """When ``True`` on a leaf ``Text``, ANSI escape sequences in
-    ``content`` (subprocess output, Rich/pytest colors, …) are parsed
-    into styled runs instead of rendering as raw escapes."""
+    """Parse ANSI SGR sequences in leaf content."""
     markdown: bool = False
-    """When ``True`` on a leaf ``Text``, ``content`` is parsed as
-    markdown: headings, emphasis, lists, blockquotes, and fenced code
-    blocks (highlighted by their fence language tag)."""
+    """Parse leaf content as markdown."""
     language: str | None = None
-    """Syntax-highlight ``content`` as this language (a Pygments lexer
-    name such as ``"python"``); no markdown parsing."""
+    """Pygments lexer name for syntax highlighting only."""
     passthrough: Sequence[str] = ()
-    """Key bindings this input never captures, even while focused (e.g.
-    ``("ctrl+c", "up", "down")``) — ``handle_keyboard`` returns ``False``
-    for them immediately, so they bubble to ``@on_keyboard`` app hooks
-    instead of being consumed as text editing."""
-    _input_focused: bool = dataclasses.field(
-        default=False, init=False, repr=False, compare=False
-    )
+    """Key bindings this input never captures while focused."""
+    mask: str | None = None
+    """Display-only mask character(s); real ``value`` is preserved."""
+    max_length: int | None = None
+    """Maximum plain-string length; longer input is clamped."""
+    read_only: bool = False
+    """Reject edits while remaining focusable."""
+    tab_size: int = 4
+    """Tab width applied to multiline tab insertion and paste."""
+    focusable: bool = False
+    """Whether this component participates in field focus."""
+    fill: bool = False
+    """Whether ``background`` fills the whole slot rather than only the
+    text glyphs. When ``True`` short lines still paint the background across
+    the full cell width (no manual right-padding required).
+    """
+
     _editor: Any = dataclasses.field(
         default=None, init=False, repr=False, compare=False
     )
+    _markup_cache_key: tuple[str, bool, bool, str | None] | None = (
+        dataclasses.field(default=None, init=False, repr=False, compare=False)
+    )
+    _markup_cache_lines: tuple[tuple[Any, ...], ...] | None = (
+        dataclasses.field(default=None, init=False, repr=False, compare=False)
+    )
 
-    def __post_init__(self) -> None:
+    def component_post_init(self) -> None:
+        """Validate modes and initialize the native editor when needed."""
+        self._validate_display_modes()
+        if self.input:
+            self.focusable = True
+        self._sync_editor_state()
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        object.__setattr__(self, name, value)
+        # Keep editor text aligned when content is assigned after init.
+        if name == "content" and isinstance(value, str):
+            editor = object.__getattribute__(self, "__dict__").get("_editor")
+            if editor is not None and editor.text() != value:
+                editor.set_text(value)
+
+    def _validate_display_modes(self) -> None:
+        """Raise when mutually exclusive display modes are combined."""
         display_modes = [
             name
             for name, enabled in (
@@ -140,22 +146,35 @@ class Text(AbstractComponent):
                 f"Text({conflict}) is invalid: ansi, markdown, language, "
                 "and input are mutually exclusive."
             )
-        if self.multiline and self.input and isinstance(self.content, str):
-            from xnano_core.core import CoreTextEditor
 
-            self._editor = CoreTextEditor(self.content)
+    def _sync_editor_state(self) -> None:
+        """Create, update, or tear down the native editor as needed."""
+        want_editor = (
+            self.multiline and self.input and isinstance(self.content, str)
+        )
+        if want_editor:
+            if self._editor is None:
+                from xnano_core.core import CoreTextEditor
+
+                self._editor = CoreTextEditor(self.content)
+            else:
+                current = self._editor.text()
+                if current != self.content:
+                    # Prefer editor text when it already diverged.
+                    if self.content == "" and current:
+                        object.__setattr__(self, "content", current)
+                    elif self.content != current:
+                        self._editor.set_text(self.content)
             placeholder = self._placeholder_string()
             if placeholder:
                 self._editor.set_placeholder_text(placeholder)
+        elif self._editor is not None:
+            object.__setattr__(self, "content", self._editor.text())
+            self._editor = None
 
     def _is_leaf(self) -> bool:
-        """True when this node holds a plain string (no nested Text children)."""
+        """True when this node holds a plain string."""
         return isinstance(self.content, str)
-
-    @property
-    def focusable(self) -> bool:
-        """Whether this Text participates in field focus (tab order)."""
-        return bool(self.input)
 
     @property
     def owns_cursor(self) -> bool:
@@ -164,7 +183,7 @@ class Text(AbstractComponent):
 
     @property
     def value(self) -> str:
-        """Plain-string content for leaf ``Text``; empty string otherwise."""
+        """Canonical plain-string content for leaf and input modes."""
         if self._editor is not None:
             return self._editor.text()
         if isinstance(self.content, str):
@@ -173,11 +192,21 @@ class Text(AbstractComponent):
 
     @value.setter
     def value(self, text: str) -> None:
+        if self.max_length is not None:
+            text = text[: self.max_length]
         if self._editor is not None:
             self._editor.set_text(text)
-        self.content = text
+        object.__setattr__(self, "content", text)
         if self.cursor is not None:
             self.cursor = max(0, min(self.cursor, len(text)))
+
+    def _clamp_text(self, text: str) -> str:
+        """Apply ``max_length`` and ``tab_size`` expansion to ``text``."""
+        if self.tab_size > 0 and "\t" in text:
+            text = text.expandtabs(self.tab_size)
+        if self.max_length is not None:
+            text = text[: self.max_length]
+        return text
 
     def handle_paste(self, text: str) -> bool:
         """Insert pasted text at the caret of a multi-line editor.
@@ -190,29 +219,54 @@ class Text(AbstractComponent):
         """
         if self._editor is None:
             return False
+        if self.read_only:
+            return True
+        text = self._clamp_text(text)
+        if self.max_length is not None:
+            remaining = self.max_length - len(self._editor.text())
+            if remaining <= 0:
+                return True
+            text = text[:remaining]
         self._editor.insert_text(text)
-        self.content = self._editor.text()
+        object.__setattr__(self, "content", self._editor.text())
         return True
 
     def _markup_lines(self) -> tuple[tuple[Any, ...], ...] | None:
         """Run lines for ansi/markdown/language modes; None otherwise."""
         if not isinstance(self.content, str):
             return None
+        if not (self.ansi or self.markdown or self.language is not None):
+            return None
+        key: tuple[str, bool, bool, str | None] = (
+            self.content,
+            self.ansi,
+            self.markdown,
+            self.language,
+        )
+        if (
+            self._markup_cache_key == key
+            and self._markup_cache_lines is not None
+        ):
+            return self._markup_cache_lines
+        lines: tuple[tuple[Any, ...], ...] | None = None
         if self.ansi:
-            from xnano._markup import parse_ansi_lines
+            from xnano.utils.markup import parse_ansi_lines
 
-            return parse_ansi_lines(self.content)
-        if self.markdown:
-            from xnano._markup import markdown_lines
+            lines = parse_ansi_lines(self.content)
+        elif self.markdown:
+            from xnano.utils.markup import markdown_lines
 
-            return markdown_lines(self.content)
-        if self.language is not None:
-            from xnano._markup import highlight_lines
+            lines = markdown_lines(self.content)
+        elif self.language is not None:
+            from xnano.utils.markup import highlight_lines
 
-            return highlight_lines(self.content, self.language)
-        return None
+            lines = highlight_lines(self.content, self.language)
+        self._markup_cache_key = key
+        self._markup_cache_lines = lines
+        return lines
 
     def _placeholder_string(self) -> str | None:
+        """Plain placeholder string when one is configured."""
         if self.placeholder is None:
             return None
         if isinstance(self.placeholder, str):
@@ -223,8 +277,17 @@ class Text(AbstractComponent):
             return self.placeholder.content
         return None
 
-    def _input_display_content(self) -> tuple[str, ColorLike | None, bool]:
-        """Return ``(text, color_override, is_placeholder)`` for input mode."""
+    def _mask_text(self, text: str) -> str:
+        """Return ``text`` with each character replaced by the mask."""
+        if not self.mask:
+            return text
+        glyph = self.mask[:1]
+        return glyph * len(text)
+
+    def _input_display_content(
+        self,
+    ) -> tuple[str, ColorLike | None, bool]:
+        """Return ``(text, color_override, is_placeholder)`` for input."""
         if not isinstance(self.content, str):
             return ("", None, False)
         if (
@@ -236,23 +299,23 @@ class Text(AbstractComponent):
                 if isinstance(self.placeholder.content, str):
                     return (
                         self.placeholder.content,
-                        self.placeholder.color or "gray",
+                        self.placeholder.foreground or "gray",
                         True,
                     )
             else:
                 return (self.placeholder, "gray", True)
+        display = self._mask_text(self.content)
         if self._input_focused and self.input:
             position = (
                 self.cursor if self.cursor is not None else len(self.content)
             )
             position = max(0, min(position, len(self.content)))
-            # Visible caret between characters (hardware cursor is also moved).
             return (
-                self.content[:position] + "▌" + self.content[position:],
+                display[:position] + "▌" + display[position:],
                 None,
                 False,
             )
-        return (self.content, None, False)
+        return (display, None, False)
 
     def _as_children(self) -> list[Text]:
         """Normalize content to a flat list of Text children."""
@@ -268,9 +331,8 @@ class Text(AbstractComponent):
                 result.append(item)
         return result
 
-    def _to_span_node(self) -> AbstractTerminalNode:
-        from xnano.terminal.nodes import SpanNode
-
+    def _to_span_node(self) -> Run:
+        """Return this leaf as one styled text run."""
         if isinstance(self.content, str):
             text_str = self.content
         elif isinstance(self.content, Text):
@@ -281,11 +343,11 @@ class Text(AbstractComponent):
             )
         else:
             text_str = ""
-        return SpanNode(
-            content=text_str,
-            color=self.color,
+        return Run(
+            text=text_str,
+            color=self.foreground,
             background=self.background,
-            modifiers=list(self.modifiers),
+            modifiers=tuple(self.modifiers),
         )
 
     def _leaf_children_have_embedded_newlines(
@@ -301,80 +363,75 @@ class Text(AbstractComponent):
     def _build_line_nodes_from_leaf_children(
         self,
         children: list[Text],
-    ) -> list[LineNode]:
-        """Expand leaf children into one line node per text row."""
-        from xnano.terminal.nodes import LineNode
-
-        line_nodes: list[LineNode] = []
+    ) -> list[tuple[Run, ...]]:
+        """Expand leaf children into styled text rows."""
+        lines: list[tuple[Run, ...]] = []
         for child in children:
             if not isinstance(child.content, str):
                 continue
             for segment in child.content.split("\n"):
-                line_nodes.append(
-                    LineNode(
-                        content=segment,
-                        color=child.color,
-                        background=child.background,
-                        modifiers=list(child.modifiers),
+                lines.append(
+                    (
+                        Run(
+                            text=segment,
+                            color=child.foreground,
+                            background=child.background,
+                            modifiers=tuple(child.modifiers),
+                        ),
                     )
                 )
-        return line_nodes
+        return lines
 
-    def _to_line_node(
-        self, ctx: ComponentRenderContext
-    ) -> AbstractTerminalNode:
-        from xnano.terminal.nodes import LineNode, SpanNode
-
+    def _to_line_node(self, ctx: ComponentRenderContext[Any]) -> TextBlock:
+        """Return this value as one interface-neutral text block."""
         if isinstance(self.content, str):
-            return LineNode(
-                content=self.content,
-                color=self.color,
+            return TextBlock(
+                text=self.content,
+                color=self.foreground,
                 background=self.background,
-                modifiers=list(self.modifiers),
+                modifiers=tuple(self.modifiers),
             )
         children = self._as_children()
-        spans: list[SpanNode] = []
-        for child in children:
-            node = child._to_span_node()
-            if isinstance(node, SpanNode):
-                spans.append(node)
-        return LineNode(
-            content=spans,
-            color=self.color,
+        spans = [child._to_span_node() for child in children]
+        return TextBlock(
+            lines=(tuple(spans),),
+            color=self.foreground,
             background=self.background,
-            modifiers=list(self.modifiers),
+            modifiers=tuple(self.modifiers),
         )
 
-    def compose(self, ctx: ComponentRenderContext):
-        """Compose interface-neutral
-        [`Content`](../core/content.md#xnano.core.content.Content){data-preview}
-        for this Text.
+    def compose(
+        self, ctx: ComponentRenderContext[Any]
+    ) -> TextBlock | Native | Panel | None:
+        """Compose interface-neutral content for this Text.
 
-        Controllers lower the result; ``get_terminal_node`` remains a
-        thin adapter that lowers the same
-        [`Content`](../core/content.md#xnano.core.content.Content){data-preview}
-        for older call sites.
+        Args:
+            ctx: Render-time scope for this paint.
+
+        Returns:
+            A ``TextBlock``, ``Native`` editor payload, or nested content.
+            When ``fill`` is set the block is wrapped in a background
+            ``Panel`` so the color spans the full slot.
         """
-        from xnano.core.content import Native, Run, TextBlock
+        content = self._compose_content(ctx)
+        if (
+            self.fill
+            and self.background is not None
+            and isinstance(content, TextBlock)
+        ):
+            return Panel(child=content, background=self.background)
+        return content
 
-        # Native multi-line editor: the engine owns content and caret.
+    def _compose_content(
+        self, ctx: ComponentRenderContext[Any]
+    ) -> TextBlock | Native | Panel | None:
+        """Compose the interface-neutral content, without fill wrapping."""
+        self._sync_editor_state()
+
         if self._editor is not None:
-            from xnano.terminal.nodes import EditorNode
-
-            return Native(
-                interface_kind="tui",
-                payload=EditorNode(editor=self._editor, rows=self.rows),
-                z=self.z,
-                visible=self.visible,
-            )
-
-        # Pre-styled content (ANSI, markdown, highlighted code): parse
-        # into run lines once, render as a plain TextBlock.
-        markup_lines = self._markup_lines()
-        if markup_lines is not None:
             return TextBlock(
-                lines=markup_lines,
-                color=self.color,
+                text=self.value,
+                color=self.foreground,
                 background=self.background,
                 modifiers=self.modifiers,
                 align=self.align,
@@ -383,10 +440,22 @@ class Text(AbstractComponent):
                 visible=self.visible,
             )
 
-        # Leaf: single string
+        markup_lines = self._markup_lines()
+        if markup_lines is not None:
+            return TextBlock(
+                lines=markup_lines,
+                color=self.foreground,
+                background=self.background,
+                modifiers=self.modifiers,
+                align=self.align,
+                wrap=self.wrap,
+                z=self.z,
+                visible=self.visible,
+            )
+
         if isinstance(self.content, str):
             text_str = self.content
-            color = self.color
+            color = self.foreground
             modifiers = self.modifiers
             if self.input:
                 text_str, color_override, is_placeholder = (
@@ -413,9 +482,6 @@ class Text(AbstractComponent):
         children = self._as_children()
         all_leaves = all(child._is_leaf() for child in children)
 
-        # Simple one-line leaf spans → Content TextBlock. Nested lines,
-        # embedded newlines, and mixed trees keep full fidelity through
-        # Native wrapping of the existing node assembly path.
         if all_leaves and not self._leaf_children_have_embedded_newlines(
             children
         ):
@@ -425,14 +491,14 @@ class Text(AbstractComponent):
                     runs.append(
                         Run(
                             text=child.content,
-                            color=child.color,
+                            color=child.foreground,
                             background=child.background,
                             modifiers=tuple(child.modifiers),
                         )
                     )
             return TextBlock(
                 lines=(tuple(runs),),
-                color=self.color,
+                color=self.foreground,
                 background=self.background,
                 modifiers=tuple(self.modifiers),
                 align=self.align,
@@ -441,20 +507,27 @@ class Text(AbstractComponent):
                 visible=self.visible,
             )
 
-        return Native(
-            interface_kind="tui",
-            payload=self._compose_terminal_node(ctx),
+        lines: list[tuple[Run, ...]] = []
+        for child in children:
+            if not isinstance(child.content, str):
+                continue
+            lines.extend(child._build_line_nodes_from_leaf_children([child]))
+        return TextBlock(
+            lines=tuple(lines),
+            color=self.foreground,
+            background=self.background,
+            modifiers=self.modifiers,
+            align=self.align,
+            wrap=self.wrap,
             z=self.z,
             visible=self.visible,
         )
 
     def handle_keyboard(self, keyboard: "KeyboardEventData") -> bool:
-        """Apply a keyboard event while this Text is a focused input.
+        """Edit this text when it has focus.
 
-        Component-owned input path; hosts call this through the shared
-        focus dispatch. Multi-line inputs forward the native key event
-        into the ``CoreTextEditor`` engine; single-line inputs use the
-        lightweight pure-Python path.
+        Passthrough bindings remain available to hooks. Read-only inputs reject
+        edits, and ``max_length`` limits inserted content.
 
         Args:
             keyboard: The keyboard event payload.
@@ -464,137 +537,137 @@ class Text(AbstractComponent):
         """
         if self.passthrough and keyboard.matches(*self.passthrough):
             return False
-        if self._editor is not None:
-            native = getattr(keyboard, "_native_event", None)
-            if native is None:
-                return False
-            consumed = bool(self._editor.input(native))
-            if consumed:
-                self.content = self._editor.text()
-            return consumed
-        from xnano._types import apply_text_keyboard
+        if not self.input:
+            return False
 
-        return apply_text_keyboard(self, keyboard)
+        if self._editor is not None:
+            return self._handle_editor_keyboard(keyboard)
+        return self._handle_single_line_keyboard(keyboard)
+
+    def _handle_editor_keyboard(self, keyboard: "KeyboardEventData") -> bool:
+        """Forward a key into the native multi-line editor."""
+        native = getattr(keyboard, "_native_event", None)
+        if native is None:
+            return False
+        before = self._editor.text()
+        if self.read_only:
+            consumed = bool(self._editor.input(native))
+            if self._editor.text() != before:
+                self._editor.set_text(before)
+                return True
+            return consumed
+        consumed = bool(self._editor.input(native))
+        if not consumed:
+            return False
+        text = self._editor.text()
+        if self.max_length is not None and len(text) > self.max_length:
+            text = text[: self.max_length]
+            self._editor.set_text(text)
+        if self.tab_size > 0 and "\t" in text:
+            expanded = text.expandtabs(self.tab_size)
+            if expanded != text:
+                if (
+                    self.max_length is not None
+                    and len(expanded) > self.max_length
+                ):
+                    expanded = expanded[: self.max_length]
+                self._editor.set_text(expanded)
+                text = expanded
+        object.__setattr__(self, "content", text)
+        return True
+
+    def _handle_single_line_keyboard(
+        self, keyboard: "KeyboardEventData"
+    ) -> bool:
+        """Lightweight single-line editing with mask/max_length/read_only."""
+        if not isinstance(self.content, str):
+            return False
+        kind = keyboard.kind
+        if kind is not None and kind not in ("press", "repeat"):
+            return False
+
+        content = self.content
+        position = self.cursor if self.cursor is not None else len(content)
+        position = max(0, min(position, len(content)))
+
+        if keyboard.matches("backspace"):
+            if self.read_only:
+                return True
+            if position > 0:
+                object.__setattr__(
+                    self,
+                    "content",
+                    content[: position - 1] + content[position:],
+                )
+                self.cursor = position - 1
+            return True
+        if keyboard.matches("delete"):
+            if self.read_only:
+                return True
+            if position < len(content):
+                object.__setattr__(
+                    self,
+                    "content",
+                    content[:position] + content[position + 1 :],
+                )
+                self.cursor = position
+            return True
+        if keyboard.matches("left"):
+            self.cursor = max(0, position - 1)
+            return True
+        if keyboard.matches("right"):
+            self.cursor = min(len(content), position + 1)
+            return True
+        if keyboard.matches("home"):
+            self.cursor = 0
+            return True
+        if keyboard.matches("end"):
+            self.cursor = len(content)
+            return True
+        if keyboard.matches(
+            "tab",
+            "backtab",
+            "enter",
+            "esc",
+            "up",
+            "down",
+            "pageup",
+            "pagedown",
+        ):
+            return False
+
+        character = keyboard.character
+        if (
+            character is not None
+            and len(character) == 1
+            and character.isprintable()
+            and character not in ("\n", "\r", "\t")
+        ):
+            if self.read_only:
+                return True
+            if self.max_length is not None and len(content) >= self.max_length:
+                return True
+            object.__setattr__(
+                self,
+                "content",
+                content[:position] + character + content[position:],
+            )
+            self.cursor = position + 1
+            return True
+        return False
 
     def get_terminal_node(
-        self, ctx: ComponentRenderContext
-    ) -> AbstractTerminalNode:
-        """Lower ``compose()`` output to a terminal render node."""
-        from xnano.core.content import Native
-        from xnano.terminal.content_lower import lower_content
-        from xnano.terminal.nodes import AbstractTerminalNode as TerminalNode
+        self, ctx: ComponentRenderContext[Any]
+    ) -> TextBlock | Native | Panel | None:
+        """Return composed content for terminal compatibility.
 
-        content = self.compose(ctx)
-        if content is not None:
-            if isinstance(content, Native) and isinstance(
-                content.payload, TerminalNode
-            ):
-                return content.payload
-            node = lower_content(content)
-            if node is not None:
-                return node
-        return self._compose_terminal_node(ctx)
+        Args:
+            ctx: Render-time scope for this paint.
 
-    def _compose_terminal_node(
-        self, ctx: ComponentRenderContext
-    ) -> AbstractTerminalNode:
-        from xnano.terminal.nodes import (
-            LineNode,
-            ParagraphNode,
-            SpanNode,
-            TextNode,
-        )
-
-        # Leaf: single string — paragraph wrapping plain text
-        if isinstance(self.content, str):
-            text_str = self.content
-            color = self.color
-            modifiers = self.modifiers
-            if self.input:
-                text_str, color_override, is_placeholder = (
-                    self._input_display_content()
-                )
-                if color_override is not None:
-                    color = color_override
-                if is_placeholder and not modifiers:
-                    modifiers = ("dim",)
-            return ParagraphNode(
-                text=text_str,
-                color=color,
-                background=self.background,
-                modifiers=modifiers,
-                align=self.align,
-                wrap=self.wrap,
-            )
-
-        # Single nested Text — delegate
-        if isinstance(self.content, Text):
-            return self.content.get_terminal_node(ctx)
-
-        # List variant: normalise to Text children
-        children = self._as_children()
-        all_leaves = all(child._is_leaf() for child in children)
-
-        if all_leaves:
-            if self._leaf_children_have_embedded_newlines(children):
-                text_node = TextNode(
-                    lines=self._build_line_nodes_from_leaf_children(children),
-                    color=self.color,
-                    background=self.background,
-                    modifiers=self.modifiers,
-                    align=self.align,
-                )
-                return ParagraphNode(
-                    text=text_node,
-                    color=self.color,
-                    background=self.background,
-                    modifiers=self.modifiers,
-                    align=self.align,
-                    wrap=self.wrap,
-                )
-
-            # All children are plain strings on one row → inline spans
-            spans: list[SpanNode] = []
-            for child in children:
-                node = child._to_span_node()
-                if isinstance(node, SpanNode):
-                    spans.append(node)
-            line = LineNode(
-                content=spans,
-                color=self.color,
-                background=self.background,
-                modifiers=list(self.modifiers),
-            )
-            return ParagraphNode(
-                text=line,
-                color=self.color,
-                background=self.background,
-                modifiers=self.modifiers,
-                align=self.align,
-                wrap=self.wrap,
-            )
-
-        # Mixed or multi-line: each child is a line
-        line_nodes: list[LineNode] = []
-        for child in children:
-            node = child._to_line_node(ctx)
-            if isinstance(node, LineNode):
-                line_nodes.append(node)
-        text_node = TextNode(
-            lines=line_nodes,
-            color=self.color,
-            background=self.background,
-            modifiers=self.modifiers,
-            align=self.align,
-        )
-        return ParagraphNode(
-            text=text_node,
-            color=self.color,
-            background=self.background,
-            modifiers=self.modifiers,
-            align=self.align,
-            wrap=self.wrap,
-        )
+        Returns:
+            The same interface-neutral content as ``compose``.
+        """
+        return self.compose(ctx)
 
 
 __all__ = ("Text",)

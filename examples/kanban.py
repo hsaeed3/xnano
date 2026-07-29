@@ -16,14 +16,11 @@ import random
 import time
 from typing import Literal, cast
 
-from xnano.color import ColorLike, tailwind_color
-from xnano.components.abstract import (
-    AbstractComponent,
-    ComponentRenderContext,
-)
-from xnano.events import on_keyboard, on_tick
+from xnano.colors import ColorLike, tailwind_color
+from xnano.components.component import Component
 from xnano.fields import Field
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
+from xnano.hooks import on_keyboard, on_tick
 from xnano.terminal import Terminal
 
 # ── Palette ───────────────────────────────────────────────────────────────────
@@ -156,56 +153,50 @@ def _seed_velocity() -> list[int]:
 
 
 @dataclasses.dataclass
-class BoardTabs(AbstractComponent):
+class BoardTabs(Component):
     active: int = 0
     counts: list = dataclasses.field(default_factory=lambda: [0, 0, 0])
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import LineNode, SpanNode, TabsNode
+    def compose(self, ctx):
+        from xnano.core.content import Run, TextBlock
 
-        titles: list[str | LineNode | SpanNode] = [
-            SpanNode(
-                content=f"{name}  ({self.counts[i]})",
-                color=_COL_ACCENTS[i],
-                modifiers=["bold"] if i == self.active else [],
+        parts: list[Run] = []
+        for i, name in enumerate(_COL_NAMES):
+            accent = _COL_ACCENTS[i]
+            active = i == self.active
+            parts.append(
+                Run(
+                    text=f"  {name}  ({self.counts[i]})  ",
+                    color=accent if active else tailwind_color("slate", 600),
+                    background=_COL_HL_BG[i] if active else None,
+                    modifiers=("bold",) if active else (),
+                )
             )
-            for i, name in enumerate(_COL_NAMES)
-        ]
-        return TabsNode(
-            titles=titles,
-            selected=self.active,
-            highlight_color=_COL_ACCENTS[self.active],
-            highlight_background=_COL_HL_BG[self.active],
-            color=tailwind_color("slate", 600),
-            divider="  │  ",
-            padding_left="  ",
-            padding_right="  ",
-        )
+            if i < len(_COL_NAMES) - 1:
+                parts.append(
+                    Run(text=" │ ", color=tailwind_color("slate", 600))
+                )
+        return TextBlock.from_lines((tuple(parts),))
 
 
 @dataclasses.dataclass
-class TaskList(AbstractComponent):
+class TaskList(Component):
     tasks: list = dataclasses.field(default_factory=list)
     selected: int = 0
     accent_bg: ColorLike | None = dataclasses.field(default=None)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import (
-            SpanNode,
-            TableCellItem,
-            TableNode,
-            TableRowItem,
-        )
+    def compose(self, ctx):
+        from xnano.core.content import Run, TableCell, TableGrid, TableRow
 
         dim = tailwind_color("slate", 500)
-        header = TableRowItem(
-            cells=[
-                TableCellItem(content=" Pri  ", color=dim),
-                TableCellItem(content="Task", color=dim),
-                TableCellItem(content="Tag   ", color=dim),
-            ],
+        header = TableRow(
+            cells=(
+                TableCell(content=" Pri  ", color=dim),
+                TableCell(content="Task", color=dim),
+                TableCell(content="Tag   ", color=dim),
+            ),
             height=1,
         )
 
@@ -214,34 +205,34 @@ class TaskList(AbstractComponent):
             pc = _PRIORITY_FG[task.priority]
             sym = _PRIORITY_SYMBOLS[task.priority]
             rows.append(
-                TableRowItem(
-                    cells=[
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f" {sym} {task.priority[:3]} ",
+                TableRow(
+                    cells=(
+                        TableCell(
+                            content=Run(
+                                text=f" {sym} {task.priority[:3]} ",
                                 color=pc,
-                                modifiers=["bold"],
+                                modifiers=("bold",),
                             )
                         ),
-                        TableCellItem(
+                        TableCell(
                             content=f"  {task.title}",
                             color=tailwind_color("slate", 700),
                         ),
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f" #{task.tag}",
+                        TableCell(
+                            content=Run(
+                                text=f" #{task.tag}",
                                 color=tailwind_color("slate", 500),
                             )
                         ),
-                    ],
+                    ),
                     height=1,
                 )
             )
 
-        return TableNode(
-            rows=rows,
+        return TableGrid(
+            rows=tuple(rows),
             header=header,
-            column_widths=[0.20, 0.62, 0.18],
+            column_widths=(0.20, 0.62, 0.18),
             column_spacing=0,
             selected_row=self.selected if self.tasks else None,
             highlight_background=self.accent_bg
@@ -252,65 +243,55 @@ class TaskList(AbstractComponent):
 
 
 @dataclasses.dataclass
-class ActivityFeed(AbstractComponent):
+class ActivityFeed(Component):
     """Recent board actions as a scrolling log."""
 
     events: list = dataclasses.field(default_factory=list)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import (
-            SpanNode,
-            TableCellItem,
-            TableNode,
-            TableRowItem,
-        )
+    def compose(self, ctx):
+        from xnano.core.content import Run, TableCell, TableGrid, TableRow
 
         rows = []
         for ts, icon, action, col_idx in self.events:
             rows.append(
-                TableRowItem(
-                    cells=[
-                        TableCellItem(
+                TableRow(
+                    cells=(
+                        TableCell(
                             content=f" {ts} ",
                             color=tailwind_color("slate", 600),
                         ),
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f" {icon} ",
+                        TableCell(
+                            content=Run(
+                                text=f" {icon} ",
                                 color=_COL_ACCENTS[col_idx],
-                                modifiers=["bold"],
+                                modifiers=("bold",),
                             )
                         ),
-                        TableCellItem(
+                        TableCell(
                             content=f" {action}",
                             color=tailwind_color("slate", 700),
                         ),
-                    ],
+                    ),
                     height=1,
                 )
             )
 
-        return TableNode(
-            rows=rows,
-            column_widths=[0.22, 0.08, 0.70],
+        return TableGrid(
+            rows=tuple(rows),
+            column_widths=(0.22, 0.08, 0.70),
             column_spacing=0,
         )
 
 
 @dataclasses.dataclass
-class VelocityChart(AbstractComponent):
+class VelocityChart(Component):
     data: list = dataclasses.field(default_factory=list)
     accent: ColorLike | None = dataclasses.field(default=None)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import (
-            CanvasLine,
-            CanvasNode,
-            CanvasPrint,
-            SpanNode,
-        )
+    def compose(self, ctx):
+        from xnano.core.content import Canvas, CanvasLine, CanvasPrint, Run
 
         data = self.data or [0]
         n = len(data)
@@ -350,7 +331,7 @@ class VelocityChart(AbstractComponent):
                 CanvasPrint(
                     x=0.3,
                     y=val,
-                    content=SpanNode(content=f"{val:.0f}", color=axis_c),
+                    content=Run(text=f"{val:.0f}", color=axis_c),
                 )
             )
 
@@ -364,8 +345,8 @@ class VelocityChart(AbstractComponent):
             )
         )
 
-        return CanvasNode(
-            shapes=shapes,
+        return Canvas(
+            shapes=tuple(shapes),
             x_bounds=(0.0, float(n - 1)),
             y_bounds=(0.0, float(max_v) * 1.1),
             marker="half_block",
@@ -373,33 +354,31 @@ class VelocityChart(AbstractComponent):
 
 
 @dataclasses.dataclass
-class PriorityBreakdown(AbstractComponent):
+class PriorityBreakdown(Component):
     all_tasks: list = dataclasses.field(default_factory=list)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import (
-            BarChartNode,
-            BarGroupItem,
-            BarItem,
-        )
+    def compose(self, ctx):
+        from xnano.core.content import Bar, BarGroup, Bars
 
         counts: dict[str, int] = {"high": 0, "mid": 0, "low": 0}
         for task in self.all_tasks:
             counts[task.priority] += 1
 
         max_v = max(max(counts.values(), default=0), 1)
-        groups = [
-            BarGroupItem(
-                bars=[
-                    BarItem(
-                        value=counts[p], label=p[:3], color=_PRIORITY_FG[p]
-                    )
-                ]
+        groups = tuple(
+            BarGroup(
+                bars=(
+                    Bar(
+                        value=counts[p],
+                        label=p[:3],
+                        color=_PRIORITY_FG[p],
+                    ),
+                )
             )
             for p in ("high", "mid", "low")
-        ]
-        return BarChartNode(
+        )
+        return Bars(
             groups=groups,
             bar_width=5,
             bar_gap=0,
@@ -411,18 +390,18 @@ class PriorityBreakdown(AbstractComponent):
 
 
 @dataclasses.dataclass
-class SprintGauge(AbstractComponent):
-    """Single-metric LineGaugeNode for sprint health panel."""
+class SprintGauge(Component):
+    """Single-metric line gauge for sprint health panel."""
 
     label: str = ""
     progress: float = 0.0
     filled: ColorLike | None = dataclasses.field(default=None)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import LineGaugeNode
+    def compose(self, ctx):
+        from xnano.core.content import LineGauge
 
-        return LineGaugeNode(
+        return LineGauge(
             progress=self.progress,
             label=self.label,
             filled_color=self.filled or tailwind_color("violet", 500),

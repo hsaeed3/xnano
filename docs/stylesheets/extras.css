@@ -118,22 +118,6 @@
     padding-right: var(--size-4);
 }
 
-/* Index hero ASCII title (injected by hero.js) */
-.md-content__inner:has(.page-index) .zyx-hero-wrapper {
-    display: block;
-}
-
-/* Hide duplicate markdown h1 — the ASCII hero is the visual title */
-.md-content__inner:has(.page-index) h1:first-of-type {
-    display: none;
-}
-
-/* Index tagline alignment */
-.md-content__inner:has(.page-index) .hero-tagline {
-    text-align: center;
-    margin-top: 0.75rem;
-}
-
 /*
   !!! LIGHT THEME COLORS !!!
 */

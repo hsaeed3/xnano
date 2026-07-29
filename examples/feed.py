@@ -14,16 +14,13 @@ import dataclasses
 import random
 import time
 
-from xnano.color import ColorLike, tailwind_color
-from xnano.components.abstract import (
-    AbstractComponent,
-    ComponentRenderContext,
-)
-from xnano.components.sparkline import Sparkline
+from xnano.colors import ColorLike, tailwind_color
+from xnano.components.bar import Sparkline
+from xnano.components.component import Component
 from xnano.components.text import Text
-from xnano.events import on_keyboard, on_tick
 from xnano.fields import Field
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
+from xnano.hooks import on_keyboard, on_tick
 from xnano.terminal import Terminal
 
 # ── Services & palette ────────────────────────────────────────────────────────
@@ -159,33 +156,30 @@ def _build_spark(history: list[float], color: ColorLike) -> Sparkline:
             else [0] * (n - len(history)) + history
         )
     ]
-    return Sparkline(data=data, color=color, max_value=max(max(data), 1))
+    return Sparkline(data=data, foreground=color, max_value=max(max(data), 1))
 
 
 # ── Custom components ─────────────────────────────────────────────────────────
 
 
 @dataclasses.dataclass
-class ServiceGraph(AbstractComponent):
+class ServiceGraph(Component):
     data: list = dataclasses.field(default_factory=list)
     fill_color: ColorLike | None = dataclasses.field(default=None)
     edge_color: ColorLike | None = dataclasses.field(default=None)
     max_v: float = 1.0
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import (
-            CanvasLine,
-            CanvasNode,
-            CanvasPrint,
-            SpanNode,
-        )
+    def compose(self, ctx):
+        from xnano.core.content import Canvas, CanvasLine, CanvasPrint, Run
 
         smoothed = _smooth(self.data, alpha=0.12)
         n = len(smoothed)
         if n < 2:
-            return CanvasNode(
-                shapes=[], x_bounds=(0.0, 1.0), y_bounds=(0.0, 1.0)
+            return Canvas(
+                shapes=(),
+                x_bounds=(0.0, 1.0),
+                y_bounds=(0.0, 1.0),
             )
 
         fill_color = self.fill_color or tailwind_color("sky", 800)
@@ -219,19 +213,17 @@ class ServiceGraph(AbstractComponent):
 
         for frac in (0.25, 0.5, 0.75, 1.0):
             val = max_v * frac
+            label = f"{val:.0f}" if max_v >= 10 else f"{val:.1f}"
             shapes.append(
                 CanvasPrint(
                     x=0.5,
                     y=val,
-                    content=SpanNode(
-                        content=f"{val:.0f}" if max_v >= 10 else f"{val:.1f}",
-                        color=axis_c,
-                    ),
+                    content=Run(text=label, color=axis_c),
                 )
             )
 
-        return CanvasNode(
-            shapes=shapes,
+        return Canvas(
+            shapes=tuple(shapes),
             x_bounds=(0.0, float(n - 1)),
             y_bounds=(0.0, max_v * 1.05),
             marker="half_block",
@@ -239,28 +231,23 @@ class ServiceGraph(AbstractComponent):
 
 
 @dataclasses.dataclass
-class ServiceTable(AbstractComponent):
+class ServiceTable(Component):
     rows: list = dataclasses.field(default_factory=list)
     selected: int = 0
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import (
-            SpanNode,
-            TableCellItem,
-            TableNode,
-            TableRowItem,
-        )
+    def compose(self, ctx):
+        from xnano.core.content import Run, TableCell, TableGrid, TableRow
 
         dim = tailwind_color("slate", 500)
-        header = TableRowItem(
-            cells=[
-                TableCellItem(content="", color=dim),
-                TableCellItem(content=" Service ", color=dim),
-                TableCellItem(content=" RPS  ", color=dim),
-                TableCellItem(content=" Err% ", color=dim),
-                TableCellItem(content=" p95 ", color=dim),
-            ],
+        header = TableRow(
+            cells=(
+                TableCell(content="", color=dim),
+                TableCell(content=" Service ", color=dim),
+                TableCell(content=" RPS  ", color=dim),
+                TableCell(content=" Err% ", color=dim),
+                TableCell(content=" p95 ", color=dim),
+            ),
             height=1,
         )
 
@@ -275,44 +262,44 @@ class ServiceTable(AbstractComponent):
                 else tailwind_color("rose", 500)
             )
             tbl_rows.append(
-                TableRowItem(
-                    cells=[
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f" {sym} ",
+                TableRow(
+                    cells=(
+                        TableCell(
+                            content=Run(
+                                text=f" {sym} ",
                                 color=sc,
-                                modifiers=["bold"],
+                                modifiers=("bold",),
                             )
                         ),
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f" {svc:<7}",
+                        TableCell(
+                            content=Run(
+                                text=f" {svc:<7}",
                                 color=_SVC_TEXT[svc],
-                                modifiers=["bold"],
+                                modifiers=("bold",),
                             )
                         ),
-                        TableCellItem(
+                        TableCell(
                             content=f" {rps:>5.0f} ",
                             color=tailwind_color("slate", 600),
                         ),
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f" {err_pct:>4.1f}% ", color=err_c
+                        TableCell(
+                            content=Run(
+                                text=f" {err_pct:>4.1f}% ", color=err_c
                             )
                         ),
-                        TableCellItem(
+                        TableCell(
                             content=f" {p95:>3.0f}ms",
                             color=tailwind_color("slate", 600),
                         ),
-                    ],
+                    ),
                     height=1,
                 )
             )
 
-        return TableNode(
-            rows=tbl_rows,
+        return TableGrid(
+            rows=tuple(tbl_rows),
             header=header,
-            column_widths=[0.06, 0.26, 0.20, 0.24, 0.24],
+            column_widths=(0.06, 0.26, 0.20, 0.24, 0.24),
             column_spacing=0,
             selected_row=self.selected,
             highlight_background=tailwind_color("slate", 700),
@@ -321,13 +308,13 @@ class ServiceTable(AbstractComponent):
 
 
 @dataclasses.dataclass
-class ErrorGauge(AbstractComponent):
+class ErrorGauge(Component):
     service: str = ""
     ratio: float = 0.0
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import LineGaugeNode
+    def compose(self, ctx):
+        from xnano.core.content import LineGauge
 
         if self.ratio < 0.02:
             filled = tailwind_color("emerald", 500)
@@ -336,7 +323,7 @@ class ErrorGauge(AbstractComponent):
         else:
             filled = tailwind_color("rose", 500)
 
-        return LineGaugeNode(
+        return LineGauge(
             progress=min(1.0, self.ratio / 0.20),
             label=f"  {self.service:<7}  {self.ratio * 100:.1f}%",
             filled_color=filled,
@@ -346,31 +333,27 @@ class ErrorGauge(AbstractComponent):
 
 
 @dataclasses.dataclass
-class EndpointChart(AbstractComponent):
+class EndpointChart(Component):
     """Bar chart of top-5 endpoints by request count for the selected service."""
 
     endpoints: list = dataclasses.field(default_factory=list)
     accent: ColorLike | None = dataclasses.field(default=None)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import (
-            BarChartNode,
-            BarGroupItem,
-            BarItem,
-        )
+    def compose(self, ctx):
+        from xnano.core.content import Bar, BarGroup, Bars
 
         if not self.endpoints:
-            return BarChartNode(groups=[], direction="vertical", max_value=1)
+            return Bars(groups=(), direction="vertical", max_value=1)
 
         max_v = max(count for _, count in self.endpoints) or 1
         c = self.accent or tailwind_color("sky", 500)
 
-        groups = [
-            BarGroupItem(bars=[BarItem(value=count, label=label[:7], color=c)])
+        groups = tuple(
+            BarGroup(bars=(Bar(value=count, label=label[:7], color=c),))
             for label, count in self.endpoints
-        ]
-        return BarChartNode(
+        )
+        return Bars(
             groups=groups,
             bar_width=5,
             bar_gap=0,
@@ -382,32 +365,25 @@ class EndpointChart(AbstractComponent):
 
 
 @dataclasses.dataclass
-class EventLog(AbstractComponent):
+class EventLog(Component):
     """Scrolling table of recent HTTP requests with colour-coded status/latency."""
 
     events: list = dataclasses.field(default_factory=list)
     fit_content: bool = dataclasses.field(default=False, kw_only=True)
 
-    def get_terminal_node(self, ctx: ComponentRenderContext):  # type: ignore[override]
-        from xnano.terminal.nodes import (
-            SpanNode,
-            TableCellItem,
-            TableNode,
-            TableRowItem,
-        )
+    def compose(self, ctx):
+        from xnano.core.content import Run, TableCell, TableGrid, TableRow
 
         dim = tailwind_color("slate", 500)
-        header = TableRowItem(
-            cells=[
-                TableCellItem(content=" Time    ", color=dim),
-                TableCellItem(content=" Method ", color=dim),
-                TableCellItem(
-                    content=" Endpoint                  ", color=dim
-                ),
-                TableCellItem(content=" Status ", color=dim),
-                TableCellItem(content=" Latency ", color=dim),
-                TableCellItem(content=" Service ", color=dim),
-            ],
+        header = TableRow(
+            cells=(
+                TableCell(content=" Time    ", color=dim),
+                TableCell(content=" Method ", color=dim),
+                TableCell(content=" Endpoint                  ", color=dim),
+                TableCell(content=" Status ", color=dim),
+                TableCell(content=" Latency ", color=dim),
+                TableCell(content=" Service ", color=dim),
+            ),
             height=1,
         )
 
@@ -430,47 +406,43 @@ class EventLog(AbstractComponent):
             mc = _METHOD_COLORS.get(method, tailwind_color("slate", 500))
 
             rows.append(
-                TableRowItem(
-                    cells=[
-                        TableCellItem(
+                TableRow(
+                    cells=(
+                        TableCell(
                             content=f" {ts}  ",
                             color=tailwind_color("slate", 600),
                         ),
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f" {method:<6} ", color=mc
-                            )
+                        TableCell(
+                            content=Run(text=f" {method:<6} ", color=mc)
                         ),
-                        TableCellItem(
+                        TableCell(
                             content=f" {endpoint:<28}",
                             color=tailwind_color("slate", 600),
                         ),
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f"  {status}  ",
+                        TableCell(
+                            content=Run(
+                                text=f"  {status}  ",
                                 color=sc,
-                                modifiers=["bold"],
+                                modifiers=("bold",),
                             )
                         ),
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f" {latency:>5}ms ", color=lc
+                        TableCell(
+                            content=Run(text=f" {latency:>5}ms ", color=lc)
+                        ),
+                        TableCell(
+                            content=Run(
+                                text=f" {svc:<8}", color=_SVC_TEXT[svc]
                             )
                         ),
-                        TableCellItem(
-                            content=SpanNode(
-                                content=f" {svc:<8}", color=_SVC_TEXT[svc]
-                            )
-                        ),
-                    ],
+                    ),
                     height=1,
                 )
             )
 
-        return TableNode(
-            rows=rows,
+        return TableGrid(
+            rows=tuple(rows),
             header=header,
-            column_widths=[0.12, 0.09, 0.34, 0.10, 0.14, 0.21],
+            column_widths=(0.12, 0.09, 0.34, 0.10, 0.14, 0.21),
             column_spacing=0,
         )
 
@@ -693,12 +665,12 @@ class ApiMonitor(BaseGrid, direction="vertical"):
             [
                 Text(
                     f"  {sel_svc.upper()}  ",
-                    color=_SVC_TEXT[sel_svc],
+                    foreground=_SVC_TEXT[sel_svc],
                     modifiers=("bold",),
                 ),
                 Text(
                     f"{rps_now:.0f} rps  ·  {err_now:.1f}% err  ·  {p95[sel_svc]:.0f}ms p95",
-                    color=tailwind_color("slate", 500),
+                    foreground=tailwind_color("slate", 500),
                 ),
             ]
         )

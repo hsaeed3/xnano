@@ -17,7 +17,7 @@ Files updated by this script:
   compiled ``xnano_core.rust.native.__version__`` via
   ``env!("CARGO_PKG_VERSION")``)
 - ``xnano/__init__.py`` — ``__version__`` constant
-- ``docs/concepts/getting-started.md`` — install pins
+- ``docs/getting-started.md`` — install pins
   (``xnano>=…`` in pip / uv / poetry examples)
 - ``README.md`` — install pins (``xnano>=…`` in pip / uv examples)
 
@@ -49,14 +49,14 @@ EDITABLE_FILES: tuple[str, ...] = (
     "pyproject.toml",
     "xnano-core/Cargo.toml",
     "xnano/__init__.py",
-    "docs/xnano/getting-started.md",
+    "docs/getting-started.md",
     "README.md",
 )
 """Paths this script is allowed to modify, relative to the repository
 root."""
 
 MARKDOWN_INSTALL_PIN_FILES: tuple[str, ...] = (
-    "docs/xnano/getting-started.md",
+    "docs/getting-started.md",
     "README.md",
 )
 """Markdown files that embed ``xnano>=…`` install examples."""
@@ -74,7 +74,8 @@ _CARGO_PACKAGE_VERSION = re.compile(
     re.MULTILINE,
 )
 _INIT_PY_VERSION = re.compile(
-    r'^__version__ = "(?P<version>[^"]+)"$', re.MULTILINE
+    r'^(?P<indent>[ \t]*)__version__ = "(?P<version>[^"]+)"$',
+    re.MULTILINE,
 )
 _MARKDOWN_XNANO_PIN = re.compile(r'(["\'])xnano>=([^"\']+)\1')
 """Install pin in markdown examples: ``\"xnano>=…\"`` / ``'xnano>=…'``."""
@@ -199,6 +200,9 @@ def extract_first_match(
     match = pattern.search(content)
     if match is None:
         raise VersionSyncError(f"Could not find {label} in repository files.")
+    groups = match.groupdict()
+    if "version" in groups and groups["version"] is not None:
+        return groups["version"]
     return match.group(1)
 
 
@@ -306,6 +310,10 @@ def sync_cargo_toml(state: VersionState) -> bool:
 def sync_xnano_init(state: VersionState) -> bool:
     """Synchronize ``xnano/__init__.py``.
 
+    The package prefers ``importlib.metadata.version("xnano")`` and keeps a
+    fallback ``__version__`` literal (often indented under
+    ``PackageNotFoundError``). Preserve that indent when rewriting.
+
     Args:
         state: Target versions to write.
 
@@ -313,10 +321,16 @@ def sync_xnano_init(state: VersionState) -> bool:
         ``True`` when the file changed.
     """
     content = read_text_file("xnano/__init__.py")
+    match = _INIT_PY_VERSION.search(content)
+    if match is None:
+        raise VersionSyncError(
+            "Could not find xnano __version__ constant in xnano/__init__.py"
+        )
+    replacement = f'{match.group("indent")}__version__ = "{state.xnano}"'
     content, _ = apply_single_replacement(
         content,
         _INIT_PY_VERSION,
-        f'__version__ = "{state.xnano}"',
+        replacement,
         "xnano __version__ constant",
     )
     return write_text_file("xnano/__init__.py", content)

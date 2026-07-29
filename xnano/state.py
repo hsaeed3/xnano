@@ -10,42 +10,27 @@ from __future__ import annotations
 
 from typing import Any, get_type_hints
 
-from xnano._validation import validate_type
+from xnano.utils.validation import validate_type
 
 
 class State:
-    """Convenience runtime context wrapper that allows for setting
-    state variables within using dot notation with no
-    additional boilerplate.
+    """Store application state with optional annotation validation.
 
-    (In practice, you probably would not want to think about touching
-    this, and opt for ``dataclasses.dataclass`` or ``pydantic.BaseModel``
-    instead.)
+    Public attributes are supplied at initialization or assigned later.
+    Subclass annotations validate assignments; use a dataclass when the
+    state has a fixed schema and does not need dynamic attributes.
+
+    Attributes:
+        _state_annotations: Resolved annotations used for validation.
+        **values: User-defined public state attributes.
 
     Example:
-
-        **Initialization:**
-
-        >>> # state is now aware that it has name & age, which will be type
-        >>> # hinted correctly within the ide when accessing attributes
-        >>> my_state = State(name="John", age=30)
-        >>> my_state.name
-
-        **Attribute Access:**
-
-        >>> # if an attribute is not set, it can be created at any point
-        >>> my_state.address = "123 Main St, Anytown, USA"
-
-        **Type Validation:**
-
-        >>> # any attributes set by base classing this state class will
-        >>> # be type validated through ``xnano``'s native integration
-        >>> # with ``pydantic-core``
-        >>> class MyState(State):
-        ...     name: str
-
-        >>> # would raise a ``pydantic.ValidationError``
-        >>> my_state = MyState(name=123)
+        >>> state = State(name="John", age=30)
+        >>> state.name
+        'John'
+        >>> state.address = "123 Main St"
+        >>> state.address
+        '123 Main St'
     """
 
     _state_annotations: dict[str, Any] = {}

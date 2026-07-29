@@ -38,10 +38,10 @@ DEMOS: tuple[Demo, ...] = (
             from xnano.components.text import Text
 
             render(
-                Text("Hello from xnano!", color="violet", modifiers=["bold"]),
+                Text("Hello from xnano!", foreground="violet", modifiers=["bold"]),
                 Text(
                     "Render returns immediately — no event loop needed.",
-                    color="slate-400",
+                    foreground="slate-400",
                 ),
             )
             time.sleep(3)
@@ -72,7 +72,7 @@ DEMOS: tuple[Demo, ...] = (
                     self.body = f"Hello, {self.name}!"
 
             # ~3 rows for bordered title + 1 body + slack
-            Terminal(height=6).render(App())
+            Terminal.offscreen(cols=80, rows=6).render(App())
             time.sleep(3)
         """),
         launch_delay="800ms",
@@ -99,7 +99,7 @@ DEMOS: tuple[Demo, ...] = (
                 right: str = Field(default="Right", width="1fr", height=1)
 
             # Outer border + title row + content + slack
-            Terminal(height=6).render(Dashboard())
+            Terminal.offscreen(cols=80, rows=6).render(Dashboard())
             time.sleep(3)
         """),
         launch_delay="800ms",
@@ -125,7 +125,7 @@ DEMOS: tuple[Demo, ...] = (
                 )
                 body: str = Field(default="Water the plants.", height=1)
 
-            Terminal(height=6).render(Card())
+            Terminal.offscreen(cols=80, rows=6).render(Card())
             time.sleep(3)
         """),
         launch_delay="800ms",
@@ -139,7 +139,7 @@ DEMOS: tuple[Demo, ...] = (
         name="hooks_keyboard",
         code=code("""
             from xnano import BaseGrid, Field, Terminal
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             class Counter(BaseGrid, direction="vertical", gap=1):
                 label: str = Field(default="Count: 0", height=1)
@@ -179,7 +179,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             import time
             from xnano import BaseGrid, Field, Terminal
-            from xnano.events import on_tick
+            from xnano.hooks import on_tick
 
             class Clock(BaseGrid, direction="vertical"):
                 display: str = Field(
@@ -204,7 +204,7 @@ DEMOS: tuple[Demo, ...] = (
         name="actions_binding",
         code=code("""
             from xnano import Action, BaseGrid, Field, Terminal, on_action
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             SAVE = Action.keyboard("ctrl+s")
 
@@ -247,7 +247,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             import dataclasses
             from xnano import BaseGrid, Context, Field, Terminal
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             @dataclasses.dataclass
             class AppState:
@@ -295,10 +295,10 @@ DEMOS: tuple[Demo, ...] = (
             Terminal().render(
                 Text(
                     "Build complete.",
-                    color="emerald-400",
+                    foreground="emerald-400",
                     modifiers=["bold"],
                 ),
-                Text("12 tests passed.", color="slate-400"),
+                Text("12 tests passed.", foreground="slate-400"),
             )
             time.sleep(3)
         """),
@@ -330,7 +330,7 @@ DEMOS: tuple[Demo, ...] = (
                     height=1,
                 )
 
-            Terminal(height=6).render(Card())
+            Terminal.offscreen(cols=80, rows=6).render(Card())
             time.sleep(3)
         """),
         launch_delay="800ms",
@@ -353,7 +353,7 @@ DEMOS: tuple[Demo, ...] = (
                     height=3,
                 )
 
-            Terminal(height=5).render(Card())
+            Terminal.offscreen(cols=80, rows=5).render(Card())
             time.sleep(3)
         """),
         launch_delay="800ms",
@@ -368,16 +368,16 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             import time
             from xnano import BaseGrid, Field, Terminal
-            from xnano.components.progress import Progress
+            from xnano.components.loader import Loader
 
             class Download(BaseGrid, direction="vertical", gap=1):
                 status: str = Field(default="Downloading…", height=1)
-                bar: Progress = Field(
-                    default_factory=lambda: Progress(value=0.4),
+                bar: Loader = Field(
+                    default_factory=lambda: Loader(value=0.4),
                     height=1,
                 )
 
-            Terminal(height=4).render(Download())
+            Terminal.offscreen(cols=80, rows=4).render(Download())
             time.sleep(3)
         """),
         launch_delay="800ms",
@@ -392,7 +392,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             import dataclasses
             from xnano import BaseGrid, Context, Field, Terminal
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             @dataclasses.dataclass
             class AppState:

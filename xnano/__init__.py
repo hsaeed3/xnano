@@ -1,22 +1,33 @@
 """xnano
 
->>> import xnano as x
->>> x.render("Hello, world!", background="violet")
+---
 
->>> from xnano import BaseGrid, Field, Terminal
+Build terminal and web interfaces with grids, fields, components,
+hooks, actions, and runtimes.
 """
 
-__version__ = "1.1.7"
+from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import importlib.metadata
+from typing import TYPE_CHECKING, Any
+
+try:
+    __version__ = importlib.metadata.version("xnano")
+except (
+    importlib.metadata.PackageNotFoundError
+):  # pragma: no cover - editable / source trees
+    __version__ = "1.1.7"
 
 if TYPE_CHECKING:
-    from xnano._renderable import render
-    from xnano._styles import Style
+    from xnano import cli, components, core, events, hooks, requests
+    from xnano.actions import Action
+    from xnano.cli import Command
+    from xnano.components import Component
     from xnano.context import Context
-    from xnano.core.actions import Action
-    from xnano.events import (
-        on,
+    from xnano.core import Frame, Runtime
+    from xnano.fields import Field
+    from xnano.grids import BaseGrid, GridSettings
+    from xnano.hooks import (
         on_action,
         on_click,
         on_clipboard,
@@ -30,25 +41,32 @@ if TYPE_CHECKING:
         on_state,
         on_tick,
     )
-    from xnano.fields import Field
-    from xnano.grid import (
-        BaseGrid,
-        Grid,
-        GridSettings,
-    )
-    from xnano.terminal.terminal import Terminal
-
+    from xnano.rendering import render
+    from xnano.tailwind import Style
+    from xnano.terminal import Terminal
+    from xnano.web import Web
 
 __all__ = [
+    "__version__",
     "render",
     "Action",
+    "BaseGrid",
+    "Command",
+    "Component",
     "Context",
     "Field",
-    "BaseGrid",
-    "Grid",
+    "Frame",
     "GridSettings",
+    "Runtime",
     "Style",
-    "on",
+    "Terminal",
+    "Web",
+    "hooks",
+    "requests",
+    "cli",
+    "components",
+    "core",
+    "events",
     "on_action",
     "on_click",
     "on_clipboard",
@@ -61,123 +79,91 @@ __all__ = [
     "on_resize",
     "on_state",
     "on_tick",
-    "Terminal",
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
+    import importlib
+
     if name == "render":
-        from xnano._renderable import render
+        from xnano.rendering import render
 
         return render
-
     if name == "Action":
-        from xnano.core.actions import Action
+        from xnano.actions import Action
 
         return Action
-
-    elif name == "Context":
+    if name == "Context":
         from xnano.context import Context
 
         return Context
-
-    elif name == "Field":
+    if name == "Field":
         from xnano.fields import Field
 
         return Field
-
-    elif name == "BaseGrid":
-        from xnano.grid import BaseGrid
+    if name == "BaseGrid":
+        from xnano.grids import BaseGrid
 
         return BaseGrid
-
-    elif name == "Grid":
-        from xnano.grid import Grid
-
-        return Grid
-
-    elif name == "GridSettings":
-        from xnano.grid import GridSettings
+    if name == "GridSettings":
+        from xnano.grids import GridSettings
 
         return GridSettings
-
-    elif name == "Style":
-        from xnano._styles import Style
+    if name == "Style":
+        from xnano.tailwind import Style
 
         return Style
-
-    elif name == "on":
-        from xnano.events import on
-
-        return on
-
-    elif name == "on_action":
-        from xnano.events import on_action
-
-        return on_action
-
-    elif name == "on_click":
-        from xnano.events import on_click
-
-        return on_click
-
-    elif name == "on_clipboard":
-        from xnano.events import on_clipboard
-
-        return on_clipboard
-
-    elif name == "on_event":
-        from xnano.events import on_event
-
-        return on_event
-
-    elif name == "on_field":
-        from xnano.events import on_field
-
-        return on_field
-
-    elif name == "on_focus":
-        from xnano.events import on_focus
-
-        return on_focus
-
-    elif name == "on_keyboard":
-        from xnano.events import on_keyboard
-
-        return on_keyboard
-
-    elif name == "on_mouse":
-        from xnano.events import on_mouse
-
-        return on_mouse
-
-    elif name == "on_poll":
-        from xnano.events import on_poll
-
-        return on_poll
-
-    elif name == "on_resize":
-        from xnano.events import on_resize
-
-        return on_resize
-
-    elif name == "on_state":
-        from xnano.events import on_state
-
-        return on_state
-
-    elif name == "on_tick":
-        from xnano.events import on_tick
-
-        return on_tick
-
-    elif name == "Terminal":
-        from xnano.terminal.terminal import Terminal
+    if name == "Terminal":
+        from xnano.terminal import Terminal
 
         return Terminal
+    if name == "Web":
+        from xnano.web import Web
 
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+        return Web
+    if name == "Runtime":
+        from xnano.core.runtime import Runtime
+
+        return Runtime
+    if name == "Frame":
+        from xnano.core.frame import Frame
+
+        return Frame
+    if name == "Component":
+        from xnano.components.component import Component
+
+        return Component
+    if name == "Command":
+        from xnano.cli.command import Command
+
+        return Command
+    if name in {
+        "hooks",
+        "requests",
+        "cli",
+        "components",
+        "core",
+        "events",
+    }:
+        return importlib.import_module(f"xnano.{name}")
+    if name in {
+        "on_action",
+        "on_click",
+        "on_clipboard",
+        "on_event",
+        "on_field",
+        "on_focus",
+        "on_keyboard",
+        "on_mouse",
+        "on_poll",
+        "on_resize",
+        "on_state",
+        "on_tick",
+    }:
+        hooks_module = importlib.import_module("xnano.hooks")
+        return getattr(hooks_module, name)
+    raise AttributeError(f"module 'xnano' has no attribute {name!r}")
 
 
 def __dir__() -> list[str]:
-    return __all__
+    return list(__all__)

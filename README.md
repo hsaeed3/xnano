@@ -14,9 +14,6 @@ xnano is a modern, lightweight and incredibly declarative TUI framework for Pyth
 
 Furthermore, `xnano` itself uses the [`pydantic-core`](https://github.com/pydantic/pydantic/tree/main/pydantic_core) library for type validation and similar operations.
 
-> [!NOTE]
-> As xnano is driven by solo development, it has taken a bit of time to settle on the best version of the user facing API. All active changes to the library are currently being made under xnano.beta, which may include large, breaking changes as new features are tested and refined. This keeps the main xnano API stable while development continues.
-
 ## Installation
 
 ```bash
@@ -57,7 +54,7 @@ from xnano import render
 from xnano.components.text import Text
 
 render(
-    Text("Hello from xnano!", color="violet", modifiers=["bold"])
+    Text("Hello from xnano!", foreground="violet", modifiers=["bold"])
 )
 ```
 
@@ -70,8 +67,8 @@ from xnano import render
 from xnano.components.text import Text
 
 render(
-    Text("● Done: ", color="emerald-400", modifiers=["bold"]),
-    Text("All 12 checks passed.", color="slate-400"),
+    Text("● Done: ", foreground="emerald-400", modifiers=["bold"]),
+    Text("All 12 checks passed.", foreground="slate-400"),
 )
 ```
 
@@ -88,9 +85,9 @@ from xnano import render
 from xnano.components.text import Text
 
 message = Text([
-    Text("● ", color="emerald-400"),
-    Text("Done: ", color="white", modifiers=["bold"]),
-    Text("all tests passed\n", color="slate-300"),
+    Text("● ", foreground="emerald-400"),
+    Text("Done: ", foreground="white", modifiers=["bold"]),
+    Text("all tests passed\n", foreground="slate-300"),
 ])
 
 render(message)
@@ -98,7 +95,7 @@ render(message)
 
 ![Styled text](./docs/assets/demos/example_styled_text.gif)
 
-Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or plain names (`"white"`, `"red"`).
+Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or plain names (`"white"`, `"red"`). The deprecated `color=` alias still works at runtime and maps to `foreground=`.
 
 ---
 
@@ -109,17 +106,16 @@ slots, then pass an instance to `Terminal().run()`. The terminal takes over
 the screen, renders each frame, and cleans up on exit.
 
 ```python
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
 from xnano.fields import Field
 from xnano.terminal import Terminal
 from xnano.context import Context
-from xnano.color import tailwind_color
-from xnano.events import on_tick, on_keyboard
+from xnano.hooks import on_tick, on_keyboard
 
 class App(BaseGrid):
     message: str = Field(
         default="Hello, world!",
-        color=tailwind_color("sky", 500),
+        foreground="sky-500",
     )
     current_color: str = Field(default="sky", state=True)
 
@@ -127,12 +123,12 @@ class App(BaseGrid):
     def update_color(self) -> None:
         if self.current_color == "sky":
             self.current_color = "white"
-            self.grid_set_field("message", color="white")
+            self.grid_set_field("message", foreground="white")
         else:
             self.current_color = "sky"
             self.grid_set_field(
                 "message",
-                color=tailwind_color("sky", 500),
+                foreground="sky-500",
             )
 
     @on_keyboard("q")
@@ -158,11 +154,11 @@ are laid out. Use `width` / `height` (absolute cells, `"50%"`, or `"1fr"`) to
 proportion each slot.
 
 ```python
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
 from xnano.fields import Field
 from xnano.terminal import Terminal
 from xnano.context import Context
-from xnano.events import on_keyboard
+from xnano.hooks import on_keyboard
 
 class SidebarTitle(BaseGrid, align="center"):
     title: str = Field("This is a title.", align="center")
@@ -204,11 +200,11 @@ State fields (`state=True`) hold app data without rendering — update them and
 reference them from layout fields.
 
 ```python
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
 from xnano.fields import Field
 from xnano.terminal import Terminal
 from xnano.context import Context
-from xnano.events import on_keyboard
+from xnano.hooks import on_keyboard
 
 class Counter(BaseGrid, direction="vertical", gap=1):
     label: str = Field(
@@ -220,7 +216,7 @@ class Counter(BaseGrid, direction="vertical", gap=1):
     hint: str = Field(
         default="  ↑ / ↓ to count  ·  q to quit",
         height=1,
-        color="slate-500",
+        foreground="slate-500",
     )
     count: int = Field(default=0, state=True)
 
@@ -247,16 +243,16 @@ Terminal().run(Counter())
 
 ### Click Handlers
 
-Pass `mouse_events=True` to `Terminal` to enable mouse input. Use
+Live terminal sessions enable mouse input by default. Use
 `@on_click("field_name")` to scope a handler to the rendered area of a
 specific field — the handler fires only when that region is clicked.
 
 ```python
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
 from xnano.fields import Field
 from xnano.terminal import Terminal
 from xnano.context import Context
-from xnano.events import on_click, on_keyboard
+from xnano.hooks import on_click, on_keyboard
 
 class App(BaseGrid, direction="vertical", gap=1):
     button: str = Field(
@@ -268,7 +264,7 @@ class App(BaseGrid, direction="vertical", gap=1):
     status: str = Field(
         default="  Waiting...",
         height=1,
-        color="slate-400",
+        foreground="slate-400",
     )
 
     @on_click("button")
@@ -279,7 +275,7 @@ class App(BaseGrid, direction="vertical", gap=1):
     def quit(self, ctx: Context) -> None:
         ctx.terminal.request_exit()
 
-Terminal(mouse_events=True).run(App())
+Terminal().run(App())
 ```
 
 ![Click Handlers](./docs/assets/demos/example_click_handlers.gif)
@@ -294,11 +290,11 @@ blocking the event loop.
 
 ```python
 import time
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
 from xnano.fields import Field
 from xnano.terminal import Terminal
 from xnano.context import Context
-from xnano.events import on_tick, on_keyboard
+from xnano.hooks import on_tick, on_keyboard
 
 class Clock(BaseGrid, direction="vertical", gap=1):
     time_display: str = Field(
@@ -311,7 +307,7 @@ class Clock(BaseGrid, direction="vertical", gap=1):
     hint: str = Field(
         default="  q to quit",
         height=1,
-        color="slate-500",
+        foreground="slate-500",
     )
 
     def __post_init__(self) -> None:
@@ -341,11 +337,11 @@ display depends on state that changes externally.
 
 ```python
 from dataclasses import dataclass
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
 from xnano.fields import Field
 from xnano.terminal import Terminal
 from xnano.context import Context
-from xnano.events import on_keyboard
+from xnano.hooks import on_keyboard
 
 @dataclass
 class AppState:
@@ -355,12 +351,12 @@ class App(BaseGrid, direction="vertical", gap=1):
     header: str = Field(
         default="",
         height=1,
-        color="white",
+        foreground="white",
         background="violet-900",
     )
     body: str = Field(
         default="Press q to quit",
-        color="slate-400",
+        foreground="slate-400",
     )
 
     def grid_render(self) -> None:
@@ -380,56 +376,50 @@ with Terminal(state=AppState(username="hammad")) as t:
 
 ### Custom Components
 
-`AbstractComponent` lets you build reusable widgets that map directly to the
-render tree. Prefer implementing `compose()` to return interface-neutral
-content; `get_terminal_node()` remains a compatibility adapter that can return
-any `AbstractTerminalNode` (paragraph, list, progress bar, table, etc.).
+Subclass `Component` and implement `compose()` to return interface-neutral
+content (for example a `TextBlock`, `Panel`, `TableGrid`, or `Canvas`).
 Components slot into `BaseGrid` fields like any other value.
 
 ```python
 import dataclasses
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
 from xnano.fields import Field
 from xnano.terminal import Terminal
 from xnano.context import Context
-from xnano.color import tailwind_color, pydantic_color
-from xnano.events import on_keyboard
-from xnano.components.abstract import (
-    AbstractComponent,
-    ComponentRenderContext,
-)
-from xnano.terminal.nodes import ParagraphNode, AbstractTerminalNode
+from xnano.hooks import on_keyboard
+from xnano.components.component import Component
+from xnano.core.content import TextBlock
 
 @dataclasses.dataclass
-class Badge(AbstractComponent):
+class Badge(Component):
     label: str = ""
-    color: str = "white"
+    foreground: str = "white"
 
-    def get_terminal_node(
-        self,
-        ctx: ComponentRenderContext,
-    ) -> AbstractTerminalNode:
-        return ParagraphNode(text=self.label, color=self.color)
+    def compose(self, ctx):
+        return TextBlock.from_plain(
+            self.label,
+            color=self.foreground,
+        )
 
 class StatusBoard(BaseGrid, direction="vertical", gap=1):
     ok: Badge = Field(
         default_factory=lambda: Badge(
             label="● OK",
-            color=tailwind_color("emerald", 500),
+            foreground="emerald-500",
         ),
         height=1,
     )
     warn: Badge = Field(
         default_factory=lambda: Badge(
             label="● Warning",
-            color="yellow",
+            foreground="yellow",
         ),
         height=1,
     )
     err: Badge = Field(
         default_factory=lambda: Badge(
             label="● Error",
-            color=pydantic_color("palevioletred"),
+            foreground="palevioletred",
         ),
         height=1,
     )

@@ -8,12 +8,12 @@ from __future__ import annotations
 import math
 import time
 
-from xnano.color import Color, tailwind_color
+from xnano.colors import Color, tailwind_color
 from xnano.components.text import Text
 from xnano.effects import AbstractEffect, Effect
-from xnano.events import on_keyboard, on_tick
 from xnano.fields import Field
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
+from xnano.hooks import on_keyboard, on_tick
 from xnano.terminal import Terminal
 
 _LOGO = (
@@ -151,14 +151,14 @@ class EffectsDemo(BaseGrid, direction="vertical"):
         self.canvas = Text(
             [
                 Text("\n"),
-                Text(_LOGO, color=color),
+                Text(_LOGO, foreground=color),
                 Text(
                     f"\n          [ CURRENT EFFECT: {effect_name} ]\n",
-                    color=tailwind_color("teal", 300),
+                    foreground=tailwind_color("teal", 300),
                 ),
                 Text(
                     "          (Animations render smoothly at 60 FPS in pure rust/python)",
-                    color=tailwind_color("slate", 500),
+                    foreground=tailwind_color("slate", 500),
                 ),
             ]
         )
