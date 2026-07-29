@@ -467,7 +467,7 @@ jobs:
         run: uv publish
 
       - name: create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: xnano-core ${{ needs.resolve-release.outputs.tag_version }}
@@ -529,7 +529,7 @@ jobs:
         run: uv publish
 
       - name: create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: xnano ${{ needs.resolve-release.outputs.tag_version }}
