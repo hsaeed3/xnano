@@ -48,14 +48,14 @@ terminal = [
 editor = ["dep:tui-textarea"]
 
 [dependencies]
-crossterm = { version = "0.28", optional = true }
+crossterm = { version = "0.29", optional = true }
 palette = "0.7"
 pyo3 = { version = "0.29.0", features = [
     "extension-module",
     "abi3-py310",
     "generate-import-lib",
 ] }
-ratatui = { version = "0.29", default-features = false, features = [
+ratatui = { version = "0.30", default-features = false, features = [
     "palette",
 ] }
 ratatui-core = "0.1"
