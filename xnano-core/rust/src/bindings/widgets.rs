@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::PyList;
-use ratatui::widgets::block::Position as TitlePosition;
+use ratatui::widgets::TitlePosition;
 use ratatui::symbols::border;
 use ratatui::widgets::{
     Block, BorderType, Borders, Gauge, HighlightSpacing, List, ListDirection, ListItem, ListState,
@@ -58,7 +58,7 @@ impl PyBorders {
 #[pyclass(name = "BorderSet", module = "xnano_core.rust.native", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyBorderSet {
-    pub inner: border::Set,
+    pub inner: border::Set<'static>,
 }
 
 #[pymethods]

@@ -16,7 +16,7 @@ try:
 except (
     importlib.metadata.PackageNotFoundError
 ):  # pragma: no cover - editable / source trees
-    __version__ = "1.2.0"
+    __version__ = "1.2.1"
 
 if TYPE_CHECKING:
     from xnano import cli, components, core, events, hooks, requests

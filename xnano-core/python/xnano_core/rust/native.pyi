@@ -100,7 +100,7 @@ class Flex(enum.IntEnum):
     """Flex distribution mode for layout constraints.
 
     Maps to :class:`ratatui::layout::Flex`.
-    See https://docs.rs/ratatui/0.29.0/ratatui/layout/enum.Flex.html
+    See https://docs.rs/ratatui/0.30.2/ratatui/layout/enum.Flex.html
     """
 
     Legacy = ...
@@ -109,6 +109,7 @@ class Flex(enum.IntEnum):
     Center = ...
     SpaceBetween = ...
     SpaceAround = ...
+    SpaceEvenly = ...
 
 class Constraint:
     """Layout size constraint.
