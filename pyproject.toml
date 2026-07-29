@@ -87,15 +87,14 @@ dev = [
     "mkdocstrings-python",
     "markdown-exec[ansi]",
 
-    # test / beta testing related dependencies
+    # test-related dependencies
     "pydantic>=2.0.0",
     "httpx>=0.28.1",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["tests"]
-# Skip experimental suites during default discovery.
-# Run explicitly: uv run pytest tests/beta tests/experimental
+# Default discovery excludes common build/venv dirs only.
 norecursedirs = [
     ".*",
     "build",
@@ -105,8 +104,6 @@ norecursedirs = [
     "{arch}",
     "*.egg",
     "venv",
-    "beta",
-    "experimental",
 ]
 
 [tool.maturin.env]
@@ -116,8 +113,7 @@ PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
 extra-paths = ["xnano-core/python"]
 
 [tool.ty.rules]
-# Stable xnano deliberately remains usable while its public classes warn at
-# runtime during the v1.2 beta migration.
+# Deprecations (e.g. color→foreground) are intentional migration aliases.
 deprecated = "ignore"
 
 [tool.ruff]

@@ -19,7 +19,7 @@ import sys
 
 from xnano.components.text import Text
 from xnano.fields import Field
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
 from xnano.hooks import (
     on_click,
     on_keyboard,
@@ -35,7 +35,7 @@ class Counter(BaseGrid, direction="vertical", gap=1):
     """A counter with click, keyboard, tick, text-input, and HTTP hooks."""
 
     title: Text = Field(
-        default=Text("xnano counter", color="cyan", modifiers=("bold",)),
+        default=Text("xnano counter", foreground="cyan", modifiers=("bold",)),
         height=1,
     )
     name: Text = Field(

@@ -2,10 +2,7 @@
 
 ---
 
-Declarative visual effect descriptions for ``BaseGrid`` layout fields
-(duration, motion, color, composition). Host controllers lower these
-intents to their platform (for example terminal effects via
-``xnano.terminal.effects``).
+Animate grid fields with fades, movement, painting, delays, and composition.
 """
 
 from __future__ import annotations
@@ -14,7 +11,7 @@ import abc
 import dataclasses
 from typing import Literal, Sequence, TypeAlias, overload
 
-from xnano.color import ColorLike
+from xnano.colors import ColorLike
 
 EffectMotion: TypeAlias = Literal[
     "up_to_down",
@@ -154,10 +151,20 @@ class AbstractEffect(abc.ABC):
 
     Subclasses describe effect intent with ``xnano`` types and literals.
     A controller lowers them to whatever native effect representation it
-    understands — today that means ``xnano.terminal.effects`` lowering to a
-    ``tachyonfx`` effect for the terminal controller; a web controller
-    would instead dispatch over the concrete subclass to a CSS
-    transition/animation.
+    understands. Terminal and web surfaces both lower these descriptions
+    through the runtime.
+
+    Attributes:
+        duration_ms: Duration in milliseconds.
+        interpolation: Optional interpolation curve.
+        cell_filter: Optional terminal-cell selection.
+        key: Optional identity used to replace an active effect.
+
+    Examples:
+        ```python
+        effect = FadeEffect(color="violet", duration_ms=250)
+        context.play_effect("content", effect)
+        ```
     """
 
     duration_ms: int = dataclasses.field(default=300, kw_only=True)
@@ -185,7 +192,11 @@ class AbstractEffect(abc.ABC):
 
 @dataclasses.dataclass
 class FadeEffect(AbstractEffect):
-    """Fade foreground color to a target color."""
+    """Fade foreground color to a target color.
+
+    Attributes:
+        color: Target foreground color.
+    """
 
     color: ColorLike = "white"
     """Target foreground color."""
@@ -193,7 +204,11 @@ class FadeEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class FadeFromEffect(AbstractEffect):
-    """Fade foreground color from a source color."""
+    """Fade foreground color from a source color.
+
+    Attributes:
+        color: Source foreground color.
+    """
 
     color: ColorLike = "white"
     """Source foreground color."""
@@ -201,7 +216,12 @@ class FadeFromEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class FadeToEffect(AbstractEffect):
-    """Fade foreground and background to target colors."""
+    """Fade foreground and background to target colors.
+
+    Attributes:
+        color: Target foreground color.
+        background: Target background color.
+    """
 
     color: ColorLike = "white"
     """Target foreground color."""
@@ -211,7 +231,12 @@ class FadeToEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class FadeFromBothEffect(AbstractEffect):
-    """Fade foreground and background from source colors."""
+    """Fade foreground and background from source colors.
+
+    Attributes:
+        color: Source foreground color.
+        background: Source background color.
+    """
 
     color: ColorLike = "white"
     """Source foreground color."""
@@ -221,17 +246,32 @@ class FadeFromBothEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class DissolveEffect(AbstractEffect):
-    """Random pixel dissolve transition."""
+    """Random pixel dissolve transition.
+
+    Attributes:
+        duration_ms: Duration in milliseconds.
+    """
 
 
 @dataclasses.dataclass
 class CoalesceEffect(AbstractEffect):
-    """Typewriter-style cell assembly."""
+    """Typewriter-style cell assembly.
+
+    Attributes:
+        duration_ms: Duration in milliseconds.
+    """
 
 
 @dataclasses.dataclass
 class DirectionalEffect(AbstractEffect):
-    """Shared parameters for slide and sweep effects."""
+    """Shared parameters for slide and sweep effects.
+
+    Attributes:
+        direction: Direction of travel.
+        gradient_length: Length of the motion gradient in cells.
+        randomness: Randomness along the gradient.
+        color: Accent color of the gradient.
+    """
 
     direction: EffectMotion = "left_to_right"
     """Direction the effect travels across the target area."""
@@ -245,27 +285,48 @@ class DirectionalEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class SweepInEffect(DirectionalEffect):
-    """Directional sweep revealing content."""
+    """Directional sweep revealing content.
+
+    Attributes:
+        direction: Direction of travel.
+    """
 
 
 @dataclasses.dataclass
 class SweepOutEffect(DirectionalEffect):
-    """Directional sweep hiding content."""
+    """Directional sweep hiding content.
+
+    Attributes:
+        direction: Direction of travel.
+    """
 
 
 @dataclasses.dataclass
 class SlideInEffect(DirectionalEffect):
-    """Directional slide revealing content."""
+    """Directional slide revealing content.
+
+    Attributes:
+        direction: Direction of travel.
+    """
 
 
 @dataclasses.dataclass
 class SlideOutEffect(DirectionalEffect):
-    """Directional slide hiding content."""
+    """Directional slide hiding content.
+
+    Attributes:
+        direction: Direction of travel.
+    """
 
 
 @dataclasses.dataclass
 class PaintEffect(AbstractEffect):
-    """Paint foreground and background to target colors."""
+    """Paint foreground and background to target colors.
+
+    Attributes:
+        color: Target foreground color.
+        background: Target background color.
+    """
 
     color: ColorLike = "white"
     """Target foreground color."""
@@ -275,7 +336,11 @@ class PaintEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class PaintForegroundEffect(AbstractEffect):
-    """Paint foreground to a target color."""
+    """Paint foreground to a target color.
+
+    Attributes:
+        color: Target foreground color.
+    """
 
     color: ColorLike = "white"
     """Target foreground color."""
@@ -283,7 +348,11 @@ class PaintForegroundEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class PaintBackgroundEffect(AbstractEffect):
-    """Paint background to a target color."""
+    """Paint background to a target color.
+
+    Attributes:
+        background: Target background color.
+    """
 
     background: ColorLike = "black"
     """Target background color."""
@@ -291,12 +360,20 @@ class PaintBackgroundEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class SleepEffect(AbstractEffect):
-    """No-op delay used when composing effect sequences."""
+    """No-op delay used when composing effect sequences.
+
+    Attributes:
+        duration_ms: Delay in milliseconds.
+    """
 
 
 @dataclasses.dataclass
 class SequenceEffect(AbstractEffect):
-    """Run child effects one after another."""
+    """Run child effects one after another.
+
+    Attributes:
+        effects: Child effects to run in order.
+    """
 
     effects: tuple[AbstractEffect, ...] = ()
     """Child effects to run in order."""
@@ -304,7 +381,11 @@ class SequenceEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class ParallelEffect(AbstractEffect):
-    """Run child effects simultaneously."""
+    """Run child effects simultaneously.
+
+    Attributes:
+        effects: Child effects to run in parallel.
+    """
 
     effects: tuple[AbstractEffect, ...] = ()
     """Child effects to run in parallel."""
@@ -312,7 +393,12 @@ class ParallelEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class RepeatEffect(AbstractEffect):
-    """Repeat a child effect."""
+    """Repeat a child effect.
+
+    Attributes:
+        child: Effect to repeat.
+        times: Number of repetitions, or forever when unset.
+    """
 
     child: AbstractEffect | None = None
     """Effect to repeat."""
@@ -322,7 +408,12 @@ class RepeatEffect(AbstractEffect):
 
 @dataclasses.dataclass
 class DelayEffect(AbstractEffect):
-    """Delay before starting a child effect."""
+    """Delay before starting a child effect.
+
+    Attributes:
+        child: Effect to start after the delay.
+        duration_ms: Delay in milliseconds.
+    """
 
     child: AbstractEffect | None = None
     """Effect to start after the delay."""

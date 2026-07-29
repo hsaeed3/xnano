@@ -46,7 +46,7 @@ def _render_demo(
         {imports}
         from xnano.terminal import Terminal
 
-        Terminal(height={height}).render({expression})
+        Terminal.offscreen(cols=80, rows={height}).render({expression})
         time.sleep(3)
     """)
     return Demo(
@@ -65,13 +65,15 @@ DEMOS: tuple[Demo, ...] = (
     _render_demo(
         "text_leaf",
         "from xnano.components.text import Text",
-        'Text("hello world", color="red", modifiers=("bold",))',
+        'Text("hello world", foreground="red", modifiers=("bold",))',
         height=1,
     ),
     _render_demo(
         "text_line",
         "from xnano.components.text import Text",
-        ('Text([Text("Hello ", color="cyan"), Text("world", color="red")])'),
+        (
+            'Text([Text("Hello ", foreground="cyan"), Text("world", foreground="red")])'
+        ),
         height=1,
     ),
     _render_demo(
@@ -79,8 +81,8 @@ DEMOS: tuple[Demo, ...] = (
         "from xnano.components.text import Text",
         (
             "Text(["
-            'Text([Text("Hello ", color="cyan"), Text("world")]), '
-            'Text("Second line", color="blue")'
+            'Text([Text("Hello ", foreground="cyan"), Text("world")]), '
+            'Text("Second line", foreground="blue")'
             "])"
         ),
         height=2,
@@ -88,21 +90,21 @@ DEMOS: tuple[Demo, ...] = (
     _render_demo(
         "text_input",
         "from xnano.components.text import Text",
-        'Text("Search xnano", input=True, color="cyan")',
+        'Text("Search xnano", input=True, foreground="cyan")',
         height=1,
     ),
     Demo(
         name="progress_bar",
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
-            from xnano.components.progress import Progress
-            from xnano.events import on_keyboard, on_tick
+            from xnano.components.loader import Loader
+            from xnano.hooks import on_keyboard, on_tick
 
             class Download(BaseGrid, direction="vertical", gap=1):
                 status: str = Field(default="Downloading…", height=1)
-                bar: Progress = Field(
-                    default_factory=lambda: Progress(
-                        value=0.0, color="emerald-400"
+                bar: Loader = Field(
+                    default_factory=lambda: Loader(
+                        value=0.0, foreground="emerald-400"
                     ),
                     height=1,
                 )
@@ -115,7 +117,7 @@ DEMOS: tuple[Demo, ...] = (
                         return
                     self.done += 1
                     ratio = self.done / self.total
-                    self.bar = Progress(value=ratio, color="emerald-400")
+                    self.bar = Loader(value=ratio, foreground="emerald-400")
                     self.status = (
                         "Done."
                         if self.done >= self.total
@@ -135,27 +137,27 @@ DEMOS: tuple[Demo, ...] = (
     ),
     _render_demo(
         "progress_line",
-        "from xnano.components.progress import Progress",
+        "from xnano.components.loader import Loader",
         (
-            'Progress(value=0.42, style="line", label="upload", '
+            'Loader(value=0.42, style="line", label="upload", '
             'filled_color="violet", unfilled_color="gray")'
         ),
         height=2,
     ),
     _render_demo(
         "sparkline_basic",
-        "from xnano.components.sparkline import Sparkline",
+        "from xnano.components.bar import Sparkline",
         (
             "Sparkline("
             "data=[2, 4, 3, 7, 5, 8, 6, 9], "
-            'color="cyan", max_value=10'
+            'foreground="cyan", max_value=10'
             ")"
         ),
         height=4,
     ),
     _render_demo(
         "sparkline_colors",
-        "from xnano.components.sparkline import Sparkline",
+        "from xnano.components.bar import Sparkline",
         (
             "Sparkline("
             "data=[1, 3, 5, 7, 9], "
@@ -177,7 +179,7 @@ DEMOS: tuple[Demo, ...] = (
     ),
     _render_demo(
         "select_basic",
-        "from xnano.components.select import Select",
+        "from xnano.components.options import Select",
         (
             "Select("
             'items=("dark", "light", "dracula", "solarized"), '
@@ -200,7 +202,7 @@ DEMOS: tuple[Demo, ...] = (
                 )
                 latency: int = Column(align="right", format="{}ms")
 
-            Terminal(height=5).render(
+            Terminal.offscreen(cols=80, rows=5).render(
                 Services(
                     data=[
                         {
@@ -257,15 +259,15 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             import dataclasses
             import time
-            from xnano._types import Size
-            from xnano.components.abstract import AbstractComponent
+            from xnano.types import Size
+            from xnano.components.component import Component
             from xnano.core.content import Panel, TextBlock
             from xnano.terminal import Terminal
 
             @dataclasses.dataclass
-            class Badge(AbstractComponent):
+            class Badge(Component):
                 text: str = ""
-                color: str = "white"
+                foreground: str = "white"
 
                 def get_size(self, ctx):
                     return Size(width=len(self.text) + 4, height=3)
@@ -274,14 +276,14 @@ DEMOS: tuple[Demo, ...] = (
                     return Panel(
                         child=TextBlock.from_plain(
                             self.text,
-                            color=self.color,
+                            color=self.foreground,
                         ),
                         border="rounded",
                     )
 
             # Terminal.render paints the composed node; bare render()
             # falls back to the component's repr for unknown types.
-            Terminal(height=5).render(Badge(text="NEW", color="emerald-400"))
+            Terminal.offscreen(cols=80, rows=5).render(Badge(text="NEW", foreground="emerald-400"))
             time.sleep(3)
         """),
         launch_delay="800ms",

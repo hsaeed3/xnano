@@ -138,7 +138,7 @@ function openLinksInNewTab() {
 
 // Picks two neighboring colors from a restrained pastel palette once per
 // page load and hands them to nav.css as CSS vars. This intentionally stays
-// independent from the brighter hero palette.
+// independent from the brighter page palette.
 // This is a single synchronous pick — no animation loop, no per-frame cost.
 function setupNavAccent() {
     const palettes = {

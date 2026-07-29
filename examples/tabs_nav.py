@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import time
 
-from xnano.color import ColorLike, tailwind_color
+from xnano.colors import ColorLike, tailwind_color
 from xnano.components.text import Text
-from xnano.events import on_keyboard
 from xnano.fields import Field
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
+from xnano.hooks import on_keyboard
 from xnano.terminal import Terminal
 
 _TABS = ["System Monitor", "Configuration", "Log Viewer"]
@@ -44,13 +44,17 @@ def _tab_bar(selected: int) -> Text:
         if i == selected:
             parts.append(
                 Text(
-                    f" {name} ", color=accent, modifiers=("bold", "underline")
+                    f" {name} ",
+                    foreground=accent,
+                    modifiers=("bold", "underline"),
                 )
             )
         else:
-            parts.append(Text(f" {name} ", color=tailwind_color("slate", 500)))
+            parts.append(
+                Text(f" {name} ", foreground=tailwind_color("slate", 500))
+            )
         if i < len(_TABS) - 1:
-            parts.append(Text(" │ ", color=border_color))
+            parts.append(Text(" │ ", foreground=border_color))
     return Text(parts)
 
 
@@ -63,12 +67,13 @@ def _monitor_screen(elapsed: float) -> Text:
             [
                 Text(
                     f"  {label}: {ratio * 100:.0f}%\n",
-                    color=tailwind_color("slate", 300),
+                    foreground=tailwind_color("slate", 300),
                 ),
                 Text("  "),
-                Text("█" * filled, color=color),
+                Text("█" * filled, foreground=color),
                 Text(
-                    "░" * (width - filled), color=tailwind_color("slate", 700)
+                    "░" * (width - filled),
+                    foreground=tailwind_color("slate", 700),
                 ),
                 Text("\n"),
             ]
@@ -98,8 +103,10 @@ def _monitor_screen(elapsed: float) -> Text:
             Text("\n"),
             gauge("Disk     ", disk, tailwind_color("cyan", 400)),
             Text("\n\n"),
-            Text("  CPU Load History\n", color=tailwind_color("slate", 400)),
-            Text(f"  {spark}", color=tailwind_color("emerald", 400)),
+            Text(
+                "  CPU Load History\n", foreground=tailwind_color("slate", 400)
+            ),
+            Text(f"  {spark}", foreground=tailwind_color("emerald", 400)),
         ]
     )
 

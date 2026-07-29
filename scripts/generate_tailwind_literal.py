@@ -3,7 +3,7 @@
 ---
 
 One-off generator for the ``TailwindClass`` Literal blocks committed in
-``xnano/beta/tailwind.py``. Never imported at runtime — rerun it and
+``xnano/tailwind.py``. Never imported at runtime — rerun it and
 paste the output below the generated-code marker in that module when
 the supported class vocabulary changes:
 

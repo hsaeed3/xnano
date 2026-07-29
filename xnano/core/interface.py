@@ -2,54 +2,52 @@
 
 ---
 
-``AbstractInterface`` base for surfaces with named fields and live
-``FieldState``. Layout-specific behavior stays on ``BaseGrid``.
+Track dirty state for named fields shared by grids and hosts.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from xnano.fields import FieldState
-
-if TYPE_CHECKING:
-    pass
 
 
 class AbstractInterface:
-    """Shared base for surfaces with named fields and live field state.
+    """Provide per-instance state for declared grid fields.
 
-    ``BaseGrid`` subclasses this so field change notification and
-    per-instance ``FieldState`` live beneath layout.
+    Example:
+        ``grid.get_field_state("status")``
+
+    Attributes:
+        _field_states: Mutable field state keyed by declared field name.
     """
 
     _field_states: dict[str, FieldState]
+    """Mutable field state keyed by declared field name."""
 
     def _init_field_states(self) -> None:
-        """Allocate empty ``FieldState`` entries for declared fields."""
-        states: dict[str, FieldState] = {}
-        for name in getattr(type(self), "_grid_fields", {}):
-            states[name] = FieldState(name=name)
-        for name in getattr(type(self), "_grid_state_fields", {}):
-            states[name] = FieldState(name=name)
-        object.__setattr__(self, "_field_states", states)
+        """Allocate state for every declared layout and state field."""
+        names = (
+            *getattr(type(self), "_grid_fields", {}),
+            *getattr(type(self), "_grid_state_fields", {}),
+        )
+        object.__setattr__(
+            self,
+            "_field_states",
+            {name: FieldState(name=name) for name in names},
+        )
 
     def get_field_state(self, name: str) -> FieldState | None:
-        """Return live state for ``name``, if tracked.
+        """Return tracked state for a field.
 
         Args:
             name: Field attribute name.
 
         Returns:
-            The ``FieldState`` or ``None`` when unknown.
+            Its state, or ``None`` for an unknown field.
         """
-        states = getattr(self, "_field_states", None)
-        if not states:
-            return None
-        return states.get(name)
+        return getattr(self, "_field_states", {}).get(name)
 
     def mark_field_dirty(self, name: str) -> None:
-        """Mark ``name`` dirty and notify the active host controller.
+        """Mark a field as changed.
 
         Args:
             name: Field attribute name.
@@ -57,35 +55,7 @@ class AbstractInterface:
         state = self.get_field_state(name)
         if state is not None:
             state.mark_dirty()
-            value = getattr(self, name, None)
-            state.value = value
-        self._notify_field_changed(name, state)
-
-    def _notify_field_changed(
-        self, name: str, state: FieldState | None
-    ) -> None:
-        """Push dirtiness to the active host's controller when present.
-
-        Uses private controller handles (``_session`` / ``controller``)
-        so inactive terminals do not raise via the public ``session``
-        property.
-        """
-        try:
-            from xnano.core.hosts import get_active_host
-
-            host = get_active_host()
-            if host is None:
-                return
-            controller = getattr(host, "_session", None)
-            if controller is None:
-                controller = getattr(host, "controller", None)
-            if controller is None:
-                return
-            notify = getattr(controller, "notify_field_changed", None)
-            if callable(notify):
-                notify(self, name, state)
-        except Exception:
-            return
+            state.value = getattr(self, name, None)
 
 
 __all__ = ("AbstractInterface",)

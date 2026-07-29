@@ -16,7 +16,7 @@ def run_demo() -> None:
     """Dispatch the installed ``xnano`` entrypoint."""
     arguments = sys.argv[1:]
     if not arguments:
-        from xnano.beta.core.demo import run_demo as _run_feature_demo
+        from xnano.core.demo import run_demo as _run_feature_demo
 
         _run_feature_demo()
         return
@@ -32,7 +32,7 @@ def run_demo() -> None:
         return
 
     path = arguments[0]
-    from xnano.beta.markdown import is_markdown_path, run_markdown
+    from xnano.markdown import is_markdown_path, run_markdown
 
     if is_markdown_path(path):
         run_markdown(path)

@@ -44,7 +44,7 @@ def build_action_demo(
     Args:
         name: Output filename stem.
         title: Border title shown in the recording.
-        decorator_import: Hook imported from ``xnano.events``.
+        decorator_import: Hook imported from ``xnano.hooks``.
         decorator: Decorator expression placed on the handler.
         action: ``Action`` factory expression performed by the terminal.
         before: Message shown before dispatch.
@@ -54,7 +54,7 @@ def build_action_demo(
         A fitted offscreen demo.
     """
     hook_import = (
-        f"from xnano.events import {decorator_import}"
+        f"from xnano.hooks import {decorator_import}"
         if decorator_import
         else ""
     )
@@ -88,7 +88,7 @@ def build_action_demo(
             terminal = Terminal.offscreen(cols=52, rows=7)
             try:
                 terminal.render(example)
-                terminal.perform(TRIGGER)
+                terminal.actions.perform(TRIGGER)
                 terminal.render(example)
                 print(terminal.get_output_as_ansi())
                 time.sleep(3)
@@ -148,7 +148,7 @@ def build_render_demo(
                     color="slate-400",
                 )
 
-            Terminal(height=7).render(Example())
+            Terminal.offscreen(cols=80, rows=7).render(Example())
             time.sleep(3)
         """),
         launch_delay="800ms",
@@ -196,7 +196,7 @@ DEMOS: tuple[Demo, ...] = (
             terminal = Terminal.offscreen(cols=52, rows=8)
             try:
                 terminal.render(notice)
-                terminal.perform(OPEN)
+                terminal.actions.perform(OPEN)
                 terminal.render(notice)
                 print(terminal.get_output_as_ansi())
                 time.sleep(3)
