@@ -54,6 +54,14 @@ _MODIFIER_KEYS: frozenset[str] = frozenset({"ctrl", "alt", "shift"})
 """Modifier names accepted as standalone (bare) keyboard bindings."""
 
 
+_MODIFIER_KEY_NAMES: dict[str, tuple[str, ...]] = {
+    "ctrl": ("ctrl", "control"),
+    "alt": ("alt", "option"),
+    "shift": ("shift",),
+}
+"""Physical key names a terminal may report for each bare modifier press."""
+
+
 def normalize_keyboard_binding(
     binding: str,
 ) -> tuple[frozenset[str], str]:
@@ -219,12 +227,18 @@ class KeyboardEventData(AbstractEventData):
         """Return whether this event is a bare ``modifier`` key press.
 
         Covers terminals that deliver a modifier press as a key whose name is
-        (or starts with) the modifier — e.g. ``"shift"``, ``"shiftleft"``.
+        (or starts with) the modifier under any of the names terminals use —
+        ``"shift"``/``"shiftleft"``, ``"ctrl"``/``"control"``,
+        ``"alt"``/``"option"``.
         """
         key = self.key
         if not isinstance(key, str):
             return False
-        return key == modifier or key.startswith(modifier)
+        key = key.lower()
+        for name in _MODIFIER_KEY_NAMES.get(modifier, (modifier,)):
+            if key == name or key.startswith(name):
+                return True
+        return False
 
     def matches(self, *bindings: KeyboardBinding) -> bool:
         """Return whether this event matches any binding.

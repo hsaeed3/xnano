@@ -23,6 +23,7 @@ def _kbd(**kwargs: Any) -> Any:
         def __init__(self) -> None:
             self.kind = kwargs.get("kind", "press")
             self.character = character
+            self.modifiers = list(kwargs.get("modifiers", ()))
 
         def matches(self, *bindings: str) -> bool:
             return any(binding in matches for binding in bindings)

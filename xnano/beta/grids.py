@@ -108,6 +108,7 @@ _GRID_FIELD_CONFIG_KEYS: frozenset[str] = frozenset(
         "strict",
         "slide",
         "visible",
+        "z",
         "wireframe",
         "color",
         "background",
@@ -534,6 +535,27 @@ def _resolve_slot_area(
         y=slot_area.y,
         width=slot_area.width,
         height=length,
+    )
+
+
+def _grid_overlay_area(inner: Area, field: GridFieldInfo) -> Area:
+    """Center an out-of-flow overlay field within the grid's content area.
+
+    ``width``/``height`` size the floating box (percent, cells, or ratio);
+    an unset or filling axis spans the whole area. The box is clamped to
+    ``inner`` and centered on both axes.
+    """
+    width = inner.width
+    height = inner.height
+    if field.width is not None and not field.width.is_fill:
+        width = max(1, min(field.width.resolve(inner.width), inner.width))
+    if field.height is not None and not field.height.is_fill:
+        height = max(1, min(field.height.resolve(inner.height), inner.height))
+    return Area(
+        x=inner.x + (inner.width - width) // 2,
+        y=inner.y + (inner.height - height) // 2,
+        width=width,
+        height=height,
     )
 
 
@@ -1552,6 +1574,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         title_position: FrameTitlePosition | None = UNSET,
         padding: PaddingLike | None = UNSET,
         margin: PaddingLike | None = UNSET,
+        z: int | None = UNSET,
         modifiers: Sequence[CharacterModifier] | None = UNSET,
         class_name: ClassNameLike | None = UNSET,
         bold: bool = UNSET,
@@ -1593,6 +1616,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 "title_position": title_position,
                 "padding": padding,
                 "margin": margin,
+                "z": z,
                 "modifiers": modifiers,
                 "class_name": class_name,
                 "bold": bold,
@@ -1653,6 +1677,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         title_position: FrameTitlePosition | None = UNSET,
         padding: PaddingLike | None = UNSET,
         margin: PaddingLike | None = UNSET,
+        z: int | None = UNSET,
         modifiers: Sequence[CharacterModifier] | None = UNSET,
         class_name: ClassNameLike | None = UNSET,
         bold: bool = UNSET,
@@ -1695,6 +1720,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 "title_position": title_position,
                 "padding": padding,
                 "margin": margin,
+                "z": z,
                 "modifiers": modifiers,
                 "class_name": class_name,
                 "bold": bold,
@@ -1837,6 +1863,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         session: Any,
         *,
         suppress_frame_border: bool = False,
+        base_z: int = 0,
     ) -> None:
         self.columns = area.width
         self.rows = area.height
@@ -1845,7 +1872,10 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         if responsive:
             self._grid_render_responsive(responsive, area)
         self._grid_assemble(
-            area, session, suppress_frame_border=suppress_frame_border
+            area,
+            session,
+            suppress_frame_border=suppress_frame_border,
+            base_z=base_z,
         )
 
     def _grid_render_responsive(
@@ -1893,6 +1923,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         session: Any,
         *,
         suppress_frame_border: bool = False,
+        base_z: int = 0,
     ) -> None:
         if not self.visible:
             return
@@ -1901,13 +1932,18 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         self._grid_last_slot_areas = {}
         self._grid_field_hits = []
 
+        # z is a single global painter's layer for the whole frame, so a
+        # nested grid stacks on top of its parent's base rather than resetting
+        # to zero: fold the incoming base into this grid's own ``z``.
+        grid_z = base_z + self.z
+
         grid_frame = self._grid_frame_for_paint(suppress_frame_border)
 
         fields = self._grid_fields
 
         if not fields:
             if grid_frame is not None:
-                session.paint_frame(area, grid_frame, z=self.z)
+                session.paint_frame(area, grid_frame, z=grid_z)
             return
 
         active_names: list[str] = []
@@ -1964,19 +2000,63 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
 
         if not active_names:
             if grid_frame is not None:
-                session.paint_frame(area, grid_frame, z=self.z)
+                session.paint_frame(area, grid_frame, z=grid_z)
             return
 
         inner = area
         if grid_frame is not None:
-            inner = session.paint_frame(area, grid_frame, z=self.z)
+            inner = session.paint_frame(area, grid_frame, z=grid_z)
 
-        slot_areas = session.split_layout(
-            inner,
-            self._grid_direction,
-            self._grid_gap,
-            active_constraints,
-        )
+        if any(field.overlay for field in active_fields):
+            # Overlay fields leave the flow: the split sizes only the in-flow
+            # fields, and each overlay is centered over ``inner`` and painted
+            # last (highest paint order, on top of the panels).
+            flow_names: list[str] = []
+            flow_fields: list[GridFieldInfo] = []
+            flow_values: list[Any] = []
+            flow_constraints: list[_GridLayoutConstraint] = []
+            overlay_names: list[str] = []
+            overlay_fields: list[GridFieldInfo] = []
+            overlay_values: list[Any] = []
+            for name, field, value, constraint in zip(
+                active_names,
+                active_fields,
+                active_values,
+                active_constraints,
+            ):
+                if field.overlay:
+                    overlay_names.append(name)
+                    overlay_fields.append(field)
+                    overlay_values.append(value)
+                else:
+                    flow_names.append(name)
+                    flow_fields.append(field)
+                    flow_values.append(value)
+                    flow_constraints.append(constraint)
+            flow_slots = (
+                session.split_layout(
+                    inner,
+                    self._grid_direction,
+                    self._grid_gap,
+                    flow_constraints,
+                )
+                if flow_constraints
+                else []
+            )
+            overlay_slots = [
+                _grid_overlay_area(inner, field) for field in overlay_fields
+            ]
+            active_names = flow_names + overlay_names
+            active_fields = flow_fields + overlay_fields
+            active_values = flow_values + overlay_values
+            slot_areas = flow_slots + overlay_slots
+        else:
+            slot_areas = session.split_layout(
+                inner,
+                self._grid_direction,
+                self._grid_gap,
+                active_constraints,
+            )
 
         collect_mouse_geometry = self._grid_needs_mouse_geometry()
 
@@ -1984,9 +2064,11 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             field_name = active_names[index]
             field = active_fields[index]
             value = active_values[index]
-            slot_area = _resolve_slot_area(
-                session, slot_area, field, value, self._grid_direction
-            )
+            if not field.overlay:
+                # An overlay already carries its final centered geometry.
+                slot_area = _resolve_slot_area(
+                    session, slot_area, field, value, self._grid_direction
+                )
             self._grid_last_slot_areas[field_name] = slot_area
             # Always-on LayoutMap (Stage): record geometry; never tied to
             # wireframe — overlay only reads this map.
@@ -2017,16 +2099,25 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                     parent_area=area,
                     slide_axes=slide_axes,
                 )
+            # A field may lift its whole slot onto its own layer; ``None``
+            # inherits this grid's folded z.
+            field_z = grid_z if field.z is None else grid_z + field.z
+            # An overlay occludes what it floats over: clear its area first so
+            # glyphs beneath the popup do not bleed through.
+            if field.overlay:
+                paint_clear = getattr(session, "paint_clear", None)
+                if paint_clear is not None:
+                    paint_clear(paint_area, z=field_z)
             field_frame = self._grid_field_frame(field_name, field)
             if field_frame is not None:
                 paint_chrome = getattr(session, "paint_chrome", None)
                 if paint_chrome is not None and hasattr(field, "get_style"):
                     paint_area = paint_chrome(
-                        paint_area, field.get_style(), z=self.z
+                        paint_area, field.get_style(), z=field_z
                     )
                 else:
                     paint_area = session.paint_frame(
-                        paint_area, field_frame, z=self.z
+                        paint_area, field_frame, z=field_z
                     )
             # The wireframe is a debug skeleton for the field's allocated
             # cells; paint it *before* the value so live content renders
@@ -2036,7 +2127,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                     session, "paint_field_wireframe", None
                 )
                 if paint_wireframe is not None:
-                    paint_wireframe(paint_area, z=self.z)
+                    paint_wireframe(paint_area, z=field_z)
             if value is None:
                 continue
             scroll_offset = 0
@@ -2049,7 +2140,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 value,
                 paint_area,
                 field,
-                parent_z=self.z,
+                parent_z=field_z,
                 effect_key=field_name,
                 owner=self,
                 owner_field_name=field_name,
