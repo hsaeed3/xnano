@@ -32,13 +32,13 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "pip"
 
     ```bash title="Install with pip"
-    pip install "xnano>=1.2.0"
+    pip install "xnano>=1.2.1"
     ```
 
 === "uv"
 
     ```bash title="Install with uv"
-    uv pip install "xnano>=1.2.0"
+    uv pip install "xnano>=1.2.1"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -47,7 +47,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "poetry"
 
     ```bash title="Install with poetry"
-    poetry install "xnano>=1.2.0"
+    poetry install "xnano>=1.2.1"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -56,7 +56,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "conda"
 
     ```bash title="Install with conda"
-    conda install "xnano>=1.2.0"
+    conda install "xnano>=1.2.1"
     ```
 
 ## Notetaking Application

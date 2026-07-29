@@ -29,6 +29,20 @@ cargo clean
 maturin develop --uv
 ```
 
+On some macOS toolchains (observed on a macOS 27 beta + Xcode Command Line
+Tools combo), maturin's default `-C strip=symbols` rustc flag produces a
+`native.abi3.so` that dyld refuses to load with `mis-aligned LINKEDIT string
+pool`. The failure is nondeterministic — rebuilding with identical source can
+flip between a loadable and a corrupt binary. `cargo build`/`cargo check`
+(which don't strip) are unaffected, so this only shows up when the extension
+is actually imported from Python. If `import xnano_core` raises that dlopen
+error, rebuild with stripping disabled:
+```bash
+cd xnano-core
+cargo clean
+RUSTFLAGS="-C strip=none" maturin develop --uv
+```
+
 ### Docs
 ```bash
 uv run mkdocs serve                  # local docs server (zensical/mkdocs)

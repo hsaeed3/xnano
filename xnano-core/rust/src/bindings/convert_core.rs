@@ -2,7 +2,7 @@ use ratatui::buffer::Buffer as RtBuffer;
 use ratatui::layout::{Margin as RtMargin, Rect as RtRect};
 use ratatui_core::layout::Margin as CoreMargin;
 use ratatui::style::{Color as RtColor, Modifier as RtModifier, Style as RtStyle};
-use ratatui_core::buffer::{Buffer as CoreBuffer, CellDiffOption};
+use ratatui_core::buffer::Buffer as CoreBuffer;
 use ratatui_core::layout::Rect as CoreRect;
 use ratatui_core::style::{Color as CoreColor, Modifier as CoreModifier, Style as CoreStyle};
 
@@ -66,6 +66,8 @@ pub fn to_core_style(style: RtStyle) -> CoreStyle {
     CoreStyle {
         fg: style.fg.map(to_core_color),
         bg: style.bg.map(to_core_color),
+        #[cfg(feature = "terminal")]
+        underline_color: style.underline_color.map(to_core_color),
         add_modifier: to_core_modifier(style.add_modifier),
         sub_modifier: to_core_modifier(style.sub_modifier),
     }
@@ -78,6 +80,10 @@ pub fn from_core_style(style: CoreStyle) -> RtStyle {
     }
     if let Some(c) = style.bg {
         rt.bg = Some(from_core_color(c));
+    }
+    #[cfg(feature = "terminal")]
+    if let Some(c) = style.underline_color {
+        rt.underline_color = Some(from_core_color(c));
     }
     rt.add_modifier = from_core_modifier(style.add_modifier);
     rt.sub_modifier = from_core_modifier(style.sub_modifier);
@@ -98,17 +104,13 @@ pub fn to_core_margin(margin: RtMargin) -> CoreMargin {
 fn sync_cell_to_core(src: &ratatui::buffer::Cell, dst: &mut ratatui_core::buffer::Cell) {
     dst.set_symbol(src.symbol());
     dst.set_style(to_core_style(src.style()));
-    if src.skip {
-        dst.set_diff_option(CellDiffOption::Skip);
-    } else {
-        dst.set_diff_option(CellDiffOption::None);
-    }
+    dst.set_diff_option(src.diff_option);
 }
 
 fn sync_cell_from_core(src: &ratatui_core::buffer::Cell, dst: &mut ratatui::buffer::Cell) {
     dst.set_symbol(src.symbol());
     dst.set_style(from_core_style(src.style()));
-    dst.set_skip(matches!(src.diff_option, CellDiffOption::Skip));
+    dst.set_diff_option(src.diff_option);
 }
 
 pub fn sync_to_core_buffer(src: &RtBuffer) -> CoreBuffer {
