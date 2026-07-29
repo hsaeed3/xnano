@@ -2,19 +2,8 @@
 
 ---
 
-``Field`` descriptors for grid layout, sizing, style, and state
-attributes.
-
-Example:
-
-    ```python
-    from xnano import BaseGrid, Field
-
-    class MyGrid(BaseGrid):
-        title: str = Field(default="My BaseGrid")
-        content: str = Field(default="Hello, world!")
-        data: int = Field(default=0, state=True)
-    ```
+Declare renderable layout slots and non-rendered state on a ``BaseGrid``.
+Each field can also control sizing, style, focus, scrolling, and movement.
 """
 
 from __future__ import annotations
@@ -31,22 +20,20 @@ from typing import (
     overload,
 )
 
-from xnano import _types as types
-from xnano._styles import Style
-from xnano._types import FrameTitlePosition, Sizing, SizingLike
-from xnano.color import ColorLike
+from xnano import types
+from xnano.colors import ColorLike
+from xnano.tailwind import Style
+from xnano.types import FrameTitlePosition, Sizing, SizingLike
+from xnano.utils.deprecation import warn_color_alias
 
 if TYPE_CHECKING:
-    from xnano._styles import TailwindClass
+    from xnano.tailwind import TailwindClass
 
 
 _T = TypeVar("_T")
-"""Field value type, carried through the ``Field`` overloads so a typed
-default surfaces as the attribute's type on the grid.
-"""
-
-
 UNSET: Any = object()
+_COLOR_UNSET: Any = object()
+"""Sentinel marking the deprecated ``color`` alias as not supplied."""
 
 
 ClassNameLike: TypeAlias = Union[
@@ -56,7 +43,7 @@ ClassNameLike: TypeAlias = Union[
     "tuple[TailwindClass | str, ...]",
 ]
 """Tailwind classes as a single class, a space-separated string, or a
-list of class tokens. See ``xnano._styles.TailwindClass`` for the
+list of class tokens. See ``xnano.tailwind.TailwindClass`` for the
 full supported vocabulary; unknown tokens are carried verbatim to the
 web backend and ignored by the terminal.
 """
@@ -83,7 +70,7 @@ class GridFieldInfo:
     """Descriptor class for layout, frame and additional rendering metadata for
     a field within a grid.
 
-    Example:
+    Examples:
         ```python
         from xnano import BaseGrid, Field
 
@@ -103,10 +90,15 @@ class GridFieldInfo:
         modifiers: Modifiers to apply to all characters within this field. This can be a list
             including "bold", "dim", "italic", "underline", "slow_blink", "rapid_blink",
             "reversed".
-        color: The foreground color of content within this field.
-        background: The background color behind this field's text cells. Pair
-            with a filling ``width`` for a full-width bar; fills the framed
-            content area when the field also defines border/title/padding chrome.
+        foreground: The foreground color of content within this field.
+        color: Deprecated alias for ``foreground``; passing it emits a
+            ``DeprecationWarning`` and sets the foreground.
+        background: The background color of this field. Fills the whole slot by
+            default when set (see ``fill``); also fills the framed content area
+            when the field defines border/title/padding chrome.
+        fill: Whether ``background`` fills the whole slot. ``None`` fills when a
+            background is set; ``True`` forces a full-slot fill; ``False`` paints
+            the color only behind text glyphs.
         width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
             or a ``Sizing``). Drives the split constraint in horizontal layouts;
             shrinks the slot along the cross axis otherwise.
@@ -126,6 +118,12 @@ class GridFieldInfo:
             field's area.
         padding: The padding to be applied around the content area of this field.
         slide: The axes along which this field may slide within its parent grid.
+        group: Terminal-wide focus and event group.
+        autofocus: Whether the field receives focus by default.
+        scroll: Whether container content scrolls when it exceeds its area.
+        wireframe: Whether to draw the field's debug cell grid.
+        class_name: Tailwind utility classes applied to the field.
+        margin: Space outside the field's allocated area.
     """
 
     default: Any = UNSET
@@ -161,11 +159,17 @@ class GridFieldInfo:
     background: ColorLike | None = None
     """The background color of content within this field.
 
-    Paints behind the field's text cells only, not the whole slot — so a plain
-    ``background`` reads as an accent behind the content. Pair it with a filling
-    ``width`` (e.g. ``width="1fr"``) for a full-width bar such as a header or
-    status line. When the field also defines border, title, or padding chrome,
-    this color fills the framed content area instead.
+    By default a ``background`` fills the field's whole slot (``fill`` is
+    treated as ``True`` when a background is set). Pass ``fill=False`` to revert
+    to the accent-behind-glyphs behavior, where the color paints only behind
+    text cells. When the field also defines border, title, or padding chrome,
+    the color fills the framed content area regardless of ``fill``.
+    """
+    fill: bool | None = None
+    """Whether ``background`` fills the whole slot.
+
+    ``None`` (the default) fills when a ``background`` is set; ``True`` forces a
+    full-slot fill; ``False`` paints the color only behind text glyphs.
     """
     width: "Sizing | None" = None
     """Sizing intent for the field's horizontal extent.
@@ -216,10 +220,14 @@ class GridFieldInfo:
     """Whether this field receives focus by default when nothing else is
     focused yet (preferred over declaration-order default selection)."""
     scroll: "types.ScrollLike | None" = None
-    """Enable windowed scrolling for a container field whose content
-    overflows its slot. ``True`` scrolls along ``direction``; pass
-    ``"vertical"``/``"horizontal"`` to force an axis. See ``ctx.scroll(group)``
-    for programmatic control (``.to_bottom()``, ``.follow``)."""
+    """Enable windowed scrolling for a field whose content overflows its slot.
+
+    ``True``/``"vertical"`` scrolls rows; ``"horizontal"`` scrolls columns.
+    A scroll field reserves its full slot height (short content leaves blank
+    rows) and the mouse wheel moves it automatically. Drive it programmatically
+    through ``ctx.scroll(group)`` — ``.scroll(delta)``, ``.scroll_to(offset)``,
+    ``.scroll_to_end()`` (tail-follow). Offset ``0`` shows the top; increasing
+    the offset reveals later content."""
     wireframe: bool | None = None
     """Live-toggle a debug overlay showing the cell grid this field
     occupies. Content renders normally underneath; this only adds a thin
@@ -238,6 +246,25 @@ class GridFieldInfo:
     Also populated by Tailwind ``m*-{n}`` classes through
     ``class_name``; the terminal insets the field's slot by this
     amount before painting.
+    """
+    z: int | None = None
+    """Layering order for this field's slot, relative to its grid.
+
+    ``None`` inherits the grid's own ``z``; an explicit value stacks the
+    field's whole subtree — plain text, a component, or a nested grid —
+    above (or below) its siblings. It is additive with the grid's ``z`` and
+    any nested field ``z``, so an overlay field lifts everything it contains
+    together. Live-toggle via ``grid_set_field``/``grid_update_field``.
+    """
+    overlay: bool = False
+    """Float this field over the grid instead of giving it a layout slot.
+
+    A normal field claims a share of the layout; an overlay field is taken
+    out of the flow and painted on top of the grid's content area, sized by
+    its ``width``/``height`` (percent, cells, or ratio; unset fills the
+    area) and centered. Pair it with a higher ``z`` for a popup or modal that
+    covers the panels behind it rather than pushing them aside. Hidden
+    overlays (``visible=False``) cost nothing until shown.
     """
 
     def get_style(self) -> Style:
@@ -307,6 +334,15 @@ class FieldState:
         dirty: Whether the value or overrides changed since last paint.
         slide_position: Optional drag offset for slidable fields.
         overrides: Per-instance style/layout overrides.
+
+    Examples:
+        Inspect live state without changing the field descriptor:
+
+        ```python
+        state = grid.get_field_state("search")
+        if state.focused:
+            ...
+        ```
     """
 
     name: str
@@ -343,8 +379,10 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -357,6 +395,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -376,8 +416,10 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -390,6 +432,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -408,8 +452,10 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -422,6 +468,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -441,8 +489,10 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -455,6 +505,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -473,8 +525,10 @@ def Field(
     init: bool = True,
     visible: bool | None = None,
     modifiers: Sequence[types.CharacterModifier] | None = None,
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
+    color: ColorLike | None = _COLOR_UNSET,
     background: ColorLike | None = None,
+    fill: bool | None = None,
     width: SizingLike | None = None,
     height: SizingLike | None = None,
     gap: int | None = None,
@@ -487,6 +541,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -507,10 +563,15 @@ def Field(
         modifiers: Modifiers to apply to all characters within this field. This can be a list
             including "bold", "dim", "italic", "underline", "slow_blink", "rapid_blink",
             "reversed".
-        color: The foreground color of content within this field.
-        background: The background color behind this field's text cells. Pair
-            with a filling ``width`` for a full-width bar; fills the framed
-            content area when the field also defines border/title/padding chrome.
+        foreground: The foreground color of content within this field.
+        color: Deprecated alias for ``foreground``; passing it emits a
+            ``DeprecationWarning`` and sets the foreground.
+        background: The background color of this field. Fills the whole slot by
+            default when set (see ``fill``); also fills the framed content area
+            when the field defines border/title/padding chrome.
+        fill: Whether ``background`` fills the whole slot. ``None`` fills when a
+            background is set; ``True`` forces a full-slot fill; ``False`` paints
+            the color only behind text glyphs.
         width: Horizontal extent sizing (``10``, ``"50%"``, ``"1fr"``, ``"fit"``,
             or a ``Sizing``). Drives the split constraint in horizontal layouts;
             shrinks the slot along the cross axis otherwise.
@@ -530,10 +591,17 @@ def Field(
             field's area.
         padding: The padding to be applied around the content area of this field.
         margin: The margin to be applied around the outer area of this field.
+        z: Layering order for this field's slot relative to its grid. ``None``
+            inherits the grid's own ``z``; an explicit value stacks the field's
+            whole subtree (text, component, or nested grid) above or below its
+            siblings and is additive with the grid's ``z``.
+        overlay: Float this field over the grid's content area (centered, sized
+            by ``width``/``height``) instead of giving it a layout slot. Pair
+            with a higher ``z`` for a popup or modal over the panels behind it.
         slide: The axes along which this field may slide within its parent grid.
         class_name: Tailwind CSS classes styling this field — a space-separated
             string or a sequence of class tokens. Classes are lowered into the
-            standard field attributes (see ``xnano._styles``); an explicit
+            standard field attributes (see ``xnano.tailwind``); an explicit
             keyword argument always overrides a class-derived value. Classes
             with no terminal equivalent are ignored by the terminal backend and
             emitted verbatim by the web backend.
@@ -542,17 +610,21 @@ def Field(
         A new ``GridFieldInfo`` instance with all display/layout metadata,
         including the normalized ``class_name`` tokens.
     """
+    if color is not _COLOR_UNSET:
+        warn_color_alias(stacklevel=2)
+        if foreground is None:
+            foreground = color
     tokens: tuple[str, ...] | None = None
     if class_name is not None:
-        from xnano._styles import (
+        from xnano.tailwind import (
             normalize_tailwind_classes,
             resolve_tailwind_classes,
         )
 
         tokens = normalize_tailwind_classes(class_name)
         resolved = resolve_tailwind_classes(tokens)
-        if color is None:
-            color = resolved.color
+        if foreground is None:
+            foreground = resolved.color
         if background is None:
             background = resolved.background
         if border is None:
@@ -585,9 +657,10 @@ def Field(
         strict=strict,
         init=init,
         visible=visible,
-        color=color,
+        color=foreground,
         modifiers=modifiers,
         background=background,
+        fill=fill,
         width=Sizing.parse(width),
         height=Sizing.parse(height),
         gap=gap,
@@ -600,6 +673,8 @@ def Field(
         title_position=title_position,
         padding=padding,
         margin=margin,
+        z=z,
+        overlay=overlay,
         slide=_normalize_slide_axes(slide),
         group=group,
         autofocus=autofocus,

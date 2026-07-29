@@ -34,7 +34,7 @@ DEMOS: tuple[Demo, ...] = (
         name="streaming_grid",
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
-            from xnano.events import on_keyboard, on_tick
+            from xnano.hooks import on_keyboard, on_tick
 
             class Stream(BaseGrid, direction="vertical", gap=1):
                 body: str = Field(
@@ -89,7 +89,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
             from xnano.components.text import Text
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             class Form(BaseGrid, direction="vertical", gap=1):
                 name: Text = Field(
@@ -140,7 +140,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
             from xnano.components.text import Text
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             ITEMS = ["Home", "Projects", "Settings", "About"]
 
@@ -174,7 +174,7 @@ DEMOS: tuple[Demo, ...] = (
                                 Text([
                                     Text(
                                         f" › {item}",
-                                        color="violet-300",
+                                        foreground="violet-300",
                                         modifiers=("bold",),
                                     )
                                 ])
@@ -184,7 +184,7 @@ DEMOS: tuple[Demo, ...] = (
                                 Text([
                                     Text(
                                         f"   {item}",
-                                        color="slate-400",
+                                        foreground="slate-400",
                                     )
                                 ])
                             )
@@ -236,7 +236,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
             from xnano.components.text import Text
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             TABS = ["Overview", "Config", "Logs"]
 
@@ -273,17 +273,17 @@ DEMOS: tuple[Demo, ...] = (
                             parts.append(
                                 Text(
                                     f" {name} ",
-                                    color="violet-300",
+                                    foreground="violet-300",
                                     modifiers=("bold", "underline"),
                                 )
                             )
                         else:
                             parts.append(
-                                Text(f" {name} ", color="slate-500")
+                                Text(f" {name} ", foreground="slate-500")
                             )
                         if index < len(TABS) - 1:
                             parts.append(
-                                Text(" │ ", color="slate-600")
+                                Text(" │ ", foreground="slate-600")
                             )
                     self.tab_bar = Text(parts)
                     bodies = {
@@ -319,7 +319,7 @@ DEMOS: tuple[Demo, ...] = (
         name="nested_panels",
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             class Sidebar(BaseGrid, direction="vertical"):
                 nav: str = Field(
@@ -390,7 +390,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
             from xnano.components.text import Text
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             class Trash(BaseGrid, direction="vertical", gap=1):
                 body: str = Field(
@@ -423,7 +423,7 @@ DEMOS: tuple[Demo, ...] = (
                     self.overlay = Text(
                         "Delete draft report.md?\\n\\n"
                         "  y · confirm    n / esc · cancel",
-                        color="amber-200",
+                        foreground="amber-200",
                     )
                     self.status = "Waiting for confirmation…"
                     self.hint = "y · confirm   n / esc · cancel"
@@ -469,15 +469,15 @@ DEMOS: tuple[Demo, ...] = (
         name="live_progress",
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
-            from xnano.components.progress import Progress
-            from xnano.events import on_keyboard, on_tick
+            from xnano.components.loader import Loader
+            from xnano.hooks import on_keyboard, on_tick
 
             class Download(BaseGrid, direction="vertical", gap=1):
                 status: str = Field(default="Downloading…", height=1)
-                bar: Progress = Field(
-                    default_factory=lambda: Progress(
+                bar: Loader = Field(
+                    default_factory=lambda: Loader(
                         value=0.0,
-                        color="emerald-400",
+                        foreground="emerald-400",
                     ),
                     height=1,
                 )
@@ -490,9 +490,9 @@ DEMOS: tuple[Demo, ...] = (
                         return
                     self.done += 1
                     ratio = self.done / self.total
-                    self.bar = Progress(
+                    self.bar = Loader(
                         value=ratio,
-                        color="emerald-400",
+                        foreground="emerald-400",
                     )
                     self.status = (
                         "Done."
@@ -516,7 +516,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
             from xnano.components.text import Text
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             _COLORS = {
                 "ok": "emerald-400",
@@ -532,15 +532,15 @@ DEMOS: tuple[Demo, ...] = (
             def status_line(level: str) -> Text:
                 color = _COLORS[level]
                 return Text([
-                    Text("● ", color=color),
+                    Text("● ", foreground=color),
                     Text(
                         level.upper(),
-                        color=color,
+                        foreground=color,
                         modifiers=("bold",),
                     ),
                     Text(
                         f" — {_LABELS[level]}",
-                        color="slate-400",
+                        foreground="slate-400",
                     ),
                 ])
 
@@ -594,7 +594,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             import dataclasses
             from xnano import BaseGrid, Field, Terminal, Context
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             @dataclasses.dataclass
             class AppState:
@@ -646,8 +646,8 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             import random
             from xnano import BaseGrid, Field, Terminal, Context
-            from xnano.components.sparkline import Sparkline
-            from xnano.events import on_keyboard, on_tick
+            from xnano.components.bar import Sparkline
+            from xnano.hooks import on_keyboard, on_tick
 
             _HISTORY = 24
 
@@ -661,7 +661,7 @@ DEMOS: tuple[Demo, ...] = (
                     default_factory=lambda: Sparkline(
                         data=[0] * _HISTORY,
                         max_value=100,
-                        color="emerald-400",
+                        foreground="emerald-400",
                     ),
                     height=4,
                 )
@@ -686,7 +686,7 @@ DEMOS: tuple[Demo, ...] = (
                     self.chart = Sparkline(
                         data=list(self.samples),
                         max_value=100,
-                        color="emerald-400",
+                        foreground="emerald-400",
                     )
                     self.readout = f"now {next_value:>3}"
 
@@ -706,7 +706,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
             from xnano.components.table import Column, Table
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             class Services(Table):
                 service: str = Column()
@@ -797,14 +797,14 @@ DEMOS: tuple[Demo, ...] = (
             import dataclasses
             import time
             from xnano import BaseGrid, Field, Terminal
-            from xnano._types import Size
-            from xnano.components.abstract import AbstractComponent
+            from xnano.types import Size
+            from xnano.components.component import Component
             from xnano.core.content import Panel, TextBlock
 
             @dataclasses.dataclass
-            class Badge(AbstractComponent):
+            class Badge(Component):
                 text: str = ""
-                color: str = "white"
+                foreground: str = "white"
 
                 def get_size(self, ctx):
                     return Size(width=len(self.text) + 4, height=3)
@@ -813,7 +813,7 @@ DEMOS: tuple[Demo, ...] = (
                     return Panel(
                         child=TextBlock.from_plain(
                             self.text,
-                            color=self.color,
+                            color=self.foreground,
                         ),
                         border="rounded",
                     )
@@ -823,13 +823,13 @@ DEMOS: tuple[Demo, ...] = (
                 badge: Badge = Field(
                     default_factory=lambda: Badge(
                         text="LIVE",
-                        color="red",
+                        foreground="red",
                     ),
                     width="fit",
                     height=3,
                 )
 
-            Terminal(height=4).render(Header())
+            Terminal.offscreen(cols=80, rows=4).render(Header())
             time.sleep(3)
         """),
         launch_delay="800ms",
@@ -843,7 +843,7 @@ DEMOS: tuple[Demo, ...] = (
         name="scrollable_log",
         code=code("""
             from xnano import BaseGrid, Field, Terminal, Context
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             VIEW_HEIGHT = 6
 
@@ -927,7 +927,7 @@ DEMOS: tuple[Demo, ...] = (
         code=code("""
             import time
             from xnano import BaseGrid, Field, Terminal
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             class Clock(BaseGrid, direction="vertical"):
                 display: str = Field(
@@ -962,7 +962,7 @@ DEMOS: tuple[Demo, ...] = (
                 Terminal,
                 on_action,
             )
-            from xnano.events import on_keyboard
+            from xnano.hooks import on_keyboard
 
             SAVE = Action.keyboard("ctrl+s")
             QUIT = Action.keyboard("q")
@@ -1007,7 +1007,7 @@ DEMOS: tuple[Demo, ...] = (
         name="dual_host_terminal",
         code=code("""
             from xnano import BaseGrid, Field, Terminal
-            from xnano.events import on_keyboard, on_tick
+            from xnano.hooks import on_keyboard, on_tick
 
             class Counter(BaseGrid, direction="vertical", gap=1):
                 label: str = Field(default="Count: 0", height=1)

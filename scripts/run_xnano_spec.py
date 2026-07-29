@@ -119,11 +119,11 @@ def save_block(block: SpecBlock, new_body: list[str]) -> None:
 # TUI
 # ---------------------------------------------------------------------------
 
-from xnano.color import tailwind_color
+from xnano.colors import tailwind_color
 from xnano.components.text import Text
-from xnano.events import on_keyboard
 from xnano.fields import Field
-from xnano.grid import BaseGrid
+from xnano.grids import BaseGrid
+from xnano.hooks import on_keyboard
 from xnano.terminal import Terminal
 
 _V300 = tailwind_color("violet", 300)
@@ -140,7 +140,9 @@ _A700 = tailwind_color("amber", 700)
 
 def _render_list(blocks: list[SpecBlock], selected: int, height: int) -> Text:
     if not blocks:
-        return Text("  no blocks found", color=_S500, modifiers=("italic",))
+        return Text(
+            "  no blocks found", foreground=_S500, modifiers=("italic",)
+        )
 
     half = max(1, height // 3)
     start = max(0, selected - half)
@@ -158,10 +160,10 @@ def _render_list(blocks: list[SpecBlock], selected: int, height: int) -> Text:
         parts.append(
             Text(
                 [
-                    Text(prefix, color=_V400, background=bg),
+                    Text(prefix, foreground=_V400, background=bg),
                     Text(
                         f"[@{b.tag}]",
-                        color=tag_c,
+                        foreground=tag_c,
                         modifiers=("bold",) if sel else (),
                         background=bg,
                     ),
@@ -169,7 +171,7 @@ def _render_list(blocks: list[SpecBlock], selected: int, height: int) -> Text:
                     Text("    ", background=bg),
                     Text(
                         f"{b.short_path}:{b.line}\n",
-                        color=file_c,
+                        foreground=file_c,
                         background=bg,
                     ),
                 ]
@@ -185,20 +187,22 @@ def _render_detail(
 ) -> Text:
     if block is None:
         return Text(
-            "  select a block to view", color=_S500, modifiers=("italic",)
+            "  select a block to view", foreground=_S500, modifiers=("italic",)
         )
 
     parts: list[str | Text] = [
-        Text(f"[@{block.tag}]\n", color=_V300, modifiers=("bold",)),
-        Text(f"{block.short_path}:{block.line}\n", color=_S400),
-        Text("─" * 40 + "\n", color=_S700),
+        Text(f"[@{block.tag}]\n", foreground=_V300, modifiers=("bold",)),
+        Text(f"{block.short_path}:{block.line}\n", foreground=_S400),
+        Text("─" * 40 + "\n", foreground=_S700),
     ]
     if edit_mode:
-        parts.append(Text(edit_text + "▋\n", color=_A300))
+        parts.append(Text(edit_text + "▋\n", foreground=_A300))
     elif block.body:
-        parts.append(Text(block.body_text + "\n", color=_S200))
+        parts.append(Text(block.body_text + "\n", foreground=_S200))
     else:
-        parts.append(Text("  (empty)\n", color=_S500, modifiers=("italic",)))
+        parts.append(
+            Text("  (empty)\n", foreground=_S500, modifiers=("italic",))
+        )
 
     return Text(parts)
 

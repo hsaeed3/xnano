@@ -13,183 +13,103 @@ Copyright &copy; 2026 Hammad Saeed
 
 nav = [
     {"Introduction" = "index.md"},
-    "core-concepts/getting-started.md",
-    { "Concepts" = [
-        "core-concepts/terminal.md",
-        "core-concepts/grids.md",
-        "core-concepts/fields.md",
-        "core-concepts/events.md",
-        "core-concepts/actions.md",
-        "core-concepts/context.md",
-        "core-concepts/device.md",
-        "core-concepts/styling.md",
-        { "Hooks & Actions" = [
-            "hooks/index.md",
-            { "Session & Lifecycle" = [
-                "hooks/on.md",
-                "hooks/on-event.md",
-                "hooks/on-tick.md",
-                "hooks/on-poll.md",
-            ]},
-            { "User Triggered Hooks" = [
-                "hooks/on-keyboard.md",
-                "hooks/on-mouse.md",
-                "hooks/on-click.md",
-                "hooks/on-resize.md",
-                "hooks/on-clipboard.md",
-                "hooks/on-focus.md",
-            ]},
-            { "State & Grid Field Conditions" = [
-                "hooks/on-state.md",
-                "hooks/on-field.md",
-            ]},
-            { "Web Requests" = [
-                "hooks/web-requests/index.md",
-                "hooks/web-requests/get.md",
-                "hooks/web-requests/post.md",
-            ]},
-        ]},
-        { "Components" = [
-            "components/index.md",
-            "components/images.md",
-            "components/text.md",
-            "components/select.md",
-            "components/table.md",
-            "components/progress.md",
-            "components/chart.md",
-            "components/sparkline.md",
-            "components/schema.md",
-        ]},
-        { "Beta" = [
-            "core-concepts/web.md",
-            "core-concepts/cli.md",
-        ]},
-    ]},
-    { "Sandbox" = [
-        "sandbox.md",
-        "sandbox/rendering.md",
-        "sandbox/layout.md",
-        "sandbox/styling.md",
-        "sandbox/text.md",
-        "sandbox/table.md",
-        "sandbox/progress.md",
-        "sandbox/chart.md",
-        "sandbox/sparkline.md",
-    ]},
-    { "Tutorials" = [
-        "tutorials/index.md",
-        "tutorials/streaming-content.md",
-        "tutorials/text-inputs.md",
-        "tutorials/selection-list.md",
-        "tutorials/tabs.md",
-        "tutorials/nested-panels.md",
-        "tutorials/confirm-dialog.md",
-        "tutorials/live-progress.md",
-        "tutorials/composed-text.md",
-        "tutorials/shared-state.md",
-        "tutorials/action-bindings.md",
-        "tutorials/title-and-clipboard.md",
-        "tutorials/live-sparklines.md",
-        "tutorials/table-browser.md",
-        "tutorials/custom-component.md",
-        "tutorials/dual-host.md",
-        "tutorials/cli-commands.md",
-        "tutorials/scrollable-log.md",
-        "tutorials/grid-render.md",
-    ]},
-    { "Core Architecture" = [
-        "architecture/xnano-core.md",
-        "architecture/lifecycle.md",
-        "architecture/hosts-and-controllers.md",
-        "architecture/render-nodes.md",
-    ]},
+    "getting-started.md",
+    # API_REFERENCE_START
     { "API Reference" = [
         { "xnano" = [
-            "api/xnano/xnano.md",
-            "api/xnano/_core_bindings.md",
-            "api/xnano/_demo.md",
-            "api/xnano/_dispatch.md",
-            "api/xnano/_event_processing.md",
-            "api/xnano/_function_hooks.md",
-            "api/xnano/_introspection.md",
-            "api/xnano/_markup.md",
-            "api/xnano/_renderable.md",
-            "api/xnano/_styles.md",
-            "api/xnano/_tailwind_classes.md",
-            "api/xnano/_types.md",
-            "api/xnano/_validation.md",
-            "api/xnano/color.md",
-            "api/xnano/context.md",
-            "api/xnano/effects.md",
-            "api/xnano/events.md",
-            "api/xnano/fields.md",
-            "api/xnano/grid.md",
-            "api/xnano/hooks.md",
-            "api/xnano/images.md",
-            "api/xnano/requests.md",
-            "api/xnano/state.md",
+            "api/xnano/index.md",
+            "api/xnano/actions.md",
             { "cli" = [
+                "api/xnano/cli.md",
                 "api/xnano/cli/command.md",
+                "api/xnano/cli/errors.md",
+                "api/xnano/cli/help.md",
+                "api/xnano/cli/parameters.md",
             ]},
+            "api/xnano/colors.md",
             { "components" = [
-                "api/xnano/components/abstract.md",
+                "api/xnano/components.md",
+                "api/xnano/components/bar.md",
+                "api/xnano/components/button.md",
                 "api/xnano/components/chart.md",
-                "api/xnano/components/progress.md",
+                "api/xnano/components/component.md",
+                "api/xnano/components/dropdown.md",
+                "api/xnano/components/image.md",
+                "api/xnano/components/input.md",
+                "api/xnano/components/link.md",
+                "api/xnano/components/loader.md",
+                "api/xnano/components/markdown.md",
+                "api/xnano/components/options.md",
                 "api/xnano/components/schema.md",
-                "api/xnano/components/select.md",
-                "api/xnano/components/sparkline.md",
+                "api/xnano/components/scrollbar.md",
                 "api/xnano/components/table.md",
                 "api/xnano/components/text.md",
             ]},
+            "api/xnano/context.md",
             { "core" = [
-                "api/xnano/core/actions.md",
+                "api/xnano/core.md",
                 "api/xnano/core/content.md",
-                "api/xnano/core/device.md",
+                "api/xnano/core/controller.md",
+                "api/xnano/core/demo.md",
+                "api/xnano/core/dispatch.md",
+                "api/xnano/core/effects.md",
                 "api/xnano/core/exceptions.md",
-                "api/xnano/core/hosts.md",
+                "api/xnano/core/frame.md",
                 "api/xnano/core/interface.md",
-                "api/xnano/core/nodes.md",
+                "api/xnano/core/layout.md",
+                "api/xnano/core/rendering.md",
+                "api/xnano/core/runtime.md",
                 "api/xnano/core/stage.md",
-                { "controllers" = [
-                    "api/xnano/core/controllers/abstract.md",
-                    "api/xnano/core/controllers/tui.md",
-                ]},
             ]},
-            { "terminal" = [
-                "api/xnano/terminal/content_lower.md",
-                "api/xnano/terminal/cursor.md",
-                "api/xnano/terminal/device.md",
-                "api/xnano/terminal/effects.md",
-                "api/xnano/terminal/nodes.md",
-                "api/xnano/terminal/terminal.md",
+            "api/xnano/cursor.md",
+            "api/xnano/device.md",
+            "api/xnano/effects.md",
+            "api/xnano/events.md",
+            "api/xnano/fields.md",
+            "api/xnano/grids.md",
+            "api/xnano/hooks.md",
+            "api/xnano/markdown.md",
+            "api/xnano/rendering.md",
+            "api/xnano/requests.md",
+            { "server" = [
+                "api/xnano/server.md",
+                "api/xnano/server/native.md",
+                "api/xnano/server/requests.md",
             ]},
-            { "web" = [
-                "api/xnano/web/frame.md",
-                "api/xnano/web/render.md",
-                "api/xnano/web/request_server.md",
-                "api/xnano/web/requests.md",
-                "api/xnano/web/server.md",
-                "api/xnano/web/web.md",
+            "api/xnano/state.md",
+            "api/xnano/tailwind.md",
+            "api/xnano/terminal.md",
+            "api/xnano/types.md",
+            { "utils" = [
+                "api/xnano/utils.md",
+                "api/xnano/utils/deprecation.md",
+                "api/xnano/utils/dispatch.md",
+                "api/xnano/utils/focus.md",
+                "api/xnano/utils/introspection.md",
+                "api/xnano/utils/markup.md",
+                "api/xnano/utils/responsive.md",
+                "api/xnano/utils/validation.md",
             ]},
+            "api/xnano/web.md",
         ]},
         { "xnano-core" = [
-            "api/xnano-core/xnano-core.md",
+            "api/xnano-core/index.md",
             "api/xnano-core/core.md",
             { "rust" = [
+                "api/xnano-core/rust.md",
                 "api/xnano-core/rust/engine.md",
+                "api/xnano-core/rust/native.md",
             ]},
         ]},
     ]},
+    # API_REFERENCE_END
 ]
 
 extra_css = [
     "stylesheets/extras.css",
-    "stylesheets/showcase-hover.css",
-    "stylesheets/hero.css",
     "stylesheets/code-theme.css",
     "stylesheets/mkdocstrings.css",
     "stylesheets/components.css",
-    "stylesheets/watercolor.css",
     "stylesheets/nav.css",
     "stylesheets/context7.css",
     "stylesheets/appearance.css"
@@ -199,8 +119,6 @@ extra_javascript = [
     "js/pyodide-ansi.js",
     "js/code-lang.js",
     "js/custom.js",
-    "js/showcase-hover.js",
-    "js/hero.js",
     "https://unpkg.com/katex@0/dist/katex.min.js",
     "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
     "https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js",
@@ -265,7 +183,7 @@ text = "Geist Pixel"
 code = "Iosevka Web"
 
 [project.home]
-tagline = "fun llm functions and assorted knick-knacks."
+tagline = "e(x)tremely nano terminal and web interfaces."
 gradient_hsla = "hsla(0, 0%, 100%, 0)"
 description = """
 Declarative terminal interfaces in Python, powered by Rust.
@@ -273,12 +191,12 @@ Declarative terminal interfaces in Python, powered by Rust.
 
 [[project.home.buttons]]
 name = "Getting Started"
-url = "concepts/getting-started"
+url = "getting-started"
 theme = "md-button"
 
 [[project.home.buttons]]
 name = "API Reference"
-url = "api"
+url = "api/xnano"
 theme = "md-button"
 
 [[project.extra.social]]
@@ -350,7 +268,6 @@ custom_fences = [
 
 [project.plugins.mkdocstrings.handlers.python]
 inventories = ["https://docs.python.org/3/objects.inv"]
-paths = ["lib/catalog", "lib/datautils", "lib/repack"]
 
 [project.plugins.mkdocstrings.handlers.python.options]
 docstring_style = "google"

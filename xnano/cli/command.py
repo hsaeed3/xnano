@@ -2,102 +2,115 @@
 
 ---
 
-Command-line interface for argument parsing and command execution,
-built with library components and validation helpers.
+Define typed commands and subcommands from ordinary Python methods.
 """
 
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import inspect
 import sys
-from typing import Any, Callable, get_type_hints
+from typing import (
+    Annotated,
+    Any,
+    Callable,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
-from xnano import _validation as validation
+from xnano.cli.errors import CliError, HelpRequested
+from xnano.cli.help import format_plain_help, print_error, render_help
+from xnano.cli.parameters import Argument, Option
+from xnano.utils import validation
 
 UNSET = object()
 
 
 @dataclasses.dataclass
-class HelpException(Exception):
-    """Exception raised when help is requested.
-
-    Attributes:
-        command: The command for which help was requested.
-    """
-
-    command: Command
-    """The command for which help was requested."""
-
-    def __post_init__(self) -> None:
-        super().__init__()
-
-
-@dataclasses.dataclass
-class CommandLineParameter:
-    """A command-line interface parameter representation.
-
-    Attributes:
-        parameter_name: The parameter name in the Python function.
-        flags: CLI option flags, or None if it is a positional argument.
-        default: Default value of the parameter.
-        help: Description of the parameter.
-        is_flag: Whether the option is a boolean flag.
-        annotation: Type annotation of the parameter.
-        required: Whether the parameter is required.
-        explicit: Whether the parameter was explicitly defined via option decorator.
-    """
+class _Parameter:
+    """Resolved command parameter used while parsing arguments."""
 
     parameter_name: str
-    """The parameter name in the Python function."""
     flags: list[str] | None = None
-    """CLI option flags, or None if it is a positional argument."""
     default: Any = UNSET
-    """Default value of the parameter."""
     help: str | None = None
-    """Description of the parameter."""
+    metavar: str | None = None
+    choices: tuple[Any, ...] | None = None
     is_flag: bool = False
-    """Whether the option is a boolean flag."""
     annotation: Any = Any
-    """Type annotation of the parameter."""
     required: bool = True
-    """Whether the parameter is required."""
-    explicit: bool = False
-    """Whether the parameter was explicitly defined via option decorator."""
+    hidden: bool = False
+    is_option: bool = False
+    repeat: bool = False
 
 
 @dataclasses.dataclass
 class Command:
-    """A command-line interface command or subcommand group.
+    """A command or subcommand group.
 
     Attributes:
         name: The name of the command.
         description: A description of the command.
         strict: Whether to validate parameter types against annotations.
-        help: Whether to automatically generate and display a help message.
+        show_help: Whether ``--help`` / ``-h`` are recognized.
+        help: Compatibility alias for ``show_help``.
+        parameters: Resolved command parameters.
+        subcommands: Registered subcommands.
+
+    Example:
+        >>> command = Command(name="hello")
+        >>> @command
+        ... def greet(name: str) -> str:
+        ...     return f"Hello, {name}"
+        >>> command.run(["Ada"])
+        'Hello, Ada'
     """
 
     name: str | None = None
-    """The name of the command."""
+    """Command name shown in usage."""
     description: str | None = None
-    """A description of the command."""
+    """Command summary shown in help."""
     strict: bool = False
-    """Whether to validate parameter types against annotations."""
+    """Whether annotations are validated strictly."""
+    show_help: bool = True
+    """Whether ``-h`` and ``--help`` are enabled."""
+    # Drop-in alias used by older help code / tests.
     help: bool = True
-    """Whether to automatically generate and display a help message."""
+    """Compatibility alias for ``show_help``."""
+
+    UNSET: Any = dataclasses.field(default=UNSET, init=False, repr=False)
+    """Sentinel used for parameters without defaults."""
 
     _callback: Callable[..., Any] | None = dataclasses.field(
-        default=None, init=False
+        default=None, init=False, repr=False
     )
     _subcommands: dict[str, Command] = dataclasses.field(
-        default_factory=dict, init=False
+        default_factory=dict, init=False, repr=False
     )
-    _parameters: list[CommandLineParameter] = dataclasses.field(
-        default_factory=list, init=False
+    _parameters: list[_Parameter] = dataclasses.field(
+        default_factory=list, init=False, repr=False
     )
-    _option_by_flag: dict[str, CommandLineParameter] = dataclasses.field(
-        default_factory=dict, init=False
+    _parser: argparse.ArgumentParser | None = dataclasses.field(
+        default=None, init=False, repr=False
     )
+    _parser_dirty: bool = dataclasses.field(
+        default=True, init=False, repr=False
+    )
+
+    def __post_init__(self) -> None:
+        self.show_help = bool(self.help)
+
+    @property
+    def parameters(self) -> list[_Parameter]:
+        """Resolved parameters for help rendering."""
+        return list(self._parameters)
+
+    @property
+    def subcommands(self) -> dict[str, "Command"]:
+        """Registered subcommands."""
+        return dict(self._subcommands)
 
     @staticmethod
     def option(
@@ -107,29 +120,17 @@ class Command:
         help: str | None = None,
         is_flag: bool | None = None,
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """Decorator to attach option metadata to a command function.
-
-        Args:
-            name_or_flags: A single flag or a list of flags.
-            default: The default value for the option.
-            help: Help text for the option.
-            is_flag: Whether this option is a boolean flag.
-
-        Returns:
-            A decorator that attaches option metadata to the decorated function.
-        """
+        """Attach option names and help text to a command parameter."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             options = getattr(func, "_cli_options", None)
             if options is None:
                 options = []
                 setattr(func, "_cli_options", options)
-
             if isinstance(name_or_flags, str):
                 flags = [name_or_flags]
             else:
                 flags = list(name_or_flags)
-
             options.append(
                 {
                     "flags": flags,
@@ -148,31 +149,22 @@ class Command:
         *,
         description: str | None = None,
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """Decorator to register a subcommand.
-
-        Args:
-            name: The name of the subcommand. Inferred from function name if not provided.
-            description: Description of the subcommand. Inferred from docstring if not provided.
-
-        Returns:
-            A decorator that registers the function as a subcommand.
-        """
+        """Decorator to register a subcommand."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             func_name = getattr(func, "__name__", None) or "command"
-            cmd_name = name or func_name.replace("_", "-")
-            cmd_desc = description or func.__doc__
-
-            sub_cmd = Command(
-                name=cmd_name,
-                description=cmd_desc,
+            command_name = name or func_name.replace("_", "-")
+            command_description = description or func.__doc__
+            subcommand = Command(
+                name=command_name,
+                description=command_description,
                 strict=self.strict,
                 help=self.help,
             )
-            sub_cmd._callback = func
-            sub_cmd._register_from_function(func)
-
-            self._subcommands[cmd_name] = sub_cmd
+            subcommand._callback = func
+            subcommand._register_from_function(func)
+            self._subcommands[command_name] = subcommand
+            self._parser_dirty = True
             return func
 
         return decorator
@@ -180,60 +172,45 @@ class Command:
     def register_callback(
         self, func: Callable[..., Any]
     ) -> Callable[..., Any]:
-        """Registers the callback function for this command.
-
-        Args:
-            func: The callback function to register.
-
-        Returns:
-            The callback function.
-        """
+        """Register the main callback for this command."""
         self._callback = func
         self._register_from_function(func)
+        self._parser_dirty = True
         return func
 
-    def add_subcommand(self, subcommand: Command) -> None:
-        """Adds a subcommand programmatically.
-
-        Args:
-            subcommand: The subcommand to add.
-        """
+    def add_subcommand(self, subcommand: "Command") -> None:
+        """Add a subcommand programmatically."""
         if not subcommand.name:
-            raise ValueError("Subcommand must have a name to be added.")
+            raise CliError("Subcommand must have a name to be added.")
         self._subcommands[subcommand.name] = subcommand
+        self._parser_dirty = True
 
     def _register_from_function(self, func: Callable[..., Any]) -> None:
-        """Inspects the callback function to build the parameters.
-
-        Args:
-            func: The function to inspect.
-        """
+        """Inspect ``func`` and build parameter metadata."""
         self._parameters.clear()
-        self._option_by_flag.clear()
         signature = inspect.signature(func)
         try:
-            type_hints = get_type_hints(func)
+            type_hints = get_type_hints(func, include_extras=True)
         except Exception:
             type_hints = {}
 
         explicit_options = getattr(func, "_cli_options", [])
-        parameter_to_explicit = {}
-        for opt in explicit_options:
-            flags = opt["flags"]
+        parameter_to_explicit: dict[str, dict[str, Any]] = {}
+        for option in explicit_options:
+            flags = option["flags"]
             parameter_name = None
             for flag in flags:
                 if flag.startswith("--"):
                     parameter_name = flag[2:].replace("-", "_")
                     break
-            if not parameter_name:
+            if parameter_name is None:
                 for flag in flags:
                     if flag.startswith("-"):
                         parameter_name = flag[1:].replace("-", "_")
                         break
-            if not parameter_name:
+            if parameter_name is None:
                 parameter_name = flags[0].replace("-", "_")
-
-            parameter_to_explicit[parameter_name] = opt
+            parameter_to_explicit[parameter_name] = option
 
         for name, param in signature.parameters.items():
             if param.kind in (
@@ -243,47 +220,121 @@ class Command:
                 continue
 
             annotation = type_hints.get(name, Any)
+            metadata_argument: Argument | None = None
+            metadata_option: Option | None = None
+            origin = get_origin(annotation)
+            if origin is Annotated:
+                args = get_args(annotation)
+                annotation = args[0] if args else Any
+                for extra in args[1:]:
+                    if isinstance(extra, Argument):
+                        metadata_argument = extra
+                    elif isinstance(extra, Option):
+                        metadata_option = extra
+
             default = param.default
             has_default = default is not inspect.Parameter.empty
+            if isinstance(default, Option):
+                metadata_option = default
+                default = UNSET
+                has_default = False
+            if isinstance(default, Argument):
+                metadata_argument = default
+                default = UNSET
+                has_default = False
 
             explicit = parameter_to_explicit.get(name)
+            repeat = get_origin(annotation) is list
 
-            if explicit:
-                flags = explicit["flags"]
-                opt_default = explicit["default"]
-                if opt_default is None and has_default:
-                    opt_default = default
-                elif opt_default is None:
-                    opt_default = UNSET
+            if metadata_option is not None or explicit is not None:
+                if explicit is not None:
+                    flags = list(explicit["flags"])
+                    option_default = explicit["default"]
+                    if option_default is None and has_default:
+                        option_default = default
+                    elif option_default is None:
+                        option_default = UNSET
+                    is_flag = explicit["is_flag"]
+                    help_text = explicit["help"]
+                    choices = None
+                    hidden = False
+                    metavar = None
+                else:
+                    if metadata_option is None:
+                        # Unreachable: this arm is entered only when
+                        # ``explicit`` is None, and the enclosing branch
+                        # requires ``metadata_option`` or ``explicit`` to be
+                        # set. Guard explicitly (not ``assert``, which is
+                        # stripped under ``python -O``) so the invariant
+                        # still holds in optimized builds.
+                        raise RuntimeError(
+                            "internal error: no option metadata resolved "
+                            f"for parameter {name!r}"
+                        )
+                    flags = list(metadata_option.flags) or [
+                        "--" + name.replace("_", "-")
+                    ]
+                    option_default = default if has_default else UNSET
+                    is_flag = None
+                    help_text = metadata_option.help
+                    choices = (
+                        tuple(metadata_option.choices)
+                        if metadata_option.choices is not None
+                        else None
+                    )
+                    hidden = metadata_option.hidden
+                    metavar = metadata_option.metavar
 
-                is_flag = explicit["is_flag"]
                 if is_flag is None:
                     is_flag = (annotation is bool) or (
-                        opt_default is not UNSET
-                        and isinstance(opt_default, bool)
+                        option_default is not UNSET
+                        and isinstance(option_default, bool)
                     )
-
                 self._parameters.append(
-                    CommandLineParameter(
+                    _Parameter(
                         parameter_name=name,
                         flags=flags,
-                        default=opt_default,
-                        help=explicit["help"],
-                        is_flag=is_flag,
+                        default=option_default,
+                        help=help_text,
+                        metavar=metavar,
+                        choices=choices,
+                        is_flag=bool(is_flag),
                         annotation=annotation,
-                        required=not has_default and opt_default is UNSET,
-                        explicit=True,
+                        required=not has_default and option_default is UNSET,
+                        hidden=hidden,
+                        is_option=True,
+                        repeat=repeat,
                     )
                 )
-                for flag in flags:
-                    self._option_by_flag[flag] = self._parameters[-1]
+            elif metadata_argument is not None:
+                self._parameters.append(
+                    _Parameter(
+                        parameter_name=name,
+                        flags=None,
+                        default=default if has_default else UNSET,
+                        help=metadata_argument.help,
+                        metavar=metadata_argument.metavar,
+                        choices=(
+                            tuple(metadata_argument.choices)
+                            if metadata_argument.choices is not None
+                            else None
+                        ),
+                        annotation=annotation,
+                        required=not has_default,
+                        is_option=False,
+                        repeat=repeat,
+                    )
+                )
             else:
+                # Match stable CLI: every inferred parameter gets a ``--name``
+                # flag and may also be filled positionally when the flag form
+                # is unused (see ``_parse_manual``).
                 flag_name = "--" + name.replace("_", "-")
                 is_flag = annotation is bool or (
                     has_default and isinstance(default, bool)
                 )
                 self._parameters.append(
-                    CommandLineParameter(
+                    _Parameter(
                         parameter_name=name,
                         flags=[flag_name],
                         default=default if has_default else UNSET,
@@ -291,243 +342,291 @@ class Command:
                         is_flag=is_flag,
                         annotation=annotation,
                         required=not has_default,
-                        explicit=False,
+                        # Help treats non-explicit required params as args.
+                        is_option=has_default or annotation is bool,
+                        repeat=repeat,
                     )
                 )
-                self._option_by_flag[flag_name] = self._parameters[-1]
+
+    def _build_parser(self) -> argparse.ArgumentParser:
+        """Build (and cache) the argparse tree for this command."""
+        if self._parser is not None and not self._parser_dirty:
+            return self._parser
+
+        parser = argparse.ArgumentParser(
+            prog=self.name or "cli",
+            description=self.description,
+            add_help=False,
+            allow_abbrev=False,
+        )
+        if self.show_help:
+            parser.add_argument(
+                "-h",
+                "--help",
+                action="store_true",
+                help=argparse.SUPPRESS,
+            )
+
+        for parameter in self._parameters:
+            kwargs: dict[str, Any] = {}
+            if parameter.help:
+                kwargs["help"] = parameter.help
+            if parameter.metavar:
+                kwargs["metavar"] = parameter.metavar
+            if parameter.choices is not None:
+                kwargs["choices"] = list(parameter.choices)
+            if parameter.is_option:
+                if parameter.flags is None:
+                    # An option always carries flags; guard explicitly
+                    # rather than with ``assert`` (stripped under -O).
+                    raise RuntimeError(
+                        "internal error: option "
+                        f"{parameter.parameter_name!r} has no flags"
+                    )
+                if parameter.is_flag:
+                    # default-True flags get --no-* style via store_false
+                    if parameter.default is True:
+                        kwargs["action"] = "store_false"
+                    else:
+                        kwargs["action"] = "store_true"
+                        kwargs["default"] = False
+                else:
+                    if parameter.repeat:
+                        kwargs["action"] = "append"
+                    if parameter.default is not UNSET:
+                        kwargs["default"] = parameter.default
+                    elif not parameter.required:
+                        kwargs["default"] = None
+                parser.add_argument(
+                    *parameter.flags,
+                    dest=parameter.parameter_name,
+                    **kwargs,
+                )
+            else:
+                if parameter.repeat:
+                    kwargs["nargs"] = "*"
+                elif not parameter.required:
+                    kwargs["nargs"] = "?"
+                    if parameter.default is not UNSET:
+                        kwargs["default"] = parameter.default
+                parser.add_argument(parameter.parameter_name, **kwargs)
+
+        if self._subcommands:
+            sub = parser.add_subparsers(dest="_subcommand")
+            for name, subcommand in self._subcommands.items():
+                # Nested parsers are built on demand during parse.
+                sub.add_parser(name, add_help=False)
+
+        self._parser = parser
+        self._parser_dirty = False
+        return parser
 
     def parse_arguments(
         self, arguments: list[str]
-    ) -> tuple[Command, dict[str, Any]]:
-        """Parses command-line arguments.
-
-        Args:
-            arguments: A list of command-line argument strings.
-
-        Returns:
-            A tuple containing:
-                - The target Command to execute.
-                - A dictionary of validated parameter values.
+    ) -> tuple["Command", dict[str, Any]]:
+        """Parse arguments without exiting the process.
 
         Raises:
-            HelpException: If help is requested.
-            ValueError: If parsing or validation fails.
+            HelpRequested: When help was requested.
+            CliError: On usage / validation failures.
         """
-        parsed_values = {}
+        # Prefer the stable hand-parser semantics for drop-in parity with
+        # existing tests, while exposing argparse caching for future work.
+        return self._parse_manual(arguments)
+
+    def _parse_manual(
+        self, arguments: list[str]
+    ) -> tuple["Command", dict[str, Any]]:
+        """Parse positional arguments and named options from tokens."""
+        parsed_values: dict[str, Any] = {}
+        # Stable semantics: every parameter can be filled positionally in
+        # declaration order when not already set by a flag.
         positional_params = list(self._parameters)
+        option_by_flag: dict[str, _Parameter] = {}
+        for parameter in self._parameters:
+            if parameter.flags:
+                for flag in parameter.flags:
+                    option_by_flag[flag] = parameter
+
         positional_index = 0
         options_enabled = True
-
         index = 0
         while index < len(arguments):
             arg = arguments[index]
-
             if options_enabled and arg == "--":
                 options_enabled = False
                 index += 1
                 continue
-
-            if options_enabled and self.help and arg in ("--help", "-h"):
-                raise HelpException(self)
-
+            if options_enabled and self.show_help and arg in ("--help", "-h"):
+                raise HelpRequested(self)
             if options_enabled and arg.startswith("-") and arg != "-":
                 if "=" in arg:
-                    flag, val = arg.split("=", 1)
+                    flag, value = arg.split("=", 1)
                 else:
                     flag = arg
-                    val = None
-
-                param = self._option_by_flag.get(flag)
-                if not param:
-                    raise ValueError(f"Unknown option: {flag}")
-
-                if param.is_flag:
-                    if val is not None:
-                        parsed_values[param.parameter_name] = val
+                    value = None
+                parameter = option_by_flag.get(flag)
+                if parameter is None:
+                    raise CliError(f"Unknown option: {flag}", command=self)
+                if parameter.is_flag:
+                    if value is not None:
+                        parsed_values[parameter.parameter_name] = value
+                    elif parameter.default is True:
+                        parsed_values[parameter.parameter_name] = False
                     else:
-                        parsed_values[param.parameter_name] = True
+                        parsed_values[parameter.parameter_name] = True
                 else:
-                    if val is not None:
-                        parsed_values[param.parameter_name] = val
-                    else:
+                    if value is None:
                         if index + 1 >= len(arguments):
-                            raise ValueError(f"Option {flag} requires a value")
-                        parsed_values[param.parameter_name] = arguments[
-                            index + 1
-                        ]
+                            raise CliError(
+                                f"Option {flag} requires a value",
+                                command=self,
+                            )
+                        value = arguments[index + 1]
                         index += 1
+                    if parameter.repeat:
+                        parsed_values.setdefault(
+                            parameter.parameter_name, []
+                        ).append(value)
+                    else:
+                        parsed_values[parameter.parameter_name] = value
             else:
                 if self._subcommands and arg in self._subcommands:
-                    sub_cmd = self._subcommands[arg]
-                    return sub_cmd.parse_arguments(arguments[index + 1 :])
-
+                    return self._subcommands[arg]._parse_manual(
+                        arguments[index + 1 :]
+                    )
                 while (
                     positional_index < len(positional_params)
                     and positional_params[positional_index].parameter_name
                     in parsed_values
                 ):
                     positional_index += 1
-
                 if positional_index < len(positional_params):
-                    matched_param = positional_params[positional_index]
-                    parsed_values[matched_param.parameter_name] = arg
-                    positional_index += 1
+                    matched = positional_params[positional_index]
+                    if matched.repeat:
+                        parsed_values.setdefault(
+                            matched.parameter_name, []
+                        ).append(arg)
+                    else:
+                        parsed_values[matched.parameter_name] = arg
+                        positional_index += 1
                 else:
                     if self._subcommands:
-                        raise ValueError(
-                            f"Unknown command or unexpected argument: {arg}"
+                        raise CliError(
+                            f"Unknown command or unexpected argument: {arg}",
+                            command=self,
                         )
-                    else:
-                        raise ValueError(
-                            f"Unexpected positional argument: {arg}"
-                        )
+                    raise CliError(
+                        f"Unexpected positional argument: {arg}",
+                        command=self,
+                    )
             index += 1
 
-        validated_values = {}
-        for param in self._parameters:
-            name = param.parameter_name
-            val = parsed_values.get(name)
-
-            if val is None:
-                if param.default is not UNSET:
-                    val = param.default
-                elif param.required:
-                    raise ValueError(f"Missing required argument: {name}")
+        validated: dict[str, Any] = {}
+        for parameter in self._parameters:
+            name = parameter.parameter_name
+            value = parsed_values.get(name)
+            if value is None:
+                if parameter.default is not UNSET:
+                    value = parameter.default
+                elif parameter.is_flag:
+                    value = False if parameter.default is not True else True
+                elif parameter.required:
+                    raise CliError(
+                        f"Missing required argument: {name}",
+                        command=self,
+                    )
                 else:
-                    val = None
-
-            if val is not None and val is not UNSET:
+                    value = None
+            if value is not None and value is not UNSET:
                 if self.strict:
                     try:
-                        val = validation.validate_type(val, param.annotation)
-                    except Exception as err:
-                        raise ValueError(
-                            f"Invalid value for parameter '{name}': {err}"
+                        value = validation.validate_type(
+                            value, parameter.annotation
                         )
+                    except Exception as error:
+                        raise CliError(
+                            f"Invalid value for parameter '{name}': {error}",
+                            command=self,
+                        ) from error
                 else:
                     try:
-                        val = validation.validate_type(val, param.annotation)
+                        value = validation.validate_type(
+                            value, parameter.annotation
+                        )
                     except Exception:
                         pass
-
-            validated_values[name] = None if val is UNSET else val
-
-        return self, validated_values
+            validated[name] = None if value is UNSET else value
+        return self, validated
 
     def run(self, arguments: list[str] | None = None) -> Any:
-        """Parses arguments and runs the command/subcommand.
-
-        Args:
-            arguments: The arguments to parse. Defaults to sys.argv[1:].
-
-        Returns:
-            The return value of the callback.
-        """
+        """Parse arguments and run the command, exiting on errors/help."""
         if arguments is None:
             arguments = sys.argv[1:]
-
         try:
-            target_command, parsed_args = self.parse_arguments(arguments)
-        except HelpException as help_exception:
-            print(help_exception.command.get_help())
+            target, parsed = self.parse_arguments(arguments)
+        except HelpRequested as help_requested:
+            print(render_help(help_requested.command), end="")
             sys.exit(0)
+        except CliError as error:
+            print_error(error.message, error.command or self)
+            sys.exit(error.exit_code)
         except ValueError as error:
-            print(f"Error: {error}", file=sys.stderr)
-            print(self.get_help(), file=sys.stderr)
+            # Compatibility with callers raising plain ValueError.
+            print_error(str(error), self)
             sys.exit(2)
 
-        if target_command._callback is None:
-            print(target_command.get_help())
+        if target._callback is None:
+            print(render_help(target), end="")
             sys.exit(0)
-
-        return target_command._callback(**parsed_args)
+        return target._callback(**parsed)
 
     def get_help(self) -> str:
-        """Generates a help message for this command.
-
-        Returns:
-            The generated help message.
-        """
-        lines = []
-        usage = f"Usage: {self.name or 'cli'}"
-        if self._subcommands:
-            usage += " [COMMAND]"
-
-        options_list = []
-        arguments_list = []
-        for param in self._parameters:
-            if param.flags is None or (
-                not param.explicit and param.default is UNSET
-            ):
-                arguments_list.append(param)
-            else:
-                options_list.append(param)
-
-        if options_list:
-            usage += " [OPTIONS]"
-        for arg in arguments_list:
-            usage += f" {arg.parameter_name.upper()}"
-
-        lines.append(usage)
-        lines.append("")
-
-        if self.description:
-            lines.append(self.description.strip())
-            lines.append("")
-
-        if arguments_list:
-            lines.append("Arguments:")
-            for arg in arguments_list:
-                help_text = arg.help or ""
-                desc = (
-                    f"  {arg.parameter_name.upper():<20} {help_text}".rstrip()
-                )
-                if arg.default is not UNSET:
-                    desc += f" (default: {arg.default})"
-                lines.append(desc)
-            lines.append("")
-
-        if options_list or self.help:
-            lines.append("Options:")
-            for opt in options_list:
-                flags_str = ", ".join(opt.flags or [])
-                help_text = opt.help or ""
-                desc = f"  {flags_str:<20} {help_text}".rstrip()
-                if opt.default is not UNSET:
-                    desc += f" [default: {opt.default}]"
-                lines.append(desc)
-            if self.help:
-                lines.append(
-                    f"  {'--help, -h':<20} Show this message and exit."
-                )
-            lines.append("")
-
-        if self._subcommands:
-            lines.append("Commands:")
-            for name, sub_cmd in self._subcommands.items():
-                desc = sub_cmd.description or ""
-                first_line_desc = desc.strip().split("\n")[0]
-                lines.append(f"  {name:<20} {first_line_desc}")
-            lines.append("")
-
-        return "\n".join(lines)
+        """Return plain help text for this command."""
+        return format_plain_help(self)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        """Invokes the CLI or registers a callback if called as a decorator.
-
-        If the first argument is a callable (and no other arguments are passed),
-        it registers that callable as the main command callback.
-        Otherwise, it runs the command with command-line arguments.
-        """
+        """Register a callback or run with ``sys.argv``."""
         if len(args) == 1 and callable(args[0]) and not kwargs:
             return self.register_callback(args[0])
+        return self.run(sys.argv[1:])
 
-        cli_args = sys.argv[1:]
-        return self.run(cli_args)
+
+# Re-raise CliError as ValueError in parse for drop-in test compatibility
+_original_parse = Command.parse_arguments
+
+
+def _parse_arguments_compat(
+    self: Command, arguments: list[str]
+) -> tuple[Command, dict[str, Any]]:
+    try:
+        return _original_parse(self, arguments)
+    except CliError as error:
+        raise ValueError(error.message) from error
+    except HelpRequested as help_requested:
+        raise HelpException(help_requested.command) from help_requested
+
+
+Command.parse_arguments = _parse_arguments_compat  # type: ignore[method-assign]
+
+
+@dataclasses.dataclass
+class HelpException(Exception):
+    """Stop command parsing after help has been requested.
+
+    Attributes:
+        command: Command whose help should be displayed.
+    """
+
+    command: Command
+    """Command whose help should be displayed."""
+
+    def __post_init__(self) -> None:
+        super().__init__()
 
 
 __all__ = (
     "Command",
-    "CommandLineParameter",
     "HelpException",
+    "UNSET",
 )

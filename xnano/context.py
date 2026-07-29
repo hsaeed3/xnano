@@ -2,28 +2,30 @@
 
 ---
 
-``Context`` passed into ``@on_*`` handlers: event, host, state, and
-shortcuts for cursor, device, actions, and stage.
+Access the current event, application state, runtime, device, cursor, and
+layout from an event hook.
 """
 
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from xnano._types import ScrollHandle
-    from xnano.core.actions import Actions
-    from xnano.core.hosts import AbstractHost
+    from xnano.actions import Actions
+    from xnano.core.runtime import Runtime
     from xnano.core.stage import Stage
+    from xnano.cursor import Cursor
+    from xnano.device import Device
     from xnano.events import (
         Event,
         KeyboardEventData,
         MouseEventData,
+        TickEventData,
     )
-    from xnano.terminal.cursor import TerminalCursor
-    from xnano.terminal.device import TerminalDevice
-    from xnano.terminal.terminal import Terminal
+    from xnano.requests import Request
+    from xnano.types import Area, ScrollHandle
+    from xnano.utils.responsive import Breakpoint
 
 
 StateT = TypeVar("StateT")
@@ -31,35 +33,88 @@ StateT = TypeVar("StateT")
 
 @dataclasses.dataclass(slots=True, frozen=True)
 class Context(Generic[StateT]):
-    """Runtime context passed into every ``@on_*`` hook handler.
+    """Values and controls available inside an event hook.
 
-    Carries the event, active host, and optional app state, plus shortcuts
-    for cursor, device, actions, and stage. Built by the host — do not
-    construct this yourself.
+    Use the event-specific shortcuts such as ``keyboard`` and ``mouse``,
+    read or update application state, move focus, or access the current
+    cursor, device, actions, and stage.
+
+    Attributes:
+        event: Event that triggered the hook.
+        terminal: Terminal or runtime handling the event.
+        state: Application state shared with the runtime.
+        host: Session handling the event.
+        runtime: Runtime handling the event.
+        surface: Active presentation surface.
+        request: HTTP request that triggered the hook, if any.
+        tick: Tick payload that triggered the hook, if any.
+        keyboard: Keyboard payload that triggered the hook, if any.
+        mouse: Mouse payload that triggered the hook, if any.
+        cursor: Cursor controls for the active runtime.
+        device: Device controls for the active runtime.
+        actions: Synthetic action performer.
+        stage: Current layout stage.
+        focused_group: Name of the focused field group.
+
+    Example:
+        >>> def handle_key(ctx: Context[dict[str, int]]) -> None:
+        ...     if ctx.keyboard is not None:
+        ...         ctx.state["keys"] += 1
     """
 
-    event: Event | None
-    terminal: "Terminal[StateT]"
+    event: "Event"
+    """Event that triggered the hook."""
+    terminal: "Runtime[StateT]"
+    """Terminal or offscreen session handling the event."""
     state: StateT
+    """Application state shared with the runtime."""
 
     @property
-    def host(self) -> "AbstractHost":
-        """Active host for this context (alias of ``terminal``).
-
-        Named ``host`` so code that is interface-kind-agnostic can avoid
-        the terminal-specific attribute name. Same object as ``terminal``.
-        """
+    def host(self) -> "Runtime[StateT]":
+        """Session handling the event."""
         return self.terminal
 
     @property
-    def keyboard(self) -> KeyboardEventData | None:
-        """Keyboard sub-event when this context was triggered by a keyboard event."""
-        return None if self.event is None else self.event.keyboard_event
+    def runtime(self) -> "Runtime[StateT]":
+        """Runtime handling the event."""
+        return self.terminal
 
     @property
-    def mouse(self) -> MouseEventData | None:
-        """Mouse sub-event when this context was triggered by a mouse event."""
-        return None if self.event is None else self.event.mouse_event
+    def surface(self) -> str:
+        """Presentation surface: ``"terminal"``, ``"web"``, or
+        ``"offscreen"``.
+        """
+        surface = getattr(self.terminal, "surface", None)
+        if isinstance(surface, str):
+            return surface
+        is_offscreen = getattr(self.terminal, "_session", None)
+        session = getattr(self.terminal, "session", None)
+        controller = session if session is not None else is_offscreen
+        if controller is not None and getattr(
+            controller, "is_offscreen", False
+        ):
+            return "offscreen"
+        return "terminal"
+
+    @property
+    def request(self) -> "Request | None":
+        """HTTP request that triggered the hook, if any."""
+        return getattr(self.terminal, "_beta_request", None)
+
+    @property
+    def tick(self) -> "TickEventData | None":
+        """Tick payload when this context was triggered by a tick."""
+        return self.event.tick_event
+
+    @property
+    def keyboard(self) -> "KeyboardEventData | None":
+        """Keyboard sub-event when triggered by a keyboard event."""
+        return self.event.keyboard_event
+
+    @property
+    def mouse(self) -> "MouseEventData | None":
+        """Mouse sub-event when triggered by a mouse event."""
+        return self.event.mouse_event
 
     def get_state(self) -> StateT:
         """Return the shared application state.
@@ -72,32 +127,55 @@ class Context(Generic[StateT]):
         return self.state
 
     @property
-    def cursor(self) -> "TerminalCursor":
-        """Cursor / caret controls for the active host (show, hide, style)."""
+    def cursor(self) -> "Cursor":
+        """Cursor / caret controls for the active runtime."""
         return self.terminal.cursor
 
     @property
-    def device(self) -> "TerminalDevice":
-        """Device controls for the active host (title, clear, size, clipboard)."""
+    def device(self) -> "Device":
+        """Device controls for the active runtime."""
         return self.terminal.device
 
     @property
     def actions(self) -> "Actions":
-        """Perform synthetic input and requests (``press``, ``click``, …)."""
+        """Perform synthetic input and requests."""
         return self.terminal.actions
 
     @property
     def stage(self) -> "Stage":
-        """Layout map and cell-level paint / wireframe for the active host."""
+        """Layout map and cell-level paint helpers."""
         return self.terminal.stage
 
     def focus(self, group: str) -> bool:
-        """Focus the field labeled ``group``, on any attached grid.
+        """Focus the field labeled ``group`` on any attached grid."""
+        focus_group = getattr(self.terminal, "focus_group", None)
+        if callable(focus_group):
+            return bool(focus_group(group))
+        return bool(self.terminal.focus(group))
 
-        Terminal-global — no grid reference or nesting knowledge required.
-        See ``Field(group=...)``.
+    def blur(self) -> None:
+        """Clear field focus on the active runtime."""
+        blur_field = getattr(self.terminal, "blur_field", None)
+        if callable(blur_field):
+            blur_field()
+            return
+        blur = getattr(self.terminal, "blur", None)
+        if callable(blur):
+            blur()
+
+    @property
+    def render_size(self) -> "Breakpoint":
+        """Current viewport breakpoint tier.
+
+        The same value ``grid_render_<size>`` / ``compose_<size>`` dispatch
+        on — one of ``"extra_small"``, ``"small"``, ``"medium"``,
+        ``"large"``, ``"extra_large"`` — derived from the live window
+        width. Read it from any hook to branch on size without declaring a
+        per-tier render method.
         """
-        return self.terminal.focus_group(group)
+        from xnano.utils.responsive import breakpoint_for_width
+
+        return breakpoint_for_width(self.terminal.size[0])
 
     @property
     def focused_group(self) -> str | None:
@@ -108,60 +186,60 @@ class Context(Generic[StateT]):
         """Return whether the field labeled ``group`` currently holds focus."""
         return self.focused_group == group
 
-    def scroll(self, group: str) -> "ScrollHandle | None":
-        """Return a scroll handle for the ``Field(scroll=...)`` field
-        labeled ``group``, or ``None`` when no such field is attached.
+    def call_soon(self, callback: "Callable[..., Any]", *args: Any) -> None:
+        """Schedule ``callback`` to run on the UI thread before the next pump.
 
-            ctx.scroll("transcript").to_bottom()
-            ctx.scroll("transcript").follow = True
+        The thread-safe bridge for updating grid state from a worker thread:
+        the callback runs on the runtime's own thread, so it can freely mutate
+        components/fields without racing the renderer.
         """
-        from xnano._types import scroll_handle_for_group
+        self.terminal.call_soon(callback, *args)
+
+    def field_area(self, name: str) -> "Area | None":
+        """Return the last painted area for field ``name``, if known.
+
+        Reads the always-on layout map so viewports and chrome math can use
+        measured slot sizes instead of guessing.
+        """
+        return self.stage.get_area(name)
+
+    def scroll(self, group: str) -> "ScrollHandle | None":
+        """Return a scroll handle for ``Field(scroll=...)`` labeled ``group``."""
+        from xnano.utils.focus import scroll_handle_for_group
 
         return scroll_handle_for_group(self.terminal, group)
+
+    def get_scroll(self, group: str) -> "ScrollHandle | None":
+        """Return scroll state for ``group``, or ``None`` if it is unavailable."""
+        return self.scroll(group)
+
+    def with_event(self, event: "Event") -> "Context[StateT]":
+        """Return a copy carrying a different event."""
+        return dataclasses.replace(self, event=event)
 
     def with_scope(self, **kwargs: Any) -> "Context[StateT]":
         """Return a shallow copy with the given fields replaced."""
         return dataclasses.replace(self, **kwargs)
 
     def has_clipboard_event(self) -> bool:
-        """Return whether this context contains a clipboard event.
-
-        Returns:
-            True if this context contains a clipboard event, False otherwise.
-        """
-        return self.event is not None and self.event.is_clipboard_event()
+        """Return whether this context contains a clipboard event."""
+        return self.event.is_clipboard_event()
 
     def has_focus_event(self) -> bool:
-        """Return whether this is a focus event.
-
-        Returns:
-            True if this context contains a focus event, False otherwise.
-        """
-        return self.event is not None and self.event.is_focus_event()
+        """Return whether this is a focus event."""
+        return self.event.is_focus_event()
 
     def has_keyboard_event(self) -> bool:
-        """Return whether this is a keyboard event.
-
-        Returns:
-            True if this context contains a keyboard event, False otherwise.
-        """
-        return self.event is not None and self.event.is_keyboard_event()
+        """Return whether this is a keyboard event."""
+        return self.event.is_keyboard_event()
 
     def has_mouse_event(self) -> bool:
-        """Return whether this is a mouse event.
-
-        Returns:
-            True if this context contains a mouse event, False otherwise.
-        """
-        return self.event is not None and self.event.is_mouse_event()
+        """Return whether this is a mouse event."""
+        return self.event.is_mouse_event()
 
     def has_resize_event(self) -> bool:
-        """Return whether this is a resize event.
-
-        Returns:
-            True if this context contains a resize event, False otherwise.
-        """
-        return self.event is not None and self.event.is_resize_event()
+        """Return whether this is a resize event."""
+        return self.event.is_resize_event()
 
 
 __all__ = ("Context",)
