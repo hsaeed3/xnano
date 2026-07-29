@@ -252,7 +252,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: get dist artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           pattern: pypi_files_xnano_core_*
           merge-multiple: true
@@ -339,7 +339,7 @@ jobs:
         run: pip install pyodide-build
 
       - name: get dist artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: pypi_files_xnano_core_wasm_emscripten
           path: dist
@@ -449,7 +449,7 @@ jobs:
           TAG_VERSION: ${{ needs.resolve-release.outputs.tag_version }}
 
       - name: get dist artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           pattern: pypi_files_xnano_core_*
           merge-multiple: true
@@ -515,7 +515,7 @@ jobs:
           TAG_VERSION: ${{ needs.resolve-release.outputs.tag_version }}
 
       - name: get dist artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: pypi_files_xnano
           path: dist
