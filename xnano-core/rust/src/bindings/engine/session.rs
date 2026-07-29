@@ -3,6 +3,8 @@ use std::time::{Duration, Instant};
 
 use crossterm::cursor::MoveTo;
 use crossterm::event;
+use crossterm::terminal::{BeginSynchronizedUpdate, EndSynchronizedUpdate};
+use crossterm::{ExecutableCommand, QueueableCommand};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use ratatui::buffer::Buffer;
@@ -29,8 +31,7 @@ use super::super::fx::PyEffect;
 use super::super::layout::{PyRect, PySize};
 use super::super::terminal::{PyCompletedFrame, PyFrame};
 use super::super::terminal_device::{
-    begin_synchronized_update_impl, clear_terminal_impl, disable_raw_mode_impl,
-    enable_raw_mode_impl, end_synchronized_update_impl, enter_alternate_screen_impl,
+    clear_terminal_impl, disable_raw_mode_impl, enable_raw_mode_impl, enter_alternate_screen_impl,
     leave_alternate_screen_impl, scroll_down_impl, scroll_up_impl, set_terminal_title_impl,
     terminal_size_impl, terminal_window_size_impl, PyClearType,
 };
@@ -273,55 +274,70 @@ impl PySession {
         }
 
         // Emit the frame inside a synchronized update (DECSET 2026) so the
-        // terminal swaps the whole frame atomically instead of displaying the
-        // partial cell writes as they stream out. Without this, fast motion
-        // tears into horizontal bands that update at slightly different times.
-        // Terminals that do not support the private mode ignore the markers.
-        let already_synchronized = self.synchronized_updates;
-
+        // emulator applies the whole frame atomically. Without it, ratatui's
+        // single diff-flush streams out in bands the emulator paints at
+        // slightly different times (the "3 chunks of rows out of sync"
+        // tearing), and an emulator parsing a frame's escape sequences
+        // mid-stream can be left in a stale charset/SGR state that renders
+        // later output as unreadable glyphs.
+        //
+        // Queue both markers on Ratatui's backend, not a separate stdout
+        // handle, so their byte order relative to the frame is guaranteed.
+        // Terminals without the private mode ignore the markers.
+        let synchronized = self.synchronized_updates;
+        let cursor_visible = self.cursor_visible;
+        let effect_manager = &mut self.effect_manager;
         let Some(terminal) = self.terminal.as_mut() else {
             return Err(PyRuntimeError::new_err("session closed"));
         };
         let area = terminal.get_frame().area();
         self.last_frame_area = Some(area);
-        let cursor_visible = self.cursor_visible;
-        let effect_manager = &mut self.effect_manager;
 
-        if !already_synchronized {
-            let _ = begin_synchronized_update_impl();
-        }
+        let mut draw_frame = |terminal: &mut DefaultTerminal| -> std::io::Result<()> {
+            terminal
+                .draw(|frame| {
+                    let cursor = match render_node(frame, area, node, &mut ctx) {
+                        Ok(c) => c,
+                        Err(err) => {
+                            ctx.error = Some(err);
+                            None
+                        }
+                    };
 
-        let draw_result = terminal.draw(|frame| {
-            let cursor = match render_node(frame, area, node, &mut ctx) {
-                Ok(c) => c,
-                Err(err) => {
-                    ctx.error = Some(err);
-                    None
-                }
-            };
+                    if effect_manager.is_running() {
+                        let mut core = sync_to_core_buffer(frame.buffer_mut());
+                        effect_manager.process_effects(
+                            tachyonfx::Duration::from_millis(elapsed_ms),
+                            &mut core,
+                            to_core_rect(area),
+                        );
+                        sync_from_core_buffer(&core, frame.buffer_mut());
+                    }
 
-            if effect_manager.is_running() {
-                let mut core = sync_to_core_buffer(frame.buffer_mut());
-                effect_manager.process_effects(
-                    tachyonfx::Duration::from_millis(elapsed_ms),
-                    &mut core,
-                    to_core_rect(area),
-                );
-                sync_from_core_buffer(&core, frame.buffer_mut());
-            }
+                    match cursor {
+                        Some(pos) if cursor_visible => frame.set_cursor_position(pos),
+                        _ => frame_hide_cursor(frame),
+                    }
+                })
+                .map(|_| ())
+        };
 
-            match cursor {
-                Some(pos) if cursor_visible => frame.set_cursor_position(pos),
-                _ => frame_hide_cursor(frame),
-            }
-        });
-
-        // Close the synchronized update even when the draw fails, so a render
-        // error never strands the terminal with buffered output held back.
-        if !already_synchronized {
-            let _ = end_synchronized_update_impl();
-        }
-
+        // Skip the wrapper when a manual synchronized update is already open
+        // (via the exposed device API) so the markers do not nest.
+        let draw_result = if synchronized {
+            draw_frame(terminal)
+        } else {
+            terminal
+                .backend_mut()
+                .queue(BeginSynchronizedUpdate)
+                .map(|_| ())?;
+            let result = draw_frame(terminal);
+            let end_result = terminal
+                .backend_mut()
+                .execute(EndSynchronizedUpdate)
+                .map(|_| ());
+            result.and(end_result)
+        };
         draw_result.map_err(io_to_py)?;
 
         if let Some(err) = ctx.error.take() {
@@ -616,13 +632,29 @@ impl PySession {
     }
 
     fn begin_synchronized_update(&mut self) -> PyResult<()> {
-        begin_synchronized_update_impl()?;
+        if self.synchronized_updates {
+            return Ok(());
+        }
+        if let Some(terminal) = self.terminal.as_mut() {
+            terminal
+                .backend_mut()
+                .execute(BeginSynchronizedUpdate)
+                .map_err(io_to_py)?;
+        }
         self.synchronized_updates = true;
         Ok(())
     }
 
     fn end_synchronized_update(&mut self) -> PyResult<()> {
-        end_synchronized_update_impl()?;
+        if !self.synchronized_updates {
+            return Ok(());
+        }
+        if let Some(terminal) = self.terminal.as_mut() {
+            terminal
+                .backend_mut()
+                .execute(EndSynchronizedUpdate)
+                .map_err(io_to_py)?;
+        }
         self.synchronized_updates = false;
         Ok(())
     }
