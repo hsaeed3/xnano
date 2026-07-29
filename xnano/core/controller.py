@@ -14,7 +14,7 @@ from typing import Any
 import xnano_core.rust.native as native
 from xnano_core import core
 
-from xnano.core.content import Panel, TextBlock
+from xnano.core.content import Clear, Panel, TextBlock
 from xnano.core.layout import LayoutConstraint
 from xnano.core.rendering import lower_content
 from xnano.types import Area, Frame, Padding
@@ -145,6 +145,14 @@ class TerminalController:
         )
 
     paint_chrome = paint_frame
+
+    def paint_clear(self, area: Area, *, z: int = 0) -> None:
+        """Blank ``area`` at ``z`` so an overlay occludes the content below it.
+
+        ratatui styles a bordered block's interior but leaves the glyphs
+        under it intact; a popup must clear first to read as opaque.
+        """
+        self._paint(Clear(), area, z=z)
 
     def split_layout(
         self,
@@ -277,12 +285,15 @@ class TerminalController:
                     effect_key=effect_key,
                 )
             # Chrome owns the border: when the Field already frames this slot
-            # with a border, the nested grid must not draw a second one.
+            # with a border, the nested grid must not draw a second one. The
+            # field's z becomes the child grid's base so its whole subtree
+            # stacks on the right global layer.
             value._grid_build_frame(
                 area,
                 self,
                 suppress_frame_border=getattr(field, "border", None)
                 is not None,
+                base_z=parent_z,
             )
             return
         compose = getattr(value, "compose", None)
@@ -297,10 +308,13 @@ class TerminalController:
             )
             if not getattr(value, "visible", True):
                 return
+            # A component carries its own local ``z``; fold it onto the
+            # field's layer so a lifted slot lifts the component too.
+            component_z = parent_z + getattr(value, "z", 0)
             area = value.before_render(context, area)
             frame = value.get_frame()
             if frame is not None:
-                area = self.paint_frame(area, frame, z=value.z)
+                area = self.paint_frame(area, frame, z=component_z)
             variant = resolve_responsive_variant(
                 getattr(type(value), "_component_responsive_composes", None),
                 self.runtime.size[0],
@@ -312,7 +326,7 @@ class TerminalController:
                 self._paint(
                     content,
                     area,
-                    z=getattr(value, "z", parent_z),
+                    z=component_z,
                     effect_key=effect_key,
                 )
             value.after_render(context, area)

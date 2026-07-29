@@ -20,11 +20,13 @@ def _kbd(**kwargs: Any) -> Any:
     character = kwargs.get("character")
     matches = set(kwargs.get("matches", ()))
     kind = kwargs.get("kind", "press")
+    modifiers = list(kwargs.get("modifiers", ()))
 
     class _K:
         def __init__(self) -> None:
             self.kind = kind
             self.character = character
+            self.modifiers = modifiers
 
         def matches(self, *bindings: str) -> bool:
             return any(binding in matches for binding in bindings)

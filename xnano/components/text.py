@@ -18,6 +18,7 @@ from xnano.utils.deprecation import color_alias_dataclass
 if TYPE_CHECKING:
     from xnano.colors import ColorLike
     from xnano.events import KeyboardEventData
+    from xnano.types import Area
 
 
 @color_alias_dataclass
@@ -105,6 +106,9 @@ class Text(Component):
     _editor: Any = dataclasses.field(
         default=None, init=False, repr=False, compare=False
     )
+    _cursor_position: tuple[int, int] | None = dataclasses.field(
+        default=None, init=False, repr=False, compare=False
+    )
     _markup_cache_key: tuple[str, bool, bool, str | None] | None = (
         dataclasses.field(default=None, init=False, repr=False, compare=False)
     )
@@ -180,6 +184,32 @@ class Text(Component):
     def owns_cursor(self) -> bool:
         """Whether this Text paints its own caret (multi-line editor)."""
         return self._editor is not None
+
+    @property
+    def cursor_position(self) -> tuple[int, int] | None:
+        """Absolute caret cell for the terminal cursor, set during paint.
+
+        Reported only for a focused multi-line editor (a single-line input
+        paints its own ``▌`` caret inline). ``None`` otherwise, which hides
+        the hardware cursor.
+        """
+        return self._cursor_position
+
+    def after_render(
+        self,
+        ctx: "ComponentRenderContext[Any]",
+        area: "Area",
+    ) -> None:
+        """Record the multi-line editor caret so the terminal cursor tracks it."""
+        if not (self._input_focused and self._editor is not None):
+            self._cursor_position = None
+            return
+        row, column = self._editor.cursor()
+        # ponytail: no soft-wrap/scroll accounting; clamps to the slot, which
+        # is exact for a note-sized editor. Add offsets if the body scrolls.
+        x = area.x + max(0, min(column, max(0, area.width - 1)))
+        y = area.y + max(0, min(row, max(0, area.height - 1)))
+        self._cursor_position = (x, y)
 
     @property
     def value(self) -> str:
@@ -637,11 +667,16 @@ class Text(Component):
             return False
 
         character = keyboard.character
+        modifiers = keyboard.modifiers
         if (
             character is not None
             and len(character) == 1
             and character.isprintable()
             and character not in ("\n", "\r", "\t")
+            # A ctrl/alt chord (ctrl+s, alt+x) is an app shortcut, not text:
+            # let it fall through to hooks instead of typing its letter.
+            and "ctrl" not in modifiers
+            and "alt" not in modifiers
         ):
             if self.read_only:
                 return True

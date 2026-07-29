@@ -247,6 +247,25 @@ class GridFieldInfo:
     ``class_name``; the terminal insets the field's slot by this
     amount before painting.
     """
+    z: int | None = None
+    """Layering order for this field's slot, relative to its grid.
+
+    ``None`` inherits the grid's own ``z``; an explicit value stacks the
+    field's whole subtree — plain text, a component, or a nested grid —
+    above (or below) its siblings. It is additive with the grid's ``z`` and
+    any nested field ``z``, so an overlay field lifts everything it contains
+    together. Live-toggle via ``grid_set_field``/``grid_update_field``.
+    """
+    overlay: bool = False
+    """Float this field over the grid instead of giving it a layout slot.
+
+    A normal field claims a share of the layout; an overlay field is taken
+    out of the flow and painted on top of the grid's content area, sized by
+    its ``width``/``height`` (percent, cells, or ratio; unset fills the
+    area) and centered. Pair it with a higher ``z`` for a popup or modal that
+    covers the panels behind it rather than pushing them aside. Hidden
+    overlays (``visible=False``) cost nothing until shown.
+    """
 
     def get_style(self) -> Style:
         """Return the unified ``Style`` for this field's chrome and text.
@@ -376,6 +395,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -411,6 +432,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -445,6 +468,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -480,6 +505,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -514,6 +541,8 @@ def Field(
     title_position: FrameTitlePosition | None = None,
     padding: types.PaddingLike | None = None,
     margin: types.PaddingLike | None = None,
+    z: int | None = None,
+    overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
     group: str | None = None,
     autofocus: bool | None = None,
@@ -562,6 +591,13 @@ def Field(
             field's area.
         padding: The padding to be applied around the content area of this field.
         margin: The margin to be applied around the outer area of this field.
+        z: Layering order for this field's slot relative to its grid. ``None``
+            inherits the grid's own ``z``; an explicit value stacks the field's
+            whole subtree (text, component, or nested grid) above or below its
+            siblings and is additive with the grid's ``z``.
+        overlay: Float this field over the grid's content area (centered, sized
+            by ``width``/``height``) instead of giving it a layout slot. Pair
+            with a higher ``z`` for a popup or modal over the panels behind it.
         slide: The axes along which this field may slide within its parent grid.
         class_name: Tailwind CSS classes styling this field — a space-separated
             string or a sequence of class tokens. Classes are lowered into the
@@ -637,6 +673,8 @@ def Field(
         title_position=title_position,
         padding=padding,
         margin=margin,
+        z=z,
+        overlay=overlay,
         slide=_normalize_slide_axes(slide),
         group=group,
         autofocus=autofocus,

@@ -267,11 +267,19 @@ def apply_text_keyboard(text: Any, keyboard: Any) -> bool:
 
 
 def place_cursor_for_focus(terminal: Any) -> None:
-    """Place the cursor using the focused component's cursor hint."""
+    """Show and place the terminal caret at the focused input, else hide it.
+
+    A focused text input reports an absolute ``cursor_position`` during
+    paint; the caret follows it and is shown. With nothing editable focused
+    the caret is hidden so a browsing UI shows no stray cursor.
+    """
     component = focused_component(terminal)
     position = getattr(component, "cursor_position", None)
-    if component is not None and position is not None:
+    if position is not None:
         terminal.cursor.position = position
+        terminal.cursor.visible = True
+    else:
+        terminal.cursor.visible = False
 
 
 def scroll_handle_for_group(

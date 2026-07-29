@@ -27,6 +27,7 @@ def _kbd(**kwargs: Any) -> Any:
         def __init__(self) -> None:
             self.kind = kwargs.get("kind", "press")
             self.character = character
+            self.modifiers = list(kwargs.get("modifiers", ()))
 
         def matches(self, *bindings: str) -> bool:
             return any(binding in matches for binding in bindings)
@@ -244,7 +245,7 @@ def test_home_end_skip_disabled_edges() -> None:
 
 
 def test_typing_edits_query_and_resets_selection() -> None:
-    options = Options(items=_ITEMS, selected=3)
+    options = Options(items=_ITEMS, selected=3, searchable=True)
     assert options.handle_keyboard(_kbd(character="d")) is True
     assert options.query == "d"
     assert options.selected == 0
@@ -288,7 +289,7 @@ def test_select_alias_is_options() -> None:
 
 
 def test_compose_searchable_stacks_query_row() -> None:
-    options = Options(items=_ITEMS, query="da")
+    options = Options(items=_ITEMS, query="da", searchable=True)
     content = options.compose(_ctx())
     assert isinstance(content, Stack)
     assert isinstance(content.children[1], Items)
