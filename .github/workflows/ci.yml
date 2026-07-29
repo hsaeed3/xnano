@@ -169,7 +169,7 @@ jobs:
           command: sdist
           args: --out dist
           rust-toolchain: stable
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: pypi_files_xnano_core_sdist
           path: xnano-core/dist
@@ -229,7 +229,7 @@ jobs:
         working-directory: xnano-core
         run: twine check --strict dist/*
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: >-
             pypi_files_xnano_core_${{ matrix.os }}_${{ matrix.target || 'native' }}_${{ matrix.manylinux || 'none' }}
@@ -312,7 +312,7 @@ jobs:
         working-directory: xnano-core
         run: twine check --strict dist/*
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: pypi_files_xnano_core_wasm_emscripten
           path: xnano-core/dist
@@ -399,7 +399,7 @@ jobs:
 
       - run: twine check --strict dist/*
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: pypi_files_xnano
           path: dist
