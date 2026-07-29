@@ -138,10 +138,10 @@ features = [
     "content.tooltips",
     "header.autohide",
     "navigation.footer",
-    # "navigation.instant",
+    "navigation.instant",
     # !! prefetch should probably be enabled but its messing up the hero
     # !! animation on reloads from other pages
-    # "navigation.instant.prefetch",
+    "navigation.instant.prefetch",
     "navigation.instant.progress",
     "navigation.path",
     # "navigation.prune",
