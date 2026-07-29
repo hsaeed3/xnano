@@ -40,7 +40,7 @@ jobs:
       should_publish_core: ${{ steps.plan.outputs.should_publish_core }}
       should_publish_xnano: ${{ steps.plan.outputs.should_publish_xnano }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: resolve release plan
         id: plan
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: install rust stable
         if: needs.resolve-release.outputs.use_workspace_core == 'true'
@@ -115,7 +115,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: install rust stable
         if: needs.resolve-release.outputs.use_workspace_core == 'true'
@@ -207,7 +207,7 @@ jobs:
 
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: set up python
         uses: actions/setup-python@v7
@@ -246,13 +246,13 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: install uv
         uses: astral-sh/setup-uv@v7
 
       - name: get dist artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           pattern: pypi_files_xnano_core_*
           merge-multiple: true
@@ -277,7 +277,7 @@ jobs:
       RUST_TOOLCHAIN: "1.93.0"
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: set up python
         uses: actions/setup-python@v7
@@ -323,9 +323,9 @@ jobs:
     if: needs.resolve-release.outputs.run_core_pipeline == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
 
@@ -339,7 +339,7 @@ jobs:
         run: pip install pyodide-build
 
       - name: get dist artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: pypi_files_xnano_core_wasm_emscripten
           path: dist
@@ -361,7 +361,7 @@ jobs:
     if: needs.resolve-release.outputs.run_xnano_pipeline == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: install rust stable
         if: needs.resolve-release.outputs.use_workspace_core == 'true'
@@ -436,7 +436,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v7
 
@@ -449,7 +449,7 @@ jobs:
           TAG_VERSION: ${{ needs.resolve-release.outputs.tag_version }}
 
       - name: get dist artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           pattern: pypi_files_xnano_core_*
           merge-multiple: true
@@ -467,7 +467,7 @@ jobs:
         run: uv publish
 
       - name: create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: xnano-core ${{ needs.resolve-release.outputs.tag_version }}
@@ -494,7 +494,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v7
 
@@ -515,7 +515,7 @@ jobs:
           TAG_VERSION: ${{ needs.resolve-release.outputs.tag_version }}
 
       - name: get dist artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: pypi_files_xnano
           path: dist
@@ -529,7 +529,7 @@ jobs:
         run: uv publish
 
       - name: create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: xnano ${{ needs.resolve-release.outputs.tag_version }}
