@@ -5,6 +5,7 @@
 Track large dynamic option-list filtering and rendering.
 """
 
+import sys
 from typing import Any
 
 from xnano.components.component import ComponentRenderContext
@@ -17,9 +18,16 @@ from xnano.types import Area
 _ITEMS = tuple(
     Option(label=f"model-{index:04d}", value=index) for index in range(3_000)
 )
-_CONTEXT = ComponentRenderContext[Any](
-    area=Area(x=0, y=0, width=80, height=24)
-)
+# Python 3.10's typing sets __orig_class__ on the instance after __init__,
+# which frozen dataclasses reject; skip the subscript there.
+if sys.version_info < (3, 11):
+    _CONTEXT = ComponentRenderContext(
+        area=Area(x=0, y=0, width=80, height=24)
+    )
+else:
+    _CONTEXT = ComponentRenderContext[Any](
+        area=Area(x=0, y=0, width=80, height=24)
+    )
 
 
 def test_bench_options_compose_visible_window(benchmark) -> None:
