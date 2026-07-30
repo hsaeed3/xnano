@@ -8,9 +8,12 @@ Direct coverage for the decoupled ``xnano.utils`` modules and the
 
 from __future__ import annotations
 
-from typing import Any
+import datetime
+import uuid
+from typing import Any, TypedDict
 
 import pytest
+from typing_extensions import NotRequired
 
 from xnano.core.exceptions import Exit
 from xnano.state import State
@@ -23,6 +26,14 @@ from xnano.utils.markup import (
     parse_ansi_lines,
     strip_ansi_escapes,
 )
+
+
+class _JobConfiguration(TypedDict):
+    identifier: uuid.UUID
+    scheduled: datetime.datetime
+    tags: set[str]
+    retries: NotRequired[int]
+
 
 # ── markup ──────────────────────────────────────────────────────────────
 
@@ -44,6 +55,22 @@ def test_parse_ansi_lines_splits_on_newlines() -> None:
     assert len(lines) == 2
     assert lines[0][0].text == "one"
     assert lines[1][0].text == "two"
+
+
+def test_parse_ansi_lines_preserves_terminal_log_styles() -> None:
+    lines = parse_ansi_lines(
+        "\x1b[1;38;5;196;48;2;1;2;3merror\x1b[22;39;49m plain"
+    )
+    error, plain = lines[0]
+
+    assert error.text == "error"
+    assert error.color == "#ff0000"
+    assert error.background == "#010203"
+    assert error.modifiers == ("bold",)
+    assert plain.text == " plain"
+    assert plain.color is None
+    assert plain.background is None
+    assert plain.modifiers == ()
 
 
 def test_highlight_lines_unknown_language_is_plain() -> None:
@@ -172,6 +199,23 @@ def test_evaluate_state_expression_refuses_code_execution() -> None:
     assert ev("__import__('os')", model) is False
 
 
+def test_reference_watchers_read_nested_mutable_state() -> None:
+    state = {"jobs": [{"status": "queued"}]}
+
+    assert introspection.is_reference_expression("jobs[0]['status']")
+    assert not introspection.is_reference_expression(
+        "jobs[0]['status'] == 'queued'"
+    )
+    assert (
+        introspection.evaluate_reference_value("jobs[0]['status']", state)
+        == "queued"
+    )
+    assert (
+        introspection.evaluate_reference_value("jobs[99]['status']", state)
+        is introspection._MISSING
+    )
+
+
 # ── dispatch ────────────────────────────────────────────────────────────
 
 # A stand-in context; hooks under test never read it.
@@ -204,6 +248,32 @@ def test_invoke_hook_awaits_async_result() -> None:
     assert invoke_hook(Grid.handler, grid, _CTX) == 21
 
 
+def test_invoke_hook_supports_bound_methods_and_free_functions() -> None:
+    class Grid:
+        def ready(self) -> str:
+            return "ready"
+
+        def bound(self, ctx) -> tuple[object, object]:
+            return self, ctx
+
+    grid = Grid()
+
+    def free(ctx) -> object:
+        return ctx
+
+    assert invoke_hook(grid.ready, None, _CTX) == "ready"
+    assert invoke_hook(grid.bound, None, _CTX) == (grid, _CTX)
+    assert invoke_hook(free, None, _CTX) is _CTX
+
+
+def test_invoke_hook_reraises_user_errors() -> None:
+    def broken() -> None:
+        raise LookupError("missing user data")
+
+    with pytest.raises(LookupError, match="missing user data"):
+        invoke_hook(broken, None, _CTX)
+
+
 def test_invoke_hook_propagates_exit() -> None:
     class Grid:
         def handler(self) -> None:
@@ -218,6 +288,17 @@ def test_run_awaitable_drives_coroutine() -> None:
         return "done"
 
     assert run_awaitable(value()) == "done"
+
+
+def test_run_awaitable_supports_custom_awaitables() -> None:
+    class Immediate:
+        def __await__(self):
+            async def resolve() -> str:
+                return "custom"
+
+            return resolve().__await__()
+
+    assert run_awaitable(Immediate()) == "custom"
 
 
 # ── validation ──────────────────────────────────────────────────────────
@@ -258,6 +339,44 @@ def test_validate_type_containers_and_unions() -> None:
     assert validation.validate_type((1, "x"), tuple[int, str]) == (1, "x")
     assert validation.validate_type(5, Union[int, str]) == 5
     assert validation.validate_type(None, Optional[int]) is None
+
+
+def test_validate_nested_user_configuration() -> None:
+    identifier = uuid.uuid4()
+    result = validation.validate_type(
+        {
+            "identifier": str(identifier),
+            "scheduled": "2026-07-30T12:30:00",
+            "tags": ["release", "terminal"],
+        },
+        _JobConfiguration,
+    )
+
+    assert result == {
+        "identifier": identifier,
+        "scheduled": datetime.datetime(2026, 7, 30, 12, 30),
+        "tags": {"release", "terminal"},
+    }
+
+
+@pytest.mark.parametrize(
+    ("annotation", "expected"),
+    (
+        (int | None, "nullable"),
+        (int | str, "union"),
+        (list[int], "list"),
+        (set[str], "set"),
+        (frozenset[str], "frozenset"),
+        (dict[str, int], "dict"),
+        (datetime.timedelta, "timedelta"),
+        (uuid.UUID, "uuid"),
+    ),
+)
+def test_infer_schema_name_matches_cli_field_types(
+    annotation: type,
+    expected: str,
+) -> None:
+    assert validation.infer_pydantic_core_schema_name(annotation) == expected
 
 
 def test_validate_type_literal_and_enum() -> None:
