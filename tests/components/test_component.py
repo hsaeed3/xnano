@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Any, cast
 
 import xnano.components as components
@@ -27,10 +28,18 @@ def test_unknown_component_export_has_normal_attribute_error() -> None:
 
 def test_component_default_extension_contracts_are_noops() -> None:
     component = Component()
-    ctx = ComponentRenderContext[Any](
-        area=Area(x=1, y=2, width=10, height=4),
-        state={"ready": True},
-    )
+    # Python 3.10's typing sets __orig_class__ on the instance after
+    # __init__, which frozen dataclasses reject; skip the subscript there.
+    if sys.version_info < (3, 11):
+        ctx = ComponentRenderContext(
+            area=Area(x=1, y=2, width=10, height=4),
+            state={"ready": True},
+        )
+    else:
+        ctx = ComponentRenderContext[Any](
+            area=Area(x=1, y=2, width=10, height=4),
+            state={"ready": True},
+        )
     area = ctx.area
 
     assert component.focused is False
