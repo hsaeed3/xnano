@@ -274,23 +274,23 @@ class TestCoreRenderIRRenders:
 
     def test_progress_bar_renders(self) -> None:
         ir = CoreRenderIR.progress_bar(0.5, "50%", None, None)
-        _render(ir)  # must not raise
+        assert "50%" in _text(_render(ir))
 
     def test_sparkline_renders(self) -> None:
         ir = CoreRenderIR.sparkline(
             [1, 2, 3, 4, 5], None, None, None, None, None
         )
-        _render(ir)  # must not raise
+        assert "█" in _text(_render(ir))
 
     def test_line_gauge_renders(self) -> None:
         ir = CoreRenderIR.line_gauge(0.75, None, None, None, None, None)
-        _render(ir)
+        assert "75%" in _text(_render(ir))
 
     def test_scrollbar_renders(self) -> None:
         ir = CoreRenderIR.scrollbar(
             0, 100, 10, None, None, None, None, None, None
         )
-        _render(ir)
+        assert "█" in _text(_render(ir))
 
     def test_tabs_renders_titles(self) -> None:
         titles = [IrLine.raw("Tab-A"), IrLine.raw("Tab-B")]
@@ -322,14 +322,16 @@ class TestCoreRenderIRRenders:
         ir = CoreRenderIR.canvas([], (0.0, 40.0), (0.0, 12.0), None, None)
         _render(ir)
 
-    def test_bar_chart_renders_without_error(self) -> None:
+    def test_bar_chart_renders_value_and_label(self) -> None:
         # bar tuple: (value, label, text_value, bar_fg, bar_bg, value_fg, value_bg)
         bar = (5, "bar", None, None, None, None, None)
         group = (None, [bar])
         ir = CoreRenderIR.bar_chart(
             [group], 1, 0, 0, None, False, None, None, None
         )
-        _render(ir)
+        text = _text(_render(ir))
+        assert "5" in text
+        assert "b" in text
 
     def test_ir_content_via_leaf_node(self) -> None:
         ir = CoreRenderIR.span("via-leaf", None, None, [])

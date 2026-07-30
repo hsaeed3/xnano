@@ -359,8 +359,10 @@ def lower_content(content: Any) -> core.CoreRenderNode:
     compose = getattr(content, "compose", None)
     if callable(compose):
         from xnano.components.component import ComponentRenderContext
+        from xnano.core.runtime import get_active_runtime
         from xnano.types import Area
 
+        runtime = get_active_runtime()
         # A component with responsive compose variants swaps in the one
         # matching the live window width; the plain `compose` handles
         # every tier a component leaves unoverridden. Skipped entirely for
@@ -368,22 +370,18 @@ def lower_content(content: Any) -> core.CoreRenderNode:
         responsive = getattr(
             type(content), "_component_responsive_composes", None
         )
-        if responsive:
-            from xnano.core.runtime import get_active_runtime
+        if responsive and runtime is not None:
             from xnano.utils.responsive import (
                 resolve_responsive_variant,
             )
 
-            runtime = get_active_runtime()
-            if runtime is not None:
-                variant = resolve_responsive_variant(
-                    responsive, runtime.size[0]
-                )
-                if variant is not None:
-                    compose = getattr(content, variant)
+            variant = resolve_responsive_variant(responsive, runtime.size[0])
+            if variant is not None:
+                compose = getattr(content, variant)
+        width, height = runtime.size if runtime is not None else (0, 0)
         content = compose(
             ComponentRenderContext(
-                area=Area(x=0, y=0, width=0, height=0),
+                area=Area(x=0, y=0, width=width, height=height),
             )
         )
     if content is None:
