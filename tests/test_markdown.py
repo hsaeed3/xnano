@@ -182,6 +182,28 @@ def test_pager_status_line_shows_percentage() -> None:
         terminal.close()
 
 
+def test_mixed_document_scrolls_across_user_content() -> None:
+    source = (
+        "# Release notes\n\n"
+        "> [!WARNING]\n> Back up first.\n\n"
+        "```python\nfrom xnano import render\nrender('ready')\n```\n\n"
+        + _tall_document(20)
+    )
+    document, terminal = _viewer(source, cols=55, rows=12)
+    try:
+        first = terminal.render(document)
+        assert first.contains("Release notes")
+        assert first.contains("Warning")
+
+        _press(terminal, "end")
+        last = terminal.render(document)
+
+        assert last.contains("Heading 19")
+        assert document.body.scroll_percentage() == 100
+    finally:
+        terminal.close()
+
+
 def test_code_block_has_gutter_and_keeps_inner_indent() -> None:
     text = "intro\n\n```python\ndef f():\n    return 1\n```\n\nafter"
     document, terminal = _viewer(text, cols=40, rows=12)

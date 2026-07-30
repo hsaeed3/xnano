@@ -86,9 +86,33 @@ def test_dispatch_request_with_runtime_context() -> None:
     assert grid.count == 1
 
 
-def test_request_decorator_factory() -> None:
-    decorator = request("PATCH", "/thing")
-    assert callable(decorator)
+def test_generic_request_decorator_updates_renderable_grid() -> None:
+    class App(BaseGrid):
+        message: str = Field(default="waiting")
+
+        @request("PATCH", "/thing")
+        def update(self, ctx) -> Response:
+            payload = ctx.request.json()
+            self.message = f"updated {payload['name']}"
+            return Response.json({"message": self.message})
+
+    app = App()
+    response = dispatch_request(
+        app,
+        "PATCH",
+        "/thing",
+        request_obj=Request.from_parts(
+            "PATCH",
+            "/thing",
+            headers={"content-type": "application/json"},
+            body=b'{"name": "dashboard"}',
+        ),
+        runtime=app,
+    )
+
+    assert isinstance(response, Response)
+    assert response.as_bytes() == b'{"message": "updated dashboard"}'
+    assert app.message == "updated dashboard"
 
 
 @pytest.mark.parametrize(

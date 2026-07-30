@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from xnano.components.component import ComponentRenderContext
 from xnano.components.loader import (
     Loader,
+    LoaderStyle,
     resolve_loader_symbols,
 )
+from xnano.components.text import Text
 from xnano.core import Runtime
 from xnano.core.content import Gauge, LineGauge, TextBlock
 from xnano.types import Area
@@ -33,6 +35,15 @@ def test_resolve_custom_frames() -> None:
 def test_resolve_unknown_preset() -> None:
     with pytest.raises(ValueError, match="Unknown loader"):
         resolve_loader_symbols("nope")  # type: ignore[arg-type]
+
+
+def test_loader_rejects_empty_symbols_style_and_interval() -> None:
+    with pytest.raises(ValueError, match="at least one"):
+        resolve_loader_symbols(())
+    with pytest.raises(ValueError, match="Unsupported loader style"):
+        Loader(style=cast(Any, "circle"))
+    with pytest.raises(ValueError, match="greater than zero"):
+        Loader(interval=0)
 
 
 def test_ratio_from_direct_value() -> None:
@@ -77,6 +88,33 @@ def test_spinner_label_appended() -> None:
     assert "loading" in content.text
 
 
+def test_inline_spinner_uses_component_label_protocols() -> None:
+    class PlainLabel:
+        def plain(self) -> str:
+            return "plain label"
+
+    class StringLabel:
+        def __str__(self) -> str:
+            return "string label"
+
+    plain = Loader(
+        symbols=("*",),
+        label=cast(Any, PlainLabel()),
+        running=False,
+    )
+    assert plain.resolved_symbols == ("*",)
+    assert plain.current_frame() == "*"
+    assert plain.inline_text() == "* plain label"
+
+    fallback = Loader(
+        symbols=("*",),
+        label=cast(Any, StringLabel()),
+        running=False,
+    )
+    assert fallback.inline_text() == "* string label"
+    assert Loader(symbols=("*",), running=False).inline_text() == "*"
+
+
 def test_bar_style_gauge_content() -> None:
     loader = Loader(value=0.7, style="bar")
     content = loader.compose(_ctx())
@@ -105,6 +143,27 @@ def test_label_false_hides_label() -> None:
     content = loader.compose(_ctx())
     assert isinstance(content, Gauge)
     assert content.label is None
+
+
+@pytest.mark.parametrize(
+    ("style", "content_type"),
+    (("bar", Gauge), ("line", LineGauge)),
+)
+def test_indeterminate_progress_uses_composed_text_label(
+    style: LoaderStyle,
+    content_type: type[Gauge] | type[LineGauge],
+) -> None:
+    loader = Loader(
+        value=None,
+        style=style,
+        label=Text("Syncing", foreground="cyan"),
+        symbols=("*",),
+        running=False,
+    )
+    content = loader.compose(_ctx())
+    assert isinstance(content, content_type)
+    assert content.progress == 0.0
+    assert content.label == "* Syncing"
 
 
 def test_restart_resets_epoch() -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -50,9 +50,26 @@ def test_resolve_rejects_wide_glyph() -> None:
         resolve_bar_glyphs((" ", "😀"))
 
 
+def test_combining_grapheme_is_one_terminal_cell() -> None:
+    assert resolve_bar_glyphs((" ", "e\u0301")) == (" ", "e\u0301")
+
+
+@pytest.mark.parametrize("invalid", ("", "ab", "a😀"))
+def test_invalid_graphemes_are_rejected(invalid: str) -> None:
+    with pytest.raises(ValueError, match="single terminal cell"):
+        resolve_bar_glyphs((" ", invalid))
+
+
 def test_component_post_init_resolves_glyphs() -> None:
     bar = Bar(data=[1, 2, 3], glyphs="ascii")
     assert bar.resolved_glyphs == resolve_bar_glyphs("ascii")
+
+
+def test_invalid_direction_and_absent_glyph_are_rejected() -> None:
+    with pytest.raises(ValueError, match="Unsupported bar direction"):
+        Bar(data=[1], direction=cast(Any, "sideways"))
+    with pytest.raises(ValueError, match="absent_glyph"):
+        Bar(data=[0], absent_glyph="😀")
 
 
 def test_colors_length_must_match_data() -> None:
@@ -100,6 +117,33 @@ def test_direction_down_inverts_samples() -> None:
         for span in down.compose(_ctx()).rows[0]  # type: ignore[union-attr]
     )
     assert up_text != down_text
+
+
+def test_custom_distribution_handles_absent_colors_and_empty_data() -> None:
+    bar = Bar(
+        data=[0, 5],
+        glyphs=(" ", "."),
+        colors=("red", "green"),
+        absent_color="gray",
+        absent_glyph="-",
+        max_value=5,
+    )
+    content = bar.compose(_ctx())
+    assert isinstance(content, CellCanvas)
+    assert [span.text for span in content.rows[0]] == ["-", "."]
+    assert [span.color for span in content.rows[0]] == ["gray", "green"]
+
+    empty = Bar(data=[], glyphs=(" ", ".")).compose(_ctx(width=7))
+    assert isinstance(empty, CellCanvas)
+    assert empty.width == 7
+    assert empty.rows[0][0].text == " "
+
+
+def test_downward_nonpositive_scale_stays_absent() -> None:
+    bar = Bar(data=(-3, 0), direction="down", glyphs=(" ", "#"))
+    content = bar.compose(_ctx())
+    assert isinstance(content, CellCanvas)
+    assert [span.text for span in content.rows[0]] == [" ", " "]
 
 
 def test_fit_content_defaults_false() -> None:

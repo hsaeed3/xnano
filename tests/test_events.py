@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from xnano.events import (
+    ClipboardEventData,
     Event,
+    FocusEventData,
     KeyboardEventData,
     MouseEventData,
     ResizeEventData,
-    event_from_core,
+    TickEventData,
     normalize_keyboard_binding,
 )
 
@@ -35,7 +37,34 @@ def test_normalize_binding_aliases() -> None:
     assert normalize_keyboard_binding("return") == (frozenset(), "enter")
 
 
-def test_event_from_core_smoke() -> None:
-    # Offscreen sessions can synthesize core events; just ensure the
-    # helper is importable and rejects nothing obvious when unused.
-    assert callable(event_from_core)
+def test_uniform_event_accessors_across_user_input_types() -> None:
+    keyboard = Event.from_data(
+        KeyboardEventData.from_binding(
+            "ctrl+s",
+            kind="repeat",
+            character="s",
+        )
+    )
+    mouse = Event.from_data(
+        MouseEventData(kind="drag", x=4, y=5, button="left")
+    )
+    clipboard = Event.from_data(ClipboardEventData("pasted"))
+    focus = Event.from_data(FocusEventData(kind="field_gained", field="name"))
+    tick = Event.from_data(TickEventData(elapsed_ms=16))
+
+    assert keyboard.keyboard_event is not None
+    assert keyboard.keyboard_event_kind == "repeat"
+    assert keyboard.keyboard_modifiers == ["ctrl"]
+    assert keyboard.keyboard_event.character == "s"
+    assert mouse.mouse_event_kind == "drag"
+    assert mouse.mouse_button == "left"
+    assert clipboard.is_clipboard_event()
+    assert clipboard.clipboard_text == "pasted"
+    assert focus.is_focus_event()
+    assert focus.focus_event is not None
+    assert focus.focus_event.field == "name"
+    assert tick.is_tick_event()
+    assert tick.tick_event is not None
+    assert tick.tick_event.elapsed_ms == 16
+    assert tick.keyboard_event is None
+    assert tick.keyboard_modifiers == []

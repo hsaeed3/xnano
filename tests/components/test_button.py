@@ -4,9 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from xnano.actions import Action
 from xnano.components.button import Button
 from xnano.components.component import ComponentRenderContext
+from xnano.components.dropdown import Dropdown
+from xnano.components.input import Input
 from xnano.core.content import Panel, TextBlock
+from xnano.core.runtime import Runtime
+from xnano.fields import Field
+from xnano.grids import BaseGrid
+from xnano.hooks import on_click
 from xnano.types import Area, is_focusable_component
 
 
@@ -132,31 +139,61 @@ def test_get_label_text_from_text_like() -> None:
 
     assert Button(label=_TextLike()).get_label_text() == "FromValue"
 
+    class _ContentLike:
+        content = "FromContent"
 
-def test_button_offscreen_smoke_render() -> None:
-    from xnano.core.runtime import Runtime
+    class _StringLike:
+        def __str__(self) -> str:
+            return "FromString"
 
-    button = Button(label="Submit", foreground="cyan")
-    runtime = Runtime.offscreen(width=40, height=6)
+    assert Button(label=_ContentLike()).get_label_text() == "FromContent"
+    assert Button(label=_StringLike()).get_label_text() == "FromString"
+
+
+def test_button_submits_composed_form_state() -> None:
+    class Form(BaseGrid, direction="vertical"):
+        name: Input = Field(
+            default_factory=lambda: Input(placeholder="name"),
+            group="name",
+            height=1,
+        )
+        environment: Dropdown = Field(
+            default_factory=lambda: Dropdown(
+                items=("staging", "production"),
+                searchable=False,
+            ),
+            group="environment",
+            height=2,
+        )
+        submit: Button = Field(
+            default_factory=lambda: Button(label="Deploy"),
+            group="submit",
+            height=1,
+        )
+        status: str = Field(default="Not deployed", height=1)
+
+        @on_click("submit")
+        def submit_form(self) -> None:
+            self.status = f"{self.name.value} → {self.environment.value}"
+
+    runtime = Runtime.offscreen(width=40, height=8)
     try:
-        frame = runtime.render(button)
-        assert frame is not None
-        output = runtime.get_output()
-        assert "Submit" in output
-    finally:
-        runtime.close()
+        form = Form()
+        runtime.set_root(form)
+        assert "Deploy" in runtime.render().text
 
+        assert runtime.focus("name")
+        for character in "api":
+            runtime.perform(Action.keyboard(character))
 
-def test_button_focused_offscreen_smoke_render() -> None:
-    from xnano.core.runtime import Runtime
+        assert runtime.focus("environment")
+        runtime.perform(Action.keyboard("down"))
+        runtime.perform(Action.keyboard("down"))
+        runtime.perform(Action.keyboard("enter"))
 
-    button = Button(label="Save")
-    button._input_focused = True
-    runtime = Runtime.offscreen(width=40, height=6)
-    try:
-        frame = runtime.render(button)
-        assert frame is not None
-        output = runtime.get_output()
-        assert "Save" in output
+        runtime.perform(Action.click("submit"))
+        assert form.name.value == "api"
+        assert form.environment.value == "production"
+        assert "api → production" in runtime.render().text
     finally:
         runtime.close()
