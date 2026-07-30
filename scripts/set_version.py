@@ -19,6 +19,7 @@ Files updated by this script:
 - ``xnano/__init__.py`` — ``__version__`` constant
 - ``docs/getting-started.md`` — install pins
   (``xnano>=…`` in pip / uv / poetry examples)
+- ``docs/sandbox.md`` — install pins (``xnano>=…`` in runnable pyodide cells)
 - ``README.md`` — install pins (``xnano>=…`` in pip / uv examples)
 
 ``xnano-core/python/xnano_core/rust/native.pyi`` only declares
@@ -50,6 +51,7 @@ EDITABLE_FILES: tuple[str, ...] = (
     "xnano-core/Cargo.toml",
     "xnano/__init__.py",
     "docs/getting-started.md",
+    "docs/sandbox.md",
     "README.md",
 )
 """Paths this script is allowed to modify, relative to the repository
@@ -57,6 +59,7 @@ root."""
 
 MARKDOWN_INSTALL_PIN_FILES: tuple[str, ...] = (
     "docs/getting-started.md",
+    "docs/sandbox.md",
     "README.md",
 )
 """Markdown files that embed ``xnano>=…`` install examples."""
