@@ -18,7 +18,7 @@ from typing import (
 )
 
 from xnano.components.component import Component
-from xnano.components.schema import ComponentDescriptor
+from xnano.components.schema import ComponentDescriptor, Series
 from xnano.core.content import (
     Plot,
     PlotAxis,
@@ -55,39 +55,6 @@ ResolvedDataset: TypeAlias = tuple[
     "CanvasMarkerLike | None",
 ]
 """Resolved ``(label, points, color, kind, marker)`` dataset tuple."""
-
-
-@dataclasses.dataclass
-class Series(ComponentDescriptor):
-    """Declares one series of a ``Chart``.
-
-    Attributes:
-        label: Legend label; ``None`` derives it from the attribute name.
-        color: Series color.
-        kind: Per-series plot kind, overriding the chart default.
-        marker: Glyph set used to paint the series.
-    """
-
-    label: str | None = None
-    """Legend label."""
-    color: "ColorLike | None" = None
-    """Series color."""
-    kind: GraphTypeLike | None = None
-    """Per-series graph representation."""
-    marker: CanvasMarkerLike | None = None
-    """Marker used to paint samples."""
-
-    if TYPE_CHECKING:
-
-        def __new__(cls, *args: Any, **kwargs: Any) -> Any: ...
-
-    def resolve_label(self) -> str:
-        """Return the legend label, deriving one from ``name`` when unset.
-
-        Returns:
-            The legend label for this series.
-        """
-        return self.label if self.label is not None else self.name
 
 
 @dataclasses.dataclass
