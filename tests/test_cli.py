@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 import pytest
 
 from xnano.cli import Argument, CliError, Command, Option
@@ -92,3 +94,36 @@ def test_option_and_argument_metadata_types() -> None:
     assert argument.metavar == "TARGET"
     error = CliError("boom", exit_code=2)
     assert error.exit_code == 2
+
+
+def test_annotated_command_combines_arguments_options_and_repeats() -> None:
+    app = Command(name="deploy", strict=True)
+    calls: list[tuple[str, list[str], bool]] = []
+
+    @app
+    def deploy(
+        environment: Annotated[
+            str,
+            Argument(
+                help="Deployment environment",
+                metavar="ENV",
+                choices=("staging", "production"),
+            ),
+        ],
+        tag: Annotated[
+            list[str],
+            Option("-t", "--tag", help="Image tag"),
+        ],
+        force: Annotated[
+            bool,
+            Option("-f", "--force", help="Skip confirmation"),
+        ] = False,
+    ) -> None:
+        calls.append((environment, tag, force))
+
+    app.run(["production", "--tag", "api", "-t", "worker", "--force"])
+
+    assert calls == [("production", ["api", "worker"], True)]
+    help_text = app.get_help()
+    assert "ENV" in help_text
+    assert "--tag" in help_text

@@ -568,6 +568,9 @@ class Command:
         except HelpRequested as help_requested:
             print(render_help(help_requested.command), end="")
             sys.exit(0)
+        except HelpException as help_exception:
+            print(render_help(help_exception.command), end="")
+            sys.exit(0)
         except CliError as error:
             print_error(error.message, error.command or self)
             sys.exit(error.exit_code)
