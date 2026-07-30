@@ -218,6 +218,13 @@ cargo clean
 maturin develop --uv
 ```
 
+Performance-sensitive changes should also be checked against the benchmark
+suite in `benchmarks/`, which CodSpeed measures on every pull request:
+
+```bash
+uv run pytest benchmarks
+```
+
 Run focused tests while developing, then run the complete required checks
 before opening or updating the pull request.
 
