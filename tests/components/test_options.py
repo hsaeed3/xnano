@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from xnano.components.component import ComponentRenderContext
 from xnano.components.options import (
@@ -11,6 +11,7 @@ from xnano.components.options import (
     Select,
     get_fuzzy_match,
 )
+from xnano.components.text import Text
 from xnano.core.content import Items, Stack
 from xnano.types import Area, is_focusable_component
 
@@ -116,6 +117,39 @@ def test_option_value_defaults_to_label() -> None:
     assert options.value == "only"
 
 
+def test_component_labels_keep_plain_values_for_selection() -> None:
+    class ContentLabel:
+        content = "Content label"
+
+    class StringLabel:
+        def __str__(self) -> str:
+            return "String label"
+
+    options = Options(
+        items=(
+            Option(Text("Styled"), value="styled"),
+            Text("Plain component"),
+            Option(ContentLabel()),
+            Option(StringLabel()),
+            cast(Any, ContentLabel()),
+            cast(Any, StringLabel()),
+        ),
+    )
+    assert options.selected_label == "Styled"
+    assert options.value == "styled"
+    options.select(1)
+    assert options.selected_label == "Plain component"
+    assert options.value == "Plain component"
+    options.select(2)
+    assert options.selected_label == "Content label"
+    options.select(3)
+    assert options.selected_label == "String label"
+    options.select(4)
+    assert options.selected_label == "Content label"
+    options.select(5)
+    assert options.selected_label == "String label"
+
+
 def test_bottom_to_top_reverses_display_order() -> None:
     options = Options(
         items=("a", "b", "c"),
@@ -144,6 +178,50 @@ def test_move_clamps_to_filtered_bounds() -> None:
     assert options.selected == len(_ITEMS) - 1
     options.move(-1000)
     assert options.selected == 0
+
+
+def test_selection_edge_contracts_remain_stable() -> None:
+    options = Options(
+        items=(
+            Option("disabled first", disabled=True),
+            Option("enabled"),
+            Option("disabled last", disabled=True),
+        ),
+        selected=0,
+    )
+    options.move(0)
+    assert options.selected_label == "disabled first"
+    options.clear_query()
+    assert options.selected_label == "enabled"
+    assert options.select_value("missing") is False
+
+    empty = Options(items=(), selected=4)
+    empty.select(10)
+    assert empty.selected == 0
+
+    disabled = Options(
+        items=(Option("one", disabled=True), Option("two", disabled=True))
+    )
+    disabled.clear_query()
+    assert disabled.selected == 0
+    assert disabled._first_enabled_index() == 0
+    assert disabled._last_enabled_index() == 0
+
+    backward = Options(
+        items=(
+            Option("enabled"),
+            Option("disabled", disabled=True),
+        ),
+        selected=1,
+    )
+    backward._ensure_enabled_selection()
+    assert backward.selected_label == "enabled"
+
+    selectable = Options(
+        items=(Option("one", value=1), Option("two", value=2))
+    )
+    assert selectable.select_value(2) is True
+    assert selectable.value == 2
 
 
 def test_move_on_empty_filtered_view_resets_to_zero() -> None:
@@ -253,6 +331,18 @@ def test_typing_edits_query_and_resets_selection() -> None:
     assert options.query == ""
 
 
+def test_submission_policy_handles_blank_complete_and_extended_text() -> None:
+    options = Options(items=("/deploy",), accept="if_prefix_only")
+    assert options.resolve_submission("") == "/deploy"
+    assert options.resolve_submission("/dep") == "/deploy"
+    assert options.resolve_submission("/deploy now") == "/deploy now"
+    assert options.resolve_submission("/other") == "/deploy"
+    options.accept = "extend"
+    assert options.resolve_submission("/dep") == "/dep"
+    options.accept = "replace"
+    assert options.resolve_submission("/anything") == "/deploy"
+
+
 def test_navigation_keys_fall_through() -> None:
     options = Options(items=_ITEMS)
     for key in ("enter", "esc", "escape", "tab"):
@@ -272,6 +362,25 @@ def test_not_searchable_ignores_typing() -> None:
     assert options.handle_keyboard(_kbd(character="d")) is False
     assert options.query == ""
     assert options.handle_keyboard(_kbd(matches={"down"})) is True
+    assert options.handle_keyboard(_kbd(matches={"unknown"})) is False
+    assert (
+        options.handle_keyboard(_kbd(character="x", kind="release")) is False
+    )
+    searchable = Options(items=_ITEMS, searchable=True)
+    assert searchable.handle_keyboard(_kbd(character="\n")) is False
+
+
+def test_boolean_and_prefix_filter_modes() -> None:
+    fuzzy = Options(items=_ITEMS, query="drk", filter=True)
+    assert fuzzy.visible_items == ("dark", "solarized dark")
+    prefix = Options(items=_ITEMS, query="sol", filter="prefix")
+    assert prefix.visible_items == ("solarized dark", "solarized light")
+    custom = Options(
+        items=_ITEMS,
+        query="ignored",
+        filter=lambda query, text: text.endswith("light"),
+    )
+    assert custom.visible_items == ("light", "solarized light")
 
 
 def test_options_is_focusable_component() -> None:
@@ -300,6 +409,20 @@ def test_compose_not_searchable_is_items_only() -> None:
     content = options.compose(_ctx())
     assert isinstance(content, Items)
     assert content.selected == 0
+
+    empty = Options(items=(), searchable=False).compose(_ctx())
+    assert isinstance(empty, Items)
+    assert empty.selected is None
+    assert Options(items=()).selected_value is None
+
+
+def test_empty_search_row_and_unpainted_hover_are_stable() -> None:
+    options = Options(items=_ITEMS, searchable=True)
+    content = options.compose(_ctx())
+    assert isinstance(content, Stack)
+    query = content.children[0]
+    assert _entry_text(query) == "type to filter"
+    assert options.handle_hover(0, 0) is False
 
 
 def test_match_characters_are_emphasized() -> None:
@@ -330,6 +453,35 @@ def test_repeat_highlight_symbol_bakes_prefix() -> None:
     assert content.highlight_symbol == ""
     texts = [_entry_text(entry) for entry in content.items]
     assert texts == ["* a", "* b"]
+
+
+def test_hover_tracks_filtered_bottom_to_top_rows() -> None:
+    options = Options(
+        items=(
+            Option("alpha"),
+            Option("beta", disabled=True),
+            Option("gamma"),
+        ),
+        query="a",
+        searchable=True,
+        direction="bottom_to_top",
+        hover_symbol="~ ",
+    )
+    area = Area(x=2, y=4, width=20, height=5)
+    options.after_render(_ctx(), area)
+
+    assert options.handle_hover(10, 5) is True
+    assert options.hovered == 2
+    assert options.handle_hover(10, 5) is False
+
+    content = options.compose(_ctx())
+    assert isinstance(content, Stack)
+    items = content.children[1]
+    assert isinstance(items, Items)
+    assert _entry_text(items.items[2]) == "~ alpha"
+
+    assert options.handle_hover(10, 20) is True
+    assert options.hovered is None
 
 
 # ---------------------------------------------------------------------------
