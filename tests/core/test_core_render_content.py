@@ -5,10 +5,13 @@ from __future__ import annotations
 import pytest
 from xnano_core.rust.engine import (
     CoreRenderContent,
+    CoreRenderIR,
     CoreRenderNode,
     CoreSession,
+    IrLine,
 )
 from xnano_core.rust.native import (
+    Buffer,
     BufferMutView,
     Constraint,
     ListItem,
@@ -127,6 +130,70 @@ def test_stateful_scrollbar_renders(offscreen_session: CoreSession) -> None:
     state.set_position(10)
     offscreen_session.render(
         CoreRenderNode.leaf(CoreRenderContent.stateful(scrollbar, state))
+    )
+    assert any(
+        line.strip()
+        for line in offscreen_session.buffer_snapshot().to_string_lines()
+    )
+
+
+def test_widget_ir_stateful_and_drawable_render_in_one_layout(
+    offscreen_session: CoreSession,
+) -> None:
+    table = RatTable.new(
+        [Row.new(["Ada", "active"])],
+        [Constraint.percentage(50), Constraint.percentage(50)],
+    )
+
+    def draw_status(buffer: Buffer, rect: Rect) -> None:
+        buffer.set_string(rect.x, rect.y, "READY", Style.default())
+
+    tree = CoreRenderNode.column(
+        constraints=[
+            Constraint.length(2),
+            Constraint.length(3),
+            Constraint.min(1),
+        ],
+        children=[
+            CoreRenderNode.leaf(
+                CoreRenderContent.widget(Paragraph.new("Deployments"))
+            ),
+            CoreRenderNode.row(
+                constraints=[
+                    Constraint.percentage(50),
+                    Constraint.percentage(50),
+                ],
+                children=[
+                    CoreRenderNode.leaf(
+                        CoreRenderContent.ir(
+                            CoreRenderIR.list(
+                                [
+                                    IrLine.raw("api"),
+                                    IrLine.raw("worker"),
+                                ],
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                "• ",
+                            )
+                        )
+                    ),
+                    CoreRenderNode.leaf(
+                        CoreRenderContent.stateful(table, TableState())
+                    ),
+                ],
+            ),
+            CoreRenderNode.leaf(CoreRenderContent.drawable(draw_status)),
+        ],
+    )
+
+    offscreen_session.render(tree)
+    text = "\n".join(offscreen_session.buffer_snapshot().to_string_lines())
+    assert all(
+        value in text
+        for value in ("Deployments", "api", "worker", "Ada", "active", "READY")
     )
 
 

@@ -242,20 +242,25 @@ def render(
     finally:
         terminal.close()
 
-    body = _frame_text(
-        frame,
-        styled=any(
-            value is not None
-            for value in (
-                color,
-                background,
-                modifiers,
-                border,
-                border_sides,
-                border_color,
-            )
-        ),
+    # Emit ANSI when styling is present, matching print-like semantics: a
+    # bare scalar with no style kwargs stays plain text, but any component,
+    # grid, or content primitive carries its own color/modifiers and must
+    # keep them — driving ``styled`` off the top-level kwargs alone dropped
+    # the color from ``render(Text(...))``, ``render(chart)``, etc.
+    styled = any(
+        value is not None
+        for value in (
+            color,
+            background,
+            modifiers,
+            border,
+            border_sides,
+            border_color,
+        )
+    ) or any(
+        not isinstance(value, (str, int, float, bool)) for value in values
     )
+    body = _frame_text(frame, styled=styled)
     chunk = body + ("\n" if end is None else end)
     stream_id = _normalize_stream_id(stream)
     if stream_id is None:
