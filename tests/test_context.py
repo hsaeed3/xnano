@@ -7,6 +7,9 @@ from typing import cast
 from xnano.context import Context
 from xnano.core.runtime import Runtime
 from xnano.events import AbstractEventData, Event, KeyboardEventData
+from xnano.fields import Field
+from xnano.grids import BaseGrid
+from xnano.hooks import on_keyboard
 
 
 class _Facade:
@@ -82,5 +85,29 @@ def test_ctx_cursor_and_device_are_runtime_objects() -> None:
         runtime.cursor.move(3, 3)
         assert runtime.cursor.position == (3, 3)
         assert ctx.cursor.get_position() == (3, 3)
+    finally:
+        runtime.close()
+
+
+def test_real_hook_context_combines_state_runtime_and_rendering() -> None:
+    class App(BaseGrid):
+        message: str = Field(default="waiting")
+
+        @on_keyboard("enter")
+        def submit(self, ctx: Context[dict[str, str]]) -> None:
+            state = ctx.get_state()
+            self.message = f"{state['name']}:{ctx.surface}:{ctx.render_size}"
+
+    runtime = Runtime.offscreen(45, 6, state={"name": "Ada"})
+    try:
+        app = App()
+        runtime.set_root(app)
+        runtime.render()
+        runtime.dispatch(
+            Event.from_data(KeyboardEventData.from_binding("enter"))
+        )
+
+        frame = runtime.render()
+        assert frame.contains("Ada:offscreen:small")
     finally:
         runtime.close()

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+import pytest
+
 from xnano.components.component import ComponentRenderContext
 from xnano.components.input import Input
 from xnano.components.text import Text
@@ -58,6 +60,48 @@ def test_submit_keys_not_consumed() -> None:
 
     assert field.handle_keyboard(cast(Any, _K())) is False
     assert field.value == "x"
+
+
+@pytest.mark.parametrize(
+    ("content", "width", "minimum", "maximum", "expected"),
+    (
+        ("", 10, 2, None, 2),
+        ("abcdefghij", 4, 1, None, 3),
+        ("a\nb\nc", 20, 1, 2, 2),
+        ("abc", 0, 1, None, 1),
+    ),
+)
+def test_auto_height_tracks_wrapping_with_bounds(
+    content: str,
+    width: int,
+    minimum: int,
+    maximum: int | None,
+    expected: int,
+) -> None:
+    field = Input(
+        content,
+        auto_height=True,
+        min_rows=minimum,
+        max_rows=maximum,
+    )
+    size = field.get_size(
+        ComponentRenderContext(area=Area(x=0, y=0, width=width, height=10))
+    )
+    assert size.height == expected
+
+
+def test_fixed_input_size_uses_rows_and_natural_width() -> None:
+    explicit = Input("one\ntwo", multiline=True, rows=5)
+    size = explicit.get_size(
+        ComponentRenderContext(area=Area(x=0, y=0, width=0, height=8))
+    )
+    assert size == type(size)(width=3, height=5)
+
+    unwrapped = Input("one two", auto_height=True, wrap=False, min_rows=1)
+    size = unwrapped.get_size(
+        ComponentRenderContext(area=Area(x=0, y=0, width=2, height=8))
+    )
+    assert size.height == 1
 
 
 def test_offscreen_render_smoke() -> None:

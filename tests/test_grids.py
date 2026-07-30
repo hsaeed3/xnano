@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import inspect
 
+import pytest
+
 from xnano import hooks
 from xnano.components.text import Text
 from xnano.core.runtime import Runtime
@@ -107,5 +109,98 @@ def test_on_field_expression_fires_via_safe_evaluator() -> None:
         app.count = 3
         runtime.render()
         assert app.label == "count=3"
+    finally:
+        runtime.close()
+
+
+def test_grid_combines_component_fields_state_and_hooks() -> None:
+    class Dashboard(BaseGrid):
+        title: Text = Field(default_factory=lambda: Text("Build queue"))
+        status: Text = Field(default_factory=lambda: Text("idle"))
+        jobs: int = Field(default=0, state=True)
+
+        @hooks.on_field("jobs > 0")
+        def _show_jobs(self) -> None:
+            self.status = Text(f"{self.jobs} jobs running")
+
+    runtime = Runtime.offscreen(30, 6)
+    try:
+        dashboard = Dashboard()
+        runtime.set_root(dashboard)
+        assert "idle" in runtime.render().text
+
+        dashboard.jobs = 3
+        frame = runtime.render()
+
+        assert frame.contains("Build queue")
+        assert frame.contains("3 jobs running")
+        assert isinstance(dashboard.status, Text)
+    finally:
+        runtime.close()
+
+
+def test_grid_non_init_fields_follow_constructor_contract() -> None:
+    class App(BaseGrid):
+        title: str = Field(default="hello")
+        generated: str = Field(default_factory=lambda: "system", init=False)
+        empty: str = Field(init=False)
+
+    with pytest.raises(TypeError, match="unexpected keyword"):
+        App(generated="override")  # ty: ignore[unknown-argument]
+
+    app = App()
+    assert app.title == "hello"
+    assert app.generated == "system"
+    assert app.empty is None
+
+
+def test_grid_settings_merge_across_inheritance_and_body_override() -> None:
+    class Parent(BaseGrid, direction="horizontal", border="plain"):
+        label: str = Field(default="parent")
+
+    class Child(Parent, gap=2):
+        grid_settings = {"direction": "vertical", "padding": 1}
+
+    child = Child()
+    assert child.grid_settings["border"] == "plain"
+    assert child.grid_settings["gap"] == 2
+    assert child.grid_settings["direction"] == "vertical"
+    assert child.grid_settings["padding"] == 1
+
+
+def test_runtime_field_patch_combines_style_sizing_and_slide() -> None:
+    class App(BaseGrid):
+        body: str = Field(default="ready", slide=("x", "y"))
+        count: int = Field(default=1, state=True)
+
+    runtime = Runtime.offscreen(30, 8)
+    try:
+        app = App()
+        runtime.set_root(app)
+        runtime.render()
+
+        app.grid_set_field(
+            "body",
+            "updated",
+            position=(999, 999),
+            class_name="text-red-500 bg-slate-900 p-1 rounded",
+            width=16,
+            height=6,
+            bold=True,
+        )
+        frame = runtime.render()
+        info = app._grid_field_info("body")
+
+        assert frame.contains("updated")
+        assert info.width is not None and info.width.value == 16
+        assert info.height is not None and info.height.value == 6
+        assert info.modifiers == ("bold",)
+        assert info.border == "rounded"
+        assert app.grid_field_position("body") != (999, 999)
+
+        with pytest.raises(TypeError, match="state field"):
+            app.grid_set_field("count", 2)
+        with pytest.raises(AttributeError, match="no layout field"):
+            app.grid_set_field("missing", "value")
     finally:
         runtime.close()
