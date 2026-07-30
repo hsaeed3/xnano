@@ -5,6 +5,7 @@
 Exercise large option lists and competing Python work.
 """
 
+import sys
 import threading
 
 from typing import Any
@@ -29,9 +30,16 @@ def test_large_options_compose_only_the_terminal_window() -> None:
         searchable=True,
         selected=2_999,
     )
-    context = ComponentRenderContext[Any](
-        area=Area(x=0, y=0, width=80, height=24)
-    )
+    # Python 3.10's typing sets __orig_class__ on the instance after
+    # __init__, which frozen dataclasses reject; skip the subscript there.
+    if sys.version_info < (3, 11):
+        context = ComponentRenderContext(
+            area=Area(x=0, y=0, width=80, height=24)
+        )
+    else:
+        context = ComponentRenderContext[Any](
+            area=Area(x=0, y=0, width=80, height=24)
+        )
 
     content = options.compose(context)
 
