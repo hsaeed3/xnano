@@ -45,14 +45,24 @@ Values:
 """
 
 
-_NATIVE_CLEAR_TYPES: dict[ClearType, Any] = {
-    "all": native.ClearType.All,
-    "purge": native.ClearType.Purge,
-    "from_cursor_down": native.ClearType.FromCursorDown,
-    "from_cursor_up": native.ClearType.FromCursorUp,
-    "current_line": native.ClearType.CurrentLine,
-    "until_new_line": native.ClearType.UntilNewLine,
-}
+# ``ClearType`` is registered only by the ``terminal`` cargo feature, which
+# the wasm/Pyodide wheel is built without (``--no-default-features``). Import
+# must not touch it eagerly there, or every browser session dies before the
+# first frame. ``Device.clear`` is ``_is_live()``-guarded and a live runtime
+# always has the full native surface, so an empty map is safe on wasm.
+_native_clear_type = getattr(native, "ClearType", None)
+_NATIVE_CLEAR_TYPES: dict[ClearType, Any] = (
+    {}
+    if _native_clear_type is None
+    else {
+        "all": _native_clear_type.All,
+        "purge": _native_clear_type.Purge,
+        "from_cursor_down": _native_clear_type.FromCursorDown,
+        "from_cursor_up": _native_clear_type.FromCursorUp,
+        "current_line": _native_clear_type.CurrentLine,
+        "until_new_line": _native_clear_type.UntilNewLine,
+    }
+)
 
 
 class Device:
