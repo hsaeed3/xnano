@@ -290,6 +290,9 @@ class Options(Component):
         default=None, init=False, repr=False, compare=False
     )
     """Last painted area, recorded so hover can map a pointer to a row."""
+    _visible_start: int = dataclasses.field(
+        default=0, init=False, repr=False, compare=False
+    )
 
     def _filter_mode(self) -> "str | Callable[[str, str], bool]":
         """Normalize ``filter`` into a mode name or callable."""
@@ -704,7 +707,28 @@ class Options(Component):
         """
         from xnano.core.content import Stack
 
-        items_content = self._compose_items(ctx)
+        visible = self._filtered()
+        available = ctx.area.height - (1 if self.searchable else 0)
+        if available > 0 and len(visible) > available:
+            selected = max(0, min(self.selected, len(visible) - 1))
+            start = min(
+                max(selected - available // 2, 0),
+                len(visible) - available,
+            )
+            window = visible[start : start + available]
+            self._visible_start = start
+            hovered = self.hovered
+            self.selected = selected - start
+            if hovered is not None:
+                self.hovered = hovered - start
+            try:
+                items_content = self._compose_items(ctx, visible=window)
+            finally:
+                self.selected = selected
+                self.hovered = hovered
+        else:
+            self._visible_start = 0
+            items_content = self._compose_items(ctx, visible=visible)
         if not self.searchable:
             return items_content
         return Stack(
@@ -733,9 +757,17 @@ class Options(Component):
         # The query row (searchable) sits above the items; skip it.
         top = area.y + (1 if self.searchable else 0)
         row = y - top
-        if self.direction == "bottom_to_top" and pairs:
-            row = (len(pairs) - 1) - row
-        hovered = row if (pairs and 0 <= row < len(pairs)) else None
+        visible_count = min(
+            len(pairs) - self._visible_start,
+            max(0, area.height - (1 if self.searchable else 0)),
+        )
+        if self.direction == "bottom_to_top" and visible_count:
+            row = (visible_count - 1) - row
+        hovered = (
+            self._visible_start + row
+            if pairs and 0 <= row < visible_count
+            else None
+        )
         if hovered != self.hovered:
             self.hovered = hovered
             return True

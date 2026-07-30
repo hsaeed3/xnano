@@ -7,6 +7,7 @@ from typing import Any
 from xnano.components.component import ComponentRenderContext
 from xnano.components.dropdown import Dropdown
 from xnano.components.options import Option
+from xnano.components.text import Text
 from xnano.core.content import Items, Stack, TextBlock
 from xnano.types import Area
 
@@ -53,6 +54,25 @@ def test_closed_compose_shows_placeholder_when_empty() -> None:
     assert isinstance(content, TextBlock)
     text = "".join(run.text for run in content.lines[0])
     assert text == "pick one"
+
+
+def test_closed_empty_dropdown_has_accessible_default_prompt() -> None:
+    dropdown = Dropdown(items=())
+    assert dropdown._placeholder_text() == ""
+    assert _entry_text(dropdown.compose(_ctx())) == "select…"
+
+    class Prompt:
+        content = "choose service"
+
+    dropdown.placeholder = Prompt()
+    assert _entry_text(dropdown.compose(_ctx())) == "choose service"
+
+    class StringPrompt:
+        def __str__(self) -> str:
+            return "choose region"
+
+    dropdown.placeholder = StringPrompt()
+    assert _entry_text(dropdown.compose(_ctx())) == "choose region"
 
 
 def test_open_keys_expand_list() -> None:
@@ -146,6 +166,26 @@ def test_max_visible_windows_open_list() -> None:
     assert len(content.items) == 2
 
 
+def test_window_selection_offsets_handle_short_and_empty_views() -> None:
+    short = Dropdown(items=("a", "b"), max_visible=5)
+    window = short._windowed_visible()
+    assert len(window) == 2
+    assert short._window_selected_offset(window) == 0
+
+    empty = Dropdown(items=(), max_visible=2)
+    assert empty._window_selected_offset([]) is None
+    assert empty._window_selected_offset([(99, ())]) is None
+
+    long = Dropdown(items=_ITEMS, selected=4, max_visible=2)
+    window = long._windowed_visible()
+    assert [index for index, _ in window] == [3, 4]
+    assert long._window_selected_offset(window) == 1
+    assert long._window_selected_offset(window[:1]) == 0
+
+    centered = Dropdown(items=_ITEMS, selected=4, max_visible=3)
+    assert [index for index, _ in centered._windowed_visible()] == [2, 3, 4]
+
+
 def _entry_text(entry: Any) -> str:
     if getattr(entry, "lines", None):
         return "".join(run.text for run in entry.lines[0])
@@ -189,6 +229,28 @@ def test_value_available_when_closed() -> None:
     dropdown = Dropdown(items=_ITEMS, selected=3)
     assert dropdown.open is False
     assert dropdown.value == "delta"
+
+
+def test_text_placeholder_and_custom_keyboard_policy() -> None:
+    dropdown = Dropdown(
+        items=(),
+        placeholder=Text("choose target"),
+        close_keys=("left",),
+        passthrough=("ctrl+p",),
+    )
+    assert _entry_text(dropdown.compose(_ctx())) == "choose target"
+
+    assert (
+        dropdown.handle_keyboard(_kbd(matches={"down"}, kind="release"))
+        is False
+    )
+    assert dropdown.open is False
+    assert dropdown.handle_keyboard(_kbd(matches={"down"})) is True
+    assert dropdown.open is True
+    assert dropdown.handle_keyboard(_kbd(matches={"ctrl+p"})) is False
+    assert dropdown.open is True
+    assert dropdown.handle_keyboard(_kbd(matches={"left"})) is True
+    assert dropdown.open is False
 
 
 def test_dropdown_offscreen_smoke_render() -> None:
