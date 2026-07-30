@@ -250,18 +250,27 @@ def _build_core_schema(annotation: Any) -> Any:
 
     if hasattr(annotation, "__required_keys__"):
         try:
-            hints = get_type_hints(annotation)
+            hints = get_type_hints(annotation, include_extras=True)
         except Exception:
             hints = getattr(annotation, "__annotations__", {})
-        return core_schema.typed_dict_schema(
-            {
-                name: core_schema.typed_dict_field(
-                    _build_core_schema(hint),
-                    required=name in annotation.__required_keys__,
-                )
-                for name, hint in hints.items()
-            }
-        )
+        fields = {}
+        for name, hint in hints.items():
+            qualifier = getattr(get_origin(hint), "__name__", None)
+            fields[name] = core_schema.typed_dict_field(
+                _build_core_schema(
+                    get_args(hint)[0]
+                    if qualifier in {"Required", "NotRequired"}
+                    else hint
+                ),
+                required=(
+                    qualifier == "Required"
+                    or (
+                        qualifier != "NotRequired"
+                        and name in annotation.__required_keys__
+                    )
+                ),
+            )
+        return core_schema.typed_dict_schema(fields)
 
     if dataclasses.is_dataclass(annotation):
         try:
