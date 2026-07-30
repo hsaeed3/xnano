@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
 if TYPE_CHECKING:
     from xnano.colors import ColorLike
-    from xnano.types import Alignment, GraphTypeLike
+    from xnano.types import Alignment, CanvasMarkerLike, GraphTypeLike
 
 ColorResolver: TypeAlias = Any
 FormatResolver: TypeAlias = str | Callable[[Any], str] | None
@@ -103,9 +103,10 @@ class Series(ComponentDescriptor):
     """Describe one chart series.
 
     Attributes:
-        label: Legend label.
+        label: Legend label; ``None`` derives it from the attribute name.
         color: Series color.
         kind: Plot representation.
+        marker: Glyph set used to paint the series.
     """
 
     label: str | None = None
@@ -114,6 +115,8 @@ class Series(ComponentDescriptor):
     """Series color."""
     kind: "GraphTypeLike | None" = None
     """Graph representation."""
+    marker: "CanvasMarkerLike | None" = None
+    """Marker used to paint samples."""
 
     if TYPE_CHECKING:
 
@@ -121,7 +124,7 @@ class Series(ComponentDescriptor):
 
     def resolve_label(self) -> str:
         """Return the displayed legend label."""
-        return self.label or self.name
+        return self.label if self.label is not None else self.name
 
 
 __all__ = (
