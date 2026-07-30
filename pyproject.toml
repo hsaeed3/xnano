@@ -68,6 +68,8 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "pytest-benchmark>=5.1.0",
+    # continuous benchmarking in ci (codspeed.io)
+    "pytest-codspeed>=5.0.3",
     "pytest-cov",
     "pillow>=11.0.0",
     "twine>=6.1.0",
@@ -94,6 +96,9 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["tests"]
+# A bare `pytest` runs the test suite only. The CodSpeed benchmark suite lives
+# in `benchmarks/` and is opted into explicitly (`pytest benchmarks --codspeed`).
+testpaths = ["tests"]
 # Default discovery excludes common build/venv dirs only.
 norecursedirs = [
     ".*",

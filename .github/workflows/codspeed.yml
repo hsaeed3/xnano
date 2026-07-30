@@ -1,0 +1,51 @@
+name: codspeed
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+  # allows codspeed to trigger a backtest run to seed the initial baseline
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  # openid connect authentication with codspeed
+  id-token: write
+
+env:
+  COLUMNS: 150
+  UV_PYTHON: "3.13"
+
+jobs:
+  benchmarks:
+    name: run benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: xnano-core
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+
+      # builds the workspace xnano-core extension and installs xnano itself,
+      # so the benchmarks measure this commit's rust core, not a pypi release
+      - name: install deps
+        run: uv sync --group dev
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: run benchmarks
+        uses: CodSpeedHQ/action@v5
+        with:
+          mode: simulation
+          run: uv run pytest benchmarks --codspeed
