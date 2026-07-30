@@ -53,6 +53,21 @@ def test_explicit_bounds_override() -> None:
     assert node.y_axis.bounds == (-5.0, 5.0)
 
 
+def test_explicit_bounds_normalize_flat_and_reversed_ranges() -> None:
+    node = _node(
+        Chart(
+            series={"a": [1]},
+            x_bounds=(5, 5),
+            y_bounds=(10, -10),
+        )
+    )
+    assert node.x_axis.bounds == (5.0, 6.0)
+    assert node.y_axis.bounds == (-10.0, 10.0)
+
+    negative = _node(Chart(series={"a": [-2]}, x_bounds=(-3, -3)))
+    assert negative.x_axis.bounds == (-4.0, -3.0)
+
+
 def test_flat_series_expands_bounds() -> None:
     node = _node(Chart(series={"flat": [5, 5, 5]}))
     low, high = node.y_axis.bounds
