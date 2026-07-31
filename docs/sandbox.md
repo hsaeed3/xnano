@@ -61,7 +61,7 @@ from xnano.components.text import Text
 
 render(
     Text(" tailwind ", background="indigo-500", foreground="white"),
-    Text(" css name ", background="rebeccapurple", foreground="white"),
+    Text(" css name ", background="slate-300", foreground="white"),
     Text("   hex    ", background="#0ea5e9", foreground="black"),
     Text("  rgb     ", background=(244, 63, 94), foreground="white"),
     gap=1,
