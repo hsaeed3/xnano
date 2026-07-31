@@ -2,7 +2,10 @@
 
 # __xnano__
 
+![License](https://img.shields.io/github/license/hsaeed3/xnano)
+![Python Versions](https://img.shields.io/pypi/pyversions/xnano)
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/hsaeed3/xnano?utm_source=badge)
+[![Built With Ratatui](https://ratatui.rs/built-with-ratatui/badge.svg)](https://ratatui.rs/)
 
 > A simple python **tui** framework built on top of the [ratatui](https://ratatui.rs) and [tachyonfx](https://github.com/ratatui/tachyonfx) rust libraries.
 
