@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import cast
 
+import pytest
+
 from xnano.context import Context
 from xnano.core.runtime import Runtime
 from xnano.events import AbstractEventData, Event, KeyboardEventData
@@ -111,3 +113,25 @@ def test_real_hook_context_combines_state_runtime_and_rendering() -> None:
         assert frame.contains("Ada:offscreen:small")
     finally:
         runtime.close()
+
+
+def test_deprecated_event_aliases_warn_and_delegate() -> None:
+    """``tick``/``keyboard``/``mouse`` stay as deprecated aliases of the
+    ``*_event`` accessors: they emit a ``DeprecationWarning`` (which also
+    renders a strikethrough in editors via ``@deprecated``) while returning
+    the same payload.
+    """
+    facade = _Facade()
+    event = Event.from_data(KeyboardEventData.from_binding("enter"))
+    ctx = Context(
+        event=event,
+        terminal=cast(Runtime[dict[str, bool]], facade),
+        state={"ok": True},
+    )
+
+    with pytest.warns(DeprecationWarning, match="keyboard_event"):
+        assert ctx.keyboard is ctx.keyboard_event
+    with pytest.warns(DeprecationWarning, match="mouse_event"):
+        assert ctx.mouse is ctx.mouse_event
+    with pytest.warns(DeprecationWarning, match="tick_event"):
+        assert ctx.tick is ctx.tick_event

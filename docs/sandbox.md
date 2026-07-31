@@ -20,7 +20,7 @@ and so on — every family, every shade from `50` to `950`. The grid below rende
 all of them. Change a shade in `shades` or drop a family from `palettes` to see
 the effect.
 
-```pyodide install="xnano>=1.2.3b1" height="28"
+```pyodide install="xnano>=1.2.3b2" height="28"
 from xnano import render
 from xnano.components.text import Text
 
@@ -55,7 +55,7 @@ render(*rows)
 A Tailwind name is one option. Anywhere a color is accepted you can also pass a
 CSS name, a hex string, an `(r, g, b)` tuple, or a `Color` object.
 
-```pyodide install="xnano>=1.2.3b1" height="10"
+```pyodide install="xnano>=1.2.3b2" height="10"
 from xnano import render
 from xnano.components.text import Text
 
@@ -74,7 +74,7 @@ render(
 constructor. Nest it to style a run inside a line without breaking the surrounding
 flow — pass a list of `Text` where you'd otherwise pass a string.
 
-```pyodide install="xnano>=1.2.3b1" height="15"
+```pyodide install="xnano>=1.2.3b2" height="15"
 from xnano import render
 from xnano.components.text import Text
 
@@ -92,7 +92,7 @@ The same component can also parse its input. Pass `ansi`, `markdown`, or
 `language` and `Text` renders the result instead of the raw string. The three
 modes are mutually exclusive — pick one.
 
-```pyodide install="xnano>=1.2.3b1" height="36"
+```pyodide install="xnano>=1.2.3b2" height="36"
 from xnano import render
 from xnano.components.text import Text
 
@@ -122,7 +122,7 @@ A `Chart` takes a mapping of labels to data — either bare `y` values or explic
 `(x, y)` pairs. Declare a `Series` per key to set its label, color, and `kind`,
 and one chart can mix line, scatter, and bar. Try changing a `kind` below.
 
-```pyodide install="xnano>=1.2.3b1" height="27"
+```pyodide install="xnano>=1.2.3b2" height="27"
 from xnano import render
 from xnano.components.chart import Chart, Series
 
@@ -146,7 +146,7 @@ For a compact trend without a full plot, `Bar` renders a series inline in a
 single block. Set a fixed `max_value` so separate bars share a scale and stay
 comparable.
 
-```pyodide install="xnano>=1.2.3b1" height="22"
+```pyodide install="xnano>=1.2.3b2" height="22"
 from xnano import render
 from xnano.components.bar import Bar
 
@@ -164,7 +164,7 @@ the columns. For control, declare a `Column`: it takes a formatter, an accessor,
 alignment, and width. Pass a callable for `color` or `background` and it receives
 the cell value, so a column can style itself from its own data.
 
-```pyodide install="xnano>=1.2.3b1" height="30"
+```pyodide install="xnano>=1.2.3b2" height="30"
 from xnano import render
 from xnano.components.schema import Column
 from xnano.components.table import Table
@@ -202,7 +202,7 @@ render(table)
 
 Without any `Column` descriptors, `Table` infers columns straight from the keys:
 
-```pyodide install="xnano>=1.2.3b1" height="12"
+```pyodide install="xnano>=1.2.3b2" height="12"
 from xnano import render
 from xnano.components.table import Table
 
@@ -219,7 +219,7 @@ lines. Each child sets its own size with the sizing grammar — fractions (`"1/3
 `fr` units (`"2fr"`), `"fit"`, or a fixed cell count. Adjust the `width` values to
 re-balance the layout.
 
-```pyodide install="xnano>=1.2.3b1" height="25"
+```pyodide install="xnano>=1.2.3b2" height="25"
 from xnano import BaseGrid, Field, render
 
 class Sidebar(BaseGrid, direction="vertical", gap=1, border="rounded", title="nav"):
@@ -248,7 +248,7 @@ dispatch path as real input, so you can render a grid to attach its hooks,
 perform an action, and render again to see the updated state. This is also how
 you test a grid frame-by-frame. Here a counter increments twice between frames.
 
-```pyodide install="xnano>=1.2.3b1" height="24"
+```pyodide install="xnano>=1.2.3b2" height="24"
 from xnano import Action, BaseGrid, Field, Terminal, on_action
 
 INCREMENT = Action.keyboard("right")

@@ -7,9 +7,7 @@ Serve grids and components through an offscreen native cell runtime.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Generic, TypeVar
-
-StateT = TypeVar("StateT")
+from typing import Any, Callable
 
 
 def grid_factory(source: Any) -> tuple[Callable[[], Any], bool, type | None]:
@@ -39,10 +37,11 @@ def grid_factory(source: Any) -> tuple[Callable[[], Any], bool, type | None]:
     )
 
 
-class Web(Generic[StateT]):
+class Web:
     """Serve an application in a browser from an offscreen runtime.
 
     Attributes:
+        state: Application state shared with event and request hooks.
         title: Browser document title.
         width: Offscreen viewport width in cells.
         height: Offscreen viewport height in cells.
@@ -57,13 +56,13 @@ class Web(Generic[StateT]):
     def __init__(
         self,
         *,
-        state_type: type[StateT] | None = None,
+        state: Any = None,
         title: str | None = None,
         width: int = 80,
         height: int = 24,
     ) -> None:
-        self._state_type = state_type
-        """Declared type of the application state (typing aid only)."""
+        self.state = state
+        """Application state passed to the offscreen runtime."""
         self.title = title or "xnano"
         """Browser document title."""
         self.width = width
@@ -78,7 +77,6 @@ class Web(Generic[StateT]):
         self,
         source: Any,
         *,
-        state: StateT | None = None,
         host: str = "127.0.0.1",
         port: int = 8000,
     ) -> None:
@@ -86,7 +84,6 @@ class Web(Generic[StateT]):
 
         Args:
             source: Grid/component instance, class, or factory.
-            state: Application state shared with event and request hooks.
             host: Bind address.
             port: Bind port.
         """
@@ -95,7 +92,7 @@ class Web(Generic[StateT]):
         factory, _, _ = grid_factory(source)
         serve_native(
             factory,
-            state=state,
+            state=self.state,
             title=self.title,
             host=host,
             port=port,
