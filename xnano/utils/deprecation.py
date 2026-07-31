@@ -11,8 +11,14 @@ dataclass or callable that pairs a foreground color with a
 from __future__ import annotations
 
 import functools
+import sys
 import warnings
 from typing import Any, Callable, TypeVar
+
+if sys.version_info >= (3, 13):
+    from warnings import deprecated as _deprecated
+else:
+    from typing_extensions import deprecated as _deprecated
 
 _ClassT = TypeVar("_ClassT", bound=type)
 _CallableT = TypeVar("_CallableT", bound=Callable[..., Any])
@@ -59,6 +65,27 @@ def resolve_color_alias(
     return foreground
 
 
+def warn_renamed_attribute(
+    old: str, new: str
+) -> Callable[[_CallableT], _CallableT]:
+    """Decorate a renamed attribute/property getter as deprecated.
+
+    Applies PEP 702 ``@deprecated``, so type checkers render callers of the
+    old name with a strikethrough and a ``DeprecationWarning`` is emitted at
+    runtime when it is used. Apply below ``@property`` on the getter.
+
+    Args:
+        old: Fully qualified deprecated name (e.g. ``"Context.keyboard"``).
+        new: Fully qualified replacement name.
+
+    Returns:
+        The ``@deprecated`` decorator carrying the rename message.
+    """
+    # Message is dynamic, not a LiteralString; deprecated() accepts any str.
+    message = f"'{old}' is deprecated; use '{new}' instead."
+    return _deprecated(message)  # ty: ignore[invalid-argument-type]
+
+
 def color_alias_dataclass(cls: _ClassT) -> _ClassT:
     """Add a deprecated ``color`` alias for a dataclass ``foreground`` field.
 
@@ -102,4 +129,5 @@ __all__ = (
     "color_alias_dataclass",
     "resolve_color_alias",
     "warn_color_alias",
+    "warn_renamed_attribute",
 )

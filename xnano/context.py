@@ -11,6 +11,8 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
+from xnano.utils.deprecation import warn_renamed_attribute
+
 if TYPE_CHECKING:
     from xnano.actions import Actions
     from xnano.core.runtime import Runtime
@@ -111,6 +113,24 @@ class Context(Generic[StateT]):
     @property
     def mouse_event(self) -> "MouseEventData | None":
         """Mouse sub-event when triggered by a mouse event."""
+        return self.event.mouse_event
+
+    @property
+    @warn_renamed_attribute("Context.tick", "Context.tick_event")
+    def tick(self) -> "TickEventData | None":
+        """Deprecated alias for :attr:`tick_event`."""
+        return self.event.tick_event
+
+    @property
+    @warn_renamed_attribute("Context.keyboard", "Context.keyboard_event")
+    def keyboard(self) -> "KeyboardEventData | None":
+        """Deprecated alias for :attr:`keyboard_event`."""
+        return self.event.keyboard_event
+
+    @property
+    @warn_renamed_attribute("Context.mouse", "Context.mouse_event")
+    def mouse(self) -> "MouseEventData | None":
+        """Deprecated alias for :attr:`mouse_event`."""
         return self.event.mouse_event
 
     def get_state(self) -> StateT:
