@@ -5,21 +5,20 @@ icon: "lucide/flask-conical"
 
 # Sandbox
 
-The fastest way to trust a framework is to *watch it draw*. Every cell on this
-page runs live in your browser through Pyodide — no install, no local terminal.
-Edit any of them, rerun, and see the frame change.
+Every code block on this page runs live in your browser through Pyodide — no
+install, no local terminal. Edit the values, rerun, and watch the frame change.
 
-Think of this as a gallery rather than a guide: a handful of the things
-[xnano]{data-preview} is best at, each in a few lines. When one catches your
-eye, the [component reference](api/xnano/components.md) has the exhaustive
-option-by-option tour, and [Getting Started](getting-started.md) builds a whole
-app from the same pieces.
+Each example is short and self-contained. Change the colors, swap the data,
+resize a grid — the point is to try things. The
+[component reference](api/xnano/components.md) documents every option, and
+[Getting Started](getting-started.md) builds a full app from the same pieces.
 
 ## Colors
 
-Color is where a TUI framework either delights or disappoints. [xnano]{data-preview}
-ships the full Tailwind palette — every family, every shade from `50` to `950`
-— and lowers each one to a real terminal cell. Here's all of it at once.
+Colors accept the full Tailwind palette by name: `"emerald-400"`, `"slate-900"`,
+and so on — every family, every shade from `50` to `950`. The grid below renders
+all of them. Change a shade in `shades` or drop a family from `palettes` to see
+the effect.
 
 ```pyodide install="xnano>=1.2.2" height="28"
 from xnano import render
@@ -53,13 +52,27 @@ rows.append(Text([
 render(*rows)
 ```
 
-Anywhere a color is accepted, so is a CSS name, a hex string, an `(r, g, b)`
-tuple, or a `Color` object — the Tailwind binding is just the ergonomic default.
+A Tailwind name is one option. Anywhere a color is accepted you can also pass a
+CSS name, a hex string, an `(r, g, b)` tuple, or a `Color` object.
+
+```pyodide install="xnano>=1.2.2" height="10"
+from xnano import render
+from xnano.components.text import Text
+
+render(
+    Text(" tailwind ", background="indigo-500", foreground="white"),
+    Text(" css name ", background="rebeccapurple", foreground="white"),
+    Text("   hex    ", background="#0ea5e9", foreground="black"),
+    Text("  rgb     ", background=(244, 63, 94), foreground="white"),
+    gap=1,
+)
+```
 
 ## Text
 
-`Text` is one constructor covering leaves, inline spans, and whole paragraphs.
-Nest it to style a run inside a line without breaking the flow around it.
+`Text` covers single words, inline spans, and whole paragraphs from one
+constructor. Nest it to style a run inside a line without breaking the surrounding
+flow — pass a list of `Text` where you'd otherwise pass a string.
 
 ```pyodide install="xnano>=1.2.2" height="15"
 from xnano import render
@@ -75,9 +88,9 @@ render(Text(
 ))
 ```
 
-The same component also *parses* — hand it ANSI, Markdown, or source code and it
-renders the result rather than the raw string. These three modes are mutually
-exclusive, and each is one keyword.
+The same component can also parse its input. Pass `ansi`, `markdown`, or
+`language` and `Text` renders the result instead of the raw string. The three
+modes are mutually exclusive — pick one.
 
 ```pyodide install="xnano>=1.2.2" height="36"
 from xnano import render
@@ -106,8 +119,8 @@ render(ansi, markdown, code, gap=1)
 ## Charts and Bars
 
 A `Chart` takes a mapping of labels to data — either bare `y` values or explicit
-`(x, y)` pairs. A declarative `Series` lets a single chart mix line, scatter,
-and bar in one plot.
+`(x, y)` pairs. Declare a `Series` per key to set its label, color, and `kind`,
+and one chart can mix line, scatter, and bar. Try changing a `kind` below.
 
 ```pyodide install="xnano>=1.2.2" height="27"
 from xnano import render
@@ -129,9 +142,9 @@ chart = MixedChart(
 render(chart)
 ```
 
-When you only need the *shape* of a trend and not a full plot, a `Bar` fits an
-entire series into a compact block — perfect for a status panel or a dashboard
-tile. Give it a fixed `max_value` to make separate bars comparable.
+For a compact trend without a full plot, `Bar` renders a series inline in a
+single block. Set a fixed `max_value` so separate bars share a scale and stay
+comparable.
 
 ```pyodide install="xnano>=1.2.2" height="22"
 from xnano import render
@@ -147,9 +160,9 @@ render(
 ## Tables
 
 Point `Table` at a list of dicts, dataclasses, or plain objects and it infers
-the columns. Where you want control, a `Column` descriptor takes a formatter, an
-accessor, alignment, width — and colors that are *functions of the cell value*,
-so a status column can paint itself.
+the columns. For control, declare a `Column`: it takes a formatter, an accessor,
+alignment, and width. Pass a callable for `color` or `background` and it receives
+the cell value, so a column can style itself from its own data.
 
 ```pyodide install="xnano>=1.2.2" height="30"
 from xnano import render
@@ -187,12 +200,24 @@ render(table)
    the "degraded" row turns red without a second pass over the data.
 2. A plain `str.format` template also works when you just need units.
 
+Without any `Column` descriptors, `Table` infers columns straight from the keys:
+
+```pyodide install="xnano>=1.2.2" height="12"
+from xnano import render
+from xnano.components.table import Table
+
+render(Table(data=[
+    {"name": "api", "region": "us-east", "requests": 1204},
+    {"name": "worker", "region": "eu-west", "requests": 87},
+]))
+```
+
 ## Nested Grids
 
-The scaffolding from [Getting Started](getting-started.md) scales down just as
-well as up. A grid can be another grid's field value, so a sidebar-and-content
-shell is a handful of lines — and every child keeps its own sizing grammar
-(`"1/3"`, `"2fr"`, `"fit"`, fixed cells).
+A grid can be another grid's field value, so a sidebar-and-content shell is a few
+lines. Each child sets its own size with the sizing grammar — fractions (`"1/3"`),
+`fr` units (`"2fr"`), `"fit"`, or a fixed cell count. Adjust the `width` values to
+re-balance the layout.
 
 ```pyodide install="xnano>=1.2.2" height="25"
 from xnano import BaseGrid, Field, render
@@ -218,10 +243,10 @@ render(App())
 
 ## Actions
 
-The browser can't own a live OS terminal, but it doesn't need to. Synthetic
-`Action`s travel the *same* dispatch path as live input — so you can render a
-grid to attach its hooks, perform an action, and render the mutated state again.
-Here a counter increments twice between frames, hooks and all.
+You don't need a live terminal to drive a grid. An `Action` travels the same
+dispatch path as real input, so you can render a grid to attach its hooks,
+perform an action, and render again to see the updated state. This is also how
+you test a grid frame-by-frame. Here a counter increments twice between frames.
 
 ```pyodide install="xnano>=1.2.2" height="24"
 from xnano import Action, BaseGrid, Field, Terminal, on_action
@@ -249,9 +274,9 @@ finally:
     terminal.close()
 ```
 
-That's the same `@on_*` machinery a live app runs on — which means the notes app
-you built in [Getting Started](getting-started.md) is testable frame-by-frame,
-in a browser, without ever opening a terminal.
+This is the same `@on_*` machinery a live app runs on, so the notes app from
+[Getting Started](getting-started.md) can be tested the same way — in a browser,
+without opening a terminal.
 
 *[TUI]: A text-based user interface (your terminal applications).
 [xnano]: index.md
