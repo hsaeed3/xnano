@@ -22,13 +22,13 @@ Furthermore, `xnano` itself uses the [`pydantic-core`](https://github.com/pydant
 ## Installation
 
 ```bash
-pip install "xnano>=1.2.3b1"
+pip install "xnano>=1.2.3b2"
 ```
 
 Or use ``uv``:
 
 ```bash
-uv add "xnano>=1.2.3b1"
+uv add "xnano>=1.2.3b2"
 ```
 
 > [!TIP]
@@ -56,7 +56,7 @@ session, no event loop. It writes styled content to the terminal and returns.
 
 ```python
 from xnano import render
-from xnano.components.text import Text
+from xnano.components import Text
 
 render(
     Text("Hello from xnano!", foreground="violet", modifiers=["bold"])
@@ -69,7 +69,7 @@ You can pass multiple renderables — they stack vertically:
 
 ```python
 from xnano import render
-from xnano.components.text import Text
+from xnano.components import Text
 
 render(
     Text("● Done: ", foreground="emerald-400", modifiers=["bold"]),
@@ -87,7 +87,7 @@ render(
 
 ```python
 from xnano import render
-from xnano.components.text import Text
+from xnano.components import Text
 
 message = Text([
     Text("● ", foreground="emerald-400"),
@@ -111,11 +111,7 @@ slots, then pass an instance to `Terminal().run()`. The terminal takes over
 the screen, renders each frame, and cleans up on exit.
 
 ```python
-from xnano.grids import BaseGrid
-from xnano.fields import Field
-from xnano.terminal import Terminal
-from xnano.context import Context
-from xnano.hooks import on_tick, on_keyboard
+from xnano import BaseGrid, Field, Terminal, Context, on_tick, on_keyboard
 
 class App(BaseGrid):
     message: str = Field(
@@ -159,11 +155,7 @@ are laid out. Use `width` / `height` (absolute cells, `"50%"`, or `"1fr"`) to
 proportion each slot.
 
 ```python
-from xnano.grids import BaseGrid
-from xnano.fields import Field
-from xnano.terminal import Terminal
-from xnano.context import Context
-from xnano.hooks import on_keyboard
+from xnano import BaseGrid, Field, Terminal, Context, on_keyboard
 
 class SidebarTitle(BaseGrid, align="center"):
     title: str = Field("This is a title.", align="center")
@@ -205,11 +197,7 @@ State fields (`state=True`) hold app data without rendering — update them and
 reference them from layout fields.
 
 ```python
-from xnano.grids import BaseGrid
-from xnano.fields import Field
-from xnano.terminal import Terminal
-from xnano.context import Context
-from xnano.hooks import on_keyboard
+from xnano import BaseGrid, Field, Terminal, Context, on_keyboard
 
 class Counter(BaseGrid, direction="vertical", gap=1):
     label: str = Field(
@@ -253,11 +241,7 @@ Live terminal sessions enable mouse input by default. Use
 specific field — the handler fires only when that region is clicked.
 
 ```python
-from xnano.grids import BaseGrid
-from xnano.fields import Field
-from xnano.terminal import Terminal
-from xnano.context import Context
-from xnano.hooks import on_click, on_keyboard
+from xnano import BaseGrid, Field, Terminal, Context, on_click, on_keyboard
 
 class App(BaseGrid, direction="vertical", gap=1):
     button: str = Field(
@@ -295,11 +279,7 @@ blocking the event loop.
 
 ```python
 import time
-from xnano.grids import BaseGrid
-from xnano.fields import Field
-from xnano.terminal import Terminal
-from xnano.context import Context
-from xnano.hooks import on_tick, on_keyboard
+from xnano import BaseGrid, Field, Terminal, Context, on_tick, on_keyboard
 
 class Clock(BaseGrid, direction="vertical", gap=1):
     time_display: str = Field(
@@ -342,11 +322,7 @@ display depends on state that changes externally.
 
 ```python
 from dataclasses import dataclass
-from xnano.grids import BaseGrid
-from xnano.fields import Field
-from xnano.terminal import Terminal
-from xnano.context import Context
-from xnano.hooks import on_keyboard
+from xnano import BaseGrid, Field, Terminal, Context, on_keyboard
 
 @dataclass
 class AppState:
@@ -387,13 +363,8 @@ Components slot into `BaseGrid` fields like any other value.
 
 ```python
 import dataclasses
-from xnano.grids import BaseGrid
-from xnano.fields import Field
-from xnano.terminal import Terminal
-from xnano.context import Context
-from xnano.hooks import on_keyboard
-from xnano.components.component import Component
-from xnano.core.content import TextBlock
+from xnano import BaseGrid, Field, Terminal, Context, on_keyboard
+from xnano.components import Component, TextBlock
 
 @dataclasses.dataclass
 class Badge(Component):
