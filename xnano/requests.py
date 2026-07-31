@@ -485,41 +485,26 @@ def dispatch_request(
     last_response: Response | None = None
 
     facade = runtime if runtime is not None else grid
-    # Stash the request on the facade so Context.request can read it
-    # without inventing a parallel Event subclass during the transition window.
-    if request_obj is not None:
-        try:
-            object.__setattr__(facade, "_beta_request", request_obj)
-        except Exception:
-            setattr(facade, "_beta_request", request_obj)
-
     ctx = Context(
         event=Event.from_data(AbstractEventData()),
         terminal=facade,
         state=getattr(runtime, "state", getattr(grid, "state", None)),
+        request=request_obj,
     )
 
-    try:
-        for entry in routes:
-            if entry["method"] != method or entry["path"] != cleaned:
-                continue
-            name = getattr(entry["handler"], "__name__", "")
-            handler = getattr(grid, name, None)
-            if handler is None:
-                continue
-            result = invoke_hook(handler, grid, ctx)
-            matched = True
-            if isinstance(result, Response):
-                last_response = result
-            elif result is not None and not isinstance(result, bool):
-                last_response = Response(body=str(result))
-    finally:
-        if request_obj is not None:
-            try:
-                object.__setattr__(facade, "_beta_request", None)
-            except Exception:
-                if hasattr(facade, "_beta_request"):
-                    delattr(facade, "_beta_request")
+    for entry in routes:
+        if entry["method"] != method or entry["path"] != cleaned:
+            continue
+        name = getattr(entry["handler"], "__name__", "")
+        handler = getattr(grid, name, None)
+        if handler is None:
+            continue
+        result = invoke_hook(handler, grid, ctx)
+        matched = True
+        if isinstance(result, Response):
+            last_response = result
+        elif result is not None and not isinstance(result, bool):
+            last_response = Response(body=str(result))
 
     if runtime is not None:
         if last_response is not None:
