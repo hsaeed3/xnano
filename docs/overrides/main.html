@@ -3,6 +3,12 @@
 {% block extrahead %}
 {{ super() }}
 <script>
+    window.va = window.va || function () {
+        (window.vaq = window.vaq || []).push(arguments);
+    };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+<script>
     (() => {
         const styles = ["mono", "serif", "modern"];
         const sizes = ["auto", "small", "medium", "large"];
