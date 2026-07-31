@@ -17,6 +17,18 @@
         "Segoe UI", sans-serif;
 }
 
+.logo-dark {
+    display: none;
+}
+
+[data-md-color-scheme="slate"] .logo-light {
+    display: none;
+}
+
+[data-md-color-scheme="slate"] .logo-dark {
+    display: block;
+}
+
 /*
   Collapsible admonitions (???) render as <details>/<summary>, not
   .admonition / .admonition-title. Material stretches the summary bar with
@@ -158,6 +170,49 @@
 /* Banner Announcement over Header */
 [data-md-color-scheme="default"] .md-banner {
     background-color: transparent;
+}
+
+.xnano-announce {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0.35rem 1rem;
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.xnano-announce__label {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border: 1px solid var(--xnano-accent-border, var(--md-default-fg-color--lightest));
+    border-radius: 999px;
+    color: var(--xnano-accent-ink, var(--md-default-fg-color));
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.xnano-announce__text {
+    color: var(--md-default-fg-color--light);
+}
+
+.xnano-announce__text a {
+    color: var(--md-accent-fg-color);
+    text-decoration: none;
+}
+
+.xnano-announce__text a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+    .xnano-announce {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
 }
 
 /* Code Blocks Override */

@@ -225,16 +225,18 @@ function setupCollapsibleNavigation() {
             if (text === "Hooks & Actions") {
                 li.classList.add("xnano-hooks-nav");
             }
-            if (text === "Sandbox") {
-                li.classList.add("xnano-sandbox-nav");
-            }
             if (
-                text === "Sandbox" ||
                 text === "Hooks & Actions" ||
                 text === "Components" ||
                 text === "Beta" ||
                 text === "Tutorials" ||
                 text === "Core Architecture" ||
+                text === "Core Concepts" ||
+                text === "Hosts" ||
+                text === "Layout & Styling" ||
+                text === "Live Behavior & Events" ||
+                text === "Additional Features" ||
+                text === "Experimental" ||
                 text === "API Reference"
             ) {
                 li.classList.remove("md-nav__item--section");
