@@ -2,11 +2,14 @@
 
 {% block extrahead %}
 {{ super() }}
+<!-- Vercel Web Analytics - https://vercel.com/docs/analytics -->
+<!-- Initializes the analytics queue for tracking page views and events -->
 <script>
     window.va = window.va || function () {
         (window.vaq = window.vaq || []).push(arguments);
     };
 </script>
+<!-- Loads the Vercel analytics script asynchronously -->
 <script defer src="/_vercel/insights/script.js"></script>
 <script>
     (() => {
