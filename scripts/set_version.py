@@ -55,9 +55,7 @@ MANIFEST_FILES: tuple[str, ...] = (
 )
 """Package-manifest paths always synchronized by this script."""
 
-ROOT_MARKDOWN_PIN_FILES: tuple[str, ...] = (
-    "README.md",
-)
+ROOT_MARKDOWN_PIN_FILES: tuple[str, ...] = ("README.md",)
 """Markdown outside ``docs/`` that embed ``xnano>=…`` install examples."""
 
 VERSION_PATTERN = re.compile(r"^v?(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)$")
@@ -485,8 +483,7 @@ def collect_markdown_install_pin_drift(
     for version in versions:
         if version != state.xnano:
             drift.append(
-                f"{label} xnano>= pin: expected {state.xnano}, "
-                f"found {version}"
+                f"{label} xnano>= pin: expected {state.xnano}, found {version}"
             )
     return drift
 

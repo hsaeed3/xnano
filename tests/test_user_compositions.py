@@ -314,7 +314,12 @@ def test_cli_workflow_composes_typed_arguments_options_and_subcommands(
     help_text = format_plain_help(command)
     assert all(
         text in help_text
-        for text in ("Usage: deploy", "Deployment target", "Commands:", "status")
+        for text in (
+            "Usage: deploy",
+            "Deployment target",
+            "Commands:",
+            "status",
+        )
     )
     assert render_help(command, stream=io.StringIO()) == help_text
 
@@ -435,9 +440,7 @@ def test_frame_export_combines_render_cursor_device_and_commands() -> None:
     assert frame.rows[0] == "ready"
     assert len(frame.rows) == 8
 
-    fallback = frame_from_terminal(
-        types.SimpleNamespace(size=lambda: (2, 2))
-    )
+    fallback = frame_from_terminal(types.SimpleNamespace(size=lambda: (2, 2)))
     assert fallback.rows == ("", "")
 
 
@@ -497,9 +500,7 @@ def test_browser_session_combines_shell_frames_events_and_request_hooks() -> (
         )
         response = connection.getresponse()
         assert response.status == 202
-        assert json.loads(response.read()) == {
-            "received": {"name": "backup"}
-        }
+        assert json.loads(response.read()) == {"received": {"name": "backup"}}
 
         connection.request(
             "POST",
@@ -631,7 +632,9 @@ def test_terminal_facade_combines_lazy_runtime_state_focus_and_output(
     terminal.blur()
     assert terminal.focused_group is None
     assert terminal.get_output() == terminal.runtime.get_output()
-    assert terminal.get_output_as_ansi() == terminal.runtime.get_output_as_ansi()
+    assert (
+        terminal.get_output_as_ansi() == terminal.runtime.get_output_as_ansi()
+    )
 
     terminal.request_exit()
     assert terminal.runtime._should_exit is True

@@ -54,7 +54,9 @@ def test_transition_catalog_lowers_for_runtime_playback(
     assert build_native_effect(effect) is not None
 
 
-def test_nested_loading_transition_lowers_with_filters_and_repetition() -> None:
+def test_nested_loading_transition_lowers_with_filters_and_repetition() -> (
+    None
+):
     transition = SequenceEffect(
         effects=(
             ParallelEffect(
@@ -77,14 +79,18 @@ def test_nested_loading_transition_lowers_with_filters_and_repetition() -> None:
     )
 
     assert resolve_native_effect(transition) is not None
-    assert resolve_native_effect(
-        "repeat",
-        child=SleepEffect(duration_ms=1),
-        duration_ms=20,
-    ) is not None
-    assert build_native_effect(
-        RepeatEffect(child=SleepEffect(duration_ms=1))
-    ) is not None
+    assert (
+        resolve_native_effect(
+            "repeat",
+            child=SleepEffect(duration_ms=1),
+            duration_ms=20,
+        )
+        is not None
+    )
+    assert (
+        build_native_effect(RepeatEffect(child=SleepEffect(duration_ms=1)))
+        is not None
+    )
 
 
 @pytest.mark.parametrize(
@@ -95,7 +101,9 @@ def test_transition_can_target_each_runtime_cell_group(
     cell_filter: EffectCellFilter,
 ) -> None:
     assert (
-        resolve_native_effect(FadeEffect(color="cyan", cell_filter=cell_filter))
+        resolve_native_effect(
+            FadeEffect(color="cyan", cell_filter=cell_filter)
+        )
         is not None
     )
 

@@ -23,9 +23,7 @@ from typing import Any
 
 import pytest
 
-_SANDBOX = (
-    pathlib.Path(__file__).resolve().parents[1] / "docs" / "sandbox.md"
-)
+_SANDBOX = pathlib.Path(__file__).resolve().parents[1] / "docs" / "sandbox.md"
 _FENCE = re.compile(r"^```pyodide[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 
 

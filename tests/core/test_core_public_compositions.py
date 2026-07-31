@@ -170,7 +170,9 @@ def test_native_escape_hatches_and_fallback_content_render_together() -> None:
     runtime = Runtime.offscreen(40, 8)
     try:
         node = CoreRenderNode.leaf(
-            CoreRenderContent.ir(CoreRenderIR.span("native-node", None, None, []))
+            CoreRenderContent.ir(
+                CoreRenderIR.span("native-node", None, None, [])
+            )
         )
         content = Stack(
             children=(
