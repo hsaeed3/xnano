@@ -7,7 +7,6 @@ Exercise large option lists and competing Python work.
 
 import sys
 import threading
-
 from typing import Any
 
 from xnano.components.component import ComponentRenderContext

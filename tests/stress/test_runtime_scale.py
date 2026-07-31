@@ -49,9 +49,7 @@ def test_large_mixed_dashboard_updates_as_one_render_tree() -> None:
     try:
         first = runtime.render()
         dashboard.models.select(2_999)
-        dashboard.requests.series = {
-            "latency": tuple(reversed(range(3_000)))
-        }
+        dashboard.requests.series = {"latency": tuple(reversed(range(3_000)))}
         dashboard.results.data = list(reversed(rows))
         second = runtime.render()
 
