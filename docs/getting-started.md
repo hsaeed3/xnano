@@ -111,6 +111,31 @@ class NotesApp(BaseGrid, direction="horizontal"): # (2)!
     )
 ```
 
+With placeholder labels filled in, the same layout paints as a single frame:
+
+<interactive />
+
+??? tip "Try editing the code!"
+
+    - Change `saved_notes` `width` (e.g. `"30%"`).
+    - Change a panel `default=` string.
+
+```pyodide install="xnano>=1.2.3b2" height="12"
+from xnano import BaseGrid, Field, render
+
+class Dashboard(BaseGrid):
+    stats: str = Field(default="0 notes saved")
+
+class SavedNotes(BaseGrid):
+    notes: str = Field(default="no notes yet", border="rounded", title="Saved Notes")
+
+class NotesApp(BaseGrid, direction="horizontal"):
+    saved_notes: SavedNotes = Field(default_factory=SavedNotes, width="25%")
+    dashboard: Dashboard = Field(default_factory=Dashboard, width="75%")
+
+render(NotesApp())
+```
+
 1. `xnano.BaseGrid` is a declarative class inspired by `pydantic.BaseModel` that allows you to define your grid's content and state in a field-based manner.
 2. Grids can take in settings either directly as constructor arguments or using the `grid_settings` class attribute. <br/> In this case, we're setting the direction of the content of our grid to be horizontal.
 3. Sizing in xnano is incredibly simple, we can use the `width` and `height` attributes to set the size of our content. <br/> These two parameters support absolute values such as `height=1` (one terminal row), relative values such as `width="50%"` and `height="fit"`.

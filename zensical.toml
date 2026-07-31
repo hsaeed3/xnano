@@ -14,7 +14,32 @@ Copyright &copy; 2026 Hammad Saeed
 nav = [
     {"Introduction" = "index.md"},
     "getting-started.md",
-    "sandbox.md",
+    { "Core Concepts" = [
+        "core-concepts/overview.md",
+        { "Hosts" = [
+            "core-concepts/terminal.md",
+            "core-concepts/web.md",
+        ]},
+        { "Layout & Styling" = [
+            "core-concepts/grids.md",
+            "core-concepts/fields.md",
+            "core-concepts/state.md",
+            "core-concepts/components.md",
+            "core-concepts/styling.md",
+        ]},
+        { "Live Behavior & Events" = [
+            "core-concepts/effects.md",
+            { "Events & Hooks" = "core-concepts/events.md" },
+            "core-concepts/context.md",
+            "core-concepts/actions.md",
+            "core-concepts/device.md",
+        ]},
+        { "Additional Features" = [
+            "core-concepts/markdown.md",
+            "core-concepts/requests.md",
+            "core-concepts/cli.md",
+        ]},
+    ]},
     # API_REFERENCE_START
     { "API Reference" = [
         { "xnano" = [

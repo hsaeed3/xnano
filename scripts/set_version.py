@@ -3,7 +3,7 @@
 ---
 
 Synchronize ``xnano`` and ``xnano-core`` version strings across the
-whitelisted release files in this repository.
+release files in this repository.
 
 Authoritative sources:
 
@@ -17,10 +17,9 @@ Files updated by this script:
   compiled ``xnano_core.rust.native.__version__`` via
   ``env!("CARGO_PKG_VERSION")``)
 - ``xnano/__init__.py`` — ``__version__`` constant
-- ``docs/getting-started.md`` — install pins
-  (``xnano>=…`` in pip / uv / poetry examples)
-- ``docs/sandbox.md`` — install pins (``xnano>=…`` in runnable pyodide cells)
-- ``README.md`` — install pins (``xnano>=…`` in pip / uv examples)
+- ``README.md`` — install pins (``xnano>=…``)
+- every ``docs/**/*.md`` file that embeds ``xnano>=…`` — install examples
+  and runnable pyodide fences (`` ```pyodide install="xnano>=…" ``)
 
 ``xnano-core/python/xnano_core/rust/native.pyi`` only declares
 ``__version__: str`` (no literal to keep in sync). The runtime value is
@@ -46,23 +45,20 @@ explicit value."""
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-EDITABLE_FILES: tuple[str, ...] = (
+DOCS_DIR = REPO_ROOT / "docs"
+"""Documentation root scanned for install / pyodide version pins."""
+
+MANIFEST_FILES: tuple[str, ...] = (
     "pyproject.toml",
     "xnano-core/Cargo.toml",
     "xnano/__init__.py",
-    "docs/getting-started.md",
-    "docs/sandbox.md",
-    "README.md",
 )
-"""Paths this script is allowed to modify, relative to the repository
-root."""
+"""Package-manifest paths always synchronized by this script."""
 
-MARKDOWN_INSTALL_PIN_FILES: tuple[str, ...] = (
-    "docs/getting-started.md",
-    "docs/sandbox.md",
+ROOT_MARKDOWN_PIN_FILES: tuple[str, ...] = (
     "README.md",
 )
-"""Markdown files that embed ``xnano>=…`` install examples."""
+"""Markdown outside ``docs/`` that embed ``xnano>=…`` install examples."""
 
 VERSION_PATTERN = re.compile(r"^v?(\d+\.\d+\.\d+(?:[a-zA-Z]+\d+)?)$")
 """PEP 440-style release versions accepted by this script."""
@@ -81,7 +77,11 @@ _INIT_PY_VERSION = re.compile(
     re.MULTILINE,
 )
 _MARKDOWN_XNANO_PIN = re.compile(r'(["\'])xnano>=([^"\']+)\1')
-"""Install pin in markdown examples: ``\"xnano>=…\"`` / ``'xnano>=…'``."""
+"""Install pin in markdown: ``\"xnano>=…\"`` / ``'xnano>=…'``.
+
+Covers pip/uv install examples and fence attributes such as
+`` ```pyodide install="xnano>=…" ``.
+"""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -122,8 +122,30 @@ def validate_version_string(version: str, label: str) -> str:
     return version
 
 
+def is_allowed_edit_path(relative_path: str) -> bool:
+    """Return whether this script may modify ``relative_path``.
+
+    Args:
+        relative_path: Path relative to the repository root.
+
+    Returns:
+        ``True`` for manifests, root markdown pins, or any markdown under
+        ``docs/``.
+    """
+    if relative_path in MANIFEST_FILES:
+        return True
+    if relative_path in ROOT_MARKDOWN_PIN_FILES:
+        return True
+    path = pathlib.PurePosixPath(relative_path.replace("\\", "/"))
+    return (
+        len(path.parts) >= 2
+        and path.parts[0] == "docs"
+        and path.suffix == ".md"
+    )
+
+
 def ensure_editable_path(relative_path: str) -> None:
-    """Ensure a path is on the edit whitelist.
+    """Ensure a path may be edited by this script.
 
     Args:
         relative_path: Path relative to the repository root.
@@ -131,16 +153,16 @@ def ensure_editable_path(relative_path: str) -> None:
     Raises:
         VersionSyncError: If editing the path is not allowed.
     """
-    if relative_path not in EDITABLE_FILES:
+    if not is_allowed_edit_path(relative_path):
         message = (
             f'Refusing to edit "{relative_path}". '
-            f"Allowed paths: {', '.join(EDITABLE_FILES)}"
+            "Allowed: package manifests, README.md, and docs/**/*.md."
         )
         raise VersionSyncError(message)
 
 
 def read_text_file(relative_path: str) -> str:
-    """Read a whitelisted repository file as text.
+    """Read an editable repository file as text.
 
     Args:
         relative_path: Path relative to the repository root.
@@ -149,7 +171,7 @@ def read_text_file(relative_path: str) -> str:
         The file contents.
 
     Raises:
-        VersionSyncError: If the path is not editable or cannot be read.
+        VersionSyncError: If the path is not allowed or cannot be read.
     """
     ensure_editable_path(relative_path)
     path = REPO_ROOT / relative_path
@@ -161,7 +183,7 @@ def read_text_file(relative_path: str) -> str:
 
 
 def write_text_file(relative_path: str, content: str) -> bool:
-    """Write a whitelisted repository file when content changed.
+    """Write an editable repository file when content changed.
 
     Args:
         relative_path: Path relative to the repository root.
@@ -171,7 +193,7 @@ def write_text_file(relative_path: str, content: str) -> bool:
         ``True`` when the file was updated.
 
     Raises:
-        VersionSyncError: If the path is not editable.
+        VersionSyncError: If the path is not allowed.
     """
     ensure_editable_path(relative_path)
     path = REPO_ROOT / relative_path
@@ -339,34 +361,6 @@ def sync_xnano_init(state: VersionState) -> bool:
     return write_text_file("xnano/__init__.py", content)
 
 
-def sync_markdown_install_pins(
-    relative_path: str,
-    state: VersionState,
-) -> bool:
-    """Synchronize ``xnano>=…`` install pins in a markdown file.
-
-    Args:
-        relative_path: Whitelisted markdown path relative to the repo root.
-        state: Target versions to write.
-
-    Returns:
-        ``True`` when the file changed.
-
-    Raises:
-        VersionSyncError: If no install pins are found.
-    """
-    content = read_text_file(relative_path)
-    updated, count = _MARKDOWN_XNANO_PIN.subn(
-        rf"\1xnano>={state.xnano}\1",
-        content,
-    )
-    if count == 0:
-        raise VersionSyncError(
-            f'Could not find xnano>= install pins in "{relative_path}".'
-        )
-    return write_text_file(relative_path, updated)
-
-
 def collect_markdown_install_pin_versions(content: str) -> list[str]:
     """Collect unique ``xnano>=…`` versions from markdown content.
 
@@ -384,32 +378,115 @@ def collect_markdown_install_pin_versions(content: str) -> list[str]:
     return found
 
 
+def markdown_has_xnano_pins(content: str) -> bool:
+    """Return whether ``content`` contains any ``xnano>=…`` pins."""
+    return _MARKDOWN_XNANO_PIN.search(content) is not None
+
+
+def iter_docs_markdown_paths() -> list[str]:
+    """Return repo-relative paths for every markdown file under ``docs/``.
+
+    Returns:
+        Sorted relative paths using POSIX separators.
+    """
+    if not DOCS_DIR.is_dir():
+        return []
+    paths: list[str] = []
+    for path in sorted(DOCS_DIR.rglob("*.md")):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(REPO_ROOT).as_posix()
+        paths.append(relative)
+    return paths
+
+
+def discover_markdown_pin_files() -> list[str]:
+    """Discover markdown files that embed ``xnano>=…`` pins.
+
+    Scans ``README.md`` (when present) and every ``docs/**/*.md`` file.
+    Files without pins are omitted so empty docs pages do not fail sync.
+
+    Returns:
+        Sorted unique relative paths that contain at least one pin.
+    """
+    discovered: list[str] = []
+    for relative_path in ROOT_MARKDOWN_PIN_FILES:
+        path = REPO_ROOT / relative_path
+        if path.is_file() and markdown_has_xnano_pins(
+            path.read_text(encoding="utf-8")
+        ):
+            discovered.append(relative_path)
+    for relative_path in iter_docs_markdown_paths():
+        path = REPO_ROOT / relative_path
+        if markdown_has_xnano_pins(path.read_text(encoding="utf-8")):
+            discovered.append(relative_path)
+    return discovered
+
+
+def sync_markdown_install_pins(
+    relative_path: str,
+    state: VersionState,
+    *,
+    require_pins: bool = True,
+) -> bool:
+    """Synchronize ``xnano>=…`` install pins in a markdown file.
+
+    Args:
+        relative_path: Markdown path relative to the repo root.
+        state: Target versions to write.
+        require_pins: When ``True``, raise if the file has no pins.
+
+    Returns:
+        ``True`` when the file changed.
+
+    Raises:
+        VersionSyncError: If ``require_pins`` is set and no pins exist.
+    """
+    content = read_text_file(relative_path)
+    updated, count = _MARKDOWN_XNANO_PIN.subn(
+        rf"\1xnano>={state.xnano}\1",
+        content,
+    )
+    if count == 0:
+        if require_pins:
+            raise VersionSyncError(
+                f'Could not find xnano>= install pins in "{relative_path}".'
+            )
+        return False
+    return write_text_file(relative_path, updated)
+
+
 def collect_markdown_install_pin_drift(
     relative_path: str,
     state: VersionState,
+    *,
+    require_pins: bool = False,
 ) -> list[str]:
     """Return drift messages for one markdown install-pin file.
 
     Args:
-        relative_path: Whitelisted markdown path relative to the repo root.
+        relative_path: Markdown path relative to the repo root.
         state: Expected versions.
+        require_pins: When ``True``, missing pins are reported as drift.
 
     Returns:
-        Drift descriptions for mismatched or missing pins.
+        Drift descriptions for mismatched or (optionally) missing pins.
     """
     drift: list[str] = []
     content = read_text_file(relative_path)
     versions = collect_markdown_install_pin_versions(content)
-    label = pathlib.Path(relative_path).name
+    label = relative_path
     if not versions:
-        drift.append(
-            f"{label} xnano>= pins: expected {state.xnano}, found none"
-        )
+        if require_pins:
+            drift.append(
+                f"{label} xnano>= pins: expected {state.xnano}, found none"
+            )
         return drift
     for version in versions:
         if version != state.xnano:
             drift.append(
-                f"{label} xnano>= pin: expected {state.xnano}, found {version}"
+                f"{label} xnano>= pin: expected {state.xnano}, "
+                f"found {version}"
             )
     return drift
 
@@ -472,14 +549,33 @@ def collect_drift(state: VersionState) -> list[str]:
         if actual != expected:
             drift.append(f"{label}: expected {expected}, found {actual}")
 
-    for relative_path in MARKDOWN_INSTALL_PIN_FILES:
-        drift.extend(collect_markdown_install_pin_drift(relative_path, state))
+    for relative_path in ROOT_MARKDOWN_PIN_FILES:
+        path = REPO_ROOT / relative_path
+        if path.is_file():
+            drift.extend(
+                collect_markdown_install_pin_drift(
+                    relative_path,
+                    state,
+                    require_pins=True,
+                )
+            )
+
+    for relative_path in discover_markdown_pin_files():
+        if relative_path in ROOT_MARKDOWN_PIN_FILES:
+            continue
+        drift.extend(
+            collect_markdown_install_pin_drift(
+                relative_path,
+                state,
+                require_pins=False,
+            )
+        )
 
     return drift
 
 
 def sync_version_files(state: VersionState) -> list[str]:
-    """Write target versions to every whitelisted file.
+    """Write target versions to manifests and discovered markdown pins.
 
     Args:
         state: Target versions to write.
@@ -495,8 +591,24 @@ def sync_version_files(state: VersionState) -> list[str]:
         changed.append("xnano-core/Cargo.toml")
     if sync_xnano_init(state):
         changed.append("xnano/__init__.py")
-    for relative_path in MARKDOWN_INSTALL_PIN_FILES:
-        if sync_markdown_install_pins(relative_path, state):
+
+    for relative_path in ROOT_MARKDOWN_PIN_FILES:
+        path = REPO_ROOT / relative_path
+        if path.is_file() and sync_markdown_install_pins(
+            relative_path,
+            state,
+            require_pins=True,
+        ):
+            changed.append(relative_path)
+
+    for relative_path in discover_markdown_pin_files():
+        if relative_path in ROOT_MARKDOWN_PIN_FILES:
+            continue
+        if sync_markdown_install_pins(
+            relative_path,
+            state,
+            require_pins=False,
+        ):
             changed.append(relative_path)
 
     return changed
@@ -553,8 +665,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         description=(
-            "Synchronize xnano and xnano-core versions across the "
-            "whitelisted release files."
+            "Synchronize xnano and xnano-core versions across package "
+            "manifests, README install pins, and every docs/**/*.md file "
+            "that embeds xnano>= pins (including pyodide fences)."
         ),
     )
     parser.add_argument(
@@ -613,9 +726,14 @@ def main(argv: list[str] | None = None) -> int:
                 for item in drift:
                     print(f"  - {item}")
                 return 1
+            pin_files = discover_markdown_pin_files()
             print(
-                "All whitelisted version files match "
+                "All version files match "
                 f"xnano={target.xnano}, xnano-core={target.xnano_core}."
+            )
+            print(
+                f"Markdown pin files scanned: {len(pin_files)} "
+                f"({', '.join(pin_files) if pin_files else 'none'})"
             )
             return 0
 
