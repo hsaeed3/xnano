@@ -60,7 +60,7 @@ def _delta_seconds(ctx: Any) -> float:
     animation advances identically under a live terminal and under synthetic
     ``Action.tick(ms)`` in tests.
     """
-    tick = ctx.tick
+    tick = ctx.tick_event
     return 0.0 if tick is None else tick.elapsed_ms / 1000.0
 
 
@@ -1242,7 +1242,9 @@ class Showcase(BaseGrid, direction="vertical", gap=0):
     def _select_tab(self, ctx) -> None:
         group, box = self._focused_box()
         select = getattr(box, "select_tab", None)
-        key = ctx.keyboard.key if ctx.keyboard is not None else None
+        key = (
+            ctx.keyboard_event.key if ctx.keyboard_event is not None else None
+        )
         if callable(select) and isinstance(key, str) and key.isdigit():
             select(int(key) - 1)
             self._log(f"{group}: tab {key}")

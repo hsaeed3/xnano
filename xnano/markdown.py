@@ -902,7 +902,7 @@ def _create_markdown_document(
             # Absolute cell coordinates: body is the full viewport minus
             # the reserved status row. Field-scoped mouse.field tagging is
             # not guaranteed on every host, so hit-test by geometry.
-            mouse = ctx.mouse
+            mouse = ctx.mouse_event
             if mouse is None:
                 return
             height = ctx.terminal.size[1]
@@ -913,7 +913,7 @@ def _create_markdown_document(
 
         @hooks.on_mouse(kind="press")
         def _pointer_click(self, ctx: Any) -> None:
-            mouse = ctx.mouse
+            mouse = ctx.mouse_event
             if mouse is None:
                 return
             height = ctx.terminal.size[1]

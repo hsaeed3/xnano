@@ -7,7 +7,9 @@ Serve grids and components through an offscreen native cell runtime.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, Generic, TypeVar
+
+StateT = TypeVar("StateT")
 
 
 def grid_factory(source: Any) -> tuple[Callable[[], Any], bool, type | None]:
@@ -37,11 +39,10 @@ def grid_factory(source: Any) -> tuple[Callable[[], Any], bool, type | None]:
     )
 
 
-class Web:
+class Web(Generic[StateT]):
     """Serve an application in a browser from an offscreen runtime.
 
     Attributes:
-        state: Application state shared with event and request hooks.
         title: Browser document title.
         width: Offscreen viewport width in cells.
         height: Offscreen viewport height in cells.
@@ -56,13 +57,13 @@ class Web:
     def __init__(
         self,
         *,
-        state: Any = None,
+        state_type: type[StateT] | None = None,
         title: str | None = None,
         width: int = 80,
         height: int = 24,
     ) -> None:
-        self.state = state
-        """Application state passed to the offscreen runtime."""
+        self._state_type = state_type
+        """Declared type of the application state (typing aid only)."""
         self.title = title or "xnano"
         """Browser document title."""
         self.width = width
@@ -77,6 +78,7 @@ class Web:
         self,
         source: Any,
         *,
+        state: StateT | None = None,
         host: str = "127.0.0.1",
         port: int = 8000,
     ) -> None:
@@ -84,6 +86,7 @@ class Web:
 
         Args:
             source: Grid/component instance, class, or factory.
+            state: Application state shared with event and request hooks.
             host: Bind address.
             port: Bind port.
         """
@@ -92,7 +95,7 @@ class Web:
         factory, _, _ = grid_factory(source)
         serve_native(
             factory,
-            state=self.state,
+            state=state,
             title=self.title,
             host=host,
             port=port,

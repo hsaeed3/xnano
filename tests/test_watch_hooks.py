@@ -57,9 +57,9 @@ def test_on_state_bare_name_fires_once_per_mutation() -> None:
 
     app = App()
     state = State()
-    terminal = Terminal.offscreen(cols=20, rows=3, state=state)
+    terminal = Terminal.offscreen(cols=20, rows=3)
     try:
-        terminal.render(app)
+        terminal.render(app, state=state)
         terminal.render(app)
         assert fires == []
         state.value = 9
@@ -80,9 +80,9 @@ def test_on_state_bare_name_reads_dict_state_keys() -> None:
 
     app = App()
     state: dict[str, int] = {"value": 0}
-    terminal = Terminal.offscreen(cols=20, rows=3, state=state)
+    terminal = Terminal.offscreen(cols=20, rows=3)
     try:
-        terminal.render(app)
+        terminal.render(app, state=state)
         state["value"] = 3
         terminal.render(app)
         assert fires == [3]

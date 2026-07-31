@@ -32,13 +32,13 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "pip"
 
     ```bash title="Install with pip"
-    pip install "xnano>=1.2.2"
+    pip install "xnano>=1.2.3b1"
     ```
 
 === "uv"
 
     ```bash title="Install with uv"
-    uv pip install "xnano>=1.2.2"
+    uv pip install "xnano>=1.2.3b1"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -47,7 +47,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "poetry"
 
     ```bash title="Install with poetry"
-    poetry install "xnano>=1.2.2"
+    poetry install "xnano>=1.2.3b1"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -56,7 +56,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "conda"
 
     ```bash title="Install with conda"
-    conda install "xnano>=1.2.2"
+    conda install "xnano>=1.2.3b1"
     ```
 
 ## Notetaking Application
@@ -201,7 +201,7 @@ class Notes: # (1)!
     current: int | None = None
 ```
 
-1. A plain dataclass — no [xnano]{data-preview} base class required. Anything you pass to `Terminal(state=...)` becomes the shared state.
+1. A plain dataclass — no [xnano]{data-preview} base class required. Anything you pass to `run(state=...)` becomes the shared state.
 2. We track whether the editor is open (`editing`) and, when editing an existing note, its index (`current`). `None` means we're writing a brand-new note.
 
 Every event handler receives a `Context`, and `ctx.state` *is* this object — the same instance, everywhere.
@@ -349,7 +349,7 @@ Right now the `editor` is an ordinary field, so it claims its own slice of the l
 [xnano]{data-preview} apps are keyboard-first, but a click or a hover is often the most natural thing to reach for. Mouse input is **opt-in** — turn it on when you run:
 
 ```python title="Enabling the Mouse"
-Terminal(state=Notes(), mouse_events=True).run(NotesApp())
+Terminal(mouse_events=True).run(NotesApp(), state=Notes())
 ```
 
 With mouse events on, two behaviors come for free:
@@ -510,7 +510,7 @@ class NotesApp(BaseGrid, direction="vertical"):
         ctx.runtime.request_exit()
 
 if __name__ == "__main__":
-    Terminal(state=Notes(), mouse_events=True).run(NotesApp())
+    Terminal(mouse_events=True).run(NotesApp(), state=Notes())
 ```
 
 Run it with `python notes.py`, and you have a complete little application: browse your notes on the left, watch the count on the right, pop open the editor to write or edit, and every keybind in reach along the bottom.

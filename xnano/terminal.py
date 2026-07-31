@@ -58,12 +58,13 @@ class Terminal(Generic[StateT]):
     def __init__(
         self,
         *,
-        state: StateT | None = None,
+        state_type: type[StateT] | None = None,
         title: str | None = None,
         tick_interval: int = 16,
         mouse_events: bool = False,
     ) -> None:
-        self._state = state
+        self._state: StateT | None = None
+        self._state_type = state_type
         self._title = title
         self._tick_interval = tick_interval
         self._mouse_events = mouse_events
@@ -76,15 +77,17 @@ class Terminal(Generic[StateT]):
         *,
         cols: int = 40,
         rows: int = 12,
-        state: StateT | None = None,
+        state_type: type[StateT] | None = None,
         title: str | None = None,
     ) -> "Terminal[StateT]":
-        """Create a terminal backed by an in-memory cell buffer."""
-        terminal = cls(state=state, title=title)
+        """Create a terminal backed by an in-memory cell buffer.
+
+        Pass application state at paint time via ``render(..., state=...)``.
+        """
+        terminal = cls(state_type=state_type, title=title)
         terminal._runtime = Runtime.offscreen(
             cols,
             rows,
-            state=state,
             title=title,
         )
         terminal.surface = "offscreen"
@@ -178,6 +181,7 @@ class Terminal(Generic[StateT]):
     def render(
         self,
         *renderables: Any,
+        state: StateT | None = None,
         color: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
@@ -196,6 +200,8 @@ class Terminal(Generic[StateT]):
         Args:
             *renderables: Grids, components, content primitives, or plain
                 values to paint.
+            state: Application state shared with event hooks. Replaces the
+                current state when provided.
             color: Foreground color applied to plain values.
             background: Background color for the rendered area.
             modifiers: Character modifiers applied to plain values.
@@ -212,6 +218,8 @@ class Terminal(Generic[StateT]):
         Returns:
             A snapshot of the rendered terminal frame.
         """
+        if state is not None:
+            self.state = state
         runtime = self._ensure_runtime()
         if renderables:
             runtime.set_root(renderables[0] if len(renderables) == 1 else None)
@@ -234,6 +242,7 @@ class Terminal(Generic[StateT]):
     def run(
         self,
         *renderables: Any,
+        state: StateT | None = None,
         color: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
@@ -252,6 +261,8 @@ class Terminal(Generic[StateT]):
         Args:
             *renderables: Grids, components, content primitives, or plain
                 values to paint.
+            state: Application state shared with event hooks. Replaces the
+                current state when provided.
             color: Foreground color applied to plain values.
             background: Background color for the rendered area.
             modifiers: Character modifiers applied to plain values.
@@ -265,6 +276,8 @@ class Terminal(Generic[StateT]):
             gap: Cells between multiple renderables.
             direction: Direction used to lay out multiple renderables.
         """
+        if state is not None:
+            self.state = state
         runtime = self._ensure_runtime(live=True)
         if renderables:
             runtime.set_root(renderables[0] if len(renderables) == 1 else None)

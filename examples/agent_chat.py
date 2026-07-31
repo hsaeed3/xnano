@@ -738,7 +738,7 @@ class AgentChat(BaseGrid, direction="vertical", gap=0):
 
     @on_keyboard
     def _character(self, ctx) -> None:
-        keyboard = ctx.keyboard
+        keyboard = ctx.keyboard_event
         if keyboard is None:
             return
         character = getattr(keyboard, "character", None)

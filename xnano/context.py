@@ -35,9 +35,9 @@ StateT = TypeVar("StateT")
 class Context(Generic[StateT]):
     """Values and controls available inside an event hook.
 
-    Use the event-specific shortcuts such as ``keyboard`` and ``mouse``,
-    read or update application state, move focus, or access the current
-    cursor, device, actions, and stage.
+    Use the event-specific shortcuts such as ``keyboard_event`` and
+    ``mouse_event``, read or update application state, move focus, or access
+    the current cursor, device, actions, and stage.
 
     Attributes:
         event: Event that triggered the hook.
@@ -47,9 +47,9 @@ class Context(Generic[StateT]):
         runtime: Runtime handling the event.
         surface: Active presentation surface.
         request: HTTP request that triggered the hook, if any.
-        tick: Tick payload that triggered the hook, if any.
-        keyboard: Keyboard payload that triggered the hook, if any.
-        mouse: Mouse payload that triggered the hook, if any.
+        tick_event: Tick payload that triggered the hook, if any.
+        keyboard_event: Keyboard payload that triggered the hook, if any.
+        mouse_event: Mouse payload that triggered the hook, if any.
         cursor: Cursor controls for the active runtime.
         device: Device controls for the active runtime.
         actions: Synthetic action performer.
@@ -58,7 +58,7 @@ class Context(Generic[StateT]):
 
     Example:
         >>> def handle_key(ctx: Context[dict[str, int]]) -> None:
-        ...     if ctx.keyboard is not None:
+        ...     if ctx.keyboard_event is not None:
         ...         ctx.state["keys"] += 1
     """
 
@@ -68,6 +68,8 @@ class Context(Generic[StateT]):
     """Terminal or offscreen session handling the event."""
     state: StateT
     """Application state shared with the runtime."""
+    request: "Request | None" = None
+    """HTTP request that triggered the hook, if any."""
 
     @property
     def host(self) -> "Runtime[StateT]":
@@ -97,22 +99,17 @@ class Context(Generic[StateT]):
         return "terminal"
 
     @property
-    def request(self) -> "Request | None":
-        """HTTP request that triggered the hook, if any."""
-        return getattr(self.terminal, "_beta_request", None)
-
-    @property
-    def tick(self) -> "TickEventData | None":
+    def tick_event(self) -> "TickEventData | None":
         """Tick payload when this context was triggered by a tick."""
         return self.event.tick_event
 
     @property
-    def keyboard(self) -> "KeyboardEventData | None":
+    def keyboard_event(self) -> "KeyboardEventData | None":
         """Keyboard sub-event when triggered by a keyboard event."""
         return self.event.keyboard_event
 
     @property
-    def mouse(self) -> "MouseEventData | None":
+    def mouse_event(self) -> "MouseEventData | None":
         """Mouse sub-event when triggered by a mouse event."""
         return self.event.mouse_event
 

@@ -426,3 +426,17 @@ def test_multiline_editor_drives_composed_preview() -> None:
         assert editor.notes.cursor_position is not None
     finally:
         runtime.close()
+
+
+def test_wrapped_text_preserves_indentation_after_newline() -> None:
+    """Leading whitespace after a newline survives wrapping (#128).
+
+    ``Text`` wraps by default; the wrapping renderer used to trim leading
+    whitespace from every line, dropping authored indentation.
+    """
+    runtime = Runtime.offscreen(24, 4)
+    try:
+        frame = runtime.render(Text("a\n    indented"))
+        assert "    indented" in frame.text
+    finally:
+        runtime.close()

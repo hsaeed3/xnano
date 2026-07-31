@@ -404,6 +404,14 @@ class Runtime(Generic[StateT]):
 
             place_cursor_for_focus(self)
             return
+        panel_requested = (
+            border is not None
+            or border_sides is not None
+            or border_color is not None
+            or title is not None
+            or padding is not None
+            or background is not None
+        )
         styled_items = tuple(
             TextBlock(
                 text=item,
@@ -416,6 +424,44 @@ class Runtime(Generic[StateT]):
             else item
             for item in items
         )
+        if len(styled_items) > 1 and not panel_requested:
+            # Pack each renderable to its measured content size, with ``gap`` as
+            # the literal cells between them. A bare ``Stack`` gives every child
+            # an equal ``fill(1)`` share, which stretches one-line items across
+            # the whole viewport; measuring like a field slot and leaning on
+            # ``split_layout``'s ``Flex::Start`` anchors items to the top with
+            # the remainder left blank at the end.
+            # ponytail: bordered/paneled multi-render still uses the fill path
+            # below — revisit if a framed multi-render needs content packing.
+            from xnano.core.controller import TerminalController
+            from xnano.core.layout import LayoutConstraint
+            from xnano.types import Area
+
+            self._stage.areas.clear()
+            controller = TerminalController(self)
+            viewport = Area(x=0, y=0, width=self.size[0], height=self.size[1])
+            constraints = [
+                LayoutConstraint(
+                    "length",
+                    max(
+                        1,
+                        controller.measure_field_slot(
+                            item,
+                            direction,
+                            available_width=self.size[0],
+                        ),
+                    ),
+                )
+                for item in items
+            ]
+            for styled, item_area in zip(
+                styled_items,
+                controller.split_layout(viewport, direction, gap, constraints),
+            ):
+                controller._paint(styled, item_area)
+            controller.paint_stage()
+            controller.commit()
+            return
         content = (
             styled_items[0]
             if len(styled_items) == 1
@@ -425,14 +471,7 @@ class Runtime(Generic[StateT]):
                 gap=gap,
             )
         )
-        if (
-            border is not None
-            or border_sides is not None
-            or border_color is not None
-            or title is not None
-            or padding is not None
-            or background is not None
-        ):
+        if panel_requested:
             content = Panel(
                 child=content,
                 title=title,

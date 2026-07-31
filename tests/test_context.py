@@ -41,8 +41,8 @@ def test_context_keyboard_and_focus_helpers() -> None:
     )
 
     assert ctx.has_keyboard_event()
-    assert ctx.keyboard is not None
-    assert ctx.keyboard.matches("enter")
+    assert ctx.keyboard_event is not None
+    assert ctx.keyboard_event.matches("enter")
     assert ctx.get_state() == {"ok": True}
     assert ctx.runtime is facade
     assert ctx.surface == "offscreen"

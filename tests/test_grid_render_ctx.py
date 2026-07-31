@@ -29,9 +29,9 @@ def test_grid_render_receives_ctx_and_state() -> None:
 
     grid = App()
     state = {"model": "opus"}
-    terminal = Terminal.offscreen(cols=40, rows=4, state=state)
+    terminal = Terminal.offscreen(cols=40, rows=4)
     terminal.attach_grid(grid)
-    terminal.render()
+    terminal.render(state=state)
     terminal.close()
 
     assert seen and seen[0] == state

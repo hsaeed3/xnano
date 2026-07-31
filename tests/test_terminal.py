@@ -86,3 +86,27 @@ def test_terminal_live_run_skips_unused_frame_serialization(
 
     monkeypatch.setattr(terminal.runtime, "_snapshot_frame", fail_snapshot)
     terminal.run(App())
+
+
+def test_render_and_run_accept_state() -> None:
+    """State is supplied at paint time, not to the constructor (#103)."""
+    terminal = Terminal.offscreen(cols=20, rows=3)
+    terminal.render("x", state={"n": 1})
+    assert terminal.state == {"n": 1}
+    terminal.close()
+
+
+def test_render_packs_multiple_items_by_content() -> None:
+    """Multiple top-level renderables pack to their content size with ``gap``
+    as literal spacing, rather than each taking an equal fill share that would
+    stretch one-line items across the whole viewport.
+    """
+    terminal = Terminal.offscreen(cols=20, rows=8)
+    lines = terminal.render("AAA", "BBB", "CCC", gap=0).text.split("\n")
+    assert lines[:3] == ["AAA", "BBB", "CCC"]
+    terminal.close()
+
+    terminal = Terminal.offscreen(cols=20, rows=8)
+    lines = terminal.render("AAA", "BBB", "CCC", gap=1).text.split("\n")
+    assert lines[:5] == ["AAA", "", "BBB", "", "CCC"]
+    terminal.close()

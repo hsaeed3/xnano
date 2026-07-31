@@ -520,6 +520,10 @@ class Sizing:
         token = value.strip().lower()
         if token in ("fit", "auto", "content"):
             return cls.fit()
+        if token == "full":
+            # Matches the tailwind ``w-full`` / ``h-full`` rewrite: 100% of
+            # the available axis length.
+            return cls.percent(100)
         if token in ("fill", "grow"):
             return cls.fraction()
         if token in _FLEX_CLASS_WEIGHTS:
@@ -541,9 +545,146 @@ class Sizing:
             raise ValueError(f"invalid sizing string: {value!r}") from error
 
 
-SizingLike: TypeAlias = Union[int, float, str, Sizing]
-"""Any value accepted where a ``Sizing`` is expected — see
-``Sizing.parse`` for the full list of accepted forms.
+SizingKeyword: TypeAlias = Literal[
+    "fit",
+    "auto",
+    "content",
+    "fill",
+    "grow",
+    "grow-0",
+    "shrink",
+    "shrink-0",
+    "flex-1",
+    "flex-auto",
+    "flex-initial",
+    "flex-none",
+    "full",
+]
+"""Named sizing keywords accepted by ``Sizing.parse`` (plus the tailwind
+``full`` rewrite). Exposed as a ``Literal`` so editors autocomplete the common
+string forms of ``width`` / ``height``.
+"""
+
+
+# ponytail: 101 members spelled out on purpose — a Literal can't be built at
+# type-check time from a range, and whole-percent autocomplete was the ask.
+SizingPercentage: TypeAlias = Literal[
+    "0%",
+    "1%",
+    "2%",
+    "3%",
+    "4%",
+    "5%",
+    "6%",
+    "7%",
+    "8%",
+    "9%",
+    "10%",
+    "11%",
+    "12%",
+    "13%",
+    "14%",
+    "15%",
+    "16%",
+    "17%",
+    "18%",
+    "19%",
+    "20%",
+    "21%",
+    "22%",
+    "23%",
+    "24%",
+    "25%",
+    "26%",
+    "27%",
+    "28%",
+    "29%",
+    "30%",
+    "31%",
+    "32%",
+    "33%",
+    "34%",
+    "35%",
+    "36%",
+    "37%",
+    "38%",
+    "39%",
+    "40%",
+    "41%",
+    "42%",
+    "43%",
+    "44%",
+    "45%",
+    "46%",
+    "47%",
+    "48%",
+    "49%",
+    "50%",
+    "51%",
+    "52%",
+    "53%",
+    "54%",
+    "55%",
+    "56%",
+    "57%",
+    "58%",
+    "59%",
+    "60%",
+    "61%",
+    "62%",
+    "63%",
+    "64%",
+    "65%",
+    "66%",
+    "67%",
+    "68%",
+    "69%",
+    "70%",
+    "71%",
+    "72%",
+    "73%",
+    "74%",
+    "75%",
+    "76%",
+    "77%",
+    "78%",
+    "79%",
+    "80%",
+    "81%",
+    "82%",
+    "83%",
+    "84%",
+    "85%",
+    "86%",
+    "87%",
+    "88%",
+    "89%",
+    "90%",
+    "91%",
+    "92%",
+    "93%",
+    "94%",
+    "95%",
+    "96%",
+    "97%",
+    "98%",
+    "99%",
+    "100%",
+]
+"""Whole-number percentage sizing strings ``"0%"`` – ``"100%"``. Fractions and
+``fr``/ratio forms are deliberately left to the open ``str`` branch.
+"""
+
+
+SizingLike: TypeAlias = Union[
+    int, float, SizingKeyword, SizingPercentage, str, Sizing
+]
+"""Any value accepted where a ``Sizing`` is expected — see ``Sizing.parse``
+for the full list of accepted forms.
+
+``SizingKeyword`` and ``SizingPercentage`` are folded in ahead of the bare
+``str`` so editors surface the common values as completions; arbitrary strings
+(``"1fr"``, ``"1/3"``, ``"37.5%"``) still typecheck via ``str``.
 """
 
 
@@ -806,8 +947,10 @@ __all__ = (
     "Size",
     "SizePercentage",
     "Sizing",
+    "SizingKeyword",
     "SizingKind",
     "SizingLike",
+    "SizingPercentage",
     "field_fills_background",
     "field_has_frame_chrome",
     "frame_from_field",

@@ -826,7 +826,9 @@ impl CoreRenderIR {
             RenderIrInner::Paragraph { text, style, align, wrap } => {
                 let (styled_text, para_style) = split_bg_to_content(text, style);
                 let mut para = Paragraph::new(styled_text).style(para_style);
-                if *wrap { para = para.wrap(Wrap { trim: true }); }
+                // trim: false preserves authored leading whitespace (indents
+                // after a newline). trim: true dropped it — see issue #128.
+                if *wrap { para = para.wrap(Wrap { trim: false }); }
                 if let Some(a) = align { para = para.alignment(*a); }
                 Widget::render(para, rect, buf);
             }
