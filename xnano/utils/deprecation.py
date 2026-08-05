@@ -26,6 +26,7 @@ _CallableT = TypeVar("_CallableT", bound=Callable[..., Any])
 _COLOR_MESSAGE = (
     "The 'color' parameter is deprecated; use 'foreground' instead."
 )
+_ALIAS_UNSET = object()
 
 
 def warn_color_alias(stacklevel: int = 3) -> None:
@@ -169,6 +170,49 @@ def renamed_alias_dataclass(
     return decorate
 
 
+def renamed_alias_property(
+    old: str, new: str
+) -> Callable[[_ClassT], _ClassT]:
+    """Install a deprecated alias property on a dataclass.
+
+    Use with a dataclass ``InitVar`` when the alias is on a hot constructor;
+    this keeps the generated initializer instead of wrapping it with
+    ``*args``/``**kwargs``.
+    """
+
+    def decorate(cls: _ClassT) -> _ClassT:
+        setattr(
+            cls,
+            old,
+            property(
+                lambda self: getattr(self, new),
+                lambda self, value: setattr(self, new, value),
+            ),
+        )
+        return cls
+
+    return decorate
+
+
+def resolve_init_alias(
+    instance: Any,
+    value: Any,
+    *,
+    old: str,
+    new: str,
+) -> None:
+    """Apply a deprecated dataclass ``InitVar`` alias in ``__post_init__``."""
+    if value is _ALIAS_UNSET:
+        return
+    warnings.warn(
+        f"The '{old}' parameter is deprecated; use '{new}' instead.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+    if getattr(instance, new) is None:
+        object.__setattr__(instance, new, value)
+
+
 color_alias_dataclass = renamed_alias_dataclass("color", "foreground")
 """Deprecated ``color`` alias for a dataclass ``foreground`` field."""
 
@@ -180,6 +224,8 @@ __all__ = (
     "align_alias_dataclass",
     "color_alias_dataclass",
     "renamed_alias_dataclass",
+    "renamed_alias_property",
+    "resolve_init_alias",
     "resolve_renamed_alias",
     "resolve_color_alias",
     "warn_color_alias",
