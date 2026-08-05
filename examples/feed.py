@@ -218,7 +218,7 @@ class ServiceGraph(Component):
                 CanvasPrint(
                     x=0.5,
                     y=val,
-                    content=Run(text=label, color=axis_c),
+                    content=Run(text=label, foreground=axis_c),
                 )
             )
 
@@ -242,11 +242,11 @@ class ServiceTable(Component):
         dim = tailwind_color("slate", 500)
         header = TableRow(
             cells=(
-                TableCell(content="", color=dim),
-                TableCell(content=" Service ", color=dim),
-                TableCell(content=" RPS  ", color=dim),
-                TableCell(content=" Err% ", color=dim),
-                TableCell(content=" p95 ", color=dim),
+                TableCell(content="", foreground=dim),
+                TableCell(content=" Service ", foreground=dim),
+                TableCell(content=" RPS  ", foreground=dim),
+                TableCell(content=" Err% ", foreground=dim),
+                TableCell(content=" p95 ", foreground=dim),
             ),
             height=1,
         )
@@ -267,29 +267,29 @@ class ServiceTable(Component):
                         TableCell(
                             content=Run(
                                 text=f" {sym} ",
-                                color=sc,
+                                foreground=sc,
                                 modifiers=("bold",),
                             )
                         ),
                         TableCell(
                             content=Run(
                                 text=f" {svc:<7}",
-                                color=_SVC_TEXT[svc],
+                                foreground=_SVC_TEXT[svc],
                                 modifiers=("bold",),
                             )
                         ),
                         TableCell(
                             content=f" {rps:>5.0f} ",
-                            color=tailwind_color("slate", 600),
+                            foreground=tailwind_color("slate", 600),
                         ),
                         TableCell(
                             content=Run(
-                                text=f" {err_pct:>4.1f}% ", color=err_c
+                                text=f" {err_pct:>4.1f}% ", foreground=err_c
                             )
                         ),
                         TableCell(
                             content=f" {p95:>3.0f}ms",
-                            color=tailwind_color("slate", 600),
+                            foreground=tailwind_color("slate", 600),
                         ),
                     ),
                     height=1,
@@ -328,7 +328,7 @@ class ErrorGauge(Component):
             label=f"  {self.service:<7}  {self.ratio * 100:.1f}%",
             filled_color=filled,
             unfilled_color=tailwind_color("slate", 500),
-            color=tailwind_color("slate", 700),
+            foreground=tailwind_color("slate", 700),
         )
 
 
@@ -377,12 +377,14 @@ class EventLog(Component):
         dim = tailwind_color("slate", 500)
         header = TableRow(
             cells=(
-                TableCell(content=" Time    ", color=dim),
-                TableCell(content=" Method ", color=dim),
-                TableCell(content=" Endpoint                  ", color=dim),
-                TableCell(content=" Status ", color=dim),
-                TableCell(content=" Latency ", color=dim),
-                TableCell(content=" Service ", color=dim),
+                TableCell(content=" Time    ", foreground=dim),
+                TableCell(content=" Method ", foreground=dim),
+                TableCell(
+                    content=" Endpoint                  ", foreground=dim
+                ),
+                TableCell(content=" Status ", foreground=dim),
+                TableCell(content=" Latency ", foreground=dim),
+                TableCell(content=" Service ", foreground=dim),
             ),
             height=1,
         )
@@ -410,28 +412,30 @@ class EventLog(Component):
                     cells=(
                         TableCell(
                             content=f" {ts}  ",
-                            color=tailwind_color("slate", 600),
+                            foreground=tailwind_color("slate", 600),
                         ),
                         TableCell(
-                            content=Run(text=f" {method:<6} ", color=mc)
+                            content=Run(text=f" {method:<6} ", foreground=mc)
                         ),
                         TableCell(
                             content=f" {endpoint:<28}",
-                            color=tailwind_color("slate", 600),
+                            foreground=tailwind_color("slate", 600),
                         ),
                         TableCell(
                             content=Run(
                                 text=f"  {status}  ",
-                                color=sc,
+                                foreground=sc,
                                 modifiers=("bold",),
                             )
                         ),
                         TableCell(
-                            content=Run(text=f" {latency:>5}ms ", color=lc)
+                            content=Run(
+                                text=f" {latency:>5}ms ", foreground=lc
+                            )
                         ),
                         TableCell(
                             content=Run(
-                                text=f" {svc:<8}", color=_SVC_TEXT[svc]
+                                text=f" {svc:<8}", foreground=_SVC_TEXT[svc]
                             )
                         ),
                     ),
@@ -560,14 +564,14 @@ class ApiMonitor(BaseGrid, direction="vertical"):
     header: str = Field(
         default="  API HEALTH MONITOR",
         height=1,
-        color=tailwind_color("sky", 500),
+        foreground=tailwind_color("sky", 500),
         modifiers=["bold"],
     )
     main: MainArea = Field(default_factory=MainArea)
     footer: str = Field(
         default="  [↑↓] Select service  [q] Quit",
         height=1,
-        color=tailwind_color("slate", 600),
+        foreground=tailwind_color("slate", 600),
     )
 
     rps_history: dict = Field(default_factory=_seed_rps, state=True)

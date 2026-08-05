@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.options import (
     Option,
@@ -13,7 +14,7 @@ from xnano.components.options import (
 )
 from xnano.components.text import Text
 from xnano.core.content import Items, Stack
-from xnano.types import Area, is_focusable_component
+from xnano.types import is_focusable_component
 
 
 def _ctx() -> ComponentRenderContext[Any]:

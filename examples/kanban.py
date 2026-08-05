@@ -168,14 +168,16 @@ class BoardTabs(Component):
             parts.append(
                 Run(
                     text=f"  {name}  ({self.counts[i]})  ",
-                    color=accent if active else tailwind_color("slate", 600),
+                    foreground=accent
+                    if active
+                    else tailwind_color("slate", 600),
                     background=_COL_HL_BG[i] if active else None,
                     modifiers=("bold",) if active else (),
                 )
             )
             if i < len(_COL_NAMES) - 1:
                 parts.append(
-                    Run(text=" │ ", color=tailwind_color("slate", 600))
+                    Run(text=" │ ", foreground=tailwind_color("slate", 600))
                 )
         return TextBlock.from_lines((tuple(parts),))
 
@@ -193,9 +195,9 @@ class TaskList(Component):
         dim = tailwind_color("slate", 500)
         header = TableRow(
             cells=(
-                TableCell(content=" Pri  ", color=dim),
-                TableCell(content="Task", color=dim),
-                TableCell(content="Tag   ", color=dim),
+                TableCell(content=" Pri  ", foreground=dim),
+                TableCell(content="Task", foreground=dim),
+                TableCell(content="Tag   ", foreground=dim),
             ),
             height=1,
         )
@@ -210,18 +212,18 @@ class TaskList(Component):
                         TableCell(
                             content=Run(
                                 text=f" {sym} {task.priority[:3]} ",
-                                color=pc,
+                                foreground=pc,
                                 modifiers=("bold",),
                             )
                         ),
                         TableCell(
                             content=f"  {task.title}",
-                            color=tailwind_color("slate", 700),
+                            foreground=tailwind_color("slate", 700),
                         ),
                         TableCell(
                             content=Run(
                                 text=f" #{task.tag}",
-                                color=tailwind_color("slate", 500),
+                                foreground=tailwind_color("slate", 500),
                             )
                         ),
                     ),
@@ -259,18 +261,18 @@ class ActivityFeed(Component):
                     cells=(
                         TableCell(
                             content=f" {ts} ",
-                            color=tailwind_color("slate", 600),
+                            foreground=tailwind_color("slate", 600),
                         ),
                         TableCell(
                             content=Run(
                                 text=f" {icon} ",
-                                color=_COL_ACCENTS[col_idx],
+                                foreground=_COL_ACCENTS[col_idx],
                                 modifiers=("bold",),
                             )
                         ),
                         TableCell(
                             content=f" {action}",
-                            color=tailwind_color("slate", 700),
+                            foreground=tailwind_color("slate", 700),
                         ),
                     ),
                     height=1,
@@ -331,7 +333,7 @@ class VelocityChart(Component):
                 CanvasPrint(
                     x=0.3,
                     y=val,
-                    content=Run(text=f"{val:.0f}", color=axis_c),
+                    content=Run(text=f"{val:.0f}", foreground=axis_c),
                 )
             )
 
@@ -406,7 +408,7 @@ class SprintGauge(Component):
             label=self.label,
             filled_color=self.filled or tailwind_color("violet", 500),
             unfilled_color=tailwind_color("slate", 600),
-            color=tailwind_color("slate", 700),
+            foreground=tailwind_color("slate", 700),
         )
 
 
@@ -487,14 +489,14 @@ class KanbanApp(BaseGrid, direction="vertical"):
     header: str = Field(
         default="  BOARD",
         height=1,
-        color=tailwind_color("violet", 500),
+        foreground=tailwind_color("violet", 500),
         modifiers=["bold"],
     )
     main: MainArea = Field(default_factory=MainArea)
     footer: str = Field(
         default="",
         height=1,
-        color=tailwind_color("slate", 600),
+        foreground=tailwind_color("slate", 600),
     )
 
     task_data: list = Field(

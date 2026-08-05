@@ -48,7 +48,9 @@ def test_schedule_update_runs_callback_and_marks_dirty() -> None:
         app = App()
         runtime.set_root(app)
         runtime.enter()
-        app.schedule_update(lambda: setattr(app, "body", "b"), field="body")
+        app.grid_schedule_update(
+            lambda: setattr(app, "body", "b"), field="body"
+        )
         runtime.pump(0.0)
         assert app.body == "b"
     finally:
@@ -62,8 +64,8 @@ def test_grid_update_field_missing_is_noop() -> None:
 
     app = App()
     # Missing field, and a state field: both are no-ops, no exception.
-    app.grid_update_field("does_not_exist", color="red")
-    app.grid_update_field("count", color="red")
+    app.grid_update_field("does_not_exist", foreground="red")
+    app.grid_update_field("count", foreground="red")
 
 
 def test_loader_inline_frame_is_a_glyph() -> None:

@@ -105,6 +105,120 @@ def test_color_forms_flow_through_field_component_and_terminal() -> None:
         terminal.close()
 
 
+def test_grid_set_field_color_alias_warns_and_sets_foreground() -> None:
+    class App(BaseGrid):
+        label: str = Field(default="hi")
+
+    grid = App()
+    with pytest.warns(DeprecationWarning):
+        grid.grid_set_field(
+            "label",
+            color="cyan",
+        )
+    overrides = grid._grid_field_overrides  # ty: ignore[unresolved-attribute]
+    assert overrides["label"].foreground == "cyan"
+
+
+def test_grid_update_field_foreground_wins_over_color() -> None:
+    class App(BaseGrid):
+        label: str = Field(default="hi")
+
+    grid = App()
+    with pytest.warns(DeprecationWarning):
+        grid.grid_update_field(
+            "label",
+            foreground="red",
+            color="blue",
+        )
+    overrides = grid._grid_field_overrides  # ty: ignore[unresolved-attribute]
+    assert overrides["label"].foreground == "red"
+
+
+def test_grid_settings_color_class_kwarg_maps_to_foreground() -> None:
+    with pytest.warns(DeprecationWarning):
+
+        class Aliased(BaseGrid, color="red"):
+            pass
+
+    assert Aliased.grid_settings["foreground"] == "red"
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+
+        class Canonical(BaseGrid, foreground="blue"):
+            pass
+
+    assert Canonical.grid_settings["foreground"] == "blue"
+
+
+def test_content_primitive_color_alias_round_trips() -> None:
+    from xnano.core.content import Run, TextBlock
+
+    with pytest.warns(DeprecationWarning):
+        run = Run(
+            text="x",
+            color="cyan",  # ty: ignore[unknown-argument]
+        )
+    assert run.foreground == "cyan"
+    assert run.color == "cyan"  # ty: ignore[unresolved-attribute]
+
+    # Classmethod constructors carry the alias too — the dataclass
+    # decorator only wraps ``__init__``.
+    with pytest.warns(DeprecationWarning):
+        block = TextBlock.from_plain(
+            "x",
+            color="lime",
+        )
+    assert block.foreground == "lime"
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert (
+            TextBlock.from_plain("x", foreground="lime").foreground == "lime"
+        )
+
+
+def test_paint_cell_color_alias_maps_to_foreground() -> None:
+    from xnano.core.stage import Stage
+
+    stage = Stage()
+    with pytest.warns(DeprecationWarning):
+        stage.paint_cell(
+            0,
+            0,
+            "!",
+            color="yellow",
+        )
+    assert stage._commands[0]["foreground"] == "yellow"
+
+
+def test_link_foreground_is_not_shadowed_by_color() -> None:
+    """``Link`` redeclared ``color``, shadowing ``Text``'s alias property.
+
+    That made ``Link(foreground=...)`` silently render the default blue.
+    """
+    from xnano.components.link import Link
+
+    assert Link(content="x").foreground == "blue"
+    assert Link(content="x", foreground="red").foreground == "red"
+    with pytest.warns(DeprecationWarning):
+        aliased = Link(
+            content="x",
+            color="green",  # ty: ignore[unknown-argument]
+        )
+    assert aliased.foreground == "green"
+
+
+def test_effect_surfaces_keep_color_without_warning() -> None:
+    """Effects intentionally keep ``color``/``background`` — no rename."""
+    from xnano.effects import Effect, FadeEffect
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert FadeEffect(color="violet").color == "violet"
+        assert Effect("fade", color="violet", duration_ms=10) is not None
+
+
 def test_color_inputs_share_one_conversion_contract() -> None:
     assert Color.parse("red").as_rgb_tuple() == (255, 0, 0)
     assert Color.parse("#0f08").as_hex(include_alpha=True) == "#00ff0088"

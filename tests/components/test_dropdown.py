@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.dropdown import Dropdown
 from xnano.components.options import Option
 from xnano.components.text import Text
 from xnano.core.content import Items, Stack, TextBlock
-from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext[Any]:

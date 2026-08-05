@@ -6,6 +6,7 @@ from typing import Any, cast
 
 import pytest
 
+from xnano.area import Area
 from xnano.components.bar import (
     Bar,
     Sparkline,
@@ -15,7 +16,6 @@ from xnano.components.component import ComponentRenderContext
 from xnano.core import Runtime
 from xnano.core.content import CellCanvas
 from xnano.core.content import Sparkline as SparklineContent
-from xnano.types import Area
 
 
 def _ctx(width: int = 20, height: int = 3) -> ComponentRenderContext[Any]:

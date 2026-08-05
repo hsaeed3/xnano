@@ -223,7 +223,7 @@ class Loader(Component):
         text = frame if not label else f"{frame} {label}"
         return TextBlock(
             text=text,
-            color=self.foreground,
+            foreground=self.foreground,
             background=self.background,
             z=self.z,
             visible=self.visible,
@@ -236,7 +236,7 @@ class Loader(Component):
             return LineGauge(
                 progress=ratio,
                 label=label,
-                color=self.foreground,
+                foreground=self.foreground,
                 filled_color=self.filled_color or self.foreground,
                 unfilled_color=self.unfilled_color,
                 background=self.background,
@@ -246,7 +246,7 @@ class Loader(Component):
         return Gauge(
             progress=ratio,
             label=label,
-            color=self.foreground,
+            foreground=self.foreground,
             background=self.background,
             z=self.z,
             visible=self.visible,
@@ -270,7 +270,7 @@ class Loader(Component):
                 return LineGauge(
                     progress=0.0,
                     label=pulse_label,
-                    color=self.foreground,
+                    foreground=self.foreground,
                     filled_color=self.filled_color or self.foreground,
                     unfilled_color=self.unfilled_color,
                     background=self.background,
@@ -280,7 +280,7 @@ class Loader(Component):
             return Gauge(
                 progress=0.0,
                 label=pulse_label,
-                color=self.foreground,
+                foreground=self.foreground,
                 background=self.background,
                 z=self.z,
                 visible=self.visible,

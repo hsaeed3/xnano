@@ -3,25 +3,30 @@
 ---
 
 Type aliases and values for layout, input, styling, charts, and components.
+
+The geometry primitives (``Area``, ``Size``, ``Padding``, ``align_area``,
+and the alignment aliases) live in `xnano.area`. They are re-exported here,
+deprecated, for the previous import path.
 """
 
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, Union
+
+from xnano.area import (
+    Alignment,
+    Area,
+    Coordinate,
+    Padding,
+    PaddingLike,
+    Size,
+    VerticalAlignment,
+    align_area,
+)
 
 if TYPE_CHECKING:
     from xnano.colors import ColorLike
-
-Alignment: TypeAlias = Literal["left", "right", "center"]
-"""Horizontal (x-axis) alignment of a grid field or area.
-
-Values:
-    ``"left"``: Aligned to the left.
-    ``"right"``: Aligned to the right.
-    ``"center"``: Centered.
-"""
-
 
 ScrollLike: TypeAlias = "bool | Literal['vertical', 'horizontal', 'auto']"
 """``Field(scroll=...)`` value. ``True`` scrolls along the field's
@@ -56,10 +61,6 @@ Values:
     ``"quadrant_inside"``: Quadrant-style inner division. (``▛▀▀▀▀▀▜``)
     ``"quadrant_outside"``: Quadrant-style outer corners. (``▗▄▄▄▄▄▖``)
 """
-
-
-Coordinate: TypeAlias = tuple[int, int]
-"""A single ``(x, y)`` cell coordinate within the terminal grid."""
 
 
 Corner: TypeAlias = Literal[
@@ -100,21 +101,6 @@ Values:
     ``"slow_blink"``: Slow blink.
     ``"rapid_blink"``: Rapid blink.
     ``"reversed"``: Swapped foreground/background colors.
-"""
-
-
-PaddingLike: TypeAlias = Union[
-    int,
-    tuple[int, int],
-    tuple[int | None, int | None, int | None, int | None],
-    "Padding",
-]
-"""Padding around a rectangular area, in any accepted input form:
-
-    - A single integer, applied to all four sides.
-    - A ``(vertical, horizontal)`` tuple of two integers.
-    - A ``(top, right, bottom, left)`` tuple of four integers.
-    - A ``Padding`` instance.
 """
 
 
@@ -226,153 +212,6 @@ def resolve_flex_weight(flex: Flex | None) -> int | None:
     if isinstance(flex, int):
         return max(0, flex)
     return _FLEX_CLASS_WEIGHTS.get(flex)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Padding:
-    """Padding around a rectangular area.
-
-    Attributes:
-        top: Cells above the content.
-        right: Cells to the right of the content.
-        bottom: Cells below the content.
-        left: Cells to the left of the content.
-
-    Examples:
-        ```python
-        padding = Padding.parse((1, 2))
-        ```
-    """
-
-    top: int = 0
-    """Cells above the content."""
-    right: int = 0
-    """Cells to the right of the content."""
-    bottom: int = 0
-    """Cells below the content."""
-    left: int = 0
-    """Cells to the left of the content."""
-
-    @classmethod
-    def parse(cls, padding: PaddingLike | None) -> "Padding":
-        """Normalize a padding value."""
-        if padding is None:
-            return cls()
-        if isinstance(padding, cls):
-            return padding
-        if isinstance(padding, int):
-            return cls(
-                top=padding,
-                right=padding,
-                bottom=padding,
-                left=padding,
-            )
-        values = cast(
-            tuple[int, int]
-            | tuple[int | None, int | None, int | None, int | None],
-            padding,
-        )
-        if len(values) == 2:
-            vertical, horizontal = values
-            return cls(
-                top=vertical or 0,
-                right=horizontal or 0,
-                bottom=vertical or 0,
-                left=horizontal or 0,
-            )
-        top, right, bottom, left = values
-        return cls(
-            top=top or 0,
-            right=right or 0,
-            bottom=bottom or 0,
-            left=left or 0,
-        )
-
-    @property
-    def horizontal(self) -> int:
-        """Total horizontal padding."""
-        return self.left + self.right
-
-    @property
-    def vertical(self) -> int:
-        """Total vertical padding."""
-        return self.top + self.bottom
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Size:
-    """Resolved width and height in cells.
-
-    Attributes:
-        width: Width in cells.
-        height: Height in cells.
-    """
-
-    width: int
-    """Width in cells."""
-    height: int
-    """Height in cells."""
-
-    @classmethod
-    def from_tuple(cls, size: tuple[int, int]) -> "Size":
-        """Create a size from ``(width, height)``."""
-        return cls(width=size[0], height=size[1])
-
-    @classmethod
-    def from_int(cls, size: int) -> "Size":
-        """Create a square size."""
-        return cls(width=size, height=size)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Area:
-    """Rectangular region of a cell grid.
-
-    Attributes:
-        x: Left column.
-        y: Top row.
-        width: Width in cells.
-        height: Height in cells.
-    """
-
-    x: int
-    """Left column."""
-    y: int
-    """Top row."""
-    width: int
-    """Width in cells."""
-    height: int
-    """Height in cells."""
-
-    @property
-    def size(self) -> Size:
-        """Width and height of this area."""
-        return Size(width=self.width, height=self.height)
-
-    def contains(self, coordinate: Coordinate) -> bool:
-        """Return whether ``coordinate`` lies inside this area."""
-        column, row = coordinate
-        return (
-            self.x <= column < self.x + self.width
-            and self.y <= row < self.y + self.height
-        )
-
-    def fit_content(self, content: Size, align: Alignment = "left") -> "Area":
-        """Fit a measured size inside this area."""
-        width = min(self.width, max(content.width, 1))
-        height = min(self.height, max(content.height, 1))
-        if align == "right":
-            x = self.x + self.width - width
-        elif align == "center":
-            x = self.x + (self.width - width) // 2
-        else:
-            x = self.x
-        return Area(
-            x=x,
-            y=self.y + (self.height - height) // 2,
-            width=width,
-            height=height,
-        )
 
 
 SizingKind: TypeAlias = Literal[
@@ -900,6 +739,16 @@ class ScrollHandle:
         self.follow = True
 
 
+def is_grid(value: Any) -> bool:
+    """Return whether a value is a grid instance.
+
+    Reads the ``__xnano_grid__`` marker rather than importing
+    ``BaseGrid``, so layers below the public DSL can ask this without a
+    circular import.
+    """
+    return bool(getattr(type(value), "__xnano_grid__", False))
+
+
 def is_component(value: Any) -> bool:
     """Return whether a value follows the component contract."""
     return bool(getattr(type(value), "_xnano_component_base", False))
@@ -920,6 +769,7 @@ def is_focusable_component(value: Any) -> bool:
 __all__ = (
     "Alignment",
     "Area",
+    "align_area",
     "Axis",
     "Border",
     "CanvasMarkerLike",
@@ -947,6 +797,7 @@ __all__ = (
     "Size",
     "SizePercentage",
     "Sizing",
+    "VerticalAlignment",
     "SizingKeyword",
     "SizingKind",
     "SizingLike",
@@ -955,6 +806,7 @@ __all__ = (
     "field_has_frame_chrome",
     "frame_from_field",
     "is_component",
+    "is_grid",
     "is_focusable_component",
     "resolve_flex_weight",
     "uses_default_component_size",

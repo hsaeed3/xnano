@@ -354,7 +354,7 @@ def test_grid_effect_uses_recorded_field_area() -> None:
         app = App()
         runtime.set_root(app)
         runtime.render()
-        assert app.grid_play_effect(FadeEffect(), fields=["body"])
+        assert app.grid_effect(FadeEffect(), fields=["body"])
         runtime.render()
     finally:
         runtime.close()

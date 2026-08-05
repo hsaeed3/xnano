@@ -109,9 +109,9 @@ class Table(Component):
                         header=spec.header,
                         accessor=spec.accessor,
                         format=spec.format,
-                        color=spec.color,
+                        foreground=spec.foreground,
                         background=spec.background,
-                        align=spec.align,
+                        horizontal_align=spec.horizontal_align,
                         width=spec.width,
                     )
                     column.name = name
@@ -166,12 +166,14 @@ class Table(Component):
 
     @staticmethod
     def _align_text(text: str, column: Column) -> str:
-        if column.align is None or not isinstance(column.width, int):
+        if column.horizontal_align is None or not isinstance(
+            column.width, int
+        ):
             return text
         width = column.width
-        if column.align == "right":
+        if column.horizontal_align == "right":
             return text.rjust(width)
-        if column.align == "center":
+        if column.horizontal_align == "center":
             return text.center(width)
         return text.ljust(width)
 
@@ -263,7 +265,7 @@ class Table(Component):
                 cells.append(
                     TableCell(
                         content=text,
-                        color=column.resolve_color(value),
+                        foreground=column.resolve_color(value),
                         background=column.resolve_background(value),
                     )
                 )

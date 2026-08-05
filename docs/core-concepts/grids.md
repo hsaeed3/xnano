@@ -298,7 +298,7 @@ Useful grid methods:
 |--------|------|
 | `grid_render` / `grid_render_*` | Refresh fields each frame (or per size tier) |
 | `grid_set_field(name, ...)` | Mutate a field value or layout metadata at runtime |
-| `grid_play_effect(...)` | Animate field areas — [Effects](effects.md) |
+| `grid_effect(...)` | Animate field areas — [Effects](effects.md) |
 
 ## Displaying Content
 

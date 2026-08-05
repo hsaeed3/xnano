@@ -108,7 +108,7 @@ def _line_from_runs(runs: tuple[Run, ...]) -> core.IrLine:
         [
             (
                 run.text,
-                get_native_color(run.color),
+                get_native_color(run.foreground),
                 get_native_color(run.background),
                 _native_modifiers(run.modifiers),
             )
@@ -126,7 +126,7 @@ def _line_from_value(value: Any) -> core.IrLine:
             return _line_from_runs(value.lines[0])
         return core.IrLine.styled(
             value.text,
-            get_native_color(value.color),
+            get_native_color(value.foreground),
             get_native_color(value.background),
             _native_modifiers(value.modifiers),
         )
@@ -143,14 +143,14 @@ def _table_row(row: TableRow) -> tuple[list[Any], Any, Any, int]:
             cells.append(
                 (
                     _line_from_value(cell.content),
-                    get_native_color(cell.color),
+                    get_native_color(cell.foreground),
                     get_native_color(cell.background),
                     _native_modifiers(cell.modifiers),
                 )
             )
     return (
         cells,
-        get_native_color(row.color),
+        get_native_color(row.foreground),
         get_native_color(row.background),
         row.height,
     )
@@ -234,7 +234,7 @@ def _canvas_shape(shape: Any) -> tuple[Any, ...]:
             runs = (
                 Run(
                     text=value.text,
-                    color=value.color,
+                    foreground=value.foreground,
                     background=value.background,
                     modifiers=value.modifiers,
                 ),
@@ -244,7 +244,7 @@ def _canvas_shape(shape: Any) -> tuple[Any, ...]:
         spans = [
             (
                 run.text,
-                get_native_color(run.color),
+                get_native_color(run.foreground),
                 get_native_color(run.background),
                 _native_modifiers(run.modifiers),
             )
@@ -283,7 +283,7 @@ def _cell_canvas_ir(content: CellCanvas) -> Any:
             [
                 (
                     span.text,
-                    get_native_color(span.color),
+                    get_native_color(span.foreground),
                     get_native_color(span.background),
                     _native_modifiers(span.modifiers),
                 )
@@ -358,9 +358,9 @@ def lower_content(content: Any) -> core.CoreRenderNode:
         )
     compose = getattr(content, "compose", None)
     if callable(compose):
+        from xnano.area import Area
         from xnano.components.component import ComponentRenderContext
         from xnano.core.runtime import get_active_runtime
-        from xnano.types import Area
 
         runtime = get_active_runtime()
         # A component with responsive compose variants swaps in the one
@@ -391,7 +391,7 @@ def lower_content(content: Any) -> core.CoreRenderNode:
     if isinstance(content, Run):
         render_ir = core.CoreRenderIR.span(
             content.text,
-            get_native_color(content.color),
+            get_native_color(content.foreground),
             get_native_color(content.background),
             _native_modifiers(content.modifiers),
         )
@@ -399,33 +399,33 @@ def lower_content(content: Any) -> core.CoreRenderNode:
         if content.lines:
             render_ir = core.CoreRenderIR.paragraph_lines(
                 [_line_from_runs(line) for line in content.lines],
-                get_native_color(content.color),
+                get_native_color(content.foreground),
                 get_native_color(content.background),
                 _native_modifiers(content.modifiers),
-                _ALIGNMENTS[content.align],
+                _ALIGNMENTS[content.horizontal_align],
                 content.wrap,
             )
         else:
             render_ir = core.CoreRenderIR.paragraph_raw(
                 content.text,
-                get_native_color(content.color),
+                get_native_color(content.foreground),
                 get_native_color(content.background),
                 _native_modifiers(content.modifiers),
-                _ALIGNMENTS[content.align],
+                _ALIGNMENTS[content.horizontal_align],
                 content.wrap,
             )
     elif isinstance(content, Gauge):
         render_ir = core.CoreRenderIR.progress_bar(
             content.progress,
             content.label,
-            get_native_color(content.color),
+            get_native_color(content.foreground),
             get_native_color(content.background),
         )
     elif isinstance(content, LineGauge):
         render_ir = core.CoreRenderIR.line_gauge(
             content.progress,
             content.label,
-            get_native_color(content.color),
+            get_native_color(content.foreground),
             get_native_color(content.background),
             get_native_color(content.filled_color),
             get_native_color(content.unfilled_color),
@@ -466,7 +466,7 @@ def lower_content(content: Any) -> core.CoreRenderNode:
         render_ir = core.CoreRenderIR.sparkline(
             list(content.data),
             content.max_value,
-            get_native_color(content.color),
+            get_native_color(content.foreground),
             get_native_color(content.background),
             get_native_color(content.absent_value_color),
             content.absent_value_symbol,
@@ -475,7 +475,7 @@ def lower_content(content: Any) -> core.CoreRenderNode:
         render_ir = core.CoreRenderIR.list(
             [_line_from_value(item) for item in content.items],
             content.selected,
-            get_native_color(content.color),
+            get_native_color(content.foreground),
             get_native_color(content.background),
             get_native_color(content.highlight_color),
             get_native_color(content.highlight_background),
@@ -560,7 +560,7 @@ def lower_content(content: Any) -> core.CoreRenderNode:
             gap=content.gap,
         )
     elif isinstance(content, Panel):
-        from xnano.types import Padding
+        from xnano.area import Padding
 
         block = native.Block.default()
         sides = content.border_sides

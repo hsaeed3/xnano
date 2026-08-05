@@ -146,14 +146,14 @@ class TabNav(BaseGrid, direction="vertical"):
         default=Text(""),
         border="rounded",
         border_color=tailwind_color("emerald", 500),
-        color=tailwind_color("slate", 300),
+        foreground=tailwind_color("slate", 300),
     )
     status: str = Field(
         default="",
         height=3,
         border="rounded",
         border_color=tailwind_color("slate", 700),
-        color=tailwind_color("slate", 400),
+        foreground=tailwind_color("slate", 400),
     )
 
     selected_tab: int = Field(default=0, state=True)

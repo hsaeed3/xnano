@@ -6,12 +6,12 @@ from typing import Any, cast
 
 import pytest
 
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.input import Input
 from xnano.components.text import Text
 from xnano.core import Runtime
 from xnano.core.content import TextBlock
-from xnano.types import Area
 
 
 def test_input_forces_input_true() -> None:

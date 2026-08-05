@@ -15,7 +15,7 @@ class Badge(Component):
     color: str = "cyan"
 
     def compose(self, ctx):
-        return TextBlock.from_plain(self.text, color=self.color)
+        return TextBlock.from_plain(self.text, foreground=self.color)
 
 
 def test_minimum_custom_component() -> None:

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Literal, TypeAlias, cast
 
 import xnano_core.rust.native as native
 
-from xnano.types import Coordinate
+from xnano.area import Coordinate
 
 if TYPE_CHECKING:
     from xnano.core.runtime import Runtime

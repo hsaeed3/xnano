@@ -137,12 +137,12 @@ class Button(Component):
                 (
                     Run(
                         text=caption,
-                        color=foreground,
+                        foreground=foreground,
                         background=background,
                     ),
                 ),
             ),
-            color=foreground,
+            foreground=foreground,
             background=background,
             z=self.z,
             visible=self.visible,

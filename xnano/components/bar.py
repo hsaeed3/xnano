@@ -199,7 +199,7 @@ class Bar(Component):
             data=data,
             bars=bars,
             max_value=max_value,
-            color=self.foreground,
+            foreground=self.foreground,
             background=self.background,
             absent_value_color=self.absent_color,
             absent_value_symbol=self.absent_glyph,
@@ -234,7 +234,7 @@ class Bar(Component):
             spans.append(
                 CellSpan(
                     glyph,
-                    color=color,
+                    foreground=color,
                     background=self.background,
                 )
             )

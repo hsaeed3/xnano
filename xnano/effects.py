@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Literal, Sequence, TypeAlias, overload
+from typing import Any, Literal, Sequence, TypeAlias, overload
 
 from xnano.colors import ColorLike
 
@@ -163,7 +163,7 @@ class AbstractEffect(abc.ABC):
     Examples:
         ```python
         effect = FadeEffect(color="violet", duration_ms=250)
-        context.play_effect("content", effect)
+        self.grid_effect(effect, fields=["content"])
         ```
     """
 
@@ -740,6 +740,71 @@ def Effect(
     )
 
 
+@dataclasses.dataclass(slots=True)
+class EffectHandle:
+    """A running effect, per target field.
+
+    Truthy when at least one target field had a rendered area, so
+    ``if self.grid_effect(...)`` keeps working. Also a context manager:
+    the effect is cancelled on exit, which is how an effect is scoped to a
+    block rather than to a duration.
+
+    Example:
+        ```python
+        with self.grid_effect("pulse", fields=["body"]):
+            do_slow_work()
+        ```
+    """
+
+    keys: tuple[str, ...] = ()
+    """Session keys this handle cancels, one per target field."""
+    runtime: Any = None
+    """Runtime that registered the effect."""
+    effect: "AbstractEffect | None" = None
+    """Resolved effect, replayed on ``__enter__`` when looping."""
+    fields: tuple[str, ...] = ()
+    """Target field names, for replay."""
+    loop_in_context: bool = False
+    """Whether entering a ``with`` block should loop the effect."""
+    _cancelled: bool = dataclasses.field(default=False, init=False)
+
+    def __bool__(self) -> bool:
+        return bool(self.keys)
+
+    @property
+    def active(self) -> bool:
+        """Whether the effect is still animating.
+
+        ``False`` once cancelled. Otherwise reflects the session's own
+        animation state, which is shared across effects — see
+        ``Runtime.is_animating``.
+        """
+        if self._cancelled or not self.keys or self.runtime is None:
+            return False
+        return bool(self.runtime.is_animating())
+
+    def cancel(self) -> None:
+        """Stop the effect on every target field. Idempotent."""
+        if self._cancelled or self.runtime is None:
+            return
+        for key in self.keys:
+            self.runtime.cancel_effect(key)
+        self._cancelled = True
+
+    def __enter__(self) -> "EffectHandle":
+        # A block-scoped effect with no explicit duration should last as
+        # long as the block, so re-register it looping. The session keys
+        # are unchanged, so this replaces rather than stacks.
+        if self.loop_in_context and self.keys and self.runtime is not None:
+            self.runtime.play_effect(
+                self.effect, fields=list(self.fields), repeat=True
+            )
+        return self
+
+    def __exit__(self, *exception: Any) -> None:
+        self.cancel()
+
+
 __all__ = (
     "AbstractEffect",
     "CoalesceEffect",
@@ -748,6 +813,7 @@ __all__ = (
     "DissolveEffect",
     "Effect",
     "EffectColorSpace",
+    "EffectHandle",
     "EffectCellFilter",
     "EffectInterpolation",
     "EffectMotion",

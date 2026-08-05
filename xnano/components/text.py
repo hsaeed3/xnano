@@ -10,17 +10,22 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, Sequence
 
+from xnano.area import Alignment, VerticalAlignment
 from xnano.components.component import Component, ComponentRenderContext
 from xnano.core.content import Native, Panel, Run, TextBlock
-from xnano.types import Alignment, CharacterModifier
-from xnano.utils.deprecation import color_alias_dataclass
+from xnano.types import CharacterModifier
+from xnano.utils.deprecation import (
+    align_alias_dataclass,
+    color_alias_dataclass,
+)
 
 if TYPE_CHECKING:
+    from xnano.area import Area
     from xnano.colors import ColorLike
     from xnano.events import KeyboardEventData
-    from xnano.types import Area
 
 
+@align_alias_dataclass
 @color_alias_dataclass
 @dataclasses.dataclass
 class Text(Component):
@@ -38,7 +43,8 @@ class Text(Component):
         foreground: Foreground color (deprecated alias: ``color``).
         background: Background color.
         modifiers: Character modifiers such as bold or underline.
-        align: Horizontal alignment at the paragraph level.
+        horizontal_align: Horizontal alignment at the paragraph level.
+        vertical_align: Vertical alignment within the painted area.
         wrap: Whether long lines may wrap.
         input: When ``True`` on a leaf, participates in field focus.
         placeholder: Shown when input is empty and unfocused.
@@ -65,8 +71,10 @@ class Text(Component):
     """Background color."""
     modifiers: tuple[CharacterModifier, ...] = ()
     """Character modifiers such as bold or underline."""
-    align: Alignment | None = None
+    horizontal_align: Alignment | None = None
     """Horizontal alignment at the paragraph level."""
+    vertical_align: VerticalAlignment | None = None
+    """Vertical alignment within the painted area."""
     wrap: bool = True
     """Whether long lines may wrap."""
     input: bool = False
@@ -375,7 +383,7 @@ class Text(Component):
             text_str = ""
         return Run(
             text=text_str,
-            color=self.foreground,
+            foreground=self.foreground,
             background=self.background,
             modifiers=tuple(self.modifiers),
         )
@@ -404,7 +412,7 @@ class Text(Component):
                     (
                         Run(
                             text=segment,
-                            color=child.foreground,
+                            foreground=child.foreground,
                             background=child.background,
                             modifiers=tuple(child.modifiers),
                         ),
@@ -417,7 +425,7 @@ class Text(Component):
         if isinstance(self.content, str):
             return TextBlock(
                 text=self.content,
-                color=self.foreground,
+                foreground=self.foreground,
                 background=self.background,
                 modifiers=tuple(self.modifiers),
             )
@@ -425,7 +433,7 @@ class Text(Component):
         spans = [child._to_span_node() for child in children]
         return TextBlock(
             lines=(tuple(spans),),
-            color=self.foreground,
+            foreground=self.foreground,
             background=self.background,
             modifiers=tuple(self.modifiers),
         )
@@ -461,10 +469,11 @@ class Text(Component):
         if self._editor is not None:
             return TextBlock(
                 text=self.value,
-                color=self.foreground,
+                foreground=self.foreground,
                 background=self.background,
                 modifiers=self.modifiers,
-                align=self.align,
+                horizontal_align=self.horizontal_align,
+                vertical_align=self.vertical_align,
                 wrap=self.wrap,
                 z=self.z,
                 visible=self.visible,
@@ -474,10 +483,11 @@ class Text(Component):
         if markup_lines is not None:
             return TextBlock(
                 lines=markup_lines,
-                color=self.foreground,
+                foreground=self.foreground,
                 background=self.background,
                 modifiers=self.modifiers,
-                align=self.align,
+                horizontal_align=self.horizontal_align,
+                vertical_align=self.vertical_align,
                 wrap=self.wrap,
                 z=self.z,
                 visible=self.visible,
@@ -497,10 +507,11 @@ class Text(Component):
                     modifiers = ("dim",)
             return TextBlock.from_plain(
                 text_str,
-                color=color,
+                foreground=color,
                 background=self.background,
                 modifiers=modifiers,
-                align=self.align,
+                horizontal_align=self.horizontal_align,
+                vertical_align=self.vertical_align,
                 wrap=self.wrap,
                 z=self.z,
                 visible=self.visible,
@@ -521,17 +532,18 @@ class Text(Component):
                     runs.append(
                         Run(
                             text=child.content,
-                            color=child.foreground,
+                            foreground=child.foreground,
                             background=child.background,
                             modifiers=tuple(child.modifiers),
                         )
                     )
             return TextBlock(
                 lines=(tuple(runs),),
-                color=self.foreground,
+                foreground=self.foreground,
                 background=self.background,
                 modifiers=tuple(self.modifiers),
-                align=self.align,
+                horizontal_align=self.horizontal_align,
+                vertical_align=self.vertical_align,
                 wrap=self.wrap,
                 z=self.z,
                 visible=self.visible,
@@ -544,10 +556,11 @@ class Text(Component):
             lines.extend(child._build_line_nodes_from_leaf_children([child]))
         return TextBlock(
             lines=tuple(lines),
-            color=self.foreground,
+            foreground=self.foreground,
             background=self.background,
             modifiers=self.modifiers,
-            align=self.align,
+            horizontal_align=self.horizontal_align,
+            vertical_align=self.vertical_align,
             wrap=self.wrap,
             z=self.z,
             visible=self.visible,

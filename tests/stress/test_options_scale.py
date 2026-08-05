@@ -9,11 +9,11 @@ import sys
 import threading
 from typing import Any
 
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.options import Option, Options
 from xnano.core.content import Items, Stack
 from xnano.core.runtime import Runtime
-from xnano.types import Area
 
 
 def _large_items(prefix: str = "model") -> tuple[Option, ...]:

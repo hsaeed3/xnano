@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.scrollbar import Scrollbar
 from xnano.core import Runtime
 from xnano.core.content import Scrollbar as ScrollbarContent
-from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext[Any]:

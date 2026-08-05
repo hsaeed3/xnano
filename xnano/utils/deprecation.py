@@ -16,7 +16,7 @@ import warnings
 from typing import Any, Callable, TypeVar
 
 if sys.version_info >= (3, 13):
-    from warnings import deprecated as _deprecated
+    _deprecated = warnings.deprecated
 else:
     from typing_extensions import deprecated as _deprecated
 
@@ -65,6 +65,42 @@ def resolve_color_alias(
     return foreground
 
 
+def resolve_renamed_alias(
+    new_value: Any,
+    old_value: Any,
+    *,
+    old: str,
+    new: str,
+    unset: Any = None,
+    stacklevel: int = 3,
+) -> Any:
+    """Return ``new_value``, honoring a deprecated ``old_value`` alias.
+
+    The generic form of `resolve_color_alias` for any renamed keyword.
+    The new name wins when both are supplied.
+
+    Args:
+        new_value: Canonical argument.
+        old_value: Deprecated alias argument.
+        old: Deprecated parameter name, for the message.
+        new: Replacement parameter name, for the message.
+        unset: Sentinel meaning "argument not supplied".
+        stacklevel: Frames to skip so the warning points at caller code.
+
+    Returns:
+        The resolved value (may be ``unset``).
+    """
+    if old_value is not unset:
+        warnings.warn(
+            f"The '{old}' parameter is deprecated; use '{new}' instead.",
+            DeprecationWarning,
+            stacklevel=stacklevel,
+        )
+        if new_value is unset:
+            return old_value
+    return new_value
+
+
 def warn_renamed_attribute(
     old: str, new: str
 ) -> Callable[[_CallableT], _CallableT]:
@@ -86,47 +122,65 @@ def warn_renamed_attribute(
     return _deprecated(message)  # ty: ignore[invalid-argument-type]
 
 
-def color_alias_dataclass(cls: _ClassT) -> _ClassT:
-    """Add a deprecated ``color`` alias for a dataclass ``foreground`` field.
+def renamed_alias_dataclass(
+    old: str, new: str
+) -> Callable[[_ClassT], _ClassT]:
+    """Add a deprecated ``old`` keyword alias for a dataclass ``new`` field.
 
-    The class must already declare a ``foreground`` field. The decorator
-    wraps ``__init__`` to accept a ``color`` keyword (deprecated,
-    ``foreground`` wins when both are given) and installs a ``color``
-    property mapped to ``foreground`` so existing ``self.color`` code and
-    external reads keep working.
+    Wraps ``__init__`` to accept ``old`` (deprecated, ``new`` wins when
+    both are given) and installs an ``old`` property mapped to ``new`` so
+    existing attribute reads keep working.
 
     Args:
-        cls: The dataclass to augment.
+        old: Deprecated field name.
+        new: Replacement field name, which the class must declare.
 
     Returns:
-        The same class, augmented in place.
+        A decorator augmenting the dataclass in place.
     """
-    original_init = cls.__init__
 
-    @functools.wraps(original_init)
-    def __init__(self: Any, *args: Any, **kwargs: Any) -> None:
-        if "color" in kwargs:
-            warn_color_alias(stacklevel=2)
-            color = kwargs.pop("color")
-            kwargs.setdefault("foreground", color)
-        original_init(self, *args, **kwargs)
+    def decorate(cls: _ClassT) -> _ClassT:
+        original_init = cls.__init__
 
-    cls.__init__ = __init__  # ty: ignore[invalid-assignment]
+        @functools.wraps(original_init)
+        def __init__(self: Any, *args: Any, **kwargs: Any) -> None:
+            if old in kwargs:
+                warnings.warn(
+                    f"The '{old}' parameter is deprecated; "
+                    f"use '{new}' instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                kwargs.setdefault(new, kwargs.pop(old))
+                kwargs.pop(old, None)
+            original_init(self, *args, **kwargs)
 
-    def _get_color(self: Any) -> Any:
-        return self.foreground
+        cls.__init__ = __init__  # ty: ignore[invalid-assignment]
+        setattr(
+            cls,
+            old,
+            property(
+                lambda self: getattr(self, new),
+                lambda self, value: setattr(self, new, value),
+            ),
+        )
+        return cls
 
-    def _set_color(self: Any, value: Any) -> None:
-        self.foreground = value
+    return decorate
 
-    cls.color = property(  # ty: ignore[unresolved-attribute]
-        _get_color, _set_color
-    )
-    return cls
+
+color_alias_dataclass = renamed_alias_dataclass("color", "foreground")
+"""Deprecated ``color`` alias for a dataclass ``foreground`` field."""
+
+align_alias_dataclass = renamed_alias_dataclass("align", "horizontal_align")
+"""Deprecated ``align`` alias for a ``horizontal_align`` field."""
 
 
 __all__ = (
+    "align_alias_dataclass",
     "color_alias_dataclass",
+    "renamed_alias_dataclass",
+    "resolve_renamed_alias",
     "resolve_color_alias",
     "warn_color_alias",
     "warn_renamed_attribute",

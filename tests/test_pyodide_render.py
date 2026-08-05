@@ -176,7 +176,7 @@ def test_single_non_grid_renderable_with_border() -> None:
 def test_cell_styles_are_preserved_as_ansi() -> None:
     with Terminal.offscreen(cols=12, rows=1) as terminal:
         ansi = terminal.render(
-            "painted", color="violet", modifiers=["bold"]
+            "painted", foreground="violet", modifiers=["bold"]
         ).ansi
 
     assert "\x1b[38;2;238;130;238m" in ansi  # violet foreground

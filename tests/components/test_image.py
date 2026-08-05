@@ -10,11 +10,11 @@ from typing import Any, cast
 import pytest
 
 import xnano.components.image as image_module
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.image import Image, ImageData, ImageFit, ImageFrame
 from xnano.core import Runtime
 from xnano.core.content import CellCanvas
-from xnano.types import Area
 
 
 def _ctx(width: int = 4, height: int = 2) -> ComponentRenderContext[Any]:
@@ -73,7 +73,7 @@ def test_compact_image_decodes_and_resizes_for_terminal_cells() -> None:
     assert isinstance(canvas, CellCanvas)
     assert len(canvas.rows) == 2
     assert len(canvas.rows[0]) == 4
-    assert {cell.color for row in canvas.rows for cell in row} >= {
+    assert {cell.foreground for row in canvas.rows for cell in row} >= {
         "#ff0000",
         "#00ff00",
     }
@@ -175,7 +175,7 @@ def test_image_data_frame_index_and_seek() -> None:
     assert image.get_frame_index(40) == 1
     image.seek(40)
     canvas = image.compose(_ctx(1, 1))
-    assert canvas.rows[0][0].color == "#0000ff"
+    assert canvas.rows[0][0].foreground == "#0000ff"
 
 
 def test_play_pause_preserves_position() -> None:
@@ -188,7 +188,7 @@ def test_play_pause_preserves_position() -> None:
     image.pause()
     assert image.playing is False
     canvas = image.compose(_ctx(1, 1))
-    assert canvas.rows[0][0].color == "#0000ff"
+    assert canvas.rows[0][0].foreground == "#0000ff"
     image.play()
     assert image.playing is True
 
@@ -273,7 +273,7 @@ def test_position_ms_override() -> None:
         position_ms=40,
     )
     canvas = image.compose(_ctx(1, 1))
-    assert canvas.rows[0][0].color == "#0000ff"
+    assert canvas.rows[0][0].foreground == "#0000ff"
 
 
 def test_source_change_resets_playback_and_canvas_cache() -> None:
@@ -294,7 +294,7 @@ def test_source_change_resets_playback_and_canvas_cache() -> None:
     image.source = green
     second = image.compose(_ctx(1, 1))
     assert second is not first
-    assert second.rows[0][0].color == "#00ff00"
+    assert second.rows[0][0].foreground == "#00ff00"
     assert image._paused_elapsed_ms == 0.0
 
 
@@ -387,4 +387,4 @@ def test_transparent_stream_composites_over_configured_background() -> None:
 
     image = Image(source=stream, background=(255, 0, 0))
     canvas = image.compose(_ctx(1, 1))
-    assert canvas.rows[0][0].color == "#ff0000"
+    assert canvas.rows[0][0].foreground == "#ff0000"

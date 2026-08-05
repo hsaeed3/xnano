@@ -613,7 +613,7 @@ class Options(Component):
         def make_run(segment: str, emphasized: bool) -> Run:
             return Run(
                 text=segment,
-                color=self.match_color if emphasized else None,
+                foreground=self.match_color if emphasized else None,
                 modifiers=("bold",) if emphasized else (),
             )
 
@@ -664,7 +664,7 @@ class Options(Component):
         return Items(
             items=entries,
             selected=selected,
-            color=self.foreground,
+            foreground=self.foreground,
             background=self.background,
             highlight_color=self.highlight_color,
             highlight_background=self.highlight_background,
@@ -688,7 +688,7 @@ class Options(Component):
                 (
                     Run(
                         text="type to filter",
-                        color="gray",
+                        foreground="gray",
                         modifiers=query_modifiers,
                     ),
                 ),

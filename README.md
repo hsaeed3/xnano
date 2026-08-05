@@ -157,8 +157,8 @@ proportion each slot.
 ```python
 from xnano import BaseGrid, Field, Terminal, Context, on_keyboard
 
-class SidebarTitle(BaseGrid, align="center"):
-    title: str = Field("This is a title.", align="center")
+class SidebarTitle(BaseGrid, horizontal_align="center"):
+    title: str = Field("This is a title.", horizontal_align="center")
 
 class Sidebar(BaseGrid, direction="vertical"):
     title: SidebarTitle = Field(

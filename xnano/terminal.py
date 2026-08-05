@@ -10,17 +10,20 @@ from __future__ import annotations
 import sys
 from typing import Any, Generic, Sequence, TypeVar
 
+from xnano.area import Alignment, PaddingLike, VerticalAlignment
 from xnano.colors import ColorLike
 from xnano.core.frame import Frame
 from xnano.core.runtime import Runtime
 from xnano.types import (
-    Alignment,
     Border,
     CharacterModifier,
     Direction,
     FrameTitlePosition,
-    PaddingLike,
     Side,
+)
+from xnano.utils.deprecation import (
+    resolve_color_alias,
+    resolve_renamed_alias,
 )
 
 StateT = TypeVar("StateT")
@@ -178,10 +181,11 @@ class Terminal(Generic[StateT]):
     def render(
         self,
         *renderables: Any,
-        color: ColorLike | None = None,
+        foreground: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
-        align: Alignment | None = None,
+        horizontal_align: Alignment | None = None,
+        vertical_align: VerticalAlignment | None = None,
         border: Border | None = None,
         border_sides: Sequence[Side] | None = None,
         border_color: ColorLike | None = None,
@@ -190,16 +194,19 @@ class Terminal(Generic[StateT]):
         padding: PaddingLike | None = None,
         gap: int = 0,
         direction: Direction = "vertical",
+        color: ColorLike | None = None,
+        align: Alignment | None = None,
     ) -> Frame:
         """Paint one frame and return its immutable snapshot.
 
         Args:
             *renderables: Grids, components, content primitives, or plain
                 values to paint.
-            color: Foreground color applied to plain values.
+            foreground: Foreground color applied to plain values.
             background: Background color for the rendered area.
             modifiers: Character modifiers applied to plain values.
-            align: Horizontal alignment applied to plain values.
+            horizontal_align: Horizontal alignment applied to plain values.
+        vertical_align: Vertical alignment applied to plain values.
             border: Border style around the rendered area.
             border_sides: Border sides to draw.
             border_color: Border foreground color.
@@ -212,15 +219,24 @@ class Terminal(Generic[StateT]):
         Returns:
             A snapshot of the rendered terminal frame.
         """
+        foreground = resolve_color_alias(foreground, color, stacklevel=3)
+        horizontal_align = resolve_renamed_alias(
+            horizontal_align,
+            align,
+            old="align",
+            new="horizontal_align",
+            stacklevel=3,
+        )
         runtime = self._ensure_runtime()
         if renderables:
             runtime.set_root(renderables[0] if len(renderables) == 1 else None)
         return runtime.render(
             *renderables,
-            color=color,
+            foreground=foreground,
             background=background,
             modifiers=modifiers,
-            align=align,
+            horizontal_align=horizontal_align,
+            vertical_align=vertical_align,
             border=border,
             border_sides=border_sides,
             border_color=border_color,
@@ -234,10 +250,11 @@ class Terminal(Generic[StateT]):
     def run(
         self,
         *renderables: Any,
-        color: ColorLike | None = None,
+        foreground: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
-        align: Alignment | None = None,
+        horizontal_align: Alignment | None = None,
+        vertical_align: VerticalAlignment | None = None,
         border: Border | None = None,
         border_sides: Sequence[Side] | None = None,
         border_color: ColorLike | None = None,
@@ -246,16 +263,19 @@ class Terminal(Generic[StateT]):
         padding: PaddingLike | None = None,
         gap: int = 0,
         direction: Direction = "vertical",
+        color: ColorLike | None = None,
+        align: Alignment | None = None,
     ) -> None:
         """Render and dispatch events until an exit is requested.
 
         Args:
             *renderables: Grids, components, content primitives, or plain
                 values to paint.
-            color: Foreground color applied to plain values.
+            foreground: Foreground color applied to plain values.
             background: Background color for the rendered area.
             modifiers: Character modifiers applied to plain values.
-            align: Horizontal alignment applied to plain values.
+            horizontal_align: Horizontal alignment applied to plain values.
+        vertical_align: Vertical alignment applied to plain values.
             border: Border style around the rendered area.
             border_sides: Border sides to draw.
             border_color: Border foreground color.
@@ -265,6 +285,14 @@ class Terminal(Generic[StateT]):
             gap: Cells between multiple renderables.
             direction: Direction used to lay out multiple renderables.
         """
+        foreground = resolve_color_alias(foreground, color, stacklevel=3)
+        horizontal_align = resolve_renamed_alias(
+            horizontal_align,
+            align,
+            old="align",
+            new="horizontal_align",
+            stacklevel=3,
+        )
         runtime = self._ensure_runtime(live=True)
         if renderables:
             runtime.set_root(renderables[0] if len(renderables) == 1 else None)
@@ -274,10 +302,11 @@ class Terminal(Generic[StateT]):
             while True:
                 render_frame(
                     *renderables,
-                    color=color,
+                    foreground=foreground,
                     background=background,
                     modifiers=modifiers,
-                    align=align,
+                    horizontal_align=horizontal_align,
+                    vertical_align=vertical_align,
                     border=border,
                     border_sides=border_sides,
                     border_color=border_color,

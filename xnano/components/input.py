@@ -11,8 +11,8 @@ import dataclasses
 import math
 from typing import TYPE_CHECKING, Sequence
 
+from xnano.area import Size
 from xnano.components.text import Text
-from xnano.types import Size
 
 if TYPE_CHECKING:
     from xnano.components.component import ComponentRenderContext

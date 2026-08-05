@@ -619,7 +619,7 @@ class MarkdownViewport(Markdown):
                 Run(
                     text=text,
                     modifiers=("dim",),
-                    color=self.foreground,
+                    foreground=self.foreground,
                     background=self.background,
                 ),
             ),
@@ -635,10 +635,10 @@ class MarkdownViewport(Markdown):
         visible_rows: int,
     ) -> Any:
         """Compose one image block's visible slice (body + caption + gap)."""
+        from xnano.area import Area
         from xnano.components.component import ComponentRenderContext
         from xnano.core.content import CellCanvas
         from xnano.core.rendering import lower_content
-        from xnano.types import Area
 
         body_cols, body_rows = self._image_body_size(
             block,
@@ -780,10 +780,10 @@ class MarkdownViewport(Markdown):
                 node = lower_content(
                     TextBlock(
                         lines=tuple(window),
-                        color=self.foreground,
+                        foreground=self.foreground,
                         background=self.background,
                         modifiers=self.modifiers,
-                        align=self.align,
+                        horizontal_align=self.horizontal_align,
                         wrap=self.wrap,
                     )
                 )
@@ -924,7 +924,7 @@ def _create_markdown_document(
         @hooks.on_keyboard("q", "esc", "ctrl+c")
         def _quit(self, ctx: Any) -> None:
             # Esc collapses a pinned image first; a second press quits.
-            keyboard = getattr(ctx, "keyboard", None)
+            keyboard = getattr(ctx, "keyboard_event", None)
             if (
                 keyboard is not None
                 and keyboard.matches("esc")

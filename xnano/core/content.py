@@ -10,10 +10,10 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Sequence, TypeAlias
 
+from xnano.area import Alignment, PaddingLike, VerticalAlignment
 from xnano.colors import ColorLike
 from xnano.tailwind import Style
 from xnano.types import (
-    Alignment,
     Border,
     CanvasMarkerLike,
     CharacterModifier,
@@ -21,9 +21,13 @@ from xnano.types import (
     FrameTitlePosition,
     GraphTypeLike,
     LegendPositionLike,
-    PaddingLike,
     ScrollbarOrientationLike,
     Side,
+)
+from xnano.utils.deprecation import (
+    align_alias_dataclass,
+    color_alias_dataclass,
+    resolve_color_alias,
 )
 
 
@@ -48,23 +52,24 @@ class ContentBase:
 AbstractContent = ContentBase
 
 
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Run(ContentBase):
     """One styled text run.
 
     Example:
-        ``Run(text="Ready", color="green", modifiers=("bold",))``
+        ``Run(text="Ready", foreground="green", modifiers=("bold",))``
 
     Attributes:
         text: Text displayed by the run.
-        color: Foreground color.
+        foreground: Foreground color.
         background: Background color.
         modifiers: Character modifiers.
     """
 
     text: str
     """Text displayed by the run."""
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """Foreground color."""
     background: ColorLike | None = None
     """Background color."""
@@ -76,30 +81,33 @@ class Run(ContentBase):
         cls,
         text: str,
         *,
-        color: ColorLike | None = None,
+        foreground: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
         style: Style | None = None,
         z: int = 0,
         visible: bool = True,
+        color: ColorLike | None = None,
     ) -> "Run":
         """Create a plain styled run.
 
         Args:
             text: Text displayed by the run.
-            color: Foreground color.
+            foreground: Foreground color.
             background: Background color.
             modifiers: Character modifiers.
             style: Optional shared style.
             z: Sibling-local paint order.
             visible: Whether the run paints.
+            color: Deprecated alias for ``foreground``.
 
         Returns:
             A run containing ``text``.
         """
+        foreground = resolve_color_alias(foreground, color, stacklevel=3)
         return cls(
             text=text,
-            color=color,
+            foreground=foreground,
             background=background,
             modifiers=tuple(modifiers or ()),
             style=style,
@@ -108,20 +116,23 @@ class Run(ContentBase):
         )
 
 
+@align_alias_dataclass
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class TextBlock(ContentBase):
     """Wrapped plain text or lines of styled runs.
 
     Example:
-        ``TextBlock(text="Hello", align="center")``
+        ``TextBlock(text="Hello", horizontal_align="center")``
 
     Attributes:
         text: Plain text content.
         lines: Styled text lines.
-        color: Default foreground color.
+        foreground: Default foreground color.
         background: Default background color.
         modifiers: Default character modifiers.
-        align: Horizontal alignment.
+        horizontal_align: Horizontal alignment.
+        vertical_align: Vertical alignment within the painted area.
         wrap: Whether long lines wrap.
     """
 
@@ -129,14 +140,16 @@ class TextBlock(ContentBase):
     """Plain text content."""
     lines: tuple[tuple[Run, ...], ...] = ()
     """Styled text lines."""
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """Default foreground color."""
     background: ColorLike | None = None
     """Default background color."""
     modifiers: tuple[CharacterModifier, ...] = ()
     """Default character modifiers."""
-    align: Alignment | None = None
+    horizontal_align: Alignment | None = None
     """Horizontal alignment."""
+    vertical_align: VerticalAlignment | None = None
+    """Vertical alignment within the painted area."""
     wrap: bool = True
     """Whether long lines wrap."""
 
@@ -145,22 +158,29 @@ class TextBlock(ContentBase):
         cls,
         text: str,
         *,
-        color: ColorLike | None = None,
+        foreground: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
-        align: Alignment | None = None,
+        horizontal_align: Alignment | None = None,
+        vertical_align: VerticalAlignment | None = None,
         wrap: bool = True,
         style: Style | None = None,
         z: int = 0,
         visible: bool = True,
+        color: ColorLike | None = None,
     ) -> "TextBlock":
-        """Create a block from plain text and explicit style values."""
+        """Create a block from plain text and explicit style values.
+
+        ``color`` is a deprecated alias for ``foreground``.
+        """
+        foreground = resolve_color_alias(foreground, color, stacklevel=3)
         return cls(
             text=text,
-            color=color,
+            foreground=foreground,
             background=background,
             modifiers=tuple(modifiers or ()),
-            align=align,
+            horizontal_align=horizontal_align,
+            vertical_align=vertical_align,
             wrap=wrap,
             style=style,
             z=z,
@@ -172,16 +192,22 @@ class TextBlock(ContentBase):
         cls,
         lines: Sequence[Sequence[Run] | Run | str],
         *,
-        color: ColorLike | None = None,
+        foreground: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
-        align: Alignment | None = None,
+        horizontal_align: Alignment | None = None,
+        vertical_align: VerticalAlignment | None = None,
         wrap: bool = True,
         style: Style | None = None,
         z: int = 0,
         visible: bool = True,
+        color: ColorLike | None = None,
     ) -> "TextBlock":
-        """Create a block from styled line sequences."""
+        """Create a block from styled line sequences.
+
+        ``color`` is a deprecated alias for ``foreground``.
+        """
+        foreground = resolve_color_alias(foreground, color, stacklevel=3)
         normalized: list[tuple[Run, ...]] = []
         for line in lines:
             if isinstance(line, str):
@@ -192,10 +218,11 @@ class TextBlock(ContentBase):
                 normalized.append(tuple(line))
         return cls(
             lines=tuple(normalized),
-            color=color,
+            foreground=foreground,
             background=background,
             modifiers=tuple(modifiers or ()),
-            align=align,
+            horizontal_align=horizontal_align,
+            vertical_align=vertical_align,
             wrap=wrap,
             style=style,
             z=z,
@@ -260,6 +287,7 @@ class Panel(ContentBase):
     """Space between border and child."""
 
 
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Gauge(ContentBase):
     """Render a filled progress gauge.
@@ -270,7 +298,7 @@ class Gauge(ContentBase):
     Attributes:
         progress: Completion ratio from zero to one.
         label: Text displayed inside the gauge.
-        color: Filled-region color.
+        foreground: Filled-region color.
         background: Gauge background color.
     """
 
@@ -278,12 +306,13 @@ class Gauge(ContentBase):
     """Completion ratio from zero to one."""
     label: str | None = None
     """Text displayed inside the gauge."""
-    color: ColorLike = "green"
+    foreground: ColorLike = "green"
     """Filled-region color."""
     background: ColorLike | None = None
     """Gauge background color."""
 
 
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class LineGauge(ContentBase):
     """Render progress as a single horizontal line.
@@ -291,7 +320,7 @@ class LineGauge(ContentBase):
     Attributes:
         progress: Completion ratio from zero to one.
         label: Text displayed with the line.
-        color: Default foreground color.
+        foreground: Default foreground color.
         filled_color: Completed-region color.
         unfilled_color: Remaining-region color.
         background: Line background color.
@@ -301,7 +330,7 @@ class LineGauge(ContentBase):
     """Completion ratio from zero to one."""
     label: str | None = None
     """Text displayed with the line."""
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """Default foreground color."""
     filled_color: ColorLike | None = None
     """Completed-region color."""
@@ -479,18 +508,19 @@ class SparklineBar:
     """Sample color."""
 
 
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Sparkline(ContentBase):
     """Render a compact sequence of vertical samples.
 
     Example:
-        ``Sparkline(data=(2, 5, 3, 8), color="cyan")``
+        ``Sparkline(data=(2, 5, 3, 8), foreground="cyan")``
 
     Attributes:
         data: Sample values.
         bars: Individually styled samples.
         max_value: Explicit sample ceiling.
-        color: Default sample color.
+        foreground: Default sample color.
         background: Sparkline background.
         absent_value_color: Color for missing or zero samples.
         absent_value_symbol: Symbol for missing or zero samples.
@@ -502,7 +532,7 @@ class Sparkline(ContentBase):
     """Individually styled samples."""
     max_value: int | None = None
     """Explicit sample ceiling."""
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """Default sample color."""
     background: ColorLike | None = None
     """Sparkline background."""
@@ -512,20 +542,21 @@ class Sparkline(ContentBase):
     """Symbol for missing or zero samples."""
 
 
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class TableCell:
     """Styled content in one table column.
 
     Attributes:
         content: Cell content.
-        color: Foreground color.
+        foreground: Foreground color.
         background: Background color.
         modifiers: Character modifiers.
     """
 
     content: str | Run | TextBlock = ""
     """Cell content."""
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """Foreground color."""
     background: ColorLike | None = None
     """Background color."""
@@ -533,20 +564,21 @@ class TableCell:
     """Character modifiers."""
 
 
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class TableRow:
     """One styled table row.
 
     Attributes:
         cells: Cells in column order.
-        color: Default row foreground.
+        foreground: Default row foreground.
         background: Default row background.
         height: Row height in cells.
     """
 
     cells: tuple[TableCell | str, ...] = ()
     """Cells in column order."""
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """Default row foreground."""
     background: ColorLike | None = None
     """Default row background."""
@@ -596,6 +628,7 @@ class TableGrid(ContentBase):
     """Symbol prefixed to the selected row."""
 
 
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Items(ContentBase):
     """Render a selectable list of text items.
@@ -606,7 +639,7 @@ class Items(ContentBase):
     Attributes:
         items: List entries.
         selected: Selected entry index.
-        color: Default foreground.
+        foreground: Default foreground.
         background: Default background.
         highlight_color: Selected-entry foreground.
         highlight_background: Selected-entry background.
@@ -617,7 +650,7 @@ class Items(ContentBase):
     """List entries."""
     selected: int | None = None
     """Selected entry index."""
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """Default foreground."""
     background: ColorLike | None = None
     """Default background."""
@@ -820,20 +853,21 @@ class Clear(ContentBase):
     """
 
 
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True)
 class CellSpan:
     """A styled run inside a cell canvas row.
 
     Attributes:
         text: Characters covered by the span.
-        color: Foreground color.
+        foreground: Foreground color.
         background: Background color.
         modifiers: Character modifiers.
     """
 
     text: str = " "
     """Characters covered by the span."""
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """Foreground color."""
     background: ColorLike | None = None
     """Background color."""

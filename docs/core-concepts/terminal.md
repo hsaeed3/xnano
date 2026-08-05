@@ -87,13 +87,13 @@ control. It does not run the event loop.
 ```pyodide install="xnano>=1.2.3b2" height="3"
 from xnano import render
 
-render("hello, terminal!", color="blue")
+render("hello, terminal!", foreground="blue")
 ```
 
 ```python title="render()"
 from xnano import render
 
-render("hello, terminal!", color="blue") # (1)!
+render("hello, terminal!", foreground="blue") # (1)!
 ```
 
 1. Opens a short-lived paint path, writes the frame, then stops.

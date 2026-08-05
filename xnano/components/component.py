@@ -10,6 +10,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
+from xnano.area import Size
 from xnano.core.content import (
     Bars,
     Canvas,
@@ -30,16 +31,15 @@ from xnano.core.content import (
 from xnano.core.content import (
     Scrollbar as ScrollbarContent,
 )
-from xnano.types import Size
 from xnano.utils.responsive import (
     collect_responsive_overrides,
     responsive_noop,
 )
 
 if TYPE_CHECKING:
+    from xnano.area import Area
     from xnano.events import KeyboardEventData
     from xnano.terminal import Terminal
-    from xnano.types import Area
 
 
 StateT = TypeVar("StateT")

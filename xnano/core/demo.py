@@ -136,7 +136,7 @@ def build_plasma_frame(
             color = palette[
                 (column_index + row_index + drift) % palette_length
             ]
-            spans.append(CellSpan(text=glyphs[level], color=color))
+            spans.append(CellSpan(text=glyphs[level], foreground=color))
         rows.append(tuple(spans))
     return CellCanvas(rows=tuple(rows), width=width, height=height)
 
@@ -167,10 +167,12 @@ def build_orbit_frame(
         for column_index in range(width):
             level = grid[row_index][column_index]
             if level < 0:
-                spans.append(CellSpan(text="·", color="#182234"))
+                spans.append(CellSpan(text="·", foreground="#182234"))
             else:
                 glyph = "●" if level >= trail_length - 1 else "•"
-                spans.append(CellSpan(text=glyph, color=_ORBIT_TRAIL[level]))
+                spans.append(
+                    CellSpan(text=glyph, foreground=_ORBIT_TRAIL[level])
+                )
         rows.append(tuple(spans))
     return CellCanvas(rows=tuple(rows), width=width, height=height)
 
@@ -201,9 +203,11 @@ def build_spiral_frame(
         for column_index in range(width):
             level = grid[row_index][column_index]
             if level < 0:
-                spans.append(CellSpan(text="·", color="#182234"))
+                spans.append(CellSpan(text="·", foreground="#182234"))
             else:
-                spans.append(CellSpan(text="✦", color=_ORBIT_TRAIL[level]))
+                spans.append(
+                    CellSpan(text="✦", foreground=_ORBIT_TRAIL[level])
+                )
         rows.append(tuple(spans))
     return CellCanvas(rows=tuple(rows), width=width, height=height)
 
@@ -231,7 +235,7 @@ def build_ripple_frame(
             wave = math.sin(distance * 0.6 - phase * 1.5)
             level = int((wave + 1.0) * 2.0)
             level = min(ramp_length - 1, max(0, level))
-            spans.append(CellSpan(text=glyphs[level], color=ramp[level]))
+            spans.append(CellSpan(text=glyphs[level], foreground=ramp[level]))
         rows.append(tuple(spans))
     return CellCanvas(rows=tuple(rows), width=width, height=height)
 
@@ -286,7 +290,7 @@ def build_aurora_frame(
             elif index > top:
                 index = top
             glyph = glyphs[min(4, index * 5 // (top + 1))]
-            spans.append(CellSpan(text=glyph, color=ramp[index]))
+            spans.append(CellSpan(text=glyph, foreground=ramp[index]))
         rows.append(tuple(spans))
     return CellCanvas(rows=tuple(rows), width=width, height=height)
 
@@ -324,7 +328,9 @@ def build_ink_frame(
             glyph = glyphs[int(norm * glyph_top)]
             foreground = ramp[min(top, index + 2)]
             spans.append(
-                CellSpan(text=glyph, color=foreground, background=ramp[index])
+                CellSpan(
+                    text=glyph, foreground=foreground, background=ramp[index]
+                )
             )
         rows.append(tuple(spans))
     return CellCanvas(rows=tuple(rows), width=width, height=height)
@@ -363,7 +369,7 @@ def build_flow_frame(
             spans.append(
                 CellSpan(
                     text=glyph,
-                    color=ramp[index],
+                    foreground=ramp[index],
                     background=ramp[max(0, index - 3)],
                 )
             )
@@ -425,7 +431,7 @@ def _overlay_centered(
         column = left + offset
         if character != " " and 0 <= column < width:
             rows[row_index][column] = CellSpan(
-                text=character, color=color, modifiers=modifiers
+                text=character, foreground=color, modifiers=modifiers
             )
 
 
@@ -451,7 +457,7 @@ def build_title_frame(
             column = left + column_offset
             if character != " " and 0 <= column < width:
                 rows[target][column] = CellSpan(
-                    text="█", color=glow, modifiers=("bold",)
+                    text="█", foreground=glow, modifiers=("bold",)
                 )
     _overlay_centered(
         rows, width, height - 2, "press any key to begin", "#9a9ac0"
@@ -931,7 +937,7 @@ def _build_palette_canvas(width: int, height: int) -> CellCanvas:
                 f"{int(green * 255):02x}"
                 f"{int(blue * 255):02x}"
             )
-            spans.append(CellSpan(text="█", color=color))
+            spans.append(CellSpan(text="█", foreground=color))
         rows.append(tuple(spans))
     return CellCanvas(rows=tuple(rows), width=width, height=height)
 
@@ -1260,7 +1266,7 @@ class Showcase(BaseGrid, direction="vertical", gap=0):
         index = getattr(self, "_effect_index", 0)
         kind = _EFFECTS[index % len(_EFFECTS)]
         self._effect_index = index + 1
-        parent.grid_play_effect(kind, duration_ms=420, fields=[field_name])
+        parent.grid_effect(kind, duration_ms=420, fields=[field_name])
         self._log(f"{group}: effect {kind}")
 
     @on_keyboard("p", "space")

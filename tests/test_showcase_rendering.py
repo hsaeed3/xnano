@@ -209,7 +209,7 @@ def test_effects_target_every_focusable_box() -> None:
         runtime.set_root(app)
         runtime.render()
         for parent, field_name in app._effect_targets.values():
-            assert parent.grid_play_effect(
+            assert parent.grid_effect(
                 "fade", duration_ms=200, fields=[field_name]
             )
     finally:

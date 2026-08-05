@@ -13,12 +13,14 @@ from typing import TYPE_CHECKING, Any
 from xnano.components.component import ComponentRenderContext
 from xnano.components.text import Text
 from xnano.core.content import TextBlock
+from xnano.utils.deprecation import color_alias_dataclass
 
 if TYPE_CHECKING:
     from xnano.colors import ColorLike
     from xnano.events import KeyboardEventData
 
 
+@color_alias_dataclass
 @dataclasses.dataclass
 class Link(Text):
     """Focusable hyperlink label.
@@ -40,7 +42,7 @@ class Link(Text):
     """Destination address exposed to hooks; never auto-opened."""
     underline: bool = True
     """When ``True``, compose with the underline modifier."""
-    color: ColorLike | None = "blue"
+    foreground: ColorLike | None = "blue"
     """Default link foreground color."""
     focused_color: ColorLike | None = None
     """Foreground override while this link holds focus."""
@@ -84,7 +86,7 @@ class Link(Text):
         if self.underline and "underline" not in modifiers:
             modifiers = modifiers + ("underline",)
 
-        color = self.color
+        color = self.foreground
         if self.focused and self.focused_color is not None:
             color = self.focused_color
         elif self.visited and self.focused_color is None:
@@ -98,10 +100,11 @@ class Link(Text):
             label = self.content if self.content else self.url
             return TextBlock.from_plain(
                 label,
-                color=color,
+                foreground=color,
                 background=self.background,
                 modifiers=modifiers,
-                align=self.align,
+                horizontal_align=self.horizontal_align,
+                vertical_align=self.vertical_align,
                 wrap=self.wrap,
                 z=self.z,
                 visible=self.visible,
@@ -109,14 +112,14 @@ class Link(Text):
 
         # Nested content: style via a short-lived attribute swap.
         previous_modifiers = self.modifiers
-        previous_color = self.color
+        previous_color = self.foreground
         object.__setattr__(self, "modifiers", modifiers)
-        object.__setattr__(self, "color", color)
+        object.__setattr__(self, "foreground", color)
         try:
             return Text.compose(self, ctx)
         finally:
             object.__setattr__(self, "modifiers", previous_modifiers)
-            object.__setattr__(self, "color", previous_color)
+            object.__setattr__(self, "foreground", previous_color)
 
     def handle_keyboard(self, keyboard: "KeyboardEventData") -> bool:
         """Leave activation keys for application hooks.

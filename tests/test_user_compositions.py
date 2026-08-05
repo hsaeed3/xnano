@@ -373,7 +373,7 @@ def test_nested_workspace_combines_layout_focus_overlay_and_effects() -> None:
         notice: Text = Field(
             default_factory=lambda: Text("Saved"),
             overlay=True,
-            align="center",
+            horizontal_align="center",
             width=12,
             height=3,
             border="rounded",
@@ -398,7 +398,7 @@ def test_nested_workspace_combines_layout_focus_overlay_and_effects() -> None:
         assert workspace.navigation.pages.value == "Logs"
         runtime.perform(Action.keyboard("s"))
         assert "Saved now" in runtime.render().text
-        assert workspace.grid_play_effect(
+        assert workspace.grid_effect(
             Effect("coalesce", duration_ms=20),
             fields=["content"],
         )

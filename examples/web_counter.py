@@ -48,7 +48,7 @@ class Counter(BaseGrid, direction="vertical", gap=1):
     body: str = Field(
         default="Click me (or press ↑)", border="rounded", title="counter"
     )
-    clock: str = Field(default="uptime: 0s", height=1, color="gray")
+    clock: str = Field(default="uptime: 0s", height=1, foreground="gray")
     count: int = Field(default=0, state=True)
     seconds: int = Field(default=0, state=True)
 
