@@ -20,11 +20,16 @@ from typing import (
     overload,
 )
 
-from xnano import types
+from xnano import area, types
 from xnano.colors import ColorLike
 from xnano.tailwind import Style
 from xnano.types import FrameTitlePosition, Sizing, SizingLike
-from xnano.utils.deprecation import warn_color_alias
+from xnano.utils.deprecation import (
+    align_alias_dataclass,
+    color_alias_dataclass,
+    resolve_renamed_alias,
+    warn_color_alias,
+)
 
 if TYPE_CHECKING:
     from xnano.tailwind import TailwindClass
@@ -65,6 +70,8 @@ def _normalize_slide_axes(
     return axes
 
 
+@align_alias_dataclass
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class GridFieldInfo:
     """Descriptor class for layout, frame and additional rendering metadata for
@@ -107,7 +114,10 @@ class GridFieldInfo:
             shrinks the slot along the cross axis otherwise.
         gap: The gap between fields in this field or area.
         direction: The direction in which content within this field or area should be laid out.
-        align: The horizontal alignment of content within this field's area.
+        horizontal_align: The horizontal alignment of content within this
+            field's area.
+        vertical_align: The vertical alignment of content within this
+            field's area.
         border: A border style to be applied onto the outer frame of the rectangular area this
             field occupies.
         border_sides: The sides of the border to be applied onto the outer frame of the area
@@ -154,7 +164,7 @@ class GridFieldInfo:
         - ``"rapid_blink"``: Causes the content to blink rapidly.
         - ``"reversed"``: Swaps foreground and background colors.
     """
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """The foreground color of content within this field."""
     background: ColorLike | None = None
     """The background color of content within this field.
@@ -191,8 +201,10 @@ class GridFieldInfo:
     """The direction in which content within this field or area should be
     laid out.
     """
-    align: types.Alignment | None = None
+    horizontal_align: area.Alignment | None = None
     """The horizontal alignment of content within this field's area."""
+    vertical_align: area.VerticalAlignment | None = None
+    """The vertical alignment of content within this field's area."""
     border: types.Border | None = None
     """A border style to be applied onto the outer frame of the rectangular area
     this field occupies.
@@ -207,7 +219,7 @@ class GridFieldInfo:
     """A title to be displayed around the outer frame of this field's area."""
     title_position: FrameTitlePosition | None = None
     """The alignment of the title within the outer frame of this field's area."""
-    padding: types.PaddingLike | None = None
+    padding: area.PaddingLike | None = None
     """The padding to be applied around the content area of this field."""
     slide: list[str] | None = None
     """The axes along which this field may slide within its parent grid."""
@@ -240,7 +252,7 @@ class GridFieldInfo:
     backend emits these classes verbatim; the terminal backend renders
     through the lowered attributes instead.
     """
-    margin: types.PaddingLike | None = None
+    margin: area.PaddingLike | None = None
     """The margin to be applied around the outer area of this field.
 
     Also populated by Tailwind ``m*-{n}`` classes through
@@ -283,28 +295,28 @@ class GridFieldInfo:
         )
         classes = self.class_name if self.class_name is not None else ()
         return Style(
-            color=self.color,
+            foreground=self.foreground,
             background=self.background,
             border=self.border,
             border_color=self.border_color,
             border_sides=border_sides,
             padding=(
-                types.Padding.parse(self.padding)
+                area.Padding.parse(self.padding)
                 if self.padding is not None
-                and not isinstance(self.padding, types.Padding)
+                and not isinstance(self.padding, area.Padding)
                 else self.padding  # type: ignore[arg-type]
             ),
             margin=(
-                types.Padding.parse(self.margin)
+                area.Padding.parse(self.margin)
                 if self.margin is not None
-                and not isinstance(self.margin, types.Padding)
+                and not isinstance(self.margin, area.Padding)
                 else self.margin  # type: ignore[arg-type]
             ),
             gap=self.gap,
             width=self.width,
             height=self.height,
             modifiers=modifiers,
-            align=self.align,
+            horizontal_align=self.horizontal_align,
             direction=self.direction,
             title=self.title,
             title_position=self.title_position,
@@ -339,7 +351,7 @@ class FieldState:
         Inspect live state without changing the field descriptor:
 
         ```python
-        state = grid.get_field_state("search")
+        state = grid.grid_get_field_state("search")
         if state.focused:
             ...
         ```
@@ -355,7 +367,7 @@ class FieldState:
     """Whether a pointer is over this field's slot."""
     dirty: bool = False
     """Whether the value or overrides changed since last paint."""
-    slide_position: types.Coordinate | None = None
+    slide_position: area.Coordinate | None = None
     """Optional drag offset for slidable fields."""
     overrides: dict[str, Any] = dataclasses.field(default_factory=dict)
     """Per-instance style/layout overrides."""
@@ -387,14 +399,15 @@ def Field(
     height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
-    align: types.Alignment | None = None,
+    horizontal_align: area.Alignment | None = None,
+    vertical_align: area.VerticalAlignment | None = None,
     border: types.Border | None = None,
     border_sides: Sequence[types.Side] | None = None,
     border_color: ColorLike | None = None,
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
-    padding: types.PaddingLike | None = None,
-    margin: types.PaddingLike | None = None,
+    padding: area.PaddingLike | None = None,
+    margin: area.PaddingLike | None = None,
     z: int | None = None,
     overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
@@ -403,6 +416,7 @@ def Field(
     scroll: types.ScrollLike | None = None,
     wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
+    align: area.Alignment | None = None,
 ) -> Any: ...
 
 
@@ -424,14 +438,15 @@ def Field(
     height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
-    align: types.Alignment | None = None,
+    horizontal_align: area.Alignment | None = None,
+    vertical_align: area.VerticalAlignment | None = None,
     border: types.Border | None = None,
     border_sides: Sequence[types.Side] | None = None,
     border_color: ColorLike | None = None,
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
-    padding: types.PaddingLike | None = None,
-    margin: types.PaddingLike | None = None,
+    padding: area.PaddingLike | None = None,
+    margin: area.PaddingLike | None = None,
     z: int | None = None,
     overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
@@ -440,6 +455,7 @@ def Field(
     scroll: types.ScrollLike | None = None,
     wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
+    align: area.Alignment | None = None,
 ) -> _T: ...
 
 
@@ -460,14 +476,15 @@ def Field(
     height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
-    align: types.Alignment | None = None,
+    horizontal_align: area.Alignment | None = None,
+    vertical_align: area.VerticalAlignment | None = None,
     border: types.Border | None = None,
     border_sides: Sequence[types.Side] | None = None,
     border_color: ColorLike | None = None,
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
-    padding: types.PaddingLike | None = None,
-    margin: types.PaddingLike | None = None,
+    padding: area.PaddingLike | None = None,
+    margin: area.PaddingLike | None = None,
     z: int | None = None,
     overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
@@ -476,6 +493,7 @@ def Field(
     scroll: types.ScrollLike | None = None,
     wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
+    align: area.Alignment | None = None,
 ) -> _T: ...
 
 
@@ -497,14 +515,15 @@ def Field(
     height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
-    align: types.Alignment | None = None,
+    horizontal_align: area.Alignment | None = None,
+    vertical_align: area.VerticalAlignment | None = None,
     border: types.Border | None = None,
     border_sides: Sequence[types.Side] | None = None,
     border_color: ColorLike | None = None,
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
-    padding: types.PaddingLike | None = None,
-    margin: types.PaddingLike | None = None,
+    padding: area.PaddingLike | None = None,
+    margin: area.PaddingLike | None = None,
     z: int | None = None,
     overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
@@ -513,6 +532,7 @@ def Field(
     scroll: types.ScrollLike | None = None,
     wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
+    align: area.Alignment | None = None,
 ) -> Any: ...
 
 
@@ -533,14 +553,15 @@ def Field(
     height: SizingLike | None = None,
     gap: int | None = None,
     direction: types.Direction | None = None,
-    align: types.Alignment | None = None,
+    horizontal_align: area.Alignment | None = None,
+    vertical_align: area.VerticalAlignment | None = None,
     border: types.Border | None = None,
     border_sides: Sequence[types.Side] | None = None,
     border_color: ColorLike | None = None,
     title: str | None = None,
     title_position: FrameTitlePosition | None = None,
-    padding: types.PaddingLike | None = None,
-    margin: types.PaddingLike | None = None,
+    padding: area.PaddingLike | None = None,
+    margin: area.PaddingLike | None = None,
     z: int | None = None,
     overlay: bool = False,
     slide: Sequence[types.Axis] | None = None,
@@ -549,6 +570,7 @@ def Field(
     scroll: types.ScrollLike | None = None,
     wireframe: bool | None = None,
     class_name: ClassNameLike | None = None,
+    align: area.Alignment | None = None,
 ) -> GridFieldInfo:
     """Create a new grid field info instance.
 
@@ -580,7 +602,10 @@ def Field(
             shrinks the slot along the cross axis otherwise.
         gap: The gap between fields in this field or area.
         direction: The direction in which content within this field or area should be laid out.
-        align: The horizontal alignment of content within this field's area.
+        horizontal_align: The horizontal alignment of content within this
+            field's area.
+        vertical_align: The vertical alignment of content within this
+            field's area.
         border: A border style to be applied onto the outer frame of the rectangular area this
             field occupies.
         border_sides: The sides of the border to be applied onto the outer frame of the area
@@ -614,6 +639,13 @@ def Field(
         warn_color_alias(stacklevel=2)
         if foreground is None:
             foreground = color
+    horizontal_align = resolve_renamed_alias(
+        horizontal_align,
+        align,
+        old="align",
+        new="horizontal_align",
+        stacklevel=2,
+    )
     tokens: tuple[str, ...] | None = None
     if class_name is not None:
         from xnano.tailwind import (
@@ -624,7 +656,7 @@ def Field(
         tokens = normalize_tailwind_classes(class_name)
         resolved = resolve_tailwind_classes(tokens)
         if foreground is None:
-            foreground = resolved.color
+            foreground = resolved.foreground
         if background is None:
             background = resolved.background
         if border is None:
@@ -645,8 +677,8 @@ def Field(
             height = resolved.height
         if modifiers is None and resolved.modifiers:
             modifiers = resolved.modifiers
-        if align is None:
-            align = resolved.align
+        if horizontal_align is None:
+            horizontal_align = resolved.horizontal_align
         if direction is None:
             direction = resolved.direction
 
@@ -657,7 +689,7 @@ def Field(
         strict=strict,
         init=init,
         visible=visible,
-        color=foreground,
+        foreground=foreground,
         modifiers=modifiers,
         background=background,
         fill=fill,
@@ -665,7 +697,8 @@ def Field(
         height=Sizing.parse(height),
         gap=gap,
         direction=direction,
-        align=align,
+        horizontal_align=horizontal_align,
+        vertical_align=vertical_align,
         border=border,
         border_sides=border_sides,
         border_color=border_color,

@@ -12,15 +12,18 @@ import shutil
 import sys
 from typing import IO, Any, Sequence, TextIO
 
+from xnano.area import Alignment, PaddingLike, VerticalAlignment
 from xnano.colors import ColorLike
 from xnano.types import (
-    Alignment,
     Border,
     CharacterModifier,
     Direction,
     FrameTitlePosition,
-    PaddingLike,
     Side,
+)
+from xnano.utils.deprecation import (
+    resolve_color_alias,
+    resolve_renamed_alias,
 )
 
 
@@ -88,7 +91,7 @@ def _plain_render_size(
         width = max(widths, default=1)
         height = sum(heights) + max(0, len(groups) - 1) * gap
 
-    from xnano.types import Padding
+    from xnano.area import Padding
 
     parsed_padding = Padding.parse(padding)
     width += parsed_padding.left + parsed_padding.right
@@ -133,10 +136,11 @@ def get_stream_content(stream: str | bool = True) -> str:
 def render(
     *renderables: Any,
     direction: Direction = "vertical",
-    color: ColorLike | None = None,
+    foreground: ColorLike | None = None,
     background: ColorLike | None = None,
     modifiers: Sequence[CharacterModifier] | None = None,
-    align: Alignment | None = None,
+    horizontal_align: Alignment | None = None,
+    vertical_align: VerticalAlignment | None = None,
     border: Border | None = None,
     border_sides: Sequence[Side] | None = None,
     border_color: ColorLike | None = None,
@@ -150,6 +154,8 @@ def render(
     flush: bool = False,
     stream: str | bool | None = None,
     update: bool = False,
+    color: ColorLike | None = None,
+    align: Alignment | None = None,
 ) -> None:
     """Display renderables as print-like terminal output.
 
@@ -160,10 +166,11 @@ def render(
     Args:
         *renderables: Grids, components, content primitives, or plain values.
         direction: Direction used to lay out multiple renderables.
-        color: Foreground color applied to plain values.
+        foreground: Foreground color applied to plain values.
         background: Background color for the rendered area.
         modifiers: Character modifiers applied to plain values.
-        align: Horizontal alignment applied to plain values.
+        horizontal_align: Horizontal alignment applied to plain values.
+        vertical_align: Vertical alignment applied to plain values.
         border: Border style around the rendered area.
         border_sides: Border sides to draw.
         border_color: Border foreground color.
@@ -178,6 +185,14 @@ def render(
         stream: Named append-or-replace output region.
         update: Replace the named stream instead of appending to it.
     """
+    foreground = resolve_color_alias(foreground, color, stacklevel=3)
+    horizontal_align = resolve_renamed_alias(
+        horizontal_align,
+        align,
+        old="align",
+        new="horizontal_align",
+        stacklevel=3,
+    )
     from xnano.core.runtime import get_active_runtime
 
     runtime = get_active_runtime()
@@ -186,10 +201,11 @@ def render(
         runtime.render(
             *renderables,
             direction=direction,
-            color=color,
+            foreground=foreground,
             background=background,
             modifiers=modifiers,
-            align=align,
+            horizontal_align=horizontal_align,
+            vertical_align=vertical_align,
             border=border,
             border_sides=border_sides,
             border_color=border_color,
@@ -227,10 +243,11 @@ def render(
         frame = terminal.render(
             *values,
             direction=direction,
-            color=color,
+            foreground=foreground,
             background=background,
             modifiers=modifiers,
-            align=align,
+            horizontal_align=horizontal_align,
+            vertical_align=vertical_align,
             border=border,
             border_sides=border_sides,
             border_color=border_color,
@@ -250,7 +267,7 @@ def render(
     styled = any(
         value is not None
         for value in (
-            color,
+            foreground,
             background,
             modifiers,
             border,

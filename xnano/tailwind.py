@@ -11,16 +11,10 @@ import dataclasses
 import math
 from typing import Sequence, TypeAlias
 
+from xnano.area import Alignment, Padding
 from xnano.colors import ColorLike
-from xnano.types import (
-    Alignment,
-    Border,
-    CharacterModifier,
-    Direction,
-    Padding,
-    Side,
-    Sizing,
-)
+from xnano.types import Border, CharacterModifier, Direction, Side, Sizing
+from xnano.utils.deprecation import color_alias_dataclass
 
 TailwindClass: TypeAlias = str
 """A Tailwind utility class understood by xnano or passed through to web."""
@@ -50,6 +44,7 @@ KNOWN_TAILWIND_CLASSES: frozenset[str] = frozenset()
 """Known classes are resolved by grammar, so this set is intentionally lazy."""
 
 
+@color_alias_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Style:
     """Style derived from Tailwind utility classes.
@@ -66,7 +61,7 @@ class Style:
         width: Horizontal size.
         height: Vertical size.
         modifiers: Text modifiers.
-        align: Horizontal alignment.
+        horizontal_align: Horizontal alignment.
         direction: Child layout direction.
         title: Optional frame title.
         title_position: Alignment of the frame title.
@@ -81,7 +76,7 @@ class Style:
         ```
     """
 
-    color: ColorLike | None = None
+    foreground: ColorLike | None = None
     """Foreground color."""
     background: ColorLike | None = None
     """Background color."""
@@ -103,7 +98,7 @@ class Style:
     """Vertical size."""
     modifiers: tuple[CharacterModifier, ...] = ()
     """Character modifiers."""
-    align: Alignment | None = None
+    horizontal_align: Alignment | None = None
     """Horizontal alignment."""
     direction: Direction | None = None
     """Child layout direction."""
@@ -214,11 +209,11 @@ def resolve_tailwind_classes(class_name: str | Sequence[str]) -> Style:
         if token.startswith("text-"):
             suffix = token[5:]
             if suffix in _TEXT_ALIGNMENTS:
-                values["align"] = suffix
+                values["horizontal_align"] = suffix
             elif suffix in _TEXT_MODIFIER_SUFFIXES:
                 modifiers.append(_TEXT_MODIFIER_SUFFIXES[suffix])
             else:
-                values["color"] = suffix
+                values["foreground"] = suffix
         elif token.startswith("bg-"):
             values["background"] = token[3:]
         elif token in _MODIFIER_CLASSES:

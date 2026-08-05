@@ -14,6 +14,7 @@ from xnano.types import (
     ScrollHandle,
     is_component,
     is_focusable_component,
+    is_grid,
     uses_default_component_size,
 )
 
@@ -32,7 +33,7 @@ def field_group(grid: Any, field_name: str) -> str | None:
 
 def _walk_grids(root: Any):
     """Yield a grid and its nested grid field values."""
-    if not isinstance(getattr(type(root), "_grid_fields", None), dict):
+    if not is_grid(root):
         return
     yield root
     for name in root._grid_fields:
@@ -152,7 +153,7 @@ def sync_input_focus_flags(terminal: Any) -> None:
         component = getattr(target.grid, target.field_name, None)
         if is_component(component):
             setattr(component, "_input_focused", focused)
-        state = target.grid.get_field_state(target.field_name)
+        state = target.grid.grid_get_field_state(target.field_name)
         if state is not None:
             state.focused = focused
 

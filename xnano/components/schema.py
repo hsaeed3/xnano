@@ -10,9 +10,15 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
+from xnano.utils.deprecation import (
+    align_alias_dataclass,
+    color_alias_dataclass,
+)
+
 if TYPE_CHECKING:
+    from xnano.area import Alignment
     from xnano.colors import ColorLike
-    from xnano.types import Alignment, CanvasMarkerLike, GraphTypeLike
+    from xnano.types import CanvasMarkerLike, GraphTypeLike
 
 ColorResolver: TypeAlias = Any
 FormatResolver: TypeAlias = str | Callable[[Any], str] | None
@@ -30,6 +36,8 @@ class ComponentDescriptor:
     """Attribute name assigned by the component class."""
 
 
+@align_alias_dataclass
+@color_alias_dataclass
 @dataclasses.dataclass
 class Column(ComponentDescriptor):
     """Describe one table column.
@@ -38,9 +46,9 @@ class Column(ComponentDescriptor):
         header: Header displayed for the column.
         accessor: Row attribute, mapping key, or value callback.
         format: Optional format string or value callback.
-        color: Cell foreground color.
+        foreground: Cell foreground color.
         background: Cell background color.
-        align: Cell alignment.
+        horizontal_align: Cell alignment.
         width: Fixed or proportional column width.
     """
 
@@ -50,11 +58,11 @@ class Column(ComponentDescriptor):
     """Custom row value accessor."""
     format: FormatResolver = None
     """Value formatter."""
-    color: ColorResolver = None
+    foreground: ColorResolver = None
     """Foreground color or resolver."""
     background: ColorResolver = None
     """Background color or resolver."""
-    align: "Alignment | None" = None
+    horizontal_align: "Alignment | None" = None
     """Cell text alignment."""
     width: int | float | None = None
     """Fixed width or fractional width."""
@@ -87,7 +95,8 @@ class Column(ComponentDescriptor):
 
     def resolve_color(self, value: Any) -> Any:
         """Resolve the foreground color for a value."""
-        return self.color(value) if callable(self.color) else self.color
+        resolver = self.foreground
+        return resolver(value) if callable(resolver) else resolver
 
     def resolve_background(self, value: Any) -> Any:
         """Resolve the background color for a value."""

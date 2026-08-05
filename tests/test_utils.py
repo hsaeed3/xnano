@@ -46,7 +46,7 @@ def test_parse_ansi_lines_carries_color() -> None:
     lines = parse_ansi_lines("\x1b[31mred\x1b[0m plain")
     runs = lines[0]
     assert runs[0].text == "red"
-    assert runs[0].color is not None
+    assert runs[0].foreground is not None
     assert "".join(run.text for run in runs) == "red plain"
 
 
@@ -64,11 +64,11 @@ def test_parse_ansi_lines_preserves_terminal_log_styles() -> None:
     error, plain = lines[0]
 
     assert error.text == "error"
-    assert error.color == "#ff0000"
+    assert error.foreground == "#ff0000"
     assert error.background == "#010203"
     assert error.modifiers == ("bold",)
     assert plain.text == " plain"
-    assert plain.color is None
+    assert plain.foreground is None
     assert plain.background is None
     assert plain.modifiers == ()
 

@@ -91,7 +91,8 @@ _FIELD_PROFILES: tuple[tuple[str, dict[str, Any]], ...] = (
             "height": "75%",
             "gap": 1,
             "direction": "horizontal",
-            "align": "center",
+            "horizontal_align": "center",
+            "vertical_align": "middle",
         },
     ),
     (
@@ -173,9 +174,10 @@ def test_every_field_parameter_is_explicitly_covered() -> None:
         "strict",
         "init",
         "visible",
-        # Deprecated alias for ``foreground`` (covered via the ``style``
-        # profile); kept in the signature for backward compatibility.
+        # Deprecated aliases (covered via the ``style`` and ``layout``
+        # profiles); kept in the signature for backward compatibility.
         "color",
+        "align",
         # Out-of-flow overlay: exercised on its own in test_grids, not through
         # the in-flow render matrix (it would remove the field from layout).
         "overlay",
@@ -208,7 +210,7 @@ def test_field_options_work_together_on_container_values() -> None:
             height="fit",
             gap=1,
             direction="vertical",
-            align="center",
+            horizontal_align="center",
             border="double",
             border_color="cyan",
             title="Rows",

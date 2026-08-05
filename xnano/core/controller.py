@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import collections.abc
 import copy
+import textwrap
 from typing import Any
 
 import xnano_core.rust.native as native
 from xnano_core import core
 
+from xnano.area import Area, Padding
 from xnano.core.content import Clear, Panel, TextBlock
 from xnano.core.layout import LayoutConstraint
 from xnano.core.rendering import lower_content
-from xnano.types import Area, Frame, Padding
+from xnano.types import Frame, is_grid
 from xnano.utils.responsive import resolve_responsive_variant
 
 
@@ -27,6 +29,39 @@ def _string_content(value: Any) -> str | None:
         return value
     content = getattr(value, "content", None)
     return content if isinstance(content, str) else None
+
+
+def wrapped_line_count(text: str, width: int) -> int:
+    """Return how many rows ``text`` occupies when wrapped at ``width``.
+
+    ratatui wraps on word boundaries, so a raw ``splitlines()`` count is
+    short for any line longer than its slot. ``textwrap`` matches that
+    behavior closely enough to place content; it is not a substitute for
+    ratatui's own measurement.
+
+    ponytail: approximates unicode width as one cell per character. Bind
+    ratatui's ``Paragraph::line_count`` if wide glyphs need exact rows.
+    """
+    lines = text.splitlines() or [""]
+    if width <= 0:
+        return len(lines)
+    total = 0
+    for line in lines:
+        if len(line) <= width:
+            total += 1
+        else:
+            total += (
+                len(
+                    textwrap.wrap(
+                        line,
+                        width=width,
+                        break_long_words=True,
+                        break_on_hyphens=False,
+                    )
+                )
+                or 1
+            )
+    return total
 
 
 def content_scroll_extent(value: Any, axis: str) -> int:
@@ -232,6 +267,57 @@ class TerminalController:
             return size.height if direction == "vertical" else size.width
         return 1
 
+    def align_slot_content(
+        self,
+        value: Any,
+        area: Area,
+        field: Any,
+        *,
+        parent_z: int = 0,
+    ) -> Area:
+        """Return the sub-area a field's content paints into.
+
+        Vertical alignment has no ratatui equivalent — ``Paragraph`` only
+        aligns horizontally — so a non-``"top"`` ``vertical_align`` is
+        resolved here by offsetting the slot's origin. Nested grids are
+        excluded: they fill their slot and have no intrinsic height.
+        """
+        vertical = getattr(field, "vertical_align", None)
+        if vertical is None or vertical == "top":
+            return area
+        if is_grid(value):
+            return area
+        # Prefer the value's own text: a component's ``get_size`` reports 0
+        # for the zero-height probe area ``measure_field_slot`` builds, which
+        # would silently skip alignment.
+        text = _string_content(value)
+        if text is not None:
+            height = wrapped_line_count(text, area.width)
+        elif callable(getattr(value, "get_size", None)):
+            height = self.measure_field_slot(
+                value, "vertical", field, available_width=area.width
+            )
+        else:
+            return area
+        if height <= 0 or height >= area.height:
+            return area
+        leftover = area.height - height
+        offset = leftover // 2 if vertical == "middle" else leftover
+        if offset <= 0:
+            return area
+        # Only the origin moves; the content keeps every remaining row so an
+        # under-measured value (a component whose real height exceeds its
+        # declared size) is never clipped by alignment alone.
+        background = getattr(field, "background", None)
+        if background is not None:
+            self._paint(TextBlock(background=background), area, z=parent_z - 1)
+        return Area(
+            x=area.x,
+            y=area.y + offset,
+            width=area.width,
+            height=area.height - offset,
+        )
+
     def paint_field_slot(
         self,
         value: Any,
@@ -247,6 +333,7 @@ class TerminalController:
     ) -> None:
         if scroll_offset > 0:
             value = window_scroll_value(value, scroll_offset, scroll_axis)
+        area = self.align_slot_content(value, area, field, parent_z=parent_z)
         if isinstance(value, collections.abc.Sequence) and not isinstance(
             value, (str, bytes)
         ):
@@ -270,7 +357,7 @@ class TerminalController:
                     effect_key=effect_key,
                 )
             return
-        if isinstance(getattr(type(value), "_grid_fields", None), dict):
+        if is_grid(value):
             # Register the field's area under its effect key so effects can
             # target a nested-grid slot too, not only leaf components. Without
             # this transparent anchor, ``effect_area_for(name)`` finds nothing
@@ -334,10 +421,10 @@ class TerminalController:
         self._paint(
             TextBlock(
                 text=str(value),
-                color=getattr(field, "color", None),
+                foreground=getattr(field, "foreground", None),
                 background=getattr(field, "background", None),
                 modifiers=tuple(getattr(field, "modifiers", ()) or ()),
-                align=getattr(field, "align", None),
+                horizontal_align=getattr(field, "horizontal_align", None),
             ),
             area,
             z=parent_z,
@@ -351,7 +438,7 @@ class TerminalController:
         self._paint(
             TextBlock(
                 text="\n".join("·" * area.width for _ in range(area.height)),
-                color="slate-500",
+                foreground="slate-500",
                 modifiers=("dim",),
                 wrap=False,
             ),
@@ -364,7 +451,7 @@ class TerminalController:
             self._paint(
                 TextBlock(
                     text=str(command["value"])[:1],
-                    color=command["color"],
+                    foreground=command["foreground"],
                     background=command["background"],
                     modifiers=command["modifiers"],
                     wrap=False,

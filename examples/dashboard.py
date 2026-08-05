@@ -182,7 +182,7 @@ class Dashboard(BaseGrid, direction="vertical"):
     header: str = Field(
         default="   SUPER COOL VERY IMPORTANT DASHBOARD   ",
         height=1,
-        color="white",
+        foreground="white",
         background=tailwind_color("violet", 950),
         modifiers=["bold"],
     )
@@ -190,7 +190,7 @@ class Dashboard(BaseGrid, direction="vertical"):
     footer: str = Field(
         default="  [Ctrl+C] Quit  ●  [Up/Down] Navigate Table  ",
         height=1,
-        color=tailwind_color("slate", 500),
+        foreground=tailwind_color("slate", 500),
     )
 
     cpu_history: list = Field(

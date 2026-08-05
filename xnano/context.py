@@ -15,6 +15,7 @@ from xnano.utils.deprecation import warn_renamed_attribute
 
 if TYPE_CHECKING:
     from xnano.actions import Actions
+    from xnano.area import Area
     from xnano.core.runtime import Runtime
     from xnano.core.stage import Stage
     from xnano.cursor import Cursor
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
         TickEventData,
     )
     from xnano.requests import Request
-    from xnano.types import Area, ScrollHandle
+    from xnano.types import ScrollHandle
     from xnano.utils.responsive import Breakpoint
 
 

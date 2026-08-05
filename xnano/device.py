@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
 import xnano_core.rust.native as native
 
-from xnano.types import Size
+from xnano.area import Size
 
 if TYPE_CHECKING:
     from xnano.core.runtime import Runtime

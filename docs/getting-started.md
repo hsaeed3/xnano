@@ -398,7 +398,7 @@ class NotesApp(BaseGrid, direction="vertical"): # (2)!
         default="[n] new   [↑/↓] browse   [enter] open   [ctrl+s] save   [esc] cancel   [q] quit",
         height=1,
         background="dimgray",
-        align="center",
+        horizontal_align="center",
     )
 ```
 
@@ -477,7 +477,7 @@ class NotesApp(BaseGrid, direction="vertical"):
         width="60%",
         height="60%",
     )
-    footer: str = Field(default=KEYS, height=1, background="dimgray", align="center")
+    footer: str = Field(default=KEYS, height=1, background="dimgray", horizontal_align="center")
 
     def grid_render(self, ctx: Context[Notes]) -> None:
         self.grid_set_field("editor", visible=ctx.state.editing)

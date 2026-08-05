@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from xnano.actions import Action
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.text import Text
 from xnano.core import Runtime
@@ -14,7 +15,6 @@ from xnano.core.content import Panel, TextBlock
 from xnano.fields import Field
 from xnano.grids import BaseGrid
 from xnano.hooks import on_keyboard
-from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext[Any]:
@@ -207,7 +207,7 @@ def test_placeholder_when_empty_unfocused() -> None:
     content = text.compose(_ctx())
     assert isinstance(content, TextBlock)
     assert content.text == "type here"
-    assert content.color == "gray"
+    assert content.foreground == "gray"
 
 
 def test_styled_placeholder_keeps_component_color() -> None:
@@ -219,7 +219,7 @@ def test_styled_placeholder_keeps_component_color() -> None:
     content = text.compose(_ctx())
     assert isinstance(content, TextBlock)
     assert content.text == "search logs"
-    assert content.color == "yellow"
+    assert content.foreground == "yellow"
     assert "dim" in content.modifiers
 
 
@@ -270,7 +270,7 @@ def test_compose_plain() -> None:
     content = text.compose(_ctx())
     assert isinstance(content, TextBlock)
     assert content.text == "hello"
-    assert content.color == "cyan"
+    assert content.foreground == "cyan"
 
 
 def test_nested_text_shapes_preserve_rows_and_styles() -> None:
@@ -290,7 +290,7 @@ def test_nested_text_shapes_preserve_rows_and_styles() -> None:
         "second",
         "third",
     ]
-    assert lines.lines[0][0].color == "cyan"
+    assert lines.lines[0][0].foreground == "cyan"
 
     leaf = Text("leaf", foreground="green")
     assert leaf._as_children() == [leaf]

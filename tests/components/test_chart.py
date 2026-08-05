@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from xnano.area import Area
 from xnano.components.chart import Chart, Series
 from xnano.components.component import ComponentRenderContext
 from xnano.core import Runtime
 from xnano.core.content import Plot
-from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext[Any]:

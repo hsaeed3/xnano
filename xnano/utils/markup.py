@@ -164,7 +164,7 @@ def parse_ansi_lines(content: str) -> tuple[tuple[Run, ...], ...]:
                 runs.append(
                     Run(
                         text=segment,
-                        color=color,
+                        foreground=color,
                         background=background,
                         modifiers=modifiers,
                     )
@@ -246,7 +246,7 @@ def highlight_lines(
                 runs.clear()
             if segment:
                 runs.append(
-                    Run(text=segment, color=color, modifiers=modifiers)
+                    Run(text=segment, foreground=color, modifiers=modifiers)
                 )
     if runs:
         lines.append(tuple(runs))
@@ -291,7 +291,7 @@ def _markdown_inline_runs(
             runs.append(
                 Run(
                     text=child.content,
-                    color=color,
+                    foreground=color,
                     modifiers=(*active, "reversed"),
                 )
             )
@@ -301,7 +301,7 @@ def _markdown_inline_runs(
                 runs.append(
                     Run(
                         text=text,
-                        color=color,
+                        foreground=color,
                         modifiers=tuple(dict.fromkeys(active)),
                     )
                 )
@@ -321,7 +321,7 @@ def _markdown_inline_line(
         return (
             Run(
                 text="#" * heading_level + " ",
-                color=_HEADING_COLOR,
+                foreground=_HEADING_COLOR,
                 modifiers=("dim",),
             ),
             *_markdown_inline_runs(
@@ -335,7 +335,7 @@ def _markdown_inline_line(
             return (
                 Run(
                     text=f"▌ {match.group(1).title()}  ",
-                    color=_HEADING_COLOR,
+                    foreground=_HEADING_COLOR,
                     modifiers=("bold",),
                 ),
                 *(

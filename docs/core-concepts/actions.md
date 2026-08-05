@@ -163,7 +163,7 @@ from xnano import Action, BaseGrid, Field, Terminal, on_action
 INCREMENT = Action.keyboard("right")
 
 class Counter(BaseGrid, border="rounded", title=" action ", padding=1):
-    label: str = Field(default="count: 0", align="center")
+    label: str = Field(default="count: 0", horizontal_align="center")
     count: int = Field(default=0, state=True)
 
     @on_action(INCREMENT)

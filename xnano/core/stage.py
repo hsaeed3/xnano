@@ -10,8 +10,10 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Sequence
 
+from xnano.area import Area
 from xnano.colors import ColorLike
-from xnano.types import Area, CharacterModifier
+from xnano.types import CharacterModifier
+from xnano.utils.deprecation import resolve_color_alias
 
 
 @dataclasses.dataclass(slots=True)
@@ -19,7 +21,7 @@ class Stage:
     """Store named layout areas and frame-local paint requests.
 
     Example:
-        ``stage.paint_cell(2, 1, "!", color="yellow")``
+        ``stage.paint_cell(2, 1, "!", foreground="yellow")``
 
     Attributes:
         areas: Areas keyed by field or effect name.
@@ -52,9 +54,10 @@ class Stage:
         y: int,
         value: str,
         *,
-        color: ColorLike | None = None,
+        foreground: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
+        color: ColorLike | None = None,
     ) -> None:
         """Queue one styled cell write for the current frame.
 
@@ -62,16 +65,18 @@ class Stage:
             x: Cell column.
             y: Cell row.
             value: Character or grapheme to paint.
-            color: Foreground color.
+            foreground: Foreground color.
             background: Background color.
             modifiers: Character modifiers.
+            color: Deprecated alias for ``foreground``.
         """
+        foreground = resolve_color_alias(foreground, color, stacklevel=3)
         self._commands.append(
             {
                 "x": x,
                 "y": y,
                 "value": value,
-                "color": color,
+                "foreground": foreground,
                 "background": background,
                 "modifiers": tuple(modifiers or ()),
             },

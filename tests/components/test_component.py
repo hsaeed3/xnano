@@ -6,9 +6,9 @@ import sys
 from typing import Any, cast
 
 import xnano.components as components
+from xnano.area import Area, Size
 from xnano.components.component import Component, ComponentRenderContext
 from xnano.components.schema import Column
-from xnano.types import Area, Size
 
 
 def test_public_component_exports_are_resolvable() -> None:

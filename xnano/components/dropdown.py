@@ -188,7 +188,7 @@ class Dropdown(Options):
                     (
                         Run(
                             text="select…",
-                            color="gray",
+                            foreground="gray",
                             modifiers=("dim",),
                         ),
                     ),
@@ -203,8 +203,10 @@ class Dropdown(Options):
             else self.background
         )
         return TextBlock(
-            lines=((Run(text=label, color=color, background=background),),),
-            color=color,
+            lines=(
+                (Run(text=label, foreground=color, background=background),),
+            ),
+            foreground=color,
             background=background,
         )
 

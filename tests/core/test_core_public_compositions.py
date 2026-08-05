@@ -152,7 +152,7 @@ def test_canvas_overview_combines_geometry_and_styled_annotations() -> None:
                     y=5,
                     content=Run(
                         text="LIVE",
-                        color="white",
+                        foreground="white",
                         modifiers=("bold",),
                     ),
                 ),

@@ -355,7 +355,7 @@ class AgentChat(BaseGrid, direction="vertical", gap=0):
     header: str = Field(
         default="  ◆ xnano agent  ·  sonnet-4.6  ·  ~/projects/xnano",
         height=1,
-        color=tailwind_color("sky", 400),
+        foreground=tailwind_color("sky", 400),
         modifiers=["bold"],
     )
     history: Text = Field(
@@ -379,7 +379,7 @@ class AgentChat(BaseGrid, direction="vertical", gap=0):
         border_color=tailwind_color("slate", 700),
         title=" Prompt ",
         title_position="top",
-        color=tailwind_color("slate", 100),
+        foreground=tailwind_color("slate", 100),
     )
     footer: str = Field(
         default=(
@@ -387,7 +387,7 @@ class AgentChat(BaseGrid, direction="vertical", gap=0):
             "[enter] send  [q] quit"
         ),
         height=1,
-        color=tailwind_color("slate", 600),
+        foreground=tailwind_color("slate", 600),
     )
 
     input_text: str = Field(default="", state=True)

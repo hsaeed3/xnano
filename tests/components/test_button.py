@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from xnano.actions import Action
+from xnano.area import Area
 from xnano.components.button import Button
 from xnano.components.component import ComponentRenderContext
 from xnano.components.dropdown import Dropdown
@@ -14,7 +15,7 @@ from xnano.core.runtime import Runtime
 from xnano.fields import Field
 from xnano.grids import BaseGrid
 from xnano.hooks import on_click
-from xnano.types import Area, is_focusable_component
+from xnano.types import is_focusable_component
 
 
 def _ctx() -> ComponentRenderContext[Any]:

@@ -93,7 +93,7 @@ class EffectsDemo(BaseGrid, direction="vertical"):
     header: str = Field(
         default="  TACHYONFX VISUAL EFFECTS ANIMATION DEMO  ",
         height=1,
-        color="white",
+        foreground="white",
         background=tailwind_color("teal", 900),
         modifiers=["bold"],
     )
@@ -110,7 +110,7 @@ class EffectsDemo(BaseGrid, direction="vertical"):
             "  [Ctrl+C] Quit Demo"
         ),
         height=3,
-        color=tailwind_color("slate", 400),
+        foreground=tailwind_color("slate", 400),
         modifiers=["italic"],
     )
 
@@ -121,7 +121,7 @@ class EffectsDemo(BaseGrid, direction="vertical"):
     def _switch_effect(self, key: str) -> None:
         self.current_key = key
         self.phase = 0.0
-        self.grid_play_effect(_build_canvas_effect(key), fields=["canvas"])
+        self.grid_effect(_build_canvas_effect(key), fields=["canvas"])
 
     @on_keyboard("c")
     def _coalesce(self) -> None:

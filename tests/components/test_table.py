@@ -7,11 +7,11 @@ from typing import Any, cast
 
 import pytest
 
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.table import Column, Table
 from xnano.core import Runtime
 from xnano.core.content import TableGrid
-from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext[Any]:
@@ -76,7 +76,11 @@ def test_columns_dict_with_column_spec() -> None:
     node = _node(
         Table(
             data=_ROWS,
-            columns={"latency": Column(format="{}ms", align="right", width=6)},
+            columns={
+                "latency": Column(
+                    format="{}ms", horizontal_align="right", width=6
+                )
+            },
         )
     )
     assert _cell_text(node.rows[0].cells[0]).strip() == "12ms"
@@ -123,8 +127,8 @@ def test_callable_column_and_object_rows_form_a_projection() -> None:
 
 class Services(Table):
     service: str = Column()
-    status: str = Column(color=lambda v: "green" if v == "ok" else "red")
-    latency: int = Column(align="right", format="{}ms", width=8)
+    status: str = Column(foreground=lambda v: "green" if v == "ok" else "red")
+    latency: int = Column(horizontal_align="right", format="{}ms", width=8)
 
 
 def test_subclass_captures_declared_columns() -> None:
@@ -215,7 +219,7 @@ def test_fixed_width_alignment(align: str, expected: str) -> None:
     node = _node(
         Table(
             data=[{"value": "x"}],
-            columns={"value": Column(width=4, align=align)},  # type: ignore[arg-type]
+            columns={"value": Column(width=4, horizontal_align=align)},  # type: ignore[arg-type]
         )
     )
     assert _cell_text(node.rows[0].cells[0]) == expected

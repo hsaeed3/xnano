@@ -450,6 +450,19 @@ class RequestEvent:
     """Payload category."""
 
 
+def _resolve_context_state(runtime: Any, grid: Any) -> Any:
+    """Return the shared state for a request context.
+
+    A grid may stand in for the runtime (``runtime=grid``), and grids
+    expose their state as ``grid_state``.
+    """
+    from xnano.types import is_grid
+
+    if runtime is not None and not is_grid(runtime):
+        return getattr(runtime, "state", None)
+    return getattr(grid, "grid_state", None)
+
+
 def dispatch_request(
     grid: Any,
     method: str,
@@ -488,7 +501,7 @@ def dispatch_request(
     ctx = Context(
         event=Event.from_data(AbstractEventData()),
         terminal=facade,
-        state=getattr(runtime, "state", getattr(grid, "state", None)),
+        state=_resolve_context_state(runtime, grid),
         request=request_obj,
     )
 

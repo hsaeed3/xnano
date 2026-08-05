@@ -231,8 +231,8 @@ DEMOS: tuple[Demo, ...] = (
             from xnano.context import Context
             from xnano.hooks import on_keyboard
 
-            class SidebarTitle(BaseGrid, align="center"):
-                title: str = Field("This is a title.", align="center")
+            class SidebarTitle(BaseGrid, horizontal_align="center"):
+                title: str = Field("This is a title.", horizontal_align="center")
 
             class Sidebar(BaseGrid, direction="vertical"):
                 title: SidebarTitle = Field(

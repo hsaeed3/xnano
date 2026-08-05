@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import pytest
 
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.loader import (
     Loader,
@@ -16,7 +17,6 @@ from xnano.components.loader import (
 from xnano.components.text import Text
 from xnano.core import Runtime
 from xnano.core.content import Gauge, LineGauge, TextBlock
-from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext[Any]:

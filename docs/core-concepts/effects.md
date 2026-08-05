@@ -33,7 +33,7 @@ a panel appears. They need an active runtime and painted field geometry.
   <line class="gcd-arrow" x1="240" y1="120" x2="300" y2="120" marker-end="url(#fx-arrow)" />
 
   <rect class="gcd-panel gcd-panel-accent" x="312" y="72" width="160" height="96" rx="12" />
-  <text class="gcd-label gcd-label-accent" x="392" y="112" text-anchor="middle">grid_play_effect</text>
+  <text class="gcd-label gcd-label-accent" x="392" y="112" text-anchor="middle">grid_effect</text>
   <text class="gcd-chrome-label" x="392" y="140" text-anchor="middle">fields=[…]</text>
 
   <line class="gcd-arrow" x1="472" y1="120" x2="532" y2="120" marker-end="url(#fx-arrow)" />
@@ -54,12 +54,12 @@ a panel appears. They need an active runtime and painted field geometry.
 ## Playing effects on fields
 
 The usual entrypoint is
-[`BaseGrid.grid_play_effect`](../api/xnano/grids.md){data-preview}. Pass a known
+[`BaseGrid.grid_effect`](../api/xnano/grids.md){data-preview}. Pass a known
 kind string (or a built effect instance) and the **field names** to animate.
 Field names match the attributes on the grid; during paint those slots are
 tagged so the runtime can target their rects.
 
-```python title="grid_play_effect" hl_lines="10 11 12 13 14"
+```python title="grid_effect" hl_lines="10 11 12 13 14"
 from xnano import BaseGrid, Field, Terminal, on_keyboard
 
 class Panel(BaseGrid, direction="vertical"):
@@ -68,7 +68,7 @@ class Panel(BaseGrid, direction="vertical"):
 
     @on_keyboard("f")
     def fade_body(self) -> None:
-        self.grid_play_effect(
+        self.grid_effect(
             "fade", # (1)!
             color="violet-400", # (2)!
             duration_ms=300,
@@ -85,7 +85,7 @@ Terminal().run(Panel())
 3. `fields` is required for work to start. An empty list or omit means no
    effect runs. Multiple names are allowed.
 
-`grid_play_effect` returns `True` when at least one field area was found and
+`grid_effect` returns `True` when at least one field area was found and
 the runtime accepted the effect. It returns `False` when there is no active
 runtime (for example outside a session) or the fields could not be resolved.
 
@@ -129,21 +129,21 @@ Fades interpolate color on the target field area.
 | `"fade_from_both"` | `FadeFromBothEffect` | Fade foreground and background **from** sources |
 
 ```python title="Fade kinds"
-self.grid_play_effect(
+self.grid_effect(
     "fade",
     color="emerald-400",
     duration_ms=250,
     fields=["body"],
 )
 
-self.grid_play_effect(
+self.grid_effect(
     "fade_from",
     color="slate-700",
     duration_ms=250,
     fields=["body"],
 )
 
-self.grid_play_effect(
+self.grid_effect(
     "fade_to",
     color="white",
     background="slate-900",
@@ -151,7 +151,7 @@ self.grid_play_effect(
     fields=["body"],
 )
 
-self.grid_play_effect(
+self.grid_effect(
     "fade_from_both",
     color="violet-400",
     background="black",
@@ -190,8 +190,8 @@ Cell-level transitions without a motion direction.
 | `"coalesce"` | `CoalesceEffect` | Typewriter-style cell assembly |
 
 ```python title="Dissolve and coalesce"
-self.grid_play_effect("dissolve", duration_ms=400, fields=["body"])
-self.grid_play_effect("coalesce", duration_ms=500, fields=["body"])
+self.grid_effect("dissolve", duration_ms=400, fields=["body"])
+self.grid_effect("coalesce", duration_ms=500, fields=["body"])
 ```
 
 ```python
@@ -230,7 +230,7 @@ Directional sweeps reveal or hide content with a motion gradient.
 `color` (gradient accent).
 
 ```python title="Sweep in and out"
-self.grid_play_effect(
+self.grid_effect(
     "sweep_in",
     direction="left_to_right",
     gradient_length=14,
@@ -240,7 +240,7 @@ self.grid_play_effect(
     fields=["body"],
 )
 
-self.grid_play_effect(
+self.grid_effect(
     "sweep_out",
     direction="up_to_down",
     duration_ms=350,
@@ -271,14 +271,14 @@ Directional slides, same motion parameters as sweeps.
 | `"slide_out"` | `SlideOutEffect` | Directional slide **hiding** content |
 
 ```python title="Slide in and out"
-self.grid_play_effect(
+self.grid_effect(
     "slide_in",
     direction="down_to_up",
     duration_ms=350,
     fields=["body"],
 )
 
-self.grid_play_effect(
+self.grid_effect(
     "slide_out",
     direction="right_to_left",
     color="sky-300",
@@ -309,7 +309,7 @@ Paints set colors on the target area (as opposed to fading through them).
 | `"paint_bg"` | `PaintBackgroundEffect` | Paint background only |
 
 ```python title="Paint kinds"
-self.grid_play_effect(
+self.grid_effect(
     "paint",
     color="white",
     background="slate-800",
@@ -317,14 +317,14 @@ self.grid_play_effect(
     fields=["body"],
 )
 
-self.grid_play_effect(
+self.grid_effect(
     "paint_fg",
     color="amber-300",
     duration_ms=200,
     fields=["title"],
 )
 
-self.grid_play_effect(
+self.grid_effect(
     "paint_bg",
     background="slate-900",
     duration_ms=200,
@@ -364,7 +364,7 @@ DelayEffect(
 )
 
 # Same idea via kind strings
-self.grid_play_effect(
+self.grid_effect(
     "delay",
     duration_ms=200,
     child=Effect("fade", color="violet-400", duration_ms=250),
@@ -407,7 +407,7 @@ self.grid_play_effect(
 ```python title="Sequence, parallel, repeat"
 from xnano.effects import Effect, ParallelEffect, RepeatEffect, SequenceEffect
 
-self.grid_play_effect(
+self.grid_effect(
     "sequence",
     effects=(
         Effect("sweep_in", direction="up_to_down", duration_ms=350),
@@ -416,7 +416,7 @@ self.grid_play_effect(
     fields=["body"],
 )
 
-self.grid_play_effect(
+self.grid_effect(
     "parallel",
     effects=(
         Effect("fade", color="emerald-400", duration_ms=300),
@@ -425,7 +425,7 @@ self.grid_play_effect(
     fields=["body"],
 )
 
-self.grid_play_effect(
+self.grid_effect(
     "repeat",
     child=Effect("fade", color="violet-400", duration_ms=200),
     times=3,
@@ -453,7 +453,7 @@ together = ParallelEffect(
     ),
 )
 
-self.grid_play_effect(intro, fields=["title", "body"])
+self.grid_effect(intro, fields=["title", "body"])
 ```
 
 ## Duration, easing, and filters
@@ -480,16 +480,16 @@ Notes:
 
 - `duration_ms`, `interpolation`, `color`, `background`, `direction`,
   `gradient_length`, `randomness`, `effects`, `child`, `times`, and `key` can
-  be passed as kwargs on kind-string calls to `grid_play_effect` / `Effect(...)`.
+  be passed as kwargs on kind-string calls to `grid_effect` / `Effect(...)`.
 - `cell_filter` is set on a typed instance (for example
   `FadeEffect(color="cyan", cell_filter="text")`), not as a kind-string kwarg.
 - When `effect` is already an instance, set `key` on that instance; the
-  `key=` kwarg on `grid_play_effect` is only used for kind strings.
+  `key=` kwarg on `grid_effect` is only used for kind strings.
 
 ## When effects run
 
 Effects need an active runtime and a painted field geometry, so call
-`grid_play_effect` from hooks, after the grid is attached to a live
+`grid_effect` from hooks, after the grid is attached to a live
 `Terminal` / `Web` session, or from other runtime-bound code — not at module
 import time.
 
@@ -505,7 +505,7 @@ class Banner(BaseGrid, direction="vertical"):
         if self._intro_done:
             return
         self._intro_done = True
-        self.grid_play_effect(
+        self.grid_effect(
             "coalesce",
             duration_ms=450,
             fields=["label"],
@@ -513,7 +513,7 @@ class Banner(BaseGrid, direction="vertical"):
 
     @on_keyboard("r")
     def replay(self) -> None:
-        self.grid_play_effect(
+        self.grid_effect(
             "sweep_in",
             direction="left_to_right",
             duration_ms=350,
@@ -528,7 +528,7 @@ Terminal().run(Banner())
    the in-flight effect instead of stacking another.
 
 [`Runtime.play_effect`](../api/xnano/core/runtime.md){data-preview} is the
-lower-level API. Grids wrap it as `grid_play_effect` so field names resolve
+lower-level API. Grids wrap it as `grid_effect` so field names resolve
 against that grid's layout after paint.
 
 Effects are terminal-native in implementation detail (tachyonfx-backed under
@@ -555,11 +555,11 @@ fade_too = FadeEffect(color="emerald-400", duration_ms=250)
 sweep_too = SweepInEffect(direction="left_to_right", duration_ms=400)
 ```
 
-Pass either form into `grid_play_effect`:
+Pass either form into `grid_effect`:
 
 ```python
-self.grid_play_effect(fade, fields=["body"])
-self.grid_play_effect("fade", color="emerald-400", fields=["body"])
+self.grid_effect(fade, fields=["body"])
+self.grid_effect("fade", color="emerald-400", fields=["body"])
 ```
 
 Prefer kind strings at the call site for one-off triggers. Prefer typed classes
@@ -574,7 +574,7 @@ when you store, compose, or type-check effect values.
 ??? abstract "API"
 
     [`xnano.effects`](../api/xnano/effects.md){data-preview} ·
-    [`BaseGrid.grid_play_effect`](../api/xnano/grids.md){data-preview} ·
+    [`BaseGrid.grid_effect`](../api/xnano/grids.md){data-preview} ·
     [`Runtime.play_effect`](../api/xnano/core/runtime.md){data-preview}
 
 [effect]: ../api/xnano/effects.md

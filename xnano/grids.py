@@ -33,6 +33,14 @@ if sys.version_info < (3, 11):
 else:
     from typing import NotRequired, Unpack, dataclass_transform
 
+from xnano.area import (
+    Alignment,
+    Area,
+    Padding,
+    PaddingLike,
+    VerticalAlignment,
+    align_area,
+)
 from xnano.colors import ColorLike
 from xnano.core.interface import AbstractInterface
 from xnano.core.layout import LayoutConstraint
@@ -44,19 +52,21 @@ from xnano.fields import (
     _normalize_slide_axes,
 )
 from xnano.types import (
-    Alignment,
-    Area,
     Axis,
     Border,
     CharacterModifier,
     Direction,
     Frame,
     FrameTitlePosition,
-    Padding,
-    PaddingLike,
     Side,
     SizingLike,
     frame_from_field,
+)
+from xnano.utils.deprecation import (
+    resolve_color_alias,
+    resolve_renamed_alias,
+    warn_color_alias,
+    warn_renamed_attribute,
 )
 from xnano.utils.responsive import (
     breakpoint_for_width,
@@ -67,6 +77,7 @@ from xnano.utils.responsive import (
 if TYPE_CHECKING:
     from xnano.effects import (
         AbstractEffect,
+        EffectHandle,
         EffectInterpolation,
         EffectMotion,
         KnownEffectKind,
@@ -110,14 +121,15 @@ _GRID_FIELD_CONFIG_KEYS: frozenset[str] = frozenset(
         "visible",
         "z",
         "wireframe",
-        "color",
+        "foreground",
         "background",
         "fill",
         "width",
         "height",
         "gap",
         "direction",
-        "align",
+        "horizontal_align",
+        "vertical_align",
         "border",
         "border_sides",
         "border_color",
@@ -177,7 +189,7 @@ class GridSettings(TypedDict, total=False):
     """Rendering, layout, and frame settings for a ``BaseGrid`` subclass.
 
     Attributes:
-        color: Foreground color of rendered content.
+        foreground: Foreground color of rendered content.
         background: Background color of the grid frame.
         direction: Direction used to lay out fields.
         gap: Cells between fields.
@@ -197,7 +209,7 @@ class GridSettings(TypedDict, total=False):
         strict: Whether field assignments are validated.
     """
 
-    color: NotRequired[ColorLike]
+    foreground: NotRequired[ColorLike]
     """The foreground color of the grid's content."""
     background: NotRequired[ColorLike]
     """The background color of the grid's frame area."""
@@ -236,12 +248,31 @@ class GridSettings(TypedDict, total=False):
     type annotations during grid construction."""
 
 
+def _resolve_settings_color_alias(
+    settings: GridSettings | None,
+) -> Any:
+    """Map a deprecated ``color`` grid setting onto ``foreground``.
+
+    ``foreground`` wins when both are given, matching every other
+    ``color`` alias in the library.
+    """
+    if not settings or "color" not in settings:
+        return settings
+    resolved = dict(settings)
+    color = resolved.pop("color")
+    warn_color_alias(stacklevel=4)
+    resolved.setdefault("foreground", color)
+    return resolved
+
+
 def _merge_grid_settings(
     bases: tuple[type, ...],
     class_kwargs: GridSettings,
     declared: GridSettings | None = None,
 ) -> GridSettings:
     """Merge grid settings from bases, class-header kwargs, and body dict."""
+    class_kwargs = _resolve_settings_color_alias(class_kwargs)
+    declared = _resolve_settings_color_alias(declared)
     merged: GridSettings = {}
     for base in bases:
         if base is object:
@@ -370,7 +401,7 @@ def _expand_field_class_name_config(
     expanded = dict(field_config)
     expanded["class_name"] = tokens
     derived_keys = (
-        "color",
+        "foreground",
         "background",
         "border",
         "border_color",
@@ -380,7 +411,7 @@ def _expand_field_class_name_config(
         "gap",
         "width",
         "height",
-        "align",
+        "horizontal_align",
         "direction",
     )
     for key in derived_keys:
@@ -524,17 +555,17 @@ def _resolve_slot_area(
     if length >= available:
         return slot_area
     if horizontal:
-        return Area(
-            x=slot_area.x,
-            y=slot_area.y,
-            width=length,
-            height=slot_area.height,
+        return align_area(
+            slot_area,
+            length,
+            slot_area.height,
+            horizontal=field.horizontal_align,
         )
-    return Area(
-        x=slot_area.x,
-        y=slot_area.y,
-        width=slot_area.width,
-        height=length,
+    return align_area(
+        slot_area,
+        slot_area.width,
+        length,
+        vertical=field.vertical_align,
     )
 
 
@@ -551,11 +582,12 @@ def _grid_overlay_area(inner: Area, field: GridFieldInfo) -> Area:
         width = max(1, min(field.width.resolve(inner.width), inner.width))
     if field.height is not None and not field.height.is_fill:
         height = max(1, min(field.height.resolve(inner.height), inner.height))
-    return Area(
-        x=inner.x + (inner.width - width) // 2,
-        y=inner.y + (inner.height - height) // 2,
-        width=width,
-        height=height,
+    return align_area(
+        inner,
+        width,
+        height,
+        horizontal=field.horizontal_align or "center",
+        vertical=field.vertical_align or "middle",
     )
 
 
@@ -680,7 +712,7 @@ def _build_grid_init(
                 setattr(self, name, defaults[name])
             else:
                 setattr(self, name, None)
-        self._init_field_states()
+        self._grid_init_field_states()
         self._grid_validate_init()
         self.__post_init__()
 
@@ -1033,6 +1065,13 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     _grid_field_frames: ClassVar[dict[str, Frame | None]] = {}
     _grid_responsive_renders: ClassVar[dict[str, str]] = {}
 
+    __xnano_grid__: ClassVar[bool] = True
+    """Marks this class as a grid, for cheap identity checks.
+
+    Faster and clearer than duck-typing ``_grid_fields``, and usable from
+    layers that must not import ``BaseGrid`` — see ``is_grid``.
+    """
+
     visible: bool = True
     """Whether this grid is rendered in the live session."""
     z: int = 0
@@ -1043,7 +1082,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
     """Terminal rows available to this grid — set by the session each frame."""
 
     def __init__(self) -> None:
-        self._init_field_states()
+        self._grid_init_field_states()
         self.__post_init__()
 
     def __post_init__(self) -> None:
@@ -1068,11 +1107,11 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         """
 
     @property
-    def focused(self) -> bool:
+    def grid_focused(self) -> bool:
         """Whether any of this grid's fields currently holds field focus.
 
         Live alongside per-component ``focused``: derived from the same
-        per-frame focus flags, so ``self.focused`` in a hook and
+        per-frame focus flags, so ``self.grid_focused`` in a hook and
         ``@on_field("focused")`` both read the current state.
         """
         return any(
@@ -1142,17 +1181,29 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         object.__setattr__(self, name, value)
         # Live FieldState dirty bit + host notification (skip private attrs
         # and fields not yet tracked during construction).
-        if not name.startswith("_") and hasattr(self, "_field_states"):
-            if name in self._field_states or name in self._grid_fields:
-                self.mark_field_dirty(name)
+        if not name.startswith("_") and hasattr(self, "_grid_field_states"):
+            if name in self._grid_field_states or name in self._grid_fields:
+                self.grid_mark_field_dirty(name)
 
     @property
-    def state(self) -> Any:
+    def grid_state(self) -> Any:
         """Return the active terminal's shared state, or ``None``."""
         from xnano.core.runtime import get_active_runtime
 
         runtime = get_active_runtime()
         return None if runtime is None else runtime.state
+
+    @property
+    @warn_renamed_attribute("BaseGrid.focused", "BaseGrid.grid_focused")
+    def focused(self) -> bool:
+        """Deprecated alias for ``grid_focused``."""
+        return self.grid_focused
+
+    @property
+    @warn_renamed_attribute("BaseGrid.state", "BaseGrid.grid_state")
+    def state(self) -> Any:
+        """Deprecated alias for ``grid_state``."""
+        return self.grid_state
 
     def _grid_call_render(self) -> None:
         """Invoke ``grid_render`` with the arity the subclass declared.
@@ -1269,6 +1320,9 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         key: str | None = None,
     ) -> bool: ...
 
+    @warn_renamed_attribute(
+        "BaseGrid.grid_play_effect", "BaseGrid.grid_effect"
+    )
     def grid_play_effect(
         self,
         effect: KnownEffectKind | AbstractEffect,
@@ -1319,15 +1373,94 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             ``True`` when at least one field area was found and an effect
             started.
         """
+        return bool(
+            self.grid_effect(
+                effect,
+                duration_ms=duration_ms,
+                color=color,
+                background=background,
+                direction=direction,
+                gradient_length=gradient_length,
+                randomness=randomness,
+                interpolation=interpolation,
+                effects=effects,
+                child=child,
+                times=times,
+                fields=fields,
+                key=key,
+            )
+        )
+
+    def grid_effect(
+        self,
+        effect: KnownEffectKind | AbstractEffect,
+        *,
+        duration_ms: int | None = None,
+        color: ColorLike | None = None,
+        background: ColorLike | None = None,
+        direction: EffectMotion | None = None,
+        gradient_length: int | None = None,
+        randomness: int | None = None,
+        interpolation: EffectInterpolation | None = None,
+        effects: Sequence[AbstractEffect] | None = None,
+        child: AbstractEffect | None = None,
+        times: int | None = None,
+        fields: list[str] | None = None,
+        key: str | None = None,
+    ) -> "EffectHandle":
+        """Run a visual effect on one or more layout field areas.
+
+        Returns an ``EffectHandle``: truthy when at least one field was
+        targeted, with ``.active`` and ``.cancel()``, and usable as a
+        context manager that cancels the effect on exit.
+
+        Starting an effect never blocks. ``duration_ms`` is the animation
+        length handed to the renderer, not a sleep — the effect advances
+        one frame at a time, so hooks keep running while it plays. Omit it
+        inside a ``with`` block and the effect repeats until the block
+        exits.
+
+        Args:
+            effect: A built effect instance or a known effect kind string.
+            duration_ms: Animation length in milliseconds. Defaults to
+                300; omitted inside a ``with`` block the effect repeats
+                until exit.
+            color: Foreground or accent color for color-driven effects.
+            background: Background color for two-color effects.
+            direction: Motion direction for slide and sweep effects.
+            gradient_length: Gradient length for slide and sweep effects.
+            randomness: Randomness for slide and sweep effects.
+            interpolation: Interpolation curve for the effect.
+            effects: Child effects for sequence and parallel composition.
+            child: Child effect for repeat and delay composition.
+            times: Repeat count for repeat effects.
+            fields: Layout field names to target. When omitted or empty,
+                no effect is started.
+            key: Identity used to de-duplicate this effect per target
+                field — see ``AbstractEffect.key``. Calling with the same
+                ``key`` every tick replaces the running effect rather than
+                stacking new ones.
+
+        Returns:
+            A handle for the started effect.
+
+        Examples:
+            ```python
+            self.grid_effect("fade", fields=["body"])
+
+            with self.grid_effect("pulse", fields=["body"]):
+                do_slow_work()
+            ```
+        """
         from xnano.core.runtime import get_active_runtime
-        from xnano.effects import resolve_effect
+        from xnano.effects import EffectHandle, resolve_effect
 
         runtime = get_active_runtime()
         if runtime is None:
-            return False
+            return EffectHandle()
         resolved_effect = resolve_effect(
             effect,
-            duration_ms=duration_ms,
+            duration_ms=300 if duration_ms is None else duration_ms,
             color=color,
             background=background,
             direction=direction,
@@ -1339,10 +1472,14 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             times=times,
             key=key,
         )
-        play_effect = getattr(runtime, "play_effect", None)
-        if not callable(play_effect):
-            return False
-        return bool(play_effect(resolved_effect, fields=fields))
+        keys = runtime.play_effect(resolved_effect, fields=fields)
+        return EffectHandle(
+            keys=tuple(keys),
+            runtime=runtime,
+            effect=resolved_effect,
+            fields=tuple(fields or ()),
+            loop_in_context=duration_ms is None,
+        )
 
     def _grid_field_info(self, name: str) -> GridFieldInfo:
         overrides = getattr(self, "_grid_field_overrides", None)
@@ -1559,14 +1696,15 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         slide: Sequence[Axis] | None = UNSET,
         visible: bool | None = UNSET,
         wireframe: bool | None = UNSET,
-        color: ColorLike | None = UNSET,
+        foreground: ColorLike | None = UNSET,
         background: ColorLike | None = UNSET,
         fill: bool | None = UNSET,
         width: SizingLike | None = UNSET,
         height: SizingLike | None = UNSET,
         gap: int | None = UNSET,
         direction: Direction | None = UNSET,
-        align: Alignment | None = UNSET,
+        horizontal_align: Alignment | None = UNSET,
+        vertical_align: VerticalAlignment | None = UNSET,
         border: Border | None = UNSET,
         border_sides: Sequence[Side] | None = UNSET,
         border_color: ColorLike | None = UNSET,
@@ -1584,6 +1722,8 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         slow_blink: bool = UNSET,
         rapid_blink: bool = UNSET,
         reversed: bool = UNSET,
+        color: ColorLike | None = UNSET,
+        align: Alignment | None = UNSET,
     ) -> None:
         """Set a layout field's runtime value and/or per-instance field metadata.
 
@@ -1593,7 +1733,20 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         For frequent, value-free style ticks (e.g. from ``on_tick`` or an
         effect callback), prefer ``grid_update_field`` — it skips the
         value/position handling this method carries for the general case.
+
+        ``color`` is a deprecated alias for ``foreground``.
         """
+        foreground = resolve_color_alias(
+            foreground, color, unset=UNSET, stacklevel=3
+        )
+        horizontal_align = resolve_renamed_alias(
+            horizontal_align,
+            align,
+            old="align",
+            new="horizontal_align",
+            unset=UNSET,
+            stacklevel=3,
+        )
         field_config: dict[str, Any] = {
             key: option
             for key, option in {
@@ -1601,14 +1754,15 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
                 "slide": slide,
                 "visible": visible,
                 "wireframe": wireframe,
-                "color": color,
+                "foreground": foreground,
                 "background": background,
                 "fill": fill,
                 "width": width,
                 "height": height,
                 "gap": gap,
                 "direction": direction,
-                "align": align,
+                "horizontal_align": horizontal_align,
+                "vertical_align": vertical_align,
                 "border": border,
                 "border_sides": border_sides,
                 "border_color": border_color,
@@ -1662,14 +1816,15 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         slide: Sequence[Axis] | None = UNSET,
         visible: bool | None = UNSET,
         wireframe: bool | None = UNSET,
-        color: ColorLike | None = UNSET,
+        foreground: ColorLike | None = UNSET,
         background: ColorLike | None = UNSET,
         fill: bool | None = UNSET,
         width: SizingLike | None = UNSET,
         height: SizingLike | None = UNSET,
         gap: int | None = UNSET,
         direction: Direction | None = UNSET,
-        align: Alignment | None = UNSET,
+        horizontal_align: Alignment | None = UNSET,
+        vertical_align: VerticalAlignment | None = UNSET,
         border: Border | None = UNSET,
         border_sides: Sequence[Side] | None = UNSET,
         border_color: ColorLike | None = UNSET,
@@ -1687,6 +1842,8 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         slow_blink: bool = UNSET,
         rapid_blink: bool = UNSET,
         reversed: bool = UNSET,
+        color: ColorLike | None = UNSET,
+        align: Alignment | None = UNSET,
     ) -> None:
         """Update a layout field's style/layout attributes, live, in-place.
 
@@ -1698,21 +1855,35 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
         patches never raise: a missing or state-only ``name`` is a no-op
         (no ``try``/``except`` needed), though unknown keyword arguments
         still raise as a programming error.
+
+        ``color`` is a deprecated alias for ``foreground``.
         """
+        foreground = resolve_color_alias(
+            foreground, color, unset=UNSET, stacklevel=3
+        )
+        horizontal_align = resolve_renamed_alias(
+            horizontal_align,
+            align,
+            old="align",
+            new="horizontal_align",
+            unset=UNSET,
+            stacklevel=3,
+        )
         field_config: dict[str, Any] = {
             key: option
             for key, option in {
                 "slide": slide,
                 "visible": visible,
                 "wireframe": wireframe,
-                "color": color,
+                "foreground": foreground,
                 "background": background,
                 "fill": fill,
                 "width": width,
                 "height": height,
                 "gap": gap,
                 "direction": direction,
-                "align": align,
+                "horizontal_align": horizontal_align,
+                "vertical_align": vertical_align,
                 "border": border,
                 "border_sides": border_sides,
                 "border_color": border_color,
@@ -1737,7 +1908,7 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             name, field_config, caller="grid_update_field", missing="ignore"
         )
 
-    def set_frame(
+    def grid_set_frame(
         self,
         frame: Frame | None = UNSET,
         *,
@@ -1784,15 +1955,15 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             self, "_grid_frame", None if updated.is_empty() else updated
         )
 
-    def set_background(self, background: ColorLike | None) -> None:
+    def grid_set_background(self, background: ColorLike | None) -> None:
         """Fill this grid instance's whole area with ``background``.
 
-        Shorthand for ``set_frame(background=...)`` — the ergonomic path for
+        Shorthand for ``grid_set_frame(background=...)`` — the path for
         theming a nested grid, replacing private ``_grid_frame`` mutation.
         """
-        self.set_frame(background=background)
+        self.grid_set_frame(background=background)
 
-    def schedule_update(
+    def grid_schedule_update(
         self,
         callback: Callable[[], Any] | None = None,
         *,
@@ -1813,12 +1984,36 @@ class BaseGrid(AbstractInterface, metaclass=_GridMeta):
             if callback is not None:
                 callback()
             if field is not None:
-                self.mark_field_dirty(field)
+                self.grid_mark_field_dirty(field)
 
         if runtime is None:
             _apply()
         else:
             runtime.call_soon(_apply)
+
+    @warn_renamed_attribute("BaseGrid.set_frame", "BaseGrid.grid_set_frame")
+    def set_frame(self, *args: Any, **kwargs: Any) -> None:
+        """Deprecated alias for ``grid_set_frame``."""
+        self.grid_set_frame(*args, **kwargs)
+
+    @warn_renamed_attribute(
+        "BaseGrid.set_background", "BaseGrid.grid_set_background"
+    )
+    def set_background(self, background: ColorLike | None) -> None:
+        """Deprecated alias for ``grid_set_background``."""
+        self.grid_set_background(background)
+
+    @warn_renamed_attribute(
+        "BaseGrid.schedule_update", "BaseGrid.grid_schedule_update"
+    )
+    def schedule_update(
+        self,
+        callback: Callable[[], Any] | None = None,
+        *,
+        field: str | None = None,
+    ) -> None:
+        """Deprecated alias for ``grid_schedule_update``."""
+        self.grid_schedule_update(callback, field=field)
 
     def _grid_resolve_visible(self, field: GridFieldInfo, value: Any) -> bool:
         if field.visible is None:

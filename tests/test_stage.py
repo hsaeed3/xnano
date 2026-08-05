@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from xnano.area import Area
 from xnano.core.stage import LayoutMap, Stage
-from xnano.types import Area
 
 
 def test_stage_registers_and_returns_areas() -> None:
@@ -16,14 +16,14 @@ def test_stage_registers_and_returns_areas() -> None:
 
 def test_stage_queues_paint_commands() -> None:
     stage = Stage()
-    stage.paint_cell(2, 1, "!", color="yellow", modifiers=("bold",))
+    stage.paint_cell(2, 1, "!", foreground="yellow", modifiers=("bold",))
     stage.paint_cell(0, 0, "x")
     assert len(stage._commands) == 2
     first = stage._commands[0]
     assert first["x"] == 2
     assert first["y"] == 1
     assert first["value"] == "!"
-    assert first["color"] == "yellow"
+    assert first["foreground"] == "yellow"
     assert first["modifiers"] == ("bold",)
 
 

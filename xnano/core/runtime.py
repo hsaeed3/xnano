@@ -18,6 +18,7 @@ from typing import Any, Callable, Generic, Sequence, TypeVar
 from xnano_core.core import CoreSession
 
 from xnano.actions import Actions
+from xnano.area import Alignment, PaddingLike, VerticalAlignment
 from xnano.colors import ColorLike
 from xnano.core.content import Panel, Stack, TextBlock
 from xnano.core.frame import Frame
@@ -27,13 +28,16 @@ from xnano.cursor import Cursor
 from xnano.device import Device
 from xnano.events import event_from_core
 from xnano.types import (
-    Alignment,
     Border,
     CharacterModifier,
     Direction,
     FrameTitlePosition,
-    PaddingLike,
     Side,
+    is_grid,
+)
+from xnano.utils.deprecation import (
+    resolve_color_alias,
+    resolve_renamed_alias,
 )
 
 StateT = TypeVar("StateT")
@@ -341,10 +345,11 @@ class Runtime(Generic[StateT]):
     def _render(
         self,
         *renderables: Any,
-        color: ColorLike | None = None,
+        foreground: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
-        align: Alignment | None = None,
+        horizontal_align: Alignment | None = None,
+        vertical_align: VerticalAlignment | None = None,
         border: Border | None = None,
         border_sides: Sequence[Side] | None = None,
         border_color: ColorLike | None = None,
@@ -359,10 +364,11 @@ class Runtime(Generic[StateT]):
         Args:
             *renderables: Grids, components, content primitives, or plain
                 values to paint.
-            color: Foreground color applied to plain values.
+            foreground: Foreground color applied to plain values.
             background: Background color for the rendered area.
             modifiers: Character modifiers applied to plain values.
-            align: Horizontal alignment applied to plain values.
+            horizontal_align: Horizontal alignment applied to plain values.
+        vertical_align: Vertical alignment applied to plain values.
             border: Border style around the rendered area.
             border_sides: Border sides to draw.
             border_color: Border foreground color.
@@ -386,11 +392,9 @@ class Runtime(Generic[StateT]):
             dispatch_post_init(self._root, self)
             ensure_default_field_focus(self)
             dispatch_frame(self._root, self)
-        if len(items) == 1 and isinstance(
-            getattr(type(items[0]), "_grid_fields", None), dict
-        ):
+        if len(items) == 1 and is_grid(items[0]):
+            from xnano.area import Area
             from xnano.core.controller import TerminalController
-            from xnano.types import Area
 
             self._stage.areas.clear()
             controller = TerminalController(self)
@@ -415,10 +419,11 @@ class Runtime(Generic[StateT]):
         styled_items = tuple(
             TextBlock(
                 text=item,
-                color=color,
+                foreground=foreground,
                 background=background,
                 modifiers=tuple(modifiers or ()),
-                align=align,
+                horizontal_align=horizontal_align,
+                vertical_align=vertical_align,
             )
             if isinstance(item, str)
             else item
@@ -433,9 +438,9 @@ class Runtime(Generic[StateT]):
             # the remainder left blank at the end.
             # ponytail: bordered/paneled multi-render still uses the fill path
             # below — revisit if a framed multi-render needs content packing.
+            from xnano.area import Area
             from xnano.core.controller import TerminalController
             from xnano.core.layout import LayoutConstraint
-            from xnano.types import Area
 
             self._stage.areas.clear()
             controller = TerminalController(self)
@@ -490,10 +495,11 @@ class Runtime(Generic[StateT]):
     def render(
         self,
         *renderables: Any,
-        color: ColorLike | None = None,
+        foreground: ColorLike | None = None,
         background: ColorLike | None = None,
         modifiers: Sequence[CharacterModifier] | None = None,
-        align: Alignment | None = None,
+        horizontal_align: Alignment | None = None,
+        vertical_align: VerticalAlignment | None = None,
         border: Border | None = None,
         border_sides: Sequence[Side] | None = None,
         border_color: ColorLike | None = None,
@@ -502,14 +508,25 @@ class Runtime(Generic[StateT]):
         padding: PaddingLike | None = None,
         gap: int = 0,
         direction: Direction = "vertical",
+        color: ColorLike | None = None,
+        align: Alignment | None = None,
     ) -> Frame:
         """Render one frame and return its immutable snapshot."""
+        foreground = resolve_color_alias(foreground, color, stacklevel=3)
+        horizontal_align = resolve_renamed_alias(
+            horizontal_align,
+            align,
+            old="align",
+            new="horizontal_align",
+            stacklevel=3,
+        )
         self._render(
             *renderables,
-            color=color,
+            foreground=foreground,
             background=background,
             modifiers=modifiers,
-            align=align,
+            horizontal_align=horizontal_align,
+            vertical_align=vertical_align,
             border=border,
             border_sides=border_sides,
             border_color=border_color,
@@ -602,7 +619,7 @@ class Runtime(Generic[StateT]):
         handle = hit.grid._grid_scroll_handle(hit.field_name)
         delta = -self._WHEEL_STEP if kind == "scroll_up" else self._WHEEL_STEP
         handle.scroll(delta)
-        hit.grid.mark_field_dirty(hit.field_name)
+        hit.grid.grid_mark_field_dirty(hit.field_name)
 
     def _click_to_focus(self, hit: Any, field: Any, kind: str) -> None:
         """Focus a focusable field when it is clicked.
@@ -714,28 +731,47 @@ class Runtime(Generic[StateT]):
         effect: Any,
         *,
         fields: list[str] | None = None,
-    ) -> bool:
+        repeat: bool = False,
+    ) -> list[str]:
         """Play an effect over fields recorded by the latest render.
 
         Args:
             effect: Effect description.
             fields: Field names whose rendered areas receive the effect.
+            repeat: Loop the effect until it is cancelled, instead of
+                running once for its duration.
 
         Returns:
-            Whether at least one named field had a rendered area.
+            The session keys registered, one per field that had a
+            rendered area. Empty when nothing was targeted.
         """
+        import xnano_core.rust.native as native
+
         from xnano.core.effects import resolve_native_effect
 
-        played = False
+        keys: list[str] = []
+        lowered = None
         for field in fields or ():
             area = self._session.effect_area_for(field)
             if area is None:
                 continue
-            native_effect = resolve_native_effect(effect).with_area(area)
+            if lowered is None:
+                # Lower once, not once per target field.
+                lowered = resolve_native_effect(effect)
+                if repeat:
+                    lowered = native.repeating_effect(lowered)
             key = f"{getattr(effect, 'key', None) or field}:{field}"
-            self._session.add_unique_effect(key, native_effect)
-            played = True
-        return played
+            self._session.add_unique_effect(key, lowered.with_area(area))
+            keys.append(key)
+        return keys
+
+    def cancel_effect(self, key: str) -> None:
+        """Stop the effect registered under ``key``."""
+        self._session.cancel_effect(key)
+
+    def is_animating(self) -> bool:
+        """Whether any effect is currently running in this session."""
+        return bool(self._session.is_animating())
 
     def perform(self, action: Any) -> None:
         """Perform a synthetic action through its event representation."""

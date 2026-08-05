@@ -8,11 +8,11 @@ Track large dynamic option-list filtering and rendering.
 import sys
 from typing import Any
 
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.options import Option, Options
 from xnano.core.content import Items
 from xnano.core.runtime import Runtime
-from xnano.types import Area
 
 _ITEMS = tuple(
     Option(label=f"model-{index:04d}", value=index) for index in range(3_000)

@@ -202,10 +202,10 @@ class Services(Table):
         width=14,
     )
     status: str = Column(
-        color=lambda value: "green-300" if value == "ok" else "red-300",
-        align="center",
+        foreground=lambda value: "green-300" if value == "ok" else "red-300",
+        horizontal_align="center",
     )
-    latency: int = Column(format="{} ms", align="right", width=12)
+    latency: int = Column(format="{} ms", horizontal_align="right", width=12)
 
 table = Services(data=[
     {"meta": {"name": "api"}, "status": "ok", "latency": 12},
@@ -264,7 +264,7 @@ class Badge(Component):
     foreground: str = "cyan"
 
     def compose(self, ctx):  # (1)!
-        return TextBlock.from_plain(self.text, color=self.foreground)
+        return TextBlock.from_plain(self.text, foreground=self.foreground)
 ```
 
 1. The paint hook is how a component turns attributes into content. Built-ins

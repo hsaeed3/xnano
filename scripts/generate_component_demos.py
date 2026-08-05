@@ -200,7 +200,7 @@ DEMOS: tuple[Demo, ...] = (
                 status: str = Column(
                     color=lambda v: "green" if v == "ok" else "red"
                 )
-                latency: int = Column(align="right", format="{}ms")
+                latency: int = Column(horizontal_align="right", format="{}ms")
 
             Terminal.offscreen(cols=80, rows=5).render(
                 Services(

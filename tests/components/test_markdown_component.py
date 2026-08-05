@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pathlib
 
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.markdown import Markdown
 from xnano.components.text import Text
 from xnano.core import Runtime
 from xnano.core.content import TextBlock
-from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext[None]:

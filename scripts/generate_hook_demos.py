@@ -76,7 +76,7 @@ def build_action_demo(
                 message: str = Field(
                     default="{before}",
                     height=1,
-                    align="center",
+                    horizontal_align="center",
                     color="slate-400",
                 )
 
@@ -138,13 +138,13 @@ def build_render_demo(
                 message: str = Field(
                     default="{message}",
                     height=1,
-                    align="center",
+                    horizontal_align="center",
                     color="violet-400",
                 )
                 detail: str = Field(
                     default="{detail}",
                     height=1,
-                    align="center",
+                    horizontal_align="center",
                     color="slate-400",
                 )
 
@@ -178,13 +178,13 @@ DEMOS: tuple[Demo, ...] = (
                 message: str = Field(
                     default="waiting for OPEN",
                     height=1,
-                    align="center",
+                    horizontal_align="center",
                     color="slate-400",
                 )
                 detail: str = Field(
                     default="one trigger · one dispatch path",
                     height=1,
-                    align="center",
+                    horizontal_align="center",
                     color="violet-400",
                 )
 

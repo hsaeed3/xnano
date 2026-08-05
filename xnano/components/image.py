@@ -16,9 +16,9 @@ import time
 import zlib
 from typing import BinaryIO, Literal, TypeAlias
 
+from xnano.area import Size
 from xnano.components.component import Component, ComponentRenderContext
 from xnano.core.content import CellCanvas, CellSpan
-from xnano.types import Size
 
 ImageFit: TypeAlias = Literal[
     "crop",
@@ -405,7 +405,9 @@ def _get_frame_as_canvas(
             ):
                 spans.append(
                     CellSpan(
-                        run_text, color=run_color, background=run_background
+                        run_text,
+                        foreground=run_color,
+                        background=run_background,
                     )
                 )
                 run_text = ""
@@ -416,7 +418,7 @@ def _get_frame_as_canvas(
             spans.append(
                 CellSpan(
                     run_text,
-                    color=run_color,
+                    foreground=run_color,
                     background=run_background,
                 )
             )

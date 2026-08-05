@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from xnano.actions import Action
+from xnano.area import Area
 from xnano.components.component import ComponentRenderContext
 from xnano.components.link import Link
 from xnano.components.text import Text
@@ -13,7 +14,6 @@ from xnano.core.content import TextBlock
 from xnano.fields import Field
 from xnano.grids import BaseGrid
 from xnano.hooks import on_keyboard
-from xnano.types import Area
 
 
 def _ctx() -> ComponentRenderContext[None]:
@@ -27,7 +27,7 @@ def test_link_defaults() -> None:
     assert link.content == "docs"
     assert link.focusable is True
     assert link.underline is True
-    assert link.color == "blue"
+    assert link.foreground == "blue"
     assert link.visited is False
     assert link.input is False
 
@@ -52,7 +52,7 @@ def test_link_compose_underline_and_color() -> None:
     content = link.compose(_ctx())
     assert isinstance(content, TextBlock)
     assert content.text == "docs"
-    assert content.color == "blue"
+    assert content.foreground == "blue"
     assert "underline" in content.modifiers
 
 
@@ -65,14 +65,14 @@ def test_link_focused_color() -> None:
     link._input_focused = True
     content = link.compose(_ctx())
     assert isinstance(content, TextBlock)
-    assert content.color == "cyan"
+    assert content.foreground == "cyan"
 
 
 def test_visited_link_uses_default_visited_cue() -> None:
     link = Link("docs", url="/docs", visited=True)
     content = link.compose(_ctx())
     assert isinstance(content, TextBlock)
-    assert content.color == "magenta"
+    assert content.foreground == "magenta"
 
 
 def test_link_activation_keys_not_consumed() -> None:
@@ -127,7 +127,7 @@ def test_link_activation_updates_composed_navigation() -> None:
         frame = runtime.render()
         assert navigation.docs.visited is True
         assert "https://example.com/docs" in frame.text
-        assert navigation.docs.color == "blue"
+        assert navigation.docs.foreground == "blue"
         assert navigation.docs.modifiers == ()
     finally:
         runtime.close()
