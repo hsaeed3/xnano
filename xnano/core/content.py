@@ -25,9 +25,11 @@ from xnano.types import (
     Side,
 )
 from xnano.utils.deprecation import (
-    align_alias_dataclass,
+    _ALIAS_UNSET,
     color_alias_dataclass,
+    renamed_alias_property,
     resolve_color_alias,
+    resolve_init_alias,
 )
 
 
@@ -52,7 +54,7 @@ class ContentBase:
 AbstractContent = ContentBase
 
 
-@color_alias_dataclass
+@renamed_alias_property("color", "foreground")
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Run(ContentBase):
     """One styled text run.
@@ -75,6 +77,12 @@ class Run(ContentBase):
     """Background color."""
     modifiers: tuple[CharacterModifier, ...] = ()
     """Character modifiers."""
+    color: dataclasses.InitVar[Any] = _ALIAS_UNSET
+    """Deprecated alias for ``foreground``."""
+
+    def __post_init__(self, color: Any) -> None:
+        """Apply the deprecated constructor alias."""
+        resolve_init_alias(self, color, old="color", new="foreground")
 
     @classmethod
     def plain(
@@ -116,8 +124,8 @@ class Run(ContentBase):
         )
 
 
-@align_alias_dataclass
-@color_alias_dataclass
+@renamed_alias_property("align", "horizontal_align")
+@renamed_alias_property("color", "foreground")
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class TextBlock(ContentBase):
     """Wrapped plain text or lines of styled runs.
@@ -152,6 +160,15 @@ class TextBlock(ContentBase):
     """Vertical alignment within the painted area."""
     wrap: bool = True
     """Whether long lines wrap."""
+    color: dataclasses.InitVar[Any] = _ALIAS_UNSET
+    """Deprecated alias for ``foreground``."""
+    align: dataclasses.InitVar[Any] = _ALIAS_UNSET
+    """Deprecated alias for ``horizontal_align``."""
+
+    def __post_init__(self, color: Any, align: Any) -> None:
+        """Apply deprecated constructor aliases."""
+        resolve_init_alias(self, color, old="color", new="foreground")
+        resolve_init_alias(self, align, old="align", new="horizontal_align")
 
     @classmethod
     def from_plain(

@@ -157,10 +157,10 @@ def test_content_primitive_color_alias_round_trips() -> None:
     with pytest.warns(DeprecationWarning):
         run = Run(
             text="x",
-            color="cyan",  # ty: ignore[unknown-argument]
+            color="cyan",
         )
     assert run.foreground == "cyan"
-    assert run.color == "cyan"  # ty: ignore[unresolved-attribute]
+    assert run.color == "cyan"
 
     # Classmethod constructors carry the alias too — the dataclass
     # decorator only wraps ``__init__``.
