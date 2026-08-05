@@ -92,7 +92,7 @@ The full keyword list is on the [Field]{data-preview} API page.
     - Change `foreground` on `heading` (e.g. `"emerald-400"`).
     - Change `border` to `"double"` or `"plain"`.
 
-```pyodide install="xnano>=1.2.3b2" height="12"
+```pyodide install="xnano>=1.2.3" height="12"
 from xnano import BaseGrid, Field, render
 
 class Card(BaseGrid, direction="vertical"):
@@ -147,7 +147,7 @@ attribute when you do not need that.
     - Change `heading`'s `default=`.
     - Add another entry to the `tags` list (it still will not paint).
 
-```pyodide install="xnano>=1.2.3b2" height="8"
+```pyodide install="xnano>=1.2.3" height="8"
 from xnano import BaseGrid, Field, render
 
 class Card(BaseGrid, direction="vertical"):

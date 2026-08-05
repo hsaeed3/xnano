@@ -32,13 +32,13 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "pip"
 
     ```bash title="Install with pip"
-    pip install "xnano>=1.2.3b2"
+    pip install "xnano>=1.2.3"
     ```
 
 === "uv"
 
     ```bash title="Install with uv"
-    uv pip install "xnano>=1.2.3b2"
+    uv pip install "xnano>=1.2.3"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -47,7 +47,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "poetry"
 
     ```bash title="Install with poetry"
-    poetry install "xnano>=1.2.3b2"
+    poetry install "xnano>=1.2.3"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -56,7 +56,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "conda"
 
     ```bash title="Install with conda"
-    conda install "xnano>=1.2.3b2"
+    conda install "xnano>=1.2.3"
     ```
 
 ## Notetaking Application
@@ -120,7 +120,7 @@ With placeholder labels filled in, the same layout paints as a single frame:
     - Change `saved_notes` `width` (e.g. `"30%"`).
     - Change a panel `default=` string.
 
-```pyodide install="xnano>=1.2.3b2" height="12"
+```pyodide install="xnano>=1.2.3" height="12"
 from xnano import BaseGrid, Field, render
 
 class Dashboard(BaseGrid):

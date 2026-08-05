@@ -107,7 +107,7 @@ writes them out. It does not start an event loop.
     - Change `foreground` on the `Text`.
     - Change `modifiers` (e.g. `["bold", "italic"]`).
 
-```pyodide install="xnano>=1.2.3b2" height="8"
+```pyodide install="xnano>=1.2.3" height="8"
 from xnano import render
 from xnano.components.text import Text
 
