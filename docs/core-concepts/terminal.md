@@ -84,7 +84,7 @@ control. It does not run the event loop.
     - Change the string.
     - Change `color` (e.g. `"emerald-400"`).
 
-```pyodide install="xnano>=1.2.3b2" height="3"
+```pyodide install="xnano>=1.2.3" height="3"
 from xnano import render
 
 render("hello, terminal!", foreground="blue")
@@ -142,7 +142,7 @@ terminal.run(App()) # (1)!
     - Change `title`'s `default=`.
     - Change `border` on the title field.
 
-```pyodide install="xnano>=1.2.3b2" height="9"
+```pyodide install="xnano>=1.2.3" height="9"
 from xnano import BaseGrid, Field, render
 
 class App(BaseGrid, direction="vertical"):

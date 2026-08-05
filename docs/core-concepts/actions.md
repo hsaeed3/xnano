@@ -157,7 +157,7 @@ ctx.actions.perform(Action.clipboard("pasted text"))
     - Change the initial `count` default.
     - Perform `INCREMENT` a third time before the final render.
 
-```pyodide install="xnano>=1.2.3b2" height="12"
+```pyodide install="xnano>=1.2.3" height="12"
 from xnano import Action, BaseGrid, Field, Terminal, on_action
 
 INCREMENT = Action.keyboard("right")

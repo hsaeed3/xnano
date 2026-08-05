@@ -60,7 +60,7 @@ weights `50`–`950`.
     - Change any `background=` value.
     - Change a `foreground=` value.
 
-```pyodide install="xnano>=1.2.3b2" height="8"
+```pyodide install="xnano>=1.2.3" height="8"
 from xnano import render
 from xnano.components.text import Text
 
@@ -101,7 +101,7 @@ Border styles include `"plain"`, `"rounded"`, `"double"`, `"thick"`,
     - Change `border` on the field.
     - Change `modifiers` (e.g. add `"underline"`).
 
-```pyodide install="xnano>=1.2.3b2" height="6"
+```pyodide install="xnano>=1.2.3" height="6"
 from xnano import BaseGrid, Field, render
 
 class Card(BaseGrid):

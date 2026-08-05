@@ -174,7 +174,7 @@ with [`Field`](fields.md){data-preview}.
     - Change `direction` between `"vertical"` and `"horizontal"`.
     - Change the `title` field's `default=`.
 
-```pyodide install="xnano>=1.2.3b2" height="8"
+```pyodide install="xnano>=1.2.3" height="8"
 from xnano import BaseGrid, Field, render
 
 class App(BaseGrid, direction="vertical"):
@@ -211,7 +211,7 @@ are separate from individual fields.
     - Change `gap` (e.g. `0` or `2`).
     - Change `direction` to `"vertical"`.
 
-```pyodide install="xnano>=1.2.3b2" height="7"
+```pyodide install="xnano>=1.2.3" height="7"
 from xnano import BaseGrid, Field, render
 
 class Dashboard(BaseGrid, direction="horizontal", gap=1, border="rounded", title=" Dashboard "):

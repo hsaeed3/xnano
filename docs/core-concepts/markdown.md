@@ -127,7 +127,7 @@ print(frame.text)
     - Change the heading text.
     - Add a second paragraph to the string.
 
-```pyodide install="xnano>=1.2.3b2" height="12"
+```pyodide install="xnano>=1.2.3" height="12"
 from xnano.markdown import render_markdown
 
 frame = render_markdown("# Hello\n\nA single frame from Markdown.")

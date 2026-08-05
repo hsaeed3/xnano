@@ -81,7 +81,7 @@ whatever the component paints. See [Fields](fields.md) and [State](state.md).
     - Change `value=` on the `Loader` (0.0–1.0).
     - Change `style` to `"line"` or `"spinner"`.
 
-```pyodide install="xnano>=1.2.3b2" height="11"
+```pyodide install="xnano>=1.2.3" height="11"
 from xnano import BaseGrid, Field, render
 from xnano.components.loader import Loader
 
@@ -129,7 +129,7 @@ Text([
     - Change a nested `foreground`.
     - Change the status string.
 
-```pyodide install="xnano>=1.2.3b2" height="8"
+```pyodide install="xnano>=1.2.3" height="8"
 from xnano import render
 from xnano.components.text import Text
 
