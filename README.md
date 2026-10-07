@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> This branch provides the `v1.x.x` and `v0.x.x` API interface for the `xnano` and `xnano-core` packages, which have now been rebuilt to fit a more modular structure.
+> All documentation, code and examples within this branch are only compatible with the above or below versions and cannot be migrated to the latest versions of xnano.
+
 ![xnano Title Animation](./docs/assets/xnano-title.gif)
 
 # __xnano__
