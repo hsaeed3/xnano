@@ -231,6 +231,12 @@ mod output {
         _stream: Stream,
     }
 
+    impl DeviceStream {
+        pub fn play(&self) -> PyResult<()> {
+            self._stream.play().map_err(audio_error)
+        }
+    }
+
     pub fn open(shared: &Arc<Shared>, requested: Option<Format>) -> PyResult<(DeviceStream, u32)> {
         crate::platform::silence_library_messages();
         let device = cpal::default_host()
@@ -303,7 +309,6 @@ mod output {
             }
         }
         .map_err(audio_error)?;
-        stream.play().map_err(audio_error)?;
         Ok((DeviceStream { _stream: stream }, rate))
     }
 }
@@ -319,6 +324,12 @@ mod output {
     use crate::unavailable_error;
 
     pub enum DeviceStream {}
+
+    impl DeviceStream {
+        pub fn play(&self) -> PyResult<()> {
+            match *self {}
+        }
+    }
 
     pub fn open(
         _shared: &Arc<Shared>,
@@ -515,16 +526,17 @@ impl PyStreamingPlayer {
         let mut stream = None;
         if !backend_is_null {
             let (opened, rate) = output::open(&shared, requested)?;
-            if rate != chosen.sample_rate {
+            let opened = if rate != chosen.sample_rate {
                 chosen.sample_rate = rate;
                 shared = build(chosen);
-                // The callback captured the first state; reopen on the corrected rate.
+                // Build the callback with the device rate before starting the stream.
                 drop(opened);
-                let (reopened, _) = output::open(&shared, Some(chosen))?;
-                stream = Some(reopened);
+                output::open(&shared, Some(chosen))?.0
             } else {
-                stream = Some(opened);
-            }
+                opened
+            };
+            opened.play()?;
+            stream = Some(opened);
         }
         let should_stop_worker = Arc::new(AtomicBool::new(false));
         let worker = if backend_is_null {
