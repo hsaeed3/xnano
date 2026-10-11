@@ -1,0 +1,178 @@
+:root[data-xnano-style="serif"] .md-typeset h1,
+:root[data-xnano-style="serif"] .md-typeset h2,
+:root[data-xnano-style="serif"] .md-typeset h3,
+:root[data-xnano-style="serif"] .md-typeset h4,
+:root[data-xnano-style="serif"] .md-typeset h5,
+:root[data-xnano-style="serif"] .md-typeset h6 {
+    background: var(--xnano-accent-soft);
+    border: 0;
+    border-radius: 18px;
+    box-sizing: border-box;
+    color: var(--xnano-accent-ink);
+    display: block;
+    font-family: "Bree Serif", Georgia, serif !important;
+    font-variation-settings: normal;
+    letter-spacing: 0.01em;
+    padding: 0.24em 0.55em 0.3em;
+    width: 100%;
+}
+:root[data-xnano-style="serif"] .md-typeset h1 {
+    background: var(--xnano-accent);
+    border-radius: 22px;
+    color: var(--xnano-serif-on-accent);
+    padding-block: 0.34em 0.4em;
+}
+:root[data-xnano-style="serif"] .md-typeset h3,
+:root[data-xnano-style="serif"] .md-typeset h5 {
+    background: var(--xnano-serif-yellow);
+}
+:root[data-xnano-style="serif"] .md-typeset h4,
+:root[data-xnano-style="serif"] .md-typeset h6 {
+    background: var(--xnano-serif-pink);
+}
+:root[data-xnano-style="serif"] pre,
+:root[data-xnano-style="serif"] code,
+:root[data-xnano-style="serif"] .highlight > span.filename {
+    font-family: "Google Sans Code", monospace !important;
+}
+:root[data-xnano-style="serif"] .highlight {
+    background: var(--xnano-accent-soft);
+    border: 0;
+    border-radius: 18px;
+    box-shadow: none;
+    overflow: visible;
+}
+:root[data-xnano-style="serif"] .highlight > span.filename {
+    background: var(--xnano-serif-plum) !important;
+    border-radius: 18px 18px 0 0;
+    color: #fff7df !important;
+    letter-spacing: 0.04em;
+    text-transform: none;
+}
+:root[data-xnano-style="serif"] .highlight > pre > code,
+:root[data-xnano-style="serif"] .highlight:has(> span.filename) > pre > code {
+    border-radius: 0 0 18px 18px;
+}
+:root[data-xnano-style="serif"] .md-typeset :not(pre) > code {
+    background: var(--xnano-accent-soft);
+    border: 0;
+    border-radius: 999px;
+    padding-inline: 0.42em;
+}
+:root[data-xnano-style="serif"] .md-typeset blockquote,
+:root[data-xnano-style="serif"] .md-typeset .admonition,
+:root[data-xnano-style="serif"] .md-typeset details,
+:root[data-xnano-style="serif"] .md-typeset table:not([class]) {
+    border: 0;
+    border-radius: 18px;
+    box-shadow: none;
+    overflow: hidden;
+}
+:root[data-xnano-style="serif"] .md-typeset blockquote {
+    background: var(--xnano-accent-soft);
+    padding: 0.8rem 1.1rem;
+}
+:root[data-xnano-style="serif"] .md-typeset table:not([class]) th {
+    background: var(--xnano-accent-soft);
+    color: var(--xnano-accent-ink);
+    border: 0 !important;
+    font-family: "Bree Serif", Georgia, serif !important;
+    font-size: 1.05em !important;
+}
+:root[data-xnano-style="serif"] .md-typeset table:not([class]) td {
+    border: 0 !important;
+}
+:root[data-xnano-style="serif"] .md-typeset table:not([class]) tr:nth-child(even) {
+    background: var(--xnano-accent-soft);
+}
+:root[data-xnano-style="serif"] .md-nav__link--active,
+:root[data-xnano-style="serif"] .md-nav__link:hover {
+    background: var(--xnano-accent-soft);
+    border-radius: 999px;
+    padding-inline: 0.55rem;
+}
+:root[data-xnano-style="serif"] .grid.cards > ul > li {
+    background: var(--xnano-accent-soft);
+    border: 0;
+    border-radius: 20px;
+    box-shadow: none;
+}
+:root[data-xnano-style="modern"] .md-typeset h1,
+:root[data-xnano-style="modern"] .md-typeset h2,
+:root[data-xnano-style="modern"] .md-typeset h3,
+:root[data-xnano-style="modern"] .md-typeset h4,
+:root[data-xnano-style="modern"] .md-typeset h5,
+:root[data-xnano-style="modern"] .md-typeset h6 {
+    background: linear-gradient(
+        90deg,
+        var(--xnano-accent-soft),
+        transparent 88%
+    );
+    border-bottom: 0;
+    border-left: 5px solid var(--xnano-accent);
+    border-radius: 7px;
+    box-sizing: border-box;
+    color: var(--xnano-accent-ink);
+    display: block;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-variation-settings: normal;
+    letter-spacing: -0.025em;
+    padding: 0.3em 0.65em 0.36em;
+    width: 100%;
+}
+:root[data-xnano-style="modern"] .highlight {
+    border: 1px solid var(--xnano-accent-border);
+    border-radius: 12px;
+    box-shadow: 8px 8px 0 var(--xnano-accent-shadow);
+    overflow: visible;
+}
+:root[data-xnano-style="modern"] .highlight > span.filename {
+    background: var(--xnano-accent-soft);
+    border-radius: 11px 11px 0 0;
+    color: var(--xnano-accent-ink);
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+}
+:root[data-xnano-style="modern"] .highlight > pre > code,
+:root[data-xnano-style="modern"] .highlight:has(> span.filename) > pre > code {
+    border-radius: 0 0 11px 11px;
+}
+:root[data-xnano-style="modern"] .md-typeset :not(pre) > code {
+    background: var(--xnano-accent-soft);
+    border: 0;
+    border-radius: 5px;
+    box-shadow: inset 3px 0 0 var(--xnano-accent);
+    padding-inline: 0.45em;
+}
+:root[data-xnano-style="modern"] .md-typeset .admonition,
+:root[data-xnano-style="modern"] .md-typeset details,
+:root[data-xnano-style="modern"] .md-typeset blockquote {
+    border: 0;
+    border-left: 5px solid var(--xnano-accent);
+    border-radius: 7px;
+    box-shadow: 0 8px 24px var(--xnano-accent-shadow);
+}
+:root[data-xnano-style="modern"] .md-typeset table:not([class]) {
+    border: 1px solid var(--xnano-accent-border);
+    border-radius: 12px;
+    box-shadow: 8px 8px 0 var(--xnano-accent-shadow);
+    overflow: hidden;
+}
+:root[data-xnano-style="modern"] .md-typeset table:not([class]) th {
+    background: var(--xnano-accent-soft);
+    color: var(--xnano-accent-ink);
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 650;
+}
+:root[data-xnano-style="modern"] .md-nav__link--active {
+    background: var(--xnano-accent-soft);
+    border-left: 3px solid var(--xnano-accent);
+    border-radius: 5px;
+    padding-inline: 0.55rem;
+}
+:root[data-xnano-style="modern"] .grid.cards > ul > li {
+    border: 1px solid var(--xnano-accent-border);
+    border-radius: 12px;
+    box-shadow: 8px 8px 0 var(--xnano-accent-shadow);
+}

@@ -1,0 +1,61 @@
+[package]
+name = "xnano-terminal-image"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Image and animation loading, processing and terminal cell conversion for xnano."
+homepage.workspace = true
+repository.workspace = true
+include = [
+    "/pyproject.toml",
+    "/LICENSE",
+    "/build.rs",
+    "/src",
+    "../../packages/xnano-image/src/xnano_image",
+    "!__pycache__",
+    "!*.so",
+]
+rust-version.workspace = true
+
+[lib]
+# (python: 'xnano_image._xnano_image' / rust: '_xnano_image')
+name = "_xnano_image"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+# SIMD resizing (much faster than `image`'s own resampler).
+fast_image_resize = "6.1"
+# decoding / encoding. `ratatui-image` and `image` default features pull in
+# every format (avif, exr, tiff, ...); only the common ones are enabled.
+image = { version = "0.25.10", default-features = false, features = [
+    "png",
+    "jpeg",
+    "gif",
+    "webp",
+] }
+# zlib for the compact XNI1 container.
+miniz_oxide = "0.9"
+pyo3 = { version = "0.29.0", features = [
+    "extension-module",
+    "abi3-py310",
+    "generate-import-lib",
+] }
+# palette generation for `quantize`.
+quantette = { version = "0.6", default-features = false, features = ["std"] }
+ratatui-core = { version = "0.1", features = ["underline-color"] }
+# sixel / kitty / iterm2 protocols plus the terminal font-size query.
+ratatui-image = { version = "11.1", default-features = false }
+# the cell grid (XCG1) and cell animation (XCA1) formats shared with xnano-core.
+xnano-terminal-cells = { workspace = true }
+
+[build-dependencies]
+pyo3-build-config = "0.29.0"
+
+[package.metadata.maturin]
+name = "_xnano_image"
+python-source = "../../packages/xnano-image/src"
+
+[lints]
+workspace = true

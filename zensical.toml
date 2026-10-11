@@ -1,7 +1,7 @@
 [project]
 site_name = " "
 site_url = "https://xnano.hammad.app"
-site_description = "e(x)tremely nano rust-based TUI framework built on ``ratatui`` and ``tachyonfx``."
+site_description = "A Python terminal UI framework built on the ``ratatui`` and ``tachyonfx`` Rust crates."
 site_author = "Hammad Saeed"
 docs_dir = "docs"
 
@@ -13,146 +13,116 @@ Copyright &copy; 2026 Hammad Saeed
 
 nav = [
     {"Introduction" = "index.md"},
-    "getting-started.md",
-    { "Core Concepts" = [
-        "core-concepts/overview.md",
-        { "Hosts" = [
-            "core-concepts/terminal.md",
-            "core-concepts/web.md",
-        ]},
-        { "Layout & Styling" = [
-            "core-concepts/grids.md",
-            "core-concepts/fields.md",
-            "core-concepts/state.md",
-            "core-concepts/components.md",
-            "core-concepts/styling.md",
-        ]},
-        { "Live Behavior & Events" = [
-            "core-concepts/effects.md",
-            { "Events & Hooks" = "core-concepts/events.md" },
-            "core-concepts/context.md",
-            "core-concepts/actions.md",
-            "core-concepts/device.md",
-        ]},
-        { "Additional Features" = [
-            "core-concepts/markdown.md",
-            "core-concepts/requests.md",
-            "core-concepts/cli.md",
-        ]},
+    {"Learn" = [
+        {"Getting Started" = "learn/index.md"},
     ]},
-    # API_REFERENCE_START
-    { "API Reference" = [
-        { "xnano" = [
-            "api/xnano/index.md",
-            "api/xnano/actions.md",
-            { "cli" = [
-                "api/xnano/cli.md",
-                "api/xnano/cli/command.md",
-                "api/xnano/cli/errors.md",
-                "api/xnano/cli/help.md",
-                "api/xnano/cli/parameters.md",
-            ]},
-            "api/xnano/colors.md",
-            { "components" = [
-                "api/xnano/components.md",
-                "api/xnano/components/bar.md",
-                "api/xnano/components/button.md",
-                "api/xnano/components/chart.md",
-                "api/xnano/components/component.md",
-                "api/xnano/components/dropdown.md",
-                "api/xnano/components/image.md",
-                "api/xnano/components/input.md",
-                "api/xnano/components/link.md",
-                "api/xnano/components/loader.md",
-                "api/xnano/components/markdown.md",
-                "api/xnano/components/options.md",
-                "api/xnano/components/schema.md",
-                "api/xnano/components/scrollbar.md",
-                "api/xnano/components/table.md",
-                "api/xnano/components/text.md",
-            ]},
-            "api/xnano/context.md",
-            { "core" = [
-                "api/xnano/core.md",
-                "api/xnano/core/content.md",
-                "api/xnano/core/controller.md",
-                "api/xnano/core/demo.md",
-                "api/xnano/core/dispatch.md",
-                "api/xnano/core/effects.md",
-                "api/xnano/core/exceptions.md",
-                "api/xnano/core/frame.md",
-                "api/xnano/core/interface.md",
-                "api/xnano/core/layout.md",
-                "api/xnano/core/rendering.md",
-                "api/xnano/core/runtime.md",
-                "api/xnano/core/stage.md",
-            ]},
-            "api/xnano/cursor.md",
-            "api/xnano/device.md",
-            "api/xnano/effects.md",
-            "api/xnano/events.md",
-            "api/xnano/fields.md",
-            "api/xnano/grids.md",
-            "api/xnano/hooks.md",
-            "api/xnano/markdown.md",
-            "api/xnano/rendering.md",
-            "api/xnano/requests.md",
-            { "server" = [
-                "api/xnano/server.md",
-                "api/xnano/server/native.md",
-                "api/xnano/server/requests.md",
-            ]},
-            "api/xnano/state.md",
-            "api/xnano/tailwind.md",
-            "api/xnano/terminal.md",
-            "api/xnano/types.md",
-            { "utils" = [
-                "api/xnano/utils.md",
-                "api/xnano/utils/deprecation.md",
-                "api/xnano/utils/dispatch.md",
-                "api/xnano/utils/focus.md",
-                "api/xnano/utils/introspection.md",
-                "api/xnano/utils/markup.md",
-                "api/xnano/utils/responsive.md",
-                "api/xnano/utils/validation.md",
-            ]},
-            "api/xnano/web.md",
-        ]},
-        { "xnano-core" = [
-            "api/xnano-core/index.md",
-            "api/xnano-core/core.md",
-            { "rust" = [
-                "api/xnano-core/rust.md",
-                "api/xnano-core/rust/engine.md",
-                "api/xnano-core/rust/native.md",
-            ]},
-        ]},
+    {"Legacy v1" = [
+        {"Overview" = "v1/index.md"},
+        {"Getting Started" = "v1/getting-started.md"},
+        {"Concepts" = "v1/core-concepts/overview.md"},
+        {"Legacy API" = "v1/api/xnano/index.md"},
     ]},
-    # API_REFERENCE_END
+    {"API Reference" = [
+        {"API Reference" = "api-reference/index.md"},
+        # API_REFERENCE_START
+        {"xnano" = [
+            {"xnano" = "api-reference/xnano/index.md"},
+            {"xnano._xnano_core" = "api-reference/xnano/_xnano_core.md"},
+            {"xnano._xnano_core._core_types" = "api-reference/xnano/_xnano_core/_core_types.md"},
+            {"xnano.v1" = "api-reference/xnano/v1.md"},
+            {"xnano.v1.actions" = "api-reference/xnano/v1/actions.md"},
+            {"xnano.v1.area" = "api-reference/xnano/v1/area.md"},
+            {"xnano.v1.cli" = "api-reference/xnano/v1/cli.md"},
+            {"xnano.v1.cli.command" = "api-reference/xnano/v1/cli/command.md"},
+            {"xnano.v1.cli.errors" = "api-reference/xnano/v1/cli/errors.md"},
+            {"xnano.v1.cli.help" = "api-reference/xnano/v1/cli/help.md"},
+            {"xnano.v1.cli.parameters" = "api-reference/xnano/v1/cli/parameters.md"},
+            {"xnano.v1.colors" = "api-reference/xnano/v1/colors.md"},
+            {"xnano.v1.components" = "api-reference/xnano/v1/components.md"},
+            {"xnano.v1.components.bar" = "api-reference/xnano/v1/components/bar.md"},
+            {"xnano.v1.components.button" = "api-reference/xnano/v1/components/button.md"},
+            {"xnano.v1.components.chart" = "api-reference/xnano/v1/components/chart.md"},
+            {"xnano.v1.components.component" = "api-reference/xnano/v1/components/component.md"},
+            {"xnano.v1.components.dropdown" = "api-reference/xnano/v1/components/dropdown.md"},
+            {"xnano.v1.components.image" = "api-reference/xnano/v1/components/image.md"},
+            {"xnano.v1.components.input" = "api-reference/xnano/v1/components/input.md"},
+            {"xnano.v1.components.link" = "api-reference/xnano/v1/components/link.md"},
+            {"xnano.v1.components.loader" = "api-reference/xnano/v1/components/loader.md"},
+            {"xnano.v1.components.markdown" = "api-reference/xnano/v1/components/markdown.md"},
+            {"xnano.v1.components.options" = "api-reference/xnano/v1/components/options.md"},
+            {"xnano.v1.components.schema" = "api-reference/xnano/v1/components/schema.md"},
+            {"xnano.v1.components.scrollbar" = "api-reference/xnano/v1/components/scrollbar.md"},
+            {"xnano.v1.components.table" = "api-reference/xnano/v1/components/table.md"},
+            {"xnano.v1.components.text" = "api-reference/xnano/v1/components/text.md"},
+            {"xnano.v1.context" = "api-reference/xnano/v1/context.md"},
+            {"xnano.v1.core" = "api-reference/xnano/v1/core.md"},
+            {"xnano.v1.core.content" = "api-reference/xnano/v1/core/content.md"},
+            {"xnano.v1.core.controller" = "api-reference/xnano/v1/core/controller.md"},
+            {"xnano.v1.core.demo" = "api-reference/xnano/v1/core/demo.md"},
+            {"xnano.v1.core.dispatch" = "api-reference/xnano/v1/core/dispatch.md"},
+            {"xnano.v1.core.effects" = "api-reference/xnano/v1/core/effects.md"},
+            {"xnano.v1.core.exceptions" = "api-reference/xnano/v1/core/exceptions.md"},
+            {"xnano.v1.core.frame" = "api-reference/xnano/v1/core/frame.md"},
+            {"xnano.v1.core.interface" = "api-reference/xnano/v1/core/interface.md"},
+            {"xnano.v1.core.layout" = "api-reference/xnano/v1/core/layout.md"},
+            {"xnano.v1.core.rendering" = "api-reference/xnano/v1/core/rendering.md"},
+            {"xnano.v1.core.runtime" = "api-reference/xnano/v1/core/runtime.md"},
+            {"xnano.v1.core.stage" = "api-reference/xnano/v1/core/stage.md"},
+            {"xnano.v1.cursor" = "api-reference/xnano/v1/cursor.md"},
+            {"xnano.v1.device" = "api-reference/xnano/v1/device.md"},
+            {"xnano.v1.effects" = "api-reference/xnano/v1/effects.md"},
+            {"xnano.v1.events" = "api-reference/xnano/v1/events.md"},
+            {"xnano.v1.fields" = "api-reference/xnano/v1/fields.md"},
+            {"xnano.v1.grids" = "api-reference/xnano/v1/grids.md"},
+            {"xnano.v1.hooks" = "api-reference/xnano/v1/hooks.md"},
+            {"xnano.v1.markdown" = "api-reference/xnano/v1/markdown.md"},
+            {"xnano.v1.rendering" = "api-reference/xnano/v1/rendering.md"},
+            {"xnano.v1.requests" = "api-reference/xnano/v1/requests.md"},
+            {"xnano.v1.server" = "api-reference/xnano/v1/server.md"},
+            {"xnano.v1.server.native" = "api-reference/xnano/v1/server/native.md"},
+            {"xnano.v1.server.requests" = "api-reference/xnano/v1/server/requests.md"},
+            {"xnano.v1.state" = "api-reference/xnano/v1/state.md"},
+            {"xnano.v1.tailwind" = "api-reference/xnano/v1/tailwind.md"},
+            {"xnano.v1.terminal" = "api-reference/xnano/v1/terminal.md"},
+            {"xnano.v1.types" = "api-reference/xnano/v1/types.md"},
+            {"xnano.v1.utils" = "api-reference/xnano/v1/utils.md"},
+            {"xnano.v1.utils.deprecation" = "api-reference/xnano/v1/utils/deprecation.md"},
+            {"xnano.v1.utils.dispatch" = "api-reference/xnano/v1/utils/dispatch.md"},
+            {"xnano.v1.utils.focus" = "api-reference/xnano/v1/utils/focus.md"},
+            {"xnano.v1.utils.introspection" = "api-reference/xnano/v1/utils/introspection.md"},
+            {"xnano.v1.utils.markup" = "api-reference/xnano/v1/utils/markup.md"},
+            {"xnano.v1.utils.responsive" = "api-reference/xnano/v1/utils/responsive.md"},
+            {"xnano.v1.utils.validation" = "api-reference/xnano/v1/utils/validation.md"},
+            {"xnano.v1.web" = "api-reference/xnano/v1/web.md"},
+        ]},
+        {"xnano-audio" = [
+            {"xnano_audio" = "api-reference/xnano-audio/index.md"},
+        ]},
+        {"xnano-image" = [
+            {"xnano_image" = "api-reference/xnano-image/index.md"},
+        ]},
+        # API_REFERENCE_END
+    ]},
 ]
 
 extra_css = [
-    "stylesheets/extras.css",
     "stylesheets/code-theme.css",
-    "stylesheets/mkdocstrings.css",
-    "stylesheets/components.css",
-    "stylesheets/nav.css",
+    "stylesheets/content-layout.css",
+    "stylesheets/content-media.css",
     "stylesheets/context7.css",
-    "stylesheets/appearance.css"
-]
-
-extra_javascript = [
-    "js/pyodide-ansi.js",
-    "js/code-lang.js",
-    "js/custom.js",
-    "https://unpkg.com/katex@0/dist/katex.min.js",
-    "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
-    "https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js",
-    "https://unpkg.com/papaparse@5/papaparse.min.js",
+    "stylesheets/mkdocstrings.css",
+    "stylesheets/open-props.css",
+    "stylesheets/style-variants.css",
+    "stylesheets/theme.css",
+    "stylesheets/typography.css",
+    "stylesheets/components/appearance-controls.css",
+    "stylesheets/components/code-blocks.css",
+    "stylesheets/components/nav.css",
+    "stylesheets/components/components.css",
+    "stylesheets/components/site-chrome.css",
 ]
 
 [project.theme]
-custom_dir = "docs/overrides"
 language = "en"
 features = [
     "announce.dismiss",
@@ -165,8 +135,6 @@ features = [
     "header.autohide",
     "navigation.footer",
     "navigation.instant",
-    # !! prefetch should probably be enabled but its messing up the hero
-    # !! animation on reloads from other pages
     "navigation.instant.prefetch",
     "navigation.instant.progress",
     "navigation.path",
@@ -180,8 +148,8 @@ features = [
 ]
 
 [project.theme.icon]
-logo = "lucide/smile"
-repo = "lucide/smile"
+logo = "fontawesome/solid/x"
+repo = "fontawesome/brands/github"
 
 [[project.theme.palette]]
 media = "(prefers-color-scheme)"
@@ -206,23 +174,16 @@ toggle.name = "Switch to light mode"
 
 [project.theme.font]
 text = "Geist Pixel"
-code = "Iosevka Web"
-
-[project.home]
-tagline = "e(x)tremely nano terminal and web interfaces."
-gradient_hsla = "hsla(0, 0%, 100%, 0)"
-description = """
-Declarative terminal interfaces in Python, powered by Rust.
-"""
-
-[[project.home.buttons]]
-name = "Getting Started"
-url = "getting-started"
-theme = "md-button"
+code = "Google Sans Code"
 
 [[project.home.buttons]]
 name = "API Reference"
-url = "api/xnano"
+url = "api-reference/index"
+theme = "md-button"
+
+[[project.home.buttons]]
+name = "Getting Started"
+url = "learn/index"
 theme = "md-button"
 
 [[project.extra.social]]
@@ -241,6 +202,16 @@ link = "https://pypi.org/project/xnano-core"
 name = "xnano-core - PyPI"
 
 [[project.extra.social]]
+icon = "fontawesome/brands/python"
+link = "https://pypi.org/project/xnano-audio"
+name = "xnano-audio - PyPI"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/python"
+link = "https://pypi.org/project/xnano-image"
+name = "xnano-image - PyPI"
+
+[[project.extra.social]]
 icon = "fontawesome/brands/linkedin"
 link = "https://www.linkedin.com/in/hsaeed3"
 name = "Hammad Saeed - LinkedIn"
@@ -252,19 +223,12 @@ attr_list = {}
 footnotes = {}
 md_in_html = {}
 "mkdocs-click" = {}
-# Quoted key keeps the dotted module path (TOML nesting would break it).
-"docs_extensions.interactive" = {}
 
 [project.markdown_extensions.pymdownx]
 critic = {}
 details = {}
 keys = {}
 inlinehilite = {}
-
-# Shared markdown fragments under docs/includes/ (e.g. interactive.md).
-# Usage: --8<-- "interactive.md"
-[project.markdown_extensions.pymdownx.snippets]
-base_path = ["docs/includes"]
 
 [project.markdown_extensions.pymdownx.arithmatex]
 generic = true
@@ -293,6 +257,9 @@ custom_fences = [
 ]
 
 [project.plugins.mkdocstrings.handlers.python]
+# the API reference is read from source, so building the docs needs neither the packages
+# installed nor the Rust extensions compiled
+paths = ["packages/xnano-core/src", "packages/xnano-audio/src", "packages/xnano-image/src"]
 inventories = ["https://docs.python.org/3/objects.inv"]
 
 [project.plugins.mkdocstrings.handlers.python.options]
@@ -330,12 +297,6 @@ extensions = ["griffe_typingdoc"]
 # include_requirejs = true
 
 [project.plugins.search]
-
-# [project.markdown_extensions.termynal]
-# include_assets = true
-# title = "bash"
-# buttons = "macos"
-# prompt_literal_start = ["$"]
 
 # markdown-exec: client-side Pyodide editors + optional build-time exec.
 # Plugin auto-registers custom fences (incl. ``pyodide``) and injects assets.

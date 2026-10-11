@@ -1,0 +1,67 @@
+[package]
+name = "xnano-terminal-audio"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+description = "Audio synthesis, playback, capture and streaming for xnano."
+include = [
+    "/pyproject.toml",
+    "/LICENSE",
+    "/build.rs",
+    "/src",
+    "../../packages/xnano-audio/src/xnano_audio",
+    "!__pycache__",
+    "!*.so",
+]
+rust-version.workspace = true
+
+[lib]
+# (python: 'xnano_audio._xnano_audio' / rust: '_xnano_audio')
+name = "_xnano_audio"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+# decodes audio files lazily for `TerminalAudioStream`; formats are chosen explicitly.
+symphonia = { version = "0.6", default-features = false, features = ["wav", "ogg", "flac", "vorbis", "pcm", "mp3", "isomp4", "aac"] }
+# microphone capture. playback goes through kira, which drives cpal itself.
+#
+# on Linux cpal always links the system ALSA library (`alsa-sys`), which needs
+# the ALSA development headers at build time. Device support is therefore an
+# optional feature: without `playback`, synthesis still works and the device
+# classes report that they are unavailable.
+cpal = { version = "0.18", optional = true }
+# playback engine: mixer, tweens and sample-accurate clocks.
+#
+# kira's default features enable `cpal-realtime` (alsa-sys + dbus) and every
+# symphonia codec; xnano synthesizes every sound and never decodes files, so
+# only the cpal backend is enabled (through `playback`).
+kira = { version = "0.12.5", default-features = false }
+pyo3 = { version = "0.29.0", features = [
+    "extension-module",
+    "abi3-py310",
+    "generate-import-lib",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# already linked by cpal on Linux; used directly only to silence the messages
+# the ALSA library prints to stderr, which would corrupt a terminal interface.
+alsa-sys = { version = "0.4", optional = true }
+
+[features]
+default = ["playback"]
+# audio devices: playback through kira's cpal backend and microphone capture.
+playback = ["dep:cpal", "kira/cpal", "dep:alsa-sys"]
+
+[build-dependencies]
+pyo3-build-config = "0.29.0"
+
+[package.metadata.maturin]
+name = "_xnano_audio"
+python-source = "../../packages/xnano-audio/src"
+
+[lints]
+workspace = true
