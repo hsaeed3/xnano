@@ -106,16 +106,16 @@ v1 = [
 ignore-words-list = 'ratatui,iterm,shft,numer,nd,abd,notin,trough'
 
 [tool.coverage.run]
-source = ['xnano']
+source = ['xnano', 'xnano_audio', 'xnano_image']
 branch = true
 relative_files = true
 context = '${CONTEXT}'
 
 [tool.pytest.ini_options]
-pythonpath = ['tests']
-# A bare `pytest` runs the test suite only. The CodSpeed benchmark suite lives
-# in `tests/benchmarks/` and is opted into explicitly (`pytest benchmarks --codspeed`).
-testpaths = ['tests']
+# The CodSpeed benchmark suites live in `packages/<name>/benchmarks/` and run with
+# `pytest --codspeed <paths>`. Each package's test suite runs from its own directory:
+# the packages reuse module names (`helpers`, `test_contract`), which one pytest
+# session cannot import together.
 # Default discovery excludes common build/venv dirs only.
 norecursedirs = [
     '.*',
