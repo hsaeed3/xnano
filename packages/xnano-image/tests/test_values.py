@@ -178,7 +178,7 @@ def test_detect_without_a_terminal_raises_a_query_error():
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=10,
         check=False,
     )
     assert result.returncode == 0, result.stderr[-400:]

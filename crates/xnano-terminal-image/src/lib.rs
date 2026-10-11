@@ -11,6 +11,7 @@ mod fit;
 mod protocol;
 mod xni;
 
+use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -109,6 +110,14 @@ impl PyTerminalGraphics {
 
     #[staticmethod]
     fn detect(py: Python<'_>) -> PyResult<Self> {
+        if !(std::io::stdin().is_terminal() && std::io::stdout().is_terminal()) {
+            return Err(TerminalQueryError::new_err(
+                "Cannot detect the terminal's graphics capabilities because standard input and \
+                 output are not connected to a terminal. Run this call from a program attached \
+                 to a terminal, or build the capabilities with \
+                 TerminalGraphics.from_capabilities() or TerminalGraphics.half_blocks().",
+            ));
+        }
         py.detach(Picker::from_query_stdio)
             .map(|graphics| Self { graphics })
             .map_err(|error| {
