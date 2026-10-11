@@ -1,0 +1,122 @@
+@import url("https://iosevka-webfonts.github.io/iosevka/Iosevka.css");
+@import url("https://fonts.googleapis.com/css2?family=Geist+Pixel:ELSH@0..100&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bree+Serif&family=Manrope:wght@400..700&family=Source+Serif+4:opsz,wght@8..60,400..700&family=Space+Grotesk:wght@400..700&display=swap");
+
+.geist-pixel {
+    font-family: "Geist Pixel", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+    font-variation-settings: "ELSH" 40;
+}
+.md-typeset p,
+.md-typeset li,
+.md-typeset dd,
+.md-typeset td {
+    font-family: "Iosevka Web", monospace !important;
+    line-height: var(--font-lineheight-3) !important;
+    font-weight: var(--font-weight-4);
+    letter-spacing: var(--font-letterspacing-0-5);
+    text-rendering: geometricPrecision !important;
+    font-size: 16px;
+    /* scaleX expands from center by default, which shifts body text off
+       the left edge of headings/code. Anchor to the left so optical
+       widening only grows rightward and stays flush with titles. */
+    transform: scaleX(1.03);
+    transform-origin: left center;
+}
+/* Description elements: closer to headers, serif styling */
+.md-typeset dd,
+.md-typeset description {
+    font-family: "Geist Pixel", monospace !important;
+    font-variation-settings: "ELSH" 40;
+    font-size: 1.1em !important;
+}
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4,
+.md-typeset h5,
+.md-typeset h6 {
+    font-family: "Geist Pixel" !important;
+    font-variation-settings: "ELSH" 40;
+    margin-bottom: 0.35em !important;
+    border-bottom: var(--border-size-1) dashed;
+    padding-bottom: 0.4rem;
+    border-color: #21252b;
+}
+.md-typeset h1 {
+    font-variation-settings: "ELSH" 76.5;
+    font-size: 2em !important;
+    font-weight: 400;
+}
+.md-typeset h2 {
+    font-size: 1.85em !important;
+    font-weight: 400;
+}
+.md-typeset h3 {
+    font-size: 1.7em !important;
+    font-weight: 400;
+}
+.md-typeset h4,
+.md-typeset h5,
+.md-typeset h6 {
+    font-size: 1.5em !important;
+    font-weight: 400;
+}
+
+.md-typeset p,
+.md-typeset li,
+.md-typeset dd,
+.md-typeset td,
+.md-typeset th {
+    font-size: var(--xnano-prose-size) !important;
+}
+.md-typeset pre,
+.md-typeset code,
+.highlight > span.filename {
+    font-size: var(--xnano-code-size) !important;
+}
+.md-nav,
+.md-tabs,
+.md-search {
+    font-size: var(--xnano-navigation-size);
+}
+:root[data-xnano-style="serif"] .md-typeset p,
+:root[data-xnano-style="serif"] .md-typeset li,
+:root[data-xnano-style="serif"] .md-typeset dd,
+:root[data-xnano-style="serif"] .md-typeset td,
+:root[data-xnano-style="serif"] .md-typeset th {
+    font-family: "Source Serif 4", Georgia, serif !important;
+    letter-spacing: 0 !important;
+    line-height: 1.65 !important;
+    transform: none;
+}
+:root[data-xnano-style="serif"] .md-nav,
+:root[data-xnano-style="serif"] .md-tabs,
+:root[data-xnano-style="serif"] .md-search,
+:root[data-xnano-style="serif"] .md-footer,
+:root[data-xnano-style="serif"] .md-banner {
+    font-family: "Source Serif 4", Georgia, serif;
+}
+:root[data-xnano-style="modern"] .md-typeset p,
+:root[data-xnano-style="modern"] .md-typeset li,
+:root[data-xnano-style="modern"] .md-typeset dd,
+:root[data-xnano-style="modern"] .md-typeset td,
+:root[data-xnano-style="modern"] .md-typeset th {
+    font-family: "Manrope", sans-serif !important;
+    letter-spacing: -0.01em !important;
+    line-height: 1.65 !important;
+    transform: none;
+}
+:root[data-xnano-style="modern"] .md-nav,
+:root[data-xnano-style="modern"] .md-tabs,
+:root[data-xnano-style="modern"] .md-search,
+:root[data-xnano-style="modern"] .md-footer,
+:root[data-xnano-style="modern"] .md-banner {
+    font-family: "Manrope", sans-serif;
+}
+
+.md-typeset {
+    font-size: var(--xnano-prose-size);
+}

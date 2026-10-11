@@ -1,0 +1,65 @@
+/*
+  Content media must stay within the typeset column — same usable width as
+  text and code blocks. Paragraphs use scaleX(1.03) for body copy, which
+  otherwise pushes images/GIFs past the right edge (clipped on medium and
+  smaller layouts, and anywhere the column is tight).
+*/
+.md-typeset img,
+.md-typeset video,
+.md-typeset picture {
+    max-width: 100%;
+    height: auto;
+    box-sizing: border-box;
+}
+/* Image-only (or link-wrapped image) paragraphs: no optical widen. */
+.md-typeset p:has(> img:only-child),
+.md-typeset p:has(> a:only-child > img:only-child),
+.md-typeset p:has(> picture:only-child),
+.md-typeset p:has(> a:only-child > picture:only-child) {
+    transform: none;
+}
+/* ── Theme-aware demo GIFs ─────────────────────────────────────────────── */
+.xnano-demo {
+    margin: 1.25rem 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    border-radius: 12px;
+    overflow: hidden;
+    line-height: 0;
+}
+/* MkDocs wraps images in <p>; that p inherits scaleX and clips the right edge. */
+.xnano-demo > p {
+    display: contents;
+    margin: 0;
+    transform: none;
+}
+.xnano-demo img {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 12px;
+    box-sizing: border-box;
+    object-fit: contain;
+}
+/* Paired captures opt into theme switching. A single unclassified image is
+   intentionally visible in both themes. */
+.xnano-demo img.demo-light,
+.xnano-demo img.demo-dark {
+    display: none;
+}
+/* Light mode (default scheme): show light variant */
+[data-md-color-scheme="default"] .xnano-demo .demo-light {
+    display: block;
+}
+[data-md-color-scheme="default"] .xnano-demo .demo-dark {
+    display: none;
+}
+/* Dark mode (slate scheme): show dark variant */
+[data-md-color-scheme="slate"] .xnano-demo .demo-dark {
+    display: block;
+}
+[data-md-color-scheme="slate"] .xnano-demo .demo-light {
+    display: none;
+}

@@ -8,46 +8,6 @@
 
 /* ── Semantic token palette ─────────────────────────────────────────────── */
 
-[data-md-color-scheme="default"] {
-    --xn-code-bg: #eeecdf;
-    --xn-code-fg: #383a42;
-    --xn-code-line-highlight: #e4e2d4;
-
-    --xn-code-comment: #6b7280;
-    --xn-code-keyword: #756d93;
-    --xn-code-decorator: #6879a0;
-    --xn-code-namespace: #383a42;
-    --xn-code-class: #c18401;
-    --xn-code-builtin: #537f88;
-    --xn-code-function: #62769e;
-    --xn-code-string: #50a14f;
-    --xn-code-number: #986801;
-    --xn-code-constant: #986801;
-    --xn-code-self: #c18401;
-    --xn-code-operator: #383a42;
-    --xn-code-punctuation: #4a4d56;
-}
-
-[data-md-color-scheme="slate"] {
-    --xn-code-bg: #1e2028;
-    --xn-code-fg: #abb2bf;
-    --xn-code-line-highlight: #262a33;
-
-    --xn-code-comment: #5c6370;
-    --xn-code-keyword: #c4badb;
-    --xn-code-decorator: #b4c2df;
-    --xn-code-namespace: #abb2bf;
-    --xn-code-class: #e5c07b;
-    --xn-code-builtin: #91c0c5;
-    --xn-code-function: #afc2e3;
-    --xn-code-string: #98c379;
-    --xn-code-number: #d19a66;
-    --xn-code-constant: #d19a66;
-    --xn-code-self: #e5c07b;
-    --xn-code-operator: #abb2bf;
-    --xn-code-punctuation: #8b909a;
-}
-
 /* ── Code block surfaces ────────────────────────────────────────────────── */
 
 .highlight,
@@ -214,7 +174,7 @@
 
 .highlight .gd,
 .highlight .err {
-    color: #e06c75;
+    color: var(--xn-code-error);
 }
 
 .highlight .gi {
@@ -222,5 +182,5 @@
 }
 
 .highlight .err {
-    background-color: color-mix(in srgb, #e06c75 12%, transparent);
+    background-color: color-mix(in srgb, var(--xn-code-error) 12%, transparent);
 }

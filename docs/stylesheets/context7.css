@@ -1,111 +1,60 @@
 :host {
-    --c7-accent: #5e6f96;
-    --c7-accent-bright: #7588b6;
-    --c7-background: #f4f4ed;
-    --c7-background-raised: #e9e9e2;
-    --c7-border: #8995b2;
-    --c7-foreground: #343b50;
-    --c7-muted: #666b78;
-    --c7-shadow: #5e6f9633;
-    --c7-text-size: 14px;
-    --c7-input-size: 16px;
-    --c7-code-size: 13px;
-    font-family: "Iosevka Web", monospace !important;
+    --c7-accent: var(--xnano-accent, #5e6f96);
+    --c7-accent-bright: var(--xnano-accent-bright, #7588b6);
+    --c7-background: var(--xnano-c7-background, #f4f4ed);
+    --c7-background-raised: var(--xnano-c7-background-raised, #e9e9e2);
+    --c7-border: var(--xnano-accent-border, #8995b2);
+    --c7-foreground: var(--xnano-accent-ink, #343b50);
+    --c7-muted: var(--xnano-c7-muted, #666b78);
+    --c7-shadow: var(--xnano-accent-shadow, #5e6f9633);
+    --c7-text-size: var(--xnano-context7-text-size, 14px);
+    --c7-input-size: var(--xnano-context7-input-size, 16px);
+    --c7-code-size: var(--xnano-context7-code-size, 13px);
+    font-family: "Google Sans Code", monospace !important;
 }
 
+
+
 :host([data-xnano-size="small"]) {
-    --c7-text-size: 12px;
-    --c7-input-size: 14px;
-    --c7-code-size: 11px;
+    --c7-text-size: var(--xnano-context7-text-small, 12px);
+    --c7-input-size: var(--xnano-context7-input-small, 14px);
+    --c7-code-size: var(--xnano-context7-code-small, 11px);
 }
 
 :host([data-xnano-size="medium"]) {
-    --c7-text-size: 14px;
-    --c7-input-size: 16px;
-    --c7-code-size: 13px;
+    --c7-text-size: var(--xnano-context7-text-medium, 14px);
+    --c7-input-size: var(--xnano-context7-input-medium, 16px);
+    --c7-code-size: var(--xnano-context7-code-medium, 13px);
 }
 
 :host([data-xnano-size="large"]) {
-    --c7-text-size: 16px;
-    --c7-input-size: 18px;
-    --c7-code-size: 15px;
+    --c7-text-size: var(--xnano-context7-text-large, 16px);
+    --c7-input-size: var(--xnano-context7-input-large, 18px);
+    --c7-code-size: var(--xnano-context7-code-large, 15px);
 }
 
 @media (max-width: 700px), (orientation: portrait) and (max-width: 900px) {
     :host([data-xnano-size="auto"]) {
-        --c7-text-size: 13px;
-        --c7-input-size: 15px;
-        --c7-code-size: 12px;
+        --c7-text-size: var(--xnano-context7-text-auto-compact, 13px);
+        --c7-input-size: var(--xnano-context7-input-auto-compact, 15px);
+        --c7-code-size: var(--xnano-context7-code-auto-compact, 12px);
     }
 }
 
 @media (min-width: 1600px) and (orientation: landscape) {
     :host([data-xnano-size="auto"]) {
-        --c7-text-size: 15px;
-        --c7-input-size: 17px;
-        --c7-code-size: 14px;
+        --c7-text-size: var(--xnano-context7-text-auto-wide, 15px);
+        --c7-input-size: var(--xnano-context7-input-auto-wide, 17px);
+        --c7-code-size: var(--xnano-context7-code-auto-wide, 14px);
     }
-}
-
-:host([data-theme="slate"]) {
-    --c7-accent: #b2c0df;
-    --c7-accent-bright: #c6d0e9;
-    --c7-background: #141414;
-    --c7-background-raised: #1b1b1b;
-    --c7-border: #343434;
-    --c7-foreground: #dedcd1;
-    --c7-muted: #9c9b94;
-    --c7-shadow: #8295bd33;
 }
 
 :host([data-xnano-style="serif"]) {
     font-family: "Source Serif 4", Georgia, serif !important;
 }
 
-:host([data-xnano-style="serif"][data-theme="default"]) {
-    --c7-accent: #bd5b58;
-    --c7-accent-bright: #d96f55;
-    --c7-background: #fff3d8;
-    --c7-background-raised: #f3c49e;
-    --c7-border: #704653;
-    --c7-foreground: #4c3040;
-    --c7-muted: #76525d;
-    --c7-shadow: #70465366;
-}
-
-:host([data-xnano-style="serif"][data-theme="slate"]) {
-    --c7-accent: #ef8e73;
-    --c7-accent-bright: #f4ae79;
-    --c7-background: #21181d;
-    --c7-background-raised: #4a2933;
-    --c7-border: #9a5965;
-    --c7-foreground: #ffe1c2;
-    --c7-muted: #d09a91;
-    --c7-shadow: #2a1720;
-}
-
 :host([data-xnano-style="modern"]) {
     font-family: "Manrope", sans-serif !important;
-}
-
-:host([data-xnano-style="modern"][data-theme="default"]) {
-    --c7-accent: #527978;
-    --c7-accent-bright: #679291;
-    --c7-background-raised: #dce8e5;
-    --c7-border: #84a5a2;
-    --c7-foreground: #304a49;
-    --c7-muted: #587270;
-    --c7-shadow: #52797833;
-}
-
-:host([data-xnano-style="modern"][data-theme="slate"]) {
-    --c7-accent: #9bc7c3;
-    --c7-accent-bright: #b6d9d5;
-    --c7-background-raised: #172120;
-    --c7-border: #263c3a;
-    --c7-foreground: #d7ece9;
-    --c7-muted: #91aaa7;
-    --c7-shadow: #72aaa533;
 }
 
 :host([data-xnano-style="serif"]) .c7-panel {
