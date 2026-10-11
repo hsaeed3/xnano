@@ -28,7 +28,7 @@ permissions:
 jobs:
   # decides what to build; see .github/scripts/resolve_release.py
   plan:
-    name: Plan
+    name: resolve release plan # the required status check on main is named after this job
     runs-on: ubuntu-latest
     outputs:
       full_build: ${{ steps.plan.outputs.full_build }}
