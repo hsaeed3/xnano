@@ -38,5 +38,8 @@ updates:
         exclude-patterns:
           # pyo3 upgrades touch every binding, so they are done by hand
           - 'pyo3*'
+    ignore:
+      - dependency-name: 'pyo3*'
+        versions: ['*']
     cooldown:
       default-days: 7

@@ -166,6 +166,17 @@ def test_scheduled_calls_run_once_or_repeatedly(runtime):
         runtime.call_every(0, lambda: None)
 
 
+def test_simulation_clock_delta_updates_when_sampled():
+    parent = Clock.manual()
+    simulation = parent.derive(rate=2.0)
+
+    simulation.sample()
+    parent.advance(100)
+    simulation.sample()
+
+    assert simulation.delta_seconds == pytest.approx(0.2)
+
+
 def test_simulation_clocks_scale_scheduled_calls(runtime):
     simulation = runtime.clock.derive(rate=2.0)
     calls = []

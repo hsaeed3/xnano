@@ -40,10 +40,9 @@ create_exception!(
 );
 
 pub(crate) const BUILT_WITHOUT_DEVICES: &str = "this build of xnano-audio has no audio \
-    device support (it was compiled without the `playback` feature, usually because the \
-    system audio libraries were missing); synthesis with render_note and TerminalSound still \
-    works. Install a prebuilt wheel, or install the ALSA development headers \
-    (libasound2-dev / alsa-lib-devel) and reinstall to enable devices";
+    device support because it was built without the `playback` feature; synthesis with \
+    render_note and TerminalSound still works. Install a prebuilt wheel with device support, \
+    or build for a supported native platform with the `playback` feature enabled";
 
 /// Convert any displayable audio-library error into a `TerminalAudioError`.
 #[cfg_attr(not(feature = "playback"), allow(dead_code))]

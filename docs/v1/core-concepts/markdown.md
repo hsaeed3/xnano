@@ -11,7 +11,7 @@ icon: "lucide/file-text"
     is experimental. The API may still change. The `Markdown` **component** used
     as a field value is separate and is not covered by this warning.
 
-[xnano.markdown]{data-preview} loads Markdown from a string, bytes, or file path
+[xnano.v1.markdown]{data-preview} loads Markdown from a string, bytes, or file path
 and either paints one frame or opens an **interactive pager** — scrollable
 viewport, status line, and keyboard / wheel navigation.
 
@@ -155,7 +155,7 @@ cell resolution). Expand with hover, click, or `i` for a larger preview without
 decoding full-size images on every frame.
 
 The `Markdown` **component** is still the right choice when markdown is one
-slot inside a larger app grid. Use `xnano.markdown` when the document *is* the
+slot inside a larger app grid. Use `xnano.v1.markdown` when the document *is* the
 session.
 
 ## Next
@@ -166,9 +166,9 @@ session.
 
 ??? abstract "API"
 
-    [`xnano.markdown`](../api/xnano/markdown.md){data-preview} ·
+    [`xnano.v1.markdown`](../api/xnano/markdown.md){data-preview} ·
     [`run_markdown`](../api/xnano/markdown.md){data-preview} ·
     [`render_markdown`](../api/xnano/markdown.md){data-preview} ·
     [`Markdown` component](../api/xnano/components/markdown.md){data-preview}
 
-[xnano.markdown]: ../api/xnano/markdown.md
+[xnano.v1.markdown]: ../api/xnano/markdown.md

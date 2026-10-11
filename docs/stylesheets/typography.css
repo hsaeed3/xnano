@@ -16,7 +16,7 @@
     font-family: "Iosevka Web", monospace !important;
     line-height: var(--font-lineheight-3) !important;
     font-weight: var(--font-weight-4);
-    letter-spacing: var(--font-letterspacing-0-5);
+    letter-spacing: var(--font-letterspacing-1);
     text-rendering: geometricPrecision !important;
     font-size: 16px;
     /* scaleX expands from center by default, which shifts body text off

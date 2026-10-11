@@ -5,6 +5,7 @@
 //! inputs and repaints only the ones whose fingerprint changed, so an unchanged widget
 //! costs one comparison per frame.
 
+use std::ops::Deref;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -35,6 +36,25 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Spec<T> {
     }
 }
 
+/// An immutable view of a widget's settings while its lock is held.
+pub struct SpecReadGuard<'a, T> {
+    guard: MutexGuard<'a, T>,
+}
+
+impl<T> Deref for SpecReadGuard<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.guard
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for SpecReadGuard<'_, T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&*self.guard, formatter)
+    }
+}
+
 impl<T> Spec<T> {
     pub fn new(data: T) -> Arc<Self> {
         Arc::new(Self {
@@ -47,16 +67,24 @@ impl<T> Spec<T> {
         self.version.load(Ordering::SeqCst)
     }
 
-    /// Read the settings.
-    pub fn read(&self) -> MutexGuard<'_, T> {
-        self.data
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    /// Read the settings without allowing changes that bypass the version counter.
+    pub fn read(&self) -> SpecReadGuard<'_, T> {
+        SpecReadGuard {
+            guard: self
+                .data
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        }
     }
 
     /// Edit the settings and mark them changed.
     pub fn edit<R>(&self, change: impl FnOnce(&mut T) -> R) -> R {
-        let result = change(&mut self.read());
+        let mut settings = self
+            .data
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let result = change(&mut settings);
+        drop(settings);
         self.version.fetch_add(1, Ordering::SeqCst);
         result
     }

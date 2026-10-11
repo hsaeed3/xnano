@@ -21,7 +21,7 @@
 
 ## Checklist
 
-* [ ] The pull request title follows `<type>(<scope>): <summary>` - it is used as the squash commit message and in the changelog
+* [ ] The pull request title follows `<type>(<scope>): <summary>` (scope is optional; `!` marks breaking changes) - it is used as the squash commit message and in the changelog
 * [ ] Unit tests for the changes exist
 * [ ] `make format-all`, `make check` and `make test` pass
 * [ ] Documentation and examples reflect the changes where applicable

@@ -5,7 +5,7 @@ xnano.v1.hooks
 
 Handle events by decorating methods on a ``BaseGrid`` subclass::
 
-    from xnano import hooks
+    from xnano.v1 import hooks
 
     @hooks.on_keyboard("q")
     def quit(self, ctx): ...

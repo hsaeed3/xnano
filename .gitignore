@@ -1,7 +1,8 @@
 *.py[cod]
 *.env
 *.so
-*.xni
+packages/xnano-core/src/xnano/v1/*.xni
+docs/v1/assets/*.xni
 *.profraw
 dist/
 target/

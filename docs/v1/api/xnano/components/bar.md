@@ -1,5 +1,5 @@
 ---
-title: "xnano.components.bar"
+title: "xnano.v1.components.bar"
 ---
 
 ::: xnano.v1.components.bar

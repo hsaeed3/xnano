@@ -169,6 +169,10 @@ impl PySimulationClock {
         self.inner.delta_seconds()
     }
 
+    fn sample(&self) {
+        self.inner.sample();
+    }
+
     fn pause(&self) {
         self.inner.set_paused(true);
     }

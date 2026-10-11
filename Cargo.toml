@@ -42,7 +42,7 @@ repository = "https://github.com/hsaeed3/xnano.git"
 [workspace.dependencies]
 xnano-terminal-cells = { path = "crates/xnano-terminal-cells", version = "0.1.0" }
 xnano-terminal-state = { path = "crates/xnano-terminal-state", version = "2.0.0-beta.1" }
-xnano-terminal-runtime = { path = "crates/xnano-terminal-runtime", version = "2.0.0-beta.1" }
+xnano-terminal-runtime = { path = "crates/xnano-terminal-runtime", version = "2.0.0-beta.1", default-features = false }
 
 # PyO3: one pin, so `pyo3` and `pyo3-build-config` are always bumped together.
 pyo3 = "0.29.0"

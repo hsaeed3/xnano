@@ -113,7 +113,9 @@ def test_enharmonic_names_agree():
     assert note_to_hertz('C#5') == pytest.approx(note_to_hertz('Db5'))
 
 
-@pytest.mark.parametrize('bad', ['H4', '', 'C#x', 'C10', 'hz', 400, 2.0])
+@pytest.mark.parametrize(
+    'bad', ['H4', '', 'C#x', 'C10', 'B#9', '128', 128, 'hz', 400, 2.0]
+)
 def test_bad_notes_raise_value_error(bad):
     with pytest.raises(ValueError):
         note_to_hertz(bad)

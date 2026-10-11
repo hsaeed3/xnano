@@ -11,7 +11,7 @@ pub fn midi_to_hz(midi: f32) -> f32 {
 
 /// Parse a note name such as `C4`, `c#3`, `Db5` or `A` (octave defaults to 4)
 /// into a MIDI note number. `C4` is 60.
-fn parse_note_name(text: &str) -> Option<f32> {
+fn parse_note_name(text: &str) -> Option<i32> {
     let mut chars = text.trim().chars().peekable();
     let semitone = match chars.next()?.to_ascii_uppercase() {
         'C' => 0,
@@ -41,7 +41,16 @@ fn parse_note_name(text: &str) -> Option<f32> {
     if !(-1..=9).contains(&octave) {
         return None;
     }
-    Some((12 * (octave + 1) + semitone + accidental) as f32)
+    Some(12 * (octave + 1) + semitone + accidental)
+}
+
+fn midi_pitch_to_hz(midi: i32) -> PyResult<f32> {
+    if !(0..=127).contains(&midi) {
+        return Err(PyValueError::new_err(format!(
+            "MIDI pitch {midi} is outside the supported range (0 to 127)"
+        )));
+    }
+    Ok(midi_to_hz(midi as f32))
 }
 
 /// Turn a Python note (`"C#4"`, MIDI `int`, or `float` hertz) into hertz.
@@ -53,7 +62,7 @@ pub fn note_to_hz(note: &Bound<'_, PyAny>) -> PyResult<f32> {
             "note must be a name, MIDI int, or hertz float",
         ));
     } else if note.is_instance_of::<PyInt>() {
-        midi_to_hz(note.extract::<i32>()? as f32)
+        midi_pitch_to_hz(note.extract::<i32>()?)?
     } else if note.is_instance_of::<PyFloat>() {
         note.extract::<f32>()?
     } else if note.is_instance_of::<PyString>() {
@@ -62,9 +71,9 @@ pub fn note_to_hz(note: &Bound<'_, PyAny>) -> PyResult<f32> {
         if let Some(number) = lowered.strip_suffix("hz") {
             number.trim().parse::<f32>().map_err(|_| bad_note(&text))?
         } else if let Ok(midi) = lowered.parse::<i32>() {
-            midi_to_hz(midi as f32)
+            midi_pitch_to_hz(midi)?
         } else {
-            midi_to_hz(parse_note_name(&text).ok_or_else(|| bad_note(&text))?)
+            midi_pitch_to_hz(parse_note_name(&text).ok_or_else(|| bad_note(&text))?)?
         }
     } else {
         return Err(PyTypeError::new_err(

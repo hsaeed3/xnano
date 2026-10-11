@@ -1,5 +1,5 @@
 ---
-title: "xnano"
+title: "xnano.v1"
 ---
 
-::: xnano
+::: xnano.v1

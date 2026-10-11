@@ -69,6 +69,20 @@ fn first_line(lines: &[Line]) -> RLine<'static> {
     )
 }
 
+fn validate_divider(lines: &[Line]) -> Result<(), EvalError> {
+    let has_multiple_lines = lines.len() > 1;
+    let has_multiple_styles = lines.first().is_some_and(|line| {
+        line.first()
+            .is_some_and(|first_span| line.iter().any(|span| span.style != first_span.style))
+    });
+    if has_multiple_lines || has_multiple_styles {
+        return Err(EvalError::Type(
+            "tabs divider must be one line with a single style; use a one-line divider with one style".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 fn divider_span(lines: &[Line]) -> RSpan<'static> {
     let Some(line) = lines.first() else {
         return RSpan::raw("");
@@ -90,12 +104,14 @@ impl WidgetSpec for TabsSpec {
         for title in &self.titles {
             titles.push(title.resolve(resolver)?);
         }
+        let divider = self.divider.resolve(resolver)?;
+        validate_divider(&divider)?;
         Ok(ResolvedTabs {
             titles,
             selected: resolver.get(&self.selected)?.0,
             style: self.style.resolve(resolver)?,
             highlight_style: self.highlight_style.resolve(resolver)?,
-            divider: self.divider.resolve(resolver)?,
+            divider,
             padding_left: self.padding_left.resolve(resolver)?,
             padding_right: self.padding_right.resolve(resolver)?,
             block: resolve_optional(&self.block, resolver)?,
@@ -117,5 +133,38 @@ impl WidgetSpec for TabsSpec {
             tabs = tabs.block(block.to_widget());
         }
         tabs.render(area, grid.buffer_mut());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ratatui_core::style::{Color, Style};
+
+    use crate::text::Span;
+
+    use super::validate_divider;
+
+    #[test]
+    fn divider_rejects_spans_with_different_styles() {
+        let divider = vec![vec![
+            Span::new("-", Style::default()),
+            Span::new("=", Style::default().fg(Color::Red)),
+        ]];
+
+        let error = validate_divider(&divider).unwrap_err();
+
+        assert!(error.to_string().contains("single style"));
+    }
+
+    #[test]
+    fn divider_rejects_multiple_lines() {
+        let divider = vec![
+            vec![Span::new("-", Style::default())],
+            vec![Span::new("=", Style::default())],
+        ];
+
+        let error = validate_divider(&divider).unwrap_err();
+
+        assert!(error.to_string().contains("one line"));
     }
 }

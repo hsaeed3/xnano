@@ -8,6 +8,10 @@ use ratatui_core::layout::Rect;
 /// The largest width or height of a buffer, in cells.
 pub const MAXIMUM_DIMENSION: i32 = u16::MAX as i32;
 
+fn dimension_between(start: i32, end: i32) -> i32 {
+    (i64::from(end) - i64::from(start)).clamp(0, i64::from(i32::MAX)) as i32
+}
+
 /// A column and row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Point {
@@ -95,7 +99,12 @@ impl Rectangle {
         if right <= left || bottom <= top {
             return Self::new(self.x, self.y, 0, 0);
         }
-        Self::new(left, top, right - left, bottom - top)
+        Self::new(
+            left,
+            top,
+            dimension_between(left, right),
+            dimension_between(top, bottom),
+        )
     }
 
     /// The smallest rectangle holding both; an empty rectangle contributes nothing.
@@ -110,7 +119,12 @@ impl Rectangle {
         let top = self.y.min(other.y);
         let right = self.right().max(other.right());
         let bottom = self.bottom().max(other.bottom());
-        Self::new(left, top, right - left, bottom - top)
+        Self::new(
+            left,
+            top,
+            dimension_between(left, right),
+            dimension_between(top, bottom),
+        )
     }
 
     pub fn translate(self, horizontal: i32, vertical: i32) -> Self {
@@ -124,17 +138,24 @@ impl Rectangle {
 
     /// Shrink by `horizontal` columns and `vertical` rows on every side (grow when negative).
     pub fn inset(self, horizontal: i32, vertical: i32) -> Self {
-        let width = (self.width - horizontal.saturating_mul(2)).max(0);
-        let height = (self.height - vertical.saturating_mul(2)).max(0);
+        let width = (i64::from(self.width) - 2 * i64::from(horizontal))
+            .clamp(0, i64::from(i32::MAX)) as i32;
+        let height =
+            (i64::from(self.height) - 2 * i64::from(vertical)).clamp(0, i64::from(i32::MAX)) as i32;
         if width == 0 || height == 0 {
             return Self::new(
-                self.x + horizontal.min(self.width / 2),
-                self.y + vertical.min(self.height / 2),
+                self.x.saturating_add(horizontal.min(self.width.max(0) / 2)),
+                self.y.saturating_add(vertical.min(self.height.max(0) / 2)),
                 0,
                 0,
             );
         }
-        Self::new(self.x + horizontal, self.y + vertical, width, height)
+        Self::new(
+            self.x.saturating_add(horizontal),
+            self.y.saturating_add(vertical),
+            width,
+            height,
+        )
     }
 
     /// Convert to a terminal rectangle, clipping to the area that can be addressed.
@@ -157,5 +178,33 @@ impl From<Rect> for Rectangle {
             i32::from(rect.width),
             i32::from(rect.height),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Rectangle;
+
+    #[test]
+    fn union_saturates_spans_that_exceed_the_coordinate_range() {
+        let left = Rectangle::new(i32::MIN, 0, i32::MAX, 1);
+        let right = Rectangle::new(0, 0, i32::MAX, 1);
+
+        let union = left.union(right);
+
+        assert_eq!(union.x, i32::MIN);
+        assert_eq!(union.width, i32::MAX);
+    }
+
+    #[test]
+    fn inset_saturates_extreme_margins_without_overflowing() {
+        let rectangle = Rectangle::new(i32::MAX - 1, i32::MIN + 1, 10, 10);
+
+        let inset = rectangle.inset(i32::MIN, i32::MIN);
+
+        assert_eq!(inset.width, i32::MAX);
+        assert_eq!(inset.height, i32::MAX);
+        assert_eq!(inset.x, -2);
+        assert_eq!(inset.y, i32::MIN);
     }
 }

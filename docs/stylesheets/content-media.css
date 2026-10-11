@@ -13,6 +13,7 @@
 }
 /* Image-only (or link-wrapped image) paragraphs: no optical widen. */
 .md-typeset p:has(> img:only-child),
+.md-typeset p:has(> video:only-child),
 .md-typeset p:has(> a:only-child > img:only-child),
 .md-typeset p:has(> picture:only-child),
 .md-typeset p:has(> a:only-child > picture:only-child) {

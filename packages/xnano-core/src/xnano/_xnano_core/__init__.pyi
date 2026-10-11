@@ -656,7 +656,24 @@ class SimulationClock:
 
     @property
     def delta_seconds(self) -> float:
-        """Seconds of simulation time between the two most recent frames."""
+        """Seconds of simulation time between the two most recent calls to ``sample``."""
+
+    def sample(self) -> None:
+        """
+        Record the current elapsed time so ``delta_seconds`` reports time since this sample.
+
+        Call once for each simulation frame whose elapsed time you want to measure.
+
+        Examples:
+            ```python
+            parent = Clock.manual()
+            simulation = parent.derive(rate=2.0)
+            simulation.sample()
+            parent.advance(100)
+            simulation.sample()
+            assert simulation.delta_seconds == 0.2
+            ```
+        """
 
     def pause(self) -> None:
         """
@@ -8476,19 +8493,36 @@ class Margin:
     def horizontal(self) -> int: ...
 
 X: NumericValue[int | float]
+"""The horizontal position of a buffer or region, in terminal cells."""
 Y: NumericValue[int | float]
+"""The vertical position of a buffer or region, in terminal cells."""
 Width: NumericValue[int | float]
+"""The width of a buffer or region, in terminal cells."""
 Height: NumericValue[int | float]
+"""The height of a buffer or region, in terminal cells."""
 Elapsed: NumericValue[int | float]
+"""The elapsed runtime time, in seconds."""
 Delta: NumericValue[int | float]
+"""The elapsed time since the previous runtime frame, in seconds."""
 ElapsedMilliseconds: NumericValue[int | float]
+"""The elapsed runtime time, in milliseconds."""
 DeltaMilliseconds: NumericValue[int | float]
+"""The elapsed time since the previous runtime frame, in milliseconds."""
 Frame: NumericValue[int | float]
+"""The current runtime frame number."""
 FPS: NumericValue[int | float]
+"""The runtime's estimated frames per second."""
 DeviceWidth: NumericValue[int | float]
+"""The terminal width, in cells."""
 DeviceHeight: NumericValue[int | float]
+"""The terminal height, in cells."""
 Position: Value[Point]
+"""The position of a buffer or region as a ``Point``."""
 Bounds: Value[Rectangle]
+"""The full bounds of a buffer or region as a ``Rectangle``."""
 BufferSize: Value[Size]
+"""The dimensions of a buffer as a ``Size``."""
 Focused: Value[bool]
+"""Whether the runtime has focus."""
 Running: Value[bool]
+"""Whether the runtime is running."""

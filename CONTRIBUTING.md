@@ -76,8 +76,8 @@ Follow the architecture and code style documented in `AGENTS.md`.
 
 ## Commit and pull request titles
 
-xnano uses the following format for commits added directly to `main` and for
-pull request titles:
+xnano uses the following format for pull request titles and final squash
+commit messages:
 
 ```text
 <type>(<scope>): <summary>

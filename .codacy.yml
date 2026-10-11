@@ -1,8 +1,11 @@
 ---
 exclude_paths:
+  # Rust is checked with cargo clippy across every workspace target.
+  - "crates/**"
   - "examples/**"
   - "scripts/**"
   - "packages/*/tests/**"
+  - "crates/*/tests/**"
   - "packages/*/benchmarks/**"
   - "docs/**"
   - "*.md"

@@ -25,6 +25,7 @@ pub mod table;
 pub mod tabs;
 
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::{self, Write as _};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
@@ -90,9 +91,22 @@ impl<S: WidgetSpec> SpecPainter<S> {
     }
 }
 
+struct DebugHashWriter<'a>(&'a mut DefaultHasher);
+
+impl fmt::Write for DebugHashWriter<'_> {
+    fn write_str(&mut self, value: &str) -> fmt::Result {
+        self.0.write(value.as_bytes());
+        Ok(())
+    }
+}
+
 fn digest(resolved: &impl std::fmt::Debug, grid_size: (u16, u16)) -> u64 {
     let mut hasher = DefaultHasher::new();
-    format!("{resolved:?}").hash(&mut hasher);
+    {
+        let mut writer = DebugHashWriter(&mut hasher);
+        let _ = write!(writer, "{resolved:?}");
+    }
+    hasher.write_u8(0xff);
     grid_size.hash(&mut hasher);
     hasher.finish()
 }
@@ -121,5 +135,24 @@ impl<S: WidgetSpec> Painter for SpecPainter<S> {
         };
         S::draw(&resolved, grid);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    use super::digest;
+
+    #[test]
+    fn digest_matches_hashing_the_resolved_debug_text() {
+        let resolved = ("example", 12_u16);
+        let grid_size = (12, 4);
+        let mut expected = DefaultHasher::new();
+        format!("{resolved:?}").hash(&mut expected);
+        grid_size.hash(&mut expected);
+
+        assert_eq!(digest(&resolved, grid_size), expected.finish());
     }
 }
