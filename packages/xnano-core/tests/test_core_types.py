@@ -79,6 +79,24 @@ def test_evaluation_contexts_work_offline():
     assert context.runtime is None and context.device is None
 
 
+def test_core_context_rejects_a_missing_runtime():
+    context = core_types.CoreContext(
+        buffer=Buffer(width=1, height=1), runtime=typing.cast(Runtime, None)
+    )
+
+    with pytest.raises(RuntimeError, match='EvaluationContext'):
+        assert context.runtime is not None
+
+
+def test_event_context_rejects_a_missing_event():
+    context = core_types.EventContext(
+        buffer=Buffer(width=1, height=1), runtime=typing.cast(Runtime, None)
+    )
+
+    with pytest.raises(RuntimeError, match='active event hook'):
+        assert context.event is not None
+
+
 def test_unsupported_operations_name_the_recovery():
     from xnano._xnano_core import UnsupportedOperationError
 

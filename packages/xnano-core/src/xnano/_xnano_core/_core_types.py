@@ -370,7 +370,10 @@ class CoreContext(EvaluationContext):
     @property
     def runtime(self) -> Runtime:
         """The runtime the buffer is mounted on."""
-        assert self._runtime is not None
+        if self._runtime is None:
+            raise RuntimeError(
+                'This context has no runtime. Use EvaluationContext for offline work.'
+            )
         return self._runtime
 
     @property
@@ -523,7 +526,10 @@ class EventContext(CoreContext):
     @property
     def event(self) -> Event:
         """The event being handled."""
-        assert self._event is not None
+        if self._event is None:
+            raise RuntimeError(
+                'This context has no event. Read event only from an active event hook.'
+            )
         return self._event
 
     @property
