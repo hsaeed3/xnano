@@ -40,7 +40,7 @@ install: .uv .rust .audio-notice
 	@set -e; for package in $(packages); do $(MAKE) -C packages/$$package clean; done
 	$(MAKE) rebuild-rust
 	$(uv-sync)
-	uv run prek install --install-hooks
+	$(uv-run-no-sync) prek install --install-hooks
 
 .PHONY: rebuild-rust ## Rebuilds the Rust extensions of all packages
 rebuild-rust: .uv .rust

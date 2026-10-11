@@ -23,12 +23,12 @@ check: lint test-coverage
 .PHONY: install  ## Install the package, dependencies, and pre-commit for local development
 install: .uv
 	uv sync --frozen --all-groups $(sync-settings)
-	uv run prek install --install-hooks
+	uv run $(sync-settings) prek install --install-hooks
 
 .PHONY: rebuild-rust  ## Rebuilds the .so file for the rust extension
 rebuild-rust: .uv
 	cargo clean -p $(crate)
-	uv run maturin develop --uv $(device-features)
+	uv run $(sync-settings) maturin develop --uv $(device-features)
 
 .PHONY: build-dev  ## Build the development version of the package
 build-dev: .uv
@@ -86,7 +86,7 @@ test:
 
 .PHONY: test-sync  ## Run all tests ensuring uv syncs the package beforehand
 test-sync: .uv
-	uv run pytest
+	uv run $(sync-settings) pytest
 
 .PHONY: test-coverage  ## Run tests and generate a coverage report
 test-coverage: build-coverage
