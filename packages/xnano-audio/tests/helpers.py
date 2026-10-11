@@ -25,7 +25,7 @@ if not STUB.exists():
         / '__init__.pyi'
     )
 
-TREE = ast.parse(STUB.read_text())
+TREE = ast.parse(STUB.read_text(encoding='utf-8'))
 
 
 class StubFunction:

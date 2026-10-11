@@ -2,22 +2,19 @@
 
 from __future__ import annotations
 
-import fcntl
 import os
 import select
 import signal
 import struct
 import sys
-import termios
 import textwrap
 import time
 
 import pytest
 
-pty = pytest.importorskip('pty')
-pytestmark = pytest.mark.skipif(
-    sys.platform == 'win32', reason='needs a POSIX pseudo-terminal'
-)
+fcntl = pytest.importorskip('fcntl', reason='needs a POSIX pseudo-terminal')
+termios = pytest.importorskip('termios', reason='needs a POSIX pseudo-terminal')
+pty = pytest.importorskip('pty', reason='needs a POSIX pseudo-terminal')
 
 CHILD = textwrap.dedent(
     """

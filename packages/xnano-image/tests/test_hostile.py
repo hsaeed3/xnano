@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import math
 import random
-import resource
 import struct
 import subprocess
 import sys
@@ -376,6 +375,7 @@ def png_claiming(width: int, height: int, data: bytes = b'') -> bytes:
 
 
 def test_decompression_bomb_headers_are_refused_without_allocating():
+    resource = pytest.importorskip('resource', reason='memory statistics require POSIX')
     claims = [
         (16384, 16384),
         (65535, 65535),
@@ -415,7 +415,11 @@ def test_gif_with_huge_logical_screen_is_refused_fast(side):
     with pytest.raises(TerminalImageError, match='canvas'):
         TerminalImage.from_bytes(bytes(gif))
     assert time.monotonic() - started < 2
-    assert resource.getrusage(resource.RUSAGE_SELF).ru_maxrss < 4 * 2**30
+    if sys.platform != 'win32':
+        resource = pytest.importorskip(
+            'resource', reason='memory statistics require POSIX'
+        )
+        assert resource.getrusage(resource.RUSAGE_SELF).ru_maxrss < 4 * 2**30
 
 
 def test_largest_legal_still_image_works_at_the_pixel_budget():

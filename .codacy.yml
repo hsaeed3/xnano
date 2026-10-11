@@ -5,6 +5,7 @@ exclude_paths:
   - "packages/*/tests/**"
   - "packages/*/benchmarks/**"
   - "docs/**"
+  - "*.md"
   - "**/*.md"
   - "**/*.js"
   - "**/*.lock"

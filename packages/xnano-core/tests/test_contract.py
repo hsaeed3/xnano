@@ -10,7 +10,7 @@ import pytest
 import xnano._xnano_core as native
 
 STUB = pathlib.Path(native.__path__[0]) / '__init__.pyi'
-TREE = ast.parse(STUB.read_text())
+TREE = ast.parse(STUB.read_text(encoding='utf-8'))
 
 CLASSES = {node.name: node for node in TREE.body if isinstance(node, ast.ClassDef)}
 FUNCTIONS = {node.name for node in TREE.body if isinstance(node, ast.FunctionDef)}

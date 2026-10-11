@@ -35,7 +35,7 @@ def collect() -> list[tuple[str, str]]:
             if isinstance(child, ast.ClassDef):
                 visit(child, name + '.')
 
-    visit(ast.parse(STUB.read_text()))
+    visit(ast.parse(STUB.read_text(encoding='utf-8')))
     return found
 
 
@@ -47,7 +47,7 @@ def test_the_stub_documents_its_api_with_examples():
 
 
 def test_every_public_class_and_function_has_an_example():
-    tree = ast.parse(STUB.read_text())
+    tree = ast.parse(STUB.read_text(encoding='utf-8'))
     documented = {name.split('[')[0].split('.')[0] for name, _ in EXAMPLES}
     missing = [
         node.name

@@ -2850,7 +2850,7 @@ class SetState(Operation):
 
     Args:
         reference: A state reference exposing ``path``, ``native_store`` and
-            ``schema`` (see [`StateReference`][xnano._xnano_core._core_types.StateReference]).
+            ``schema`` (see [`StateReference`][xnano._xnano_core.StateReference]).
         value: The new value of the branch.
         expected_revision: Fail with a conflict error unless the store is at this revision.
 

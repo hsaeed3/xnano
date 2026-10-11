@@ -194,7 +194,7 @@ def get_stale_files(
     stale_files.extend(
         f"out of date: {path.relative_to(REPOSITORY_ROOT)}"
         for path in sorted(generated_files.keys() & existing_paths)
-        if path.read_text() != generated_files[path]
+        if path.read_text(encoding="utf-8") != generated_files[path]
     )
 
     if configuration != updated_configuration:
@@ -220,7 +220,7 @@ def generate_api_references(should_check_only: bool = False) -> int:
         for package, source_directory in PACKAGE_SOURCE_DIRECTORIES.items()
     }
     generated_files = get_generated_files(package_modules)
-    configuration = CONFIGURATION_PATH.read_text()
+    configuration = CONFIGURATION_PATH.read_text(encoding="utf-8")
     updated_configuration = get_updated_configuration(configuration, package_modules)
 
     if should_check_only:
@@ -243,8 +243,8 @@ def generate_api_references(should_check_only: bool = False) -> int:
         )
     for path, content in generated_files.items():
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
-    CONFIGURATION_PATH.write_text(updated_configuration)
+        path.write_text(content, encoding="utf-8")
+    CONFIGURATION_PATH.write_text(updated_configuration, encoding="utf-8")
     return 0
 
 

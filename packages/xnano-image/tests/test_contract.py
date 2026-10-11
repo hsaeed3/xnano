@@ -145,7 +145,7 @@ def test_raises_sections_name_real_exception_types():
 
 
 def test_docstrings_use_mkdocs_cross_references_only():
-    text = STUB.read_text() + (xnano_image.__doc__ or '')
+    text = STUB.read_text(encoding='utf-8') + (xnano_image.__doc__ or '')
     for role in (':class:', ':meth:', ':func:', ':mod:', ':attr:'):
         assert role not in text, role
 
