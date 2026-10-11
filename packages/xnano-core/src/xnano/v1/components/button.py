@@ -148,12 +148,14 @@ class Button(Component):
                 ),
             ),
             foreground=foreground,
+            background=background,
             z=self.z,
             visible=self.visible,
         )
         if self.focused and not self.disabled:
             return Panel(
                 child=block,
+                background=background,
                 border_color=foreground,
                 z=self.z,
                 visible=self.visible,

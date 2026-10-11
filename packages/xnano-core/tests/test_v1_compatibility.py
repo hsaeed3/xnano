@@ -45,3 +45,20 @@ def test_fit_sizing_measures_sequence_content_and_spacing() -> None:
         assert all(value in frame.text for value in ('one', 'two', 'three'))
     finally:
         runtime.close()
+
+
+def test_button_background_applies_to_block_and_focus_panel() -> None:
+    from xnano.v1.components.button import Button
+    from xnano.v1.core.content import Panel, TextBlock
+
+    button = Button(
+        label='Ok',
+        focused_color='black',
+        focused_background='yellow',
+    )
+    button._input_focused = True
+    content = button.compose(None)  # pyright: ignore[reportArgumentType]
+    assert isinstance(content, Panel)
+    assert content.background == 'yellow'
+    assert isinstance(content.child, TextBlock)
+    assert content.child.background == 'yellow'
