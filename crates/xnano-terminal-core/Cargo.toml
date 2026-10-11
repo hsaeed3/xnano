@@ -1,0 +1,54 @@
+[package]
+name = "xnano-terminal-core"
+version = "2.0.0-beta.1"
+description = "PyO3 bindings of the xnano terminal runtime: the `xnano._xnano_core` module."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+include = [
+    "/pyproject.toml",
+    "/LICENSE",
+    "/build.rs",
+    "/src",
+    "../../packages/xnano-core/src/xnano",
+    "!__pycache__",
+    "!*.so",
+]
+
+[lib]
+# (python: 'xnano._xnano_core' / rust: '_xnano_core')
+name = "_xnano_core"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+indexmap = { workspace = true }
+# `extension-module` is enabled by maturin (see pyproject.toml), so plain cargo builds such
+# as `cargo test` can link Python.
+pyo3 = { workspace = true, features = ["abi3-py310", "generate-import-lib"] }
+ratatui-core = { workspace = true }
+serde_json = { workspace = true }
+tachyonfx = { workspace = true }
+unicode-segmentation = { workspace = true }
+xnano-terminal-cells = { workspace = true }
+xnano-terminal-state = { workspace = true }
+xnano-terminal-runtime = { workspace = true }
+
+[build-dependencies]
+pyo3-build-config = { workspace = true }
+
+[features]
+# this crate mirrors `xnano-terminal-runtime`: the live terminal is on by default and left out of
+# WebAssembly (Pyodide) builds with `--no-default-features`.
+default = ["terminal"]
+terminal = ["xnano-terminal-runtime/terminal"]
+
+[package.metadata.maturin]
+name = "_xnano_core"
+python-source = "../../packages/xnano-core/src"
+
+[lints]
+workspace = true

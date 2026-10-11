@@ -1,0 +1,301 @@
+/* ── Grid concept diagram (core-concepts/grids.md) ─────────────────────── */
+
+.grid-concept-diagram {
+    margin-left: 1.5rem;
+    margin-right: 1.5rem;
+    max-width: min(40rem, 100%);
+    box-sizing: border-box;
+}
+
+.grid-concept-diagram svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    font-family: "Geist Pixel", monospace;
+    font-variation-settings: "ELSH" 40;
+}
+
+/* Smaller indented figure (e.g. inside admonitions) */
+.grid-concept-diagram--compact {
+    margin-left: 0.5rem;
+    margin-right: auto;
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+    max-width: min(22rem, 100%);
+    box-sizing: border-box;
+}
+
+/* Medium / small viewports: drop side indent so the figure matches text width. */
+@media screen and (max-width: 76.1875em) {
+    .grid-concept-diagram {
+        margin-left: 0;
+        margin-right: 0;
+        max-width: 100%;
+    }
+
+    .grid-concept-diagram--compact {
+        margin-left: 0;
+        max-width: 100%;
+    }
+}
+
+/* Light */
+[data-md-color-scheme="default"] .grid-concept-diagram {
+    --gcd-panel-bg: #eeecdf;
+    --gcd-panel-border: #c8c4b4;
+    --gcd-panel-accent-bg: var(--xnano-accent-soft);
+    --gcd-panel-accent-border: var(--xnano-accent-border);
+    --gcd-window-bg: #f4f4ed;
+    --gcd-chrome-bg: #e4e2d4;
+    --gcd-dot: #b8b4a4;
+    --gcd-urlbar: #f4f4ed;
+    --gcd-text: var(--xnano-accent-ink);
+    --gcd-text-soft: #5a6478;
+    --gcd-line: var(--xnano-accent);
+    --gcd-line-soft: #aaa8c4;
+    --gcd-grid: color-mix(in srgb, var(--xnano-accent) 20%, transparent);
+    --gcd-grid-fill: color-mix(in srgb, var(--xnano-accent) 5%, transparent);
+    --gcd-arrow: var(--xnano-accent);
+    --gcd-label-accent: var(--xnano-accent);
+    --gcd-cell-highlight: color-mix(in srgb, var(--xnano-accent) 16%, transparent);
+    --gcd-cell-highlight-strong: color-mix(in srgb, var(--xnano-accent) 33%, transparent);
+    --gcd-cell-highlight-border: var(--xnano-accent-border);
+    --gcd-stripe-bg: color-mix(in srgb, var(--xnano-accent) 13%, transparent);
+    --gcd-stripe-fg: color-mix(in srgb, var(--xnano-accent) 40%, transparent);
+    --gcd-z-base: #9a958833;
+    --gcd-z-base-border: #9a9588;
+    --gcd-z-overlay: color-mix(in srgb, var(--xnano-accent-bright) 80%, transparent);
+    --gcd-z-overlay-inner: color-mix(in srgb, var(--xnano-accent-soft) 93%, transparent);
+    --gcd-z-connector: color-mix(in srgb, var(--xnano-accent) 33%, transparent);
+    --gcd-z-label: var(--xnano-accent-ink);
+    --gcd-z-label-on: var(--xnano-accent-ink);
+    --gcd-z-label-muted: #7a766c;
+    --gcd-z-caption: #5a6478;
+    --gcd-z-caption-on: var(--xnano-accent);
+}
+
+/* Dark */
+[data-md-color-scheme="slate"] .grid-concept-diagram {
+    --gcd-panel-bg: #1a1c22;
+    --gcd-panel-border: var(--xnano-accent-border);
+    --gcd-panel-accent-bg: var(--xnano-accent-soft);
+    --gcd-panel-accent-border: var(--xnano-accent);
+    --gcd-window-bg: #141519;
+    --gcd-chrome-bg: #0e1014;
+    --gcd-dot: #3a4256;
+    --gcd-urlbar: #1e2028;
+    --gcd-text: #dedcd1;
+    --gcd-text-soft: #8b909a;
+    --gcd-line: var(--xnano-accent);
+    --gcd-line-soft: #555272;
+    --gcd-grid: color-mix(in srgb, var(--xnano-accent) 27%, transparent);
+    --gcd-grid-fill: color-mix(in srgb, var(--xnano-accent) 6%, transparent);
+    --gcd-arrow: var(--xnano-accent);
+    --gcd-label-accent: var(--xnano-accent-bright);
+    --gcd-cell-highlight: color-mix(in srgb, var(--xnano-accent) 20%, transparent);
+    --gcd-cell-highlight-strong: color-mix(in srgb, var(--xnano-accent) 40%, transparent);
+    --gcd-cell-highlight-border: var(--xnano-accent);
+    --gcd-stripe-bg: color-mix(in srgb, var(--xnano-accent) 16%, transparent);
+    --gcd-stripe-fg: color-mix(in srgb, var(--xnano-accent) 47%, transparent);
+    --gcd-z-base: #5c637033;
+    --gcd-z-base-border: #5c6370;
+    --gcd-z-overlay: color-mix(in srgb, var(--xnano-accent) 81%, transparent);
+    --gcd-z-overlay-inner: color-mix(in srgb, var(--xnano-accent-soft) 93%, transparent);
+    --gcd-z-connector: color-mix(in srgb, var(--xnano-accent) 40%, transparent);
+    --gcd-z-label: #dedcd1;
+    --gcd-z-label-on: #dedcd1;
+    --gcd-z-label-muted: #8b909a;
+    --gcd-z-caption: #8b909a;
+    --gcd-z-caption-on: var(--xnano-accent);
+}
+
+.grid-concept-diagram .gcd-panel {
+    fill: var(--gcd-panel-bg);
+    stroke: var(--gcd-panel-border);
+    stroke-width: 1.25;
+}
+
+.grid-concept-diagram .gcd-panel-accent {
+    fill: var(--gcd-panel-accent-bg);
+    stroke: var(--gcd-panel-accent-border);
+}
+
+.grid-concept-diagram .gcd-window {
+    fill: var(--gcd-window-bg);
+    stroke: var(--gcd-panel-border);
+    stroke-width: 1;
+}
+
+.grid-concept-diagram .gcd-chrome {
+    fill: var(--gcd-chrome-bg);
+}
+
+.grid-concept-diagram .gcd-dot {
+    fill: var(--gcd-dot);
+}
+
+.grid-concept-diagram .gcd-urlbar {
+    fill: var(--gcd-urlbar);
+    stroke: var(--gcd-panel-border);
+    stroke-width: 0.75;
+}
+
+.grid-concept-diagram .gcd-label {
+    fill: var(--gcd-text-soft);
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.grid-concept-diagram .gcd-label-accent {
+    fill: var(--gcd-label-accent);
+}
+
+.grid-concept-diagram .gcd-chrome-label {
+    fill: var(--gcd-text-soft);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+}
+
+.grid-concept-diagram .gcd-line {
+    stroke: var(--gcd-line);
+}
+
+.grid-concept-diagram .gcd-line-soft {
+    stroke: var(--gcd-line-soft);
+}
+
+.grid-concept-diagram .gcd-grid-line {
+    stroke: var(--gcd-grid);
+    stroke-width: 1;
+    fill: none;
+}
+
+.grid-concept-diagram .gcd-grid-fill {
+    fill: var(--gcd-grid-fill);
+}
+
+.grid-concept-diagram .gcd-arrow {
+    stroke: var(--gcd-arrow);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.grid-concept-diagram .gcd-arrow-fill {
+    fill: var(--gcd-arrow);
+}
+
+.grid-concept-diagram .gcd-cell-highlight {
+    fill: var(--gcd-cell-highlight);
+    stroke: var(--gcd-cell-highlight-border);
+    stroke-width: 1.25;
+}
+
+.grid-concept-diagram .gcd-cell-highlight-strong {
+    fill: var(--gcd-cell-highlight-strong);
+    stroke: var(--gcd-cell-highlight-border);
+    stroke-width: 1.5;
+}
+
+.grid-concept-diagram .gcd-stripe-bg {
+    fill: var(--gcd-stripe-bg);
+}
+
+.grid-concept-diagram .gcd-stripe-fg {
+    fill: var(--gcd-stripe-fg);
+}
+
+.grid-concept-diagram .gcd-cell-focus-ring {
+    fill: none;
+    stroke: var(--gcd-cell-highlight-border);
+    stroke-width: 2;
+}
+
+.grid-concept-diagram .gcd-z-base {
+    fill: var(--gcd-z-base);
+    stroke: var(--gcd-z-base-border);
+    stroke-width: 1.25;
+    stroke-dasharray: 3 2;
+}
+
+.grid-concept-diagram .gcd-z-overlay {
+    fill: var(--gcd-z-overlay);
+    stroke: var(--gcd-cell-highlight-border);
+    stroke-width: 1.5;
+}
+
+.grid-concept-diagram .gcd-z-overlay-inner {
+    fill: var(--gcd-z-overlay-inner);
+    stroke: var(--gcd-cell-highlight-border);
+    stroke-width: 1;
+    stroke-dasharray: 3 2;
+}
+
+.grid-concept-diagram .gcd-z-connector {
+    stroke: var(--gcd-z-connector);
+    stroke-width: 1.25;
+    stroke-dasharray: 3 2.5;
+    stroke-linecap: round;
+}
+
+.grid-concept-diagram .gcd-z-label {
+    fill: var(--gcd-z-label);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+}
+
+.grid-concept-diagram .gcd-z-label-muted {
+    fill: var(--gcd-z-label-muted);
+    opacity: 0.9;
+}
+
+.grid-concept-diagram .gcd-z-label-on {
+    fill: var(--gcd-z-label-on);
+    opacity: 0.95;
+    font-weight: 600;
+}
+
+.grid-concept-diagram .gcd-z-caption {
+    fill: var(--gcd-z-caption);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    font-style: italic;
+}
+
+.grid-concept-diagram .gcd-z-caption-muted {
+    fill: var(--gcd-z-caption);
+    opacity: 0.85;
+}
+
+.grid-concept-diagram .gcd-z-caption-on {
+    fill: var(--gcd-z-caption-on);
+    opacity: 0.95;
+    font-weight: 500;
+}
+
+
+.z-card {
+    border: 1px solid var(--z-border);
+    border-radius: var(--z-radius);
+    box-shadow: var(--z-shadow);
+    padding: var(--size-5);
+    background: var(--z-surface);
+}
+
+.z-grid {
+    display: grid;
+    gap: var(--size-4);
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.z-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-2);
+    border-radius: var(--radius-2);
+    padding: var(--size-2) var(--size-4);
+    font-weight: var(--font-weight-6);
+    text-decoration: none;
+}

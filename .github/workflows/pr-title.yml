@@ -1,0 +1,25 @@
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate the pull request title
+    runs-on: ubuntu-latest
+    steps:
+      # Pull requests are squash merged, so the title becomes the commit message:
+      # `<type>(<scope>): <summary>`, with the scope optional and `!` marking a breaking change.
+      - name: Check the title format
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|docs|refactor|perf|test|build|ci|chore|release)(\([a-z0-9-]+\))?!?: [a-z0-9].*[^.]$'
+          if ! printf '%s' "$TITLE" | grep -Eq "$pattern"; then
+            echo "::error::The title \"$TITLE\" does not follow '<type>(<scope>): <summary>'. Use one of feat, fix, docs, refactor, perf, test, build, ci, chore or release, an optional lowercase scope in parentheses, and an imperative summary that starts with a lowercase letter and has no trailing period. Example: fix(context): preserve the declared state type"
+            exit 1
+          fi

@@ -1,0 +1,15 @@
+[package]
+name = "xnano-terminal-cells"
+description = "Backend-agnostic terminal cell grid and animation structures & utilities used by xnano's core and extension Python packages."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+ratatui-core = { workspace = true }
+
+[lints]
+workspace = true

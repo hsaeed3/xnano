@@ -1,0 +1,6 @@
+rules:
+  # the release jobs read PYPI_API_TOKEN from the `release` environment
+  secrets-outside-env:
+    disable: true
+  superfluous-actions:
+    disable: true
