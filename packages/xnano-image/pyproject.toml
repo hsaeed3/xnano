@@ -20,6 +20,7 @@ name = "xnano-image"
 dynamic = ["version"]
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "Image & animation loading, processing & display support for the xnano terminal library."
+readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"

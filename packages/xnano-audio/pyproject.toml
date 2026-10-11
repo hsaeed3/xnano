@@ -20,6 +20,7 @@ name = "xnano-audio"
 dynamic = ["version"]
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
 description = "Audio input & playback support for the xnano terminal library."
+readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
