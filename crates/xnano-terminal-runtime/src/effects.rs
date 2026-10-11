@@ -1011,7 +1011,7 @@ fn fade_background(background: Color, is_from: bool, timer: EffectTimer) -> Effe
 impl Plan {
     /// Build a fresh tachyonfx effect. `origin` is the frame position of the effect's target.
     pub fn build(&self, origin: (i32, i32)) -> Effect {
-        let mut effect = self.kind.build(origin);
+        let mut effect = self.kind.build(origin, self.seed);
         if let Some(seed) = self.seed {
             effect = effect.with_rng(SimpleRng::new(seed));
         }
@@ -1037,7 +1037,7 @@ impl Plan {
 }
 
 impl PlanKind {
-    fn build(&self, origin: (i32, i32)) -> Effect {
+    fn build(&self, origin: (i32, i32), seed: Option<u32>) -> Effect {
         let child = |plan: &Plan| plan.build(origin);
         match self {
             Self::Spatial {
@@ -1145,6 +1145,7 @@ impl PlanKind {
             } => {
                 let glitch = fx::Glitch::builder()
                     .cell_glitch_ratio(*cell_ratio)
+                    .rng(seed.map(SimpleRng::new).unwrap_or_default())
                     .action_start_delay_ms(start_delay.0..start_delay.1.max(start_delay.0 + 1))
                     .action_ms(action.0..action.1.max(action.0 + 1))
                     .build();

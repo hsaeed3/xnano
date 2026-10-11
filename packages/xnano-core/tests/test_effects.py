@@ -13,6 +13,7 @@ from xnano._xnano_core import (
     Fade,
     Fuzz,
     Glitch,
+    Runtime,
     RuntimeRequiredError,
 )
 
@@ -138,3 +139,24 @@ def test_effects_apply_to_a_regions_target_area_only(runtime):
     runtime.step()
     line = runtime.snapshot().lines()[0]
     assert line[:4].strip() == '' and line[4:] == 'aaaa'
+
+
+def test_glitch_seed_reproduces_frames():
+    def render_frames():
+        runtime = Runtime.offscreen(width=40, height=1)
+        buffer = Buffer('abcdefghijklmnopqrstuvwxyz0123456789ABCD')
+        runtime.mount(buffer)
+        runtime.step()
+        buffer.update(Glitch(intensity=1.0, duration_milliseconds=500, seed=1))
+        frames = []
+        for _ in range(10):
+            runtime.advance_clock(20)
+            runtime.step()
+            frames.append(runtime.snapshot().lines())
+        runtime.close()
+        return frames
+
+    expected_frames = render_frames()
+    assert any(frame != expected_frames[0] for frame in expected_frames[1:])
+    for _ in range(5):
+        assert render_frames() == expected_frames
