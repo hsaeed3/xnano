@@ -1,0 +1,47 @@
+[package]
+name = "xnano-terminal-runtime"
+description = "The xnano terminal runtime: buffers, expressions, text, layout, input and effects."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+build = "build.rs"
+
+[dependencies]
+indexmap = { workspace = true }
+ratatui = { workspace = true }
+ratatui-core = { workspace = true }
+serde_json = { workspace = true }
+time = { workspace = true }
+tachyonfx = { workspace = true }
+termprofile = { workspace = true, features = ["ratatui"] }
+unicode-segmentation = { workspace = true }
+unicode-width = { workspace = true }
+xnano-terminal-cells = { workspace = true }
+xnano-terminal-state = { workspace = true }
+
+# The live terminal: input, raw mode and the diffing presenter. Pyodide (WebAssembly)
+# builds disable the default features and render offscreen only.
+crossterm = { workspace = true, optional = true }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true, optional = true }
+signal-hook = { workspace = true, optional = true }
+
+[features]
+default = ["terminal"]
+terminal = [
+    "dep:crossterm",
+    "dep:rustix",
+    "dep:signal-hook",
+    "ratatui/crossterm",
+    "ratatui/underline-color",
+]
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[lints]
+workspace = true
