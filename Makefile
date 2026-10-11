@@ -38,6 +38,7 @@ check: lint-all spellcheck typecheck test-coverage
 .PHONY: install  ## Install every package & local development groups
 install: .uv .rust .audio-notice
 	@set -e; for package in $(packages); do $(MAKE) -C packages/$$package clean; done
+	$(MAKE) rebuild-rust
 	$(uv-sync)
 	uv run prek install --install-hooks
 
@@ -97,11 +98,7 @@ test-rust: .rust
 
 .PHONY: test-coverage ## Run tests and generate a coverage report
 test-coverage: .uv
-	$(uv-run-no-sync) coverage run -m pytest
-	@echo "building coverage html"
-	@$(uv-run-no-sync) coverage html
-	@echo "building coverage lcov"
-	@$(uv-run-no-sync) coverage lcov
+	@set -e; for package in $(packages); do $(MAKE) -C packages/$$package test-coverage; done
 
 .PHONY: benchmark-all ## Run every package's benchmarks against optimized builds
 benchmark-all: .uv
@@ -143,12 +140,12 @@ docs-build: .uv
 
 .PHONY: version-check  ## Check Cargo and generated Python/documentation versions are synchronized
 version-check:
-	python scripts/set_version.py --check
+	$(uv-run-no-sync) python scripts/set_version.py --check
 
 .PHONY: set-version  ## Bump a package: make set-version PACKAGE=xnano-core VERSION=1.2.3
 set-version:
 	@test -n "$(PACKAGE)" -a -n "$(VERSION)" || (echo "Usage: make set-version PACKAGE=xnano-core VERSION=1.2.3"; exit 2)
-	python scripts/set_version.py "$(PACKAGE)" "$(VERSION)"
+	$(uv-run-no-sync) python scripts/set_version.py "$(PACKAGE)" "$(VERSION)"
 
 .PHONY: docs-serve  ## Build and serve the documentation, for local preview
 docs-serve: .uv

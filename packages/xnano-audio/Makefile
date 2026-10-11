@@ -92,7 +92,8 @@ test-sync: .uv
 test-coverage: build-coverage
 	@rm -rf htmlcov
 	@mkdir -p htmlcov
-	$(uv-run-no-sync) coverage run -m pytest
+	@mkdir -p $(CURDIR)/../../target/coverage
+	LLVM_PROFILE_FILE="$(CURDIR)/../../target/coverage/%p-%m.profraw" $(uv-run-no-sync) coverage run -m pytest
 	$(uv-run-no-sync) coverage html
 	$(uv-run-no-sync) coverage report
 

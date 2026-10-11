@@ -34,6 +34,33 @@ def test_columns_and_rows_share_space_equally_without_rules():
     assert [child.width for child in children] == [4, 4, 4]
 
 
+@pytest.mark.parametrize('child_count', [40, 50, 100])
+@pytest.mark.parametrize('arrangement', ['column', 'row'])
+@pytest.mark.parametrize('spacing', [0, 1])
+def test_large_fill_layouts_share_the_available_space(child_count, arrangement, spacing):
+    parent = Buffer(width=240, height=200)
+    children = [Buffer(width=1, height=1) for index in range(child_count)]
+    for child in children:
+        parent.attach(child, geometry='inherit')
+    parent.update(Layout(arrangement, spacing=spacing, padding=2))
+    if arrangement == 'row':
+        lengths = [child.width for child in children]
+        assert children[0].x == 2
+        assert children[-1].x + children[-1].width == parent.width - 2
+        assert all(
+            child.y == 2 and child.height == parent.height - 4 for child in children
+        )
+        available = parent.width - 4
+    else:
+        lengths = [child.height for child in children]
+        assert children[0].y == 2
+        assert children[-1].y + children[-1].height == parent.height - 2
+        assert all(child.x == 2 and child.width == parent.width - 4 for child in children)
+        available = parent.height - 4
+    assert sum(lengths) + spacing * (child_count - 1) == available
+    assert max(lengths) - min(lengths) <= 1
+
+
 def test_a_missing_rule_never_means_a_zero_sized_child():
     parent, children = make(3)
     parent.update(Layout('column', sizes=[SizeRule.cells(2)]))

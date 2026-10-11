@@ -134,7 +134,7 @@ render(NotesApp())
 1. `xnano.BaseGrid` is a declarative class inspired by `pydantic.BaseModel` that allows you to define your grid's content and state in a field-based manner.
 2. Grids can take in settings either directly as constructor arguments or using the `grid_settings` class attribute. <br/> In this case, we're setting the direction of the content of our grid to be horizontal.
 3. Sizing in xnano is incredibly simple, we can use the `width` and `height` attributes to set the size of our content. <br/> These two parameters support absolute values such as `height=1` (one terminal row), relative values such as `width="50%"` and `height="fit"`.
-4. The `z` attribute is a custom primtive within xnano that allows for the stacking of any content on top of each other.
+4. The `z` attribute is a custom primitive within xnano that allows for the stacking of any content on top of each other.
 5. We don't want to render the editor grid by default, so we set it with `visible=False`.
 
 ### Running the Application
@@ -151,7 +151,7 @@ Terminal().run(NotesApp())
 
 ## Adding Content
 
-If you ran the following code above, you should see... **nothing**. No worries however, thats because we haven't added any content to our grids yet.
+If you ran the following code above, you should see... **nothing**. No worries however, that's because we haven't added any content to our grids yet.
 
 Let's now implement the functionality for writing and saving notes.
 

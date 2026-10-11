@@ -2,8 +2,10 @@
 *.env
 *.so
 *.xni
+*.profraw
 dist/
 target/
+.codspeed/
 .cache/
 .recovery/
 .venv/

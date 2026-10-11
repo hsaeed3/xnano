@@ -305,7 +305,7 @@ you handled the event.
 |-----------|--------|-------------|
 | `Text` | `xnano.components.text` | Labels, nested runs, optional input mode |
 | `Input` | `xnano.components.input` | Single-line / multiline editor |
-| `Options` / `Select` | `xnano.components.options` | Browseable list (`Select` is an alias) |
+| `Options` / `Select` | `xnano.components.options` | Browsable list (`Select` is an alias) |
 | `Button` | `xnano.components.button` | Focusable control + grid hooks |
 | `Table` | `xnano.components.table` | Rows of data; subclass with `Column` |
 | `Chart` | `xnano.components.chart` | Plots; subclass with `Series` |

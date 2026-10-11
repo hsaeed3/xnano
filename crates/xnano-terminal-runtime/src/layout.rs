@@ -72,7 +72,7 @@ pub fn solve(spec: &LayoutSpec, area: Rectangle, intrinsic: &[Size]) -> Vec<Rect
         Arrangement::Row => Direction::Horizontal,
         _ => Direction::Vertical,
     };
-    let constraints: Vec<Constraint> = intrinsic
+    let mut constraints: Vec<Constraint> = intrinsic
         .iter()
         .enumerate()
         .map(
@@ -93,11 +93,21 @@ pub fn solve(spec: &LayoutSpec, area: Rectangle, intrinsic: &[Size]) -> Vec<Rect
             },
         )
         .collect();
+    // Fill-only layouts have known shares. Ratatui otherwise relates every pair of
+    // fill segments, making a cold solve prohibitively expensive for large trees.
+    let terminal_area = content.to_rect();
+    let length = match direction {
+        Direction::Horizontal => terminal_area.width,
+        Direction::Vertical => terminal_area.height,
+    };
+    if let Some(ratios) = fill_ratios(&constraints, length, spec.spacing) {
+        constraints = ratios;
+    }
     let rects = Layout::default()
         .direction(direction)
         .constraints(constraints)
         .spacing(spec.spacing)
-        .split(content.to_rect());
+        .split(terminal_area);
     let offset_x = content.x - i32::from(content.to_rect().x);
     let offset_y = content.y - i32::from(content.to_rect().y);
     rects
@@ -111,4 +121,124 @@ pub fn solve(spec: &LayoutSpec, area: Rectangle, intrinsic: &[Size]) -> Vec<Rect
             )
         })
         .collect()
+}
+
+fn fill_ratios(constraints: &[Constraint], length: u16, spacing: u16) -> Option<Vec<Constraint>> {
+    // Ratatui stores solver spacing as a signed 16-bit value.
+    if spacing > i16::MAX as u16 {
+        return None;
+    }
+    let weights: Vec<u32> = constraints
+        .iter()
+        .map(|constraint| match constraint {
+            Constraint::Fill(weight) => Some(u32::from(*weight)),
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    let total_weight = weights
+        .iter()
+        .try_fold(0u32, |total, weight| total.checked_add(*weight))?;
+    let gap_count = u32::try_from(weights.len().saturating_sub(1)).ok()?;
+    let available = u32::from(length).saturating_sub(gap_count.checked_mul(u32::from(spacing))?);
+    if available == 0 {
+        return Some(vec![Constraint::Length(0); weights.len()]);
+    }
+    // With spacing, ratios still refer to the whole area, so include the space
+    // remaining after the gaps in each numerator. Keep overflow on the general path.
+    if spacing == 0 {
+        return Some(
+            weights
+                .into_iter()
+                .map(|weight| Constraint::Ratio(weight, total_weight))
+                .collect(),
+        );
+    }
+    let denominator = total_weight.checked_mul(u32::from(length))?;
+    weights
+        .into_iter()
+        .map(|weight| {
+            Some(Constraint::Ratio(
+                weight.checked_mul(available)?,
+                denominator,
+            ))
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fill_ratios_preserve_upstream_geometry() {
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            for count in 1..=12 {
+                for length in [0, 1, 7, 40, 121] {
+                    for spacing in [0, 1, 3] {
+                        for has_weights in [false, true] {
+                            let constraints: Vec<_> = (0..count)
+                                .map(|index| {
+                                    Constraint::Fill(if has_weights { index % 3 + 1 } else { 1 })
+                                })
+                                .collect();
+                            let Some(ratios) = fill_ratios(&constraints, length, spacing) else {
+                                continue;
+                            };
+                            let area = match direction {
+                                Direction::Horizontal => Rect::new(3, 5, length, 10),
+                                Direction::Vertical => Rect::new(3, 5, 10, length),
+                            };
+                            let upstream = Layout::default()
+                                .direction(direction)
+                                .constraints(&constraints)
+                                .spacing(spacing)
+                                .split(area);
+                            let optimized = Layout::default()
+                                .direction(direction)
+                                .constraints(ratios)
+                                .spacing(spacing)
+                                .split(area);
+                            assert_eq!(
+                                optimized, upstream,
+                                "{direction:?}, {constraints:?}, {length}, {spacing}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn large_fill_layouts_cover_the_available_space() {
+        for count in [40, 50, 100] {
+            for arrangement in [Arrangement::Row, Arrangement::Column] {
+                let spec = LayoutSpec {
+                    arrangement,
+                    ..LayoutSpec::default()
+                };
+                let rectangles = solve(
+                    &spec,
+                    Rectangle::new(0, 0, 120, 40),
+                    &vec![Size::new(1, 1); count],
+                );
+                assert_eq!(rectangles.len(), count);
+                let length: i32 = rectangles
+                    .iter()
+                    .map(|rectangle| match arrangement {
+                        Arrangement::Row => rectangle.width,
+                        _ => rectangle.height,
+                    })
+                    .sum();
+                assert_eq!(
+                    length,
+                    if arrangement == Arrangement::Row {
+                        120
+                    } else {
+                        40
+                    }
+                );
+            }
+        }
+    }
 }
