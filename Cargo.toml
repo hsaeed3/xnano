@@ -1,0 +1,113 @@
+# The xnano Cargo workspace.
+#
+# It follows the layout of pydantic's `monty`: the engine is split into small pure-Rust
+# crates under `crates/` that know nothing about Python, and each Python distribution
+# is a thin PyO3 crate built with `maturin`:
+#
+#   crates/xnano-terminal-cells     the packed cell grid and cell animation byte formats
+#   crates/xnano-terminal-state     persistent, schema-validated state with revisions
+#   crates/xnano-terminal-runtime   buffers, expressions, text, layout, input and effects
+#   crates/xnano-terminal-core      PyO3 bindings of the `xnano._xnano_core` module
+#   crates/xnano-terminal-audio     PyO3 bindings of `xnano_audio._xnano_audio`
+#   crates/xnano-terminal-image    PyO3 bindings of `xnano_image._xnano_image`
+#
+# The Python distributions that ship those bindings live under `packages/`.
+[workspace]
+resolver = "2"
+members = [
+    "crates/xnano-terminal-cells",
+    "crates/xnano-terminal-state",
+    "crates/xnano-terminal-runtime",
+    "crates/xnano-terminal-core",
+    "crates/xnano-terminal-audio",
+    "crates/xnano-terminal-image",
+]
+default-members = [
+    "crates/xnano-terminal-cells",
+    "crates/xnano-terminal-state",
+    "crates/xnano-terminal-runtime",
+]
+
+[workspace.package]
+edition = "2024"
+# The `xnano` and `xnano-core` distributions share this version. The runtime build script
+# writes it, and the audio/image pins, into the root `pyproject.toml`.
+version = "2.0.0-beta.1"
+rust-version = "1.88"
+license = "MIT"
+authors = ["Hammad Saeed <hammad@supportvectors.com>"]
+homepage = "https://github.com/hsaeed3/xnano"
+repository = "https://github.com/hsaeed3/xnano.git"
+
+[workspace.dependencies]
+xnano-terminal-cells = { path = "crates/xnano-terminal-cells", version = "0.1.0" }
+xnano-terminal-state = { path = "crates/xnano-terminal-state", version = "2.0.0-beta.1" }
+xnano-terminal-runtime = { path = "crates/xnano-terminal-runtime", version = "2.0.0-beta.1" }
+
+# PyO3: one pin, so `pyo3` and `pyo3-build-config` are always bumped together.
+pyo3 = "0.29.0"
+pyo3-build-config = "0.29.0"
+
+ratatui = { version = "0.30", default-features = false, features = ["std", "layout-cache", "widget-calendar", "unstable-rendered-line-info"] }
+ratatui-core = { version = "0.1", features = ["underline-color"] }
+crossterm = { version = "0.29", features = ["event-stream"] }
+tachyonfx = { version = "0.25", features = ["sendable"] }
+termprofile = "0.2.4"
+unicode-segmentation = "1"
+unicode-width = "0.2"
+indexmap = "2"
+time = "0.3"
+serde_json = { version = "1", features = ["preserve_order"] }
+regex = "1"
+rustix = { version = "1", features = ["event", "std"] }
+signal-hook = "0.3"
+criterion = { package = "codspeed-criterion-compat", version = "2", default-features = false }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = false
+lto = false
+
+[profile.bench]
+debug = true
+strip = false
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+# xnano follows the clippy rules from pydantic-core and monty: the `pedantic` group,
+# minus the lints that fight PyO3 signatures.
+[workspace.lints.clippy]
+dbg_macro = "warn"
+print_stdout = "warn"
+pedantic = { level = "warn", priority = -1 }
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+doc_markdown = "allow"
+float_cmp = "allow"
+fn_params_excessive_bools = "allow"
+if_not_else = "allow"
+match_bool = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+needless_pass_by_value = "allow"
+similar_names = "allow"
+single_match_else = "allow"
+struct_excessive_bools = "allow"
+too_many_arguments = "allow"
+too_many_lines = "allow"
+trivially_copy_pass_by_ref = "allow"
+type_complexity = "allow"
+unnecessary_wraps = "allow"
+unused_self = "allow"
+used_underscore_binding = "allow"
