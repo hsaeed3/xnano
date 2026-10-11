@@ -1,539 +1,505 @@
-name: ci
+name: CI
 
 on:
   push:
     branches:
       - main
+    # one tag per package: xnano/v2.0.0, xnano-core/v1.0.0, xnano-audio/v0.1.0, ...
     tags:
-      - "xnano-core/**"
-      - "xnano/**"
+      - 'xnano/v*'
+      - 'xnano-core/v*'
+      - 'xnano-audio/v*'
+      - 'xnano-image/v*'
   pull_request: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   COLUMNS: 150
-  UV_PYTHON: "3.13"
+  FORCE_COLOR: 1
+  UV_FROZEN: true
+  UV_PYTHON: '3.13'
+
+permissions:
+  contents: read
 
 jobs:
-  resolve-release:
-    name: resolve release plan
+  # decides what to build; see .github/scripts/resolve_release.py
+  plan:
+    name: Plan
     runs-on: ubuntu-latest
     outputs:
-      tag_package: ${{ steps.plan.outputs.tag_package }}
-      tag_version: ${{ steps.plan.outputs.tag_version }}
-      manifest_xnano_version: ${{ steps.plan.outputs.manifest_xnano_version }}
-      manifest_core_version: ${{ steps.plan.outputs.manifest_core_version }}
-      pinned_core_version: ${{ steps.plan.outputs.pinned_core_version }}
-      pypi_xnano_latest: ${{ steps.plan.outputs.pypi_xnano_latest }}
-      pypi_core_latest: ${{ steps.plan.outputs.pypi_core_latest }}
-      pinned_core_on_pypi: ${{ steps.plan.outputs.pinned_core_on_pypi }}
-      manifest_core_on_pypi: ${{ steps.plan.outputs.manifest_core_on_pypi }}
-      manifest_xnano_on_pypi: ${{ steps.plan.outputs.manifest_xnano_on_pypi }}
-      versions_unchanged: ${{ steps.plan.outputs.versions_unchanged }}
-      tag_core_on_pypi: ${{ steps.plan.outputs.tag_core_on_pypi }}
-      tag_xnano_on_pypi: ${{ steps.plan.outputs.tag_xnano_on_pypi }}
-      run_workflow: ${{ steps.plan.outputs.run_workflow }}
-      run_tests: ${{ steps.plan.outputs.run_tests }}
-      run_core_pipeline: ${{ steps.plan.outputs.run_core_pipeline }}
-      run_xnano_pipeline: ${{ steps.plan.outputs.run_xnano_pipeline }}
-      use_workspace_core: ${{ steps.plan.outputs.use_workspace_core }}
-      use_pypi_core: ${{ steps.plan.outputs.use_pypi_core }}
-      should_publish_core: ${{ steps.plan.outputs.should_publish_core }}
-      should_publish_xnano: ${{ steps.plan.outputs.should_publish_xnano }}
+      full_build: ${{ steps.plan.outputs.full_build }}
+      core_packages: ${{ steps.plan.outputs.core_packages }}
+      build_xnano: ${{ steps.plan.outputs.build_xnano }}
+      release: ${{ steps.plan.outputs.release }}
+      package: ${{ steps.plan.outputs.package }}
+      version: ${{ steps.plan.outputs.version }}
+      is_prerelease: ${{ steps.plan.outputs.is_prerelease }}
+      already_published: ${{ steps.plan.outputs.already_published }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: resolve release plan
-        id: plan
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+
+      - id: plan
+        run: uv run --script .github/scripts/resolve_release.py
         env:
-          FULL_BUILD_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'Full Build') }}
-        run: python3 .github/resolve_release_plan.py
+          HAS_FULL_BUILD_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'full build') }}
 
-  test-python:
-    name: test ${{ matrix.python-version }}
-    needs: resolve-release
-    if: needs.resolve-release.outputs.run_tests == 'true'
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          lookup-only: false # zizmor: ignore[cache-poisoning] -- Job does not produce release artifacts and does not have sensitive permissions
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true # zizmor: ignore[cache-poisoning] -- Job does not produce release artifacts and does not have sensitive permissions
+
+      # `xnano-audio` links the system ALSA library on linux (alsa-sys finds it with pkg-config)
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
+      - run: uv sync --all-packages --all-groups --no-group docs --all-extras
+
+      - run: make lint-all
+
+      - run: make spellcheck
+
+      - run: make typecheck
+
+  test:
+    name: Test ${{ matrix.os }} / ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-
-    runs-on: ubuntu-latest
-
+        os: [ubuntu-latest]
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+        include:
+          - os: macos-latest
+            python-version: '3.13'
+          - os: windows-latest
+            python-version: '3.13'
     steps:
-      - uses: actions/checkout@v7
-
-      - name: install rust stable
-        if: needs.resolve-release.outputs.use_workspace_core == 'true'
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: cache rust
-        if: needs.resolve-release.outputs.use_workspace_core == 'true'
-        uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          workspaces: xnano-core
+          persist-credentials: false
 
-      - name: install uv
-        uses: astral-sh/setup-uv@v7
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          lookup-only: false # zizmor: ignore[cache-poisoning] -- Job does not produce release artifacts and does not have sensitive permissions
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: true # zizmor: ignore[cache-poisoning] -- Job does not produce release artifacts and does not have sensitive permissions
 
-      - name: install deps
-        run: uv sync --group dev
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
-      - name: install xnano-core from PyPI
-        if: needs.resolve-release.outputs.use_pypi_core == 'true'
-        run: >-
-          uv pip install
-          "xnano-core==${{ needs.resolve-release.outputs.pinned_core_version }}"
+      # builds the three workspace packages (`xnano-core`, `xnano-audio`, `xnano-image`) in development mode
+      - run: uv sync --all-packages --all-groups --no-group docs --all-extras
 
-      - name: build workspace xnano-core
-        if: needs.resolve-release.outputs.use_workspace_core == 'true'
-        run: uv run maturin develop --uv
-        working-directory: xnano-core
-        env:
-          RUST_BACKTRACE: 1
+      # `make` is not available on the windows runner, so the suites are run directly
+      - name: Test the pure Rust crates
+        run: cargo test -p xnano-terminal-cells -p xnano-terminal-state -p xnano-terminal-runtime
 
-      - name: install xnano from repository
-        run: uv pip install -e .
-        env:
-          RUST_BACKTRACE: 1
+      - name: Test the Python packages
+        shell: bash
+        run: |
+          for package in xnano-core xnano-audio xnano-image; do
+            (cd "packages/$package" && uv run --no-sync pytest)
+          done
 
-      - run: uv run pytest
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-  test-os:
-    name: test on ${{ matrix.os }}
-    needs: resolve-release
-    if: needs.resolve-release.outputs.run_tests == 'true'
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true # zizmor: ignore[cache-poisoning] -- Job does not produce release artifacts and does not have sensitive permissions
+
+      # fails when a module was added, renamed or removed without regenerating its page
+      - run: python3 scripts/docs/autogenerate_api_references.py --check
+
+      # the docs read the API from the package sources, so no package or Rust build is needed.
+      # strict: any docstring cross-reference that does not resolve fails the build
+      - run: make docs-build
+
+  core-build-sdist:
+    name: ${{ matrix.package }} / Build sdist
+    needs: [plan]
+    if: needs.plan.outputs.full_build == 'true' && needs.plan.outputs.core_packages != '[]'
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
+        package: ${{ fromJSON(needs.plan.outputs.core_packages) }}
     steps:
-      - uses: actions/checkout@v7
-
-      - name: install rust stable
-        if: needs.resolve-release.outputs.use_workspace_core == 'true'
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: cache rust
-        if: needs.resolve-release.outputs.use_workspace_core == 'true'
-        uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          workspaces: xnano-core
+          persist-credentials: false
 
-      - name: install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: install deps
-        run: uv sync --group dev
-
-      - name: install xnano-core from PyPI
-        if: needs.resolve-release.outputs.use_pypi_core == 'true'
-        run: >-
-          uv pip install
-          "xnano-core==${{ needs.resolve-release.outputs.pinned_core_version }}"
-
-      - name: build workspace xnano-core
-        if: needs.resolve-release.outputs.use_workspace_core == 'true'
-        run: uv run maturin develop --uv
-        working-directory: xnano-core
-        env:
-          RUST_BACKTRACE: 1
-
-      - name: install xnano from repository
-        run: uv pip install -e .
-        env:
-          RUST_BACKTRACE: 1
-
-      - run: uv run pytest
-
-  build-xnano-core-sdist:
-    name: build xnano-core sdist
-    needs: resolve-release
-    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.13"
-      - uses: PyO3/maturin-action@v1
+          python-version: '3.13'
+
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
-          working-directory: xnano-core
+          working-directory: packages/${{ matrix.package }}
           command: sdist
           args: --out dist
           rust-toolchain: stable
-      - uses: actions/upload-artifact@v7
-        with:
-          name: pypi_files_xnano_core_sdist
-          path: xnano-core/dist
 
-  build-xnano-core-wheels:
-    name: >-
-      build xnano-core on ${{ matrix.os }}
-      (${{ matrix.target || 'native' }}${{ matrix.manylinux && format(' - {0}', matrix.manylinux) || '' }})
-    needs: resolve-release
-    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pypi_files_${{ matrix.package }}_sdist
+          path: packages/${{ matrix.package }}/dist
+
+  core-build:
+    name: ${{ matrix.package }} / Build ${{ matrix.platform.os }} ${{ matrix.platform.target }}${{ matrix.platform.manylinux && format(' ({0})', matrix.platform.manylinux) || '' }}
+    needs: [plan]
+    if: needs.plan.outputs.full_build == 'true' && needs.plan.outputs.core_packages != '[]'
+    runs-on: ${{ matrix.platform.runs-on }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: linux
-            runs-on: ubuntu-latest
-            manylinux: auto
-            target: x86_64
-          - os: linux
-            runs-on: ubuntu-latest
-            manylinux: auto
-            target: aarch64
-          - os: linux
-            runs-on: ubuntu-latest
-            manylinux: musllinux_1_2
-            target: x86_64
-          - os: linux
-            runs-on: ubuntu-latest
-            manylinux: musllinux_1_2
-            target: aarch64
-          - os: macos
-            runs-on: macos-latest
-          - os: windows
-            runs-on: windows-latest
-
-    runs-on: ${{ matrix.runs-on }}
+        package: ${{ fromJSON(needs.plan.outputs.core_packages) }}
+        platform:
+          # aarch64 linux wheels are built on native arm runners, so the audio package can
+          # install the ALSA headers inside the build container instead of cross compiling.
+          - { os: linux, runs-on: ubuntu-latest, target: x86_64, manylinux: auto }
+          - { os: linux, runs-on: ubuntu-24.04-arm, target: aarch64, manylinux: auto }
+          - { os: linux, runs-on: ubuntu-latest, target: x86_64, manylinux: musllinux_1_2 }
+          - { os: linux, runs-on: ubuntu-24.04-arm, target: aarch64, manylinux: musllinux_1_2 }
+          - { os: macos, runs-on: macos-latest, target: x86_64 }
+          - { os: macos, runs-on: macos-latest, target: aarch64 }
+          - { os: windows, runs-on: windows-latest, target: x86_64 }
     steps:
-      - uses: actions/checkout@v7
-
-      - name: set up python
-        uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: "3.13"
+          persist-credentials: false
 
-      - run: pip install -U twine
-
-      - name: build wheels
-        uses: PyO3/maturin-action@v1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          working-directory: xnano-core
-          target: ${{ matrix.target }}
-          manylinux: ${{ matrix.manylinux }}
-          args: --release --out dist --interpreter 3.10
+          python-version: '3.13'
+          enable-cache: false
+
+      # `xnano-audio` links the system ALSA library (cpal -> alsa-sys) on linux. The
+      # headers are installed in the build container, and libasound is deliberately not
+      # bundled into the wheel: the system copy finds the distribution's ALSA plugins
+      # (PipeWire / PulseAudio routing), which a bundled copy would not. A machine without
+      # libasound cannot import the package, which xnano treats as "no audio".
+      - name: Select the build options
+        id: build-options
+        shell: bash
+        env:
+          PACKAGE: ${{ matrix.package }}
+          OS: ${{ matrix.platform.os }}
+        run: |
+          if [ "$PACKAGE" = "xnano-audio" ] && [ "$OS" = "linux" ]; then
+            echo "extra-args=--auditwheel skip" >> "$GITHUB_OUTPUT"
+            echo 'before-script=(command -v apk && apk add --no-cache alsa-lib-dev pkgconf) || (command -v dnf && dnf install -y alsa-lib-devel pkgconfig) || (command -v yum && yum install -y alsa-lib-devel pkgconfig) || (apt-get update && apt-get install -y libasound2-dev pkg-config)' >> "$GITHUB_OUTPUT"
+          else
+            echo "extra-args=" >> "$GITHUB_OUTPUT"
+            echo "before-script=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # every extension is `abi3-py310`, so one wheel per platform covers python 3.10+
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          working-directory: packages/${{ matrix.package }}
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          args: --release --out dist --interpreter 3.10 ${{ steps.build-options.outputs.extra-args }}
+          before-script-linux: ${{ steps.build-options.outputs.before-script }}
           rust-toolchain: stable
+          docker-options: -e CI
 
-      - name: check wheels
-        working-directory: xnano-core
-        run: twine check --strict dist/*
+      - run: ls -lh dist/
+        shell: bash
+        working-directory: packages/${{ matrix.package }}
 
-      - uses: actions/upload-artifact@v7
+      - run: uvx twine check --strict dist/*
+        shell: bash
+        working-directory: packages/${{ matrix.package }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: >-
-            pypi_files_xnano_core_${{ matrix.os }}_${{ matrix.target || 'native' }}_${{ matrix.manylinux || 'none' }}
-          path: xnano-core/dist
+          name: pypi_files_${{ matrix.package }}_${{ matrix.platform.os }}_${{ matrix.platform.target }}_${{ matrix.platform.manylinux || 'native' }}
+          path: packages/${{ matrix.package }}/dist
 
-  test-xnano-core-wheel-install:
-    name: test xnano-core wheel install on ${{ matrix.os }}
-    needs: [resolve-release, build-xnano-core-wheels]
-    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
+  core-test-wheels:
+    name: ${{ matrix.package }} / Test wheel on ${{ matrix.os }}
+    needs: [plan, core-build]
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        package: ${{ fromJSON(needs.plan.outputs.core_packages) }}
         os: [ubuntu-latest, macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
-
-      - name: install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: get dist artifacts
-        uses: actions/download-artifact@v8
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          pattern: pypi_files_xnano_core_*
+          python-version: '3.13'
+          enable-cache: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: pypi_files_${{ matrix.package }}_*
           merge-multiple: true
           path: dist
 
-      - run: uv sync --frozen --group dev --no-install-project
-      - run: >-
-          uv pip install xnano-core --no-index --no-deps
-          --find-links dist --force-reinstall
-      - run: uv run --no-sync python -c "import xnano_core; print(xnano_core.__version__)"
+      - name: Install the wheel into a clean environment and import it
+        shell: bash
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          uv venv
+          uv pip install "$PACKAGE" --no-index --no-deps --find-links dist --force-reinstall
+          if [ "$PACKAGE" = "xnano-core" ]; then
+            uv run --no-project --no-sync python -c "import xnano._xnano_core as core, xnano._xnano_core._core_types as types; print(core.__version__); print(core.Buffer(width=4, height=1))"
+          else
+            uv run --no-project --no-sync python -c "import ${PACKAGE//-/_} as module; print(module.__name__)"
+          fi
 
-  build-xnano-core-wasm:
-    name: build xnano-core wasm (pyodide/emscripten)
-    needs: resolve-release
-    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
+  # Pyodide / Emscripten build of `xnano-core`.
+  #
+  # - crossterm does not support Emscripten, so the build disables the default `terminal`
+  #   feature (`--no-default-features`); wasm sessions are buffer backed and offscreen only.
+  # - `xnano-audio` (cpal) and `xnano-image` are not built for wasm.
+  # - the python version must match `pyodide config get python_version` for the pyodide release.
+  # - the rust toolchain must be at least the workspace MSRV (1.88) and compatible with the
+  #   emscripten version of the pyodide cross-build environment.
+  core-build-wasm:
+    name: xnano-core / Build wasm (Pyodide)
+    needs: [plan]
+    if: needs.plan.outputs.full_build == 'true' && contains(fromJSON(needs.plan.outputs.core_packages), 'xnano-core')
     runs-on: ubuntu-latest
-
     env:
-      # pyodide's xbuildenv pins this rust toolchain; must be >= xnano-core's
-      # MSRV (1.88). As of the 314.x pyodide line this is a stable release,
-      # so no nightly toolchain / wasm-eh sysroot workaround is needed.
-      RUST_TOOLCHAIN: "1.93.0"
-
+      RUST_TOOLCHAIN: '1.93.0'
     steps:
-      - uses: actions/checkout@v7
-
-      - name: set up python
-        uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # must match `pyodide config get python_version`
-          python-version: "3.14"
+          persist-credentials: false
 
-      - name: install pyodide-build
-        run: pip install pyodide-build
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: '3.14'
+          enable-cache: false
 
-      - name: install rust toolchain
+      - run: uv tool install pyodide-build
+
+      - name: Install the rust toolchain and the emscripten target
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
           rustup target add wasm32-unknown-emscripten --toolchain "$RUST_TOOLCHAIN"
 
-      - name: cache rust
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          workspaces: xnano-core
+          lookup-only: false # zizmor: ignore[cache-poisoning] -- the cache holds only build intermediates, never the published wheel
 
-      - name: build wasm wheel
-        working-directory: xnano-core
+      - name: Build the wasm wheel
+        working-directory: packages/xnano-core
         env:
           RUSTUP_TOOLCHAIN: ${{ env.RUST_TOOLCHAIN }}
-        run: >-
-          pyodide build -o dist
-          -C build-args="--no-default-features --features editor"
+        run: pyodide build -o dist -C build-args="--no-default-features"
 
-      - run: pip install -U twine
+      - run: uvx twine check --strict packages/xnano-core/dist/*
 
-      - name: check wheels
-        working-directory: xnano-core
-        run: twine check --strict dist/*
-
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: pypi_files_xnano_core_wasm_emscripten
-          path: xnano-core/dist
+          name: pypi_files_xnano-core_pyemscripten
+          path: packages/xnano-core/dist
 
-  test-xnano-core-wasm-wheel:
-    name: test xnano-core wasm wheel in pyodide
-    needs: [resolve-release, build-xnano-core-wasm]
-    if: needs.resolve-release.outputs.run_core_pipeline == 'true'
+  core-test-wasm:
+    name: xnano-core / Test wasm wheel in Pyodide
+    needs: [core-build-wasm]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: "22"
+          persist-credentials: false
 
-      - name: set up python
-        uses: actions/setup-python@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          # must match `pyodide config get python_version`
-          python-version: "3.14"
+          node-version: '22'
+          package-manager-cache: false
 
-      - name: install pyodide-build
-        run: pip install pyodide-build
-
-      - name: get dist artifacts
-        uses: actions/download-artifact@v8
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          name: pypi_files_xnano_core_wasm_emscripten
+          python-version: '3.14'
+          enable-cache: false
+
+      - run: uv tool install pyodide-build
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pypi_files_xnano-core_pyemscripten
           path: dist
 
-      - name: create pyodide virtual environment
-        run: pyodide venv .venv-pyodide
+      - run: pyodide venv .venv-pyodide
 
-      - name: install xnano-core wasm wheel
-        run: >-
-          .venv-pyodide/bin/pip install xnano-core
-          --no-index --no-deps --find-links dist
+      - run: .venv-pyodide/bin/pip install xnano-core --no-index --no-deps --find-links dist
 
-      - name: import smoke test
-        run: .venv-pyodide/bin/python .github/wasm_smoke_test.py
+      - run: .venv-pyodide/bin/python .github/scripts/wasm_smoke_test.py
 
   build-xnano:
-    name: build xnano sdist and wheel
-    needs: resolve-release
-    if: needs.resolve-release.outputs.run_xnano_pipeline == 'true'
+    name: xnano / Build sdist and wheel
+    needs: [plan]
+    if: needs.plan.outputs.full_build == 'true' && needs.plan.outputs.build_xnano == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: install rust stable
-        if: needs.resolve-release.outputs.use_workspace_core == 'true'
-        uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
 
-      - name: install uv
-        uses: astral-sh/setup-uv@v7
+      # `--no-sources` builds against the published packages, as users will install them
+      - run: uv build --no-sources --out-dir dist
 
-      - name: prepare python environment for PyPI xnano-core
-        if: needs.resolve-release.outputs.use_pypi_core == 'true'
-        run: uv sync --group dev --no-install-project
+      - run: uvx twine check --strict dist/*
 
-      - name: build xnano against workspace xnano-core
-        if: needs.resolve-release.outputs.use_workspace_core == 'true'
-        run: |
-          uv sync --group dev
-          cd xnano-core
-          uv run maturin develop --uv
-
-      - name: install xnano-core from PyPI
-        if: needs.resolve-release.outputs.use_pypi_core == 'true'
-        run: >-
-          uv pip install
-          "xnano-core==${{ needs.resolve-release.outputs.pinned_core_version }}"
-
-      - name: build distributions
-        run: |
-          if [[ "${{ needs.resolve-release.outputs.use_pypi_core }}" == "true" ]]; then
-            uv build --no-sources --out-dir dist
-          else
-            uv build --out-dir dist
-          fi
-
-      - run: pip install -U twine
-
-      - run: twine check --strict dist/*
-
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pypi_files_xnano
           path: dist
 
-  release-xnano-core:
-    name: release xnano-core
+  # https://github.com/marketplace/actions/alls-green
+  check: # does nothing except give branch protection a single required job
+    if: always()
     needs:
-      [
-        resolve-release,
-        test-python,
-        test-os,
-        build-xnano-core-sdist,
-        build-xnano-core-wheels,
-        build-xnano-core-wasm,
-        test-xnano-core-wheel-install,
-        test-xnano-core-wasm-wheel,
-      ]
-    if: >-
-      needs.resolve-release.outputs.should_publish_core == 'true' &&
-      (needs.test-python.result == 'success' || needs.test-python.result == 'skipped') &&
-      (needs.test-os.result == 'success' || needs.test-os.result == 'skipped') &&
-      (needs.build-xnano-core-sdist.result == 'success' || needs.build-xnano-core-sdist.result == 'skipped') &&
-      (needs.build-xnano-core-wheels.result == 'success' || needs.build-xnano-core-wheels.result == 'skipped') &&
-      (needs.build-xnano-core-wasm.result == 'success' || needs.build-xnano-core-wasm.result == 'skipped') &&
-      (needs.test-xnano-core-wheel-install.result == 'success' || needs.test-xnano-core-wheel-install.result == 'skipped') &&
-      (needs.test-xnano-core-wasm-wheel.result == 'success' || needs.test-xnano-core-wasm-wheel.result == 'skipped')
+      - plan
+      - lint
+      - test
+      - docs
+      - core-build-sdist
+      - core-build
+      - core-test-wheels
+      - core-build-wasm
+      - core-test-wasm
+      - build-xnano
+    outputs:
+      result: ${{ steps.all-green.outputs.result }}
     runs-on: ubuntu-latest
+    steps:
+      - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
+        id: all-green
+        with:
+          jobs: ${{ toJSON(needs) }}
+          # the build jobs only run for full builds
+          allowed-skips: core-build-sdist, core-build, core-test-wheels, core-build-wasm, core-test-wasm, build-xnano
 
-    environment:
-      name: release
-
+  release-core:
+    name: ${{ needs.plan.outputs.package }} / Release
+    needs: [plan, check]
+    if: >-
+      needs.check.outputs.result == 'success' &&
+      needs.plan.outputs.release == 'true' &&
+      needs.plan.outputs.package != 'xnano'
+    runs-on: ubuntu-latest
+    environment: release
     permissions:
       id-token: write
       contents: write
-
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: astral-sh/setup-uv@v7
-
-      - name: check package version
-        run: python3 .github/check_version.py
-
-      - name: confirm version is not already on PyPI
-        run: python3 .github/confirm_not_on_pypi.py xnano-core
-        env:
-          TAG_VERSION: ${{ needs.resolve-release.outputs.tag_version }}
-
-      - name: get dist artifacts
-        uses: actions/download-artifact@v8
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          pattern: pypi_files_xnano_core_*
+          enable-cache: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: pypi_files_${{ needs.plan.outputs.package }}_*
           merge-multiple: true
           path: dist
 
-      - name: test wheels integrity
-        run: for whl in dist/*.whl; do unzip -qt "$whl"; done
+      - name: Test the distributions
+        run: |
+          for wheel in dist/*.whl; do unzip -qt "$wheel"; done
+          uvx twine check --strict dist/*
 
-      - run: mkdir -p xnano-core/dist && cp dist/* xnano-core/dist/
-
-      - name: publish to PyPI
-        working-directory: xnano-core
+      - name: Publish to PyPI
+        if: needs.plan.outputs.already_published != 'true'
+        run: uv publish dist/*
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: uv publish
 
-      - name: create GitHub release
-        uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.ref_name }}
-          name: xnano-core ${{ needs.resolve-release.outputs.tag_version }}
+          name: ${{ needs.plan.outputs.package }} ${{ needs.plan.outputs.version }}
+          prerelease: ${{ needs.plan.outputs.is_prerelease }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: |
-            dist/*
+          files: dist/*
 
   release-xnano:
-    name: release xnano
-    needs: [resolve-release, test-python, test-os, build-xnano]
+    name: xnano / Release
+    needs: [plan, check]
     if: >-
-      needs.resolve-release.outputs.should_publish_xnano == 'true' &&
-      (needs.test-python.result == 'success' || needs.test-python.result == 'skipped') &&
-      (needs.test-os.result == 'success' || needs.test-os.result == 'skipped') &&
-      (needs.build-xnano.result == 'success' || needs.build-xnano.result == 'skipped')
+      needs.check.outputs.result == 'success' &&
+      needs.plan.outputs.release == 'true' &&
+      needs.plan.outputs.package == 'xnano'
     runs-on: ubuntu-latest
-
-    environment:
-      name: release
-
+    environment: release
     permissions:
       id-token: write
       contents: write
-
     steps:
-      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
 
-      - uses: astral-sh/setup-uv@v7
-
-      - name: prepare python environment
-        run: uv sync --group dev --no-install-project
-
-      - name: check package version
-        run: python3 .github/check_version.py
-
-      - name: verify pinned xnano-core is on PyPI
-        run: >-
-          uv pip install
-          "xnano-core==${{ needs.resolve-release.outputs.pinned_core_version }}"
-
-      - name: confirm version is not already on PyPI
-        run: python3 .github/confirm_not_on_pypi.py xnano
-        env:
-          TAG_VERSION: ${{ needs.resolve-release.outputs.tag_version }}
-
-      - name: get dist artifacts
-        uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: pypi_files_xnano
           path: dist
 
-      - name: test wheels integrity
-        run: for whl in dist/*.whl; do unzip -qt "$whl"; done
+      - name: Test the distributions
+        run: |
+          for wheel in dist/*.whl; do unzip -qt "$wheel"; done
+          uvx twine check --strict dist/*
 
-      - name: publish to PyPI
+      - name: Publish to PyPI
+        if: needs.plan.outputs.already_published != 'true'
+        run: uv publish dist/*
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: uv publish
 
-      - name: create GitHub release
-        uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.ref_name }}
-          name: xnano ${{ needs.resolve-release.outputs.tag_version }}
+          name: xnano ${{ needs.plan.outputs.version }}
+          prerelease: ${{ needs.plan.outputs.is_prerelease }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: |
-            dist/*
+          files: dist/*

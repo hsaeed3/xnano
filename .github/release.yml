@@ -1,0 +1,22 @@
+changelog:
+  exclude:
+    labels:
+      - relnotes-ignore
+      - documentation
+      - dependencies
+  categories:
+    - title: Packaging
+      labels:
+        - relnotes-packaging
+    - title: New Features
+      labels:
+        - relnotes-feature
+    - title: Changes
+      labels:
+        - relnotes-change
+    - title: Performance
+      labels:
+        - relnotes-performance
+    - title: Fixes
+      labels:
+        - relnotes-fix

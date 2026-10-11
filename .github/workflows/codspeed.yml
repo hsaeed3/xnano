@@ -1,51 +1,62 @@
-name: codspeed
+name: CodSpeed
 
 on:
   push:
     branches:
       - main
   pull_request: {}
-  # allows codspeed to trigger a backtest run to seed the initial baseline
+  # lets CodSpeed trigger a run to seed the initial baseline
   workflow_dispatch: {}
 
-permissions:
-  contents: read
-  # openid connect authentication with codspeed
-  id-token: write
+concurrency:
+  group: codspeed-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   COLUMNS: 150
-  UV_PYTHON: "3.13"
+  UV_FROZEN: true
+  UV_PYTHON: '3.13'
+
+permissions:
+  contents: read
 
 jobs:
   benchmarks:
-    name: run benchmarks
+    name: Run benchmarks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # OpenID Connect authentication with CodSpeed
+      id-token: write
     steps:
-      - uses: actions/checkout@v7
-
-      - name: install rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: cache rust
-        uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          workspaces: xnano-core
+          persist-credentials: false
 
-      - name: install uv
-        uses: astral-sh/setup-uv@v7
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
         with:
-          python-version: "3.13"
+          toolchain: stable
 
-      # builds the workspace xnano-core extension and installs xnano itself,
-      # so the benchmarks measure this commit's rust core, not a pypi release
-      - name: install deps
-        run: uv sync --group dev
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          lookup-only: false # zizmor: ignore[cache-poisoning] -- Job does not produce release artifacts and does not have sensitive permissions
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true # zizmor: ignore[cache-poisoning] -- Job does not produce release artifacts and does not have sensitive permissions
+
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
+      # builds the workspace packages, so the benchmarks measure this commit's
+      # rust crates rather than a PyPI release
+      - run: uv sync --all-packages --group dev --group codspeed --all-extras
         env:
           RUST_BACKTRACE: 1
 
-      - name: run benchmarks
-        uses: CodSpeedHQ/action@v5
+      - uses: CodSpeedHQ/action@c4fd08a3a159bd0cc208da1e0edf32b8c47d75e5 # v5.4.0
         with:
           mode: simulation
-          run: uv run pytest benchmarks --codspeed
+          run: >-
+            uv run --no-sync pytest --codspeed
+            packages/xnano-image/benchmarks
+            packages/xnano-audio/benchmarks

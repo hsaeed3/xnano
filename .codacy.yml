@@ -2,7 +2,8 @@
 exclude_paths:
   - "examples/**"
   - "scripts/**"
-  - "tests/**"
+  - "packages/*/tests/**"
+  - "packages/*/benchmarks/**"
   - "docs/**"
   - "**/*.md"
   - "**/*.js"

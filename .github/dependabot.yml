@@ -1,32 +1,42 @@
 version: 2
+
 updates:
-  - package-ecosystem: "uv"
-    directory: "/"
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: monthly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: monthly
     groups:
       python-dependencies:
         patterns:
-          - "*"
+          - '*'
     ignore:
-      # xnano-core is released manually in lockstep with the Rust
-      # crate (see scripts/resolve_release_plan.py) — never let
-      # Dependabot bump this pin on its own.
-      - dependency-name: "xnano-core"
+      # the workspace packages are released by hand, in lockstep with their Rust
+      # crates, so dependabot must never bump their pins
+      - dependency-name: 'xnano'
+      - dependency-name: 'xnano-core'
+      - dependency-name: 'xnano-audio'
+      - dependency-name: 'xnano-image'
+    cooldown:
+      default-days: 7
 
-  - package-ecosystem: "cargo"
-    directory: "/xnano-core"
+  # one Cargo workspace: a single entry updates every crate in it
+  - package-ecosystem: cargo
+    directory: /
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: monthly
     groups:
       rust-dependencies:
         patterns:
-          - "*"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+          - '*'
+        exclude-patterns:
+          # pyo3 upgrades touch every binding, so they are done by hand
+          - 'pyo3*'
+    cooldown:
+      default-days: 7
