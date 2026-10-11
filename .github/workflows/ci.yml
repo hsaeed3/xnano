@@ -216,14 +216,23 @@ jobs:
       # bundled into the wheel: the system copy finds the distribution's ALSA plugins
       # (PipeWire / PulseAudio routing), which a bundled copy would not. A machine without
       # libasound cannot import the package, which xnano treats as "no audio".
+      #
+      # The musllinux build containers cross compile with a musl toolchain whose pkg-config
+      # sysroot cannot see the (glibc) ALSA headers, so musllinux audio wheels are built
+      # without the `playback` feature: synthesis works and the device classes report that
+      # they are unavailable.
       - name: Select the build options
         id: build-options
         shell: bash
         env:
           PACKAGE: ${{ matrix.package }}
           OS: ${{ matrix.platform.os }}
+          MANYLINUX: ${{ matrix.platform.manylinux }}
         run: |
-          if [ "$PACKAGE" = "xnano-audio" ] && [ "$OS" = "linux" ]; then
+          if [ "$PACKAGE" = "xnano-audio" ] && [ "$MANYLINUX" = "musllinux_1_2" ]; then
+            echo "extra-args=--no-default-features" >> "$GITHUB_OUTPUT"
+            echo "before-script=" >> "$GITHUB_OUTPUT"
+          elif [ "$PACKAGE" = "xnano-audio" ] && [ "$OS" = "linux" ]; then
             echo "extra-args=--auditwheel skip" >> "$GITHUB_OUTPUT"
             echo 'before-script=(command -v apk && apk add --no-cache alsa-lib-dev pkgconf) || (command -v dnf && dnf install -y alsa-lib-devel pkgconfig) || (command -v yum && yum install -y alsa-lib-devel pkgconfig) || (apt-get update && apt-get install -y libasound2-dev pkg-config)' >> "$GITHUB_OUTPUT"
           else
@@ -314,7 +323,8 @@ jobs:
           python-version: '3.14'
           enable-cache: false
 
-      - run: uv tool install pyodide-build
+      # `pyodide-build` ships no executables itself; the `pyodide` command comes from `pyodide-cli`
+      - run: uv tool install pyodide-cli --with pyodide-build
 
       - name: Install the rust toolchain and the emscripten target
         run: |
@@ -357,7 +367,8 @@ jobs:
           python-version: '3.14'
           enable-cache: false
 
-      - run: uv tool install pyodide-build
+      # `pyodide-build` ships no executables itself; the `pyodide` command comes from `pyodide-cli`
+      - run: uv tool install pyodide-cli --with pyodide-build
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
