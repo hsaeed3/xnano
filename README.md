@@ -1,410 +1,143 @@
-![xnano Title Animation](./docs/assets/xnano-title.gif)
+> [!IMPORTANT]
+> `xnano` v2 is in beta. The redesigned Rust-backed core is available now, and the previous high-level API remains available as the opt-in `xnano.v1` module.
 
-# __xnano__
+<div align="center">
+
+# **xnano**
+
+**A fun, fast and incredibly flexible terminal UI library for Python, built on [`ratatui`](https://ratatui.rs).**
 
 ![License](https://img.shields.io/github/license/hsaeed3/xnano)
 ![Python Versions](https://img.shields.io/pypi/pyversions/xnano)
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/hsaeed3/xnano?utm_source=badge)
 [![Built With Ratatui](https://ratatui.rs/built-with-ratatui/badge.svg)](https://ratatui.rs/)
 
-> A simple python **tui** framework built on top of the [ratatui](https://ratatui.rs) and [tachyonfx](https://github.com/ratatui/tachyonfx) rust libraries.
+[Documentation](https://xnano.hammad.app) · [API Reference](https://xnano.hammad.app/api-reference/) · [Contributing](./CONTRIBUTING.md)
 
-> [!NOTE]
-> Documentation with examples that are runnable & editable in-browser are now available at [https://xnano.hammad.app](https://xnano.hammad.app)!
+</div>
 
-xnano is a modern, lightweight and incredibly declarative TUI framework for Python. It is built on top of the [xnano-core](https://github.com/hsaeed3/xnano/tree/main/xnano-core) rust library, which provides the core rendering and event handling capabilities through:
+---
 
-- [ratatui](https://ratatui.rs) A Rust library for building terminal user interfaces.
-- [tachyonfx](https://github.com/ratatui/tachyonfx) Rust library for adding effects and animations to ratatui applications.
+## Packages
 
-Furthermore, `xnano` itself uses the [`pydantic-core`](https://github.com/pydantic/pydantic/tree/main/pydantic_core) library for type validation and similar operations.
+The repository is a uv workspace with three installable backends and a small `xnano` metapackage. The native packages can also be installed and used independently.
 
-## Installation
+| Distribution | Import | Purpose |
+| --- | --- | --- |
+| [`xnano`](.) | `xnano.v1` (legacy API) | Metapackage; v1 compatibility API is opt-in. |
+| [`xnano-core`](./packages/xnano-core) | `xnano._xnano_core` | Rust-backed terminal buffers, widgets, layout, state, input, runtime and effects. |
+| [`xnano-audio`](./packages/xnano-audio) | `xnano_audio` | Audio synthesis, playback, capture and beat-based melodies. |
+| [`xnano-image`](./packages/xnano-image) | `xnano_image` | Image and animation decoding, processing and terminal-cell conversion. |
+
+## Install
+
+Install the full `xnano` distribution with pip or uv:
 
 ```bash
-pip install "xnano>=1.2.3"
+pip install xnano
+# or
+uv add xnano
 ```
 
-Or use ``uv``:
+Install only a backend when you need a smaller dependency set:
 
 ```bash
-uv add "xnano>=1.2.3"
+pip install xnano-core
+pip install xnano-audio
+pip install xnano-image
 ```
 
-> [!TIP]
-> Try running the `python -m xnano` or `uv run xnano` commands to test out the built in demo application.
-> ```bash
-> uv run xnano
-> ```
+The core package also provides `audio`, `image`, and `all` extras for installing those backends alongside `xnano-core`. On Linux, audio device playback requires ALSA; synthesis and melody scheduling work without an audio device.
 
----
+## Quick start: draw without a terminal
 
-## Examples
-
-You can view the code for these examples here: [examples](./examples).
-
-![xnano Agent Chat Demo](./docs/assets/examples/agent_chat-dark.gif)
-
-![xnano Feed Demo](./docs/assets/examples/feed-dark.gif)
-
-![xnano Kanban Demo](./docs/assets/examples/kanban-dark.gif)
-
-### Your first render
-
-The easiest way to get started is the print-like `render()` helper — no
-session, no event loop. It writes styled content to the terminal and returns.
+The core API builds buffers from operations. Rendering a buffer to text is useful for scripts and tests and does not take over the terminal.
 
 ```python
-from xnano import render
-from xnano.components import Text
+from xnano._xnano_core import Border, Buffer, Write
 
-render(
-    Text("Hello from xnano!", foreground="violet", modifiers=["bold"])
+card = Buffer(width=16, height=3)
+card.update(Border('rounded'), Write('hello, xnano', x=2, y=1))
+print(card.render(format='text'))
+```
+
+## Quick start: run a mounted buffer
+
+An offscreen runtime exercises layout and frame rendering without terminal I/O. Use `Runtime.live()` when the application should own a real terminal.
+
+```python
+from xnano._xnano_core import Buffer, Runtime, Write
+
+with Runtime.offscreen(width=20, height=3) as runtime:
+    buffer = Buffer()
+    runtime.mount(buffer, geometry='inherit')
+    buffer.update(Write('hello from xnano'))
+    runtime.step()
+    print(runtime.snapshot().lines()[0])
+```
+
+The runtime also routes keyboard and mouse input, manages focus and state, and advances effects against its frame clock. See the [getting started guide](https://xnano.hammad.app/learn/) and [API reference](https://xnano.hammad.app/api-reference/).
+
+## Audio melodies
+
+`xnano-audio` describes notes in beats, converts them to seconds through a tempo map, and schedules notes over clock windows. This makes melody timing independent of the terminal render loop; an application can use the same monotonic clock for UI animation and audio scheduling.
+
+```python
+from xnano_audio import TerminalMelody, TerminalTempoMap
+
+melody = (
+    TerminalMelody(tempo_map=TerminalTempoMap(120))
+    .appended_note('C4', duration_beats=1)
+    .appended_note('G4', duration_beats=1)
 )
+# Query a half-second window on the same monotonic clock used by the UI.
+print(melody.scheduled_between(0.0, 0.5))
 ```
 
-![Your first render](./docs/assets/demos/example_render_text.gif)
+## Images and animations
 
-You can pass multiple renderables — they stack vertically:
+Decode an image and convert it to terminal cells with `xnano-image`:
 
 ```python
-from xnano import render
-from xnano.components import Text
+from xnano_image import TerminalImage, cell_grid_to_ansi
 
-render(
-    Text("● Done: ", foreground="emerald-400", modifiers=["bold"]),
-    Text("All 12 checks passed.", foreground="slate-400"),
-)
+image = TerminalImage.open('photo.png')
+print(cell_grid_to_ansi(image.to_cell_grid(40)))
 ```
 
-![Multiple renderables](./docs/assets/demos/example_render_multiple.gif)
+The image package returns a portable cell-grid representation that the core can draw with its cell-grid widgets. It also supports animated formats and conversion to a cell animation.
 
----
+## The v1 API
 
-### Styled text
-
-`Text` composes rich inline content with colors, modifiers, and nesting:
+The previous declarative API remains available from `xnano.v1`; the main `xnano` package does not import it unless requested. Existing applications can migrate incrementally while new code uses the Rust-backed core.
 
 ```python
-from xnano import render
-from xnano.components import Text
+from xnano.v1 import BaseGrid, Context, Field, Terminal, on_keyboard
 
-message = Text([
-    Text("● ", foreground="emerald-400"),
-    Text("Done: ", foreground="white", modifiers=["bold"]),
-    Text("all tests passed\n", foreground="slate-300"),
-])
 
-render(message)
-```
-
-![Styled text](./docs/assets/demos/example_styled_text.gif)
-
-Colors accept Tailwind names (`"violet-500"`), hex strings (`"#a78bfa"`), or plain names (`"white"`, `"red"`). The deprecated `color=` alias still works at runtime and maps to `foreground=`.
-
----
-
-### Hello World
-
-The minimal xnano app. Define a `BaseGrid` subclass with annotated `Field`
-slots, then pass an instance to `Terminal().run()`. The terminal takes over
-the screen, renders each frame, and cleans up on exit.
-
-```python
-from xnano import BaseGrid, Field, Terminal, Context, on_tick, on_keyboard
-
-class App(BaseGrid):
-    message: str = Field(
-        default="Hello, world!",
-        foreground="sky-500",
-    )
-    current_color: str = Field(default="sky", state=True)
-
-    @on_tick(1000)
-    def update_color(self) -> None:
-        if self.current_color == "sky":
-            self.current_color = "white"
-            self.grid_set_field("message", foreground="white")
-        else:
-            self.current_color = "sky"
-            self.grid_set_field(
-                "message",
-                foreground="sky-500",
-            )
-
-    @on_keyboard("q")
-    def quit(self, ctx: Context) -> None:
-        ctx.terminal.request_exit()
-
-Terminal().run(App())
-```
-
-![Hello World](./docs/assets/demos/example_hello_world.gif)
-
----
-
-### Strict Type Safety
-
-Any field with a type annotation is set with `Field(strict=True)` and is validated through the `pydantic-core` library by default.
-
-### Layout & Nesting
-
-Grids compose naturally — nest one `BaseGrid` inside another as a `Field`
-value. Direction (`"horizontal"` / `"vertical"`) and `gap` control how fields
-are laid out. Use `width` / `height` (absolute cells, `"50%"`, or `"1fr"`) to
-proportion each slot.
-
-```python
-from xnano import BaseGrid, Field, Terminal, Context, on_keyboard
-
-class SidebarTitle(BaseGrid, horizontal_align="center"):
-    title: str = Field("This is a title.", horizontal_align="center")
-
-class Sidebar(BaseGrid, direction="vertical"):
-    title: SidebarTitle = Field(
-        default_factory=SidebarTitle,
-        height="10%",
-    )
-    nav: str = Field(default="- Home", height="1fr")
-
-class App(BaseGrid, direction="horizontal", gap=1):
-    sidebar: Sidebar = Field(
-        default_factory=Sidebar,
-        width="25%",
-    )
-    content: str = Field(
-        default="Main area",
-        width="1fr",
-        border="rounded",
-    )
-
-    @on_keyboard("q")
-    def quit(self, ctx: Context) -> None:
-        ctx.terminal.request_exit()
-
-Terminal().run(App())
-```
-
-![Layout & Nesting](./docs/assets/demos/example_layout_nesting.gif)
-
----
-
-### Keyboard Events
-
-Use `@on_keyboard` to bind methods to key names or sequences. The decorated
-method receives an optional `Context` argument that exposes the live terminal.
-State fields (`state=True`) hold app data without rendering — update them and
-reference them from layout fields.
-
-```python
-from xnano import BaseGrid, Field, Terminal, Context, on_keyboard
-
-class Counter(BaseGrid, direction="vertical", gap=1):
-    label: str = Field(
-        default="Count: 0",
-        height=1,
-        border="rounded",
-        border_color="violet-500",
-    )
-    hint: str = Field(
-        default="  ↑ / ↓ to count  ·  q to quit",
-        height=1,
-        foreground="slate-500",
-    )
+class Counter(BaseGrid, direction='vertical', gap=1):
+    label: str = Field(default='Count: 0', height=3, border='rounded')
     count: int = Field(default=0, state=True)
 
-    @on_keyboard("up")
+    @on_keyboard('up')
     def increment(self) -> None:
         self.count += 1
-        self.label = f"Count: {self.count}"
+        self.label = f'Count: {self.count}'
 
-    @on_keyboard("down")
-    def decrement(self) -> None:
-        self.count -= 1
-        self.label = f"Count: {self.count}"
+    @on_keyboard('q')
+    def quit(self, context: Context) -> None:
+        context.terminal.request_exit()
 
-    @on_keyboard("q")
-    def quit(self, ctx: Context) -> None:
-        ctx.terminal.request_exit()
 
 Terminal().run(Counter())
 ```
 
-![Keyboard Events](./docs/assets/demos/example_keyboard_events.gif)
+The restored legacy documentation is under [`docs/v1`](./docs/v1/). The v1 API is maintained as a compatibility layer; new core capabilities are documented in the current guides and API reference.
 
----
+## Development
 
-### Click Handlers
+The repository uses a uv workspace and Rust workspace. From the repository root, `uv sync --all-extras` installs the development environment and `make help` lists common build, test, lint, type-check, docs and release commands. Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a change.
 
-Live terminal sessions enable mouse input by default. Use
-`@on_click("field_name")` to scope a handler to the rendered area of a
-specific field — the handler fires only when that region is clicked.
+## License
 
-```python
-from xnano import BaseGrid, Field, Terminal, Context, on_click, on_keyboard
-
-class App(BaseGrid, direction="vertical", gap=1):
-    button: str = Field(
-        default="  [ Click me ]  ",
-        height=3,
-        border="rounded",
-        border_color="violet-500",
-    )
-    status: str = Field(
-        default="  Waiting...",
-        height=1,
-        foreground="slate-400",
-    )
-
-    @on_click("button")
-    def on_button(self, ctx: Context) -> None:
-        self.status = "  Clicked!"
-
-    @on_keyboard("q")
-    def quit(self, ctx: Context) -> None:
-        ctx.terminal.request_exit()
-
-Terminal().run(App())
-```
-
-![Click Handlers](./docs/assets/demos/example_click_handlers.gif)
-
----
-
-### Timed Updates
-
-`@on_tick(interval_ms)` fires a method on a recurring timer. Use it for
-clocks, progress indicators, polling, or any periodic UI refresh without
-blocking the event loop.
-
-```python
-import time
-from xnano import BaseGrid, Field, Terminal, Context, on_tick, on_keyboard
-
-class Clock(BaseGrid, direction="vertical", gap=1):
-    time_display: str = Field(
-        default="",
-        height=3,
-        border="rounded",
-        border_color="teal-500",
-        title=" Clock ",
-    )
-    hint: str = Field(
-        default="  q to quit",
-        height=1,
-        foreground="slate-500",
-    )
-
-    def __post_init__(self) -> None:
-        self.time_display = f"  {time.strftime('%H:%M:%S')}"
-
-    @on_tick(1000)
-    def update_time(self) -> None:
-        self.time_display = f"  {time.strftime('%H:%M:%S')}"
-
-    @on_keyboard("q")
-    def quit(self, ctx: Context) -> None:
-        ctx.terminal.request_exit()
-
-Terminal(tick_interval=1000).run(Clock())
-```
-
-![Timed Updates](./docs/assets/demos/example_timed_updates.gif)
-
----
-
-### State & Context Manager
-
-Pass any object as `state` to `Terminal` to thread shared data through the
-session. Every `BaseGrid` instance can read it via `self.state`. Override
-`grid_render()` to recompute field values once per frame — useful when
-display depends on state that changes externally.
-
-```python
-from dataclasses import dataclass
-from xnano import BaseGrid, Field, Terminal, Context, on_keyboard
-
-@dataclass
-class AppState:
-    username: str = "guest"
-
-class App(BaseGrid, direction="vertical", gap=1):
-    header: str = Field(
-        default="",
-        height=1,
-        foreground="white",
-        background="violet-900",
-    )
-    body: str = Field(
-        default="Press q to quit",
-        foreground="slate-400",
-    )
-
-    def grid_render(self) -> None:
-        self.header = f"  Hello, {self.state.username}!"
-
-    @on_keyboard("q")
-    def quit(self, ctx: Context) -> None:
-        ctx.terminal.request_exit()
-
-with Terminal(state=AppState(username="hammad")) as t:
-    t.run(App())
-```
-
-![State & Context Manager](./docs/assets/demos/example_state_context.gif)
-
----
-
-### Custom Components
-
-Subclass `Component` and implement `compose()` to return interface-neutral
-content (for example a `TextBlock`, `Panel`, `TableGrid`, or `Canvas`).
-Components slot into `BaseGrid` fields like any other value.
-
-```python
-import dataclasses
-from xnano import BaseGrid, Field, Terminal, Context, on_keyboard
-from xnano.components import Component, TextBlock
-
-@dataclasses.dataclass
-class Badge(Component):
-    label: str = ""
-    foreground: str = "white"
-
-    def compose(self, ctx):
-        return TextBlock.from_plain(
-            self.label,
-            color=self.foreground,
-        )
-
-class StatusBoard(BaseGrid, direction="vertical", gap=1):
-    ok: Badge = Field(
-        default_factory=lambda: Badge(
-            label="● OK",
-            foreground="emerald-500",
-        ),
-        height=1,
-    )
-    warn: Badge = Field(
-        default_factory=lambda: Badge(
-            label="● Warning",
-            foreground="yellow",
-        ),
-        height=1,
-    )
-    err: Badge = Field(
-        default_factory=lambda: Badge(
-            label="● Error",
-            foreground="palevioletred",
-        ),
-        height=1,
-    )
-
-    @on_keyboard("q")
-    def quit(self, ctx: Context) -> None:
-        ctx.terminal.request_exit()
-
-Terminal().run(StatusBoard())
-```
-
-![Custom Components](./docs/assets/demos/example_custom_component.gif)
+xnano is released under the [MIT License](./LICENSE).

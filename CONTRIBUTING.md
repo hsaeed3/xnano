@@ -26,11 +26,17 @@ work begins.
 
 ## Development setup
 
-Clone the repository and install its development dependencies:
+Clone the repository and install its development dependencies. This requires
+[`uv`](https://docs.astral.sh/uv/getting-started/installation/) and
+[Rust](https://rust-lang.org/tools/install/):
 
 ```bash
-uv sync
+make install
 ```
+
+The repository is one Cargo workspace (`crates/`) and one uv workspace
+(`packages/`). Run `make help` to list every available command. The most common
+ones are summarized in [Validation](#validation).
 
 Create a focused branch from the latest `main`:
 
@@ -50,6 +56,7 @@ refactor/core-input-handling
 ```
 
 Branch names should be short, lowercase, and use hyphens between words.
+Commits directly to `main` are not allowed.
 
 ## Making changes
 
@@ -61,8 +68,8 @@ When changing behavior:
 
 - add or update tests;
 - update relevant documentation and examples;
-- preserve the separation between the public DSL, shared core contracts,
-  concrete hosts, and native bindings;
+- preserve the separation between the Python-independent engine crates, the
+  thin PyO3 binding crates, and the Python packages;
 - avoid unrelated cleanup unless it is necessary for the change.
 
 Follow the architecture and code style documented in `AGENTS.md`.
@@ -115,6 +122,8 @@ webui
 cli
 core
 xnano-core
+xnano-audio
+xnano-image
 docs
 release
 ```
@@ -172,8 +181,8 @@ Use this structure:
 
 ## Validation
 
-- `uv run pytest`
-- `uv run prek run --all-files`
+- `make check`
+- `make test`
 
 ## Notes
 
@@ -197,33 +206,42 @@ Before requesting review:
 
 ## Validation
 
-All changes must pass:
+Format the repository, then run the full set of checks from the root
+directory:
 
 ```bash
-uv run pytest
-uv run prek run --all-files
+make format-all
+make check
+make test
 ```
 
-Documentation changes should also build successfully:
+`make check` runs linting (`ruff`, `griffe`, `cargo fmt`, `cargo clippy`),
+spellchecking, type checking (`basedpyright`), and coverage report generation.
+`make test` runs the Rust and Python test suites themselves.
+
+Changes to Rust code under `crates/*/src/` additionally require rebuilding the
+native extensions before testing:
 
 ```bash
-uv run zensical build
+make rebuild-rust
 ```
 
-Changes under `xnano-core` additionally require rebuilding the native package:
+Pure Python changes do not need a Rust rebuild. If tests fail to load an
+extension module (`.so`), run `make test-sync` instead of `make test`.
+
+Documentation changes should also build successfully. The API reference is
+generated from the package sources, so regenerate it after adding, renaming or
+removing a module:
 
 ```bash
-cd xnano-core
-cargo clean
-maturin develop --uv
+uv run python scripts/docs/autogenerate_api_references.py
+make docs-build
 ```
 
-Performance-sensitive changes should also be checked against the benchmark
-suite in `benchmarks/`, which CodSpeed measures on every pull request:
-
-```bash
-uv run pytest benchmarks
-```
+Each package under `packages/` has its own `Makefile` with the same commands
+scoped to that package, plus `make all` (format, build, lint, and test) for a
+faster check while working on a single package. It does not replace `make check`
+at the root level.
 
 Run focused tests while developing, then run the complete required checks
 before opening or updating the pull request.
@@ -274,6 +292,17 @@ the desired outcome clear.
 Be considerate, specific, and constructive. Review the work you submit and
 respect the time required to understand and maintain it.
 
+## AI-assisted contributions
+
 Tool-assisted contributions are welcome, including work created with AI, but
-the contributor remains responsible for understanding, testing, and explaining
-the complete change.
+disclosure is **mandatory** and the contributor remains responsible for
+understanding, testing, and explaining the complete change.
+
+- A pull request containing AI-generated or AI-assisted code, documentation,
+  or description text must say so in its description, naming the tool and the
+  exact model used, for example `Generated with Claude Code (claude-sonnet-5-5)`.
+- Commits written by an AI agent end with a `Co-Authored-By:` trailer naming
+  the model, for example
+  `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
+- The submitter must have read and run everything the AI produced before
+  requesting review.
