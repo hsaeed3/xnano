@@ -216,6 +216,8 @@ jobs:
       # bundled into the wheel: the system copy finds the distribution's ALSA plugins
       # (PipeWire / PulseAudio routing), which a bundled copy would not. A machine without
       # libasound cannot import the package, which xnano treats as "no audio".
+      # Skipping the audit also skips the platform tag it assigns, which PyPI requires, so
+      # the tag is stated explicitly: the build container is manylinux2014.
       #
       # The musllinux build containers cross compile with a musl toolchain whose pkg-config
       # sysroot cannot see the (glibc) ALSA headers, so musllinux audio wheels are built
@@ -233,7 +235,7 @@ jobs:
             echo "extra-args=--no-default-features" >> "$GITHUB_OUTPUT"
             echo "before-script=" >> "$GITHUB_OUTPUT"
           elif [ "$PACKAGE" = "xnano-audio" ] && [ "$OS" = "linux" ]; then
-            echo "extra-args=--auditwheel skip" >> "$GITHUB_OUTPUT"
+            echo "extra-args=--auditwheel skip --compatibility manylinux2014" >> "$GITHUB_OUTPUT"
             echo 'before-script=(command -v apk && apk add --no-cache alsa-lib-dev pkgconf) || (command -v dnf && dnf install -y alsa-lib-devel pkgconfig) || (command -v yum && yum install -y alsa-lib-devel pkgconfig) || (apt-get update && apt-get install -y libasound2-dev pkg-config)' >> "$GITHUB_OUTPUT"
           else
             echo "extra-args=" >> "$GITHUB_OUTPUT"
@@ -254,6 +256,17 @@ jobs:
       - run: ls -lh dist/
         shell: bash
         working-directory: packages/${{ matrix.package }}
+
+      # PyPI rejects a plain `linux_*` platform tag, so fail here instead of at the upload.
+      - name: Check the platform tags
+        shell: bash
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          if ls dist/*-linux_*.whl > /dev/null 2>&1; then
+            echo "::error::A wheel has a plain linux platform tag, which PyPI rejects. Build it with a manylinux or musllinux tag."
+            ls dist/*-linux_*.whl
+            exit 1
+          fi
 
       - run: uvx twine check --strict dist/*
         shell: bash
