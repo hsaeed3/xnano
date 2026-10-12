@@ -8,11 +8,13 @@
 //! - [`layout`], [`components`], [`drawing`] and [`effects`]: arrangement, ready-made
 //!   components, schema-validated drawings and animated effects;
 //! - [`clock`] and [`event`]: time and normalized input;
+//! - [`device`]: what a terminal offers, as plain data;
 //! - [`terminal`]: the live terminal, behind the `terminal` feature.
 
 pub mod buffer;
 pub mod clock;
 pub mod components;
+pub mod device;
 pub mod drawing;
 pub mod dynamic;
 pub mod effects;
