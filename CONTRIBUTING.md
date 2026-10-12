@@ -304,5 +304,9 @@ understanding, testing, and explaining the complete change.
 - Commits written by an AI agent end with a `Co-Authored-By:` trailer naming
   the model, for example
   `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
+- Never add session links or session identifiers (such as `Claude-Session:`
+  trailers or `claude.ai/code/session_...` URLs) to commit messages, pull
+  request titles or descriptions, code, or documentation. The `Co-Authored-By:`
+  trailer is the only attribution line a commit carries.
 - The submitter must have read and run everything the AI produced before
   requesting review.
