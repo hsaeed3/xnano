@@ -142,6 +142,7 @@ Tool-assisted contributions are welcome, but disclosure is **mandatory**, and th
 
 - A pull request containing AI-generated or AI-assisted code, documentation or description text must say so in its description, naming the **tool and exact model**, for example `Generated with Claude Code (claude-sonnet-5-5)`.
 - Commits written by an AI agent end with a `Co-Authored-By:` trailer naming the model, for example `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
+- Never add session links or session identifiers (such as `Claude-Session:` trailers or `claude.ai/code/session_...` URLs) to commit messages, pull request titles or descriptions, code, or documentation. The `Co-Authored-By:` trailer is the only attribution line a commit carries, and any other attribution an agent's tooling suggests is not added.
 - The submitter must have read and run everything the AI produced before requesting review.
 
 ## Documentation Styling
