@@ -8,8 +8,8 @@ use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyFrozenSet, PyTuple};
 use xnano_terminal_runtime::buffer::absolute_origin;
+use xnano_terminal_runtime::device::Status;
 use xnano_terminal_runtime::geometry::{Point, Rectangle, Size};
-use xnano_terminal_runtime::terminal::Status;
 
 use crate::events::binding_arg;
 use crate::geometry::{PyRectangle, PySize};
