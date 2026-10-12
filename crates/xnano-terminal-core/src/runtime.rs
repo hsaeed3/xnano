@@ -13,10 +13,10 @@ use xnano_terminal_runtime::buffer::{
     BufferCore, Geometry, absolute_origin, buffers_at, compose, relayout, tree_modified,
 };
 use xnano_terminal_runtime::clock::{Clock, ClockSource, SimulationClock};
+use xnano_terminal_runtime::device::{DeviceModes, KeyboardInfo, Status, TerminalInfo};
 use xnano_terminal_runtime::event::{Event, EventKind, EventPayload, KeyKind, MouseKind};
 use xnano_terminal_runtime::geometry::{Rectangle, Size};
 use xnano_terminal_runtime::grid::{BlitMode, Bounds, Grid};
-use xnano_terminal_runtime::terminal::{DeviceModes, KeyboardInfo, Status, TerminalInfo};
 use xnano_terminal_state::Store;
 
 use crate::clocks::{PyClock, PySimulationClock};
@@ -143,6 +143,8 @@ struct Mount {
     geometry: Geometry,
 }
 
+// The live terminal reads these; WebAssembly builds run offscreen only and never do.
+#[cfg_attr(not(feature = "terminal"), allow(dead_code))]
 struct Config {
     backend: Backend,
     frame_interval_milliseconds: u64,
