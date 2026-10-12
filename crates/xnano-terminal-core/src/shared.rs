@@ -13,12 +13,12 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use xnano_terminal_runtime::buffer::BufferCore;
 use xnano_terminal_runtime::clock::Clock;
+use xnano_terminal_runtime::device::{DeviceModes, KeyboardInfo, TerminalInfo};
 use xnano_terminal_runtime::drawing::DrawingAnimation;
 use xnano_terminal_runtime::event::Event;
 use xnano_terminal_runtime::geometry::{Rectangle, Size};
 use xnano_terminal_runtime::grid::Bounds;
 use xnano_terminal_runtime::pixel::PixelEncoding;
-use xnano_terminal_runtime::terminal::{DeviceModes, KeyboardInfo, TerminalInfo};
 
 pub fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex
