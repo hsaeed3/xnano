@@ -433,7 +433,10 @@ jobs:
   release-core:
     name: ${{ needs.plan.outputs.package }} / Release
     needs: [plan, check]
+    # `!cancelled()` replaces the implicit `success()`, which also fails when any job `check`
+    # depends on was skipped (a tag only builds the package it releases). `check` reports that.
     if: >-
+      !cancelled() &&
       needs.check.outputs.result == 'success' &&
       needs.plan.outputs.release == 'true' &&
       needs.plan.outputs.package != 'xnano'
@@ -476,7 +479,10 @@ jobs:
   release-xnano:
     name: xnano / Release
     needs: [plan, check]
+    # `!cancelled()` replaces the implicit `success()`, which also fails when any job `check`
+    # depends on was skipped (a tag only builds the package it releases). `check` reports that.
     if: >-
+      !cancelled() &&
       needs.check.outputs.result == 'success' &&
       needs.plan.outputs.release == 'true' &&
       needs.plan.outputs.package == 'xnano'
