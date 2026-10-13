@@ -102,15 +102,22 @@ def replace_version(path: Path, package: str, version: str) -> str:
 
 
 def build_pyproject(xnano_version: str, versions: dict[str, str]) -> str:
-    """Regenerate the root project's marked version block."""
+    """
+    Regenerate the root project's marked version block.
+
+    ``xnano-core`` is the only dependency; ``xnano-audio`` and ``xnano-image`` are the
+    ``audio`` and ``image`` extras.
+    """
     original = ROOT_PYPROJECT.read_text(encoding="utf-8")
     output: list[str] = []
     inside = False
     dependencies = False
     wrote_dependencies = False
-    pins = [
-        f'    "{name}{pin_specifier(version)}",' for name, version in versions.items()
-    ]
+    is_replacing_extras = False
+    pins = {
+        name: f'    "{name}{pin_specifier(version)}",'
+        for name, version in versions.items()
+    }
     for line in original.splitlines(keepends=True):
         stripped = line.strip()
         if AUTO_START in line:
@@ -119,17 +126,24 @@ def build_pyproject(xnano_version: str, versions: dict[str, str]) -> str:
             continue
         if AUTO_END in line:
             inside = False
+            is_replacing_extras = False
         if inside and re.match(r"^\s*version\s*=", line):
             output.append(f"version = '{pep440(xnano_version)}'\n")
         elif inside and re.match(r"^\s*dependencies\s*=\s*\[", line):
             output.append("dependencies = [\n")
-            output.extend(f"{pin}\n" for pin in pins)
+            output.append(f"{pins['xnano-core']}\n")
             dependencies = True
             wrote_dependencies = True
         elif dependencies:
             if stripped == "]":
-                output.append("]\n")
+                output.append("]\n\n[project.optional-dependencies]\n")
+                for name, pin in pins.items():
+                    if name != "xnano-core":
+                        output.append(f"{name.removeprefix('xnano-')} = [\n{pin}\n]\n")
                 dependencies = False
+                is_replacing_extras = True
+        elif is_replacing_extras:
+            continue
         else:
             output.append(line)
     if not wrote_dependencies or dependencies or inside:

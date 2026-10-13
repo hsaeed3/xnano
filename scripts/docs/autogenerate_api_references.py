@@ -3,10 +3,10 @@ scripts.docs.autogenerate_api_references
 
 Regenerate the API reference pages in ``docs/api-reference/`` and their navigation in ``zensical.toml``.
 
-One page is generated for every public module of ``xnano``, ``xnano_audio`` and ``xnano_image``,
-read from the sources under ``packages/*/src`` (Python files and ``.pyi`` stubs), so nothing needs
-to be built. The compiled-module packages ``xnano._xnano_core`` and its ``_core_types`` module hold
-the whole ``xnano`` API, so they are documented even though their names start with an underscore.
+One page is generated for every public module of ``xnano``, ``xnano_core``, ``xnano_audio`` and ``xnano_image``,
+read from ``xnano/`` and ``packages/*/src`` (Python files and ``.pyi`` stubs), so nothing needs
+to be built. The compiled-module packages ``xnano_core._xnano_core`` and its ``_core_types`` module hold
+the whole ``xnano_core`` API, so they are documented even though their names start with an underscore.
 Each page holds a single ``mkdocstrings`` directive for its module. The navigation
 is written between the ``API_REFERENCE_START`` and ``API_REFERENCE_END`` markers in ``zensical.toml``.
 ``docs/api-reference/index.md`` is written by hand and is never touched.
@@ -38,7 +38,8 @@ NAVIGATION_INDENTATION = 8
 
 # Importable package name -> directory that holds its source.
 PACKAGE_SOURCE_DIRECTORIES: dict[str, pathlib.Path] = {
-    "xnano": REPOSITORY_ROOT / "packages" / "xnano-core" / "src" / "xnano",
+    "xnano": REPOSITORY_ROOT / "xnano",
+    "xnano_core": REPOSITORY_ROOT / "packages" / "xnano-core" / "src" / "xnano_core",
     "xnano_audio": REPOSITORY_ROOT / "packages" / "xnano-audio" / "src" / "xnano_audio",
     "xnano_image": REPOSITORY_ROOT / "packages" / "xnano-image" / "src" / "xnano_image",
 }
@@ -46,8 +47,8 @@ PACKAGE_SOURCE_DIRECTORIES: dict[str, pathlib.Path] = {
 # Modules whose names start with an underscore but that are part of the documented API.
 DOCUMENTED_PRIVATE_MODULES: frozenset[str] = frozenset(
     {
-        "xnano._xnano_core",
-        "xnano._xnano_core._core_types",
+        "xnano_core._xnano_core",
+        "xnano_core._xnano_core._core_types",
     }
 )
 
@@ -85,6 +86,9 @@ def get_modules(package: str, source_directory: pathlib.Path) -> list[str]:
             else relative_path.parts
         )
         module = ".".join((package, *parts))
+        # The legacy API has its own reference under docs/v1/api.
+        if package == "xnano" and parts and parts[0] == "deprecated":
+            continue
         if any(part.startswith("_") for part in parts) and (
             module not in DOCUMENTED_PRIVATE_MODULES
         ):
