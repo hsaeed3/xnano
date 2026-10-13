@@ -91,8 +91,9 @@ struct Piece<'a> {
 ///
 /// Words break at spaces, and a word longer than a row is folded across rows. Wide glyphs
 /// count their real width, so a row never holds more than `width` columns and a glyph that
-/// does not fit moves to the next row whole. The spaces at a break are dropped.
-pub fn wrap_lines(lines: &[Line], width: usize) -> Vec<Line> {
+/// does not fit moves to the next row whole. With `should_trim`, the spaces at a break are
+/// dropped; without it they are kept, and the ones that do not fit begin the next row.
+pub fn wrap_lines(lines: &[Line], width: usize, should_trim: bool) -> Vec<Line> {
     let width = width.max(1);
     let mut rows: Vec<Line> = Vec::new();
     for line in lines {
@@ -122,10 +123,14 @@ pub fn wrap_lines(lines: &[Line], width: usize) -> Vec<Line> {
                 if used + token_width <= width {
                     current.extend(token);
                     used += token_width;
-                } else {
+                } else if should_trim {
                     // The spaces at a break are dropped.
-                    flush_row(&mut rows, &mut current);
+                    flush_row(&mut rows, &mut current, true);
                     used = 0;
+                } else {
+                    flush_row(&mut rows, &mut current, false);
+                    current.extend(token);
+                    used = token_width.min(width);
                 }
                 continue;
             }
@@ -135,37 +140,37 @@ pub fn wrap_lines(lines: &[Line], width: usize) -> Vec<Line> {
                 continue;
             }
             if token_width <= width {
-                flush_row(&mut rows, &mut current);
+                flush_row(&mut rows, &mut current, should_trim);
                 current.extend(token);
                 used = token_width;
                 continue;
             }
             // A word longer than a row is folded.
             if used > 0 {
-                flush_row(&mut rows, &mut current);
+                flush_row(&mut rows, &mut current, should_trim);
                 used = 0;
             }
             for piece in token {
                 if used > 0 && used + piece.width > width {
-                    flush_row(&mut rows, &mut current);
+                    flush_row(&mut rows, &mut current, should_trim);
                     used = 0;
                 }
                 current.push(piece);
                 used += piece.width;
                 if used >= width {
-                    flush_row(&mut rows, &mut current);
+                    flush_row(&mut rows, &mut current, should_trim);
                     used = 0;
                 }
             }
         }
-        flush_row(&mut rows, &mut current);
+        flush_row(&mut rows, &mut current, should_trim);
     }
     rows
 }
 
-/// End the row being built: trailing spaces are dropped and equal styles are merged.
-fn flush_row(rows: &mut Vec<Line>, current: &mut Vec<&Piece<'_>>) {
-    while current.last().is_some_and(|piece| piece.is_space) {
+/// End the row being built: trailing spaces are dropped when trimming, and equal styles are merged.
+fn flush_row(rows: &mut Vec<Line>, current: &mut Vec<&Piece<'_>>, should_trim: bool) {
+    while should_trim && current.last().is_some_and(|piece| piece.is_space) {
         current.pop();
     }
     let mut row: Line = Vec::new();
@@ -847,10 +852,14 @@ mod grapheme_tests {
     }
 
     fn rows(text: &str, width: usize) -> Vec<String> {
-        wrap_lines(&split_lines(&[Span::new(text, Style::default())]), width)
-            .iter()
-            .map(|row| row.iter().map(|span| span.text.as_str()).collect())
-            .collect()
+        wrap_lines(
+            &split_lines(&[Span::new(text, Style::default())]),
+            width,
+            true,
+        )
+        .iter()
+        .map(|row| row.iter().map(|span| span.text.as_str()).collect())
+        .collect()
     }
 
     #[test]
@@ -874,13 +883,25 @@ mod grapheme_tests {
     }
 
     #[test]
+    fn wrapping_without_trimming_keeps_the_spaces_at_a_break() {
+        let lines = split_lines(&[Span::new("ab cd", Style::default())]);
+        let text = |rows: Vec<Line>| -> Vec<String> {
+            rows.iter()
+                .map(|row| row.iter().map(|span| span.text.as_str()).collect())
+                .collect()
+        };
+        assert_eq!(text(wrap_lines(&lines, 3, true)), ["ab", "cd"]);
+        assert_eq!(text(wrap_lines(&lines, 3, false)), ["ab ", "cd"]);
+    }
+
+    #[test]
     fn wrapping_keeps_styles_with_their_text() {
         let red = Style::default().fg(ratatui_core::style::Color::Red);
         let lines = vec![vec![
             Span::new("ab ", Style::default()),
             Span::new("cd", red),
         ]];
-        let wrapped = wrap_lines(&lines, 3);
+        let wrapped = wrap_lines(&lines, 3, true);
         assert_eq!(wrapped.len(), 2);
         assert_eq!(wrapped[1][0].style, red);
     }

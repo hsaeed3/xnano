@@ -59,7 +59,7 @@ indexmap = "2"
 time = "0.3"
 serde_json = { version = "1", features = ["preserve_order"] }
 regex = "1"
-rustix = { version = "1", features = ["event", "pipe", "std", "stdio"] }
+rustix = { version = "1", features = ["event", "pipe", "std", "stdio", "termios"] }
 signal-hook = "0.3"
 criterion = { package = "codspeed-criterion-compat", version = "2", default-features = false }
 

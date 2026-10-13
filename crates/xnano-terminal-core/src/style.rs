@@ -113,8 +113,13 @@ impl PyColor {
     fn from_tailwind(
         _cls: &Bound<'_, pyo3::types::PyType>,
         palette: &str,
-        shade: u16,
+        shade: i64,
     ) -> PyResult<Self> {
+        let shade = u16::try_from(shade).map_err(|_| {
+            PyValueError::new_err(format!(
+                "the Tailwind shade {shade} is out of range; use 50, 100, 200 through 900, or 950"
+            ))
+        })?;
         Ok(Self {
             inner: tailwind_color(palette, shade).map_err(PyValueError::new_err)?,
         })

@@ -576,6 +576,20 @@ fn wait_for_terminal(timeout: Duration) -> Wait {
     }
 }
 
+/// The size of the terminal on standard input in cells, when it can be read.
+#[cfg(unix)]
+fn terminal_size() -> Option<(u16, u16)> {
+    rustix::termios::tcgetwinsize(rustix::stdio::stdin())
+        .ok()
+        .filter(|size| size.ws_col > 0 && size.ws_row > 0)
+        .map(|size| (size.ws_col, size.ws_row))
+}
+
+#[cfg(not(unix))]
+fn terminal_size() -> Option<(u16, u16)> {
+    None
+}
+
 #[cfg(not(unix))]
 fn wait_for_terminal(timeout: Duration) -> Wait {
     std::thread::sleep(timeout.min(Duration::from_millis(5)));
@@ -589,15 +603,35 @@ impl InputReader {
         let handle = std::thread::Builder::new()
             .name("xnano-input".into())
             .spawn(move || {
+                let mut last_size = terminal_size();
                 while !flag.load(Ordering::SeqCst) {
                     if matches!(wait_for_terminal(Duration::from_millis(20)), Wait::Closed) {
                         hang_up(&sink);
                         break;
                     }
+                    // A resize is also noticed by looking at the size, so it is never missed
+                    // when the signal that announces it was not delivered or not handled.
+                    let size = terminal_size();
+                    if size != last_size
+                        && let Some((columns, rows)) = size
+                    {
+                        last_size = size;
+                        if let Some(event) =
+                            from_crossterm(crossterm::event::Event::Resize(columns, rows))
+                        {
+                            sink(event);
+                        }
+                    }
                     // The library may hold events it has already read, so drain them all.
                     while matches!(crossterm::event::poll(Duration::ZERO), Ok(true)) {
                         match crossterm::event::read() {
                             Ok(event) => {
+                                if let crossterm::event::Event::Resize(columns, rows) = event {
+                                    if last_size == Some((columns, rows)) {
+                                        continue; // already reported by looking at the size
+                                    }
+                                    last_size = Some((columns, rows));
+                                }
                                 if let Some(mut event) = from_crossterm(event) {
                                     if let EventPayload::Mouse(mouse) = &mut event.payload {
                                         let start = origin.load(Ordering::Relaxed);

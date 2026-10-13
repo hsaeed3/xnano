@@ -46,7 +46,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "poetry"
 
     ```bash title="Install with poetry"
-    poetry install "xnano>=1.2.3,<2"
+    poetry add "xnano>=1.2.3,<2"
 
     # or add to your project's dependencies
     # poetry add xnano

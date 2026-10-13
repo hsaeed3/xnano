@@ -1,7 +1,7 @@
 """
 Hello, world: the smallest xnano program.
 
-Run it with ``python examples/01_hello.py``. A small region opens below your prompt, the
+Run it with ``uv run python examples/01_hello.py``. A small region opens below your prompt, the
 text appears at once, and pressing ``q`` (or ``Ctrl-C``) gives the terminal back.
 """
 

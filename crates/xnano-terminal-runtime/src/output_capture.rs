@@ -359,18 +359,63 @@ pub fn real_terminal_file() -> Option<Arc<std::fs::File>> {
 
 impl Write for TerminalOutput {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        match &mut self.0 {
-            OutputTarget::Standard(output) => output.write(bytes),
-            #[cfg(unix)]
-            OutputTarget::Terminal(output) => output.write(bytes),
+        loop {
+            let result = match &mut self.0 {
+                OutputTarget::Standard(output) => output.write(bytes),
+                #[cfg(unix)]
+                OutputTarget::Terminal(output) => output.write(bytes),
+            };
+            if !self.waited_for_room(&result) {
+                return result;
+            }
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        match &mut self.0 {
-            OutputTarget::Standard(output) => output.flush(),
-            #[cfg(unix)]
-            OutputTarget::Terminal(output) => output.flush(),
+        loop {
+            let result = match &mut self.0 {
+                OutputTarget::Standard(output) => output.flush(),
+                #[cfg(unix)]
+                OutputTarget::Terminal(output) => output.flush(),
+            };
+            if !self.waited_for_room(&result) {
+                return result;
+            }
+        }
+    }
+}
+
+impl TerminalOutput {
+    /// A terminal that was switched to non-blocking mode (the input library does that to a
+    /// descriptor it shares) refuses a write while its buffer is full. Wait until it has room,
+    /// and say whether the write should be tried again.
+    fn waited_for_room<T>(&self, result: &io::Result<T>) -> bool {
+        if !matches!(result, Err(error) if error.kind() == io::ErrorKind::WouldBlock) {
+            return false;
+        }
+        #[cfg(unix)]
+        {
+            use rustix::event::{PollFd, PollFlags, Timespec, poll};
+            use std::os::fd::AsFd;
+
+            let fd = match &self.0 {
+                OutputTarget::Standard(output) => output.as_fd().try_clone_to_owned(),
+                OutputTarget::Terminal(output) => output.get_ref().as_fd().try_clone_to_owned(),
+            };
+            let Ok(fd) = fd else {
+                return false;
+            };
+            let mut descriptors = [PollFd::new(&fd, PollFlags::OUT)];
+            let limit = Timespec {
+                tv_sec: 0,
+                tv_nsec: 50_000_000,
+            };
+            poll(&mut descriptors, Some(&limit)).is_ok()
+        }
+        #[cfg(not(unix))]
+        {
+            std::thread::sleep(std::time::Duration::from_millis(1));
+            true
         }
     }
 }

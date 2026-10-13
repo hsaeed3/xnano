@@ -10,6 +10,8 @@ uv-run-no-sync = uv run --no-sync
 # `xnano-audio` links the system ALSA library on Linux. When its development
 # headers are missing, the package is built without audio device support instead
 # of failing the whole install (synthesis still works; devices report unavailable).
+# The same fallback for direct maturin builds of xnano-audio, such as `make compare`.
+audio-device-features := $(shell if [ "$$(uname -s)" = "Linux" ] && ! pkg-config --exists alsa 2>/dev/null; then echo "--no-default-features"; fi)
 audio-sync-settings := $(shell if [ "$$(uname -s)" = "Linux" ] && ! pkg-config --exists alsa 2>/dev/null; then echo "--config-settings-package xnano-audio:maturin.build-args=--no-default-features"; fi)
 uv-sync = uv sync --frozen --all-groups --all-packages --all-extras $(audio-sync-settings)
 
@@ -121,7 +123,7 @@ test-coverage: .uv
 
 .PHONY: compare  ## Build optimized extensions, then time xnano against rich, urwid and prompt_toolkit
 compare: .uv
-	@set -e; for package in $(packages); do (cd packages/$$package && $(uv-run-no-sync) maturin develop --uv --release); done
+	@set -e; for package in $(packages); do extra=""; if [ "$$package" = "xnano-audio" ]; then extra="$(audio-device-features)"; fi; (cd packages/$$package && $(uv-run-no-sync) maturin develop --uv --release $$extra); done
 	$(uv-run-no-sync) python benchmarks/compare.py $(ARGS)
 
 .PHONY: benchmark-all ## Run every package's benchmarks against optimized builds

@@ -154,7 +154,11 @@ class HookHandle(Generic[StateT]):
         role: str,
     ) -> None:
         generator = function(context)
-        assert inspect.isgenerator(generator)
+        if not inspect.isgenerator(generator):
+            raise TerminalError(
+                f'{function!r} was started as a generator, but it returned {generator!r}. A '
+                f'trigger or hook that waits must be a generator function that uses yield.'
+            )
         if role == 'trigger':
             self._trigger_generator = cast('TriggerGenerator', generator)
         else:
@@ -339,7 +343,11 @@ class _Hooked(Generic[StateT]):
         """
         self._terminal._require_open()
         if function is None:
-            assert when is not None
+            if when is None:
+                raise ValueError(
+                    'hook needs a function, or a when trigger to decorate one with: '
+                    'terminal.hook(function) or @terminal.hook(when=trigger).'
+                )
 
             def decorator(callback: Hook[StateT]) -> HookHandle[StateT]:
                 return self._attach_hook(callback, when)
@@ -450,8 +458,8 @@ class _Hooked(Generic[StateT]):
             )
         if seconds is not None:
             return self.hook(when=_wait(lambda: seconds))
-        assert beats is not None
-        return self.hook(when=_wait(lambda: beats * 60.0 / self._terminal.tempo))
+        beats_per_call = cast('float', beats)
+        return self.hook(when=_wait(lambda: beats_per_call * 60.0 / self._terminal.tempo))
 
     def after(self, seconds: float) -> Callable[[Hook[StateT]], HookHandle[StateT]]:
         """

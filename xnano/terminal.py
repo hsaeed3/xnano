@@ -801,7 +801,10 @@ class Terminal(_Hooked[StateT]):
     @property
     def clock(self) -> _core.Clock:
         """The clock everything on the terminal runs on; any thread may read it."""
-        assert self._clock is not None
+        if self._clock is None:
+            raise TerminalClosedError(
+                'The terminal has no clock yet, because it is not attached to a running loop.'
+            )
         return self._clock
 
     @property

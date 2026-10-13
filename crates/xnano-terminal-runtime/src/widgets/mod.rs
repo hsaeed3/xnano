@@ -115,6 +115,13 @@ pub trait WidgetSpec: Send + 'static {
         None
     }
 
+    /// Whether resolving reads the size of the grid being painted (see
+    /// [`Resolver::size`]). Such a widget is resolved again when it is painted, because the
+    /// fingerprint is made before the size is known.
+    fn depends_on_size(&self) -> bool {
+        false
+    }
+
     /// Paint the resolved widget over the whole grid.
     fn draw(resolved: &Self::Resolved, grid: &mut Grid);
 }
@@ -191,7 +198,8 @@ impl<S: WidgetSpec> Painter for SpecPainter<S> {
             .cache
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take();
+            .take()
+            .filter(|_| !self.spec.read().depends_on_size());
         let resolved = match cached {
             Some((_, resolved)) => resolved,
             None => self

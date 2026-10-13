@@ -310,7 +310,8 @@ cd packages/xnano-core
 uv run --no-sync pytest benchmarks --benchmark-enable --resource-log
 ```
 
-`--resource-log` prints, for every test, the wall time, the CPU time of all
+In the package test and benchmark suites (where the option is registered), `--resource-log`
+prints, for every test, the wall time, the CPU time of all
 threads, the ratio between them, and how far the resident memory of the whole
 process grew (which includes the Rust extensions). `--resource-log-json PATH`
 also writes the records as JSON, `--resource-log-top COUNT` prints only the

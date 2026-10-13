@@ -74,7 +74,10 @@ fn mark_as_package(module: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pymodule(gil_used = false)]
 fn _xnano_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
-    m.add("is_optimized_build", !cfg!(debug_assertions))?;
+    m.add(
+        "is_optimized_build",
+        option_env!("XNANO_OPTIMIZATION_LEVEL") != Some("0"),
+    )?;
     mark_as_package(m)?;
     geometry::register(m)?;
     style::register(m)?;

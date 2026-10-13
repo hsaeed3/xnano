@@ -53,7 +53,7 @@ def main() -> None:
         table = Table(
             [['api', '12 ms'], ['db', '3 ms']],
             header=['service', 'latency'],
-            widths=[20, 10],
+            widths=[16, 7],
             block=Block('services', border_type='rounded'),
         )
         terminal.add(chart, width=WIDTH, height=9)

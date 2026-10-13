@@ -27,6 +27,10 @@ def layout_parent(child_count: int) -> tuple[Buffer, list[Buffer]]:
 def test_layout_column_of_50_children(benchmark):
     parent, children = layout_parent(50)
     layouts = itertools.cycle((Layout('column'), Layout('column', spacing=0, padding=1)))
+    # The first layout shrinks every child from the parent's full size, which reallocates
+    # them all; apply both once so the timed calls are the steady state a program sees.
+    parent.update(next(layouts))
+    parent.update(next(layouts))
     benchmark(lambda: parent.update(next(layouts)))
     assert all(child.width in (parent.width, parent.width - 2) for child in children)
 
@@ -39,6 +43,8 @@ def test_layout_row_with_size_rules(benchmark):
             Layout('row', sizes=[SizeRule.cells(9)]),
         )
     )
+    parent.update(next(layouts))
+    parent.update(next(layouts))
     benchmark(lambda: parent.update(next(layouts)))
     assert children[0].width in (8, 9)
     assert sum(child.width for child in children) == parent.width
@@ -61,6 +67,8 @@ def test_layout_nested_columns_and_rows(benchmark):
             row.update(Layout('row'))
         column.update(Layout('column'))
     layouts = itertools.cycle((Layout('row'), Layout('row', spacing=1)))
+    root.update(next(layouts))
+    root.update(next(layouts))
     benchmark(lambda: root.update(next(layouts)))
     assert all(leaf.width >= 1 for leaf in leaves)
 

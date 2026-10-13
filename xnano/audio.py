@@ -74,10 +74,10 @@ def _parse_melody(text: str, beats_per_minute: float) -> TerminalMelody:
     that only makes the text easier to read.
     """
     melody = TerminalMelody(tempo_map=TerminalTempoMap(beats_per_minute))
-    for token in text.split():
-        if token == '|':
+    for entry in text.split():
+        if entry == '|':
             continue
-        name, _, length = token.partition(':')
+        name, _, length = entry.partition(':')
         try:
             beats = float(length) if length else 1.0
             if name.lower() in ('rest', '-'):
@@ -94,7 +94,7 @@ def _parse_melody(text: str, beats_per_minute: float) -> TerminalMelody:
                     )
         except ValueError as error:
             raise ValueError(
-                f'{token!r} is not a note in the melody {text!r}. Write notes like "C4", '
+                f'{entry!r} is not a note in the melody {text!r}. Write notes like "C4", '
                 f'a length after a colon like "C4:0.5", chords like "C4+E4+G4", and '
                 f'silences as "rest" or "rest:2". {error}'
             ) from error

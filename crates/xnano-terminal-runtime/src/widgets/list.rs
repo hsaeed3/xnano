@@ -6,6 +6,7 @@
 
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
+use std::hash::Hasher;
 use std::sync::{Arc, Mutex};
 
 use ratatui::widgets::{
@@ -289,13 +290,20 @@ impl WidgetSpec for ListSpec {
                     hash_debug(&style.resolve(resolver)?, hasher);
                 }
             }
-            if let Some(block) = &self.block
-                && !block.read().is_static()
-            {
-                hash_debug(&resolve_optional(&self.block, resolver)?, hasher);
+            if let Some(block) = &self.block {
+                if block.read().is_static() {
+                    // Its own settings change its version, not this widget's.
+                    hasher.write_u64(block.version());
+                } else {
+                    hash_debug(&resolve_optional(&self.block, resolver)?, hasher);
+                }
             }
             Ok(())
         })())
+    }
+
+    fn depends_on_size(&self) -> bool {
+        true
     }
 
     fn resolve(&self, resolver: &mut Resolver<'_>) -> Result<Self::Resolved, EvalError> {

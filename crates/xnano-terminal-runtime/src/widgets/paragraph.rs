@@ -92,7 +92,11 @@ impl ResolvedParagraph {
         });
         let wraps_itself = self.wrap.is_some() && has_wide_glyphs(&self.lines);
         let text = if wraps_itself {
-            to_text(&wrap_lines(&self.lines, usize::from(inner_width)))
+            to_text(&wrap_lines(
+                &self.lines,
+                usize::from(inner_width),
+                self.wrap.is_some_and(|wrap| wrap.trim),
+            ))
         } else {
             to_text(&self.lines)
         };

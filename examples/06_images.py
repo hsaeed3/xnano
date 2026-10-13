@@ -21,6 +21,7 @@ from xnano.scene import Scene
 
 ZOOMS = (1, 2, 4)
 STEP = 8  # screen pixels moved by one key press
+MAXIMUM_SIDE = 16_384  # the largest side an image can be resized to
 DEFAULT_START = (64, 410)  # the village in the tileset
 DEFAULT_IMAGE = (
     pathlib.Path(__file__).parent / 'assets' / 'punyworld-overworld-tileset.png'
@@ -52,8 +53,9 @@ class Viewer:
     def zoom_by(self, change: int) -> None:
         """Zoom in (``1``) or out (``-1``), keeping the middle of the screen where it is."""
         index = max(0, min(len(ZOOMS) - 1, self.zoom_index + change))
-        if index == self.zoom_index:
-            return
+        largest_side = max(self.picture.width, self.picture.height)
+        if index == self.zoom_index or largest_side * ZOOMS[index] > MAXIMUM_SIDE:
+            return  # an image larger than the limit cannot be enlarged again
         view_width, view_height = self.scene.view_size
         left, top = self.scene.origin
         ratio = ZOOMS[index] / self.zoom

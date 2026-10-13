@@ -3,6 +3,7 @@
 //! Maps to `ratatui::widgets::Table`, `Row`, `Cell` and `TableState`.
 
 use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 
 use ratatui::widgets::{
     Cell as TableCell, HighlightSpacing, Row, StatefulWidget, Table, TableState,
@@ -293,10 +294,13 @@ impl WidgetSpec for TableSpec {
                     hash_debug(&style.resolve(resolver)?, hasher);
                 }
             }
-            if let Some(block) = &self.block
-                && !block.read().is_static()
-            {
-                hash_debug(&resolve_optional(&self.block, resolver)?, hasher);
+            if let Some(block) = &self.block {
+                if block.read().is_static() {
+                    // Its own settings change its version, not this widget's.
+                    hasher.write_u64(block.version());
+                } else {
+                    hash_debug(&resolve_optional(&self.block, resolver)?, hasher);
+                }
             }
             Ok(())
         })())

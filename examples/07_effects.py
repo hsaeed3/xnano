@@ -1,5 +1,5 @@
 """
-Effects: every tachyonfx effect, one after another.
+Effects: some tachyonfx effects, one after another.
 
 Each effect is described as data and applied to a buffer. The terminal cycles through some of
 them every two seconds. Press ``q`` to quit.

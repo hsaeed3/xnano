@@ -4,6 +4,10 @@ exclude_paths:
   - "crates/**"
   - "Cargo.lock"
   - "examples/**"
+  # Tests and benchmarks assert on purpose, and run commands and subprocesses to do it.
+  - "tests/**"
+  - "benchmarks/**"
+  - ".github/scripts/**"
   - "scripts/**"
   - "packages/*/tests/**"
   - "crates/*/tests/**"
@@ -13,3 +17,11 @@ exclude_paths:
   - "**/*.md"
   - "**/*.js"
   - "**/*.lock"
+engines:
+  lizard:
+    # The public API takes many keyword-only options on purpose (open, add, play), and the
+    # generated package exports are one long list.
+    exclude_paths:
+      - "xnano/terminal.py"
+      - "xnano/audio.py"
+      - "packages/xnano-core/src/xnano_core/__init__.py"

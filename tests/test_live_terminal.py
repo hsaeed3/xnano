@@ -16,6 +16,8 @@ import sys
 import pytest
 
 pytest.importorskip('pyte')
+if sys.platform == 'win32':
+    pytest.skip('needs a pseudo-terminal', allow_module_level=True)
 from emulator import Screen  # noqa: E402
 
 pytestmark = pytest.mark.skipif(sys.platform == 'win32', reason='needs a pseudo-terminal')

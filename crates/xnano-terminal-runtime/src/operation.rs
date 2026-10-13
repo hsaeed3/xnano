@@ -365,7 +365,11 @@ impl Operation {
                 // terminal draw a frame: a status line rewritten every update stays free.
                 let mut state = target.core.lock();
                 let bounds = region_bounds(&state.grid, target.region);
-                let rows = rows_written(bounds, lines.len(), *y);
+                // Only a small write is compared: for a large one the comparison costs more
+                // than a frame it could save.
+                let rows = rows_written(bounds, lines.len(), *y).filter(|rows| {
+                    usize::from(rows.width()) * usize::from(rows.height()) <= MAXIMUM_COMPARED_CELLS
+                });
                 let before = rows.map(|rows| state.grid.region_buffer(rows));
                 state.grid.write_lines(bounds, lines, *x, *y, *style, *mode);
                 let is_unchanged = rows
@@ -654,6 +658,9 @@ impl Operation {
         state.touch(Some(area));
     }
 }
+
+/// The most cells of a write that are compared with what was there before.
+const MAXIMUM_COMPARED_CELLS: usize = 4096;
 
 /// The rows of `bounds` that a write of `lines` lines starting at row `y` can reach.
 fn rows_written(bounds: Bounds, lines: usize, y: i32) -> Option<Bounds> {

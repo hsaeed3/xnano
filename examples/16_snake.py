@@ -49,11 +49,14 @@ class Game:
             return
         column, row = self.body[0]
         head = (column + self.direction[0], row + self.direction[1])
-        if not 0 <= head[0] < WIDTH or not 0 <= head[1] < HEIGHT or head in self.body:
+        is_eating = head == self.food
+        # The tail moves away on a step that does not grow the snake, so its cell is free.
+        occupied = self.body if is_eating else self.body[:-1]
+        if not 0 <= head[0] < WIDTH or not 0 <= head[1] < HEIGHT or head in occupied:
             self.is_over = True
             return
         self.body.insert(0, head)
-        if head == self.food:
+        if is_eating:
             self.food = self.new_food()
         else:
             self.body.pop()

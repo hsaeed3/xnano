@@ -55,9 +55,7 @@ def say(terminal: xnano.Terminal[Keyboard], text: str) -> None:
 def main() -> None:
     """Choose an instrument and play on it."""
     with xnano.open(width=66, height=13, state=Keyboard()) as terminal:
-        terminal.add(
-            'up/down: instrument   a-k: scale   space: chord   m: tune   q: quit'
-        )
+        terminal.add('up/down: instrument  a-k: scale  space: chord  m: tune  q: quit')
         if not terminal.audio.is_available:
             terminal.add('(no sound device here: the keys still light up)', y=12)
         show_instruments(terminal)
