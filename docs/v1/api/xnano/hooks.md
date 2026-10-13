@@ -2,4 +2,4 @@
 title: "xnano.hooks"
 ---
 
-::: xnano.v1.hooks
+::: xnano.deprecated.hooks

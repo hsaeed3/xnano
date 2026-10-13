@@ -56,7 +56,7 @@ clear/scroll, clipboard, and terminal mode flags.
 ### Title and size
 
 ```python title="Title" hl_lines="5"
-from xnano.v1 import Context, on_state
+from xnano.deprecated import Context, on_state
 
 @on_state("unread > 0")
 def flash_title(self, ctx: Context) -> None:
@@ -165,7 +165,7 @@ hide the system caret over a full-screen paint.
 ### Visibility and style
 
 ```python title="Visibility" hl_lines="4"
-from xnano.v1 import Context, on_focus
+from xnano.deprecated import Context, on_focus
 
 @on_focus("search", kind="gained")
 def hide_system_caret(self, ctx: Context) -> None:
@@ -219,7 +219,7 @@ Offscreen is intentional: a headless or web server must not dump terminal
 control sequences onto the process that owns stdout.
 
 ```python title="From a Terminal you own"
-from xnano.v1 import Terminal
+from xnano.deprecated import Terminal
 
 terminal = Terminal(title="My App")
 # after the session is live / after render attaches a runtime:

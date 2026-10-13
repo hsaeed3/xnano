@@ -2,4 +2,4 @@
 title: "xnano.colors"
 ---
 
-::: xnano.v1.colors
+::: xnano.deprecated.colors

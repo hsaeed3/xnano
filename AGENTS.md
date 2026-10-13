@@ -2,7 +2,7 @@
 
 ## Repository Commands & Rules
 
-The repository is one Cargo workspace and one uv workspace. Every Rust crate lives under `crates/` (`xnano-terminal-cells`, `xnano-terminal-state`, `xnano-terminal-runtime` hold the Python-independent engine; `xnano-terminal-core`, `xnano-terminal-audio` and `xnano-terminal-image` are the thin PyO3 bindings), and every Python distribution lives under `packages/` (`xnano-core` installs the `xnano` import package, `xnano-audio` installs `xnano_audio`, `xnano-image` installs `xnano_image`). The root `pyproject.toml` is the no-code `xnano` metapackage whose version and dependency pins `crates/xnano-terminal-runtime/build.rs` writes.
+The repository is one Cargo workspace and one uv workspace. Every Rust crate lives under `crates/` (`xnano-terminal-cells`, `xnano-terminal-state`, `xnano-terminal-runtime` hold the Python-independent engine; `xnano-terminal-core`, `xnano-terminal-audio` and `xnano-terminal-image` are the thin PyO3 bindings), and every Python distribution lives under `packages/` (`xnano-core` installs the `xnano_core` import package, `xnano-audio` installs `xnano_audio`, `xnano-image` installs `xnano_image`). The root `pyproject.toml` is the no-code `xnano` metapackage whose version and dependency pins `crates/xnano-terminal-runtime/build.rs` writes: `xnano-core` is its only dependency, and `xnano-audio` and `xnano-image` are its `audio` and `image` extras. The `xnano` package imports them lazily and tells the user which extra to install when one is missing, so never import `xnano_audio` or `xnano_image` at the top of a module that `xnano/__init__.py` imports.
 
 xnano's repository is configured to use `Makefile` based hooks, available at the root directory and within each package subdirectory under `packages/`. Run `make help` in any of them to list the available commands.
 
@@ -45,6 +45,24 @@ Package-level commands (run inside a `packages/<name>` directory) add the follow
 | `make all` | `format`, `build-dev`, `lint` and `test` for that one package. |
 | `make check` | `lint` and `test-coverage` for that one package. |
 
+### Benchmarks, CPU & Memory Logging
+
+Benchmarks live in `packages/<name>/benchmarks/` and run against an optimized build (`make benchmark` per package, `make benchmark-all` at the root). `pytest --resource-log` (also `--resource-log-json PATH`, `--resource-log-top COUNT`, `--resource-log-python-memory`) records the wall time, CPU time and resident-memory growth of every test or benchmark; the plugin is `scripts/resource_logging.py`, registered from each suite's `conftest.py`.
+
+A benchmark must assert on its result, must not time an identical operation on identical input twice in a row when the second call can take a shortcut, sets `rounds` explicitly with `benchmark.pedantic` when the first call is faster than the rest, times a widget change together with the frame that draws it, and keeps setup out of the timed call. See `CONTRIBUTING.md` for the details.
+
+### Comparing With Other Libraries
+
+`benchmarks/compare.py` times xnano against `rich`, `urwid` and `prompt_toolkit` on the same jobs, including the inputs of rich's own benchmark suite (it reads them from `.workspace/rich` when that repository is checked out). Run it with `make compare` (optionally `ARGS="table frame"`), which first builds optimized extensions: **a debug build, which `make rebuild-rust` produces, is several times slower and the script refuses to time it**. `uv run python benchmarks/compare.py --show` draws every case live in each library's own format. `tests/test_rich_parity.py` checks text wrapping, cell widths, alignment and cropping against rich as the reference. Install the competitors with `uv sync --group compare`.
+
+### Testing a Live Terminal
+
+`tests/test_live_terminal.py` runs real programs on a pseudo-terminal and reads their screen through `tests/emulator.py`, which wraps the `pyte` terminal emulator. The emulator answers the terminal's own questions (cursor position, attributes), so a test sees what a user sees: text on the screen, colors, the cursor, a region below a shell prompt. It also sends keys, mouse reports, pastes and window resizes. Use it for anything that touches the live path; the offscreen terminal cannot catch bugs in how a frame reaches a real screen.
+
+### Examples
+
+`examples/` holds one runnable program per feature, numbered. `tests/test_examples.py` runs each one on the emulated terminal and checks what it draws; `uv run python scripts/capture_examples.py` regenerates `examples/README.md` (the screens as text) and `examples/gallery.html` (the same screens in color). A new feature gets an example, a test for it in that file, and a line in the capture script. Examples import from `xnano` only.
+
 ### API Reference Generation
 
 The API reference under `docs/api-reference/` and its navigation in `zensical.toml` are generated from the package sources (python files and `.pyi` stubs) by `scripts/docs/autogenerate_api_references.py`. Run `uv run python scripts/docs/autogenerate_api_references.py` after adding, renaming or removing a module; CI runs it with `--check`.
@@ -55,7 +73,7 @@ Any **code** changes made to the rust crates within `crates/*/src/*` must be fol
 
 Pure python changes in packages do not require a rust rebuild and can run tests without having to resync the uv environment. If tests fail to load an extension module (`.so`), run `make test-sync` instead.
 
-The `xnano` API is the compiled module `xnano._xnano_core`: its stubs are `packages/xnano-core/src/xnano/_xnano_core/__init__.pyi` and the Python-side aliases and objects it needs are in `_core_types.py` next to it. Nothing else belongs in `packages/xnano-core/src/xnano/`.
+The `xnano-core` API is the compiled module `xnano_core`: its stubs are `packages/xnano-core/src/xnano_core/_xnano_core/__init__.pyi` and the Python-side aliases and objects it needs are in `_core_types.py` next to it. Nothing else belongs in `packages/xnano-core/src/xnano_core/` except its `__init__.py`, which re-exports every public name of that module and of `_core_types.py`: users and examples import from `xnano_core` (or from `xnano`), never from the private `xnano_core._xnano_core`. Add a new public name to that `__init__.py` when you add it to the stubs.
 
 ### Before Starting
 
@@ -147,14 +165,14 @@ Tool-assisted contributions are welcome, but disclosure is **mandatory**, and th
 
 ## Documentation Styling
 
-Docstrings are written for **users of the library**, never for the people maintaining it. The reference style is the docstrings in `packages/xnano-core/src/xnano/_xnano_core/__init__.pyi` (a short summary and explanation, `Args:`/`Returns:`/`Attributes:`/`Examples:` sections, ``double backticks`` for code and names). Every example in a stub docstring is executed by `packages/xnano-core/tests/test_stub_examples.py`, so keep examples runnable.
+Docstrings are written for **users of the library**, never for the people maintaining it. The reference style is the docstrings in `packages/xnano-core/src/xnano_core/_xnano_core/__init__.pyi` (a short summary and explanation, `Args:`/`Returns:`/`Attributes:`/`Examples:` sections, ``double backticks`` for code and names). Every example in a stub docstring is executed by `packages/xnano-core/tests/test_stub_examples.py`, so keep examples runnable.
 
 - Describe what something **is, does, accepts and returns**, and when a user would reach for it. Lead with a one-line summary.
 - **Never explain changes.** No "now does X", "previously/used to", "fixed", "regression", "because of this change", "no longer", or any other history. A docstring describes the current behavior as if it had always been that way; history belongs in commits and changelogs.
 - Never mention internal implementation details, refactors, bugs, workarounds, or maintainer-facing rationale unless it changes how the user must call or reason about the API.
 - Document raised errors, units, ranges and defaults when they affect usage.
 - Add a short `Examples:` block when it helps a user get started; keep examples minimal and runnable.
-- **Cross-references use mkdocs/zensical syntax**, so they are clickable on the docs site: ``[`TheClass`][xnano.the_module.TheClass]`` (display text in backticks, then the full dotted import path in the second brackets). Never use Sphinx/reST roles such as ``:class:``, ``:meth:``, ``:func:``, ``:mod:`` or ``:attr:``; write the reference out instead.
+- **Cross-references use mkdocs/zensical syntax**, so they are clickable on the docs site: ``[`TheClass`][xnano_core.the_module.TheClass]`` (display text in backticks, then the full dotted import path in the second brackets). Never use Sphinx/reST roles such as ``:class:``, ``:meth:``, ``:func:``, ``:mod:`` or ``:attr:``; write the reference out instead.
 - Anything that is a **direct binding** of an upstream crate or API (`ratatui`, `crossterm`, `tachyonfx`, `termprofile`, ...) must say so with a ``Maps to [`crate::path::Item`](https://docs.rs/<crate>/<version>/<crate>/<path>.html).`` line linking to the exact upstream item. Use the version pinned in `Cargo.toml`, and keep the link pointing at the real upstream item.
 - Docstring layout (enforced by ruff D209/D213): multi-line docstrings put the opening and closing triple quotes on their own lines.
 

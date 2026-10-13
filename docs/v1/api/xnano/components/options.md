@@ -2,4 +2,4 @@
 title: "xnano.components.options"
 ---
 
-::: xnano.v1.components.options
+::: xnano.deprecated.components.options

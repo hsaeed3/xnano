@@ -1,5 +1,5 @@
 ---
-title: "xnano.v1.markdown"
+title: "xnano.deprecated.markdown"
 ---
 
-::: xnano.v1.markdown
+::: xnano.deprecated.markdown

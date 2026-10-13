@@ -2,4 +2,4 @@
 title: "xnano.requests"
 ---
 
-::: xnano.v1.requests
+::: xnano.deprecated.requests

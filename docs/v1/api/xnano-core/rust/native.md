@@ -2,4 +2,4 @@
 title: "xnano_core.rust.native"
 ---
 
-::: xnano._xnano_core
+::: xnano_core._xnano_core

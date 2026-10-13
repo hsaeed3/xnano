@@ -2,4 +2,4 @@
 title: "xnano.components.dropdown"
 ---
 
-::: xnano.v1.components.dropdown
+::: xnano.deprecated.components.dropdown

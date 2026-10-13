@@ -2,4 +2,4 @@
 title: "xnano.core.controller"
 ---
 
-::: xnano.v1.core.controller
+::: xnano.deprecated.core.controller

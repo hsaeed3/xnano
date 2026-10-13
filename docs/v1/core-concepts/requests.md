@@ -102,8 +102,8 @@ or application state the same way UI hooks do; the next paint reflects it under
 
 
 ```python title="GET handler" hl_lines="8 9 10"
-from xnano.v1 import BaseGrid, Field, Web
-from xnano.v1.requests import Response, on_get_request
+from xnano.deprecated import BaseGrid, Field, Web
+from xnano.deprecated.requests import Response, on_get_request
 
 class Status(BaseGrid):
     body: str = Field(default="ok")
@@ -126,7 +126,7 @@ speak the full method set omit the response body on the wire for `HEAD` (see
 `RequestServer`).
 
 ```python title="HEAD handler"
-from xnano.v1.requests import Response, on_head_request
+from xnano.deprecated.requests import Response, on_head_request
 
 @on_head_request("/status")
 def status_head(self) -> Response:
@@ -138,8 +138,8 @@ def status_head(self) -> Response:
 ```python title="POST with body and state" hl_lines="12-16"
 import dataclasses
 
-from xnano.v1 import BaseGrid, Field, Web
-from xnano.v1.requests import Response, on_post_request
+from xnano.deprecated import BaseGrid, Field, Web
+from xnano.deprecated.requests import Response, on_post_request
 
 @dataclasses.dataclass
 class Counters:
@@ -167,8 +167,8 @@ sends a body (see [Request / Response](#request-and-response-objects)).
 ## PUT requests
 
 ```python title="PUT replace" hl_lines="8-11"
-from xnano.v1 import BaseGrid, Field, Web
-from xnano.v1.requests import Response, on_put_request
+from xnano.deprecated import BaseGrid, Field, Web
+from xnano.deprecated.requests import Response, on_put_request
 
 class Document(BaseGrid):
     content: str = Field(default="")
@@ -191,8 +191,8 @@ curl -X PUT http://127.0.0.1:8000/document \
 ## PATCH requests
 
 ```python title="PATCH partial update" hl_lines="8-12"
-from xnano.v1 import BaseGrid, Field, Web
-from xnano.v1.requests import Response, on_patch_request
+from xnano.deprecated import BaseGrid, Field, Web
+from xnano.deprecated.requests import Response, on_patch_request
 
 class Profile(BaseGrid):
     name: str = Field(default="anonymous")
@@ -216,8 +216,8 @@ curl -X PATCH http://127.0.0.1:8000/profile \
 ## DELETE requests
 
 ```python title="DELETE" hl_lines="8-11"
-from xnano.v1 import BaseGrid, Field, Web
-from xnano.v1.requests import Response, on_delete_request
+from xnano.deprecated import BaseGrid, Field, Web
+from xnano.deprecated.requests import Response, on_delete_request
 
 class Session(BaseGrid):
     active: bool = Field(default=True, state=True)
@@ -246,7 +246,7 @@ Less common verbs use the same decorator pattern and path rules:
 | `@on_query_request` | `QUERY` |
 
 ```python title="OPTIONS"
-from xnano.v1.requests import Response, on_options_request
+from xnano.deprecated.requests import Response, on_options_request
 
 @on_options_request("/items")
 def items_options(self) -> Response:
@@ -262,8 +262,8 @@ When the method is dynamic or you prefer one entry point, use
 [`request(method, path)`](../api/xnano/requests.md){data-preview}:
 
 ```python title="Generic method registration" hl_lines="6 7 8"
-from xnano.v1 import BaseGrid
-from xnano.v1.requests import Response, request
+from xnano.deprecated import BaseGrid
+from xnano.deprecated.requests import Response, request
 
 class App(BaseGrid):
     @request("PATCH", "/thing")
@@ -308,7 +308,7 @@ What a handler returns to the client.
 | `headers` | `{}` | Response headers |
 
 ```python title="Response.json"
-from xnano.v1.requests import Response
+from xnano.deprecated.requests import Response
 
 Response.json({"ready": True}, status=201)
 # content-type: application/json; charset=utf-8
@@ -347,8 +347,8 @@ Handlers that omit `ctx` still work when they only need `self`.
 constant for both synthetic perform and real request matching.
 
 ```python title="Action.request"
-from xnano.v1 import Action, BaseGrid, on_action
-from xnano.v1.requests import Response, on_get_request
+from xnano.deprecated import Action, BaseGrid, on_action
+from xnano.deprecated.requests import Response, on_get_request
 
 GET_STATUS = Action.request("GET", "/status")
 
@@ -378,9 +378,9 @@ shortcut for `perform(Action.request(...))`. See [Actions](actions.md).
 Request-only example (no browser shell):
 
 ```python title="RequestServer" hl_lines="12"
-from xnano.v1 import BaseGrid
-from xnano.v1.requests import Response, on_get_request
-from xnano.v1.server.requests import start_request_server
+from xnano.deprecated import BaseGrid
+from xnano.deprecated.requests import Response, on_get_request
+from xnano.deprecated.server.requests import start_request_server
 
 class Health(BaseGrid):
     @on_get_request("/health")

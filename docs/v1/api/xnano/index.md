@@ -1,5 +1,5 @@
 ---
-title: "xnano.v1"
+title: "xnano.deprecated"
 ---
 
-::: xnano.v1
+::: xnano.deprecated

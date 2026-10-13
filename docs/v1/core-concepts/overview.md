@@ -103,8 +103,8 @@ writes them out. It does not start an event loop.
 
 
 ```python
-from xnano.v1 import render
-from xnano.v1.components.text import Text
+from xnano.deprecated import render
+from xnano.deprecated.components.text import Text
 
 render(Text("Hello from xnano", foreground="pink", modifiers=["bold"]))
 ```

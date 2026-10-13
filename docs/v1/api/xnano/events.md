@@ -2,4 +2,4 @@
 title: "xnano.events"
 ---
 
-::: xnano.v1.events
+::: xnano.deprecated.events

@@ -2,4 +2,4 @@
 title: "xnano.types"
 ---
 
-::: xnano.v1.types
+::: xnano.deprecated.types

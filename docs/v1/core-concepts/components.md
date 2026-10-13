@@ -56,9 +56,9 @@ Use `default_factory` when the default is a component instance (not a plain
 immutable value):
 
 ```python title="Component as a field value"
-from xnano.v1 import BaseGrid, Field
-from xnano.v1.components.loader import Loader
-from xnano.v1.components.options import Options
+from xnano.deprecated import BaseGrid, Field
+from xnano.deprecated.components.loader import Loader
+from xnano.deprecated.components.options import Options
 
 class Panel(BaseGrid, direction="vertical", gap=1):
     status: str = Field(default="Working…", height=1) # (1)!
@@ -77,8 +77,8 @@ whatever the component paints. See [Fields](fields.md) and [State](state.md).
 
 
 ```python
-from xnano.v1 import BaseGrid, Field, render
-from xnano.v1.components.loader import Loader
+from xnano.deprecated import BaseGrid, Field, render
+from xnano.deprecated.components.loader import Loader
 
 class Panel(BaseGrid, direction="vertical", gap=1):
     status: str = Field(default="Working…", height=1)
@@ -108,7 +108,7 @@ Several components accept nested content. `Text` is the usual example: a list
 of `Text` (or strings) becomes independently styled runs in one line.
 
 ```python title="Nested Text"
-from xnano.v1.components.text import Text
+from xnano.deprecated.components.text import Text
 
 Text([
     Text("● ", foreground="emerald-400"),
@@ -120,8 +120,8 @@ Text([
 
 
 ```python
-from xnano.v1 import render
-from xnano.v1.components.text import Text
+from xnano.deprecated import render
+from xnano.deprecated.components.text import Text
 
 render(Text([
     Text("● ", foreground="emerald-400"),
@@ -140,8 +140,8 @@ Component fields are **live**. Change `items`, `value`, `data`, `label`, … and
 the next frame reflects it — same spirit as assigning a grid field.
 
 ```python title="Update in grid_render"
-from xnano.v1 import BaseGrid, Context, Field
-from xnano.v1.components.options import Options
+from xnano.deprecated import BaseGrid, Context, Field
+from xnano.deprecated.components.options import Options
 
 class SavedNotes(BaseGrid):
     notes: Options = Field(default_factory=Options, border="rounded")
@@ -181,8 +181,8 @@ building columns or series by hand every time.
 ### Tables — `Column`
 
 ```python title="Table with Column descriptors"
-from xnano.v1.components.schema import Column
-from xnano.v1.components.table import Table
+from xnano.deprecated.components.schema import Column
+from xnano.deprecated.components.table import Table
 
 class Services(Table):
     service: str = Column(
@@ -209,8 +209,8 @@ keys.
 ### Charts — `Series`
 
 ```python title="Chart with Series descriptors"
-from xnano.v1.components.chart import Chart
-from xnano.v1.components.schema import Series
+from xnano.deprecated.components.chart import Chart
+from xnano.deprecated.components.schema import Series
 
 class Latency(Chart):
     p50 = Series(color="green", kind="line")
@@ -245,8 +245,8 @@ Minimal example:
 ```python title="A small custom component"
 import dataclasses
 
-from xnano.v1.components.component import Component
-from xnano.v1.core.content import TextBlock
+from xnano.deprecated.components.component import Component
+from xnano.deprecated.core.content import TextBlock
 
 @dataclasses.dataclass
 class Badge(Component):
@@ -276,8 +276,8 @@ inside the component. Give the field a `group`, then bind `@on_click` /
 `@on_keyboard` on the grid — same as [Events & Hooks](events.md).
 
 ```python title="Button + grid hooks"
-from xnano.v1 import BaseGrid, Field, on_click, on_keyboard
-from xnano.v1.components.button import Button
+from xnano.deprecated import BaseGrid, Field, on_click, on_keyboard
+from xnano.deprecated.components.button import Button
 
 class Form(BaseGrid):
     submit: Button = Field(

@@ -2,4 +2,4 @@
 title: "xnano.core.exceptions"
 ---
 
-::: xnano.v1.core.exceptions
+::: xnano.deprecated.core.exceptions

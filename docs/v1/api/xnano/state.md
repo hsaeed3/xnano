@@ -2,4 +2,4 @@
 title: "xnano.state"
 ---
 
-::: xnano.v1.state
+::: xnano.deprecated.state

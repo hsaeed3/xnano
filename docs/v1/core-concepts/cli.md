@@ -59,7 +59,7 @@ A `Command` can:
 ## A root command
 
 ```python title="A Root Command" hl_lines="3 5 6 7 8"
-from xnano.v1.cli import Command
+from xnano.deprecated.cli import Command
 
 cli = Command(name="tool", description="A small utility")
 
@@ -93,7 +93,7 @@ Types on the signature drive coercion when values are parseable. Set
 ## Options and flags
 
 ```python title="Options and Flags" hl_lines="6 7 8 9"
-from xnano.v1.cli import Command
+from xnano.deprecated.cli import Command
 
 cli = Command(name="build", description="Compile the project")
 
@@ -142,7 +142,7 @@ Parameters without an explicit `@Command.option` still appear as
 </div>
 
 ```python title="Subcommands" hl_lines="5 6 7 8 10 11 12 13 14"
-from xnano.v1.cli import Command
+from xnano.deprecated.cli import Command
 
 cli = Command(name="ship", description="Release helpers")
 
@@ -181,7 +181,7 @@ With `help=True` (the default), `--help` / `-h` print usage and exit.
 `get_help()` returns the same text as a string.
 
 ```python title="Help Text" hl_lines="8"
-from xnano.v1.cli import Command
+from xnano.deprecated.cli import Command
 
 cli = Command(name="tool", description="A small utility")
 
@@ -206,7 +206,7 @@ Options:
 ## Strict mode
 
 ```python title="Strict Mode" hl_lines="3 6"
-from xnano.v1.cli import Command
+from xnano.deprecated.cli import Command
 
 cli = Command(name="count", strict=True)
 
@@ -221,7 +221,7 @@ cli.run(["--n", "21"])   # prints 42
 ## Parsing without running
 
 ```python title="Parse Only" hl_lines="8 9"
-from xnano.v1.cli import Command
+from xnano.deprecated.cli import Command
 
 cli = Command(name="tool")
 

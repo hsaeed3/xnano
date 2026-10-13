@@ -2,4 +2,4 @@
 title: "xnano.terminal"
 ---
 
-::: xnano.v1.terminal
+::: xnano.deprecated.terminal

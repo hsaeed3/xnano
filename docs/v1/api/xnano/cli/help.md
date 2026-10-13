@@ -2,4 +2,4 @@
 title: "xnano.cli.help"
 ---
 
-::: xnano.v1.cli.help
+::: xnano.deprecated.cli.help

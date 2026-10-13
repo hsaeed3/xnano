@@ -17,8 +17,8 @@ The `xnano` distribution installs three packages:
 | `xnano-audio` | `xnano_audio` | Synthesis, melodies, playback and capture. |
 | `xnano-image` | `xnano_image` | Image and animation loading and conversion to terminal cells. |
 
-The API is currently available as the compiled module `xnano._xnano_core`; the reference
+The API is currently available as the compiled module `xnano_core._xnano_core`; the reference
 lists every class and function with examples.
 
 
-The [legacy v1 guides](v1/index.md) cover the previous high-level API, available from `xnano.v1`.
+The [legacy v1 guides](v1/index.md) cover the previous high-level API, available from `xnano.deprecated`.

@@ -2,4 +2,4 @@
 title: "xnano.utils.deprecation"
 ---
 
-::: xnano.v1.utils.deprecation
+::: xnano.deprecated.utils.deprecation

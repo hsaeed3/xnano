@@ -65,7 +65,7 @@ A field can set:
 ## Declaring a Field
 
 ```python title="Declaring a Field" hl_lines="4"
-from xnano.v1 import BaseGrid, Field
+from xnano.deprecated import BaseGrid, Field
 
 class Card(BaseGrid, direction="vertical"):
     heading: str = Field(
@@ -88,7 +88,7 @@ The full keyword list is on the [Field]{data-preview} API page.
 
 
 ```python
-from xnano.v1 import BaseGrid, Field, render
+from xnano.deprecated import BaseGrid, Field, render
 
 class Card(BaseGrid, direction="vertical"):
     heading: str = Field(
@@ -123,7 +123,7 @@ attribute: typed, live, never painted.
 
 
 ```python title="Fields vs. Plain Attributes" hl_lines="5"
-from xnano.v1 import BaseGrid, Field
+from xnano.deprecated import BaseGrid, Field
 
 class Card(BaseGrid, direction="vertical"):
     heading: str = Field(default="Reminder")
@@ -138,7 +138,7 @@ attribute when you do not need that.
 ### Runnable Example
 
 ```python
-from xnano.v1 import BaseGrid, Field, render
+from xnano.deprecated import BaseGrid, Field, render
 
 class Card(BaseGrid, direction="vertical"):
     heading: str = Field(default="Reminder")
@@ -194,7 +194,7 @@ Override `grid_render` on the grid to sync painted fields from state before
 layout:
 
 ```python title="grid_render"
-from xnano.v1 import BaseGrid, Context, Field
+from xnano.deprecated import BaseGrid, Context, Field
 
 class Dashboard(BaseGrid):
     stats: str = Field(default="")

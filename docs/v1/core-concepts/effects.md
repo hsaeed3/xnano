@@ -60,7 +60,7 @@ Field names match the attributes on the grid; during paint those slots are
 tagged so the runtime can target their rects.
 
 ```python title="grid_effect" hl_lines="10 11 12 13 14"
-from xnano.v1 import BaseGrid, Field, Terminal, on_keyboard
+from xnano.deprecated import BaseGrid, Field, Terminal, on_keyboard
 
 class Panel(BaseGrid, direction="vertical"):
     title: str = Field(default="Hello", height=1, border="rounded")
@@ -163,7 +163,7 @@ self.grid_effect(
 Typed equivalents:
 
 ```python
-from xnano.v1.effects import (
+from xnano.deprecated.effects import (
     FadeEffect,
     FadeFromBothEffect,
     FadeFromEffect,
@@ -195,7 +195,7 @@ self.grid_effect("coalesce", duration_ms=500, fields=["body"])
 ```
 
 ```python
-from xnano.v1.effects import CoalesceEffect, DissolveEffect
+from xnano.deprecated.effects import CoalesceEffect, DissolveEffect
 
 DissolveEffect(duration_ms=400)
 CoalesceEffect(duration_ms=500)
@@ -249,7 +249,7 @@ self.grid_effect(
 ```
 
 ```python
-from xnano.v1.effects import SweepInEffect, SweepOutEffect
+from xnano.deprecated.effects import SweepInEffect, SweepOutEffect
 
 SweepInEffect(
     direction="left_to_right",
@@ -288,7 +288,7 @@ self.grid_effect(
 ```
 
 ```python
-from xnano.v1.effects import SlideInEffect, SlideOutEffect
+from xnano.deprecated.effects import SlideInEffect, SlideOutEffect
 
 SlideInEffect(direction="down_to_up", duration_ms=350)
 SlideOutEffect(
@@ -333,7 +333,7 @@ self.grid_effect(
 ```
 
 ```python
-from xnano.v1.effects import (
+from xnano.deprecated.effects import (
     PaintBackgroundEffect,
     PaintEffect,
     PaintForegroundEffect,
@@ -352,7 +352,7 @@ PaintBackgroundEffect(background="slate-900", duration_ms=200)
 | `"delay"` | `DelayEffect` | Wait, then run a `child` |
 
 ```python title="Sleep and delay"
-from xnano.v1.effects import DelayEffect, Effect, FadeEffect, SleepEffect
+from xnano.deprecated.effects import DelayEffect, Effect, FadeEffect, SleepEffect
 
 # Standalone pause for sequencing
 SleepEffect(duration_ms=150)
@@ -405,7 +405,7 @@ self.grid_effect(
 | `"repeat"` | `RepeatEffect` | Repeat a `child` `times` times (`None` = forever) |
 
 ```python title="Sequence, parallel, repeat"
-from xnano.v1.effects import Effect, ParallelEffect, RepeatEffect, SequenceEffect
+from xnano.deprecated.effects import Effect, ParallelEffect, RepeatEffect, SequenceEffect
 
 self.grid_effect(
     "sequence",
@@ -494,7 +494,7 @@ Effects need an active runtime and a painted field geometry, so call
 import time.
 
 ```python title="Trigger from a hook"
-from xnano.v1 import BaseGrid, Field, Terminal, on_keyboard, on_tick
+from xnano.deprecated import BaseGrid, Field, Terminal, on_keyboard, on_tick
 
 class Banner(BaseGrid, direction="vertical"):
     label: str = Field(default="ready", height=1, border="rounded")
@@ -540,7 +540,7 @@ no-op; the description API stays the same.
 Two equivalent construction paths:
 
 ```python title="Effect factory vs typed classes"
-from xnano.v1.effects import Effect, FadeEffect, SweepInEffect
+from xnano.deprecated.effects import Effect, FadeEffect, SweepInEffect
 
 # Factory: kind string + kwargs
 fade = Effect("fade", color="emerald-400", duration_ms=250)

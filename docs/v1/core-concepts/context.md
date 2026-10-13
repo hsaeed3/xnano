@@ -87,7 +87,7 @@ You do not construct `Context` yourself. The host builds one per hook call.
     ```
 
 ```python title="Reading the Event"
-from xnano.v1 import Context, on_keyboard
+from xnano.deprecated import Context, on_keyboard
 
 @on_keyboard("enter")
 def submit(self, ctx: Context) -> None:
@@ -110,7 +110,7 @@ painted fields is covered under [State](state.md).
 ```python title="Typing Context by State" hl_lines="4 9"
 import dataclasses
 
-from xnano.v1 import BaseGrid, Context, Field, Terminal, on_keyboard
+from xnano.deprecated import BaseGrid, Context, Field, Terminal, on_keyboard
 
 @dataclasses.dataclass
 class AppState:
@@ -135,7 +135,7 @@ A plain dataclass or Pydantic model works. [`State`](../api/xnano/state.md) is
 an optional convenience bag (not exported from the package root):
 
 ```python
-from xnano.v1.state import State
+from xnano.deprecated.state import State
 
 state = State(name="John", count=0)
 ```

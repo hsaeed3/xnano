@@ -56,8 +56,8 @@ weights `50`–`950`.
 
 
 ```python
-from xnano.v1 import render
-from xnano.v1.components.text import Text
+from xnano.deprecated import render
+from xnano.deprecated.components.text import Text
 
 render(
     Text(" violet ", background="violet-500", foreground="white"),
@@ -92,7 +92,7 @@ Border styles include `"plain"`, `"rounded"`, `"double"`, `"thick"`,
 
 
 ```python
-from xnano.v1 import BaseGrid, Field, render
+from xnano.deprecated import BaseGrid, Field, render
 
 class Card(BaseGrid):
     label: str = Field(

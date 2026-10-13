@@ -2,4 +2,4 @@
 title: "xnano.components.scrollbar"
 ---
 
-::: xnano.v1.components.scrollbar
+::: xnano.deprecated.components.scrollbar

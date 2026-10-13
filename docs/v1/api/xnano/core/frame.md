@@ -2,4 +2,4 @@
 title: "xnano.core.frame"
 ---
 
-::: xnano.v1.core.frame
+::: xnano.deprecated.core.frame

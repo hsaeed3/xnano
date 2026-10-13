@@ -80,13 +80,13 @@ control. It does not run the event loop.
 
 
 ```python
-from xnano.v1 import render
+from xnano.deprecated import render
 
 render("hello, terminal!", foreground="blue")
 ```
 
 ```python title="render()"
-from xnano.v1 import render
+from xnano.deprecated import render
 
 render("hello, terminal!", foreground="blue") # (1)!
 ```
@@ -98,7 +98,7 @@ render("hello, terminal!", foreground="blue") # (1)!
 `Terminal().run(...)` keeps painting and dispatching until exit.
 
 ```python title="A Persistent Session" hl_lines="3 4"
-from xnano.v1 import Terminal
+from xnano.deprecated import Terminal
 
 terminal = Terminal()
 terminal.run("hello, terminal!") # (1)!
@@ -115,7 +115,7 @@ Pass a `BaseGrid` as the root. Fields become regions of the screen; hooks on
 the grid receive events.
 
 ```python title="Running a Grid" hl_lines="8"
-from xnano.v1 import BaseGrid, Field, Terminal
+from xnano.deprecated import BaseGrid, Field, Terminal
 
 class App(BaseGrid, direction="vertical"):
     title: str = Field(default="My App", border="rounded")
@@ -133,7 +133,7 @@ terminal.run(App()) # (1)!
 
 
 ```python
-from xnano.v1 import BaseGrid, Field, render
+from xnano.deprecated import BaseGrid, Field, render
 
 class App(BaseGrid, direction="vertical"):
     title: str = Field(default="My App", border="rounded")

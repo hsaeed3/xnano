@@ -2,4 +2,4 @@
 title: "xnano.components.markdown"
 ---
 
-::: xnano.v1.components.markdown
+::: xnano.deprecated.components.markdown

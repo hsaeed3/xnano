@@ -67,7 +67,7 @@ instance** as `ctx.state`.
 ```python title="Application state"
 import dataclasses
 
-from xnano.v1 import BaseGrid, Context, Field, Terminal, on_keyboard
+from xnano.deprecated import BaseGrid, Context, Field, Terminal, on_keyboard
 
 @dataclasses.dataclass
 class AppState:
@@ -99,7 +99,7 @@ A full walkthrough lives in [Getting Started](../getting-started.md#state).
 If you do not want a fixed schema:
 
 ```python
-from xnano.v1.state import State  # not exported from the package root
+from xnano.deprecated.state import State  # not exported from the package root
 
 state = State(name="John", count=0)
 state.count += 1
@@ -113,7 +113,7 @@ Prefer a dataclass or Pydantic model when the shape is known.
 A state field is typed data on **one** grid. It never claims a layout slot.
 
 ```python title="Grid state"
-from xnano.v1 import BaseGrid, Field, Terminal, on_keyboard
+from xnano.deprecated import BaseGrid, Field, Terminal, on_keyboard
 
 class Counter(BaseGrid, direction="vertical"):
     label: str = Field(default="Count: 0", height=1)
@@ -168,7 +168,7 @@ State does not paint itself. Refresh painted fields from state each frame with
 `grid_render`, or update them in hooks.
 
 ```python title="grid_render from application state"
-from xnano.v1 import BaseGrid, Context, Field
+from xnano.deprecated import BaseGrid, Context, Field
 
 class Dashboard(BaseGrid):
     stats: str = Field(default="")
@@ -210,7 +210,7 @@ See [Fields](fields.md) and [Grids](grids.md) for `grid_render` /
 can find it across the tree.
 
 ```python title="group="
-from xnano.v1.components.input import Input
+from xnano.deprecated.components.input import Input
 
 class Editor(BaseGrid):
     title: Input = Field(

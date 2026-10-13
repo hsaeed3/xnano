@@ -4,7 +4,7 @@ title: Legacy v1
 
 # Legacy v1 documentation
 
-These guides describe the original xnano v1 API, now available from `xnano.v1`.
+These guides describe the original xnano v1 API, now available from `xnano.deprecated`.
 They are retained for existing applications and migration work. New applications
 should use the current core API documented in the main API reference.
 

@@ -1,5 +1,5 @@
 > [!IMPORTANT]
-> `xnano` v2 is in beta. The redesigned Rust-backed core is available now, and the previous high-level API remains available as the opt-in `xnano.v1` module.
+> `xnano` v2 is in beta. The redesigned Rust-backed core is available now, and the previous high-level API remains available as the opt-in `xnano.deprecated` module.
 
 <div align="center">
 
@@ -24,22 +24,27 @@ The repository is a uv workspace with three installable backends and a small `xn
 
 | Distribution | Import | Purpose |
 | --- | --- | --- |
-| [`xnano`](.) | `xnano.v1` (legacy API) | Metapackage; v1 compatibility API is opt-in. |
-| [`xnano-core`](./packages/xnano-core) | `xnano._xnano_core` | Rust-backed terminal buffers, widgets, layout, state, input, runtime and effects. |
+| [`xnano`](.) | `xnano.deprecated` (legacy API) | Metapackage; v1 compatibility API is opt-in. |
+| [`xnano-core`](./packages/xnano-core) | `xnano_core` | Rust-backed terminal buffers, widgets, layout, state, input, runtime and effects. |
 | [`xnano-audio`](./packages/xnano-audio) | `xnano_audio` | Audio synthesis, playback, capture and beat-based melodies. |
 | [`xnano-image`](./packages/xnano-image) | `xnano_image` | Image and animation decoding, processing and terminal-cell conversion. |
 
 ## Install
 
-Install the full `xnano` distribution with pip or uv:
+Install `xnano` with pip or uv. Sound and images are extras, so a program that needs neither
+installs neither:
 
 ```bash
-pip install xnano
+pip install xnano                # the terminal, widgets, effects and events
+pip install "xnano[audio]"       # adds notes, melodies, sounds and the microphone
+pip install "xnano[image]"       # adds images and animations
+pip install "xnano[audio,image]"
 # or
-uv add xnano
+uv add "xnano[audio,image]"
 ```
 
-Install only a backend when you need a smaller dependency set:
+Using sound or images without their extra raises an `ImportError` that names the extra to
+install. The backends are also published on their own when you want only one of them:
 
 ```bash
 pip install xnano-core
@@ -47,14 +52,14 @@ pip install xnano-audio
 pip install xnano-image
 ```
 
-The core package also provides `audio`, `image`, and `all` extras for installing those backends alongside `xnano-core`. On Linux, audio device playback requires ALSA; synthesis and melody scheduling work without an audio device.
+On Linux, audio device playback requires ALSA; synthesis and melody scheduling work without an audio device.
 
 ## Quick start: draw without a terminal
 
 The core API builds buffers from operations. Rendering a buffer to text is useful for scripts and tests and does not take over the terminal.
 
 ```python
-from xnano._xnano_core import Border, Buffer, Write
+from xnano_core import Border, Buffer, Write
 
 card = Buffer(width=16, height=3)
 card.update(Border('rounded'), Write('hello, xnano', x=2, y=1))
@@ -66,7 +71,7 @@ print(card.render(format='text'))
 An offscreen runtime exercises layout and frame rendering without terminal I/O. Use `Runtime.live()` when the application should own a real terminal.
 
 ```python
-from xnano._xnano_core import Buffer, Runtime, Write
+from xnano_core import Buffer, Runtime, Write
 
 with Runtime.offscreen(width=20, height=3) as runtime:
     buffer = Buffer()
@@ -109,10 +114,10 @@ The image package returns a portable cell-grid representation that the core can 
 
 ## The v1 API
 
-The previous declarative API remains available from `xnano.v1`; the main `xnano` package does not import it unless requested. Existing applications can migrate incrementally while new code uses the Rust-backed core.
+The previous declarative API remains available from `xnano.deprecated`; the main `xnano` package does not import it unless requested. Existing applications can migrate incrementally while new code uses the Rust-backed core.
 
 ```python
-from xnano.v1 import BaseGrid, Context, Field, Terminal, on_keyboard
+from xnano.deprecated import BaseGrid, Context, Field, Terminal, on_keyboard
 
 
 class Counter(BaseGrid, direction='vertical', gap=1):

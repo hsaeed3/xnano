@@ -2,4 +2,4 @@
 title: "xnano.utils.introspection"
 ---
 
-::: xnano.v1.utils.introspection
+::: xnano.deprecated.utils.introspection

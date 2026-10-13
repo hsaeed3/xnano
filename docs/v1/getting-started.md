@@ -32,13 +32,13 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "pip"
 
     ```bash title="Install with pip"
-    pip install "xnano>=2.0.0b1"
+    pip install "xnano>=2.0.0b2"
     ```
 
 === "uv"
 
     ```bash title="Install with uv"
-    uv pip install "xnano>=2.0.0b1"
+    uv pip install "xnano>=2.0.0b2"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -47,7 +47,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "poetry"
 
     ```bash title="Install with poetry"
-    poetry install "xnano>=2.0.0b1"
+    poetry install "xnano>=2.0.0b2"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -56,7 +56,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "conda"
 
     ```bash title="Install with conda"
-    conda install "xnano>=2.0.0b1"
+    conda install "xnano>=2.0.0b2"
     ```
 
 ## Notetaking Application
@@ -77,7 +77,7 @@ Grids are the centerpiece of the layout and rendering architecture within [xnano
 Additionally, grids provide an easy way to scaffold the entire layout of your application before worrying about their individual content. Let's begin by creating the grid scaffold for our application.
 
 ```python title="Scaffolding the Application" hl_lines="15-32"
-from xnano.v1 import BaseGrid, Field # (1)!
+from xnano.deprecated import BaseGrid, Field # (1)!
 
 class Dashboard(BaseGrid):
     """Side/status panel that provides various information about the application and system.
@@ -116,7 +116,7 @@ With placeholder labels filled in, the same layout paints as a single frame:
 
 
 ```python
-from xnano.v1 import BaseGrid, Field, render
+from xnano.deprecated import BaseGrid, Field, render
 
 class Dashboard(BaseGrid):
     stats: str = Field(default="0 notes saved")
@@ -144,7 +144,7 @@ xnano is designed to be **interface-agnostic** through the power of the [ratzill
 We can now run our application by using the `Terminal` or `Web` classes.
 
 ```python title="Running the Application"
-from xnano.v1 import Terminal
+from xnano.deprecated import Terminal
 
 Terminal().run(NotesApp())
 ```
@@ -157,7 +157,7 @@ Let's now implement the functionality for writing and saving notes.
 
 ```python title="Implementing Note Writing" hl_lines="12-16"
 from dataclasses import dataclass
-from xnano.v1 import BaseGrid, Field
+from xnano.deprecated import BaseGrid, Field
 
 class Dashboard(BaseGrid):
     """Side/status panel that provides various information about the application and system.
@@ -235,7 +235,7 @@ The cleanest way to keep a field in sync with your state is `grid_render`, a met
 Let's give the `Dashboard` a status line:
 
 ```python title="A Live Status Panel"
-from xnano.v1 import Context
+from xnano.deprecated import Context
 
 class Dashboard(BaseGrid):
     stats: str = Field(default="") # (1)!
@@ -251,7 +251,7 @@ class Dashboard(BaseGrid):
 The `SavedNotes` grid is a list the user browses, so it uses an `Options` component. We refresh its items from state the same way:
 
 ```python title="The Saved-Notes List"
-from xnano.v1.components import Options
+from xnano.deprecated.components import Options
 
 class SavedNotes(BaseGrid):
     notes: Options = Field(
@@ -276,7 +276,7 @@ class SavedNotes(BaseGrid):
 Finally, the `Editor` holds two text `Input`s — a single-line title and a multiline body:
 
 ```python title="The Editor's Inputs"
-from xnano.v1.components import Input
+from xnano.deprecated.components import Input
 
 class Editor(BaseGrid):
     title: Input = Field(
@@ -302,7 +302,7 @@ Nothing types itself — we need to *handle events*. [xnano]{data-preview} expos
 We'll put every command on `NotesApp`, since it owns the whole application:
 
 ```python title="Commands" hl_lines="6 12 20"
-from xnano.v1 import on_keyboard
+from xnano.deprecated import on_keyboard
 
 class NotesApp(BaseGrid, direction="horizontal"):
     # ...fields as before...
@@ -408,8 +408,8 @@ Put together, the whole notetaking app is well under a hundred lines:
 ```python title="notes.py"
 import dataclasses
 
-from xnano.v1 import BaseGrid, Context, Field, Terminal, on_keyboard
-from xnano.v1.components import Input, Options
+from xnano.deprecated import BaseGrid, Context, Field, Terminal, on_keyboard
+from xnano.deprecated.components import Input, Options
 
 KEYS = (
     "[n] new   [↑/↓] browse   [enter] open   "

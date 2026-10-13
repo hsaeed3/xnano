@@ -64,7 +64,7 @@ are the same objects on both hosts.
 This needs a normal Python process — not Pyodide.
 
 ```python title="Running a Web App" hl_lines="7"
-from xnano.v1 import BaseGrid, Field, Web
+from xnano.deprecated import BaseGrid, Field, Web
 
 class App(BaseGrid):
     body: str = Field(default="hello, web!")
@@ -102,7 +102,7 @@ The default host uses Python's stdlib HTTP server via
 </div>
 
 ```python title="Same Grid, Either Host"
-from xnano.v1 import BaseGrid, Field, Terminal, Web
+from xnano.deprecated import BaseGrid, Field, Terminal, Web
 
 class App(BaseGrid):
     body: str = Field(default="hello!")

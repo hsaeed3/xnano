@@ -249,6 +249,90 @@ before opening or updating the pull request.
 If a check cannot be run locally, say so clearly in the pull request and
 explain why.
 
+## Tests in an actual terminal
+
+The fast live suite (`tests/test_live_terminal.py`) uses a real PTY with `pyte`
+reading the screen. The native suite also runs the program inside **Kitty itself**:
+Kitty owns the PTY, answers capability queries, encodes keys and bracketed pastes,
+handles resizes, and renders the screen. The Python harness uses only the standard
+library and talks to Kitty's [socket control protocol](https://sw.kovidgoyal.net/kitty/rc_protocol/).
+It starts an isolated window and socket without reading your Kitty configuration.
+
+```bash
+make install-terminal  # Homebrew on macOS; apt on Debian/Ubuntu Linux
+make test-terminal
+make test-terminal ARGS="-q -k resize"
+# The same path without make:
+uv run --no-sync python scripts/test_terminal.py -q
+```
+
+These are development tools, with no package runtime dependencies and no container
+or Docker requirement. macOS uses a native window. Headless Linux uses Xvfb and Mesa
+software rendering automatically; Linux machines with a display use that display.
+Other Linux distributions can install Kitty and Xvfb with their package manager.
+The Linux/Python 3.13 GitHub Actions job runs the suite and uploads its artifacts.
+
+The suite checks title changes, drawing, true color, output capture, alternate-screen
+restoration, inline-region cleanup, keyboard input, paste, and window resizing.
+Regular `make test` leaves native windows closed; `make test-terminal` explicitly
+requires a working native terminal and fails if its dependencies are absent.
+
+Screens, ANSI styles, sanitized window metadata and logs are saved under
+`.artifacts/terminal/` (override with `XNANO_TERMINAL_ARTIFACTS`). Kitty versions with
+the `screenshot` control command also save rendered PNGs; older distribution versions
+save a `screenshot-error.txt` explaining why pixels are unavailable. Screen contents
+still come directly from the running application. The Python API is in
+`tests/actual_terminal.py`: `ActualTerminal(body)`, `wait_for`, `text`, `title`,
+`press`, `paste`, `resize`, `screenshot`, `finish`, and `close`. Always call `close`
+in a `finally` block; the pytest fixture handles cleanup and artifact capture.
+
+## Benchmarks, CPU and memory
+
+Each package keeps its benchmarks in `packages/<name>/benchmarks/`. Run them
+against an optimized build, which `make benchmark` (per package) and
+`make benchmark-all` (every package) build first. A debug build says nothing
+about speed.
+
+```bash
+make benchmark-all
+```
+
+Any test or benchmark run can also record the CPU time and memory it uses:
+
+```bash
+cd packages/xnano-core
+uv run --no-sync pytest benchmarks --benchmark-enable --resource-log
+```
+
+`--resource-log` prints, for every test, the wall time, the CPU time of all
+threads, the ratio between them, and how far the resident memory of the whole
+process grew (which includes the Rust extensions). `--resource-log-json PATH`
+also writes the records as JSON, `--resource-log-top COUNT` prints only the
+tests that used the most CPU, and `--resource-log-python-memory` adds the peak
+Python-heap allocation. The plugin lives in `scripts/resource_logging.py`.
+
+A memory growth flag on a test that handles multi-megabyte buffers can be the
+platform allocator keeping freed blocks (macOS does this), not a leak. Check
+with `leaks <pid>` before treating it as one.
+
+A benchmark must measure what its name says:
+
+- Assert on the result, so a call that silently did something else fails
+  instead of looking fast.
+- Do not time the same operation on the same input twice in a row when the
+  second call can take a shortcut (re-applying an unchanged layout, writing the
+  text a buffer already holds). Alternate between two inputs, or change the
+  state in `setup` of `benchmark.pedantic`.
+- Set `rounds` explicitly (`benchmark.pedantic`) when the first call is faster
+  than the rest, because the calibration would otherwise run far too long.
+- Time a widget change together with the frame that draws it: widgets repaint
+  when a setting is assigned, not when the runtime next draws.
+- Keep setup out of the timed call.
+
+To find what a slow benchmark spends its time on, build the extension with
+symbols (`CARGO_PROFILE_RELEASE_STRIP=false CARGO_PROFILE_RELEASE_DEBUG=1`) and
+sample the Python process with a profiler such as `samply` or macOS `sample`.
+
 ## Review and merging
 
 Pull requests are normally squash merged. The pull request title becomes the
