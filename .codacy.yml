@@ -4,7 +4,7 @@ exclude_paths:
   - "crates/**"
   - "Cargo.lock"
   # The legacy compatibility API remains covered by Ruff, basedpyright and tests.
-  - "packages/xnano-core/src/xnano/v1/**"
+  - "xnano/deprecated/**"
   - "examples/**"
   - "scripts/**"
   - "packages/*/tests/**"
