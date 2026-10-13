@@ -7,6 +7,13 @@ icon: "fontawesome/solid/book"
 
 <div class="grid cards" markdown>
 
+- :fontawesome-solid-terminal: __[xnano](xnano/index.md)__
+
+    ---
+
+    The terminal API: `open`, placements, hooks, input, pixels, scenes and sound, and the topic
+    modules `xnano.widgets`, `xnano.expressions`, `xnano.effects` and the rest.
+
 - :fontawesome-solid-terminal: __[xnano-core](xnano-core/index.md)__
 
     ---

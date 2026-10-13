@@ -56,9 +56,9 @@ Use `default_factory` when the default is a component instance (not a plain
 immutable value):
 
 ```python title="Component as a field value"
-from xnano.deprecated import BaseGrid, Field
-from xnano.deprecated.components.loader import Loader
-from xnano.deprecated.components.options import Options
+from xnano import BaseGrid, Field
+from xnano.components.loader import Loader
+from xnano.components.options import Options
 
 class Panel(BaseGrid, direction="vertical", gap=1):
     status: str = Field(default="Working…", height=1) # (1)!
@@ -77,8 +77,8 @@ whatever the component paints. See [Fields](fields.md) and [State](state.md).
 
 
 ```python
-from xnano.deprecated import BaseGrid, Field, render
-from xnano.deprecated.components.loader import Loader
+from xnano import BaseGrid, Field, render
+from xnano.components.loader import Loader
 
 class Panel(BaseGrid, direction="vertical", gap=1):
     status: str = Field(default="Working…", height=1)
@@ -108,7 +108,7 @@ Several components accept nested content. `Text` is the usual example: a list
 of `Text` (or strings) becomes independently styled runs in one line.
 
 ```python title="Nested Text"
-from xnano.deprecated.components.text import Text
+from xnano.components.text import Text
 
 Text([
     Text("● ", foreground="emerald-400"),
@@ -120,8 +120,8 @@ Text([
 
 
 ```python
-from xnano.deprecated import render
-from xnano.deprecated.components.text import Text
+from xnano import render
+from xnano.components.text import Text
 
 render(Text([
     Text("● ", foreground="emerald-400"),
@@ -140,8 +140,8 @@ Component fields are **live**. Change `items`, `value`, `data`, `label`, … and
 the next frame reflects it — same spirit as assigning a grid field.
 
 ```python title="Update in grid_render"
-from xnano.deprecated import BaseGrid, Context, Field
-from xnano.deprecated.components.options import Options
+from xnano import BaseGrid, Context, Field
+from xnano.components.options import Options
 
 class SavedNotes(BaseGrid):
     notes: Options = Field(default_factory=Options, border="rounded")
@@ -181,8 +181,8 @@ building columns or series by hand every time.
 ### Tables — `Column`
 
 ```python title="Table with Column descriptors"
-from xnano.deprecated.components.schema import Column
-from xnano.deprecated.components.table import Table
+from xnano.components.schema import Column
+from xnano.components.table import Table
 
 class Services(Table):
     service: str = Column(
@@ -209,8 +209,8 @@ keys.
 ### Charts — `Series`
 
 ```python title="Chart with Series descriptors"
-from xnano.deprecated.components.chart import Chart
-from xnano.deprecated.components.schema import Series
+from xnano.components.chart import Chart
+from xnano.components.schema import Series
 
 class Latency(Chart):
     p50 = Series(color="green", kind="line")
@@ -224,7 +224,7 @@ construction stays light: pass `data=` / `series=` and go.
 
 ## Custom components
 
-Subclass [`Component`](../api/xnano/components/component.md){data-preview}
+Subclass [`Component`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 (prefer `@dataclasses.dataclass`) when a built-in is not enough.
 
 Patterns available on every custom component:
@@ -245,8 +245,8 @@ Minimal example:
 ```python title="A small custom component"
 import dataclasses
 
-from xnano.deprecated.components.component import Component
-from xnano.deprecated.core.content import TextBlock
+from xnano.components.component import Component
+from xnano.core.content import TextBlock
 
 @dataclasses.dataclass
 class Badge(Component):
@@ -276,8 +276,8 @@ inside the component. Give the field a `group`, then bind `@on_click` /
 `@on_keyboard` on the grid — same as [Events & Hooks](events.md).
 
 ```python title="Button + grid hooks"
-from xnano.deprecated import BaseGrid, Field, on_click, on_keyboard
-from xnano.deprecated.components.button import Button
+from xnano import BaseGrid, Field, on_click, on_keyboard
+from xnano.components.button import Button
 
 class Form(BaseGrid):
     submit: Button = Field(
@@ -343,11 +343,11 @@ Use a component when the unit is “one widget with its own data shape.”
 
 ??? abstract "API"
 
-    [`Component`](../api/xnano/components/component.md){data-preview} ·
-    [`Text`](../api/xnano/components/text.md){data-preview} ·
-    [`Table`](../api/xnano/components/table.md){data-preview} ·
-    [`Chart`](../api/xnano/components/chart.md){data-preview} ·
-    [`Column` / `Series`](../api/xnano/components/schema.md){data-preview} ·
-    [components index](../api/xnano/components.md)
+    [`Component`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Text`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Table`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Chart`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Column` / `Series`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [components index](https://github.com/hsaeed3/xnano/tree/v1)
 
-[component]: ../api/xnano/components/component.md
+[component]: https://github.com/hsaeed3/xnano/tree/v1

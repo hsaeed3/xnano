@@ -65,7 +65,7 @@ A field can set:
 ## Declaring a Field
 
 ```python title="Declaring a Field" hl_lines="4"
-from xnano.deprecated import BaseGrid, Field
+from xnano import BaseGrid, Field
 
 class Card(BaseGrid, direction="vertical"):
     heading: str = Field(
@@ -88,7 +88,7 @@ The full keyword list is on the [Field]{data-preview} API page.
 
 
 ```python
-from xnano.deprecated import BaseGrid, Field, render
+from xnano import BaseGrid, Field, render
 
 class Card(BaseGrid, direction="vertical"):
     heading: str = Field(
@@ -123,7 +123,7 @@ attribute: typed, live, never painted.
 
 
 ```python title="Fields vs. Plain Attributes" hl_lines="5"
-from xnano.deprecated import BaseGrid, Field
+from xnano import BaseGrid, Field
 
 class Card(BaseGrid, direction="vertical"):
     heading: str = Field(default="Reminder")
@@ -138,7 +138,7 @@ attribute when you do not need that.
 ### Runnable Example
 
 ```python
-from xnano.deprecated import BaseGrid, Field, render
+from xnano import BaseGrid, Field, render
 
 class Card(BaseGrid, direction="vertical"):
     heading: str = Field(default="Reminder")
@@ -194,7 +194,7 @@ Override `grid_render` on the grid to sync painted fields from state before
 layout:
 
 ```python title="grid_render"
-from xnano.deprecated import BaseGrid, Context, Field
+from xnano import BaseGrid, Context, Field
 
 class Dashboard(BaseGrid):
     stats: str = Field(default="")
@@ -213,12 +213,12 @@ self.grid_set_field("editor", visible=True, z=2)
 
 Optional responsive hooks (`grid_render_small`, `grid_render_medium`, …) run when
 the viewport crosses size tiers — see
-[`BaseGrid`](../api/xnano/grids.md){data-preview}.
+[`BaseGrid`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}.
 
 ??? abstract "API"
 
-    [`Field`](../api/xnano/fields.md){data-preview} ·
-    [`BaseGrid`](../api/xnano/grids.md){data-preview} ·
+    [`Field`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`BaseGrid`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
     [Styling](styling.md)
 
-[Field]: ../api/xnano/fields.md
+[Field]: https://github.com/hsaeed3/xnano/tree/v1

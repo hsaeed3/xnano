@@ -10,7 +10,7 @@ two places to keep the latter: on a single grid, or shared across the whole
 app.
 
 That is what this page is about — not the optional
-[`xnano.state.State`](../api/xnano/state.md){data-preview} helper class (a thin
+[`xnano.state.State`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} helper class (a thin
 bag for dynamic attributes). Most apps use a normal dataclass (or any object)
 for application state.
 
@@ -67,7 +67,7 @@ instance** as `ctx.state`.
 ```python title="Application state"
 import dataclasses
 
-from xnano.deprecated import BaseGrid, Context, Field, Terminal, on_keyboard
+from xnano import BaseGrid, Context, Field, Terminal, on_keyboard
 
 @dataclasses.dataclass
 class AppState:
@@ -99,7 +99,7 @@ A full walkthrough lives in [Getting Started](../getting-started.md#state).
 If you do not want a fixed schema:
 
 ```python
-from xnano.deprecated.state import State  # not exported from the package root
+from xnano.state import State  # not exported from the package root
 
 state = State(name="John", count=0)
 state.count += 1
@@ -113,7 +113,7 @@ Prefer a dataclass or Pydantic model when the shape is known.
 A state field is typed data on **one** grid. It never claims a layout slot.
 
 ```python title="Grid state"
-from xnano.deprecated import BaseGrid, Field, Terminal, on_keyboard
+from xnano import BaseGrid, Field, Terminal, on_keyboard
 
 class Counter(BaseGrid, direction="vertical"):
     label: str = Field(default="Count: 0", height=1)
@@ -168,7 +168,7 @@ State does not paint itself. Refresh painted fields from state each frame with
 `grid_render`, or update them in hooks.
 
 ```python title="grid_render from application state"
-from xnano.deprecated import BaseGrid, Context, Field
+from xnano import BaseGrid, Context, Field
 
 class Dashboard(BaseGrid):
     stats: str = Field(default="")
@@ -210,7 +210,7 @@ See [Fields](fields.md) and [Grids](grids.md) for `grid_render` /
 can find it across the tree.
 
 ```python title="group="
-from xnano.deprecated.components.input import Input
+from xnano.components.input import Input
 
 class Editor(BaseGrid):
     title: Input = Field(
@@ -296,8 +296,8 @@ These often travel with state-driven UIs:
 
 ??? abstract "API"
 
-    [`Field`](../api/xnano/fields.md){data-preview} ·
-    [`Context`](../api/xnano/context.md){data-preview} ·
-    [`Terminal`](../api/xnano/terminal.md){data-preview} ·
-    [`State`](../api/xnano/state.md){data-preview} ·
-    [`BaseGrid`](../api/xnano/grids.md){data-preview}
+    [`Field`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Context`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Terminal`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`State`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`BaseGrid`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}

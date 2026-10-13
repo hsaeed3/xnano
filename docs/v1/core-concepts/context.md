@@ -87,7 +87,7 @@ You do not construct `Context` yourself. The host builds one per hook call.
     ```
 
 ```python title="Reading the Event"
-from xnano.deprecated import Context, on_keyboard
+from xnano import Context, on_keyboard
 
 @on_keyboard("enter")
 def submit(self, ctx: Context) -> None:
@@ -110,7 +110,7 @@ painted fields is covered under [State](state.md).
 ```python title="Typing Context by State" hl_lines="4 9"
 import dataclasses
 
-from xnano.deprecated import BaseGrid, Context, Field, Terminal, on_keyboard
+from xnano import BaseGrid, Context, Field, Terminal, on_keyboard
 
 @dataclasses.dataclass
 class AppState:
@@ -131,11 +131,11 @@ Terminal(state=AppState()).run(Counter())
 2. `ctx.state` is the same object handed to the host. `ctx.get_state()` raises if
    no state was attached.
 
-A plain dataclass or Pydantic model works. [`State`](../api/xnano/state.md) is
+A plain dataclass or Pydantic model works. [`State`](https://github.com/hsaeed3/xnano/tree/v1) is
 an optional convenience bag (not exported from the package root):
 
 ```python
-from xnano.deprecated.state import State
+from xnano.state import State
 
 state = State(name="John", count=0)
 ```
@@ -164,9 +164,9 @@ Deprecated aliases still work: `ctx.keyboard`, `ctx.mouse`, `ctx.tick`.
 
 ??? abstract "API"
 
-    [`Context`](../api/xnano/context.md){data-preview} ·
-    [`Action`](../api/xnano/actions.md){data-preview} ·
-    [`Runtime`](../api/xnano/core/runtime.md){data-preview} ·
-    [`State`](../api/xnano/state.md){data-preview}
+    [`Context`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Action`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Runtime`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`State`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
-[Context]: ../api/xnano/context.md
+[Context]: https://github.com/hsaeed3/xnano/tree/v1

@@ -97,14 +97,14 @@ loop live in [xnano-core]{data-preview}.
 
 ## One frame without a session
 
-[`render`](../api/xnano/rendering.md){data-preview} paints values once and
+[`render`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} paints values once and
 writes them out. It does not start an event loop.
 
 
 
 ```python
-from xnano.deprecated import render
-from xnano.deprecated.components.text import Text
+from xnano import render
+from xnano.components.text import Text
 
 render(Text("Hello from xnano", foreground="pink", modifiers=["bold"]))
 ```
@@ -136,14 +136,14 @@ Root exports and where this section covers them:
 | `xnano.core` | Runtime, Frame, exceptions — via hosts and API reference |
 
 Lower-level packages (`utils`, paint content helpers) stay in the
-[API reference](../api/xnano/index.md).
+[API reference](https://github.com/hsaeed3/xnano/tree/v1).
 
 ??? abstract "API"
 
-    [`render()`](../api/xnano/rendering.md){data-preview} ·
-    [`Terminal`](../api/xnano/terminal.md){data-preview} ·
-    [`Web`](../api/xnano/web.md){data-preview} ·
-    [`BaseGrid`](../api/xnano/grids.md){data-preview}
+    [`render()`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Terminal`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Web`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`BaseGrid`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
 [xnano]: ../getting-started.md
-[xnano-core]: ../api/xnano-core/index.md
+[xnano-core]: https://github.com/hsaeed3/xnano/tree/v1

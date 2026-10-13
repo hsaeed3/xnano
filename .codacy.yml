@@ -3,8 +3,6 @@ exclude_paths:
   # Rust is checked with cargo clippy across every workspace target.
   - "crates/**"
   - "Cargo.lock"
-  # The legacy compatibility API remains covered by Ruff, basedpyright and tests.
-  - "xnano/deprecated/**"
   - "examples/**"
   - "scripts/**"
   - "packages/*/tests/**"

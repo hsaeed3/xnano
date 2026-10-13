@@ -13,12 +13,12 @@ with — declare the method on the `BaseGrid` subclass and the host dispatches
 into it.
 
 Decorators are imported from `xnano` (or `xnano.hooks`). Event **payload
-types** live in [`xnano.events`](../api/xnano/events.md){data-preview}
+types** live in [`xnano.events`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 (`KeyboardEventData`, `MouseEventData`, …).
 
 ```python
-from xnano.deprecated import on_keyboard, on_tick, on_click
-# or: from xnano.deprecated.hooks import on_keyboard, on_tick, on_click
+from xnano import on_keyboard, on_tick, on_click
+# or: from xnano.hooks import on_keyboard, on_tick, on_click
 ```
 
 <div class="grid-concept-diagram" role="img" aria-label="Diagram: host events wire straight into decorated methods on the grid — no central event bus">
@@ -65,7 +65,7 @@ Unfiltered: fires on **every** event the host delivers. You inspect
 `ctx.event` yourself.
 
 ```python title="All events" hl_lines="7"
-from xnano.deprecated import BaseGrid, Field, Terminal, on_event
+from xnano import BaseGrid, Field, Terminal, on_event
 
 class Debug(BaseGrid):
     last: str = Field(default="—", height=1)
@@ -86,7 +86,7 @@ logging, instrumentation, or multi-kind handlers that branch on
 Add a second parameter and xnano passes a [Context](context.md):
 
 ```python title="Context on a hook" hl_lines="4 5"
-from xnano.deprecated import Context, on_keyboard
+from xnano import Context, on_keyboard
 
 @on_keyboard("q")
 def quit(self, ctx: Context) -> None: # (1)!
@@ -119,8 +119,8 @@ widget-local consumption (editors, lists) while focused — return `True` only
 when the event is handled.
 
 ```python title="Grid owns activation; component may consume keys"
-from xnano.deprecated import BaseGrid, Field, on_click, on_keyboard
-from xnano.deprecated.components.button import Button
+from xnano import BaseGrid, Field, on_click, on_keyboard
+from xnano.components.button import Button
 
 class Form(BaseGrid):
     submit: Button = Field(
@@ -163,7 +163,7 @@ by `kind`).
 </div>
 
 ```python title="Keyboard bindings" hl_lines="6 12 14 18"
-from xnano.deprecated import BaseGrid, Field, Terminal, on_keyboard
+from xnano import BaseGrid, Field, Terminal, on_keyboard
 
 class Counter(BaseGrid, direction="vertical", gap=1):
     label: str = Field(default="Count: 0", height=1)
@@ -277,7 +277,7 @@ Filters by button and optional `kind` / field region. Defaults to **left-button
 press** when button and kind are omitted.
 
 ```python title="Mouse button filter" hl_lines="10 14"
-from xnano.deprecated import BaseGrid, Field, Terminal, on_mouse
+from xnano import BaseGrid, Field, Terminal, on_mouse
 
 class Menu(BaseGrid, direction="vertical"):
     status: str = Field(default="right-click for menu", height=1)
@@ -313,8 +313,8 @@ Convenience for a press on a **field** or a **group**. Requires either a field
 name or `group=`.
 
 ```python title="Click by field or group" hl_lines="11 14"
-from xnano.deprecated import BaseGrid, Field, Terminal, on_click
-from xnano.deprecated.components.button import Button
+from xnano import BaseGrid, Field, Terminal, on_click
+from xnano.components.button import Button
 
 class Toolbar(BaseGrid, direction="horizontal", gap=1):
     save: Button = Field(
@@ -374,7 +374,7 @@ Clock / frame timing. Pass an interval in **milliseconds**, or bare
 ```python title="Interval tick" hl_lines="8"
 import time
 
-from xnano.deprecated import BaseGrid, Field, Terminal, on_tick
+from xnano import BaseGrid, Field, Terminal, on_tick
 
 class Clock(BaseGrid, direction="vertical"):
     display: str = Field(default="", height=3, border="rounded", title=" Time ")
@@ -431,8 +431,8 @@ Two scopes:
 Filter with `kind="gained"` or `kind="lost"`.
 
 ```python title="Window and field focus" hl_lines="8 12"
-from xnano.deprecated import BaseGrid, Context, Field, Terminal, on_focus
-from xnano.deprecated.components.input import Input
+from xnano import BaseGrid, Context, Field, Terminal, on_focus
+from xnano.components.input import Input
 
 class Search(BaseGrid, direction="vertical", gap=1):
     status: str = Field(default="unfocused", height=1, foreground="slate-500")
@@ -466,7 +466,7 @@ Terminal().run(Search())
 Fires when the host viewport changes size.
 
 ```python title="Resize" hl_lines="7"
-from xnano.deprecated import BaseGrid, Field, Terminal, on_resize
+from xnano import BaseGrid, Field, Terminal, on_resize
 
 class Layout(BaseGrid):
     info: str = Field(default="", height=1)
@@ -487,7 +487,7 @@ Resize payload is on `ctx.event.resize_event` (`width`, `height` in cells).
 Fires on paste / clipboard input (bracketed paste when the host supports it).
 
 ```python title="Paste" hl_lines="7"
-from xnano.deprecated import BaseGrid, Field, Terminal, on_clipboard
+from xnano import BaseGrid, Field, Terminal, on_clipboard
 
 class PasteTarget(BaseGrid):
     preview: str = Field(default="paste something", border="rounded")
@@ -522,7 +522,7 @@ Evaluated against `ctx.state` (the object passed to `Terminal(state=...)` /
 ```python title="Watch application state" hl_lines="14 18"
 import dataclasses
 
-from xnano.deprecated import BaseGrid, Context, Field, Terminal, on_keyboard, on_state
+from xnano import BaseGrid, Context, Field, Terminal, on_keyboard, on_state
 
 @dataclasses.dataclass
 class AppState:
@@ -557,7 +557,7 @@ Same rules against **this grid's** fields (`self.count`, nested attributes /
 indexing as the expression language allows).
 
 ```python title="Watch grid fields" hl_lines="10 14"
-from xnano.deprecated import BaseGrid, Field, Terminal, on_field, on_keyboard
+from xnano import BaseGrid, Field, Terminal, on_field, on_keyboard
 
 class Cart(BaseGrid, direction="vertical"):
     total: int = Field(default=0, state=True)
@@ -590,7 +590,7 @@ Background / idle work. Default is `when="idle"` (once per idle event wait).
 Pass `when="frame"` to run every frame.
 
 ```python title="Idle poll" hl_lines="8"
-from xnano.deprecated import BaseGrid, Field, Terminal, on_poll
+from xnano import BaseGrid, Field, Terminal, on_poll
 
 class Worker(BaseGrid):
     status: str = Field(default="idle", height=1)
@@ -623,7 +623,7 @@ Events answer *what happened*; actions name *what your app cares about* and
 can also be performed as synthetic input.
 
 ```python title="Named action" hl_lines="3 5"
-from xnano.deprecated import Action, BaseGrid, Field, Terminal, on_action
+from xnano import Action, BaseGrid, Field, Terminal, on_action
 
 SAVE = Action.keyboard("ctrl+s") # (1)!
 
@@ -682,11 +682,11 @@ drive hooks that require input or time.
 
 ??? abstract "API"
 
-    [`xnano.hooks`](../api/xnano/hooks.md){data-preview} ·
-    [`xnano.events`](../api/xnano/events.md){data-preview} ·
-    [`Context`](../api/xnano/context.md){data-preview} ·
-    [`Action`](../api/xnano/actions.md){data-preview} ·
-    [`xnano.requests`](../api/xnano/requests.md){data-preview}
+    [`xnano.hooks`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`xnano.events`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Context`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Action`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`xnano.requests`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
 [Context]: context.md
 [Action]: actions.md

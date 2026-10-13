@@ -10,7 +10,7 @@ session, paints frames, and dispatches keyboard, mouse, and tick events into
 your grids' `@on_*` hooks.
 
 Grids do not open a session by themselves. Pass content to `Terminal` (or to
-[`render`](../api/xnano/rendering.md){data-preview} for a one-shot frame).
+[`render`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} for a one-shot frame).
 
 <div class="grid-concept-diagram" role="img" aria-label="Diagram: Terminal owns the session loop around a root grid — open, run events and frames, exit">
 <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg" fill="none">
@@ -74,19 +74,19 @@ Grids do not open a session by themselves. Pass content to `Terminal` (or to
 </svg>
 </div>
 
-[`render`](../api/xnano/rendering.md){data-preview} paints once and returns
+[`render`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} paints once and returns
 control. It does not run the event loop.
 
 
 
 ```python
-from xnano.deprecated import render
+from xnano import render
 
 render("hello, terminal!", foreground="blue")
 ```
 
 ```python title="render()"
-from xnano.deprecated import render
+from xnano import render
 
 render("hello, terminal!", foreground="blue") # (1)!
 ```
@@ -98,7 +98,7 @@ render("hello, terminal!", foreground="blue") # (1)!
 `Terminal().run(...)` keeps painting and dispatching until exit.
 
 ```python title="A Persistent Session" hl_lines="3 4"
-from xnano.deprecated import Terminal
+from xnano import Terminal
 
 terminal = Terminal()
 terminal.run("hello, terminal!") # (1)!
@@ -107,7 +107,7 @@ terminal.run("hello, terminal!") # (1)!
 1. Unlike `render()`, `.run()` stays open until the app exits.
 
 `Terminal` also has `.render(...)` for a single frame on that host (returns a
-[`Frame`](../api/xnano/core/frame.md){data-preview}).
+[`Frame`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}).
 
 ## Running a grid
 
@@ -115,7 +115,7 @@ Pass a `BaseGrid` as the root. Fields become regions of the screen; hooks on
 the grid receive events.
 
 ```python title="Running a Grid" hl_lines="8"
-from xnano.deprecated import BaseGrid, Field, Terminal
+from xnano import BaseGrid, Field, Terminal
 
 class App(BaseGrid, direction="vertical"):
     title: str = Field(default="My App", border="rounded")
@@ -133,7 +133,7 @@ terminal.run(App()) # (1)!
 
 
 ```python
-from xnano.deprecated import BaseGrid, Field, render
+from xnano import BaseGrid, Field, render
 
 class App(BaseGrid, direction="vertical"):
     title: str = Field(default="My App", border="rounded")
@@ -167,9 +167,9 @@ Constructor options include `state=`, `title=`, `tick_interval=`, and
 `Terminal` does not serve HTTP. Browser hosting is [Web](web.md). Request
 handlers are [Requests](requests.md).
 
-Under the hood, `Terminal` owns a [`Runtime`](../api/xnano/core/runtime.md){data-preview}
+Under the hood, `Terminal` owns a [`Runtime`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 (`terminal.runtime`). Prefer `Terminal` in apps; use `Runtime` when you need
-explicit session ownership. [`Frame`](../api/xnano/core/frame.md){data-preview}
+explicit session ownership. [`Frame`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 is the immutable snapshot returned by `.render(...)`.
 
 ## Next
@@ -181,9 +181,9 @@ is the immutable snapshot returned by `.render(...)`.
 
 ??? abstract "API"
 
-    [`Terminal`](../api/xnano/terminal.md){data-preview} ·
-    [`render()`](../api/xnano/rendering.md){data-preview} ·
-    [`Runtime`](../api/xnano/core/runtime.md){data-preview} ·
-    [`Frame`](../api/xnano/core/frame.md){data-preview}
+    [`Terminal`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`render()`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Runtime`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Frame`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
-[Terminal]: ../api/xnano/terminal.md
+[Terminal]: https://github.com/hsaeed3/xnano/tree/v1

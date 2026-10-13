@@ -170,7 +170,7 @@ with [`Field`](fields.md){data-preview}.
 
 
 ```python
-from xnano.deprecated import BaseGrid, Field, render
+from xnano import BaseGrid, Field, render
 
 class App(BaseGrid, direction="vertical"):
     title: str = Field(default="My App", border="rounded")
@@ -181,7 +181,7 @@ render(App())
 ```
 
 ```python title="Creating a Grid" hl_lines="4 5 6 7"
-from xnano.deprecated import BaseGrid, Field
+from xnano import BaseGrid, Field
 
 class App(BaseGrid, direction="vertical"): # (1)!
     title: str = Field(default="My App", border="rounded") # (2)!
@@ -202,7 +202,7 @@ are separate from individual fields.
 
 
 ```python
-from xnano.deprecated import BaseGrid, Field, render
+from xnano import BaseGrid, Field, render
 
 class Dashboard(BaseGrid, direction="horizontal", gap=1, border="rounded", title=" Dashboard "):
     left: str = Field(default="Left", width="1fr")
@@ -212,7 +212,7 @@ render(Dashboard())
 ```
 
 ```python title="Grid Settings" hl_lines="3"
-from xnano.deprecated import BaseGrid, Field
+from xnano import BaseGrid, Field
 
 class Dashboard(BaseGrid, direction="horizontal", gap=1, border="rounded", title=" Dashboard "): # (1)!
     left: str = Field(default="Left", width="1fr")
@@ -233,7 +233,7 @@ The same settings can be declared on `grid_settings`:
 === "`grid_settings` attribute"
 
     ```python
-    from xnano.deprecated import BaseGrid, GridSettings
+    from xnano import BaseGrid, GridSettings
 
     class Dashboard(BaseGrid):
         grid_settings = GridSettings(
@@ -267,7 +267,7 @@ to the grid's outer frame. See [GridSettings]{data-preview}.
 A field value can be another `BaseGrid`. Nested grids are ordinary content.
 
 ```python title="Nested Grids"
-from xnano.deprecated import BaseGrid, Field
+from xnano import BaseGrid, Field
 
 class Sidebar(BaseGrid, direction="vertical"):
     home: str = Field(default="Home", height=1)
@@ -300,7 +300,7 @@ to a [Terminal](terminal.md){data-preview} or a [Web](web.md){data-preview} host
 === "`render()`"
 
     ```python title="render()"
-    from xnano.deprecated import render
+    from xnano import render
 
     render(App()) # (1)!
     ```
@@ -310,7 +310,7 @@ to a [Terminal](terminal.md){data-preview} or a [Web](web.md){data-preview} host
 === "`Terminal`"
 
     ```python title="Terminal"
-    from xnano.deprecated import Terminal
+    from xnano import Terminal
 
     Terminal().run(App()) # (1)!
     ```
@@ -320,7 +320,7 @@ to a [Terminal](terminal.md){data-preview} or a [Web](web.md){data-preview} host
 ### Web
 
 ```python title="Web"
-from xnano.deprecated import Web
+from xnano import Web
 
 Web().run(App(), port=8000)
 ```
@@ -330,12 +330,12 @@ HTTP request hooks on grids are a separate surface — see
 
 ??? abstract "API"
 
-    [`BaseGrid`](../api/xnano/grids.md){data-preview} ·
-    [`GridSettings`](../api/xnano/grids.md){data-preview} ·
-    [`Field`](../api/xnano/fields.md){data-preview} ·
-    [`Terminal`](../api/xnano/terminal.md){data-preview} ·
-    [`Web`](../api/xnano/web.md){data-preview}
+    [`BaseGrid`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`GridSettings`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Field`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Terminal`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Web`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
-[BaseGrid]: ../api/xnano/grids.md
-[GridSettings]: ../api/xnano/grids.md
+[BaseGrid]: https://github.com/hsaeed3/xnano/tree/v1
+[GridSettings]: https://github.com/hsaeed3/xnano/tree/v1
 [Field]: fields.md

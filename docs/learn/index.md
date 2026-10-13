@@ -8,39 +8,79 @@ icon: "fontawesome/solid/bolt"
 ## Install
 
 ```bash
-pip install xnano
+pip install xnano                # the terminal, widgets, effects and events
+pip install "xnano[audio]"       # adds notes, melodies and sounds
+pip install "xnano[image]"       # adds images and animations
 ```
 
-Install only what you need with `pip install xnano-core`, `pip install xnano-audio` or
-`pip install xnano-image`.
+## Put something on the terminal
 
-## Draw into a buffer
-
-A [`Buffer`][xnano_core._xnano_core.Buffer] holds a grid of cells. Operations change it, and
-`render` serializes it without opening a terminal.
+[`open`][xnano.open] gives you a [`Terminal`][xnano.Terminal]. Anything you
+[`add`][xnano.Terminal.add] appears at once, and a `with` block gives the screen back.
 
 ```python
-from xnano_core._xnano_core import Border, Buffer, Write
+import xnano
 
-card = Buffer(width=12, height=3)
-card.update(Border('rounded'), Write('hello', x=3, y=1))
-print(card.render(format='text'))
+with xnano.open(width=40, height=5) as terminal:
+    terminal.add('Hello, world!', x='center', y='center', border='rounded')
+    terminal.run(quit_on='q')
 ```
 
-## Run it on a runtime
+Positions take numbers, percentages (`'50%'`), words (`'left'`, `'center'`, `'right'`, `'top'`,
+`'bottom'`) or formulas.
 
-A [`Runtime`][xnano_core._xnano_core.Runtime] mounts buffers, routes input and renders frames.
-An offscreen runtime needs no terminal, which makes it the right choice for tests.
+## Make it move
+
+A formula of time is evaluated again on every frame, so there is no loop to write:
 
 ```python
-from xnano_core._xnano_core import Buffer, Runtime, Write
+import xnano
+from xnano.expressions import ParentWidth, TimeElapsed, Width
 
-with Runtime.offscreen(width=20, height=3) as runtime:
-    buffer = Buffer()
-    runtime.mount(buffer, geometry='inherit')
-    buffer.update(Write('mounted'))
-    runtime.step()
-    print(runtime.snapshot().lines()[0])
+with xnano.open(width=40, height=3) as terminal:
+    ball = terminal.add('●', y=1)
+    ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
+    terminal.run(quit_on='q')
 ```
 
-Use `Runtime.live()` to draw to the real terminal.
+## React to the keyboard, the mouse and the clock
+
+Decorators are named for what happens:
+
+```python
+import xnano
+
+with xnano.open(width=30, height=3) as terminal:
+    terminal.add('press space', y=1)
+
+    @terminal.on_key('space')
+    def toggle(context: xnano.Context) -> None:
+        if terminal.is_paused:
+            terminal.resume()
+        else:
+            terminal.pause()
+
+    @terminal.every(1.0)
+    def tick(context: xnano.Context) -> None:
+        terminal.write(f'{context.clock.elapsed_seconds:5.1f}s')
+
+    terminal.run(quit_on='q')
+```
+
+`on_click`, `on_drag`, `after` and `every(beats=1)` work the same way, and `terminal.input`
+tells a game which keys are held right now.
+
+## Draw pixels, build a world, play a sound
+
+`terminal.pixels()` draws two pixels to a cell, `terminal.scene(...)` adds sprites, a camera and
+collision on top of it, and `terminal.play('C4 E4 G4:2')` plays a melody written as text. The
+[examples](https://github.com/hsaeed3/xnano/tree/main/examples) show each of them, ending with a
+playable world.
+
+## Where everything lives
+
+The top-level `xnano` holds the main API. Everything else is in a module named for what it
+holds: [`xnano.widgets`][xnano.widgets], [`xnano.expressions`][xnano.expressions],
+[`xnano.effects`][xnano.effects], [`xnano.styles`][xnano.styles],
+[`xnano.events`][xnano.events], [`xnano.scene`][xnano.scene] and so on, with the optional
+`xnano.audio` and `xnano.image`.

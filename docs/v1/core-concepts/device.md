@@ -50,13 +50,13 @@ side effects that need a real TTY are skipped.
 
 ## Device
 
-[`Device`](../api/xnano/device.md){data-preview} covers title, viewport size,
+[`Device`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} covers title, viewport size,
 clear/scroll, clipboard, and terminal mode flags.
 
 ### Title and size
 
 ```python title="Title" hl_lines="5"
-from xnano.deprecated import Context, on_state
+from xnano import Context, on_state
 
 @on_state("unread > 0")
 def flash_title(self, ctx: Context) -> None:
@@ -155,7 +155,7 @@ ctx.device.raw_mode = True   # live only; needs a real TTY
 </svg>
 </div>
 
-[`Cursor`](../api/xnano/cursor.md){data-preview} is the host caret: show/hide,
+[`Cursor`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} is the host caret: show/hide,
 style, position, save/restore, blinking.
 
 Most apps leave the caret alone and let focused `Input` fields own editing.
@@ -165,7 +165,7 @@ hide the system caret over a full-screen paint.
 ### Visibility and style
 
 ```python title="Visibility" hl_lines="4"
-from xnano.deprecated import Context, on_focus
+from xnano import Context, on_focus
 
 @on_focus("search", kind="gained")
 def hide_system_caret(self, ctx: Context) -> None:
@@ -219,7 +219,7 @@ Offscreen is intentional: a headless or web server must not dump terminal
 control sequences onto the process that owns stdout.
 
 ```python title="From a Terminal you own"
-from xnano.deprecated import Terminal
+from xnano import Terminal
 
 terminal = Terminal(title="My App")
 # after the session is live / after render attaches a runtime:
@@ -236,12 +236,12 @@ terminal.cursor.visible = True
 
 ??? abstract "API"
 
-    [`Device`](../api/xnano/device.md){data-preview} ·
-    [`Cursor`](../api/xnano/cursor.md){data-preview} ·
-    [`ClearType`](../api/xnano/device.md){data-preview} ·
-    [`CursorStyle`](../api/xnano/cursor.md){data-preview} ·
-    [`Context`](../api/xnano/context.md){data-preview}
+    [`Device`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Cursor`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`ClearType`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`CursorStyle`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Context`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
-[Device]: ../api/xnano/device.md
-[Cursor]: ../api/xnano/cursor.md
+[Device]: https://github.com/hsaeed3/xnano/tree/v1
+[Cursor]: https://github.com/hsaeed3/xnano/tree/v1
 [Context]: context.md

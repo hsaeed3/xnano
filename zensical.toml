@@ -20,7 +20,6 @@ nav = [
         {"Overview" = "v1/index.md"},
         {"Getting Started" = "v1/getting-started.md"},
         {"Concepts" = "v1/core-concepts/overview.md"},
-        {"Legacy API" = "v1/api/xnano/index.md"},
     ]},
     {"API Reference" = [
         {"API Reference" = "api-reference/index.md"},

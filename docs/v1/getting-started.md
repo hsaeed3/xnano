@@ -9,15 +9,14 @@ icon: "lucide/book-open"
 
 You can install [xnano]{data-preview} with your favorite package manager on python 3.10+ <small>(and lower than 3.14 for now)</small>.
 
-!!! info "2.0.0b1"
+!!! warning "xnano v1"
 
-    The library has recently been rewritten from the ground up to provide a more stable & performant core compared to previous versions. Please ensure you are using a `2.0.0b1` or later or higher version of the library for the best experience.
+    This guide is for **xnano v1**. The current `xnano` is v2, which has a different API, so install the
+    last v1 release to follow along. Its source is on the
+    [`v1` branch](https://github.com/hsaeed3/xnano/tree/v1) and the latest release is
+    [v1.2.3](https://github.com/hsaeed3/xnano/releases/tag/xnano%2Fv1.2.3).
 
-??? abstract "Demo"
-
-    [xnano]{data-preview} provides a built-in demo application you can run to get a quick feel for what the library is capable of. You can try it yourself by running the following command:
-
-    === "pip"
+=== "pip"
 
         ```bash title="Run the demo"
         python -m xnano demo
@@ -32,13 +31,13 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "pip"
 
     ```bash title="Install with pip"
-    pip install "xnano>=2.0.0b2"
+    pip install "xnano>=1.2.3,<2"
     ```
 
 === "uv"
 
     ```bash title="Install with uv"
-    uv pip install "xnano>=2.0.0b2"
+    uv pip install "xnano>=1.2.3,<2"
 
     # or add to your project's dependencies
     # uv add xnano
@@ -47,7 +46,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "poetry"
 
     ```bash title="Install with poetry"
-    poetry install "xnano>=2.0.0b2"
+    poetry install "xnano>=1.2.3,<2"
 
     # or add to your project's dependencies
     # poetry add xnano
@@ -56,7 +55,7 @@ You can install [xnano]{data-preview} with your favorite package manager on pyth
 === "conda"
 
     ```bash title="Install with conda"
-    conda install "xnano>=2.0.0b2"
+    conda install "xnano>=1.2.3,<2"
     ```
 
 ## Notetaking Application
@@ -77,7 +76,7 @@ Grids are the centerpiece of the layout and rendering architecture within [xnano
 Additionally, grids provide an easy way to scaffold the entire layout of your application before worrying about their individual content. Let's begin by creating the grid scaffold for our application.
 
 ```python title="Scaffolding the Application" hl_lines="15-32"
-from xnano.deprecated import BaseGrid, Field # (1)!
+from xnano import BaseGrid, Field # (1)!
 
 class Dashboard(BaseGrid):
     """Side/status panel that provides various information about the application and system.
@@ -116,7 +115,7 @@ With placeholder labels filled in, the same layout paints as a single frame:
 
 
 ```python
-from xnano.deprecated import BaseGrid, Field, render
+from xnano import BaseGrid, Field, render
 
 class Dashboard(BaseGrid):
     stats: str = Field(default="0 notes saved")
@@ -144,7 +143,7 @@ xnano is designed to be **interface-agnostic** through the power of the [ratzill
 We can now run our application by using the `Terminal` or `Web` classes.
 
 ```python title="Running the Application"
-from xnano.deprecated import Terminal
+from xnano import Terminal
 
 Terminal().run(NotesApp())
 ```
@@ -157,7 +156,7 @@ Let's now implement the functionality for writing and saving notes.
 
 ```python title="Implementing Note Writing" hl_lines="12-16"
 from dataclasses import dataclass
-from xnano.deprecated import BaseGrid, Field
+from xnano import BaseGrid, Field
 
 class Dashboard(BaseGrid):
     """Side/status panel that provides various information about the application and system.
@@ -235,7 +234,7 @@ The cleanest way to keep a field in sync with your state is `grid_render`, a met
 Let's give the `Dashboard` a status line:
 
 ```python title="A Live Status Panel"
-from xnano.deprecated import Context
+from xnano import Context
 
 class Dashboard(BaseGrid):
     stats: str = Field(default="") # (1)!
@@ -251,7 +250,7 @@ class Dashboard(BaseGrid):
 The `SavedNotes` grid is a list the user browses, so it uses an `Options` component. We refresh its items from state the same way:
 
 ```python title="The Saved-Notes List"
-from xnano.deprecated.components import Options
+from xnano.components import Options
 
 class SavedNotes(BaseGrid):
     notes: Options = Field(
@@ -276,7 +275,7 @@ class SavedNotes(BaseGrid):
 Finally, the `Editor` holds two text `Input`s — a single-line title and a multiline body:
 
 ```python title="The Editor's Inputs"
-from xnano.deprecated.components import Input
+from xnano.components import Input
 
 class Editor(BaseGrid):
     title: Input = Field(
@@ -302,7 +301,7 @@ Nothing types itself — we need to *handle events*. [xnano]{data-preview} expos
 We'll put every command on `NotesApp`, since it owns the whole application:
 
 ```python title="Commands" hl_lines="6 12 20"
-from xnano.deprecated import on_keyboard
+from xnano import on_keyboard
 
 class NotesApp(BaseGrid, direction="horizontal"):
     # ...fields as before...
@@ -408,8 +407,8 @@ Put together, the whole notetaking app is well under a hundred lines:
 ```python title="notes.py"
 import dataclasses
 
-from xnano.deprecated import BaseGrid, Context, Field, Terminal, on_keyboard
-from xnano.deprecated.components import Input, Options
+from xnano import BaseGrid, Context, Field, Terminal, on_keyboard
+from xnano.components import Input, Options
 
 KEYS = (
     "[n] new   [↑/↓] browse   [enter] open   "

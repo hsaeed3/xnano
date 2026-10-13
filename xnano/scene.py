@@ -295,9 +295,16 @@ class Scene:
                 f'{world_height}. Give world_width and world_height in pixels.'
             )
         self.world_width = world_width
+        """The width of the world in pixels. Assign it when the world changes size."""
         self.world_height = world_height
+        """The height of the world in pixels."""
         self.camera = Camera()
+        """What part of the world is on screen."""
         self.solid: bytes | bytearray | None = None
+        """
+        Which world pixels cannot be walked on, or ``None`` when everything can: one byte per
+        pixel, row after row, with a non-zero byte for solid ground.
+        """
         self._sprites: list[Sprite] = []
         self._pixels: Pixels = target.pixels()
         self._background = to_rgb(background)

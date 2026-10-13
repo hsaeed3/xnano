@@ -101,13 +101,6 @@ docs = [
     "mkdocstrings-python",
     "markdown-exec[ansi]",
 ]
-# used by the `xnano.deprecated` API (markdown rendering, syntax highlighting and
-# field validation).
-deprecated = [
-    'markdown-it-py>=3.0.0',
-    'pydantic-core>=2.0.0',
-    'pygments>=2.17.0',
-]
 compare = [
     "prompt-toolkit>=3.0.53",
     "rich>=15.0.0",
@@ -156,26 +149,6 @@ typeCheckingMode = 'standard'
 reportMissingModuleSource = false
 extraPaths = ['scripts', 'tests']
 
-# v1 is a dynamic compatibility port of the former Pydantic/dataclass API.
-# Keep type checking strict for the new packages and exercise v1 through its
-# runtime compatibility suite; its dynamic component/schema adapters cannot
-# be represented faithfully by basedpyright's static model.
-[[tool.basedpyright.executionEnvironments]]
-root = 'xnano/deprecated'
-reportArgumentType = false
-reportAssignmentType = false
-reportAttributeAccessIssue = false
-reportCallIssue = false
-reportGeneralTypeIssues = false
-reportIncompatibleVariableOverride = false
-reportInconsistentOverload = false
-reportInvalidTypeForm = false
-reportInvalidTypeVarUse = false
-reportMissingImports = false
-reportReturnType = false
-reportSelfClsParameterName = false
-
-# Tests pass invalid values on purpose and read optional results they have just asserted.
 [[tool.basedpyright.executionEnvironments]]
 root = 'tests'
 extraPaths = ['tests', 'scripts']
@@ -290,9 +263,6 @@ pydocstyle = { convention = 'google' }
 [tool.ruff.lint.per-file-ignores]
 # Stubs declare `__repr__` so type checkers and the stub contract tests see it.
 '*.pyi' = ['PYI029']
-# v1 preserves the original compatibility layer; its docstrings, `zip` calls and abstract
-# bases predate these rules.
-'xnano/deprecated/**/*.py' = ['D', 'B905', 'B024']
 'tests/**/*.py' = ['D']
 'benchmarks/**/*.py' = ['D', 'T201']
 # the new `xnano` package is empty until it is implemented.
@@ -300,9 +270,7 @@ pydocstyle = { convention = 'google' }
 
 [tool.ruff.lint.isort]
 known-first-party = ["xnano", "xnano_core"]
-# pydantic-core is no longer a dependency installed by default with xnano, but is included
-# in the legacy `xnano.deprecated` submodule.
-known-third-party = ["pydantic_core", "xnano_audio", "xnano_image"]
+known-third-party = ["xnano_audio", "xnano_image"]
 # Automatic spacing (-1):
 # - 1 blank line between the last runtime import and `if TYPE_CHECKING:`
 # - 2 blank lines after the import / TYPE_CHECKING block before top-level

@@ -2,11 +2,26 @@
 title: Legacy v1
 ---
 
-# Legacy v1 documentation
+# xnano v1
 
-These guides describe the original xnano v1 API, now available from `xnano.deprecated`.
-They are retained for existing applications and migration work. New applications
-should use the current core API documented in the main API reference.
+!!! warning "These guides are for xnano v1"
+
+    xnano v1 is no longer part of the current library. The `xnano` package on the `main`
+    branch is completely v2: a terminal you put things on, with no grids or fields.
+    To follow these guides, install the last v1 release:
+
+    ```bash
+    pip install "xnano>=1.2.3,<2"
+    ```
+
+    The v1 source, examples and API reference live on the
+    [`v1` branch](https://github.com/hsaeed3/xnano/tree/v1), and the latest release is
+    [v1.2.3](https://github.com/hsaeed3/xnano/releases/tag/xnano%2Fv1.2.3)
+    ([PyPI](https://pypi.org/project/xnano/1.2.3/)).
+
+The guides below describe the original declarative API, with `BaseGrid`, `Field`, hooks and
+components. They are kept for existing applications. New applications should use the current
+[API reference](../api-reference/index.md).
 
 - [Getting started](getting-started.md)
 - [Concept guide](core-concepts/overview.md)
@@ -14,4 +29,3 @@ should use the current core API documented in the main API reference.
 - [Components](core-concepts/components.md)
 - [Effects](core-concepts/effects.md)
 - [Events and hooks](core-concepts/events.md)
-- [Legacy API reference](api/xnano/index.md)

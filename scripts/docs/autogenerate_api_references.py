@@ -86,9 +86,6 @@ def get_modules(package: str, source_directory: pathlib.Path) -> list[str]:
             else relative_path.parts
         )
         module = ".".join((package, *parts))
-        # The legacy API has its own reference under docs/v1/api.
-        if package == "xnano" and parts and parts[0] == "deprecated":
-            continue
         if any(part.startswith("_") for part in parts) and (
             module not in DOCUMENTED_PRIVATE_MODULES
         ):
