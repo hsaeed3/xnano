@@ -28,9 +28,7 @@ use ratatui_core::layout::{Position, Rect};
 use termprofile::{DetectorSettings, TermProfile};
 
 use crate::cursor::{CursorPlacement, CursorShape};
-#[cfg(unix)]
-use crate::event::EventKind;
-use crate::event::{Event, EventPayload, terminal::from_crossterm};
+use crate::event::{Event, EventKind, EventPayload, terminal::from_crossterm};
 use crate::geometry::Size;
 use crate::grid::{Grid, is_protocol_cell};
 use crate::output_capture::{
@@ -534,6 +532,56 @@ fn pack_origin(area: Rect) -> u32 {
     (u32::from(area.x) << 16) | u32::from(area.y)
 }
 
+/// The terminal went away (its window closed, or its connection broke): ask the session to
+/// end, as a signal would, instead of drawing to a terminal nobody is looking at.
+fn hang_up(sink: &EventSink) {
+    sink(Event::new(EventKind::ExitRequested, EventPayload::None));
+}
+
+/// What waiting for the terminal found.
+enum Wait {
+    /// Input may have arrived, or the time ran out.
+    Ready,
+    /// The terminal was closed from the other side.
+    #[cfg_attr(not(unix), allow(dead_code))]
+    Closed,
+}
+
+/// Wait up to ``timeout`` for the terminal on standard input, and notice when it is closed.
+///
+/// Reading a closed terminal returns end-of-file forever, and the input library then polls
+/// it without end, ignoring its timeout. So the closed state has to be seen here, before the
+/// library is asked to read anything.
+#[cfg(unix)]
+fn wait_for_terminal(timeout: Duration) -> Wait {
+    use rustix::event::{PollFd, PollFlags, Timespec, poll};
+    use rustix::stdio::stdin;
+
+    let input = stdin();
+    let mut descriptors = [PollFd::new(&input, PollFlags::IN)];
+    let limit = Timespec {
+        tv_sec: 0,
+        tv_nsec: timeout.as_nanos() as _,
+    };
+    match poll(&mut descriptors, Some(&limit)) {
+        Ok(count)
+            if count > 0
+                && descriptors[0]
+                    .revents()
+                    .intersects(PollFlags::HUP | PollFlags::ERR | PollFlags::NVAL) =>
+        {
+            Wait::Closed
+        }
+        _ => Wait::Ready,
+    }
+}
+
+#[cfg(not(unix))]
+fn wait_for_terminal(timeout: Duration) -> Wait {
+    std::thread::sleep(timeout.min(Duration::from_millis(5)));
+    Wait::Ready
+}
+
 impl InputReader {
     fn spawn(sink: EventSink, origin: Origin) -> Self {
         let should_stop = Arc::new(AtomicBool::new(false));
@@ -542,8 +590,13 @@ impl InputReader {
             .name("xnano-input".into())
             .spawn(move || {
                 while !flag.load(Ordering::SeqCst) {
-                    match crossterm::event::poll(Duration::from_millis(20)) {
-                        Ok(true) => match crossterm::event::read() {
+                    if matches!(wait_for_terminal(Duration::from_millis(20)), Wait::Closed) {
+                        hang_up(&sink);
+                        break;
+                    }
+                    // The library may hold events it has already read, so drain them all.
+                    while matches!(crossterm::event::poll(Duration::ZERO), Ok(true)) {
+                        match crossterm::event::read() {
                             Ok(event) => {
                                 if let Some(mut event) = from_crossterm(event) {
                                     if let EventPayload::Mouse(mouse) = &mut event.payload {
@@ -554,10 +607,11 @@ impl InputReader {
                                     sink(event);
                                 }
                             }
-                            Err(_) => break,
-                        },
-                        Ok(false) => {}
-                        Err(_) => break,
+                            Err(_) => {
+                                hang_up(&sink);
+                                return;
+                            }
+                        }
                     }
                 }
             })
@@ -980,9 +1034,15 @@ impl TerminalSession {
         } else if self.is_inline() {
             let _ = output.execute(MoveTo(0, self.last_area.bottom()));
         }
-        if self.options.drain_reports_on_exit {
+        // A closed terminal answers nothing, and reading it never ends.
+        if self.options.drain_reports_on_exit
+            && !matches!(wait_for_terminal(Duration::ZERO), Wait::Closed)
+        {
             let deadline = Instant::now() + self.options.drain_timeout;
-            while Instant::now() < deadline && wait_for_input(Duration::from_millis(15)) {
+            while Instant::now() < deadline
+                && !matches!(wait_for_terminal(Duration::ZERO), Wait::Closed)
+                && wait_for_input(Duration::from_millis(15))
+            {
                 let _ = crossterm::event::read();
             }
         }

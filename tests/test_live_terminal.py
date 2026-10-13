@@ -528,3 +528,33 @@ with xnano.open(title='Initial title') as terminal:
     assert screen.finish() == 0
     assert b'Initial title' in screen.raw
     assert b'Changed title' in screen.raw
+
+
+def test_a_program_ends_when_its_terminal_window_closes():
+    """Closing a window must not leave the program spinning on a terminal that is gone."""
+    import os
+    import subprocess
+
+    screen = Screen(
+        command=[
+            sys.executable,
+            '-c',
+            'import xnano\n'
+            'with xnano.open(width=20, height=2) as terminal:\n'
+            "    terminal.add('alive')\n"
+            '    terminal.run()\n',
+        ],
+        rows=6,
+        columns=30,
+    )
+    try:
+        assert screen.wait_for('alive')
+        process = screen.process
+        os.close(screen.master)  # the window disappears under the program
+        screen.master = os.open(os.devnull, os.O_RDWR)
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            pytest.fail('the program kept running after its terminal closed')
+    finally:
+        screen.close()
