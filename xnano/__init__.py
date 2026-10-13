@@ -7,7 +7,7 @@ and `xnano-image` can do, from one small API.
 [`open`][xnano.open] gives you a [`Terminal`][xnano.Terminal]: one surface of cells with a
 clock, a cursor, event hooks, sound and optional typed state. Put anything on it with
 [`Terminal.add`][xnano.Terminal.add]: text, buffers and widgets, images (a
-[`TerminalImage`][xnano_image.TerminalImage] or the path of an image file) and
+[`TerminalImage`][xnano_image.TerminalImage] or the result of [`img`][xnano.img]) and
 compositions. Every number you give it, a position, a size, a color channel, can be an
 expression of time, of the terminal's size or of any other buffer, so a layout is a formula
 that is evaluated again on every frame. Play notes, melodies and sounds with
@@ -49,6 +49,7 @@ from xnano import (
     types,
     widgets,
 )
+from xnano._media import img
 from xnano.composition import Composition, make
 from xnano.context import Context, Frame, Update
 from xnano.loop import Loop
@@ -77,6 +78,7 @@ __all__ = [
     'events',
     'expressions',
     'geometry',
+    'img',
     'make',
     'open',
     'operations',

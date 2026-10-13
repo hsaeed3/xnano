@@ -575,12 +575,13 @@ def cases() -> list[Case]:
         def build() -> Callable[[], object]:
             terminal = xnano.open(offscreen=True, width=width, height=height)
             for row in range(height):
-                terminal.write(f'line {row:<4}' + 'x' * (width - 9), y=row)
+                terminal.add(f'line {row:<4}' + 'x' * (width - 9), y=row)
             counter = [0]
+            number = terminal.add('0', x=2, y=1, layer=1)
 
             def run() -> str:
                 counter[0] += 1
-                terminal.write(f'{counter[0] % 1000:<6}', x=2, y=1)
+                number.text = f'{counter[0] % 1000:<6}'
                 return terminal.output.render().ansi
 
             return run
@@ -937,7 +938,7 @@ def cases() -> list[Case]:
     def effect_frame() -> Callable[[], object]:
         terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
         for row in range(HEIGHT):
-            terminal.write('effects keep running ' * 3, y=row)
+            terminal.add('effects keep running ' * 3, y=row)
         terminal.root.update(
             xnano.effects.Effect.fade_to((255, 0, 0), duration_milliseconds=10_000_000)
         )
@@ -958,11 +959,12 @@ def cases() -> list[Case]:
     def key_round_trip() -> Callable[[], object]:
         terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
         seen = [0]
+        digit = terminal.add('0')
 
         @terminal.hook(when=lambda context: context.keyboard is not None)
         def count(context: xnano.Context) -> None:
             seen[0] += 1
-            terminal.write(str(seen[0] % 10), x=0, y=0)
+            digit.text = str(seen[0] % 10)
 
         event = xnano.events.Event.key_press('a')
 
@@ -1087,7 +1089,7 @@ def _xnano_panel() -> str:
 
 def _open_close_xnano() -> str:
     with xnano.open(offscreen=True, width=WIDTH, height=HEIGHT) as terminal:
-        terminal.write('hello')
+        terminal.add('hello')
         return terminal.output.render().ansi
 
 

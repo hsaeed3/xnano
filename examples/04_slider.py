@@ -12,10 +12,11 @@ with xnano.open(width=40, height=3, mouse='buttons') as terminal:
     terminal.add('─' * 40, y=1)
     thumb = terminal.add('█', x=(0, 39), y=1, layer=1)
     thumb.make_draggable()
+    heading = terminal.add('volume   0%   (drag the block)')
 
     @terminal.loop.on_frame
     def show_value(frame: xnano.Frame) -> None:
         percent = round(thumb.x / 39 * 100)
-        terminal.write(f'volume {percent:>3}%   (drag the block)', y=0)
+        heading.text = f'volume {percent:>3}%   (drag the block)'
 
     terminal.run(quit_on='q')

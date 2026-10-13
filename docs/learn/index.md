@@ -52,6 +52,7 @@ import xnano
 
 with xnano.open(width=30, height=3) as terminal:
     terminal.add('press space', y=1)
+    elapsed = terminal.add('  0.0s')
 
     @terminal.on_key('space')
     def toggle(context: xnano.Context) -> None:
@@ -62,7 +63,7 @@ with xnano.open(width=30, height=3) as terminal:
 
     @terminal.every(1.0)
     def tick(context: xnano.Context) -> None:
-        terminal.write(f'{context.clock.elapsed_seconds:5.1f}s')
+        elapsed.text = f'{context.clock.elapsed_seconds:5.1f}s'
 
     terminal.run(quit_on='q')
 ```

@@ -37,10 +37,11 @@ with xnano.open(width=60, height=10, mouse='motion') as terminal:
     log: collections.deque[str] = collections.deque(maxlen=8)
     terminal.add('events (c: custom event, t t t: triple tap, q: quit)', y=0)
 
+    rows = [terminal.add('', y=row + 2) for row in range(8)]
+
     def show() -> None:
-        for row in range(8):
-            line = log[row] if row < len(log) else ''
-            terminal.write(f'{line:<60}', y=row + 2)
+        for row, placement in enumerate(rows):
+            placement.text = log[row] if row < len(log) else ''
 
     @terminal.hook
     def record(context: xnano.Context) -> None:

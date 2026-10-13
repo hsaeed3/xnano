@@ -34,7 +34,7 @@ def test_xnano_imports_and_draws_without_the_optional_packages():
     result = run(
         """
         with xnano.open(offscreen=True, width=8, height=1) as terminal:
-            terminal.write('ok')
+            terminal.add('ok')
             terminal.output.render()
             print(terminal.output.snapshot().lines()[0])
         """
@@ -76,7 +76,7 @@ def test_showing_an_image_file_says_how_to_install_it(tmp_path):
         f"""
         import pathlib
         with xnano.open(offscreen=True, width=8, height=1) as terminal:
-            terminal.add(pathlib.Path({str(tmp_path / 'x.png')!r}))
+            terminal.img(pathlib.Path({str(tmp_path / 'x.png')!r}))
         """
     )
     assert result.returncode != 0

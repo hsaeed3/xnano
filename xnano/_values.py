@@ -6,7 +6,6 @@ Type aliases shared by the terminal, placements and pixels.
 
 from __future__ import annotations
 
-import os
 from typing import (
     TYPE_CHECKING,
     Literal,
@@ -35,6 +34,7 @@ from xnano_core import (
 if TYPE_CHECKING:
     from xnano_image import TerminalImage
 
+    from xnano._media import ImageBuffer
     from xnano_core import Buffer
 
 # --------------------------------------------------------------------------------------
@@ -106,7 +106,5 @@ class Renderable(Protocol):
         ...
 
 
-Content: TypeAlias = (
-    'Buffer | Renderable | str | bytes | TerminalImage | os.PathLike[str]'
-)
+Content: TypeAlias = 'Buffer | Renderable | str | bytes | TerminalImage | ImageBuffer'
 """What [`Terminal.add`][xnano.Terminal.add] accepts."""

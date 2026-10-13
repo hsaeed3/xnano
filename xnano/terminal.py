@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 from xnano._hooks import _Hooked
 from xnano._host import _Host, _InlineHost, _ThreadHost
-from xnano._media import ImageSource, content_buffer
+from xnano._media import ImageBuffer, ImageSource, content_buffer, img
 from xnano._optional import is_image, require
 from xnano._values import (
     RGB,
@@ -96,26 +96,73 @@ def _is_color(value: object) -> TypeIs[_core.Color | RGB]:
     )
 
 
+def _style_of(
+    style: _core.Style | None,
+    foreground: ColorValue | None,
+    background: ColorValue | None,
+    is_bold: bool,
+    is_dim: bool,
+    is_italic: bool,
+    is_underlined: bool,
+    is_blinking: bool,
+    is_reversed: bool,
+    is_hidden: bool,
+    is_crossed_out: bool,
+) -> _core.Style | None:
+    """A style object and the typed style parameters, as one style (the parameters win)."""
+    if not (
+        foreground is not None
+        or background is not None
+        or any(
+            (
+                is_bold,
+                is_dim,
+                is_italic,
+                is_underlined,
+                is_blinking,
+                is_reversed,
+                is_hidden,
+                is_crossed_out,
+            )
+        )
+    ):
+        return style
+    own = _core.Style(
+        foreground,
+        background,
+        bold=is_bold,
+        dim=is_dim,
+        italic=is_italic,
+        underline=is_underlined,
+        blink=is_blinking,
+        reverse=is_reversed,
+        hidden=is_hidden,
+        crossed_out=is_crossed_out,
+    )
+    return own if style is None else style.patch(own)
+
+
 def _text_content(
     content: Content,
     *,
     style: _core.Style | None,
     title: str | None,
     border: _core.BorderKind | None,
+    border_style: _core.Style | None,
 ) -> Content:
     """Lines of text become one text; a style, title or border makes the text a styled box."""
     if isinstance(content, (list, tuple)) and all(
         isinstance(line, str) for line in content
     ):
         content = '\n'.join(cast('Sequence[str]', content))
-    if style is None and title is None and border is None:
+    if style is None and title is None and border is None and border_style is None:
         return content
     if not isinstance(content, str):
         raise TypeError(
-            'style, title and border decorate text, but this is not text. Add a string (or a '
-            'list of lines), or give the widget its own style and block.'
+            'Colors, text modifiers, title and border decorate text, but this is not text. '
+            'Add a string (or a list of lines), or give the widget its own style and block.'
         )
-    if title is None and border is None:
+    if title is None and border is None and border_style is None:
         buffer = _core.Buffer.with_text(content)
         if style is not None:
             buffer.update(_core.ApplyStyle(style))
@@ -124,7 +171,9 @@ def _text_content(
     return _core.Paragraph(
         content,
         style=style,
-        block=_core.Block(title, border_type=border or 'plain'),
+        block=_core.Block(
+            title, border_type=border or 'plain', border_style=border_style
+        ),
         width=max(max(len(line) for line in lines), len(title or '')) + 2,
         height=len(lines) + 2,
     )
@@ -142,7 +191,7 @@ class Terminal(_Hooked[StateT]):
     you move it, which makes it deterministic; both have the same methods.
 
     What you put on the terminal is declared on the terminal itself:
-    [`add`][xnano.Terminal.add], [`write`][xnano.Terminal.write],
+    [`add`][xnano.Terminal.add], [`img`][xnano.Terminal.img],
     [`hook`][xnano.Terminal.hook] and indexing. Everything else is grouped by what it is:
 
     * ``terminal.clock`` is the [`Clock`][xnano_core.Clock] everything runs on.
@@ -179,7 +228,7 @@ class Terminal(_Hooked[StateT]):
         import xnano
 
         with xnano.open(offscreen=True, width=12, height=2) as terminal:
-            terminal.write('hello', x=1, y=1)
+            terminal.add('hello', x=1, y=1)
             terminal.output.render()
             assert terminal.output.snapshot().lines()[1] == ' hello'
         ```
@@ -534,47 +583,78 @@ class Terminal(_Hooked[StateT]):
         width: Axis | None = None,
         height: Axis | None = None,
         layer: int = 0,
+        lock: bool = False,
         style: _core.Style | None = None,
+        foreground: ColorValue | None = None,
+        background: ColorValue | None = None,
+        is_bold: bool = False,
+        is_dim: bool = False,
+        is_italic: bool = False,
+        is_underlined: bool = False,
+        is_blinking: bool = False,
+        is_reversed: bool = False,
+        is_hidden: bool = False,
+        is_crossed_out: bool = False,
         title: str | None = None,
         border: _core.BorderKind | None = None,
+        border_style: _core.Style | None = None,
     ) -> Placement[StateT]:
         """
-        Put something on the terminal.
+        Put something on the terminal: text, a widget, a buffer or an image.
 
         On a live terminal it appears at once: this only declares it, and the terminal's
         own loop draws it. Anything you leave out is taken from the content: ``x`` and
         ``y`` default to the top-left corner, and ``width`` and ``height`` to the size of
         the content, so ``terminal.add('hello')`` shows five cells of text where it is.
+        Change the text later by assigning the placement's
+        [`text`][xnano.Placement.text].
 
-        An image is converted to cells at the size you give it. With neither ``width``
-        nor ``height`` it keeps its own proportions at its own size, shrunk to fit the
-        terminal. With one of them the other follows the image's proportions, and with
-        both the image fits inside that box. An image sized by a percentage, or by the
-        terminal because you gave no size, is converted again when the terminal is resized.
-        An animated image plays on the terminal's clock.
+        An image is added as an image: a [`TerminalImage`][xnano_image.TerminalImage] or the
+        result of [`img`][xnano.img] (never a file path; see
+        [`Terminal.img`][xnano.Terminal.img]). With neither ``width`` nor ``height`` it keeps
+        its own proportions at its own size, shrunk to fit the terminal. With one of them the
+        other follows the image's proportions, and with both the image fits inside that box. An
+        image sized by a percentage, or by the terminal because you gave no size, is converted
+        again when the terminal is resized, unless it is locked. An animated image plays on the
+        terminal's clock.
 
         Args:
-            content: A [`Buffer`][xnano_core.Buffer] or widget, a string, the
-                bytes of a cell grid, a [`TerminalImage`][xnano_image.TerminalImage] or the
-                path of an image file, or any [`Renderable`][xnano.types.Renderable].
-            x: The column of the left edge: a number of cells, a percentage string, an
-                expression, or a range (``(0, 20)``) that limits how far it may
-                travel. See [`Axis`][xnano.types.Axis].
-            y: The row of the top edge, in the same forms.
+            content: Text (or a list of lines), a [`Buffer`][xnano_core.Buffer] or widget, the
+                bytes of a cell grid, an image, or any [`Renderable`][xnano.types.Renderable].
+            x: The column of the left edge: a number of cells, a percentage string, a word
+                (``'left'``, ``'center'`` or ``'right'``), an expression, or a range
+                (``(0, 20)``) that limits how far it may travel. See
+                [`Axis`][xnano.types.Axis].
+            y: The row of the top edge, in the same forms (``'top'``, ``'center'``,
+                ``'bottom'``).
             width: The width, in the same forms; the content's own width when ``None``.
             height: The height, in the same forms; the content's own height when ``None``.
             layer: Content with a higher layer is drawn over content with a lower one.
-            style: The colors and modifiers of text, such as ``Style('red', bold=True)``.
+            lock: Keep the position and size the content has now, whatever the terminal's
+                size does afterwards: percentages, words and formulas are read once.
+            style: A ready-made [`Style`][xnano.styles.Style] for text. The parameters below
+                are applied over it.
+            foreground: The text color.
+            background: The color behind the text.
+            is_bold: Whether the text is bold.
+            is_dim: Whether the text is dimmed.
+            is_italic: Whether the text is italic.
+            is_underlined: Whether the text is underlined.
+            is_blinking: Whether the text blinks.
+            is_reversed: Whether foreground and background are swapped.
+            is_hidden: Whether the text is hidden.
+            is_crossed_out: Whether the text is struck through.
             title: A title for a box around text.
             border: The kind of border for a box around text: ``'plain'``, ``'rounded'``,
                 ``'double'`` or ``'thick'``. Giving a ``title`` alone draws a plain one.
+            border_style: The style of the box's border.
 
         Returns:
             A [`Placement`][xnano.Placement] to move, resize, listen on or remove.
 
         Raises:
-            TypeError: ``style``, ``title`` or ``border`` was given for content that is not
-                text.
+            TypeError: A color, text modifier, title or border was given for content that is
+                not text, or the content is a file path.
 
         Examples:
             ```python
@@ -584,12 +664,64 @@ class Terminal(_Hooked[StateT]):
                 box = terminal.add('hello', x='50%', y=1)
                 assert box.x == 10
                 assert (box.width, box.height) == (5, 1)
-                terminal.add('Ready', x='center', y='bottom', border='rounded', title='Status')
+                terminal.add(
+                    'Ready',
+                    x='center',
+                    y='bottom',
+                    foreground='green',
+                    is_bold=True,
+                    border='rounded',
+                    title='Status',
+                )
             ```
         """
         self._require_open()
-        content = _text_content(content, style=style, title=title, border=border)
-        buffer, source = self._buffer_for(content, width, height)
+        picture = (
+            content
+            if isinstance(content, ImageBuffer)
+            else ImageBuffer(cast('TerminalImage', content))
+            if is_image(content)
+            else None
+        )
+        text_style = _style_of(
+            style,
+            foreground,
+            background,
+            is_bold,
+            is_dim,
+            is_italic,
+            is_underlined,
+            is_blinking,
+            is_reversed,
+            is_hidden,
+            is_crossed_out,
+        )
+        if picture is not None:
+            if (
+                text_style is not None
+                or title is not None
+                or border is not None
+                or border_style is not None
+            ):
+                raise TypeError(
+                    'Colors, text modifiers, title and border decorate text, but this is not text. '
+                    'Add a string (or a list of lines), or give the image no decoration.'
+                )
+            x = picture.x if x is None else x
+            y = picture.y if y is None else y
+            width = picture.width if width is None else width
+            height = picture.height if height is None else height
+            layer = picture.layer if layer == 0 else layer
+            lock = lock or picture.lock
+        else:
+            content = _text_content(
+                content,
+                style=text_style,
+                title=title,
+                border=border,
+                border_style=border_style,
+            )
+        buffer, source = self._buffer_for(picture or content, width, height)
         buffer.layer = layer
         placement: Placement[StateT] = Placement(self, buffer)
         with self._lock:
@@ -615,15 +747,68 @@ class Terminal(_Hooked[StateT]):
             content.apply_mounted()
         if source is not None and source.animation is not None:
             self._request_frame()
+        if lock:
+            # Read every axis once, so percentages, words and formulas stop following the size.
+            for axis_name in ('x', 'y', 'width', 'height'):
+                placement._set_axis(axis_name, int(getattr(placement, axis_name)))
         return placement
+
+    def img(
+        self,
+        source: TerminalImage | os.PathLike[str] | str | bytes,
+        *,
+        x: Axis | None = None,
+        y: Axis | None = None,
+        width: Axis | None = None,
+        height: Axis | None = None,
+        layer: int = 0,
+        lock: bool = False,
+        fit: Literal['contain', 'cover', 'stretch', 'crop', 'smart'] | None = None,
+        resampling_filter: Literal['nearest', 'bilinear', 'catmull_rom', 'lanczos3']
+        | None = None,
+        background: tuple[int, int, int] = (0, 0, 0),
+        speed: float = 1.0,
+    ) -> Placement[StateT]:
+        """
+        Load an image and add it, in one step: ``terminal.add(xnano.img(...))``.
+
+        See [`img`][xnano.img] for every argument; ``source`` is the path of an image file, its
+        bytes, or an image.
+
+        Examples:
+            ```python
+            import xnano
+            from xnano.image import TerminalImage
+
+            picture = TerminalImage.from_rgba(2, 2, bytes([0, 128, 255, 255]) * 4)
+            with xnano.open(offscreen=True, width=20, height=6) as terminal:
+                placement = terminal.img(picture, x='center', width=8)
+                assert placement.width == 8
+            ```
+        """
+        return self.add(
+            img(
+                source,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                layer=layer,
+                lock=lock,
+                fit=fit,
+                resampling_filter=resampling_filter,
+                background=background,
+                speed=speed,
+            )
+        )
 
     def _buffer_for(
         self, content: Content, width: Axis | None, height: Axis | None
     ) -> tuple[_core.Buffer, ImageSource | None]:
         """Build the buffer that shows ``content``, and the image source that keeps it."""
-        if isinstance(content, os.PathLike) or is_image(content):
+        if isinstance(content, ImageBuffer):
             source = ImageSource.create(
-                cast('TerminalImage | os.PathLike[str]', content),
+                content,
                 width=width,
                 height=height,
                 size=self.size,
@@ -643,26 +828,6 @@ class Terminal(_Hooked[StateT]):
             self._root.detach(placement.buffer)
         except ValueError:
             pass
-
-    def write(
-        self,
-        text: str,
-        *,
-        x: int = 0,
-        y: int = 0,
-        style: _core.Style | None = None,
-    ) -> None:
-        """
-        Write text into the terminal's cells, clipped at the edges.
-
-        Args:
-            text: The text to write.
-            x: The column of the first character.
-            y: The row of the text.
-            style: The style of the text, or ``None`` for the cells' own.
-        """
-        self._require_open()
-        self._root.update(_core.Write(text, x=x, y=y, style=style))
 
     def clear(self) -> None:
         """Erase everything written or drawn directly on the terminal's cells."""
@@ -954,9 +1119,11 @@ class Terminal(_Hooked[StateT]):
         answer = [default]
         done = threading.Event()
 
+        shown = self.add(text + default + ' ', x=x, y=y)
+
         def show() -> None:
             line = text + answer[0]
-            self.write(line + ' ', x=x, y=y)
+            shown.text = line + ' '
             self.cursor.position = (x + len(line), y)
 
         self.cursor.shape = 'bar'
@@ -983,7 +1150,7 @@ class Terminal(_Hooked[StateT]):
         finally:
             edit.remove()
             self.cursor.is_visible = False
-            self.write(' ' * (len(text) + len(answer[0]) + 1), x=x, y=y)
+            shown.remove()
         return answer[0]
 
     def _wait_until(self, done: threading.Event, what: str) -> None:

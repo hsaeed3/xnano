@@ -238,12 +238,14 @@ def main() -> None:
         )
         scene.camera.follow(hero.sprite)
 
+        status_line = terminal.add('', y='bottom', layer=1)
+
         def show_status() -> None:
             state = (
                 'paused (space)' if terminal.is_paused else 'wasd or hold the mouse: walk'
             )
             status = f'x {round(hero.sprite.x):>3} y {round(hero.sprite.y):>3}   {state}   q: quit'
-            terminal.write(status.ljust(terminal.width), y=terminal.height - 1)
+            status_line.text = status
 
         @terminal.loop.on_update(fixed_step_seconds=1 / 60)
         def simulate(update: xnano.Update) -> None:

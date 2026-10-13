@@ -86,9 +86,11 @@ def main() -> None:
         view = terminal.add(' ', width='100%', height=20)
         viewer = Viewer(view.scene(picture.width, picture.height), picture, left, top)
 
+        status_line = terminal.add('', y=20)
+
         def show_status() -> None:
             left, top = viewer.scene.origin
-            terminal.write(f'x {left} y {top} zoom {viewer.zoom}x'.ljust(64), y=20)
+            status_line.text = f'x {left} y {top} zoom {viewer.zoom}x'
 
         @terminal.on_key('left')
         def pan_left(context: xnano.Context) -> None:

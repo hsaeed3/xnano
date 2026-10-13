@@ -48,10 +48,12 @@ with xnano.open(width=40, height=4, state=Settings()) as terminal:
     def mute(context: xnano.Context[Settings]) -> None:
         context.state.is_muted = not context.state.is_muted
 
+    status = terminal.add('', y=1)
+
     @terminal.loop.on_frame
     def show(frame: xnano.Frame) -> None:
         state = terminal.state
         text = 'muted' if state.is_muted else f'volume {state.volume}'
-        terminal.write(f'{text:<20}', y=1)
+        status.text = text
 
     terminal.run(quit_on='q')

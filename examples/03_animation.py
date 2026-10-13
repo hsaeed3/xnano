@@ -18,6 +18,6 @@ with xnano.open(width=60, height=6) as terminal:
 
     @terminal.loop.on_frame
     def count(frame: xnano.Frame) -> None:
-        terminal.write(f'frame {frame.index:<6} {frame.elapsed_seconds:5.1f}s', y=5)
+        counter.text = f'frame {frame.index:<6} {frame.elapsed_seconds:5.1f}s'
 
     terminal.run(quit_on='q')

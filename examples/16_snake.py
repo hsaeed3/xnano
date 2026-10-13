@@ -67,6 +67,7 @@ def main() -> None:
     game = Game()
     with xnano.open(width=WIDTH, height=HEIGHT // 2 + 1) as terminal:
         pixels = terminal.pixels()
+        status_line = terminal.add('', y=HEIGHT // 2, layer=1)
 
         def draw() -> None:
             terminal.clear()
@@ -76,7 +77,7 @@ def main() -> None:
             status = (
                 'crashed: r to restart' if game.is_over else f'score {len(game.body) - 3}'
             )
-            terminal.write(status.ljust(WIDTH), y=HEIGHT // 2)
+            status_line.text = status
 
         @terminal.loop.on_update(fixed_step_seconds=0.12)
         def tick(update: xnano.Update) -> None:

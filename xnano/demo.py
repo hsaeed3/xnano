@@ -220,7 +220,7 @@ class _Demo:
 
     def build_art(self) -> None:
         """Pixel art that refits the window: it is sized by percentages, so it is unlocked."""
-        art = self.terminal.add(ASSETS / 'dusk.png', y=row(0.0) + 1, width='43%', layer=1)
+        art = self.terminal.img(ASSETS / 'dusk.png', y=row(0.0) + 1, width='43%', layer=1)
         # Centered in its panel by formulas of its own size, so a resize needs no code.
         art.x = edge(0.27) + (edge(0.73) - edge(0.27) - Width) // 2
         art.y = row(0.0) + (row(0.6) - row(0.0) - Height) // 2

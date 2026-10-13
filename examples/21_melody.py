@@ -30,11 +30,15 @@ def main() -> None:
         terminal.tempo = 120
         terminal.add('m: play   up/down: tempo   space: pause   q: quit')
 
+        tempo_line = terminal.add('', y=2)
+        dot = terminal.add('○', y=3)
+        beat_line = terminal.add('', x=3, y=3)
+
         def show() -> None:
             state = 'paused' if terminal.is_paused else 'playing'
-            terminal.write(f'{terminal.tempo:>5.0f} beats per minute   {state:<8}', y=2)
-            terminal.write('●' if beats.count % 2 else '○', y=3)
-            terminal.write(f'beat {beats.count}'.ljust(20), x=3, y=3)
+            tempo_line.text = f'{terminal.tempo:>5.0f} beats per minute   {state}'
+            dot.text = '●' if beats.count % 2 else '○'
+            beat_line.text = f'beat {beats.count}'
 
         show()
 

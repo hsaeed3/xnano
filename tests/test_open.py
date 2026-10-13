@@ -99,7 +99,7 @@ class TestOpening:
         terminal.close()
         assert terminal.is_closed and 'closed' in repr(terminal)
         for action in (
-            lambda: terminal.write('x'),
+            lambda: terminal.add('x'),
             lambda: terminal.pixels(),
             lambda: terminal.add('x'),
             lambda: terminal.output.render(),
@@ -109,7 +109,7 @@ class TestOpening:
                 action()
 
     def test_printing_a_terminal_shows_its_last_frame(self, terminal):
-        terminal.write('hi', x=1, y=0)
+        terminal.add('hi', x=1, y=0)
         terminal.output.render()
         assert 'hi' in str(terminal)
 
@@ -145,7 +145,7 @@ class TestFrames:
 
     def test_a_loop_draws_what_it_changes(self, terminal):
         for frame in terminal.loop.frames(count=3):
-            terminal.write(str(frame.index), x=frame.index, y=0)
+            terminal.add(str(frame.index), x=frame.index, y=0)
         terminal.output.render()
         assert terminal.output.snapshot().lines()[0] == '012'
 
@@ -378,7 +378,7 @@ class TestRegions:
             terminal[0, 0] = (1, 2, 3)
 
     def test_clear_erases_the_cells(self, terminal):
-        terminal.write('hello')
+        terminal.add('hello')
         terminal.clear()
         assert terminal[0, 0].symbol == ' '
 
@@ -715,7 +715,7 @@ class TestTime:
     def test_other_threads_hand_work_to_the_loop(self, terminal):
         done = threading.Event()
         threading.Thread(
-            target=lambda: terminal._host.post(lambda: (terminal.write('x'), done.set()))
+            target=lambda: terminal._host.post(lambda: (terminal.add('x'), done.set()))
         ).start()
         assert done.wait(timeout=5) is False or True
         for _ in range(50):
@@ -723,12 +723,12 @@ class TestTime:
             if done.is_set():
                 break
         assert done.is_set()
-        assert terminal[0, 0].symbol == 'x'
+        assert terminal.output.snapshot().lines()[0].startswith('x')
 
 
 class TestCellAccess:
     def test_terminal_cells_are_indexable(self, terminal):
-        terminal.write('ab')
+        terminal.update(Write('ab'))
         assert isinstance(terminal[0, 0], Cell)
         assert terminal[0:2, 0:1][0, 0].symbol == 'a'
 
@@ -795,7 +795,7 @@ class TestAutonomous:
     def test_what_is_declared_appears_at_once(self, autonomous):
         autonomous.add('hi', x=3)
         assert wait_for(lambda: autonomous.output.snapshot().lines()[0] == '   hi')
-        autonomous.write('yo', x=0, y=1)
+        autonomous.add('yo', x=0, y=1)
         assert wait_for(lambda: autonomous.output.snapshot().lines()[1] == 'yo')
         placement = autonomous.add('gone')
         assert wait_for(lambda: 'gone' in autonomous.output.snapshot().lines()[0])
@@ -816,7 +816,7 @@ class TestAutonomous:
         wait_for(lambda: frames)
         before = len(frames)
         for number in range(500):
-            autonomous.write(str(number % 10), x=number % 20, y=2)
+            autonomous.add(str(number % 10), x=number % 20, y=2)
         assert wait_for(lambda: autonomous.output.snapshot().lines()[2] != '')
         assert len(frames) - before < 20
 
@@ -885,7 +885,7 @@ class TestAutonomous:
             context.hook.remove()
 
         autonomous.loop.on_frame(lambda frame: frames.append(frame.index))
-        autonomous.write('x')
+        autonomous.add('x')
         assert wait_for(lambda: len(ticks) >= 3 and once and frames)
 
     def test_frames_paces_the_callers_own_code(self):
@@ -931,7 +931,7 @@ class TestAutonomous:
         terminal._host.post(lambda: terminal._runtime.dispatch(Event.key_press('x')))
         assert wait_for(lambda: terminal.is_closed)
         with pytest.raises(TerminalClosedError, match='ZeroDivisionError'):
-            terminal.write('late')
+            terminal.add('late')
         with pytest.raises(TerminalError, match='ZeroDivisionError') as caught:
             terminal.close()
         cause = caught.value.__cause__
@@ -1152,7 +1152,7 @@ class TestPausingTime:
 
             @terminal.on_key('x')
             def draw(context):
-                terminal.write('drawn')
+                terminal.add('drawn')
 
             terminal.pause()
             terminal.inject(Event.key_press('x'))

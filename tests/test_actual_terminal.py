@@ -43,7 +43,7 @@ def actual_terminal(request: pytest.FixtureRequest) -> Iterator[ActualTerminal]:
     [
         """
 with xnano.open(title='xnano native title') as terminal:
-    terminal.write('NATIVE READY', x=3, y=2)
+    terminal.add('NATIVE READY', x=3, y=2)
     terminal.run()
 print('RESTORED', flush=True)
 """
@@ -89,7 +89,7 @@ def test_inline_region_stays_below_existing_output_and_clears(actual_terminal):
     [
         """
 with xnano.open() as terminal:
-    terminal.write('COLOR READY', style=xnano.styles.Style(foreground=(255, 0, 0)))
+    terminal.add('COLOR READY', style=xnano.styles.Style(foreground=(255, 0, 0)))
     print('CAPTURED OUTPUT', flush=True)
     terminal.run()
 """

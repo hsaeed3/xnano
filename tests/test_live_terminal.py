@@ -199,7 +199,7 @@ with xnano.open(height=3, mouse='buttons') as terminal:
 
     @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
     def pressed(context):
-        context.terminal.write('CLICKED', x=0, y=0)
+        context.terminal.add('CLICKED', x=0, y=0)
 
     terminal.run()
 """
@@ -220,7 +220,7 @@ with xnano.open(width=20, height=3, mouse='buttons') as terminal:
 
     @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
     def pressed(context):
-        context.terminal.write('CLICKED', x=0, y=0)
+        context.terminal.add('CLICKED', x=0, y=0)
 
     terminal.run()
 """,
@@ -263,7 +263,7 @@ with xnano.open(height=2) as terminal:
 
     @terminal.hook(when=lambda context: context.pasted is not None)
     def pasted(context):
-        context.terminal.write('GOT:' + context.pasted, x=0, y=1)
+        context.terminal.add('GOT:' + context.pasted, x=0, y=1)
 
     terminal.run()
 """
@@ -470,7 +470,7 @@ class TestCaptureStatus:
         screen = run(
             """
 with xnano.open(height=2) as terminal:
-    terminal.write('CAPTURED' if terminal.output.is_captured else 'OPEN')
+    terminal.add('CAPTURED' if terminal.output.is_captured else 'OPEN')
     time.sleep(0.8)
 """
         )
@@ -480,7 +480,7 @@ with xnano.open(height=2) as terminal:
         screen = run(
             """
 with xnano.open(height=2, should_capture_output=False) as terminal:
-    terminal.write('CAPTURED' if terminal.output.is_captured else 'OPEN')
+    terminal.add('CAPTURED' if terminal.output.is_captured else 'OPEN')
     time.sleep(0.8)
 """
         )
@@ -495,7 +495,7 @@ with xnano.open(height=2) as terminal:
     try:
         xnano.open(height=2)
     except xnano.errors.TerminalAlreadyOpenError as error:
-        terminal.write('REFUSED', x=0, y=0)
+        terminal.add('REFUSED', x=0, y=0)
     time.sleep(0.8)
 """
         )

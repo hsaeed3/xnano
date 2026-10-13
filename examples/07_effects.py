@@ -35,10 +35,11 @@ EFFECTS = {
 with xnano.open(width=50, height=7) as terminal:
     banner = terminal.add('xnano  xnano  xnano  xnano  xnano\n' * 4, y=3)
     names = itertools.cycle(EFFECTS)
+    heading = terminal.add('')
 
     def show_next_effect() -> None:
         name = next(names)
-        terminal.write(f'effect: {name:<12}', y=0)
+        heading.text = f'effect: {name}'
         banner.buffer.update(EFFECTS[name]())
 
     show_next_effect()

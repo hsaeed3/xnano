@@ -14,7 +14,6 @@ import dataclasses
 import xnano
 from xnano.audio import InstrumentName, TerminalNote, instrument_names
 from xnano.expressions import ParentWidth, Width
-from xnano.styles import Style
 
 root = TerminalNote('C4')
 major_scale = (0, 2, 4, 5, 7, 9, 11, 12)
@@ -34,22 +33,15 @@ class Keyboard:
     """The position of the chosen instrument in the list."""
 
 
-def show_instruments(terminal: xnano.Terminal[Keyboard]) -> None:
-    """Draw every instrument, with the chosen one highlighted."""
-    for position, name in enumerate(INSTRUMENTS):
-        column, row = divmod(position, ROWS)
-        is_chosen = position == terminal.state.index
-        terminal.write(
-            f' {name:<{COLUMN_WIDTH - 3}} ',
-            x=column * COLUMN_WIDTH,
-            y=2 + row,
-            style=Style(reverse=True) if is_chosen else Style(),
-        )
+def instrument_position(index: int) -> tuple[int, int]:
+    """The column and row where an instrument is listed."""
+    column, row = divmod(index, ROWS)
+    return column * COLUMN_WIDTH, 2 + row
 
 
-def say(terminal: xnano.Terminal[Keyboard], text: str) -> None:
-    """Show what was just played."""
-    terminal.write(f'{text:<66}', y=11)
+def instrument_label(name: str) -> str:
+    """The text that lists an instrument."""
+    return f' {name:<{COLUMN_WIDTH - 3}} '
 
 
 def main() -> None:
@@ -58,7 +50,18 @@ def main() -> None:
         terminal.add('up/down: instrument  a-k: scale  space: chord  m: tune  q: quit')
         if not terminal.audio.is_available:
             terminal.add('(no sound device here: the keys still light up)', y=12)
-        show_instruments(terminal)
+        for position, name in enumerate(INSTRUMENTS):
+            column, row = instrument_position(position)
+            terminal.add(instrument_label(name), x=column, y=row)
+        chosen_x, chosen_y = instrument_position(0)
+        highlight = terminal.add(
+            instrument_label(INSTRUMENTS[0]),
+            x=chosen_x,
+            y=chosen_y,
+            layer=1,
+            is_reversed=True,
+        )
+        message = terminal.add('', y=11)
 
         metronome = terminal.add('•', y=10)
         metronome.x = (ParentWidth - Width) * (terminal.audio.beat % 1.0)
@@ -69,8 +72,9 @@ def main() -> None:
         def choose(context: xnano.Context[Keyboard], step: int) -> None:
             state = context.state
             state.index = (state.index + step) % len(INSTRUMENTS)
-            show_instruments(terminal)
-            say(terminal, f'instrument: {INSTRUMENTS[state.index]}')
+            highlight.text = instrument_label(INSTRUMENTS[state.index])
+            highlight.x, highlight.y = instrument_position(state.index)
+            message.text = f'instrument: {INSTRUMENTS[state.index]}'
 
         @terminal.on_key('up')
         def previous(context: xnano.Context[Keyboard]) -> None:
@@ -94,15 +98,15 @@ def main() -> None:
                 return
             note = KEYS[context.keyboard.key]
             instrument = INSTRUMENTS[context.state.index]
-            say(terminal, f'{note.name:<4} on {instrument}')
+            message.text = f'{note.name:<4} on {instrument}'
             if terminal.audio.is_available:
                 terminal.play(note, instrument=instrument)
 
         @terminal.on_key('space')
         def play_chord(context: xnano.Context[Keyboard]) -> None:
             instrument = INSTRUMENTS[context.state.index]
-            say(
-                terminal, f'chord {" ".join(note.name for note in CHORD)} on {instrument}'
+            message.text = (
+                f'chord {" ".join(note.name for note in CHORD)} on {instrument}'
             )
             if terminal.audio.is_available:
                 terminal.play(CHORD, instrument=instrument)
@@ -110,7 +114,7 @@ def main() -> None:
         @terminal.on_key('m')
         def play_tune(context: xnano.Context[Keyboard]) -> None:
             instrument = INSTRUMENTS[context.state.index]
-            say(terminal, f'tune of {len(TUNE)} notes on {instrument}')
+            message.text = f'tune of {len(TUNE)} notes on {instrument}'
             if terminal.audio.is_available:
                 terminal.play(TUNE, instrument=instrument)
 

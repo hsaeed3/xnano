@@ -60,7 +60,7 @@ class TestImages:
     def test_an_image_file_is_shown_from_its_path(self, terminal, tmp_path):
         path = tmp_path / 'red.png'
         solid(6, 4, (255, 0, 0)).save(path)
-        placement = terminal.add(path)
+        placement = terminal.img(path)
         assert (placement.width, placement.height) == (6, 2)
 
     def test_an_image_can_be_composed_before_it_is_placed(self, terminal):
@@ -126,3 +126,55 @@ class TestAnimatedImages:
 def test_content_that_is_not_showable_says_what_is_accepted(terminal):
     with pytest.raises(TypeError, match='an image or the path of an image file'):
         terminal.add(3.5)  # type: ignore[arg-type]
+
+
+class TestImageBuffers:
+    def test_img_makes_a_buffer_that_add_places(self, terminal):
+        picture = xnano.img(solid(16, 16, (1, 2, 3)), width=10, x=2, layer=3)
+        placement = terminal.add(picture)
+        assert (placement.x, placement.width, placement.height) == (2, 10, 5)
+        assert placement.layer == 3
+
+    def test_the_terminal_method_loads_and_adds_in_one_step(self, terminal):
+        placement = terminal.img(solid(16, 16, (1, 2, 3)), width='50%')
+        assert placement.width == 10
+
+    def test_a_path_is_not_resolved_by_add(self, terminal, tmp_path):
+        path = tmp_path / 'red.png'
+        solid(6, 4, (255, 0, 0)).save(path)
+        with pytest.raises(TypeError, match='xnano.img'):
+            terminal.add(path)  # type: ignore[arg-type]
+
+    def test_an_unlocked_image_follows_the_terminal_size(self, terminal):
+        placement = terminal.img(solid(16, 16, (9, 9, 9)), width='50%')
+        terminal._runtime.resize(width=40, height=6)
+        terminal.loop.advance(0.05)
+        assert placement.width == 20
+
+    def test_a_locked_image_keeps_its_size(self, terminal):
+        placement = terminal.img(solid(16, 16, (9, 9, 9)), width='50%', lock=True)
+        terminal._runtime.resize(width=40, height=6)
+        terminal.loop.advance(0.05)
+        assert placement.width == 10
+
+
+class TestTypedStyle:
+    def test_text_takes_its_style_as_parameters(self, terminal):
+        terminal.add('hi', foreground='red', is_bold=True)
+        cell = cell_at(terminal, 0, 0)
+        assert cell.symbol == 'h'
+        assert cell.foreground.to_rgb() is not None or cell.foreground is not None
+
+    def test_a_title_or_border_draws_a_box(self, terminal):
+        placement = terminal.add('hi', border='rounded', title='T')
+        assert (placement.width, placement.height) == (4, 3)
+
+    def test_style_parameters_refuse_non_text(self, terminal):
+        with pytest.raises(TypeError, match='not text'):
+            terminal.add(solid(2, 2, (1, 1, 1)), foreground='red')
+
+    def test_lock_freezes_a_percentage(self, terminal):
+        placement = terminal.add('hi', x='50%', lock=True)
+        terminal._runtime.resize(width=40, height=6)
+        terminal.loop.advance(0.05)
+        assert placement.x == 10

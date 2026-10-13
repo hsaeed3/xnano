@@ -10,7 +10,6 @@ buffer. It does not open a terminal and it does not draw.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeAlias, TypedDict, cast
 
@@ -62,7 +61,9 @@ class BufferArguments(TypedDict, total=False):
     """The style of the buffer."""
 
 
-CompositionContent: TypeAlias = 'type[_core.Buffer] | _core.Buffer | _core.Operation | TerminalImage | os.PathLike[str] | str | None'  # noqa: E501
+CompositionContent: TypeAlias = (
+    'type[_core.Buffer] | _core.Buffer | _core.Operation | TerminalImage | str | None'  # noqa: E501
+)
 """What [`make`][xnano.make] starts from: a widget class, a buffer, text, an operation or nothing."""
 
 
@@ -336,7 +337,8 @@ def make(
     Args:
         content: What the buffer is. A widget class such as ``Gauge`` is constructed
             from the attributes. A buffer is used as it is. A string becomes text. An
-            image (or the path of an image file) becomes cells at the ``width`` and
+            image (from [`img`][xnano.img] or
+            [`TerminalImage`][xnano_image.TerminalImage]) becomes cells at the ``width`` and
             ``height`` given, or at its own size; an animated image shows its first
             frame, and plays when it is added to a terminal. Omit it for an empty
             buffer.
@@ -374,7 +376,7 @@ def _create(
         return content
     if isinstance(content, type) and issubclass(content, _core.Buffer):
         return _construct(content, attributes)
-    if isinstance(content, os.PathLike) or is_image(content):
+    if is_image(content):
         width, height = attributes.get('width'), attributes.get('height')
         buffer, _ = content_buffer(
             cast('Content', content),

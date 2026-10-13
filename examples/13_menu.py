@@ -47,6 +47,7 @@ def main() -> None:
             height=6,
         )
         terminal.add('up/down, enter, q', y=7)
+        result = terminal.add('', y=6)
 
         @terminal.on_key('up')
         def previous(context: xnano.Context[Menu]) -> None:
@@ -62,7 +63,7 @@ def main() -> None:
             if context.state.chosen == 'Quit':
                 context.terminal.stop()
             else:
-                context.terminal.write(f'chose {context.state.chosen:<20}', y=6)
+                result.text = f'chose {context.state.chosen}'
 
         terminal.run(quit_on='q')
 
