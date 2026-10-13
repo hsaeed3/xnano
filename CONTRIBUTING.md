@@ -275,7 +275,13 @@ The Linux/Python 3.13 GitHub Actions job runs the suite and uploads its artifact
 The suite checks title changes, drawing, true color, output capture, alternate-screen
 restoration, inline-region cleanup, keyboard input, paste, and window resizing.
 Regular `make test` leaves native windows closed; `make test-terminal` explicitly
-requires a working native terminal and fails if its dependencies are absent.
+requires a working native terminal and fails if its dependencies are absent. Native test
+windows start minimized; set `XNANO_TERMINAL_VISIBLE=1` to watch them.
+
+The pictures in the README come from the same harness. `make readme-images` runs the
+examples named in `scripts/readme_images.py` in real Kitty windows and saves each window as a
+PNG under `docs/assets/readme/`; run it again after changing one of those examples. The windows
+are shown while they are photographed, because a minimized window is not drawn.
 
 Screens, ANSI styles, sanitized window metadata and logs are saved under
 `.artifacts/terminal/` (override with `XNANO_TERMINAL_ARTIFACTS`). Kitty versions with

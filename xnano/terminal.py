@@ -596,7 +596,7 @@ class Terminal(_Hooked[StateT]):
             self._placements.append(placement)
             if source is not None:
                 self._images[id(buffer)] = source
-        self._root.attach(buffer)
+        self._root.attach(buffer, mode='transparent')
         composed = content.axes() if isinstance(content, Composition) else {}
         for axis, value in composed.items():
             placement._set_axis(axis, value)

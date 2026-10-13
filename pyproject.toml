@@ -71,6 +71,9 @@ image = [
 ]
 # [! END AUTO-VERSIONING]
 
+[project.scripts]
+xnano = 'xnano.__main__:main'
+
 [dependency-groups]
 dev = [
     "maturin>=1.15.0,<2",

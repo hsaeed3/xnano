@@ -51,6 +51,60 @@ There are no base classes to subclass and no layout tree to declare.
 The [`examples/`](./examples) folder has twenty-one runnable programs, from hello world to a
 playable pixel-art world, and `examples/README.md` shows what each one draws.
 
+## See it
+
+Run the demo in your terminal with `python -m xnano` (or the `xnano` command). It opens with an
+animation, then fills the window with live panels that each use a different part of xnano.
+
+![The xnano demo](./docs/assets/readme/demo.png)
+
+Every picture below is a real terminal window running one of the programs in
+[`examples/`](./examples), photographed by `make readme-images`, so each picture and its
+source stay in step.
+
+### A playable world
+
+A pixel-art character, a camera that follows it, collision and a clock you can stop: about
+one screen of code ([`20_world.py`](./examples/20_world.py)).
+
+![A playable pixel-art world](./docs/assets/readme/world.png)
+
+### Pixel art that fits the window
+
+Give an image a percentage and it refits whenever the window is resized, keeping its hard pixel
+edges; give it a number and it is locked. The thumbnail in the corner is locked
+([`24_dusk.py`](./examples/24_dusk.py)). The art is "Mountain at Dusk" by Luis Zuno (ansimuz), CC0.
+
+![Pixel art that refits the window](./docs/assets/readme/dusk.png)
+
+### Pixel art written as text
+
+`from_art` turns a block of characters and a short palette into an image
+([`23_sprites.py`](./examples/23_sprites.py)).
+
+![Sprites written as text](./docs/assets/readme/sprites.png)
+
+### Images and animations
+
+Pan and zoom over a large picture with the arrow keys and `+` / `-`
+([`06_images.py`](./examples/06_images.py)).
+
+![An image viewer](./docs/assets/readme/images.png)
+
+### Sound
+
+Every built-in instrument, playable from the keyboard ([`10_audio.py`](./examples/10_audio.py)),
+and a whole song written as text, played on the beat ([`22_song.py`](./examples/22_song.py)).
+
+![Playing every instrument](./docs/assets/readme/instruments.png)
+![A song written as text](./docs/assets/readme/song.png)
+
+### Widgets
+
+Charts, tables and gauges refreshed from a timer ([`14_dashboard.py`](./examples/14_dashboard.py)).
+
+![A dashboard](./docs/assets/readme/dashboard.png)
+
 ## Install
 
 Install `xnano` with pip or uv. Sound and images are extras, so a program that needs neither

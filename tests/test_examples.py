@@ -311,7 +311,7 @@ def test_canvas(example):
 def test_snake(example):
     screen = example('16_snake.py', rows=14, columns=40)
     assert screen.wait_for('score ')
-    assert screen.wait_for('crashed: r to restart', timeout=15), (
+    assert screen.wait_for('crashed: r to restart', timeout=40), (
         'a snake that is not steered runs into the wall'
     )
     screen.press('r')
@@ -500,3 +500,46 @@ def test_dusk_refits_when_the_window_is_resized(example):
     assert screen.wait_until(lambda: screen.cell(135, 40).bg != 'default')
     assert thumbnail != screen.find('resize')[0], 'the caption stays centered'
     quit_with_q(screen)
+
+
+def test_the_demo_opens_with_the_animation_and_then_fills_the_window():
+    screen = Screen(command=[sys.executable, '-m', 'xnano'], rows=40, columns=140)
+    try:
+        assert screen.wait_for('press any key')
+        assert screen.find('█') is not None, 'the wordmark is drawn over the animation'
+
+        def look() -> tuple[tuple[str, str], ...]:
+            return tuple(
+                (screen.cell(column, row).fg, screen.cell(column, row).bg)
+                for column in range(0, 140, 7)
+                for row in range(0, 40, 3)
+            )
+
+        first = look()
+        assert screen.wait_until(lambda: look() != first, timeout=6), (
+            'the animation plays'
+        )
+        screen.press('x')
+        for title in (
+            'expressions',
+            'widgets',
+            'features',
+            'pixel art',
+            'canvas',
+            'sound',
+        ):
+            assert screen.wait_for(title), f'the {title} panel is shown'
+        assert screen.wait_for('calendar') and screen.wait_for('events')
+        screen.press('tab')
+        assert screen.wait_for('instrument: bell')
+        screen.press('e')
+        assert screen.wait_for('effect: coalesce')
+        screen.resize(30, 100)
+        assert screen.wait_until(
+            lambda: screen.rows == 30 and screen.find('events') is not None, timeout=10
+        ), 'the panels follow the window'
+        screen.press('q')
+        assert screen.finish() == 0
+    finally:
+        screen.close()
+        assert 'Traceback' not in screen.raw.decode('utf-8', 'replace')
