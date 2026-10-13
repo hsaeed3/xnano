@@ -24,7 +24,7 @@ def layout_parent(child_count: int) -> tuple[Buffer, list[Buffer]]:
     return parent, children
 
 
-def test_layout_column_of_50_children(benchmark):
+def test_relayout_column_of_50_children(benchmark):
     parent, children = layout_parent(50)
     layouts = itertools.cycle((Layout('column'), Layout('column', spacing=0, padding=1)))
     # The first layout shrinks every child from the parent's full size, which reallocates
@@ -35,7 +35,7 @@ def test_layout_column_of_50_children(benchmark):
     assert all(child.width in (parent.width, parent.width - 2) for child in children)
 
 
-def test_layout_row_with_size_rules(benchmark):
+def test_relayout_row_with_size_rules(benchmark):
     parent, children = layout_parent(12)
     layouts = itertools.cycle(
         (
