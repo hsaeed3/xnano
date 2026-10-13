@@ -215,22 +215,31 @@ def test_state_drives_the_gauge(example):
 
 
 def test_audio_keys(example):
-    screen = example('10_audio.py', rows=10, columns=70)
-    assert screen.wait_for('scale')
+    screen = example('10_audio.py', rows=14, columns=70)
+    assert screen.wait_for('up/down: instrument')
+    for name in ('piano', 'bell', 'kick', 'cowbell', 'electric_guitar'):
+        assert screen.find(name) is not None, f'{name} is in the list of instruments'
+    assert screen.wait_until(
+        lambda: screen.cell(2, 2).bg != 'default' or screen.cell(2, 2).fg == 'default'
+    )
     screen.press('a')
     assert screen.wait_for('C4   on piano')
-    screen.press('2')
-    assert screen.wait_for('instrument: bell')
+    screen.press('down')
+    assert screen.wait_for('instrument: electric_piano')
+    screen.press('right')
+    assert screen.wait_for('instrument: ')
+    screen.press('left')
+    assert screen.wait_for('instrument: electric_piano')
     screen.press('k')
-    assert screen.wait_for('C5   on bell')
+    assert screen.wait_for('C5   on electric_piano')
     screen.press('d')
-    assert screen.wait_for('E4   on bell'), (
+    assert screen.wait_for('E4   on electric_piano'), (
         'the third key is a major third above the root'
     )
     screen.press(' ')
-    assert screen.wait_for('chord C4 E4 G4 on bell')
+    assert screen.wait_for('chord C4 E4 G4 on electric_piano')
     screen.press('m')
-    assert screen.wait_for('tune of 7 notes on bell')
+    assert screen.wait_for('tune of 7 notes on electric_piano')
     quit_with_q(screen)
 
 
@@ -440,4 +449,54 @@ def test_melody(example):
     assert screen.text == stopped, 'the beat waits while time is stopped'
     screen.press(' ')
     assert screen.wait_for('playing')
+    quit_with_q(screen)
+
+
+def test_song(example):
+    screen = example('22_song.py', rows=9, columns=70)
+    assert screen.wait_for('A song written as text')
+    assert screen.wait_for('beat 2', timeout=6), 'the bars keep time'
+    screen.press(' ')
+    stopped = screen.text
+    screen.settle(1.0)
+    assert screen.text == stopped, 'the song waits while time is stopped'
+    screen.press(' ')
+    assert screen.wait_until(lambda: screen.text != stopped, timeout=6)
+    quit_with_q(screen)
+
+
+def test_sprites(example):
+    screen = example('23_sprites.py', rows=13, columns=84)
+    assert screen.wait_for('pixel art, written as text')
+    for name in ('heart', 'star', 'mushroom', 'slime'):
+        assert screen.wait_for(name)
+    first = (screen.cell(70, 4).fg, screen.cell(70, 4).bg)
+    assert screen.wait_until(
+        lambda: (screen.cell(70, 4).fg, screen.cell(70, 4).bg) != first, timeout=6
+    ), 'the slime animates'
+    assert screen.cell(6, 4).bg != 'default', 'the heart is drawn'
+    quit_with_q(screen)
+
+
+def test_dusk_refits_when_the_window_is_resized(example):
+    screen = example('24_dusk.py', rows=30, columns=100)
+    assert screen.wait_for('resize the window')
+
+    def colored() -> int:
+        return sum(
+            1
+            for row in range(screen.rows)
+            for column in range(screen.columns)
+            if screen.cell(column, row).bg != 'default'
+        )
+
+    assert screen.wait_until(lambda: colored() > screen.rows * screen.columns * 0.9)
+    thumbnail = screen.find('resize')[0]
+    screen.resize(44, 140)
+    assert screen.wait_until(lambda: screen.rows == 44 and colored() > 44 * 140 * 0.9), (
+        'unlocked art fills the larger window'
+    )
+    assert screen.find('resize') is not None
+    assert screen.wait_until(lambda: screen.cell(135, 40).bg != 'default')
+    assert thumbnail != screen.find('resize')[0], 'the caption stays centered'
     quit_with_q(screen)

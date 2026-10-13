@@ -28,6 +28,7 @@ from xnano_audio import (  # noqa: E402
     TerminalNote,
     TerminalSound,
     TerminalTempoMap,
+    instrument_names,
     render_note,
 )
 
@@ -50,6 +51,7 @@ __all__ = [
     'TerminalMelody',
     'TerminalNote',
     'TerminalSound',
+    'instrument_names',
 ]
 
 Playable: TypeAlias = (
@@ -68,10 +70,13 @@ def _parse_melody(text: str, beats_per_minute: float) -> TerminalMelody:
     Read a melody written as text: notes separated by spaces, one beat each.
 
     ``C4`` is a note, ``C4:0.5`` holds it for half a beat, ``C4+E4+G4`` is a chord, and
-    ``rest`` (or ``-``) is a silence, which takes ``:beats`` the same way.
+    ``rest`` (or ``-``) is a silence, which takes ``:beats`` the same way, and ``|`` is a bar line
+    that only makes the text easier to read.
     """
     melody = TerminalMelody(tempo_map=TerminalTempoMap(beats_per_minute))
     for token in text.split():
+        if token == '|':
+            continue
         name, _, length = token.partition(':')
         try:
             beats = float(length) if length else 1.0
@@ -183,8 +188,8 @@ class Audio:
                 [`TerminalMelody`][xnano_audio.TerminalMelody], a note name (``'C#4'``),
                 a MIDI note number (``60``) or a frequency in hertz. Text with spaces is a
                 melody at the terminal's tempo: ``'C4 E4 G4:2 rest C5+E5+G5'`` plays notes one
-                beat each, ``:2`` holds one for two beats, ``rest`` is a silence and ``+``
-                joins a chord.
+                beat each, ``:2`` holds one for two beats, ``rest`` is a silence, ``+``
+                joins a chord and ``|`` marks a bar.
             instrument: A built-in instrument for notes and melodies, from
                 [`instrument_names`][xnano_audio.instrument_names]. A sound is played as
                 it is.

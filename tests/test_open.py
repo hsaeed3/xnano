@@ -1283,3 +1283,14 @@ class TestWaitingForTheUser:
     def test_a_terminal_that_never_moves_cannot_be_waited_on(self, terminal):
         with pytest.raises(TerminalError, match='never moves by itself'):
             terminal.wait_for_key('q')
+
+
+def test_assigning_text_to_a_placement_changes_what_it_shows(terminal):
+    text = terminal.add('hello')
+    text.text = 'bye'
+    assert text.text == 'bye'
+    assert (text.width, text.height) == (3, 1)
+    terminal.loop.step()
+    assert terminal.output.snapshot().lines()[0] == 'bye'
+    text.text = 'one\ntwo'
+    assert (text.width, text.height) == (3, 2)

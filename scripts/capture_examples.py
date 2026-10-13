@@ -54,10 +54,10 @@ SPECS: dict[str, tuple[int, int, float, tuple[str, ...], str]] = {
     ),
     "09_state.py": (6, 50, 1.0, ("up", "up"), "Typed state read by expressions."),
     "10_audio.py": (
-        8,
+        14,
         70,
         1.0,
-        ("a", "2", "k"),
+        ("down", "a", "k"),
         "Notes from the keyboard and a musical clock.",
     ),
     "11_text_field.py": (
@@ -99,6 +99,27 @@ SPECS: dict[str, tuple[int, int, float, tuple[str, ...], str]] = {
         1.5,
         ("up",),
         "A melody written as text, and a metronome on the beat.",
+    ),
+    "22_song.py": (
+        9,
+        70,
+        1.5,
+        (),
+        "A song written as text, played on the musical clock.",
+    ),
+    "23_sprites.py": (
+        13,
+        84,
+        1.5,
+        (),
+        "Pixel art written as text, enlarged with hard edges.",
+    ),
+    "24_dusk.py": (
+        30,
+        100,
+        1.5,
+        (),
+        "Pixel art that fits the window, with a locked thumbnail.",
     ),
     "19_progress.py": (
         6,

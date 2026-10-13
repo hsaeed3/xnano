@@ -323,6 +323,24 @@ class Placement(_Hooked[StateT]):
             cast('Placement[object]', self), world_width, world_height, background
         )
 
+    @property
+    def text(self) -> str:
+        """
+        The text shown, line by line.
+
+        Assign new text to change what a text placement says; the placement grows or shrinks
+        to fit it, unless its size was set.
+        """
+        return self._buffer.text
+
+    @text.setter
+    def text(self, value: str) -> None:
+        self._terminal._require_open()
+        lines = value.split('\n')
+        self.width = max(len(line) for line in lines)
+        self.height = len(lines)
+        self._buffer.update(_core.Fill(' '), _core.Write(value))
+
     def update(self, *operations: _core.Operation) -> None:
         """
         Change this placement's content with operations, such as an effect.

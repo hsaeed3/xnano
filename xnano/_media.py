@@ -10,7 +10,7 @@ import dataclasses
 import math
 import os
 import pathlib
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
 from xnano._optional import is_image, require
@@ -77,10 +77,15 @@ def image_buffer(
         fit = 'stretch'
     else:
         fit = 'contain'
+    resampling_filter = _resampling_filter(image, columns, rows)
     if not image.is_animated:
-        grid = image.to_cell_grid(columns, rows, fit=fit)
+        grid = image.to_cell_grid(
+            columns, rows, fit=fit, resampling_filter=resampling_filter
+        )
         return _core.Buffer.from_cell_grid(grid), None
-    grids = image.to_cell_grids(columns, rows, fit=fit)
+    grids = image.to_cell_grids(
+        columns, rows, fit=fit, resampling_filter=resampling_filter
+    )
     frames = [_core.Buffer.from_cell_grid(grid) for grid in grids]
     buffer = _core.Buffer.from_cell_grid(grids[0])
     animation = ImageAnimation(
@@ -90,6 +95,27 @@ def image_buffer(
         started_milliseconds=elapsed_seconds * 1000.0,
     )
     return buffer, animation
+
+
+# Pictures up to this many pixels on a side are treated as pixel art when they are enlarged.
+_PIXEL_ART_LIMIT = 512
+
+
+def _resampling_filter(
+    image: TerminalImage, columns: int | None, rows: int | None
+) -> Literal['nearest', 'lanczos3']:
+    """
+    ``'nearest'`` when a small picture is enlarged, so pixel art keeps its hard edges, and
+    ``'lanczos3'`` when a picture is shrunk, so photographs stay smooth.
+    """
+    scales = []
+    if columns is not None:
+        scales.append(columns / image.width)
+    if rows is not None:
+        scales.append(rows * _PIXELS_PER_CELL_ROW / image.height)
+    is_small = max(image.width, image.height) <= _PIXEL_ART_LIMIT
+    is_enlarged = bool(scales) and min(scales) >= 1.0
+    return 'nearest' if is_small and is_enlarged else 'lanczos3'
 
 
 def _fitted_size(image: TerminalImage, limit: _core.Size | None) -> tuple[int, int]:
