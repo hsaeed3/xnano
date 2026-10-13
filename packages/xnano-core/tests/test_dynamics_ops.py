@@ -6,8 +6,8 @@ import copy
 
 import pytest
 
-import xnano._xnano_core as core
-from xnano._xnano_core import (
+import xnano_core._xnano_core as core
+from xnano_core._xnano_core import (
     Background,
     Buffer,
     Fill,
@@ -34,8 +34,8 @@ def make_store(value=None):
 
 def test_references_are_public_module_attributes():
     for name in (
-        'X', 'Y', 'Width', 'Height', 'Position', 'Bounds', 'Elapsed', 'Delta',
-        'ElapsedMilliseconds', 'DeltaMilliseconds', 'Frame', 'FPS', 'Focused',
+        'X', 'Y', 'Width', 'Height', 'Position', 'Bounds', 'TimeElapsed', 'TimeDelta',
+        'TimeElapsedMilliseconds', 'TimeDeltaMilliseconds', 'Frame', 'FPS', 'Focused',
         'Running', 'DeviceWidth', 'DeviceHeight', 'BufferSize',
     ):  # fmt: skip
         assert hasattr(core, name), name

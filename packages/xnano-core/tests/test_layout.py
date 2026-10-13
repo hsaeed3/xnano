@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from helpers import rows
 
-from xnano._xnano_core import Buffer, Layout, Resize, SizeRule, Write
+from xnano_core._xnano_core import Buffer, Layout, Resize, SizeRule, Write
 
 
 def make(count: int, **options) -> tuple[Buffer, list[Buffer]]:

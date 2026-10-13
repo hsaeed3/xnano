@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from xnano._xnano_core import (
+from xnano_core._xnano_core import (
     TerminalStateAccessError,
     TerminalStateConflictError,
     TerminalStatePatch,

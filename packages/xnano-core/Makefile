@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 # The Rust crate of this package lives in the workspace root (`../../crates/<crate>`).
 crate = xnano-terminal-core
-module = xnano
+module = xnano_core
 sources = src tests
 
 # This is used to stop uv from rebuilding a .so file through `uv run` invoked operations
@@ -95,7 +95,7 @@ test-coverage: build-coverage
 .PHONY: benchmark  ## Run the benchmarks against an optimized build
 benchmark: .uv
 	$(uv-run-no-sync) maturin develop --uv --release
-	$(uv-run-no-sync) pytest benchmarks --benchmark-enable --benchmark-columns=min,median,max --benchmark-sort=name
+	$(uv-run-no-sync) pytest benchmarks --benchmark-enable --benchmark-columns=min,median,max --benchmark-sort=name --resource-log
 
 .PHONY: all  ## Format, build, lint and test this package
 all: format build-dev lint test

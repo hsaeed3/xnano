@@ -6,8 +6,8 @@ import typing
 
 import pytest
 
-from xnano._xnano_core import Buffer, Runtime, Write
-from xnano._xnano_core import _core_types as core_types
+from xnano_core._xnano_core import Buffer, Runtime, Write
+from xnano_core._xnano_core import _core_types as core_types
 
 
 def test_hook_signals_share_one_base():
@@ -35,7 +35,7 @@ def test_literal_aliases_list_their_values():
 
 
 def test_every_color_and_key_name_is_accepted_by_the_native_parsers():
-    from xnano._xnano_core import Color, KeyBinding
+    from xnano_core._xnano_core import Color, KeyBinding
 
     for name in typing.get_args(core_types.ColorName):
         Color(name)
@@ -98,7 +98,7 @@ def test_event_context_rejects_a_missing_event():
 
 
 def test_unsupported_operations_name_the_recovery():
-    from xnano._xnano_core import UnsupportedOperationError
+    from xnano_core._xnano_core import UnsupportedOperationError
 
     with pytest.raises(UnsupportedOperationError, match='registry.install'):
         core_types.Registry().resolve(Write('x'))

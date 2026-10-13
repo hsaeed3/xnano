@@ -7,7 +7,7 @@ import pathlib
 
 import pytest
 
-import xnano._xnano_core as native
+import xnano_core._xnano_core as native
 
 STUB = pathlib.Path(native.__path__[0]) / '__init__.pyi'
 TREE = ast.parse(STUB.read_text(encoding='utf-8'))
@@ -51,7 +51,7 @@ def test_function_exists(name):
 
 
 def test_the_compiled_module_is_a_package_with_core_types():
-    from xnano._xnano_core import _core_types
+    from xnano_core._xnano_core import _core_types
 
     assert native.__path__ == [str(pathlib.Path(_core_types.__file__).parent)]
 
@@ -64,14 +64,14 @@ def test_every_name_the_stub_imports_from_core_types_exists():
         for alias in node.names
     ]
     assert 'CoreContext' in imported
-    from xnano._xnano_core import _core_types
+    from xnano_core._xnano_core import _core_types
 
     missing = [name for name in imported if not hasattr(_core_types, name)]
     assert not missing, f'_core_types lacks {missing}'
 
 
 def test_the_native_runtime_finds_the_python_objects_it_constructs():
-    from xnano._xnano_core import _core_types
+    from xnano_core._xnano_core import _core_types
 
     with native.Runtime.offscreen(width=10, height=3) as runtime:
         buffer = native.Buffer()

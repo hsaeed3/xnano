@@ -68,8 +68,9 @@ def test_every_runtime_name_is_stubbed():
 
 
 def test_package_exports_match_the_stub():
+    aliases = {'InstrumentName', 'NoteName', 'Pitch', 'is_optimized_build'}
     expected = {*CLASSES, *FUNCTIONS, '__version__'}
-    assert set(xnano_audio.__all__) == expected
+    assert set(xnano_audio.__all__) == expected | aliases
     for name in expected - PROTOCOLS:
         assert getattr(xnano_audio, name) is getattr(native, name)
 

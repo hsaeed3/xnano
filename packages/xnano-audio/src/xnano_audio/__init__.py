@@ -41,6 +41,7 @@ device support, is raised as its subclass `TerminalAudioUnavailableError`.
 
 from typing import Protocol
 
+from xnano_audio._audio_types import InstrumentName, NoteName, Pitch
 from xnano_audio._xnano_audio import (
     TerminalAudioCapabilities,
     TerminalAudioEffect,
@@ -61,6 +62,7 @@ from xnano_audio._xnano_audio import (
     __version__,
     detect_audio_capabilities,
     instrument_names,
+    is_optimized_build,
     is_percussive,
     note_to_hertz,
     render_note,
@@ -90,6 +92,9 @@ class TerminalAudioSource(Protocol):
 
 
 __all__ = (
+    'InstrumentName',
+    'NoteName',
+    'Pitch',
     'TerminalAudioCapabilities',
     'TerminalAudioEffect',
     'TerminalAudioError',
@@ -110,6 +115,7 @@ __all__ = (
     '__version__',
     'detect_audio_capabilities',
     'instrument_names',
+    'is_optimized_build',
     'is_percussive',
     'note_to_hertz',
     'render_note',

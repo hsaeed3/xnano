@@ -6,7 +6,7 @@ import copy
 
 import pytest
 
-from xnano._xnano_core import (
+from xnano_core._xnano_core import (
     Block,
     Border,
     Buffer,

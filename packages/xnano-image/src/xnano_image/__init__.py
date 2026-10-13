@@ -52,6 +52,7 @@ from xnano_image._xnano_image import (
     cell_grid_size,
     cell_grid_to_ansi,
     cell_grid_to_text,
+    is_optimized_build,
 )
 
 __all__ = (
@@ -63,4 +64,5 @@ __all__ = (
     'cell_grid_size',
     'cell_grid_to_ansi',
     'cell_grid_to_text',
+    'is_optimized_build',
 )

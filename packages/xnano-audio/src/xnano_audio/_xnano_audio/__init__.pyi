@@ -56,12 +56,18 @@ capped by their peaks and stay a little quieter. Velocity 1.0 never exceeds a
 peak of 0.9 before effects.
 """
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from os import PathLike
 from types import TracebackType
-from typing import Literal, Protocol, final
+from typing import Literal, Protocol, final, overload
+
+from xnano_audio._audio_types import InstrumentName as InstrumentName
+from xnano_audio._audio_types import NoteName as NoteName
+from xnano_audio._audio_types import Pitch as Pitch
 
 __version__: str
+is_optimized_build: bool
+"""Whether the extension was built with optimizations. Timing a debug build says nothing."""
 
 # Rust binding
 class TerminalAudioError(RuntimeError):
@@ -88,6 +94,13 @@ class TerminalAudioCapabilities:
 
     Returned by
     [`detect_audio_capabilities`][xnano_audio.detect_audio_capabilities].
+
+    Attributes:
+        has_device_support: Whether this build was compiled with audio device support.
+        is_output_available: Whether a default output device exists.
+        is_input_available: Whether a default input device (microphone) exists.
+        output_unavailable_reason: Why output is unavailable, or ``None`` when it is available.
+        input_unavailable_reason: Why input is unavailable, or ``None`` when it is available.
     """
     # Rust binding
     def __repr__(self) -> str: ...
@@ -150,6 +163,9 @@ class TerminalAudioEffect:
 
     Every constructor raises ``ValueError`` when an argument is out of
     range.
+
+    Attributes:
+        name: The effect's kind, such as ``"reverb"``.
     """
     # Rust binding
     def __repr__(self) -> str: ...
@@ -260,6 +276,12 @@ class TerminalSound:
     then inspect it, run it through more effects, or play it with
     [`TerminalAudioPlayer.play_sound`][xnano_audio.TerminalAudioPlayer.play_sound].
     ``len(sound)`` is the number of samples.
+
+    Attributes:
+        sample_rate: Samples per second.
+        duration_milliseconds: Length in milliseconds, including any effect tail.
+        peak: Largest absolute sample value, from 0.0 to 1.0.
+        root_mean_square: Root-mean-square level, from 0.0 to 1.0.
     """
     # Rust binding
     def __repr__(self) -> str: ...
@@ -361,6 +383,15 @@ class TerminalNote:
     is accepted wherever a pitch is. Times are measured in quarter-note beats from the
     start of the melody. Every ``with_*`` method returns a new note.
 
+    Attributes:
+        pitch: The MIDI pitch, 0 to 127.
+        name: The sharp-spelled note name, such as ``"C#4"``.
+        frequency_hertz: The pitch in hertz.
+        velocity: The strength, 0.0 to 1.0.
+        start_beats: Where the note starts, in beats.
+        duration_beats: How long the key is held, in beats.
+        end_beats: Where the note ends, in beats.
+
     Examples:
         ```python
         note = TerminalNote("C4", start_beats=1.0, duration_beats=0.5)
@@ -370,7 +401,7 @@ class TerminalNote:
     # Rust binding
     def __init__(
         self,
-        pitch: int | str,
+        pitch: Pitch,
         *,
         start_beats: float = 0.0,
         duration_beats: float = 1.0,
@@ -380,8 +411,9 @@ class TerminalNote:
         Create a note.
 
         Args:
-            pitch: A MIDI number from 0 to 127 or a note name such as ``"C4"``, ``"c#3"``
-                or ``"Db5"`` (the octave defaults to 4).
+            pitch: A [`NoteName`][xnano_audio.NoteName] such as ``"C4"`` or ``"Db5"``, or a
+                MIDI number from 0 to 127. Lower case and a missing octave (``"c#"`` is
+                ``"C#4"``) are accepted too.
             start_beats: Where the note starts, zero or more.
             duration_beats: How long the key is held, greater than zero.
             velocity: Strength from 0.0 to 1.0.
@@ -396,7 +428,7 @@ class TerminalNote:
         """The MIDI pitch, 0 to 127."""
     # Rust binding
     @property
-    def name(self) -> str:
+    def name(self) -> NoteName:
         """The sharp-spelled note name, such as ``"C#4"``."""
     # Rust binding
     @property
@@ -419,7 +451,7 @@ class TerminalNote:
     def end_beats(self) -> float:
         """Where the note ends, in beats."""
     # Rust binding
-    def with_pitch(self, pitch: int | str) -> TerminalNote:
+    def with_pitch(self, pitch: Pitch) -> TerminalNote:
         """Return the note with another pitch."""
     # Rust binding
     def with_start_beats(self, start_beats: float) -> TerminalNote:
@@ -439,6 +471,69 @@ class TerminalNote:
             ValueError: If the result leaves the MIDI range 0 to 127.
         """
     # Rust binding
+    @overload
+    def __add__(self, other: int) -> TerminalNote: ...
+    @overload
+    def __add__(self, other: TerminalNote | TerminalMelody) -> TerminalMelody: ...
+    def __add__(
+        self, other: int | TerminalNote | TerminalMelody
+    ) -> TerminalNote | TerminalMelody:
+        """
+        Move the note up by semitones, or play something after it.
+
+        ``note + 1`` is the note one semitone higher, ``note + 12`` an octave higher.
+        Adding a note or a melody makes a [`TerminalMelody`][xnano_audio.TerminalMelody]
+        that plays them one after the other.
+
+        Raises:
+            ValueError: If the result leaves the MIDI range 0 to 127.
+
+        Examples:
+            ```python
+            assert TerminalNote("C4") + 1 == TerminalNote("C#4")
+            assert 12 + TerminalNote("C4") == TerminalNote("C5")
+            melody = TerminalNote("C4") + TerminalNote("E4")
+            assert [note.name for note in melody] == ["C4", "E4"]
+            ```
+        """
+    # Rust binding
+    def __radd__(self, other: int) -> TerminalNote: ...
+    # Rust binding
+    @overload
+    def __sub__(self, other: int) -> TerminalNote: ...
+    @overload
+    def __sub__(self, other: TerminalNote) -> int: ...
+    def __sub__(self, other: int | TerminalNote) -> TerminalNote | int:
+        """
+        Move the note down by semitones, or measure the distance to another note.
+
+        Examples:
+            ```python
+            assert TerminalNote("C4") - 1 == TerminalNote("B3")
+            assert TerminalNote("E4") - TerminalNote("C4") == 4
+            ```
+        """
+    # Rust binding
+    def __or__(self, other: TerminalNote | TerminalMelody) -> TerminalMelody:
+        """
+        Play notes together, as a chord.
+
+        Examples:
+            ```python
+            chord = TerminalNote("C4") | TerminalNote("E4") | TerminalNote("G4")
+            assert {note.start_beats for note in chord} == {0.0}
+            ```
+        """
+    # Rust binding
+    def __int__(self) -> int:
+        """The MIDI pitch, so ``int(TerminalNote("C4"))`` is ``60``."""
+    # Rust binding
+    def __lt__(self, other: TerminalNote) -> bool:
+        """Notes are ordered by pitch, then by where they start."""
+    def __le__(self, other: TerminalNote) -> bool: ...
+    def __gt__(self, other: TerminalNote) -> bool: ...
+    def __ge__(self, other: TerminalNote) -> bool: ...
+    # Rust binding
     def __hash__(self) -> int: ...
     # Rust binding
     def __eq__(self, other: object) -> bool: ...
@@ -457,6 +552,11 @@ class TerminalTimeSignature:
 
     Melodies are measured in quarter-note beats, so ``TerminalTimeSignature(6, 8)`` is a
     bar of three beats.
+
+    Attributes:
+        numerator: Beat units per bar.
+        denominator: The note value of one beat unit.
+        bar_length_beats: The length of one bar in quarter-note beats.
     """
     # Rust binding
     def __init__(self, numerator: int = 4, denominator: int = 4) -> None:
@@ -509,6 +609,10 @@ class TerminalTempoMap:
 
     Immutable. Use it to find when a beat sounds on a clock, or which beat a clock
     reading falls on, even across tempo changes.
+
+    Attributes:
+        initial_beats_per_minute: The tempo before any change.
+        changes: The tempo changes as ``(beat, beats_per_minute)`` pairs in beat order.
     """
     # Rust binding
     def __init__(self, beats_per_minute: float = 120.0) -> None:
@@ -587,6 +691,13 @@ class TerminalScheduledNote:
     Returned by [`TerminalMelody.scheduled_between`][xnano_audio.TerminalMelody.scheduled_between].
     Its times are seconds on the clock that was passed in, such as the terminal runtime's
     clock.
+
+    Attributes:
+        note: The note, in melody beats.
+        start_seconds: When the note starts, in seconds on the external clock.
+        duration_seconds: How long the key is held, in seconds.
+        end_seconds: When the key is released, in seconds on the external clock.
+        iteration: How many times the melody had looped before this note, starting at zero.
     """
     # Rust binding
     @property
@@ -629,6 +740,14 @@ class TerminalMelody:
     melody to a [`TerminalSound`][xnano_audio.TerminalSound] with
     [`render`][xnano_audio.TerminalMelody.render]. ``len(melody)`` is the number of notes
     and iterating yields the notes in start order.
+
+    Attributes:
+        notes: The notes in start order.
+        tempo_map: The tempo map.
+        time_signature: The time signature.
+        length_beats: The end of the last note, or the explicit length when that is longer, in
+            beats.
+        duration_seconds: The melody's length in seconds.
 
     Examples:
         ```python
@@ -699,13 +818,13 @@ class TerminalMelody:
         """Return the melody lasting at least ``length_beats``, which adds trailing silence."""
     # Rust binding
     def appended_note(
-        self, pitch: int | str, *, duration_beats: float = 1.0, velocity: float = 0.8
+        self, pitch: Pitch, *, duration_beats: float = 1.0, velocity: float = 0.8
     ) -> TerminalMelody:
         """Return the melody with one note appended at its end."""
     # Rust binding
     def appended_chord(
         self,
-        pitches: list[int | str],
+        pitches: Sequence[Pitch],
         *,
         duration_beats: float = 1.0,
         velocity: float = 0.8,
@@ -752,6 +871,57 @@ class TerminalMelody:
     def layered_with(self, other: TerminalMelody) -> TerminalMelody:
         """Return the notes of both melodies played together, keeping this tempo map."""
     # Rust binding
+    @overload
+    def __add__(self, other: int) -> TerminalMelody: ...
+    @overload
+    def __add__(self, other: TerminalMelody | TerminalNote) -> TerminalMelody: ...
+    def __add__(self, other: int | TerminalMelody | TerminalNote) -> TerminalMelody:
+        """
+        Play something after the melody, or raise it by semitones.
+
+        Examples:
+            ```python
+            phrase = TerminalNote("C4") + TerminalNote("E4")
+            assert len((phrase + TerminalNote("G4")).notes) == 3
+            assert [note.name for note in phrase + 2] == ["D4", "F#4"]
+            ```
+        """
+    # Rust binding
+    def __radd__(self, other: int) -> TerminalMelody: ...
+    # Rust binding
+    def __sub__(self, other: int) -> TerminalMelody:
+        """Lower every note by semitones."""
+    # Rust binding
+    def __mul__(self, other: int) -> TerminalMelody:
+        """
+        Play the melody several times in a row.
+
+        Examples:
+            ```python
+            phrase = TerminalNote("C4") + TerminalNote("E4")
+            assert len((phrase * 3).notes) == 6
+            ```
+        """
+    # Rust binding
+    def __rmul__(self, other: int) -> TerminalMelody: ...
+    # Rust binding
+    def __or__(self, other: TerminalMelody | TerminalNote) -> TerminalMelody:
+        """Play two melodies together."""
+    # Rust binding
+    def __rshift__(self, other: float) -> TerminalMelody:
+        """
+        Start the melody later by beats.
+
+        Examples:
+            ```python
+            phrase = TerminalNote("C4") + TerminalNote("E4")
+            assert [note.start_beats for note in phrase >> 2] == [2.0, 3.0]
+            ```
+        """
+    # Rust binding
+    def __lshift__(self, other: float) -> TerminalMelody:
+        """Start the melody earlier by beats."""
+    # Rust binding
     def notes_between_beats(
         self, from_beats: float, to_beats: float
     ) -> list[TerminalNote]:
@@ -791,7 +961,7 @@ class TerminalMelody:
     # Rust binding
     def render(
         self,
-        instrument: str = 'piano',
+        instrument: InstrumentName = 'piano',
         *,
         sample_rate: int = 44100,
         effects: list[TerminalAudioEffect] | None = None,
@@ -830,11 +1000,11 @@ class TerminalMelody:
     def __deepcopy__(self, memo: object) -> TerminalMelody: ...
 
 # Rust binding
-def instrument_names() -> list[str]:
+def instrument_names() -> list[InstrumentName]:
     """Names of every built-in instrument, in catalog order."""
 
 # Rust binding
-def is_percussive(instrument: str) -> bool:
+def is_percussive(instrument: InstrumentName) -> bool:
     """
     Whether an instrument rings for its own length and ignores duration.
 
@@ -844,7 +1014,7 @@ def is_percussive(instrument: str) -> bool:
     """
 
 # Rust binding
-def note_to_hertz(note: str | float) -> float:
+def note_to_hertz(note: NoteName | float | str) -> float:
     """
     Convert a note to hertz.
 
@@ -862,8 +1032,8 @@ def note_to_hertz(note: str | float) -> float:
 
 # Rust binding
 def render_note(
-    instrument: str,
-    note: str | float | None = None,
+    instrument: InstrumentName,
+    note: NoteName | float | str | None = None,
     *,
     duration_milliseconds: int = 500,
     velocity: float = 0.8,
@@ -917,6 +1087,12 @@ class TerminalAudioPlayer:
     ``at_beat`` starts sample-accurately when the clock reaches that beat, so
     sequences do not drift with Python's timing.
 
+    Attributes:
+        is_clock_running: Whether the clock is currently running.
+        tempo: The clock tempo in beats per minute.
+        beat: The clock position in beats, including the fraction of the current beat.
+        clock_position_milliseconds: The clock position in milliseconds at the current tempo.
+
     Examples:
         ```python
         player = TerminalAudioPlayer()
@@ -948,8 +1124,8 @@ class TerminalAudioPlayer:
     # Rust binding
     def play_note(
         self,
-        instrument: str,
-        note: str | float | None = None,
+        instrument: InstrumentName,
+        note: NoteName | float | str | None = None,
         *,
         duration_milliseconds: int = 500,
         velocity: float = 0.8,
@@ -1075,6 +1251,14 @@ class TerminalMicrophone:
     On macOS the terminal application needs microphone permission; without it
     the stream opens but delivers silence (a level of exactly 0.0).
 
+    Attributes:
+        level: Root-mean-square level of the most recent audio buffer, from 0.0 to 1.0.
+        peak_level: The highest level since opening or the last ``reset_peak_level``.
+        last_error: The most recent stream error reported by the device, if any.
+        sample_rate: The device's sample rate in hertz.
+        channels: The device's channel count.
+        is_open: Whether the stream is still capturing.
+
     Examples:
         ```python
         with TerminalMicrophone() as microphone:
@@ -1170,7 +1354,15 @@ __all__ = (
 
 # Rust binding
 class TerminalPCMFormat:
-    """Explicit PCM sample representation; audio bytes are not cell-grid bytes."""
+    """
+    Explicit PCM sample representation; audio bytes are not cell-grid bytes.
+
+    Attributes:
+        sample_rate: Frames per second.
+        channels: Samples per frame: 1 (mono) or 2 (stereo).
+        sample_type: How each sample is stored: ``'f32le'`` or ``'s16le'``.
+        bytes_per_frame: Bytes in one interleaved frame.
+    """
     # Rust binding
     def __init__(
         self,
@@ -1178,7 +1370,15 @@ class TerminalPCMFormat:
         sample_rate: int = 44100,
         channels: int = 2,
         sample_type: Literal['f32le', 's16le'] = 'f32le',
-    ) -> None: ...
+    ) -> None:
+        """
+        Create a TerminalPCMFormat.
+
+        Args:
+            sample_rate: ``int``. Defaults to ``44100``.
+            channels: ``int``. Defaults to ``2``.
+            sample_type: ``Literal['f32le', 's16le']``. Defaults to ``'f32le'``.
+        """
     # Rust binding
     @property
     def sample_rate(self) -> int:
@@ -1198,7 +1398,12 @@ class TerminalPCMFormat:
 
 # Python implementation
 class TerminalAudioSource(Protocol):
-    """Producer-worker source. Python callbacks never execute on the device thread."""
+    """
+    Producer-worker source. Python callbacks never execute on the device thread.
+
+    Attributes:
+        format: The layout of the bytes ``read`` returns.
+    """
     # Python implementation — Python source protocol consumed by the native audio stream.
     @property
     def format(self) -> TerminalPCMFormat:
@@ -1215,7 +1420,13 @@ class TerminalAudioSource(Protocol):
 
 # Rust binding
 class TerminalAudioStream:
-    """Lazy decoded file source; no whole-file TerminalSound allocation is required."""
+    """
+    Lazy decoded file source; no whole-file TerminalSound allocation is required.
+
+    Attributes:
+        format: The layout of the bytes ``read`` returns.
+        is_closed: Whether the stream has been closed.
+    """
     # Rust binding
     @classmethod
     def open(
@@ -1260,7 +1471,19 @@ class TerminalAudioStream:
 
 # Rust binding
 class TerminalPlayback:
-    """One independently controlled voice or stream; setters are owner-thread commands."""
+    """
+    One independently controlled voice or stream; setters are owner-thread commands.
+
+    Attributes:
+        is_playing: Whether the voice is producing sound (not finished and not paused).
+        is_paused: Whether the voice is paused.
+        volume: Playback gain from 0.0 to 1.0; assigning it ramps over a few milliseconds.
+        pan: Stereo position from -1.0 (left) to 1.0 (right).
+        position_frames: Frames of this voice played so far.
+        buffered_frames: Frames decoded ahead and waiting to play.
+        underruns: How many times the buffer ran dry before the source ended.
+        last_error: The message of the last source failure, or ``None``.
+    """
     # Rust binding
     @property
     def is_playing(self) -> bool:
@@ -1324,6 +1547,12 @@ class TerminalStreamingAudioPlayer:
     Underruns emit silence and increment counters. Source failure affects its
     playback handle rather than the terminal runtime. A failed start closes
     any resources opened by that start operation.
+
+    Attributes:
+        format: The layout of audio this player mixes.
+        is_closed: Whether the player has been closed.
+        sample_position: Output frames consumed; render-ahead frames do not advance this
+            counter.
     """
     # Rust binding
     def __init__(
@@ -1332,7 +1561,15 @@ class TerminalStreamingAudioPlayer:
         format: TerminalPCMFormat | None = None,
         lookahead_milliseconds: int = 300,
         backend: Literal['default', 'null'] = 'default',
-    ) -> None: ...
+    ) -> None:
+        """
+        Create a TerminalStreamingAudioPlayer.
+
+        Args:
+            format: ``TerminalPCMFormat | None``. Defaults to ``None``.
+            lookahead_milliseconds: ``int``. Defaults to ``300``.
+            backend: ``Literal['default', 'null']``. Defaults to ``'default'``.
+        """
     # Rust binding
     @property
     def format(self) -> TerminalPCMFormat:
