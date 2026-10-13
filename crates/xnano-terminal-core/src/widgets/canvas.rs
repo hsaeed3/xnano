@@ -218,7 +218,7 @@ macro_rules! shape_common {
 }
 
 /// A straight line, optionally filled down to a baseline.
-#[pyclass(name = "CanvasLine", module = "xnano._xnano_core")]
+#[pyclass(name = "CanvasLine", module = "xnano_core._xnano_core")]
 pub struct PyCanvasLine {
     pub spec: Shared<LineShape>,
     pub owners: Owners,
@@ -359,7 +359,7 @@ impl PyCanvasLine {
 }
 
 /// An axis-aligned rectangle outline.
-#[pyclass(name = "CanvasRectangle", module = "xnano._xnano_core")]
+#[pyclass(name = "CanvasRectangle", module = "xnano_core._xnano_core")]
 pub struct PyCanvasRectangle {
     pub spec: Shared<RectangleShape>,
     pub owners: Owners,
@@ -483,7 +483,7 @@ impl PyCanvasRectangle {
 }
 
 /// A circle outline.
-#[pyclass(name = "CanvasCircle", module = "xnano._xnano_core")]
+#[pyclass(name = "CanvasCircle", module = "xnano_core._xnano_core")]
 pub struct PyCanvasCircle {
     pub spec: Shared<CircleShape>,
     pub owners: Owners,
@@ -592,7 +592,7 @@ impl PyCanvasCircle {
 }
 
 /// A set of single points.
-#[pyclass(name = "CanvasPoints", module = "xnano._xnano_core")]
+#[pyclass(name = "CanvasPoints", module = "xnano_core._xnano_core")]
 pub struct PyCanvasPoints {
     pub spec: Shared<PointsShape>,
     pub owners: Owners,
@@ -669,7 +669,7 @@ impl PyCanvasPoints {
 }
 
 /// The world map.
-#[pyclass(name = "CanvasMap", module = "xnano._xnano_core")]
+#[pyclass(name = "CanvasMap", module = "xnano_core._xnano_core")]
 pub struct PyCanvasMap {
     pub spec: Shared<MapShape>,
     pub owners: Owners,
@@ -758,7 +758,7 @@ impl PyCanvasMap {
 }
 
 /// Text printed at a position, always on top of the shapes.
-#[pyclass(name = "CanvasLabel", module = "xnano._xnano_core")]
+#[pyclass(name = "CanvasLabel", module = "xnano_core._xnano_core")]
 pub struct PyCanvasLabel {
     pub spec: Shared<LabelShape>,
     pub owners: Owners,
@@ -861,7 +861,7 @@ impl PyCanvasLabel {
 /// Saves what was drawn so far as a layer; the shapes after it draw on top.
 #[pyclass(
     name = "CanvasLayer",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -891,7 +891,7 @@ impl PyCanvasLayer {
 }
 
 /// Switches the marker the following shapes are drawn with.
-#[pyclass(name = "CanvasMarker", module = "xnano._xnano_core")]
+#[pyclass(name = "CanvasMarker", module = "xnano_core._xnano_core")]
 pub struct PyCanvasMarker {
     pub spec: Shared<MarkerShape>,
     pub owners: Owners,
@@ -991,7 +991,7 @@ fn handles_of(
 // ---------------------------------------------------------------------------------------------
 
 /// A coordinate plane that shapes, points and labels are drawn on.
-#[pyclass(name = "Canvas", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Canvas", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyCanvas {
     spec: Shared<CanvasSpec>,
     core: Arc<BufferCore>,

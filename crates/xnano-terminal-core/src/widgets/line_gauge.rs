@@ -113,7 +113,7 @@ fn line_set_arg(value: &Bound<'_, PyAny>) -> PyResult<Dynamic<String>> {
     Ok(setting)
 }
 
-#[pyclass(name = "LineGauge", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "LineGauge", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyLineGauge {
     spec: Shared<LineGaugeSpec>,
     block: std::sync::Mutex<Option<Py<PyAny>>>,

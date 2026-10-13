@@ -40,7 +40,7 @@ use crate::expressions::{ExpressionKind, PyExpression, PyValue};
 use crate::surface::{BufferExt, PyBuffer, PySurface, SurfaceEnv, ext_of, nudge};
 
 /// The base class of every retained widget.
-#[pyclass(name = "Widget", module = "xnano._xnano_core", extends = PyBuffer, subclass)]
+#[pyclass(name = "Widget", module = "xnano_core._xnano_core", extends = PyBuffer, subclass)]
 pub struct PyWidget;
 
 /// Where a widget sits and how big it is when it is created.
@@ -336,7 +336,7 @@ pub fn watch_arg(value: Option<&Bound<'_, PyAny>>) -> PyResult<Vec<Arc<Expr>>> {
         let item = item?;
         let Ok(expression) = item.extract::<PyRef<'_, PyExpression>>() else {
             return Err(PyTypeError::new_err(
-                "watch takes expressions such as a state value or Elapsed, not plain values",
+                "watch takes expressions such as a state value or TimeElapsed, not plain values",
             ));
         };
         match &expression.kind {

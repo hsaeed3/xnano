@@ -69,7 +69,7 @@ impl Painter for LivePainter {
     }
 }
 
-#[pyclass(name = "Live", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Live", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyLive {
     spec: Shared<LiveSpec>,
     watch: Mutex<Vec<Py<PyAny>>>,

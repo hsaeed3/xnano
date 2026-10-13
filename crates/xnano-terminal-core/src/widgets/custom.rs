@@ -72,7 +72,7 @@ impl Painter for CustomPainter {
                 options.set_item("target", scratch)?;
                 options.set_item("runtime", runtime)?;
                 let context = py
-                    .import("xnano._xnano_core._core_types")?
+                    .import("xnano_core._xnano_core._core_types")?
                     .getattr("EvaluationContext")?
                     .call((), Some(&options))?;
                 render.bind(py).call1((context, scratch))?;
@@ -82,7 +82,7 @@ impl Painter for CustomPainter {
     }
 }
 
-#[pyclass(name = "CustomWidget", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "CustomWidget", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyCustomWidget {
     spec: Shared<CustomSpec>,
     watch: Mutex<Vec<Py<PyAny>>>,

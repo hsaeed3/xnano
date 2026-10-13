@@ -5,6 +5,8 @@
 
 use std::hash::{Hash, Hasher};
 
+use pyo3::IntoPyObjectExt;
+use pyo3::basic::CompareOp;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyInt, PyIterator, PyList, PyString};
@@ -49,12 +51,28 @@ fn pitch_of(value: &Bound<'_, PyAny>) -> PyResult<u8> {
     name = "TerminalNote",
     module = "xnano_audio._xnano_audio",
     frozen,
-    eq,
     from_py_object
 )]
 #[derive(Clone, PartialEq)]
 pub struct PyNote {
     pub(crate) inner: Note,
+}
+
+impl PyNote {
+    fn shifted_by(&self, semitones: i32) -> PyResult<Self> {
+        self.inner
+            .transposed(semitones)
+            .map(|inner| Self { inner })
+            .map_err(value_error)
+    }
+}
+
+/// A whole number of semitones, when ``value`` is one (and not a bool).
+fn semitones_of(value: &Bound<'_, PyAny>) -> Option<i32> {
+    if value.is_instance_of::<PyBool>() || !value.is_instance_of::<PyInt>() {
+        return None;
+    }
+    value.extract().ok()
 }
 
 #[pymethods]
@@ -168,6 +186,97 @@ impl PyNote {
             .transposed(semitones)
             .map(|inner| Self { inner })
             .map_err(value_error)
+    }
+
+    /// ``note + 1`` is the note one semitone higher, ``note + other_note`` a melody that plays
+    /// one after the other, and ``note + melody`` a melody that starts with the note.
+    fn __add__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        if let Some(semitones) = semitones_of(other) {
+            return self.shifted_by(semitones)?.into_py_any(py);
+        }
+        if let Ok(note) = other.extract::<PyNote>() {
+            let first = PyMelody::of(self.inner)?;
+            return PyMelody::wrap(first.inner.followed_by(&PyMelody::of(note.inner)?.inner))?
+                .into_py_any(py);
+        }
+        if let Ok(melody) = other.extract::<PyMelody>() {
+            return PyMelody::wrap(PyMelody::of(self.inner)?.inner.followed_by(&melody.inner))?
+                .into_py_any(py);
+        }
+        Ok(py.NotImplemented())
+    }
+
+    fn __radd__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        match semitones_of(other) {
+            Some(semitones) => self.shifted_by(semitones)?.into_py_any(py),
+            None => Ok(py.NotImplemented()),
+        }
+    }
+
+    /// ``note - 1`` is the note one semitone lower, and ``note - other_note`` the number of
+    /// semitones between them.
+    fn __sub__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        if let Some(semitones) = semitones_of(other) {
+            return self.shifted_by(-semitones)?.into_py_any(py);
+        }
+        if let Ok(note) = other.extract::<PyNote>() {
+            return (i32::from(self.inner.pitch) - i32::from(note.inner.pitch)).into_py_any(py);
+        }
+        Ok(py.NotImplemented())
+    }
+
+    /// ``note | other`` plays the notes together.
+    fn __or__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        if let Ok(note) = other.extract::<PyNote>() {
+            return PyMelody::wrap(
+                PyMelody::of(self.inner)?
+                    .inner
+                    .layered_with(&PyMelody::of(note.inner)?.inner),
+            )?
+            .into_py_any(py);
+        }
+        if let Ok(melody) = other.extract::<PyMelody>() {
+            return PyMelody::wrap(PyMelody::of(self.inner)?.inner.layered_with(&melody.inner))?
+                .into_py_any(py);
+        }
+        Ok(py.NotImplemented())
+    }
+
+    /// The MIDI pitch, so ``int(note)`` works.
+    fn __int__(&self) -> u8 {
+        self.inner.pitch
+    }
+
+    /// Notes are equal when everything about them is; they are ordered by pitch, then by
+    /// where they start.
+    fn __richcmp__(
+        &self,
+        py: Python<'_>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let Ok(other) = other.extract::<PyNote>() else {
+            return Ok(py.NotImplemented());
+        };
+        let (a, b) = (&self.inner, &other.inner);
+        let key = |note: &Note| {
+            (
+                note.pitch,
+                note.start_beats,
+                note.duration_beats,
+                f64::from(note.velocity),
+            )
+        };
+        let ordering = key(a).partial_cmp(&key(b));
+        let result = match op {
+            CompareOp::Eq => self == &other,
+            CompareOp::Ne => self != &other,
+            CompareOp::Lt => ordering.is_some_and(std::cmp::Ordering::is_lt),
+            CompareOp::Le => ordering.is_some_and(std::cmp::Ordering::is_le),
+            CompareOp::Gt => ordering.is_some_and(std::cmp::Ordering::is_gt),
+            CompareOp::Ge => ordering.is_some_and(std::cmp::Ordering::is_ge),
+        };
+        result.into_py_any(py)
     }
 
     fn __hash__(&self) -> u64 {
@@ -448,6 +557,16 @@ pub struct PyMelody {
 }
 
 impl PyMelody {
+    /// A melody that plays one note.
+    fn of(note: Note) -> PyResult<Self> {
+        Self::wrap(Melody::new(
+            vec![note],
+            TempoMap::default(),
+            TimeSignature::default(),
+            0.0,
+        ))
+    }
+
     fn wrap(result: Result<Melody, MelodyError>) -> PyResult<Self> {
         result.map(|inner| Self { inner }).map_err(value_error)
     }
@@ -680,6 +799,80 @@ impl PyMelody {
             samples: samples.into(),
             sample_rate,
         })
+    }
+
+    /// ``melody + other_melody`` (or a note) plays one after the other, and ``melody + 2``
+    /// raises every note by two semitones.
+    fn __add__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        if let Some(semitones) = semitones_of(other) {
+            return Self::wrap(self.inner.transposed(semitones))?.into_py_any(py);
+        }
+        if let Ok(melody) = other.extract::<PyMelody>() {
+            return Self::wrap(self.inner.followed_by(&melody.inner))?.into_py_any(py);
+        }
+        if let Ok(note) = other.extract::<PyNote>() {
+            return Self::wrap(self.inner.followed_by(&Self::of(note.inner)?.inner))?
+                .into_py_any(py);
+        }
+        Ok(py.NotImplemented())
+    }
+
+    fn __radd__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        match semitones_of(other) {
+            Some(semitones) => Self::wrap(self.inner.transposed(semitones))?.into_py_any(py),
+            None => Ok(py.NotImplemented()),
+        }
+    }
+
+    /// ``melody - 2`` lowers every note by two semitones.
+    fn __sub__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        match semitones_of(other) {
+            Some(semitones) => Self::wrap(self.inner.transposed(-semitones))?.into_py_any(py),
+            None => Ok(py.NotImplemented()),
+        }
+    }
+
+    /// ``melody * 4`` plays the melody four times in a row.
+    fn __mul__(&self, py: Python<'_>, count: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        if count.is_instance_of::<PyBool>() {
+            return Ok(py.NotImplemented());
+        }
+        match count.extract::<usize>() {
+            Ok(count) => Self::wrap(self.inner.repeated(count))?.into_py_any(py),
+            Err(_) => Ok(py.NotImplemented()),
+        }
+    }
+
+    fn __rmul__(&self, py: Python<'_>, count: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        self.__mul__(py, count)
+    }
+
+    /// ``melody | other`` plays both together.
+    fn __or__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        if let Ok(melody) = other.extract::<PyMelody>() {
+            return Self::wrap(self.inner.layered_with(&melody.inner))?.into_py_any(py);
+        }
+        if let Ok(note) = other.extract::<PyNote>() {
+            return Self::wrap(self.inner.layered_with(&Self::of(note.inner)?.inner))?
+                .into_py_any(py);
+        }
+        Ok(py.NotImplemented())
+    }
+
+    /// ``melody >> 2`` starts the melody two beats later.
+    fn __rshift__(&self, py: Python<'_>, beats: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        match beats.extract::<f64>() {
+            Ok(beats) => Self::wrap(self.inner.shifted(beats))?.into_py_any(py),
+            Err(_) => Ok(py.NotImplemented()),
+        }
+    }
+
+    /// ``melody << 2`` starts the melody two beats earlier.
+    fn __lshift__(&self, py: Python<'_>, beats: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        match beats.extract::<f64>() {
+            Ok(beats) => Self::wrap(self.inner.shifted(-beats))?.into_py_any(py),
+            Err(_) => Ok(py.NotImplemented()),
+        }
     }
 
     fn __len__(&self) -> usize {

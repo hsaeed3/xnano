@@ -11,7 +11,7 @@ use xnano_terminal_runtime::painter::Spec;
 use xnano_terminal_runtime::widgets::Shared;
 use xnano_terminal_runtime::widgets::calendar::{CalendarSpec, make_date};
 
-#[pyclass(name = "Calendar", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Calendar", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyCalendar {
     spec: Shared<CalendarSpec>,
     block: Option<Py<PyAny>>,

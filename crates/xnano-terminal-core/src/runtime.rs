@@ -16,7 +16,7 @@ use xnano_terminal_runtime::clock::{Clock, ClockSource, SimulationClock};
 use xnano_terminal_runtime::device::{DeviceModes, KeyboardInfo, Status, TerminalInfo};
 use xnano_terminal_runtime::event::{Event, EventKind, EventPayload, KeyKind, MouseKind};
 use xnano_terminal_runtime::geometry::{Rectangle, Size};
-use xnano_terminal_runtime::grid::{BlitMode, Bounds, Grid};
+use xnano_terminal_runtime::grid::{Bounds, Grid, PasteMode};
 use xnano_terminal_state::Store;
 
 use crate::clocks::{PyClock, PySimulationClock};
@@ -149,6 +149,7 @@ struct Config {
     backend: Backend,
     frame_interval_milliseconds: u64,
     inline_height: Option<u16>,
+    inline_width: Option<u16>,
     should_handle_exit_signals: bool,
     options: Option<PyTerminalOptions>,
 }
@@ -167,7 +168,7 @@ struct HookRun {
     should_propagate: bool,
 }
 
-#[pyclass(name = "StepResult", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "StepResult", module = "xnano_core._xnano_core", frozen)]
 pub struct PyStepResult {
     events_processed: usize,
     updates_processed: usize,
@@ -208,7 +209,7 @@ impl PyStepResult {
     }
 }
 
-#[pyclass(name = "FrameMetrics", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "FrameMetrics", module = "xnano_core._xnano_core", frozen)]
 pub struct PyFrameMetrics {
     frames: u64,
     last_microseconds: u64,
@@ -233,10 +234,11 @@ impl PyFrameMetrics {
     }
 }
 
-#[pyclass(name = "FrameSnapshot", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "FrameSnapshot", module = "xnano_core._xnano_core", frozen)]
 pub struct PyFrameSnapshot {
-    grid: Grid,
+    grid: Arc<Grid>,
     revision: u64,
+    cursor: Option<xnano_terminal_runtime::cursor::CursorPlacement>,
 }
 
 #[pymethods]
@@ -255,12 +257,14 @@ impl PyFrameSnapshot {
 
     #[getter]
     fn cursor_position(&self) -> Option<PyPoint> {
-        None
+        self.cursor.map(|cursor| PyPoint {
+            inner: cursor.position,
+        })
     }
 
     #[getter]
     fn is_cursor_visible(&self) -> bool {
-        false
+        self.cursor.is_some()
     }
 
     #[getter]
@@ -285,7 +289,7 @@ impl PyFrameSnapshot {
 }
 
 /// A runtime's events as a synchronous and asynchronous iterator.
-#[pyclass(name = "EventStream", module = "xnano._xnano_core", unsendable)]
+#[pyclass(name = "EventStream", module = "xnano_core._xnano_core", unsendable)]
 pub struct PyEventStream {
     runtime: Py<PyRuntime>,
     pending: Arc<Mutex<VecDeque<Event>>>,
@@ -329,7 +333,7 @@ impl PyEventStream {
 
     fn __anext__<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
         let py = slf.py();
-        py.import("xnano._xnano_core._core_types")?
+        py.import("xnano_core._xnano_core._core_types")?
             .getattr("_next_event")?
             .call1((slf,))
     }
@@ -346,7 +350,7 @@ impl PyEventStream {
 }
 
 /// A handle that reaches a runtime from any thread.
-#[pyclass(name = "Waker", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "Waker", module = "xnano_core._xnano_core", frozen)]
 pub struct PyWaker {
     shared: Arc<RuntimeShared>,
 }
@@ -368,7 +372,7 @@ impl PyWaker {
 
 #[pyclass(
     name = "Runtime",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     subclass,
     unsendable,
     weakref
@@ -377,6 +381,7 @@ pub struct PyRuntime {
     shared: Arc<RuntimeShared>,
     config: Config,
     registry: RefCell<Option<Py<PyAny>>>,
+    title: RefCell<Option<String>>,
     mounts: RefCell<Vec<Mount>>,
     known: RefCell<HashMap<u64, Py<PyBuffer>>>,
     updates: RefCell<Vec<UpdateRegistration>>,
@@ -387,13 +392,16 @@ pub struct PyRuntime {
     tick: RefCell<Tick>,
     streams: RefCell<Vec<Weak<Mutex<VecDeque<Event>>>>>,
     stores: RefCell<Vec<Arc<Store>>>,
+    /// Functions that provide the values of named external expressions.
+    externals: RefCell<HashMap<String, Py<PyAny>>>,
     /// State changes that watched branches published since the last step.
     pending_state_changes: Arc<Mutex<Vec<Arc<xnano_terminal_state::store::Change>>>>,
     #[cfg(feature = "terminal")]
     session: RefCell<Option<xnano_terminal_runtime::terminal::TerminalSession>>,
     is_open: Cell<bool>,
     opened_by_run: Cell<bool>,
-    last_frame: RefCell<Option<Grid>>,
+    last_frame: RefCell<Option<Arc<Grid>>>,
+    last_cursor: Cell<Option<xnano_terminal_runtime::cursor::CursorPlacement>>,
     frame_revision: Cell<u64>,
     last_rendered_stamp: Cell<u64>,
     last_present_seconds: Cell<f64>,
@@ -447,6 +455,11 @@ impl PyRuntime {
 
     fn now(&self) -> f64 {
         self.shared.clock.elapsed_seconds()
+    }
+
+    /// The time frames are paced by: it keeps running while the clock is paused.
+    fn pace_now(&self) -> f64 {
+        self.shared.clock.real_seconds()
     }
 
     fn link_object(slf: &Bound<'_, Self>) -> PyResult<()> {
@@ -519,7 +532,7 @@ impl PyRuntime {
         extras: &Bound<'py, PyDict>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let py = slf.py();
-        let module = py.import("xnano._xnano_core._core_types")?;
+        let module = py.import("xnano_core._xnano_core._core_types")?;
         let class = match (kind, extras.contains("fixed_step")?) {
             (ContextKind::Event, _) => module.getattr("EventContext")?,
             (ContextKind::Frame, _) => module.getattr("FrameContext")?,
@@ -606,7 +619,7 @@ impl PyRuntime {
         match outcome {
             Ok(_) => {}
             Err(error) => {
-                let signals = py.import("xnano._xnano_core._core_types")?;
+                let signals = py.import("xnano_core._xnano_core._core_types")?;
                 let value = error.value(py);
                 if value.is_instance(&signals.getattr("Skip")?)? {
                     run.ran = true;
@@ -1234,6 +1247,22 @@ impl PyRuntime {
         stamp > self.last_rendered_stamp.get()
     }
 
+    /// Seconds until a frame that is wanted falls due, on a real clock.
+    ///
+    /// `None` when no frame is wanted, when it is due now, and on a manual clock, where
+    /// frames are never paced.
+    fn frame_wait(&self, py: Python<'_>) -> Option<f64> {
+        if self.shared.clock.source() != ClockSource::Monotonic
+            || !self.has_rendered.get()
+            || !self.needs_frame_now(py)
+        {
+            return None;
+        }
+        let frame = self.config.frame_interval_milliseconds as f64 / 1000.0;
+        let since = self.pace_now() - self.last_present_seconds.get();
+        (since < frame).then_some(frame - since)
+    }
+
     /// Seconds until the next time-based work, on the runtime clock.
     fn next_deadline(&self, py: Python<'_>) -> Option<f64> {
         let now = self.now();
@@ -1279,7 +1308,7 @@ impl PyRuntime {
             consider(frame);
         }
         if self.shared.clock.source() == ClockSource::Monotonic && self.needs_frame_now(py) {
-            let since = now - self.last_present_seconds.get();
+            let since = self.pace_now() - self.last_present_seconds.get();
             consider((frame - since).max(0.0));
         }
         best
@@ -1290,8 +1319,8 @@ impl PyRuntime {
 impl PyRuntime {
     #[new]
     #[pyo3(signature = (*, backend = None, width = 80, height = 24, tick_interval_milliseconds = None,
-        frame_interval_milliseconds = 16, inline_height = None, should_handle_exit_signals = true,
-        options = None, clock = None, registry = None))]
+        frame_interval_milliseconds = 16, inline_height = None, inline_width = None,
+        should_handle_exit_signals = true, options = None, clock = None, registry = None))]
     fn new(
         backend: Option<&str>,
         width: i32,
@@ -1299,6 +1328,7 @@ impl PyRuntime {
         tick_interval_milliseconds: Option<i64>,
         frame_interval_milliseconds: i64,
         inline_height: Option<u16>,
+        inline_width: Option<u16>,
         should_handle_exit_signals: bool,
         options: Option<PyTerminalOptions>,
         clock: Option<&PyClock>,
@@ -1370,6 +1400,7 @@ impl PyRuntime {
             }),
             input: Mutex::new(InputData::default()),
             router: Mutex::new(RouterData::default()),
+            cursor: Mutex::new(crate::cursor::CursorData::default()),
             queue: EventQueue::default(),
             motion: Mutex::new(Motion::default()),
             metrics: Mutex::new(Metrics::default()),
@@ -1388,10 +1419,12 @@ impl PyRuntime {
                 backend,
                 frame_interval_milliseconds: frame_interval,
                 inline_height,
+                inline_width,
                 should_handle_exit_signals,
                 options,
             },
             registry: RefCell::new(registry),
+            title: RefCell::default(),
             mounts: RefCell::default(),
             known: RefCell::default(),
             updates: RefCell::default(),
@@ -1405,12 +1438,14 @@ impl PyRuntime {
             }),
             streams: RefCell::default(),
             stores: RefCell::default(),
+            externals: RefCell::default(),
             pending_state_changes: Arc::default(),
             #[cfg(feature = "terminal")]
             session: RefCell::new(None),
             is_open: Cell::new(false),
             opened_by_run: Cell::new(false),
             last_frame: RefCell::new(None),
+            last_cursor: Cell::new(None),
             frame_revision: Cell::new(0),
             last_rendered_stamp: Cell::new(0),
             last_present_seconds: Cell::new(-1.0),
@@ -1423,12 +1458,14 @@ impl PyRuntime {
 
     #[classmethod]
     #[pyo3(signature = (*, tick_interval_milliseconds = None, frame_interval_milliseconds = 16,
-        inline_height = None, should_handle_exit_signals = true, options = None, registry = None))]
+        inline_height = None, inline_width = None, should_handle_exit_signals = true, options = None,
+        registry = None))]
     fn live(
         cls: &Bound<'_, PyType>,
         tick_interval_milliseconds: Option<i64>,
         frame_interval_milliseconds: i64,
         inline_height: Option<u16>,
+        inline_width: Option<u16>,
         should_handle_exit_signals: bool,
         options: Option<PyTerminalOptions>,
         registry: Option<Py<PyAny>>,
@@ -1439,6 +1476,7 @@ impl PyRuntime {
         keywords.set_item("tick_interval_milliseconds", tick_interval_milliseconds)?;
         keywords.set_item("frame_interval_milliseconds", frame_interval_milliseconds)?;
         keywords.set_item("inline_height", inline_height)?;
+        keywords.set_item("inline_width", inline_width)?;
         keywords.set_item("should_handle_exit_signals", should_handle_exit_signals)?;
         keywords.set_item(
             "options",
@@ -1470,6 +1508,13 @@ impl PyRuntime {
         keywords.set_item("clock", clock)?;
         keywords.set_item("registry", registry)?;
         Ok(cls.call((), Some(&keywords))?.unbind())
+    }
+
+    #[getter]
+    fn cursor(&self) -> crate::cursor::PyCursor {
+        crate::cursor::PyCursor {
+            shared: Arc::clone(&self.shared),
+        }
     }
 
     #[getter]
@@ -1507,7 +1552,7 @@ impl PyRuntime {
         }
         // A runtime owns a private copy, so installing an extension never changes the default.
         let copy = py
-            .import("xnano._xnano_core._core_types")?
+            .import("xnano_core._xnano_core._core_types")?
             .getattr("default_registry")?
             .call0()?
             .call_method0("copy")?;
@@ -1625,7 +1670,7 @@ impl PyRuntime {
         drop(runtime);
         slf.borrow().sync_lifecycle(slf)?;
         let context = py
-            .import("xnano._xnano_core._core_types")?
+            .import("xnano_core._xnano_core._core_types")?
             .getattr("CoreContext")?;
         let options = PyDict::new(py);
         options.set_item("runtime", slf)?;
@@ -1865,7 +1910,10 @@ impl PyRuntime {
         // Wait for work when there is none.
         {
             let runtime = slf.borrow();
-            let is_idle = !runtime.shared.queue.has_pending() && !runtime.needs_frame_now(py);
+            // A frame that is wanted but not yet due is waited for, not spun on.
+            let frame_wait = runtime.frame_wait(py);
+            let is_idle = !runtime.shared.queue.has_pending()
+                && (frame_wait.is_some() || !runtime.needs_frame_now(py));
             if is_idle && timeout != Some(Duration::ZERO) {
                 let deadline = runtime.next_deadline(py).map(Duration::from_secs_f64);
                 let manual_without_events =
@@ -1878,12 +1926,20 @@ impl PyRuntime {
                     (None, _, _) => None,
                 };
                 let queue = &runtime.shared;
+                let frame_seconds = runtime.config.frame_interval_milliseconds as f64 / 1000.0;
                 let mut remaining = wait;
+                // Set once a frame is wanted but not yet due, so waiting for it to fall due
+                // is not cut short by the request that is already known.
+                let mut is_waiting_for_frame = frame_wait.is_some();
                 loop {
                     let slice = remaining.map_or(Duration::from_millis(50), |left| {
                         left.min(Duration::from_millis(50))
                     });
-                    py.detach(|| queue.queue.wait(Some(slice)));
+                    py.detach(|| {
+                        queue.queue.wait(Some(slice), || {
+                            !is_waiting_for_frame && queue.is_frame_requested.load(Ordering::SeqCst)
+                        });
+                    });
                     py.check_signals()?;
                     if let Some(left) = remaining.as_mut() {
                         *left = left.saturating_sub(slice);
@@ -1894,10 +1950,22 @@ impl PyRuntime {
                     if queue.queue.has_pending() {
                         break;
                     }
-                    if runtime.needs_frame_now(py)
-                        && runtime.shared.clock.source() == ClockSource::Manual
-                    {
-                        break;
+                    if runtime.needs_frame_now(py) {
+                        // Something asked for a frame, possibly from another thread.
+                        if runtime.shared.clock.source() == ClockSource::Manual
+                            || !runtime.has_rendered.get()
+                        {
+                            break;
+                        }
+                        let since = runtime.pace_now() - runtime.last_present_seconds.get();
+                        if since >= frame_seconds {
+                            break;
+                        }
+                        // The frame is wanted but not yet due: wait only until it is.
+                        let due = Duration::from_secs_f64(frame_seconds - since);
+                        remaining = Some(remaining.map_or(due, |left| left.min(due)));
+                        is_waiting_for_frame = true;
+                        continue;
                     }
                     if remaining.is_none() && manual_without_events {
                         break;
@@ -1940,7 +2008,7 @@ impl PyRuntime {
         if runtime.shared.is_running.load(Ordering::SeqCst) && runtime.needs_frame_now(py) {
             let is_paced = runtime.shared.clock.source() == ClockSource::Monotonic;
             let frame = runtime.config.frame_interval_milliseconds as f64 / 1000.0;
-            let since = runtime.now() - runtime.last_present_seconds.get();
+            let since = runtime.pace_now() - runtime.last_present_seconds.get();
             if !is_paced || !runtime.has_rendered.get() || since >= frame {
                 drop(runtime);
                 Self::render_frame(slf)?;
@@ -2002,16 +2070,67 @@ impl PyRuntime {
         Self::render_frame(slf)
     }
 
+    /// The last window title set on this runtime.
+    #[getter]
+    fn title(&self) -> Option<String> {
+        self.title.borrow().clone()
+    }
+
+    #[setter]
+    fn set_title(&self, title: Option<String>) -> PyResult<()> {
+        self.check_open("set the terminal title")?;
+        if title
+            .as_ref()
+            .is_some_and(|title| title.chars().any(char::is_control))
+        {
+            return Err(PyValueError::new_err(
+                "Cannot set the terminal title to text containing control characters. Expected a single line of printable text. Remove the control characters and try again.",
+            ));
+        }
+        #[cfg(feature = "terminal")]
+        if let Some(session) = self.session.borrow_mut().as_mut() {
+            session.set_title(title.as_deref().unwrap_or("")).map_err(|error| {
+                PyRuntimeError::new_err(format!(
+                    "Cannot set the terminal title: {error}. Check that the terminal is writable and try again."
+                ))
+            })?;
+        }
+        *self.title.borrow_mut() = title;
+        Ok(())
+    }
+
+    /// Whether standard output and standard error are held back from the screen.
+    #[getter]
+    fn is_output_captured(&self) -> bool {
+        #[cfg(feature = "terminal")]
+        if let Some(session) = self.session.borrow().as_ref() {
+            return session.is_output_captured();
+        }
+        false
+    }
+
+    /// Text written to standard output and standard error during a live session since the
+    /// last call, or an empty string for an offscreen runtime.
+    fn take_captured_output(&self) -> String {
+        #[cfg(feature = "terminal")]
+        if let Some(session) = self.session.borrow().as_ref() {
+            return session.take_captured_output();
+        }
+        String::new()
+    }
+
     fn snapshot(&self) -> PyFrameSnapshot {
         let size = self.shared.device_size();
-        let grid = self
-            .last_frame
-            .borrow()
-            .clone()
-            .unwrap_or_else(|| Grid::new(size.width.max(0) as u16, size.height.max(0) as u16));
+        let grid = self.last_frame.borrow().clone().unwrap_or_else(|| {
+            Arc::new(Grid::new(
+                size.width.max(0) as u16,
+                size.height.max(0) as u16,
+            ))
+        });
         PyFrameSnapshot {
             grid,
             revision: self.frame_revision.get(),
+            cursor: self.last_cursor.get(),
         }
     }
 
@@ -2075,6 +2194,8 @@ impl PyRuntime {
         runtime.shared.is_closed.store(true, Ordering::SeqCst);
         #[cfg(feature = "terminal")]
         if let Some(session) = runtime.session.borrow_mut().take() {
+            // Python's own buffers go into the capture, and are printed with it, not lost.
+            flush_python_streams(py);
             py.detach(|| session.close());
         }
         runtime.shared.queue.nudge();
@@ -2105,6 +2226,30 @@ impl PyRuntime {
         let _ = (exception_type, exception_value, traceback);
         slf.call_method0("close")?;
         Ok(false)
+    }
+
+    /// Provide the value of a named external expression.
+    ///
+    /// ``function`` is called with no arguments, on the runtime's own thread, each time an
+    /// expression that reads ``name`` is evaluated.
+    fn provide(&self, name: String, function: Py<PyAny>) {
+        self.externals.borrow_mut().insert(name, function);
+    }
+
+    /// Read a named external value. Called by expression evaluation.
+    fn _read_external(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+        let function = self
+            .externals
+            .borrow()
+            .get(name)
+            .map(|function| function.clone_ref(py));
+        match function {
+            Some(function) => function.call0(py),
+            None => Err(pyo3::exceptions::PyKeyError::new_err(format!(
+                "nothing provides the value {name:?}. Call Runtime.provide({name:?}, function) \
+                 before an expression reads it"
+            ))),
+        }
     }
 
     /// Run `state_change` hooks, once per step, when a watched branch of a store changes.
@@ -2325,11 +2470,10 @@ impl PyRuntime {
             use xnano_terminal_runtime::terminal::{
                 KeyboardMode, MouseCapture, SessionOptions, TerminalSession,
             };
-            let options = self
-                .config
-                .options
-                .clone()
-                .map_or_else(|| PyTerminalOptions::new(None, true, true, true, 250), Ok)?;
+            let options = self.config.options.clone().map_or_else(
+                || PyTerminalOptions::new(None, true, true, true, 250, true, false),
+                Ok,
+            )?;
             let input = options.input.clone();
             let timeout = Duration::from_millis(input.capability_timeout_milliseconds);
             let probe = py.detach(|| xnano_terminal_runtime::terminal::probe(timeout));
@@ -2352,7 +2496,10 @@ impl PyRuntime {
                 drain_reports_on_exit: options.drain_reports_on_exit,
                 drain_timeout: Duration::from_millis(options.drain_timeout_milliseconds),
                 inline_height: self.config.inline_height,
+                inline_width: self.config.inline_width,
                 should_handle_exit_signals: self.config.should_handle_exit_signals,
+                should_clear_on_close: options.should_clear_on_close,
+                should_capture_output: options.should_capture_output,
             };
             let shared = Arc::clone(&self.shared);
             let sink: xnano_terminal_runtime::terminal::EventSink =
@@ -2360,11 +2507,26 @@ impl PyRuntime {
                     event.timestamp_seconds = shared.clock.elapsed_seconds();
                     shared.queue.push_event(event);
                 });
-            let mut session = TerminalSession::open(session_options, Some(&probe.keyboard), sink)
-                .map_err(|error| PyRuntimeError::new_err(format!(
+            // Text Python buffered before the session belongs before it, not inside it.
+            flush_python_streams(py);
+            let woken = Arc::clone(&self.shared);
+            let output_notifier: xnano_terminal_runtime::output_capture::OutputNotifier =
+                Arc::new(move || woken.queue.nudge());
+            let mut session = TerminalSession::open(
+                session_options,
+                Some(&probe.keyboard),
+                sink,
+                Some(output_notifier),
+            )
+            .map_err(|error| PyRuntimeError::new_err(format!(
                     "the terminal could not be opened: {error}. Run the program in a terminal, or use \
                      Runtime.offscreen(...) for tests and output without a terminal"
                 )))?;
+            if let Some(title) = self.title.borrow().as_ref() {
+                session.set_title(title).map_err(|error| {
+                    PyRuntimeError::new_err(format!("Cannot set the terminal title: {error}. Check that the terminal is writable and try again."))
+                })?;
+            }
             let size = session
                 .viewport()
                 .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
@@ -2444,6 +2606,13 @@ impl PyRuntime {
     fn build_frame(slf: &Bound<'_, Self>) -> PyResult<PyFrameSnapshot> {
         let py = slf.py();
         let runtime = slf.borrow();
+        // This frame answers every request made so far. A request made from here on (by
+        // a callback, or by another thread changing a buffer) is for the next frame, so it
+        // must survive this one.
+        runtime
+            .shared
+            .is_frame_requested
+            .store(false, Ordering::SeqCst);
         // The authoritative drawable area for this frame.
         #[cfg(feature = "terminal")]
         if let Some(session) = runtime.session.borrow_mut().as_mut() {
@@ -2549,10 +2718,12 @@ impl PyRuntime {
         let mut stamp = 0;
         for (_, _, core) in &ordered {
             crate::widgets::refresh_tree(core)?;
-            compose(core, &mut frame, (0, 0), area, BlitMode::Transparent);
+            // Read before composing: a change made while composing (by another thread) is
+            // newer than this stamp, so it is drawn by the next frame instead of lost.
             stamp = stamp.max(tree_modified(core));
+            compose(core, &mut frame, (0, 0), area, PasteMode::Transparent);
         }
-        let completed = runtime.apply_effects(&mut frame, delta);
+        let (completed, effect_errors) = runtime.apply_effects(&mut frame, delta);
         drop(runtime);
         for callback in completed {
             callback.bind(py).call0()?;
@@ -2568,27 +2739,32 @@ impl PyRuntime {
             )?;
         }
         let runtime = slf.borrow();
+        let cursor = crate::cursor::resolve(
+            &runtime.shared,
+            Size::new(i32::from(columns), i32::from(rows)),
+        );
         #[cfg(feature = "terminal")]
         if let Some(session) = runtime.session.borrow_mut().as_mut() {
-            py.detach(|| session.present(&frame, None))
+            py.detach(|| session.present(&frame, cursor))
                 .map_err(|error| {
                     RenderError::new_err(format!("the frame could not be shown: {error}"))
                 })?;
         }
-        runtime
-            .last_rendered_stamp
-            .set(stamp.max(tree_modified_all(py, &runtime)));
-        runtime.last_present_seconds.set(runtime.now());
+        runtime.last_rendered_stamp.set(stamp);
+        runtime.last_present_seconds.set(runtime.pace_now());
         runtime.has_rendered.set(true);
-        runtime
-            .shared
-            .is_frame_requested
-            .store(false, Ordering::SeqCst);
         runtime.frame_revision.set(runtime.frame_revision.get() + 1);
-        *runtime.last_frame.borrow_mut() = Some(frame.clone());
+        let frame = Arc::new(frame);
+        *runtime.last_frame.borrow_mut() = Some(Arc::clone(&frame));
+        runtime.last_cursor.set(cursor);
+        // The frame is complete, so a mistake in an effect stops nothing half-drawn.
+        if let Some(message) = effect_errors.into_iter().next() {
+            return Err(RenderError::new_err(message));
+        }
         Ok(PyFrameSnapshot {
             grid: frame,
             revision: runtime.frame_revision.get(),
+            cursor,
         })
     }
 
@@ -2619,12 +2795,12 @@ impl PyRuntime {
             let frame = Grid::from_buffer(animation.animation.frames[index].grid.clone());
             let mut state = animation.target.lock();
             let bounds = region_bounds(&state.grid, animation.region);
-            state.grid.blit(
+            state.grid.paste(
                 bounds,
                 &frame,
                 animation.x,
                 animation.y,
-                BlitMode::Transparent,
+                PasteMode::Transparent,
             );
             state.touch(None);
         }
@@ -2639,10 +2815,11 @@ impl PyRuntime {
     }
 
     /// Advance and apply the running effects; returns the completion callbacks to call.
-    fn apply_effects(&self, frame: &mut Grid, delta: f64) -> Vec<Py<PyAny>> {
+    fn apply_effects(&self, frame: &mut Grid, delta: f64) -> (Vec<Py<PyAny>>, Vec<String>) {
         let running: Vec<_> = lock(&self.shared.motion).effects.clone();
         let elapsed_ms = (delta * 1000.0).round() as u32;
         let mut callbacks = Vec::new();
+        let mut errors = Vec::new();
         for entry in &running {
             let mut running = lock(entry);
             if running.is_cancelled {
@@ -2683,6 +2860,11 @@ impl PyRuntime {
                 &placement,
             );
             if let Err(error) = result {
+                errors.push(format!(
+                    "the {} effect could not run: {error}. The effect was cancelled; check the \
+                     values it was given",
+                    running.run.spec.read().kind.name()
+                ));
                 running.error = Some(error.to_string());
                 running.is_cancelled = true;
             }
@@ -2694,7 +2876,7 @@ impl PyRuntime {
             let entry = lock(entry);
             !entry.is_cancelled && !entry.run.is_done()
         });
-        callbacks
+        (callbacks, errors)
     }
 }
 
@@ -2717,16 +2899,6 @@ fn region_bounds(grid: &Grid, region: Option<Rectangle>) -> Bounds {
     }
 }
 
-fn tree_modified_all(py: Python<'_>, runtime: &PyRuntime) -> u64 {
-    runtime
-        .mounts
-        .borrow()
-        .iter()
-        .map(|mount| tree_modified(&PyRuntime::core_of(py, &mount.buffer)))
-        .max()
-        .unwrap_or(0)
-}
-
 impl Drop for PyRuntime {
     fn drop(&mut self) {
         self.shared.is_running.store(false, Ordering::SeqCst);
@@ -2734,7 +2906,27 @@ impl Drop for PyRuntime {
         self.shared.queue.nudge();
         #[cfg(feature = "terminal")]
         if let Some(session) = self.session.get_mut().take() {
+            Python::try_attach(flush_python_streams);
             session.close();
+        }
+    }
+}
+
+/// Write out what Python has buffered for standard output and standard error.
+///
+/// Called as a live session begins and ends: output written before the capture starts must
+/// reach the terminal before it, and output written during the session must reach the
+/// capture before it is printed back.
+#[cfg(feature = "terminal")]
+fn flush_python_streams(py: Python<'_>) {
+    let Ok(system) = py.import("sys") else {
+        return;
+    };
+    for name in ["stdout", "stderr"] {
+        if let Ok(stream) = system.getattr(name)
+            && !stream.is_none()
+        {
+            let _ = stream.call_method0("flush");
         }
     }
 }

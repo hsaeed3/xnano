@@ -39,13 +39,11 @@ pub fn modifier_names(modifiers: Modifier) -> Vec<&'static str> {
 /// Names are case-insensitive and accept `_`, `-` or a space as separators:
 /// `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `gray`, `dark_gray`,
 /// `light_red` (or `bright_red`) and so on, `white` and `reset`.
+///
+/// A Tailwind name such as `slate-400` is not a color here. Resolve one with
+/// [`tailwind_color`].
 pub fn parse_color(text: &str) -> Result<Color, String> {
     let trimmed = text.trim();
-    if let Some((palette, shade)) = trimmed.rsplit_once('-')
-        && let Ok(shade) = shade.parse::<u16>()
-    {
-        return tailwind_color(palette, shade);
-    }
     if let Some(hex) = trimmed.strip_prefix('#') {
         let expanded = match hex.len() {
             3 => hex
@@ -109,7 +107,9 @@ pub fn describe_color(color: Color) -> String {
 }
 
 /// Resolve a Tailwind palette shade using ratatui's canonical palette.
-fn tailwind_color(name: &str, shade: u16) -> Result<Color, String> {
+///
+/// `name` is a palette such as `slate` or `red`. `shade` is 50, 100 through 900, or 950.
+pub fn tailwind_color(name: &str, shade: u16) -> Result<Color, String> {
     use ratatui_core::style::palette::tailwind;
     let palette = match name.to_ascii_lowercase().as_str() {
         "slate" => tailwind::SLATE,

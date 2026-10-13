@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
 use pyo3::types::{PyDict, PyTuple, PyType};
 use xnano_terminal_runtime::expression::{
-    ArithmeticOp, CompareOp as Comparison, Expr, PropertyId, Scalar,
+    ArithmeticOp, CompareOp as Comparison, Component, Expr, Function, PropertyId, Scalar,
 };
 use xnano_terminal_runtime::operation::Operation;
 
@@ -25,7 +25,7 @@ pub enum ExpressionKind {
     Empty,
 }
 
-#[pyclass(name = "Expression", module = "xnano._xnano_core", subclass)]
+#[pyclass(name = "Expression", module = "xnano_core._xnano_core", subclass)]
 pub struct PyExpression {
     pub kind: ExpressionKind,
 }
@@ -153,6 +153,16 @@ fn predicate(py: Python<'_>, expr: Arc<Expr>) -> PyResult<Py<PyPredicate>> {
     )
 }
 
+fn value(py: Python<'_>, expr: Arc<Expr>) -> PyResult<Py<PyValue>> {
+    Py::new(
+        py,
+        PyClassInitializer::from(PyExpression {
+            kind: ExpressionKind::Value(expr),
+        })
+        .add_subclass(PyValue),
+    )
+}
+
 fn numeric(py: Python<'_>, expr: Arc<Expr>) -> PyResult<Py<PyNumericValue>> {
     Py::new(
         py,
@@ -164,7 +174,7 @@ fn numeric(py: Python<'_>, expr: Arc<Expr>) -> PyResult<Py<PyNumericValue>> {
     )
 }
 
-#[pyclass(name = "Predicate", module = "xnano._xnano_core", extends = PyExpression, subclass)]
+#[pyclass(name = "Predicate", module = "xnano_core._xnano_core", extends = PyExpression, subclass)]
 pub struct PyPredicate;
 
 #[pymethods]
@@ -192,9 +202,38 @@ impl PyPredicate {
     fn __invert__(slf: &Bound<'_, Self>) -> PyResult<Py<PyPredicate>> {
         predicate(slf.py(), Arc::new(Expr::Not(expression_of(slf.as_any())?)))
     }
+
+    /// A value that is `when_true` while this condition holds and `when_false` otherwise.
+    fn choose(
+        slf: &Bound<'_, Self>,
+        when_true: &Bound<'_, PyAny>,
+        when_false: &Bound<'_, PyAny>,
+    ) -> PyResult<Py<PyAny>> {
+        let py = slf.py();
+        let expr = Arc::new(Expr::Select(
+            expression_of(slf.as_any())?,
+            expression_of(when_true)?,
+            expression_of(when_false)?,
+        ));
+        // Numbers stay numeric so the result supports arithmetic and ordering.
+        if is_numeric_operand(when_true) && is_numeric_operand(when_false) {
+            return Ok(numeric(py, expr)?.into_any());
+        }
+        Ok(value(py, expr)?.into_any())
+    }
 }
 
-#[pyclass(name = "Value", module = "xnano._xnano_core", extends = PyExpression, subclass)]
+/// Whether `operand` is a number or a numeric expression (a `bool` is not a number here).
+fn is_numeric_operand(operand: &Bound<'_, PyAny>) -> bool {
+    if operand.is_instance_of::<pyo3::types::PyBool>() {
+        return false;
+    }
+    operand.is_instance_of::<PyNumericValue>()
+        || operand.is_instance_of::<pyo3::types::PyInt>()
+        || operand.is_instance_of::<pyo3::types::PyFloat>()
+}
+
+#[pyclass(name = "Value", module = "xnano_core._xnano_core", extends = PyExpression, subclass)]
 pub struct PyValue;
 
 fn comparison(
@@ -221,9 +260,64 @@ impl PyValue {
     fn ne(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyPredicate>> {
         comparison(slf.as_any(), Comparison::NotEqual, other)
     }
+
+    /// The column of a point or rectangle.
+    #[getter]
+    fn x(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
+        component(slf.as_any(), Component::X)
+    }
+
+    /// The row of a point or rectangle.
+    #[getter]
+    fn y(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
+        component(slf.as_any(), Component::Y)
+    }
+
+    /// The width of a size or rectangle.
+    #[getter]
+    fn width(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
+        component(slf.as_any(), Component::Width)
+    }
+
+    /// The height of a size or rectangle.
+    #[getter]
+    fn height(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
+        component(slf.as_any(), Component::Height)
+    }
+
+    /// The first column after a rectangle.
+    #[getter]
+    fn right(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
+        component(slf.as_any(), Component::Right)
+    }
+
+    /// The first row after a rectangle.
+    #[getter]
+    fn bottom(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
+        component(slf.as_any(), Component::Bottom)
+    }
 }
 
-#[pyclass(name = "NumericValue", module = "xnano._xnano_core", extends = PyValue, subclass)]
+fn component(slf: &Bound<'_, PyAny>, component: Component) -> PyResult<Py<PyNumericValue>> {
+    numeric(
+        slf.py(),
+        Arc::new(Expr::Component(component, expression_of(slf)?)),
+    )
+}
+
+fn function(
+    slf: &Bound<'_, PyAny>,
+    function: Function,
+    others: &[&Bound<'_, PyAny>],
+) -> PyResult<Py<PyNumericValue>> {
+    let mut arguments = vec![expression_of(slf)?];
+    for other in others {
+        arguments.push(expression_of(other)?);
+    }
+    numeric(slf.py(), Arc::new(Expr::Function(function, arguments)))
+}
+
+#[pyclass(name = "NumericValue", module = "xnano_core._xnano_core", extends = PyValue, subclass)]
 pub struct PyNumericValue;
 
 fn arithmetic(
@@ -294,12 +388,108 @@ impl PyNumericValue {
         arithmetic(slf.as_any(), ArithmeticOp::Modulo, other, false)
     }
 
+    fn __rtruediv__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+    ) -> PyResult<Py<PyNumericValue>> {
+        arithmetic(slf.as_any(), ArithmeticOp::Divide, other, true)
+    }
+
+    fn __rmod__(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyNumericValue>> {
+        arithmetic(slf.as_any(), ArithmeticOp::Modulo, other, true)
+    }
+
+    fn __floordiv__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+    ) -> PyResult<Py<PyNumericValue>> {
+        arithmetic(slf.as_any(), ArithmeticOp::FloorDivide, other, false)
+    }
+
+    fn __rfloordiv__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+    ) -> PyResult<Py<PyNumericValue>> {
+        arithmetic(slf.as_any(), ArithmeticOp::FloorDivide, other, true)
+    }
+
+    fn __pow__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        modulo: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyNumericValue>> {
+        reject_modulo(modulo)?;
+        arithmetic(slf.as_any(), ArithmeticOp::Power, other, false)
+    }
+
+    fn __rpow__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        modulo: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyNumericValue>> {
+        reject_modulo(modulo)?;
+        arithmetic(slf.as_any(), ArithmeticOp::Power, other, true)
+    }
+
+    fn __abs__(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
+        function(slf.as_any(), Function::Absolute, &[])
+    }
+
+    fn __floor__(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
+        function(slf.as_any(), Function::Floor, &[])
+    }
+
+    fn __ceil__(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
+        function(slf.as_any(), Function::Ceiling, &[])
+    }
+
+    #[pyo3(signature = (digits = None))]
+    fn __round__(
+        slf: &Bound<'_, Self>,
+        digits: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyNumericValue>> {
+        if digits.is_some_and(|digits| !digits.is_none()) {
+            return Err(PyTypeError::new_err(
+                "round() on an expression rounds to a whole number; do not pass a number of digits",
+            ));
+        }
+        function(slf.as_any(), Function::Round, &[])
+    }
+
+    /// The smaller of this value and `other`.
+    fn minimum(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyNumericValue>> {
+        function(slf.as_any(), Function::Minimum, &[other])
+    }
+
+    /// The larger of this value and `other`.
+    fn maximum(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyNumericValue>> {
+        function(slf.as_any(), Function::Maximum, &[other])
+    }
+
+    /// This value limited to the range from `lowest` to `highest`.
+    fn clamp(
+        slf: &Bound<'_, Self>,
+        lowest: &Bound<'_, PyAny>,
+        highest: &Bound<'_, PyAny>,
+    ) -> PyResult<Py<PyNumericValue>> {
+        function(slf.as_any(), Function::Clamp, &[lowest, highest])
+    }
+
     fn __neg__(slf: &Bound<'_, Self>) -> PyResult<Py<PyNumericValue>> {
         numeric(
             slf.py(),
             Arc::new(Expr::Negate(expression_of(slf.as_any())?)),
         )
     }
+}
+
+fn reject_modulo(modulo: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+    if modulo.is_some_and(|modulo| !modulo.is_none()) {
+        return Err(PyTypeError::new_err(
+            "an expression cannot be raised to a power with a modulo; use % on the result instead",
+        ));
+    }
+    Ok(())
 }
 
 pub fn property_id(name: &str) -> Option<PropertyId> {
@@ -311,16 +501,24 @@ pub fn property_id(name: &str) -> Option<PropertyId> {
         "Position" => PropertyId::Position,
         "Size" => PropertyId::Size,
         "Bounds" => PropertyId::Bounds,
-        "Elapsed" => PropertyId::Elapsed,
-        "Delta" => PropertyId::Delta,
-        "ElapsedMilliseconds" => PropertyId::ElapsedMilliseconds,
-        "DeltaMilliseconds" => PropertyId::DeltaMilliseconds,
+        "TimeElapsed" => PropertyId::TimeElapsed,
+        "TimeDelta" => PropertyId::TimeDelta,
+        "TimeElapsedMilliseconds" => PropertyId::TimeElapsedMilliseconds,
+        "TimeDeltaMilliseconds" => PropertyId::TimeDeltaMilliseconds,
         "Frame" => PropertyId::Frame,
         "FPS" => PropertyId::FramesPerSecond,
         "Focused" => PropertyId::Focused,
         "Running" => PropertyId::Running,
         "DeviceWidth" => PropertyId::DeviceWidth,
         "DeviceHeight" => PropertyId::DeviceHeight,
+        "ParentSize" => PropertyId::ParentSize,
+        "ParentWidth" => PropertyId::ParentWidth,
+        "ParentHeight" => PropertyId::ParentHeight,
+        "ScreenPosition" => PropertyId::ScreenPosition,
+        "ScreenBounds" => PropertyId::ScreenBounds,
+        "PointerPosition" => PropertyId::PointerPosition,
+        "Layer" => PropertyId::Layer,
+        "IsVisible" => PropertyId::IsVisible,
         _ => return None,
     })
 }
@@ -332,7 +530,8 @@ fn assignment(
 ) -> PyResult<Py<PySetValue>> {
     if !property.is_settable() {
         return Err(PyValueError::new_err(format!(
-            "{} is read-only; only X, Y, Width, Height, Position and Size can be assigned",
+            "{} is read-only; only X, Y, Width, Height, Position, Size, Layer and IsVisible \
+             can be assigned",
             property.name()
         )));
     }
@@ -350,7 +549,7 @@ fn assignment(
     )
 }
 
-#[pyclass(name = "Property", module = "xnano._xnano_core", extends = PyValue, subclass)]
+#[pyclass(name = "Property", module = "xnano_core._xnano_core", extends = PyValue, subclass)]
 pub struct PyProperty {
     id: PropertyId,
 }
@@ -371,7 +570,7 @@ impl PyProperty {
     }
 }
 
-#[pyclass(name = "NumericProperty", module = "xnano._xnano_core", extends = PyNumericValue, subclass)]
+#[pyclass(name = "NumericProperty", module = "xnano_core._xnano_core", extends = PyNumericValue, subclass)]
 pub struct PyNumericProperty {
     id: PropertyId,
 }
@@ -392,7 +591,7 @@ impl PyNumericProperty {
     }
 }
 
-#[pyclass(name = "Operation", module = "xnano._xnano_core", extends = PyExpression, subclass)]
+#[pyclass(name = "Operation", module = "xnano_core._xnano_core", extends = PyExpression, subclass)]
 pub struct PyOperation;
 
 /// Combine two operation objects into a sequence.
@@ -446,7 +645,7 @@ impl PyOperation {
     }
 }
 
-#[pyclass(name = "SetValue", module = "xnano._xnano_core", extends = PyOperation)]
+#[pyclass(name = "SetValue", module = "xnano_core._xnano_core", extends = PyOperation)]
 pub struct PySetValue;
 
 #[pymethods]
@@ -479,7 +678,7 @@ impl PySetValue {
     }
 }
 
-#[pyclass(name = "SequenceOperation", module = "xnano._xnano_core", extends = PyOperation)]
+#[pyclass(name = "SequenceOperation", module = "xnano_core._xnano_core", extends = PyOperation)]
 pub struct PySequenceOperation;
 
 #[pymethods]
@@ -524,7 +723,7 @@ fn conditional(
     )
 }
 
-#[pyclass(name = "Conditional", module = "xnano._xnano_core", extends = PyOperation)]
+#[pyclass(name = "Conditional", module = "xnano_core._xnano_core", extends = PyOperation)]
 pub struct PyConditional;
 
 #[pymethods]
@@ -552,7 +751,7 @@ impl PyConditional {
     }
 }
 
-/// The module-level read-only and assignable references such as `X` and `Elapsed`.
+/// The module-level read-only and assignable references such as `X` and `TimeElapsed`.
 #[pyfunction]
 fn _reference(py: Python<'_>, name: &str, kind: &str) -> PyResult<Py<PyAny>> {
     let id = property_id(name)

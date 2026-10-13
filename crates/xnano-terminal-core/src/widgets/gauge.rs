@@ -15,7 +15,7 @@ use crate::widgets::{
     widget_initializer,
 };
 
-#[pyclass(name = "Gauge", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Gauge", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyGauge {
     spec: Shared<GaugeSpec>,
     block: std::sync::Mutex<Option<Py<PyAny>>>,

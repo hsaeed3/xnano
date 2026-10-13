@@ -3,7 +3,8 @@
 //! The workspace version is the single source of truth for the `xnano` and `xnano-core`
 //! versions; each other binding crate's own version sets its distribution pin. Like pydantic's `monty`,
 //! the metapackage has no Cargo package of its own, so the build script of the always-built
-//! engine crate maintains it. A source distribution legitimately has no metapackage and is left
+//! engine crate maintains it. `xnano-core` is the metapackage's only dependency; `xnano-audio`
+//! and `xnano-image` are its `audio` and `image` extras. A source distribution legitimately has no metapackage and is left
 //! alone.
 
 use std::{
@@ -51,9 +52,9 @@ fn main() {
              but {} declares {crate_version}",
             manifest.display()
         );
-        pins.push(format!(
-            "    \"{distribution}{}\",",
-            pin_specifier(&crate_version)
+        pins.push((
+            distribution,
+            format!("    \"{distribution}{}\",", pin_specifier(&crate_version)),
         ));
     }
     sync(&pyproject, &pep440(&version), &pins);
@@ -104,12 +105,13 @@ fn pin_specifier(version: &str) -> String {
     }
 }
 
-fn sync(pyproject: &Path, version: &str, pins: &[String]) {
+fn sync(pyproject: &Path, version: &str, pins: &[(&str, String)]) {
     let contents = fs::read_to_string(pyproject).expect("pyproject.toml is readable");
     let mut output = String::with_capacity(contents.len());
     let mut region = false;
     let mut in_dependencies = false;
     let mut wrote_pins = false;
+    let mut is_replacing_extras = false;
     for line in contents.lines() {
         if line.contains("[! AUTO-VERSIONING") {
             region = true;
@@ -119,6 +121,7 @@ fn sync(pyproject: &Path, version: &str, pins: &[String]) {
         }
         if line.contains("[! END AUTO-VERSIONING]") {
             region = false;
+            is_replacing_extras = false;
         }
         if region {
             if line.starts_with("version = ") {
@@ -128,9 +131,11 @@ fn sync(pyproject: &Path, version: &str, pins: &[String]) {
             if line.starts_with("dependencies = [") {
                 in_dependencies = true;
                 output.push_str("dependencies = [\n");
-                for pin in pins {
-                    output.push_str(pin);
-                    output.push('\n');
+                for (distribution, pin) in pins {
+                    if *distribution == "xnano-core" {
+                        output.push_str(pin);
+                        output.push('\n');
+                    }
                 }
                 wrote_pins = true;
                 continue;
@@ -138,8 +143,19 @@ fn sync(pyproject: &Path, version: &str, pins: &[String]) {
             if in_dependencies {
                 if line.trim() == "]" {
                     in_dependencies = false;
-                    output.push_str("]\n");
+                    output.push_str("]\n\n[project.optional-dependencies]\n");
+                    for (distribution, pin) in pins {
+                        if let Some(extra) = distribution.strip_prefix("xnano-")
+                            && *distribution != "xnano-core"
+                        {
+                            let _ = writeln!(output, "{extra} = [\n{pin}\n]");
+                        }
+                    }
+                    is_replacing_extras = true;
                 }
+                continue;
+            }
+            if is_replacing_extras {
                 continue;
             }
         }

@@ -8,49 +8,49 @@ use xnano_terminal_runtime::operation::OperationError;
 use xnano_terminal_state::Error as StateError;
 
 pyo3::create_exception!(
-    xnano._xnano_core,
+    xnano_core._xnano_core,
     RenderError,
     PyRuntimeError,
     "A recoverable render failure; failed frames are not committed."
 );
 pyo3::create_exception!(
-    xnano._xnano_core,
+    xnano_core._xnano_core,
     UnsupportedOperationError,
     PyTypeError,
     "The target registry cannot interpret the supplied operation."
 );
 pyo3::create_exception!(
-    xnano._xnano_core,
+    xnano_core._xnano_core,
     RuntimeRequiredError,
     PyRuntimeError,
     "An operation needs a mounted target and an active runtime."
 );
 pyo3::create_exception!(
-    xnano._xnano_core,
+    xnano_core._xnano_core,
     InvalidRegionError,
     PyRuntimeError,
     "The original region no longer fits its resized parent buffer."
 );
 pyo3::create_exception!(
-    xnano._xnano_core,
+    xnano_core._xnano_core,
     TerminalStateValidationError,
     PyValueError,
     "A value, patch or schema was rejected; nothing was published."
 );
 pyo3::create_exception!(
-    xnano._xnano_core,
+    xnano_core._xnano_core,
     TerminalStateConflictError,
     PyRuntimeError,
     "The state changed since it was last observed."
 );
 pyo3::create_exception!(
-    xnano._xnano_core,
+    xnano_core._xnano_core,
     TerminalStateAccessError,
     pyo3::exceptions::PyPermissionError,
     "A change reached outside the branches it was granted."
 );
 pyo3::create_exception!(
-    xnano._xnano_core,
+    xnano_core._xnano_core,
     CellGridError,
     PyValueError,
     "Packed content is malformed, incompatible, or exceeds resource limits."

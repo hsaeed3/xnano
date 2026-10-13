@@ -13,7 +13,7 @@ use crate::geometry::{PyPoint, PySize};
 
 #[pyclass(
     name = "KeyEvent",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     from_py_object
@@ -61,7 +61,7 @@ impl PyKeyEvent {
 
 #[pyclass(
     name = "MouseEvent",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     from_py_object
@@ -123,7 +123,7 @@ impl PyMouseEvent {
 
 #[pyclass(
     name = "Event",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     from_py_object
@@ -264,6 +264,60 @@ impl PyEvent {
     }
 
     #[classmethod]
+    fn tick(_cls: &Bound<'_, pyo3::types::PyType>) -> Self {
+        Self::new(Event::new(EventKind::Tick, EventPayload::None))
+    }
+
+    #[classmethod]
+    fn timer(_cls: &Bound<'_, pyo3::types::PyType>, key: String) -> Self {
+        Self::new(Event::new(EventKind::Timer, EventPayload::Timer(key)))
+    }
+
+    #[classmethod]
+    fn wake(_cls: &Bound<'_, pyo3::types::PyType>) -> Self {
+        Self::new(Event::new(EventKind::Wake, EventPayload::None))
+    }
+
+    #[classmethod]
+    fn exit_requested(_cls: &Bound<'_, pyo3::types::PyType>) -> Self {
+        Self::new(Event::new(EventKind::ExitRequested, EventPayload::None))
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (name, *, data = None))]
+    fn custom(
+        _cls: &Bound<'_, pyo3::types::PyType>,
+        name: String,
+        data: Option<String>,
+    ) -> PyResult<Self> {
+        if name.trim().is_empty() {
+            return Err(PyValueError::new_err(
+                "a custom event needs a name, such as Event.custom(\"volume_changed\")",
+            ));
+        }
+        Ok(Self::new(Event::new(
+            EventKind::Custom,
+            EventPayload::Custom { name, data },
+        )))
+    }
+
+    #[getter]
+    fn custom_name(&self) -> Option<&str> {
+        match &self.inner.payload {
+            EventPayload::Custom { name, .. } => Some(name),
+            _ => None,
+        }
+    }
+
+    #[getter]
+    fn custom_data(&self) -> Option<&str> {
+        match &self.inner.payload {
+            EventPayload::Custom { data, .. } => data.as_deref(),
+            _ => None,
+        }
+    }
+
+    #[classmethod]
     fn focus_gained(_cls: &Bound<'_, pyo3::types::PyType>) -> Self {
         Self::new(Event::new(EventKind::FocusGained, EventPayload::None))
     }
@@ -280,7 +334,7 @@ impl PyEvent {
 
 #[pyclass(
     name = "KeyBinding",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,

@@ -2,6 +2,8 @@
 //!
 //! Maps to `ratatui::widgets::Table`, `Row`, `Cell` and `TableState`.
 
+use std::collections::hash_map::DefaultHasher;
+
 use ratatui::widgets::{
     Cell as TableCell, HighlightSpacing, Row, StatefulWidget, Table, TableState,
 };
@@ -18,7 +20,7 @@ use crate::widgets::list::{
     FeedbackHandle, Selection, TextSource, highlight_spacing_from_name, style_key,
 };
 use crate::widgets::style::StyleSpec;
-use crate::widgets::{Resolver, Shared, WidgetSpec};
+use crate::widgets::{Resolver, Shared, WidgetSpec, hash_debug};
 
 /// How wide a column is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,6 +97,26 @@ pub struct RowSpec {
 }
 
 impl RowSpec {
+    /// Hash the current value of everything in the row that follows an expression.
+    fn hash_bound(
+        &self,
+        resolver: &mut Resolver<'_>,
+        hasher: &mut DefaultHasher,
+    ) -> Result<(), EvalError> {
+        if !self.style.is_static() {
+            hash_debug(&self.style.resolve(resolver)?, hasher);
+        }
+        for cell in &self.cells {
+            if !cell.content.is_fixed() {
+                hash_debug(&cell.content.resolve(resolver)?, hasher);
+            }
+            if !cell.style.is_static() {
+                hash_debug(&cell.style.resolve(resolver)?, hasher);
+            }
+        }
+        Ok(())
+    }
+
     pub fn key(&self) -> String {
         format!(
             "{}|{}|{}|{}|{}",
@@ -239,6 +261,46 @@ pub struct ResolvedTable {
 
 impl WidgetSpec for TableSpec {
     type Resolved = ResolvedTable;
+
+    fn hash_bindings(
+        &self,
+        resolver: &mut Resolver<'_>,
+        hasher: &mut DefaultHasher,
+    ) -> Option<Result<(), EvalError>> {
+        Some((|| {
+            for row in self
+                .rows
+                .iter()
+                .chain(self.header.iter())
+                .chain(self.footer.iter())
+            {
+                row.hash_bound(resolver, hasher)?;
+            }
+            resolver.hash_bound(&self.column_spacing, hasher)?;
+            resolver.hash_bound(&self.flex, hasher)?;
+            resolver.hash_bound(&self.selected_row, hasher)?;
+            resolver.hash_bound(&self.selected_column, hasher)?;
+            resolver.hash_bound(&self.offset, hasher)?;
+            resolver.hash_bound(&self.highlight_symbol, hasher)?;
+            resolver.hash_bound(&self.highlight_spacing, hasher)?;
+            for style in [
+                &self.style,
+                &self.row_highlight_style,
+                &self.column_highlight_style,
+                &self.cell_highlight_style,
+            ] {
+                if !style.is_static() {
+                    hash_debug(&style.resolve(resolver)?, hasher);
+                }
+            }
+            if let Some(block) = &self.block
+                && !block.read().is_static()
+            {
+                hash_debug(&resolve_optional(&self.block, resolver)?, hasher);
+            }
+            Ok(())
+        })())
+    }
 
     fn resolve(&self, resolver: &mut Resolver<'_>) -> Result<Self::Resolved, EvalError> {
         let mut rows = Vec::with_capacity(self.rows.len());

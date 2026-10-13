@@ -41,6 +41,7 @@ pub type Shared<T> = Arc<Spec<T>>;
 pub struct Resolver<'a> {
     pub environment: &'a dyn Environment,
     evaluation: Evaluation,
+    size: Option<(u16, u16)>,
 }
 
 impl<'a> Resolver<'a> {
@@ -48,7 +49,34 @@ impl<'a> Resolver<'a> {
         Self {
             environment,
             evaluation: Evaluation::default(),
+            size: None,
         }
+    }
+
+    /// Tell the resolver how large the grid being painted is, so a widget holding far more
+    /// items than fit can resolve only the ones it will show.
+    #[must_use]
+    pub fn with_size(mut self, width: u16, height: u16) -> Self {
+        self.size = Some((width, height));
+        self
+    }
+
+    /// The size of the grid being painted, when known.
+    pub fn size(&self) -> Option<(u16, u16)> {
+        self.size
+    }
+
+    /// Hash the current value of a setting if it is bound (a fixed one is covered by the
+    /// settings version).
+    pub fn hash_bound<T: FromScalar + Clone + fmt::Debug>(
+        &mut self,
+        value: &Dynamic<T>,
+        hasher: &mut DefaultHasher,
+    ) -> Result<(), EvalError> {
+        if value.is_bound() {
+            hash_debug(&self.get(value)?, hasher);
+        }
+        Ok(())
     }
 
     /// The current value of a fixed or bound setting.
@@ -71,6 +99,21 @@ pub trait WidgetSpec: Send + 'static {
     type Resolved: std::fmt::Debug + Send;
 
     fn resolve(&self, resolver: &mut Resolver<'_>) -> Result<Self::Resolved, EvalError>;
+
+    /// Hash the current value of every bound setting, and return `Some`, when the output
+    /// depends on nothing else but the settings version.
+    ///
+    /// A widget that implements this has a cheap fingerprint however many items it holds:
+    /// the items it shows are covered by the version, so only the few bound values are
+    /// read. Returning `None` (the default) makes the fingerprint resolve and hash every
+    /// setting each time it is asked for.
+    fn hash_bindings(
+        &self,
+        _resolver: &mut Resolver<'_>,
+        _hasher: &mut DefaultHasher,
+    ) -> Option<Result<(), EvalError>> {
+        None
+    }
 
     /// Paint the resolved widget over the whole grid.
     fn draw(resolved: &Self::Resolved, grid: &mut Grid);
@@ -100,6 +143,13 @@ impl fmt::Write for DebugHashWriter<'_> {
     }
 }
 
+/// Feed the debug text of `value` to `hasher`, without building the string.
+pub fn hash_debug(value: &impl std::fmt::Debug, hasher: &mut DefaultHasher) {
+    let mut writer = DebugHashWriter(hasher);
+    let _ = write!(writer, "{value:?}");
+    hasher.write_u8(0xff);
+}
+
 fn digest(resolved: &impl std::fmt::Debug, grid_size: (u16, u16)) -> u64 {
     let mut hasher = DefaultHasher::new();
     {
@@ -114,6 +164,19 @@ fn digest(resolved: &impl std::fmt::Debug, grid_size: (u16, u16)) -> u64 {
 impl<S: WidgetSpec> Painter for SpecPainter<S> {
     fn fingerprint(&self, environment: &dyn Environment) -> Result<u64, EvalError> {
         let mut resolver = Resolver::new(environment);
+        {
+            let mut hasher = DefaultHasher::new();
+            hasher.write_u8(0xfe);
+            hasher.write_u64(self.spec.version());
+            if let Some(result) = self.spec.read().hash_bindings(&mut resolver, &mut hasher) {
+                result?;
+                *self
+                    .cache
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+                return Ok(hasher.finish());
+            }
+        }
         let resolved = self.spec.read().resolve(&mut resolver)?;
         let fingerprint = digest(&resolved, (0, 0));
         *self
@@ -131,7 +194,10 @@ impl<S: WidgetSpec> Painter for SpecPainter<S> {
             .take();
         let resolved = match cached {
             Some((_, resolved)) => resolved,
-            None => self.spec.read().resolve(&mut Resolver::new(environment))?,
+            None => self
+                .spec
+                .read()
+                .resolve(&mut Resolver::new(environment).with_size(grid.width(), grid.height()))?,
         };
         S::draw(&resolved, grid);
         Ok(())

@@ -23,7 +23,7 @@ use crate::widgets::{Frame, PyWidget, dynamic_string, dynamic_to_py, repaint, wi
 /// One value of a sparkline, with an optional style of its own.
 #[pyclass(
     name = "SparklineBar",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -148,7 +148,7 @@ pub(super) fn bar_set_arg(value: &Bound<'_, PyAny>) -> PyResult<Dynamic<String>>
     Ok(setting)
 }
 
-#[pyclass(name = "Sparkline", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Sparkline", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PySparkline {
     spec: Shared<SparklineSpec>,
     block: std::sync::Mutex<Option<Py<PyAny>>>,

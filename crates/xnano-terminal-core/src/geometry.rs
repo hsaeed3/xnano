@@ -32,7 +32,7 @@ fn non_negative(name: &str, value: i32) -> PyResult<i32> {
 
 #[pyclass(
     name = "Point",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -144,7 +144,7 @@ impl PyPoint {
 
 #[pyclass(
     name = "Size",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -260,7 +260,7 @@ impl PySize {
 
 #[pyclass(
     name = "Rectangle",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -553,7 +553,7 @@ fn pair_of(value: &Bound<'_, PyAny>, expected: &str) -> PyResult<(i32, i32)> {
 /// A signed distance in columns and rows.
 #[pyclass(
     name = "Offset",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -649,7 +649,7 @@ impl PyOffset {
 /// Empty space around a rectangle: columns on the left and right, rows above and below.
 #[pyclass(
     name = "Margin",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,

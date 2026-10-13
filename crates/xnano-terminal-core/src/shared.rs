@@ -62,6 +62,9 @@ impl Default for EventQueue {
 
 impl EventQueue {
     fn notify(&self) {
+        // Taking the lock first orders this after a waiter has either seen the new state or
+        // started waiting, so the wake-up cannot fall between its check and its wait.
+        drop(lock(&self.state));
         self.ready.notify_all();
         let notifiers: Vec<Notifier> = lock(&self.notifiers)
             .iter()
@@ -109,10 +112,15 @@ impl EventQueue {
         !state.events.is_empty() || !state.calls.is_empty() || state.is_wake_requested
     }
 
-    /// Block until something is queued or `timeout` passes. `None` waits without limit.
-    pub fn wait(&self, timeout: Option<Duration>) {
+    /// Block until something is queued, `should_return` says so, or `timeout` passes.
+    /// `None` waits without limit.
+    pub fn wait(&self, timeout: Option<Duration>, should_return: impl Fn() -> bool) {
         let state = lock(&self.state);
-        if !state.events.is_empty() || !state.calls.is_empty() || state.is_wake_requested {
+        if !state.events.is_empty()
+            || !state.calls.is_empty()
+            || state.is_wake_requested
+            || should_return()
+        {
             return;
         }
         match timeout {
@@ -236,6 +244,7 @@ pub struct RuntimeShared {
     pub device: Mutex<DeviceData>,
     pub input: Mutex<InputData>,
     pub router: Mutex<RouterData>,
+    pub cursor: Mutex<crate::cursor::CursorData>,
     pub queue: EventQueue,
     pub motion: Mutex<Motion>,
     pub metrics: Mutex<Metrics>,

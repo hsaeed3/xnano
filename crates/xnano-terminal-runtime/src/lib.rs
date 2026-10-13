@@ -14,6 +14,7 @@
 pub mod buffer;
 pub mod clock;
 pub mod components;
+pub mod cursor;
 pub mod device;
 pub mod drawing;
 pub mod dynamic;
@@ -30,5 +31,7 @@ pub mod style;
 pub mod text;
 pub mod widgets;
 
+#[cfg(feature = "terminal")]
+pub mod output_capture;
 #[cfg(feature = "terminal")]
 pub mod terminal;

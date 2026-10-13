@@ -34,7 +34,7 @@ fn orientation_arg(value: &Bound<'_, PyAny>) -> PyResult<Dynamic<String>> {
     Ok(setting)
 }
 
-#[pyclass(name = "Scrollbar", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Scrollbar", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyScrollbar {
     spec: Shared<ScrollbarSpec>,
 }

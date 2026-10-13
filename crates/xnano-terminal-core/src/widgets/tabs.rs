@@ -20,7 +20,7 @@ use crate::widgets::style::{style_spec_arg, style_spec_to_py};
 use crate::widgets::{Frame, PyWidget, repaint, widget_initializer};
 
 /// A row of titles with one selected.
-#[pyclass(name = "Tabs", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Tabs", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyTabs {
     spec: Shared<TabsSpec>,
     block: BlockHolder,

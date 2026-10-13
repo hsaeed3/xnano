@@ -7,14 +7,15 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use xnano_terminal_runtime::dynamic::Dynamic;
 use xnano_terminal_runtime::effects::{
-    EffectNode, EffectRun, FilterSpec, Kind, Placement, RepeatSpec, Timer, interpolation_from_name,
-    interpolation_names,
+    EVOLVE_SYMBOL_SETS, EffectNode, EffectRun, FilterSpec, Kind, MOTIONS, Placement, RepeatSpec,
+    Timer, interpolation_from_name, interpolation_names,
 };
 use xnano_terminal_runtime::operation::Operation;
 use xnano_terminal_runtime::painter::Spec;
 use xnano_terminal_runtime::widgets::Shared;
 use xnano_terminal_runtime::widgets::style::StyleSpec;
 
+use crate::dynamic_operations::dynamic_i32;
 use crate::expressions::PyOperation;
 use crate::geometry::PyRectangle;
 use crate::operations::operation_initializer;
@@ -80,7 +81,7 @@ fn optional<T>(
 }
 
 /// An effect: what it does, how long it takes and how it is restricted.
-#[pyclass(name = "Effect", module = "xnano._xnano_core", extends = PyOperation, subclass)]
+#[pyclass(name = "Effect", module = "xnano_core._xnano_core", extends = PyOperation, subclass)]
 pub struct PyEffect {
     pub spec: Shared<EffectNode>,
 }
@@ -624,6 +625,149 @@ impl PyEffect {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (symbols = None, *, style = None, duration_milliseconds = None, interpolation = None))]
+    fn evolve(
+        py: Python<'_>,
+        symbols: Option<&Bound<'_, PyAny>>,
+        style: Option<&Bound<'_, PyAny>>,
+        duration_milliseconds: Option<&Bound<'_, PyAny>>,
+        interpolation: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyEffect>> {
+        evolve_effect(
+            py,
+            "full",
+            symbols,
+            style,
+            duration_milliseconds,
+            interpolation,
+        )
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (symbols = None, *, style = None, duration_milliseconds = None, interpolation = None))]
+    fn evolve_into(
+        py: Python<'_>,
+        symbols: Option<&Bound<'_, PyAny>>,
+        style: Option<&Bound<'_, PyAny>>,
+        duration_milliseconds: Option<&Bound<'_, PyAny>>,
+        interpolation: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyEffect>> {
+        evolve_effect(
+            py,
+            "into",
+            symbols,
+            style,
+            duration_milliseconds,
+            interpolation,
+        )
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (symbols = None, *, style = None, duration_milliseconds = None, interpolation = None))]
+    fn evolve_from(
+        py: Python<'_>,
+        symbols: Option<&Bound<'_, PyAny>>,
+        style: Option<&Bound<'_, PyAny>>,
+        duration_milliseconds: Option<&Bound<'_, PyAny>>,
+        interpolation: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyEffect>> {
+        evolve_effect(
+            py,
+            "from",
+            symbols,
+            style,
+            duration_milliseconds,
+            interpolation,
+        )
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (direction = None, *, style = None, duration_milliseconds = None, interpolation = None))]
+    fn expand(
+        py: Python<'_>,
+        direction: Option<&Bound<'_, PyAny>>,
+        style: Option<&Bound<'_, PyAny>>,
+        duration_milliseconds: Option<&Bound<'_, PyAny>>,
+        interpolation: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyEffect>> {
+        let default = 500_u32.into_pyobject(py)?.into_any();
+        let direction =
+            optional(direction, dynamic_string)?.unwrap_or(Dynamic::Fixed("horizontal".to_owned()));
+        check_name(
+            "an expand direction",
+            &direction,
+            &["horizontal", "vertical"],
+        )?;
+        new_effect(
+            py,
+            EffectNode::new(Kind::Expand {
+                direction,
+                style: style_spec_arg(style)?,
+                timer: timer_arg(duration_milliseconds.unwrap_or(&default), interpolation)?,
+            }),
+        )
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (direction = None, *, style = None, duration_milliseconds = None, interpolation = None))]
+    fn stretch(
+        py: Python<'_>,
+        direction: Option<&Bound<'_, PyAny>>,
+        style: Option<&Bound<'_, PyAny>>,
+        duration_milliseconds: Option<&Bound<'_, PyAny>>,
+        interpolation: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyEffect>> {
+        let default = 500_u32.into_pyobject(py)?.into_any();
+        let direction = optional(direction, dynamic_string)?
+            .unwrap_or(Dynamic::Fixed("left_to_right".to_owned()));
+        let names: Vec<&str> = MOTIONS.iter().map(|(name, _)| *name).collect();
+        check_name("a motion direction", &direction, &names)?;
+        new_effect(
+            py,
+            EffectNode::new(Kind::Stretch {
+                direction,
+                style: style_spec_arg(style)?,
+                timer: timer_arg(duration_milliseconds.unwrap_or(&default), interpolation)?,
+            }),
+        )
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (*, force = None, randomness = None, duration_milliseconds = None, interpolation = None))]
+    fn explode(
+        py: Python<'_>,
+        force: Option<&Bound<'_, PyAny>>,
+        randomness: Option<&Bound<'_, PyAny>>,
+        duration_milliseconds: Option<&Bound<'_, PyAny>>,
+        interpolation: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyEffect>> {
+        let default = 800_u32.into_pyobject(py)?.into_any();
+        new_effect(
+            py,
+            EffectNode::new(Kind::Explode {
+                force: optional(force, dynamic_f32)?.unwrap_or(Dynamic::Fixed(10.0)),
+                randomness: optional(randomness, dynamic_f32)?.unwrap_or(Dynamic::Fixed(3.0)),
+                timer: timer_arg(duration_milliseconds.unwrap_or(&default), interpolation)?,
+            }),
+        )
+    }
+
+    #[pyo3(signature = (*, x = None, y = None, duration_milliseconds = None, interpolation = None))]
+    fn translated(
+        slf: &Bound<'_, Self>,
+        x: Option<&Bound<'_, PyAny>>,
+        y: Option<&Bound<'_, PyAny>>,
+        duration_milliseconds: Option<&Bound<'_, PyAny>>,
+        interpolation: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyEffect>> {
+        let default = 500_u32.into_pyobject(slf.py())?.into_any();
+        let x = optional(x, dynamic_i32)?.unwrap_or(Dynamic::Fixed(0));
+        let y = optional(y, dynamic_i32)?.unwrap_or(Dynamic::Fixed(0));
+        let timer = timer_arg(duration_milliseconds.unwrap_or(&default), interpolation)?;
+        wrap(slf, |child| Kind::Translate { child, x, y, timer })
+    }
+
+    #[staticmethod]
     fn term256_colors(py: Python<'_>) -> PyResult<Py<PyEffect>> {
         new_effect(py, EffectNode::new(Kind::Term256Colors))
     }
@@ -776,8 +920,14 @@ impl PyEffect {
     }
 
     /// A copy limited to a rectangle relative to its target.
-    fn with_area(slf: &Bound<'_, Self>, area: &PyRectangle) -> PyResult<Py<PyEffect>> {
-        let area = area.inner;
+    fn with_area(slf: &Bound<'_, Self>, area: &Bound<'_, PyAny>) -> PyResult<Py<PyEffect>> {
+        let area = dynamic_arg(area, |value| {
+            value.extract::<PyRef<'_, PyRectangle>>().map(|rectangle| rectangle.inner).map_err(|_| {
+                PyTypeError::new_err(format!(
+                    "Cannot restrict the effect to {value}. Expected a Rectangle or a rectangle expression. Pass Rectangle(x, y, width, height) or bind a rectangle expression."
+                ))
+            })
+        })?;
         with_node(slf, |node| node.area = Some(area))
     }
 
@@ -1049,6 +1199,47 @@ fn set_color(
     })
 }
 
+/// Refuse a fixed name that is not one of `choices`, so the mistake shows where it was made.
+fn check_name(what: &str, value: &Dynamic<String>, choices: &[&str]) -> PyResult<()> {
+    if let Dynamic::Fixed(name) = value
+        && !choices.contains(&name.as_str())
+    {
+        return Err(PyValueError::new_err(format!(
+            "{name:?} is not {what}. Use one of: {}",
+            choices.join(", ")
+        )));
+    }
+    Ok(())
+}
+
+fn evolve_effect(
+    py: Python<'_>,
+    mode: &str,
+    symbols: Option<&Bound<'_, PyAny>>,
+    style: Option<&Bound<'_, PyAny>>,
+    duration_milliseconds: Option<&Bound<'_, PyAny>>,
+    interpolation: Option<&Bound<'_, PyAny>>,
+) -> PyResult<Py<PyEffect>> {
+    let default = 500_u32.into_pyobject(py)?.into_any();
+    let style: Option<StyleSpec> = style
+        .filter(|value| !value.is_none())
+        .map(|value| style_spec_arg(Some(value)))
+        .transpose()?;
+    let symbols =
+        optional(symbols, dynamic_string)?.unwrap_or(Dynamic::Fixed("circles".to_owned()));
+    let names: Vec<&str> = EVOLVE_SYMBOL_SETS.iter().map(|(name, _)| *name).collect();
+    check_name("a symbol set", &symbols, &names)?;
+    new_effect(
+        py,
+        EffectNode::new(Kind::Evolve {
+            mode: mode.to_owned(),
+            symbols,
+            style,
+            timer: timer_arg(duration_milliseconds.unwrap_or(&default), interpolation)?,
+        }),
+    )
+}
+
 fn dissolve_effect(
     py: Python<'_>,
     is_coalesce: bool,
@@ -1077,7 +1268,7 @@ fn dissolve_effect(
 /// Which cells of an effect's area it touches.
 #[pyclass(
     name = "CellFilter",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     from_py_object
 )]
@@ -1255,7 +1446,7 @@ impl PyCellFilter {
 // Running effects
 
 /// A started effect.
-#[pyclass(name = "RunningEffect", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "RunningEffect", module = "xnano_core._xnano_core", frozen)]
 pub struct PyRunningEffect {
     inner: SharedRunningEffect,
 }
@@ -1337,7 +1528,7 @@ impl PyRunningEffect {
 }
 
 /// The effects running on a runtime.
-#[pyclass(name = "EffectManager", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "EffectManager", module = "xnano_core._xnano_core", frozen)]
 pub struct PyEffectManager {
     pub shared: Arc<crate::shared::RuntimeShared>,
 }
@@ -1425,7 +1616,7 @@ impl PyEffectManager {
     }
 }
 
-#[pyclass(name = "CancelEffect", module = "xnano._xnano_core", extends = PyOperation)]
+#[pyclass(name = "CancelEffect", module = "xnano_core._xnano_core", extends = PyOperation)]
 pub struct PyCancelEffect;
 
 #[pymethods]
@@ -1441,7 +1632,7 @@ fn effect_initializer(node: EffectNode) -> PyClassInitializer<PyEffect> {
     operation_initializer(Operation::Effect(Arc::clone(&spec))).add_subclass(PyEffect { spec })
 }
 
-#[pyclass(name = "Fade", module = "xnano._xnano_core", extends = PyEffect)]
+#[pyclass(name = "Fade", module = "xnano_core._xnano_core", extends = PyEffect)]
 pub struct PyFade;
 #[pymethods]
 impl PyFade {
@@ -1469,7 +1660,7 @@ impl PyFade {
     }
 }
 
-#[pyclass(name = "Dissolve", module = "xnano._xnano_core", extends = PyEffect)]
+#[pyclass(name = "Dissolve", module = "xnano_core._xnano_core", extends = PyEffect)]
 pub struct PyDissolve;
 #[pymethods]
 impl PyDissolve {
@@ -1496,7 +1687,7 @@ impl PyDissolve {
     }
 }
 
-#[pyclass(name = "Glitch", module = "xnano._xnano_core", extends = PyEffect)]
+#[pyclass(name = "Glitch", module = "xnano_core._xnano_core", extends = PyEffect)]
 pub struct PyGlitch;
 #[pymethods]
 impl PyGlitch {
@@ -1528,7 +1719,7 @@ impl PyGlitch {
         Ok(effect_initializer(node).add_subclass(Self))
     }
 }
-#[pyclass(name = "Fuzz", module = "xnano._xnano_core", extends = PyOperation)]
+#[pyclass(name = "Fuzz", module = "xnano_core._xnano_core", extends = PyOperation)]
 pub struct PyFuzz;
 
 #[pymethods]

@@ -389,6 +389,38 @@ impl Adjustment {
     }
 }
 
+/// How an evolve effect treats the content underneath.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvolveMode {
+    Full,
+    Into,
+    From,
+}
+
+/// Every symbol set an evolve effect can step through, by its Python name.
+pub const EVOLVE_SYMBOL_SETS: [(&str, fx::EvolveSymbolSet); 7] = [
+    ("blocks_horizontal", fx::EvolveSymbolSet::BlocksHorizontal),
+    ("blocks_vertical", fx::EvolveSymbolSet::BlocksVertical),
+    ("circle_fill", fx::EvolveSymbolSet::CircleFill),
+    ("circles", fx::EvolveSymbolSet::Circles),
+    ("quadrants", fx::EvolveSymbolSet::Quadrants),
+    ("shaded", fx::EvolveSymbolSet::Shaded),
+    ("squares", fx::EvolveSymbolSet::Squares),
+];
+
+fn evolve_symbols(name: &str) -> Result<fx::EvolveSymbolSet, EvalError> {
+    EVOLVE_SYMBOL_SETS
+        .iter()
+        .find(|(candidate, _)| *candidate == name)
+        .map(|(_, set)| *set)
+        .ok_or_else(|| {
+            EvalError::Type(format!(
+                "{name} is not a symbol set; use blocks_horizontal, blocks_vertical, \
+                 circle_fill, circles, quadrants, shaded or squares"
+            ))
+        })
+}
+
 /// What an effect does. See the module documentation for how to add a variant.
 #[derive(Debug, Clone)]
 pub enum Kind {
@@ -441,6 +473,39 @@ pub enum Kind {
     },
     /// Quantize colors to the 256-color palette.
     Term256Colors,
+    /// Step cells through a set of symbols: all the way (`full`), or into (`into`) or from
+    /// (`from`) the content underneath.
+    Evolve {
+        mode: String,
+        symbols: Dynamic<String>,
+        style: Option<StyleSpec>,
+        timer: Timer,
+    },
+    /// Grow a style outward from the center, horizontally or vertically.
+    Expand {
+        direction: Dynamic<String>,
+        style: StyleSpec,
+        timer: Timer,
+    },
+    /// Stretch a style across the area in a direction.
+    Stretch {
+        direction: Dynamic<String>,
+        style: StyleSpec,
+        timer: Timer,
+    },
+    /// Blow cells outward.
+    Explode {
+        force: Dynamic<f32>,
+        randomness: Dynamic<f32>,
+        timer: Timer,
+    },
+    /// Move the cells a child effect draws by an offset.
+    Translate {
+        child: Shared<EffectNode>,
+        x: Dynamic<i32>,
+        y: Dynamic<i32>,
+        timer: Timer,
+    },
     /// Do nothing for a while.
     Sleep {
         timer: Timer,
@@ -511,6 +576,15 @@ impl Kind {
             } => "coalesce",
             Self::Glitch { .. } => "glitch",
             Self::Term256Colors => "term256_colors",
+            Self::Evolve { mode, .. } => match mode.as_str() {
+                "into" => "evolve_into",
+                "from" => "evolve_from",
+                _ => "evolve",
+            },
+            Self::Expand { .. } => "expand",
+            Self::Stretch { .. } => "stretch",
+            Self::Explode { .. } => "explode",
+            Self::Translate { .. } => "translate",
             Self::Sleep { .. } => "sleep",
             Self::Sequence(_) => "sequence",
             Self::Parallel(_) => "parallel",
@@ -539,6 +613,11 @@ impl Kind {
             | Self::HslShift { timer, .. }
             | Self::Adjust { timer, .. }
             | Self::Dissolve { timer, .. }
+            | Self::Evolve { timer, .. }
+            | Self::Expand { timer, .. }
+            | Self::Stretch { timer, .. }
+            | Self::Explode { timer, .. }
+            | Self::Translate { timer, .. }
             | Self::Sleep { timer } => Some(timer),
             _ => None,
         }
@@ -552,6 +631,11 @@ impl Kind {
             | Self::HslShift { timer, .. }
             | Self::Adjust { timer, .. }
             | Self::Dissolve { timer, .. }
+            | Self::Evolve { timer, .. }
+            | Self::Expand { timer, .. }
+            | Self::Stretch { timer, .. }
+            | Self::Explode { timer, .. }
+            | Self::Translate { timer, .. }
             | Self::Sleep { timer } => Some(timer),
             _ => None,
         }
@@ -568,6 +652,7 @@ impl Kind {
             | Self::FreezeAt { child, .. }
             | Self::RemapAlpha { child, .. }
             | Self::WithDuration { child, .. }
+            | Self::Translate { child, .. }
             | Self::TimedNeverComplete { child, .. }
             | Self::PingPong(child)
             | Self::Repeating(child)
@@ -729,6 +814,84 @@ impl Kind {
                 }
             }
             Self::Term256Colors => PlanKind::Term256Colors,
+            Self::Evolve {
+                mode,
+                symbols,
+                style,
+                timer,
+            } => {
+                let name = resolver.get(symbols)?;
+                PlanKind::Evolve {
+                    mode: match mode.as_str() {
+                        "into" => EvolveMode::Into,
+                        "from" => EvolveMode::From,
+                        _ => EvolveMode::Full,
+                    },
+                    symbols: evolve_symbols(&name)?,
+                    style: style
+                        .as_ref()
+                        .map(|style| style.resolve(resolver))
+                        .transpose()?,
+                    timer: timer.resolve(resolver)?,
+                }
+            }
+            Self::Expand {
+                direction,
+                style,
+                timer,
+            } => {
+                let name = resolver.get(direction)?;
+                PlanKind::Expand {
+                    direction: match name.as_str() {
+                        "horizontal" => fx::ExpandDirection::Horizontal,
+                        "vertical" => fx::ExpandDirection::Vertical,
+                        other => {
+                            return Err(EvalError::Type(format!(
+                                "{other} is not an expand direction; use horizontal or vertical"
+                            )));
+                        }
+                    },
+                    style: style.resolve(resolver)?,
+                    timer: timer.resolve(resolver)?,
+                }
+            }
+            Self::Stretch {
+                direction,
+                style,
+                timer,
+            } => {
+                let name = resolver.get(direction)?;
+                PlanKind::Stretch {
+                    direction: motion_from_name(&name).ok_or_else(|| {
+                        EvalError::Type(format!(
+                            "{name} is not a motion direction; use up_to_down, down_to_up, \
+                             left_to_right or right_to_left"
+                        ))
+                    })?,
+                    style: style.resolve(resolver)?,
+                    timer: timer.resolve(resolver)?,
+                }
+            }
+            Self::Explode {
+                force,
+                randomness,
+                timer,
+            } => PlanKind::Explode {
+                force: resolver.get(force)?,
+                randomness: resolver.get(randomness)?,
+                timer: timer.resolve(resolver)?,
+            },
+            Self::Translate {
+                child: node,
+                x,
+                y,
+                timer,
+            } => PlanKind::Translate {
+                child: child(resolver, node)?,
+                x: resolver.get(x)?,
+                y: resolver.get(y)?,
+                timer: timer.resolve(resolver)?,
+            },
             Self::Sleep { timer } => PlanKind::Sleep {
                 timer: timer.resolve(resolver)?,
             },
@@ -823,7 +986,7 @@ impl Kind {
 pub struct EffectNode {
     pub kind: Kind,
     /// Restrict the effect to a rectangle relative to its target.
-    pub area: Option<Rectangle>,
+    pub area: Option<Dynamic<Rectangle>>,
     /// Restrict the effect to the cells a filter selects.
     pub filter: Option<FilterSpec>,
     pub pattern: Option<PatternSpec>,
@@ -869,7 +1032,11 @@ impl EffectNode {
         }
         Ok(Plan {
             kind: self.kind.resolve(resolver)?,
-            area: self.area,
+            area: self
+                .area
+                .as_ref()
+                .map(|area| resolver.get(area))
+                .transpose()?,
             filter: self.filter.clone(),
             pattern: self.pattern.clone(),
             is_reversed: resolver.get(&self.is_reversed)?,
@@ -950,6 +1117,33 @@ pub enum PlanKind {
         duration_milliseconds: u32,
     },
     Term256Colors,
+    Evolve {
+        mode: EvolveMode,
+        symbols: fx::EvolveSymbolSet,
+        style: Option<ratatui_core::style::Style>,
+        timer: ResolvedTimer,
+    },
+    Expand {
+        direction: fx::ExpandDirection,
+        style: ratatui_core::style::Style,
+        timer: ResolvedTimer,
+    },
+    Stretch {
+        direction: tachyonfx::Motion,
+        style: ratatui_core::style::Style,
+        timer: ResolvedTimer,
+    },
+    Explode {
+        force: f32,
+        randomness: f32,
+        timer: ResolvedTimer,
+    },
+    Translate {
+        child: Box<Plan>,
+        x: i32,
+        y: i32,
+        timer: ResolvedTimer,
+    },
     Sleep {
         timer: ResolvedTimer,
     },
@@ -1156,6 +1350,47 @@ impl PlanKind {
             }
             #[allow(deprecated)]
             Self::Term256Colors => fx::term256_colors(),
+            Self::Evolve {
+                mode,
+                symbols,
+                style,
+                timer,
+            } => {
+                let timer = timer.to_timer();
+                match (mode, style) {
+                    (EvolveMode::Full, None) => fx::evolve(*symbols, timer),
+                    (EvolveMode::Full, Some(style)) => fx::evolve((*symbols, *style), timer),
+                    (EvolveMode::Into, None) => fx::evolve_into(*symbols, timer),
+                    (EvolveMode::Into, Some(style)) => fx::evolve_into((*symbols, *style), timer),
+                    (EvolveMode::From, None) => fx::evolve_from(*symbols, timer),
+                    (EvolveMode::From, Some(style)) => fx::evolve_from((*symbols, *style), timer),
+                }
+            }
+            Self::Expand {
+                direction,
+                style,
+                timer,
+            } => fx::expand(*direction, *style, timer.to_timer()),
+            Self::Stretch {
+                direction,
+                style,
+                timer,
+            } => fx::stretch(*direction, *style, timer.to_timer()),
+            Self::Explode {
+                force,
+                randomness,
+                timer,
+            } => fx::explode(*force, *randomness, timer.to_timer()),
+            Self::Translate {
+                child: plan,
+                x,
+                y,
+                timer,
+            } => fx::translate(
+                child(plan),
+                ratatui_core::layout::Offset { x: *x, y: *y },
+                timer.to_timer(),
+            ),
             Self::Sleep { timer } => fx::sleep(timer.to_timer()),
             Self::Sequence(plans) => fx::sequence(
                 &plans
@@ -1228,6 +1463,8 @@ pub struct EffectRun {
     built_from: Option<u64>,
     elapsed_milliseconds: u64,
     is_started: bool,
+    /// Whether tachyonfx failed while running the effect, which ends it.
+    has_failed: bool,
 }
 
 impl fmt::Debug for EffectRun {
@@ -1255,6 +1492,7 @@ impl EffectRun {
             built_from: None,
             elapsed_milliseconds: 0,
             is_started: false,
+            has_failed: false,
         }
     }
 
@@ -1264,7 +1502,7 @@ impl EffectRun {
     }
 
     pub fn is_done(&self) -> bool {
-        self.effect.as_ref().is_some_and(Effect::done)
+        self.has_failed || self.effect.as_ref().is_some_and(Effect::done)
     }
 
     /// How far the effect has progressed, from 0.0 to 1.0, when it has a timer of its own.
@@ -1281,6 +1519,7 @@ impl EffectRun {
         self.built_from = None;
         self.elapsed_milliseconds = 0;
         self.is_started = false;
+        self.has_failed = false;
     }
 
     /// Run the effect backwards from where it is.
@@ -1339,7 +1578,16 @@ impl EffectRun {
         self.is_started = true;
         self.elapsed_milliseconds += u64::from(step);
         if let Some(effect) = &mut self.effect {
-            effect.process(Duration::from_millis(step), frame.buffer_mut(), area);
+            // tachyonfx does plain arithmetic on cell positions, which can overflow for some
+            // sizes at the very end of an effect; an effect that fails ends instead of
+            // taking the whole runtime down.
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                effect.process(Duration::from_millis(step), frame.buffer_mut(), area);
+            }));
+            if outcome.is_err() {
+                self.effect = None;
+                self.has_failed = true;
+            }
         }
         Ok(())
     }
@@ -1402,6 +1650,20 @@ mod tests {
             is_from: false,
             timer: timer(100),
         })
+    }
+
+    #[test]
+    fn rectangle_expressions_resolve_and_wrong_types_are_rejected() {
+        use crate::expression::Expr;
+        let mut node = EffectNode::new(Kind::ConsumeTick);
+        let area = Rectangle::new(2, 1, 3, 1);
+        node.area = Some(Dynamic::Bound(Expr::literal(Scalar::Rectangle(area))));
+        assert_eq!(
+            node.resolve(&mut Resolver::new(&Offline)).unwrap().area,
+            Some(area)
+        );
+        node.area = Some(Dynamic::Bound(Expr::literal(Scalar::Integer(3))));
+        assert!(node.resolve(&mut Resolver::new(&Offline)).is_err());
     }
 
     #[test]

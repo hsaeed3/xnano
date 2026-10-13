@@ -6,7 +6,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use xnano_terminal_runtime::clock::{Clock, SimulationClock};
 
-#[pyclass(name = "Clock", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "Clock", module = "xnano_core._xnano_core", frozen)]
 pub struct PyClock {
     pub inner: Arc<Clock>,
 }
@@ -123,7 +123,7 @@ fn check_rate(rate: f64) -> PyResult<()> {
     Ok(())
 }
 
-#[pyclass(name = "SimulationClock", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "SimulationClock", module = "xnano_core._xnano_core", frozen)]
 pub struct PySimulationClock {
     pub inner: Arc<SimulationClock>,
 }

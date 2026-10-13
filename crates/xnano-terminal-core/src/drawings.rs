@@ -17,7 +17,7 @@ use crate::surface::new_buffer;
 
 #[pyclass(
     name = "Drawing",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     from_py_object
@@ -137,7 +137,7 @@ impl PyDrawing {
 
 #[pyclass(
     name = "DrawingFrame",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     from_py_object
 )]
@@ -179,7 +179,7 @@ impl PyDrawingFrame {
 
 #[pyclass(
     name = "DrawingAnimation",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     from_py_object
 )]
@@ -236,7 +236,7 @@ impl PyDrawingAnimation {
     }
 }
 
-#[pyclass(name = "Draw", module = "xnano._xnano_core", extends = PyOperation)]
+#[pyclass(name = "Draw", module = "xnano_core._xnano_core", extends = PyOperation)]
 pub struct PyDraw;
 
 #[pymethods]
@@ -259,7 +259,7 @@ impl PyDraw {
     }
 }
 
-#[pyclass(name = "AnimateDrawing", module = "xnano._xnano_core", extends = PyOperation)]
+#[pyclass(name = "AnimateDrawing", module = "xnano_core._xnano_core", extends = PyOperation)]
 pub struct PyAnimateDrawing;
 
 #[pymethods]

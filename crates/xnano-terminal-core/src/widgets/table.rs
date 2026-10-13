@@ -34,7 +34,7 @@ fn hash_of(key: &str) -> u64 {
 /// One cell of a table row.
 #[pyclass(
     name = "TableCell",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     from_py_object
 )]
@@ -121,7 +121,7 @@ impl PyTableCell {
 /// One row of a table.
 #[pyclass(
     name = "TableRow",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     from_py_object
 )]
@@ -274,7 +274,7 @@ fn width_to_py(py: Python<'_>, rule: WidthRule) -> PyResult<Py<PyAny>> {
 }
 
 /// A table of rows with a header, a footer and a selection.
-#[pyclass(name = "Table", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Table", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyTable {
     spec: Shared<TableSpec>,
     block: BlockHolder,

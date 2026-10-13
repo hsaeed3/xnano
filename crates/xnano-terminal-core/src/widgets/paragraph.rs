@@ -22,7 +22,7 @@ use crate::widgets::{
     repaint, widget_initializer,
 };
 
-#[pyclass(name = "Paragraph", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Paragraph", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyParagraph {
     spec: Shared<ParagraphSpec>,
     /// The text as the user gave it, so the getter returns what was set.

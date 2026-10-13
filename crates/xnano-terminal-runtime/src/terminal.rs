@@ -3,9 +3,10 @@
 //! Everything that touches the real terminal lives here, behind the `terminal` feature, so
 //! offscreen runtimes (and WebAssembly builds) never link it.
 
-use std::io::{self, IsTerminal, Read, Write, stdout};
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(unix)]
+use std::io::Read;
+use std::io::{self, IsTerminal, Write, stdout};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Once};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -18,17 +19,23 @@ use crossterm::event::{
 use crossterm::style::{Attribute, ResetColor, SetAttribute};
 use crossterm::terminal::{
     BeginSynchronizedUpdate, EnableLineWrap, EndSynchronizedUpdate, EnterAlternateScreen,
-    LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+    LeaveAlternateScreen, SetTitle, disable_raw_mode, enable_raw_mode,
 };
 use crossterm::{ExecutableCommand, QueueableCommand};
-use ratatui::backend::CrosstermBackend;
+use ratatui::backend::{Backend, ClearType, CrosstermBackend, WindowSize};
 use ratatui::{Terminal, TerminalOptions as RatatuiOptions, Viewport};
-use ratatui_core::layout::Rect;
+use ratatui_core::layout::{Position, Rect};
 use termprofile::{DetectorSettings, TermProfile};
 
-use crate::event::{Event, EventKind, EventPayload, terminal::from_crossterm};
-use crate::geometry::{Point, Size};
+use crate::cursor::{CursorPlacement, CursorShape};
+#[cfg(unix)]
+use crate::event::EventKind;
+use crate::event::{Event, EventPayload, terminal::from_crossterm};
+use crate::geometry::Size;
 use crate::grid::{Grid, is_protocol_cell};
+use crate::output_capture::{
+    OutputCapture, OutputNotifier, TerminalOutput, lift_capture, terminal_output,
+};
 
 pub use crate::device::{DeviceModes, KeyboardInfo, Status, TerminalInfo};
 
@@ -46,6 +53,7 @@ pub struct Replies {
 }
 
 /// Whether `data` holds a primary device attributes reply (`ESC [ ? attributes c`).
+#[cfg_attr(not(unix), allow(dead_code))]
 fn has_device_attributes_reply(data: &str) -> bool {
     data.split("\x1b[?").skip(1).any(|part| {
         let end = part
@@ -127,7 +135,7 @@ fn wait_for_input(timeout: Duration) -> bool {
 /// know the other queries still ends the wait early.
 #[cfg(unix)]
 pub fn query_terminal(timeout: Duration) -> Option<Replies> {
-    if !(stdout().is_terminal() && io::stdin().is_terminal()) {
+    if !(terminal_output().is_terminal() && io::stdin().is_terminal()) {
         return None;
     }
     let was_raw = crossterm::terminal::is_raw_mode_enabled().unwrap_or(false);
@@ -135,7 +143,7 @@ pub fn query_terminal(timeout: Duration) -> Option<Replies> {
         enable_raw_mode().ok()?;
     }
     let query = "\x1b_Gi=31,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\\x1b[?2026$p\x1b[16t\x1b[?u\x1b[c";
-    let mut output = stdout();
+    let mut output = terminal_output();
     let written = output
         .write_all(query.as_bytes())
         .and_then(|()| output.flush());
@@ -225,8 +233,11 @@ fn keyboard_from(is_terminal: bool, replies: Option<&Replies>, timeout: Duration
 ///
 /// A terminal that never answers yields `Unknown` statuses, never an error.
 pub fn probe(timeout: Duration) -> Probe {
-    let is_terminal = stdout().is_terminal() && io::stdin().is_terminal();
-    let profile = TermProfile::detect(&stdout(), DetectorSettings::default());
+    let is_terminal = terminal_output().is_terminal() && io::stdin().is_terminal();
+    let profile = match crate::output_capture::real_terminal_file() {
+        Some(terminal) => TermProfile::detect(&*terminal, DetectorSettings::default()),
+        None => TermProfile::detect(&stdout(), DetectorSettings::default()),
+    };
     let is_inside_tmux = std::env::var_os("TMUX").is_some();
     let replies = if is_terminal {
         query_terminal(timeout)
@@ -302,7 +313,14 @@ pub struct SessionOptions {
     pub drain_reports_on_exit: bool,
     pub drain_timeout: Duration,
     pub inline_height: Option<u16>,
+    /// Draw no wider than this many columns (an inline session only).
+    pub inline_width: Option<u16>,
     pub should_handle_exit_signals: bool,
+    /// Erase the session's area when it closes instead of leaving it on the screen.
+    pub should_clear_on_close: bool,
+    /// Keep text written to standard output and standard error off the screen while the
+    /// session is open (see [`crate::output_capture`]).
+    pub should_capture_output: bool,
 }
 
 /// Rolls back terminal modes if taking over the terminal fails halfway through.
@@ -317,7 +335,7 @@ impl Drop for TerminalSetupGuard {
         if !self.armed {
             return;
         }
-        let mut output = stdout();
+        let mut output = terminal_output();
         if self.modes.is_alternate_screen_enabled {
             let _ = output.execute(LeaveAlternateScreen);
         }
@@ -339,7 +357,7 @@ const RESET_BLOB: &[u8] = b"\
 
 /// Leave every private mode the session may have armed.
 pub fn emit_reset_sequences() {
-    let mut out = stdout();
+    let mut out = terminal_output();
     let _ = out.execute(EndSynchronizedUpdate);
     let _ = out.execute(DisableBracketedPaste);
     let _ = out.execute(DisableFocusChange);
@@ -405,7 +423,7 @@ impl PanicGuard {
                 }
                 if ACTIVE_TERMINAL_SESSIONS.load(Ordering::SeqCst) > 0 {
                     let _ = disable_raw_mode();
-                    let _ = stdout().execute(LeaveAlternateScreen);
+                    let _ = terminal_output().execute(LeaveAlternateScreen);
                     emit_reset_sequences();
                 }
                 hook(info);
@@ -506,8 +524,18 @@ struct InputReader {
     handle: Option<JoinHandle<()>>,
 }
 
+/// Where the drawing area starts on the screen, as `column << 16 | row`.
+///
+/// Mouse reports are in screen cells, so an inline region (which starts wherever the cursor
+/// was) subtracts this to report cells inside the region.
+type Origin = Arc<AtomicU32>;
+
+fn pack_origin(area: Rect) -> u32 {
+    (u32::from(area.x) << 16) | u32::from(area.y)
+}
+
 impl InputReader {
-    fn spawn(sink: EventSink) -> Self {
+    fn spawn(sink: EventSink, origin: Origin) -> Self {
         let should_stop = Arc::new(AtomicBool::new(false));
         let flag = Arc::clone(&should_stop);
         let handle = std::thread::Builder::new()
@@ -517,7 +545,12 @@ impl InputReader {
                     match crossterm::event::poll(Duration::from_millis(20)) {
                         Ok(true) => match crossterm::event::read() {
                             Ok(event) => {
-                                if let Some(event) = from_crossterm(event) {
+                                if let Some(mut event) = from_crossterm(event) {
+                                    if let EventPayload::Mouse(mouse) = &mut event.payload {
+                                        let start = origin.load(Ordering::Relaxed);
+                                        mouse.column -= (start >> 16) as i32;
+                                        mouse.row -= (start & 0xffff) as i32;
+                                    }
                                     sink(event);
                                 }
                             }
@@ -599,15 +632,100 @@ fn graphics_signature(grid: &Grid) -> Option<GraphicsSignature> {
     })
 }
 
+/// The crossterm backend, asking the terminal its questions with output capture lifted.
+///
+/// Drawing goes to the real terminal through [`TerminalOutput`]. Reading the cursor position
+/// is the one thing crossterm writes to standard output itself, so that call is made with
+/// standard output pointing at the terminal.
+pub struct SessionBackend {
+    inner: CrosstermBackend<TerminalOutput>,
+}
+
+impl SessionBackend {
+    fn new() -> Self {
+        Self {
+            inner: CrosstermBackend::new(terminal_output()),
+        }
+    }
+}
+
+impl Write for SessionBackend {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.inner.write(bytes)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Write::flush(&mut self.inner)
+    }
+}
+
+impl Backend for SessionBackend {
+    type Error = io::Error;
+
+    fn draw<'a, I>(&mut self, content: I) -> io::Result<()>
+    where
+        I: Iterator<Item = (u16, u16, &'a ratatui_core::buffer::Cell)>,
+    {
+        self.inner.draw(content)
+    }
+
+    fn append_lines(&mut self, lines: u16) -> io::Result<()> {
+        self.inner.append_lines(lines)
+    }
+
+    fn hide_cursor(&mut self) -> io::Result<()> {
+        self.inner.hide_cursor()
+    }
+
+    fn show_cursor(&mut self) -> io::Result<()> {
+        self.inner.show_cursor()
+    }
+
+    fn get_cursor_position(&mut self) -> io::Result<Position> {
+        let _lifted = lift_capture();
+        self.inner.get_cursor_position()
+    }
+
+    fn set_cursor_position<P: Into<Position>>(&mut self, position: P) -> io::Result<()> {
+        self.inner.set_cursor_position(position)
+    }
+
+    fn clear(&mut self) -> io::Result<()> {
+        self.inner.clear()
+    }
+
+    fn clear_region(&mut self, clear_type: ClearType) -> io::Result<()> {
+        self.inner.clear_region(clear_type)
+    }
+
+    fn size(&self) -> io::Result<ratatui_core::layout::Size> {
+        self.inner.size()
+    }
+
+    fn window_size(&mut self) -> io::Result<WindowSize> {
+        self.inner.window_size()
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Backend::flush(&mut self.inner)
+    }
+}
+
 /// A live terminal session.
 pub struct TerminalSession {
-    terminal: Terminal<CrosstermBackend<io::Stdout>>,
+    terminal: Terminal<SessionBackend>,
     options: SessionOptions,
     modes: DeviceModes,
     input: Option<InputReader>,
+    #[cfg_attr(not(unix), allow(dead_code))]
     sink: EventSink,
     last_graphics: Option<GraphicsSignature>,
+    /// The frame the screen shows, so an identical frame writes nothing.
+    last_presented: Option<(ratatui_core::buffer::Buffer, Option<CursorPlacement>)>,
+    last_cursor_style: Option<(CursorShape, bool)>,
     last_area: Rect,
+    origin: Origin,
+    capture: Option<OutputCapture>,
     _panic_guard: PanicGuard,
 }
 
@@ -617,11 +735,19 @@ impl TerminalSession {
         options: SessionOptions,
         keyboard: Option<&KeyboardInfo>,
         sink: EventSink,
+        output_notifier: Option<OutputNotifier>,
     ) -> io::Result<Self> {
         let panic_guard = PanicGuard::install();
+        // Declared before the setup guard, so the guard puts the modes back through the real
+        // terminal before the capture gives standard output back.
+        let capture = if options.should_capture_output {
+            OutputCapture::start(output_notifier).ok()
+        } else {
+            None
+        };
         let mut setup = TerminalSetupGuard::default();
         setup.armed = true;
-        let mut output = stdout();
+        let mut output = terminal_output();
         if options.raw_mode {
             enable_raw_mode()?;
             setup.modes.is_raw_mode_enabled = true;
@@ -674,11 +800,12 @@ impl TerminalSession {
             Some(height) => Viewport::Inline(height.max(1)),
             None => Viewport::Fullscreen,
         };
-        let terminal =
-            Terminal::with_options(CrosstermBackend::new(stdout()), RatatuiOptions { viewport })?;
+        let terminal = Terminal::with_options(SessionBackend::new(), RatatuiOptions { viewport })?;
         let modes = std::mem::take(&mut setup.modes);
         setup.armed = false;
-        let input = Some(InputReader::spawn(Arc::clone(&sink)));
+        let mut terminal = terminal;
+        let origin: Origin = Arc::new(AtomicU32::new(pack_origin(terminal.get_frame().area())));
+        let input = Some(InputReader::spawn(Arc::clone(&sink), Arc::clone(&origin)));
         #[cfg(unix)]
         if options.should_handle_exit_signals {
             exit_signals::register(&sink);
@@ -690,9 +817,28 @@ impl TerminalSession {
             input,
             sink,
             last_graphics: None,
+            last_presented: None,
+            last_cursor_style: None,
             last_area: Rect::default(),
+            origin,
+            capture,
             _panic_guard: panic_guard,
         })
+    }
+
+    /// The text written to standard output and standard error since the last call, or
+    /// nothing when output is not captured. Text taken here is not printed when the
+    /// session ends.
+    /// Whether standard output and standard error are being held back from the screen.
+    pub fn is_output_captured(&self) -> bool {
+        self.capture.is_some()
+    }
+
+    pub fn take_captured_output(&self) -> String {
+        self.capture
+            .as_ref()
+            .map(OutputCapture::take)
+            .unwrap_or_default()
     }
 
     pub fn modes(&self) -> &DeviceModes {
@@ -708,7 +854,12 @@ impl TerminalSession {
         self.terminal.autoresize()?;
         let area = self.terminal.get_frame().area();
         self.last_area = area;
-        Ok(Size::new(i32::from(area.width), i32::from(area.height)))
+        self.origin.store(pack_origin(area), Ordering::Relaxed);
+        let width = self
+            .options
+            .inline_width
+            .map_or(area.width, |limit| limit.min(area.width).max(1));
+        Ok(Size::new(i32::from(width), i32::from(area.height)))
     }
 
     /// The size of the whole terminal window in cells.
@@ -717,8 +868,14 @@ impl TerminalSession {
         Ok(Size::new(i32::from(size.width), i32::from(size.height)))
     }
 
+    /// Set the window title through the terminal output, bypassing captured stdout.
+    pub fn set_title(&mut self, title: &str) -> io::Result<()> {
+        self.terminal.backend_mut().queue(SetTitle(title))?;
+        Backend::flush(self.terminal.backend_mut())
+    }
+
     /// Show `frame` in one synchronized update.
-    pub fn present(&mut self, frame: &Grid, cursor: Option<Point>) -> io::Result<()> {
+    pub fn present(&mut self, frame: &Grid, cursor: Option<CursorPlacement>) -> io::Result<()> {
         let signature = graphics_signature(frame);
         let needs_full_redraw = match (self.last_graphics, signature) {
             (Some(previous), Some(current)) => {
@@ -731,38 +888,72 @@ impl TerminalSession {
         self.last_graphics = signature;
         if needs_full_redraw {
             self.terminal.clear()?;
+        } else if self
+            .last_presented
+            .as_ref()
+            .is_some_and(|(buffer, placement)| buffer == frame.buffer() && *placement == cursor)
+        {
+            return Ok(());
         }
         self.terminal.backend_mut().queue(BeginSynchronizedUpdate)?;
+        if let Some(CursorPlacement {
+            style: Some(style), ..
+        }) = cursor
+            && self.last_cursor_style != Some(style)
+        {
+            let (shape, is_blinking) = style;
+            self.last_cursor_style = Some(style);
+            self.terminal
+                .backend_mut()
+                .queue(match (shape, is_blinking) {
+                    (CursorShape::Block, true) => SetCursorStyle::BlinkingBlock,
+                    (CursorShape::Block, false) => SetCursorStyle::SteadyBlock,
+                    (CursorShape::Bar, true) => SetCursorStyle::BlinkingBar,
+                    (CursorShape::Bar, false) => SetCursorStyle::SteadyBar,
+                    (CursorShape::Underline, true) => SetCursorStyle::BlinkingUnderScore,
+                    (CursorShape::Underline, false) => SetCursorStyle::SteadyUnderScore,
+                })?;
+        }
         let result = self.terminal.draw(|terminal_frame| {
             let target = terminal_frame.buffer_mut();
             let source = frame.buffer();
+            // The frame always starts at its own origin, but an inline region starts wherever
+            // the cursor was, so cells are copied by their position inside each area.
+            let origin = target.area.as_position();
             if target.area == source.area {
                 target.content.clone_from_slice(&source.content);
             } else {
-                let shared = target.area.intersection(source.area);
-                for y in shared.top()..shared.bottom() {
-                    for x in shared.left()..shared.right() {
-                        if let (Some(from), Some(to)) =
-                            (source.cell((x, y)), target.cell_mut((x, y)))
-                        {
+                let width = target.area.width.min(source.area.width);
+                let height = target.area.height.min(source.area.height);
+                for row in 0..height {
+                    for column in 0..width {
+                        if let (Some(from), Some(to)) = (
+                            source.cell((source.area.x + column, source.area.y + row)),
+                            target.cell_mut((origin.x + column, origin.y + row)),
+                        ) {
                             to.clone_from(from);
                         }
                     }
                 }
             }
-            if let Some(position) = cursor
-                && position.x >= 0
-                && position.y >= 0
+            if let Some(placement) = cursor
+                && placement.position.x >= 0
+                && placement.position.y >= 0
             {
-                terminal_frame.set_cursor_position((position.x as u16, position.y as u16));
+                terminal_frame.set_cursor_position((
+                    origin.x.saturating_add(placement.position.x as u16),
+                    origin.y.saturating_add(placement.position.y as u16),
+                ));
             }
         });
         let drawn = result.map(|_| ());
         self.terminal.backend_mut().execute(EndSynchronizedUpdate)?;
+        self.last_presented = drawn.is_ok().then(|| (frame.buffer().clone(), cursor));
         drawn
     }
 
     pub fn clear(&mut self) -> io::Result<()> {
+        self.last_presented = None;
         self.terminal.clear()
     }
 
@@ -776,11 +967,17 @@ impl TerminalSession {
             exit_signals::unregister(&self.sink);
         }
         emit_reset_sequences();
-        let mut output = stdout();
+        let mut output = terminal_output();
         if self.modes.is_alternate_screen_enabled {
             let _ = output.execute(LeaveAlternateScreen);
         }
-        if self.is_inline() {
+        if self.options.should_clear_on_close && !self.modes.is_alternate_screen_enabled {
+            // A transient session leaves nothing behind: erase its area and put the cursor
+            // where the area began.
+            let _ = self.terminal.clear();
+            let _ = Write::flush(self.terminal.backend_mut());
+            let _ = output.execute(MoveTo(0, self.last_area.top()));
+        } else if self.is_inline() {
             let _ = output.execute(MoveTo(0, self.last_area.bottom()));
         }
         if self.options.drain_reports_on_exit {
@@ -794,6 +991,15 @@ impl TerminalSession {
         }
         emit_reset_sequences();
         let _ = output.flush();
+        // Where output is captured this closes the copy of the real terminal before the
+        // capture ends; elsewhere the output holds nothing to close.
+        #[cfg_attr(not(unix), allow(clippy::drop_non_drop))]
+        drop(output);
+        // The terminal is back to normal, so anything printed during the session can be
+        // shown without disturbing a screen.
+        if let Some(capture) = self.capture.take() {
+            capture.finish();
+        }
     }
 }
 

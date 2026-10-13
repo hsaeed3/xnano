@@ -37,7 +37,7 @@ fn graph_type_arg(value: &Bound<'_, PyAny>) -> PyResult<Dynamic<String>> {
     Ok(setting)
 }
 
-#[pyclass(name = "ChartAxis", module = "xnano._xnano_core")]
+#[pyclass(name = "ChartAxis", module = "xnano_core._xnano_core")]
 pub struct PyChartAxis {
     pub spec: Shared<AxisSpec>,
     owners: Owners,
@@ -164,7 +164,7 @@ impl PyChartAxis {
     }
 }
 
-#[pyclass(name = "ChartDataset", module = "xnano._xnano_core")]
+#[pyclass(name = "ChartDataset", module = "xnano_core._xnano_core")]
 pub struct PyChartDataset {
     pub spec: Shared<DatasetSpec>,
     owners: Owners,
@@ -296,7 +296,7 @@ impl PyChartDataset {
     }
 }
 
-#[pyclass(name = "Chart", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Chart", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyChart {
     spec: Shared<ChartSpec>,
     datasets: Vec<Py<PyChartDataset>>,

@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use ratatui_core::buffer::Cell;
 
 use crate::geometry::{MAXIMUM_DIMENSION, Rectangle, Size};
-use crate::grid::{BlitMode, Bounds, Grid, MAXIMUM_CELLS};
+use crate::grid::{Bounds, Grid, MAXIMUM_CELLS, PasteMode};
 use crate::layout::{LayoutSpec, solve};
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
@@ -48,7 +48,7 @@ impl Geometry {
 pub struct Child {
     pub core: Arc<BufferCore>,
     pub geometry: Geometry,
-    pub mode: BlitMode,
+    pub mode: PasteMode,
 }
 
 /// Why a tree change was refused.
@@ -318,7 +318,7 @@ pub fn attach(
     parent: &Arc<BufferCore>,
     child: &Arc<BufferCore>,
     geometry: Geometry,
-    mode: BlitMode,
+    mode: PasteMode,
 ) -> Result<(), TreeError> {
     if Arc::ptr_eq(parent, child) {
         return Err(TreeError::AttachToSelf);
@@ -382,10 +382,17 @@ pub fn absolute_origin(core: &Arc<BufferCore>) -> (i32, i32) {
 
 /// The children of `core` in paint order: lowest layer first, attachment order within a layer.
 pub fn paint_order(core: &Arc<BufferCore>) -> Vec<Child> {
-    let mut children: Vec<(usize, Child)> =
-        core.lock().children.iter().cloned().enumerate().collect();
-    children.sort_by_key(|(index, child)| (child.core.lock().layer, *index));
-    children.into_iter().map(|(_, child)| child).collect()
+    let children: Vec<Child> = core.lock().children.clone();
+    // Each child's layer is read once, and the stable sort keeps attachment order within a layer.
+    let mut keyed: Vec<_> = children
+        .into_iter()
+        .map(|child| {
+            let layer = child.core.lock().layer;
+            (layer, child)
+        })
+        .collect();
+    keyed.sort_by_key(|(layer, _)| *layer);
+    keyed.into_iter().map(|(_, child)| child).collect()
 }
 
 fn clip_to_bounds(clip: Rectangle, grid: &Grid) -> Option<Bounds> {
@@ -415,7 +422,7 @@ pub fn compose(
     output: &mut Grid,
     origin: (i32, i32),
     clip: Rectangle,
-    mode: BlitMode,
+    mode: PasteMode,
 ) {
     let (area, visible) = {
         let state = core.lock();
@@ -433,7 +440,7 @@ pub fn compose(
             return;
         }
         if let Some(bounds) = clip_to_bounds(visible, output) {
-            output.blit(
+            output.paste(
                 bounds,
                 &state.grid,
                 area.x - i32::from(bounds.left),

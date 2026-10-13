@@ -10,14 +10,16 @@ use pyo3::{PyTraverseError, PyVisit};
 use ratatui_core::buffer::Cell;
 use unicode_segmentation::UnicodeSegmentation;
 use xnano_terminal_runtime::buffer::{
-    BufferCore, Geometry, attach, check_size, compose, detach, relayout,
+    BufferCore, Geometry, absolute_origin, attach, check_size, compose, detach, relayout,
 };
 use xnano_terminal_runtime::expression::{Environment, EvalError, PropertyId, Scalar};
 use xnano_terminal_runtime::geometry::{Point, Rectangle, Size};
-use xnano_terminal_runtime::grid::{BlitMode, Bounds, Grid, WriteMode, cell_columns, styled_blank};
+use xnano_terminal_runtime::grid::{
+    Bounds, Grid, PasteMode, WriteMode, cell_columns, styled_blank,
+};
 use xnano_terminal_runtime::operation::{ApplyContext, Deferred, Operation, Target};
 use xnano_terminal_runtime::pixel::{
-    Anchor, PixelEncoding, PixelSpace, RasterMode, blit_rgba, write_pixels,
+    Anchor, PixelEncoding, PixelSpace, RasterMode, draw_rgba, write_pixels,
 };
 use xnano_terminal_runtime::style::{Color, Modifier, Style, modifier_names};
 
@@ -79,7 +81,7 @@ pub fn single_symbol(text: &str) -> PyResult<(String, usize)> {
     Ok((first.to_owned(), columns))
 }
 
-#[pyclass(name = "Cell", module = "xnano._xnano_core")]
+#[pyclass(name = "Cell", module = "xnano_core._xnano_core")]
 pub struct PyCell {
     pub cell: Cell,
     pub is_transparent: bool,
@@ -243,7 +245,7 @@ fn pixel_list(value: &Bound<'_, PyAny>) -> PyResult<Vec<(i32, i32, (u8, u8, u8))
     Ok(pixels)
 }
 
-#[pyclass(name = "PixelView", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "PixelView", module = "xnano_core._xnano_core", frozen)]
 pub struct PyPixelView {
     surface: Py<PyAny>,
     encoding: PixelEncoding,
@@ -308,7 +310,7 @@ impl PyPixelView {
     }
 
     #[pyo3(signature = (data, *, width, height, x = 0, y = 0, mode = "over", clip = true))]
-    fn blit_rgba(
+    fn draw_rgba(
         &self,
         py: Python<'_>,
         data: &[u8],
@@ -340,7 +342,7 @@ impl PyPixelView {
         let (core, space) = self.space(py)?;
         let failure = {
             let mut state = core.lock();
-            let outcome = blit_rgba(
+            let outcome = draw_rgba(
                 &mut state.grid,
                 space,
                 data,
@@ -422,7 +424,7 @@ fn slice_range(slice: &Bound<'_, PySlice>, length: i32) -> PyResult<(i32, i32)> 
     Ok((indices.start as i32, indices.stop.max(indices.start) as i32))
 }
 
-#[pyclass(name = "Surface", module = "xnano._xnano_core", subclass)]
+#[pyclass(name = "Surface", module = "xnano_core._xnano_core", subclass)]
 pub struct PySurface {
     pub core: Arc<BufferCore>,
     pub ext: Arc<BufferExt>,
@@ -496,6 +498,40 @@ pub struct SurfaceEnv {
 }
 
 impl SurfaceEnv {
+    /// The size of the buffer this target sits in: the parent of a buffer, or the buffer a
+    /// region belongs to.
+    fn parent_size(&self, id: PropertyId) -> Result<Size, EvalError> {
+        if self.region.is_some() {
+            let state = self.core.lock();
+            return Ok(Size::new(state.width(), state.height()));
+        }
+        let parent = self.core.parent().ok_or_else(|| {
+            EvalError::Type(format!(
+                "{} needs a parent buffer, but this buffer has none. Attach it to a parent with \
+                 parent.attach(buffer) first",
+                id.name()
+            ))
+        })?;
+        let state = parent.lock();
+        Ok(Size::new(state.width(), state.height()))
+    }
+
+    /// The target's rectangle on the screen.
+    fn screen_bounds(&self) -> Rectangle {
+        let (origin_x, origin_y) = absolute_origin(&self.core);
+        let local = self.core.lock().bounds();
+        match self.region {
+            // A region is positioned inside its buffer, whose own origin is already included.
+            Some(region) => Rectangle::new(
+                origin_x.saturating_add(region.x),
+                origin_y.saturating_add(region.y),
+                region.width,
+                region.height,
+            ),
+            None => Rectangle::new(origin_x, origin_y, local.width, local.height),
+        }
+    }
+
     fn runtime(&self, id: PropertyId) -> Result<&Arc<RuntimeShared>, EvalError> {
         self.shared.as_ref().ok_or_else(|| {
             EvalError::RuntimeRequired(format!(
@@ -509,7 +545,7 @@ impl SurfaceEnv {
 
 impl Environment for SurfaceEnv {
     fn external(&self, name: &str) -> Result<Scalar, EvalError> {
-        let shared = self.runtime(PropertyId::Elapsed).map_err(|_| {
+        let shared = self.runtime(PropertyId::TimeElapsed).map_err(|_| {
             EvalError::RuntimeRequired(format!(
                 "{name} needs a runtime. Mount the buffer with Runtime.mount(buffer) and install the \
                  extension that provides it"
@@ -541,12 +577,12 @@ impl Environment for SurfaceEnv {
             PropertyId::Position => Scalar::Point(Point::new(bounds.x, bounds.y)),
             PropertyId::Size => Scalar::Size(Size::new(bounds.width, bounds.height)),
             PropertyId::Bounds => Scalar::Rectangle(bounds),
-            PropertyId::Elapsed => Scalar::Float(self.runtime(id)?.clock.elapsed_seconds()),
-            PropertyId::Delta => Scalar::Float(self.runtime(id)?.clock.delta_seconds()),
-            PropertyId::ElapsedMilliseconds => {
+            PropertyId::TimeElapsed => Scalar::Float(self.runtime(id)?.clock.elapsed_seconds()),
+            PropertyId::TimeDelta => Scalar::Float(self.runtime(id)?.clock.delta_seconds()),
+            PropertyId::TimeElapsedMilliseconds => {
                 Scalar::Float(self.runtime(id)?.clock.elapsed_seconds() * 1000.0)
             }
-            PropertyId::DeltaMilliseconds => {
+            PropertyId::TimeDeltaMilliseconds => {
                 Scalar::Float(self.runtime(id)?.clock.delta_seconds() * 1000.0)
             }
             PropertyId::Frame => {
@@ -567,6 +603,23 @@ impl Environment for SurfaceEnv {
             PropertyId::DeviceHeight => {
                 Scalar::Integer(i64::from(self.runtime(id)?.device_size().height))
             }
+            PropertyId::ParentSize => Scalar::Size(self.parent_size(id)?),
+            PropertyId::ParentWidth => Scalar::Integer(i64::from(self.parent_size(id)?.width)),
+            PropertyId::ParentHeight => Scalar::Integer(i64::from(self.parent_size(id)?.height)),
+            PropertyId::ScreenPosition => {
+                let screen = self.screen_bounds();
+                Scalar::Point(Point::new(screen.x, screen.y))
+            }
+            PropertyId::ScreenBounds => Scalar::Rectangle(self.screen_bounds()),
+            PropertyId::PointerPosition => {
+                let shared = self.runtime(id)?;
+                match lock(&shared.input).pointer {
+                    Some((column, row)) => Scalar::Point(Point::new(column, row)),
+                    None => Scalar::Null,
+                }
+            }
+            PropertyId::Layer => Scalar::Integer(i64::from(self.core.lock().layer)),
+            PropertyId::IsVisible => Scalar::Bool(self.core.lock().is_visible),
         })
     }
 }
@@ -601,7 +654,7 @@ pub fn apply_with_context(
 }
 
 fn default_registry(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-    py.import("xnano._xnano_core._core_types")?
+    py.import("xnano_core._xnano_core._core_types")?
         .getattr("default_registry")?
         .call0()
 }
@@ -652,7 +705,7 @@ pub fn apply_operations(
                 };
                 let handler = registry.call_method1("resolve", (operation,))?;
                 let evaluation = py
-                    .import("xnano._xnano_core._core_types")?
+                    .import("xnano_core._xnano_core._core_types")?
                     .getattr("EvaluationContext")?;
                 let buffer = buffer_of(surface)?;
                 let runtime = environment
@@ -918,7 +971,7 @@ impl PySurface {
         let holder = expression
             .extract::<PyRef<'_, PyExpression>>()
             .map_err(|_| {
-                PyTypeError::new_err("inspect() needs an Expression such as Width or Elapsed")
+                PyTypeError::new_err("inspect() needs an Expression such as Width or TimeElapsed")
             })?;
         if !matches!(holder.kind, ExpressionKind::Value(_)) {
             return Err(PyTypeError::new_err(
@@ -1034,14 +1087,21 @@ impl PySurface {
 
     fn to_cell_grid<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let bounds = self.bounds()?;
-        let region = self.core.lock().grid.region_buffer(bounds);
-        let packed = xnano_terminal_cells::pack(&region)
-            .map_err(|error| crate::errors::CellGridError::new_err(error.to_string()))?;
+        let packed = {
+            let state = self.core.lock();
+            // The whole grid is packed in place; only a part needs a copy.
+            if bounds == state.grid.bounds() {
+                xnano_terminal_cells::pack(state.grid.buffer())
+            } else {
+                xnano_terminal_cells::pack(&state.grid.region_buffer(bounds))
+            }
+        }
+        .map_err(|error| crate::errors::CellGridError::new_err(error.to_string()))?;
         Ok(PyBytes::new(py, &packed))
     }
 }
 
-#[pyclass(name = "Region", module = "xnano._xnano_core", extends = PySurface, subclass)]
+#[pyclass(name = "Region", module = "xnano_core._xnano_core", extends = PySurface, subclass)]
 pub struct PyRegion {
     pub buffer: Py<PyBuffer>,
 }
@@ -1112,7 +1172,7 @@ pub fn new_buffer(
     )
 }
 
-#[pyclass(name = "Buffer", module = "xnano._xnano_core", extends = PySurface, subclass)]
+#[pyclass(name = "Buffer", module = "xnano_core._xnano_core", extends = PySurface, subclass)]
 pub struct PyBuffer;
 
 fn grid_for(
@@ -1128,8 +1188,8 @@ fn grid_for(
     Ok(grid)
 }
 
-fn blit_mode(mode: &str) -> PyResult<BlitMode> {
-    BlitMode::from_name(mode).ok_or_else(|| {
+fn paste_mode(mode: &str) -> PyResult<PasteMode> {
+    PasteMode::from_name(mode).ok_or_else(|| {
         PyValueError::new_err(format!(
             "\"{mode}\" is not a blend mode; use \"replace\", \"preserve_background\" or \"transparent\""
         ))
@@ -1518,22 +1578,22 @@ impl PyBuffer {
     }
 
     #[pyo3(signature = (source, *, x = 0, y = 0, mode = "replace"))]
-    fn blit(
+    fn paste(
         slf: &Bound<'_, Self>,
         source: &Bound<'_, PyAny>,
         x: i32,
         y: i32,
         mode: &str,
     ) -> PyResult<()> {
-        let mode = blit_mode(mode)?;
+        let mode = paste_mode(mode)?;
         let origin = source
             .extract::<PyRef<'_, PySurface>>()
-            .map_err(|_| PyTypeError::new_err("blit needs a Buffer or a Region as its source"))?;
+            .map_err(|_| PyTypeError::new_err("paste needs a Buffer or a Region as its source"))?;
         let bounds = origin.bounds()?;
         let region = Grid::from_buffer(origin.core.lock().grid.region_buffer(bounds));
         drop(origin);
         let surface = slf.as_super().borrow();
-        surface.edit(|grid, destination| grid.blit(destination, &region, x, y, mode))
+        surface.edit(|grid, destination| grid.paste(destination, &region, x, y, mode))
     }
 
     #[pyo3(signature = (child, *, geometry = "explicit", mode = "replace"))]
@@ -1548,7 +1608,7 @@ impl PyBuffer {
                 "\"{geometry}\" is not a geometry mode; use \"inherit\" or \"explicit\""
             ))
         })?;
-        let mode = blit_mode(mode)?;
+        let mode = paste_mode(mode)?;
         let parent_core = Arc::clone(&slf.as_super().borrow().core);
         let (child_core, ()) = {
             let borrowed = child.as_super().borrow();
@@ -1605,7 +1665,7 @@ impl PyBuffer {
         };
         let mut output = Grid::new(width, height);
         let clip = Rectangle::new(0, 0, i32::from(width), i32::from(height));
-        compose(&core, &mut output, (-x, -y), clip, BlitMode::Transparent);
+        compose(&core, &mut output, (-x, -y), clip, PasteMode::Transparent);
         Ok(if format == "text" {
             output.text_rows().join("\n")
         } else {
@@ -1617,7 +1677,7 @@ impl PyBuffer {
     fn __call__(slf: &Bound<'_, Self>, runtime: Option<Py<PyAny>>) -> PyResult<Py<PyAny>> {
         let py = slf.py();
         let rendering = py
-            .import("xnano._xnano_core._core_types")?
+            .import("xnano_core._xnano_core._core_types")?
             .getattr("Rendering")?;
         Ok(rendering.call1((slf, runtime))?.unbind())
     }
@@ -1672,7 +1732,7 @@ fn copy_buffer(slf: &Bound<'_, PyBuffer>) -> PyResult<Py<PyBuffer>> {
         let registry = lock(&surface.ext.registry)
             .as_ref()
             .map(|registry| registry.clone_ref(py));
-        let children: Vec<(Py<PyBuffer>, Geometry, BlitMode)> = {
+        let children: Vec<(Py<PyBuffer>, Geometry, PasteMode)> = {
             let held = lock(&surface.ext.children);
             state
                 .children

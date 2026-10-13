@@ -9,13 +9,43 @@ use unicode_width::UnicodeWidthStr;
 use crate::event::{KeyEvent, KeyKind, KeyModifiers};
 use crate::style::Style;
 
+/// The extended grapheme clusters of `text`, the same as `UnicodeSegmentation::graphemes`.
+///
+/// An ASCII character followed by another ASCII character is always a cluster of its own
+/// (no ASCII character extends or joins a neighbour, except the carriage return and line
+/// feed pair), so those skip the Unicode tables. Everything else is segmented by
+/// `unicode-segmentation`, starting from a known boundary.
+pub fn split_graphemes(text: &str) -> impl Iterator<Item = &str> {
+    let mut position = 0;
+    std::iter::from_fn(move || {
+        let rest = &text[position..];
+        let bytes = rest.as_bytes();
+        let first = *bytes.first()?;
+        let second = bytes.get(1).copied();
+        let length = if first < 0x80
+            && second.is_none_or(|next| next < 0x80)
+            && !(first == b'\r' && second == Some(b'\n'))
+        {
+            1
+        } else {
+            rest.graphemes(true).next()?.len()
+        };
+        position += length;
+        Some(&rest[..length])
+    })
+}
+
 /// Display columns of `text`.
 pub fn display_width(text: &str) -> usize {
-    text.graphemes(true).map(grapheme_width).sum()
+    split_graphemes(text).map(grapheme_width).sum()
 }
 
 /// Display columns of one grapheme. Control characters take none.
 pub fn grapheme_width(grapheme: &str) -> usize {
+    if let [byte] = grapheme.as_bytes() {
+        // One byte is one ASCII character.
+        return usize::from(!byte.is_ascii_control());
+    }
     if grapheme.chars().any(char::is_control) {
         return 0;
     }
@@ -40,6 +70,113 @@ impl Span {
 
 /// One row of styled text.
 pub type Line = Vec<Span>;
+
+/// Whether any glyph of `lines` takes more than one column.
+pub fn has_wide_glyphs(lines: &[Line]) -> bool {
+    lines
+        .iter()
+        .flatten()
+        .any(|span| split_graphemes(&span.text).any(|grapheme| grapheme_width(grapheme) > 1))
+}
+
+/// One grapheme with its style and width, while a row is being wrapped.
+struct Piece<'a> {
+    text: &'a str,
+    style: Style,
+    width: usize,
+    is_space: bool,
+}
+
+/// Word-wrap `lines` into rows of at most `width` columns.
+///
+/// Words break at spaces, and a word longer than a row is folded across rows. Wide glyphs
+/// count their real width, so a row never holds more than `width` columns and a glyph that
+/// does not fit moves to the next row whole. The spaces at a break are dropped.
+pub fn wrap_lines(lines: &[Line], width: usize) -> Vec<Line> {
+    let width = width.max(1);
+    let mut rows: Vec<Line> = Vec::new();
+    for line in lines {
+        let pieces: Vec<Piece<'_>> = line
+            .iter()
+            .flat_map(|span| {
+                split_graphemes(&span.text).map(move |grapheme| Piece {
+                    text: grapheme,
+                    style: span.style,
+                    width: grapheme_width(grapheme),
+                    is_space: grapheme.chars().all(char::is_whitespace),
+                })
+            })
+            .collect();
+        let mut current: Vec<&Piece<'_>> = Vec::new();
+        let mut used = 0_usize;
+        let mut index = 0;
+        while index < pieces.len() {
+            let token_end = pieces[index..]
+                .iter()
+                .position(|piece| piece.is_space != pieces[index].is_space)
+                .map_or(pieces.len(), |offset| index + offset);
+            let token = &pieces[index..token_end];
+            let token_width: usize = token.iter().map(|piece| piece.width).sum();
+            index = token_end;
+            if token[0].is_space {
+                if used + token_width <= width {
+                    current.extend(token);
+                    used += token_width;
+                } else {
+                    // The spaces at a break are dropped.
+                    flush_row(&mut rows, &mut current);
+                    used = 0;
+                }
+                continue;
+            }
+            if used + token_width <= width {
+                current.extend(token);
+                used += token_width;
+                continue;
+            }
+            if token_width <= width {
+                flush_row(&mut rows, &mut current);
+                current.extend(token);
+                used = token_width;
+                continue;
+            }
+            // A word longer than a row is folded.
+            if used > 0 {
+                flush_row(&mut rows, &mut current);
+                used = 0;
+            }
+            for piece in token {
+                if used > 0 && used + piece.width > width {
+                    flush_row(&mut rows, &mut current);
+                    used = 0;
+                }
+                current.push(piece);
+                used += piece.width;
+                if used >= width {
+                    flush_row(&mut rows, &mut current);
+                    used = 0;
+                }
+            }
+        }
+        flush_row(&mut rows, &mut current);
+    }
+    rows
+}
+
+/// End the row being built: trailing spaces are dropped and equal styles are merged.
+fn flush_row(rows: &mut Vec<Line>, current: &mut Vec<&Piece<'_>>) {
+    while current.last().is_some_and(|piece| piece.is_space) {
+        current.pop();
+    }
+    let mut row: Line = Vec::new();
+    for piece in current.drain(..) {
+        match row.last_mut() {
+            Some(span) if span.style == piece.style => span.text.push_str(piece.text),
+            _ => row.push(Span::new(piece.text, piece.style)),
+        }
+    }
+    rows.push(row);
+}
 
 /// Split spans into rows at every `\n` (and `\r\n`).
 pub fn split_lines(spans: &[Span]) -> Vec<Line> {
@@ -110,8 +247,7 @@ pub fn layout_text(
     let mut grapheme_columns: Vec<Vec<(usize, usize)>> = Vec::new();
     let mut offset = 0_usize;
     for paragraph in text.split('\n') {
-        let graphemes: Vec<(&str, usize, usize)> = paragraph
-            .graphemes(true)
+        let graphemes: Vec<(&str, usize, usize)> = split_graphemes(paragraph)
             .map(|grapheme| (grapheme, grapheme_width(grapheme), grapheme.chars().count()))
             .collect();
         let mut start = 0;
@@ -119,6 +255,9 @@ pub fn layout_text(
         let mut last_break: Option<usize> = None;
         let mut index = 0;
         let paragraph_start = offset;
+        // Rows are flushed in order and end where the next begins, so the characters before
+        // a row are a running total instead of a sum over every earlier grapheme.
+        let mut prefix = 0_usize;
         let mut flush = |from: usize, to: usize, lines: &mut Vec<TextLine>| {
             let slice = &graphemes[from..to];
             let mut columns = Vec::with_capacity(slice.len());
@@ -129,14 +268,19 @@ pub fn layout_text(
                 column += grapheme_columns_width;
                 chars_before += characters;
             }
-            let prefix: usize = graphemes[..from].iter().map(|entry| entry.2).sum();
-            let characters: usize = slice.iter().map(|entry| entry.2).sum();
+            debug_assert!(from <= to);
+            let characters = chars_before;
+            let mut row_text = String::with_capacity(slice.iter().map(|entry| entry.0.len()).sum());
+            for (grapheme, _, _) in slice {
+                row_text.push_str(grapheme);
+            }
             lines.push(TextLine {
-                text: slice.iter().map(|entry| entry.0).collect(),
+                text: row_text,
                 start_offset: paragraph_start + prefix,
                 end_offset: paragraph_start + prefix + characters,
                 width: column,
             });
+            prefix += characters;
             grapheme_columns.push(columns);
         };
         while index < graphemes.len() {
@@ -352,7 +496,7 @@ impl TextEditor {
         self.last_edit = None;
         let target = offset.min(self.length());
         let mut position = 0;
-        for grapheme in self.text.graphemes(true) {
+        for grapheme in split_graphemes(&self.text) {
             let next = position + grapheme.chars().count();
             if next > target {
                 break;
@@ -368,7 +512,7 @@ impl TextEditor {
 
     fn previous_boundary(&self, offset: usize) -> usize {
         let mut position = 0;
-        for grapheme in self.text.graphemes(true) {
+        for grapheme in split_graphemes(&self.text) {
             let next = position + grapheme.chars().count();
             if next >= offset {
                 break;
@@ -380,7 +524,7 @@ impl TextEditor {
 
     fn next_boundary(&self, offset: usize) -> usize {
         let mut position = 0;
-        for grapheme in self.text.graphemes(true) {
+        for grapheme in split_graphemes(&self.text) {
             position += grapheme.chars().count();
             if position > offset {
                 return position;
@@ -469,7 +613,7 @@ impl TextEditor {
             .collect();
         let mut accumulated = 0;
         let mut characters = 0;
-        for grapheme in row.graphemes(true) {
+        for grapheme in split_graphemes(&row) {
             let width = grapheme_width(grapheme);
             if accumulated + width > column {
                 break;
@@ -670,5 +814,87 @@ impl TextEditor {
 
     pub fn layout(&self, width: usize, should_wrap: bool) -> TextLayout {
         layout_text(&self.text, width, Some(self.cursor), should_wrap)
+    }
+}
+
+#[cfg(test)]
+mod grapheme_tests {
+    use super::*;
+
+    #[test]
+    fn split_graphemes_matches_unicode_segmentation() {
+        let samples = [
+            "",
+            "plain ascii text with spaces",
+            "line one\r\nline two\r\n",
+            "\r\r\n\n\r",
+            "e\u{301}a\u{301}bc",
+            "a\u{200d}b",
+            "\u{600}abc",
+            "\u{1f469}\u{200d}\u{1f4bb}x\u{1f1fa}\u{1f1f8}y",
+            "界面abc界",
+            "ünïcödé wörds",
+            "ab\u{308}cd",
+            "한국어 and ASCII",
+            "tab\there\u{7f}del",
+            "9\u{fe0f}\u{20e3}#\u{fe0f}\u{20e3}",
+        ];
+        for sample in samples {
+            let expected: Vec<&str> = sample.graphemes(true).collect();
+            let actual: Vec<&str> = split_graphemes(sample).collect();
+            assert_eq!(actual, expected, "segmenting {sample:?}");
+        }
+    }
+
+    fn rows(text: &str, width: usize) -> Vec<String> {
+        wrap_lines(&split_lines(&[Span::new(text, Style::default())]), width)
+            .iter()
+            .map(|row| row.iter().map(|span| span.text.as_str()).collect())
+            .collect()
+    }
+
+    #[test]
+    fn wrapping_counts_wide_glyphs_by_their_columns() {
+        assert_eq!(rows("わさび", 3), ["わ", "さ", "び"]);
+        assert_eq!(rows("わさび", 4), ["わさ", "び"]);
+        assert_eq!(rows("😽😽😽😽", 7), ["😽😽😽", "😽"]);
+        assert_eq!(
+            rows("123ありがとうございました", 8),
+            ["123あり", "がとうご", "ざいまし", "た"]
+        );
+    }
+
+    #[test]
+    fn wrapping_breaks_words_and_folds_long_ones() {
+        assert_eq!(rows("foo bar baz", 3), ["foo", "bar", "baz"]);
+        assert_eq!(rows("1234 12345678", 7), ["1234", "1234567", "8"]);
+        assert_eq!(rows("abracadabra", 4), ["abra", "cada", "bra"]);
+        assert_eq!(rows("Some more words", 4), ["Some", "more", "word", "s"]);
+        assert_eq!(rows("a\n\nb", 3), ["a", "", "b"]);
+    }
+
+    #[test]
+    fn wrapping_keeps_styles_with_their_text() {
+        let red = Style::default().fg(ratatui_core::style::Color::Red);
+        let lines = vec![vec![
+            Span::new("ab ", Style::default()),
+            Span::new("cd", red),
+        ]];
+        let wrapped = wrap_lines(&lines, 3);
+        assert_eq!(wrapped.len(), 2);
+        assert_eq!(wrapped[1][0].style, red);
+    }
+
+    #[test]
+    fn grapheme_width_shortcut_matches_the_general_rule() {
+        for byte in 0..0x80_u8 {
+            let text = char::from(byte).to_string();
+            let general = if text.chars().any(char::is_control) {
+                0
+            } else {
+                UnicodeWidthStr::width(text.as_str())
+            };
+            assert_eq!(grapheme_width(&text), general, "byte {byte}");
+        }
     }
 }
