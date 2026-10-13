@@ -88,7 +88,7 @@ class TestInterface:
         package = pathlib.Path(xnano.__file__).parent
         offenders = []
         for path in sorted(package.glob('*.py')):
-            tree = ast.parse(path.read_text())
+            tree = ast.parse(path.read_text(encoding='utf-8'))
             for node in ast.walk(tree):
                 if isinstance(node, ast.Name) and node.id == 'Any':
                     offenders.append(f'{path.name}:{node.lineno}')
@@ -228,7 +228,7 @@ class TestDocumentation:
         paths.extend(repository.glob('packages/*/src/**/*.pyi'))
         missing = []
         for path in sorted(paths):
-            for node in ast.walk(ast.parse(path.read_text())):
+            for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
                 if not isinstance(node, ast.ClassDef) or node.name.startswith('_'):
                     continue
                 for index, member in enumerate(node.body):
@@ -267,7 +267,7 @@ class TestDocumentation:
         repository = self.PACKAGE.parent
         missing = []
         for path in sorted(repository.glob('packages/*/src/**/*.pyi')):
-            for node in ast.walk(ast.parse(path.read_text())):
+            for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
                 if not isinstance(node, ast.ClassDef) or node.name.startswith('_'):
                     continue
                 attributes = []
@@ -304,7 +304,7 @@ class TestDocumentation:
     def test_every_public_class_lists_its_attributes(self):
         missing = []
         for path in sorted(self.PACKAGE.glob('*.py')):
-            for node in ast.walk(ast.parse(path.read_text())):
+            for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
                 if not isinstance(node, ast.ClassDef) or node.name.startswith('_'):
                     continue
                 bases = [ast.unparse(base) for base in node.bases]
@@ -317,7 +317,7 @@ class TestDocumentation:
     def test_examples_use_the_names_xnano_exports_without_renaming_them(self):
         renamed = []
         for path in sorted(self.PACKAGE.glob('*.py')):
-            for node in ast.walk(ast.parse(path.read_text())):
+            for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
                 docstring = (
                     ast.get_docstring(node)
                     if isinstance(
@@ -339,7 +339,7 @@ class TestDocumentation:
         missing = [
             f'{path.name}:{node.name}'
             for path in sorted(self.PACKAGE.glob('*.py'))
-            for node in ast.walk(ast.parse(path.read_text()))
+            for node in ast.walk(ast.parse(path.read_text(encoding='utf-8')))
             if isinstance(node, ast.ClassDef)
             for method in node.body
             if isinstance(method, ast.FunctionDef)
@@ -352,7 +352,9 @@ class TestDocumentation:
         wrong = []
         for path in sorted(self.PACKAGE.glob('*.py')):
             expected = 'xnano' if path.stem == '__init__' else f'xnano.{path.stem}'
-            docstring = ast.get_docstring(ast.parse(path.read_text())) or ''
+            docstring = (
+                ast.get_docstring(ast.parse(path.read_text(encoding='utf-8'))) or ''
+            )
             if docstring.splitlines()[0:1] != [expected]:
                 wrong.append(path.name)
         assert wrong == []
@@ -362,7 +364,8 @@ class TestDocumentation:
         private = [
             path.name
             for path in examples.glob('*.py')
-            if '_xnano_core' in path.read_text() or '._' in path.read_text()
+            if '_xnano_core' in path.read_text(encoding='utf-8')
+            or '._' in path.read_text(encoding='utf-8')
         ]
         assert private == []
 

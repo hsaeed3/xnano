@@ -205,8 +205,10 @@ def main() -> None:
         text, html = capture(name, rows, columns, seconds, keys)
         lines += [f"## `{name}`", "", summary, "", "```text", text, "```", ""]
         gallery += [f"<h2>{name}</h2><p>{summary}</p><pre>{html}</pre>"]
-    (EXAMPLES / "README.md").write_text("\n".join(lines).rstrip() + "\n")
-    (EXAMPLES / "gallery.html").write_text("\n".join(gallery) + "\n")
+    (EXAMPLES / "README.md").write_text(
+        "\n".join(lines).rstrip() + "\n", encoding="utf-8"
+    )
+    (EXAMPLES / "gallery.html").write_text("\n".join(gallery) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

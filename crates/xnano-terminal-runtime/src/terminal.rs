@@ -720,6 +720,10 @@ fn graphics_signature(grid: &Grid) -> Option<GraphicsSignature> {
     })
 }
 
+/// The size assumed for a terminal that cannot report its own.
+const FALLBACK_COLUMNS: u16 = 80;
+const FALLBACK_ROWS: u16 = 24;
+
 /// The crossterm backend, asking the terminal its questions with output capture lifted.
 ///
 /// Drawing goes to the real terminal through [`TerminalOutput`]. Reading the cursor position
@@ -787,11 +791,19 @@ impl Backend for SessionBackend {
     }
 
     fn size(&self) -> io::Result<ratatui_core::layout::Size> {
-        self.inner.size()
+        // A terminal that cannot say how large it is (a pseudo-terminal nobody sized) is
+        // still a terminal: draw into the classic 80 by 24 cells.
+        Ok(self.inner.size().unwrap_or(ratatui_core::layout::Size::new(
+            FALLBACK_COLUMNS,
+            FALLBACK_ROWS,
+        )))
     }
 
     fn window_size(&mut self) -> io::Result<WindowSize> {
-        self.inner.window_size()
+        Ok(self.inner.window_size().unwrap_or(WindowSize {
+            columns_rows: ratatui_core::layout::Size::new(FALLBACK_COLUMNS, FALLBACK_ROWS),
+            pixels: ratatui_core::layout::Size::new(0, 0),
+        }))
     }
 
     fn flush(&mut self) -> io::Result<()> {

@@ -26,9 +26,23 @@ logging.basicConfig(level=logging.INFO)
 """
 
 
-def run_in_terminal(body: str) -> str:
-    """Run ``body`` in a child process whose standard streams are a pseudo-terminal."""
+def run_in_terminal(body: str, *, is_unsized: bool = False) -> str:
+    """
+    Run ``body`` in a child process whose standard streams are a pseudo-terminal.
+
+    An unsized terminal reports a window of zero cells and cannot be asked for its size by
+    other means.
+    """
     master, slave = pty.openpty()
+    environment = dict(os.environ)
+    if is_unsized:
+        import fcntl
+        import struct
+        import termios
+
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 0, 0, 0, 0))
+        environment['PATH'] = os.devnull
+        environment.pop('TERM', None)
     script = PREAMBLE + textwrap.dedent(body)
     process = subprocess.Popen(
         [sys.executable, '-c', script],
@@ -36,6 +50,7 @@ def run_in_terminal(body: str) -> str:
         stdout=slave,
         stderr=slave,
         close_fds=True,
+        env=environment,
     )
     os.close(slave)
     chunks: list[bytes] = []
@@ -77,6 +92,17 @@ class TestLiveOutput:
         for stray in ('STRAY-PRINT', 'STRAY-LOG', 'STRAY-ERROR'):
             assert screen.count(stray) == 1, stray
             assert screen.index(stray) > left, f'{stray} was printed inside the session'
+
+    def test_a_terminal_that_cannot_report_its_size_still_opens(self):
+        screen = run_in_terminal(
+            """
+            with Runtime.live() as runtime:
+                runtime.mount(Buffer.with_text('hello'), geometry='inherit')
+                runtime.step()
+            """,
+            is_unsized=True,
+        )
+        assert ENTER_ALTERNATE_SCREEN in screen
 
     def test_text_printed_before_the_session_is_not_delayed_into_it(self):
         screen = run_in_terminal(

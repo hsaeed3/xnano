@@ -48,7 +48,7 @@ def quit_with_q(screen: Screen) -> None:
 
 def test_every_example_has_a_test():
     names = sorted(path.name for path in EXAMPLES.glob('[0-9][0-9]_*.py'))
-    source = pathlib.Path(__file__).read_text()
+    source = pathlib.Path(__file__).read_text(encoding='utf-8')
     assert names
     assert [name for name in names if f"'{name}'" not in source] == []
 
