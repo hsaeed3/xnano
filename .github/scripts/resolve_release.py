@@ -81,11 +81,18 @@ def read_declared_version(package: str) -> Version:
 
 
 def read_root_requirements() -> dict[str, Requirement]:
-    """Read the distribution pins from the root ``pyproject.toml``."""
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-    requirements = [
-        Requirement(text) for text in pyproject["project"].get("dependencies", [])
+    """
+    Read the distribution pins from the root ``pyproject.toml``.
+
+    ``xnano-core`` is a dependency; ``xnano-audio`` and ``xnano-image`` are the pins of
+    the ``audio`` and ``image`` extras, so every optional group is read too.
+    """
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))[
+        "project"
     ]
+    requirements = [Requirement(text) for text in project.get("dependencies", [])]
+    for group in project.get("optional-dependencies", {}).values():
+        requirements.extend(Requirement(text) for text in group)
     return {
         canonicalize_name(requirement.name): requirement for requirement in requirements
     }
@@ -120,7 +127,7 @@ def resolve_release(package: str, tag_version: str) -> dict[str, str]:
             version = read_declared_version(core_package)
             if requirement is None:
                 raise ReleasePlanError(
-                    f"pyproject.toml does not depend on {core_package}. Build the workspace so "
+                    f"pyproject.toml does not require {core_package} as a dependency or an extra. Build the workspace so "
                     "crates/xnano-terminal-runtime/build.rs rewrites the pins, then commit the result."
                 )
             if not requirement.specifier.contains(version, prereleases=True):
