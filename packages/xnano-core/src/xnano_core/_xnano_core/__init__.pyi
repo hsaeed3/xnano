@@ -11,6 +11,8 @@ from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Se
 from types import TracebackType
 from typing import Generic, Literal, NoReturn, TypeVar, overload
 
+from typing_extensions import Self
+
 from ._core_types import (
     BorderKind as BorderKind,
 )
@@ -145,6 +147,9 @@ from ._core_types import (
 )
 from ._core_types import (
     TextContent as TextContent,
+)
+from ._core_types import (
+    TriggerKind as TriggerKind,
 )
 from ._core_types import (
     UpdateContext as UpdateContext,
@@ -553,6 +558,8 @@ class Style:
         reverse: bool = False,
         hidden: bool = False,
         crossed_out: bool = False,
+        rapid_blink: bool = False,
+        underline_color: ColorValue | None = None,
     ) -> None:
         """
         Create a Style.
@@ -568,6 +575,8 @@ class Style:
             reverse: ``bool``. Defaults to ``False``.
             hidden: ``bool``. Defaults to ``False``.
             crossed_out: ``bool``. Defaults to ``False``.
+            rapid_blink: ``bool``. Defaults to ``False``.
+            underline_color: ``ColorValue | None``. Defaults to ``None``.
         """
     @property
     def foreground(self) -> Color | None:
@@ -3138,6 +3147,18 @@ class Operation(Expression[None]):
             ```
         """
 
+    def __or__(self, other: Operation) -> Operation:
+        """
+        Combine this operation with ``other`` so both run in sequence.
+
+        Examples:
+            ```python
+            buffer = Buffer(width=6, height=1)
+            buffer.update(Write('ab') | Write('c', x=2))
+            assert buffer.text.startswith('abc')
+            ```
+        """
+
 class Property(Value[ValueType]):
     """
     A reference to a concrete property of a buffer or runtime.
@@ -3743,6 +3764,8 @@ class Pixels(Operation):
         *,
         encoding: PixelEncoding = 'half_blocks',
         clip: bool = True,
+        x: int | None = None,
+        y: int | None = None,
     ) -> None:
         """
         Create a Pixels.
@@ -3751,6 +3774,8 @@ class Pixels(Operation):
             pixels: ``Iterable[Pixel]``.
             encoding: ``PixelEncoding``. Defaults to ``'half_blocks'``.
             clip: ``bool``. Defaults to ``True``.
+            x: ``int | None``. Defaults to ``None``.
+            y: ``int | None``. Defaults to ``None``.
         """
 
 class Raster(Operation):
@@ -6701,6 +6726,17 @@ class Surface:
             ```python
             packed = Buffer.with_text('abc').to_cell_grid()
             assert cell_grid_to_text(packed) == ['abc']
+            ```
+        """
+
+    def __or__(self, operation: Operation | Style) -> Self:
+        """
+        Apply ``operation`` to this surface and return the surface.
+
+        Examples:
+            ```python
+            buffer = Buffer(width=6, height=1) | Write('abc')
+            assert buffer.text.startswith('abc')
             ```
         """
 
@@ -10968,6 +11004,334 @@ class Margin:
     @property
     def horizontal(self) -> int:
         """The number of cells inset from the left and right edges."""
+
+class Customization(Operation):
+    """
+    A named, typed set of parameters that is also an operation.
+
+    ``Customization('style', bold=True)`` names what to change and how. It applies like any
+    other operation (``buffer.update(customization)``, ``buffer | customization``) and
+    sequences with other operations through ``|`` and ``then``. Its parameters are read when it
+    is used, so a subclass that keeps them as attributes can be edited after it is created.
+
+    The kinds are ``'style'``, ``'border'``, ``'block'``, ``'padding'``, ``'margin'``,
+    ``'fill'``, ``'foreground'``, ``'background'``, ``'write'``, ``'layout'``, ``'fuzz'``,
+    ``'pixels'``, ``'raster'``, one ``'effect.<name>'`` for each [`Effect`][xnano_core.Effect]
+    constructor and one ``'audio.<name>'`` for each audio effect. [`kinds`][xnano_core.Customization.kinds]
+    lists them and [`defaults`][xnano_core.Customization.defaults] shows the parameters of one.
+
+    Attributes:
+        customization_kind: The kind, such as ``'style'`` or ``'effect.fade_to'``.
+        parameters: The parameters by name, with defaults filled in.
+
+    Raises:
+        ValueError: The kind is not a customization kind.
+        TypeError: A parameter does not belong to the kind.
+
+    Examples:
+        ```python
+        buffer = Buffer(width=8, height=1)
+        buffer | Customization('fill', cell='.')
+        assert buffer.text.startswith('........')
+        ```
+    """
+
+    def __init__(self, kind: str, /, **parameters: object) -> None: ...
+    customization_kind: str
+    """The kind, such as ``'style'`` or ``'effect.fade_to'``."""
+    @property
+    def parameters(self) -> dict[str, object]:
+        """The parameters by name, with defaults filled in."""
+    @staticmethod
+    def kinds() -> list[str]:
+        """
+        The name of every kind of customization.
+
+        Examples:
+            ```python
+            assert 'style' in Customization.kinds()
+            ```
+        """
+    @staticmethod
+    def defaults(kind: str) -> dict[str, object]:
+        """
+        The parameter names of a kind with their defaults, in order.
+
+        Raises:
+            ValueError: ``kind`` is not a customization kind.
+
+        Examples:
+            ```python
+            assert Customization.defaults('margin') == {'horizontal': 0, 'vertical': 0}
+            ```
+        """
+    def build(self) -> object:
+        """
+        The core object this customization stands for: a ``Style``, ``Border``, ``Effect``,
+        ``Block``, ``Margin``, audio effect and so on, with all of its own methods.
+
+        Examples:
+            ```python
+            assert isinstance(Customization('style', bold=True).build(), Style)
+            ```
+        """
+    def to_operation(self) -> Operation:
+        """
+        The core operation that applies this customization.
+
+        Raises:
+            TypeError: The kind is not applied as an operation, such as ``'block'``.
+        """
+    def to_audio_effect(self) -> object:
+        """
+        The audio effect behind an ``'audio.*'`` customization.
+
+        Raises:
+            TypeError: The kind is not an audio effect.
+        """
+    def apply_to_surface(self, surface: Surface) -> None:
+        """Apply this customization to a buffer, widget or region."""
+    def __or__(self, other: Operation | Style) -> Operation: ...
+
+class OperationChain(Operation):
+    """
+    Operations applied one after another when they cannot become one native sequence.
+
+    ``a | b`` makes one automatically when a step needs more than the native sequence can
+    hold. ``steps`` lists the operations in order.
+
+    Attributes:
+        steps: The operations applied in order.
+
+    Examples:
+        ```python
+        chain = OperationChain(Fill('.'), Write('hi'))
+        buffer = Buffer(width=4, height=1)
+        buffer.update(chain)
+        assert buffer.text.startswith('hi..')
+        ```
+    """
+
+    def __init__(self, /, *steps: Operation) -> None: ...
+    @property
+    def steps(self) -> tuple[Operation, ...]:
+        """The operations applied in order."""
+    def __len__(self) -> int: ...
+
+class Trigger:
+    """
+    When something runs, and which events count.
+
+    The event triggers (``key``, ``key_release``, ``click``, ``drag``, ``mouse``, ``paste``,
+    ``resize`` and ``state_change``) decide for one event with
+    [`matches`][xnano_core.Trigger.matches]; a trigger is also callable with a hook context
+    and answers for its ``event``. ``every`` and ``after`` carry the seconds a clock waits,
+    and ``immediate``, ``frame`` and ``update`` name moments of the loop.
+
+    Attributes:
+        kind: The name of the trigger.
+        seconds: The interval or delay of ``every`` and ``after``, else ``None``.
+        keys: The key bindings a key trigger reacts to; empty means every key.
+        is_event_trigger: Whether one event decides the trigger.
+
+    Raises:
+        ValueError: A trigger name, a number of seconds or a key binding is not valid.
+
+    Examples:
+        ```python
+        press = Event.key_press('q')
+        assert Trigger.key('q', 'escape').matches(press)
+        assert not Trigger.click().matches(press)
+        assert Trigger.every(0.5).seconds == 0.5
+        ```
+    """
+
+    @property
+    def kind(self) -> TriggerKind:
+        """The name of the trigger, such as ``'click'`` or ``'every'``."""
+    @property
+    def seconds(self) -> float | None:
+        """The interval or delay in seconds of ``every`` and ``after``, else ``None``."""
+    @property
+    def keys(self) -> list[str]:
+        """The key bindings a key trigger reacts to; empty means every key."""
+    @property
+    def is_event_trigger(self) -> bool:
+        """Whether one event decides the trigger."""
+    @staticmethod
+    def named(
+        kind: TriggerKind, *, seconds: float | None = None, keys: Sequence[str] = ()
+    ) -> Trigger:
+        """
+        Build a trigger from its name.
+
+        Examples:
+            ```python
+            assert Trigger.named('every', seconds=1.0) == Trigger.every(1.0)
+            ```
+        """
+    @staticmethod
+    def immediate() -> Trigger:
+        """Run once, as soon as it is attached."""
+    @staticmethod
+    def frame() -> Trigger:
+        """Run before every frame."""
+    @staticmethod
+    def update() -> Trigger:
+        """Run on every update of the loop."""
+    @staticmethod
+    def key(*keys: str) -> Trigger:
+        """React to key presses and repeats of the given bindings, or of every key."""
+    @staticmethod
+    def key_release(*keys: str) -> Trigger:
+        """React to key releases of the given bindings, or of every key."""
+    @staticmethod
+    def click() -> Trigger:
+        """React to a mouse button press."""
+    @staticmethod
+    def drag() -> Trigger:
+        """React to the pointer moving with a button held down."""
+    @staticmethod
+    def mouse() -> Trigger:
+        """React to any mouse event."""
+    @staticmethod
+    def paste() -> Trigger:
+        """React to pasted text."""
+    @staticmethod
+    def resize() -> Trigger:
+        """React to a change of the terminal's size."""
+    @staticmethod
+    def state_change() -> Trigger:
+        """React to a change of the terminal's state."""
+    @staticmethod
+    def every(seconds: float) -> Trigger:
+        """Run at a steady interval on the clock."""
+    @staticmethod
+    def after(seconds: float) -> Trigger:
+        """Run once, after a delay on the clock."""
+    def matches(self, event: Event | TerminalStateChange | None) -> bool:
+        """Whether ``event`` counts. Time and loop triggers never match an event."""
+    def __call__(self, context: object) -> bool:
+        """Whether the event of a hook ``context`` counts."""
+    def __eq__(self, other: object) -> bool: ...
+
+class ExpressionScope:
+    """
+    A named group of expressions, such as the parent's size or the terminal's clock.
+
+    Reading an attribute the scope does not provide raises ``AttributeError`` that lists the
+    ones it does.
+
+    Examples:
+        ```python
+        try:
+            ParentScope.depth
+        except AttributeError as error:
+            assert 'width' in str(error)
+        ```
+    """
+
+class ParentExpressionScope(ExpressionScope):
+    """
+    The geometry of the enclosing buffer, as expressions.
+
+    Attributes:
+        width: The parent's width in cells.
+        height: The parent's height in cells.
+        size: The parent's size in cells.
+
+    Examples:
+        ```python
+        assert ParentScope.width is ParentWidth
+        ```
+    """
+
+    @property
+    def width(self) -> NumericValue[int]:
+        """The parent's width in cells."""
+    @property
+    def height(self) -> NumericValue[int]:
+        """The parent's height in cells."""
+    @property
+    def size(self) -> Value[Size]:
+        """The parent's size in cells."""
+
+class RootExpressionScope(ExpressionScope):
+    """
+    The geometry and clock of the root terminal, as expressions.
+
+    Attributes:
+        width: The terminal's width in cells.
+        height: The terminal's height in cells.
+        time: Seconds elapsed on the terminal's clock.
+        delta: Seconds since the previous frame.
+        fps: Measured frames per second.
+
+    Examples:
+        ```python
+        assert RootScope.time is TimeElapsed
+        ```
+    """
+
+    @property
+    def width(self) -> NumericValue[int | float]:
+        """The terminal's width in cells."""
+    @property
+    def height(self) -> NumericValue[int | float]:
+        """The terminal's height in cells."""
+    @property
+    def time(self) -> NumericValue[int | float]:
+        """Seconds elapsed on the terminal's clock."""
+    @property
+    def delta(self) -> NumericValue[int | float]:
+        """Seconds since the previous frame."""
+    @property
+    def fps(self) -> NumericValue[int | float]:
+        """Measured frames per second."""
+
+class BufferExpressionScope(ExpressionScope):
+    """
+    A buffer's own position and size, as expressions.
+
+    Attributes:
+        x: The column in the parent.
+        y: The row in the parent.
+        position: The position in the parent.
+        width: The width in cells.
+        height: The height in cells.
+        size: The size in cells.
+
+    Examples:
+        ```python
+        assert BufferScope.width is Width
+        ```
+    """
+
+    @property
+    def x(self) -> NumericValue[int | float]:
+        """The column in the parent."""
+    @property
+    def y(self) -> NumericValue[int | float]:
+        """The row in the parent."""
+    @property
+    def position(self) -> Value[Point]:
+        """The position in the parent."""
+    @property
+    def width(self) -> NumericValue[int | float]:
+        """The width in cells."""
+    @property
+    def height(self) -> NumericValue[int | float]:
+        """The height in cells."""
+    @property
+    def size(self) -> Value[Size]:
+        """The size in cells."""
+
+ParentScope: ParentExpressionScope
+"""The parent's geometry: ``ParentScope.width``, ``ParentScope.height``, ``ParentScope.size``."""
+RootScope: RootExpressionScope
+"""The terminal's geometry and clock: ``RootScope.width``, ``RootScope.time``, ..."""
+BufferScope: BufferExpressionScope
+"""A buffer's own geometry: ``BufferScope.x``, ``BufferScope.width``, ..."""
 
 X: NumericValue[int | float]
 """The horizontal position of a buffer or region, in terminal cells."""

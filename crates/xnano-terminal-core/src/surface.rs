@@ -689,6 +689,10 @@ pub fn apply_operations(
                 }
             }
             None => {
+                if operation.hasattr("apply_to_surface")? {
+                    operation.call_method1("apply_to_surface", (surface,))?;
+                    continue;
+                }
                 let explicit = lock(&ext.registry)
                     .as_ref()
                     .map(|registry| registry.bind(py).clone());
@@ -960,6 +964,33 @@ impl PySurface {
     fn update(slf: &Bound<'_, Self>, operations: &Bound<'_, PyTuple>) -> PyResult<()> {
         let operations: Vec<Bound<'_, PyAny>> = operations.iter().collect();
         apply_operations(slf.as_any(), &operations)
+    }
+
+    fn __or__<'py>(
+        slf: &Bound<'py, Self>,
+        operation: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let py = slf.py();
+        if operation.hasattr("__xnano_operation__")? {
+            return Ok(py.NotImplemented().into_bound(py));
+        }
+        if operation.is_instance_of::<crate::expressions::PyOperation>() {
+            apply_operations(slf.as_any(), std::slice::from_ref(operation))?;
+            return Ok(slf.clone().into_any());
+        }
+        if let Ok(style) = operation.extract::<PyRef<'_, crate::style::PyStyle>>() {
+            let step = Operation::ApplyStyle(style.inner);
+            let native = Bound::new(
+                py,
+                PyClassInitializer::from(PyExpression {
+                    kind: ExpressionKind::Operation(Some(Arc::new(step))),
+                })
+                .add_subclass(crate::expressions::PyOperation),
+            )?;
+            apply_operations(slf.as_any(), std::slice::from_ref(native.as_any()))?;
+            return Ok(slf.clone().into_any());
+        }
+        Ok(py.NotImplemented().into_bound(py))
     }
 
     fn inspect<'py>(

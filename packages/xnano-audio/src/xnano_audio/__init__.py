@@ -39,6 +39,7 @@ Device failures are raised as `TerminalAudioError`; a missing device, or a build
 device support, is raised as its subclass `TerminalAudioUnavailableError`.
 """
 
+from collections.abc import Sequence
 from typing import Protocol
 
 from xnano_audio._audio_types import InstrumentName, NoteName, Pitch
@@ -91,10 +92,24 @@ class TerminalAudioSource(Protocol):
         ...
 
 
+class SupportsAudioEffect(Protocol):
+    """
+    Anything that can produce audio effects, such as an ``'audio.*'`` customization.
+
+    Effects, sounds and ``add`` accept it wherever they accept a
+    [`TerminalAudioEffect`][xnano_audio.TerminalAudioEffect].
+    """
+
+    def to_audio_effect(self) -> TerminalAudioEffect | Sequence[TerminalAudioEffect]:
+        """The audio effect or effects this object stands for."""
+        ...
+
+
 __all__ = (
     'InstrumentName',
     'NoteName',
     'Pitch',
+    'SupportsAudioEffect',
     'TerminalAudioCapabilities',
     'TerminalAudioEffect',
     'TerminalAudioError',

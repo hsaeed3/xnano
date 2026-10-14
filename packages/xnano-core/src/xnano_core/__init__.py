@@ -49,6 +49,12 @@ from xnano_core._xnano_core import (
     Buffer as Buffer,
 )
 from xnano_core._xnano_core import (
+    BufferExpressionScope as BufferExpressionScope,
+)
+from xnano_core._xnano_core import (
+    BufferScope as BufferScope,
+)
+from xnano_core._xnano_core import (
     BufferSize as BufferSize,
 )
 from xnano_core._xnano_core import (
@@ -124,6 +130,9 @@ from xnano_core._xnano_core import (
     Cursor as Cursor,
 )
 from xnano_core._xnano_core import (
+    Customization as Customization,
+)
+from xnano_core._xnano_core import (
     CustomWidget as CustomWidget,
 )
 from xnano_core._xnano_core import (
@@ -173,6 +182,9 @@ from xnano_core._xnano_core import (
 )
 from xnano_core._xnano_core import (
     Expression as Expression,
+)
+from xnano_core._xnano_core import (
+    ExpressionScope as ExpressionScope,
 )
 from xnano_core._xnano_core import (
     Fade as Fade,
@@ -280,10 +292,19 @@ from xnano_core._xnano_core import (
     Operation as Operation,
 )
 from xnano_core._xnano_core import (
+    OperationChain as OperationChain,
+)
+from xnano_core._xnano_core import (
     Paragraph as Paragraph,
 )
 from xnano_core._xnano_core import (
+    ParentExpressionScope as ParentExpressionScope,
+)
+from xnano_core._xnano_core import (
     ParentHeight as ParentHeight,
+)
+from xnano_core._xnano_core import (
+    ParentScope as ParentScope,
 )
 from xnano_core._xnano_core import (
     ParentSize as ParentSize,
@@ -332,6 +353,12 @@ from xnano_core._xnano_core import (
 )
 from xnano_core._xnano_core import (
     Resize as Resize,
+)
+from xnano_core._xnano_core import (
+    RootExpressionScope as RootExpressionScope,
+)
+from xnano_core._xnano_core import (
+    RootScope as RootScope,
 )
 from xnano_core._xnano_core import (
     Running as Running,
@@ -476,6 +503,9 @@ from xnano_core._xnano_core import (
 )
 from xnano_core._xnano_core import (
     TimeElapsedMilliseconds as TimeElapsedMilliseconds,
+)
+from xnano_core._xnano_core import (
+    Trigger as Trigger,
 )
 from xnano_core._xnano_core import (
     UnsupportedOperationError as UnsupportedOperationError,
@@ -700,6 +730,9 @@ from xnano_core._xnano_core._core_types import (
     TextContent as TextContent,
 )
 from xnano_core._xnano_core._core_types import (
+    TriggerKind as TriggerKind,
+)
+from xnano_core._xnano_core._core_types import (
     UpdateContext as UpdateContext,
 )
 from xnano_core._xnano_core._core_types import (
@@ -724,6 +757,8 @@ __all__ = [
     'BorderKind',
     'Bounds',
     'Buffer',
+    'BufferExpressionScope',
+    'BufferScope',
     'BufferSize',
     'Calendar',
     'CancelEffect',
@@ -758,6 +793,7 @@ __all__ = [
     'Cursor',
     'CursorShape',
     'CustomWidget',
+    'Customization',
     'DecodeLimits',
     'Device',
     'DeviceHeight',
@@ -778,6 +814,7 @@ __all__ = [
     'EventStream',
     'EvolveSymbolSet',
     'Expression',
+    'ExpressionScope',
     'Extension',
     'Fade',
     'Fill',
@@ -832,9 +869,12 @@ __all__ = [
     'NumericValue',
     'Offset',
     'Operation',
+    'OperationChain',
     'Orientation',
     'Paragraph',
+    'ParentExpressionScope',
     'ParentHeight',
+    'ParentScope',
     'ParentSize',
     'ParentWidth',
     'Paste',
@@ -860,6 +900,8 @@ __all__ = [
     'RenderFormat',
     'Rendering',
     'Resize',
+    'RootExpressionScope',
+    'RootScope',
     'Running',
     'RunningEffect',
     'Runtime',
@@ -917,6 +959,8 @@ __all__ = [
     'TimeDeltaMilliseconds',
     'TimeElapsed',
     'TimeElapsedMilliseconds',
+    'Trigger',
+    'TriggerKind',
     'UnsupportedOperationError',
     'UpdateContext',
     'Value',

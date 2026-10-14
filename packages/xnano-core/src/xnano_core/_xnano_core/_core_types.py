@@ -577,6 +577,23 @@ RenderFormat: TypeAlias = Literal['text', 'ansi']
 BorderKind: TypeAlias = Literal['plain', 'rounded', 'double', 'thick']
 """The line style of a border."""
 
+TriggerKind: TypeAlias = Literal[
+    'immediate',
+    'frame',
+    'update',
+    'key',
+    'key_release',
+    'click',
+    'drag',
+    'mouse',
+    'paste',
+    'resize',
+    'state_change',
+    'every',
+    'after',
+]
+"""When something runs: a moment of the loop, an interval, or a kind of event."""
+
 Side: TypeAlias = Literal['left', 'right', 'top', 'bottom']
 """A side of a rectangle."""
 

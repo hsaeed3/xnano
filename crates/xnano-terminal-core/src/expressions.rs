@@ -45,6 +45,9 @@ pub fn expression_of(value: &Bound<'_, PyAny>) -> PyResult<Arc<Expr>> {
 
 /// The operation behind an operation object, if it is a native one.
 pub fn operation_of(value: &Bound<'_, PyAny>) -> PyResult<Option<Arc<Operation>>> {
+    if let Ok(customization) = value.cast::<crate::customization::PyCustomization>() {
+        return crate::customization::PyCustomization::native_operation(customization);
+    }
     if let Ok(clear) = value.extract::<PyRef<'_, crate::widgets::clear::PyClear>>() {
         let spec = Arc::clone(&clear.spec);
         return Ok(Some(Arc::new(Operation::Dynamic(
@@ -606,6 +609,11 @@ fn sequence(py: Python<'_>, steps: Vec<Arc<Operation>>) -> PyResult<Py<PySequenc
     )
 }
 
+/// Combine native steps into one sequence operation object.
+pub fn sequence_of(py: Python<'_>, steps: Vec<Arc<Operation>>) -> PyResult<Bound<'_, PyAny>> {
+    Ok(sequence(py, steps)?.into_bound(py).into_any())
+}
+
 fn native_step(value: &Bound<'_, PyAny>) -> PyResult<Arc<Operation>> {
     operation_of(value)?.ok_or_else(|| {
         PyTypeError::new_err(
@@ -642,6 +650,18 @@ impl PyOperation {
 
     fn when(slf: &Bound<'_, Self>, condition: &Bound<'_, PyAny>) -> PyResult<Py<PyConditional>> {
         conditional(slf.py(), condition, slf.as_any(), None)
+    }
+
+    fn __or__<'py>(
+        slf: &Bound<'py, Self>,
+        other: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let py = slf.py();
+        let (Ok(Some(first)), Ok(Some(second))) = (operation_of(slf.as_any()), operation_of(other))
+        else {
+            return Ok(py.NotImplemented().into_bound(py));
+        };
+        Ok(sequence(py, vec![first, second])?.into_bound(py).into_any())
     }
 }
 

@@ -59,7 +59,7 @@ peak of 0.9 before effects.
 from collections.abc import Iterator, Sequence
 from os import PathLike
 from types import TracebackType
-from typing import Literal, Protocol, final, overload
+from typing import Literal, Protocol, TypeAlias, final, overload
 
 from xnano_audio._audio_types import InstrumentName as InstrumentName
 from xnano_audio._audio_types import NoteName as NoteName
@@ -265,8 +265,38 @@ class TerminalAudioEffect:
     def __copy__(self) -> TerminalAudioEffect: ...
     # Rust binding
     def __deepcopy__(self, memo: object) -> TerminalAudioEffect: ...
+    # Rust binding
+    def __or__(self, other: AudioEffectSource) -> list[TerminalAudioEffect]:
+        """
+        Chain this effect with another effect or sequence of effects.
+
+        Examples:
+            ```python
+            chain = TerminalAudioEffect.low_pass(cutoff=800.0) | TerminalAudioEffect.reverb(room=0.5)
+            assert [effect.name for effect in chain] == ["low_pass", "reverb"]
+            ```
+        """
+    # Rust binding
+    def __ror__(
+        self, other: Sequence[TerminalAudioEffect] | SupportsAudioEffect
+    ) -> list[TerminalAudioEffect]: ...
 
 # Rust binding
+class SupportsAudioEffect(Protocol):
+    """
+    Anything that can produce audio effects, such as an ``'audio.*'`` customization.
+
+    Effects, sounds and ``add`` accept it wherever they accept a
+    [`TerminalAudioEffect`][xnano_audio.TerminalAudioEffect].
+    """
+
+    def to_audio_effect(self) -> TerminalAudioEffect | Sequence[TerminalAudioEffect]:
+        """The audio effect or effects this object stands for."""
+
+AudioEffectSource: TypeAlias = (
+    TerminalAudioEffect | Sequence[TerminalAudioEffect] | SupportsAudioEffect
+)
+
 @final
 class TerminalSound:
     """
@@ -361,6 +391,34 @@ class TerminalSound:
             ValueError: If more than 32 effects are given.
             TypeError: If an item is not a
                 [`TerminalAudioEffect`][xnano_audio.TerminalAudioEffect].
+        """
+    # Rust binding
+    def add(self, *effects: AudioEffectSource) -> TerminalSound:
+        """
+        Apply one or more audio effects (or effect chains) in order and return the new sound.
+
+        Examples:
+            ```python
+            sound = render_note("piano", "C4", duration_milliseconds=100).add(
+                TerminalAudioEffect.low_pass(cutoff=900.0)
+            )
+            assert len(sound) > 0
+            ```
+        """
+    # Rust binding
+    def __or__(self, other: AudioEffectSource) -> TerminalSound:
+        """
+        Apply an audio effect or effect chain to this sound and return the new sound.
+
+        Examples:
+            ```python
+            sound = (
+                render_note("piano", "C4", duration_milliseconds=100)
+                | TerminalAudioEffect.low_pass(cutoff=900.0)
+                | TerminalAudioEffect.reverb(room=0.4)
+            )
+            assert len(sound) > 0
+            ```
         """
     # Rust binding
     def __len__(self) -> int: ...

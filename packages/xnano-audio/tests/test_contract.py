@@ -31,7 +31,7 @@ DEVICE_CLASSES = {
     'TerminalStreamingAudioPlayer',
 }
 # Protocols describe what a Python object must provide; they have no native implementation.
-PROTOCOLS = {'TerminalAudioSource'}
+PROTOCOLS = {'TerminalAudioSource', 'SupportsAudioEffect'}
 
 
 def test_every_stubbed_name_exists_at_runtime():

@@ -4,6 +4,7 @@ mod cell_grid;
 mod clocks;
 mod convert;
 mod cursor;
+mod customization;
 mod drawings;
 mod dynamic_operations;
 mod effects;
@@ -17,11 +18,13 @@ mod layout;
 mod operations;
 mod references;
 mod runtime;
+mod scopes;
 mod shared;
 mod state;
 mod style;
 mod surface;
 mod text;
+mod trigger;
 mod widgets;
 
 use pyo3::prelude::*;
@@ -89,6 +92,9 @@ fn _xnano_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     references::register(m)?;
     hooks::register(m)?;
     expressions::register(m)?;
+    customization::register(m)?;
+    scopes::register(m)?;
+    trigger::register(m)?;
     surface::register(m)?;
     operations::register(m)?;
     effects::register(m)?;
@@ -143,6 +149,7 @@ fn _xnano_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
     // `Size` is the geometry class, so the buffer-size reference is `BufferSize`.
     m.add("BufferSize", make_reference.call1(("Size", "property"))?)?;
+    scopes::add_scopes(m)?;
     let mut natives = Vec::new();
     for name in OPERATION_CLASSES {
         natives.push(m.getattr(*name)?.cast_into::<PyType>()?.unbind());
