@@ -9,6 +9,7 @@ import functools
 import itertools
 
 import xnano
+from xnano.context import Context
 from xnano.effects import Effect
 
 # Each entry builds a fresh effect, so one can run again after it has finished.
@@ -33,9 +34,9 @@ EFFECTS = {
 }
 
 with xnano.open(width=50, height=7) as terminal:
-    banner = terminal.add('xnano  xnano  xnano  xnano  xnano\n' * 4, y=3)
+    banner = terminal.write('xnano  xnano  xnano  xnano  xnano\n' * 4, y=3)
     names = itertools.cycle(EFFECTS)
-    heading = terminal.add('')
+    heading = terminal.write('')
 
     def show_next_effect() -> None:
         name = next(names)
@@ -45,7 +46,7 @@ with xnano.open(width=50, height=7) as terminal:
     show_next_effect()
 
     @terminal.every(2.0)
-    def cycle(context: xnano.Context) -> None:
+    def cycle(context: Context) -> None:
         show_next_effect()
 
     terminal.run(quit_on='q')

@@ -9,6 +9,7 @@ a crash, and ``q`` quits.
 import random
 
 import xnano
+from xnano.context import Context, Update
 
 WIDTH = 30
 HEIGHT = 24  # in pixels: a cell holds two
@@ -67,7 +68,7 @@ def main() -> None:
     game = Game()
     with xnano.open(width=WIDTH, height=HEIGHT // 2 + 1) as terminal:
         pixels = terminal.pixels()
-        status_line = terminal.add('', y=HEIGHT // 2, layer=1)
+        status_line = terminal.write('', y=HEIGHT // 2, layer=1)
 
         def draw() -> None:
             terminal.clear()
@@ -80,17 +81,17 @@ def main() -> None:
             status_line.text = status
 
         @terminal.loop.on_update(fixed_step_seconds=0.12)
-        def tick(update: xnano.Update) -> None:
+        def tick(update: Update) -> None:
             game.step()
             draw()
 
         @terminal.on_key(*DIRECTIONS)
-        def steer(context: xnano.Context) -> None:
+        def steer(context: Context) -> None:
             if context.keyboard is not None:
                 game.steer(DIRECTIONS[context.keyboard.key])
 
         @terminal.on_key('r')
-        def restart(context: xnano.Context) -> None:
+        def restart(context: Context) -> None:
             game.reset()
 
         terminal.run(quit_on='q')

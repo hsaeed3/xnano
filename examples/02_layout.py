@@ -11,13 +11,13 @@ from xnano.expressions import ParentHeight, ParentWidth, Width
 from xnano.widgets import Block
 
 with xnano.open() as terminal:
-    terminal.add('top left')
-    terminal.add('top right', x=ParentWidth - Width)
-    terminal.add('bottom left', y=ParentHeight - 1)
-    terminal.add('centered', x=(ParentWidth - Width) // 2, y=ParentHeight // 2 + 4)
+    terminal.write('top left')
+    terminal.write('top right', x=ParentWidth - Width)
+    terminal.write('bottom left', y=ParentHeight - 1)
+    terminal.write('centered', x=(ParentWidth - Width) // 2, y=ParentHeight // 2 + 4)
 
     # A Block draws its border at whatever size it has, so it follows the window.
-    terminal.add(
+    terminal.write(
         Block('half as wide as the window', border_type='rounded'),
         x='25%',
         y=3,
@@ -25,6 +25,6 @@ with xnano.open() as terminal:
         height=3,
     )
 
-    terminal.add('press q to quit', x=ParentWidth - 15, y=ParentHeight - 1)
+    terminal.write('press q to quit', x=ParentWidth - 15, y=ParentHeight - 1)
 
     terminal.run(quit_on='q')

@@ -11,6 +11,6 @@ from xnano.styles import Style
 
 with xnano.open(width=50, height=5) as terminal:
     name = terminal.prompt('Your name: ')
-    terminal.add(f'Hello, {name}!', y=2, style=Style('green', bold=True))
-    terminal.add('press escape to leave', y=4, style=Style(dim=True))
+    terminal.write(f'Hello, {name}!', y=2, style=Style('green', bold=True))
+    terminal.write('press escape to leave', y=4, style=Style(dim=True))
     terminal.wait_for_key('escape')

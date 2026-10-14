@@ -8,6 +8,7 @@ by itself, or press ``q`` to stop early.
 """
 
 import xnano
+from xnano.context import Context
 from xnano.widgets import LineGauge
 
 STEPS = 20
@@ -25,12 +26,12 @@ def main() -> None:
     """Run the job and report it."""
     job = Job()
     with xnano.open(width=40, height=3, title='xnano job: starting') as terminal:
-        terminal.add('Processing files', y=0)
+        terminal.write('Processing files', y=0)
         bar = LineGauge(0.0, label='0%')
-        terminal.add(bar, y=1, width=40, height=1)
+        terminal.write(bar, y=1, width=40, height=1)
 
         @terminal.every(SECONDS_PER_STEP)
-        def work(context: xnano.Context) -> None:
+        def work(context: Context) -> None:
             job.done += 1
             percent = job.done * 100 // STEPS
             bar.ratio = job.done / STEPS

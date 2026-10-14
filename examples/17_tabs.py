@@ -6,6 +6,7 @@ switching only changes which placement is visible. ``left`` and ``right`` change
 """
 
 import xnano
+from xnano.context import Context
 from xnano.styles import Style
 from xnano.widgets import Block, Calendar, Paragraph, Table, Tabs
 
@@ -49,9 +50,9 @@ def main() -> None:
     state = TabsState()
     with xnano.open(width=44, height=12) as terminal:
         tabs = Tabs(TITLES, selected=0, highlight_style=Style('black', 'cyan'))
-        terminal.add(tabs, width=44, height=1)
+        terminal.write(tabs, width=44, height=1)
         placements = [
-            terminal.add(widget, y=2, width=44, height=10) for widget in pages()
+            terminal.write(widget, y=2, width=44, height=10) for widget in pages()
         ]
 
         def show(index: int) -> None:
@@ -63,11 +64,11 @@ def main() -> None:
         show(0)
 
         @terminal.on_key('left')
-        def previous(context: xnano.Context) -> None:
+        def previous(context: Context) -> None:
             show(state.selected - 1)
 
         @terminal.on_key('right')
-        def following(context: xnano.Context) -> None:
+        def following(context: Context) -> None:
             show(state.selected + 1)
 
         terminal.run(quit_on='q')

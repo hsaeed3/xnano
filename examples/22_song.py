@@ -13,6 +13,7 @@ The tune is an original piece in the style of an old game's town theme.
 """
 
 import xnano
+from xnano.context import Context
 
 # Eight bars of four beats each, in E minor.
 LEAD = """
@@ -40,13 +41,13 @@ HIHAT = 'C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 | ' * 8
 
 with xnano.open(width=60, height=6) as terminal:
     terminal.tempo = 132
-    terminal.add('A song written as text', x='center', y=0)
-    where = terminal.add('bar 1   beat 1', y=2)
-    terminal.add('space: stop time   q: quit', y=5)
+    terminal.write('A song written as text', x='center', y=0)
+    where = terminal.write('bar 1   beat 1', y=2)
+    terminal.write('space: stop time   q: quit', y=5)
 
     def play_song() -> None:
         if not terminal.audio.is_available:
-            terminal.add('(no sound device here: the bars still count)', y=4)
+            terminal.write('(no sound device here: the bars still count)', y=4)
             return
         terminal.play(LEAD, instrument='square', volume=0.55)
         terminal.play(BASS, instrument='triangle', volume=0.8)
@@ -57,17 +58,17 @@ with xnano.open(width=60, height=6) as terminal:
     play_song()
 
     @terminal.every(beats=32)
-    def repeat(context: xnano.Context) -> None:
+    def repeat(context: Context) -> None:
         play_song()
 
     @terminal.every(beats=1)
-    def show_the_beat(context: xnano.Context) -> None:
+    def show_the_beat(context: Context) -> None:
         beats_played = int(context.clock.elapsed_seconds * terminal.tempo / 60)
         bar, beat = divmod(beats_played % 32, 4)
         where.text = f'bar {bar + 1}   beat {beat + 1}'
 
     @terminal.on_key('space')
-    def stop_or_start_time(context: xnano.Context) -> None:
+    def stop_or_start_time(context: Context) -> None:
         if terminal.is_paused:
             terminal.resume()
         else:

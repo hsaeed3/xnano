@@ -15,14 +15,14 @@ pip install "xnano[image]"       # adds images and animations
 
 ## Put something on the terminal
 
-[`open`][xnano.open] gives you a [`Terminal`][xnano.Terminal]. Anything you
-[`add`][xnano.Terminal.add] appears at once, and a `with` block gives the screen back.
+[`open`][xnano.open] gives you a [`Terminal`][xnano.terminal.Terminal]. Anything you
+[`write`][xnano.terminal.Terminal.write] appears at once, and a `with` block gives the screen back.
 
 ```python
 import xnano
 
 with xnano.open(width=40, height=5) as terminal:
-    terminal.add('Hello, world!', x='center', y='center', border='rounded')
+    terminal.write('Hello, world!', x='center', y='center', border='rounded')
     terminal.run(quit_on='q')
 ```
 
@@ -38,7 +38,7 @@ import xnano
 from xnano.expressions import ParentWidth, TimeElapsed, Width
 
 with xnano.open(width=40, height=3) as terminal:
-    ball = terminal.add('●', y=1)
+    ball = terminal.write('●', y=1)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
     terminal.run(quit_on='q')
 ```
@@ -51,18 +51,18 @@ Decorators are named for what happens:
 import xnano
 
 with xnano.open(width=30, height=3) as terminal:
-    terminal.add('press space', y=1)
-    elapsed = terminal.add('  0.0s')
+    terminal.write('press space', y=1)
+    elapsed = terminal.write('  0.0s')
 
     @terminal.on_key('space')
-    def toggle(context: xnano.Context) -> None:
+    def toggle(context: xnano.context.Context) -> None:
         if terminal.is_paused:
             terminal.resume()
         else:
             terminal.pause()
 
     @terminal.every(1.0)
-    def tick(context: xnano.Context) -> None:
+    def tick(context: xnano.context.Context) -> None:
         elapsed.text = f'{context.clock.elapsed_seconds:5.1f}s'
 
     terminal.run(quit_on='q')

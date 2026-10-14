@@ -1,21 +1,22 @@
 """
 A slider made of two ideas: a range and a hook.
 
-The thumb's ``x`` is given a range, ``(0, 39)``, which is how far it may travel. Dragging it
-with the mouse sets ``x`` to the pointer, and the range holds it inside the track. Press
+The thumb lives inside the track and its ``x`` is given a range, which is how far it may
+travel. Piping ``xnano.draggable()`` onto it lets the mouse set ``x``, and the range holds it
+inside the track. Press
 ``q`` to quit.
 """
 
 import xnano
+from xnano.context import Frame
 
 with xnano.open(width=40, height=3, mouse='buttons') as terminal:
-    terminal.add('─' * 40, y=1)
-    thumb = terminal.add('█', x=(0, 39), y=1, layer=1)
-    thumb.make_draggable()
-    heading = terminal.add('volume   0%   (drag the block)')
+    track = terminal.write('─' * 40, y=1)
+    thumb = track.write('█', x=(0, track.width - 1), y=0) | xnano.draggable()
+    heading = terminal.write('volume   0%   (drag the block)')
 
     @terminal.loop.on_frame
-    def show_value(frame: xnano.Frame) -> None:
+    def show_value(frame: Frame) -> None:
         percent = round(thumb.x / 39 * 100)
         heading.text = f'volume {percent:>3}%   (drag the block)'
 

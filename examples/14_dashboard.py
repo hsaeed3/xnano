@@ -9,6 +9,7 @@ redraw. Press ``q`` to quit.
 import math
 
 import xnano
+from xnano.context import Context
 from xnano.styles import Style
 from xnano.widgets import (
     Bar,
@@ -56,12 +57,12 @@ def main() -> None:
             widths=[16, 7],
             block=Block('services', border_type='rounded'),
         )
-        terminal.add(chart, width=WIDTH, height=9)
-        terminal.add(bars, y=9, width=34, height=9)
-        terminal.add(table, x=34, y=9, width=WIDTH - 34, height=9)
+        terminal.write(chart, width=WIDTH, height=9)
+        terminal.write(bars, y=9, width=34, height=9)
+        terminal.write(table, x=34, y=9, width=WIDTH - 34, height=9)
 
         @terminal.every(0.2)
-        def refresh(context: xnano.Context) -> None:
+        def refresh(context: Context) -> None:
             elapsed = context.clock.elapsed_seconds
             chart.datasets = [
                 ChartDataset(name='cpu', data=wave(elapsed, 0), style=Style('green')),

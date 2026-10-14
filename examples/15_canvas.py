@@ -9,6 +9,7 @@ Press ``q`` to quit.
 import math
 
 import xnano
+from xnano.context import Frame
 from xnano.widgets import Block, Canvas, CanvasCircle, CanvasLabel, CanvasPoints
 
 
@@ -21,14 +22,14 @@ def main() -> None:
             marker='braille',
             block=Block('orbit', border_type='rounded'),
         )
-        terminal.add(canvas, width=50, height=16)
+        terminal.write(canvas, width=50, height=16)
         orbit = [
             (8 * math.cos(angle / 30 * math.tau), 8 * math.sin(angle / 30 * math.tau))
             for angle in range(30)
         ]
 
         @terminal.loop.on_frame
-        def draw(frame: xnano.Frame) -> None:
+        def draw(frame: Frame) -> None:
             angle = frame.elapsed_seconds
             canvas.clear_shapes()
             canvas.extend_shapes(

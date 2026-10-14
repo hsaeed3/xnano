@@ -12,6 +12,7 @@ here. Without a sound device the screen still keeps time.
 """
 
 import xnano
+from xnano.context import Context
 
 TUNE = 'E4:0.5 E4:0.5 rest:0.5 E4:0.5 rest:0.5 C4:0.5 E4 G4:2 rest G3:2'
 
@@ -28,11 +29,11 @@ def main() -> None:
     beats = Beats()
     with xnano.open(width=56, height=5) as terminal:
         terminal.tempo = 120
-        terminal.add('m: play   up/down: tempo   space: pause   q: quit')
+        terminal.write('m: play   up/down: tempo   space: pause   q: quit')
 
-        tempo_line = terminal.add('', y=2)
-        dot = terminal.add('○', y=3)
-        beat_line = terminal.add('', x=3, y=3)
+        tempo_line = terminal.write('', y=2)
+        dot = terminal.write('○', y=3)
+        beat_line = terminal.write('', x=3, y=3)
 
         def show() -> None:
             state = 'paused' if terminal.is_paused else 'playing'
@@ -43,7 +44,7 @@ def main() -> None:
         show()
 
         @terminal.every(beats=1)
-        def metronome(context: xnano.Context) -> None:
+        def metronome(context: Context) -> None:
             beats.count += 1
             show()
             if terminal.audio.is_available:
@@ -52,22 +53,22 @@ def main() -> None:
                 )
 
         @terminal.on_key('m')
-        def play_tune(context: xnano.Context) -> None:
+        def play_tune(context: Context) -> None:
             if terminal.audio.is_available:
                 terminal.play(TUNE, instrument='bell')
 
         @terminal.on_key('up')
-        def faster(context: xnano.Context) -> None:
+        def faster(context: Context) -> None:
             terminal.tempo = min(240, terminal.tempo + 10)
             show()
 
         @terminal.on_key('down')
-        def slower(context: xnano.Context) -> None:
+        def slower(context: Context) -> None:
             terminal.tempo = max(40, terminal.tempo - 10)
             show()
 
         @terminal.on_key('space')
-        def toggle_time(context: xnano.Context) -> None:
+        def toggle_time(context: Context) -> None:
             if terminal.is_paused:
                 terminal.resume()
             else:

@@ -24,15 +24,16 @@
 
 ```python
 import xnano
+from xnano.context import Context
 from xnano.expressions import ParentWidth, TimeElapsed, Width
 
 with xnano.open(width=40, height=5) as terminal:
-    terminal.add('Hello, world!', x='center', border='rounded')
-    ball = terminal.add('●', y=4)
+    terminal.write('Hello, world!', x='center', border='rounded')
+    ball = terminal.write('●', y=4)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)  # a formula, evaluated every frame
 
     @terminal.on_key('space')
-    def toggle(context: xnano.Context) -> None:
+    def toggle(context: Context) -> None:
         if terminal.is_paused:
             terminal.resume()
         else:
@@ -41,7 +42,7 @@ with xnano.open(width=40, height=5) as terminal:
     terminal.run(quit_on='q')
 ```
 
-`xnano.open()` gives you a terminal. You `add` text, widgets, images and pixels to it, and every
+`xnano.open()` gives you a terminal. You `write` text, widgets, images and pixels to it, and every
 position and size can be a number, a word such as `'center'`, or a formula of time or of the
 terminal's size. Decorators named for what happens (`on_key`, `on_click`, `every`, `after`)
 react, `terminal.input` tells a game which keys are held, `terminal.scene()` gives pixel-art

@@ -13,6 +13,7 @@ import dataclasses
 
 import xnano
 from xnano.audio import InstrumentName, TerminalNote, instrument_names
+from xnano.context import Context
 from xnano.expressions import ParentWidth, Width
 
 root = TerminalNote('C4')
@@ -47,29 +48,29 @@ def instrument_label(name: str) -> str:
 def main() -> None:
     """Choose an instrument and play on it."""
     with xnano.open(width=66, height=13, state=Keyboard()) as terminal:
-        terminal.add('up/down: instrument  a-k: scale  space: chord  m: tune  q: quit')
+        terminal.write('up/down: instrument  a-k: scale  space: chord  m: tune  q: quit')
         if not terminal.audio.is_available:
-            terminal.add('(no sound device here: the keys still light up)', y=12)
+            terminal.write('(no sound device here: the keys still light up)', y=12)
         for position, name in enumerate(INSTRUMENTS):
             column, row = instrument_position(position)
-            terminal.add(instrument_label(name), x=column, y=row)
+            terminal.write(instrument_label(name), x=column, y=row)
         chosen_x, chosen_y = instrument_position(0)
-        highlight = terminal.add(
+        highlight = terminal.write(
             instrument_label(INSTRUMENTS[0]),
             x=chosen_x,
             y=chosen_y,
             layer=1,
             is_reversed=True,
         )
-        message = terminal.add('', y=11)
+        message = terminal.write('', y=11)
 
-        metronome = terminal.add('•', y=10)
+        metronome = terminal.write('•', y=10)
         metronome.x = (ParentWidth - Width) * (terminal.audio.beat % 1.0)
         terminal.audio.tempo = 90
         if terminal.audio.is_available:
             terminal.audio.start()
 
-        def choose(context: xnano.Context[Keyboard], step: int) -> None:
+        def choose(context: Context[Keyboard], step: int) -> None:
             state = context.state
             state.index = (state.index + step) % len(INSTRUMENTS)
             highlight.text = instrument_label(INSTRUMENTS[state.index])
@@ -77,23 +78,23 @@ def main() -> None:
             message.text = f'instrument: {INSTRUMENTS[state.index]}'
 
         @terminal.on_key('up')
-        def previous(context: xnano.Context[Keyboard]) -> None:
+        def previous(context: Context[Keyboard]) -> None:
             choose(context, -1)
 
         @terminal.on_key('down')
-        def following(context: xnano.Context[Keyboard]) -> None:
+        def following(context: Context[Keyboard]) -> None:
             choose(context, 1)
 
         @terminal.on_key('left')
-        def column_back(context: xnano.Context[Keyboard]) -> None:
+        def column_back(context: Context[Keyboard]) -> None:
             choose(context, -ROWS)
 
         @terminal.on_key('right')
-        def column_forward(context: xnano.Context[Keyboard]) -> None:
+        def column_forward(context: Context[Keyboard]) -> None:
             choose(context, ROWS)
 
         @terminal.on_key(*KEYS)
-        def play_note(context: xnano.Context[Keyboard]) -> None:
+        def play_note(context: Context[Keyboard]) -> None:
             if context.keyboard is None:
                 return
             note = KEYS[context.keyboard.key]
@@ -103,7 +104,7 @@ def main() -> None:
                 terminal.play(note, instrument=instrument)
 
         @terminal.on_key('space')
-        def play_chord(context: xnano.Context[Keyboard]) -> None:
+        def play_chord(context: Context[Keyboard]) -> None:
             instrument = INSTRUMENTS[context.state.index]
             message.text = (
                 f'chord {" ".join(note.name for note in CHORD)} on {instrument}'
@@ -112,7 +113,7 @@ def main() -> None:
                 terminal.play(CHORD, instrument=instrument)
 
         @terminal.on_key('m')
-        def play_tune(context: xnano.Context[Keyboard]) -> None:
+        def play_tune(context: Context[Keyboard]) -> None:
             instrument = INSTRUMENTS[context.state.index]
             message.text = f'tune of {len(TUNE)} notes on {instrument}'
             if terminal.audio.is_available:

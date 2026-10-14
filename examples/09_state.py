@@ -11,6 +11,7 @@ Press ``up`` and ``down`` to change the volume, ``m`` to mute, ``q`` to quit.
 import dataclasses
 
 import xnano
+from xnano.context import Context, Frame
 from xnano.styles import Style
 from xnano.widgets import Gauge
 
@@ -27,31 +28,31 @@ def volume_of(settings: Settings) -> int:
 
 
 with xnano.open(width=40, height=4, state=Settings()) as terminal:
-    terminal.add('up/down: volume   m: mute   q: quit')
+    terminal.write('up/down: volume   m: mute   q: quit')
     volume = terminal.ref(volume_of)
     # The gauge draws its label in the opposite colors wherever the bar passes under it.
     bar = Style(foreground=(0, 200, 0), background=(40, 40, 40))
-    terminal.add(
+    terminal.write(
         Gauge(volume.number / 100, label='volume', gauge_style=bar, width=40, height=1),
         y=2,
     )
 
     @terminal.on_key('up')
-    def louder(context: xnano.Context[Settings]) -> None:
+    def louder(context: Context[Settings]) -> None:
         context.state.volume = min(100, context.state.volume + 5)
 
     @terminal.on_key('down')
-    def quieter(context: xnano.Context[Settings]) -> None:
+    def quieter(context: Context[Settings]) -> None:
         context.state.volume = max(0, context.state.volume - 5)
 
     @terminal.on_key('m')
-    def mute(context: xnano.Context[Settings]) -> None:
+    def mute(context: Context[Settings]) -> None:
         context.state.is_muted = not context.state.is_muted
 
-    status = terminal.add('', y=1)
+    status = terminal.write('', y=1)
 
     @terminal.loop.on_frame
-    def show(frame: xnano.Frame) -> None:
+    def show(frame: Frame) -> None:
         state = terminal.state
         text = 'muted' if state.is_muted else f'volume {state.volume}'
         status.text = text

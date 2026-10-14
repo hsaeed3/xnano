@@ -16,6 +16,7 @@ import pathlib
 import sys
 
 import xnano
+from xnano.context import Context
 from xnano.image import TerminalImage
 from xnano.scene import Scene
 
@@ -83,42 +84,42 @@ def main() -> None:
     left, top = DEFAULT_START if len(sys.argv) == 1 else (0, 0)
     picture = TerminalImage.open(path)
     with xnano.open(width=64, height=21) as terminal:
-        view = terminal.add(' ', width='100%', height=20)
+        view = terminal.write(' ', width='100%', height=20)
         viewer = Viewer(view.scene(picture.width, picture.height), picture, left, top)
 
-        status_line = terminal.add('', y=20)
+        status_line = terminal.write('', y=20)
 
         def show_status() -> None:
             left, top = viewer.scene.origin
             status_line.text = f'x {left} y {top} zoom {viewer.zoom}x'
 
         @terminal.on_key('left')
-        def pan_left(context: xnano.Context) -> None:
+        def pan_left(context: Context) -> None:
             viewer.pan(-1, 0)
             show_status()
 
         @terminal.on_key('right')
-        def pan_right(context: xnano.Context) -> None:
+        def pan_right(context: Context) -> None:
             viewer.pan(1, 0)
             show_status()
 
         @terminal.on_key('up')
-        def pan_up(context: xnano.Context) -> None:
+        def pan_up(context: Context) -> None:
             viewer.pan(0, -1)
             show_status()
 
         @terminal.on_key('down')
-        def pan_down(context: xnano.Context) -> None:
+        def pan_down(context: Context) -> None:
             viewer.pan(0, 1)
             show_status()
 
         @terminal.on_key('+', '=')
-        def zoom_in(context: xnano.Context) -> None:
+        def zoom_in(context: Context) -> None:
             viewer.zoom_by(1)
             show_status()
 
         @terminal.on_key('-')
-        def zoom_out(context: xnano.Context) -> None:
+        def zoom_out(context: Context) -> None:
             viewer.zoom_by(-1)
             show_status()
 

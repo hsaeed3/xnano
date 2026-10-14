@@ -17,6 +17,7 @@ import math
 import random
 
 import xnano
+from xnano.context import Context, Update
 from xnano.expressions import ParentHeight
 from xnano.image import TerminalImage, from_art
 from xnano.scene import Sprite
@@ -226,7 +227,7 @@ def main() -> None:
         mouse='buttons', keyboard='release_events', title='world'
     ) as terminal:
         # Everything but the last row is the world; the last row says where the hero is.
-        view = terminal.add(' ', width='100%', height=ParentHeight - 1)
+        view = terminal.write(' ', width='100%', height=ParentHeight - 1)
         scene = view.scene(WORLD_WIDTH, WORLD_HEIGHT, background='black')
         scene.solid = solid
         scene.add(picture)
@@ -238,7 +239,7 @@ def main() -> None:
         )
         scene.camera.follow(hero.sprite)
 
-        status_line = terminal.add('', y='bottom', layer=1)
+        status_line = terminal.write('', y='bottom', layer=1)
 
         def show_status() -> None:
             state = (
@@ -248,19 +249,19 @@ def main() -> None:
             status_line.text = status
 
         @terminal.loop.on_update(fixed_step_seconds=1 / 60)
-        def simulate(update: xnano.Update) -> None:
+        def simulate(update: Update) -> None:
             hero.step(1 / 60, terminal.input.direction())
             show_status()
 
         @terminal.on_key('space')
-        def toggle_time(context: xnano.Context) -> None:
+        def toggle_time(context: Context) -> None:
             if terminal.is_paused:
                 terminal.resume()
             else:
                 terminal.pause()
             show_status()  # updates wait while time is stopped
 
-        def walk_toward_pointer(context: xnano.Context) -> None:
+        def walk_toward_pointer(context: Context) -> None:
             mouse = context.mouse
             if mouse is not None and mouse.position.y < terminal.height - 1:
                 world_x, world_y = scene.world_at(mouse.position.x, mouse.position.y)

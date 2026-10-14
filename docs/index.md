@@ -16,8 +16,8 @@ import xnano
 from xnano.expressions import ParentWidth, TimeElapsed, Width
 
 with xnano.open(width=40, height=3) as terminal:
-    terminal.add('Hello, world!', x='center')
-    ball = terminal.add('●', y=2)
+    terminal.write('Hello, world!', x='center')
+    ball = terminal.write('●', y=2)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
     terminal.run(quit_on='q')
 ```

@@ -9,12 +9,13 @@ returns. Press ``q`` to quit.
 import math
 
 import xnano
+from xnano.context import Frame
 
 with xnano.open(width=60, height=12) as terminal:
     pixels = terminal.pixels()
 
     @terminal.loop.on_frame
-    def draw(frame: xnano.Frame) -> None:
+    def draw(frame: Frame) -> None:
         time = frame.elapsed_seconds
 
         def color(column: int, row: int) -> tuple[int, int, int]:

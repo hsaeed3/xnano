@@ -1,7 +1,7 @@
 """
 Pixel art that fits whatever window it is in.
 
-``terminal.add`` sizes an image by what you give it. A percentage (or no size at all) leaves
+``terminal.write`` sizes an image by what you give it. A percentage (or no size at all) leaves
 the art *unlocked*: it is converted again every time the window is resized, keeping its
 proportions and its hard pixel edges. A plain number *locks* it to that many cells. The big
 picture below is unlocked, so drag the window's corner and watch it refit; the thumbnail in the
@@ -24,7 +24,7 @@ def main() -> None:
     with xnano.open(title='dusk') as terminal:
         terminal.img(ART, x='center', y='center', width='100%', height='100%')
         terminal.img(ART, x='right', y='bottom', width=34, layer=1)
-        terminal.add(
+        terminal.write(
             ' resize the window: the art follows, the thumbnail stays 34 cells wide ',
             x='center',
             y=0,

@@ -13,13 +13,14 @@ that completed it. Tap ``t`` three times quickly to see it fire. Press ``q`` to 
 import collections
 
 import xnano
+from xnano.context import Context
 from xnano.events import Event
 
 
 def taps(key: str, count: int, within_seconds: float = 0.6):
     """A trigger for ``count`` presses of ``key``, each within ``within_seconds`` of the last."""
 
-    def trigger(context: xnano.Context):
+    def trigger(context: Context):
         seen = 0
         event = None
         while seen < count:
@@ -35,16 +36,16 @@ def taps(key: str, count: int, within_seconds: float = 0.6):
 
 with xnano.open(width=60, height=10, mouse='motion') as terminal:
     log: collections.deque[str] = collections.deque(maxlen=8)
-    terminal.add('events (c: custom event, t t t: triple tap, q: quit)', y=0)
+    terminal.write('events (c: custom event, t t t: triple tap, q: quit)', y=0)
 
-    rows = [terminal.add('', y=row + 2) for row in range(8)]
+    rows = [terminal.write('', y=row + 2) for row in range(8)]
 
     def show() -> None:
         for row, placement in enumerate(rows):
             placement.text = log[row] if row < len(log) else ''
 
     @terminal.hook
-    def record(context: xnano.Context) -> None:
+    def record(context: Context) -> None:
         event = context.event
         if event is None:
             return
@@ -69,12 +70,12 @@ with xnano.open(width=60, height=10, mouse='motion') as terminal:
         show()
 
     @terminal.hook(when=taps('t', 3))
-    def triple_tap(context: xnano.Context) -> None:
+    def triple_tap(context: Context) -> None:
         log.append('triple tap of t')
         show()
 
     @terminal.on_key('c')
-    def send(context: xnano.Context) -> None:
+    def send(context: Context) -> None:
         context.terminal.inject(Event.custom('hello', data='from the example'))
 
     terminal.run(quit_on='q')
