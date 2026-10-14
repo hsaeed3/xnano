@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Literal, TypeAlias, TypedDict, cast, overload
 
 import xnano_core as _core
 from xnano._appearance import APPEARANCE_NAMES, Appearance
+from xnano._axes import check_cells, check_count
 from xnano._customize import (
     BitCrushAudioArguments,
     CoalesceEffectArguments,
@@ -734,6 +735,108 @@ class Canvas:
         if buffer is not None:
             _attach(buffer, child_canvas)
         return child_canvas
+
+    def move(self, x: int = 0, y: int = 0) -> Canvas:
+        """
+        Move the canvas by a number of cells along each axis.
+
+        This adds to ``x`` and ``y``, so a position that is a
+        formula keeps its formula and shifts it, and a canvas with no position yet starts
+        from ``0``. Moving does not draw anything by itself; the canvas shows where it is
+        when it is built or placed.
+
+        Args:
+            x: Columns to move right; a negative number moves left.
+            y: Rows to move down; a negative number moves up.
+
+        Returns:
+            The canvas, so calls can chain.
+
+        Raises:
+            TypeError: An amount is not a whole number, or ``x`` or ``y`` is a range, a
+                percentage or a word such as ``'center'``, which has no cell to move from.
+                Give it a number or a formula, or move the placement instead.
+
+        Examples:
+            ```python
+            import xnano
+
+            card = xnano.new('hi', x=2).move(x=3, y=1)
+            assert (card.x, card.y) == (5, 1)
+            ```
+        """
+        horizontal = check_cells(x, 'x')
+        vertical = check_cells(y, 'y')
+        steps: tuple[tuple[AxisName, int], ...] = (('x', horizontal), ('y', vertical))
+        for name, step in steps:
+            if step == 0:
+                continue
+            raw = self._buffer_value(name)
+            if raw is not None and not isinstance(raw, (int, float, _core.NumericValue)):
+                raise TypeError(
+                    f'The canvas {name} is {raw!r}, which has no single cell to move from. '
+                    f'Give canvas.{name} a number or a formula first, or move the placement '
+                    f'you get from terminal.write(canvas) instead.'
+                )
+            current = 0 if raw is None else self._read_axis(name)
+            setattr(self, name, current + step)
+        return self
+
+    def up(self, count: int = 1) -> Canvas:
+        """
+        Move the canvas up by ``count`` rows; see [`move`][xnano.canvas.Canvas.move].
+
+        Args:
+            count: How many rows to move.
+
+        Raises:
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
+        """
+        return self.move(y=-check_count(count))
+
+    def down(self, count: int = 1) -> Canvas:
+        """
+        Move the canvas down by ``count`` rows; see [`move`][xnano.canvas.Canvas.move].
+
+        Args:
+            count: How many rows to move.
+
+        Raises:
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
+        """
+        return self.move(y=check_count(count))
+
+    def left(self, count: int = 1) -> Canvas:
+        """
+        Move the canvas left by ``count`` columns; see [`move`][xnano.canvas.Canvas.move].
+
+        Args:
+            count: How many columns to move.
+
+        Raises:
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
+        """
+        return self.move(x=-check_count(count))
+
+    def right(self, count: int = 1) -> Canvas:
+        """
+        Move the canvas right by ``count`` columns; see [`move`][xnano.canvas.Canvas.move].
+
+        Args:
+            count: How many columns to move.
+
+        Raises:
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
+        """
+        return self.move(x=check_count(count))
+
+    def _buffer_value(self, name: str) -> object:
+        buffer = self._buffer
+        return getattr(buffer, name) if buffer is not None else self._attributes.get(name)
 
     def _show_appearance(self) -> None:
         """Draw the text again with its current look, resizing the buffer to fit."""

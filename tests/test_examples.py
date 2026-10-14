@@ -115,6 +115,22 @@ def test_slider_follows_the_mouse(example):
     quit_with_q(screen)
 
 
+def test_slider_follows_the_arrow_keys(example):
+    screen = example('04_slider.py', rows=10, columns=60)
+    assert screen.wait_for('volume   0%')
+    screen.press('right')
+    screen.press('right')
+    assert screen.wait_until(lambda: screen.find('█') == (4, 1), timeout=5)
+    screen.press('left')
+    assert screen.wait_until(lambda: screen.find('█') == (2, 1), timeout=5)
+    for _ in range(3):
+        screen.press('left')
+    assert screen.wait_until(lambda: screen.find('█') == (0, 1), timeout=5), (
+        'held in its range'
+    )
+    quit_with_q(screen)
+
+
 def test_pixels_fill_every_cell_and_change(example):
     screen = example('05_pixels.py', rows=14, columns=64)
     assert screen.wait_until(
@@ -545,3 +561,24 @@ def test_the_demo_opens_with_the_animation_and_then_fills_the_window():
     finally:
         screen.close()
         assert 'Traceback' not in screen.raw.decode('utf-8', 'replace')
+
+
+def test_cursor(example):
+    screen = example('25_cursor.py', rows=10, columns=60)
+    assert screen.wait_for('arrows move the cursor')
+    assert screen.wait_until(lambda: screen.cursor == (0, 2, True))
+    screen.press('right')
+    screen.press('right')
+    screen.press('down')
+    assert screen.wait_until(lambda: screen.cursor == (2, 3, True))
+    assert screen.wait_for('column 2   row 3')
+    screen.press('left')
+    screen.press('left')
+    screen.press('left')
+    assert screen.wait_until(lambda: screen.cursor == (0, 3, True)), 'stops at the edge'
+    screen.press('h')
+    assert screen.wait_until(lambda: screen.cursor == (0, 0, True))
+    screen.press('s')
+    assert screen.wait_for('shape bar')
+    assert b'\x1b[5 q' in screen.raw, 'a blinking bar'
+    quit_with_q(screen)

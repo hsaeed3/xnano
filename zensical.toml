@@ -30,6 +30,7 @@ nav = [
             {"xnano.buffers" = "api-reference/xnano/buffers.md"},
             {"xnano.canvas" = "api-reference/xnano/canvas.md"},
             {"xnano.context" = "api-reference/xnano/context.md"},
+            {"xnano.cursor" = "api-reference/xnano/cursor.md"},
             {"xnano.demo" = "api-reference/xnano/demo.md"},
             {"xnano.effects" = "api-reference/xnano/effects.md"},
             {"xnano.errors" = "api-reference/xnano/errors.md"},

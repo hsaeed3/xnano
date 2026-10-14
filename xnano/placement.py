@@ -54,7 +54,13 @@ if TYPE_CHECKING:
     from xnano.terminal import Terminal
 
 from xnano._appearance import Appearance, Spacing
-from xnano._axes import axis_expression, axis_limits, inspect_number
+from xnano._axes import (
+    axis_expression,
+    axis_limits,
+    check_cells,
+    check_count,
+    inspect_number,
+)
 from xnano._customize import (
     BitCrushAudioArguments,
     CoalesceEffectArguments,
@@ -401,6 +407,104 @@ class Placement(_Hooked[StateT]):
     @is_visible.setter
     def is_visible(self, value: bool) -> None:
         self._buffer.is_visible = value
+
+    def move(self, x: int = 0, y: int = 0) -> Placement[StateT]:
+        """
+        Move the placement by a number of cells along each axis.
+
+        The move is held inside a range on the axis
+        (``x=(0, 39)``), so a slider's thumb stops at the ends of its track. A position that
+        is a formula keeps its formula and shifts it. Piping ``xnano.operations.Move`` onto
+        the placement is also held inside its ranges.
+
+        Args:
+            x: Columns to move right; a negative number moves left.
+            y: Rows to move down; a negative number moves up.
+
+        Returns:
+            The placement, so calls can chain.
+
+        Raises:
+            TypeError: An amount is not a whole number.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.open(offscreen=True, width=20, height=3) as terminal:
+                thumb = terminal.write('#', x=(0, 10), y=1)
+                thumb.move(x=4, y=-1)
+                assert (thumb.x, thumb.y) == (4, 0)
+                thumb.right(99)
+                assert thumb.x == 10
+            ```
+        """
+        horizontal = check_cells(x, 'x')
+        vertical = check_cells(y, 'y')
+        self._terminal._require_open()
+        steps: tuple[tuple[AxisName, int], ...] = (('x', horizontal), ('y', vertical))
+        for axis, step in steps:
+            if step == 0:
+                continue
+            with self._terminal._lock:
+                binding = self._bindings.get(axis)
+            if binding is None:
+                self._set_axis(axis, getattr(self._buffer, axis) + step)
+            else:
+                self._set_axis(axis, binding[0] + step)
+        return self
+
+    def up(self, count: int = 1) -> Placement[StateT]:
+        """
+        Move the placement up by ``count`` rows; see [`move`][xnano.placement.Placement.move].
+
+        Args:
+            count: How many rows to move.
+
+        Raises:
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
+        """
+        return self.move(y=-check_count(count))
+
+    def down(self, count: int = 1) -> Placement[StateT]:
+        """
+        Move the placement down by ``count`` rows; see [`move`][xnano.placement.Placement.move].
+
+        Args:
+            count: How many rows to move.
+
+        Raises:
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
+        """
+        return self.move(y=check_count(count))
+
+    def left(self, count: int = 1) -> Placement[StateT]:
+        """
+        Move the placement left by ``count`` columns; see [`move`][xnano.placement.Placement.move].
+
+        Args:
+            count: How many columns to move.
+
+        Raises:
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
+        """
+        return self.move(x=-check_count(count))
+
+    def right(self, count: int = 1) -> Placement[StateT]:
+        """
+        Move the placement right by ``count`` columns; see [`move`][xnano.placement.Placement.move].
+
+        Args:
+            count: How many columns to move.
+
+        Raises:
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
+        """
+        return self.move(x=check_count(count))
 
     @property
     def pixels(self) -> Pixels:
@@ -793,6 +897,10 @@ class Placement(_Hooked[StateT]):
                 self._buffer.update(_core.ApplyStyle(item))
             else:
                 self._buffer.update(item)
+                if isinstance(item, (_core.Move, _core.Place)):
+                    for axis in ('x', 'y'):
+                        if axis in self._limits:
+                            self._enforce(axis)
         return self
 
     def __or__(self, operation: _core.Operation | _core.Style) -> Placement[StateT]:

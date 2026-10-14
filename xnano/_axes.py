@@ -258,3 +258,35 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
         f'{value!r} is not a valid {axis}. Give a number of cells, a percentage string, a '
         f'range or an expression.'
     )
+
+
+def check_cells(value: object, name: str) -> int:
+    """
+    Return ``value`` when it is a whole number of cells.
+
+    Raises:
+        TypeError: The value is not a whole number.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(
+            f'{name} must be a whole number of cells, but got {value!r}. Pass '
+            f'{name}=1 to move one cell, or a negative number to move the other way.'
+        )
+    return value
+
+
+def check_count(value: object, name: str = 'count') -> int:
+    """
+    Return ``value`` when it is a whole number of cells that is not negative.
+
+    Raises:
+        TypeError: The value is not a whole number.
+        ValueError: The value is negative.
+    """
+    count = check_cells(value, name)
+    if count < 0:
+        raise ValueError(
+            f'{name} must be zero or more, but got {count}. To move the other way call '
+            f'the method for the opposite direction, such as down() instead of up().'
+        )
+    return count

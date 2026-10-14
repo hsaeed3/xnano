@@ -399,6 +399,23 @@ print('DONE')
         assert screen.finish() == 0
         assert screen.cursor[2], 'the cursor is visible again'
 
+    def test_the_cursor_moves_by_cells(self, run):
+        screen = run(
+            PROMPT
+            + """
+with xnano.open(width=12, height=4) as terminal:
+    terminal.write('moved')
+    terminal.cursor.home().right(5).down(2)
+    time.sleep(1.5)
+print('DONE')
+""",
+            rows=12,
+            columns=40,
+        )
+        assert screen.wait_for('moved')
+        assert screen.wait_until(lambda: screen.cursor == (5, 5, True))
+        assert screen.finish() == 0
+
     def test_a_hidden_cursor_stays_hidden(self, run):
         screen = run(
             """

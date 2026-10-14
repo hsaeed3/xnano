@@ -123,6 +123,7 @@ from xnano._values import (
     ValueT,
 )
 from xnano.canvas import Canvas, Composition
+from xnano.cursor import Cursor
 from xnano.errors import (
     TerminalAlreadyOpenError,
     TerminalClosedError,
@@ -313,6 +314,7 @@ class Terminal(_Hooked[StateT]):
         self._frame_callback_count = 0
         self.loop = Loop(cast('Terminal[object]', self))
         self._time = Time(cast('Terminal[object]', self))
+        self._cursor_view = Cursor(cast('Terminal[object]', self))
         self.output = Output(cast('Terminal[object]', self))
         self._audio: AudioDevice | None = None
         self._input: Input | None = None
@@ -561,14 +563,15 @@ class Terminal(_Hooked[StateT]):
         self._host.call(lambda: setattr(self._runtime, 'title', value))
 
     @property
-    def cursor(self) -> _core.Cursor:
+    def cursor(self) -> Cursor:
         """
-        The terminal's cursor.
+        The terminal's [`Cursor`][xnano.cursor.Cursor].
 
-        A terminal has exactly one cursor. Set ``position`` (a cell, or ``None`` to hide
-        it), ``shape``, ``is_blinking`` and ``is_visible``, or call ``follow`` to keep it at
-        a place inside a buffer. It can be changed from any thread, and the cursor you had
-        before the terminal opened is restored when it closes.
+        A terminal has exactly one cursor. Set its ``position`` (a cell, or ``None`` to hide
+        it), ``shape``, ``is_blinking`` and ``is_visible``, move it with ``up``, ``down``,
+        ``left``, ``right`` and ``move``, or ``follow`` a placement. It can be changed from
+        any thread, and the cursor you had before the terminal opened is restored when it
+        closes.
 
         Examples:
             Put a bar cursor at column 3 of the first row::
@@ -576,6 +579,11 @@ class Terminal(_Hooked[StateT]):
                 terminal.cursor.position = (3, 0)
                 terminal.cursor.shape = 'bar'
         """
+        self._require_open()
+        return self._cursor_view
+
+    @property
+    def _cursor_source(self) -> _core.Cursor:
         self._require_open()
         if self._cursor is None:
             return self._runtime.cursor

@@ -17,6 +17,7 @@ from xnano_core import CoreContext
 if TYPE_CHECKING:
     from xnano._hooks import HookHandle
     from xnano.audio import AudioDevice
+    from xnano.cursor import Cursor
     from xnano.placement import Placement
     from xnano.terminal import Terminal
     from xnano.time import Time
@@ -203,7 +204,7 @@ class RootContext(Generic[StateT_co]):
         return self.terminal.audio
 
     @property
-    def cursor(self) -> _core.Cursor:
+    def cursor(self) -> Cursor:
         """The root terminal's cursor."""
         return self.terminal.cursor
 
@@ -286,7 +287,7 @@ class Context(Generic[StateT_co]):
         return self.terminal.size
 
     @property
-    def cursor(self) -> _core.Cursor:
+    def cursor(self) -> Cursor:
         """The terminal's cursor."""
         return self.terminal.cursor
 

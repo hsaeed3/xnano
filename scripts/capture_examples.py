@@ -121,6 +121,13 @@ SPECS: dict[str, tuple[int, int, float, tuple[str, ...], str]] = {
         (),
         "Pixel art that fits the window, with a locked thumbnail.",
     ),
+    "25_cursor.py": (
+        10,
+        60,
+        1.0,
+        ("right", "right", "down"),
+        "Steering the terminal's cursor with the arrow keys.",
+    ),
     "19_progress.py": (
         6,
         50,
