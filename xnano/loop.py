@@ -25,9 +25,9 @@ class Loop:
     """
     The loop a terminal draws on: frames, simulation updates and the pace of both.
 
-    Get it from [`Terminal.loop`][xnano.Terminal.loop]. A terminal that runs by itself
+    Get it from [`Terminal.loop`][xnano.terminal.Terminal.loop]. A terminal that runs by itself
     needs none of this to draw; use it to pace your own code with
-    [`frames`][xnano.Loop.frames], to run a function before every frame, or to move a
+    [`frames`][xnano.loop.Loop.frames], to run a function before every frame, or to move a
     manual clock.
 
     Attributes:
@@ -54,7 +54,7 @@ class Loop:
 
     @property
     def fps(self) -> float:
-        """The rate [`frames`][xnano.Loop.frames] aims for, and the most frames drawn per second."""
+        """The rate [`frames`][xnano.loop.Loop.frames] aims for, and the most frames drawn per second."""
         return self._terminal._fps
 
     def step(self, *, timeout_seconds: float | None = 0.0) -> bool:
@@ -103,8 +103,8 @@ class Loop:
         """
         Iterate over the terminal's frames, drawing between them.
 
-        Each iteration yields a [`Frame`][xnano.Frame] at the pace of
-        [`fps`][xnano.Loop.fps]; whatever you change before
+        Each iteration yields a [`Frame`][xnano.context.Frame] at the pace of
+        [`fps`][xnano.loop.Loop.fps]; whatever you change before
         asking for the next one is drawn. A terminal that runs by itself draws as you
         declare, so this only paces your own code: if you are slow, frames are skipped
         rather than queued. A terminal with a manual clock moves its clock by one frame
@@ -177,11 +177,11 @@ class Loop:
         Call a function before each frame is drawn, on the terminal's loop.
 
         Having such a function means the terminal draws a frame every
-        [`fps`][xnano.Loop.fps], so use it for things that move.
+        [`fps`][xnano.loop.Loop.fps], so use it for things that move.
         A terminal draws only when something changed otherwise.
 
         Args:
-            callback: Called with a [`Frame`][xnano.Frame].
+            callback: Called with a [`Frame`][xnano.context.Frame].
 
         Returns:
             The callback, so this can be used as a decorator.

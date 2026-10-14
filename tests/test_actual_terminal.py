@@ -43,7 +43,7 @@ def actual_terminal(request: pytest.FixtureRequest) -> Iterator[ActualTerminal]:
     [
         """
 with xnano.open(title='xnano native title') as terminal:
-    terminal.add('NATIVE READY', x=3, y=2)
+    terminal.write('NATIVE READY', x=3, y=2)
     terminal.run()
 print('RESTORED', flush=True)
 """
@@ -66,7 +66,7 @@ def test_title_drawing_input_and_alternate_screen_restoration(actual_terminal):
         """
 print('shell prompt', flush=True)
 with xnano.open(width=20, height=2) as terminal:
-    terminal.add('INLINE READY')
+    terminal.write('INLINE READY')
     terminal.run()
 print('REGION CLEARED', flush=True)
 """
@@ -89,7 +89,7 @@ def test_inline_region_stays_below_existing_output_and_clears(actual_terminal):
     [
         """
 with xnano.open() as terminal:
-    terminal.add('COLOR READY', style=xnano.styles.Style(foreground=(255, 0, 0)))
+    terminal.write('COLOR READY', style=xnano.styles.Style(foreground=(255, 0, 0)))
     print('CAPTURED OUTPUT', flush=True)
     terminal.run()
 """
@@ -119,8 +119,8 @@ with xnano.open() as terminal:
     def observe(context):
         if context.size_changed is not None:
             terminal.clear()
-            terminal.add(f'RESIZED {terminal.width}x{terminal.height}')
-    terminal.add('RESIZE READY')
+            terminal.write(f'RESIZED {terminal.width}x{terminal.height}')
+    terminal.write('RESIZE READY')
     terminal.run()
 """
     ],
@@ -142,10 +142,10 @@ with xnano.open() as terminal:
     @terminal.hook
     def observe(context):
         if context.pasted is not None:
-            terminal.add(f'PASTED {context.pasted}', y=1)
+            terminal.write(f'PASTED {context.pasted}', y=1)
         if context.keyboard is not None and context.keyboard.key == 'a':
-            terminal.add('KEY RECEIVED', y=2)
-    terminal.add('INPUT READY')
+            terminal.write('KEY RECEIVED', y=2)
+    terminal.write('INPUT READY')
     terminal.run()
 """
     ],

@@ -20,7 +20,7 @@ class Output:
     """
     The frames a terminal has drawn, and the text printed while it was live.
 
-    Get it from [`Terminal.output`][xnano.Terminal.output].
+    Get it from [`Terminal.output`][xnano.terminal.Terminal.output].
 
     Attributes:
         is_captured: Whether a live terminal is holding back what is printed, so it
@@ -31,7 +31,7 @@ class Output:
         import xnano
 
         with xnano.open(offscreen=True, width=12, height=2) as terminal:
-            terminal.add('hello', x=1, y=1)
+            terminal.write('hello', x=1, y=1)
             terminal.output.render()
             assert terminal.output.snapshot().lines()[1] == ' hello'
         ```

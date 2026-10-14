@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import functools
 import inspect
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Sequence
 from types import EllipsisType
 from typing import TYPE_CHECKING, Generic, TypeAlias, cast, overload
 
@@ -16,6 +16,7 @@ import xnano_core as _core
 from xnano_core import CoreContext
 
 if TYPE_CHECKING:
+    from xnano.operations import ContextualOperation, OperationResult, OperationTrigger
     from xnano.placement import Placement
     from xnano.terminal import Terminal
 
@@ -76,7 +77,7 @@ class HookHandle(Generic[StateT]):
 
         Args:
             owner: The terminal or placement the hook listens on.
-            function: The function to call with a [`Context`][xnano.Context].
+            function: The function to call with a [`Context`][xnano.context.Context].
             trigger: Decides which events count; without one every event counts.
         """
         self._owner = owner
@@ -230,38 +231,6 @@ class HookHandle(Generic[StateT]):
             timer.cancel()
 
 
-def _pressed(keys: tuple[str, ...]) -> Trigger[StateT]:
-    def trigger(context: Context[StateT]) -> bool:
-        key = context.keyboard
-        return (
-            key is not None
-            and key.kind != 'release'
-            and (not keys or any(key.matches(name) for name in keys))
-        )
-
-    return trigger
-
-
-def _released(keys: tuple[str, ...]) -> Trigger[StateT]:
-    def trigger(context: Context[StateT]) -> bool:
-        key = context.keyboard
-        return (
-            key is not None
-            and key.kind == 'release'
-            and (not keys or any(key.matches(name) for name in keys))
-        )
-
-    return trigger
-
-
-def _clicked(context: Context[StateT]) -> bool:
-    return context.mouse is not None and context.mouse.kind == 'press'
-
-
-def _dragged(context: Context[StateT]) -> bool:
-    return context.mouse is not None and context.mouse.kind == 'drag'
-
-
 def _wait(seconds: Callable[[], float]) -> Trigger[StateT]:
     """Wait the number of seconds ``seconds()`` gives, read again each time it starts."""
 
@@ -283,8 +252,8 @@ class _Hooked(Generic[StateT]):
 
     def __init__(self) -> None:
         """
-        Prepare the list of hooks. Used by [`Terminal`][xnano.Terminal] and
-        [`Placement`][xnano.Placement].
+        Prepare the list of hooks. Used by [`Terminal`][xnano.terminal.Terminal] and
+        [`Placement`][xnano.placement.Placement].
         """
         self._registrations: list[HookHandle] = []
         self._core_hook: _core.Hook | None = None
@@ -301,13 +270,99 @@ class _Hooked(Generic[StateT]):
     def hook(
         self, /, *, when: Trigger[StateT]
     ) -> Callable[[Hook[StateT]], HookHandle[StateT]]: ...
+    @overload
+    def hook(
+        self,
+        function: Callable[[Context[StateT]], OperationResult],
+        /,
+        *,
+        on: OperationTrigger,
+        every: float | None = None,
+        after: float | None = None,
+        keys: str | Sequence[str] | None = None,
+        when: Trigger[StateT] | None = None,
+    ) -> ContextualOperation[StateT]: ...
+    @overload
+    def hook(
+        self,
+        function: Callable[[Context[StateT]], OperationResult],
+        /,
+        *,
+        on: OperationTrigger = 'frame',
+        every: float,
+        after: float | None = None,
+        keys: str | Sequence[str] | None = None,
+        when: Trigger[StateT] | None = None,
+    ) -> ContextualOperation[StateT]: ...
+    @overload
+    def hook(
+        self,
+        function: Callable[[Context[StateT]], OperationResult],
+        /,
+        *,
+        on: OperationTrigger = 'frame',
+        every: float | None = None,
+        after: float,
+        keys: str | Sequence[str] | None = None,
+        when: Trigger[StateT] | None = None,
+    ) -> ContextualOperation[StateT]: ...
+    @overload
+    def hook(
+        self,
+        /,
+        *,
+        on: OperationTrigger,
+        every: float | None = None,
+        after: float | None = None,
+        keys: str | Sequence[str] | None = None,
+        when: Trigger[StateT] | None = None,
+    ) -> Callable[
+        [Callable[[Context[StateT]], OperationResult]], ContextualOperation[StateT]
+    ]: ...
+    @overload
+    def hook(
+        self,
+        /,
+        *,
+        on: OperationTrigger = 'frame',
+        every: float,
+        after: float | None = None,
+        keys: str | Sequence[str] | None = None,
+        when: Trigger[StateT] | None = None,
+    ) -> Callable[
+        [Callable[[Context[StateT]], OperationResult]], ContextualOperation[StateT]
+    ]: ...
+    @overload
+    def hook(
+        self,
+        /,
+        *,
+        on: OperationTrigger = 'frame',
+        every: float | None = None,
+        after: float,
+        keys: str | Sequence[str] | None = None,
+        when: Trigger[StateT] | None = None,
+    ) -> Callable[
+        [Callable[[Context[StateT]], OperationResult]], ContextualOperation[StateT]
+    ]: ...
     def hook(
         self,
         function: Callable[[Context[StateT]], object] | None = None,
         /,
         *,
         when: Trigger[StateT] | None = None,
-    ) -> HookHandle[StateT] | Callable[[Hook[StateT]], HookHandle[StateT]]:
+        on: OperationTrigger | None = None,
+        every: float | None = None,
+        after: float | None = None,
+        keys: str | Sequence[str] | None = None,
+    ) -> (
+        HookHandle[StateT]
+        | ContextualOperation[StateT]
+        | Callable[[Hook[StateT]], HookHandle[StateT]]
+        | Callable[
+            [Callable[[Context[StateT]], OperationResult]], ContextualOperation[StateT]
+        ]
+    ):
         """
         Call a function when this target hears an event.
 
@@ -319,12 +374,23 @@ class _Hooked(Generic[StateT]):
         can be attached to more than one target. Without a function, ``@target.hook(when=...)``
         decorates the function that follows.
 
+        Give ``on``, ``every`` or ``after`` to make the function a
+        [`ContextualOperation`][xnano.operations.ContextualOperation] instead: it runs on that
+        trigger, may return text, a buffer, a style or an operation to draw on this target, and
+        is mounted at once. ``@terminal.hook(on='frame')`` runs on every frame and
+        ``@terminal.hook(every=0.5)`` twice a second.
+
         Args:
-            function: The function to call with a [`Context`][xnano.Context].
+            function: The function to call with a [`Context`][xnano.context.Context].
             when: Decides which events count. Without one, every event counts.
+            on: When a contextual operation runs, such as ``'frame'``, ``'click'`` or ``'key'``.
+            every: Seconds between runs of a contextual operation.
+            after: Seconds before a contextual operation runs once.
+            keys: Key names a contextual operation reacts to when ``on='key'``.
 
         Returns:
-            The hook registration. Call ``remove`` to stop the hook.
+            The hook registration (call ``remove`` to stop the hook), or the mounted
+            contextual operation when ``on``, ``every`` or ``after`` is given.
 
         Examples:
             ```python
@@ -333,15 +399,34 @@ class _Hooked(Generic[StateT]):
             with xnano.open(offscreen=True, width=8, height=1) as terminal:
                 heard = []
 
-                def is_paste(context: xnano.Context) -> bool:
+                def is_paste(context: xnano.context.Context) -> bool:
                     return context.pasted is not None
 
                 @terminal.hook(when=is_paste)
-                def record(context: xnano.Context) -> None:
+                def record(context: xnano.context.Context) -> None:
                     heard.append(context.pasted)
             ```
         """
         self._terminal._require_open()
+        if on is not None or every is not None or after is not None or keys is not None:
+            from xnano.operations import hook as contextual_hook
+
+            decorate = contextual_hook(
+                on=on or 'frame', every=every, after=after, keys=keys, when=when
+            )
+
+            def mount(
+                callback: Callable[[Context[StateT]], OperationResult],
+            ) -> ContextualOperation[StateT]:
+                operation = decorate(callback)
+                operation.apply_to(cast('Terminal[StateT] | Placement[StateT]', self))
+                return operation
+
+            if function is not None:
+                return mount(
+                    cast('Callable[[Context[StateT]], OperationResult]', function)
+                )
+            return mount
         if function is None:
             if when is None:
                 raise ValueError(
@@ -370,11 +455,11 @@ class _Hooked(Generic[StateT]):
             with xnano.open(offscreen=True, width=8, height=1) as terminal:
 
                 @terminal.on_key('q', 'escape')
-                def leave(context: xnano.Context) -> None:
+                def leave(context: xnano.context.Context) -> None:
                     context.terminal.stop()
             ```
         """
-        return self.hook(when=_pressed(keys))
+        return self.hook(when=_core.Trigger.key(*keys))
 
     def on_key_release(self, *keys: str) -> Callable[[Hook[StateT]], HookHandle[StateT]]:
         """
@@ -386,7 +471,7 @@ class _Hooked(Generic[StateT]):
         Args:
             keys: The key names to react to. Give none to react to every key.
         """
-        return self.hook(when=_released(keys))
+        return self.hook(when=_core.Trigger.key_release(*keys))
 
     @overload
     def on_click(self, function: Hook[StateT], /) -> HookHandle[StateT]: ...
@@ -401,7 +486,7 @@ class _Hooked(Generic[StateT]):
         The pointer's cell is ``context.mouse.position``. Open the terminal with
         ``mouse='buttons'`` to receive clicks. Use it as ``@terminal.on_click``.
         """
-        return self._with_function(_clicked, function)
+        return self._with_function(_core.Trigger.click(), function)
 
     @overload
     def on_drag(self, function: Hook[StateT], /) -> HookHandle[StateT]: ...
@@ -416,7 +501,7 @@ class _Hooked(Generic[StateT]):
         Open the terminal with ``mouse='buttons'`` to receive drags. Use it as
         ``@terminal.on_drag``.
         """
-        return self._with_function(_dragged, function)
+        return self._with_function(_core.Trigger.drag(), function)
 
     def every(
         self, seconds: float | None = None, *, beats: float | None = None
@@ -425,8 +510,8 @@ class _Hooked(Generic[StateT]):
         Call the decorated function at a steady interval on the terminal's clock.
 
         Give ``seconds`` for a time, or ``beats`` for music: a beat lasts as long as the
-        terminal's [`tempo`][xnano.Terminal.tempo] says, and a change of tempo applies from
-        the next call. The wait follows the clock, so [`pause`][xnano.Terminal.pause] stops it
+        terminal's [`tempo`][xnano.terminal.Terminal.tempo] says, and a change of tempo applies from
+        the next call. The wait follows the clock, so [`pause`][xnano.terminal.Terminal.pause] stops it
         too. Events that arrive during the wait do not count, and ``context.event`` is ``None``.
 
         Args:
@@ -444,7 +529,7 @@ class _Hooked(Generic[StateT]):
                 ticks = []
 
                 @terminal.every(0.1)
-                def tick(context: xnano.Context) -> None:
+                def tick(context: xnano.context.Context) -> None:
                     ticks.append(context.clock.elapsed_seconds)
 
                 terminal.loop.advance(0.25)
@@ -476,7 +561,7 @@ class _Hooked(Generic[StateT]):
                 seen = []
 
                 @terminal.after(0.1)
-                def later(context: xnano.Context) -> None:
+                def later(context: xnano.context.Context) -> None:
                     seen.append(context.clock.elapsed_seconds)
 
                 terminal.loop.advance(0.3)

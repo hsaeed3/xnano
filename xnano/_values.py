@@ -107,4 +107,4 @@ class Renderable(Protocol):
 
 
 Content: TypeAlias = 'Buffer | Renderable | str | bytes | TerminalImage | ImageBuffer'
-"""What [`Terminal.add`][xnano.Terminal.add] accepts."""
+"""What [`Terminal.write`][xnano.terminal.Terminal.write] accepts."""

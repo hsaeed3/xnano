@@ -15,6 +15,7 @@ import pathlib
 
 import xnano
 from xnano.buffers import Buffer, Cell
+from xnano.context import Context, Frame
 from xnano.effects import Effect
 from xnano.expressions import (
     Height,
@@ -25,7 +26,9 @@ from xnano.expressions import (
     Width,
 )
 from xnano.image import TerminalImage
+from xnano.placement import Placement
 from xnano.styles import Style
+from xnano.terminal import Terminal
 from xnano.widgets import (
     Bar,
     BarChart,
@@ -80,7 +83,7 @@ def row(fraction: float) -> NumericValue[int | float]:
 class _Demo:
     """The demo's panels, and what changes in them."""
 
-    def __init__(self, terminal: xnano.Terminal[None]) -> None:
+    def __init__(self, terminal: Terminal[None]) -> None:
         """
         Prepare the panels' state.
 
@@ -92,7 +95,7 @@ class _Demo:
         self.instrument = 0
         self.events: collections.deque[str] = collections.deque(maxlen=8)
         self.samples = [3] * 40
-        self.intro: list[xnano.Placement[None]] = []
+        self.intro: list[Placement[None]] = []
         self.log = Paragraph('', style=Style(INK))
 
     # -- the opening animation ----------------------------------------------------------
@@ -102,11 +105,11 @@ class _Demo:
         terminal = self.terminal
         clip = TerminalImage.from_xni((ASSETS / 'luffy.xni').read_bytes())
         self.intro.append(
-            terminal.add(clip, x='center', y='center', width='100%', height='100%')
+            terminal.write(clip, x='center', y='center', width='100%', height='100%')
         )
-        self.intro.append(terminal.add(wordmark(), x='center', y='center', layer=2))
+        self.intro.append(terminal.write(wordmark(), x='center', y='center', layer=2))
         self.intro.append(
-            terminal.add(
+            terminal.write(
                 'press any key',
                 x='center',
                 y=ParentHeight - 2,
@@ -116,7 +119,7 @@ class _Demo:
         )
 
         @terminal.on_key()
-        def begin(context: xnano.Context) -> None:
+        def begin(context: Context) -> None:
             context.hook.remove()
             for placement in self.intro:
                 placement.remove()
@@ -128,7 +131,7 @@ class _Demo:
         self, title: str, left: float, right: float, top: float, bottom: float
     ) -> None:
         """A titled border around a part of the window."""
-        self.terminal.add(
+        self.terminal.write(
             Block(title, border_type='rounded', border_style=Style(MUTED)),
             x=edge(left),
             y=row(top),
@@ -139,8 +142,8 @@ class _Demo:
     def build(self) -> None:
         """Fill the window with panels, each showing one part of xnano."""
         terminal = self.terminal
-        terminal.add(' xnano 2 ', x=1, y=0, style=Style('black', INK, bold=True))
-        terminal.add(
+        terminal.write(' xnano 2 ', x=1, y=0, style=Style('black', INK, bold=True))
+        terminal.write(
             'tab: instrument   a-k: notes   e: effect   space: stop time   m: mute   q: quit',
             x='right',
             y=0,
@@ -172,12 +175,12 @@ class _Demo:
         sweep = LineGauge(
             (TimeElapsed % 4) / 4, label='sweep', filled_style=Style('#d8b9a3')
         )
-        terminal.add(sweep, x=2, y=row(0.0) + 1, width=inner, height=1, layer=1)
+        terminal.write(sweep, x=2, y=row(0.0) + 1, width=inner, height=1, layer=1)
         self.wave = LineGauge(0.5, label='wave ', filled_style=Style('#c9a6b8'))
-        terminal.add(self.wave, x=2, y=row(0.0) + 2, width=inner, height=1, layer=1)
+        terminal.write(self.wave, x=2, y=row(0.0) + 2, width=inner, height=1, layer=1)
         self.load = LineGauge(0.5, label='load ', filled_style=Style('#8f92c0'))
-        terminal.add(self.load, x=2, y=row(0.0) + 3, width=inner, height=1, layer=1)
-        ball = terminal.add('●', y=row(0.0) + 5, layer=1)
+        terminal.write(self.load, x=2, y=row(0.0) + 3, width=inner, height=1, layer=1)
+        ball = terminal.write('●', y=row(0.0) + 5, layer=1)
         ball.x = 2 + (edge(0.27) - 5) * (TimeElapsed % 3 / 3)
 
     def build_widgets(self) -> None:
@@ -185,14 +188,14 @@ class _Demo:
         terminal = self.terminal
         inner = edge(0.27) - 4
         self.spark = Sparkline(self.samples, maximum=8, style=Style('#8f92c0'))
-        terminal.add(self.spark, x=2, y=row(0.3) + 1, width=inner, height=2, layer=1)
+        terminal.write(self.spark, x=2, y=row(0.3) + 1, width=inner, height=2, layer=1)
         self.bars = BarChart(
             [Bar(3, 'a'), Bar(5, 'b'), Bar(2, 'c'), Bar(6, 'd'), Bar(4, 'e')],
             bar_width=3,
             maximum=8,
             bar_style=Style('#d8b9a3'),
         )
-        terminal.add(
+        terminal.write(
             self.bars,
             x=2,
             y=row(0.3) + 3,
@@ -209,7 +212,7 @@ class _Demo:
             widths=[24, 6],
             style=Style(INK),
         )
-        self.terminal.add(
+        self.terminal.write(
             table,
             x=2,
             y=row(0.62) + 1,
@@ -230,7 +233,7 @@ class _Demo:
         """Shapes in coordinates of your own, redrawn on every frame."""
         terminal = self.terminal
         self.canvas = Canvas(x_bounds=(-10, 10), y_bounds=(-10, 10), marker='braille')
-        terminal.add(
+        terminal.write(
             self.canvas,
             x=edge(0.27) + 1,
             y=row(0.6) + 1,
@@ -244,7 +247,7 @@ class _Demo:
         ]
 
         @terminal.loop.on_frame
-        def draw(frame: xnano.Frame) -> None:
+        def draw(frame: Frame) -> None:
             time = frame.elapsed_seconds
             self.canvas.clear_shapes()
             self.canvas.extend_shapes(
@@ -260,7 +263,7 @@ class _Demo:
 
     def build_sound(self) -> None:
         """The instruments, and a keyboard to play them; quiet when there is no sound card."""
-        self.sound = self.terminal.add(
+        self.sound = self.terminal.write(
             '',
             x=edge(0.73) + 2,
             y=row(0.0) + 1,
@@ -288,7 +291,7 @@ class _Demo:
             month_header_style=Style(INK, bold=True),
             weekdays_header_style=Style(MUTED),
         )
-        self.terminal.add(
+        self.terminal.write(
             calendar,
             x=edge(0.73) + 2,
             y=row(0.34) + 1,
@@ -300,7 +303,7 @@ class _Demo:
     def build_events(self) -> None:
         """Every key and click, as they arrive: hooks hear them all."""
         terminal = self.terminal
-        terminal.add(
+        terminal.write(
             self.log,
             x=edge(0.73) + 2,
             y=row(0.66) + 1,
@@ -311,7 +314,7 @@ class _Demo:
         self.remember('hover and click: the mouse is on')
 
         @terminal.every(0.12)
-        def refresh(context: xnano.Context) -> None:
+        def refresh(context: Context) -> None:
             elapsed = context.clock.elapsed_seconds
             self.wave.ratio = 0.5 + 0.45 * math.sin(elapsed * 2)
             self.load.ratio = 0.55 + 0.3 * math.sin(elapsed * 0.7 + 1) * math.cos(
@@ -329,13 +332,13 @@ class _Demo:
                 )
 
         @terminal.on_key('tab')
-        def next_instrument(context: xnano.Context) -> None:
+        def next_instrument(context: Context) -> None:
             self.instrument = (self.instrument + 1) % len(INSTRUMENTS)
             self.show_sound()
             self.remember(f'instrument: {INSTRUMENTS[self.instrument]}')
 
         @terminal.on_key(*NOTES)
-        def play(context: xnano.Context) -> None:
+        def play(context: Context) -> None:
             if context.keyboard is None:
                 return
             note = NOTES[context.keyboard.key]
@@ -344,17 +347,17 @@ class _Demo:
                 terminal.note(note, 0.5, instrument=INSTRUMENTS[self.instrument])
 
         @terminal.on_key('m')
-        def mute(context: xnano.Context) -> None:
+        def mute(context: Context) -> None:
             self.is_muted = not self.is_muted
             self.show_sound()
 
         @terminal.on_key('e')
-        def replay_effect(context: xnano.Context) -> None:
+        def replay_effect(context: Context) -> None:
             self.art.update(Effect.coalesce(duration_milliseconds=1200))
             self.remember('effect: coalesce')
 
         @terminal.on_key('space')
-        def toggle_time(context: xnano.Context) -> None:
+        def toggle_time(context: Context) -> None:
             if terminal.is_paused:
                 terminal.resume()
             else:
@@ -362,7 +365,7 @@ class _Demo:
             self.remember('time: ' + ('stopped' if terminal.is_paused else 'running'))
 
         @terminal.on_click
-        def click(context: xnano.Context) -> None:
+        def click(context: Context) -> None:
             if context.mouse is not None:
                 self.remember(
                     f'click at {context.mouse.position.x},{context.mouse.position.y}'

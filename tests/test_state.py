@@ -44,7 +44,7 @@ def test_a_reference_can_be_an_axis():
     with main.open(
         offscreen=True, width=20, height=2, state=Settings(volume=4)
     ) as terminal:
-        thumb = terminal.add('#', x=terminal.ref(lambda state: state.volume))
+        thumb = terminal.write('#', x=terminal.ref(lambda state: state.volume))
         terminal.loop.advance(0)
         assert thumb.x == 4
         terminal._state_proxy.volume = 7
@@ -69,6 +69,6 @@ def test_open_without_state_has_no_reference():
 
 def test_an_expression_still_places_a_buffer():
     with main.open(offscreen=True, width=10, height=1) as terminal:
-        placed = terminal.add('#', x=ParentWidth // 2)
+        placed = terminal.write('#', x=ParentWidth // 2)
         terminal.loop.advance(0)
         assert placed.x == 5

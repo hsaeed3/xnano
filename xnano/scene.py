@@ -245,7 +245,7 @@ class Scene:
 
     The scene draws itself. It watches its sprites and the camera and redraws only on a frame
     after something changed, so a standing-still world costs nothing. Get one from
-    [`Terminal.scene`][xnano.Terminal.scene] or [`Placement.scene`][xnano.Placement.scene].
+    [`Terminal.scene`][xnano.terminal.Terminal.scene] or [`Placement.scene`][xnano.placement.Placement.scene].
 
     A pixel is half a cell tall, so a terminal of ``80`` by ``24`` cells shows ``80`` by ``48``
     pixels of the world.

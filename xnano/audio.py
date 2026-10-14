@@ -116,7 +116,7 @@ class Audio:
     The terminal's sound: notes, melodies and sounds to play, a musical clock, and the
     microphone.
 
-    Get it from [`Terminal.audio`][xnano.Terminal.audio]. Playing never waits: the sound
+    Get it from [`Terminal.audio`][xnano.terminal.Terminal.audio]. Playing never waits: the sound
     is rendered on your thread without a device, then handed to the terminal's own loop,
     which owns the audio device. Pitches are MIDI note numbers or names everywhere.
 
@@ -134,7 +134,7 @@ class Audio:
         import xnano
 
         with xnano.open(offscreen=True, width=20, height=3) as terminal:
-            meter = terminal.add('#', y=1)
+            meter = terminal.write('#', y=1)
             meter.x = terminal.audio.level * 19
             level = terminal.inspect(terminal.audio.level)
             assert 0.0 <= level <= 1.0
@@ -356,7 +356,7 @@ class Audio:
             import xnano
 
             with xnano.open(offscreen=True, width=20, height=2) as terminal:
-                ball = terminal.add('o')
+                ball = terminal.write('o')
                 ball.x = (terminal.audio.beat % 1) * 19
             ```
         """

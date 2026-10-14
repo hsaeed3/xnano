@@ -34,7 +34,7 @@ class Pixels:
     A color is a name such as ``'red'`` (in the standard xterm shade), a ``'#rrggbb'`` string
     or an ``(red, green, blue)`` tuple.
 
-    Get one from [`Terminal.pixels`][xnano.Terminal.pixels].
+    Get one from [`Terminal.pixels`][xnano.terminal.Terminal.pixels].
 
     Attributes:
         width: The width in pixels.

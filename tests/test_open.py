@@ -16,13 +16,14 @@ import pytest
 
 import xnano as main
 import xnano.terminal as terminal_module
-from xnano import Terminal, active
+from xnano import active
 from xnano import open as open_terminal
 from xnano.errors import (
     TerminalAlreadyOpenError,
     TerminalClosedError,
     TerminalError,
 )
+from xnano.terminal import Terminal
 from xnano_core import (
     Buffer,
     Cell,
@@ -103,9 +104,9 @@ class TestOpening:
         terminal.close()
         assert terminal.is_closed and 'closed' in repr(terminal)
         for action in (
-            lambda: terminal.add('x'),
+            lambda: terminal.write('x'),
             lambda: terminal.pixels(),
-            lambda: terminal.add('x'),
+            lambda: terminal.write('x'),
             lambda: terminal.output.render(),
             lambda: list(terminal.loop.frames(count=1)),
         ):
@@ -113,7 +114,7 @@ class TestOpening:
                 action()
 
     def test_printing_a_terminal_shows_its_last_frame(self, terminal):
-        terminal.add('hi', x=1, y=0)
+        terminal.write('hi', x=1, y=0)
         terminal.output.render()
         assert 'hi' in str(terminal)
 
@@ -149,7 +150,7 @@ class TestFrames:
 
     def test_a_loop_draws_what_it_changes(self, terminal):
         for frame in terminal.loop.frames(count=3):
-            terminal.add(str(frame.index), x=frame.index, y=0)
+            terminal.write(str(frame.index), x=frame.index, y=0)
         terminal.output.render()
         assert terminal.output.snapshot().lines()[0] == '012'
 
@@ -164,14 +165,14 @@ class TestFrames:
 
 class TestPlacements:
     def test_numbers_apply_once(self, terminal):
-        placement = terminal.add(Buffer.with_text('ab'), x=3, y=2)
+        placement = terminal.write(Buffer.with_text('ab'), x=3, y=2)
         assert (placement.x, placement.y) == (3, 2)
         assert (placement.width, placement.height) == (2, 1)
         placement.x = 5
         assert placement.x == 5
 
     def test_percentages_follow_the_terminal(self, terminal):
-        placement = terminal.add('hello', x='50%', y='50%', width='25%')
+        placement = terminal.write('hello', x='50%', y='50%', width='25%')
         terminal.output.render()
         assert (placement.x, placement.y, placement.width) == (10, 3, 5)
         terminal._runtime.resize(width=40, height=10)
@@ -180,9 +181,9 @@ class TestPlacements:
         assert (placement.x, placement.y, placement.width) == (20, 5, 10)
 
     def test_a_size_range_limits_the_size(self, terminal):
-        wide = terminal.add(Buffer(width=15, height=4), width=(1, 10))
-        narrow = terminal.add(Buffer(width=2, height=4), width=(5, None))
-        percent = terminal.add(Buffer(width=15, height=4), width=(None, '25%'))
+        wide = terminal.write(Buffer(width=15, height=4), width=(1, 10))
+        narrow = terminal.write(Buffer(width=2, height=4), width=(5, None))
+        percent = terminal.write(Buffer(width=15, height=4), width=(None, '25%'))
         terminal.output.render()
         assert wide.width == 10
         assert narrow.width == 5
@@ -195,7 +196,7 @@ class TestPlacements:
         assert wide.width == 1
 
     def test_a_position_range_is_how_far_it_may_travel(self, terminal):
-        thumb = terminal.add(Buffer.with_text('#'), x=(2, 10))
+        thumb = terminal.write(Buffer.with_text('#'), x=(2, 10))
         assert thumb.x == 2, 'it is held inside the range at once'
         thumb.x = 6
         assert thumb.x == 6
@@ -205,12 +206,12 @@ class TestPlacements:
         assert thumb.x == 2
         thumb.x = '50%'
         assert thumb.x == 10
-        vertical = terminal.add(Buffer.with_text('#'), y=(1, 4))
+        vertical = terminal.write(Buffer.with_text('#'), y=(1, 4))
         vertical.y = 9
         assert vertical.y == 4
 
     def test_a_range_stays_until_another_replaces_it(self, terminal):
-        thumb = terminal.add('#', x=(2, 10))
+        thumb = terminal.write('#', x=(2, 10))
         thumb.x = 8
         thumb.x = (4, 6)
         assert thumb.x == 6
@@ -221,12 +222,12 @@ class TestPlacements:
         assert thumb.x == 17
 
     def test_range_bounds_may_be_percentages_or_expressions(self, terminal):
-        thumb = terminal.add('#', x=('10%', '90%'))
+        thumb = terminal.write('#', x=('10%', '90%'))
         thumb.x = 0
         assert thumb.x == 2
         thumb.x = 19
         assert thumb.x == 18
-        track = terminal.add('##', x=(0, ParentWidth - Width))
+        track = terminal.write('##', x=(0, ParentWidth - Width))
         track.x = 100
         assert track.x == 18
         terminal._runtime.resize(width=40, height=6)
@@ -239,14 +240,14 @@ class TestPlacements:
         assert track.x == 38
 
     def test_a_range_holds_a_formula_too(self, terminal):
-        ball = terminal.add('o', x=(0, 6))
+        ball = terminal.write('o', x=(0, 6))
         ball.x = (ParentWidth - Width) * (TimeElapsed % 1.0)
         positions = [ball.x, *(ball.x for _ in terminal.loop.frames(count=8))]
         assert max(positions) == 6
         assert positions[:3] == [0, 0, 2]
 
     def test_a_range_must_be_an_ordered_pair(self, terminal):
-        placement = terminal.add('x')
+        placement = terminal.write('x')
         with pytest.raises(ValueError, match='starts at 9 but ends at 2'):
             placement.x = (9, 2)
         with pytest.raises(ValueError, match='is a pair'):
@@ -263,25 +264,25 @@ class TestPlacements:
         terminal.loop.step()
 
     def test_removing_forgets_the_range(self, terminal):
-        thumb = terminal.add('#', x=(0, 3))
+        thumb = terminal.write('#', x=(0, 3))
         thumb.remove()
         assert thumb._limits == {}
 
     def test_expressions_follow_the_clock(self, terminal):
-        ball = terminal.add('o')
+        ball = terminal.write('o')
         ball.x = (ParentWidth - Width) * (TimeElapsed % 1.0)
         positions = [ball.x, *(ball.x for _ in terminal.loop.frames(count=4))]
         assert positions[:5] == [0, 0, 2, 4, 6]
 
     def test_expressions_can_center(self, terminal):
-        label = terminal.add('hello')
+        label = terminal.write('hello')
         label.x = (ParentWidth - Width) // 2
         label.y = (ParentHeight - Height) // 2
         terminal.output.render()
         assert (label.x, label.y) == (7, 2)
 
     def test_assigning_a_number_stops_following_an_expression(self, terminal):
-        ball = terminal.add('o')
+        ball = terminal.write('o')
         ball.x = TimeElapsed * 10
         terminal.loop.advance(0.5)
         assert ball.x == 5
@@ -290,7 +291,7 @@ class TestPlacements:
         assert ball.x == 1
 
     def test_bad_axes_are_explained(self, terminal):
-        placement = terminal.add('x')
+        placement = terminal.write('x')
         with pytest.raises(ValueError, match='not a percentage'):
             placement.x = 'half%'
         with pytest.raises(ValueError, match='not a valid x'):
@@ -311,25 +312,25 @@ class TestPlacements:
 
         grid = Buffer.with_text('cell').to_cell_grid()
         for content in ('text', grid, Greeting(), Buffer.with_text('buffer')):
-            assert terminal.add(content).width > 0
+            assert terminal.write(content).width > 0
         with pytest.raises(TypeError, match='Cannot show a int'):
-            terminal.add(5)  # type: ignore[arg-type]
+            terminal.write(5)  # type: ignore[arg-type]
 
         class Broken:
             def __xnano_buffer__(self) -> int:
                 return 1
 
         with pytest.raises(TypeError, match='must return a Buffer'):
-            terminal.add(Broken())  # type: ignore[arg-type]
+            terminal.write(Broken())  # type: ignore[arg-type]
 
     def test_layers_order_the_drawing(self, terminal):
-        terminal.add(Buffer.with_text('a'), layer=1)
-        terminal.add(Buffer.with_text('b'), layer=0)
+        terminal.write(Buffer.with_text('a'), layer=1)
+        terminal.write(Buffer.with_text('b'), layer=0)
         terminal.output.render()
         assert terminal.output.snapshot().lines()[0] == 'a'
 
     def test_removing_and_hiding(self, terminal):
-        placement = terminal.add('hi')
+        placement = terminal.write('hi')
         placement.is_visible = False
         terminal.output.render()
         assert terminal.output.snapshot().lines()[0] == ''
@@ -341,7 +342,7 @@ class TestPlacements:
         assert 'removed' in repr(placement)
 
     def test_a_placement_has_pixels(self, terminal):
-        placement = terminal.add(Buffer(width=3, height=1))
+        placement = terminal.write(Buffer(width=3, height=1))
         placement.pixels()[0, 0] = (255, 0, 0)
         assert placement.pixels().height == 2
 
@@ -382,7 +383,7 @@ class TestRegions:
             terminal[0, 0] = (1, 2, 3)
 
     def test_clear_erases_the_cells(self, terminal):
-        terminal.add('hello')
+        terminal.write('hello')
         terminal.clear()
         assert terminal[0, 0].symbol == ' '
 
@@ -461,7 +462,7 @@ class TestHooks:
 
     def test_one_function_can_hook_two_targets(self, terminal):
         heard: list[str] = []
-        placement = terminal.add(Buffer(width=4, height=2), x=0, y=0)
+        placement = terminal.write(Buffer(width=4, height=2), x=0, y=0)
 
         def remember(context: main.Context) -> None:
             if context.keyboard is not None:
@@ -498,7 +499,7 @@ class TestHooks:
     def test_mouse_reaches_the_placement_under_the_pointer(self, terminal):
         pressed: list[tuple[int, int]] = []
         local: list[tuple[int, int]] = []
-        placement = terminal.add(Buffer(width=6, height=3), x=4, y=2)
+        placement = terminal.write(Buffer(width=6, height=3), x=4, y=2)
 
         @terminal.hook
         def press(context: main.Context) -> None:
@@ -585,7 +586,7 @@ class TestHooks:
             return trigger
 
         hits: list[int] = []
-        placement = terminal.add(Buffer(width=4, height=2))
+        placement = terminal.write(Buffer(width=4, height=2))
 
         @placement.hook(when=clicks(5, gap=1.0))
         def egg(context: main.Context) -> None:
@@ -653,8 +654,8 @@ class TestHooks:
 
     def test_draggable_matches_a_hand_written_copy(self, terminal):
 
-        library = terminal.add('#', x=(0, 10))
-        custom = terminal.add('#', x=(0, 10), y=1)
+        library = terminal.write('#', x=(0, 10))
+        custom = terminal.write('#', x=(0, 10), y=1)
 
         def dragging(context: main.Context) -> bool:
             return context.mouse is not None and context.mouse.kind == 'drag'
@@ -719,7 +720,7 @@ class TestTime:
     def test_other_threads_hand_work_to_the_loop(self, terminal):
         done = threading.Event()
         threading.Thread(
-            target=lambda: terminal._host.post(lambda: (terminal.add('x'), done.set()))
+            target=lambda: terminal._host.post(lambda: (terminal.write('x'), done.set()))
         ).start()
         assert done.wait(timeout=5) is False or True
         for _ in range(50):
@@ -797,11 +798,11 @@ class TestAutonomous:
         assert not autonomous.is_live and autonomous.backend == 'offscreen'
 
     def test_what_is_declared_appears_at_once(self, autonomous):
-        autonomous.add('hi', x=3)
+        autonomous.write('hi', x=3)
         assert wait_for(lambda: autonomous.output.snapshot().lines()[0] == '   hi')
-        autonomous.add('yo', x=0, y=1)
+        autonomous.write('yo', x=0, y=1)
         assert wait_for(lambda: autonomous.output.snapshot().lines()[1] == 'yo')
-        placement = autonomous.add('gone')
+        placement = autonomous.write('gone')
         assert wait_for(lambda: 'gone' in autonomous.output.snapshot().lines()[0])
         placement.remove()
         assert wait_for(lambda: 'gone' not in autonomous.output.snapshot().lines()[0])
@@ -820,14 +821,14 @@ class TestAutonomous:
         wait_for(lambda: frames)
         before = len(frames)
         for number in range(500):
-            autonomous.add(str(number % 10), x=number % 20, y=2)
+            autonomous.write(str(number % 10), x=number % 20, y=2)
         assert wait_for(lambda: autonomous.output.snapshot().lines()[2] != '')
         assert len(frames) - before < 20
 
     def test_a_formula_keeps_moving_while_the_program_is_busy(self, autonomous):
         import time
 
-        ball = autonomous.add('o')
+        ball = autonomous.write('o')
         ball.x = (ParentWidth - Width) * (TimeElapsed % 1.0)
         positions: set[int] = set()
         end = time.perf_counter() + 1.0
@@ -889,7 +890,7 @@ class TestAutonomous:
             context.hook.remove()
 
         autonomous.loop.on_frame(lambda frame: frames.append(frame.index))
-        autonomous.add('x')
+        autonomous.write('x')
         assert wait_for(lambda: len(ticks) >= 3 and once and frames)
 
     def test_frames_paces_the_callers_own_code(self):
@@ -935,7 +936,7 @@ class TestAutonomous:
         terminal._host.post(lambda: terminal._runtime.dispatch(Event.key_press('x')))
         assert wait_for(lambda: terminal.is_closed)
         with pytest.raises(TerminalClosedError, match='ZeroDivisionError'):
-            terminal.add('late')
+            terminal.write('late')
         with pytest.raises(TerminalError, match='ZeroDivisionError') as caught:
             terminal.close()
         cause = caught.value.__cause__
@@ -1157,7 +1158,7 @@ class TestPausingTime:
 
             @terminal.on_key('x')
             def draw(context):
-                terminal.add('drawn')
+                terminal.write('drawn')
 
             terminal.pause()
             terminal.inject(Event.key_press('x'))
@@ -1202,18 +1203,18 @@ class TestWritingTheWayItIsThought:
     def test_text_takes_a_style(self, terminal):
         from xnano.styles import Style
 
-        text = terminal.add('hi', style=Style('red', bold=True))
+        text = terminal.write('hi', style=Style('red', bold=True))
         assert text.buffer[0, 0].foreground == Color('red')
         assert 'bold' in text.buffer[0, 0].style.modifiers
 
     def test_text_in_a_titled_box(self, terminal):
-        box = terminal.add('hi', title='Box', border='rounded')
+        box = terminal.write('hi', title='Box', border='rounded')
         assert (box.width, box.height) == (5, 3), 'the box is as wide as its title'
         assert '╭' in box.buffer.render(format='text')
         assert 'Box' in box.buffer.render(format='text')
 
     def test_a_list_of_lines_is_one_text(self, terminal):
-        lines = terminal.add(['one', 'three'])
+        lines = terminal.write(['one', 'three'])
         assert (lines.width, lines.height) == (5, 2)
 
     def test_a_widget_cannot_take_a_text_style(self, terminal):
@@ -1221,7 +1222,7 @@ class TestWritingTheWayItIsThought:
         from xnano.widgets import Gauge
 
         with pytest.raises(TypeError, match='decorate text'):
-            terminal.add(Gauge(0.5), style=Style('red'))
+            terminal.write(Gauge(0.5), style=Style('red'))
 
     @pytest.mark.parametrize(
         ('x', 'y', 'expected'),
@@ -1232,18 +1233,18 @@ class TestWritingTheWayItIsThought:
         ],
     )
     def test_words_place_something_inside_its_parent(self, terminal, x, y, expected):
-        placed = terminal.add('hello', x=x, y=y)
+        placed = terminal.write('hello', x=x, y=y)
         terminal.loop.step()
         assert (placed.x, placed.y) == expected
 
     def test_a_word_for_the_wrong_axis_is_explained(self, terminal):
         with pytest.raises(ValueError, match='cannot place the y'):
-            terminal.add('hi', y='left')
+            terminal.write('hi', y='left')
 
     def test_a_placement_takes_operations_such_as_effects(self, terminal):
         from xnano.effects import Effect
 
-        text = terminal.add('hi')
+        text = terminal.write('hi')
         text.update(Effect.dissolve(duration_milliseconds=200))
         terminal.loop.advance(0.3)
 
@@ -1291,7 +1292,7 @@ class TestWaitingForTheUser:
 
 
 def test_assigning_text_to_a_placement_changes_what_it_shows(terminal):
-    text = terminal.add('hello')
+    text = terminal.write('hello')
     text.text = 'bye'
     assert text.text == 'bye'
     assert (text.width, text.height) == (3, 1)

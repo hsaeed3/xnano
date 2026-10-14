@@ -182,8 +182,8 @@ def content_buffer(
         return _core.Buffer.from_cell_grid(content), None
     if isinstance(content, os.PathLike):
         raise TypeError(
-            f'{content!r} is a path, and add shows images, not paths. Load it first with '
-            f'xnano.img(path), or add it in one step with terminal.img(path).'
+            f'{content!r} is a path, and write shows images, not paths. Load it first with '
+            f'xnano.img(path), or write it in one step with terminal.img(path).'
         )
     if is_image(content):
         image = cast('TerminalImage', content)
@@ -212,9 +212,9 @@ def content_buffer(
 @dataclasses.dataclass(frozen=True, slots=True)
 class ImageBuffer:
     """
-    An image and how it is shown: the image buffer [`Terminal.add`][xnano.Terminal.add] takes.
+    An image and how it is shown: the image buffer [`Terminal.write`][xnano.terminal.Terminal.write] takes.
 
-    Make one with [`img`][xnano.img]. The placement values here are what ``add`` uses when it
+    Make one with [`img`][xnano.img]. The placement values here are what ``write`` uses when it
     is not given its own.
 
     Attributes:
@@ -263,9 +263,9 @@ def img(
     speed: float = 1.0,
 ) -> ImageBuffer:
     """
-    Load an image as the image buffer that ``terminal.add`` shows.
+    Load an image as the image buffer that ``terminal.write`` shows.
 
-    ``add`` takes images, never file paths, so a path is turned into an image here, once, where
+    ``write`` takes images, never file paths, so a path is turned into an image here, once, where
     you can see it. An image sized by a percentage (or not sized at all) is converted again
     whenever the terminal is resized, so it always fits; give it a number, or ``lock=True``,
     and it keeps its size.
@@ -287,7 +287,7 @@ def img(
         speed: How fast an animated image plays: ``2.0`` is twice as fast.
 
     Returns:
-        An [`ImageBuffer`][xnano.buffers.ImageBuffer] for ``terminal.add``.
+        An [`ImageBuffer`][xnano.buffers.ImageBuffer] for ``terminal.write``.
 
     Raises:
         ImportError: ``xnano-image`` is not installed. Install it with
@@ -301,7 +301,7 @@ def img(
 
         picture = TerminalImage.from_rgba(2, 2, bytes([255, 0, 0, 255]) * 4)
         with xnano.open(offscreen=True, width=20, height=6) as terminal:
-            terminal.add(xnano.img(picture, x='center', width=8, lock=True))
+            terminal.write(xnano.img(picture, x='center', width=8, lock=True))
         # xnano.img('photo.png', width='100%') loads a file, and refits when the window resizes.
         ```
     """

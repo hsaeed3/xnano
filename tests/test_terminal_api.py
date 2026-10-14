@@ -26,33 +26,33 @@ def terminal():
 
 class TestAutomaticSizing:
     def test_everything_left_out_is_taken_from_the_content(self, terminal):
-        placement = terminal.add('hello')
+        placement = terminal.write('hello')
         assert (placement.x, placement.y) == (0, 0)
         assert (placement.width, placement.height) == (5, 1)
 
     def test_several_lines_set_the_height(self, terminal):
-        placement = terminal.add('one\ntwo\nthree')
+        placement = terminal.write('one\ntwo\nthree')
         assert (placement.width, placement.height) == (5, 3)
 
     def test_a_given_number_wins_over_the_content(self, terminal):
-        placement = terminal.add('hello', x=3, width=8)
+        placement = terminal.write('hello', x=3, width=8)
         assert (placement.x, placement.width, placement.height) == (3, 8, 1)
 
     def test_bytes_of_a_cell_grid_are_sized_by_the_grid(self, terminal):
         from xnano_core import Buffer
 
         grid = Buffer.with_text('abcd').to_cell_grid()
-        assert terminal.add(grid).width == 4
+        assert terminal.write(grid).width == 4
 
     def test_each_axis_can_be_left_out_on_its_own(self, terminal):
-        placement = terminal.add('hello', y=2)
+        placement = terminal.write('hello', y=2)
         assert (placement.x, placement.y, placement.width) == (0, 2, 5)
 
 
 class TestInterface:
     def test_the_terminal_groups_what_is_not_declaring(self, terminal):
-        assert isinstance(terminal.loop, xnano.Loop)
-        assert isinstance(terminal.output, xnano.Output)
+        assert isinstance(terminal.loop, xnano.loop.Loop)
+        assert isinstance(terminal.output, xnano.output.Output)
         assert isinstance(terminal.audio, xnano.audio.Audio)
 
     def test_machinery_is_not_part_of_the_interface(self, terminal):
@@ -110,7 +110,7 @@ class TestInjectedEvents:
         heard: list[str] = []
 
         @terminal.hook
-        def listen(context: xnano.Context) -> None:
+        def listen(context: xnano.context.Context) -> None:
             assert context.event is not None
             heard.append(context.event.kind)
 
@@ -123,7 +123,7 @@ class TestInjectedEvents:
         seen: list[tuple[str | None, str | None]] = []
 
         @terminal.hook(when=lambda context: context.event.kind == 'custom')
-        def volume(context: xnano.Context) -> None:
+        def volume(context: xnano.context.Context) -> None:
             seen.append((context.event.custom_name, context.event.custom_data))
 
         terminal.inject(Event.custom('volume_changed', data='7'))
@@ -157,7 +157,7 @@ class TestTypedState:
 
     def test_a_reference_drives_an_axis(self):
         with xnano.open(offscreen=True, width=30, height=2, state=Settings()) as terminal:
-            thumb = terminal.add('#')
+            thumb = terminal.write('#')
             thumb.x = terminal.ref(lambda state: state.volume)
             terminal.state.volume = 12
             terminal.loop.advance(0.05)
@@ -172,7 +172,7 @@ class TestTypedState:
             seen: list[int] = []
 
             @terminal.hook(when=lambda context: context.keyboard is not None)
-            def press(context: xnano.Context[Settings]) -> None:
+            def press(context: xnano.context.Context[Settings]) -> None:
                 context.state.volume += 5
                 seen.append(context.state.volume)
 

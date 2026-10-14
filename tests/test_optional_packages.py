@@ -34,7 +34,7 @@ def test_xnano_imports_and_draws_without_the_optional_packages():
     result = run(
         """
         with xnano.open(offscreen=True, width=8, height=1) as terminal:
-            terminal.add('ok')
+            terminal.write('ok')
             terminal.output.render()
             print(terminal.output.snapshot().lines()[0])
         """
@@ -47,9 +47,7 @@ def test_xnano_imports_and_draws_without_the_optional_packages():
     ('statement', 'extra'),
     [
         ('import xnano.audio', 'audio'),
-        ('xnano.audio.TerminalNote', 'audio'),
         ('import xnano.image', 'image'),
-        ('xnano.image.TerminalImage', 'image'),
     ],
 )
 def test_using_a_module_of_a_missing_package_says_how_to_install_it(statement, extra):

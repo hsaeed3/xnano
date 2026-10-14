@@ -33,9 +33,9 @@ class Input:
     The keys held down right now.
 
     A hook hears each key press once. A game wants the opposite: ask every step which keys
-    are down. Get one from [`Terminal.input`][xnano.Terminal.input] and read it inside a
+    are down. Get one from [`Terminal.input`][xnano.terminal.Terminal.input] and read it inside a
     hook or an update, such as one registered with
-    [`loop.on_update`][xnano.Loop.on_update].
+    [`loop.on_update`][xnano.loop.Loop.on_update].
 
     A terminal that reports key releases (kitty, ghostty and wezterm, when opened with
     ``keyboard='release_events'``) tells exactly when a key is let go. Any other terminal
@@ -51,10 +51,10 @@ class Input:
         import xnano
 
         with xnano.open(offscreen=True, width=20, height=3) as terminal:
-            hero = terminal.add('@')
+            hero = terminal.write('@')
 
             @terminal.loop.on_update(fixed_step_seconds=1 / 30)
-            def walk(update: xnano.Update) -> None:
+            def walk(update: xnano.context.Update) -> None:
                 step_x, step_y = terminal.input.direction()
                 hero.x += step_x
                 hero.y += step_y

@@ -1,5 +1,5 @@
 """
-tests.test_composition
+tests.test_canvas
 
 Composing a buffer with make() and building it with make().
 """
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import xnano
 from xnano import open as open_terminal
-from xnano.composition import make
+from xnano.canvas import make
 from xnano_core import Border, Buffer, Effect, Gauge, ParentWidth
 
 
@@ -37,7 +37,7 @@ def test_an_expression_is_applied_when_the_buffer_is_placed():
     label.x = ParentWidth // 2
     assert label.build().render(format='text') == 'hi'
     with open_terminal(offscreen=True, width=10, height=1) as terminal:
-        placed = terminal.add(label)
+        placed = terminal.write(label)
         assert placed.x == 5
 
 
@@ -47,14 +47,14 @@ def test_an_effect_is_applied_when_the_buffer_is_placed():
     gauge |= Effect.fade_to('red', duration_milliseconds=100)
     assert gauge.build().ratio == 0.75
     with open_terminal(offscreen=True, width=12, height=1) as terminal:
-        terminal.add(gauge)
+        terminal.write(gauge)
         terminal.loop.advance(0.05)
         assert gauge.build().ratio == 0.75
 
 
 def test_a_child_is_attached_and_not_drawn_until_asked():
     group = make(width=8, height=1)
-    group.add('thumb', x=1)
+    group.write('thumb', x=1)
     text = group.build().render(format='text')
     assert text.startswith(' thumb') or text[1] == 't'
 
@@ -64,6 +64,6 @@ def test_adding_is_what_puts_a_composition_on_a_terminal():
     composition.build()
     with open_terminal(offscreen=True, width=10, height=1) as terminal:
         assert 'slide' not in terminal.output.snapshot().lines()[0]
-        terminal.add(composition)
+        terminal.write(composition)
         terminal.output.render()
         assert 'slide' in terminal.output.snapshot().lines()[0]

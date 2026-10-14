@@ -54,7 +54,7 @@ class TestInlineRegion:
             PROMPT
             + """
 with xnano.open(width=14, height=2) as terminal:
-    terminal.add('Hello, world!')
+    terminal.write('Hello, world!')
     terminal.run()
 print('DONE')
 """,
@@ -77,7 +77,7 @@ print('DONE')
         screen = run(
             """
 with xnano.open(height=3) as terminal:
-    terminal.add('HELLO-NOW', x=2)
+    terminal.write('HELLO-NOW', x=2)
     time.sleep(8)
 """
         )
@@ -89,7 +89,7 @@ with xnano.open(height=3) as terminal:
         screen = run(
             """
 with xnano.open(inline_height=2) as terminal:
-    terminal.add('stays')
+    terminal.write('stays')
     time.sleep(0.5)
 print('after')
 """
@@ -104,7 +104,7 @@ print('after')
 for number in range(30):
     print('line', number)
 with xnano.open(width=10, height=2) as terminal:
-    terminal.add('bottom')
+    terminal.write('bottom')
     time.sleep(0.8)
 """,
             rows=10,
@@ -121,7 +121,7 @@ class TestFullScreen:
             PROMPT
             + """
 with xnano.open() as terminal:
-    terminal.add('FULL SCREEN', x=3, y=2)
+    terminal.write('FULL SCREEN', x=3, y=2)
     time.sleep(1)
 print('BACK')
 """,
@@ -146,7 +146,7 @@ print('BACK')
         screen = run(
             """
 with xnano.open(should_use_alternate_screen=False) as terminal:
-    terminal.add('MAIN SCREEN')
+    terminal.write('MAIN SCREEN')
     time.sleep(1)
 """
         )
@@ -159,7 +159,7 @@ class TestInput:
         screen = run(
             """
 with xnano.open(height=2) as terminal:
-    terminal.add('press q')
+    terminal.write('press q')
 
     @terminal.hook(when=lambda context: context.keyboard is not None and context.keyboard.key == 'q')
     def quit(context):
@@ -181,7 +181,7 @@ print('LEFT')
         screen = run(
             """
 with xnano.open(height=2) as terminal:
-    terminal.add('waiting')
+    terminal.write('waiting')
     terminal.run()
 print('STOPPED')
 """
@@ -195,11 +195,11 @@ print('STOPPED')
         screen = run(
             """
 with xnano.open(height=3, mouse='buttons') as terminal:
-    button = terminal.add('[ click ]', x=4, y=1)
+    button = terminal.write('[ click ]', x=4, y=1)
 
     @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
     def pressed(context):
-        context.terminal.add('CLICKED', x=0, y=0)
+        context.terminal.write('CLICKED', x=0, y=0)
 
     terminal.run()
 """
@@ -216,11 +216,11 @@ with xnano.open(height=3, mouse='buttons') as terminal:
             PROMPT
             + """
 with xnano.open(width=20, height=3, mouse='buttons') as terminal:
-    button = terminal.add('[ click ]', x=4, y=1)
+    button = terminal.write('[ click ]', x=4, y=1)
 
     @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
     def pressed(context):
-        context.terminal.add('CLICKED', x=0, y=0)
+        context.terminal.write('CLICKED', x=0, y=0)
 
     terminal.run()
 """,
@@ -243,8 +243,8 @@ with xnano.open(width=20, height=3, mouse='buttons') as terminal:
             """
 import xnano
 with xnano.open(height=3, width=30, mouse='buttons') as terminal:
-    terminal.add('-' * 30, y=1)
-    thumb = terminal.add('#', x=(0, 29), y=1, layer=1)
+    terminal.write('-' * 30, y=1)
+    thumb = terminal.write('#', x=(0, 29), y=1, layer=1)
     thumb.make_draggable()
     terminal.run()
 """
@@ -259,11 +259,11 @@ with xnano.open(height=3, width=30, mouse='buttons') as terminal:
         screen = run(
             """
 with xnano.open(height=2) as terminal:
-    terminal.add('paste here')
+    terminal.write('paste here')
 
     @terminal.hook(when=lambda context: context.pasted is not None)
     def pasted(context):
-        context.terminal.add('GOT:' + context.pasted, x=0, y=1)
+        context.terminal.write('GOT:' + context.pasted, x=0, y=1)
 
     terminal.run()
 """
@@ -279,7 +279,7 @@ class TestDrawing:
             """
 from xnano_core import TimeElapsed, ParentWidth, Width
 with xnano.open(width=30, height=1) as terminal:
-    ball = terminal.add('o')
+    ball = terminal.write('o')
     ball.x = (ParentWidth - Width) * ((TimeElapsed / 2) % 1.0)
     time.sleep(6)
 """
@@ -293,7 +293,7 @@ with xnano.open(width=30, height=1) as terminal:
             """
 from xnano_core import TimeElapsed, ParentWidth, Width
 with xnano.open(width=30, height=1) as terminal:
-    ball = terminal.add('o')
+    ball = terminal.write('o')
     ball.x = (ParentWidth - Width) * ((TimeElapsed / 2) % 1.0)
     end = time.monotonic() + 6
     while time.monotonic() < end:
@@ -330,7 +330,7 @@ with xnano.open(width=8, height=2) as terminal:
 from xnano_image import TerminalImage
 image = TerminalImage.from_rgba(4, 2, bytes([0, 255, 0, 255]) * 8)
 with xnano.open(width=10, height=2) as terminal:
-    terminal.add(image)
+    terminal.write(image)
     time.sleep(1.2)
 """
         )
@@ -342,7 +342,7 @@ with xnano.open(width=10, height=2) as terminal:
             """
 from xnano_core import Effect
 with xnano.open(width=10, height=1) as terminal:
-    placement = terminal.add('hello')
+    placement = terminal.write('hello')
     placement.buffer.update(Effect.fade_to((255, 0, 0), duration_milliseconds=600))
     time.sleep(2)
 """
@@ -360,7 +360,7 @@ image = TerminalImage.from_rgba(16, 16, bytes([255, 0, 0, 255]) * 256)
 graphics = TerminalGraphics.from_capabilities(protocol={protocol!r}, cell_size_in_pixels=(8, 16))
 grid = image.to_cell_grid(4, 2, graphics=graphics)
 with xnano.open(width=10, height=3) as terminal:
-    terminal.add(grid)
+    terminal.write(grid)
     time.sleep(1)
 """
 
@@ -385,7 +385,7 @@ class TestCursor:
             PROMPT
             + """
 with xnano.open(width=12, height=3) as terminal:
-    terminal.add('field:')
+    terminal.write('field:')
     terminal.cursor.position = (7, 1)
     terminal.cursor.shape = 'bar'
     time.sleep(1.5)
@@ -403,7 +403,7 @@ print('DONE')
         screen = run(
             """
 with xnano.open(width=12, height=2) as terminal:
-    terminal.add('no cursor')
+    terminal.write('no cursor')
     terminal.cursor.is_visible = False
     time.sleep(1.2)
 """
@@ -417,8 +417,8 @@ class TestWindow:
         screen = run(
             """
 with xnano.open() as terminal:
-    terminal.add('right', x='100%', y=0)
-    terminal.add('middle', x='50%', y=1)
+    terminal.write('right', x='100%', y=0)
+    terminal.write('middle', x='50%', y=1)
     terminal.run()
 """,
             rows=8,
@@ -436,7 +436,7 @@ class TestOutputCapture:
             """
 import sys
 with xnano.open(height=2) as terminal:
-    terminal.add('steady')
+    terminal.write('steady')
     print('A LOG LINE')
     sys.stderr.write('AN ERROR LINE\\n')
     time.sleep(1)
@@ -454,7 +454,7 @@ print('AFTER')
         screen = run(
             """
 with xnano.open(height=2) as terminal:
-    terminal.add('steady')
+    terminal.write('steady')
     print('PRINTED WHILE LIVE')
     time.sleep(0.8)
 """
@@ -470,7 +470,7 @@ class TestCaptureStatus:
         screen = run(
             """
 with xnano.open(height=2) as terminal:
-    terminal.add('CAPTURED' if terminal.output.is_captured else 'OPEN')
+    terminal.write('CAPTURED' if terminal.output.is_captured else 'OPEN')
     time.sleep(0.8)
 """
         )
@@ -480,7 +480,7 @@ with xnano.open(height=2) as terminal:
         screen = run(
             """
 with xnano.open(height=2, should_capture_output=False) as terminal:
-    terminal.add('CAPTURED' if terminal.output.is_captured else 'OPEN')
+    terminal.write('CAPTURED' if terminal.output.is_captured else 'OPEN')
     time.sleep(0.8)
 """
         )
@@ -495,7 +495,7 @@ with xnano.open(height=2) as terminal:
     try:
         xnano.open(height=2)
     except xnano.errors.TerminalAlreadyOpenError as error:
-        terminal.add('REFUSED', x=0, y=0)
+        terminal.write('REFUSED', x=0, y=0)
     time.sleep(0.8)
 """
         )
@@ -505,7 +505,7 @@ with xnano.open(height=2) as terminal:
         screen = run(
             """
 with xnano.open(height=2) as terminal:
-    terminal.add('about to fail')
+    terminal.write('about to fail')
     time.sleep(0.4)
     raise RuntimeError('boom')
 """,
@@ -521,7 +521,7 @@ def test_window_title_is_written_while_stdout_is_captured(run):
     screen = run("""
 with xnano.open(title='Initial title') as terminal:
     terminal.title = 'Changed title'
-    terminal.add('TITLE READY')
+    terminal.write('TITLE READY')
     terminal.run()
 """)
     assert screen.wait_for('TITLE READY')
@@ -543,7 +543,7 @@ def test_a_program_ends_when_its_terminal_window_closes():
             '-c',
             'import xnano\n'
             'with xnano.open(width=20, height=2) as terminal:\n'
-            "    terminal.add('alive')\n"
+            "    terminal.write('alive')\n"
             '    terminal.run()\n',
         ],
         rows=6,

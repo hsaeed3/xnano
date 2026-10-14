@@ -140,7 +140,7 @@ def test_a_scene_needs_a_world(terminal):
 
 
 def test_a_scene_can_live_on_a_placement(terminal):
-    view = terminal.add(' ', width=4, height=2)
+    view = terminal.write(' ', width=4, height=2)
     scene = view.scene(world_width=4, world_height=4)
     scene.add(RED, x=1, y=1)
     terminal.loop.step()

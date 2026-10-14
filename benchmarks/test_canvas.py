@@ -1,5 +1,5 @@
 """
-benchmarks.test_composition
+benchmarks.test_canvas
 
 Benchmarks for composing a buffer and for drawing one frame of a terminal.
 

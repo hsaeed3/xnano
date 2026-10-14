@@ -38,6 +38,14 @@ from dataclasses import dataclass, field
 from types import ModuleType
 
 import xnano
+import xnano.audio
+import xnano.context
+import xnano.effects
+import xnano.events
+import xnano.expressions
+import xnano.image
+import xnano.styles
+import xnano.terminal
 from xnano.buffers import Buffer
 from xnano.styles import Style
 from xnano.widgets import Block, Gauge, ItemList, Paragraph, Table
@@ -213,7 +221,7 @@ def xnano_widget(widget: Buffer) -> Callable[[], str]:
     return lambda: widget.render(format='ansi')
 
 
-def xnano_frame(terminal: xnano.Terminal) -> Callable[[], str]:
+def xnano_frame(terminal: xnano.terminal.Terminal) -> Callable[[], str]:
     """Draw a frame of a terminal and return it as ANSI text."""
     return lambda: terminal.output.render().ansi
 
@@ -409,13 +417,13 @@ def cases() -> list[Case]:
         terminal = xnano.open(offscreen=True, width=WIDTH, height=12)
         panel_width = WIDTH // 3
         for index in range(3):
-            terminal.add(
+            terminal.write(
                 Block(f'panel {index}', border_type='rounded'),
                 x=index * panel_width,
                 width=panel_width,
                 height=12,
             )
-            terminal.add(
+            terminal.write(
                 Paragraph(
                     LOREM[:200], should_wrap=True, width=panel_width - 2, height=10
                 ),
@@ -482,7 +490,7 @@ def cases() -> list[Case]:
     def many_xnano() -> Callable[[], object]:
         terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
         for index in range(500):
-            terminal.add(f'item {index}', x=index % 60, y=index % HEIGHT)
+            terminal.write(f'item {index}', x=index % 60, y=index % HEIGHT)
         return xnano_frame(terminal)
 
     def scattered_lines() -> list[str]:
@@ -575,9 +583,9 @@ def cases() -> list[Case]:
         def build() -> Callable[[], object]:
             terminal = xnano.open(offscreen=True, width=width, height=height)
             for row in range(height):
-                terminal.add(f'line {row:<4}' + 'x' * (width - 9), y=row)
+                terminal.write(f'line {row:<4}' + 'x' * (width - 9), y=row)
             counter = [0]
-            number = terminal.add('0', x=2, y=1, layer=1)
+            number = terminal.write('0', x=2, y=1, layer=1)
 
             def run() -> str:
                 counter[0] += 1
@@ -731,7 +739,7 @@ def cases() -> list[Case]:
     def formula_xnano() -> Callable[[], object]:
         terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
         for row in range(HEIGHT):
-            ball = terminal.add('●', y=row)
+            ball = terminal.write('●', y=row)
             ball.x = (xnano.expressions.ParentWidth - xnano.expressions.Width) * (
                 (xnano.expressions.TimeElapsed / (1 + row % 5)) % 1.0
             )
@@ -938,7 +946,7 @@ def cases() -> list[Case]:
     def effect_frame() -> Callable[[], object]:
         terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
         for row in range(HEIGHT):
-            terminal.add('effects keep running ' * 3, y=row)
+            terminal.write('effects keep running ' * 3, y=row)
         terminal.root.update(
             xnano.effects.Effect.fade_to((255, 0, 0), duration_milliseconds=10_000_000)
         )
@@ -959,10 +967,10 @@ def cases() -> list[Case]:
     def key_round_trip() -> Callable[[], object]:
         terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
         seen = [0]
-        digit = terminal.add('0')
+        digit = terminal.write('0')
 
         @terminal.hook(when=lambda context: context.keyboard is not None)
-        def count(context: xnano.Context) -> None:
+        def count(context: xnano.context.Context) -> None:
             seen[0] += 1
             digit.text = str(seen[0] % 10)
 
@@ -995,7 +1003,7 @@ def cases() -> list[Case]:
             return state.volume
 
         reference = terminal.ref(volume)
-        bar = terminal.add(Gauge(reference.number / 100, width=60, height=1))
+        bar = terminal.write(Gauge(reference.number / 100, width=60, height=1))
         assert bar
         counter = [0]
 
@@ -1089,7 +1097,7 @@ def _xnano_panel() -> str:
 
 def _open_close_xnano() -> str:
     with xnano.open(offscreen=True, width=WIDTH, height=HEIGHT) as terminal:
-        terminal.add('hello')
+        terminal.write('hello')
         return terminal.output.render().ansi
 
 

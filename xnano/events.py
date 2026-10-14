@@ -3,7 +3,7 @@ xnano.events
 
 The events a terminal delivers to its hooks: keys, the mouse and everything else.
 
-A hook receives them as ``context.event``; see [`Context`][xnano.Context].
+A hook receives them as ``context.event``; see [`Context`][xnano.context.Context].
 """
 
 from xnano_core import (

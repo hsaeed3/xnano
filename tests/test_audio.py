@@ -176,7 +176,7 @@ class TestExpressions:
         assert terminal.inspect(terminal.audio.level) == 0.25
 
     def test_the_level_drives_a_position(self, terminal):
-        meter = terminal.add('#', y=1)
+        meter = terminal.write('#', y=1)
         meter.x = terminal.audio.level * 16
         terminal.loop.advance(0.1)
         assert meter.x == 4
@@ -206,7 +206,7 @@ class TestExpressions:
 class TestInHooks:
     def test_a_hook_plays_a_note_on_a_key(self, terminal):
         @terminal.hook(when=lambda context: context.keyboard is not None)
-        def press(context: xnano.Context) -> None:
+        def press(context: xnano.context.Context) -> None:
             context.audio.play(context.keyboard.key)
 
         terminal.inject(Event.key_press('c'))
