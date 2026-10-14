@@ -88,6 +88,7 @@ def test_inline_region_stays_below_existing_output_and_clears(actual_terminal):
     'actual_terminal',
     [
         """
+import xnano.styles
 with xnano.open() as terminal:
     terminal.write('COLOR READY', style=xnano.styles.Style(foreground=(255, 0, 0)))
     print('CAPTURED OUTPUT', flush=True)

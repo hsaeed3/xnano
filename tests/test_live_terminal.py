@@ -491,6 +491,7 @@ class TestMisuse:
     def test_a_second_live_terminal_is_refused_with_advice(self, run):
         screen = run(
             """
+import xnano.errors
 with xnano.open(height=2) as terminal:
     try:
         xnano.open(height=2)
