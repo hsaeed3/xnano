@@ -235,9 +235,9 @@ def _wait(seconds: Callable[[], float]) -> Trigger[StateT]:
     """Wait the number of seconds ``seconds()`` gives, read again each time it starts."""
 
     def trigger(context: Context[StateT]) -> TriggerGenerator:
-        deadline = context.clock.elapsed_seconds + seconds()
+        deadline = context.time.elapsed + seconds()
         while True:
-            event = yield max(0.0, deadline - context.clock.elapsed_seconds)
+            event = yield max(0.0, deadline - context.time.elapsed)
             if event is None:
                 return None  # noqa: B901
 
@@ -396,7 +396,7 @@ class _Hooked(Generic[StateT]):
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
                 heard = []
 
                 def is_paste(context: xnano.context.Context) -> bool:
@@ -452,7 +452,7 @@ class _Hooked(Generic[StateT]):
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
 
                 @terminal.on_key('q', 'escape')
                 def leave(context: xnano.context.Context) -> None:
@@ -484,7 +484,7 @@ class _Hooked(Generic[StateT]):
         Call the function when a mouse button is pressed on this target.
 
         The pointer's cell is ``context.mouse.position``. Open the terminal with
-        ``mouse='buttons'`` to receive clicks. Use it as ``@terminal.on_click``.
+        ``mouse=True`` to receive clicks. Use it as ``@terminal.on_click``.
         """
         return self._with_function(_core.Trigger.click(), function)
 
@@ -498,7 +498,7 @@ class _Hooked(Generic[StateT]):
         """
         Call the function while the pointer moves with a mouse button held down.
 
-        Open the terminal with ``mouse='buttons'`` to receive drags. Use it as
+        Open the terminal with ``mouse=True`` to receive drags. Use it as
         ``@terminal.on_drag``.
         """
         return self._with_function(_core.Trigger.drag(), function)
@@ -525,12 +525,12 @@ class _Hooked(Generic[StateT]):
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
                 ticks = []
 
                 @terminal.every(0.1)
                 def tick(context: xnano.context.Context) -> None:
-                    ticks.append(context.clock.elapsed_seconds)
+                    ticks.append(context.time.elapsed)
 
                 terminal.loop.advance(0.25)
             assert len(ticks) >= 1
@@ -557,12 +557,12 @@ class _Hooked(Generic[StateT]):
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
                 seen = []
 
                 @terminal.after(0.1)
                 def later(context: xnano.context.Context) -> None:
-                    seen.append(context.clock.elapsed_seconds)
+                    seen.append(context.time.elapsed)
 
                 terminal.loop.advance(0.3)
             assert len(seen) == 1
@@ -614,6 +614,13 @@ class _Hooked(Generic[StateT]):
         )
 
     def _on_core_event(self, core_context: CoreContext) -> None:
+        event = _event_of(core_context)
+        if (
+            isinstance(event, _core.Event)
+            and event.kind == 'key'
+            and not self._terminal._is_keyboard_enabled
+        ):
+            return
         for registration in list(self._registrations):
             registration.deliver(core_context)
 
@@ -660,7 +667,7 @@ class _Hooked(Generic[StateT]):
         name = getattr(function, '__name__', 'hook')
         failure = TerminalError(
             f'The hook {name} failed while handling {event!r}: {type(error).__name__}: '
-            f'{error}. Fix the hook, then open a new terminal with xnano.open().'
+            f'{error}. Fix the hook, then open a new terminal with xnano.iter().'
         )
         failure.__cause__ = error
         self._terminal._record_failure(failure)

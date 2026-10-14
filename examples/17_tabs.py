@@ -48,7 +48,7 @@ class TabsState:
 def main() -> None:
     """Show the tabs and switch pages with the arrow keys."""
     state = TabsState()
-    with xnano.open(width=44, height=12) as terminal:
+    with xnano.iter(width=44, height=12) as terminal:
         tabs = Tabs(TITLES, selected=0, highlight_style=Style('black', 'cyan'))
         terminal.write(tabs, width=44, height=1)
         placements = [

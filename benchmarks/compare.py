@@ -414,7 +414,7 @@ def cases() -> list[Case]:
     )
 
     def columns_xnano() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=12)
+        terminal = xnano.iter(offscreen=True, width=WIDTH, height=12)
         panel_width = WIDTH // 3
         for index in range(3):
             terminal.write(
@@ -488,7 +488,7 @@ def cases() -> list[Case]:
     # -- many things ------------------------------------------------------------------------
 
     def many_xnano() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
+        terminal = xnano.iter(offscreen=True, width=WIDTH, height=HEIGHT)
         for index in range(500):
             terminal.write(f'item {index}', x=index % 60, y=index % HEIGHT)
         return xnano_frame(terminal)
@@ -581,7 +581,7 @@ def cases() -> list[Case]:
 
     def frame_one_xnano(width: int, height: int) -> Callable[[], Callable[[], object]]:
         def build() -> Callable[[], object]:
-            terminal = xnano.open(offscreen=True, width=width, height=height)
+            terminal = xnano.iter(offscreen=True, width=width, height=height)
             for row in range(height):
                 terminal.write(f'line {row:<4}' + 'x' * (width - 9), y=row)
             counter = [0]
@@ -651,7 +651,7 @@ def cases() -> list[Case]:
         )
 
     def frame_all_xnano() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
+        terminal = xnano.iter(offscreen=True, width=WIDTH, height=HEIGHT)
         pixels = terminal.pixels()
         tick = [0]
 
@@ -737,7 +737,7 @@ def cases() -> list[Case]:
     )
 
     def formula_xnano() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
+        terminal = xnano.iter(offscreen=True, width=WIDTH, height=HEIGHT)
         for row in range(HEIGHT):
             ball = terminal.write('●', y=row)
             ball.x = (xnano.expressions.ParentWidth - xnano.expressions.Width) * (
@@ -944,7 +944,7 @@ def cases() -> list[Case]:
     # -- only xnano has these, so they show cost without a rival ----------------------------
 
     def effect_frame() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
+        terminal = xnano.iter(offscreen=True, width=WIDTH, height=HEIGHT)
         for row in range(HEIGHT):
             terminal.write('effects keep running ' * 3, y=row)
         terminal.root.update(
@@ -965,7 +965,7 @@ def cases() -> list[Case]:
     )
 
     def key_round_trip() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
+        terminal = xnano.iter(offscreen=True, width=WIDTH, height=HEIGHT)
         seen = [0]
         digit = terminal.write('0')
 
@@ -995,7 +995,7 @@ def cases() -> list[Case]:
         volume: int = 0
 
     def state_to_frame() -> Callable[[], object]:
-        terminal = xnano.open(
+        terminal = xnano.iter(
             offscreen=True, width=WIDTH, height=HEIGHT, state=Settings()
         )
 
@@ -1096,7 +1096,7 @@ def _xnano_panel() -> str:
 
 
 def _open_close_xnano() -> str:
-    with xnano.open(offscreen=True, width=WIDTH, height=HEIGHT) as terminal:
+    with xnano.iter(offscreen=True, width=WIDTH, height=HEIGHT) as terminal:
         terminal.write('hello')
         return terminal.output.render().ansi
 

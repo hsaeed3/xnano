@@ -9,7 +9,7 @@ Press ``q`` to quit.
 import xnano
 from xnano.context import Frame
 
-with xnano.open(width=60, height=6) as terminal:
+with xnano.iter(width=60, height=6) as terminal:
     for row, seconds in enumerate((1.5, 2.5, 4.0), start=1):
         ball = terminal.write('●', y=row)
         ball.x = (ball.parent.width - ball.width) * ((ball.root.time / seconds) % 1.0)

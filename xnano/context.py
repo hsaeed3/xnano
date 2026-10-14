@@ -16,9 +16,10 @@ from xnano_core import CoreContext
 
 if TYPE_CHECKING:
     from xnano._hooks import HookHandle
-    from xnano.audio import Audio
+    from xnano.audio import AudioDevice
     from xnano.placement import Placement
     from xnano.terminal import Terminal
+    from xnano.time import Time
 
 
 @final
@@ -158,10 +159,9 @@ class RootContext(Generic[StateT_co]):
         height: The height of the root terminal in cells.
         size: The size of the root terminal in cells.
         bounds: The rectangle of the root terminal in cells.
-        time: Seconds elapsed on the root terminal's clock.
+        time: The root terminal's [`Time`][xnano.time.Time].
         fps: Target frame rate of the root terminal.
-        clock: The root terminal's clock.
-        audio: The root terminal's [`Audio`][xnano.audio.Audio].
+        audio: The root terminal's [`AudioDevice`][xnano.audio.AudioDevice].
         cursor: The root terminal's cursor.
     """
 
@@ -192,9 +192,9 @@ class RootContext(Generic[StateT_co]):
         return _core.Rectangle(0, 0, size.width, size.height)
 
     @property
-    def time(self) -> float:
-        """Seconds elapsed on the root terminal's clock."""
-        return self.terminal.clock.elapsed_seconds
+    def time(self) -> Time:
+        """The root terminal's [`Time`][xnano.time.Time]."""
+        return self.terminal.time
 
     @property
     def fps(self) -> float:
@@ -202,13 +202,8 @@ class RootContext(Generic[StateT_co]):
         return self.terminal.loop.fps
 
     @property
-    def clock(self) -> _core.Clock:
-        """The root terminal's clock."""
-        return self.terminal.clock
-
-    @property
-    def audio(self) -> Audio:
-        """The root terminal's [`Audio`][xnano.audio.Audio]."""
+    def audio(self) -> AudioDevice:
+        """The root terminal's [`AudioDevice`][xnano.audio.AudioDevice]."""
         return self.terminal.audio
 
     @property
@@ -240,14 +235,11 @@ class Context(Generic[StateT_co]):
         bounds: The target's rectangle in screen cells.
         state: The terminal's state.
         core: The underlying context, when the call came from the runtime.
-        clock: The terminal's clock.
         size: The terminal's size in cells.
         cursor: The terminal's cursor.
         input: The keys that are pressed and the cell under the pointer.
-        audio: The terminal's [`Audio`][xnano.audio.Audio].
-        elapsed_seconds: Seconds on the terminal's clock when the event was handled.
-        time: Seconds on the terminal's clock (shorthand for ``elapsed_seconds``).
-        delta: Seconds since the previous frame.
+        audio: The terminal's [`AudioDevice`][xnano.audio.AudioDevice].
+        time: The terminal's [`Time`][xnano.time.Time].
         x: The left column of the target in screen cells.
         y: The top row of the target in screen cells.
         width: The width of the target in cells.
@@ -288,14 +280,9 @@ class Context(Generic[StateT_co]):
     """The underlying context, when the call came from the runtime."""
 
     @property
-    def audio(self) -> Audio:
+    def audio(self) -> AudioDevice:
         """The terminal's audio."""
         return self.terminal.audio
-
-    @property
-    def clock(self) -> _core.Clock:
-        """The terminal's clock."""
-        return self.terminal.clock
 
     @property
     def size(self) -> _core.Size:
@@ -315,21 +302,9 @@ class Context(Generic[StateT_co]):
         return self.terminal._runtime.input
 
     @property
-    def elapsed_seconds(self) -> float:
-        """Seconds on the terminal's clock when the event was handled."""
-        return self.clock.elapsed_seconds
-
-    @property
-    def time(self) -> float:
-        """Seconds on the terminal's clock when the event or frame ran."""
-        return self.clock.elapsed_seconds
-
-    @property
-    def delta(self) -> float:
-        """Seconds since the previous frame."""
-        if isinstance(self.core, _core.FrameContext):
-            return self.core.delta_seconds
-        return 1.0 / self.terminal.loop.fps
+    def time(self) -> Time:
+        """The terminal's [`Time`][xnano.time.Time]."""
+        return self.terminal.time
 
     @property
     def x(self) -> int:
@@ -379,7 +354,7 @@ class Context(Generic[StateT_co]):
             import xnano
             from xnano_core import Point
 
-            with xnano.open(offscreen=True, width=20, height=4) as terminal:
+            with xnano.iter(offscreen=True, width=20, height=4) as terminal:
                 placement = terminal.write('hi', x=10, y=1)
 
                 @placement.hook

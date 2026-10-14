@@ -80,7 +80,7 @@ def fake_devices(monkeypatch):
 
 @pytest.fixture
 def terminal():
-    with xnano.open(offscreen=True, width=20, height=3) as terminal:
+    with xnano.iter(offscreen=True, width=20, height=3) as terminal:
         yield terminal
 
 
@@ -138,7 +138,7 @@ class TestPlay:
     def test_it_can_be_played_from_another_thread_on_a_running_terminal(self):
         import threading
 
-        with xnano.open(offscreen=True, clock='real', width=8, height=1) as terminal:
+        with xnano.iter(offscreen=True, realtime=True, width=8, height=1) as terminal:
             thread = threading.Thread(target=lambda: terminal.audio.play('C4'))
             thread.start()
             thread.join()
@@ -146,7 +146,7 @@ class TestPlay:
             assert len(played(terminal)) == 1
 
     def test_the_devices_are_released_when_the_terminal_closes(self):
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1) as terminal:
             terminal.audio.play('C4')
         assert FakePlayer.instances[-1].closed
 
@@ -236,19 +236,19 @@ class TestTerminalSoundShortcuts:
             _parse_melody('C4 X9', 120)
 
     def test_the_terminal_has_a_tempo_that_audio_shares(self):
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1) as terminal:
             terminal.tempo = 90
             assert terminal.audio.tempo == 90
             assert terminal.tempo == 90
 
     def test_every_beat_follows_the_tempo(self):
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1) as terminal:
             terminal.tempo = 120  # a beat is half a second
             beats = []
 
             @terminal.every(beats=1)
             def count(context):
-                beats.append(round(context.clock.elapsed_seconds, 2))
+                beats.append(round(context.time.elapsed, 2))
 
             for _ in range(16):
                 terminal.loop.advance(0.1)
@@ -256,14 +256,14 @@ class TestTerminalSoundShortcuts:
             assert len(beats) == 3
 
     def test_every_needs_exactly_one_unit(self):
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1) as terminal:
             with pytest.raises(ValueError, match='either seconds or beats'):
                 terminal.every()
             with pytest.raises(ValueError, match='either seconds or beats'):
                 terminal.every(1, beats=1)
 
     def test_play_and_note_need_a_sound_device_or_say_so(self):
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1) as terminal:
             if terminal.audio.is_available:
                 terminal.play('C4 E4 G4:2')
                 terminal.note('C5', beats=0.5)

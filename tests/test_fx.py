@@ -7,6 +7,7 @@ import pytest
 import xnano
 import xnano_core
 from xnano.context import Context
+from xnano.operations import draggable
 
 
 def render_text(buffer) -> str:
@@ -38,31 +39,31 @@ def test_canvas_pipes_a_customization() -> None:
 
 
 def test_open_mounts_a_canvas_and_uses_its_size() -> None:
-    with xnano.open(xnano.new('hi', width=10, height=2), offscreen=True) as terminal:
+    with xnano.iter(xnano.new('hi', width=10, height=2), offscreen=True) as terminal:
         assert terminal.size.width == 10
         assert terminal.size.height == 2
 
 
 def test_open_rejects_something_that_is_not_a_canvas() -> None:
     with pytest.raises(TypeError):
-        xnano.open('text', offscreen=True)  # type: ignore[call-overload]
+        xnano.iter('text', offscreen=True)  # type: ignore[call-overload]
 
 
 def test_terminal_customize_and_pipe_return_the_terminal() -> None:
-    with xnano.open(offscreen=True, width=8, height=2) as terminal:
+    with xnano.iter(offscreen=True, width=8, height=2) as terminal:
         assert terminal.fx('style', foreground='cyan') is terminal
         assert (terminal | xnano.fx('fill', cell='.')) is terminal
 
 
 def test_nested_placement_is_draggable() -> None:
-    with xnano.open(offscreen=True, width=20, height=3) as terminal:
+    with xnano.iter(offscreen=True, width=20, height=3) as terminal:
         track = terminal.write(' ' * 10, y=1)
-        thumb = track.write('█', x=(0, track.width - 1), y=0) | xnano.draggable()
+        thumb = track.write('█', x=(0, track.width - 1), y=0) | draggable()
         assert isinstance(thumb, xnano.placement.Placement)
 
 
 def test_expression_scopes_on_placements() -> None:
-    with xnano.open(offscreen=True, width=20, height=3) as terminal:
+    with xnano.iter(offscreen=True, width=20, height=3) as terminal:
         ball = terminal.write('o')
         ball.x = (ball.parent.width - ball.width) * ((ball.root.time / 2.0) % 1.0)
         ball.x = (terminal.width - ball.width) * ((terminal.time / 2.0) % 1.0)
@@ -70,7 +71,7 @@ def test_expression_scopes_on_placements() -> None:
 
 def test_terminal_hook_with_a_trigger_mounts_a_contextual_operation() -> None:
     calls: list[int] = []
-    with xnano.open(offscreen=True, width=8, height=2) as terminal:
+    with xnano.iter(offscreen=True, width=8, height=2) as terminal:
 
         @terminal.hook(on='frame')
         def record(context: xnano.context.Context) -> None:
@@ -224,18 +225,18 @@ def test_xnano_hook_makes_a_reusable_operation() -> None:
         return f'w={context.width}'
 
     assert isinstance(banner, xnano.operations.ContextualOperation)
-    with xnano.open(offscreen=True, width=8, height=1) as terminal:
+    with xnano.iter(offscreen=True, width=8, height=1) as terminal:
         assert terminal.write(banner).text == 'w=8'
     assert not hasattr(xnano, 'operation')
 
 
 def test_a_hook_on_a_clock_returns_the_operation_and_an_event_hook_the_handle() -> None:
     ticks: list[float] = []
-    with xnano.open(offscreen=True, width=8, height=1) as terminal:
+    with xnano.iter(offscreen=True, width=8, height=1) as terminal:
 
         @terminal.hook(every=0.1)
         def tick(context: Context) -> None:
-            ticks.append(context.time)
+            ticks.append(context.time.elapsed)
 
         handle = terminal.hook(lambda context: None, when=xnano_core.Trigger.key('q'))
         terminal.loop.advance(0.35)

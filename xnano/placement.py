@@ -134,7 +134,7 @@ class Placement(_Hooked[StateT]):
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=20, height=3) as terminal:
+        with xnano.iter(offscreen=True, width=20, height=3) as terminal:
             label = terminal.write('hi')
             label.x = (label.parent.width - label.width) // 2
             assert label.x == 9
@@ -550,7 +550,7 @@ class Placement(_Hooked[StateT]):
             import xnano
             from xnano.effects import Effect
 
-            with xnano.open(offscreen=True, width=20, height=3) as terminal:
+            with xnano.iter(offscreen=True, width=20, height=3) as terminal:
                 title = terminal.write('Welcome')
                 title.update(Effect.dissolve(duration_milliseconds=500))
             ```
@@ -845,7 +845,7 @@ class Placement(_Hooked[StateT]):
         Pressing the placement grabs the pointer, so the drag keeps going when the pointer
         leaves it. The placement follows the pointer's position inside its parent. Give the
         axis a range first, such as ``placement.x = (0, 19)``, and the drag stays inside it.
-        Open the terminal with ``mouse='buttons'`` to receive drags.
+        Open the terminal with ``mouse=True`` to receive drags.
 
         Args:
             axis: ``'x'`` or ``'y'``.
@@ -857,7 +857,7 @@ class Placement(_Hooked[StateT]):
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=20, height=3) as terminal:
+            with xnano.iter(offscreen=True, width=20, height=3) as terminal:
                 thumb = terminal.write('#', x=(0, 10), y=0)
                 thumb.make_draggable()
                 assert thumb.x == 0

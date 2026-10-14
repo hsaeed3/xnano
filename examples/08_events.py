@@ -34,7 +34,7 @@ def taps(key: str, count: int, within_seconds: float = 0.6):
     return trigger
 
 
-with xnano.open(width=60, height=10, mouse='motion') as terminal:
+with xnano.iter(width=60, height=10, mouse='motion') as terminal:
     log: collections.deque[str] = collections.deque(maxlen=8)
     terminal.write('events (c: custom event, t t t: triple tap, q: quit)', y=0)
 

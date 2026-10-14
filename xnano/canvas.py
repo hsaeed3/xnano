@@ -3,7 +3,7 @@ xnano.canvas
 
 Compose a buffer with [`new`][xnano.canvas.new] (or [`make`][xnano.canvas.make]),
 then build it with [`Canvas.build`][xnano.canvas.Canvas.build] or open it live with
-[`Canvas.open`][xnano.canvas.Canvas.open] or [`open`][xnano.open].
+[`Canvas.iter`][xnano.canvas.Canvas.iter] or [`iter`][xnano.iter].
 
 [`Canvas`][xnano.canvas.Canvas] records widgets, attributes, styles, operations and
 children without opening a terminal or drawing until asked.
@@ -160,7 +160,7 @@ class Canvas:
     Nothing here draws until asked. Call [`build`][xnano.canvas.Canvas.build] to get a
     standalone [`Buffer`][xnano_core.Buffer], pass the canvas to
     [`Terminal.write`][xnano.terminal.Terminal.write], or open it directly in a terminal with
-    [`open`][xnano.canvas.Canvas.open] or ``xnano.open(canvas)``.
+    [`open`][xnano.canvas.Canvas.iter] or ``xnano.iter(canvas)``.
 
     Attributes:
         x: The column of the left edge, as an [`Axis`][xnano.types.Axis].
@@ -745,7 +745,7 @@ class Canvas:
         return built
 
     @overload
-    def open(
+    def iter(
         self,
         *,
         offscreen: bool = False,
@@ -753,18 +753,19 @@ class Canvas:
         width: int | None = None,
         height: int | None = None,
         fps: float = 60.0,
-        clock: Literal['real', 'manual'] | None = None,
-        inline_height: int | None = None,
-        should_clear_on_close: bool | None = None,
-        mouse: Literal['off', 'buttons', 'motion'] = 'off',
-        interrupt: Literal['event', 'stop'] = 'stop',
-        keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
-        should_capture_output: bool = True,
-        should_use_alternate_screen: bool = True,
+        realtime: bool = False,
+        clear: bool = True,
+        alternate_screen: bool = True,
+        mouse: bool | Literal['buttons', 'motion'] = False,
+        keyboard: bool | Literal['disambiguated', 'release_events'] = True,
+        paste: bool = True,
+        focus: bool = True,
+        interrupt: bool = True,
+        capture: bool = True,
         state: None = None,
     ) -> Terminal[None]: ...
     @overload
-    def open(
+    def iter(
         self,
         *,
         offscreen: bool = False,
@@ -772,17 +773,18 @@ class Canvas:
         width: int | None = None,
         height: int | None = None,
         fps: float = 60.0,
-        clock: Literal['real', 'manual'] | None = None,
-        inline_height: int | None = None,
-        should_clear_on_close: bool | None = None,
-        mouse: Literal['off', 'buttons', 'motion'] = 'off',
-        interrupt: Literal['event', 'stop'] = 'stop',
-        keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
-        should_capture_output: bool = True,
-        should_use_alternate_screen: bool = True,
+        realtime: bool = False,
+        clear: bool = True,
+        alternate_screen: bool = True,
+        mouse: bool | Literal['buttons', 'motion'] = False,
+        keyboard: bool | Literal['disambiguated', 'release_events'] = True,
+        paste: bool = True,
+        focus: bool = True,
+        interrupt: bool = True,
+        capture: bool = True,
         state: StateT,
     ) -> Terminal[StateT]: ...
-    def open(
+    def iter(
         self,
         *,
         offscreen: bool = False,
@@ -790,14 +792,15 @@ class Canvas:
         width: int | None = None,
         height: int | None = None,
         fps: float = 60.0,
-        clock: Literal['real', 'manual'] | None = None,
-        inline_height: int | None = None,
-        should_clear_on_close: bool | None = None,
-        mouse: Literal['off', 'buttons', 'motion'] = 'off',
-        interrupt: Literal['event', 'stop'] = 'stop',
-        keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
-        should_capture_output: bool = True,
-        should_use_alternate_screen: bool = True,
+        realtime: bool = False,
+        clear: bool = True,
+        alternate_screen: bool = True,
+        mouse: bool | Literal['buttons', 'motion'] = False,
+        keyboard: bool | Literal['disambiguated', 'release_events'] = True,
+        paste: bool = True,
+        focus: bool = True,
+        interrupt: bool = True,
+        capture: bool = True,
         state: StateT | None = None,
     ) -> Terminal[StateT] | Terminal[None]:
         """
@@ -812,35 +815,37 @@ class Canvas:
             width: The width in cells.
             height: The height in cells.
             fps: The rate frames are drawn at, at most.
-            clock: ``'real'`` or ``'manual'``.
-            inline_height: Draw this many rows below the cursor and leave them on the screen.
-            should_clear_on_close: Whether a live region is erased when the terminal closes.
-            mouse: ``'off'``, ``'buttons'`` or ``'motion'``.
-            interrupt: What ``Ctrl-C`` does on a live terminal: ``'stop'`` or ``'event'``.
-            keyboard: ``'basic'``, ``'disambiguated'`` or ``'release_events'``.
-            should_capture_output: Whether text printed during a live session is held back.
-            should_use_alternate_screen: Whether a full-window live terminal uses the alternate screen.
+            realtime: Whether an offscreen terminal runs by itself on the wall clock.
+            clear: Whether what the terminal drew is erased when it closes.
+            alternate_screen: Whether a full-window live terminal uses the alternate screen.
+            mouse: ``True`` for clicks and drags, ``'motion'`` for all movement as well.
+            keyboard: ``True``, ``'disambiguated'``, ``'release_events'``, or ``False`` to ignore keys.
+            paste: Whether pasted text arrives as one paste event.
+            focus: Whether the terminal reports focus changes.
+            interrupt: Whether ``Ctrl-C`` ends the loop on a live terminal.
+            capture: Whether text printed during a live session is held back.
             state: A dataclass instance the terminal keeps and validates.
         """
-        from xnano.terminal import open as open_terminal
+        from xnano.terminal import iter as iter_terminal
 
         return cast(
             'Terminal[StateT] | Terminal[None]',
-            open_terminal(
+            iter_terminal(
                 self,
                 offscreen=offscreen,
                 title=title,
                 width=width,
                 height=height,
                 fps=fps,
-                clock=clock,
-                inline_height=inline_height,
-                should_clear_on_close=should_clear_on_close,
+                realtime=realtime,
+                clear=clear,
+                alternate_screen=alternate_screen,
                 mouse=mouse,
-                interrupt=interrupt,
                 keyboard=keyboard,
-                should_capture_output=should_capture_output,
-                should_use_alternate_screen=should_use_alternate_screen,
+                paste=paste,
+                focus=focus,
+                interrupt=interrupt,
+                capture=capture,
                 state=state,
             ),
         )
@@ -949,7 +954,7 @@ def new(content: CompositionContent = None, /, **attributes: AttributeValue) -> 
     empty buffer. Keyword arguments are attributes of that buffer, such as ``width``,
     ``ratio`` or ``x``. Call [`Canvas.build`][xnano.canvas.Canvas.build] for a standalone
     buffer, pass the canvas to [`Terminal.write`][xnano.terminal.Terminal.write], or open it directly with
-    [`Canvas.open`][xnano.canvas.Canvas.open] or [`open`][xnano.open].
+    [`Canvas.iter`][xnano.canvas.Canvas.iter] or [`iter`][xnano.iter].
 
     Args:
         content: What the buffer is. A widget class such as ``Gauge`` is constructed from the

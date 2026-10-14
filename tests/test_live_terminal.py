@@ -53,7 +53,7 @@ class TestInlineRegion:
         screen = run(
             PROMPT
             + """
-with xnano.open(width=14, height=2) as terminal:
+with xnano.iter(width=14, height=2) as terminal:
     terminal.write('Hello, world!')
     terminal.run()
 print('DONE')
@@ -76,7 +76,7 @@ print('DONE')
     def test_it_is_drawn_while_the_program_is_still_busy(self, run):
         screen = run(
             """
-with xnano.open(height=3) as terminal:
+with xnano.iter(height=3) as terminal:
     terminal.write('HELLO-NOW', x=2)
     time.sleep(8)
 """
@@ -88,7 +88,7 @@ with xnano.open(height=3) as terminal:
     def test_a_persistent_region_stays_after_exit(self, run):
         screen = run(
             """
-with xnano.open(inline_height=2) as terminal:
+with xnano.iter(height=2, clear=False) as terminal:
     terminal.write('stays')
     time.sleep(0.5)
 print('after')
@@ -103,7 +103,7 @@ print('after')
             """
 for number in range(30):
     print('line', number)
-with xnano.open(width=10, height=2) as terminal:
+with xnano.iter(width=10, height=2) as terminal:
     terminal.write('bottom')
     time.sleep(0.8)
 """,
@@ -120,7 +120,7 @@ class TestFullScreen:
         screen = run(
             PROMPT
             + """
-with xnano.open() as terminal:
+with xnano.iter() as terminal:
     terminal.write('FULL SCREEN', x=3, y=2)
     time.sleep(1)
 print('BACK')
@@ -145,7 +145,7 @@ print('BACK')
     def test_it_can_stay_on_the_main_screen(self, run):
         screen = run(
             """
-with xnano.open(should_use_alternate_screen=False) as terminal:
+with xnano.iter(alternate_screen=False) as terminal:
     terminal.write('MAIN SCREEN')
     time.sleep(1)
 """
@@ -158,7 +158,7 @@ class TestInput:
     def test_a_key_stops_the_terminal(self, run):
         screen = run(
             """
-with xnano.open(height=2) as terminal:
+with xnano.iter(height=2) as terminal:
     terminal.write('press q')
 
     @terminal.hook(when=lambda context: context.keyboard is not None and context.keyboard.key == 'q')
@@ -180,7 +180,7 @@ print('LEFT')
     def test_ctrl_c_stops_run(self, run):
         screen = run(
             """
-with xnano.open(height=2) as terminal:
+with xnano.iter(height=2) as terminal:
     terminal.write('waiting')
     terminal.run()
 print('STOPPED')
@@ -194,7 +194,7 @@ print('STOPPED')
     def test_a_click_reaches_the_placement_under_it(self, run):
         screen = run(
             """
-with xnano.open(height=3, mouse='buttons') as terminal:
+with xnano.iter(height=3, mouse=True) as terminal:
     button = terminal.write('[ click ]', x=4, y=1)
 
     @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
@@ -215,7 +215,7 @@ with xnano.open(height=3, mouse='buttons') as terminal:
         screen = run(
             PROMPT
             + """
-with xnano.open(width=20, height=3, mouse='buttons') as terminal:
+with xnano.iter(width=20, height=3, mouse=True) as terminal:
     button = terminal.write('[ click ]', x=4, y=1)
 
     @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
@@ -242,7 +242,7 @@ with xnano.open(width=20, height=3, mouse='buttons') as terminal:
         screen = run(
             """
 import xnano
-with xnano.open(height=3, width=30, mouse='buttons') as terminal:
+with xnano.iter(height=3, width=30, mouse=True) as terminal:
     terminal.write('-' * 30, y=1)
     thumb = terminal.write('#', x=(0, 29), y=1, layer=1)
     thumb.make_draggable()
@@ -258,7 +258,7 @@ with xnano.open(height=3, width=30, mouse='buttons') as terminal:
     def test_pasted_text_arrives_whole(self, run):
         screen = run(
             """
-with xnano.open(height=2) as terminal:
+with xnano.iter(height=2) as terminal:
     terminal.write('paste here')
 
     @terminal.hook(when=lambda context: context.pasted is not None)
@@ -278,7 +278,7 @@ class TestDrawing:
         screen = run(
             """
 from xnano_core import TimeElapsed, ParentWidth, Width
-with xnano.open(width=30, height=1) as terminal:
+with xnano.iter(width=30, height=1) as terminal:
     ball = terminal.write('o')
     ball.x = (ParentWidth - Width) * ((TimeElapsed / 2) % 1.0)
     time.sleep(6)
@@ -292,7 +292,7 @@ with xnano.open(width=30, height=1) as terminal:
         screen = run(
             """
 from xnano_core import TimeElapsed, ParentWidth, Width
-with xnano.open(width=30, height=1) as terminal:
+with xnano.iter(width=30, height=1) as terminal:
     ball = terminal.write('o')
     ball.x = (ParentWidth - Width) * ((TimeElapsed / 2) % 1.0)
     end = time.monotonic() + 6
@@ -313,7 +313,7 @@ with xnano.open(width=30, height=1) as terminal:
     def test_colors_reach_the_screen(self, run):
         screen = run(
             """
-with xnano.open(width=8, height=2) as terminal:
+with xnano.iter(width=8, height=2) as terminal:
     pixels = terminal.pixels()
     pixels[0, 0] = (255, 0, 0)
     pixels[0, 1] = (0, 0, 255)
@@ -329,7 +329,7 @@ with xnano.open(width=8, height=2) as terminal:
             """
 from xnano_image import TerminalImage
 image = TerminalImage.from_rgba(4, 2, bytes([0, 255, 0, 255]) * 8)
-with xnano.open(width=10, height=2) as terminal:
+with xnano.iter(width=10, height=2) as terminal:
     terminal.write(image)
     time.sleep(1.2)
 """
@@ -341,7 +341,7 @@ with xnano.open(width=10, height=2) as terminal:
         screen = run(
             """
 from xnano_core import Effect
-with xnano.open(width=10, height=1) as terminal:
+with xnano.iter(width=10, height=1) as terminal:
     placement = terminal.write('hello')
     placement.buffer.update(Effect.fade_to((255, 0, 0), duration_milliseconds=600))
     time.sleep(2)
@@ -359,7 +359,7 @@ from xnano_image import TerminalGraphics, TerminalImage
 image = TerminalImage.from_rgba(16, 16, bytes([255, 0, 0, 255]) * 256)
 graphics = TerminalGraphics.from_capabilities(protocol={protocol!r}, cell_size_in_pixels=(8, 16))
 grid = image.to_cell_grid(4, 2, graphics=graphics)
-with xnano.open(width=10, height=3) as terminal:
+with xnano.iter(width=10, height=3) as terminal:
     terminal.write(grid)
     time.sleep(1)
 """
@@ -384,7 +384,7 @@ class TestCursor:
         screen = run(
             PROMPT
             + """
-with xnano.open(width=12, height=3) as terminal:
+with xnano.iter(width=12, height=3) as terminal:
     terminal.write('field:')
     terminal.cursor.position = (7, 1)
     terminal.cursor.shape = 'bar'
@@ -402,7 +402,7 @@ print('DONE')
     def test_a_hidden_cursor_stays_hidden(self, run):
         screen = run(
             """
-with xnano.open(width=12, height=2) as terminal:
+with xnano.iter(width=12, height=2) as terminal:
     terminal.write('no cursor')
     terminal.cursor.is_visible = False
     time.sleep(1.2)
@@ -416,7 +416,7 @@ class TestWindow:
     def test_a_percentage_layout_follows_a_resize(self, run):
         screen = run(
             """
-with xnano.open() as terminal:
+with xnano.iter() as terminal:
     terminal.write('right', x='100%', y=0)
     terminal.write('middle', x='50%', y=1)
     terminal.run()
@@ -435,7 +435,7 @@ class TestOutputCapture:
         screen = run(
             """
 import sys
-with xnano.open(height=2) as terminal:
+with xnano.iter(height=2) as terminal:
     terminal.write('steady')
     print('A LOG LINE')
     sys.stderr.write('AN ERROR LINE\\n')
@@ -453,7 +453,7 @@ print('AFTER')
     def test_untaken_output_is_printed_when_the_terminal_closes(self, run):
         screen = run(
             """
-with xnano.open(height=2) as terminal:
+with xnano.iter(height=2) as terminal:
     terminal.write('steady')
     print('PRINTED WHILE LIVE')
     time.sleep(0.8)
@@ -469,7 +469,7 @@ class TestCaptureStatus:
     def test_a_live_terminal_reports_that_it_holds_output_back(self, run):
         screen = run(
             """
-with xnano.open(height=2) as terminal:
+with xnano.iter(height=2) as terminal:
     terminal.write('CAPTURED' if terminal.output.is_captured else 'OPEN')
     time.sleep(0.8)
 """
@@ -479,7 +479,7 @@ with xnano.open(height=2) as terminal:
     def test_it_can_be_turned_off(self, run):
         screen = run(
             """
-with xnano.open(height=2, should_capture_output=False) as terminal:
+with xnano.iter(height=2, capture=False) as terminal:
     terminal.write('CAPTURED' if terminal.output.is_captured else 'OPEN')
     time.sleep(0.8)
 """
@@ -492,9 +492,9 @@ class TestMisuse:
         screen = run(
             """
 import xnano.errors
-with xnano.open(height=2) as terminal:
+with xnano.iter(height=2) as terminal:
     try:
-        xnano.open(height=2)
+        xnano.iter(height=2)
     except xnano.errors.TerminalAlreadyOpenError as error:
         terminal.write('REFUSED', x=0, y=0)
     time.sleep(0.8)
@@ -505,7 +505,7 @@ with xnano.open(height=2) as terminal:
     def test_an_error_in_the_program_restores_the_terminal(self, run):
         screen = run(
             """
-with xnano.open(height=2) as terminal:
+with xnano.iter(height=2) as terminal:
     terminal.write('about to fail')
     time.sleep(0.4)
     raise RuntimeError('boom')
@@ -520,7 +520,7 @@ with xnano.open(height=2) as terminal:
 
 def test_window_title_is_written_while_stdout_is_captured(run):
     screen = run("""
-with xnano.open(title='Initial title') as terminal:
+with xnano.iter(title='Initial title') as terminal:
     terminal.title = 'Changed title'
     terminal.write('TITLE READY')
     terminal.run()
@@ -543,7 +543,7 @@ def test_a_program_ends_when_its_terminal_window_closes():
             sys.executable,
             '-c',
             'import xnano\n'
-            'with xnano.open(width=20, height=2) as terminal:\n'
+            'with xnano.iter(width=20, height=2) as terminal:\n'
             "    terminal.write('alive')\n"
             '    terminal.run()\n',
         ],

@@ -20,7 +20,7 @@ from xnano_core import Event
 
 @pytest.fixture
 def terminal():
-    with xnano.open(offscreen=True, width=20, height=6) as terminal:
+    with xnano.iter(offscreen=True, width=20, height=6) as terminal:
         yield terminal
 
 
@@ -53,7 +53,7 @@ class TestInterface:
     def test_the_terminal_groups_what_is_not_declaring(self, terminal):
         assert isinstance(terminal.loop, xnano.loop.Loop)
         assert isinstance(terminal.output, xnano.output.Output)
-        assert isinstance(terminal.audio, xnano.audio.Audio)
+        assert isinstance(terminal.audio, xnano.audio.AudioDevice)
 
     def test_machinery_is_not_part_of_the_interface(self, terminal):
         for name in (
@@ -131,7 +131,7 @@ class TestInjectedEvents:
         assert seen == [('volume_changed', '7')]
 
     def test_injecting_into_a_closed_terminal_says_so(self):
-        with xnano.open(offscreen=True, width=4, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=4, height=1) as terminal:
             pass
         with pytest.raises(xnano.errors.TerminalClosedError):
             terminal.inject(Event.wake())
@@ -145,18 +145,18 @@ class Settings:
 
 class TestTypedState:
     def test_the_state_is_the_dataclass_that_was_given(self):
-        with xnano.open(offscreen=True, width=8, height=1, state=Settings()) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1, state=Settings()) as terminal:
             assert terminal.state.volume == 40
             terminal.state.volume = 55
             assert terminal.state.volume == 55
 
     def test_a_value_of_the_wrong_type_is_refused(self):
-        with xnano.open(offscreen=True, width=8, height=1, state=Settings()) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1, state=Settings()) as terminal:
             with pytest.raises(xnano.errors.TerminalError, match='volume'):
                 terminal.state.volume = 'loud'  # type: ignore[assignment]
 
     def test_a_reference_drives_an_axis(self):
-        with xnano.open(offscreen=True, width=30, height=2, state=Settings()) as terminal:
+        with xnano.iter(offscreen=True, width=30, height=2, state=Settings()) as terminal:
             thumb = terminal.write('#')
             thumb.x = terminal.ref(lambda state: state.volume)
             terminal.state.volume = 12
@@ -164,11 +164,11 @@ class TestTypedState:
             assert thumb.x == 12
 
     def test_a_terminal_without_state_says_how_to_add_it(self, terminal):
-        with pytest.raises(xnano.errors.TerminalError, match=r'open\(state='):
+        with pytest.raises(xnano.errors.TerminalError, match=r'iter\(state='):
             _ = terminal.state
 
     def test_the_context_carries_the_same_state(self):
-        with xnano.open(offscreen=True, width=8, height=1, state=Settings()) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1, state=Settings()) as terminal:
             seen: list[int] = []
 
             @terminal.hook(when=lambda context: context.keyboard is not None)
@@ -187,7 +187,7 @@ class TestOutputCapture:
     def test_a_live_terminal_that_cannot_hold_output_back_warns(self):
         from xnano.terminal import warn_if_output_is_not_held_back
 
-        with pytest.warns(RuntimeWarning, match='should_capture_output=False'):
+        with pytest.warns(RuntimeWarning, match='capture=False'):
             warn_if_output_is_not_held_back(requested=True, is_held_back=False)
 
     @pytest.mark.parametrize(
@@ -211,7 +211,7 @@ class TestOutputCapture:
 
         with warnings.catch_warnings():
             warnings.simplefilter('error')
-            with xnano.open(offscreen=True, width=4, height=1):
+            with xnano.iter(offscreen=True, width=4, height=1):
                 pass
 
 
@@ -372,5 +372,5 @@ class TestDocumentation:
 
 class TestOutputCaptureStatus:
     def test_an_offscreen_terminal_holds_nothing_back(self):
-        with xnano.open(offscreen=True, width=4, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=4, height=1) as terminal:
             assert terminal.output.is_captured is False

@@ -7,7 +7,6 @@ The terminal you draw into, and the functions that open it.
 from __future__ import annotations
 
 import contextvars
-import os
 import threading
 import warnings
 from collections.abc import Callable, Sequence
@@ -28,7 +27,7 @@ if TYPE_CHECKING:
     from xnano_audio import InstrumentName, Pitch, TerminalAudioEffect
     from xnano_image import TerminalImage
 
-    from xnano.audio import Audio, Playable
+    from xnano.audio import AudioDevice, Playable
     from xnano.context import Context
 
 from xnano._customize import (
@@ -81,7 +80,7 @@ from xnano._customize import (
 )
 from xnano._hooks import _Hooked
 from xnano._host import _Host, _InlineHost, _ThreadHost
-from xnano._media import ImageBuffer, ImageSource, content_buffer, img
+from xnano._media import Image, ImageSource, content_buffer
 from xnano._optional import is_image, require
 from xnano._values import (
     RGB,
@@ -112,6 +111,7 @@ from xnano.pixels import Pixels
 from xnano.placement import Placement
 from xnano.scene import Scene
 from xnano.state import StateProxy, bind_proxy, prepare_state, reference_for
+from xnano.time import Time
 
 _active_terminal: contextvars.ContextVar[Terminal[object] | None] = (
     contextvars.ContextVar('xnano.active_terminal', default=None)
@@ -123,13 +123,13 @@ _live_terminal_open: bool = False
 
 
 def warn_if_output_is_not_held_back(*, requested: bool, is_held_back: bool) -> None:
-    """Say so when ``should_capture_output`` could not be honored on this platform."""
+    """Say so when ``capture`` could not be honored on this platform."""
     if requested and not is_held_back:
         warnings.warn(
             'This platform cannot hold back what a program prints while a live terminal is '
             'open, so a print or a log record can land in the middle of a frame and '
             'corrupt the screen. Log to a file instead, or pass '
-            'should_capture_output=False to silence this warning.',
+            'capture=False to silence this warning.',
             RuntimeWarning,
             stacklevel=2,
         )
@@ -235,7 +235,7 @@ class Terminal(_Hooked[StateT]):
     """
     A surface of cells with a clock, a cursor, event hooks, sound and pixels.
 
-    Get one from [`open`][xnano.open]. A live terminal draws on your screen and reads
+    Get one from [`iter`][xnano.iter]. A live terminal draws on your screen and reads
     your keyboard and mouse. It runs by itself: opening it starts a loop on a thread of its
     own, and everything you write, remove or draw appears the moment it is declared, however
     slowly the rest of your program runs, because declaring only changes buffers and the
@@ -243,15 +243,15 @@ class Terminal(_Hooked[StateT]):
     you move it, which makes it deterministic; both have the same methods.
 
     What you put on the terminal is declared on the terminal itself:
-    [`write`][xnano.terminal.Terminal.write], [`img`][xnano.terminal.Terminal.img],
+    [`write`][xnano.terminal.Terminal.write],
     [`hook`][xnano.terminal.Terminal.hook] and indexing. Everything else is grouped by what it is:
 
-    * ``terminal.clock`` is the [`Clock`][xnano_core.Clock] everything runs on.
+    * ``terminal.time`` is the [`Time`][xnano.time.Time] everything runs on.
     * ``terminal.cursor`` is the one [`Cursor`][xnano_core.Cursor] of the screen.
-    * ``terminal.state`` is the dataclass given to ``open(state=...)``.
+    * ``terminal.state`` is the dataclass given to ``iter(state=...)``.
     * ``terminal.loop`` is the [`Loop`][xnano.loop.Loop]: frames and simulation updates.
     * ``terminal.output`` is the [`Output`][xnano.output.Output]: what was drawn.
-    * ``terminal.audio`` is the [`Audio`][xnano.audio.Audio]: notes, melodies, sounds and the
+    * ``terminal.audio`` is the [`AudioDevice`][xnano.audio.AudioDevice]: notes, melodies, sounds and the
       microphone.
 
     Any thread may write, remove, draw and play. Hooks run on the terminal's loop, so
@@ -266,17 +266,16 @@ class Terminal(_Hooked[StateT]):
         backend: ``'terminal'`` for a live terminal, ``'offscreen'`` for one in memory.
         root: The buffer everything is added to, as large as the terminal.
         parent: Symbolic expressions for the parent container's ``width``, ``height`` and ``size``.
-        time: Symbolic expression for elapsed seconds on the terminal clock.
         size: The size of the terminal in cells.
         width: The width of the terminal in cells.
         height: The height of the terminal in cells.
         title: Window title last set on the terminal; ``None`` clears the title.
-        clock: The clock everything on the terminal runs on.
+        time: The [`Time`][xnano.time.Time] everything on the terminal runs on.
         cursor: The terminal's one cursor.
-        state: The dataclass given to ``open(state=...)``.
+        state: The dataclass given to ``iter(state=...)``.
         loop: The [`Loop`][xnano.loop.Loop]: frames and simulation updates.
         output: The [`Output`][xnano.output.Output]: what was drawn, and held-back text.
-        audio: The [`Audio`][xnano.audio.Audio]: notes, melodies, sounds and the microphone.
+        audio: The [`AudioDevice`][xnano.audio.AudioDevice]: notes, melodies, sounds and the microphone.
         input: The keys held down right now, for programs that poll instead of listening.
         tempo: The tempo in beats per minute for musical notes and timers.
 
@@ -284,7 +283,7 @@ class Terminal(_Hooked[StateT]):
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=12, height=2) as terminal:
+        with xnano.iter(offscreen=True, width=12, height=2) as terminal:
             terminal.write('hello', x=1, y=1)
             terminal.output.render()
             assert terminal.output.snapshot().lines()[1] == ' hello'
@@ -305,9 +304,10 @@ class Terminal(_Hooked[StateT]):
         is_autonomous: bool,
         state: StateT,
         should_capture_output: bool = False,
+        is_keyboard_enabled: bool = True,
     ) -> None:
         """
-        Open a terminal. Use [`open`][xnano.open] instead of calling this.
+        Open a terminal. Use [`iter`][xnano.iter] instead of calling this.
 
         Args:
             create_runtime: Creates the runtime, on the thread that will run it.
@@ -316,6 +316,7 @@ class Terminal(_Hooked[StateT]):
             is_autonomous: Whether the terminal runs by itself on a thread of its own.
             state: A dataclass instance the terminal keeps and validates, or ``None``.
             should_capture_output: Whether printed text is held back from a live screen.
+            is_keyboard_enabled: Whether key presses reach hooks.
         """
         super().__init__()
         self._terminal = self
@@ -334,6 +335,7 @@ class Terminal(_Hooked[StateT]):
         self._failure: BaseException | None = None
         self._failure_report = ''
         self._should_capture_output = should_capture_output
+        self._is_keyboard_enabled = is_keyboard_enabled
         self._offscreen_milliseconds = 0
         self._state_proxy: StateProxy | None = None
         self._state_store = (
@@ -344,8 +346,9 @@ class Terminal(_Hooked[StateT]):
         self._dynamic: dict[int, Placement[StateT]] = {}
         self._frame_callback_count = 0
         self.loop = Loop(cast('Terminal[object]', self))
+        self._time = Time(cast('Terminal[object]', self))
         self.output = Output(cast('Terminal[object]', self))
-        self._audio: Audio | None = None
+        self._audio: AudioDevice | None = None
         self._input: Input | None = None
         self._runtime_object: _core.Runtime | None = None
         self._clock: _core.Clock | None = None
@@ -499,11 +502,11 @@ class Terminal(_Hooked[StateT]):
             if self._failure is not None:
                 raise TerminalClosedError(
                     f'{self._failure_text(self._failure)} Fix that, then open a new terminal '
-                    f'with xnano.open().'
+                    f'with xnano.iter().'
                 ) from self._failure
             raise TerminalClosedError(
                 'This terminal has been closed, so it can no longer draw or listen. Open a '
-                'new one with xnano.open(), and do the work inside its "with" block.'
+                'new one with xnano.iter(), and do the work inside its "with" block.'
             )
 
     def close(self, *, raise_failure: bool = True) -> None:
@@ -563,9 +566,9 @@ class Terminal(_Hooked[StateT]):
         return Parent
 
     @property
-    def time(self) -> _core.NumericValue:
-        """Symbolic expression for elapsed seconds on the terminal clock."""
-        return _core.TimeElapsed
+    def time(self) -> Time:
+        """The terminal's [`Time`][xnano.time.Time]: how long it has run, pausing, and formulas."""
+        return self._time
 
     @property
     def size(self) -> _core.Size:
@@ -669,8 +672,8 @@ class Terminal(_Hooked[StateT]):
         [`text`][xnano.placement.Placement.text].
 
         An image is added as an image: a [`TerminalImage`][xnano_image.TerminalImage] or the
-        result of [`img`][xnano.img] (never a file path; see
-        [`Terminal.img`][xnano.terminal.Terminal.img]). With neither ``width`` nor ``height`` it keeps
+        [`Image`][xnano.Image] (never a file path; see
+        [`open`][xnano.open]). With neither ``width`` nor ``height`` it keeps
         its own proportions at its own size, shrunk to fit the terminal. With one of them the
         other follows the image's proportions, and with both the image fits inside that box. An
         image sized by a percentage, or by the terminal because you gave no size, is converted
@@ -720,7 +723,7 @@ class Terminal(_Hooked[StateT]):
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=20, height=4) as terminal:
+            with xnano.iter(offscreen=True, width=20, height=4) as terminal:
                 box = terminal.write('hello', x='50%', y=1)
                 assert box.x == 10
                 assert (box.width, box.height) == (5, 1)
@@ -868,8 +871,8 @@ class Terminal(_Hooked[StateT]):
             return custom_placement
         picture = (
             content
-            if isinstance(content, ImageBuffer)
-            else ImageBuffer(cast('TerminalImage', content))
+            if isinstance(content, Image)
+            else Image(cast('TerminalImage', content))
             if is_image(content)
             else None
         )
@@ -956,66 +959,17 @@ class Terminal(_Hooked[StateT]):
                 placement._set_axis(axis_name, int(getattr(placement, axis_name)))
         return placement
 
-    def img(
-        self,
-        source: TerminalImage | os.PathLike[str] | str | bytes,
-        *,
-        x: Axis | None = None,
-        y: Axis | None = None,
-        width: Axis | None = None,
-        height: Axis | None = None,
-        layer: int = 0,
-        lock: bool = False,
-        fit: Literal['contain', 'cover', 'stretch', 'crop', 'smart'] | None = None,
-        resampling_filter: Literal['nearest', 'bilinear', 'catmull_rom', 'lanczos3']
-        | None = None,
-        background: tuple[int, int, int] = (0, 0, 0),
-        speed: float = 1.0,
-    ) -> Placement[StateT]:
-        """
-        Load an image and write it, in one step: ``terminal.write(xnano.img(...))``.
-
-        See [`img`][xnano.img] for every argument; ``source`` is the path of an image file, its
-        bytes, or an image.
-
-        Examples:
-            ```python
-            import xnano
-            from xnano.image import TerminalImage
-
-            picture = TerminalImage.from_rgba(2, 2, bytes([0, 128, 255, 255]) * 4)
-            with xnano.open(offscreen=True, width=20, height=6) as terminal:
-                placement = terminal.img(picture, x='center', width=8)
-                assert placement.width == 8
-            ```
-        """
-        return self.write(
-            img(
-                source,
-                x=x,
-                y=y,
-                width=width,
-                height=height,
-                layer=layer,
-                lock=lock,
-                fit=fit,
-                resampling_filter=resampling_filter,
-                background=background,
-                speed=speed,
-            )
-        )
-
     def _buffer_for(
         self, content: Content, width: Axis | None, height: Axis | None
     ) -> tuple[_core.Buffer, ImageSource | None]:
         """Build the buffer that shows ``content``, and the image source that keeps it."""
-        if isinstance(content, ImageBuffer):
+        if isinstance(content, Image):
             source = ImageSource.create(
                 content,
                 width=width,
                 height=height,
                 size=self.size,
-                elapsed_seconds=self.clock.elapsed_seconds,
+                elapsed_seconds=self.time.elapsed,
             )
             return source.buffer, source
         buffer, _ = content_buffer(content)
@@ -1349,7 +1303,7 @@ class Terminal(_Hooked[StateT]):
             import xnano
             from xnano_core import Width
 
-            with xnano.open(offscreen=True, width=12, height=2) as terminal:
+            with xnano.iter(offscreen=True, width=12, height=2) as terminal:
                 assert terminal.inspect(Width) == 12
             ```
         """
@@ -1390,7 +1344,7 @@ class Terminal(_Hooked[StateT]):
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=10, height=3) as terminal:
+            with xnano.iter(offscreen=True, width=10, height=3) as terminal:
                 terminal[0:5, 0:2] = (51, 102, 153)
                 terminal[2:9, 1:2] = 'hello'
             ```
@@ -1430,40 +1384,10 @@ class Terminal(_Hooked[StateT]):
             self.write(value, x=left, y=top, width=right - left, height=bottom - top)
 
     @property
-    def is_paused(self) -> bool:
-        """Whether time is stopped: see [`pause`][xnano.terminal.Terminal.pause]."""
-        return self.clock.is_paused
-
-    def pause(self) -> None:
-        """
-        Stop time on this terminal.
-
-        Everything that follows the terminal's clock stands still: expressions such as
-        ``TimeElapsed``, animations and effects, [`every`][xnano.terminal.Terminal.every] and
-        [`after`][xnano.terminal.Terminal.after] timers, fixed-step updates, and the musical clock of
-        [`audio`][xnano.terminal.Terminal.audio] when it is running. Input still arrives, so a key
-        can [`resume`][xnano.terminal.Terminal.resume] it.
-        """
-        self._require_open()
-        self.clock.pause()
-        audio = self._audio
-        if audio is not None:
-            self._host.post(audio._hold)
-
-    def resume(self) -> None:
-        """Let time run on from where [`pause`][xnano.terminal.Terminal.pause] stopped it."""
-        self._require_open()
-        self.clock.resume()
-        audio = self._audio
-        if audio is not None:
-            self._host.post(audio._release)
-
-    @property
-    def clock(self) -> _core.Clock:
-        """The clock everything on the terminal runs on; any thread may read it."""
+    def _time_source(self) -> _core.Clock:
         if self._clock is None:
             raise TerminalClosedError(
-                'The terminal has no clock yet, because it is not attached to a running loop.'
+                'The terminal has no time yet, because it is not attached to a running loop.'
             )
         return self._clock
 
@@ -1506,7 +1430,7 @@ class Terminal(_Hooked[StateT]):
             raise TerminalError(
                 'An offscreen terminal with a manual clock never moves by itself, so run() '
                 'would wait forever. Drive it with terminal.frames() or terminal.advance(), '
-                'or open it with clock="real" to let it run on its own.'
+                'or open it with realtime=True to let it run on its own.'
             )
         if quit_on is not None:
             keys = (quit_on,) if isinstance(quit_on, str) else tuple(quit_on)
@@ -1550,7 +1474,7 @@ class Terminal(_Hooked[StateT]):
             import xnano
             from xnano.events import Event
 
-            with xnano.open(offscreen=True, clock='real', width=30, height=2) as terminal:
+            with xnano.iter(offscreen=True, realtime=True, width=30, height=2) as terminal:
                 terminal.write('Press enter to start')
 
                 @terminal.after(0.05)
@@ -1600,7 +1524,7 @@ class Terminal(_Hooked[StateT]):
             import xnano
             from xnano.events import Event
 
-            with xnano.open(offscreen=True, clock='real', width=30, height=2) as terminal:
+            with xnano.iter(offscreen=True, realtime=True, width=30, height=2) as terminal:
 
                 @terminal.after(0.05)
                 def type_answer(context: xnano.context.Context) -> None:
@@ -1654,7 +1578,7 @@ class Terminal(_Hooked[StateT]):
         if not isinstance(self._host, _ThreadHost):
             raise TerminalError(
                 f'This terminal never moves by itself, so waiting for {what} would last '
-                f'forever. Open it live, or with clock="real", or drive it with '
+                f'forever. Open it live, or with realtime=True, or drive it with '
                 f'terminal.loop.step() and read the result from a hook instead.'
             )
         while not done.wait(0.1):
@@ -1665,9 +1589,9 @@ class Terminal(_Hooked[StateT]):
                 )
 
     @property
-    def audio(self) -> Audio:
+    def audio(self) -> AudioDevice:
         """
-        The terminal's [`Audio`][xnano.audio.Audio]: notes, melodies, sounds and the microphone.
+        The terminal's [`AudioDevice`][xnano.audio.AudioDevice]: notes, melodies, sounds and the microphone.
 
         It needs the optional `xnano-audio` package, which is imported the first time this
         is read.
@@ -1679,11 +1603,11 @@ class Terminal(_Hooked[StateT]):
         self._require_open()
         if self._audio is None:
             require('audio', needed_for='Terminal.audio')
-            from xnano.audio import Audio
+            from xnano.audio import AudioDevice
 
             with self._lock:
                 if self._audio is None:
-                    audio = Audio(cast('Terminal[object]', self))
+                    audio = AudioDevice(cast('Terminal[object]', self))
                     self._audio = audio
                     self._host.post(lambda: audio._provide(self._runtime))
         return self._audio
@@ -1755,13 +1679,13 @@ class Terminal(_Hooked[StateT]):
         """
         Play a sound, a note, a melody or melody text, and return at once.
 
-        This is [`audio.play`][xnano.audio.Audio.play]; see it for every argument.
+        This is [`audio.play`][xnano.audio.AudioDevice.play]; see it for every argument.
 
         Examples:
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
                 if terminal.audio.is_available:
                     terminal.tempo = 100
                     terminal.play('C4 E4 G4:2 rest C5+E5+G5', instrument='bell')
@@ -1794,13 +1718,13 @@ class Terminal(_Hooked[StateT]):
         Play one note held for a number of beats, and return at once.
 
         The length follows the terminal's [`tempo`][xnano.terminal.Terminal.tempo]. This is
-        [`audio.note`][xnano.audio.Audio.note]; see it for every argument.
+        [`audio.note`][xnano.audio.AudioDevice.note]; see it for every argument.
 
         Examples:
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
                 if terminal.audio.is_available:
 
                     @terminal.every(beats=1)
@@ -1822,7 +1746,7 @@ class Terminal(_Hooked[StateT]):
     @property
     def state(self) -> StateT:
         """
-        The terminal's state: the dataclass passed to ``open(state=...)``.
+        The terminal's state: the dataclass passed to ``iter(state=...)``.
 
         Reading and writing its fields goes through the terminal's state store, so a write
         is validated against the field's type, updates every expression that reads it,
@@ -1834,7 +1758,7 @@ class Terminal(_Hooked[StateT]):
         proxy = self._state_proxy
         if proxy is None:
             raise TerminalError(
-                'This terminal has no state. Open it with open(state=YourDataclass()) to '
+                'This terminal has no state. Open it with iter(state=YourDataclass()) to '
                 'give hooks something to read and write.'
             )
         return cast('StateT', proxy)
@@ -1855,7 +1779,7 @@ class Terminal(_Hooked[StateT]):
             import xnano
             from xnano_core import Event
 
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
                 heard = []
                 terminal.hook(
                     lambda context: heard.append(context.event.custom_name),
@@ -1885,7 +1809,7 @@ class Terminal(_Hooked[StateT]):
         if self._state_store is None:
             raise TerminalError(
                 'This terminal has no state, so ref() has nothing to read. Open it with '
-                'open(state=YourDataclass()).'
+                'iter(state=YourDataclass()).'
             )
         reference = reference_for(self._state_store, reader)
         return reference
@@ -1909,7 +1833,7 @@ class Terminal(_Hooked[StateT]):
 
 
 @overload
-def open(
+def iter(
     canvas: Canvas | None = None,
     /,
     *,
@@ -1918,18 +1842,19 @@ def open(
     width: int | None = None,
     height: int | None = None,
     fps: float = 60.0,
-    clock: Literal['real', 'manual'] | None = None,
-    inline_height: int | None = None,
-    should_clear_on_close: bool | None = None,
-    mouse: Literal['off', 'buttons', 'motion'] = 'off',
-    interrupt: Literal['event', 'stop'] = 'stop',
-    keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
-    should_capture_output: bool = True,
-    should_use_alternate_screen: bool = True,
+    realtime: bool = False,
+    clear: bool = True,
+    alternate_screen: bool = True,
+    mouse: bool | Literal['buttons', 'motion'] = False,
+    keyboard: bool | Literal['disambiguated', 'release_events'] = True,
+    paste: bool = True,
+    focus: bool = True,
+    interrupt: bool = True,
+    capture: bool = True,
     state: None = None,
 ) -> Terminal[None]: ...
 @overload
-def open(
+def iter(
     canvas: Canvas | None = None,
     /,
     *,
@@ -1938,17 +1863,18 @@ def open(
     width: int | None = None,
     height: int | None = None,
     fps: float = 60.0,
-    clock: Literal['real', 'manual'] | None = None,
-    inline_height: int | None = None,
-    should_clear_on_close: bool | None = None,
-    mouse: Literal['off', 'buttons', 'motion'] = 'off',
-    interrupt: Literal['event', 'stop'] = 'stop',
-    keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
-    should_capture_output: bool = True,
-    should_use_alternate_screen: bool = True,
+    realtime: bool = False,
+    clear: bool = True,
+    alternate_screen: bool = True,
+    mouse: bool | Literal['buttons', 'motion'] = False,
+    keyboard: bool | Literal['disambiguated', 'release_events'] = True,
+    paste: bool = True,
+    focus: bool = True,
+    interrupt: bool = True,
+    capture: bool = True,
     state: StateT,
 ) -> Terminal[StateT]: ...
-def open(
+def iter(
     canvas: Canvas | None = None,
     /,
     *,
@@ -1957,14 +1883,15 @@ def open(
     width: int | None = None,
     height: int | None = None,
     fps: float = 60.0,
-    clock: Literal['real', 'manual'] | None = None,
-    inline_height: int | None = None,
-    should_clear_on_close: bool | None = None,
-    mouse: Literal['off', 'buttons', 'motion'] = 'off',
-    interrupt: Literal['event', 'stop'] = 'stop',
-    keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
-    should_capture_output: bool = True,
-    should_use_alternate_screen: bool = True,
+    realtime: bool = False,
+    clear: bool = True,
+    alternate_screen: bool = True,
+    mouse: bool | Literal['buttons', 'motion'] = False,
+    keyboard: bool | Literal['disambiguated', 'release_events'] = True,
+    paste: bool = True,
+    focus: bool = True,
+    interrupt: bool = True,
+    capture: bool = True,
     state: StateT | None = None,
 ) -> Terminal[StateT] | Terminal[None]:
     """
@@ -1974,18 +1901,17 @@ def open(
     write, remove or draw appears at once, on a loop of the terminal's own that your code
     never waits for. A ``with`` block closes it and gives the screen back.
 
-    Pass a [`Canvas`][xnano.canvas.Canvas] as the first argument (``xnano.open(canvas, ...)``) to
+    Pass a [`Canvas`][xnano.canvas.Canvas] as the first argument (``xnano.iter(canvas, ...)``) to
     mount it onto the terminal as soon as it opens. On an offscreen terminal, an integer
     ``width`` or ``height`` set on ``canvas`` is used when ``width`` or ``height`` is omitted
-    from ``open(...)``.
+    from ``iter(...)``.
 
     Give ``height`` (and optionally ``width``) to draw in a region of that size below the
-    cursor instead of taking over the whole screen. That region is transient: it is
-    erased when the terminal closes, like any other live application.
+    cursor instead of taking over the whole screen. That region is erased when the terminal
+    closes, unless you pass ``clear=False`` to leave it on the screen.
 
     With ``offscreen=True`` it draws into memory instead, on a clock that only moves when
-    you move it (``clock='manual'``, the default), or that runs by itself
-    (``clock='real'``).
+    you move it (the default), or that runs by itself (``realtime=True``).
 
     Args:
         canvas: Optional [`Canvas`][xnano.canvas.Canvas] to mount when the terminal opens.
@@ -1995,28 +1921,31 @@ def open(
         height: The height in cells. Offscreen: 24 by default. Live: the height of the
             region to draw in; the whole window when ``None``.
         fps: The rate frames are drawn at, at most.
-        clock: ``'real'`` for a terminal that runs by itself, ``'manual'`` for one that
-            moves only when you call ``frames``, ``advance`` or ``step``. Live terminals
-            always run on a real clock; the default offscreen clock is ``'manual'``.
-        inline_height: Draw this many rows below the cursor and leave them on the screen
-            when the terminal closes. Live terminals only; ``height`` is the transient
-            equivalent.
-        should_clear_on_close: Whether a live region is erased when the terminal closes.
-            ``True`` by default when ``height`` is given, ``False`` otherwise.
+        realtime: Whether an offscreen terminal runs by itself on the wall clock. By default
+            it moves only when you call ``frames``, ``advance`` or ``step``. Live terminals
+            always run in real time.
+        clear: Whether what the terminal drew is erased when it closes. This applies to a
+            region (``height``) or a terminal that stays on the main screen
+            (``alternate_screen=False``); the alternate screen always gives your shell back
+            untouched. Live terminals only.
+        alternate_screen: Whether a full-window live terminal draws on the alternate screen, so
+            your shell's history comes back untouched. ``False`` draws on the main screen.
+            A terminal with a ``height`` always draws in a region below the cursor.
         title: Window title; ``None`` leaves the existing title untouched.
-        keyboard: ``'basic'`` for ordinary key presses, ``'disambiguated'`` to tell keys such
-            as ``escape`` and ``alt+key`` apart, and ``'release_events'`` to also receive key
-            repeats and releases (``context.keyboard.kind``). The last two need a terminal with the
-            enhanced keyboard protocol, such as kitty, and fall back to ``'basic'`` elsewhere.
-        mouse: ``'buttons'`` to receive clicks and drags, ``'motion'`` to receive all
-            movement. Live terminals only.
-        interrupt: What ``Ctrl-C`` does on a live terminal: ``'stop'`` ends the loop,
-            ``'event'`` delivers it as a key press for you to handle.
-        should_capture_output: Whether text printed during a live session is held back from
-            the screen and printed when the terminal closes. This works on macOS and Linux;
-            elsewhere a ``RuntimeWarning`` says it could not be done.
-        should_use_alternate_screen: Whether a full-window live terminal draws on the
-            alternate screen, so your shell's history comes back untouched.
+        mouse: ``True`` to receive clicks and drags, ``'motion'`` to receive all movement as
+            well. Live terminals only.
+        keyboard: ``True`` for ordinary key presses, ``'disambiguated'`` to tell keys such
+            as ``escape`` and ``alt+key`` apart, ``'release_events'`` to also receive key
+            repeats and releases (``context.keyboard.kind``), and ``False`` to ignore keys.
+            The two named modes need a terminal with the enhanced keyboard protocol, such as
+            kitty, and fall back to ``True`` elsewhere. Live terminals only.
+        paste: Whether pasted text arrives as one paste event instead of as key presses.
+        focus: Whether the terminal reports the window gaining and losing focus.
+        interrupt: Whether ``Ctrl-C`` ends the loop on a live terminal. ``False`` delivers it
+            as a key press for you to handle.
+        capture: Whether text printed during a live session is held back from the screen and
+            printed when the terminal closes. This works on macOS and Linux; elsewhere a
+            ``RuntimeWarning`` says it could not be done.
         state: A dataclass instance the terminal keeps and validates. Hooks read and write
             it as ``context.state``.
 
@@ -2033,7 +1962,7 @@ def open(
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=16, height=3) as terminal:
+        with xnano.iter(offscreen=True, width=16, height=3) as terminal:
             assert terminal.size.width == 16
             assert xnano.active() is terminal
         ```
@@ -2041,8 +1970,8 @@ def open(
     global _live_terminal_open
     if canvas is not None and not isinstance(canvas, Canvas):
         raise TypeError(
-            f'The first positional argument to open() must be a Canvas (from xnano.new()), '
-            f'not {type(canvas).__name__}. Pass keyword arguments such as open(width=..., height=...).'
+            f'The first positional argument to iter() must be a Canvas (from xnano.new()), '
+            f'not {type(canvas).__name__}. Pass keyword arguments such as iter(width=..., height=...).'
         )
     if fps <= 0:
         raise ValueError(
@@ -2067,17 +1996,15 @@ def open(
     interval_milliseconds = max(1, int(round(1000.0 / fps)))
     if offscreen:
         if (
-            inline_height is not None
-            or mouse != 'off'
-            or keyboard != 'basic'
-            or should_clear_on_close is not None
+            not clear
+            or not alternate_screen
+            or mouse is not False
+            or keyboard is not True
         ):
             raise ValueError(
-                'inline_height, mouse, keyboard and should_clear_on_close only apply to a live '
-                'terminal, but offscreen=True was given. Remove them, or remove '
-                'offscreen=True.'
+                'clear, alternate_screen, mouse and keyboard only apply to a live terminal, '
+                'but offscreen=True was given. Remove them, or remove offscreen=True.'
             )
-        kind = 'manual' if clock is None else clock
         columns = 80 if width is None else width
         rows = 24 if height is None else height
 
@@ -2086,7 +2013,7 @@ def open(
                 width=columns,
                 height=rows,
                 frame_interval_milliseconds=interval_milliseconds,
-                clock=_core.Clock.monotonic() if kind == 'real' else None,
+                clock=_core.Clock.monotonic() if realtime else None,
             )
             if title is not None:
                 runtime.title = title
@@ -2096,7 +2023,7 @@ def open(
             create_offscreen,
             fps=fps,
             is_live=False,
-            is_autonomous=kind == 'real',
+            is_autonomous=realtime,
             state=cast('StateT', state),
         )
         if canvas is not None:
@@ -2107,41 +2034,36 @@ def open(
                 raise
         return terminal
 
-    if clock == 'manual':
-        raise ValueError(
-            'A live terminal runs on real time, so clock="manual" does not apply. Use '
-            'offscreen=True for a clock you move yourself.'
-        )
     if width is not None and height is None:
         raise ValueError(
             'A live terminal with a width needs a height too, because it draws in a region '
             'of that size. Add height=..., or remove width.'
         )
-    if height is not None and inline_height is not None:
-        raise ValueError(
-            'height and inline_height both set the number of rows to draw in. Keep height '
-            'for a region that is erased when the terminal closes, or inline_height for one '
-            'that stays.'
-        )
-    region_height = height if height is not None else inline_height
+    region_height = height
+    uses_alternate_screen = alternate_screen and region_height is None
     region_width = width
-    clears = (
-        should_clear_on_close if should_clear_on_close is not None else height is not None
-    )
+    mouse_mode = 'buttons' if mouse is True else 'off' if mouse is False else mouse
+    keyboard_mode = 'basic' if isinstance(keyboard, bool) else keyboard
     with _live_terminal_lock:
         if _live_terminal_open:
             raise TerminalAlreadyOpenError(
                 'A live terminal is already open, and a program has only one screen. Close '
-                'it first, or draw into xnano.open(offscreen=True) and show that instead.'
+                'it first, or draw into xnano.iter(offscreen=True) and show that instead.'
             )
         _live_terminal_open = True
 
     def create_live() -> _core.Runtime:
         options = _core.TerminalOptions(
-            input=_core.InputOptions(mouse=mouse, interrupt=interrupt, keyboard=keyboard),
-            alternate_screen=should_use_alternate_screen and region_height is None,
-            should_capture_output=should_capture_output,
-            should_clear_on_close=clears,
+            input=_core.InputOptions(
+                mouse=mouse_mode,
+                bracketed_paste=paste,
+                focus_reporting=focus,
+                interrupt='stop' if interrupt else 'event',
+                keyboard=keyboard_mode,
+            ),
+            alternate_screen=uses_alternate_screen,
+            should_capture_output=capture,
+            should_clear_on_close=clear and not uses_alternate_screen,
         )
         runtime = _core.Runtime.live(
             frame_interval_milliseconds=interval_milliseconds,
@@ -2160,7 +2082,8 @@ def open(
             is_live=True,
             is_autonomous=True,
             state=cast('StateT', state),
-            should_capture_output=should_capture_output,
+            should_capture_output=capture,
+            is_keyboard_enabled=keyboard is not False,
         )
     except BaseException:
         with _live_terminal_lock:
@@ -2194,7 +2117,7 @@ def active(*, required: bool = True) -> Terminal | None:
     terminal = _active_terminal.get()
     if terminal is None and required:
         raise TerminalClosedError(
-            'No terminal is open. Open one with "with xnano.open() as terminal:" and call '
+            'No terminal is open. Open one with "with xnano.iter() as terminal:" and call '
             'this inside the block.'
         )
     return terminal

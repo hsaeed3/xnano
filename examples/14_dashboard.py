@@ -35,7 +35,7 @@ def wave(elapsed_seconds: float, phase: float) -> list[tuple[float, float]]:
 
 def main() -> None:
     """Draw the dashboard and keep its numbers moving."""
-    with xnano.open(width=WIDTH, height=18) as terminal:
+    with xnano.iter(width=WIDTH, height=18) as terminal:
         chart = Chart(
             [
                 ChartDataset(name='cpu', data=wave(0, 0), style=Style('green')),
@@ -63,7 +63,7 @@ def main() -> None:
 
         @terminal.every(0.2)
         def refresh(context: Context) -> None:
-            elapsed = context.clock.elapsed_seconds
+            elapsed = context.time.elapsed
             chart.datasets = [
                 ChartDataset(name='cpu', data=wave(elapsed, 0), style=Style('green')),
                 ChartDataset(name='gpu', data=wave(elapsed, 2), style=Style('magenta')),

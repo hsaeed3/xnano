@@ -47,6 +47,7 @@ nav = [
             {"xnano.state" = "api-reference/xnano/state.md"},
             {"xnano.styles" = "api-reference/xnano/styles.md"},
             {"xnano.terminal" = "api-reference/xnano/terminal.md"},
+            {"xnano.time" = "api-reference/xnano/time.md"},
             {"xnano.types" = "api-reference/xnano/types.md"},
             {"xnano.widgets" = "api-reference/xnano/widgets.md"},
         ]},

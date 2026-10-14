@@ -17,7 +17,7 @@ import pytest
 import xnano as main
 import xnano.terminal as terminal_module
 from xnano import active
-from xnano import open as open_terminal
+from xnano import iter as iter_terminal
 from xnano.context import Context, Update
 from xnano.errors import (
     TerminalAlreadyOpenError,
@@ -42,7 +42,7 @@ from xnano_core import (
 
 @pytest.fixture
 def terminal():
-    with open_terminal(offscreen=True, width=20, height=6, fps=10) as opened:
+    with iter_terminal(offscreen=True, width=20, height=6, fps=10) as opened:
         yield opened
 
 
@@ -53,25 +53,23 @@ def dispatch(terminal: Terminal, event: Event) -> None:
 
 class TestOpening:
     def test_an_offscreen_terminal_has_a_size_and_a_backend(self):
-        with open_terminal(offscreen=True) as default:
+        with iter_terminal(offscreen=True) as default:
             assert (default.width, default.height) == (80, 24)
             assert default.backend == 'offscreen'
             assert not default.is_live
-        with open_terminal(offscreen=True, width=7, height=3) as small:
+        with iter_terminal(offscreen=True, width=7, height=3) as small:
             assert small.size.width == 7 and small.size.height == 3
             assert 'width=7' in repr(small)
 
     def test_arguments_that_do_not_apply_are_explained(self):
         with pytest.raises(ValueError, match='only apply to a live terminal'):
-            open_terminal(offscreen=True, mouse='buttons')
+            iter_terminal(offscreen=True, mouse=True)
         with pytest.raises(ValueError, match='needs a height too'):
-            open_terminal(width=10)
-        with pytest.raises(ValueError, match='both set the number of rows'):
-            open_terminal(height=3, inline_height=3)
-        with pytest.raises(ValueError, match='real time'):
-            open_terminal(clock='manual')
+            iter_terminal(width=10)
+        with pytest.raises(ValueError, match='only apply to a live terminal'):
+            iter_terminal(offscreen=True, alternate_screen=False)
         with pytest.raises(ValueError, match='above zero'):
-            open_terminal(offscreen=True, fps=0)
+            iter_terminal(offscreen=True, fps=0)
 
     @pytest.mark.skipif(
         sys.platform == 'win32', reason='a Windows runner has a console to draw on'
@@ -80,27 +78,27 @@ class TestOpening:
         # The test run has no terminal to draw on.
         for _ in range(2):
             with pytest.raises(RuntimeError, match='could not be opened'):
-                open_terminal(height=2)
+                iter_terminal(height=2)
             assert terminal_module._live_terminal_open is False
 
     def test_a_second_live_terminal_is_refused(self, monkeypatch):
         monkeypatch.setattr(terminal_module, '_live_terminal_open', True)
         with pytest.raises(TerminalAlreadyOpenError, match='only one screen'):
-            open_terminal()
+            iter_terminal()
 
     def test_the_active_terminal_follows_nesting(self):
         assert active(required=False) is None
         with pytest.raises(TerminalClosedError, match='No terminal is open'):
             active()
-        with open_terminal(offscreen=True) as outer:
+        with iter_terminal(offscreen=True) as outer:
             assert active() is outer
-            with open_terminal(offscreen=True) as inner:
+            with iter_terminal(offscreen=True) as inner:
                 assert active() is inner
             assert active() is outer
         assert active(required=False) is None
 
     def test_a_closed_terminal_explains_itself(self):
-        terminal = open_terminal(offscreen=True, width=10, height=2)
+        terminal = iter_terminal(offscreen=True, width=10, height=2)
         terminal.close()
         terminal.close()
         assert terminal.is_closed and 'closed' in repr(terminal)
@@ -137,9 +135,9 @@ class TestFrames:
         assert len(list(terminal.loop.frames(duration_seconds=0.5))) == 5
 
     def test_the_rate_does_not_drift(self):
-        with open_terminal(offscreen=True, width=4, height=1, fps=60) as sixty:
+        with iter_terminal(offscreen=True, width=4, height=1, fps=60) as sixty:
             list(sixty.loop.frames(count=60))
-            assert sixty.clock.elapsed_seconds == pytest.approx(1.0, abs=0.001)
+            assert sixty.time.elapsed == pytest.approx(1.0, abs=0.001)
 
     def test_stopping_ends_the_iteration(self, terminal):
         seen = 0
@@ -157,7 +155,7 @@ class TestFrames:
 
     def test_advance_moves_the_clock_and_draws(self, terminal):
         terminal.loop.advance(0.25)
-        assert terminal.clock.elapsed_seconds == 0.25
+        assert terminal.time.elapsed == 0.25
 
     def test_run_would_wait_forever_on_a_manual_clock(self, terminal):
         with pytest.raises(TerminalError, match='wait forever'):
@@ -557,11 +555,11 @@ class TestHooks:
 
         @terminal.every(0.1)
         def tick(context: Context) -> None:
-            ticks.append(round(context.clock.elapsed_seconds, 2))
+            ticks.append(round(context.time.elapsed, 2))
 
         @terminal.after(0.25)
         def later(context: Context) -> None:
-            once.append(context.clock.elapsed_seconds)
+            once.append(context.time.elapsed)
             context.hook.remove()
 
         terminal.loop.advance(0.5)
@@ -673,7 +671,7 @@ class TestHooks:
 
     def test_closing_cancels_hooks(self):
         heard: list[str] = []
-        terminal = open_terminal(offscreen=True, width=5, height=1)
+        terminal = iter_terminal(offscreen=True, width=5, height=1)
 
         @terminal.hook
         def remember(context: Context) -> None:
@@ -695,11 +693,11 @@ class TestTime:
 
         @terminal.every(0.1)
         def tick(context: Context) -> None:
-            ticks.append(round(context.clock.elapsed_seconds, 2))
+            ticks.append(round(context.time.elapsed, 2))
 
         @terminal.after(0.25)
         def later(context: Context) -> None:
-            once.append(context.clock.elapsed_seconds)
+            once.append(context.time.elapsed)
             context.hook.remove()
 
         terminal.loop.on_frame(lambda frame: seen.append(frame.index))
@@ -785,8 +783,8 @@ def wait_for(condition, timeout=5.0):
 
 @pytest.fixture
 def autonomous():
-    with open_terminal(
-        offscreen=True, clock='real', width=20, height=4, fps=60
+    with iter_terminal(
+        offscreen=True, realtime=True, width=20, height=4, fps=60
     ) as opened:
         yield opened
 
@@ -897,8 +895,8 @@ class TestAutonomous:
     def test_frames_paces_the_callers_own_code(self):
         import time
 
-        with open_terminal(
-            offscreen=True, clock='real', width=8, height=1, fps=20
+        with iter_terminal(
+            offscreen=True, realtime=True, width=8, height=1, fps=20
         ) as paced:
             start = time.perf_counter()
             frames = list(paced.loop.frames(count=4))
@@ -921,13 +919,13 @@ class TestAutonomous:
 
     def test_size_and_clock_are_readable_from_any_thread(self, autonomous):
         assert (autonomous.width, autonomous.height) == (20, 4)
-        first = autonomous.clock.elapsed_seconds
-        assert wait_for(lambda: autonomous.clock.elapsed_seconds > first)
+        first = autonomous.time.elapsed
+        assert wait_for(lambda: autonomous.time.elapsed > first)
         autonomous._host.post(lambda: autonomous._runtime.resize(width=30, height=5))
         assert wait_for(lambda: autonomous.width == 30)
 
     def test_a_failing_callback_stops_the_terminal_and_is_reported(self):
-        terminal = open_terminal(offscreen=True, clock='real', width=8, height=1)
+        terminal = iter_terminal(offscreen=True, realtime=True, width=8, height=1)
 
         @terminal.hook
         def explode(context: Context) -> None:
@@ -948,8 +946,8 @@ class TestAutonomous:
 
     def test_an_error_in_the_with_block_is_not_hidden_by_a_callback_failure(self):
         with pytest.raises(KeyError):
-            with open_terminal(
-                offscreen=True, clock='real', width=8, height=1
+            with iter_terminal(
+                offscreen=True, realtime=True, width=8, height=1
             ) as terminal:
 
                 @terminal.hook
@@ -964,7 +962,7 @@ class TestAutonomous:
                 raise KeyError('mine')
 
     def test_closing_stops_the_loop(self):
-        terminal = open_terminal(offscreen=True, clock='real', width=8, height=1)
+        terminal = iter_terminal(offscreen=True, realtime=True, width=8, height=1)
         thread = terminal._host._thread
         terminal.close()
         assert not thread.is_alive()
@@ -972,7 +970,7 @@ class TestAutonomous:
 
 
 def test_terminal_title_can_be_set_changed_and_cleared_offscreen():
-    with open_terminal(offscreen=True, title='Initial') as terminal:
+    with iter_terminal(offscreen=True, title='Initial') as terminal:
         assert terminal.title == 'Initial'
         terminal.title = 'Changed'
         assert terminal.title == 'Changed'
@@ -982,7 +980,7 @@ def test_terminal_title_can_be_set_changed_and_cleared_offscreen():
 
 @pytest.mark.parametrize('title', ['bad\nline', 'bad\x1btitle', 'bad\x07title'])
 def test_terminal_title_rejects_control_characters(title):
-    with open_terminal(offscreen=True) as terminal:
+    with iter_terminal(offscreen=True) as terminal:
         with pytest.raises(ValueError, match='control characters'):
             terminal.title = title
         assert terminal.title is None
@@ -1018,7 +1016,7 @@ class TestKeyDecorators:
 
         @terminal.after(0.1)
         def later(context):
-            seen.append(context.clock.elapsed_seconds)
+            seen.append(context.time.elapsed)
 
         terminal.loop.advance(0.5)
         assert len(seen) == 1
@@ -1061,7 +1059,7 @@ class TestKeyReleaseDecorator:
 
 def test_a_keyboard_mode_needs_a_live_terminal():
     with pytest.raises(ValueError, match='keyboard'):
-        open_terminal(offscreen=True, keyboard='release_events')
+        iter_terminal(offscreen=True, keyboard='release_events')
 
 
 def test_pixels_accept_named_colors(terminal):
@@ -1078,7 +1076,7 @@ class TestRunQuitKeys:
     def run_until_key(self, name, **run_arguments):
         import threading
 
-        with open_terminal(offscreen=True, clock='real', width=8, height=1) as terminal:
+        with iter_terminal(offscreen=True, realtime=True, width=8, height=1) as terminal:
             finished = threading.Event()
 
             def run():
@@ -1112,56 +1110,54 @@ class TestPausingTime:
     def test_pausing_stops_everything_that_follows_the_clock(self):
         import time
 
-        with open_terminal(offscreen=True, clock='real', width=12, height=1) as terminal:
+        with iter_terminal(offscreen=True, realtime=True, width=12, height=1) as terminal:
             ticks = []
 
             @terminal.every(0.05)
             def tick(context):
-                ticks.append(context.clock.elapsed_seconds)
+                ticks.append(context.time.elapsed)
 
             time.sleep(0.3)
             assert ticks
-            terminal.pause()
-            assert terminal.is_paused
+            terminal.time.pause()
+            assert terminal.time.is_paused
             time.sleep(0.1)  # a timer that was already firing may still land
-            frozen = terminal.clock.elapsed_seconds
+            frozen = terminal.time.elapsed
             count = len(ticks)
             time.sleep(0.3)
-            assert terminal.clock.elapsed_seconds == frozen
+            assert terminal.time.elapsed == frozen
             assert len(ticks) == count, 'timers wait while time is stopped'
-            terminal.resume()
-            assert not terminal.is_paused
+            terminal.time.resume()
+            assert not terminal.time.is_paused
             time.sleep(0.3)
             assert len(ticks) > count, 'and carry on after it resumes'
-            assert terminal.clock.elapsed_seconds - frozen < 0.5, (
-                'the pause is not counted'
-            )
+            assert terminal.time.elapsed - frozen < 0.5, 'the pause is not counted'
 
     def test_a_key_can_resume_a_paused_terminal(self):
-        with open_terminal(offscreen=True, width=12, height=1) as terminal:
+        with iter_terminal(offscreen=True, width=12, height=1) as terminal:
 
             @terminal.on_key('space')
             def toggle(context):
-                if terminal.is_paused:
-                    terminal.resume()
+                if terminal.time.is_paused:
+                    terminal.time.resume()
                 else:
-                    terminal.pause()
+                    terminal.time.pause()
 
             dispatch(terminal, Event.key_press('space'))
-            assert terminal.is_paused
+            assert terminal.time.is_paused
             dispatch(terminal, Event.key_press('space'))
-            assert not terminal.is_paused
+            assert not terminal.time.is_paused
 
     def test_a_paused_terminal_still_draws_what_a_hook_changes(self):
         import time
 
-        with open_terminal(offscreen=True, clock='real', width=12, height=1) as terminal:
+        with iter_terminal(offscreen=True, realtime=True, width=12, height=1) as terminal:
 
             @terminal.on_key('x')
             def draw(context):
                 terminal.write('drawn')
 
-            terminal.pause()
+            terminal.time.pause()
             terminal.inject(Event.key_press('x'))
             deadline = time.monotonic() + 3
             while time.monotonic() < deadline:
@@ -1173,7 +1169,7 @@ class TestPausingTime:
 
 class TestPolledInput:
     def test_held_keys_make_a_direction(self):
-        with open_terminal(offscreen=True, width=12, height=1) as terminal:
+        with iter_terminal(offscreen=True, width=12, height=1) as terminal:
             assert terminal.input.direction() == (0, 0)
             dispatch(terminal, Event.key_press('d'))
             dispatch(terminal, Event.key_press('up'))
@@ -1188,7 +1184,7 @@ def test_sprites_can_be_drawn_from_text_and_scrolled():
     from xnano.image import from_art
 
     sprite = from_art(['AB', '.B'], {'A': '#ff0000', 'B': (0, 0, 255)})
-    with open_terminal(offscreen=True, width=4, height=2) as terminal:
+    with iter_terminal(offscreen=True, width=4, height=2) as terminal:
         pixels = terminal.pixels()
         pixels.draw_image(sprite, x=1, y=0)
         assert terminal[1, 0].foreground.to_rgb() == (255, 0, 0)
@@ -1255,7 +1251,7 @@ class TestWaitingForTheUser:
         import threading
         import time
 
-        with open_terminal(offscreen=True, clock='real', width=30, height=3) as terminal:
+        with iter_terminal(offscreen=True, realtime=True, width=30, height=3) as terminal:
             results = []
             thread = threading.Thread(target=lambda: results.append(call(terminal)))
             thread.start()

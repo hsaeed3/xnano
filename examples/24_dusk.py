@@ -21,9 +21,11 @@ ART = pathlib.Path(__file__).parent / 'assets' / 'mountain-dusk.png'
 
 def main() -> None:
     """Show the picture twice: unlocked, filling the window, and locked, as a thumbnail."""
-    with xnano.open(title='dusk') as terminal:
-        terminal.img(ART, x='center', y='center', width='100%', height='100%')
-        terminal.img(ART, x='right', y='bottom', width=34, layer=1)
+    with xnano.iter(title='dusk') as terminal:
+        terminal.write(
+            xnano.Image(ART, x='center', y='center', width='100%', height='100%')
+        )
+        terminal.write(xnano.Image(ART, x='right', y='bottom', width=34, layer=1))
         terminal.write(
             ' resize the window: the art follows, the thumbnail stays 34 cells wide ',
             x='center',

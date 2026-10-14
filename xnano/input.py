@@ -50,7 +50,7 @@ class Input:
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=20, height=3) as terminal:
+        with xnano.iter(offscreen=True, width=20, height=3) as terminal:
             hero = terminal.write('@')
 
             @terminal.loop.on_update(fixed_step_seconds=1 / 30)

@@ -37,7 +37,7 @@ class Loop:
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=8, height=1, fps=10) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1, fps=10) as terminal:
             elapsed = [frame.elapsed_seconds for frame in terminal.loop.frames(count=3)]
         assert elapsed == [0.0, 0.1, 0.2]
         ```
@@ -112,7 +112,7 @@ class Loop:
 
         The iteration ends when ``count`` frames have been yielded, when the clock has run
         for ``duration_seconds``, when the terminal is stopped (``Ctrl-C`` stops a live
-        terminal opened with the default ``interrupt='stop'``), or when it is closed.
+        terminal opened with the default ``interrupt=True``), or when it is closed.
 
         Args:
             count: The most frames to yield.
@@ -122,7 +122,7 @@ class Loop:
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
                 frames = list(terminal.loop.frames(count=2))
             assert [frame.index for frame in frames] == [0, 1]
             ```
@@ -130,15 +130,15 @@ class Loop:
         terminal = self._terminal
         terminal._require_open()
         interval = 1.0 / terminal._fps
-        clock = terminal.clock
-        start = clock.elapsed_seconds
+        terminal_time = terminal.time
+        start = terminal_time.elapsed
         previous = start
         index = 0
         deadline = time.monotonic()
         while terminal.is_running:
             if count is not None and index >= count:
                 return
-            elapsed = clock.elapsed_seconds
+            elapsed = terminal_time.elapsed
             if (
                 duration_seconds is not None
                 and elapsed - start >= duration_seconds - 1e-9
@@ -190,7 +190,7 @@ class Loop:
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
                 seen = []
                 terminal.loop.on_frame(lambda frame: seen.append(frame.index))
                 terminal.loop.advance(0.1)

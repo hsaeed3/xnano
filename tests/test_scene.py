@@ -18,7 +18,7 @@ GREEN = from_art(['GGGG', 'GGGG'], {'G': '#00ff00'})
 
 @pytest.fixture
 def terminal():
-    with xnano.open(offscreen=True, width=8, height=4) as opened:
+    with xnano.iter(offscreen=True, width=8, height=4) as opened:
         yield opened
 
 

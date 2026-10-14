@@ -33,7 +33,7 @@ def run(body: str) -> subprocess.CompletedProcess[str]:
 def test_xnano_imports_and_draws_without_the_optional_packages():
     result = run(
         """
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1) as terminal:
             terminal.write('ok')
             terminal.output.render()
             print(terminal.output.snapshot().lines()[0])
@@ -60,7 +60,7 @@ def test_using_a_module_of_a_missing_package_says_how_to_install_it(statement, e
 def test_the_audio_of_a_terminal_says_how_to_install_it():
     result = run(
         """
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=8, height=1) as terminal:
             terminal.audio
         """
     )
@@ -73,8 +73,8 @@ def test_showing_an_image_file_says_how_to_install_it(tmp_path):
     result = run(
         f"""
         import pathlib
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
-            terminal.img(pathlib.Path({str(tmp_path / 'x.png')!r}))
+        with xnano.iter(offscreen=True, width=8, height=1) as terminal:
+            xnano.Image(pathlib.Path({str(tmp_path / 'x.png')!r}))
         """
     )
     assert result.returncode != 0

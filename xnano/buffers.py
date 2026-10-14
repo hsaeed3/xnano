@@ -7,7 +7,7 @@ A [`Buffer`][xnano.buffers.Buffer] is what a terminal draws; each [`Cell`][xnano
 one symbol with its colors.
 """
 
-from xnano._media import ImageBuffer as ImageBuffer
+from xnano._media import Image as Image
 from xnano_core import (
     Buffer as Buffer,
 )
@@ -22,5 +22,5 @@ __all__ = [
     'Buffer',
     'BufferSize',
     'Cell',
-    'ImageBuffer',
+    'Image',
 ]

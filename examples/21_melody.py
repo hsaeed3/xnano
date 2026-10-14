@@ -27,7 +27,7 @@ class Beats:
 def main() -> None:
     """Show the tempo and the beat, and play the tune on request."""
     beats = Beats()
-    with xnano.open(width=56, height=5) as terminal:
+    with xnano.iter(width=56, height=5) as terminal:
         terminal.tempo = 120
         terminal.write('m: play   up/down: tempo   space: pause   q: quit')
 
@@ -36,7 +36,7 @@ def main() -> None:
         beat_line = terminal.write('', x=3, y=3)
 
         def show() -> None:
-            state = 'paused' if terminal.is_paused else 'playing'
+            state = 'paused' if terminal.time.is_paused else 'playing'
             tempo_line.text = f'{terminal.tempo:>5.0f} beats per minute   {state}'
             dot.text = '●' if beats.count % 2 else '○'
             beat_line.text = f'beat {beats.count}'
@@ -69,10 +69,10 @@ def main() -> None:
 
         @terminal.on_key('space')
         def toggle_time(context: Context) -> None:
-            if terminal.is_paused:
-                terminal.resume()
+            if terminal.time.is_paused:
+                terminal.time.resume()
             else:
-                terminal.pause()
+                terminal.time.pause()
             show()
 
         terminal.run(quit_on='q')

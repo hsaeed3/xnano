@@ -23,7 +23,7 @@ class Brush:
 def main() -> None:
     """Paint wherever the mouse is dragged."""
     brush = Brush()
-    with xnano.open(width=50, height=14, mouse='buttons') as terminal:
+    with xnano.iter(width=50, height=14, mouse=True) as terminal:
         terminal.write('drag to paint, 1-4 colors, c clear, q quit', y=0)
         canvas = terminal.write(' ', y=1, width=50, height=13)
         pixels = canvas.pixels()

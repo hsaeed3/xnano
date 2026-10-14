@@ -1,7 +1,7 @@
 """
 Typed state that expressions can read.
 
-``open(state=...)`` takes a dataclass. Hooks read and write it through ``context.state``, a
+``iter(state=...)`` takes a dataclass. Hooks read and write it through ``context.state``, a
 write is checked against the field's type, and ``terminal.ref`` turns a field into an
 expression, so the gauge follows the number with no code that redraws it. The gauge's
 label flips to the opposite colors where the bar passes under it.
@@ -27,7 +27,7 @@ def volume_of(settings: Settings) -> int:
     return settings.volume
 
 
-with xnano.open(width=40, height=4, state=Settings()) as terminal:
+with xnano.iter(width=40, height=4, state=Settings()) as terminal:
     terminal.write('up/down: volume   m: mute   q: quit')
     volume = terminal.ref(volume_of)
     # The gauge draws its label in the opposite colors wherever the bar passes under it.

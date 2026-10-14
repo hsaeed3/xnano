@@ -39,7 +39,7 @@ KICK = 'C2 rest C2 rest | ' * 8
 SNARE = 'rest C3 rest C3 | ' * 8
 HIHAT = 'C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 | ' * 8
 
-with xnano.open(width=60, height=6) as terminal:
+with xnano.iter(width=60, height=6) as terminal:
     terminal.tempo = 132
     terminal.write('A song written as text', x='center', y=0)
     where = terminal.write('bar 1   beat 1', y=2)
@@ -63,15 +63,15 @@ with xnano.open(width=60, height=6) as terminal:
 
     @terminal.every(beats=1)
     def show_the_beat(context: Context) -> None:
-        beats_played = int(context.clock.elapsed_seconds * terminal.tempo / 60)
+        beats_played = int(context.time.elapsed * terminal.tempo / 60)
         bar, beat = divmod(beats_played % 32, 4)
         where.text = f'bar {bar + 1}   beat {beat + 1}'
 
     @terminal.on_key('space')
     def stop_or_start_time(context: Context) -> None:
-        if terminal.is_paused:
-            terminal.resume()
+        if terminal.time.is_paused:
+            terminal.time.resume()
         else:
-            terminal.pause()
+            terminal.time.pause()
 
     terminal.run(quit_on='q')

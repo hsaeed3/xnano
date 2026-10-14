@@ -43,7 +43,7 @@ def test_make_builds_a_gauge_with_an_effect(benchmark):
 
 
 def test_a_terminal_draws_a_changed_frame(benchmark):
-    terminal = xnano.open(offscreen=True, width=40, height=2, fps=60)
+    terminal = xnano.iter(offscreen=True, width=40, height=2, fps=60)
     texts = itertools.cycle(('left', 'right'))
 
     def draw() -> str:

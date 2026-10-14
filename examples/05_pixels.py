@@ -11,7 +11,7 @@ import math
 import xnano
 from xnano.context import Frame
 
-with xnano.open(width=60, height=12) as terminal:
+with xnano.iter(width=60, height=12) as terminal:
     pixels = terminal.pixels()
 
     @terminal.loop.on_frame

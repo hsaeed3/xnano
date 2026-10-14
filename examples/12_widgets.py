@@ -14,7 +14,7 @@ from xnano.context import Context
 from xnano.expressions import TimeElapsed
 from xnano.widgets import Block, Gauge, Sparkline
 
-with xnano.open(width=50, height=9) as terminal:
+with xnano.iter(width=50, height=9) as terminal:
     gauge = xnano.make(Gauge, label='cpu', width=48, height=1)
     gauge.ratio = (TimeElapsed % 4) / 4
     terminal.write(Block('load', border_type='rounded'), width=50, height=3)
@@ -27,7 +27,7 @@ with xnano.open(width=50, height=9) as terminal:
 
     @terminal.every(0.1)
     def sample(context: Context) -> None:
-        elapsed = context.clock.elapsed_seconds
+        elapsed = context.time.elapsed
         samples.append(round(50 + 50 * math.sin(elapsed * 2)))
         history.values = list(samples)
 

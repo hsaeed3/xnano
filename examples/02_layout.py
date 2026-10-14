@@ -10,7 +10,7 @@ import xnano
 from xnano.expressions import ParentHeight, ParentWidth, Width
 from xnano.widgets import Block
 
-with xnano.open() as terminal:
+with xnano.iter() as terminal:
     terminal.write('top left')
     terminal.write('top right', x=ParentWidth - Width)
     terminal.write('bottom left', y=ParentHeight - 1)

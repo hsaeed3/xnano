@@ -45,7 +45,7 @@ class Pixels:
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=4, height=2) as terminal:
+        with xnano.iter(offscreen=True, width=4, height=2) as terminal:
             pixels = terminal.pixels()
             assert (pixels.width, pixels.height) == (4, 4)
             pixels[0, 0] = '#ff0000'
@@ -107,7 +107,7 @@ class Pixels:
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=2) as terminal:
+            with xnano.iter(offscreen=True, width=8, height=2) as terminal:
                 pixels = terminal.pixels()
                 pixels.shade(lambda column, row: (column * 30, row * 60, 0))
             ```
@@ -171,7 +171,7 @@ class Pixels:
             import xnano
             from xnano.image import TerminalImage
 
-            with xnano.open(offscreen=True, width=4, height=2) as terminal:
+            with xnano.iter(offscreen=True, width=4, height=2) as terminal:
                 pixels = terminal.pixels()
                 map_picture = TerminalImage.from_rgba(8, 8, bytes([0, 128, 0, 255]) * 64)
                 pixels.draw_image(map_picture, x=-2, y=-2)

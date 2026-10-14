@@ -173,7 +173,7 @@ class ContextualOperation(Operation, Generic[StateT]):
         def banner(context: xnano.context.Context) -> str:
             return f'width={context.width}'
 
-        with xnano.open(offscreen=True, width=16, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=16, height=1) as terminal:
             placed = terminal.write(banner)
             assert placed.text == 'width=16'
         ```
@@ -442,9 +442,9 @@ def hook(
 
         @xnano.hook(on='frame')
         def clock_readout(context: xnano.context.Context) -> str:
-            return f'{context.time:.1f}s'
+            return f'{context.time.elapsed:.1f}s'
 
-        with xnano.open(offscreen=True, width=12, height=1) as terminal:
+        with xnano.iter(offscreen=True, width=12, height=1) as terminal:
             readout = terminal.write(clock_readout)
             terminal.loop.advance(0.5)
             assert readout.text == '0.5s'
@@ -490,8 +490,8 @@ def shade(
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=8, height=2) as terminal:
-            terminal | xnano.shade(lambda column, row: (column * 20, row * 40, 120))
+        with xnano.iter(offscreen=True, width=8, height=2) as terminal:
+            terminal | xnano.operations.shade(lambda column, row: (column * 20, row * 40, 120))
             assert terminal.root[0, 0].symbol == '▀'
         ```
     """
@@ -506,7 +506,7 @@ def draggable(axis: Literal['x', 'y'] = 'x') -> ContextualOperation[object]:
     Create an operation that lets the pointer drag a placement along ``axis``.
 
     Give the placement a range on that axis first (such as ``x=(0, 39)``) and pipe
-    ``| xnano.draggable()`` onto the placement or canvas. When the placement lives inside a
+    ``| xnano.operations.draggable()`` onto the placement or canvas. When the placement lives inside a
     parent placement (added with ``parent.write(...)``), dragging moves it in the parent's
     coordinate space.
 
@@ -520,8 +520,8 @@ def draggable(axis: Literal['x', 'y'] = 'x') -> ContextualOperation[object]:
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=20, height=3) as terminal:
-            thumb = terminal.write('█', x=(0, 10), y=1) | xnano.draggable()
+        with xnano.iter(offscreen=True, width=20, height=3) as terminal:
+            thumb = terminal.write('█', x=(0, 10), y=1) | xnano.operations.draggable()
             assert thumb.x == 0
         ```
     """

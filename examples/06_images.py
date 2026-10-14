@@ -83,7 +83,7 @@ def main() -> None:
     path = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_IMAGE
     left, top = DEFAULT_START if len(sys.argv) == 1 else (0, 0)
     picture = TerminalImage.open(path)
-    with xnano.open(width=64, height=21) as terminal:
+    with xnano.iter(width=64, height=21) as terminal:
         view = terminal.write(' ', width='100%', height=20)
         viewer = Viewer(view.scene(picture.width, picture.height), picture, left, top)
 
