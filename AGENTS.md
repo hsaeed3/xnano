@@ -33,6 +33,7 @@ Root-level commands (run from the repository root, most fan out to every package
 | `make docs-build` / `make docs-serve` | Builds the static site with `zensical` / serves it locally. |
 | `make version-check` | Checks that the Cargo and generated Python/documentation versions are in sync. |
 | `make set-version PACKAGE=<name> VERSION=<x.y.z>` | Bumps one package's version across Cargo and the generated files. |
+| `make history` | Rebuilds `HISTORY.md` from the GitHub release notes with `scripts/history.py`; never edit that file by hand. |
 
 Package-level commands (run inside a `packages/<name>` directory) add the following:
 
