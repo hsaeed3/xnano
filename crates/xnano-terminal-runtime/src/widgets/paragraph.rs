@@ -14,7 +14,7 @@ use crate::dynamic::Dynamic;
 use crate::expression::{EvalError, Expr};
 use crate::grid::Grid;
 use crate::style::Style as TextStyle;
-use crate::text::{Line, Span, split_lines};
+use crate::text::{Line, Span, has_wide_glyphs, split_lines, wrap_lines};
 use crate::widgets::block::{BlockSpec, ResolvedBlock, alignment_from_name, resolve_optional};
 use crate::widgets::style::StyleSpec;
 use crate::widgets::{Resolver, Shared, WidgetSpec};
@@ -79,12 +79,32 @@ pub struct ResolvedParagraph {
 }
 
 impl ResolvedParagraph {
-    fn to_widget(&self) -> Paragraph<'static> {
-        let mut paragraph = Paragraph::new(to_text(&self.lines))
+    /// The widget for an area `width` columns wide.
+    ///
+    /// Text with wide glyphs is wrapped here, because the wrapping of the widget itself lets a
+    /// wide glyph overhang the last column of a row and loses it.
+    fn to_widget(&self, width: u16) -> Paragraph<'static> {
+        let inner_width = self.block.as_ref().map_or(width, |block| {
+            block
+                .to_widget()
+                .inner(Rect::new(0, 0, width, u16::MAX))
+                .width
+        });
+        let wraps_itself = self.wrap.is_some() && has_wide_glyphs(&self.lines);
+        let text = if wraps_itself {
+            to_text(&wrap_lines(
+                &self.lines,
+                usize::from(inner_width),
+                self.wrap.is_some_and(|wrap| wrap.trim),
+            ))
+        } else {
+            to_text(&self.lines)
+        };
+        let mut paragraph = Paragraph::new(text)
             .style(self.style)
             .alignment(self.alignment)
             .scroll(self.scroll);
-        if let Some(wrap) = self.wrap {
+        if let (Some(wrap), false) = (self.wrap, wraps_itself) {
             paragraph = paragraph.wrap(wrap);
         }
         if let Some(block) = &self.block {
@@ -95,12 +115,12 @@ impl ResolvedParagraph {
 
     /// How many rows the paragraph takes at `width` columns.
     pub fn line_count(&self, width: u16) -> usize {
-        self.to_widget().line_count(width)
+        self.to_widget(width).line_count(width)
     }
 
     /// The width in columns of the widest row.
     pub fn line_width(&self) -> usize {
-        self.to_widget().line_width()
+        self.to_widget(u16::MAX).line_width()
     }
 }
 
@@ -139,7 +159,9 @@ impl WidgetSpec for ParagraphSpec {
 
     fn draw(resolved: &Self::Resolved, grid: &mut Grid) {
         let area = Rect::new(0, 0, grid.width(), grid.height());
-        resolved.to_widget().render(area, grid.buffer_mut());
+        resolved
+            .to_widget(area.width)
+            .render(area, grid.buffer_mut());
     }
 }
 

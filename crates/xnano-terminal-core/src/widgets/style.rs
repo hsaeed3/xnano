@@ -12,7 +12,7 @@ use crate::widgets::{dynamic_color, dynamic_to_py};
 /// A style whose colors may be plain values or expressions.
 ///
 /// Anything that accepts a ``Style`` in a widget setting accepts a ``DynamicStyle`` too.
-#[pyclass(name = "DynamicStyle", module = "xnano._xnano_core")]
+#[pyclass(name = "DynamicStyle", module = "xnano_core._xnano_core")]
 pub struct PyDynamicStyle {
     pub spec: Mutex<StyleSpec>,
 }

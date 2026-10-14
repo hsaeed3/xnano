@@ -149,6 +149,11 @@ fn encode_half_blocks(existing: &Cell, top: Color, bottom: Color) -> Cell {
     if top == bottom {
         cell.set_symbol(" ");
         cell.bg = top;
+    } else if top == Color::Reset {
+        // Only the bottom pixel is set: draw it as a lower half block, so the empty top half
+        // shows the background instead of the terminal's default foreground color.
+        cell.set_symbol(LOWER_HALF);
+        cell.fg = bottom;
     } else {
         cell.set_symbol(UPPER_HALF);
         cell.fg = top;
@@ -264,7 +269,7 @@ fn blend(source: (u8, u8, u8), alpha: u8, destination: (u8, u8, u8)) -> (u8, u8,
 
 /// Draw a row-major RGBA8 image with its top-left pixel at `(x, y)`.
 #[allow(clippy::too_many_arguments)]
-pub fn blit_rgba(
+pub fn draw_rgba(
     grid: &mut Grid,
     space: PixelSpace,
     data: &[u8],

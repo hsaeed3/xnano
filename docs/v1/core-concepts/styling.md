@@ -56,8 +56,8 @@ weights `50`–`950`.
 
 
 ```python
-from xnano.v1 import render
-from xnano.v1.components.text import Text
+from xnano import render
+from xnano.components.text import Text
 
 render(
     Text(" violet ", background="violet-500", foreground="white"),
@@ -92,7 +92,7 @@ Border styles include `"plain"`, `"rounded"`, `"double"`, `"thick"`,
 
 
 ```python
-from xnano.v1 import BaseGrid, Field, render
+from xnano import BaseGrid, Field, render
 
 class Card(BaseGrid):
     label: str = Field(
@@ -125,8 +125,8 @@ utility string.
 
 ??? abstract "API"
 
-    [`Style`](../api/xnano/tailwind.md){data-preview} ·
-    [`ColorLike`](../api/xnano/colors.md){data-preview} ·
-    [`Field`](../api/xnano/fields.md){data-preview}
+    [`Style`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`ColorLike`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Field`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
-[Style]: ../api/xnano/tailwind.md
+[Style]: https://github.com/hsaeed3/xnano/tree/v1

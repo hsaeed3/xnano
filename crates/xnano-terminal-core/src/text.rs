@@ -13,7 +13,7 @@ use crate::style::{PyStyle, style_arg};
 
 #[pyclass(
     name = "TextSpan",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -67,7 +67,13 @@ impl PyTextSpan {
     }
 }
 
-#[pyclass(name = "StyledText", module = "xnano._xnano_core", frozen, eq, hash)]
+#[pyclass(
+    name = "StyledText",
+    module = "xnano_core._xnano_core",
+    frozen,
+    eq,
+    hash
+)]
 #[derive(PartialEq, Eq, Hash)]
 pub struct PyStyledText {
     pub spans: Vec<Span>,
@@ -177,7 +183,7 @@ impl PyStyledText {
 #[pyclass(
     name = "TextLine",
     skip_from_py_object,
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash
@@ -217,7 +223,13 @@ impl PyTextLine {
     }
 }
 
-#[pyclass(name = "TextLayout", module = "xnano._xnano_core", frozen, eq, hash)]
+#[pyclass(
+    name = "TextLayout",
+    module = "xnano_core._xnano_core",
+    frozen,
+    eq,
+    hash
+)]
 #[derive(PartialEq, Eq, Hash)]
 pub struct PyTextLayout {
     inner: TextLayout,
@@ -284,7 +296,7 @@ fn display_width(text: &str) -> usize {
     text::display_width(text)
 }
 
-#[pyclass(name = "TextEditor", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "TextEditor", module = "xnano_core._xnano_core", frozen)]
 pub struct PyTextEditor {
     pub inner: Arc<Mutex<TextEditor>>,
 }

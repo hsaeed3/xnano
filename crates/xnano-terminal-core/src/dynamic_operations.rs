@@ -8,7 +8,7 @@
 use pyo3::prelude::*;
 use xnano_terminal_runtime::dynamic::Dynamic;
 use xnano_terminal_runtime::expression::{Environment, EvalError, PropertyId, Scalar};
-use xnano_terminal_runtime::grid::{BlitMode, WriteMode};
+use xnano_terminal_runtime::grid::{PasteMode, WriteMode};
 use xnano_terminal_runtime::operation::{BorderKind, DynamicOperation, Operation, OperationError};
 use xnano_terminal_runtime::pixel::{PixelEncoding, RasterMode};
 use xnano_terminal_runtime::text::{Line, Span, split_lines};
@@ -74,10 +74,10 @@ pub fn parse_write_mode(name: &str) -> Result<WriteMode, OperationError> {
         .ok_or_else(|| unknown("write mode", name, "\"replace\" or \"preserve_background\""))
 }
 
-pub fn parse_blit_mode(name: &str) -> Result<BlitMode, OperationError> {
+pub fn parse_paste_mode(name: &str) -> Result<PasteMode, OperationError> {
     match name {
-        "replace" => Ok(BlitMode::Replace),
-        "preserve_background" => Ok(BlitMode::PreserveBackground),
+        "replace" => Ok(PasteMode::Replace),
+        "preserve_background" => Ok(PasteMode::PreserveBackground),
         other => Err(unknown(
             "blend mode",
             other,

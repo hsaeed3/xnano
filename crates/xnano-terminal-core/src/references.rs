@@ -14,7 +14,7 @@ use crate::state::{PyStateChange, PyStatePatch, PyStateSchema, PyStateStore};
 /// A branch of a state store: read it, write it, or bind settings to it.
 #[pyclass(
     name = "StateReference",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,

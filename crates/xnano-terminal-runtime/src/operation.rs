@@ -15,9 +15,9 @@ use crate::drawing::{Drawing, DrawingAnimation};
 use crate::effects::EffectNode;
 use crate::expression::{Environment, EvalError, Expr, Scalar};
 use crate::geometry::{Point, Rectangle, Size};
-use crate::grid::{BlitMode, Bounds, Grid, WriteMode};
+use crate::grid::{Bounds, Grid, PasteMode, WriteMode};
 use crate::layout::LayoutSpec;
-use crate::pixel::{Pixel, PixelEncoding, PixelSpace, RasterMode, blit_rgba, write_pixels};
+use crate::pixel::{Pixel, PixelEncoding, PixelSpace, RasterMode, draw_rgba, write_pixels};
 use crate::style::Style;
 use crate::text::{Line, Span, TextEditor, display_width};
 use crate::widgets::Resolver;
@@ -131,11 +131,11 @@ pub enum Operation {
         kind: BorderKind,
         style: Style,
     },
-    Blit {
+    Paste {
         source: Arc<Grid>,
         x: i32,
         y: i32,
-        mode: BlitMode,
+        mode: PasteMode,
     },
     Pixels {
         pixels: Arc<Vec<Pixel>>,
@@ -361,9 +361,29 @@ impl Operation {
                 style,
                 mode,
             } => {
-                self.edit(target, |grid, bounds| {
-                    grid.write_lines(bounds, lines, *x, *y, *style, *mode);
+                // Writing what is already there changes nothing, so it must not make the
+                // terminal draw a frame: a status line rewritten every update stays free.
+                let mut state = target.core.lock();
+                let bounds = region_bounds(&state.grid, target.region);
+                // Only a small write is compared: for a large one the comparison costs more
+                // than a frame it could save.
+                let rows = rows_written(bounds, lines.len(), *y).filter(|rows| {
+                    usize::from(rows.width()) * usize::from(rows.height()) <= MAXIMUM_COMPARED_CELLS
                 });
+                let before = rows.map(|rows| state.grid.region_buffer(rows));
+                state.grid.write_lines(bounds, lines, *x, *y, *style, *mode);
+                let is_unchanged = rows
+                    .zip(before)
+                    .is_some_and(|(rows, before)| state.grid.region_buffer(rows) == before);
+                if !is_unchanged {
+                    let area = Rectangle::new(
+                        i32::from(bounds.left),
+                        i32::from(bounds.top),
+                        i32::from(bounds.width()),
+                        i32::from(bounds.height()),
+                    );
+                    state.touch(Some(area));
+                }
                 Ok(())
             }
             Self::Fill(cell) => {
@@ -398,9 +418,9 @@ impl Operation {
                 });
                 Ok(())
             }
-            Self::Blit { source, x, y, mode } => {
+            Self::Paste { source, x, y, mode } => {
                 self.edit(target, |grid, bounds| {
-                    grid.blit(bounds, source, *x, *y, *mode);
+                    grid.paste(bounds, source, *x, *y, *mode);
                 });
                 Ok(())
             }
@@ -446,7 +466,7 @@ impl Operation {
                         bounds,
                         encoding: *encoding,
                     };
-                    let _ = blit_rgba(grid, space, rgba, *width, *height, *x, *y, *mode, true);
+                    let _ = draw_rgba(grid, space, rgba, *width, *height, *x, *y, *mode, true);
                 });
                 Ok(())
             }
@@ -588,9 +608,34 @@ impl Operation {
                         }
                         other => return Err(type_error("Size", "Size", &other)),
                     },
+                    P::Layer => {
+                        let layer = scalar_to_integer(&value, "Layer")?;
+                        {
+                            let mut state = core.lock();
+                            state.layer = layer;
+                            state.touch(None);
+                        }
+                        if let Some(parent) = core.parent() {
+                            parent.lock().touch(None);
+                        }
+                    }
+                    P::IsVisible => match value {
+                        Scalar::Bool(is_visible) => {
+                            {
+                                let mut state = core.lock();
+                                state.is_visible = is_visible;
+                                state.touch(None);
+                            }
+                            if let Some(parent) = core.parent() {
+                                parent.lock().touch(None);
+                            }
+                        }
+                        other => return Err(type_error("IsVisible", "bool", &other)),
+                    },
                     other => {
                         return Err(OperationError::Invalid(format!(
-                            "{} is read-only; only X, Y, Width, Height, Position and Size can be assigned",
+                            "{} is read-only; only X, Y, Width, Height, Position, Size, Layer and \
+                             IsVisible can be assigned",
                             other.name()
                         )));
                     }
@@ -612,6 +657,22 @@ impl Operation {
         );
         state.touch(Some(area));
     }
+}
+
+/// The most cells of a write that are compared with what was there before.
+const MAXIMUM_COMPARED_CELLS: usize = 4096;
+
+/// The rows of `bounds` that a write of `lines` lines starting at row `y` can reach.
+fn rows_written(bounds: Bounds, lines: usize, y: i32) -> Option<Bounds> {
+    let height = i32::from(bounds.height());
+    let first = y.max(0);
+    let last = y.saturating_add(lines as i32).min(height);
+    (first < last).then(|| Bounds {
+        left: bounds.left,
+        right: bounds.right,
+        top: bounds.top + first as u16,
+        bottom: bounds.top + last as u16,
+    })
 }
 
 fn target_edit(target: &Target) -> &Target {

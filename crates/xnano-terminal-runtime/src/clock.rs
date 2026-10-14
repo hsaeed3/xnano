@@ -102,6 +102,12 @@ impl Clock {
         self.elapsed_locked(&lock(&self.state))
     }
 
+    /// Time that keeps passing while the clock is paused. Frame pacing uses it, so a paused
+    /// terminal still draws what changed.
+    pub fn real_seconds(&self) -> f64 {
+        self.raw_seconds(&lock(&self.state))
+    }
+
     pub fn delta_seconds(&self) -> f64 {
         lock(&self.state).delta
     }

@@ -14,7 +14,7 @@ fn error(error: &format::FormatError) -> PyErr {
 #[pyclass(
     name = "DecodeLimits",
     skip_from_py_object,
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 #[derive(Clone, Copy)]
@@ -58,7 +58,7 @@ impl PyDecodeLimits {
     }
 }
 
-#[pyclass(name = "CellGridInfo", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "CellGridInfo", module = "xnano_core._xnano_core", frozen)]
 pub struct PyCellGridInfo {
     inner: format::GridInfo,
 }
@@ -91,7 +91,7 @@ impl PyCellGridInfo {
     }
 }
 
-#[pyclass(name = "CellAnimationInfo", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "CellAnimationInfo", module = "xnano_core._xnano_core", frozen)]
 pub struct PyCellAnimationInfo {
     inner: format::AnimationInfo,
 }

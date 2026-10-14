@@ -4,7 +4,9 @@
 //! `ListDirection`. This module also holds the pieces the table and tabs widgets share:
 //! [`TextSource`], [`Selection`], [`Feedback`] and the style key helpers.
 
+use std::collections::hash_map::DefaultHasher;
 use std::fmt;
+use std::hash::Hasher;
 use std::sync::{Arc, Mutex};
 
 use ratatui::widgets::{
@@ -21,7 +23,7 @@ use crate::grid::Grid;
 use crate::text::{Line, Span, split_lines};
 use crate::widgets::block::{BlockSpec, ResolvedBlock, resolve_optional};
 use crate::widgets::style::StyleSpec;
-use crate::widgets::{Resolver, Shared, WidgetSpec};
+use crate::widgets::{Resolver, Shared, WidgetSpec, hash_debug};
 
 /// A selected position, or none.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -44,6 +46,11 @@ pub enum TextSource {
 }
 
 impl TextSource {
+    /// Whether the text is fixed rather than following an expression.
+    pub fn is_fixed(&self) -> bool {
+        matches!(self, Self::Fixed(_))
+    }
+
     /// Plain text with no styling.
     pub fn plain(text: &str) -> Self {
         Self::Fixed(split_lines(&[Span::new(text, Style::default())]))
@@ -235,7 +242,11 @@ impl Default for ListSpec {
 
 #[derive(Debug)]
 pub struct ResolvedList {
+    /// Only the items that can be shown, starting at index `first` of the whole list.
     items: Vec<(Vec<Line>, Style)>,
+    first: usize,
+    /// The offset the paint starts scrolling from (a position in the whole list).
+    start: usize,
     selected: Option<usize>,
     offset: usize,
     offset_epoch: u64,
@@ -253,9 +264,76 @@ pub struct ResolvedList {
 impl WidgetSpec for ListSpec {
     type Resolved = ResolvedList;
 
+    fn hash_bindings(
+        &self,
+        resolver: &mut Resolver<'_>,
+        hasher: &mut DefaultHasher,
+    ) -> Option<Result<(), EvalError>> {
+        Some((|| {
+            for item in &self.items {
+                if !item.content.is_fixed() {
+                    hash_debug(&item.content.resolve(resolver)?, hasher);
+                }
+                if !item.style.is_static() {
+                    hash_debug(&item.style.resolve(resolver)?, hasher);
+                }
+            }
+            resolver.hash_bound(&self.selected, hasher)?;
+            resolver.hash_bound(&self.offset, hasher)?;
+            resolver.hash_bound(&self.highlight_symbol, hasher)?;
+            resolver.hash_bound(&self.repeat_highlight_symbol, hasher)?;
+            resolver.hash_bound(&self.highlight_spacing, hasher)?;
+            resolver.hash_bound(&self.direction, hasher)?;
+            resolver.hash_bound(&self.scroll_padding, hasher)?;
+            for style in [&self.style, &self.highlight_style] {
+                if !style.is_static() {
+                    hash_debug(&style.resolve(resolver)?, hasher);
+                }
+            }
+            if let Some(block) = &self.block {
+                if block.read().is_static() {
+                    // Its own settings change its version, not this widget's.
+                    hasher.write_u64(block.version());
+                } else {
+                    hash_debug(&resolve_optional(&self.block, resolver)?, hasher);
+                }
+            }
+            Ok(())
+        })())
+    }
+
+    fn depends_on_size(&self) -> bool {
+        true
+    }
+
     fn resolve(&self, resolver: &mut Resolver<'_>) -> Result<Self::Resolved, EvalError> {
-        let mut items = Vec::with_capacity(self.items.len());
-        for item in &self.items {
+        let selected = resolver.get(&self.selected)?.0;
+        let offset = resolver.get(&self.offset)?;
+        let scroll_padding = resolver.get(&self.scroll_padding)?;
+        let total = self.items.len();
+        let start = self.feedback.start_offset(offset, self.offset_epoch);
+        // Only the items that can be shown are read: from the earlier of the scroll offset
+        // and the selection (less its padding), to a screenful past the later one. Every
+        // item takes at least one row, so that always covers what ratatui draws.
+        let (first, last) = match resolver.size() {
+            Some((_, height)) if total > 0 => {
+                // The scroll padding keeps items above the selection in view too.
+                let lowest = selected.map_or(start, |position| {
+                    position.saturating_sub(scroll_padding).min(start)
+                });
+                let highest = selected.map_or(start, |position| position.max(start));
+                let first = lowest.min(total - 1);
+                let last = highest
+                    .saturating_add(usize::from(height))
+                    .saturating_add(scroll_padding)
+                    .saturating_add(1)
+                    .min(total);
+                (first, last.max(first + 1))
+            }
+            _ => (0, total),
+        };
+        let mut items = Vec::with_capacity(last - first);
+        for item in &self.items[first..last] {
             items.push((
                 item.content.resolve(resolver)?,
                 item.style.resolve(resolver)?,
@@ -265,8 +343,10 @@ impl WidgetSpec for ListSpec {
         let direction = resolver.get(&self.direction)?;
         Ok(ResolvedList {
             items,
-            selected: resolver.get(&self.selected)?.0,
-            offset: resolver.get(&self.offset)?,
+            first,
+            start,
+            selected,
+            offset,
             offset_epoch: self.offset_epoch,
             style: self.style.resolve(resolver)?,
             highlight_style: self.highlight_style.resolve(resolver)?,
@@ -274,7 +354,7 @@ impl WidgetSpec for ListSpec {
             repeat_highlight_symbol: resolver.get(&self.repeat_highlight_symbol)?,
             highlight_spacing: highlight_spacing_from_name(&spacing)?,
             direction: direction_from_name(&direction)?,
-            scroll_padding: resolver.get(&self.scroll_padding)?,
+            scroll_padding,
             block: resolve_optional(&self.block, resolver)?,
             feedback: self.feedback.clone(),
         })
@@ -301,17 +381,19 @@ impl WidgetSpec for ListSpec {
             inner = block.inner(area);
             list = list.block(block.to_widget());
         }
-        let start = resolved
-            .feedback
-            .start_offset(resolved.offset, resolved.offset_epoch);
+        let first = resolved.first;
         let mut state = ListState::default()
-            .with_offset(start)
-            .with_selected(resolved.selected);
+            .with_offset(resolved.start.saturating_sub(first))
+            .with_selected(
+                resolved
+                    .selected
+                    .map(|position| position.saturating_sub(first)),
+            );
         StatefulWidget::render(list, area, grid.buffer_mut(), &mut state);
-        let offset = state.offset();
+        let offset = state.offset() + first;
         let mut used = 0_usize;
         let mut end = offset;
-        for (lines, _) in resolved.items.iter().skip(offset) {
+        for (lines, _) in resolved.items.iter().skip(offset - first) {
             let height = lines.len().max(1);
             if used + height > usize::from(inner.height) {
                 break;
@@ -331,4 +413,99 @@ impl WidgetSpec for ListSpec {
 /// Plain `Text` for tests and callers that need ratatui text.
 pub fn text_of(lines: &[Line]) -> Text<'static> {
     to_text(lines)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::expression::{Environment, EvalError, PropertyId};
+
+    struct Offline;
+
+    impl Environment for Offline {
+        fn property(&self, id: PropertyId) -> Result<Scalar, EvalError> {
+            Err(EvalError::RuntimeRequired(id.name().to_owned()))
+        }
+    }
+
+    fn spec(count: usize, direction: &str, scroll_padding: usize) -> ListSpec {
+        ListSpec {
+            items: (0..count)
+                .map(|index| ItemSpec {
+                    // Every third item takes two rows.
+                    content: TextSource::plain(&if index % 3 == 0 {
+                        format!("item {index}\nsecond row {index}")
+                    } else {
+                        format!("item {index}")
+                    }),
+                    style: StyleSpec::default(),
+                })
+                .collect(),
+            highlight_symbol: Dynamic::Fixed("> ".to_owned()),
+            direction: Dynamic::Fixed(direction.to_owned()),
+            scroll_padding: Dynamic::Fixed(scroll_padding),
+            ..ListSpec::default()
+        }
+    }
+
+    fn paint(spec: &ListSpec, height: u16, with_size: bool) -> (Grid, (usize, usize)) {
+        let mut resolver = Resolver::new(&Offline);
+        if with_size {
+            resolver = resolver.with_size(20, height);
+        }
+        let resolved = spec.resolve(&mut resolver).expect("the list resolves");
+        let mut grid = Grid::new(20, height);
+        ListSpec::draw(&resolved, &mut grid);
+        let visible = spec.feedback.read().visible.expect("the paint recorded");
+        (grid, visible)
+    }
+
+    /// Showing only the items that fit paints exactly what showing all of them paints,
+    /// however the selection and the scroll offset move.
+    #[test]
+    fn a_windowed_list_paints_like_the_whole_list() {
+        let selections = [
+            Some(0),
+            Some(1),
+            Some(5),
+            Some(6),
+            Some(40),
+            Some(41),
+            Some(7),
+            Some(0),
+            Some(99),
+            Some(500),
+            None,
+            Some(50),
+            Some(49),
+            Some(2),
+        ];
+        for direction in ["top_to_bottom", "bottom_to_top"] {
+            for scroll_padding in [0, 2] {
+                for height in [1_u16, 4, 9] {
+                    for count in [0_usize, 1, 7, 100] {
+                        let windowed = spec(count, direction, scroll_padding);
+                        let whole = spec(count, direction, scroll_padding);
+                        for selected in selections {
+                            let mut windowed_spec = windowed.clone();
+                            windowed_spec.selected = Dynamic::Fixed(Selection(selected));
+                            let mut whole_spec = whole.clone();
+                            whole_spec.selected = Dynamic::Fixed(Selection(selected));
+                            // The feedback handles are shared with the originals, so the
+                            // scroll offset carries over from step to step.
+                            let (expected, expected_visible) = paint(&whole_spec, height, false);
+                            let (actual, actual_visible) = paint(&windowed_spec, height, true);
+                            assert_eq!(
+                                actual.buffer(),
+                                expected.buffer(),
+                                "{direction} padding {scroll_padding} height {height} \
+                                 count {count} selected {selected:?}"
+                            );
+                            assert_eq!(actual_visible, expected_visible);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

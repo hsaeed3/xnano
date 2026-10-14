@@ -9,12 +9,10 @@ import textwrap
 
 import pytest
 
-import xnano._xnano_core as native
+import xnano_core._xnano_core as native
 
 STUB = pathlib.Path(native.__path__[0]) / '__init__.pyi'
-PREAMBLE = (
-    'from xnano._xnano_core import *\nfrom xnano._xnano_core._core_types import *\n'
-)
+PREAMBLE = 'from xnano_core._xnano_core import *\nfrom xnano_core._xnano_core._core_types import *\n'
 
 
 def collect() -> list[tuple[str, str]]:

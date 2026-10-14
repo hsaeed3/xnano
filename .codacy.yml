@@ -3,9 +3,11 @@ exclude_paths:
   # Rust is checked with cargo clippy across every workspace target.
   - "crates/**"
   - "Cargo.lock"
-  # The legacy compatibility API remains covered by Ruff, basedpyright and tests.
-  - "packages/xnano-core/src/xnano/v1/**"
   - "examples/**"
+  # Tests and benchmarks assert on purpose, and run commands and subprocesses to do it.
+  - "tests/**"
+  - "benchmarks/**"
+  - ".github/scripts/**"
   - "scripts/**"
   - "packages/*/tests/**"
   - "crates/*/tests/**"
@@ -15,3 +17,12 @@ exclude_paths:
   - "**/*.md"
   - "**/*.js"
   - "**/*.lock"
+engines:
+  lizard:
+    # The public API takes many keyword-only options on purpose (open, add, img, play), and the
+    # generated package exports are one long list.
+    exclude_paths:
+      - "xnano/terminal.py"
+      - "xnano/_media.py"
+      - "xnano/audio.py"
+      - "packages/xnano-core/src/xnano_core/__init__.py"

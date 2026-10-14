@@ -10,7 +10,7 @@ use crate::operations::operation_initializer;
 
 #[pyclass(
     name = "SizeRule",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -136,7 +136,7 @@ impl PySizeRule {
     }
 }
 
-#[pyclass(name = "Layout", module = "xnano._xnano_core", extends = PyOperation)]
+#[pyclass(name = "Layout", module = "xnano_core._xnano_core", extends = PyOperation)]
 pub struct PyLayout;
 
 #[pymethods]

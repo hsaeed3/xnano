@@ -99,6 +99,7 @@ def test_package_exports_match_the_stub():
         *CLASSES,
         *FUNCTIONS,
         '__version__',
+        'is_optimized_build',
     }
     for name in xnano_image.__all__:
         assert getattr(xnano_image, name) is getattr(native, name)
@@ -106,7 +107,7 @@ def test_package_exports_match_the_stub():
 
 def test_package_docstring_lists_every_public_name():
     for name in xnano_image.__all__:
-        if name != '__version__':
+        if name not in ('__version__', 'is_optimized_build'):
             assert name in (xnano_image.__doc__ or ''), name
 
 

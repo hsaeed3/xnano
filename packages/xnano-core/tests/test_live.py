@@ -18,14 +18,14 @@ pty = pytest.importorskip('pty', reason='needs a POSIX pseudo-terminal')
 
 CHILD = textwrap.dedent(
     """
-    from xnano._xnano_core import (
+    from xnano_core._xnano_core import (
         Canvas,
         CanvasLabel,
         InputOptions,
         Runtime,
         TerminalOptions,
     )
-    from xnano._xnano_core._core_types import Stop
+    from xnano_core._xnano_core._core_types import Stop
 
     buffer = Canvas(
         (0, 40),

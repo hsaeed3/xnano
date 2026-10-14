@@ -969,6 +969,10 @@ fn cell_grid_to_ansi(cell_grid: &[u8]) -> PyResult<String> {
 fn _xnano_image(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;
     module.add(
+        "is_optimized_build",
+        option_env!("XNANO_OPTIMIZATION_LEVEL") != Some("0"),
+    )?;
+    module.add(
         "TerminalImageError",
         module.py().get_type::<TerminalImageError>(),
     )?;

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from xnano._xnano_core import (
+from xnano_core._xnano_core import (
     Buffer,
     Event,
     InputOptions,
@@ -15,7 +15,7 @@ from xnano._xnano_core import (
     detect_terminal_capabilities,
     query_keyboard_capabilities,
 )
-from xnano._xnano_core._core_types import Propagate
+from xnano_core._xnano_core._core_types import Propagate
 
 
 def test_key_bindings_parse_and_match():

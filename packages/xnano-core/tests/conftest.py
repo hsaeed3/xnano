@@ -8,10 +8,19 @@ import sys
 import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / 'scripts'))
+
+import resource_logging
+
+
+def pytest_addoption(parser, pluginmanager):
+    """Make the ``--resource-log`` options available."""
+    resource_logging.register(pluginmanager)
+
 
 collect_ignore_glob = ['v1/*']
 
-from xnano._xnano_core import Buffer, Runtime
+from xnano_core._xnano_core import Buffer, Runtime
 
 
 @pytest.fixture

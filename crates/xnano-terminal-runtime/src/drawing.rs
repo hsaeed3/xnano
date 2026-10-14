@@ -6,13 +6,12 @@
 
 use indexmap::IndexMap;
 use serde_json::{Value, json};
-use unicode_segmentation::UnicodeSegmentation;
 use xnano_terminal_cells::{AnimationFrame, CellAnimation};
 
 use crate::grid::{Bounds, Grid, WriteMode};
 use crate::pixel::{Pixel, PixelEncoding, PixelSpace, write_pixels};
 use crate::style::Style;
-use crate::text::{Line, Span, grapheme_width};
+use crate::text::{Line, Span, grapheme_width, split_graphemes};
 
 /// The largest width or height of a drawing, in columns or pixels.
 pub const MAXIMUM_DRAWING_DIMENSION: usize = 4096;
@@ -52,8 +51,8 @@ pub struct Drawing {
 
 fn row_width(kind: DrawingKind, row: &str) -> usize {
     match kind {
-        DrawingKind::Text => row.graphemes(true).map(grapheme_width).sum(),
-        DrawingKind::Palette => row.graphemes(true).count(),
+        DrawingKind::Text => split_graphemes(row).map(grapheme_width).sum(),
+        DrawingKind::Palette => split_graphemes(row).count(),
     }
 }
 
@@ -77,7 +76,7 @@ impl Drawing {
             );
         }
         for symbol in self.palette.keys() {
-            if symbol.graphemes(true).count() != 1 {
+            if split_graphemes(symbol).count() != 1 {
                 return Err(format!(
                     "the palette symbol \"{symbol}\" must be exactly one character; use a \
                      single character such as \"#\" for each color"
@@ -94,7 +93,7 @@ impl Drawing {
                 ));
             }
             if self.kind == DrawingKind::Palette {
-                for symbol in row.graphemes(true) {
+                for symbol in split_graphemes(row) {
                     if !self.palette.contains_key(symbol) {
                         return Err(format!(
                             "row {index} uses the symbol \"{symbol}\", which is not in the \
@@ -194,7 +193,7 @@ impl Drawing {
     pub fn pixels(&self) -> Vec<Pixel> {
         let mut pixels = Vec::new();
         for (row_index, row) in self.rows.iter().enumerate() {
-            for (column_index, symbol) in row.graphemes(true).enumerate() {
+            for (column_index, symbol) in split_graphemes(row).enumerate() {
                 if let Some(Some(color)) = self.palette.get(symbol) {
                     pixels.push((column_index as i32, row_index as i32, *color));
                 }
@@ -286,7 +285,7 @@ impl DrawingAnimation {
                 .map(|(grid, frame)| {
                     let mut padded = Grid::new(width, height);
                     let bounds = padded.bounds();
-                    padded.blit(bounds, &grid, 0, 0, crate::grid::BlitMode::Replace);
+                    padded.paste(bounds, &grid, 0, 0, crate::grid::PasteMode::Replace);
                     AnimationFrame {
                         grid: padded.into_buffer(),
                         duration_milliseconds: frame.duration_milliseconds,
@@ -362,7 +361,7 @@ pub fn validate_drawing_rule(
     if let Some(allowed) = arguments.get("allowed_symbols").and_then(Value::as_array) {
         let allowed: Vec<&str> = allowed.iter().filter_map(Value::as_str).collect();
         for (index, row) in drawing.rows.iter().enumerate() {
-            for symbol in row.graphemes(true) {
+            for symbol in split_graphemes(row) {
                 if !allowed.contains(&symbol) {
                     problems.push((
                         vec!["rows".to_owned(), index.to_string()],

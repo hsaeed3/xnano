@@ -83,6 +83,21 @@ pub struct BlockSpec {
     pub merge_strategy: Option<String>,
 }
 
+impl BlockSpec {
+    /// Whether nothing in the block follows an expression.
+    pub fn is_static(&self) -> bool {
+        !self.border_type.is_bound()
+            && self.border_style.is_static()
+            && self.style.is_static()
+            && self.title_style.is_static()
+            && self
+                .titles
+                .iter()
+                .all(|title| !title.text.is_bound() && title.style.is_static())
+            && self.padding.iter().all(|side| !side.is_bound())
+    }
+}
+
 impl Default for BlockSpec {
     fn default() -> Self {
         Self {

@@ -11,11 +11,11 @@ icon: "lucide/file-text"
     is experimental. The API may still change. The `Markdown` **component** used
     as a field value is separate and is not covered by this warning.
 
-[xnano.v1.markdown]{data-preview} loads Markdown from a string, bytes, or file path
+[xnano.markdown]{data-preview} loads Markdown from a string, bytes, or file path
 and either paints one frame or opens an **interactive pager** — scrollable
 viewport, status line, and keyboard / wheel navigation.
 
-This is separate from the [`Markdown`](../api/xnano/components/markdown.md){data-preview}
+This is separate from the [`Markdown`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 **component**, which is a field value for embedding markdown inside a grid. The
 module here is a document runner and viewport.
 
@@ -72,12 +72,12 @@ module here is a document runner and viewport.
 </svg>
 </div>
 
-[`run_markdown`](../api/xnano/markdown.md){data-preview} opens a live session when
+[`run_markdown`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} opens a live session when
 a TTY is available. The document is taller than the screen when needed; you
 scroll the window rather than painting everything at once.
 
 ```python title="run_markdown"
-from xnano.v1.markdown import run_markdown
+from xnano.markdown import run_markdown
 
 run_markdown("README.md") # (1)!
 # or: run_markdown("# Title\n\nBody text.")
@@ -110,11 +110,11 @@ A status line at the bottom shows scroll position and short hints.
 
 ## One frame
 
-[`render_markdown`](../api/xnano/markdown.md){data-preview} paints once and returns
-a [`Frame`](../api/xnano/core/frame.md){data-preview}. No event loop.
+[`render_markdown`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} paints once and returns
+a [`Frame`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}. No event loop.
 
 ```python title="render_markdown"
-from xnano.v1.markdown import render_markdown
+from xnano.markdown import render_markdown
 
 frame = render_markdown("# Hello\n\nA single frame.")
 print(frame.text)
@@ -123,7 +123,7 @@ print(frame.text)
 
 
 ```python
-from xnano.v1.markdown import render_markdown
+from xnano.markdown import render_markdown
 
 frame = render_markdown("# Hello\n\nA single frame from Markdown.")
 print(frame.text)
@@ -134,7 +134,7 @@ print(frame.text)
 ```python
 from pathlib import Path
 
-from xnano.v1.markdown import is_markdown_path, load_markdown_source
+from xnano.markdown import is_markdown_path, load_markdown_source
 
 is_markdown_path("notes.md")  # True if the file exists with a .md-like suffix
 
@@ -146,7 +146,7 @@ Supported suffixes include `.md`, `.markdown`, `.mdown`, `.mkd`, and `.mkdn`.
 
 ## Viewport and images
 
-[`MarkdownViewport`](../api/xnano/markdown.md){data-preview} is the windowed
+[`MarkdownViewport`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} is the windowed
 body used by the pager: block-aware layout (text + images), scroll offset, and
 hover/pin expand for local images.
 
@@ -155,7 +155,7 @@ cell resolution). Expand with hover, click, or `i` for a larger preview without
 decoding full-size images on every frame.
 
 The `Markdown` **component** is still the right choice when markdown is one
-slot inside a larger app grid. Use `xnano.v1.markdown` when the document *is* the
+slot inside a larger app grid. Use `xnano.markdown` when the document *is* the
 session.
 
 ## Next
@@ -166,9 +166,9 @@ session.
 
 ??? abstract "API"
 
-    [`xnano.v1.markdown`](../api/xnano/markdown.md){data-preview} ·
-    [`run_markdown`](../api/xnano/markdown.md){data-preview} ·
-    [`render_markdown`](../api/xnano/markdown.md){data-preview} ·
-    [`Markdown` component](../api/xnano/components/markdown.md){data-preview}
+    [`xnano.markdown`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`run_markdown`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`render_markdown`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Markdown` component](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
-[xnano.v1.markdown]: ../api/xnano/markdown.md
+[xnano.markdown]: https://github.com/hsaeed3/xnano/tree/v1

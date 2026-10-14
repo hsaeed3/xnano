@@ -64,7 +64,7 @@ are the same objects on both hosts.
 This needs a normal Python process — not Pyodide.
 
 ```python title="Running a Web App" hl_lines="7"
-from xnano.v1 import BaseGrid, Field, Web
+from xnano import BaseGrid, Field, Web
 
 class App(BaseGrid):
     body: str = Field(default="hello, web!")
@@ -79,7 +79,7 @@ xnano web → http://127.0.0.1:8000
 ```
 
 The default host uses Python's stdlib HTTP server via
-[`serve_native`](../api/xnano/server/native.md){data-preview}.
+[`serve_native`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}.
 
 ## One grid, two hosts
 
@@ -102,7 +102,7 @@ The default host uses Python's stdlib HTTP server via
 </div>
 
 ```python title="Same Grid, Either Host"
-from xnano.v1 import BaseGrid, Field, Terminal, Web
+from xnano import BaseGrid, Field, Terminal, Web
 
 class App(BaseGrid):
     body: str = Field(default="hello!")
@@ -144,10 +144,10 @@ no-ops. Grids, fields, components, and hooks still mean the same thing.
 
 ??? abstract "API"
 
-    [`Web`](../api/xnano/web.md){data-preview} ·
-    [`serve_native`](../api/xnano/server/native.md){data-preview} ·
-    [`xnano.requests`](../api/xnano/requests.md){data-preview} ·
-    [`Terminal`](../api/xnano/terminal.md){data-preview}
+    [`Web`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`serve_native`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`xnano.requests`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Terminal`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
-[Terminal]: ../api/xnano/terminal.md
-[Web]: ../api/xnano/web.md
+[Terminal]: https://github.com/hsaeed3/xnano/tree/v1
+[Web]: https://github.com/hsaeed3/xnano/tree/v1

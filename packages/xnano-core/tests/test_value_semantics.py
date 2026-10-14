@@ -6,7 +6,7 @@ import copy
 
 import pytest
 
-from xnano._xnano_core import (
+from xnano_core._xnano_core import (
     Cell,
     Color,
     Drawing,
@@ -213,7 +213,7 @@ def test_text_editor_selection_and_cursor_style():
 
 
 def test_text_editor_shift_arrows_extend_the_selection():
-    from xnano._xnano_core import Event
+    from xnano_core._xnano_core import Event
 
     editor = TextEditor('abc')
     editor.move_to_start()
@@ -232,7 +232,7 @@ def test_text_editor_shift_arrows_extend_the_selection():
 
 
 def test_operation_classes_report_the_native_module():
-    from xnano._xnano_core import Editor, Fill, Write
+    from xnano_core._xnano_core import Editor, Fill, Write
 
     for cls in (Write, Fill, Editor):
-        assert cls.__module__ == 'xnano._xnano_core'
+        assert cls.__module__ == 'xnano_core._xnano_core'

@@ -1,7 +1,7 @@
 *.py[cod]
 *.env
 *.so
-packages/xnano-core/src/xnano/v1/*.xni
+xnano/deprecated/*.xni
 docs/v1/assets/*.xni
 *.profraw
 dist/
@@ -39,6 +39,7 @@ site/
 
 # etc.
 .workspace/
+.artifacts/
 
 # Local recovery scratch files
 .recovery/

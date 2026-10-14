@@ -6,18 +6,18 @@ import pytest
 from helpers import (
     Bounds,
     DeviceWidth,
-    Elapsed,
     Focused,
     Frame,
     Height,
     Position,
+    TimeElapsed,
     Width,
     X,
     Y,
 )
 from helpers import Size as SizeReference
 
-from xnano._xnano_core import (
+from xnano_core._xnano_core import (
     Buffer,
     Conditional,
     Expression,
@@ -36,7 +36,7 @@ from xnano._xnano_core import (
     UnsupportedOperationError,
     Write,
 )
-from xnano._xnano_core._core_types import EvaluationContext
+from xnano_core._xnano_core._core_types import EvaluationContext
 
 
 class Extension:
@@ -85,7 +85,7 @@ def test_division_by_zero_and_type_errors_are_explained():
     with pytest.raises(ZeroDivisionError, match='divisor'):
         buffer.inspect(Width / 0)
     with pytest.raises(TypeError, match='numbers'):
-        buffer.inspect(Width + 'a')
+        buffer.inspect(Width + 'a')  # type: ignore[operator]
 
 
 def test_properties_assign_when_called():
@@ -99,7 +99,7 @@ def test_properties_assign_when_called():
     buffer.update(Width(Width + 1))
     assert buffer.width == 4
     with pytest.raises(TypeError, match='not callable'):
-        Elapsed(1)  # type: ignore[operator]
+        TimeElapsed(1)  # type: ignore[operator]
 
 
 def test_assigning_the_wrong_type_is_explained():
@@ -137,7 +137,7 @@ def test_update_accepts_operations_only():
 
 def test_runtime_references_need_a_runtime_offline():
     buffer = Buffer(width=2, height=1)
-    for reference in (Elapsed, Frame, Focused, DeviceWidth):
+    for reference in (TimeElapsed, Frame, Focused, DeviceWidth):
         with pytest.raises(RuntimeRequiredError, match='needs a runtime'):
             buffer.inspect(reference)
 
@@ -147,7 +147,7 @@ def test_runtime_references_read_the_mounted_runtime(runtime):
     runtime.mount(buffer)
     runtime.advance_clock(1500)
     runtime.step()
-    assert buffer.inspect(Elapsed) == 1.5
+    assert buffer.inspect(TimeElapsed) == 1.5
     assert buffer.inspect(DeviceWidth) == 40
     assert buffer.inspect(Frame) >= 1
     assert buffer.inspect(Focused) is False
@@ -177,7 +177,7 @@ def test_bare_expressions_hold_nothing():
 
 
 def test_python_defined_operations_resolve_through_the_registry():
-    from xnano._xnano_core._core_types import Registry
+    from xnano_core._xnano_core._core_types import Registry
 
     class Shout(Operation):
         def __init__(self, text: str) -> None:
@@ -201,7 +201,7 @@ def test_python_defined_operations_resolve_through_the_registry():
 
 
 def test_runtime_only_registrations_need_a_runtime(runtime):
-    from xnano._xnano_core._core_types import Registry
+    from xnano_core._xnano_core._core_types import Registry
 
     class Beep(Operation):
         pass

@@ -7,10 +7,19 @@
 use ratatui_core::buffer::{Buffer, Cell, CellDiffOption, CellWidth};
 use ratatui_core::layout::Rect;
 use ratatui_core::style::Color;
-use unicode_segmentation::UnicodeSegmentation;
 
 use crate::style::Style;
-use crate::text::{Line, grapheme_width};
+use crate::text::{Line, grapheme_width, split_graphemes};
+
+/// The one-character string of every printable ASCII byte, so writing ASCII text needs no
+/// string slicing per cell.
+const ASCII_SYMBOLS: [&str; 95] = [
+    " ", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2",
+    "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E",
+    "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X",
+    "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k",
+    "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~",
+];
 
 /// The most cells a grid may hold.
 pub const MAXIMUM_CELLS: usize = 4_000_000;
@@ -37,7 +46,7 @@ impl WriteMode {
 
 /// How one grid is copied onto another.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum BlitMode {
+pub enum PasteMode {
     #[default]
     Replace,
     PreserveBackground,
@@ -45,7 +54,7 @@ pub enum BlitMode {
     Transparent,
 }
 
-impl BlitMode {
+impl PasteMode {
     pub fn from_name(name: &str) -> Option<Self> {
         Some(match name {
             "replace" => Self::Replace,
@@ -110,12 +119,31 @@ pub fn styled_blank(style: Style) -> Cell {
 
 /// How many columns the symbol of `cell` covers.
 pub fn cell_columns(cell: &Cell) -> usize {
+    if cell.diff_option == CellDiffOption::None {
+        let symbol = cell.symbol();
+        // A one-byte symbol is one column; most cells never reach the width tables.
+        if symbol.len() == 1 {
+            return 1;
+        }
+        return usize::from(symbol.cell_width());
+    }
     usize::from(cell.cell_width())
 }
 
 /// Whether `cell` carries a terminal graphics payload that must not be split.
 pub fn is_protocol_cell(cell: &Cell) -> bool {
     cell.diff_option != CellDiffOption::None || cell.symbol().starts_with('\x1b')
+}
+
+/// Whether `cell` is the head of a glyph that covers more than one column.
+///
+/// Protocol cells are never wide heads. Only a symbol longer than one byte can be wide.
+fn is_wide(cell: &Cell) -> bool {
+    if cell.diff_option != CellDiffOption::None {
+        return false;
+    }
+    let symbol = cell.symbol();
+    symbol.len() > 1 && !symbol.starts_with('\x1b') && symbol.cell_width() > 1
 }
 
 impl Grid {
@@ -193,6 +221,15 @@ impl Grid {
         mask[index] = value;
     }
 
+    fn set_transparent_range(&mut self, start: usize, end: usize, value: bool) {
+        if !value && self.transparent.is_none() {
+            return;
+        }
+        let length = self.cells.content.len();
+        let mask = self.transparent.get_or_insert_with(|| vec![false; length]);
+        mask[start..end].fill(value);
+    }
+
     /// Mark every cell transparent; cells written later become opaque.
     pub fn mark_all_transparent(&mut self) {
         self.transparent = Some(vec![true; self.cells.content.len()]);
@@ -221,13 +258,17 @@ impl Grid {
     /// A copy of the cells of `bounds` as a standalone buffer.
     pub fn region_buffer(&self, bounds: Bounds) -> Buffer {
         let mut region = Buffer::empty(Rect::new(0, 0, bounds.width(), bounds.height()));
+        let width = usize::from(bounds.width());
+        // Cells outside the grid stay blank.
+        let copied = width.min(usize::from(self.width().saturating_sub(bounds.left)));
         for y in 0..bounds.height() {
-            for x in 0..bounds.width() {
-                if let Some(cell) = self.cell(bounds.left + x, bounds.top + y) {
-                    let index = usize::from(y) * usize::from(bounds.width()) + usize::from(x);
-                    region.content[index] = cell.clone();
-                }
+            if bounds.top + y >= self.height() {
+                break;
             }
+            let source_start = self.index(bounds.left, bounds.top + y);
+            let target_start = usize::from(y) * width;
+            region.content[target_start..target_start + copied]
+                .clone_from_slice(&self.cells.content[source_start..source_start + copied]);
         }
         region
     }
@@ -247,13 +288,19 @@ impl Grid {
         let mut next = Grid::filled(width, height, fill);
         let shared_width = width.min(self.width());
         let shared_height = height.min(self.height());
+        let shared = usize::from(shared_width);
         for y in 0..shared_height {
-            for x in 0..shared_width {
-                let source_index = self.index(x, y);
-                let target_index = next.index(x, y);
-                next.cells.content[target_index] = self.cells.content[source_index].clone();
-                if self.is_transparent(x, y) {
-                    next.set_transparent(x, y, true);
+            let source_start = self.index(0, y);
+            let target_start = next.index(0, y);
+            next.cells.content[target_start..target_start + shared]
+                .clone_from_slice(&self.cells.content[source_start..source_start + shared]);
+        }
+        if let Some(mask) = &self.transparent {
+            for y in 0..shared_height {
+                for x in 0..shared_width {
+                    if mask[self.index(x, y)] {
+                        next.set_transparent(x, y, true);
+                    }
                 }
             }
         }
@@ -271,8 +318,7 @@ impl Grid {
     }
 
     fn is_wide_head(&self, x: u16, y: u16) -> bool {
-        self.cell(x, y)
-            .is_some_and(|cell| !is_protocol_cell(cell) && cell_columns(cell) > 1)
+        self.cell(x, y).is_some_and(is_wide)
     }
 
     /// Store `cell` at `(x, y)`, repairing any wide glyph it cuts. `columns` is how many
@@ -281,14 +327,10 @@ impl Grid {
         if x >= self.width() || y >= self.height() {
             return;
         }
-        if x > 0 && self.is_wide_head(x - 1, y) {
-            let index = self.index(x - 1, y);
-            let mut head = self.cells.content[index].clone();
-            let fill = Cell::EMPTY;
-            head.set_symbol(fill.symbol());
-            self.cells.content[index] = head;
-        }
         let index = self.index(x, y);
+        if x > 0 && is_wide(&self.cells.content[index - 1]) {
+            self.cells.content[index - 1].set_symbol(Cell::EMPTY.symbol());
+        }
         self.cells.content[index] = cell;
         self.set_transparent(x, y, transparent);
         if columns > 1 && x + 1 < self.width() {
@@ -300,12 +342,23 @@ impl Grid {
 
     /// Fill `bounds` with `cell`.
     pub fn fill(&mut self, bounds: Bounds, cell: &Cell, transparent: bool) {
-        for y in bounds.top..bounds.bottom {
-            for x in bounds.left..bounds.right {
-                self.put(x, y, cell.clone(), 1, transparent);
-            }
-        }
         // A fill with a wide symbol would break rows; the cell is always one column.
+        if bounds.left >= bounds.right || bounds.top >= bounds.bottom {
+            return;
+        }
+        for y in bounds.top..bounds.bottom {
+            // Only the first cell of a row can cut a wide glyph that starts to its left.
+            self.put(bounds.left, y, cell.clone(), 1, transparent);
+            if bounds.left + 1 >= bounds.right {
+                continue;
+            }
+            let (start, end) = (
+                self.index(bounds.left + 1, y),
+                self.index(bounds.right - 1, y) + 1,
+            );
+            self.cells.content[start..end].fill(cell.clone());
+            self.set_transparent_range(start, end, transparent);
+        }
     }
 
     /// Write styled `lines` with their top-left at `(x, y)` relative to `bounds`.
@@ -331,38 +384,96 @@ impl Grid {
             let mut column = x;
             for span in line {
                 let style = base.patch(span.style);
-                for grapheme in span.text.graphemes(true) {
-                    let columns = grapheme_width(grapheme) as i32;
-                    if columns == 0 {
-                        continue;
-                    }
-                    if column + columns <= 0 || column < 0 {
-                        column += columns;
-                        continue;
-                    }
-                    if column + columns > width {
-                        column = width;
-                        break;
-                    }
-                    let target_x = bounds.left + column as u16;
-                    let target_y = bounds.top + row as u16;
-                    let old_background = self
-                        .cell(target_x, target_y)
-                        .map_or(Color::Reset, |old| old.bg);
-                    let mut cell = Cell::EMPTY;
-                    cell.set_symbol(grapheme);
-                    cell.set_style(style);
-                    if mode == WriteMode::PreserveBackground && style.bg.is_none() {
-                        cell.bg = old_background;
-                    }
-                    self.put(target_x, target_y, cell, columns as usize, false);
-                    column += columns;
+                if span.text.is_ascii() {
+                    column = self.write_ascii(bounds, &span.text, column, row, style, mode, width);
+                } else {
+                    column =
+                        self.write_graphemes(bounds, &span.text, column, row, style, mode, width);
                 }
                 if column >= width {
                     break;
                 }
             }
         }
+    }
+
+    /// Write one ASCII run. Every printable byte is one grapheme of one column and control
+    /// bytes take none, so no grapheme segmentation is needed.
+    #[allow(clippy::too_many_arguments)]
+    fn write_ascii(
+        &mut self,
+        bounds: Bounds,
+        text: &str,
+        mut column: i32,
+        row: i32,
+        style: Style,
+        mode: WriteMode,
+        width: i32,
+    ) -> i32 {
+        let target_y = bounds.top + row as u16;
+        let mut template = Cell::EMPTY;
+        template.set_style(style);
+        let keeps_background = mode == WriteMode::PreserveBackground && style.bg.is_none();
+        for byte in text.bytes() {
+            if byte.is_ascii_control() {
+                continue;
+            }
+            if column < 0 {
+                column += 1;
+                continue;
+            }
+            if column + 1 > width {
+                return width;
+            }
+            let target_x = bounds.left + column as u16;
+            let mut cell = template.clone();
+            cell.set_symbol(ASCII_SYMBOLS[usize::from(byte - 0x20)]);
+            if keeps_background && let Some(old) = self.cell(target_x, target_y) {
+                cell.bg = old.bg;
+            }
+            self.put(target_x, target_y, cell, 1, false);
+            column += 1;
+        }
+        column
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn write_graphemes(
+        &mut self,
+        bounds: Bounds,
+        text: &str,
+        mut column: i32,
+        row: i32,
+        style: Style,
+        mode: WriteMode,
+        width: i32,
+    ) -> i32 {
+        for grapheme in split_graphemes(text) {
+            let columns = grapheme_width(grapheme) as i32;
+            if columns == 0 {
+                continue;
+            }
+            if column + columns <= 0 || column < 0 {
+                column += columns;
+                continue;
+            }
+            if column + columns > width {
+                return width;
+            }
+            let target_x = bounds.left + column as u16;
+            let target_y = bounds.top + row as u16;
+            let mut cell = Cell::EMPTY;
+            cell.set_symbol(grapheme);
+            cell.set_style(style);
+            if mode == WriteMode::PreserveBackground && style.bg.is_none() {
+                cell.bg = self
+                    .cell(target_x, target_y)
+                    .map_or(Color::Reset, |old| old.bg);
+            }
+            self.put(target_x, target_y, cell, columns as usize, false);
+            column += columns;
+        }
+        column
     }
 
     /// Apply `style` to every cell of `bounds` without changing symbols.
@@ -377,32 +488,40 @@ impl Grid {
     }
 
     /// Copy `source` so its top-left lands at `(x, y)` relative to `bounds`.
-    pub fn blit(&mut self, bounds: Bounds, source: &Grid, x: i32, y: i32, mode: BlitMode) {
+    pub fn paste(&mut self, bounds: Bounds, source: &Grid, x: i32, y: i32, mode: PasteMode) {
         let width = i32::from(bounds.width());
         let height = i32::from(bounds.height());
         let first_row = (-y).max(0);
         let last_row = (height - y).min(i32::from(source.height()));
         let first_column = (-x).max(0);
         let last_column = (width - x).min(i32::from(source.width()));
+        let source_width = usize::from(source.width());
         for source_row in first_row..last_row {
             let target_y = bounds.top + (y + source_row) as u16;
+            let row_start = source_row as usize * source_width;
             let mut source_column = first_column;
             while source_column < last_column {
                 let (sx, sy) = (source_column as u16, source_row as u16);
-                let Some(cell) = source.cell(sx, sy) else {
+                let Some(cell) = source.cells.content.get(row_start + source_column as usize)
+                else {
                     source_column += 1;
                     continue;
                 };
                 let target_x = bounds.left + (x + source_column) as u16;
                 let is_transparent = source.is_transparent(sx, sy);
-                if mode == BlitMode::Transparent && is_transparent {
+                if mode == PasteMode::Transparent && is_transparent {
                     source_column += 1;
                     continue;
                 }
-                let mut columns = if is_protocol_cell(cell) {
+                let mut columns = if cell.diff_option != CellDiffOption::None {
                     1
                 } else {
-                    cell_columns(cell).max(1)
+                    let symbol = cell.symbol();
+                    if symbol.len() == 1 || symbol.starts_with('\x1b') {
+                        1
+                    } else {
+                        usize::from(symbol.cell_width()).max(1)
+                    }
                 };
                 // A glyph whose second column is clipped cannot be shown.
                 let mut copy = cell.clone();
@@ -411,7 +530,7 @@ impl Grid {
                     copy.bg = cell.bg;
                     columns = 1;
                 }
-                if mode == BlitMode::PreserveBackground
+                if mode == PasteMode::PreserveBackground
                     && copy.bg == Color::Reset
                     && let Some(old) = self.cell(target_x, target_y)
                 {

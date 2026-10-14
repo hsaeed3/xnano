@@ -128,6 +128,10 @@ fn detect_audio_capabilities(py: Python<'_>) -> PyAudioCapabilities {
 fn _xnano_audio(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add(
+        "is_optimized_build",
+        option_env!("XNANO_OPTIMIZATION_LEVEL") != Some("0"),
+    )?;
+    m.add(
         "TerminalAudioError",
         m.py().get_type::<TerminalAudioError>(),
     )?;

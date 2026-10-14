@@ -7,12 +7,13 @@ use tachyonfx::{
     ColorSpace, ToRgbComponents, color_from_hsl, color_from_hsv, color_to_hsl, color_to_hsv,
 };
 use xnano_terminal_runtime::style::{
-    Color, Modifier, Style, describe_color, modifier_from_name, modifier_names, parse_color, to_rgb,
+    Color, Modifier, Style, describe_color, modifier_from_name, modifier_names, parse_color,
+    tailwind_color, to_rgb,
 };
 
 #[pyclass(
     name = "Color",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -105,6 +106,22 @@ impl PyColor {
     fn parse(_cls: &Bound<'_, pyo3::types::PyType>, value: &str) -> PyResult<Self> {
         Ok(Self {
             inner: parse_color(value).map_err(PyValueError::new_err)?,
+        })
+    }
+
+    #[classmethod]
+    fn from_tailwind(
+        _cls: &Bound<'_, pyo3::types::PyType>,
+        palette: &str,
+        shade: i64,
+    ) -> PyResult<Self> {
+        let shade = u16::try_from(shade).map_err(|_| {
+            PyValueError::new_err(format!(
+                "the Tailwind shade {shade} is out of range; use 50, 100, 200 through 900, or 950"
+            ))
+        })?;
+        Ok(Self {
+            inner: tailwind_color(palette, shade).map_err(PyValueError::new_err)?,
         })
     }
 
@@ -338,7 +355,7 @@ impl PyColor {
 
 #[pyclass(
     name = "Style",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,

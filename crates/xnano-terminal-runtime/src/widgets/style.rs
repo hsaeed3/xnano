@@ -17,6 +17,13 @@ pub struct StyleSpec {
 }
 
 impl StyleSpec {
+    /// Whether no color follows an expression.
+    pub fn is_static(&self) -> bool {
+        [&self.foreground, &self.background, &self.underline_color]
+            .into_iter()
+            .all(|color| !color.as_ref().is_some_and(Dynamic::is_bound))
+    }
+
     /// A style with nothing bound.
     pub fn fixed(style: Style) -> Self {
         Self {

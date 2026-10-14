@@ -203,7 +203,7 @@ pub fn frame_of(core: &Arc<BufferCore>) -> Frame {
 /// One item of an ``ItemList``.
 #[pyclass(
     name = "ListItem",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     from_py_object
 )]
@@ -295,7 +295,7 @@ impl PyListItem {
 }
 
 /// A scrollable list of items with a selection.
-#[pyclass(name = "ItemList", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "ItemList", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyItemList {
     spec: Shared<ListSpec>,
     block: BlockHolder,

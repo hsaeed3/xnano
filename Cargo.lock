@@ -3433,7 +3433,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-audio"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alsa-sys",
  "cpal",
@@ -3452,7 +3452,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-core"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.2"
 dependencies = [
  "indexmap",
  "pyo3",
@@ -3468,7 +3468,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-image"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "fast_image_resize",
  "image",
@@ -3483,7 +3483,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-runtime"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.2"
 dependencies = [
  "codspeed-criterion-compat",
  "crossterm",
@@ -3504,7 +3504,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-state"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.2"
 dependencies = [
  "indexmap",
  "regex",

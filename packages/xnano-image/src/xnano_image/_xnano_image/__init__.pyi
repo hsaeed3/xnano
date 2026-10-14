@@ -33,6 +33,8 @@ import os
 from typing import Literal, final
 
 __version__: str
+is_optimized_build: bool
+"""Whether the extension was built with optimizations. Timing a debug build says nothing."""
 
 # Rust binding
 class TerminalImageError(ValueError):
@@ -72,6 +74,11 @@ class TerminalGraphics:
     get a copy with another protocol.
 
     Maps to [`ratatui_image::picker::Picker`](https://docs.rs/ratatui-image/11.1.0/ratatui_image/picker/struct.Picker.html).
+
+    Attributes:
+        protocol: The graphics protocol images are drawn with.
+        cell_size_in_pixels: The size of one terminal cell in pixels, ``(width, height)``.
+        capabilities: The capabilities the terminal reported when it was detected.
 
     Examples:
         ```python
@@ -181,6 +188,14 @@ class TerminalImage:
     Every operation returns a new image, so one instance can be shared and
     reused freely, including across threads. Frames are stored as straight
     RGBA. ``len(image)`` is the frame count.
+
+    Attributes:
+        width: Width in pixels.
+        height: Height in pixels.
+        frame_count: Number of frames (1 for a still image).
+        duration_milliseconds: Total playback time of every frame, in milliseconds.
+        is_animated: Whether there is more than one frame.
+        is_opaque: Whether no pixel is transparent.
 
     Examples:
         ```python

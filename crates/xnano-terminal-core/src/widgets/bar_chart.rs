@@ -28,7 +28,7 @@ fn unsigned(value: i64, what: &str) -> PyResult<u64> {
 /// One bar of a bar chart.
 #[pyclass(
     name = "Bar",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -129,7 +129,7 @@ fn bars_arg(value: &Bound<'_, PyAny>) -> PyResult<Vec<BarData>> {
 /// Bars drawn together under one label.
 #[pyclass(
     name = "BarGroup",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     eq,
     hash,
@@ -223,7 +223,7 @@ fn direction_arg(value: &Bound<'_, PyAny>) -> PyResult<Dynamic<String>> {
     Ok(setting)
 }
 
-#[pyclass(name = "BarChart", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "BarChart", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyBarChart {
     spec: Shared<BarChartSpec>,
     block: std::sync::Mutex<Option<Py<PyAny>>>,

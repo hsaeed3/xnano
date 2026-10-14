@@ -142,7 +142,7 @@ impl HookEntry {
     }
 }
 
-#[pyclass(name = "Hook", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "Hook", module = "xnano_core._xnano_core", frozen)]
 pub struct PyHook {
     pub state: Arc<HookState>,
 }
@@ -211,7 +211,7 @@ pub struct ScheduledState {
     pub is_cancelled: AtomicBool,
 }
 
-#[pyclass(name = "ScheduledCall", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "ScheduledCall", module = "xnano_core._xnano_core", frozen)]
 pub struct PyScheduledCall {
     pub state: Arc<ScheduledState>,
 }

@@ -292,10 +292,12 @@ pub enum EventKind {
     Frame,
     Wake,
     ExitRequested,
+    /// An event an application defines and injects itself.
+    Custom,
 }
 
 impl EventKind {
-    pub const ALL: [(&'static str, Self); 11] = [
+    pub const ALL: [(&'static str, Self); 12] = [
         ("key", Self::Key),
         ("mouse", Self::Mouse),
         ("paste", Self::Paste),
@@ -307,6 +309,7 @@ impl EventKind {
         ("frame", Self::Frame),
         ("wake", Self::Wake),
         ("exit_requested", Self::ExitRequested),
+        ("custom", Self::Custom),
     ];
 
     pub fn name(self) -> &'static str {
@@ -338,6 +341,11 @@ pub enum EventPayload {
     Size(Size),
     Timer(String),
     Signal(i32),
+    /// A named application event with optional text data.
+    Custom {
+        name: String,
+        data: Option<String>,
+    },
 }
 
 /// One thing that happened, with the time it was queued.

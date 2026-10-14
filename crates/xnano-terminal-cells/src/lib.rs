@@ -93,10 +93,22 @@ fn encode_color(color: Color) -> [u8; 4] {
         Color::Rgb(red, green, blue) => [18, red, green, blue],
         Color::Indexed(index) => [17, index, 0, 0],
         Color::Reset => [0, 0, 0, 0],
-        named => NAMED
-            .iter()
-            .position(|&candidate| candidate == named)
-            .map_or([0, 0, 0, 0], |index| [index as u8 + 1, 0, 0, 0]),
+        Color::Black => [1, 0, 0, 0],
+        Color::Red => [2, 0, 0, 0],
+        Color::Green => [3, 0, 0, 0],
+        Color::Yellow => [4, 0, 0, 0],
+        Color::Blue => [5, 0, 0, 0],
+        Color::Magenta => [6, 0, 0, 0],
+        Color::Cyan => [7, 0, 0, 0],
+        Color::Gray => [8, 0, 0, 0],
+        Color::DarkGray => [9, 0, 0, 0],
+        Color::LightRed => [10, 0, 0, 0],
+        Color::LightGreen => [11, 0, 0, 0],
+        Color::LightYellow => [12, 0, 0, 0],
+        Color::LightBlue => [13, 0, 0, 0],
+        Color::LightMagenta => [14, 0, 0, 0],
+        Color::LightCyan => [15, 0, 0, 0],
+        Color::White => [16, 0, 0, 0],
     }
 }
 
@@ -148,8 +160,13 @@ fn pack_into(buffer: &Buffer, output: &mut Vec<u8>) {
             }
         }
         let symbol = cell.symbol().as_bytes();
-        write_varint(output, symbol.len());
-        output.extend_from_slice(symbol);
+        if let [byte] = symbol {
+            // The common one-byte symbol: its length and byte in one write.
+            output.extend_from_slice(&[1, *byte]);
+        } else {
+            write_varint(output, symbol.len());
+            output.extend_from_slice(symbol);
+        }
         output.extend_from_slice(&encode_color(cell.fg));
         output.extend_from_slice(&encode_color(cell.bg));
         output.extend_from_slice(&encode_color(cell.underline_color));
@@ -233,8 +250,9 @@ fn unpack_from(reader: &mut Reader<'_>) -> Result<Buffer, FormatError> {
     let width = u16::from_le_bytes(reader.array()?);
     let height = u16::from_le_bytes(reader.array()?);
     check_grid_size(width, height)?;
-    let mut buffer = Buffer::empty(Rect::new(0, 0, width, height));
-    for cell in &mut buffer.content {
+    let count = usize::from(width) * usize::from(height);
+    let mut content = Vec::with_capacity(count);
+    for _ in 0..count {
         let diff = match reader.take(1)?[0] {
             0 => CellDiffOption::None,
             1 => CellDiffOption::Skip,
@@ -257,19 +275,32 @@ fn unpack_from(reader: &mut Reader<'_>) -> Result<Buffer, FormatError> {
                  the limit of {MAX_SYMBOL_BYTES} bytes"
             )));
         }
-        let symbol = std::str::from_utf8(reader.take(length)?).map_err(|_| {
-            FormatError::new("the cell grid is corrupt: a cell symbol is not valid UTF-8")
-        })?;
+        let symbol_bytes = reader.take(length)?;
         let mut decoded = Cell::default();
-        decoded.set_symbol(symbol);
-        decoded.fg = decode_color(reader.array()?)?;
-        decoded.bg = decode_color(reader.array()?)?;
-        decoded.underline_color = decode_color(reader.array()?)?;
-        decoded.modifier = Modifier::from_bits_truncate(u16::from_le_bytes(reader.array()?));
+        match symbol_bytes {
+            // One ASCII byte is always valid UTF-8, so it skips the validation.
+            [byte] if byte.is_ascii() => {
+                decoded.set_symbol(char::from(*byte).encode_utf8(&mut [0; 4]));
+            }
+            _ => {
+                let symbol = std::str::from_utf8(symbol_bytes).map_err(|_| {
+                    FormatError::new("the cell grid is corrupt: a cell symbol is not valid UTF-8")
+                })?;
+                decoded.set_symbol(symbol);
+            }
+        }
+        let tail = reader.take(14)?;
+        decoded.fg = decode_color([tail[0], tail[1], tail[2], tail[3]])?;
+        decoded.bg = decode_color([tail[4], tail[5], tail[6], tail[7]])?;
+        decoded.underline_color = decode_color([tail[8], tail[9], tail[10], tail[11]])?;
+        decoded.modifier = Modifier::from_bits_truncate(u16::from_le_bytes([tail[12], tail[13]]));
         decoded.diff_option = diff;
-        *cell = decoded;
+        content.push(decoded);
     }
-    Ok(buffer)
+    Ok(Buffer {
+        area: Rect::new(0, 0, width, height),
+        content,
+    })
 }
 
 /// Deserialize a cell grid. Malformed input is an error, never a panic.
@@ -492,10 +523,25 @@ fn push_color(output: &mut String, color: Color, is_foreground: bool) {
     );
 }
 
+/// How many cells after `cell` a glyph covers (zero for a graphics anchor or a narrow glyph).
+fn covered_after_head(cell: &Cell) -> usize {
+    let symbol = cell.symbol();
+    // A one-byte symbol is one column, so most cells never reach the width tables.
+    if symbol.len() == 1 && cell.diff_option == CellDiffOption::None {
+        return 0;
+    }
+    if symbol.starts_with('\x1b') {
+        0
+    } else {
+        usize::from(cell.cell_width()).saturating_sub(1)
+    }
+}
+
 /// Render `buffer` as ANSI text (one line per row), for printing to a terminal.
 pub fn ansi(buffer: &Buffer) -> String {
     let width = usize::from(buffer.area.width).max(1);
-    let mut output = String::new();
+    // Every cell prints one symbol; style changes add a few bytes more.
+    let mut output = String::with_capacity(buffer.content.len() + buffer.content.len() / 4 + 64);
     for row in buffer.content.chunks(width) {
         let mut last: Option<(Color, Color, Modifier)> = None;
         // A wide glyph fills its own cell; the cells it covers are not printed.
@@ -507,11 +553,7 @@ pub fn ansi(buffer: &Buffer) -> String {
             }
             // A graphics protocol anchor covers no cells: the image's other
             // cells are skip cells of their own.
-            covered = if cell.symbol().starts_with('\x1b') {
-                0
-            } else {
-                usize::from(cell.cell_width()).saturating_sub(1)
-            };
+            covered = covered_after_head(cell);
             if cell.diff_option == CellDiffOption::Skip {
                 continue;
             }
@@ -553,18 +595,14 @@ pub fn text(buffer: &Buffer) -> Vec<String> {
         .chunks(width)
         .map(|row| {
             let mut covered = 0_usize;
-            let mut line = String::new();
+            let mut line = String::with_capacity(width);
             for cell in row {
                 if covered > 0 {
                     covered -= 1;
                     continue;
                 }
                 let is_protocol_anchor = cell.symbol().starts_with('\x1b');
-                covered = if is_protocol_anchor {
-                    0
-                } else {
-                    usize::from(cell.cell_width()).saturating_sub(1)
-                };
+                covered = covered_after_head(cell);
                 if cell.diff_option == CellDiffOption::Skip || is_protocol_anchor {
                     line.push(' ');
                 } else {

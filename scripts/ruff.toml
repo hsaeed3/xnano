@@ -1,0 +1,7 @@
+# Repository tooling keeps ruff's default formatting (double quotes, 88 columns); the
+# lint rules are the repository's.
+extend = "../pyproject.toml"
+line-length = 88
+
+[format]
+quote-style = "double"

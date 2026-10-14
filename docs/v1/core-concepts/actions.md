@@ -12,7 +12,7 @@ input.
 Define a binding once; reuse it across hooks, tests, and hosts.
 
 ```python title="Naming a Trigger"
-from xnano.v1 import Action
+from xnano import Action
 
 SAVE = Action.keyboard("ctrl+s")
 ```
@@ -55,7 +55,7 @@ SAVE = Action.keyboard("ctrl+s")
 ## Binding an action
 
 ```python title="Binding an Action" hl_lines="3 5"
-from xnano.v1 import Action, on_action
+from xnano import Action, on_action
 
 SAVE = Action.keyboard("ctrl+s") # (1)!
 
@@ -81,7 +81,7 @@ def close(self) -> None: ...
 The same action can be bound on more than one grid:
 
 ```python title="Shared Trigger"
-from xnano.v1 import Action, BaseGrid, on_action
+from xnano import Action, BaseGrid, on_action
 
 SAVE = Action.keyboard("ctrl+s")
 
@@ -119,7 +119,7 @@ class Settings(BaseGrid):
 The host turns an action into an event on the same path as real input.
 
 ```python title="Performing an Action" hl_lines="2 6"
-from xnano.v1 import Context, on_keyboard
+from xnano import Context, on_keyboard
 
 terminal.actions.perform(SAVE) # (1)!
 
@@ -153,7 +153,7 @@ ctx.actions.perform(Action.clipboard("pasted text"))
 
 
 ```python
-from xnano.v1 import Action, BaseGrid, Field, Terminal, on_action
+from xnano import Action, BaseGrid, Field, Terminal, on_action
 
 INCREMENT = Action.keyboard("right")
 
@@ -198,8 +198,8 @@ terminal.render(counter)
 
 ??? abstract "API"
 
-    [`Action`](../api/xnano/actions.md){data-preview} ·
-    [`Context`](../api/xnano/context.md){data-preview}
+    [`Action`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Context`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
-[Action]: ../api/xnano/actions.md
-[Context]: ../api/xnano/context.md
+[Action]: https://github.com/hsaeed3/xnano/tree/v1
+[Context]: https://github.com/hsaeed3/xnano/tree/v1

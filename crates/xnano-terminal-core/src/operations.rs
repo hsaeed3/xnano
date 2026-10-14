@@ -11,8 +11,8 @@ use xnano_terminal_runtime::pixel::PixelEncoding;
 
 use crate::convert::{node_from_py, path_from_py};
 use crate::dynamic_operations::{
-    TextSetting, dynamic_i32, dynamic_name, dynamic_scalar, finish, parse_blit_mode,
-    parse_border_kind, parse_encoding, parse_raster_mode, parse_write_mode, scalar_to_node,
+    TextSetting, dynamic_i32, dynamic_name, dynamic_scalar, finish, parse_border_kind,
+    parse_encoding, parse_paste_mode, parse_raster_mode, parse_write_mode, scalar_to_node,
 };
 use crate::errors::operation_error;
 use crate::expressions::{ExpressionKind, PyExpression, PyOperation};
@@ -80,22 +80,26 @@ macro_rules! simple_operation {
     };
 }
 
-simple_operation!(PyResize, "Resize", "xnano._xnano_core");
-simple_operation!(PyMove, "Move", "xnano._xnano_core");
-simple_operation!(PyPlace, "Place", "xnano._xnano_core");
-simple_operation!(PyFill, "Fill", "xnano._xnano_core");
-simple_operation!(PyClear, "Clear", "xnano._xnano_core");
-simple_operation!(PyForeground, "Foreground", "xnano._xnano_core");
-simple_operation!(PyBackground, "Background", "xnano._xnano_core");
-simple_operation!(PyApplyStyle, "ApplyStyle", "xnano._xnano_core");
-simple_operation!(PyBorder, "Border", "xnano._xnano_core");
-simple_operation!(PyBlit, "Blit", "xnano._xnano_core");
-simple_operation!(PyPixels, "Pixels", "xnano._xnano_core");
-simple_operation!(PyRaster, "Raster", "xnano._xnano_core");
-simple_operation!(PySetState, "SetState", "xnano._xnano_core");
-simple_operation!(PyApplyStatePatch, "ApplyStatePatch", "xnano._xnano_core");
-simple_operation!(PyWrite, "Write", "xnano._xnano_core");
-simple_operation!(PyEditor, "Editor", "xnano._xnano_core");
+simple_operation!(PyResize, "Resize", "xnano_core._xnano_core");
+simple_operation!(PyMove, "Move", "xnano_core._xnano_core");
+simple_operation!(PyPlace, "Place", "xnano_core._xnano_core");
+simple_operation!(PyFill, "Fill", "xnano_core._xnano_core");
+simple_operation!(PyClear, "Clear", "xnano_core._xnano_core");
+simple_operation!(PyForeground, "Foreground", "xnano_core._xnano_core");
+simple_operation!(PyBackground, "Background", "xnano_core._xnano_core");
+simple_operation!(PyApplyStyle, "ApplyStyle", "xnano_core._xnano_core");
+simple_operation!(PyBorder, "Border", "xnano_core._xnano_core");
+simple_operation!(PyPaste, "Paste", "xnano_core._xnano_core");
+simple_operation!(PyPixels, "Pixels", "xnano_core._xnano_core");
+simple_operation!(PyRaster, "Raster", "xnano_core._xnano_core");
+simple_operation!(PySetState, "SetState", "xnano_core._xnano_core");
+simple_operation!(
+    PyApplyStatePatch,
+    "ApplyStatePatch",
+    "xnano_core._xnano_core"
+);
+simple_operation!(PyWrite, "Write", "xnano_core._xnano_core");
+simple_operation!(PyEditor, "Editor", "xnano_core._xnano_core");
 
 fn optional_i32(value: Option<&Bound<'_, PyAny>>) -> PyResult<Dynamic<i32>> {
     match value.filter(|value| !value.is_none()) {
@@ -242,7 +246,7 @@ impl PyWrite {
     }
 }
 
-#[pyclass(name = "WriteCellText", module = "xnano._xnano_core", extends = PyWrite)]
+#[pyclass(name = "WriteCellText", module = "xnano_core._xnano_core", extends = PyWrite)]
 pub struct PyWriteCellText;
 
 #[pymethods]
@@ -391,7 +395,7 @@ impl PyBorder {
 }
 
 #[pymethods]
-impl PyBlit {
+impl PyPaste {
     #[new]
     #[pyo3(signature = (source, *, x = None, y = None, mode = None))]
     fn new(
@@ -403,21 +407,21 @@ impl PyBlit {
     ) -> PyResult<PyClassInitializer<Self>> {
         let origin = source
             .extract::<PyRef<'_, PySurface>>()
-            .map_err(|_| PyTypeError::new_err("Blit needs a Buffer or a Region as its source"))?;
+            .map_err(|_| PyTypeError::new_err("Paste needs a Buffer or a Region as its source"))?;
         let bounds = origin.bounds()?;
         let snapshot = Arc::new(xnano_terminal_runtime::grid::Grid::from_buffer(
             origin.core.lock().grid.region_buffer(bounds),
         ));
         let (x, y) = (optional_i32(x)?, optional_i32(y)?);
         let mode = optional_name(mode, "replace")?;
-        check_fixed(py, &mode, parse_blit_mode)?;
+        check_fixed(py, &mode, parse_paste_mode)?;
         let bound = x.is_bound() || y.is_bound() || mode.is_bound();
-        Ok(finish(py, "Blit", bound, move |resolver| {
-            Ok(Operation::Blit {
+        Ok(finish(py, "Paste", bound, move |resolver| {
+            Ok(Operation::Paste {
                 source: Arc::clone(&snapshot),
                 x: resolver.get(&x)?,
                 y: resolver.get(&y)?,
-                mode: parse_blit_mode(&resolver.get(&mode)?)?,
+                mode: parse_paste_mode(&resolver.get(&mode)?)?,
             })
         })?
         .add_subclass(Self))
@@ -670,7 +674,7 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyBackground>()?;
     m.add_class::<PyApplyStyle>()?;
     m.add_class::<PyBorder>()?;
-    m.add_class::<PyBlit>()?;
+    m.add_class::<PyPaste>()?;
     m.add_class::<PyPixels>()?;
     m.add_class::<PyRaster>()?;
     m.add_class::<PySetState>()?;

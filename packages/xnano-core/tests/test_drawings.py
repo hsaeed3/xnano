@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from helpers import rows
 
-from xnano._xnano_core import (
+from xnano_core._xnano_core import (
     Buffer,
     Draw,
     Drawing,
@@ -122,7 +122,7 @@ def test_drawings_convert_to_cell_grids():
 
 
 def test_animating_a_drawing_needs_a_runtime(runtime):
-    from xnano._xnano_core import AnimateDrawing, RuntimeRequiredError
+    from xnano_core._xnano_core import AnimateDrawing, RuntimeRequiredError
 
     animation = DrawingAnimation(
         [

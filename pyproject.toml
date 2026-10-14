@@ -1,17 +1,16 @@
 # !!! important
-#   From the `v2` and onwards versions of `xnano`, this file now builds the package as a
-#   no-code wheel that installs the collective set of `xnano-*` subpackages within this
-#   repository.
+#   From the `v2` and onwards versions of `xnano`, this file builds the `xnano` package
+#   (the `xnano/` directory at the repository root) and installs the collective set of
+#   `xnano-*` subpackages within this repository as its dependencies.
 #
-#   The `xnano` namespace is now completely implemented by `xnano-core`; the root
-#   `xnano` name is used to create its modular dependency tree. (ex. `xnano[audio]`)
+#   The terminal runtime itself is implemented by `xnano-core`, which installs the
+#   `xnano_core` import package.
 [build-system]
 requires = ['hatchling>=1.27']
 build-backend = 'hatchling.build'
 
-# this allows xnano's wheel to be built completely empty by hatchling.
 [tool.hatch.build.targets.wheel]
-bypass-selection = true
+packages = ['xnano']
 
 [tool.uv]
 managed = true
@@ -58,13 +57,22 @@ classifiers = [
 # [pyproject.toml](https://github.com/pydantic/monty/blob/main/packages/pydantic-monty/pyproject.toml),
 #
 # [! AUTO-VERSIONING - DO NOT EDIT THIS BY HAND]
-version = '2.0.0b1'
+version = '2.0.0b2'
 dependencies = [
-    "xnano-core>=2.0.0b1",
-    "xnano-audio>=0.1.0,<0.2",
-    "xnano-image>=0.1.0,<0.2",
+    "xnano-core>=2.0.0b2",
+]
+
+[project.optional-dependencies]
+audio = [
+    "xnano-audio>=0.2.0,<0.3",
+]
+image = [
+    "xnano-image>=0.2.0,<0.3",
 ]
 # [! END AUTO-VERSIONING]
+
+[project.scripts]
+xnano = 'xnano.__main__:main'
 
 [dependency-groups]
 dev = [
@@ -79,6 +87,10 @@ dev = [
     "pytest-cov>=7.1.0",
     "pytest-mock>=3.16.0",
     "inline-snapshot",
+    # CPU and memory logging for tests and benchmarks (`pytest --resource-log`)
+    "psutil>=5.9.0",
+    # a terminal emulator, so tests can read the screen of a live terminal
+    "pyte>=0.8.2",
 ]
 codspeed = [
     'pytest-codspeed; python_version == "3.13" and implementation_name == "cpython"',
@@ -92,12 +104,10 @@ docs = [
     "mkdocstrings-python",
     "markdown-exec[ansi]",
 ]
-# used by the `xnano.v1` API (markdown rendering, syntax highlighting and
-# field validation).
-v1 = [
-    'markdown-it-py>=3.0.0',
-    'pydantic-core>=2.0.0',
-    'pygments>=2.17.0',
+compare = [
+    "prompt-toolkit>=3.0.53",
+    "rich>=15.0.0",
+    "urwid>=4.2.5",
 ]
 
 [tool.codespell]
@@ -106,7 +116,7 @@ v1 = [
 ignore-words-list = 'ratatui,iterm,shft,numer,nd,abd,notin,trough'
 
 [tool.coverage.run]
-source = ['xnano', 'xnano_audio', 'xnano_image']
+source = ['xnano', 'xnano_core', 'xnano_audio', 'xnano_image']
 branch = true
 relative_files = true
 context = '${CONTEXT}'
@@ -115,7 +125,12 @@ context = '${CONTEXT}'
 # The CodSpeed benchmark suites live in `packages/<name>/benchmarks/` and run with
 # `pytest --codspeed <paths>`. Each package's test suite runs from its own directory:
 # the packages reuse module names (`helpers`, `test_contract`), which one pytest
-# session cannot import together.
+# session cannot import together. Running `pytest` from the repository root only runs
+# the `xnano` tests in `tests/`.
+testpaths = ['tests']
+# A runtime dropped on the wrong thread, or any error ignored by the garbage collector, is a
+# bug in the code that left it behind, so it fails the test instead of printing a warning.
+filterwarnings = ['error::pytest.PytestUnraisableExceptionWarning']
 # Default discovery excludes common build/venv dirs only.
 norecursedirs = [
     '.*',
@@ -130,35 +145,38 @@ norecursedirs = [
 
 #
 [tool.basedpyright]
-include = ['packages']
+include = ['xnano', 'tests', 'packages', 'scripts', 'examples', 'benchmarks', '.github/scripts']
 exclude = ['**/__pycache__', '**/.venv', '**/target']
 pythonVersion = '3.10'
 typeCheckingMode = 'standard'
 reportMissingModuleSource = false
+extraPaths = ['scripts', 'tests']
 
-# v1 is a dynamic compatibility port of the former Pydantic/dataclass API.
-# Keep type checking strict for the new packages and exercise v1 through its
-# runtime compatibility suite; its dynamic component/schema adapters cannot
-# be represented faithfully by basedpyright's static model.
 [[tool.basedpyright.executionEnvironments]]
-root = 'packages/xnano-core/src/xnano/v1'
+root = 'tests'
+extraPaths = ['tests', 'scripts']
 reportArgumentType = false
-reportAssignmentType = false
-reportAttributeAccessIssue = false
 reportCallIssue = false
-reportGeneralTypeIssues = false
-reportIncompatibleVariableOverride = false
-reportInconsistentOverload = false
-reportInvalidTypeForm = false
-reportInvalidTypeVarUse = false
-reportMissingImports = false
-reportReturnType = false
-reportSelfClsParameterName = false
+reportIndexIssue = false
+reportAttributeAccessIssue = false
+reportOptionalMemberAccess = false
+reportOptionalSubscript = false
+reportUnusedExpression = false
 
-# Tests pass invalid values on purpose and read optional results they have just asserted.
 [[tool.basedpyright.executionEnvironments]]
 root = 'packages/xnano-core/tests'
-extraPaths = ['packages/xnano-core/tests']
+extraPaths = ['packages/xnano-core/tests', 'scripts']
+reportArgumentType = false
+reportCallIssue = false
+reportIndexIssue = false
+reportAttributeAccessIssue = false
+reportOptionalMemberAccess = false
+reportOptionalSubscript = false
+reportUnusedExpression = false
+
+[[tool.basedpyright.executionEnvironments]]
+root = 'packages/xnano-core/benchmarks'
+extraPaths = ['packages/xnano-core/benchmarks', 'scripts']
 reportArgumentType = false
 reportCallIssue = false
 reportIndexIssue = false
@@ -169,7 +187,7 @@ reportUnusedExpression = false
 
 [[tool.basedpyright.executionEnvironments]]
 root = 'packages/xnano-audio/tests'
-extraPaths = ['packages/xnano-audio/tests']
+extraPaths = ['packages/xnano-audio/tests', 'scripts']
 reportArgumentType = false
 reportCallIssue = false
 reportIndexIssue = false
@@ -180,7 +198,7 @@ reportUnusedExpression = false
 
 [[tool.basedpyright.executionEnvironments]]
 root = 'packages/xnano-image/tests'
-extraPaths = ['packages/xnano-image/tests']
+extraPaths = ['packages/xnano-image/tests', 'scripts']
 reportArgumentType = false
 reportCallIssue = false
 reportIndexIssue = false
@@ -191,7 +209,7 @@ reportUnusedExpression = false
 
 [[tool.basedpyright.executionEnvironments]]
 root = 'packages/xnano-audio/benchmarks'
-extraPaths = ['packages/xnano-audio/benchmarks']
+extraPaths = ['packages/xnano-audio/benchmarks', 'scripts']
 reportArgumentType = false
 reportCallIssue = false
 reportIndexIssue = false
@@ -202,7 +220,7 @@ reportUnusedExpression = false
 
 [[tool.basedpyright.executionEnvironments]]
 root = 'packages/xnano-image/benchmarks'
-extraPaths = ['packages/xnano-image/benchmarks']
+extraPaths = ['packages/xnano-image/benchmarks', 'scripts']
 reportArgumentType = false
 reportCallIssue = false
 reportIndexIssue = false
@@ -210,6 +228,14 @@ reportAttributeAccessIssue = false
 reportOptionalMemberAccess = false
 reportOptionalSubscript = false
 reportUnusedExpression = false
+
+[tool.ruff]
+line-length = 90
+target-version = 'py310'
+
+[tool.ruff.format]
+line-ending = 'auto'
+quote-style = 'single'
 
 [tool.ruff.lint]
 preview = true
@@ -240,12 +266,14 @@ pydocstyle = { convention = 'google' }
 [tool.ruff.lint.per-file-ignores]
 # Stubs declare `__repr__` so type checkers and the stub contract tests see it.
 '*.pyi' = ['PYI029']
+'tests/**/*.py' = ['D']
+'benchmarks/**/*.py' = ['D', 'T201']
+# the new `xnano` package is empty until it is implemented.
+'xnano/__init__.py' = ['D200']
 
 [tool.ruff.lint.isort]
-known-first-party = ["xnano"]
-# pydantic-core is no longer a dependency installed by default with xnano, but is included
-# in the legacy `xnano.v1` submodule.
-known-third-party = ["pydantic_core", "xnano_audio", "xnano_image"]
+known-first-party = ["xnano", "xnano_core"]
+known-third-party = ["xnano_audio", "xnano_image"]
 # Automatic spacing (-1):
 # - 1 blank line between the last runtime import and `if TYPE_CHECKING:`
 # - 2 blank lines after the import / TYPE_CHECKING block before top-level

@@ -24,7 +24,7 @@ fn status_name(status: Status) -> &'static str {
 
 #[pyclass(
     name = "KeyboardCapabilities",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     skip_from_py_object
 )]
@@ -104,7 +104,7 @@ pub fn query_keyboard_capabilities(
 
 #[pyclass(
     name = "TerminalCapabilities",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     skip_from_py_object
 )]
@@ -204,7 +204,7 @@ pub fn detect_terminal_capabilities(
 
 #[pyclass(
     name = "InputOptions",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     from_py_object
 )]
@@ -293,7 +293,7 @@ impl PyInputOptions {
 
 #[pyclass(
     name = "TerminalOptions",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     from_py_object
 )]
@@ -304,19 +304,23 @@ pub struct PyTerminalOptions {
     pub raw_mode: bool,
     pub drain_reports_on_exit: bool,
     pub drain_timeout_milliseconds: u64,
+    pub should_capture_output: bool,
+    pub should_clear_on_close: bool,
 }
 
 #[pymethods]
 impl PyTerminalOptions {
     #[new]
     #[pyo3(signature = (*, input = None, alternate_screen = true, raw_mode = true, drain_reports_on_exit = true,
-        drain_timeout_milliseconds = 250))]
+        drain_timeout_milliseconds = 250, should_capture_output = true, should_clear_on_close = false))]
     pub(crate) fn new(
         input: Option<PyInputOptions>,
         alternate_screen: bool,
         raw_mode: bool,
         drain_reports_on_exit: bool,
         drain_timeout_milliseconds: u64,
+        should_capture_output: bool,
+        should_clear_on_close: bool,
     ) -> PyResult<Self> {
         let input = match input {
             Some(input) => input,
@@ -328,6 +332,8 @@ impl PyTerminalOptions {
             raw_mode,
             drain_reports_on_exit,
             drain_timeout_milliseconds,
+            should_capture_output,
+            should_clear_on_close,
         })
     }
 
@@ -355,9 +361,19 @@ impl PyTerminalOptions {
     fn drain_timeout_milliseconds(&self) -> u64 {
         self.drain_timeout_milliseconds
     }
+
+    #[getter]
+    fn should_capture_output(&self) -> bool {
+        self.should_capture_output
+    }
+
+    #[getter]
+    fn should_clear_on_close(&self) -> bool {
+        self.should_clear_on_close
+    }
 }
 
-#[pyclass(name = "InputState", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "InputState", module = "xnano_core._xnano_core", frozen)]
 pub struct PyInputState {
     pub shared: Arc<RuntimeShared>,
 }
@@ -411,7 +427,7 @@ impl PyInputState {
     }
 }
 
-#[pyclass(name = "Device", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "Device", module = "xnano_core._xnano_core", frozen)]
 pub struct PyDevice {
     pub shared: Arc<RuntimeShared>,
 }
@@ -508,7 +524,7 @@ impl PyDevice {
     }
 }
 
-#[pyclass(name = "HitArea", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "HitArea", module = "xnano_core._xnano_core", frozen)]
 pub struct PyHitArea {
     data: Arc<Mutex<HitAreaData>>,
     shared: Arc<RuntimeShared>,
@@ -545,7 +561,7 @@ impl PyHitArea {
     }
 }
 
-#[pyclass(name = "FocusScope", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "FocusScope", module = "xnano_core._xnano_core", frozen)]
 pub struct PyFocusScope {
     id: u64,
     shared: Arc<RuntimeShared>,
@@ -583,7 +599,7 @@ impl PyFocusScope {
     }
 }
 
-#[pyclass(name = "InputRouter", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "InputRouter", module = "xnano_core._xnano_core", frozen)]
 pub struct PyInputRouter {
     pub shared: Arc<RuntimeShared>,
 }

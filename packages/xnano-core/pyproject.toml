@@ -5,7 +5,7 @@ build-backend = 'maturin'
 [tool.maturin]
 manifest-path = "../../crates/xnano-terminal-core/Cargo.toml"
 features = ["pyo3/extension-module"]
-module-name = "xnano._xnano_core"
+module-name = "xnano_core._xnano_core"
 python-source = "src/"
 bindings = "pyo3"
 strip = true
@@ -65,7 +65,9 @@ dev = [
     "pytest-cov>=7.1.0",
     "pytest-mock>=3.16.0",
     "inline-snapshot",
-        ]
+    # CPU and memory logging for tests and benchmarks (`pytest --resource-log`)
+    "psutil>=5.9.0",
+]
 codspeed = [
     'pytest-codspeed; python_version == "3.13" and implementation_name == "cpython"',
 ]
@@ -86,11 +88,11 @@ extend-ignore = [
 ]
 flake8-quotes = { inline-quotes = 'single', multiline-quotes = 'double' }
 mccabe = { max-complexity = 13 }
-isort = { known-first-party = ['xnano', 'tests'] }
+isort = { known-first-party = ['xnano_core', 'tests'] }
 
 [tool.ruff.lint.per-file-ignores]
 # v1 preserves the original compatibility layer's parser and dispatcher control flow.
-"src/xnano/v1/**/*.py" = ["BLE001", "C901", "S110", "S112"]
+"src/xnano_core/v1/**/*.py" = ["BLE001", "C901", "S110", "S112"]
 # Stubs declare `__repr__` so type checkers and the stub contract tests see it.
 '*.pyi' = ['PYI029', 'PYI001', 'PYI002', 'PYI034']
 
@@ -102,7 +104,7 @@ keep-runtime-typing = true
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ['xnano']
+source = ['xnano_core']
 branch = true
 
 [tool.coverage.report]
@@ -130,7 +132,7 @@ cache-keys = [
     { file = "../../Cargo.toml" },
     { file = "../../Cargo.lock" },
     { dir = "../../crates" },
-    { dir = "src/xnano" },
+    { dir = "src/xnano_core" },
     { env = "MATURIN_PEP517_ARGS" },
     { env = "RUSTFLAGS" }
 ]

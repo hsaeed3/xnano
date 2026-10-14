@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from xnano._xnano_core import Buffer, Clock, Event, RenderError, Runtime, Write
-from xnano._xnano_core._core_types import Invalidate, Skip, Stop
+from xnano_core._xnano_core import Buffer, Clock, Event, RenderError, Runtime, Write
+from xnano_core._xnano_core._core_types import Invalidate, Skip, Stop
 
 
 def test_offscreen_runtimes_use_manual_clocks_and_never_negotiate():

@@ -32,7 +32,7 @@ default-members = [
 edition = "2024"
 # The `xnano` and `xnano-core` distributions share this version. The runtime build script
 # writes it, and the audio/image pins, into the root `pyproject.toml`.
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.2"
 rust-version = "1.88"
 license = "MIT"
 authors = ["Hammad Saeed <hammad@supportvectors.com>"]
@@ -59,7 +59,7 @@ indexmap = "2"
 time = "0.3"
 serde_json = { version = "1", features = ["preserve_order"] }
 regex = "1"
-rustix = { version = "1", features = ["event", "std"] }
+rustix = { version = "1", features = ["event", "pipe", "std", "stdio", "termios"] }
 signal-hook = "0.3"
 criterion = { package = "codspeed-criterion-compat", version = "2", default-features = false }
 

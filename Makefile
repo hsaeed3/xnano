@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 # Python packages live in `packages/`, and every Rust crate lives in `crates/` (one Cargo workspace).
 packages = xnano-core xnano-audio xnano-image
-sources = packages scripts .github/scripts
+sources = xnano tests packages scripts examples benchmarks .github/scripts
 NUM_THREADS?=1
 
 # This is used to stop uv from rebuilding a .so file through `uv run` invoked operations
@@ -10,6 +10,8 @@ uv-run-no-sync = uv run --no-sync
 # `xnano-audio` links the system ALSA library on Linux. When its development
 # headers are missing, the package is built without audio device support instead
 # of failing the whole install (synthesis still works; devices report unavailable).
+# The same fallback for direct maturin builds of xnano-audio, such as `make compare`.
+audio-device-features := $(shell if [ "$$(uname -s)" = "Linux" ] && ! pkg-config --exists alsa 2>/dev/null; then echo "--no-default-features"; fi)
 audio-sync-settings := $(shell if [ "$$(uname -s)" = "Linux" ] && ! pkg-config --exists alsa 2>/dev/null; then echo "--config-settings-package xnano-audio:maturin.build-args=--no-default-features"; fi)
 uv-sync = uv sync --frozen --all-groups --all-packages --all-extras $(audio-sync-settings)
 
@@ -55,6 +57,21 @@ rebuild: .uv .rust .audio-notice
 rebuild-lockfiles: .uv
 	uv lock --upgrade
 
+.PHONY: install-terminal ## Install dev-only Kitty and the headless Linux display tools
+install-terminal:
+	@if [ "$$(uname -s)" = Darwin ]; then brew install --cask kitty; \
+	elif [ "$$(uname -s)" = Linux ] && command -v apt-get >/dev/null; then \
+		sudo apt-get update && sudo apt-get install -y kitty xvfb xauth libgl1-mesa-dri fonts-dejavu-core; \
+	else echo 'Install Kitty and, on headless Linux, Xvfb with your system package manager.' >&2; exit 1; fi
+
+.PHONY: readme-images ## Photograph the README's examples in real Kitty windows (needs make install-terminal)
+readme-images: .uv
+	$(uv-run-no-sync) python scripts/readme_images.py
+
+.PHONY: test-terminal ## Run tests in an actual terminal application (ARGS passes pytest options)
+test-terminal: .uv
+	$(uv-run-no-sync) python scripts/test_terminal.py $(ARGS)
+
 .PHONY: format  ## Auto-format the python source files of every package
 format: .uv
 	$(uv-run-no-sync) ruff check --fix $(sources)
@@ -69,7 +86,7 @@ format-all: .uv
 lint: .uv
 	$(uv-run-no-sync) ruff check $(sources)
 	$(uv-run-no-sync) ruff format --check $(sources)
-	$(uv-run-no-sync) griffe dump -f -d google -LWARNING -o/dev/null xnano -s packages/xnano-core/src
+	$(uv-run-no-sync) griffe dump -f -d google -LWARNING -o/dev/null xnano_core -s packages/xnano-core/src
 	$(uv-run-no-sync) griffe dump -f -d google -LWARNING -o/dev/null xnano_audio -s packages/xnano-audio/src
 	$(uv-run-no-sync) griffe dump -f -d google -LWARNING -o/dev/null xnano_image -s packages/xnano-image/src
 
@@ -79,6 +96,9 @@ lint-rust:
 	cargo fmt --all -- --check
 	cargo clippy --version
 	cargo clippy --workspace --all-targets -- -D warnings
+	# Windows has its own code paths (no output capture), so it is checked from here too.
+	rustup target add x86_64-pc-windows-msvc
+	cargo clippy --target x86_64-pc-windows-msvc --workspace --all-targets -- -D warnings
 
 .PHONY: lint-all  ## Lints all python & rust source files
 lint-all: lint lint-rust
@@ -98,7 +118,13 @@ test-rust: .rust
 
 .PHONY: test-coverage ## Run tests and generate a coverage report
 test-coverage: .uv
+	$(uv-run-no-sync) pytest tests
 	@set -e; for package in $(packages); do $(MAKE) -C packages/$$package test-coverage; done
+
+.PHONY: compare  ## Build optimized extensions, then time xnano against rich, urwid and prompt_toolkit
+compare: .uv
+	@set -e; for package in $(packages); do extra=""; if [ "$$package" = "xnano-audio" ]; then extra="$(audio-device-features)"; fi; (cd packages/$$package && $(uv-run-no-sync) maturin develop --uv --release $$extra); done
+	$(uv-run-no-sync) python benchmarks/compare.py $(ARGS)
 
 .PHONY: benchmark-all ## Run every package's benchmarks against optimized builds
 benchmark-all: .uv
@@ -106,11 +132,13 @@ benchmark-all: .uv
 
 .PHONY: test  ## Run all tests without building the packages
 test: test-rust
+	$(uv-run-no-sync) pytest tests
 	@set -e; for package in $(packages); do $(MAKE) -C packages/$$package test; done
 
 .PHONY: test-sync ## Runs all tests after syncing every package with uv
 test-sync: .uv
 	$(uv-sync)
+	$(uv-run-no-sync) pytest tests
 	@set -e; for package in $(packages); do $(MAKE) -C packages/$$package test; done
 
 .PHONY: clean  ## Clear local caches and build artifacts

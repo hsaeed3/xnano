@@ -11,10 +11,10 @@ import sys
 
 def main() -> int:
     """Verify core imports, offscreen rendering and clock callbacks in Pyodide."""
-    import xnano._xnano_core as core
+    import xnano_core._xnano_core as core
 
     sys.stdout.write(f"platform: {sys.platform}\n")
-    sys.stdout.write(f"xnano._xnano_core: {core.__version__}\n")
+    sys.stdout.write(f"xnano_core._xnano_core: {core.__version__}\n")
     sys.stdout.write(f"key binding: {core.KeyBinding.parse('ctrl+q')!r}\n")
 
     if sys.platform == "emscripten":

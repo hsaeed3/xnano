@@ -22,7 +22,7 @@ use crate::widgets::{
 /// One title of a block.
 #[pyclass(
     name = "BlockTitle",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen,
     from_py_object
 )]
@@ -100,7 +100,7 @@ impl PyBlockTitle {
 }
 
 /// The widget that frames content, and the frame other widgets take as ``block=``.
-#[pyclass(name = "Block", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Block", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyBlock {
     pub spec: Shared<BlockSpec>,
 }

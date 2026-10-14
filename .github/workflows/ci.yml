@@ -129,9 +129,26 @@ jobs:
       - name: Test the Python packages
         shell: bash
         run: |
+          uv run --no-sync pytest tests
           for package in xnano-core xnano-audio xnano-image; do
             (cd "packages/$package" && uv run --no-sync pytest)
           done
+
+      - name: Install development terminal tools
+        if: runner.os == 'Linux' && matrix.python-version == '3.13'
+        run: sudo apt-get install -y kitty xvfb xauth libgl1-mesa-dri fonts-dejavu-core
+
+      - name: Test an actual terminal application
+        if: runner.os == 'Linux' && matrix.python-version == '3.13'
+        run: make test-terminal
+
+      - name: Upload native terminal screens and logs
+        if: always() && runner.os == 'Linux' && matrix.python-version == '3.13'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-terminal
+          path: .artifacts/terminal/
+          if-no-files-found: ignore
 
   docs:
     name: Build docs
@@ -306,7 +323,7 @@ jobs:
           uv venv
           uv pip install "$PACKAGE" --no-index --no-deps --find-links dist --force-reinstall
           if [ "$PACKAGE" = "xnano-core" ]; then
-            uv run --no-project --no-sync python -c "import xnano._xnano_core as core, xnano._xnano_core._core_types as types; print(core.__version__); print(core.Buffer(width=4, height=1))"
+            uv run --no-project --no-sync python -c "import xnano_core._xnano_core as core, xnano_core._xnano_core._core_types as types; print(core.__version__); print(core.Buffer(width=4, height=1))"
           else
             uv run --no-project --no-sync python -c "import ${PACKAGE//-/_} as module; print(module.__name__)"
           fi

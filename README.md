@@ -1,5 +1,7 @@
-> [!IMPORTANT]
-> `xnano` v2 is in beta. The redesigned Rust-backed core is available now, and the previous high-level API remains available as the opt-in `xnano.v1` module.
+> [!NOTE]
+> This is xnano v2, a terminal you put things on. Looking for the grid-and-field API of v1? It lives on the
+> [`v1` branch](https://github.com/hsaeed3/xnano/tree/v1); install the latest release,
+> [v1.2.3](https://github.com/hsaeed3/xnano/releases/tag/xnano%2Fv1.2.3), with `pip install "xnano>=1.2.3,<2"`.
 
 <div align="center">
 
@@ -18,125 +20,146 @@
 
 ---
 
-## Packages
+## Quick start
 
-The repository is a uv workspace with three installable backends and a small `xnano` metapackage. The native packages can also be installed and used independently.
+```python
+import xnano
+from xnano.context import Context
+from xnano.expressions import ParentWidth, TimeElapsed, Width
 
-| Distribution | Import | Purpose |
-| --- | --- | --- |
-| [`xnano`](.) | `xnano.v1` (legacy API) | Metapackage; v1 compatibility API is opt-in. |
-| [`xnano-core`](./packages/xnano-core) | `xnano._xnano_core` | Rust-backed terminal buffers, widgets, layout, state, input, runtime and effects. |
-| [`xnano-audio`](./packages/xnano-audio) | `xnano_audio` | Audio synthesis, playback, capture and beat-based melodies. |
-| [`xnano-image`](./packages/xnano-image) | `xnano_image` | Image and animation decoding, processing and terminal-cell conversion. |
+with xnano.open(width=40, height=5) as terminal:
+    terminal.write('Hello, world!', x='center', border='rounded')
+    ball = terminal.write('●', y=4)
+    ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)  # a formula, evaluated every frame
+
+    @terminal.on_key('space')
+    def toggle(context: Context) -> None:
+        if terminal.is_paused:
+            terminal.resume()
+        else:
+            terminal.pause()
+
+    terminal.run(quit_on='q')
+```
+
+`xnano.open()` gives you a terminal. You `write` text, widgets, images and pixels to it, and every
+position and size can be a number, a word such as `'center'`, or a formula of time or of the
+terminal's size. Decorators named for what happens (`on_key`, `on_click`, `every`, `after`)
+react, `terminal.input` tells a game which keys are held, `terminal.scene()` gives pixel-art
+worlds a camera and collision, and `terminal.play('C4 E4 G4:2')` plays a melody written as text.
+There are no base classes to subclass and no layout tree to declare.
+
+The [`examples/`](./examples) folder has twenty-one runnable programs, from hello world to a
+playable pixel-art world, and `examples/README.md` shows what each one draws.
+
+## See it
+
+Run the demo in your terminal with `python -m xnano` (or the `xnano` command). It opens with an
+animation, then fills the window with live panels that each use a different part of xnano.
+
+![The xnano demo](./docs/assets/readme/demo.png)
+
+Every picture below is a real terminal window running one of the programs in
+[`examples/`](./examples), photographed by `make readme-images`, so each picture and its
+source stay in step.
+
+### A playable world
+
+A pixel-art character, a camera that follows it, collision and a clock you can stop: about
+one screen of code ([`20_world.py`](./examples/20_world.py)).
+
+![A playable pixel-art world](./docs/assets/readme/world.png)
+
+### Pixel art that fits the window
+
+Give an image a percentage and it refits whenever the window is resized, keeping its hard pixel
+edges; give it a number and it is locked. The thumbnail in the corner is locked
+([`24_dusk.py`](./examples/24_dusk.py)). The art is "Mountain at Dusk" by Luis Zuno (ansimuz), CC0.
+
+![Pixel art that refits the window](./docs/assets/readme/dusk.png)
+
+### Pixel art written as text
+
+`from_art` turns a block of characters and a short palette into an image
+([`23_sprites.py`](./examples/23_sprites.py)).
+
+![Sprites written as text](./docs/assets/readme/sprites.png)
+
+### Images and animations
+
+Pan and zoom over a large picture with the arrow keys and `+` / `-`
+([`06_images.py`](./examples/06_images.py)).
+
+![An image viewer](./docs/assets/readme/images.png)
+
+### Sound
+
+Every built-in instrument, playable from the keyboard ([`10_audio.py`](./examples/10_audio.py)),
+and a whole song written as text, played on the beat ([`22_song.py`](./examples/22_song.py)).
+
+![Playing every instrument](./docs/assets/readme/instruments.png)
+![A song written as text](./docs/assets/readme/song.png)
+
+### Widgets
+
+Charts, tables and gauges refreshed from a timer ([`14_dashboard.py`](./examples/14_dashboard.py)).
+
+![A dashboard](./docs/assets/readme/dashboard.png)
 
 ## Install
 
-Install the full `xnano` distribution with pip or uv:
+Install `xnano` with pip or uv. Sound and images are extras, so a program that needs neither
+installs neither:
 
 ```bash
-pip install xnano
+pip install xnano                # the terminal, widgets, effects and events
+pip install "xnano[audio]"       # adds notes, melodies, sounds and the microphone
+pip install "xnano[image]"       # adds images and animations
+pip install "xnano[audio,image]"
 # or
-uv add xnano
+uv add "xnano[audio,image]"
 ```
 
-Install only a backend when you need a smaller dependency set:
+Using sound or images without their extra raises an `ImportError` that names the extra to
+install. On Linux, audio device playback requires ALSA; synthesis and melody scheduling work
+without an audio device.
+
+## Packages
+
+The repository is a uv workspace with three installable backends and a small `xnano`
+metapackage that holds the terminal API. The backends can also be installed on their own.
+
+| Distribution | Import | Purpose |
+| --- | --- | --- |
+| [`xnano`](.) | `xnano` | The terminal API: `open`, placements, hooks, input, pixels, scenes and sound. |
+| [`xnano-core`](./packages/xnano-core) | `xnano_core` | The Rust-backed engine: buffers, widgets, layout, state, input, runtime and effects. |
+| [`xnano-audio`](./packages/xnano-audio) | `xnano_audio` | Audio synthesis, playback, capture and beat-based melodies. |
+| [`xnano-image`](./packages/xnano-image) | `xnano_image` | Image and animation decoding, processing and terminal-cell conversion. |
+
+Names live in modules named for what they hold, so the top-level `xnano` stays small:
+`xnano.widgets`, `xnano.expressions`, `xnano.effects`, `xnano.operations`, `xnano.styles`,
+`xnano.events`, `xnano.geometry`, `xnano.buffers`, `xnano.scene`, `xnano.types` and
+`xnano.errors`, plus the optional `xnano.audio` and `xnano.image`.
+
+## xnano v1
+
+xnano v1 (the declarative grid-and-field API) is not part of this branch. It is maintained on
+the [`v1` branch](https://github.com/hsaeed3/xnano/tree/v1), and the latest release is
+[v1.2.3](https://github.com/hsaeed3/xnano/releases/tag/xnano%2Fv1.2.3)
+([PyPI](https://pypi.org/project/xnano/1.2.3/)):
 
 ```bash
-pip install xnano-core
-pip install xnano-audio
-pip install xnano-image
+pip install "xnano>=1.2.3,<2"
 ```
 
-The core package also provides `audio`, `image`, and `all` extras for installing those backends alongside `xnano-core`. On Linux, audio device playback requires ALSA; synthesis and melody scheduling work without an audio device.
-
-## Quick start: draw without a terminal
-
-The core API builds buffers from operations. Rendering a buffer to text is useful for scripts and tests and does not take over the terminal.
-
-```python
-from xnano._xnano_core import Border, Buffer, Write
-
-card = Buffer(width=16, height=3)
-card.update(Border('rounded'), Write('hello, xnano', x=2, y=1))
-print(card.render(format='text'))
-```
-
-## Quick start: run a mounted buffer
-
-An offscreen runtime exercises layout and frame rendering without terminal I/O. Use `Runtime.live()` when the application should own a real terminal.
-
-```python
-from xnano._xnano_core import Buffer, Runtime, Write
-
-with Runtime.offscreen(width=20, height=3) as runtime:
-    buffer = Buffer()
-    runtime.mount(buffer, geometry='inherit')
-    buffer.update(Write('hello from xnano'))
-    runtime.step()
-    print(runtime.snapshot().lines()[0])
-```
-
-The runtime also routes keyboard and mouse input, manages focus and state, and advances effects against its frame clock. See the [getting started guide](https://xnano.hammad.app/learn/) and [API reference](https://xnano.hammad.app/api-reference/).
-
-## Audio melodies
-
-`xnano-audio` describes notes in beats, converts them to seconds through a tempo map, and schedules notes over clock windows. This makes melody timing independent of the terminal render loop; an application can use the same monotonic clock for UI animation and audio scheduling.
-
-```python
-from xnano_audio import TerminalMelody, TerminalTempoMap
-
-melody = (
-    TerminalMelody(tempo_map=TerminalTempoMap(120))
-    .appended_note('C4', duration_beats=1)
-    .appended_note('G4', duration_beats=1)
-)
-# Query a half-second window on the same monotonic clock used by the UI.
-print(melody.scheduled_between(0.0, 0.5))
-```
-
-## Images and animations
-
-Decode an image and convert it to terminal cells with `xnano-image`:
-
-```python
-from xnano_image import TerminalImage, cell_grid_to_ansi
-
-image = TerminalImage.open('photo.png')
-print(cell_grid_to_ansi(image.to_cell_grid(40)))
-```
-
-The image package returns a portable cell-grid representation that the core can draw with its cell-grid widgets. It also supports animated formats and conversion to a cell animation.
-
-## The v1 API
-
-The previous declarative API remains available from `xnano.v1`; the main `xnano` package does not import it unless requested. Existing applications can migrate incrementally while new code uses the Rust-backed core.
-
-```python
-from xnano.v1 import BaseGrid, Context, Field, Terminal, on_keyboard
-
-
-class Counter(BaseGrid, direction='vertical', gap=1):
-    label: str = Field(default='Count: 0', height=3, border='rounded')
-    count: int = Field(default=0, state=True)
-
-    @on_keyboard('up')
-    def increment(self) -> None:
-        self.count += 1
-        self.label = f'Count: {self.count}'
-
-    @on_keyboard('q')
-    def quit(self, context: Context) -> None:
-        context.terminal.request_exit()
-
-
-Terminal().run(Counter())
-```
-
-The restored legacy documentation is under [`docs/v1`](./docs/v1/). The v1 API is maintained as a compatibility layer; new core capabilities are documented in the current guides and API reference.
+The v1 guides are kept in [`docs/v1`](./docs/v1/), and their code imports from `xnano`, as v1
+did. A program written for v1 must be rewritten for v2.
 
 ## Development
 
-The repository uses a uv workspace and Rust workspace. From the repository root, `uv sync --all-extras` installs the development environment and `make help` lists common build, test, lint, type-check, docs and release commands. Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a change.
+The repository uses a uv workspace and Rust workspace. From the repository root, `uv sync --all-extras`
+installs the development environment and `make help` lists common build, test, lint, type-check,
+docs and release commands. Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a change.
 
 ## License
 

@@ -24,7 +24,7 @@ fn symbol_setting(
     Ok(setting)
 }
 
-#[pyclass(name = "Clear", module = "xnano._xnano_core", extends = PyWidget, subclass)]
+#[pyclass(name = "Clear", module = "xnano_core._xnano_core", extends = PyWidget, subclass)]
 pub struct PyClear {
     pub spec: Shared<ClearSpec>,
 }

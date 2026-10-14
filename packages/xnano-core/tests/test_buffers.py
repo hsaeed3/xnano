@@ -5,9 +5,8 @@ from __future__ import annotations
 import pytest
 from helpers import rows
 
-from xnano._xnano_core import (
+from xnano_core._xnano_core import (
     Background,
-    Blit,
     Buffer,
     Cell,
     Clear,
@@ -15,6 +14,7 @@ from xnano._xnano_core import (
     Foreground,
     InvalidRegionError,
     Move,
+    Paste,
     Place,
     Rectangle,
     Resize,
@@ -163,12 +163,12 @@ def test_move_and_place_update_the_position():
     assert buffer.position.x == 4 and buffer.bounds.y == 3
 
 
-def test_blit_copies_a_source_snapshot():
+def test_paste_copies_a_source_snapshot():
     source = Buffer('xy')
     target = Buffer(width=5, height=2)
-    target.blit(source, x=1, y=1)
+    target.paste(source, x=1, y=1)
     assert rows(target) == ['', ' xy']
-    operation = Blit(source, x=0)
+    operation = Paste(source, x=0)
     source.update(Write('QQ'))
     target.update(operation)
     assert rows(target)[0] == 'xy'

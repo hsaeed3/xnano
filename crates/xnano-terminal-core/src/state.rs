@@ -38,7 +38,7 @@ fn parse_document(data: &Bound<'_, PyAny>) -> PyResult<serde_json::Value> {
 #[pyclass(
     name = "TerminalStateIssue",
     skip_from_py_object,
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 #[derive(Clone)]
@@ -87,7 +87,7 @@ impl PyStateIssue {
 #[pyclass(
     name = "TerminalStateSchema",
     skip_from_py_object,
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 #[derive(Clone)]
@@ -141,7 +141,7 @@ impl PyStateSchema {
 #[pyclass(
     name = "TerminalStateSnapshot",
     skip_from_py_object,
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 #[derive(Clone)]
@@ -192,7 +192,7 @@ impl PyStateSnapshot {
 #[pyclass(
     name = "TerminalStateSelection",
     skip_from_py_object,
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 #[derive(Clone)]
@@ -240,7 +240,7 @@ impl PyStateSelection {
 #[pyclass(
     name = "TerminalStatePatch",
     skip_from_py_object,
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 #[derive(Clone)]
@@ -285,7 +285,7 @@ impl PyStatePatch {
 #[pyclass(
     name = "TerminalStateChange",
     skip_from_py_object,
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 #[derive(Clone)]
@@ -340,7 +340,7 @@ impl PyStateChange {
 
 #[pyclass(
     name = "TerminalStateSubscription",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 pub struct PyStateSubscription {
@@ -393,7 +393,7 @@ pub fn listener_failure(failure: ListenerFailure) -> PyErr {
 
 #[pyclass(
     name = "TerminalStateTransaction",
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 pub struct PyStateTransaction {
@@ -489,7 +489,7 @@ impl PyStateTransaction {
 #[pyclass(
     name = "TerminalStateObservation",
     skip_from_py_object,
-    module = "xnano._xnano_core",
+    module = "xnano_core._xnano_core",
     frozen
 )]
 #[derive(Clone)]
@@ -543,7 +543,7 @@ impl PyStateObservation {
     }
 }
 
-#[pyclass(name = "TerminalStateStore", module = "xnano._xnano_core", frozen)]
+#[pyclass(name = "TerminalStateStore", module = "xnano_core._xnano_core", frozen)]
 pub struct PyStateStore {
     pub inner: Arc<Store>,
 }

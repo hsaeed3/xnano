@@ -5,7 +5,7 @@
 
 use std::io::Cursor;
 
-use fast_image_resize::images::Image;
+use fast_image_resize::images::{Image, ImageRef};
 use fast_image_resize::{FilterType, MulDiv, PixelType, ResizeAlg, ResizeOptions, Resizer};
 use image::codecs::gif::{GifDecoder, GifEncoder, Repeat};
 use image::codecs::png::PngEncoder;
@@ -285,7 +285,10 @@ impl Animation {
     // --------------------------------------------------------------- encode
 
     pub fn encode(&self, image_format: &str) -> Result<Vec<u8>, String> {
-        let mut output = Vec::new();
+        // The encoded size is unknown, so start with room for about half the raw pixels:
+        // growing from nothing reallocates (and copies) the output several times.
+        let mut output =
+            Vec::with_capacity((self.frames[0].rgba.len() / 2).clamp(4096, 64 * 1024 * 1024));
         match image_format {
             "png" => PngEncoder::new(&mut output)
                 .write_image(
@@ -339,23 +342,28 @@ impl Animation {
         let mut resizer = Resizer::new();
         let alpha_math = MulDiv::default();
         self.map_frames(width, height, |frame| {
+            let mut target = Image::new(width, height, PixelType::U8x4);
+            if is_opaque {
+                // Nothing is modified, so the frame is read in place instead of copied.
+                let source = ImageRef::new(self.width, self.height, &frame.rgba, PixelType::U8x4)
+                    .map_err(resize_error)?;
+                resizer
+                    .resize(&source, &mut target, &options)
+                    .map_err(resize_error)?;
+                return Ok(target.into_vec());
+            }
             let mut source =
                 Image::from_vec_u8(self.width, self.height, frame.rgba.clone(), PixelType::U8x4)
                     .map_err(resize_error)?;
-            if !is_opaque {
-                alpha_math
-                    .multiply_alpha_inplace(&mut source)
-                    .map_err(resize_error)?;
-            }
-            let mut target = Image::new(width, height, PixelType::U8x4);
+            alpha_math
+                .multiply_alpha_inplace(&mut source)
+                .map_err(resize_error)?;
             resizer
                 .resize(&source, &mut target, &options)
                 .map_err(resize_error)?;
-            if !is_opaque {
-                alpha_math
-                    .divide_alpha_inplace(&mut target)
-                    .map_err(resize_error)?;
-            }
+            alpha_math
+                .divide_alpha_inplace(&mut target)
+                .map_err(resize_error)?;
             Ok(target.into_vec())
         })
     }

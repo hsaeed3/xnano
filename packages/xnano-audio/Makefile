@@ -100,7 +100,7 @@ test-coverage: build-coverage
 .PHONY: benchmark  ## Run the benchmarks against an optimized build
 benchmark: .uv
 	$(uv-run-no-sync) maturin develop --uv --release $(device-features)
-	$(uv-run-no-sync) pytest benchmarks --benchmark-enable --benchmark-columns=min,median,max --benchmark-sort=name
+	$(uv-run-no-sync) pytest benchmarks --benchmark-enable --benchmark-columns=min,median,max --benchmark-sort=name --resource-log
 
 .PHONY: all  ## Format, build, lint and test this package
 all: format build-dev lint test

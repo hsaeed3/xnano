@@ -54,13 +54,13 @@ a panel appears. They need an active runtime and painted field geometry.
 ## Playing effects on fields
 
 The usual entrypoint is
-[`BaseGrid.grid_effect`](../api/xnano/grids.md){data-preview}. Pass a known
+[`BaseGrid.grid_effect`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}. Pass a known
 kind string (or a built effect instance) and the **field names** to animate.
 Field names match the attributes on the grid; during paint those slots are
 tagged so the runtime can target their rects.
 
 ```python title="grid_effect" hl_lines="10 11 12 13 14"
-from xnano.v1 import BaseGrid, Field, Terminal, on_keyboard
+from xnano import BaseGrid, Field, Terminal, on_keyboard
 
 class Panel(BaseGrid, direction="vertical"):
     title: str = Field(default="Hello", height=1, border="rounded")
@@ -90,7 +90,7 @@ the runtime accepted the effect. It returns `False` when there is no active
 runtime (for example outside a session) or the fields could not be resolved.
 
 When the first argument is a **kind string**, keyword arguments mirror
-[`Effect(...)`](../api/xnano/effects.md){data-preview}: `duration_ms`, `color`,
+[`Effect(...)`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}: `duration_ms`, `color`,
 `background`, `direction`, `gradient_length`, `randomness`, `interpolation`,
 `effects`, `child`, `times`, and `key`. When the first argument is already an
 `AbstractEffect` instance, those kwargs are ignored — set options on the
@@ -163,7 +163,7 @@ self.grid_effect(
 Typed equivalents:
 
 ```python
-from xnano.v1.effects import (
+from xnano.effects import (
     FadeEffect,
     FadeFromBothEffect,
     FadeFromEffect,
@@ -195,7 +195,7 @@ self.grid_effect("coalesce", duration_ms=500, fields=["body"])
 ```
 
 ```python
-from xnano.v1.effects import CoalesceEffect, DissolveEffect
+from xnano.effects import CoalesceEffect, DissolveEffect
 
 DissolveEffect(duration_ms=400)
 CoalesceEffect(duration_ms=500)
@@ -249,7 +249,7 @@ self.grid_effect(
 ```
 
 ```python
-from xnano.v1.effects import SweepInEffect, SweepOutEffect
+from xnano.effects import SweepInEffect, SweepOutEffect
 
 SweepInEffect(
     direction="left_to_right",
@@ -288,7 +288,7 @@ self.grid_effect(
 ```
 
 ```python
-from xnano.v1.effects import SlideInEffect, SlideOutEffect
+from xnano.effects import SlideInEffect, SlideOutEffect
 
 SlideInEffect(direction="down_to_up", duration_ms=350)
 SlideOutEffect(
@@ -333,7 +333,7 @@ self.grid_effect(
 ```
 
 ```python
-from xnano.v1.effects import (
+from xnano.effects import (
     PaintBackgroundEffect,
     PaintEffect,
     PaintForegroundEffect,
@@ -352,7 +352,7 @@ PaintBackgroundEffect(background="slate-900", duration_ms=200)
 | `"delay"` | `DelayEffect` | Wait, then run a `child` |
 
 ```python title="Sleep and delay"
-from xnano.v1.effects import DelayEffect, Effect, FadeEffect, SleepEffect
+from xnano.effects import DelayEffect, Effect, FadeEffect, SleepEffect
 
 # Standalone pause for sequencing
 SleepEffect(duration_ms=150)
@@ -405,7 +405,7 @@ self.grid_effect(
 | `"repeat"` | `RepeatEffect` | Repeat a `child` `times` times (`None` = forever) |
 
 ```python title="Sequence, parallel, repeat"
-from xnano.v1.effects import Effect, ParallelEffect, RepeatEffect, SequenceEffect
+from xnano.effects import Effect, ParallelEffect, RepeatEffect, SequenceEffect
 
 self.grid_effect(
     "sequence",
@@ -494,7 +494,7 @@ Effects need an active runtime and a painted field geometry, so call
 import time.
 
 ```python title="Trigger from a hook"
-from xnano.v1 import BaseGrid, Field, Terminal, on_keyboard, on_tick
+from xnano import BaseGrid, Field, Terminal, on_keyboard, on_tick
 
 class Banner(BaseGrid, direction="vertical"):
     label: str = Field(default="ready", height=1, border="rounded")
@@ -527,7 +527,7 @@ Terminal().run(Banner())
 1. `key` de-duplicates: replaying with the same key on the same field replaces
    the in-flight effect instead of stacking another.
 
-[`Runtime.play_effect`](../api/xnano/core/runtime.md){data-preview} is the
+[`Runtime.play_effect`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} is the
 lower-level API. Grids wrap it as `grid_effect` so field names resolve
 against that grid's layout after paint.
 
@@ -540,7 +540,7 @@ no-op; the description API stays the same.
 Two equivalent construction paths:
 
 ```python title="Effect factory vs typed classes"
-from xnano.v1.effects import Effect, FadeEffect, SweepInEffect
+from xnano.effects import Effect, FadeEffect, SweepInEffect
 
 # Factory: kind string + kwargs
 fade = Effect("fade", color="emerald-400", duration_ms=250)
@@ -573,8 +573,8 @@ when you store, compose, or type-check effect values.
 
 ??? abstract "API"
 
-    [`xnano.effects`](../api/xnano/effects.md){data-preview} ·
-    [`BaseGrid.grid_effect`](../api/xnano/grids.md){data-preview} ·
-    [`Runtime.play_effect`](../api/xnano/core/runtime.md){data-preview}
+    [`xnano.effects`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`BaseGrid.grid_effect`](https://github.com/hsaeed3/xnano/tree/v1){data-preview} ·
+    [`Runtime.play_effect`](https://github.com/hsaeed3/xnano/tree/v1){data-preview}
 
-[effect]: ../api/xnano/effects.md
+[effect]: https://github.com/hsaeed3/xnano/tree/v1

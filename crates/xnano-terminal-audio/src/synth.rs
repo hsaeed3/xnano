@@ -182,6 +182,50 @@ impl PyAudioEffect {
     fn __deepcopy__(&self, _memo: &Bound<'_, PyAny>) -> Self {
         self.clone()
     }
+
+    /// Chain two audio effects (or an effect and a sequence of effects) into an effect list.
+    fn __or__<'py>(
+        &self,
+        py: Python<'py>,
+        other: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let mut chain = vec![self.clone()];
+        match effects_of(other)? {
+            Some(effects) => {
+                chain.extend(effects);
+                Ok(chain.into_pyobject(py)?.into_any())
+            }
+            None => Ok(py.NotImplemented().into_bound(py)),
+        }
+    }
+
+    fn __ror__<'py>(
+        &self,
+        py: Python<'py>,
+        other: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if let Some(mut effects) = effects_of(other)? {
+            effects.push(self.clone());
+            return Ok(effects.into_pyobject(py)?.into_any());
+        }
+        Ok(py.NotImplemented().into_bound(py))
+    }
+}
+
+/// The effects behind `item`: an effect, a sequence of effects, or an object (such as an audio
+/// customization) that can produce one with `to_audio_effect()`.
+fn effects_of(item: &Bound<'_, PyAny>) -> PyResult<Option<Vec<PyAudioEffect>>> {
+    if let Ok(effect) = item.extract::<PyAudioEffect>() {
+        return Ok(Some(vec![effect]));
+    }
+    if let Ok(effects) = item.extract::<Vec<PyAudioEffect>>() {
+        return Ok(Some(effects));
+    }
+    if item.hasattr("to_audio_effect")? {
+        let effect = item.call_method0("to_audio_effect")?;
+        return effects_of(&effect);
+    }
+    Ok(None)
 }
 
 /// A rendered mono sound: raw samples plus their sample rate.
@@ -299,6 +343,36 @@ impl PySound {
             samples: processed.into(),
             sample_rate: self.sample_rate,
         })
+    }
+
+    /// Apply one or more audio effects (or sequences of audio effects) and return the new sound.
+    #[pyo3(signature = (*effects))]
+    fn add(&self, py: Python<'_>, effects: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<Self> {
+        let mut collected = Vec::new();
+        for item in effects.iter() {
+            if let Some(effects) = effects_of(&item)? {
+                collected.extend(effects);
+            } else {
+                return Err(pyo3::exceptions::PyTypeError::new_err(
+                    "TerminalSound.add() expects TerminalAudioEffect objects or sequences of them",
+                ));
+            }
+        }
+        self.with_effects(py, collected)
+    }
+
+    fn __or__<'py>(
+        &self,
+        py: Python<'py>,
+        other: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        match effects_of(other)? {
+            Some(effects) => Ok(self
+                .with_effects(py, effects)?
+                .into_pyobject(py)?
+                .into_any()),
+            None => Ok(py.NotImplemented().into_bound(py)),
+        }
     }
 
     fn __len__(&self) -> usize {
