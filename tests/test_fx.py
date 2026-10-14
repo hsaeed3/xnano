@@ -15,10 +15,10 @@ def render_text(buffer) -> str:
 
 
 def test_customize_returns_a_dataclass_operation() -> None:
-    style = xnano.fx('style', bold=True)
-    assert dataclasses.is_dataclass(style)
-    assert style.bold is True
-    assert isinstance(style, xnano.operations.Customization)
+    fill = xnano.fx('fill', cell='.')
+    assert dataclasses.is_dataclass(fill)
+    assert fill.cell == '.'
+    assert isinstance(fill, xnano.operations.Customization)
 
 
 def test_customize_rejects_unknown_parameters() -> None:
@@ -26,10 +26,60 @@ def test_customize_rejects_unknown_parameters() -> None:
         xnano.fx('fill', character='.')  # type: ignore[call-arg]
 
 
-def test_canvas_customize_returns_the_canvas_and_draws_the_border() -> None:
-    canvas = xnano.new('hello', width=12, height=3)
-    assert canvas.fx('border', border_kind='rounded') is canvas
-    assert '╭' in render_text(canvas.build())
+def test_canvas_customize_returns_a_handle_that_edits_the_canvas() -> None:
+    canvas = xnano.new('hello', width=6, height=1)
+    dots = canvas.fx('fill', cell='.')
+    assert isinstance(dots, xnano.operations.Customization)
+    dots.cell = '#'
+    assert '#' in render_text(canvas.build())
+    dots.cell = '+'
+    assert '+' in render_text(canvas.build())
+
+
+def test_a_canvas_draws_its_border_title_and_padding_from_attributes() -> None:
+    canvas = xnano.new('hi', border='rounded', title='T', padding=1)
+    text = render_text(canvas.build())
+    assert '╭T' in text
+    canvas.border = 'double'
+    assert '╔T' in render_text(canvas.build())
+    assert canvas.padding == 1
+
+
+def test_a_placement_changes_its_look_after_it_is_written() -> None:
+    with xnano.open(offscreen=True, width=20, height=8) as terminal:
+        label = terminal.write('hi', border='rounded', padding={'horizontal': 1})
+        assert (label.width, label.height) == (6, 3)
+        label.border = 'double'
+        label.padding = 2
+        label.text = 'hello'
+        assert (label.width, label.height) == (11, 7)
+        terminal.iter(count=1).__next__()
+        assert '╔' in terminal.root.render(format='text')
+        assert label.border == 'double'
+
+
+def test_margin_adds_space_outside_the_box() -> None:
+    with xnano.open(offscreen=True, width=12, height=6) as terminal:
+        label = terminal.write('hi', border='plain', margin={'left': 2, 'top': 1})
+        assert (label.width, label.height) == (6, 4)
+
+
+def test_a_widget_cannot_take_a_text_look() -> None:
+    with xnano.open(offscreen=True, width=12, height=3) as terminal:
+        gauge = terminal.write(xnano_core.Gauge(ratio=0.5, width=10, height=1))
+        with pytest.raises(TypeError, match='does not show text'):
+            gauge.border = 'plain'
+
+
+def test_an_effect_handle_restarts_the_effect_with_new_values() -> None:
+    with xnano.open(offscreen=True, width=10, height=1) as terminal:
+        label = terminal.write('abc')
+        effect = label.fx('effect.dissolve', duration_milliseconds=100)
+        key = effect.key
+        assert key is not None
+        effect.duration_milliseconds = 400
+        assert effect.key == key
+        assert effect.duration_milliseconds == 400
 
 
 def test_canvas_pipes_a_customization() -> None:
@@ -39,31 +89,31 @@ def test_canvas_pipes_a_customization() -> None:
 
 
 def test_open_mounts_a_canvas_and_uses_its_size() -> None:
-    with xnano.iter(xnano.new('hi', width=10, height=2), offscreen=True) as terminal:
+    with xnano.open(xnano.new('hi', width=10, height=2), offscreen=True) as terminal:
         assert terminal.size.width == 10
         assert terminal.size.height == 2
 
 
 def test_open_rejects_something_that_is_not_a_canvas() -> None:
     with pytest.raises(TypeError):
-        xnano.iter('text', offscreen=True)  # type: ignore[call-overload]
+        xnano.open('text', offscreen=True)  # type: ignore[call-overload]
 
 
-def test_terminal_customize_and_pipe_return_the_terminal() -> None:
-    with xnano.iter(offscreen=True, width=8, height=2) as terminal:
-        assert terminal.fx('style', foreground='cyan') is terminal
+def test_terminal_customize_returns_a_handle_and_pipe_returns_the_terminal() -> None:
+    with xnano.open(offscreen=True, width=8, height=2) as terminal:
+        assert isinstance(terminal.fx('fill', cell='.'), xnano.operations.Customization)
         assert (terminal | xnano.fx('fill', cell='.')) is terminal
 
 
 def test_nested_placement_is_draggable() -> None:
-    with xnano.iter(offscreen=True, width=20, height=3) as terminal:
+    with xnano.open(offscreen=True, width=20, height=3) as terminal:
         track = terminal.write(' ' * 10, y=1)
         thumb = track.write('█', x=(0, track.width - 1), y=0) | draggable()
         assert isinstance(thumb, xnano.placement.Placement)
 
 
 def test_expression_scopes_on_placements() -> None:
-    with xnano.iter(offscreen=True, width=20, height=3) as terminal:
+    with xnano.open(offscreen=True, width=20, height=3) as terminal:
         ball = terminal.write('o')
         ball.x = (ball.parent.width - ball.width) * ((ball.root.time / 2.0) % 1.0)
         ball.x = (terminal.width - ball.width) * ((terminal.time / 2.0) % 1.0)
@@ -71,14 +121,14 @@ def test_expression_scopes_on_placements() -> None:
 
 def test_terminal_hook_with_a_trigger_mounts_a_contextual_operation() -> None:
     calls: list[int] = []
-    with xnano.iter(offscreen=True, width=8, height=2) as terminal:
+    with xnano.open(offscreen=True, width=8, height=2) as terminal:
 
         @terminal.hook(on='frame')
         def record(context: xnano.context.Context) -> None:
             calls.append(1)
 
         assert isinstance(record, xnano.operations.ContextualOperation)
-        for _ in terminal.loop.frames(count=2):
+        for _ in terminal.iter(count=2):
             pass
     assert calls
 
@@ -98,7 +148,7 @@ def signature_parameters(callable_object: object) -> list[str]:
 def test_every_kind_has_a_dataclass_with_matching_defaults() -> None:
     from xnano._customize import _CUSTOMIZATION_TYPES
 
-    assert set(xnano_core.Customization.kinds()) == set(_CUSTOMIZATION_TYPES)
+    assert set(_CUSTOMIZATION_TYPES) <= set(xnano_core.Customization.kinds())
     for kind, customization_class in _CUSTOMIZATION_TYPES.items():
         native = xnano_core.Customization.defaults(kind)
         fields = {
@@ -112,11 +162,7 @@ def test_every_kind_has_a_dataclass_with_matching_defaults() -> None:
 @pytest.mark.parametrize(
     ('kind', 'target', 'renamed'),
     [
-        ('style', xnano_core.Style, {}),
-        ('block', xnano_core.Block, {}),
-        ('border', xnano_core.Border, {'kind': 'border_kind'}),
         ('layout', xnano_core.Layout, {}),
-        ('margin', xnano_core.Margin, {}),
         ('write', xnano_core.Write, {}),
         ('fill', xnano_core.Fill, {}),
         ('fuzz', xnano_core.Fuzz, {}),
@@ -146,17 +192,9 @@ def test_customize_reaches_every_effect_constructor() -> None:
             assert parameter in parameters, (name, parameter)
 
 
-def test_style_accepts_every_modifier_without_prefixed_aliases() -> None:
-    parameters = xnano_core.Customization.defaults('style')
-    assert not [name for name in parameters if name.startswith('is_')]
-    style = xnano.fx('style', rapid_blink=True, underline_color='red').build()
-    assert 'rapid_blink' in style.modifiers
-    assert style.underline_color is not None
-
-
 def test_customization_is_a_native_operation_that_sequences() -> None:
     fill = xnano_core.Customization('fill', cell='.')
-    border = xnano.fx('border', border_kind='rounded')
+    border = xnano_core.Customization('border', border_kind='rounded')
     buffer = xnano_core.Buffer(width=6, height=3)
     buffer.update(fill | border)
     text = buffer.render(format='text')
@@ -225,14 +263,14 @@ def test_xnano_hook_makes_a_reusable_operation() -> None:
         return f'w={context.width}'
 
     assert isinstance(banner, xnano.operations.ContextualOperation)
-    with xnano.iter(offscreen=True, width=8, height=1) as terminal:
+    with xnano.open(offscreen=True, width=8, height=1) as terminal:
         assert terminal.write(banner).text == 'w=8'
     assert not hasattr(xnano, 'operation')
 
 
 def test_a_hook_on_a_clock_returns_the_operation_and_an_event_hook_the_handle() -> None:
     ticks: list[float] = []
-    with xnano.iter(offscreen=True, width=8, height=1) as terminal:
+    with xnano.open(offscreen=True, width=8, height=1) as terminal:
 
         @terminal.hook(every=0.1)
         def tick(context: Context) -> None:

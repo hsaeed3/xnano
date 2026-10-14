@@ -45,7 +45,7 @@ class Time:
         ```python
         import xnano
 
-        with xnano.iter(offscreen=True, width=20, height=1) as terminal:
+        with xnano.open(offscreen=True, width=20, height=1) as terminal:
             ball = terminal.write('o')
             ball.x = (terminal.width - 1) * ((terminal.time.seconds / 2) % 1.0)
             terminal.loop.advance(1.0)

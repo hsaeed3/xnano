@@ -15,7 +15,7 @@ from xnano.widgets import Block, Canvas, CanvasCircle, CanvasLabel, CanvasPoints
 
 def main() -> None:
     """Draw an orbit that follows the clock."""
-    with xnano.iter(width=50, height=16) as terminal:
+    with xnano.open(width=50, height=16) as terminal:
         canvas = Canvas(
             x_bounds=(-10, 10),
             y_bounds=(-10, 10),

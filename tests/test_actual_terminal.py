@@ -42,7 +42,7 @@ def actual_terminal(request: pytest.FixtureRequest) -> Iterator[ActualTerminal]:
     'actual_terminal',
     [
         """
-with xnano.iter(title='xnano native title') as terminal:
+with xnano.open(title='xnano native title') as terminal:
     terminal.write('NATIVE READY', x=3, y=2)
     terminal.run()
 print('RESTORED', flush=True)
@@ -65,7 +65,7 @@ def test_title_drawing_input_and_alternate_screen_restoration(actual_terminal):
     [
         """
 print('shell prompt', flush=True)
-with xnano.iter(width=20, height=2) as terminal:
+with xnano.open(width=20, height=2) as terminal:
     terminal.write('INLINE READY')
     terminal.run()
 print('REGION CLEARED', flush=True)
@@ -89,7 +89,7 @@ def test_inline_region_stays_below_existing_output_and_clears(actual_terminal):
     [
         """
 import xnano.styles
-with xnano.iter() as terminal:
+with xnano.open() as terminal:
     terminal.write('COLOR READY', style=xnano.styles.Style(foreground=(255, 0, 0)))
     print('CAPTURED OUTPUT', flush=True)
     terminal.run()
@@ -115,7 +115,7 @@ def test_true_color_and_print_capture_reach_the_native_terminal(actual_terminal)
     'actual_terminal',
     [
         """
-with xnano.iter() as terminal:
+with xnano.open() as terminal:
     @terminal.hook
     def observe(context):
         if context.size_changed is not None:
@@ -139,7 +139,7 @@ def test_native_window_resize_reaches_xnano(actual_terminal):
     'actual_terminal',
     [
         """
-with xnano.iter() as terminal:
+with xnano.open() as terminal:
     @terminal.hook
     def observe(context):
         if context.pasted is not None:

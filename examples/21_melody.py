@@ -27,7 +27,7 @@ class Beats:
 def main() -> None:
     """Show the tempo and the beat, and play the tune on request."""
     beats = Beats()
-    with xnano.iter(width=56, height=5) as terminal:
+    with xnano.open(width=56, height=5) as terminal:
         terminal.tempo = 120
         terminal.write('m: play   up/down: tempo   space: pause   q: quit')
 

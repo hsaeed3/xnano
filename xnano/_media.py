@@ -34,7 +34,7 @@ __all__ = [
     'ImageSource',
     'content_buffer',
     'image_buffer',
-    'open',
+    'from_media',
 ]
 
 _PIXELS_PER_CELL_ROW = 2
@@ -192,7 +192,7 @@ def content_buffer(
     if isinstance(content, os.PathLike):
         raise TypeError(
             f'{content!r} is a path, and write shows images, not paths. Load it first with '
-            f'xnano.Image(path) or xnano.open(path).'
+            f'xnano.Image(path) or xnano.from_media(path).'
         )
     if is_image(content):
         image = cast('TerminalImage', content)
@@ -261,7 +261,7 @@ class Image:
         from xnano.image import TerminalImage
 
         picture = xnano.Image(TerminalImage.from_rgba(2, 2, bytes([255, 0, 0, 255]) * 4), width=8)
-        with xnano.iter(offscreen=True, width=20, height=6) as terminal:
+        with xnano.open(offscreen=True, width=20, height=6) as terminal:
             terminal.write(picture, x='center')
         # xnano.Image('photo.png', width='100%') loads a file, and refits when the window resizes.
         ```
@@ -440,7 +440,7 @@ def _decode_wave(module: ModuleType, data: bytes) -> TerminalSound:
 
 
 class _ImageOptions(TypedDict, total=False):
-    """The keyword arguments of [`Image`][xnano.Image], for [`open`][xnano.open]."""
+    """The keyword arguments of [`Image`][xnano.Image], for [`from_media`][xnano.from_media]."""
 
     x: Axis | None
     y: Axis | None
@@ -454,7 +454,7 @@ class _ImageOptions(TypedDict, total=False):
     speed: float
 
 
-def open(
+def from_media(
     source: TerminalImage | TerminalSound | os.PathLike[str] | str | bytes,
     /,
     **options: Unpack[_ImageOptions],
@@ -488,7 +488,7 @@ def open(
         import xnano
         from xnano.image import TerminalImage
 
-        picture = xnano.open(TerminalImage.from_rgba(1, 1, bytes([255, 0, 0, 255])), width=4)
+        picture = xnano.from_media(TerminalImage.from_rgba(1, 1, bytes([255, 0, 0, 255])), width=4)
         assert isinstance(picture, xnano.Image)
         ```
     """
@@ -497,7 +497,7 @@ def open(
         if options:
             raise TypeError(
                 f'A sound takes no display options, but {", ".join(sorted(options))} '
-                f'{"was" if len(options) == 1 else "were"} given. Remove them, or open an '
+                f'{"was" if len(options) == 1 else "were"} given. Remove them, or load an '
                 f'image instead.'
             )
         return Audio(cast('TerminalSound | os.PathLike[str] | str | bytes', source))
@@ -525,8 +525,8 @@ def _kind_of(source: object) -> Literal['image', 'audio']:
         head = source[:12]
     else:
         raise TypeError(
-            f'open needs the path of a file, the bytes of one, an image or a sound, but got '
-            f'{type(source).__name__}. Pass open("picture.png") or open("sound.wav").'
+            f'from_media needs the path of a file, the bytes of one, an image or a sound, but got '
+            f'{type(source).__name__}. Pass from_media("picture.png") or from_media("sound.wav").'
         )
     if head[:4] == b'RIFF' and head[8:12] == b'WAVE':
         return 'audio'

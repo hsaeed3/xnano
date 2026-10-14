@@ -354,7 +354,7 @@ class Context(Generic[StateT_co]):
             import xnano
             from xnano_core import Point
 
-            with xnano.iter(offscreen=True, width=20, height=4) as terminal:
+            with xnano.open(offscreen=True, width=20, height=4) as terminal:
                 placement = terminal.write('hi', x=10, y=1)
 
                 @placement.hook

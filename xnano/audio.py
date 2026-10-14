@@ -135,7 +135,7 @@ class AudioDevice:
         ```python
         import xnano
 
-        with xnano.iter(offscreen=True, width=20, height=3) as terminal:
+        with xnano.open(offscreen=True, width=20, height=3) as terminal:
             meter = terminal.write('#', y=1)
             meter.x = terminal.audio.level * 19
             level = terminal.inspect(terminal.audio.level)
@@ -213,7 +213,7 @@ class AudioDevice:
             import xnano
             from xnano_audio import TerminalNote
 
-            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
+            with xnano.open(offscreen=True, width=8, height=1) as terminal:
                 if terminal.audio.is_available:
                     terminal.audio.play('C4')
                     terminal.audio.play(64, instrument='bell')
@@ -270,7 +270,7 @@ class AudioDevice:
             ```python
             import xnano
 
-            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
+            with xnano.open(offscreen=True, width=8, height=1) as terminal:
                 if terminal.audio.is_available:
                     terminal.audio.tempo = 140
                     terminal.audio.note('E4', beats=0.5, instrument='bell')
@@ -360,7 +360,7 @@ class AudioDevice:
             ```python
             import xnano
 
-            with xnano.iter(offscreen=True, width=20, height=2) as terminal:
+            with xnano.open(offscreen=True, width=20, height=2) as terminal:
                 ball = terminal.write('o')
                 ball.x = (terminal.audio.beat % 1) * 19
             ```

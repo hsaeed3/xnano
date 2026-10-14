@@ -30,7 +30,7 @@ class Output:
         ```python
         import xnano
 
-        with xnano.iter(offscreen=True, width=12, height=2) as terminal:
+        with xnano.open(offscreen=True, width=12, height=2) as terminal:
             terminal.write('hello', x=1, y=1)
             terminal.output.render()
             assert terminal.output.snapshot().lines()[1] == ' hello'

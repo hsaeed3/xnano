@@ -396,6 +396,6 @@ def wordmark() -> Buffer:
 
 def main() -> None:
     """Run the demo in the whole window."""
-    with xnano.iter(mouse=True, title='xnano', state=None) as terminal:
+    with xnano.open(mouse=True, title='xnano', state=None) as terminal:
         _Demo(terminal).start()
         terminal.run(quit_on=('q', 'ctrl+c'))

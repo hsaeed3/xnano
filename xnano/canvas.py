@@ -3,7 +3,7 @@ xnano.canvas
 
 Compose a buffer with [`new`][xnano.canvas.new] (or [`make`][xnano.canvas.make]),
 then build it with [`Canvas.build`][xnano.canvas.Canvas.build] or open it live with
-[`Canvas.iter`][xnano.canvas.Canvas.iter] or [`iter`][xnano.iter].
+[`Canvas.open`][xnano.canvas.Canvas.open] or [`open`][xnano.open].
 
 [`Canvas`][xnano.canvas.Canvas] records widgets, attributes, styles, operations and
 children without opening a terminal or drawing until asked.
@@ -15,11 +15,9 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Literal, TypeAlias, TypedDict, cast, overload
 
 import xnano_core as _core
+from xnano._appearance import APPEARANCE_NAMES, Appearance
 from xnano._customize import (
-    BackgroundArguments,
     BitCrushAudioArguments,
-    BlockArguments,
-    BorderArguments,
     CoalesceEffectArguments,
     Customization,
     CustomizationKind,
@@ -35,7 +33,6 @@ from xnano._customize import (
     FadeFromEffectArguments,
     FadeToEffectArguments,
     FillArguments,
-    ForegroundArguments,
     FuzzArguments,
     GlitchEffectArguments,
     HighPassAudioArguments,
@@ -43,8 +40,6 @@ from xnano._customize import (
     LayoutArguments,
     LightenEffectArguments,
     LowPassAudioArguments,
-    MarginArguments,
-    PaddingArguments,
     PaintEffectArguments,
     PixelsArguments,
     RasterArguments,
@@ -54,7 +49,6 @@ from xnano._customize import (
     SlideInEffectArguments,
     SlideOutEffectArguments,
     StretchEffectArguments,
-    StyleArguments,
     SweepInEffectArguments,
     SweepOutEffectArguments,
     TremoloAudioArguments,
@@ -96,6 +90,42 @@ if TYPE_CHECKING:
     from typing_extensions import Unpack
     from xnano_image import TerminalImage
 
+    from xnano._customize import (
+        BitCrushAudioCustomization,
+        CoalesceEffectCustomization,
+        DarkenEffectCustomization,
+        DelayAudioCustomization,
+        DissolveEffectCustomization,
+        DistortionAudioCustomization,
+        EvolveEffectCustomization,
+        EvolveFromEffectCustomization,
+        EvolveIntoEffectCustomization,
+        ExpandEffectCustomization,
+        ExplodeEffectCustomization,
+        FadeFromEffectCustomization,
+        FadeToEffectCustomization,
+        FillCustomization,
+        FuzzCustomization,
+        GlitchEffectCustomization,
+        HighPassAudioCustomization,
+        HslShiftEffectCustomization,
+        LayoutCustomization,
+        LightenEffectCustomization,
+        LowPassAudioCustomization,
+        PaintEffectCustomization,
+        PixelsCustomization,
+        RasterCustomization,
+        ReverbAudioCustomization,
+        SaturateEffectCustomization,
+        SleepEffectCustomization,
+        SlideInEffectCustomization,
+        SlideOutEffectCustomization,
+        StretchEffectCustomization,
+        SweepInEffectCustomization,
+        SweepOutEffectCustomization,
+        TremoloAudioCustomization,
+        WriteCustomization,
+    )
     from xnano.placement import Placement
     from xnano.terminal import Terminal
 
@@ -160,7 +190,7 @@ class Canvas:
     Nothing here draws until asked. Call [`build`][xnano.canvas.Canvas.build] to get a
     standalone [`Buffer`][xnano_core.Buffer], pass the canvas to
     [`Terminal.write`][xnano.terminal.Terminal.write], or open it directly in a terminal with
-    [`open`][xnano.canvas.Canvas.iter] or ``xnano.iter(canvas)``.
+    [`open`][xnano.canvas.Canvas.open] or ``xnano.open(canvas)``.
 
     Attributes:
         x: The column of the left edge, as an [`Axis`][xnano.types.Axis].
@@ -315,6 +345,11 @@ class Canvas:
             prop = getattr(type(self), name)
             prop.fset(self, value)
             return
+        if name in APPEARANCE_NAMES:
+            self._attributes[name] = value
+            if self._buffer is not None:
+                self._show_appearance()
+            return
         buffer = self._buffer
         if buffer is not None:
             setattr(buffer, name, value)
@@ -322,6 +357,8 @@ class Canvas:
         self._attributes[name] = value
 
     def __getattr__(self, name: str) -> AttributeValue:
+        if name in APPEARANCE_NAMES:
+            return getattr(_appearance_of(self._content, self._attributes), name)
         buffer = self._buffer
         if buffer is not None:
             return getattr(buffer, name)
@@ -354,266 +391,253 @@ class Canvas:
 
     @overload
     def fx(
-        self, kind: Literal['style'], /, **parameters: Unpack[StyleArguments]
-    ) -> Canvas: ...
-    @overload
-    def fx(
-        self, kind: Literal['border'], /, **parameters: Unpack[BorderArguments]
-    ) -> Canvas: ...
-    @overload
-    def fx(
-        self, kind: Literal['block'], /, **parameters: Unpack[BlockArguments]
-    ) -> Canvas: ...
-    @overload
-    def fx(
-        self, kind: Literal['padding'], /, **parameters: Unpack[PaddingArguments]
-    ) -> Canvas: ...
-    @overload
-    def fx(
-        self, kind: Literal['margin'], /, **parameters: Unpack[MarginArguments]
-    ) -> Canvas: ...
-    @overload
-    def fx(
         self, kind: Literal['fill'], /, **parameters: Unpack[FillArguments]
-    ) -> Canvas: ...
-    @overload
-    def fx(
-        self, kind: Literal['foreground'], /, **parameters: Unpack[ForegroundArguments]
-    ) -> Canvas: ...
-    @overload
-    def fx(
-        self, kind: Literal['background'], /, **parameters: Unpack[BackgroundArguments]
-    ) -> Canvas: ...
+    ) -> FillCustomization: ...
     @overload
     def fx(
         self, kind: Literal['write'], /, **parameters: Unpack[WriteArguments]
-    ) -> Canvas: ...
+    ) -> WriteCustomization: ...
     @overload
     def fx(
         self, kind: Literal['layout'], /, **parameters: Unpack[LayoutArguments]
-    ) -> Canvas: ...
+    ) -> LayoutCustomization: ...
     @overload
     def fx(
         self, kind: Literal['fuzz'], /, **parameters: Unpack[FuzzArguments]
-    ) -> Canvas: ...
+    ) -> FuzzCustomization: ...
     @overload
     def fx(
         self, kind: Literal['pixels'], /, **parameters: Unpack[PixelsArguments]
-    ) -> Canvas: ...
+    ) -> PixelsCustomization: ...
     @overload
     def fx(
         self, kind: Literal['raster'], /, **parameters: Unpack[RasterArguments]
-    ) -> Canvas: ...
+    ) -> RasterCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.fade_to'],
         /,
         **parameters: Unpack[FadeToEffectArguments],
-    ) -> Canvas: ...
+    ) -> FadeToEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.fade_from'],
         /,
         **parameters: Unpack[FadeFromEffectArguments],
-    ) -> Canvas: ...
+    ) -> FadeFromEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.paint'],
         /,
         **parameters: Unpack[PaintEffectArguments],
-    ) -> Canvas: ...
+    ) -> PaintEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.saturate'],
         /,
         **parameters: Unpack[SaturateEffectArguments],
-    ) -> Canvas: ...
+    ) -> SaturateEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.lighten'],
         /,
         **parameters: Unpack[LightenEffectArguments],
-    ) -> Canvas: ...
+    ) -> LightenEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.darken'],
         /,
         **parameters: Unpack[DarkenEffectArguments],
-    ) -> Canvas: ...
+    ) -> DarkenEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.sweep_in'],
         /,
         **parameters: Unpack[SweepInEffectArguments],
-    ) -> Canvas: ...
+    ) -> SweepInEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.sweep_out'],
         /,
         **parameters: Unpack[SweepOutEffectArguments],
-    ) -> Canvas: ...
+    ) -> SweepOutEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.slide_in'],
         /,
         **parameters: Unpack[SlideInEffectArguments],
-    ) -> Canvas: ...
+    ) -> SlideInEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.slide_out'],
         /,
         **parameters: Unpack[SlideOutEffectArguments],
-    ) -> Canvas: ...
+    ) -> SlideOutEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.hsl_shift'],
         /,
         **parameters: Unpack[HslShiftEffectArguments],
-    ) -> Canvas: ...
+    ) -> HslShiftEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.dissolve'],
         /,
         **parameters: Unpack[DissolveEffectArguments],
-    ) -> Canvas: ...
+    ) -> DissolveEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.coalesce'],
         /,
         **parameters: Unpack[CoalesceEffectArguments],
-    ) -> Canvas: ...
+    ) -> CoalesceEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.glitch'],
         /,
         **parameters: Unpack[GlitchEffectArguments],
-    ) -> Canvas: ...
+    ) -> GlitchEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.sleep'],
         /,
         **parameters: Unpack[SleepEffectArguments],
-    ) -> Canvas: ...
+    ) -> SleepEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.evolve'],
         /,
         **parameters: Unpack[EvolveEffectArguments],
-    ) -> Canvas: ...
+    ) -> EvolveEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.evolve_into'],
         /,
         **parameters: Unpack[EvolveIntoEffectArguments],
-    ) -> Canvas: ...
+    ) -> EvolveIntoEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.evolve_from'],
         /,
         **parameters: Unpack[EvolveFromEffectArguments],
-    ) -> Canvas: ...
+    ) -> EvolveFromEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.expand'],
         /,
         **parameters: Unpack[ExpandEffectArguments],
-    ) -> Canvas: ...
+    ) -> ExpandEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.stretch'],
         /,
         **parameters: Unpack[StretchEffectArguments],
-    ) -> Canvas: ...
+    ) -> StretchEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.explode'],
         /,
         **parameters: Unpack[ExplodeEffectArguments],
-    ) -> Canvas: ...
+    ) -> ExplodeEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.bit_crush'],
         /,
         **parameters: Unpack[BitCrushAudioArguments],
-    ) -> Canvas: ...
+    ) -> BitCrushAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.distortion'],
         /,
         **parameters: Unpack[DistortionAudioArguments],
-    ) -> Canvas: ...
+    ) -> DistortionAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.low_pass'],
         /,
         **parameters: Unpack[LowPassAudioArguments],
-    ) -> Canvas: ...
+    ) -> LowPassAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.high_pass'],
         /,
         **parameters: Unpack[HighPassAudioArguments],
-    ) -> Canvas: ...
+    ) -> HighPassAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.delay'],
         /,
         **parameters: Unpack[DelayAudioArguments],
-    ) -> Canvas: ...
+    ) -> DelayAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.reverb'],
         /,
         **parameters: Unpack[ReverbAudioArguments],
-    ) -> Canvas: ...
+    ) -> ReverbAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.tremolo'],
         /,
         **parameters: Unpack[TremoloAudioArguments],
-    ) -> Canvas: ...
-    def fx(self, kind: CustomizationKind, /, **parameters: object) -> Canvas:
+    ) -> TremoloAudioCustomization: ...
+    def fx(self, kind: CustomizationKind, /, **parameters: object) -> Customization:
         """
-        Apply a typed customization (``'style'``, ``'border'``, ``'block'``, ``'padding'``,
-        ``'margin'``, ``'pixels'``, ``'effect.<name>'``, etc.) to this canvas and return ``self``.
+        Add an effect or other typed customization to this canvas and return it.
+
+        The returned customization stays attached: assigning one of its fields afterwards
+        changes the canvas, and a running effect is stopped and started again with the new
+        values. Use the keyword parameters of ``write`` and ``new`` for how text looks
+        (colors, border, title, padding, margin).
 
         Args:
-            kind: Which customization to apply.
+            kind: Which customization to add, such as ``'fill'``, ``'effect.dissolve'`` or
+                ``'pixels'``.
             parameters: Keyword arguments for the chosen customization kind.
+
+        Examples:
+            ```python
+            import xnano
+
+            canvas = xnano.new('hello', width=5, height=1)
+            dots = canvas.fx('fill', cell='.')
+            dots.cell = '#'
+            assert '#' in canvas.build().render(format='text')
+            ```
         """
         compiled = cast('Callable[..., Customization]', _customize_operation)(
             kind, **parameters
         )
         self._record_operation(compiled)
-        return self
+        return compiled
 
     @overload
     def hook(
@@ -711,6 +735,21 @@ class Canvas:
             _attach(buffer, child_canvas)
         return child_canvas
 
+    def _show_appearance(self) -> None:
+        """Draw the text again with its current look, resizing the buffer to fit."""
+        buffer = self._buffer
+        if buffer is None:
+            return
+        if not isinstance(self._content, str):
+            raise TypeError(
+                'Colors, text modifiers, title, border, padding and margin decorate text, '
+                'but this canvas does not hold text. Set them on a canvas made from a '
+                'string, or give the widget its own style and block.'
+            )
+        drawn = _appearance_of(self._content, self._attributes).snapshot()
+        buffer.resize(drawn.width, drawn.height)
+        buffer.update(_core.Fill(' '), _core.Paste(drawn, mode='replace'))
+
     def build(self) -> _core.Buffer:
         """
         Build the buffer this canvas describes.
@@ -745,7 +784,7 @@ class Canvas:
         return built
 
     @overload
-    def iter(
+    def open(
         self,
         *,
         offscreen: bool = False,
@@ -765,7 +804,7 @@ class Canvas:
         state: None = None,
     ) -> Terminal[None]: ...
     @overload
-    def iter(
+    def open(
         self,
         *,
         offscreen: bool = False,
@@ -784,7 +823,7 @@ class Canvas:
         capture: bool = True,
         state: StateT,
     ) -> Terminal[StateT]: ...
-    def iter(
+    def open(
         self,
         *,
         offscreen: bool = False,
@@ -826,11 +865,11 @@ class Canvas:
             capture: Whether text printed during a live session is held back.
             state: A dataclass instance the terminal keeps and validates.
         """
-        from xnano.terminal import iter as iter_terminal
+        from xnano.terminal import open as open_terminal
 
         return cast(
             'Terminal[StateT] | Terminal[None]',
-            iter_terminal(
+            open_terminal(
                 self,
                 offscreen=offscreen,
                 title=title,
@@ -899,6 +938,7 @@ class Canvas:
                 f'widget, use canvas.write(...).'
             )
         if isinstance(item, Customization):
+            item._attach(self)
             self._operations.append(item)
             if self._buffer is not None:
                 try:
@@ -954,7 +994,7 @@ def new(content: CompositionContent = None, /, **attributes: AttributeValue) -> 
     empty buffer. Keyword arguments are attributes of that buffer, such as ``width``,
     ``ratio`` or ``x``. Call [`Canvas.build`][xnano.canvas.Canvas.build] for a standalone
     buffer, pass the canvas to [`Terminal.write`][xnano.terminal.Terminal.write], or open it directly with
-    [`Canvas.iter`][xnano.canvas.Canvas.iter] or [`iter`][xnano.iter].
+    [`Canvas.open`][xnano.canvas.Canvas.open] or [`open`][xnano.open].
 
     Args:
         content: What the buffer is. A widget class such as ``Gauge`` is constructed from the
@@ -1037,6 +1077,15 @@ def _create(
                 setattr(buffer, name, value)
         return buffer
     if isinstance(content, str) or content is None:
+        appearance = _appearance_of(content, attributes)
+        if content is not None and (
+            appearance.has_style or appearance.has_frame or appearance.margin is not None
+        ):
+            buffer = appearance.snapshot()
+            for name, value in attributes.items():
+                if name not in APPEARANCE_NAMES and _is_buffer_value(name, value):
+                    setattr(buffer, name, value)
+            return buffer
         return _build_plain(content, attributes)
     if isinstance(content, ContextualOperation):
         buffer = _build_plain(None, attributes)
@@ -1121,9 +1170,21 @@ def _is_buffer_value(name: str, value: AttributeValue) -> bool:
     Position and size may be percentages, ranges or expressions, which are applied when the
     buffer is placed.
     """
+    if name in APPEARANCE_NAMES:
+        return False
     if name in _AXES:
         return isinstance(value, int) and not isinstance(value, bool)
     return not isinstance(value, _core.NumericValue)
+
+
+def _appearance_of(
+    content: CompositionContent, attributes: dict[str, AttributeValue]
+) -> Appearance:
+    """The look that a canvas's appearance attributes describe for its text."""
+    return Appearance(
+        text=content if isinstance(content, str) else '',
+        **{name: attributes[name] for name in APPEARANCE_NAMES if name in attributes},  # type: ignore[arg-type]
+    )
 
 
 def _attach(buffer: _core.Buffer, child_canvas: Canvas) -> None:

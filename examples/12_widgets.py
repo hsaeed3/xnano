@@ -14,7 +14,7 @@ from xnano.context import Context
 from xnano.expressions import TimeElapsed
 from xnano.widgets import Block, Gauge, Sparkline
 
-with xnano.iter(width=50, height=9) as terminal:
+with xnano.open(width=50, height=9) as terminal:
     gauge = xnano.make(Gauge, label='cpu', width=48, height=1)
     gauge.ratio = (TimeElapsed % 4) / 4
     terminal.write(Block('load', border_type='rounded'), width=50, height=3)

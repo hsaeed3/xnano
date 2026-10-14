@@ -8,7 +8,7 @@ The compiled Rust engine for building terminal interfaces: buffers, widgets, lay
 pip install xnano-core
 ```
 
-Most people install the top-level `xnano` package instead, which adds the terminal API (`xnano.iter()`, placements, hooks, scenes and sound) on top of this engine:
+Most people install the top-level `xnano` package instead, which adds the terminal API (`xnano.open()`, placements, hooks, scenes and sound) on top of this engine:
 
 ```bash
 pip install xnano

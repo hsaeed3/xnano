@@ -11,7 +11,7 @@ import xnano
 from xnano.context import Frame
 from xnano.operations import draggable
 
-with xnano.iter(width=40, height=3, mouse=True) as terminal:
+with xnano.open(width=40, height=3, mouse=True) as terminal:
     track = terminal.write('─' * 40, y=1)
     thumb = track.write('█', x=(0, track.width - 1), y=0) | draggable()
     heading = terminal.write('volume   0%   (drag the block)')

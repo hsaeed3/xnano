@@ -25,7 +25,7 @@ class Job:
 def main() -> None:
     """Run the job and report it."""
     job = Job()
-    with xnano.iter(width=40, height=3, title='xnano job: starting') as terminal:
+    with xnano.open(width=40, height=3, title='xnano job: starting') as terminal:
         terminal.write('Processing files', y=0)
         bar = LineGauge(0.0, label='0%')
         terminal.write(bar, y=1, width=40, height=1)

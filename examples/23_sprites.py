@@ -95,7 +95,7 @@ SLIME = TerminalImage.from_frames(
 
 def main() -> None:
     """Show each sprite, enlarged, with its name under it."""
-    with xnano.iter(width=84, height=13) as terminal:
+    with xnano.open(width=84, height=13) as terminal:
         terminal.write(
             'pixel art, written as text', x='center', y=0, style=Style(bold=True)
         )

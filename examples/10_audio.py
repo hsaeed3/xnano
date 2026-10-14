@@ -47,7 +47,7 @@ def instrument_label(name: str) -> str:
 
 def main() -> None:
     """Choose an instrument and play on it."""
-    with xnano.iter(width=66, height=13, state=Keyboard()) as terminal:
+    with xnano.open(width=66, height=13, state=Keyboard()) as terminal:
         terminal.write('up/down: instrument  a-k: scale  space: chord  m: tune  q: quit')
         if not terminal.audio.is_available:
             terminal.write('(no sound device here: the keys still light up)', y=12)

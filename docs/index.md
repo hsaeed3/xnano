@@ -15,7 +15,7 @@ else on screen, so a layout is a line of Python that is evaluated again on every
 import xnano
 from xnano.expressions import ParentWidth, TimeElapsed, Width
 
-with xnano.iter(width=40, height=3) as terminal:
+with xnano.open(width=40, height=3) as terminal:
     terminal.write('Hello, world!', x='center')
     ball = terminal.write('●', y=2)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)

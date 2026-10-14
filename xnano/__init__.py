@@ -2,10 +2,10 @@
 xnano
 """
 
-from xnano._media import Audio, Image, open
+from xnano._media import Audio, Image, from_media
 from xnano.canvas import Canvas, make, new
 from xnano.operations import fx, hook
-from xnano.terminal import Terminal, active, iter
+from xnano.terminal import Terminal, active, iter, open
 
 __all__ = [
     'Audio',
@@ -18,5 +18,6 @@ __all__ = [
     'iter',
     'make',
     'new',
+    'from_media',
     'open',
 ]

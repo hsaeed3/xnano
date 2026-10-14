@@ -172,7 +172,7 @@ def test_text_that_does_not_wrap_is_cut_at_the_width_like_rich_crop(text, width)
 
 
 def test_a_terminal_shows_wide_characters_in_two_cells_and_never_splits_them():
-    with xnano.iter(offscreen=True, width=5, height=2) as terminal:
+    with xnano.open(offscreen=True, width=5, height=2) as terminal:
         terminal.write('わさび')
         terminal.output.render()
         lines = terminal.output.snapshot().lines()
@@ -182,7 +182,7 @@ def test_a_terminal_shows_wide_characters_in_two_cells_and_never_splits_them():
 
 @pytest.mark.parametrize('count', [1, 2, 3, 4])
 def test_a_wide_character_that_does_not_fit_is_dropped_not_cut(count):
-    with xnano.iter(offscreen=True, width=count, height=1) as terminal:
+    with xnano.open(offscreen=True, width=count, height=1) as terminal:
         terminal.write('😽😽😽')
         terminal.output.render()
         line = terminal.output.snapshot().lines()[0]

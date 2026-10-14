@@ -66,7 +66,7 @@ class StateProxy:
         except Exception as error:
             raise AttributeError(
                 f"{name} is not a field of this terminal's state. Read a field that was "
-                f'declared on the dataclass passed to iter(state=...).'
+                f'declared on the dataclass passed to open(state=...).'
             ) from error
 
     def __setattr__(self, name: str, value: JSONValue) -> None:
@@ -85,7 +85,7 @@ def prepare_state(instance: DataclassInstance) -> _core.TerminalStateStore:
     if not dataclasses.is_dataclass(instance) or isinstance(instance, type):
         raise TypeError(
             f'{instance!r} is not a state dataclass. Pass an instance of a dataclass, '
-            f'such as iter(state=Settings()).'
+            f'such as open(state=Settings()).'
         )
     try:
         schema = _core.TerminalStateSchema.compile(_schema(type(instance)))

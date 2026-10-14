@@ -34,7 +34,7 @@ def selected_of(menu: Menu) -> int:
 
 def main() -> None:
     """Show the menu and react to the keyboard."""
-    with xnano.iter(width=30, height=8, state=Menu()) as terminal:
+    with xnano.open(width=30, height=8, state=Menu()) as terminal:
         selection = terminal.ref(selected_of)
         terminal.write(
             ItemList(

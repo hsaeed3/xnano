@@ -35,7 +35,7 @@ def wave(elapsed_seconds: float, phase: float) -> list[tuple[float, float]]:
 
 def main() -> None:
     """Draw the dashboard and keep its numbers moving."""
-    with xnano.iter(width=WIDTH, height=18) as terminal:
+    with xnano.open(width=WIDTH, height=18) as terminal:
         chart = Chart(
             [
                 ChartDataset(name='cpu', data=wave(0, 0), style=Style('green')),

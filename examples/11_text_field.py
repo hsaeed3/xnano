@@ -9,7 +9,7 @@ submits and ``Backspace`` deletes. ``terminal.wait_for_key`` waits the same way 
 import xnano
 from xnano.styles import Style
 
-with xnano.iter(width=50, height=5) as terminal:
+with xnano.open(width=50, height=5) as terminal:
     name = terminal.prompt('Your name: ')
     terminal.write(f'Hello, {name}!', y=2, style=Style('green', bold=True))
     terminal.write('press escape to leave', y=4, style=Style(dim=True))

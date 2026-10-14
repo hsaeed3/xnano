@@ -39,7 +39,7 @@ KICK = 'C2 rest C2 rest | ' * 8
 SNARE = 'rest C3 rest C3 | ' * 8
 HIHAT = 'C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 | ' * 8
 
-with xnano.iter(width=60, height=6) as terminal:
+with xnano.open(width=60, height=6) as terminal:
     terminal.tempo = 132
     terminal.write('A song written as text', x='center', y=0)
     where = terminal.write('bar 1   beat 1', y=2)

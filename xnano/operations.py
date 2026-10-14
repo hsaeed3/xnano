@@ -173,7 +173,7 @@ class ContextualOperation(Operation, Generic[StateT]):
         def banner(context: xnano.context.Context) -> str:
             return f'width={context.width}'
 
-        with xnano.iter(offscreen=True, width=16, height=1) as terminal:
+        with xnano.open(offscreen=True, width=16, height=1) as terminal:
             placed = terminal.write(banner)
             assert placed.text == 'width=16'
         ```
@@ -444,7 +444,7 @@ def hook(
         def clock_readout(context: xnano.context.Context) -> str:
             return f'{context.time.elapsed:.1f}s'
 
-        with xnano.iter(offscreen=True, width=12, height=1) as terminal:
+        with xnano.open(offscreen=True, width=12, height=1) as terminal:
             readout = terminal.write(clock_readout)
             terminal.loop.advance(0.5)
             assert readout.text == '0.5s'
@@ -490,7 +490,7 @@ def shade(
         ```python
         import xnano
 
-        with xnano.iter(offscreen=True, width=8, height=2) as terminal:
+        with xnano.open(offscreen=True, width=8, height=2) as terminal:
             terminal | xnano.operations.shade(lambda column, row: (column * 20, row * 40, 120))
             assert terminal.root[0, 0].symbol == '▀'
         ```
@@ -520,7 +520,7 @@ def draggable(axis: Literal['x', 'y'] = 'x') -> ContextualOperation[object]:
         ```python
         import xnano
 
-        with xnano.iter(offscreen=True, width=20, height=3) as terminal:
+        with xnano.open(offscreen=True, width=20, height=3) as terminal:
             thumb = terminal.write('█', x=(0, 10), y=1) | xnano.operations.draggable()
             assert thumb.x == 0
         ```

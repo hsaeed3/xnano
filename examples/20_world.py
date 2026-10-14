@@ -223,7 +223,7 @@ def find_grass(solid: bytes | bytearray) -> tuple[int, int]:
 def main() -> None:
     """Open the world and let the player walk around in it."""
     picture, solid = bake_world(seed=7)
-    with xnano.iter(mouse=True, keyboard='release_events', title='world') as terminal:
+    with xnano.open(mouse=True, keyboard='release_events', title='world') as terminal:
         # Everything but the last row is the world; the last row says where the hero is.
         view = terminal.write(' ', width='100%', height=ParentHeight - 1)
         scene = view.scene(WORLD_WIDTH, WORLD_HEIGHT, background='black')

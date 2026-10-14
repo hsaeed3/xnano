@@ -396,7 +396,7 @@ class _Hooked(Generic[StateT]):
             ```python
             import xnano
 
-            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
+            with xnano.open(offscreen=True, width=8, height=1) as terminal:
                 heard = []
 
                 def is_paste(context: xnano.context.Context) -> bool:
@@ -452,7 +452,7 @@ class _Hooked(Generic[StateT]):
             ```python
             import xnano
 
-            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
+            with xnano.open(offscreen=True, width=8, height=1) as terminal:
 
                 @terminal.on_key('q', 'escape')
                 def leave(context: xnano.context.Context) -> None:
@@ -525,7 +525,7 @@ class _Hooked(Generic[StateT]):
             ```python
             import xnano
 
-            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
+            with xnano.open(offscreen=True, width=8, height=1) as terminal:
                 ticks = []
 
                 @terminal.every(0.1)
@@ -557,7 +557,7 @@ class _Hooked(Generic[StateT]):
             ```python
             import xnano
 
-            with xnano.iter(offscreen=True, width=8, height=1) as terminal:
+            with xnano.open(offscreen=True, width=8, height=1) as terminal:
                 seen = []
 
                 @terminal.after(0.1)
@@ -667,7 +667,7 @@ class _Hooked(Generic[StateT]):
         name = getattr(function, '__name__', 'hook')
         failure = TerminalError(
             f'The hook {name} failed while handling {event!r}: {type(error).__name__}: '
-            f'{error}. Fix the hook, then open a new terminal with xnano.iter().'
+            f'{error}. Fix the hook, then open a new terminal with xnano.open().'
         )
         failure.__cause__ = error
         self._terminal._record_failure(failure)

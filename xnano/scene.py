@@ -46,7 +46,7 @@ class Sprite:
         import xnano
         from xnano.image import from_art
 
-        with xnano.iter(offscreen=True, width=20, height=5) as terminal:
+        with xnano.open(offscreen=True, width=20, height=5) as terminal:
             scene = terminal.scene(world_width=40, world_height=20)
             hero = scene.add(from_art(['HH', 'HH'], {'H': 'red'}), x=10, y=10, anchor=(1, 1))
             hero.move_by(2, 0)
@@ -263,7 +263,7 @@ class Scene:
         import xnano
         from xnano.image import from_art
 
-        with xnano.iter(offscreen=True, width=20, height=5) as terminal:
+        with xnano.open(offscreen=True, width=20, height=5) as terminal:
             scene = terminal.scene(world_width=100, world_height=60)
             scene.add(from_art(['GGGG'], {'G': 'green'}))
             hero = scene.add(from_art(['H', 'H'], {'H': 'red'}), x=50, y=30, anchor=(0, 1))

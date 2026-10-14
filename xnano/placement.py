@@ -15,14 +15,48 @@ from xnano_core import EvaluationContext
 if TYPE_CHECKING:
     from typing_extensions import Unpack
 
+    from xnano._customize import (
+        BitCrushAudioCustomization,
+        CoalesceEffectCustomization,
+        DarkenEffectCustomization,
+        DelayAudioCustomization,
+        DissolveEffectCustomization,
+        DistortionAudioCustomization,
+        EvolveEffectCustomization,
+        EvolveFromEffectCustomization,
+        EvolveIntoEffectCustomization,
+        ExpandEffectCustomization,
+        ExplodeEffectCustomization,
+        FadeFromEffectCustomization,
+        FadeToEffectCustomization,
+        FillCustomization,
+        FuzzCustomization,
+        GlitchEffectCustomization,
+        HighPassAudioCustomization,
+        HslShiftEffectCustomization,
+        LayoutCustomization,
+        LightenEffectCustomization,
+        LowPassAudioCustomization,
+        PaintEffectCustomization,
+        PixelsCustomization,
+        RasterCustomization,
+        ReverbAudioCustomization,
+        SaturateEffectCustomization,
+        SleepEffectCustomization,
+        SlideInEffectCustomization,
+        SlideOutEffectCustomization,
+        StretchEffectCustomization,
+        SweepInEffectCustomization,
+        SweepOutEffectCustomization,
+        TremoloAudioCustomization,
+        WriteCustomization,
+    )
     from xnano.terminal import Terminal
 
+from xnano._appearance import Appearance, Spacing
 from xnano._axes import axis_expression, axis_limits, inspect_number
 from xnano._customize import (
-    BackgroundArguments,
     BitCrushAudioArguments,
-    BlockArguments,
-    BorderArguments,
     CoalesceEffectArguments,
     Customization,
     CustomizationKind,
@@ -38,7 +72,6 @@ from xnano._customize import (
     FadeFromEffectArguments,
     FadeToEffectArguments,
     FillArguments,
-    ForegroundArguments,
     FuzzArguments,
     GlitchEffectArguments,
     HighPassAudioArguments,
@@ -46,8 +79,6 @@ from xnano._customize import (
     LayoutArguments,
     LightenEffectArguments,
     LowPassAudioArguments,
-    MarginArguments,
-    PaddingArguments,
     PaintEffectArguments,
     PixelsArguments,
     RasterArguments,
@@ -57,7 +88,6 @@ from xnano._customize import (
     SlideInEffectArguments,
     SlideOutEffectArguments,
     StretchEffectArguments,
-    StyleArguments,
     SweepInEffectArguments,
     SweepOutEffectArguments,
     TremoloAudioArguments,
@@ -134,7 +164,7 @@ class Placement(_Hooked[StateT]):
         ```python
         import xnano
 
-        with xnano.iter(offscreen=True, width=20, height=3) as terminal:
+        with xnano.open(offscreen=True, width=20, height=3) as terminal:
             label = terminal.write('hi')
             label.x = (label.parent.width - label.width) // 2
             assert label.x == 9
@@ -170,6 +200,8 @@ class Placement(_Hooked[StateT]):
         self._bindings: dict[AxisName, tuple[NumericExpression, bool]] = {}
         self._limits: dict[AxisName, tuple[Bound | None, Bound | None, bool]] = {}
         self._removed = False
+        self._is_text = False
+        self._appearance: Appearance | None = None
 
     @property
     def buffer(self) -> _core.Buffer:
@@ -415,10 +447,198 @@ class Placement(_Hooked[StateT]):
     @text.setter
     def text(self, value: str) -> None:
         self._terminal._require_open()
+        if self._appearance is not None:
+            self._appearance.text = value
+            self._show_appearance()
+            return
         lines = value.split('\n')
         self.width = max(len(line) for line in lines)
         self.height = len(lines)
         self._buffer.update(_core.Fill(' '), _core.Write(value))
+
+    @property
+    def foreground(self) -> ColorValue | None:
+        """The text color. Assigning it draws the text again."""
+        return self._appearance_of_text().foreground
+
+    @foreground.setter
+    def foreground(self, value: ColorValue | None) -> None:
+        self._appearance_of_text().foreground = value
+        self._show_appearance()
+
+    @property
+    def background(self) -> ColorValue | None:
+        """The color behind the text. Assigning it draws the text again."""
+        return self._appearance_of_text().background
+
+    @background.setter
+    def background(self, value: ColorValue | None) -> None:
+        self._appearance_of_text().background = value
+        self._show_appearance()
+
+    @property
+    def style(self) -> _core.Style | None:
+        """A ready-made style that the colors and modifiers are applied over."""
+        return self._appearance_of_text().style
+
+    @style.setter
+    def style(self, value: _core.Style | None) -> None:
+        self._appearance_of_text().style = value
+        self._show_appearance()
+
+    @property
+    def is_bold(self) -> bool:
+        """Whether the text is bold."""
+        return self._appearance_of_text().is_bold
+
+    @is_bold.setter
+    def is_bold(self, value: bool) -> None:
+        self._appearance_of_text().is_bold = value
+        self._show_appearance()
+
+    @property
+    def is_dim(self) -> bool:
+        """Whether the text is dimmed."""
+        return self._appearance_of_text().is_dim
+
+    @is_dim.setter
+    def is_dim(self, value: bool) -> None:
+        self._appearance_of_text().is_dim = value
+        self._show_appearance()
+
+    @property
+    def is_italic(self) -> bool:
+        """Whether the text is italic."""
+        return self._appearance_of_text().is_italic
+
+    @is_italic.setter
+    def is_italic(self, value: bool) -> None:
+        self._appearance_of_text().is_italic = value
+        self._show_appearance()
+
+    @property
+    def is_underlined(self) -> bool:
+        """Whether the text is underlined."""
+        return self._appearance_of_text().is_underlined
+
+    @is_underlined.setter
+    def is_underlined(self, value: bool) -> None:
+        self._appearance_of_text().is_underlined = value
+        self._show_appearance()
+
+    @property
+    def is_blinking(self) -> bool:
+        """Whether the text blinks."""
+        return self._appearance_of_text().is_blinking
+
+    @is_blinking.setter
+    def is_blinking(self, value: bool) -> None:
+        self._appearance_of_text().is_blinking = value
+        self._show_appearance()
+
+    @property
+    def is_reversed(self) -> bool:
+        """Whether foreground and background are swapped."""
+        return self._appearance_of_text().is_reversed
+
+    @is_reversed.setter
+    def is_reversed(self, value: bool) -> None:
+        self._appearance_of_text().is_reversed = value
+        self._show_appearance()
+
+    @property
+    def is_hidden(self) -> bool:
+        """Whether the text is hidden."""
+        return self._appearance_of_text().is_hidden
+
+    @is_hidden.setter
+    def is_hidden(self, value: bool) -> None:
+        self._appearance_of_text().is_hidden = value
+        self._show_appearance()
+
+    @property
+    def is_crossed_out(self) -> bool:
+        """Whether the text is struck through."""
+        return self._appearance_of_text().is_crossed_out
+
+    @is_crossed_out.setter
+    def is_crossed_out(self, value: bool) -> None:
+        self._appearance_of_text().is_crossed_out = value
+        self._show_appearance()
+
+    @property
+    def title(self) -> str | None:
+        """The title on the border."""
+        return self._appearance_of_text().title
+
+    @title.setter
+    def title(self, value: str | None) -> None:
+        self._appearance_of_text().title = value
+        self._show_appearance()
+
+    @property
+    def border(self) -> _core.BorderKind | None:
+        """The kind of border: ``'plain'``, ``'rounded'``, ``'double'`` or ``'thick'``."""
+        return self._appearance_of_text().border
+
+    @border.setter
+    def border(self, value: _core.BorderKind | None) -> None:
+        self._appearance_of_text().border = value
+        self._show_appearance()
+
+    @property
+    def border_style(self) -> _core.Style | None:
+        """The style of the border."""
+        return self._appearance_of_text().border_style
+
+    @border_style.setter
+    def border_style(self, value: _core.Style | None) -> None:
+        self._appearance_of_text().border_style = value
+        self._show_appearance()
+
+    @property
+    def padding(self) -> Spacing | None:
+        """Space between the border and the text; see [`Spacing`][xnano._appearance.Spacing]."""
+        return self._appearance_of_text().padding
+
+    @padding.setter
+    def padding(self, value: Spacing | None) -> None:
+        self._appearance_of_text().padding = value
+        self._show_appearance()
+
+    @property
+    def margin(self) -> Spacing | None:
+        """Space outside the border, in the same forms as ``padding``."""
+        return self._appearance_of_text().margin
+
+    @margin.setter
+    def margin(self, value: Spacing | None) -> None:
+        self._appearance_of_text().margin = value
+        self._show_appearance()
+
+    def _appearance_of_text(self) -> Appearance:
+        """The look of this text placement, created from the text it shows when it has none."""
+        if self._appearance is None:
+            if not self._is_text:
+                raise TypeError(
+                    'Colors, text modifiers, title, border, padding and margin decorate text, '
+                    'but this placement does not show text. Set them on a placement made '
+                    'from a string, or give the widget its own style and block.'
+                )
+            self._appearance = Appearance(text=self._buffer.text.rstrip('\n'))
+        return self._appearance
+
+    def _show_appearance(self) -> None:
+        """Draw the text again with its current look, resizing the placement to fit."""
+        appearance = self._appearance
+        if appearance is None:
+            return
+        self._terminal._require_open()
+        drawn = appearance.snapshot()
+        self.width = drawn.width
+        self.height = drawn.height
+        self._buffer.update(_core.Fill(' '), _core.Paste(drawn, mode='replace'))
+        self._terminal._request_frame()
 
     def write(
         self,
@@ -444,6 +664,8 @@ class Placement(_Hooked[StateT]):
         title: str | None = None,
         border: _core.BorderKind | None = None,
         border_style: _core.Style | None = None,
+        padding: Spacing | None = None,
+        margin: Spacing | None = None,
     ) -> Placement[StateT]:
         """
         Add a child placement inside this placement, or apply an operation or style to it.
@@ -476,6 +698,9 @@ class Placement(_Hooked[StateT]):
             title: Title for a box around text.
             border: Border kind for a box around text.
             border_style: Style for the box's border.
+            padding: Space between the border and the text; see
+                [`Terminal.write`][xnano.terminal.Terminal.write].
+            margin: Space outside the box, in the same forms.
         """
         self._terminal._require_open()
         has_placement_options = any(
@@ -491,6 +716,8 @@ class Placement(_Hooked[StateT]):
                 title,
                 border,
                 border_style,
+                padding,
+                margin,
             )
         ) or any(
             (
@@ -535,6 +762,8 @@ class Placement(_Hooked[StateT]):
             title=title,
             border=border,
             border_style=border_style,
+            padding=padding,
+            margin=margin,
         )
 
     def update(self, *operations: _core.Operation | _core.Style) -> Placement[StateT]:
@@ -550,7 +779,7 @@ class Placement(_Hooked[StateT]):
             import xnano
             from xnano.effects import Effect
 
-            with xnano.iter(offscreen=True, width=20, height=3) as terminal:
+            with xnano.open(offscreen=True, width=20, height=3) as terminal:
                 title = terminal.write('Welcome')
                 title.update(Effect.dissolve(duration_milliseconds=500))
             ```
@@ -577,266 +806,243 @@ class Placement(_Hooked[StateT]):
 
     @overload
     def fx(
-        self, kind: Literal['style'], /, **parameters: Unpack[StyleArguments]
-    ) -> Placement[StateT]: ...
-    @overload
-    def fx(
-        self, kind: Literal['border'], /, **parameters: Unpack[BorderArguments]
-    ) -> Placement[StateT]: ...
-    @overload
-    def fx(
-        self, kind: Literal['block'], /, **parameters: Unpack[BlockArguments]
-    ) -> Placement[StateT]: ...
-    @overload
-    def fx(
-        self, kind: Literal['padding'], /, **parameters: Unpack[PaddingArguments]
-    ) -> Placement[StateT]: ...
-    @overload
-    def fx(
-        self, kind: Literal['margin'], /, **parameters: Unpack[MarginArguments]
-    ) -> Placement[StateT]: ...
-    @overload
-    def fx(
         self, kind: Literal['fill'], /, **parameters: Unpack[FillArguments]
-    ) -> Placement[StateT]: ...
-    @overload
-    def fx(
-        self, kind: Literal['foreground'], /, **parameters: Unpack[ForegroundArguments]
-    ) -> Placement[StateT]: ...
-    @overload
-    def fx(
-        self, kind: Literal['background'], /, **parameters: Unpack[BackgroundArguments]
-    ) -> Placement[StateT]: ...
+    ) -> FillCustomization: ...
     @overload
     def fx(
         self, kind: Literal['write'], /, **parameters: Unpack[WriteArguments]
-    ) -> Placement[StateT]: ...
+    ) -> WriteCustomization: ...
     @overload
     def fx(
         self, kind: Literal['layout'], /, **parameters: Unpack[LayoutArguments]
-    ) -> Placement[StateT]: ...
+    ) -> LayoutCustomization: ...
     @overload
     def fx(
         self, kind: Literal['fuzz'], /, **parameters: Unpack[FuzzArguments]
-    ) -> Placement[StateT]: ...
+    ) -> FuzzCustomization: ...
     @overload
     def fx(
         self, kind: Literal['pixels'], /, **parameters: Unpack[PixelsArguments]
-    ) -> Placement[StateT]: ...
+    ) -> PixelsCustomization: ...
     @overload
     def fx(
         self, kind: Literal['raster'], /, **parameters: Unpack[RasterArguments]
-    ) -> Placement[StateT]: ...
+    ) -> RasterCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.fade_to'],
         /,
         **parameters: Unpack[FadeToEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> FadeToEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.fade_from'],
         /,
         **parameters: Unpack[FadeFromEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> FadeFromEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.paint'],
         /,
         **parameters: Unpack[PaintEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> PaintEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.saturate'],
         /,
         **parameters: Unpack[SaturateEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> SaturateEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.lighten'],
         /,
         **parameters: Unpack[LightenEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> LightenEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.darken'],
         /,
         **parameters: Unpack[DarkenEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> DarkenEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.sweep_in'],
         /,
         **parameters: Unpack[SweepInEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> SweepInEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.sweep_out'],
         /,
         **parameters: Unpack[SweepOutEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> SweepOutEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.slide_in'],
         /,
         **parameters: Unpack[SlideInEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> SlideInEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.slide_out'],
         /,
         **parameters: Unpack[SlideOutEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> SlideOutEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.hsl_shift'],
         /,
         **parameters: Unpack[HslShiftEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> HslShiftEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.dissolve'],
         /,
         **parameters: Unpack[DissolveEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> DissolveEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.coalesce'],
         /,
         **parameters: Unpack[CoalesceEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> CoalesceEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.glitch'],
         /,
         **parameters: Unpack[GlitchEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> GlitchEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.sleep'],
         /,
         **parameters: Unpack[SleepEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> SleepEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.evolve'],
         /,
         **parameters: Unpack[EvolveEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> EvolveEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.evolve_into'],
         /,
         **parameters: Unpack[EvolveIntoEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> EvolveIntoEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.evolve_from'],
         /,
         **parameters: Unpack[EvolveFromEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> EvolveFromEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.expand'],
         /,
         **parameters: Unpack[ExpandEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> ExpandEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.stretch'],
         /,
         **parameters: Unpack[StretchEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> StretchEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.explode'],
         /,
         **parameters: Unpack[ExplodeEffectArguments],
-    ) -> Placement[StateT]: ...
+    ) -> ExplodeEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.bit_crush'],
         /,
         **parameters: Unpack[BitCrushAudioArguments],
-    ) -> Placement[StateT]: ...
+    ) -> BitCrushAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.distortion'],
         /,
         **parameters: Unpack[DistortionAudioArguments],
-    ) -> Placement[StateT]: ...
+    ) -> DistortionAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.low_pass'],
         /,
         **parameters: Unpack[LowPassAudioArguments],
-    ) -> Placement[StateT]: ...
+    ) -> LowPassAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.high_pass'],
         /,
         **parameters: Unpack[HighPassAudioArguments],
-    ) -> Placement[StateT]: ...
+    ) -> HighPassAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.delay'],
         /,
         **parameters: Unpack[DelayAudioArguments],
-    ) -> Placement[StateT]: ...
+    ) -> DelayAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.reverb'],
         /,
         **parameters: Unpack[ReverbAudioArguments],
-    ) -> Placement[StateT]: ...
+    ) -> ReverbAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.tremolo'],
         /,
         **parameters: Unpack[TremoloAudioArguments],
-    ) -> Placement[StateT]: ...
-    def fx(self, kind: CustomizationKind, /, **parameters: object) -> Placement[StateT]:
+    ) -> TremoloAudioCustomization: ...
+    def fx(self, kind: CustomizationKind, /, **parameters: object) -> Customization:
         """
-        Apply a typed customization (``'style'``, ``'border'``, ``'block'``, ``'padding'``,
-        ``'margin'``, ``'pixels'``, ``'effect.<name>'``, etc.) to this placement and return ``self``.
+        Apply an effect or other typed customization to this placement and return it.
+
+        The returned customization stays attached: assigning one of its fields afterwards
+        changes the placement, and a running effect is stopped and started again with the
+        new values. Use the properties of the placement for how text looks (colors, border,
+        title, padding, margin).
 
         Args:
-            kind: Which customization to apply.
+            kind: Which customization to apply, such as ``'fill'``, ``'effect.dissolve'`` or
+                ``'pixels'``.
             parameters: Keyword arguments for the chosen customization kind.
         """
         compiled = cast('Callable[..., Customization]', _customize_operation)(
             kind, **parameters
         )
         compiled.apply_to(cast('Placement[object]', self))
-        return self
+        return compiled
 
     def make_draggable(self, axis: Literal['x', 'y'] = 'x') -> Placement[StateT]:
         """
@@ -857,7 +1063,7 @@ class Placement(_Hooked[StateT]):
             ```python
             import xnano
 
-            with xnano.iter(offscreen=True, width=20, height=3) as terminal:
+            with xnano.open(offscreen=True, width=20, height=3) as terminal:
                 thumb = terminal.write('#', x=(0, 10), y=0)
                 thumb.make_draggable()
                 assert thumb.x == 0

@@ -33,7 +33,7 @@ EFFECTS = {
     ),
 }
 
-with xnano.iter(width=50, height=7) as terminal:
+with xnano.open(width=50, height=7) as terminal:
     banner = terminal.write('xnano  xnano  xnano  xnano  xnano\n' * 4, y=3)
     names = itertools.cycle(EFFECTS)
     heading = terminal.write('')
