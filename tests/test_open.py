@@ -18,6 +18,7 @@ import xnano as main
 import xnano.terminal as terminal_module
 from xnano import active
 from xnano import open as open_terminal
+from xnano.context import Context, Update
 from xnano.errors import (
     TerminalAlreadyOpenError,
     TerminalClosedError,
@@ -437,7 +438,7 @@ class TestHooks:
         heard: list[str] = []
 
         @terminal.hook
-        def everything(context: main.Context) -> None:
+        def everything(context: Context) -> None:
             if context.keyboard is not None:
                 heard.append(context.keyboard.key)
 
@@ -448,11 +449,11 @@ class TestHooks:
     def test_a_function_trigger_filters_keys(self, terminal):
         heard: list[str] = []
 
-        def is_quit(context: main.Context) -> bool:
+        def is_quit(context: Context) -> bool:
             return context.keyboard is not None and context.keyboard.key in ('q', 'c')
 
         @terminal.hook(when=is_quit)
-        def quit(context: main.Context) -> None:
+        def quit(context: Context) -> None:
             heard.append(context.keyboard.key)
             assert context.terminal is terminal
 
@@ -464,7 +465,7 @@ class TestHooks:
         heard: list[str] = []
         placement = terminal.write(Buffer(width=4, height=2), x=0, y=0)
 
-        def remember(context: main.Context) -> None:
+        def remember(context: Context) -> None:
             if context.keyboard is not None:
                 heard.append(type(context.target).__name__)
 
@@ -476,7 +477,7 @@ class TestHooks:
     def test_removing_a_hook_stops_it(self, terminal):
         heard: list[str] = []
 
-        def remember(context: main.Context) -> None:
+        def remember(context: Context) -> None:
             if context.keyboard is not None:
                 heard.append(context.keyboard.key)
 
@@ -489,7 +490,7 @@ class TestHooks:
 
     def test_stopping_from_a_key(self, terminal):
         @terminal.hook
-        def quit(context: main.Context) -> None:
+        def quit(context: Context) -> None:
             if context.keyboard is not None and context.keyboard.key == 'q':
                 context.terminal.stop()
 
@@ -502,7 +503,7 @@ class TestHooks:
         placement = terminal.write(Buffer(width=6, height=3), x=4, y=2)
 
         @terminal.hook
-        def press(context: main.Context) -> None:
+        def press(context: Context) -> None:
             if (
                 context.mouse is not None
                 and context.mouse.kind == 'press'
@@ -511,7 +512,7 @@ class TestHooks:
                 pressed.append((context.mouse.column, context.mouse.row))
 
         @placement.hook
-        def anywhere(context: main.Context) -> None:
+        def anywhere(context: Context) -> None:
             if context.mouse is not None and context.mouse.kind == 'press':
                 point = context.local(context.mouse.position)
                 local.append((point.x, point.y))
@@ -531,7 +532,7 @@ class TestHooks:
         focus: list[bool] = []
 
         @terminal.hook
-        def heard(context: main.Context) -> None:
+        def heard(context: Context) -> None:
             if context.size_changed is not None:
                 sizes.append((context.size_changed.width, context.size_changed.height))
             if context.pasted is not None:
@@ -555,11 +556,11 @@ class TestHooks:
         once: list[float] = []
 
         @terminal.every(0.1)
-        def tick(context: main.Context) -> None:
+        def tick(context: Context) -> None:
             ticks.append(round(context.clock.elapsed_seconds, 2))
 
         @terminal.after(0.25)
-        def later(context: main.Context) -> None:
+        def later(context: Context) -> None:
             once.append(context.clock.elapsed_seconds)
             context.hook.remove()
 
@@ -569,7 +570,7 @@ class TestHooks:
 
     def test_five_clicks_and_a_parameterised_factory(self, terminal):
         def clicks(count: int, gap: float = 1.0):
-            def trigger(context: main.Context):
+            def trigger(context: Context):
                 seen = 0
                 event = None
                 while seen < count:
@@ -589,7 +590,7 @@ class TestHooks:
         placement = terminal.write(Buffer(width=4, height=2))
 
         @placement.hook(when=clicks(5, gap=1.0))
-        def egg(context: main.Context) -> None:
+        def egg(context: Context) -> None:
             hits.append(1)
             context.hook.remove()
 
@@ -607,7 +608,7 @@ class TestHooks:
 
         ticks: list[int] = []
 
-        def tick(context: main.Context) -> None:
+        def tick(context: Context) -> None:
             ticks.append(1)
 
         handle = terminal.every(0.1)(tick)
@@ -621,7 +622,7 @@ class TestHooks:
 
     def test_a_failing_hook_names_the_function(self, terminal):
         @terminal.hook
-        def explode(context: main.Context) -> None:
+        def explode(context: Context) -> None:
             if context.keyboard is not None:
                 raise ZeroDivisionError('nope')
 
@@ -639,7 +640,7 @@ class TestHooks:
 
         def declare() -> None:
             @terminal.hook
-            def remember(context: main.Context) -> None:
+            def remember(context: Context) -> None:
                 if context.keyboard is not None:
                     heard.append(context.keyboard.key)
 
@@ -657,11 +658,11 @@ class TestHooks:
         library = terminal.write('#', x=(0, 10))
         custom = terminal.write('#', x=(0, 10), y=1)
 
-        def dragging(context: main.Context) -> bool:
+        def dragging(context: Context) -> bool:
             return context.mouse is not None and context.mouse.kind == 'drag'
 
         @custom.hook(when=dragging)
-        def move(context: main.Context) -> None:
+        def move(context: Context) -> None:
             point = context.local(context.mouse.position)
             custom.x = point.x
 
@@ -675,7 +676,7 @@ class TestHooks:
         terminal = open_terminal(offscreen=True, width=5, height=1)
 
         @terminal.hook
-        def remember(context: main.Context) -> None:
+        def remember(context: Context) -> None:
             if context.keyboard is not None:
                 heard.append(context.keyboard.key)
 
@@ -693,11 +694,11 @@ class TestTime:
         seen: list[int] = []
 
         @terminal.every(0.1)
-        def tick(context: main.Context) -> None:
+        def tick(context: Context) -> None:
             ticks.append(round(context.clock.elapsed_seconds, 2))
 
         @terminal.after(0.25)
-        def later(context: main.Context) -> None:
+        def later(context: Context) -> None:
             once.append(context.clock.elapsed_seconds)
             context.hook.remove()
 
@@ -710,7 +711,7 @@ class TestTime:
         steps: list[float] = []
 
         @terminal.loop.on_update(fixed_step_seconds=0.05)
-        def update(step: main.Update) -> None:
+        def update(step: Update) -> None:
             assert step.is_fixed_step
             steps.append(round(step.delta_seconds, 2))
 
@@ -844,11 +845,11 @@ class TestAutonomous:
         names: list[str] = []
         seen: list[Terminal | None] = []
 
-        def is_a(context: main.Context) -> bool:
+        def is_a(context: Context) -> bool:
             return context.keyboard is not None and context.keyboard.key == 'a'
 
         @autonomous.hook(when=is_a)
-        def heard(context: main.Context) -> None:
+        def heard(context: Context) -> None:
             names.append(threading.current_thread().name)
             seen.append(active(required=False))
 
@@ -861,7 +862,7 @@ class TestAutonomous:
         import threading
 
         @autonomous.hook
-        def quit(context: main.Context) -> None:
+        def quit(context: Context) -> None:
             if context.keyboard is not None and context.keyboard.key == 'q':
                 context.terminal.stop()
 
@@ -881,11 +882,11 @@ class TestAutonomous:
         once: list[int] = []
 
         @autonomous.every(0.02)
-        def tick(context: main.Context) -> None:
+        def tick(context: Context) -> None:
             ticks.append(1)
 
         @autonomous.after(0.02)
-        def later(context: main.Context) -> None:
+        def later(context: Context) -> None:
             once.append(1)
             context.hook.remove()
 
@@ -929,7 +930,7 @@ class TestAutonomous:
         terminal = open_terminal(offscreen=True, clock='real', width=8, height=1)
 
         @terminal.hook
-        def explode(context: main.Context) -> None:
+        def explode(context: Context) -> None:
             if context.keyboard is not None and context.keyboard.key == 'x':
                 raise ZeroDivisionError('nope')
 
@@ -952,7 +953,7 @@ class TestAutonomous:
             ) as terminal:
 
                 @terminal.hook
-                def explode(context: main.Context) -> None:
+                def explode(context: Context) -> None:
                     if context.keyboard is not None and context.keyboard.key == 'x':
                         raise ZeroDivisionError('nope')
 

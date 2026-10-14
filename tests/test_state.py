@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import pytest
 
 import xnano as main
+from xnano.context import Context
 from xnano.errors import TerminalError
 from xnano_core import ParentWidth
 
@@ -28,7 +29,7 @@ def test_a_state_write_is_validated_and_wakes_a_hook():
     with main.open(offscreen=True, width=8, height=2, state=Settings()) as terminal:
 
         @terminal.hook
-        def remember(context: main.Context) -> None:
+        def remember(context: Context) -> None:
             if type(context.event).__name__ == 'TerminalStateChange':
                 heard.append(context.state.volume)
 
