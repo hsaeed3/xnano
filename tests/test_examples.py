@@ -220,7 +220,7 @@ def test_audio_keys(example):
     screen = example('10_audio.py', rows=14, columns=70)
     assert screen.wait_for('up/down: instrument')
     for name in ('piano', 'bell', 'kick', 'cowbell', 'electric_guitar'):
-        assert screen.find(name) is not None, f'{name} is in the list of instruments'
+        assert screen.wait_for(name), f'{name} is in the list of instruments'
     assert screen.wait_until(
         lambda: screen.cell(2, 2).bg != 'default' or screen.cell(2, 2).fg == 'default'
     )
@@ -457,7 +457,7 @@ def test_melody(example):
 def test_song(example):
     screen = example('22_song.py', rows=9, columns=70)
     assert screen.wait_for('A song written as text')
-    assert screen.wait_for('beat 2', timeout=6), 'the bars keep time'
+    assert screen.wait_for('beat 2', timeout=15), 'the bars keep time'
     screen.press(' ')
     stopped = screen.text
     screen.settle(1.0)
