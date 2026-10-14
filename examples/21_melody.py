@@ -36,7 +36,7 @@ def main() -> None:
         beat_line = terminal.write('', x=3, y=3)
 
         def show() -> None:
-            state = 'paused' if terminal.is_paused else 'playing'
+            state = 'paused' if terminal.time.is_paused else 'playing'
             tempo_line.text = f'{terminal.tempo:>5.0f} beats per minute   {state}'
             dot.text = '●' if beats.count % 2 else '○'
             beat_line.text = f'beat {beats.count}'
@@ -69,10 +69,10 @@ def main() -> None:
 
         @terminal.on_key('space')
         def toggle_time(context: Context) -> None:
-            if terminal.is_paused:
-                terminal.resume()
+            if terminal.time.is_paused:
+                terminal.time.resume()
             else:
-                terminal.pause()
+                terminal.time.pause()
             show()
 
         terminal.run(quit_on='q')

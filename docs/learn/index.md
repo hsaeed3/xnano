@@ -56,14 +56,14 @@ with xnano.open(width=30, height=3) as terminal:
 
     @terminal.on_key('space')
     def toggle(context: xnano.context.Context) -> None:
-        if terminal.is_paused:
-            terminal.resume()
+        if terminal.time.is_paused:
+            terminal.time.resume()
         else:
-            terminal.pause()
+            terminal.time.pause()
 
     @terminal.every(1.0)
     def tick(context: xnano.context.Context) -> None:
-        elapsed.text = f'{context.clock.elapsed_seconds:5.1f}s'
+        elapsed.text = f'{context.time.elapsed:5.1f}s'
 
     terminal.run(quit_on='q')
 ```
@@ -73,7 +73,7 @@ tells a game which keys are held right now.
 
 ## Draw pixels, build a world, play a sound
 
-`terminal.pixels()` draws two pixels to a cell, `terminal.scene(...)` adds sprites, a camera and
+`terminal.pixels` draws two pixels to a cell, `terminal.scene(...)` adds sprites, a camera and
 collision on top of it, and `terminal.play('C4 E4 G4:2')` plays a melody written as text. The
 [examples](https://github.com/hsaeed3/xnano/tree/main/examples) show each of them, ending with a
 playable world.

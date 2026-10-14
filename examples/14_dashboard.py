@@ -63,7 +63,7 @@ def main() -> None:
 
         @terminal.every(0.2)
         def refresh(context: Context) -> None:
-            elapsed = context.clock.elapsed_seconds
+            elapsed = context.time.elapsed
             chart.datasets = [
                 ChartDataset(name='cpu', data=wave(elapsed, 0), style=Style('green')),
                 ChartDataset(name='gpu', data=wave(elapsed, 2), style=Style('magenta')),

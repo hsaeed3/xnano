@@ -306,7 +306,7 @@ class Scene:
         pixel, row after row, with a non-zero byte for solid ground.
         """
         self._sprites: list[Sprite] = []
-        self._pixels: Pixels = target.pixels()
+        self._pixels: Pixels = target.pixels
         self._background = to_rgb(background)
         self._version = 0
         self._shown: tuple[int, ...] | None = None

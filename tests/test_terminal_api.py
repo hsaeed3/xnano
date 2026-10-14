@@ -53,7 +53,7 @@ class TestInterface:
     def test_the_terminal_groups_what_is_not_declaring(self, terminal):
         assert isinstance(terminal.loop, xnano.loop.Loop)
         assert isinstance(terminal.output, xnano.output.Output)
-        assert isinstance(terminal.audio, xnano.audio.Audio)
+        assert isinstance(terminal.audio, xnano.audio.AudioDevice)
 
     def test_machinery_is_not_part_of_the_interface(self, terminal):
         for name in (
@@ -187,7 +187,7 @@ class TestOutputCapture:
     def test_a_live_terminal_that_cannot_hold_output_back_warns(self):
         from xnano.terminal import warn_if_output_is_not_held_back
 
-        with pytest.warns(RuntimeWarning, match='should_capture_output=False'):
+        with pytest.warns(RuntimeWarning, match='capture=False'):
             warn_if_output_is_not_held_back(requested=True, is_held_back=False)
 
     @pytest.mark.parametrize(

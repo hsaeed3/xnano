@@ -223,7 +223,9 @@ class _Demo:
 
     def build_art(self) -> None:
         """Pixel art that refits the window: it is sized by percentages, so it is unlocked."""
-        art = self.terminal.img(ASSETS / 'dusk.png', y=row(0.0) + 1, width='43%', layer=1)
+        art = self.terminal.write(
+            xnano.Image(ASSETS / 'dusk.png', y=row(0.0) + 1, width='43%', layer=1)
+        )
         # Centered in its panel by formulas of its own size, so a resize needs no code.
         art.x = edge(0.27) + (edge(0.73) - edge(0.27) - Width) // 2
         art.y = row(0.0) + (row(0.6) - row(0.0) - Height) // 2
@@ -315,7 +317,7 @@ class _Demo:
 
         @terminal.every(0.12)
         def refresh(context: Context) -> None:
-            elapsed = context.clock.elapsed_seconds
+            elapsed = context.time.elapsed
             self.wave.ratio = 0.5 + 0.45 * math.sin(elapsed * 2)
             self.load.ratio = 0.55 + 0.3 * math.sin(elapsed * 0.7 + 1) * math.cos(
                 elapsed * 1.9
@@ -358,11 +360,13 @@ class _Demo:
 
         @terminal.on_key('space')
         def toggle_time(context: Context) -> None:
-            if terminal.is_paused:
-                terminal.resume()
+            if terminal.time.is_paused:
+                terminal.time.resume()
             else:
-                terminal.pause()
-            self.remember('time: ' + ('stopped' if terminal.is_paused else 'running'))
+                terminal.time.pause()
+            self.remember(
+                'time: ' + ('stopped' if terminal.time.is_paused else 'running')
+            )
 
         @terminal.on_click
         def click(context: Context) -> None:
@@ -392,6 +396,6 @@ def wordmark() -> Buffer:
 
 def main() -> None:
     """Run the demo in the whole window."""
-    with xnano.open(mouse='buttons', title='xnano', state=None) as terminal:
+    with xnano.open(mouse=True, title='xnano', state=None) as terminal:
         _Demo(terminal).start()
         terminal.run(quit_on=('q', 'ctrl+c'))

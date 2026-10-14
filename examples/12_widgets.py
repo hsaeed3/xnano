@@ -27,7 +27,7 @@ with xnano.open(width=50, height=9) as terminal:
 
     @terminal.every(0.1)
     def sample(context: Context) -> None:
-        elapsed = context.clock.elapsed_seconds
+        elapsed = context.time.elapsed
         samples.append(round(50 + 50 * math.sin(elapsed * 2)))
         history.values = list(samples)
 

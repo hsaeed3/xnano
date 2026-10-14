@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterable
 from typing import (
     TYPE_CHECKING,
     Literal,
+    overload,
 )
 
 import xnano_core as _core
@@ -34,7 +35,7 @@ class Pixels:
     A color is a name such as ``'red'`` (in the standard xterm shade), a ``'#rrggbb'`` string
     or an ``(red, green, blue)`` tuple.
 
-    Get one from [`Terminal.pixels`][xnano.terminal.Terminal.pixels].
+    Get one from [`Terminal.pixels`][xnano.terminal.Terminal.pixels] or ``placement.pixels``.
 
     Attributes:
         width: The width in pixels.
@@ -46,7 +47,7 @@ class Pixels:
         import xnano
 
         with xnano.open(offscreen=True, width=4, height=2) as terminal:
-            pixels = terminal.pixels()
+            pixels = terminal.pixels
             assert (pixels.width, pixels.height) == (4, 4)
             pixels[0, 0] = '#ff0000'
             pixels[0, 1] = (0, 0, 255)
@@ -59,7 +60,7 @@ class Pixels:
     def __init__(self, view: _core.PixelView) -> None:
         # Created by ``Terminal.pixels`` and ``Placement.pixels``; not constructed directly.
         """
-        Wrap a pixel view. Get one from ``terminal.pixels()`` instead of calling this.
+        Wrap a pixel view. Get one from ``terminal.pixels`` instead of calling this.
 
         Args:
             view: The core pixel view to draw through.
@@ -81,10 +82,69 @@ class Pixels:
         """How pixels are packed into cells."""
         return self._view.encoding
 
-    def __setitem__(self, position: tuple[int, int], color: ColorValue) -> None:
-        """Draw one pixel: ``pixels[column, row] = color``, where the color is a name, hex string or ``(red, green, blue)``."""
-        column, row = position
-        self._view.write([(column, row, to_rgb(color))])
+    @property
+    def braille(self) -> Pixels:
+        """
+        The same pixels packed as braille: two columns and four rows per cell, one color per cell.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.open(offscreen=True, width=4, height=2) as terminal:
+                dots = terminal.pixels.braille
+                assert (dots.width, dots.height) == (8, 8)
+            ```
+        """
+        return Pixels(self._view.surface.pixels(encoding='braille'))
+
+    @overload
+    def __setitem__(self, position: tuple[int, int], color: ColorValue) -> None: ...
+    @overload
+    def __setitem__(
+        self, position: tuple[int | slice, int | slice], color: ColorValue
+    ) -> None: ...
+    def __setitem__(
+        self, position: tuple[int | slice, int | slice], color: ColorValue
+    ) -> None:
+        """
+        Draw one pixel or a block of them.
+
+        ``pixels[column, row] = color`` draws one pixel. A slice on either axis draws every
+        pixel it covers, so ``pixels[0:10, 2] = 'red'`` is a line and
+        ``pixels[:, :] = '#000000'`` clears everything. The color is a name, a
+        ``'#rrggbb'`` string, an ``(red, green, blue)`` tuple or a [`Color`][xnano_core.Color]
+        with true-color channels.
+
+        Raises:
+            TypeError: The position is not a pair of numbers or slices.
+            ValueError: The color has no channels, or a slice has a step other than 1.
+        """
+        if not isinstance(position, tuple) or len(position) != 2:
+            raise TypeError(
+                f'A pixel position is (column, row), but got {position!r}. Write '
+                f'pixels[column, row] = color.'
+            )
+        columns = self._span(position[0], self.width, 'column')
+        rows = self._span(position[1], self.height, 'row')
+        channels = to_rgb(color)
+        self._view.write((column, row, channels) for row in rows for column in columns)
+
+    @staticmethod
+    def _span(index: int | slice, size: int, name: str) -> range:
+        if isinstance(index, slice):
+            start, stop, step = index.indices(size)
+            if step != 1:
+                raise ValueError(
+                    f'A pixel {name} slice cannot have a step of {index.step}. Use '
+                    f'pixels[start:stop, ...] with no step.'
+                )
+            return range(start, max(start, stop))
+        if isinstance(index, bool) or not isinstance(index, int):
+            raise TypeError(
+                f'A pixel {name} must be a whole number or a slice, but got {index!r}.'
+            )
+        return range(index, index + 1)
 
     def write(self, pixels: Iterable[tuple[int, int, ColorValue]]) -> None:
         """
@@ -108,7 +168,7 @@ class Pixels:
             import xnano
 
             with xnano.open(offscreen=True, width=8, height=2) as terminal:
-                pixels = terminal.pixels()
+                pixels = terminal.pixels
                 pixels.shade(lambda column, row: (column * 30, row * 60, 0))
             ```
         """
@@ -172,7 +232,7 @@ class Pixels:
             from xnano.image import TerminalImage
 
             with xnano.open(offscreen=True, width=4, height=2) as terminal:
-                pixels = terminal.pixels()
+                pixels = terminal.pixels
                 map_picture = TerminalImage.from_rgba(8, 8, bytes([0, 128, 0, 255]) * 64)
                 pixels.draw_image(map_picture, x=-2, y=-2)
             ```

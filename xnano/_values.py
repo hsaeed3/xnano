@@ -34,7 +34,7 @@ from xnano_core import (
 if TYPE_CHECKING:
     from xnano_image import TerminalImage
 
-    from xnano._media import ImageBuffer
+    from xnano._media import Image
     from xnano_core import Buffer
 
 # --------------------------------------------------------------------------------------
@@ -106,5 +106,5 @@ class Renderable(Protocol):
         ...
 
 
-Content: TypeAlias = 'Buffer | Renderable | str | bytes | TerminalImage | ImageBuffer'
+Content: TypeAlias = 'Buffer | Renderable | str | bytes | TerminalImage | Image'
 """What [`Terminal.write`][xnano.terminal.Terminal.write] accepts."""

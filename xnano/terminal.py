@@ -7,10 +7,9 @@ The terminal you draw into, and the functions that open it.
 from __future__ import annotations
 
 import contextvars
-import os
 import threading
 import warnings
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from typing import (
     TYPE_CHECKING,
     Final,
@@ -28,14 +27,48 @@ if TYPE_CHECKING:
     from xnano_audio import InstrumentName, Pitch, TerminalAudioEffect
     from xnano_image import TerminalImage
 
-    from xnano.audio import Audio, Playable
-    from xnano.context import Context
+    from xnano._customize import (
+        BitCrushAudioCustomization,
+        CoalesceEffectCustomization,
+        DarkenEffectCustomization,
+        DelayAudioCustomization,
+        DissolveEffectCustomization,
+        DistortionAudioCustomization,
+        EvolveEffectCustomization,
+        EvolveFromEffectCustomization,
+        EvolveIntoEffectCustomization,
+        ExpandEffectCustomization,
+        ExplodeEffectCustomization,
+        FadeFromEffectCustomization,
+        FadeToEffectCustomization,
+        FillCustomization,
+        FuzzCustomization,
+        GlitchEffectCustomization,
+        HighPassAudioCustomization,
+        HslShiftEffectCustomization,
+        LayoutCustomization,
+        LightenEffectCustomization,
+        LowPassAudioCustomization,
+        PaintEffectCustomization,
+        PixelsCustomization,
+        RasterCustomization,
+        ReverbAudioCustomization,
+        SaturateEffectCustomization,
+        SleepEffectCustomization,
+        SlideInEffectCustomization,
+        SlideOutEffectCustomization,
+        StretchEffectCustomization,
+        SweepInEffectCustomization,
+        SweepOutEffectCustomization,
+        TremoloAudioCustomization,
+        WriteCustomization,
+    )
+    from xnano.audio import AudioDevice, Playable
+    from xnano.context import Context, Frame
 
+from xnano._appearance import Appearance, Spacing
 from xnano._customize import (
-    BackgroundArguments,
     BitCrushAudioArguments,
-    BlockArguments,
-    BorderArguments,
     CoalesceEffectArguments,
     Customization,
     CustomizationKind,
@@ -51,7 +84,6 @@ from xnano._customize import (
     FadeFromEffectArguments,
     FadeToEffectArguments,
     FillArguments,
-    ForegroundArguments,
     FuzzArguments,
     GlitchEffectArguments,
     HighPassAudioArguments,
@@ -59,8 +91,6 @@ from xnano._customize import (
     LayoutArguments,
     LightenEffectArguments,
     LowPassAudioArguments,
-    MarginArguments,
-    PaddingArguments,
     PaintEffectArguments,
     PixelsArguments,
     RasterArguments,
@@ -70,7 +100,6 @@ from xnano._customize import (
     SlideInEffectArguments,
     SlideOutEffectArguments,
     StretchEffectArguments,
-    StyleArguments,
     SweepInEffectArguments,
     SweepOutEffectArguments,
     TremoloAudioArguments,
@@ -81,7 +110,7 @@ from xnano._customize import (
 )
 from xnano._hooks import _Hooked
 from xnano._host import _Host, _InlineHost, _ThreadHost
-from xnano._media import ImageBuffer, ImageSource, content_buffer, img
+from xnano._media import Image, ImageSource, content_buffer
 from xnano._optional import is_image, require
 from xnano._values import (
     RGB,
@@ -89,7 +118,6 @@ from xnano._values import (
     AxisName,
     ColorValue,
     Content,
-    PixelEncoding,
     StateT,
     TerminalBackend,
     ValueT,
@@ -112,6 +140,7 @@ from xnano.pixels import Pixels
 from xnano.placement import Placement
 from xnano.scene import Scene
 from xnano.state import StateProxy, bind_proxy, prepare_state, reference_for
+from xnano.time import Time
 
 _active_terminal: contextvars.ContextVar[Terminal[object] | None] = (
     contextvars.ContextVar('xnano.active_terminal', default=None)
@@ -123,13 +152,13 @@ _live_terminal_open: bool = False
 
 
 def warn_if_output_is_not_held_back(*, requested: bool, is_held_back: bool) -> None:
-    """Say so when ``should_capture_output`` could not be honored on this platform."""
+    """Say so when ``capture`` could not be honored on this platform."""
     if requested and not is_held_back:
         warnings.warn(
             'This platform cannot hold back what a program prints while a live terminal is '
             'open, so a print or a log record can land in the middle of a frame and '
             'corrupt the screen. Log to a file instead, or pass '
-            'should_capture_output=False to silence this warning.',
+            'capture=False to silence this warning.',
             RuntimeWarning,
             stacklevel=2,
         )
@@ -148,87 +177,24 @@ def _is_color(value: object) -> TypeIs[_core.Color | RGB]:
     )
 
 
-def _style_of(
-    style: _core.Style | None,
-    foreground: ColorValue | None,
-    background: ColorValue | None,
-    is_bold: bool,
-    is_dim: bool,
-    is_italic: bool,
-    is_underlined: bool,
-    is_blinking: bool,
-    is_reversed: bool,
-    is_hidden: bool,
-    is_crossed_out: bool,
-) -> _core.Style | None:
-    """A style object and the typed style parameters, as one style (the parameters win)."""
-    if not (
-        foreground is not None
-        or background is not None
-        or any(
-            (
-                is_bold,
-                is_dim,
-                is_italic,
-                is_underlined,
-                is_blinking,
-                is_reversed,
-                is_hidden,
-                is_crossed_out,
-            )
-        )
-    ):
-        return style
-    own = _core.Style(
-        foreground,
-        background,
-        bold=is_bold,
-        dim=is_dim,
-        italic=is_italic,
-        underline=is_underlined,
-        blink=is_blinking,
-        reverse=is_reversed,
-        hidden=is_hidden,
-        crossed_out=is_crossed_out,
-    )
-    return own if style is None else style.patch(own)
-
-
 def _text_content(
-    content: Content,
-    *,
-    style: _core.Style | None,
-    title: str | None,
-    border: _core.BorderKind | None,
-    border_style: _core.Style | None,
-) -> Content:
-    """Lines of text become one text; a style, title or border makes the text a styled box."""
+    content: Content, appearance: Appearance, is_decorated: bool
+) -> tuple[Content, Appearance | None]:
+    """Lines of text become one text; a decoration makes the text a styled box."""
     if isinstance(content, (list, tuple)) and all(
         isinstance(line, str) for line in content
     ):
         content = '\n'.join(cast('Sequence[str]', content))
-    if style is None and title is None and border is None and border_style is None:
-        return content
+    if not is_decorated:
+        return content, None
     if not isinstance(content, str):
         raise TypeError(
-            'Colors, text modifiers, title and border decorate text, but this is not text. '
-            'Add a string (or a list of lines), or give the widget its own style and block.'
+            'Colors, text modifiers, title, border, padding and margin decorate text, but '
+            'this is not text. Add a string (or a list of lines), or give the widget its '
+            'own style and block.'
         )
-    if title is None and border is None and border_style is None:
-        buffer = _core.Buffer.with_text(content)
-        if style is not None:
-            buffer.update(_core.ApplyStyle(style))
-        return buffer
-    lines = content.split('\n')
-    return _core.Paragraph(
-        content,
-        style=style,
-        block=_core.Block(
-            title, border_type=border or 'plain', border_style=border_style
-        ),
-        width=max(max(len(line) for line in lines), len(title or '')) + 2,
-        height=len(lines) + 2,
-    )
+    appearance.text = content
+    return appearance.snapshot(), appearance
 
 
 class Terminal(_Hooked[StateT]):
@@ -243,15 +209,15 @@ class Terminal(_Hooked[StateT]):
     you move it, which makes it deterministic; both have the same methods.
 
     What you put on the terminal is declared on the terminal itself:
-    [`write`][xnano.terminal.Terminal.write], [`img`][xnano.terminal.Terminal.img],
+    [`write`][xnano.terminal.Terminal.write],
     [`hook`][xnano.terminal.Terminal.hook] and indexing. Everything else is grouped by what it is:
 
-    * ``terminal.clock`` is the [`Clock`][xnano_core.Clock] everything runs on.
+    * ``terminal.time`` is the [`Time`][xnano.time.Time] everything runs on.
     * ``terminal.cursor`` is the one [`Cursor`][xnano_core.Cursor] of the screen.
     * ``terminal.state`` is the dataclass given to ``open(state=...)``.
     * ``terminal.loop`` is the [`Loop`][xnano.loop.Loop]: frames and simulation updates.
     * ``terminal.output`` is the [`Output`][xnano.output.Output]: what was drawn.
-    * ``terminal.audio`` is the [`Audio`][xnano.audio.Audio]: notes, melodies, sounds and the
+    * ``terminal.audio`` is the [`AudioDevice`][xnano.audio.AudioDevice]: notes, melodies, sounds and the
       microphone.
 
     Any thread may write, remove, draw and play. Hooks run on the terminal's loop, so
@@ -266,17 +232,16 @@ class Terminal(_Hooked[StateT]):
         backend: ``'terminal'`` for a live terminal, ``'offscreen'`` for one in memory.
         root: The buffer everything is added to, as large as the terminal.
         parent: Symbolic expressions for the parent container's ``width``, ``height`` and ``size``.
-        time: Symbolic expression for elapsed seconds on the terminal clock.
         size: The size of the terminal in cells.
         width: The width of the terminal in cells.
         height: The height of the terminal in cells.
         title: Window title last set on the terminal; ``None`` clears the title.
-        clock: The clock everything on the terminal runs on.
+        time: The [`Time`][xnano.time.Time] everything on the terminal runs on.
         cursor: The terminal's one cursor.
         state: The dataclass given to ``open(state=...)``.
         loop: The [`Loop`][xnano.loop.Loop]: frames and simulation updates.
         output: The [`Output`][xnano.output.Output]: what was drawn, and held-back text.
-        audio: The [`Audio`][xnano.audio.Audio]: notes, melodies, sounds and the microphone.
+        audio: The [`AudioDevice`][xnano.audio.AudioDevice]: notes, melodies, sounds and the microphone.
         input: The keys held down right now, for programs that poll instead of listening.
         tempo: The tempo in beats per minute for musical notes and timers.
 
@@ -305,6 +270,7 @@ class Terminal(_Hooked[StateT]):
         is_autonomous: bool,
         state: StateT,
         should_capture_output: bool = False,
+        is_keyboard_enabled: bool = True,
     ) -> None:
         """
         Open a terminal. Use [`open`][xnano.open] instead of calling this.
@@ -316,6 +282,7 @@ class Terminal(_Hooked[StateT]):
             is_autonomous: Whether the terminal runs by itself on a thread of its own.
             state: A dataclass instance the terminal keeps and validates, or ``None``.
             should_capture_output: Whether printed text is held back from a live screen.
+            is_keyboard_enabled: Whether key presses reach hooks.
         """
         super().__init__()
         self._terminal = self
@@ -334,6 +301,7 @@ class Terminal(_Hooked[StateT]):
         self._failure: BaseException | None = None
         self._failure_report = ''
         self._should_capture_output = should_capture_output
+        self._is_keyboard_enabled = is_keyboard_enabled
         self._offscreen_milliseconds = 0
         self._state_proxy: StateProxy | None = None
         self._state_store = (
@@ -344,8 +312,9 @@ class Terminal(_Hooked[StateT]):
         self._dynamic: dict[int, Placement[StateT]] = {}
         self._frame_callback_count = 0
         self.loop = Loop(cast('Terminal[object]', self))
+        self._time = Time(cast('Terminal[object]', self))
         self.output = Output(cast('Terminal[object]', self))
-        self._audio: Audio | None = None
+        self._audio: AudioDevice | None = None
         self._input: Input | None = None
         self._runtime_object: _core.Runtime | None = None
         self._clock: _core.Clock | None = None
@@ -563,9 +532,9 @@ class Terminal(_Hooked[StateT]):
         return Parent
 
     @property
-    def time(self) -> _core.NumericValue:
-        """Symbolic expression for elapsed seconds on the terminal clock."""
-        return _core.TimeElapsed
+    def time(self) -> Time:
+        """The terminal's [`Time`][xnano.time.Time]: how long it has run, pausing, and formulas."""
+        return self._time
 
     @property
     def size(self) -> _core.Size:
@@ -622,16 +591,16 @@ class Terminal(_Hooked[StateT]):
         """The height of the terminal in cells."""
         return self.size.height
 
-    def pixels(self, *, encoding: PixelEncoding = 'half_blocks') -> Pixels:
+    @property
+    def pixels(self) -> Pixels:
         """
-        Return a view of the terminal's pixels.
+        The terminal's pixels: ``terminal.pixels[column, row] = color``.
 
-        Args:
-            encoding: ``'half_blocks'`` for one column and two rows of pixels per cell, or
-                ``'braille'`` for two columns and four rows with one color per cell.
+        Two pixels share a cell (one above the other); use
+        [`braille`][xnano.pixels.Pixels.braille] for eight per cell.
         """
         self._require_open()
-        return Pixels(self._root.pixels(encoding=encoding))
+        return Pixels(self._root.pixels())
 
     def write(
         self,
@@ -657,6 +626,8 @@ class Terminal(_Hooked[StateT]):
         title: str | None = None,
         border: _core.BorderKind | None = None,
         border_style: _core.Style | None = None,
+        padding: Spacing | None = None,
+        margin: Spacing | None = None,
     ) -> Placement[StateT]:
         """
         Put something on the terminal: text, a widget, a buffer, a canvas, an operation or an image.
@@ -669,8 +640,8 @@ class Terminal(_Hooked[StateT]):
         [`text`][xnano.placement.Placement.text].
 
         An image is added as an image: a [`TerminalImage`][xnano_image.TerminalImage] or the
-        result of [`img`][xnano.img] (never a file path; see
-        [`Terminal.img`][xnano.terminal.Terminal.img]). With neither ``width`` nor ``height`` it keeps
+        [`Image`][xnano.Image] (never a file path; see
+        [`from_media`][xnano.from_media]). With neither ``width`` nor ``height`` it keeps
         its own proportions at its own size, shrunk to fit the terminal. With one of them the
         other follows the image's proportions, and with both the image fits inside that box. An
         image sized by a percentage, or by the terminal because you gave no size, is converted
@@ -708,6 +679,11 @@ class Terminal(_Hooked[StateT]):
             border: The kind of border for a box around text: ``'plain'``, ``'rounded'``,
                 ``'double'`` or ``'thick'``. Giving a ``title`` alone draws a plain one.
             border_style: The style of the box's border.
+            padding: Space between the border and the text: a number of cells, a float or a
+                percentage of the text's size, or a dictionary with ``top``, ``right``,
+                ``bottom``, ``left``, ``vertical`` and ``horizontal``. Giving it draws the
+                text in a box without a border unless ``border`` or ``title`` is also given.
+            margin: Space outside the box, in the same forms.
 
         Returns:
             A [`Placement`][xnano.placement.Placement] to move, resize, listen on or remove.
@@ -759,6 +735,8 @@ class Terminal(_Hooked[StateT]):
             title=title,
             border=border,
             border_style=border_style,
+            padding=padding,
+            margin=margin,
         )
 
     def _place_on(
@@ -786,6 +764,8 @@ class Terminal(_Hooked[StateT]):
         title: str | None = None,
         border: _core.BorderKind | None = None,
         border_style: _core.Style | None = None,
+        padding: Spacing | None = None,
+        margin: Spacing | None = None,
     ) -> Placement[StateT]:
         if isinstance(content, ContextualOperation):
             if (
@@ -868,34 +848,44 @@ class Terminal(_Hooked[StateT]):
             return custom_placement
         picture = (
             content
-            if isinstance(content, ImageBuffer)
-            else ImageBuffer(cast('TerminalImage', content))
+            if isinstance(content, Image)
+            else Image(cast('TerminalImage', content))
             if is_image(content)
             else None
         )
-        text_style = _style_of(
-            style,
-            foreground,
-            background,
-            is_bold,
-            is_dim,
-            is_italic,
-            is_underlined,
-            is_blinking,
-            is_reversed,
-            is_hidden,
-            is_crossed_out,
+        appearance = Appearance(
+            style=style,
+            foreground=foreground,
+            background=background,
+            is_bold=is_bold,
+            is_dim=is_dim,
+            is_italic=is_italic,
+            is_underlined=is_underlined,
+            is_blinking=is_blinking,
+            is_reversed=is_reversed,
+            is_hidden=is_hidden,
+            is_crossed_out=is_crossed_out,
+            title=title,
+            border=border,
+            border_style=border_style,
+            padding=padding,
+            margin=margin,
+        )
+        is_decorated = appearance.has_style or appearance.has_frame or margin is not None
+        text_appearance: Appearance | None = None
+        is_text = picture is None and (
+            isinstance(content, str)
+            or (
+                isinstance(content, (list, tuple))
+                and all(isinstance(line, str) for line in content)
+            )
         )
         if picture is not None:
-            if (
-                text_style is not None
-                or title is not None
-                or border is not None
-                or border_style is not None
-            ):
+            if is_decorated:
                 raise TypeError(
-                    'Colors, text modifiers, title and border decorate text, but this is not text. '
-                    'Add a string (or a list of lines), or give the image no decoration.'
+                    'Colors, text modifiers, title, border, padding and margin decorate text, '
+                    'but this is not text. Add a string (or a list of lines), or give the '
+                    'image no decoration.'
                 )
             x = picture.x if x is None else x
             y = picture.y if y is None else y
@@ -904,13 +894,7 @@ class Terminal(_Hooked[StateT]):
             layer = picture.layer if layer == 0 else layer
             lock = lock or picture.lock
         else:
-            content = _text_content(
-                content,
-                style=text_style,
-                title=title,
-                border=border,
-                border_style=border_style,
-            )
+            content, text_appearance = _text_content(content, appearance, is_decorated)
         buffer, source = self._buffer_for(picture or content, width, height)
         buffer.layer = layer
         placement: Placement[StateT] = Placement(self, buffer, parent_buffer)
@@ -918,6 +902,9 @@ class Terminal(_Hooked[StateT]):
             self._placements.append(placement)
             if source is not None:
                 self._images[id(buffer)] = source
+        placement._is_text = is_text
+        if text_appearance is not None:
+            placement._appearance = text_appearance
         parent_buffer.attach(buffer, mode='transparent')
         composed = content.axes() if isinstance(content, Composition) else {}
         for axis, value in composed.items():
@@ -956,66 +943,17 @@ class Terminal(_Hooked[StateT]):
                 placement._set_axis(axis_name, int(getattr(placement, axis_name)))
         return placement
 
-    def img(
-        self,
-        source: TerminalImage | os.PathLike[str] | str | bytes,
-        *,
-        x: Axis | None = None,
-        y: Axis | None = None,
-        width: Axis | None = None,
-        height: Axis | None = None,
-        layer: int = 0,
-        lock: bool = False,
-        fit: Literal['contain', 'cover', 'stretch', 'crop', 'smart'] | None = None,
-        resampling_filter: Literal['nearest', 'bilinear', 'catmull_rom', 'lanczos3']
-        | None = None,
-        background: tuple[int, int, int] = (0, 0, 0),
-        speed: float = 1.0,
-    ) -> Placement[StateT]:
-        """
-        Load an image and write it, in one step: ``terminal.write(xnano.img(...))``.
-
-        See [`img`][xnano.img] for every argument; ``source`` is the path of an image file, its
-        bytes, or an image.
-
-        Examples:
-            ```python
-            import xnano
-            from xnano.image import TerminalImage
-
-            picture = TerminalImage.from_rgba(2, 2, bytes([0, 128, 255, 255]) * 4)
-            with xnano.open(offscreen=True, width=20, height=6) as terminal:
-                placement = terminal.img(picture, x='center', width=8)
-                assert placement.width == 8
-            ```
-        """
-        return self.write(
-            img(
-                source,
-                x=x,
-                y=y,
-                width=width,
-                height=height,
-                layer=layer,
-                lock=lock,
-                fit=fit,
-                resampling_filter=resampling_filter,
-                background=background,
-                speed=speed,
-            )
-        )
-
     def _buffer_for(
         self, content: Content, width: Axis | None, height: Axis | None
     ) -> tuple[_core.Buffer, ImageSource | None]:
         """Build the buffer that shows ``content``, and the image source that keeps it."""
-        if isinstance(content, ImageBuffer):
+        if isinstance(content, Image):
             source = ImageSource.create(
                 content,
                 width=width,
                 height=height,
                 size=self.size,
-                elapsed_seconds=self.clock.elapsed_seconds,
+                elapsed_seconds=self.time.elapsed,
             )
             return source.buffer, source
         buffer, _ = content_buffer(content)
@@ -1044,7 +982,7 @@ class Terminal(_Hooked[StateT]):
             if isinstance(item, ContextualOperation):
                 cast('ContextualOperation[StateT]', item).apply_to(self)
             elif isinstance(item, Customization):
-                item.apply_to_surface(self._root)
+                item.apply_to(cast('Terminal[object]', self))
             elif isinstance(item, _core.Style):
                 self._root.update(_core.ApplyStyle(item))
             else:
@@ -1071,270 +1009,247 @@ class Terminal(_Hooked[StateT]):
 
     @overload
     def fx(
-        self, kind: Literal['style'], /, **parameters: Unpack[StyleArguments]
-    ) -> Self: ...
-    @overload
-    def fx(
-        self, kind: Literal['border'], /, **parameters: Unpack[BorderArguments]
-    ) -> Self: ...
-    @overload
-    def fx(
-        self, kind: Literal['block'], /, **parameters: Unpack[BlockArguments]
-    ) -> Self: ...
-    @overload
-    def fx(
-        self, kind: Literal['padding'], /, **parameters: Unpack[PaddingArguments]
-    ) -> Self: ...
-    @overload
-    def fx(
-        self, kind: Literal['margin'], /, **parameters: Unpack[MarginArguments]
-    ) -> Self: ...
-    @overload
-    def fx(
         self, kind: Literal['fill'], /, **parameters: Unpack[FillArguments]
-    ) -> Self: ...
-    @overload
-    def fx(
-        self, kind: Literal['foreground'], /, **parameters: Unpack[ForegroundArguments]
-    ) -> Self: ...
-    @overload
-    def fx(
-        self, kind: Literal['background'], /, **parameters: Unpack[BackgroundArguments]
-    ) -> Self: ...
+    ) -> FillCustomization: ...
     @overload
     def fx(
         self, kind: Literal['write'], /, **parameters: Unpack[WriteArguments]
-    ) -> Self: ...
+    ) -> WriteCustomization: ...
     @overload
     def fx(
         self, kind: Literal['layout'], /, **parameters: Unpack[LayoutArguments]
-    ) -> Self: ...
+    ) -> LayoutCustomization: ...
     @overload
     def fx(
         self, kind: Literal['fuzz'], /, **parameters: Unpack[FuzzArguments]
-    ) -> Self: ...
+    ) -> FuzzCustomization: ...
     @overload
     def fx(
         self, kind: Literal['pixels'], /, **parameters: Unpack[PixelsArguments]
-    ) -> Self: ...
+    ) -> PixelsCustomization: ...
     @overload
     def fx(
         self, kind: Literal['raster'], /, **parameters: Unpack[RasterArguments]
-    ) -> Self: ...
+    ) -> RasterCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.fade_to'],
         /,
         **parameters: Unpack[FadeToEffectArguments],
-    ) -> Self: ...
+    ) -> FadeToEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.fade_from'],
         /,
         **parameters: Unpack[FadeFromEffectArguments],
-    ) -> Self: ...
+    ) -> FadeFromEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.paint'],
         /,
         **parameters: Unpack[PaintEffectArguments],
-    ) -> Self: ...
+    ) -> PaintEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.saturate'],
         /,
         **parameters: Unpack[SaturateEffectArguments],
-    ) -> Self: ...
+    ) -> SaturateEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.lighten'],
         /,
         **parameters: Unpack[LightenEffectArguments],
-    ) -> Self: ...
+    ) -> LightenEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.darken'],
         /,
         **parameters: Unpack[DarkenEffectArguments],
-    ) -> Self: ...
+    ) -> DarkenEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.sweep_in'],
         /,
         **parameters: Unpack[SweepInEffectArguments],
-    ) -> Self: ...
+    ) -> SweepInEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.sweep_out'],
         /,
         **parameters: Unpack[SweepOutEffectArguments],
-    ) -> Self: ...
+    ) -> SweepOutEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.slide_in'],
         /,
         **parameters: Unpack[SlideInEffectArguments],
-    ) -> Self: ...
+    ) -> SlideInEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.slide_out'],
         /,
         **parameters: Unpack[SlideOutEffectArguments],
-    ) -> Self: ...
+    ) -> SlideOutEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.hsl_shift'],
         /,
         **parameters: Unpack[HslShiftEffectArguments],
-    ) -> Self: ...
+    ) -> HslShiftEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.dissolve'],
         /,
         **parameters: Unpack[DissolveEffectArguments],
-    ) -> Self: ...
+    ) -> DissolveEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.coalesce'],
         /,
         **parameters: Unpack[CoalesceEffectArguments],
-    ) -> Self: ...
+    ) -> CoalesceEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.glitch'],
         /,
         **parameters: Unpack[GlitchEffectArguments],
-    ) -> Self: ...
+    ) -> GlitchEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.sleep'],
         /,
         **parameters: Unpack[SleepEffectArguments],
-    ) -> Self: ...
+    ) -> SleepEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.evolve'],
         /,
         **parameters: Unpack[EvolveEffectArguments],
-    ) -> Self: ...
+    ) -> EvolveEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.evolve_into'],
         /,
         **parameters: Unpack[EvolveIntoEffectArguments],
-    ) -> Self: ...
+    ) -> EvolveIntoEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.evolve_from'],
         /,
         **parameters: Unpack[EvolveFromEffectArguments],
-    ) -> Self: ...
+    ) -> EvolveFromEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.expand'],
         /,
         **parameters: Unpack[ExpandEffectArguments],
-    ) -> Self: ...
+    ) -> ExpandEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.stretch'],
         /,
         **parameters: Unpack[StretchEffectArguments],
-    ) -> Self: ...
+    ) -> StretchEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['effect.explode'],
         /,
         **parameters: Unpack[ExplodeEffectArguments],
-    ) -> Self: ...
+    ) -> ExplodeEffectCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.bit_crush'],
         /,
         **parameters: Unpack[BitCrushAudioArguments],
-    ) -> Self: ...
+    ) -> BitCrushAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.distortion'],
         /,
         **parameters: Unpack[DistortionAudioArguments],
-    ) -> Self: ...
+    ) -> DistortionAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.low_pass'],
         /,
         **parameters: Unpack[LowPassAudioArguments],
-    ) -> Self: ...
+    ) -> LowPassAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.high_pass'],
         /,
         **parameters: Unpack[HighPassAudioArguments],
-    ) -> Self: ...
+    ) -> HighPassAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.delay'],
         /,
         **parameters: Unpack[DelayAudioArguments],
-    ) -> Self: ...
+    ) -> DelayAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.reverb'],
         /,
         **parameters: Unpack[ReverbAudioArguments],
-    ) -> Self: ...
+    ) -> ReverbAudioCustomization: ...
     @overload
     def fx(
         self,
         kind: Literal['audio.tremolo'],
         /,
         **parameters: Unpack[TremoloAudioArguments],
-    ) -> Self: ...
+    ) -> TremoloAudioCustomization: ...
     def fx(
         self,
         kind: CustomizationKind,
         /,
         **parameters: object,
-    ) -> Self:
+    ) -> Customization:
         """
-        Apply a typed customization (``'style'``, ``'border'``, ``'padding'``, ``'effect.*'``, ...) to the terminal.
+        Apply an effect or other typed customization to the terminal and return it.
+
+        The returned customization stays attached: assigning one of its fields afterwards
+        changes the terminal, and a running effect is stopped and started again with the new
+        values.
 
         Args:
-            kind: Which customization to build and apply.
+            kind: Which customization to build and apply, such as ``'fill'`` or
+                ``'effect.dissolve'``.
             parameters: Keyword parameters unpacked from the matching TypedDict.
         """
         built = cast('Callable[..., Customization]', _customize_operation)(
             kind, **parameters
         )
         self.update(built)
-        return self
+        return built
 
     def inspect(self, expression: _core.Expression[ValueT]) -> ValueT:
         """
@@ -1430,42 +1345,44 @@ class Terminal(_Hooked[StateT]):
             self.write(value, x=left, y=top, width=right - left, height=bottom - top)
 
     @property
-    def is_paused(self) -> bool:
-        """Whether time is stopped: see [`pause`][xnano.terminal.Terminal.pause]."""
-        return self.clock.is_paused
-
-    def pause(self) -> None:
-        """
-        Stop time on this terminal.
-
-        Everything that follows the terminal's clock stands still: expressions such as
-        ``TimeElapsed``, animations and effects, [`every`][xnano.terminal.Terminal.every] and
-        [`after`][xnano.terminal.Terminal.after] timers, fixed-step updates, and the musical clock of
-        [`audio`][xnano.terminal.Terminal.audio] when it is running. Input still arrives, so a key
-        can [`resume`][xnano.terminal.Terminal.resume] it.
-        """
-        self._require_open()
-        self.clock.pause()
-        audio = self._audio
-        if audio is not None:
-            self._host.post(audio._hold)
-
-    def resume(self) -> None:
-        """Let time run on from where [`pause`][xnano.terminal.Terminal.pause] stopped it."""
-        self._require_open()
-        self.clock.resume()
-        audio = self._audio
-        if audio is not None:
-            self._host.post(audio._release)
-
-    @property
-    def clock(self) -> _core.Clock:
-        """The clock everything on the terminal runs on; any thread may read it."""
+    def _time_source(self) -> _core.Clock:
         if self._clock is None:
             raise TerminalClosedError(
-                'The terminal has no clock yet, because it is not attached to a running loop.'
+                'The terminal has no time yet, because it is not attached to a running loop.'
             )
         return self._clock
+
+    def iter(
+        self, *, count: int | None = None, duration_seconds: float | None = None
+    ) -> Iterator[Frame]:
+        """
+        Iterate over the terminal's frames, drawing between them.
+
+        Each iteration yields a [`Frame`][xnano.context.Frame] at the pace of the terminal's
+        ``fps``; whatever you change before asking for the next one is drawn. A terminal that
+        runs by itself draws as you declare, so this only paces your own code: if you are
+        slow, frames are skipped rather than queued. A terminal with a manual clock moves
+        its time by one frame each time, so the same loop produces the same frames every
+        run.
+
+        The iteration ends when ``count`` frames have been yielded, when the terminal's time
+        has run for ``duration_seconds``, when the terminal is stopped (``Ctrl-C`` stops a
+        live terminal opened with the default ``interrupt=True``), or when it is closed.
+
+        Args:
+            count: The most frames to yield.
+            duration_seconds: The most seconds of the terminal's time to run for.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.open(offscreen=True, width=8, height=1) as terminal:
+                frames = list(terminal.iter(count=2))
+            assert [frame.index for frame in frames] == [0, 1]
+            ```
+        """
+        return self.loop._frames(count=count, duration_seconds=duration_seconds)
 
     @property
     def is_running(self) -> bool:
@@ -1506,7 +1423,7 @@ class Terminal(_Hooked[StateT]):
             raise TerminalError(
                 'An offscreen terminal with a manual clock never moves by itself, so run() '
                 'would wait forever. Drive it with terminal.frames() or terminal.advance(), '
-                'or open it with clock="real" to let it run on its own.'
+                'or open it with realtime=True to let it run on its own.'
             )
         if quit_on is not None:
             keys = (quit_on,) if isinstance(quit_on, str) else tuple(quit_on)
@@ -1550,7 +1467,7 @@ class Terminal(_Hooked[StateT]):
             import xnano
             from xnano.events import Event
 
-            with xnano.open(offscreen=True, clock='real', width=30, height=2) as terminal:
+            with xnano.open(offscreen=True, realtime=True, width=30, height=2) as terminal:
                 terminal.write('Press enter to start')
 
                 @terminal.after(0.05)
@@ -1600,7 +1517,7 @@ class Terminal(_Hooked[StateT]):
             import xnano
             from xnano.events import Event
 
-            with xnano.open(offscreen=True, clock='real', width=30, height=2) as terminal:
+            with xnano.open(offscreen=True, realtime=True, width=30, height=2) as terminal:
 
                 @terminal.after(0.05)
                 def type_answer(context: xnano.context.Context) -> None:
@@ -1654,7 +1571,7 @@ class Terminal(_Hooked[StateT]):
         if not isinstance(self._host, _ThreadHost):
             raise TerminalError(
                 f'This terminal never moves by itself, so waiting for {what} would last '
-                f'forever. Open it live, or with clock="real", or drive it with '
+                f'forever. Open it live, or with realtime=True, or drive it with '
                 f'terminal.loop.step() and read the result from a hook instead.'
             )
         while not done.wait(0.1):
@@ -1665,9 +1582,9 @@ class Terminal(_Hooked[StateT]):
                 )
 
     @property
-    def audio(self) -> Audio:
+    def audio(self) -> AudioDevice:
         """
-        The terminal's [`Audio`][xnano.audio.Audio]: notes, melodies, sounds and the microphone.
+        The terminal's [`AudioDevice`][xnano.audio.AudioDevice]: notes, melodies, sounds and the microphone.
 
         It needs the optional `xnano-audio` package, which is imported the first time this
         is read.
@@ -1679,11 +1596,11 @@ class Terminal(_Hooked[StateT]):
         self._require_open()
         if self._audio is None:
             require('audio', needed_for='Terminal.audio')
-            from xnano.audio import Audio
+            from xnano.audio import AudioDevice
 
             with self._lock:
                 if self._audio is None:
-                    audio = Audio(cast('Terminal[object]', self))
+                    audio = AudioDevice(cast('Terminal[object]', self))
                     self._audio = audio
                     self._host.post(lambda: audio._provide(self._runtime))
         return self._audio
@@ -1755,7 +1672,7 @@ class Terminal(_Hooked[StateT]):
         """
         Play a sound, a note, a melody or melody text, and return at once.
 
-        This is [`audio.play`][xnano.audio.Audio.play]; see it for every argument.
+        This is [`audio.play`][xnano.audio.AudioDevice.play]; see it for every argument.
 
         Examples:
             ```python
@@ -1794,7 +1711,7 @@ class Terminal(_Hooked[StateT]):
         Play one note held for a number of beats, and return at once.
 
         The length follows the terminal's [`tempo`][xnano.terminal.Terminal.tempo]. This is
-        [`audio.note`][xnano.audio.Audio.note]; see it for every argument.
+        [`audio.note`][xnano.audio.AudioDevice.note]; see it for every argument.
 
         Examples:
             ```python
@@ -1918,14 +1835,15 @@ def open(
     width: int | None = None,
     height: int | None = None,
     fps: float = 60.0,
-    clock: Literal['real', 'manual'] | None = None,
-    inline_height: int | None = None,
-    should_clear_on_close: bool | None = None,
-    mouse: Literal['off', 'buttons', 'motion'] = 'off',
-    interrupt: Literal['event', 'stop'] = 'stop',
-    keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
-    should_capture_output: bool = True,
-    should_use_alternate_screen: bool = True,
+    realtime: bool = False,
+    clear: bool = True,
+    alternate_screen: bool = True,
+    mouse: bool | Literal['buttons', 'motion'] = False,
+    keyboard: bool | Literal['disambiguated', 'release_events'] = True,
+    paste: bool = True,
+    focus: bool = True,
+    interrupt: bool = True,
+    capture: bool = True,
     state: None = None,
 ) -> Terminal[None]: ...
 @overload
@@ -1938,14 +1856,15 @@ def open(
     width: int | None = None,
     height: int | None = None,
     fps: float = 60.0,
-    clock: Literal['real', 'manual'] | None = None,
-    inline_height: int | None = None,
-    should_clear_on_close: bool | None = None,
-    mouse: Literal['off', 'buttons', 'motion'] = 'off',
-    interrupt: Literal['event', 'stop'] = 'stop',
-    keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
-    should_capture_output: bool = True,
-    should_use_alternate_screen: bool = True,
+    realtime: bool = False,
+    clear: bool = True,
+    alternate_screen: bool = True,
+    mouse: bool | Literal['buttons', 'motion'] = False,
+    keyboard: bool | Literal['disambiguated', 'release_events'] = True,
+    paste: bool = True,
+    focus: bool = True,
+    interrupt: bool = True,
+    capture: bool = True,
     state: StateT,
 ) -> Terminal[StateT]: ...
 def open(
@@ -1957,14 +1876,15 @@ def open(
     width: int | None = None,
     height: int | None = None,
     fps: float = 60.0,
-    clock: Literal['real', 'manual'] | None = None,
-    inline_height: int | None = None,
-    should_clear_on_close: bool | None = None,
-    mouse: Literal['off', 'buttons', 'motion'] = 'off',
-    interrupt: Literal['event', 'stop'] = 'stop',
-    keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
-    should_capture_output: bool = True,
-    should_use_alternate_screen: bool = True,
+    realtime: bool = False,
+    clear: bool = True,
+    alternate_screen: bool = True,
+    mouse: bool | Literal['buttons', 'motion'] = False,
+    keyboard: bool | Literal['disambiguated', 'release_events'] = True,
+    paste: bool = True,
+    focus: bool = True,
+    interrupt: bool = True,
+    capture: bool = True,
     state: StateT | None = None,
 ) -> Terminal[StateT] | Terminal[None]:
     """
@@ -1980,12 +1900,11 @@ def open(
     from ``open(...)``.
 
     Give ``height`` (and optionally ``width``) to draw in a region of that size below the
-    cursor instead of taking over the whole screen. That region is transient: it is
-    erased when the terminal closes, like any other live application.
+    cursor instead of taking over the whole screen. That region is erased when the terminal
+    closes, unless you pass ``clear=False`` to leave it on the screen.
 
     With ``offscreen=True`` it draws into memory instead, on a clock that only moves when
-    you move it (``clock='manual'``, the default), or that runs by itself
-    (``clock='real'``).
+    you move it (the default), or that runs by itself (``realtime=True``).
 
     Args:
         canvas: Optional [`Canvas`][xnano.canvas.Canvas] to mount when the terminal opens.
@@ -1995,28 +1914,31 @@ def open(
         height: The height in cells. Offscreen: 24 by default. Live: the height of the
             region to draw in; the whole window when ``None``.
         fps: The rate frames are drawn at, at most.
-        clock: ``'real'`` for a terminal that runs by itself, ``'manual'`` for one that
-            moves only when you call ``frames``, ``advance`` or ``step``. Live terminals
-            always run on a real clock; the default offscreen clock is ``'manual'``.
-        inline_height: Draw this many rows below the cursor and leave them on the screen
-            when the terminal closes. Live terminals only; ``height`` is the transient
-            equivalent.
-        should_clear_on_close: Whether a live region is erased when the terminal closes.
-            ``True`` by default when ``height`` is given, ``False`` otherwise.
+        realtime: Whether an offscreen terminal runs by itself on the wall clock. By default
+            it moves only when you call ``frames``, ``advance`` or ``step``. Live terminals
+            always run in real time.
+        clear: Whether what the terminal drew is erased when it closes. This applies to a
+            region (``height``) or a terminal that stays on the main screen
+            (``alternate_screen=False``); the alternate screen always gives your shell back
+            untouched. Live terminals only.
+        alternate_screen: Whether a full-window live terminal draws on the alternate screen, so
+            your shell's history comes back untouched. ``False`` draws on the main screen.
+            A terminal with a ``height`` always draws in a region below the cursor.
         title: Window title; ``None`` leaves the existing title untouched.
-        keyboard: ``'basic'`` for ordinary key presses, ``'disambiguated'`` to tell keys such
-            as ``escape`` and ``alt+key`` apart, and ``'release_events'`` to also receive key
-            repeats and releases (``context.keyboard.kind``). The last two need a terminal with the
-            enhanced keyboard protocol, such as kitty, and fall back to ``'basic'`` elsewhere.
-        mouse: ``'buttons'`` to receive clicks and drags, ``'motion'`` to receive all
-            movement. Live terminals only.
-        interrupt: What ``Ctrl-C`` does on a live terminal: ``'stop'`` ends the loop,
-            ``'event'`` delivers it as a key press for you to handle.
-        should_capture_output: Whether text printed during a live session is held back from
-            the screen and printed when the terminal closes. This works on macOS and Linux;
-            elsewhere a ``RuntimeWarning`` says it could not be done.
-        should_use_alternate_screen: Whether a full-window live terminal draws on the
-            alternate screen, so your shell's history comes back untouched.
+        mouse: ``True`` to receive clicks and drags, ``'motion'`` to receive all movement as
+            well. Live terminals only.
+        keyboard: ``True`` for ordinary key presses, ``'disambiguated'`` to tell keys such
+            as ``escape`` and ``alt+key`` apart, ``'release_events'`` to also receive key
+            repeats and releases (``context.keyboard.kind``), and ``False`` to ignore keys.
+            The two named modes need a terminal with the enhanced keyboard protocol, such as
+            kitty, and fall back to ``True`` elsewhere. Live terminals only.
+        paste: Whether pasted text arrives as one paste event instead of as key presses.
+        focus: Whether the terminal reports the window gaining and losing focus.
+        interrupt: Whether ``Ctrl-C`` ends the loop on a live terminal. ``False`` delivers it
+            as a key press for you to handle.
+        capture: Whether text printed during a live session is held back from the screen and
+            printed when the terminal closes. This works on macOS and Linux; elsewhere a
+            ``RuntimeWarning`` says it could not be done.
         state: A dataclass instance the terminal keeps and validates. Hooks read and write
             it as ``context.state``.
 
@@ -2067,17 +1989,15 @@ def open(
     interval_milliseconds = max(1, int(round(1000.0 / fps)))
     if offscreen:
         if (
-            inline_height is not None
-            or mouse != 'off'
-            or keyboard != 'basic'
-            or should_clear_on_close is not None
+            not clear
+            or not alternate_screen
+            or mouse is not False
+            or keyboard is not True
         ):
             raise ValueError(
-                'inline_height, mouse, keyboard and should_clear_on_close only apply to a live '
-                'terminal, but offscreen=True was given. Remove them, or remove '
-                'offscreen=True.'
+                'clear, alternate_screen, mouse and keyboard only apply to a live terminal, '
+                'but offscreen=True was given. Remove them, or remove offscreen=True.'
             )
-        kind = 'manual' if clock is None else clock
         columns = 80 if width is None else width
         rows = 24 if height is None else height
 
@@ -2086,7 +2006,7 @@ def open(
                 width=columns,
                 height=rows,
                 frame_interval_milliseconds=interval_milliseconds,
-                clock=_core.Clock.monotonic() if kind == 'real' else None,
+                clock=_core.Clock.monotonic() if realtime else None,
             )
             if title is not None:
                 runtime.title = title
@@ -2096,7 +2016,7 @@ def open(
             create_offscreen,
             fps=fps,
             is_live=False,
-            is_autonomous=kind == 'real',
+            is_autonomous=realtime,
             state=cast('StateT', state),
         )
         if canvas is not None:
@@ -2107,27 +2027,16 @@ def open(
                 raise
         return terminal
 
-    if clock == 'manual':
-        raise ValueError(
-            'A live terminal runs on real time, so clock="manual" does not apply. Use '
-            'offscreen=True for a clock you move yourself.'
-        )
     if width is not None and height is None:
         raise ValueError(
             'A live terminal with a width needs a height too, because it draws in a region '
             'of that size. Add height=..., or remove width.'
         )
-    if height is not None and inline_height is not None:
-        raise ValueError(
-            'height and inline_height both set the number of rows to draw in. Keep height '
-            'for a region that is erased when the terminal closes, or inline_height for one '
-            'that stays.'
-        )
-    region_height = height if height is not None else inline_height
+    region_height = height
+    uses_alternate_screen = alternate_screen and region_height is None
     region_width = width
-    clears = (
-        should_clear_on_close if should_clear_on_close is not None else height is not None
-    )
+    mouse_mode = 'buttons' if mouse is True else 'off' if mouse is False else mouse
+    keyboard_mode = 'basic' if isinstance(keyboard, bool) else keyboard
     with _live_terminal_lock:
         if _live_terminal_open:
             raise TerminalAlreadyOpenError(
@@ -2138,10 +2047,16 @@ def open(
 
     def create_live() -> _core.Runtime:
         options = _core.TerminalOptions(
-            input=_core.InputOptions(mouse=mouse, interrupt=interrupt, keyboard=keyboard),
-            alternate_screen=should_use_alternate_screen and region_height is None,
-            should_capture_output=should_capture_output,
-            should_clear_on_close=clears,
+            input=_core.InputOptions(
+                mouse=mouse_mode,
+                bracketed_paste=paste,
+                focus_reporting=focus,
+                interrupt='stop' if interrupt else 'event',
+                keyboard=keyboard_mode,
+            ),
+            alternate_screen=uses_alternate_screen,
+            should_capture_output=capture,
+            should_clear_on_close=clear and not uses_alternate_screen,
         )
         runtime = _core.Runtime.live(
             frame_interval_milliseconds=interval_milliseconds,
@@ -2160,7 +2075,8 @@ def open(
             is_live=True,
             is_autonomous=True,
             state=cast('StateT', state),
-            should_capture_output=should_capture_output,
+            should_capture_output=capture,
+            is_keyboard_enabled=keyboard is not False,
         )
     except BaseException:
         with _live_terminal_lock:
@@ -2198,6 +2114,36 @@ def active(*, required: bool = True) -> Terminal | None:
             'this inside the block.'
         )
     return terminal
+
+
+def iter(
+    *, count: int | None = None, duration_seconds: float | None = None
+) -> Iterator[Frame]:
+    """
+    Iterate over the frames of the active terminal, drawing between them.
+
+    This is [`Terminal.iter`][xnano.terminal.Terminal.iter] for the terminal opened most
+    recently in this thread or task, so a loop does not need the terminal in hand.
+
+    Args:
+        count: The most frames to yield.
+        duration_seconds: The most seconds of the terminal's time to run for.
+
+    Raises:
+        TerminalClosedError: No terminal is open.
+
+    Examples:
+        ```python
+        import xnano
+
+        with xnano.open(offscreen=True, width=8, height=1) as terminal:
+            ball = terminal.write('o')
+            for frame in xnano.iter(count=3):
+                ball.x = frame.index
+            assert ball.x == 2
+        ```
+    """
+    return active().iter(count=count, duration_seconds=duration_seconds)
 
 
 def find_active() -> Terminal | None:

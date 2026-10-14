@@ -223,9 +223,7 @@ def find_grass(solid: bytes | bytearray) -> tuple[int, int]:
 def main() -> None:
     """Open the world and let the player walk around in it."""
     picture, solid = bake_world(seed=7)
-    with xnano.open(
-        mouse='buttons', keyboard='release_events', title='world'
-    ) as terminal:
+    with xnano.open(mouse=True, keyboard='release_events', title='world') as terminal:
         # Everything but the last row is the world; the last row says where the hero is.
         view = terminal.write(' ', width='100%', height=ParentHeight - 1)
         scene = view.scene(WORLD_WIDTH, WORLD_HEIGHT, background='black')
@@ -243,7 +241,9 @@ def main() -> None:
 
         def show_status() -> None:
             state = (
-                'paused (space)' if terminal.is_paused else 'wasd or hold the mouse: walk'
+                'paused (space)'
+                if terminal.time.is_paused
+                else 'wasd or hold the mouse: walk'
             )
             status = f'x {round(hero.sprite.x):>3} y {round(hero.sprite.y):>3}   {state}   q: quit'
             status_line.text = status
@@ -255,10 +255,10 @@ def main() -> None:
 
         @terminal.on_key('space')
         def toggle_time(context: Context) -> None:
-            if terminal.is_paused:
-                terminal.resume()
+            if terminal.time.is_paused:
+                terminal.time.resume()
             else:
-                terminal.pause()
+                terminal.time.pause()
             show_status()  # updates wait while time is stopped
 
         def walk_toward_pointer(context: Context) -> None:

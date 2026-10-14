@@ -1,0 +1,298 @@
+"""
+xnano._appearance
+
+How a text placement or canvas looks: colors, text modifiers, border, title, padding and margin.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+from typing import TypeAlias, TypedDict
+
+import xnano_core as _core
+from xnano._values import ColorValue
+
+__all__ = [
+    'APPEARANCE_NAMES',
+    'Appearance',
+    'Spacing',
+    'SpacingDictionary',
+    'resolve_spacing',
+]
+
+APPEARANCE_NAMES = frozenset(
+    {
+        'foreground',
+        'background',
+        'is_bold',
+        'is_dim',
+        'is_italic',
+        'is_underlined',
+        'is_blinking',
+        'is_reversed',
+        'is_hidden',
+        'is_crossed_out',
+        'style',
+        'title',
+        'border',
+        'border_style',
+        'padding',
+        'margin',
+    }
+)
+"""The names ``write`` and ``new`` read as appearance instead of buffer attributes."""
+
+
+class SpacingDictionary(TypedDict, total=False):
+    """
+    Space around text, edge by edge.
+
+    Attributes:
+        top: The space above, in cells.
+        right: The space to the right.
+        bottom: The space below.
+        left: The space to the left.
+        vertical: The space above and below, unless ``top`` or ``bottom`` is given.
+        horizontal: The space left and right, unless ``left`` or ``right`` is given.
+    """
+
+    top: int | float | str
+    right: int | float | str
+    bottom: int | float | str
+    left: int | float | str
+    vertical: int | float | str
+    horizontal: int | float | str
+
+
+Spacing: TypeAlias = int | float | str | SpacingDictionary
+"""
+Space around text: one value for every edge or a [`SpacingDictionary`][xnano.types.SpacingDictionary].
+
+A whole number is a count of cells. A float (``0.1``) or a percentage string (``'10%'``) is
+a share of the text's width for the left and right edges and of its height for the top and
+bottom edges, read when the spacing is applied.
+"""
+
+
+def _cells(value: object, available: int, name: str) -> int:
+    if isinstance(value, bool):
+        raise TypeError(
+            f'{name} must be a whole number of cells, a float or a percentage string, but '
+            f'got {value!r}. Pass padding=1, padding=0.1 or padding="10%".'
+        )
+    if isinstance(value, int):
+        return max(0, value)
+    if isinstance(value, float):
+        return max(0, round(available * value))
+    if isinstance(value, str) and value.strip().endswith('%'):
+        try:
+            share = float(value.strip()[:-1]) / 100.0
+        except ValueError:
+            share = None
+        if share is not None:
+            return max(0, round(available * share))
+    raise TypeError(
+        f'{name} must be a whole number of cells, a float or a percentage string, but got '
+        f'{value!r}. Pass padding=1, padding=0.1 or padding="10%".'
+    )
+
+
+def resolve_spacing(
+    value: Spacing | None, *, width: int, height: int, name: str = 'spacing'
+) -> tuple[int, int, int, int]:
+    """
+    Turn a spacing into whole cells for ``(left, right, top, bottom)``.
+
+    Args:
+        value: The spacing, or ``None`` for none.
+        width: The width that a share on the left and right edges is a share of.
+        height: The height that a share on the top and bottom edges is a share of.
+        name: The parameter name, for error messages.
+
+    Raises:
+        TypeError: A value is not a number of cells, a float, a percentage string or a
+            dictionary of those.
+        ValueError: A dictionary has an edge name that does not exist.
+    """
+    if value is None:
+        return 0, 0, 0, 0
+    if not isinstance(value, dict):
+        return (
+            _cells(value, width, name),
+            _cells(value, width, name),
+            _cells(value, height, name),
+            _cells(value, height, name),
+        )
+    unknown = sorted(
+        set(value) - {'top', 'right', 'bottom', 'left', 'vertical', 'horizontal'}
+    )
+    if unknown:
+        raise ValueError(
+            f'{name} has no edge called {unknown[0]!r}. Use top, right, bottom, left, '
+            f'vertical or horizontal.'
+        )
+
+    def edge(first: str, second: str, available: int) -> int:
+        if first in value:
+            return _cells(value[first], available, f'{name}[{first!r}]')  # type: ignore[literal-required]
+        if second in value:
+            return _cells(value[second], available, f'{name}[{second!r}]')  # type: ignore[literal-required]
+        return 0
+
+    return (
+        edge('left', 'horizontal', width),
+        edge('right', 'horizontal', width),
+        edge('top', 'vertical', height),
+        edge('bottom', 'vertical', height),
+    )
+
+
+def _snapshot(buffer: _core.Buffer) -> _core.Buffer:
+    """Copy what a buffer shows into a buffer of plain cells."""
+    return _core.Buffer.from_cell_grid(buffer.to_cell_grid())
+
+
+@dataclasses.dataclass(slots=True)
+class Appearance:
+    """
+    The look of a piece of text, kept so that it can be changed after the text is shown.
+
+    Attributes:
+        text: The text, line by line.
+        style: A ready-made style that the color and modifier fields are applied over.
+        foreground: The text color.
+        background: The color behind the text.
+        is_bold: Whether the text is bold.
+        is_dim: Whether the text is dimmed.
+        is_italic: Whether the text is italic.
+        is_underlined: Whether the text is underlined.
+        is_blinking: Whether the text blinks.
+        is_reversed: Whether foreground and background are swapped.
+        is_hidden: Whether the text is hidden.
+        is_crossed_out: Whether the text is struck through.
+        title: A title on the border.
+        border: The kind of border: ``'plain'``, ``'rounded'``, ``'double'`` or ``'thick'``.
+        border_style: The style of the border.
+        padding: Space between the border and the text.
+        margin: Space outside the border.
+    """
+
+    text: str = ''
+    style: _core.Style | None = None
+    foreground: ColorValue | None = None
+    background: ColorValue | None = None
+    is_bold: bool = False
+    is_dim: bool = False
+    is_italic: bool = False
+    is_underlined: bool = False
+    is_blinking: bool = False
+    is_reversed: bool = False
+    is_hidden: bool = False
+    is_crossed_out: bool = False
+    title: str | None = None
+    border: _core.BorderKind | None = None
+    border_style: _core.Style | None = None
+    padding: Spacing | None = None
+    margin: Spacing | None = None
+
+    @property
+    def has_style(self) -> bool:
+        """Whether any color or text modifier is set."""
+        return self.style is not None or any(
+            (
+                self.foreground is not None,
+                self.background is not None,
+                self.is_bold,
+                self.is_dim,
+                self.is_italic,
+                self.is_underlined,
+                self.is_blinking,
+                self.is_reversed,
+                self.is_hidden,
+                self.is_crossed_out,
+            )
+        )
+
+    @property
+    def has_frame(self) -> bool:
+        """Whether a border, title or padding surrounds the text."""
+        return any(
+            (
+                self.title is not None,
+                self.border is not None,
+                self.border_style is not None,
+                self.padding not in (None, 0, {}),
+            )
+        )
+
+    def text_style(self) -> _core.Style | None:
+        """The style of the text: the ready-made style with the color and modifiers over it."""
+        if not self.has_style:
+            return self.style
+        own = _core.Style(
+            self.foreground,
+            self.background,
+            bold=self.is_bold,
+            dim=self.is_dim,
+            italic=self.is_italic,
+            underline=self.is_underlined,
+            blink=self.is_blinking,
+            reverse=self.is_reversed,
+            hidden=self.is_hidden,
+            crossed_out=self.is_crossed_out,
+        )
+        return own if self.style is None else self.style.patch(own)
+
+    def render(self) -> _core.Buffer:
+        """Build the buffer that shows the text with its border, padding and margin."""
+        lines = self.text.split('\n')
+        text_width = max((len(line) for line in lines), default=0)
+        text_height = len(lines)
+        style = self.text_style()
+        if not self.has_frame:
+            inner = _core.Buffer.with_text(self.text)
+            if style is not None:
+                inner.update(_core.ApplyStyle(style))
+        else:
+            left, right, top, bottom = resolve_spacing(
+                self.padding, width=text_width, height=text_height, name='padding'
+            )
+            has_border = (
+                self.title is not None
+                or self.border is not None
+                or self.border_style is not None
+            )
+            edge = 2 if has_border else 0
+            width = text_width + left + right + edge
+            if self.title is not None:
+                width = max(width, len(self.title) + 2)
+            block = _core.Block(
+                self.title,
+                borders='all' if has_border else 'none',
+                border_type=self.border or 'plain',
+                border_style=self.border_style,
+                padding=(left, right, top, bottom),
+            )
+            inner = _core.Paragraph(
+                self.text,
+                style=style,
+                block=block,
+                width=width,
+                height=text_height + top + bottom + edge,
+            )
+        if self.margin is None:
+            return inner
+        left, right, top, bottom = resolve_spacing(
+            self.margin, width=inner.width, height=inner.height, name='margin'
+        )
+        if not (left or right or top or bottom):
+            return inner
+        outer = _core.Buffer(
+            width=inner.width + left + right, height=inner.height + top + bottom
+        )
+        outer.update(_core.Paste(_snapshot(inner), x=left, y=top))
+        return outer
+
+    def snapshot(self) -> _core.Buffer:
+        """The text as a buffer of plain cells, which can be copied into another buffer."""
+        return _snapshot(self.render())

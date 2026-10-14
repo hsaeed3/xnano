@@ -46,7 +46,7 @@ class Customization(_core.Customization):
     field changes what it does.
 
     Attributes:
-        customization_kind: Identifier of the customization kind (such as ``'style'`` or ``'effect.dissolve'``).
+        customization_kind: Identifier of the customization kind (such as ``'fill'`` or ``'effect.dissolve'``).
     """
 
     def apply_to(
@@ -56,289 +56,50 @@ class Customization(_core.Customization):
         """
         Apply this customization to a terminal, placement, canvas or surface.
 
+        It stays attached to the target: after this, assigning one of its fields applies it
+        again, so a customization from ``fx`` is a live handle on what it changed. A running
+        effect is stopped and started again with the new values.
+
         Args:
-            target: The target to fx.
+            target: The target to apply the customization to.
         """
         from xnano.canvas import Canvas
         from xnano.placement import Placement
         from xnano.terminal import Terminal
 
+        self._attach(target)
         if isinstance(target, Canvas):
             target._record_operation(self)
-            return
-        if isinstance(target, (Placement, Terminal)):
+        elif isinstance(target, (Placement, Terminal)):
             target._buffer.update(self)
-            return
-        if isinstance(target, _core.Surface):
+        elif isinstance(target, _core.Surface):
             target.update(self)
 
+    def _attach(self, target: object) -> None:
+        """Remember the target, and give a running effect a key so it can be stopped."""
+        if (
+            self.customization_kind.startswith('effect.')
+            and getattr(self, 'key', 1) is None
+        ):
+            object.__setattr__(self, 'key', f'xnano-effect-{id(self)}')
+        object.__setattr__(self, '_target', target)
 
-class StyleArguments(TypedDict, total=False):
-    """
-    Keyword arguments for ``fx('style', ...)``.
+    def __setattr__(self, name: str, value: object) -> None:
+        super().__setattr__(name, value)
+        if name.startswith('_') or name not in getattr(self, '__dataclass_fields__', ()):
+            return
+        target = self.__dict__.get('_target')
+        if target is None:
+            return
+        from xnano.canvas import Canvas
 
-    Attributes:
-        foreground: Text foreground color, or ``None``.
-        background: Cell background color, or ``None``.
-        bold: Whether text is bold.
-        dim: Whether text is dimmed.
-        italic: Whether text is italic.
-        underline: Whether text is underlined.
-        blink: Whether text blinks.
-        reverse: Whether foreground and background are swapped.
-        hidden: Whether text is hidden.
-        crossed_out: Whether text is struck through.
-        rapid_blink: Whether text blinks rapidly.
-        underline_color: Color of the underline, or ``None`` for the foreground color.
-    """
-
-    foreground: ColorValue | None
-    background: ColorValue | None
-    bold: bool
-    dim: bool
-    italic: bool
-    underline: bool
-    blink: bool
-    reverse: bool
-    hidden: bool
-    crossed_out: bool
-    rapid_blink: bool
-    underline_color: ColorValue | None
-
-
-@dataclass
-class StyleCustomization(Customization):
-    """
-    Dataclass customization for cell colors and text modifiers (``'style'``).
-
-    Attributes:
-        foreground: Text foreground color, or ``None``.
-        background: Cell background color, or ``None``.
-        bold: Whether text is bold.
-        dim: Whether text is dimmed.
-        italic: Whether text is italic.
-        underline: Whether text is underlined.
-        blink: Whether text blinks.
-        reverse: Whether foreground and background are swapped.
-        hidden: Whether text is hidden.
-        crossed_out: Whether text is struck through.
-        rapid_blink: Whether text blinks rapidly.
-        underline_color: Color of the underline, or ``None`` for the foreground color.
-    """
-
-    customization_kind = 'style'
-    foreground: ColorValue | None = None
-    background: ColorValue | None = None
-    bold: bool = False
-    dim: bool = False
-    italic: bool = False
-    underline: bool = False
-    blink: bool = False
-    reverse: bool = False
-    hidden: bool = False
-    crossed_out: bool = False
-    rapid_blink: bool = False
-    underline_color: ColorValue | None = None
-
-
-class BorderArguments(TypedDict, total=False):
-    """
-    Keyword arguments for ``fx('border', ...)``.
-
-    Attributes:
-        kind: Border line style (``'plain'``, ``'rounded'``, ``'double'`` or ``'thick'``).
-        border_kind: Optional alias for ``kind``.
-        style: Style applied to the border cells.
-    """
-
-    kind: _core.BorderKind
-    border_kind: _core.BorderKind | None
-    style: _core.Style | StyleCustomization | None
-
-
-@dataclass
-class BorderCustomization(Customization):
-    """
-    Dataclass customization for drawing a border around cells (``'border'``).
-
-    Attributes:
-        kind: Border line style (``'plain'``, ``'rounded'``, ``'double'`` or ``'thick'``).
-        border_kind: Optional alias for ``kind``.
-        style: Style applied to the border cells.
-    """
-
-    customization_kind = 'border'
-    kind: _core.BorderKind = 'plain'
-    border_kind: _core.BorderKind | None = None
-    style: _core.Style | StyleCustomization | None = None
-
-
-class BlockArguments(TypedDict, total=False):
-    """
-    Keyword arguments for ``fx('block', ...)``.
-
-    Attributes:
-        title: Title text placed on the border.
-        borders: Edges on which borders are drawn.
-        border_type: Border symbol style (``'plain'``, ``'rounded'``, ``'double'``, ``'thick'``).
-        border_style: Style applied to the border cells.
-        style: Default style applied to the block area.
-        title_style: Style applied to the title text.
-        title_alignment: Horizontal alignment of the title (``'left'``, ``'center'``, ``'right'``).
-        padding: Uniform integer inset or ``(left, right, top, bottom)`` tuple.
-        merge: Border-merging policy where borders meet.
-        width: Width in cells, or ``None`` to fit the content.
-        height: Height in cells, or ``None`` to fit the content.
-        x: Column of the block.
-        y: Row of the block.
-    """
-
-    title: str | _core.Expression[str] | None
-    borders: str | Sequence[str] | None
-    border_type: str | _core.Expression[str] | None
-    border_style: _core.Style | _core.DynamicStyle | None
-    style: _core.Style | _core.DynamicStyle | None
-    title_style: _core.Style | _core.DynamicStyle | None
-    title_alignment: str
-    padding: (
-        int
-        | _core.Expression[int | float]
-        | tuple[
-            int | _core.Expression[int | float],
-            int | _core.Expression[int | float],
-            int | _core.Expression[int | float],
-            int | _core.Expression[int | float],
-        ]
-        | None
-    )
-    merge: str | _core.Expression[str] | None
-    width: int | _core.Expression[int | float] | None
-    height: int | _core.Expression[int | float] | None
-    x: int | _core.Expression[int | float]
-    y: int | _core.Expression[int | float]
-
-
-@dataclass
-class BlockCustomization(Customization):
-    """
-    Dataclass customization for widget borders, titles and inner padding (``'block'``).
-
-    Attributes:
-        title: Title text placed on the border.
-        borders: Edges on which borders are drawn.
-        border_type: Border symbol style (``'plain'``, ``'rounded'``, ``'double'``, ``'thick'``).
-        border_style: Style applied to the border cells.
-        style: Default style applied to the block area.
-        title_style: Style applied to the title text.
-        title_alignment: Horizontal alignment of the title (``'left'``, ``'center'``, ``'right'``).
-        padding: Uniform integer inset or ``(left, right, top, bottom)`` tuple.
-        merge: Border-merging policy where borders meet.
-        width: Width in cells, or ``None`` to fit the content.
-        height: Height in cells, or ``None`` to fit the content.
-        x: Column of the block.
-        y: Row of the block.
-    """
-
-    customization_kind = 'block'
-    title: str | _core.Expression[str] | None = None
-    borders: str | Sequence[str] | None = None
-    border_type: str | _core.Expression[str] | None = None
-    border_style: _core.Style | _core.DynamicStyle | None = None
-    style: _core.Style | _core.DynamicStyle | None = None
-    title_style: _core.Style | _core.DynamicStyle | None = None
-    title_alignment: str = 'left'
-    padding: (
-        int
-        | _core.Expression[int | float]
-        | tuple[
-            int | _core.Expression[int | float],
-            int | _core.Expression[int | float],
-            int | _core.Expression[int | float],
-            int | _core.Expression[int | float],
-        ]
-        | None
-    ) = None
-    merge: str | _core.Expression[str] | None = None
-    width: int | _core.Expression[int | float] | None = None
-    height: int | _core.Expression[int | float] | None = None
-    x: int | _core.Expression[int | float] = 0
-    y: int | _core.Expression[int | float] = 0
-
-
-class PaddingArguments(TypedDict, total=False):
-    """
-    Keyword arguments for ``fx('padding', ...)``.
-
-    Attributes:
-        left: Left inset in cells.
-        right: Right inset in cells.
-        top: Top inset in cells.
-        bottom: Bottom inset in cells.
-        horizontal: Left and right inset in cells when set.
-        vertical: Top and bottom inset in cells when set.
-        uniform: Inset on all four edges when set.
-    """
-
-    left: int
-    right: int
-    top: int
-    bottom: int
-    horizontal: int | None
-    vertical: int | None
-    uniform: int | None
-
-
-@dataclass
-class PaddingCustomization(Customization):
-    """
-    Dataclass customization for inner cell padding (``'padding'``).
-
-    Attributes:
-        left: Left inset in cells.
-        right: Right inset in cells.
-        top: Top inset in cells.
-        bottom: Bottom inset in cells.
-        horizontal: Left and right inset in cells when set.
-        vertical: Top and bottom inset in cells when set.
-        uniform: Inset on all four edges when set.
-    """
-
-    customization_kind = 'padding'
-    left: int = 0
-    right: int = 0
-    top: int = 0
-    bottom: int = 0
-    horizontal: int | None = None
-    vertical: int | None = None
-    uniform: int | None = None
-
-
-class MarginArguments(TypedDict, total=False):
-    """
-    Keyword arguments for ``fx('margin', ...)``.
-
-    Attributes:
-        horizontal: Left and right inset in cells.
-        vertical: Top and bottom inset in cells.
-    """
-
-    horizontal: int | _core.Expression[int | float]
-    vertical: int | _core.Expression[int | float]
-
-
-@dataclass
-class MarginCustomization(Customization):
-    """
-    Dataclass customization for horizontal and vertical cell margins (``'margin'``).
-
-    Attributes:
-        horizontal: Left and right inset in cells.
-        vertical: Top and bottom inset in cells.
-    """
-
-    customization_kind = 'margin'
-    horizontal: int | _core.Expression[int | float] = 0
-    vertical: int | _core.Expression[int | float] = 0
+        surface = target._buffer if hasattr(target, '_buffer') else target
+        if isinstance(target, Canvas) and surface is None:
+            return
+        key = getattr(self, 'key', None)
+        if self.customization_kind.startswith('effect.') and key is not None:
+            surface.update(_core.CancelEffect(key))
+        surface.update(self)
 
 
 class FillArguments(TypedDict, total=False):
@@ -363,54 +124,6 @@ class FillCustomization(Customization):
 
     customization_kind = 'fill'
     cell: _core.Cell | str = ' '
-
-
-class ForegroundArguments(TypedDict, total=False):
-    """
-    Keyword arguments for ``fx('foreground', ...)``.
-
-    Attributes:
-        color: Foreground color to apply.
-    """
-
-    color: ColorValue
-
-
-@dataclass
-class ForegroundCustomization(Customization):
-    """
-    Dataclass customization that sets the foreground color of every cell (``'foreground'``).
-
-    Attributes:
-        color: Foreground color to apply.
-    """
-
-    customization_kind = 'foreground'
-    color: ColorValue = 'white'
-
-
-class BackgroundArguments(TypedDict, total=False):
-    """
-    Keyword arguments for ``fx('background', ...)``.
-
-    Attributes:
-        color: Background color to apply.
-    """
-
-    color: ColorValue
-
-
-@dataclass
-class BackgroundCustomization(Customization):
-    """
-    Dataclass customization that sets the background color of every cell (``'background'``).
-
-    Attributes:
-        color: Background color to apply.
-    """
-
-    customization_kind = 'background'
-    color: ColorValue = 'black'
 
 
 class WriteArguments(TypedDict, total=False):
@@ -1719,14 +1432,7 @@ class TremoloAudioCustomization(AudioCustomization):
 
 
 CustomizationKind = Literal[
-    'style',
-    'border',
-    'block',
-    'padding',
-    'margin',
     'fill',
-    'foreground',
-    'background',
     'write',
     'layout',
     'fuzz',
@@ -1763,14 +1469,7 @@ CustomizationKind = Literal[
 ]
 
 _CUSTOMIZATION_TYPES: dict[str, type[Customization]] = {
-    'style': StyleCustomization,
-    'border': BorderCustomization,
-    'block': BlockCustomization,
-    'padding': PaddingCustomization,
-    'margin': MarginCustomization,
     'fill': FillCustomization,
-    'foreground': ForegroundCustomization,
-    'background': BackgroundCustomization,
     'write': WriteCustomization,
     'layout': LayoutCustomization,
     'fuzz': FuzzCustomization,
@@ -1809,36 +1508,8 @@ _CUSTOMIZATION_TYPES: dict[str, type[Customization]] = {
 
 @overload
 def fx(
-    kind: Literal['style'], /, **parameters: Unpack[StyleArguments]
-) -> StyleCustomization: ...
-@overload
-def fx(
-    kind: Literal['border'], /, **parameters: Unpack[BorderArguments]
-) -> BorderCustomization: ...
-@overload
-def fx(
-    kind: Literal['block'], /, **parameters: Unpack[BlockArguments]
-) -> BlockCustomization: ...
-@overload
-def fx(
-    kind: Literal['padding'], /, **parameters: Unpack[PaddingArguments]
-) -> PaddingCustomization: ...
-@overload
-def fx(
-    kind: Literal['margin'], /, **parameters: Unpack[MarginArguments]
-) -> MarginCustomization: ...
-@overload
-def fx(
     kind: Literal['fill'], /, **parameters: Unpack[FillArguments]
 ) -> FillCustomization: ...
-@overload
-def fx(
-    kind: Literal['foreground'], /, **parameters: Unpack[ForegroundArguments]
-) -> ForegroundCustomization: ...
-@overload
-def fx(
-    kind: Literal['background'], /, **parameters: Unpack[BackgroundArguments]
-) -> BackgroundCustomization: ...
 @overload
 def fx(
     kind: Literal['write'], /, **parameters: Unpack[WriteArguments]
@@ -1979,7 +1650,7 @@ def fx(
 ) -> TremoloAudioCustomization: ...
 def fx(kind: CustomizationKind, /, **parameters: object) -> Customization:
     """
-    Create a typed dataclass customization for a style, border, block, padding, margin,
+    Create a typed dataclass customization for a fill, layout,
     pixels, visual effect (``'effect.<name>'``) or audio effect (``'audio.<name>'``).
 
     Each ``kind`` overloads the keyword arguments with ``Unpack`` over its corresponding
@@ -1989,8 +1660,8 @@ def fx(kind: CustomizationKind, /, **parameters: object) -> Customization:
     ``update``.
 
     Args:
-        kind: Which customization to create (such as ``'style'``, ``'border'``, ``'block'``,
-            ``'padding'``, ``'margin'``, ``'pixels'``, ``'effect.dissolve'``,
+        kind: Which customization to create (such as ``'fill'``, ``'layout'``,
+            ``'pixels'``, ``'effect.dissolve'``,
             ``'effect.fade_to'`` or ``'audio.reverb'``).
         parameters: Keyword arguments for the chosen customization kind.
 
@@ -2001,15 +1672,14 @@ def fx(kind: CustomizationKind, /, **parameters: object) -> Customization:
         ```python
         import xnano
 
-        badge_style = xnano.fx('style', foreground='cyan', bold=True)
-        assert badge_style.foreground == 'cyan'
-        assert badge_style.bold is True
+        sparkle = xnano.fx('fill', cell='*')
+        assert sparkle.cell == '*'
 
         fade = xnano.fx('effect.fade_to', foreground='red', duration_milliseconds=200)
         assert fade.duration_milliseconds == 200
 
-        card = xnano.new('status', width=10, height=3) | badge_style | xnano.fx('border', border_kind='rounded')
-        assert '╭' in card.build().render(format='text')
+        card = xnano.new(width=10, height=3) | sparkle
+        assert '*' in card.build().render(format='text')
         ```
     """
     customization_class = _CUSTOMIZATION_TYPES.get(kind)

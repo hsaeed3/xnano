@@ -92,6 +92,8 @@ def to_rgb(color: ColorValue) -> RGB:
             f"'#rrggbb' string."
         )
     channels = parsed.to_rgb()
+    if channels is None and isinstance(color, _core.Color):
+        channels = NAMED_COLOR_CHANNELS.get(repr(color)[7:-2])
     if channels is None:
         raise ValueError(
             f'The color {color!r} has no red, green and blue channels, because it is '

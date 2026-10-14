@@ -138,7 +138,7 @@ class TestPlay:
     def test_it_can_be_played_from_another_thread_on_a_running_terminal(self):
         import threading
 
-        with xnano.open(offscreen=True, clock='real', width=8, height=1) as terminal:
+        with xnano.open(offscreen=True, realtime=True, width=8, height=1) as terminal:
             thread = threading.Thread(target=lambda: terminal.audio.play('C4'))
             thread.start()
             thread.join()
@@ -248,7 +248,7 @@ class TestTerminalSoundShortcuts:
 
             @terminal.every(beats=1)
             def count(context):
-                beats.append(round(context.clock.elapsed_seconds, 2))
+                beats.append(round(context.time.elapsed, 2))
 
             for _ in range(16):
                 terminal.loop.advance(0.1)

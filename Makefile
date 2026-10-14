@@ -170,6 +170,10 @@ docs-build: .uv
 version-check:
 	$(uv-run-no-sync) python scripts/set_version.py --check
 
+.PHONY: history  ## Rebuild HISTORY.md from the GitHub release notes (needs the gh command line)
+history:
+	$(uv-run-no-sync) python scripts/history.py
+
 .PHONY: set-version  ## Bump a package: make set-version PACKAGE=xnano-core VERSION=1.2.3
 set-version:
 	@test -n "$(PACKAGE)" -a -n "$(VERSION)" || (echo "Usage: make set-version PACKAGE=xnano-core VERSION=1.2.3"; exit 2)

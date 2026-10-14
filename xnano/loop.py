@@ -27,7 +27,7 @@ class Loop:
 
     Get it from [`Terminal.loop`][xnano.terminal.Terminal.loop]. A terminal that runs by itself
     needs none of this to draw; use it to pace your own code with
-    [`frames`][xnano.loop.Loop.frames], to run a function before every frame, or to move a
+    [`iter`][xnano.terminal.Terminal.iter], to run a function before every frame, or to move a
     manual clock.
 
     Attributes:
@@ -38,7 +38,7 @@ class Loop:
         import xnano
 
         with xnano.open(offscreen=True, width=8, height=1, fps=10) as terminal:
-            elapsed = [frame.elapsed_seconds for frame in terminal.loop.frames(count=3)]
+            elapsed = [frame.elapsed_seconds for frame in terminal.iter(count=3)]
         assert elapsed == [0.0, 0.1, 0.2]
         ```
     """
@@ -54,7 +54,7 @@ class Loop:
 
     @property
     def fps(self) -> float:
-        """The rate [`frames`][xnano.loop.Loop.frames] aims for, and the most frames drawn per second."""
+        """The rate [`iter`][xnano.terminal.Terminal.iter] aims for, and the most frames drawn per second."""
         return self._terminal._fps
 
     def step(self, *, timeout_seconds: float | None = 0.0) -> bool:
@@ -97,48 +97,22 @@ class Loop:
         runtime.request_frame()
         runtime.step()
 
-    def frames(
+    def _frames(
         self, *, count: int | None = None, duration_seconds: float | None = None
     ) -> Iterator[Frame]:
-        """
-        Iterate over the terminal's frames, drawing between them.
-
-        Each iteration yields a [`Frame`][xnano.context.Frame] at the pace of
-        [`fps`][xnano.loop.Loop.fps]; whatever you change before
-        asking for the next one is drawn. A terminal that runs by itself draws as you
-        declare, so this only paces your own code: if you are slow, frames are skipped
-        rather than queued. A terminal with a manual clock moves its clock by one frame
-        each time, so the same loop produces the same frames every run.
-
-        The iteration ends when ``count`` frames have been yielded, when the clock has run
-        for ``duration_seconds``, when the terminal is stopped (``Ctrl-C`` stops a live
-        terminal opened with the default ``interrupt='stop'``), or when it is closed.
-
-        Args:
-            count: The most frames to yield.
-            duration_seconds: The most clock seconds to run for.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.open(offscreen=True, width=8, height=1) as terminal:
-                frames = list(terminal.loop.frames(count=2))
-            assert [frame.index for frame in frames] == [0, 1]
-            ```
-        """
+        """Yield the terminal's frames; see [`Terminal.iter`][xnano.terminal.Terminal.iter]."""
         terminal = self._terminal
         terminal._require_open()
         interval = 1.0 / terminal._fps
-        clock = terminal.clock
-        start = clock.elapsed_seconds
+        terminal_time = terminal.time
+        start = terminal_time.elapsed
         previous = start
         index = 0
         deadline = time.monotonic()
         while terminal.is_running:
             if count is not None and index >= count:
                 return
-            elapsed = clock.elapsed_seconds
+            elapsed = terminal_time.elapsed
             if (
                 duration_seconds is not None
                 and elapsed - start >= duration_seconds - 1e-9
@@ -276,6 +250,6 @@ class Loop:
             raise TerminalError(
                 f'terminal.loop.{name}() drives a terminal whose clock you move yourself, '
                 f'but this one runs by itself and is already drawing. Declare what you '
-                f'want and it appears; use terminal.loop.frames() to pace your own '
+                f'want and it appears; use terminal.iter() to pace your own '
                 f'drawing.'
             )

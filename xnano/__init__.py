@@ -2,19 +2,24 @@
 xnano
 """
 
-from xnano._media import img
-from xnano.canvas import make, new
-from xnano.operations import draggable, fx, hook, shade
-from xnano.terminal import active, open
+from xnano._media import Audio, Image, from_media
+from xnano.canvas import Canvas, make, new
+from xnano.operations import fx, hook
+from xnano.terminal import Terminal, active, iter, open
+from xnano_core import Color
 
 __all__ = [
+    'Audio',
+    'Canvas',
+    'Color',
+    'Image',
+    'Terminal',
     'active',
     'fx',
-    'draggable',
     'hook',
-    'img',
+    'iter',
     'make',
     'new',
+    'from_media',
     'open',
-    'shade',
 ]

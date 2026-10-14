@@ -1,5 +1,5 @@
 > [!NOTE]
-> This is xnano v2, a terminal you put things on. Looking for the grid-and-field API of v1? It lives on the
+> xnano v2 is currently in beta and is subject to breaking changes. For the stable and feature-complete v1, see the
 > [`v1` branch](https://github.com/hsaeed3/xnano/tree/v1); install the latest release,
 > [v1.2.3](https://github.com/hsaeed3/xnano/releases/tag/xnano%2Fv1.2.3), with `pip install "xnano>=1.2.3,<2"`.
 
@@ -34,10 +34,10 @@ with xnano.open(width=40, height=5) as terminal:
 
     @terminal.on_key('space')
     def toggle(context: Context) -> None:
-        if terminal.is_paused:
-            terminal.resume()
+        if terminal.time.is_paused:
+            terminal.time.resume()
         else:
-            terminal.pause()
+            terminal.time.pause()
 
     terminal.run(quit_on='q')
 ```

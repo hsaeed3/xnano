@@ -12,6 +12,7 @@ import threading
 from typing import TYPE_CHECKING, TypeAlias, cast
 
 from xnano import _optional
+from xnano._media import Audio
 
 _optional.require('audio', needed_for='xnano.audio')
 
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     'Audio',
+    'AudioDevice',
     'InstrumentName',
     'NoteName',
     'Pitch',
@@ -55,13 +57,13 @@ __all__ = [
 ]
 
 Playable: TypeAlias = (
-    TerminalSound | TerminalNote | TerminalMelody | NoteName | int | float | str
+    Audio | TerminalSound | TerminalNote | TerminalMelody | NoteName | int | float | str
 )
 """
-Anything [`Audio.play`][xnano.audio.Audio.play] accepts: a rendered sound, a note, a melody, a
+Anything [`AudioDevice.play`][xnano.audio.AudioDevice.play] accepts: an [`Audio`][xnano.Audio], a rendered sound, a note, a melody, a
 [`NoteName`][xnano.audio.NoteName] such as ``'C#4'``, a MIDI note number such as ``60``, a frequency
 in hertz, or text: ``'440hz'``, or a melody such as ``'C4 E4 G4:2 rest C5+E5+G5'`` (see
-[`Audio.play`][xnano.audio.Audio.play]).
+[`AudioDevice.play`][xnano.audio.AudioDevice.play]).
 """
 
 
@@ -111,7 +113,7 @@ _LEVEL_NAME = 'audio.level'
 _BEAT_NAME = 'audio.beat'
 
 
-class Audio:
+class AudioDevice:
     """
     The terminal's sound: notes, melodies and sounds to play, a musical clock, and the
     microphone.
@@ -183,7 +185,8 @@ class Audio:
         Play a sound, a note or a melody, and return at once.
 
         Args:
-            source: What to play: a [`TerminalSound`][xnano_audio.TerminalSound], a
+            source: What to play: an [`Audio`][xnano.Audio], a
+                [`TerminalSound`][xnano_audio.TerminalSound], a
                 [`TerminalNote`][xnano_audio.TerminalNote], a
                 [`TerminalMelody`][xnano_audio.TerminalMelody], a note name (``'C#4'``),
                 a MIDI note number (``60``) or a frequency in hertz. Text with spaces is a
@@ -222,7 +225,7 @@ class Audio:
         terminal._require_open()
         if not self.is_available:
             raise TerminalAudioUnavailableError(
-                'Audio.play needs a sound output device, but this computer has none that '
+                'AudioDevice.play needs a sound output device, but this computer has none that '
                 'can be opened. Check xnano.audio.is_available before playing, or render '
                 'sounds without a device with xnano_audio.render_note.'
             )
@@ -250,7 +253,7 @@ class Audio:
         """
         Play one note held for a number of beats, and return at once.
 
-        The length follows the terminal's [`tempo`][xnano.audio.Audio.tempo]: at 120 beats
+        The length follows the terminal's [`tempo`][xnano.audio.AudioDevice.tempo]: at 120 beats
         per minute a beat is half a second, so a faster tempo plays shorter notes.
 
         Args:
@@ -291,6 +294,8 @@ class Audio:
         velocity: float,
         effects: list[TerminalAudioEffect] | None,
     ) -> TerminalSound:
+        if isinstance(source, Audio):
+            source = source.sound
         if isinstance(source, TerminalSound):
             return source.with_effects(effects) if effects else source
         if isinstance(source, TerminalNote):
@@ -349,7 +354,7 @@ class Audio:
         The musical clock's position in beats, as an expression.
 
         It stays at ``0`` until the clock is started with
-        [`start`][xnano.audio.Audio.start] or a sound is played with ``at_beat``.
+        [`start`][xnano.audio.AudioDevice.start] or a sound is played with ``at_beat``.
 
         Examples:
             ```python
@@ -373,7 +378,7 @@ class Audio:
             player.start_clock()
 
     def resume(self) -> None:
-        """Let the musical clock run on from where [`pause`][xnano.audio.Audio.pause] left it."""
+        """Let the musical clock run on from where [`pause`][xnano.audio.AudioDevice.pause] left it."""
         self._terminal._require_open()
         self._terminal._host.post(self._start_on_loop)
 
@@ -385,7 +390,7 @@ class Audio:
             player.pause_clock()
 
     def _release(self) -> None:
-        """Run the musical clock again if [`_hold`][xnano.audio.Audio._hold] paused it."""
+        """Run the musical clock again if [`_hold`][xnano.audio.AudioDevice._hold] paused it."""
         player = self._player
         if self._is_held and player is not None:
             player.start_clock()

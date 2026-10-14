@@ -88,7 +88,7 @@ with xnano.open(height=3) as terminal:
     def test_a_persistent_region_stays_after_exit(self, run):
         screen = run(
             """
-with xnano.open(inline_height=2) as terminal:
+with xnano.open(height=2, clear=False) as terminal:
     terminal.write('stays')
     time.sleep(0.5)
 print('after')
@@ -145,7 +145,7 @@ print('BACK')
     def test_it_can_stay_on_the_main_screen(self, run):
         screen = run(
             """
-with xnano.open(should_use_alternate_screen=False) as terminal:
+with xnano.open(alternate_screen=False) as terminal:
     terminal.write('MAIN SCREEN')
     time.sleep(1)
 """
@@ -194,7 +194,7 @@ print('STOPPED')
     def test_a_click_reaches_the_placement_under_it(self, run):
         screen = run(
             """
-with xnano.open(height=3, mouse='buttons') as terminal:
+with xnano.open(height=3, mouse=True) as terminal:
     button = terminal.write('[ click ]', x=4, y=1)
 
     @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
@@ -215,7 +215,7 @@ with xnano.open(height=3, mouse='buttons') as terminal:
         screen = run(
             PROMPT
             + """
-with xnano.open(width=20, height=3, mouse='buttons') as terminal:
+with xnano.open(width=20, height=3, mouse=True) as terminal:
     button = terminal.write('[ click ]', x=4, y=1)
 
     @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
@@ -242,7 +242,7 @@ with xnano.open(width=20, height=3, mouse='buttons') as terminal:
         screen = run(
             """
 import xnano
-with xnano.open(height=3, width=30, mouse='buttons') as terminal:
+with xnano.open(height=3, width=30, mouse=True) as terminal:
     terminal.write('-' * 30, y=1)
     thumb = terminal.write('#', x=(0, 29), y=1, layer=1)
     thumb.make_draggable()
@@ -314,7 +314,7 @@ with xnano.open(width=30, height=1) as terminal:
         screen = run(
             """
 with xnano.open(width=8, height=2) as terminal:
-    pixels = terminal.pixels()
+    pixels = terminal.pixels
     pixels[0, 0] = (255, 0, 0)
     pixels[0, 1] = (0, 0, 255)
     time.sleep(1.2)
@@ -479,7 +479,7 @@ with xnano.open(height=2) as terminal:
     def test_it_can_be_turned_off(self, run):
         screen = run(
             """
-with xnano.open(height=2, should_capture_output=False) as terminal:
+with xnano.open(height=2, capture=False) as terminal:
     terminal.write('CAPTURED' if terminal.output.is_captured else 'OPEN')
     time.sleep(0.8)
 """
