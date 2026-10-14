@@ -348,6 +348,17 @@ impl PyColor {
         to_rgb(self.inner)
     }
 
+    /// The color as ``#rrggbb``; only true colors have one.
+    #[allow(clippy::wrong_self_convention)]
+    fn to_hex(&self) -> PyResult<String> {
+        let (red, green, blue) = to_rgb(self.inner).ok_or_else(|| {
+            PyValueError::new_err(
+                "only a true color has a fixed #rrggbb value; a named or indexed color is chosen by the terminal's theme, so pass a color such as \"#ff8800\" or an (r, g, b) tuple",
+            )
+        })?;
+        Ok(format!("#{red:02x}{green:02x}{blue:02x}"))
+    }
+
     fn __repr__(&self) -> String {
         format!("Color('{}')", describe_color(self.inner))
     }

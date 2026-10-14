@@ -314,7 +314,7 @@ with xnano.open(width=30, height=1) as terminal:
         screen = run(
             """
 with xnano.open(width=8, height=2) as terminal:
-    pixels = terminal.pixels()
+    pixels = terminal.pixels
     pixels[0, 0] = (255, 0, 0)
     pixels[0, 1] = (0, 0, 255)
     time.sleep(1.2)

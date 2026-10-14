@@ -652,7 +652,7 @@ def cases() -> list[Case]:
 
     def frame_all_xnano() -> Callable[[], object]:
         terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
-        pixels = terminal.pixels()
+        pixels = terminal.pixels
         tick = [0]
 
         def run() -> str:

@@ -118,7 +118,6 @@ from xnano._values import (
     AxisName,
     ColorValue,
     Content,
-    PixelEncoding,
     StateT,
     TerminalBackend,
     ValueT,
@@ -592,16 +591,16 @@ class Terminal(_Hooked[StateT]):
         """The height of the terminal in cells."""
         return self.size.height
 
-    def pixels(self, *, encoding: PixelEncoding = 'half_blocks') -> Pixels:
+    @property
+    def pixels(self) -> Pixels:
         """
-        Return a view of the terminal's pixels.
+        The terminal's pixels: ``terminal.pixels[column, row] = color``.
 
-        Args:
-            encoding: ``'half_blocks'`` for one column and two rows of pixels per cell, or
-                ``'braille'`` for two columns and four rows with one color per cell.
+        Two pixels share a cell (one above the other); use
+        [`braille`][xnano.pixels.Pixels.braille] for eight per cell.
         """
         self._require_open()
-        return Pixels(self._root.pixels(encoding=encoding))
+        return Pixels(self._root.pixels())
 
     def write(
         self,

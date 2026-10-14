@@ -26,7 +26,7 @@ def main() -> None:
     with xnano.open(width=50, height=14, mouse=True) as terminal:
         terminal.write('drag to paint, 1-4 colors, c clear, q quit', y=0)
         canvas = terminal.write(' ', y=1, width=50, height=13)
-        pixels = canvas.pixels()
+        pixels = canvas.pixels
 
         def is_painting(context: Context) -> bool:
             mouse = context.mouse

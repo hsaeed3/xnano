@@ -104,7 +104,7 @@ class TestOpening:
         assert terminal.is_closed and 'closed' in repr(terminal)
         for action in (
             lambda: terminal.write('x'),
-            lambda: terminal.pixels(),
+            lambda: terminal.pixels,
             lambda: terminal.write('x'),
             lambda: terminal.output.render(),
             lambda: list(terminal.iter(count=1)),
@@ -342,8 +342,8 @@ class TestPlacements:
 
     def test_a_placement_has_pixels(self, terminal):
         placement = terminal.write(Buffer(width=3, height=1))
-        placement.pixels()[0, 0] = (255, 0, 0)
-        assert placement.pixels().height == 2
+        placement.pixels[0, 0] = (255, 0, 0)
+        assert placement.pixels.height == 2
 
 
 class TestRegions:
@@ -394,12 +394,12 @@ class TestRegions:
 
 class TestPixels:
     def test_pixels_have_the_resolution_of_their_encoding(self, terminal):
-        assert (terminal.pixels().width, terminal.pixels().height) == (20, 12)
-        braille = terminal.pixels(encoding='braille')
+        assert (terminal.pixels.width, terminal.pixels.height) == (20, 12)
+        braille = terminal.pixels.braille
         assert (braille.width, braille.height, braille.encoding) == (40, 24, 'braille')
 
     def test_colors_may_be_tuples_or_hex(self, terminal):
-        pixels = terminal.pixels()
+        pixels = terminal.pixels
         pixels[0, 0] = '#ff0000'
         pixels[0, 1] = (0, 0, 255)
         assert terminal[0, 0].symbol == '▀'
@@ -408,21 +408,42 @@ class TestPixels:
 
     def test_colors_without_channels_are_explained(self, terminal):
         with pytest.raises(ValueError, match="'#rrggbb'"):
-            terminal.pixels()[0, 0] = 'reset'
+            terminal.pixels[0, 0] = 'reset'
         with pytest.raises(ValueError, match='0 to 255'):
-            terminal.pixels()[0, 0] = (300, 0, 0)
+            terminal.pixels[0, 0] = (300, 0, 0)
         with pytest.raises(ValueError, match='not a color'):
-            terminal.pixels()[0, 0] = 5  # type: ignore[assignment]
+            terminal.pixels[0, 0] = 5  # type: ignore[assignment]
+
+    def test_a_slice_draws_every_pixel_it_covers(self, terminal):
+        terminal.pixels[0:3, 0] = '#ff0000'
+        for column in range(3):
+            assert terminal[column, 0].foreground.to_rgb() == (255, 0, 0)
+        assert terminal[3, 0].symbol == ' '
+        terminal.pixels[:, :] = (0, 0, 255)
+        assert terminal[19, 5].background.to_rgb() == (0, 0, 255)
+
+    def test_a_slice_with_a_step_is_explained(self, terminal):
+        with pytest.raises(ValueError, match='step'):
+            terminal.pixels[0:10:2, 0] = 'red'  # type: ignore[call-overload]
+        with pytest.raises(TypeError, match='\\(column, row\\)'):
+            terminal.pixels[0] = 'red'  # type: ignore[call-overload]
+
+    def test_a_color_object_is_a_pixel_color(self, terminal):
+        terminal.pixels[0, 0] = main.Color.from_hsl(120, 100, 50)
+        terminal.pixels[1, 0] = main.Color('#336699').lighten(0.2)
+        terminal.pixels[2, 0] = main.Color.red
+        assert terminal[0, 0].foreground.to_rgb() == (0, 255, 0)
+        assert terminal[2, 0].foreground.to_rgb() == (205, 0, 0)
 
     def test_shading_draws_from_a_formula(self, terminal):
-        terminal.pixels().shade(
+        terminal.pixels.shade(
             lambda column, row: (column * 10, row * 10, 0) if column < 2 else None
         )
         assert terminal[1, 0].foreground.to_rgb() == (10, 0, 0)
         assert terminal[5, 0].symbol == ' '
 
     def test_many_pixels_and_images(self, terminal):
-        pixels = terminal.pixels()
+        pixels = terminal.pixels
         pixels.write([(0, 0, '#00ff00'), (1, 0, '#00ff00')])
         assert terminal[1, 0].symbol == '▀'
         pixels.draw_rgba(bytes([255, 0, 0, 255]) * 4, width=2, height=2, x=4, y=0)
@@ -1063,7 +1084,7 @@ def test_a_keyboard_mode_needs_a_live_terminal():
 
 
 def test_pixels_accept_named_colors(terminal):
-    pixels = terminal.pixels()
+    pixels = terminal.pixels
     pixels[0, 0] = 'red'
     pixels[0, 1] = 'bright_blue'
     assert terminal[0, 0].foreground.to_rgb() == (205, 0, 0)
@@ -1185,7 +1206,7 @@ def test_sprites_can_be_drawn_from_text_and_scrolled():
 
     sprite = from_art(['AB', '.B'], {'A': '#ff0000', 'B': (0, 0, 255)})
     with open_terminal(offscreen=True, width=4, height=2) as terminal:
-        pixels = terminal.pixels()
+        pixels = terminal.pixels
         pixels.draw_image(sprite, x=1, y=0)
         assert terminal[1, 0].foreground.to_rgb() == (255, 0, 0)
         pixels.draw_image(sprite, x=-1, y=0, mode='replace')

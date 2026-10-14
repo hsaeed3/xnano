@@ -73,7 +73,7 @@ tells a game which keys are held right now.
 
 ## Draw pixels, build a world, play a sound
 
-`terminal.pixels()` draws two pixels to a cell, `terminal.scene(...)` adds sprites, a camera and
+`terminal.pixels` draws two pixels to a cell, `terminal.scene(...)` adds sprites, a camera and
 collision on top of it, and `terminal.play('C4 E4 G4:2')` plays a melody written as text. The
 [examples](https://github.com/hsaeed3/xnano/tree/main/examples) show each of them, ending with a
 playable world.

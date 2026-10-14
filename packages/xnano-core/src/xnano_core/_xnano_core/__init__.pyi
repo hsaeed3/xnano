@@ -9,7 +9,7 @@ initializer, so ``xnano_core._xnano_core._core_types`` sits next to it.
 
 from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from types import TracebackType
-from typing import Generic, Literal, NoReturn, TypeVar, overload
+from typing import ClassVar, Generic, Literal, NoReturn, TypeVar, overload
 
 from typing_extensions import Self
 
@@ -428,6 +428,26 @@ class Color:
             ``'#ff8800'``, a palette index string such as ``'4'``, or a
             ``(red, green, blue)`` tuple.
 
+    Attributes:
+        black: The black terminal color.
+        red: The red terminal color.
+        green: The green terminal color.
+        yellow: The yellow terminal color.
+        blue: The blue terminal color.
+        magenta: The magenta terminal color.
+        cyan: The cyan terminal color.
+        gray: The gray terminal color.
+        dark_gray: The dark gray terminal color.
+        light_red: The light red terminal color.
+        light_green: The light green terminal color.
+        light_yellow: The light yellow terminal color.
+        light_blue: The light blue terminal color.
+        light_magenta: The light magenta terminal color.
+        light_cyan: The light cyan terminal color.
+        white: The white terminal color.
+        reset: The reset terminal color, which follows the terminal theme.
+        is_reset: Whether this is the ``reset`` color.
+
     Raises:
         ValueError: ``value`` is not a recognized color.
 
@@ -438,6 +458,41 @@ class Color:
         assert Color('red').to_rgb() is None
         ```
     """
+
+    black: ClassVar[Color]
+    """The black terminal color."""
+    red: ClassVar[Color]
+    """The red terminal color."""
+    green: ClassVar[Color]
+    """The green terminal color."""
+    yellow: ClassVar[Color]
+    """The yellow terminal color."""
+    blue: ClassVar[Color]
+    """The blue terminal color."""
+    magenta: ClassVar[Color]
+    """The magenta terminal color."""
+    cyan: ClassVar[Color]
+    """The cyan terminal color."""
+    gray: ClassVar[Color]
+    """The gray terminal color."""
+    dark_gray: ClassVar[Color]
+    """The dark gray terminal color."""
+    light_red: ClassVar[Color]
+    """The light red terminal color."""
+    light_green: ClassVar[Color]
+    """The light green terminal color."""
+    light_yellow: ClassVar[Color]
+    """The light yellow terminal color."""
+    light_blue: ClassVar[Color]
+    """The light blue terminal color."""
+    light_magenta: ClassVar[Color]
+    """The light magenta terminal color."""
+    light_cyan: ClassVar[Color]
+    """The light cyan terminal color."""
+    white: ClassVar[Color]
+    """The white terminal color."""
+    reset: ClassVar[Color]
+    """The reset terminal color, which follows the terminal theme."""
 
     def __init__(self, value: ColorName | str | tuple[int, int, int]) -> None:
         """
@@ -513,6 +568,171 @@ class Color:
             assert Color.indexed(4).to_rgb() is None
             ```
         """
+
+    def to_hex(self) -> str:
+        """
+        The color as a ``'#rrggbb'`` string.
+
+        Only a true color has one, as with [`to_rgb`][xnano_core._xnano_core.Color.to_rgb].
+
+        Raises:
+            ValueError: The color is named, indexed or ``reset``, which the terminal's theme
+                chooses.
+
+        Examples:
+            ```python
+            assert Color((255, 136, 0)).to_hex() == '#ff8800'
+            assert Color('#FF8800').to_hex() == '#ff8800'
+            ```
+        """
+
+    @classmethod
+    def from_hsl(cls, hue: float, saturation: float, lightness: float) -> Color:
+        """
+        A true color from hue, saturation and lightness.
+
+        Args:
+            hue: Degrees from 0 to 360.
+            saturation: A percentage from 0 to 100.
+            lightness: A percentage from 0 to 100.
+
+        Raises:
+            ValueError: A value is out of range.
+
+        Examples:
+            ```python
+            assert Color.from_hsl(0, 100, 50).to_hex() == '#ff0000'
+            ```
+        """
+
+    @classmethod
+    def from_hsv(cls, hue: float, saturation: float, value: float) -> Color:
+        """
+        A true color from hue, saturation and value.
+
+        Args:
+            hue: Degrees from 0 to 360.
+            saturation: A percentage from 0 to 100.
+            value: A percentage from 0 to 100.
+
+        Raises:
+            ValueError: A value is out of range.
+
+        Examples:
+            ```python
+            assert Color.from_hsv(120, 100, 100).to_hex() == '#00ff00'
+            ```
+        """
+
+    def to_hsl(self) -> tuple[float, float, float]:
+        """
+        The hue (degrees), saturation and lightness (percentages) of the color.
+
+        Named and indexed colors use their standard values.
+
+        Raises:
+            ValueError: The color is ``reset``.
+
+        Examples:
+            ```python
+            hue, saturation, lightness = Color('#ff0000').to_hsl()
+            assert round(hue) == 0
+            assert round(saturation) == 100
+            assert round(lightness) == 50
+            ```
+        """
+
+    def to_hsv(self) -> tuple[float, float, float]:
+        """
+        The hue (degrees), saturation and value (percentages) of the color.
+
+        Named and indexed colors use their standard values.
+
+        Raises:
+            ValueError: The color is ``reset``.
+
+        Examples:
+            ```python
+            hue, saturation, value = Color('#00ff00').to_hsv()
+            assert round(hue) == 120
+            assert round(saturation) == 100
+            assert round(value) == 100
+            ```
+        """
+
+    def lerp(
+        self,
+        other: Color | ColorName | str | tuple[int, int, int],
+        ratio: float,
+        *,
+        color_space: Literal['rgb', 'hsl', 'hsv'] = 'hsl',
+    ) -> Color:
+        """
+        The color between this one and ``other``.
+
+        Args:
+            other: The color to blend toward.
+            ratio: ``0.0`` is this color and ``1.0`` is ``other``.
+            color_space: The space the blend runs through. ``'hsl'`` and ``'hsv'`` keep colors
+                vivid in the middle; ``'rgb'`` is the straight average.
+
+        Raises:
+            ValueError: A color is ``reset``, or ``color_space`` is not a color space.
+
+        Examples:
+            ```python
+            middle = Color('#000000').lerp('#ffffff', 0.5, color_space='rgb')
+            red, green, blue = middle.to_rgb()
+            assert red == green == blue
+            assert 126 <= red <= 129
+            ```
+        """
+
+    def lighten(
+        self, amount: float, *, color_space: Literal['rgb', 'hsl', 'hsv'] = 'hsl'
+    ) -> Color:
+        """
+        A lighter color for a positive ``amount``, a darker one for a negative ``amount``.
+
+        Args:
+            amount: A fraction from -1.0 (black) to 1.0 (white).
+            color_space: The space the change runs through.
+
+        Raises:
+            ValueError: The color is ``reset``, or ``color_space`` is not a color space.
+
+        Examples:
+            ```python
+            base = Color('#336699')
+            assert base.lighten(0.2).to_hsl()[2] > base.to_hsl()[2]
+            assert base.lighten(-0.2).to_hsl()[2] < base.to_hsl()[2]
+            ```
+        """
+
+    def saturate(
+        self, factor: float, *, color_space: Literal['rgb', 'hsl', 'hsv'] = 'hsl'
+    ) -> Color:
+        """
+        The color with its saturation scaled.
+
+        Args:
+            factor: ``0.0`` removes the saturation, ``1.0`` keeps it and more than ``1.0``
+                boosts it.
+            color_space: The space the change runs through.
+
+        Raises:
+            ValueError: The color is ``reset``, or ``color_space`` is not a color space.
+
+        Examples:
+            ```python
+            gray = Color('#336699').saturate(0.0)
+            assert round(gray.to_hsl()[1]) == 0
+            ```
+        """
+
+    @property
+    def is_reset(self) -> bool:
+        """Whether this is the ``reset`` color, which follows the terminal's theme."""
 
 class Style:
     """

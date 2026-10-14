@@ -104,7 +104,6 @@ from xnano._values import (
     ColorValue,
     Content,
     NumericExpression,
-    PixelEncoding,
     StateT,
 )
 from xnano.expressions import (
@@ -403,14 +402,14 @@ class Placement(_Hooked[StateT]):
     def is_visible(self, value: bool) -> None:
         self._buffer.is_visible = value
 
-    def pixels(self, *, encoding: PixelEncoding = 'half_blocks') -> Pixels:
+    @property
+    def pixels(self) -> Pixels:
         """
-        Return a [`Pixels`][xnano.pixels.Pixels] view of the placed buffer.
+        The pixels of the placed buffer: ``placement.pixels[column, row] = color``.
 
-        Args:
-            encoding: How pixels are packed into cells.
+        See [`Pixels`][xnano.pixels.Pixels].
         """
-        return Pixels(self._buffer.pixels(encoding=encoding))
+        return Pixels(self._buffer.pixels())
 
     def scene(
         self,

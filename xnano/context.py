@@ -10,7 +10,7 @@ import dataclasses
 from typing import TYPE_CHECKING, Generic, final
 
 import xnano_core as _core
-from xnano._values import PixelEncoding, StateT_co
+from xnano._values import StateT_co
 from xnano.pixels import Pixels
 from xnano_core import CoreContext
 
@@ -74,14 +74,10 @@ class BufferContext:
         """The plain text shown in the target buffer."""
         return self.buffer.text
 
-    def pixels(self, *, encoding: PixelEncoding = 'half_blocks') -> Pixels:
-        """
-        Return a [`Pixels`][xnano.pixels.Pixels] view of the target buffer.
-
-        Args:
-            encoding: How pixels are packed into cells.
-        """
-        return Pixels(self.buffer.pixels(encoding=encoding))
+    @property
+    def pixels(self) -> Pixels:
+        """The pixels of the target buffer: ``context.buffer.pixels[column, row] = color``."""
+        return Pixels(self.buffer.pixels())
 
     def update(self, *operations: _core.Operation) -> None:
         """

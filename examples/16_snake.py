@@ -67,7 +67,7 @@ def main() -> None:
     """Run the game until the player quits."""
     game = Game()
     with xnano.open(width=WIDTH, height=HEIGHT // 2 + 1) as terminal:
-        pixels = terminal.pixels()
+        pixels = terminal.pixels
         status_line = terminal.write('', y=HEIGHT // 2, layer=1)
 
         def draw() -> None:
