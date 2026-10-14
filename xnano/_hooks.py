@@ -511,7 +511,7 @@ class _Hooked(Generic[StateT]):
 
         Give ``seconds`` for a time, or ``beats`` for music: a beat lasts as long as the
         terminal's [`tempo`][xnano.terminal.Terminal.tempo] says, and a change of tempo applies from
-        the next call. The wait follows the clock, so [`pause`][xnano.terminal.Terminal.pause] stops it
+        the next call. The wait follows the clock, so [`pause`][xnano.time.Time.pause] stops it
         too. Events that arrive during the wait do not count, and ``context.event`` is ``None``.
 
         Args:

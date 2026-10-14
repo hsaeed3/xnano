@@ -999,7 +999,7 @@ def new(content: CompositionContent = None, /, **attributes: AttributeValue) -> 
     Args:
         content: What the buffer is. A widget class such as ``Gauge`` is constructed from the
             attributes. A buffer is used as it is. A string becomes text. An image (from
-            [`img`][xnano.img] or [`TerminalImage`][xnano_image.TerminalImage]) becomes cells
+            [`Image`][xnano.Image] or [`TerminalImage`][xnano_image.TerminalImage]) becomes cells
             at the ``width`` and ``height`` given, or at its own size. Omit it for an empty
             buffer.
         attributes: Attributes applied to the buffer. Any attribute the buffer accepts,

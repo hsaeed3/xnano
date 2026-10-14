@@ -597,7 +597,7 @@ class Placement(_Hooked[StateT]):
 
     @property
     def padding(self) -> Spacing | None:
-        """Space between the border and the text; see [`Spacing`][xnano._appearance.Spacing]."""
+        """Space between the border and the text; see [`Spacing`][xnano.types.Spacing]."""
         return self._appearance_of_text().padding
 
     @padding.setter

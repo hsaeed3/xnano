@@ -118,7 +118,7 @@ def render(releases: list[dict[str, object]]) -> str:
 
 def main() -> int:
     """Write ``HISTORY.md``, or with ``--check`` fail when it is out of date."""
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     parser.add_argument(
         "--check",
         action="store_true",
