@@ -1,7 +1,7 @@
 """
 xnano.time
 
-The terminal's time: how long it has run, whether it is stopped, and the formulas that follow it.
+A canvas's time: how long it has run, whether it is stopped, and the formulas that follow it.
 """
 
 from __future__ import annotations
@@ -11,32 +11,34 @@ from typing import TYPE_CHECKING
 import xnano_core as _core
 
 if TYPE_CHECKING:
-    from xnano.terminal import Terminal
+    from xnano.canvas import Canvas
+    from xnano.context import Frame
 
 __all__ = ['Time']
 
 
 class Time:
     """
-    The time a terminal runs on.
+    The time a canvas runs on.
 
-    Get it from [`Terminal.time`][xnano.terminal.Terminal.time] or from ``context.time`` inside
-    a hook. Everything that moves follows it: animations, effects, formulas,
-    [`every`][xnano.terminal.Terminal.every] and [`after`][xnano.terminal.Terminal.after]
-    timers, fixed-step updates and the musical beat. Any thread may read it. Used in arithmetic
-    it is the formula for [`seconds`][xnano.time.Time.seconds], so ``terminal.time / 2`` is a
-    value that follows the clock. Stopping it with
-    [`pause`][xnano.time.Time.pause] stops all of them while input keeps arriving.
+    Get it from [`Canvas.time`][xnano.canvas.Canvas.time] or from ``context.time`` inside a
+    hook. Everything that moves follows it: animations, effects, formulas,
+    [`every`][xnano.canvas.Canvas.every] and [`after`][xnano.canvas.Canvas.after] timers,
+    fixed-step updates and the musical beat. Any thread may read it. Used in arithmetic it is
+    the formula for [`seconds`][xnano.time.Time.seconds], so ``canvas.time / 2`` is a value
+    that follows the clock. [`stop`][xnano.time.Time.stop] freezes all of them while input
+    keeps arriving, and [`step`][xnano.time.Time.step] moves a frozen clock one frame at a
+    time.
 
     Attributes:
-        elapsed: Seconds since the terminal started, not counting time spent paused.
+        elapsed: Seconds since the canvas started, not counting time spent stopped.
         elapsed_milliseconds: The same, in milliseconds.
         delta: Seconds between the two most recent frames.
-        frame: The number of frames drawn so far.
+        frame: The number of steps the clock has counted.
         fps: The frame rate measured over recent frames.
-        is_paused: Whether time is stopped.
-        is_realtime: Whether time follows the wall clock. An offscreen terminal that was not
-            opened with ``realtime=True`` moves only when you move it.
+        is_stopped: Whether time is frozen.
+        is_realtime: Whether time follows the wall clock. A canvas from ``xnano.new()``
+            without ``realtime=True`` moves only when you move it.
         seconds: A formula for [`elapsed`][xnano.time.Time.elapsed], recomputed every frame.
         milliseconds: A formula for
             [`elapsed_milliseconds`][xnano.time.Time.elapsed_milliseconds].
@@ -45,59 +47,61 @@ class Time:
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=20, height=1) as terminal:
-            ball = terminal.write('o')
-            ball.x = (terminal.width - 1) * ((terminal.time.seconds / 2) % 1.0)
-            terminal.loop.advance(1.0)
-            assert terminal.time.elapsed == 1.0
-            terminal.time.pause()
-            assert terminal.time.is_paused
+        with xnano.new(width=20, height=1) as canvas:
+            ball = canvas.write('o')
+            ball.x = (canvas.width - 1) * ((canvas.time.seconds / 2) % 1.0)
+            canvas.step(delta_seconds=1.0)
+            assert canvas.time.elapsed == 1.0
+            canvas.time.stop()
+            assert canvas.time.is_stopped
+            canvas.time.step(delta_seconds=0.5)
+            assert canvas.time.elapsed == 1.5
         ```
     """
 
-    def __init__(self, terminal: Terminal[object]) -> None:
+    def __init__(self, canvas: Canvas[object, object]) -> None:
         """
-        Create the terminal's time. Use ``terminal.time`` instead of calling this.
+        Create the canvas's time. Use ``canvas.time`` instead of calling this.
 
         Args:
-            terminal: The terminal the time belongs to.
+            canvas: The canvas the time belongs to.
         """
-        self._terminal = terminal
+        self._canvas = canvas
 
     @property
     def elapsed(self) -> float:
-        """Seconds since the terminal started, not counting time spent paused."""
-        return self._terminal._time_source.elapsed_seconds
+        """Seconds since the canvas started, not counting time spent stopped."""
+        return self._canvas._time_source.elapsed_seconds
 
     @property
     def elapsed_milliseconds(self) -> float:
-        """Milliseconds since the terminal started, not counting time spent paused."""
-        return self._terminal._time_source.elapsed_milliseconds
+        """Milliseconds since the canvas started, not counting time spent stopped."""
+        return self._canvas._time_source.elapsed_milliseconds
 
     @property
     def delta(self) -> float:
         """Seconds between the two most recent frames."""
-        return self._terminal._time_source.delta_seconds
+        return self._canvas._time_source.delta_seconds
 
     @property
     def frame(self) -> int:
-        """The number of frames drawn so far."""
-        return self._terminal._time_source.frame
+        """The number of steps the clock has counted, including steps that drew nothing."""
+        return self._canvas._time_source.frame
 
     @property
     def fps(self) -> float:
         """The frame rate measured over recent frames."""
-        return self._terminal._time_source.frames_per_second
+        return self._canvas._time_source.frames_per_second
 
     @property
-    def is_paused(self) -> bool:
-        """Whether time is stopped."""
-        return self._terminal._time_source.is_stopped
+    def is_stopped(self) -> bool:
+        """Whether time is frozen by [`stop`][xnano.time.Time.stop]."""
+        return self._canvas._time_source.is_stopped
 
     @property
     def is_realtime(self) -> bool:
         """Whether time follows the wall clock instead of moving only when you move it."""
-        return self._terminal._time_source.source == 'monotonic'
+        return self._canvas._time_source.source == 'monotonic'
 
     @property
     def seconds(self) -> _core.NumericValue:
@@ -109,36 +113,57 @@ class Time:
         """A formula for the elapsed milliseconds, recomputed every frame."""
         return _core.TimeElapsedMilliseconds
 
-    def pause(self) -> None:
+    def stop(self) -> None:
         """
-        Stop time.
+        Freeze time.
 
         Animations, effects, formulas, timers, fixed-step updates and the musical beat stand
-        still. Input still arrives, so a key can [`resume`][xnano.time.Time.resume] it.
+        still. The canvas still draws and input still arrives, so a key can
+        [`resume`][xnano.time.Time.resume] it, and [`step`][xnano.time.Time.step] moves it one
+        frame at a time. Stopping a stopped canvas does nothing.
 
         Raises:
-            TerminalClosedError: The terminal is closed.
+            TerminalClosedError: The canvas is closed.
         """
-        terminal = self._terminal
-        terminal._require_open()
-        terminal._time_source.stop()
-        audio = terminal._audio
+        canvas = self._canvas
+        canvas._require_open()
+        canvas._time_source.stop()
+        audio = canvas._audio
         if audio is not None:
-            terminal._host.post(audio._hold)
+            canvas._host.post(audio._hold)
+        # A frozen canvas still draws what changes, so it draws once more now.
+        canvas._request_frame()
 
     def resume(self) -> None:
         """
-        Let time run on from where [`pause`][xnano.time.Time.pause] stopped it.
+        Let time run on from where [`stop`][xnano.time.Time.stop] froze it.
+
+        Resuming a canvas that is not stopped does nothing.
 
         Raises:
-            TerminalClosedError: The terminal is closed.
+            TerminalClosedError: The canvas is closed.
         """
-        terminal = self._terminal
-        terminal._require_open()
-        terminal._time_source.resume()
-        audio = terminal._audio
+        canvas = self._canvas
+        canvas._require_open()
+        canvas._time_source.resume()
+        audio = canvas._audio
         if audio is not None:
-            terminal._host.post(audio._release)
+            canvas._host.post(audio._release)
+
+    def step(self, *, delta_seconds: float | None = None) -> Frame:
+        """
+        Move time by ``delta_seconds``, one frame by default, and draw exactly one frame.
+
+        This is [`Canvas.step`][xnano.canvas.Canvas.step]; see it for every case.
+
+        Args:
+            delta_seconds: How far to move, above zero; one frame of the canvas's ``fps``
+                when ``None``.
+
+        Returns:
+            The [`Frame`][xnano.context.Frame] that was drawn.
+        """
+        return self._canvas._step(delta_seconds)
 
     def __add__(self, other: object) -> _core.NumericValue:
         return self.seconds.__add__(other)  # type: ignore[operator]
@@ -186,4 +211,4 @@ class Time:
         return -self.seconds
 
     def __repr__(self) -> str:
-        return f'Time(elapsed={self.elapsed:.3f}, is_paused={self.is_paused})'
+        return f'Time(elapsed={self.elapsed:.3f}, is_stopped={self.is_stopped})'

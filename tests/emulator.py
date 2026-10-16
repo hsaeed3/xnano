@@ -214,6 +214,11 @@ class Screen:
             time.sleep(0.01)
         self.send(f'\x1b[<0;{c1 + 1};{r1 + 1}m')
 
+    def scroll(self, column: int, row: int, *, direction: str = 'down') -> None:
+        """Turn the mouse wheel one step at a cell (``'up'``, ``'down'``, ``'left'``, ``'right'``)."""
+        button = {'up': 64, 'down': 65, 'left': 66, 'right': 67}[direction]
+        self.send(f'\x1b[<{button};{column + 1};{row + 1}M')
+
     def paste(self, text: str) -> None:
         """Paste text, with the markers of bracketed paste."""
         self.send(f'\x1b[200~{text}\x1b[201~')

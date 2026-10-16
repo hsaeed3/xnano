@@ -47,7 +47,7 @@ def main() -> None:
 
         @terminal.on_key('c')
         def clear(context: Context) -> None:
-            canvas.buffer.update(Fill(' '))
+            canvas.core_buffer.update(Fill(' '))
 
         terminal.run(quit_on='q')
 

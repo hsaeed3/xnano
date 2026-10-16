@@ -15,7 +15,7 @@ import pathlib
 
 import xnano
 from xnano.buffers import Buffer, Cell
-from xnano.context import Context, Frame
+from xnano.context import Context
 from xnano.effects import Effect
 from xnano.expressions import (
     Height,
@@ -83,7 +83,7 @@ def row(fraction: float) -> NumericValue[int | float]:
 class _Demo:
     """The demo's panels, and what changes in them."""
 
-    def __init__(self, terminal: Terminal[None]) -> None:
+    def __init__(self, terminal: Terminal[None, None]) -> None:
         """
         Prepare the panels' state.
 
@@ -95,7 +95,7 @@ class _Demo:
         self.instrument = 0
         self.events: collections.deque[str] = collections.deque(maxlen=8)
         self.samples = [3] * 40
-        self.intro: list[Placement[None]] = []
+        self.intro: list[Placement[None, None]] = []
         self.log = Paragraph('', style=Style(INK))
 
     # -- the opening animation ----------------------------------------------------------
@@ -248,9 +248,9 @@ class _Demo:
             for angle in range(36)
         ]
 
-        @terminal.loop.on_frame
-        def draw(frame: Frame) -> None:
-            time = frame.elapsed_seconds
+        @terminal.hook(on='frame')
+        def draw(context: Context) -> None:
+            time = context.time.elapsed
             self.canvas.clear_shapes()
             self.canvas.extend_shapes(
                 [
@@ -346,7 +346,12 @@ class _Demo:
             note = NOTES[context.keyboard.key]
             self.remember(f'note {note} on {INSTRUMENTS[self.instrument]}')
             if not self.is_muted and terminal.audio.is_available:
-                terminal.note(note, 0.5, instrument=INSTRUMENTS[self.instrument])
+                from xnano.audio import TerminalNote
+
+                terminal.play(
+                    TerminalNote(note, duration_beats=0.5),
+                    instrument=INSTRUMENTS[self.instrument],
+                )
 
         @terminal.on_key('m')
         def mute(context: Context) -> None:
@@ -360,12 +365,12 @@ class _Demo:
 
         @terminal.on_key('space')
         def toggle_time(context: Context) -> None:
-            if terminal.time.is_paused:
+            if terminal.time.is_stopped:
                 terminal.time.resume()
             else:
-                terminal.time.pause()
+                terminal.time.stop()
             self.remember(
-                'time: ' + ('stopped' if terminal.time.is_paused else 'running')
+                'time: ' + ('stopped' if terminal.time.is_stopped else 'running')
             )
 
         @terminal.on_click

@@ -17,9 +17,9 @@ from xnano._values import ColorValue
 if TYPE_CHECKING:
     from xnano_image import TerminalImage
 
+    from xnano.canvas import Canvas
     from xnano.pixels import Pixels
     from xnano.placement import Placement
-    from xnano.terminal import Terminal
 
 __all__ = ['Camera', 'Scene', 'Sprite']
 
@@ -46,8 +46,8 @@ class Sprite:
         import xnano
         from xnano.image import from_art
 
-        with xnano.open(offscreen=True, width=20, height=5) as terminal:
-            scene = terminal.scene(world_width=40, world_height=20)
+        with xnano.new(width=20, height=5) as canvas:
+            scene = canvas.scene(world_width=40, world_height=20)
             hero = scene.add(from_art(['HH', 'HH'], {'H': 'red'}), x=10, y=10, anchor=(1, 1))
             hero.move_by(2, 0)
             assert hero.x == 12
@@ -245,9 +245,9 @@ class Scene:
 
     The scene draws itself. It watches its sprites and the camera and redraws only on a frame
     after something changed, so a standing-still world costs nothing. Get one from
-    [`Terminal.scene`][xnano.terminal.Terminal.scene] or [`Placement.scene`][xnano.placement.Placement.scene].
+    [`Canvas.scene`][xnano.canvas.Canvas.scene] or [`Placement.scene`][xnano.placement.Placement.scene].
 
-    A pixel is half a cell tall, so a terminal of ``80`` by ``24`` cells shows ``80`` by ``48``
+    A pixel is half a cell tall, so a canvas of ``80`` by ``24`` cells shows ``80`` by ``48``
     pixels of the world.
 
     Attributes:
@@ -263,28 +263,28 @@ class Scene:
         import xnano
         from xnano.image import from_art
 
-        with xnano.open(offscreen=True, width=20, height=5) as terminal:
-            scene = terminal.scene(world_width=100, world_height=60)
+        with xnano.new(width=20, height=5) as canvas:
+            scene = canvas.scene(world_width=100, world_height=60)
             scene.add(from_art(['GGGG'], {'G': 'green'}))
             hero = scene.add(from_art(['H', 'H'], {'H': 'red'}), x=50, y=30, anchor=(0, 1))
             scene.camera.follow(hero)
-            terminal.loop.step()
+            canvas.deliver_events()
         ```
     """
 
     def __init__(
         self,
-        target: Terminal[object] | Placement[object],
+        target: Canvas[object, object] | Placement[object, object],
         world_width: int,
         world_height: int,
         background: ColorValue,
     ) -> None:
-        # Created by ``Terminal.scene`` and ``Placement.scene``; not constructed directly.
+        # Created by ``Canvas.scene`` and ``Placement.scene``; not constructed directly.
         """
-        Create a scene. Use ``terminal.scene(...)`` instead of calling this.
+        Create a scene. Use ``canvas.scene(...)`` instead of calling this.
 
         Args:
-            target: The terminal or placement the scene is drawn on.
+            target: The canvas or placement the scene is drawn on.
             world_width: The width of the world in pixels.
             world_height: The height of the world in pixels.
             background: The color shown where no sprite is drawn.
@@ -310,8 +310,8 @@ class Scene:
         self._background = to_rgb(background)
         self._version = 0
         self._shown: tuple[int, ...] | None = None
-        self._terminal: Terminal[object] = target._terminal
-        self._terminal.loop.on_frame(self._draw)
+        self._canvas: Canvas[object, object] = target._canvas
+        self._canvas._on_frame(self._draw)
 
     # -- building the world -------------------------------------------------------------
 

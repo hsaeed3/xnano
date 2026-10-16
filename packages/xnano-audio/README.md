@@ -8,7 +8,7 @@ Synthesize, play and capture sound in Python without audio files or extra depend
 pip install xnano-audio
 ```
 
-Or install it as an extra of the top-level `xnano` package, which exposes it as `xnano.audio` and adds `terminal.play`, `terminal.note` and `terminal.tempo`:
+Or install it as an extra of the top-level `xnano` package, which exposes it as `xnano.audio` and adds `canvas.audio`, `canvas.play` and `canvas.bpm`:
 
 ```bash
 pip install "xnano[audio]"

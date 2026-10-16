@@ -1,7 +1,7 @@
 """
 xnano.pixels
 
-Pixel drawing on a terminal or a buffer.
+Pixel drawing on a canvas or a buffer.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from xnano._values import RGB, ColorValue, PixelEncoding
 
 class Pixels:
     """
-    The pixels of a terminal, or of any buffer.
+    The pixels of a canvas, or of any buffer.
 
     A cell holds more than one pixel: two with ``'half_blocks'`` (one column, two rows) and
     eight with ``'braille'`` (two columns, four rows, but one color for the whole cell).
@@ -35,7 +35,7 @@ class Pixels:
     A color is a name such as ``'red'`` (in the standard xterm shade), a ``'#rrggbb'`` string
     or an ``(red, green, blue)`` tuple.
 
-    Get one from [`Terminal.pixels`][xnano.terminal.Terminal.pixels] or ``placement.pixels``.
+    Get one from [`Canvas.pixels`][xnano.canvas.Canvas.pixels] or ``placement.pixels``.
 
     Attributes:
         width: The width in pixels.
@@ -46,21 +46,21 @@ class Pixels:
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=4, height=2) as terminal:
-            pixels = terminal.pixels
+        with xnano.new(width=4, height=2) as canvas:
+            pixels = canvas.pixels
             assert (pixels.width, pixels.height) == (4, 4)
             pixels[0, 0] = '#ff0000'
             pixels[0, 1] = (0, 0, 255)
-            assert terminal.root[0, 0].symbol == '▀'
+            assert canvas.core_buffer[0, 0].symbol == '▀'
         ```
     """
 
     __slots__ = ('_view',)
 
     def __init__(self, view: _core.PixelView) -> None:
-        # Created by ``Terminal.pixels`` and ``Placement.pixels``; not constructed directly.
+        # Created by ``Canvas.pixels`` and ``Placement.pixels``; not constructed directly.
         """
-        Wrap a pixel view. Get one from ``terminal.pixels`` instead of calling this.
+        Wrap a pixel view. Get one from ``canvas.pixels`` instead of calling this.
 
         Args:
             view: The core pixel view to draw through.
@@ -91,8 +91,8 @@ class Pixels:
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=4, height=2) as terminal:
-                dots = terminal.pixels.braille
+            with xnano.new(width=4, height=2) as canvas:
+                dots = canvas.pixels.braille
                 assert (dots.width, dots.height) == (8, 8)
             ```
         """
@@ -167,8 +167,8 @@ class Pixels:
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=8, height=2) as terminal:
-                pixels = terminal.pixels
+            with xnano.new(width=8, height=2) as canvas:
+                pixels = canvas.pixels
                 pixels.shade(lambda column, row: (column * 30, row * 60, 0))
             ```
         """
@@ -231,8 +231,8 @@ class Pixels:
             import xnano
             from xnano.image import TerminalImage
 
-            with xnano.open(offscreen=True, width=4, height=2) as terminal:
-                pixels = terminal.pixels
+            with xnano.new(width=4, height=2) as canvas:
+                pixels = canvas.pixels
                 map_picture = TerminalImage.from_rgba(8, 8, bytes([0, 128, 0, 255]) * 64)
                 pixels.draw_image(map_picture, x=-2, y=-2)
             ```

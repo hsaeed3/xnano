@@ -10,9 +10,10 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import xnano_core as _core
+from xnano.errors import TerminalClosedError
 
 if TYPE_CHECKING:
-    from xnano.terminal import Terminal
+    from xnano.canvas import Canvas
 
 __all__ = ['Input']
 
@@ -33,14 +34,13 @@ class Input:
     The keys held down right now.
 
     A hook hears each key press once. A game wants the opposite: ask every step which keys
-    are down. Get one from [`Terminal.input`][xnano.terminal.Terminal.input] and read it inside a
-    hook or an update, such as one registered with
-    [`loop.on_update`][xnano.loop.Loop.on_update].
+    are down. Get one from [`Canvas.input`][xnano.canvas.Canvas.input] and read it anywhere,
+    from any thread: inside a hook, in a ``hook(on='tick')`` update, or in your own loop.
 
-    A terminal that reports key releases (kitty, ghostty and wezterm, when opened with
-    ``keyboard='release_events'``) tells exactly when a key is let go. Any other terminal
-    only sends repeats while a key is held, so a key counts as held for a short time after
-    its last repeat.
+    A terminal that reports key releases (kitty, ghostty and wezterm, when the canvas is
+    opened with ``keyboard='release_events'``) tells exactly when a key is let go. Any other
+    terminal only sends repeats while a key is held, so a key counts as held for a short time
+    after its last repeat.
 
     Attributes:
         held_keys: The names of the keys held down right now.
@@ -50,26 +50,38 @@ class Input:
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=20, height=3) as terminal:
-            hero = terminal.write('@')
+        with xnano.new(width=20, height=3) as canvas:
+            hero = canvas.write('@')
 
-            @terminal.loop.on_update(fixed_step_seconds=1 / 30)
-            def walk(update: xnano.context.Update) -> None:
-                step_x, step_y = terminal.input.direction()
+            @canvas.hook(on='tick', every=1 / 30)
+            def walk(context: xnano.context.Context) -> None:
+                step_x, step_y = canvas.input.direction()
                 hero.x += step_x
                 hero.y += step_y
+
+            canvas.step()
         ```
     """
 
-    def __init__(self, terminal: Terminal[object]) -> None:
+    def __init__(self, canvas: Canvas[object, object]) -> None:
         """
-        Create the terminal's input. Use ``terminal.input`` instead of calling this.
+        Create the canvas's input. Use ``canvas.input`` instead of calling this.
 
         Args:
-            terminal: The terminal the input belongs to.
+            canvas: The canvas the input belongs to.
         """
-        self._state: _core.InputState = terminal._runtime.input
+        self._canvas = canvas
         self._state.estimate_holds(timeout_seconds=_ESTIMATED_HOLD_SECONDS)
+
+    @property
+    def _state(self) -> _core.InputState:
+        """The input of the canvas's current runtime, which any thread may read."""
+        state = self._canvas._input_state
+        if state is None:
+            raise TerminalClosedError(
+                'The canvas has no input yet, because it is not attached to a running loop.'
+            )
+        return state
 
     @property
     def held_keys(self) -> frozenset[str]:

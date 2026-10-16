@@ -1,7 +1,7 @@
 """
 xnano.state
 
-Typed terminal state, stored in the core state store.
+Typed canvas state, stored in the core state store.
 """
 
 from __future__ import annotations
@@ -33,13 +33,16 @@ StateFieldT = TypeVar('StateFieldT')
 StateRootT = TypeVar('StateRootT')
 
 
-class StateProxy:
+class StateNamespace:
     """
-    Attribute reads and writes for a terminal's dataclass state.
+    The state of a canvas: the fields of the dataclass given to ``new(state=...)``.
+
+    Reading and writing a field goes through the canvas's state store, so a write is
+    validated against the field's type and updates every expression that reads it.
 
     Attributes:
         <field>: Every field of the state dataclass, read and written through the
-            terminal's state store.
+            canvas's state store.
     """
 
     _store: _core.TerminalStateStore
@@ -52,7 +55,7 @@ class StateProxy:
         Wrap a state store.
 
         Args:
-            store: The terminal's state store.
+            store: The canvas's state store.
             request_frame: Called after each write, so a frame follows it.
         """
         object.__setattr__(self, '_store', store)
@@ -65,8 +68,8 @@ class StateProxy:
             return self._store.reference((name,)).get()
         except Exception as error:
             raise AttributeError(
-                f"{name} is not a field of this terminal's state. Read a field that was "
-                f'declared on the dataclass passed to open(state=...).'
+                f"{name} is not a field of this canvas's state. Read a field that was "
+                f'declared on the dataclass passed to xnano.new(state=...).'
             ) from error
 
     def __setattr__(self, name: str, value: JSONValue) -> None:
@@ -85,7 +88,7 @@ def prepare_state(instance: DataclassInstance) -> _core.TerminalStateStore:
     if not dataclasses.is_dataclass(instance) or isinstance(instance, type):
         raise TypeError(
             f'{instance!r} is not a state dataclass. Pass an instance of a dataclass, '
-            f'such as open(state=Settings()).'
+            f'such as xnano.new(state=Settings()).'
         )
     try:
         schema = _core.TerminalStateSchema.compile(_schema(type(instance)))
@@ -94,17 +97,17 @@ def prepare_state(instance: DataclassInstance) -> _core.TerminalStateStore:
     return _core.TerminalStateStore(dataclasses.asdict(instance), schema=schema)
 
 
-def bind_proxy(
+def bind_namespace(
     store: _core.TerminalStateStore, request_frame: Callable[[], None]
-) -> StateProxy:
+) -> StateNamespace:
     """
-    Return a proxy whose reads and writes go through ``store``.
+    Return a namespace whose reads and writes go through ``store``.
 
     Args:
         store: The state store.
         request_frame: Called after each write, so a frame follows it.
     """
-    return StateProxy(store, request_frame)
+    return StateNamespace(store, request_frame)
 
 
 def reference_for(

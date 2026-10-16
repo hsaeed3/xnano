@@ -1,7 +1,7 @@
 """
 xnano.cursor
 
-The terminal's cursor: where it is, how it looks, and how to move it.
+A canvas's cursor: where it is, how it looks, and how to move it.
 """
 
 from __future__ import annotations
@@ -12,27 +12,27 @@ import xnano_core as _core
 from xnano._axes import check_cells, check_count
 
 if TYPE_CHECKING:
+    from xnano.canvas import Canvas
     from xnano.placement import Placement
-    from xnano.terminal import Terminal
 
 __all__ = ['Cursor']
 
 
 class Cursor:
     """
-    The one cursor a terminal has.
+    The one cursor a canvas has.
 
-    Get it from [`Terminal.cursor`][xnano.terminal.Terminal.cursor] or from ``context.cursor``
-    inside a hook. A terminal draws no cursor until it is given a position, which a text field
+    Get it from [`Canvas.cursor`][xnano.canvas.Canvas.cursor] or from ``context.cursor``
+    inside a hook. A canvas draws no cursor until it is given a position, which a text field
     does to show where typing goes. Any thread may change it, a change is drawn on the next
-    frame even when no cell changed, and a live terminal gives the user's own cursor back when
-    it closes.
+    frame even when no cell changed, and a canvas on the screen gives the user's own cursor
+    back when it closes. Opening a canvas on the screen keeps its cursor as it was.
 
     Moving is relative to where the cursor is: [`up`][xnano.cursor.Cursor.up],
     [`down`][xnano.cursor.Cursor.down], [`left`][xnano.cursor.Cursor.left] and
     [`right`][xnano.cursor.Cursor.right] move it by a count of cells, and
     [`move`][xnano.cursor.Cursor.move] moves it along both axes at once. The cursor stays
-    inside the terminal, so moving past an edge stops at the edge. A cursor with no position
+    inside the canvas, so moving past an edge stops at the edge. A cursor with no position
     moves from the top-left cell. Each of these returns the cursor, so they chain.
 
     Attributes:
@@ -47,25 +47,25 @@ class Cursor:
         import xnano
         from xnano_core import Point
 
-        with xnano.open(offscreen=True, width=10, height=3) as terminal:
-            terminal.cursor.shape = 'bar'
-            terminal.cursor.home().right(4).down()
-            assert terminal.cursor.position == Point(4, 1)
+        with xnano.new(width=10, height=3) as canvas:
+            canvas.cursor.shape = 'bar'
+            canvas.cursor.home().right(4).down()
+            assert canvas.cursor.position == Point(4, 1)
         ```
     """
 
-    def __init__(self, terminal: Terminal[object]) -> None:
+    def __init__(self, canvas: Canvas[object, object]) -> None:
         """
-        Create the terminal's cursor. Use ``terminal.cursor`` instead of calling this.
+        Create the canvas's cursor. Use ``canvas.cursor`` instead of calling this.
 
         Args:
-            terminal: The terminal the cursor belongs to.
+            canvas: The canvas the cursor belongs to.
         """
-        self._terminal = terminal
+        self._canvas = canvas
 
     @property
     def _source(self) -> _core.Cursor:
-        return self._terminal._cursor_source
+        return self._canvas._cursor_source
 
     @property
     def position(self) -> _core.Point | None:
@@ -75,6 +75,7 @@ class Cursor:
     @position.setter
     def position(self, value: _core.Point | tuple[int, int] | None) -> None:
         self._source.position = value
+        self._canvas._cursor_follow = None
 
     @property
     def shape(self) -> _core.CursorShape | None:
@@ -122,12 +123,12 @@ class Cursor:
             import xnano
             from xnano_core import Point
 
-            with xnano.open(offscreen=True, width=10, height=3) as terminal:
-                terminal.cursor.position = (2, 1)
-                terminal.cursor.move(x=3, y=-1)
-                assert terminal.cursor.position == Point(5, 0)
-                terminal.cursor.move(x=-99)
-                assert terminal.cursor.position == Point(0, 0)
+            with xnano.new(width=10, height=3) as canvas:
+                canvas.cursor.position = (2, 1)
+                canvas.cursor.move(x=3, y=-1)
+                assert canvas.cursor.position == Point(5, 0)
+                canvas.cursor.move(x=-99)
+                assert canvas.cursor.position == Point(0, 0)
             ```
         """
         horizontal = check_cells(x, 'x')
@@ -135,10 +136,11 @@ class Cursor:
         source = self._source
         current = source.position
         column, row = (0, 0) if current is None else (current.x, current.y)
-        size = self._terminal.size
+        size = self._canvas.size
         column = min(max(column + horizontal, 0), max(size.width - 1, 0))
         row = min(max(row + vertical, 0), max(size.height - 1, 0))
         source.position = (column, row)
+        self._canvas._cursor_follow = None
         return self
 
     def up(self, count: int = 1) -> Cursor:
@@ -196,6 +198,7 @@ class Cursor:
     def home(self) -> Cursor:
         """Put the cursor in the top-left cell."""
         self._source.position = (0, 0)
+        self._canvas._cursor_follow = None
         return self
 
     def show(self) -> Cursor:
@@ -207,10 +210,10 @@ class Cursor:
             import xnano
             from xnano_core import Point
 
-            with xnano.open(offscreen=True, width=10, height=3) as terminal:
-                terminal.cursor.show()
-                assert terminal.cursor.is_visible
-                assert terminal.cursor.position == Point(0, 0)
+            with xnano.new(width=10, height=3) as canvas:
+                canvas.cursor.show()
+                assert canvas.cursor.is_visible
+                assert canvas.cursor.position == Point(0, 0)
             ```
         """
         source = self._source
@@ -225,7 +228,7 @@ class Cursor:
         return self
 
     def follow(
-        self, target: Placement[object] | _core.Buffer, *, x: int = 0, y: int = 0
+        self, target: Placement[object, object] | _core.Buffer, *, x: int = 0, y: int = 0
     ) -> Cursor:
         """
         Keep the cursor at a place inside a placement or buffer, wherever it goes.
@@ -243,15 +246,16 @@ class Cursor:
             import xnano
             from xnano_core import Point
 
-            with xnano.open(offscreen=True, width=20, height=3) as terminal:
-                field = terminal.write('name', x=5, y=1)
-                terminal.cursor.follow(field, x=4)
+            with xnano.new(width=20, height=3) as canvas:
+                field = canvas.write('name', x=5, y=1)
+                canvas.cursor.follow(field, x=4)
                 field.x = 8
-                assert terminal.cursor.position == Point(12, 1)
+                assert canvas.cursor.position == Point(12, 1)
             ```
         """
-        buffer = target if isinstance(target, _core.Buffer) else target.buffer
+        buffer = target if isinstance(target, _core.Buffer) else target.core_buffer
         self._source.follow(buffer, x=x, y=y)
+        self._canvas._cursor_follow = (buffer, x, y)
         return self
 
     def unfollow(self) -> Cursor:
@@ -259,6 +263,7 @@ class Cursor:
         source = self._source
         current = source.position
         source.follow(None)
+        self._canvas._cursor_follow = None
         if current is not None:
             source.position = current
         return self

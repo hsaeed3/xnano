@@ -1,7 +1,7 @@
 """
 tests.test_rich_parity
 
-Text layout checked against rich, which is the reference for how terminal text behaves.
+Text layout checked against rich, which is the reference for how canvas text behaves.
 
 The inputs are the ones rich's own tests use (``tests/test_text.py`` and ``tests/test_cells.py``
 in its repository): wide characters, emoji built from several code points, long words, runs of
@@ -172,19 +172,19 @@ def test_text_that_does_not_wrap_is_cut_at_the_width_like_rich_crop(text, width)
 
 
 def test_a_terminal_shows_wide_characters_in_two_cells_and_never_splits_them():
-    with xnano.open(offscreen=True, width=5, height=2) as terminal:
-        terminal.write('わさび')
-        terminal.output.render()
-        lines = terminal.output.snapshot().lines()
+    with xnano.new(width=5, height=2) as canvas:
+        canvas.write('わさび')
+        canvas.output.render()
+        lines = canvas.output.snapshot().lines()
     assert lines[0] == 'わさ'
     assert rich_cells.cell_len(lines[0]) == 4
 
 
 @pytest.mark.parametrize('count', [1, 2, 3, 4])
 def test_a_wide_character_that_does_not_fit_is_dropped_not_cut(count):
-    with xnano.open(offscreen=True, width=count, height=1) as terminal:
-        terminal.write('😽😽😽')
-        terminal.output.render()
-        line = terminal.output.snapshot().lines()[0]
+    with xnano.new(width=count, height=1) as canvas:
+        canvas.write('😽😽😽')
+        canvas.output.render()
+        line = canvas.output.snapshot().lines()[0]
     assert rich_cells.cell_len(line) <= count
     assert line == '😽' * (count // 2)

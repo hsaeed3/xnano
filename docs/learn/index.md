@@ -16,7 +16,7 @@ pip install "xnano[image]"       # adds images and animations
 ## Put something on the terminal
 
 [`open`][xnano.open] gives you a [`Terminal`][xnano.terminal.Terminal]. Anything you
-[`write`][xnano.terminal.Terminal.write] appears at once, and a `with` block gives the screen back.
+[`write`][xnano.canvas.Canvas.write] appears at once, and a `with` block gives the screen back.
 
 ```python
 import xnano
@@ -56,10 +56,10 @@ with xnano.open(width=30, height=3) as terminal:
 
     @terminal.on_key('space')
     def toggle(context: xnano.context.Context) -> None:
-        if terminal.time.is_paused:
+        if terminal.time.is_stopped:
             terminal.time.resume()
         else:
-            terminal.time.pause()
+            terminal.time.stop()
 
     @terminal.every(1.0)
     def tick(context: xnano.context.Context) -> None:

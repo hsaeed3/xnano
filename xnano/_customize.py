@@ -2,12 +2,12 @@
 xnano._customize
 
 TypedDict and dataclass specifications for styles, borders, blocks, padding, margins, pixels,
-visual effects and audio effects, compiled through [`fx`][xnano._customize.fx].
+visual effects and audio effects, compiled through [`fx`][xnano.operations.fx].
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 
     from xnano.canvas import Canvas
     from xnano.placement import Placement
-    from xnano.terminal import Terminal
 
 TargetT = TypeVar('TargetT')
 
@@ -38,7 +37,7 @@ HslShiftTuple = tuple[HslShiftChannel, HslShiftChannel, HslShiftChannel]
 
 class Customization(_core.Customization):
     """
-    Base class for all customization dataclasses returned by [`fx`][xnano.fx].
+    Base class for all customization dataclasses returned by [`fx`][xnano.operations.fx].
 
     Every customization is both a dataclass holding its typed parameters and a native
     [`Customization`][xnano_core.Customization] operation that can be piped with ``|`` or
@@ -51,10 +50,10 @@ class Customization(_core.Customization):
 
     def apply_to(
         self,
-        target: Terminal[object] | Placement[object] | Canvas | _core.Surface,
+        target: Canvas[object, object] | Placement[object, object] | _core.Surface,
     ) -> None:
         """
-        Apply this customization to a terminal, placement, canvas or surface.
+        Apply this customization to a canvas, placement or surface.
 
         It stays attached to the target: after this, assigning one of its fields applies it
         again, so a customization from ``fx`` is a live handle on what it changed. A running
@@ -65,13 +64,12 @@ class Customization(_core.Customization):
         """
         from xnano.canvas import Canvas
         from xnano.placement import Placement
-        from xnano.terminal import Terminal
 
         self._attach(target)
-        if isinstance(target, Canvas):
-            target._record_operation(self)
-        elif isinstance(target, (Placement, Terminal)):
+        if isinstance(target, (Placement, Canvas)):
             target._buffer.update(self)
+            if self.customization_kind.startswith('effect.'):
+                target._canvas._record_effect(self, target)
         elif isinstance(target, _core.Surface):
             target.update(self)
 
@@ -91,11 +89,7 @@ class Customization(_core.Customization):
         target = self.__dict__.get('_target')
         if target is None:
             return
-        from xnano.canvas import Canvas
-
         surface = target._buffer if hasattr(target, '_buffer') else target
-        if isinstance(target, Canvas) and surface is None:
-            return
         key = getattr(self, 'key', None)
         if self.customization_kind.startswith('effect.') and key is not None:
             surface.update(_core.CancelEffect(key))
@@ -1672,14 +1666,17 @@ def fx(kind: CustomizationKind, /, **parameters: object) -> Customization:
         ```python
         import xnano
 
-        sparkle = xnano.fx('fill', cell='*')
+        from xnano.operations import fx
+
+        sparkle = fx('fill', cell='*')
         assert sparkle.cell == '*'
 
-        fade = xnano.fx('effect.fade_to', foreground='red', duration_milliseconds=200)
+        fade = fx('effect.fade_to', foreground='red', duration_milliseconds=200)
         assert fade.duration_milliseconds == 200
 
-        card = xnano.new(width=10, height=3) | sparkle
-        assert '*' in card.build().render(format='text')
+        with xnano.new(width=10, height=3) as canvas:
+            canvas | sparkle
+            assert '*' in canvas.render()
         ```
     """
     customization_class = _CUSTOMIZATION_TYPES.get(kind)
@@ -1690,3 +1687,40 @@ def fx(kind: CustomizationKind, /, **parameters: object) -> Customization:
         )
     factory = cast('Callable[..., Customization]', customization_class)
     return factory(**parameters)
+
+
+def apply_effects(
+    target: Canvas[object, object] | Placement[object, object],
+    effects: Sequence[Mapping[str, object]],
+) -> list[Customization]:
+    """
+    Start each effect of an ``effects=[...]`` list on ``target`` and return the live handles.
+
+    Args:
+        target: The canvas or placement the effects run on.
+        effects: Dictionaries with a ``kind`` key naming a visual effect, such as
+            ``{'kind': 'effect.fade_to', 'foreground': 'red'}``, and that effect's keywords.
+
+    Raises:
+        TypeError: An entry is not such a dictionary, or names something that is not a
+            visual effect.
+    """
+    applied: list[Customization] = []
+    for specification in effects:
+        if not isinstance(specification, Mapping) or 'kind' not in specification:
+            raise TypeError(
+                f"effects= takes dictionaries such as {{'kind': 'effect.fade_to', ...}}, but "
+                f'got {specification!r}. An fx(...) object is applied with '
+                f'placement | fx(...) or placement.update(fx(...)).'
+            )
+        parameters = dict(specification)
+        kind = parameters.pop('kind')
+        if not isinstance(kind, str) or not kind.startswith('effect.'):
+            raise TypeError(
+                f'{kind!r} is not a visual effect, so it cannot be in effects=. Use a kind '
+                f"that starts with 'effect.', such as 'effect.fade_to'."
+            )
+        customization = fx(cast('CustomizationKind', kind), **parameters)  # type: ignore[call-overload]
+        customization.apply_to(target)
+        applied.append(customization)
+    return applied

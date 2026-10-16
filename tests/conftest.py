@@ -25,10 +25,21 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 @pytest.fixture(autouse=True)
+def symbols_are_restored():
+    """Give every test the symbols registered before it, since the registry is shared."""
+    import xnano.symbols
+
+    registered = dict(xnano.symbols._registry)
+    yield
+    xnano.symbols._registry.clear()
+    xnano.symbols._registry.update(registered)
+
+
+@pytest.fixture(autouse=True)
 def no_garbage_left_behind():
     """Collect garbage after every test, so a leak is reported by the test that caused it.
 
-    A runtime may only be dropped on the thread that created it. If a terminal leaves a
+    A runtime may only be dropped on the thread that created it. If a canvas leaves a
     reference to its runtime alive after it closed, the drop happens later on whichever
     thread collects it, and Python reports it as an ignored exception.
     """

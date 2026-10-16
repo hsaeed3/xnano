@@ -6,8 +6,8 @@ The expression language: values that are evaluated again on every frame.
 An [`Expression`][xnano.expressions.Expression] stands for a number, a position or a state that
 changes, such as the elapsed time, the width of the parent or the pointer position. Combine
 them with arithmetic and give them to anything that takes a number, or read them from the
-``parent``, ``root`` and ``time`` attributes on a [`Terminal`][xnano.terminal.Terminal],
-[`Placement`][xnano.placement.Placement] or [`Canvas`][xnano.canvas.Canvas].
+``parent``, ``root`` and ``time`` attributes on a [`Canvas`][xnano.canvas.Canvas] or a
+[`Placement`][xnano.placement.Placement].
 """
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ Parent: ParentExpressionScope = ParentScope
 """Symbolic expressions for the parent buffer's geometry (``Parent.width``, ``Parent.height``)."""
 
 Root: RootExpressionScope = RootScope
-"""Symbolic expressions for the root terminal's geometry and clock (``Root.width``, ``Root.time``)."""
+"""Symbolic expressions for the root canvas's geometry and clock (``Root.width``, ``Root.time``)."""
 
 BufferExpressions: BufferExpressionScope = BufferScope
 """Symbolic expressions for the current buffer's geometry (``BufferExpressions.width``, ``BufferExpressions.height``)."""

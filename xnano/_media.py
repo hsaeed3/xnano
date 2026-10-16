@@ -230,14 +230,14 @@ _AUDIO_SUFFIXES = frozenset({'.wav', '.wave'})
 @dataclasses.dataclass(frozen=True, slots=True, init=False)
 class Image:
     """
-    An image and how it is shown: what [`Terminal.write`][xnano.terminal.Terminal.write] takes
-    to put a picture on the terminal.
+    An image and how it is shown: what [`Canvas.write`][xnano.canvas.Canvas.write] takes
+    to put a picture on the canvas.
 
     Make one from the path of an image file, its bytes, or a
     [`TerminalImage`][xnano_image.TerminalImage]. A file is read once, here, where you can
     see it; ``write`` never takes a path. The placement values are what ``write`` uses when it
     is not given its own. An image sized by a percentage (or not sized at all) is converted
-    again whenever the terminal is resized, so it always fits; give it a number, or
+    again whenever the canvas is resized, so it always fits; give it a number, or
     ``lock=True``, and it keeps its size.
 
     Attributes:
@@ -247,7 +247,7 @@ class Image:
         width: The width: cells, a percentage, an expression, or ``None`` for the picture's own.
         height: The height, in the same forms.
         layer: Content with a higher layer is drawn over content with a lower one.
-        lock: Whether the image keeps the size it was shown at when the terminal is resized.
+        lock: Whether the image keeps the size it was shown at when the canvas is resized.
         fit: How the picture sits in a box of ``width`` by ``height``: ``'contain'`` (the
             default), ``'cover'``, ``'stretch'``, ``'crop'`` or ``'smart'``.
         resampling_filter: How pixels are blended when it is resized. By default a small
@@ -261,8 +261,8 @@ class Image:
         from xnano.image import TerminalImage
 
         picture = xnano.Image(TerminalImage.from_rgba(2, 2, bytes([255, 0, 0, 255]) * 4), width=8)
-        with xnano.open(offscreen=True, width=20, height=6) as terminal:
-            terminal.write(picture, x='center')
+        with xnano.new(width=20, height=6) as canvas:
+            canvas.write(picture, x='center')
         # xnano.Image('photo.png', width='100%') loads a file, and refits when the window resizes.
         ```
     """
@@ -298,14 +298,14 @@ class Image:
 
         Args:
             source: The path of an image file (PNG, JPEG, GIF, WebP or XNI), the bytes of one,
-                or an image. An animated file plays on the terminal's clock.
+                or an image. An animated file plays on the canvas's clock.
             x: The column of the left edge: cells, a percentage, a word such as ``'center'``, an
                 expression or a range. See [`Axis`][xnano.types.Axis].
             y: The row of the top edge, in the same forms.
             width: The width, in the same forms; the picture's own when ``None``.
             height: The height, in the same forms.
             layer: Content with a higher layer is drawn over content with a lower one.
-            lock: Keep the size the image has when it is added, whatever the terminal does.
+            lock: Keep the size the image has when it is added, whatever the canvas does.
             fit: How the picture sits in a box of ``width`` by ``height``.
             resampling_filter: How pixels are blended when it is resized.
             background: The color behind transparent pixels and padding.
@@ -349,7 +349,7 @@ class Image:
 @dataclasses.dataclass(frozen=True, slots=True, init=False)
 class Audio:
     """
-    A sound you can play with [`Terminal.play`][xnano.terminal.Terminal.play] or
+    A sound you can play with [`Canvas.play`][xnano.canvas.Canvas.play] or
     [`AudioDevice.play`][xnano.audio.AudioDevice.play].
 
     Make one from the path of a WAV file, the bytes of one, or a
@@ -465,7 +465,7 @@ def from_media(
     The kind is read from the file's extension, or from its first bytes when it has none or
     when you pass bytes: a WAV file becomes an [`Audio`][xnano.Audio], and PNG, JPEG, GIF,
     WebP and XNI files become an [`Image`][xnano.Image] (an animated one plays on the
-    terminal's clock). Use `Image` or `Audio` directly when you already know which you have.
+    canvas's clock). Use `Image` or `Audio` directly when you already know which you have.
 
     Args:
         source: A path, the bytes of a file, a
@@ -587,13 +587,13 @@ def cells(value: Axis | None, available: int) -> int | None:
 @dataclasses.dataclass(slots=True)
 class ImageSource:
     """
-    An image shown in a buffer, converted again when the terminal's size changes it.
+    An image shown in a buffer, converted again when the canvas's size changes it.
 
     Attributes:
         image: The image.
         width: The requested width, as an [`Axis`][xnano.types.Axis], or ``None``.
         height: The requested height, or ``None``.
-        size: The terminal size the buffer was converted for.
+        size: The canvas size the buffer was converted for.
         buffer: The buffer that shows the image.
         animation: The animation that moves it, for an animated image.
     """
@@ -616,21 +616,30 @@ class ImageSource:
         size: _core.Size,
         elapsed_seconds: float,
     ) -> ImageSource:
-        """Convert an image for a terminal of this ``size``."""
+        """Convert an image for a canvas of this ``size``."""
         buffer, animation = _convert(picture, width, height, size, elapsed_seconds)
         return cls(picture.image, width, height, size, buffer, animation, picture)
 
-    def refresh(self, size: _core.Size, elapsed_seconds: float) -> None:
-        """Convert the image again for a terminal of a new ``size``, if its size matters."""
-        if size == self.size:
-            return
-        self.size = size
-        depends_on_size = not self.picture.lock and (
+    @property
+    def depends_on_size(self) -> bool:
+        """Whether the canvas's size decides how large the image is drawn."""
+        return not self.picture.lock and (
             (self.width is None and self.height is None)
             or isinstance(self.width, str)
             or isinstance(self.height, str)
         )
-        if not depends_on_size:
+
+    @property
+    def needs_frames(self) -> bool:
+        """Whether the image must be looked at before every frame: it animates or resizes."""
+        return self.animation is not None or self.depends_on_size
+
+    def refresh(self, size: _core.Size, elapsed_seconds: float) -> None:
+        """Convert the image again for a canvas of a new ``size``, if its size matters."""
+        if size == self.size:
+            return
+        self.size = size
+        if not self.depends_on_size:
             return
         buffer, animation = _convert(
             self.picture, self.width, self.height, size, elapsed_seconds

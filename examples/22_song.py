@@ -5,7 +5,7 @@ Each part of the song is a plain string. A note is its name, such as ``C4`` or `
 colon and a number to hold it for that many beats (``E5:0.5`` is half a beat), and a note on its
 own lasts one beat. ``rest`` is a silence and ``|`` just marks the end of a bar. To play a part,
 give it to ``terminal.play`` with an instrument; to play several parts together, play them one
-after another in the same function. ``terminal.tempo`` sets the beats per minute, and
+after another in the same function. ``terminal.bpm`` sets the beats per minute, and
 ``@terminal.every(beats=32)`` plays the song again every eight bars. Press ``space`` to stop and
 restart time, and ``q`` to quit.
 
@@ -40,7 +40,7 @@ SNARE = 'rest C3 rest C3 | ' * 8
 HIHAT = 'C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 C5:0.5 | ' * 8
 
 with xnano.open(width=60, height=6) as terminal:
-    terminal.tempo = 132
+    terminal.bpm = 132
     terminal.write('A song written as text', x='center', y=0)
     where = terminal.write('bar 1   beat 1', y=2)
     terminal.write('space: stop time   q: quit', y=5)
@@ -63,15 +63,15 @@ with xnano.open(width=60, height=6) as terminal:
 
     @terminal.every(beats=1)
     def show_the_beat(context: Context) -> None:
-        beats_played = int(context.time.elapsed * terminal.tempo / 60)
+        beats_played = int(context.time.elapsed * terminal.bpm / 60)
         bar, beat = divmod(beats_played % 32, 4)
         where.text = f'bar {bar + 1}   beat {beat + 1}'
 
     @terminal.on_key('space')
     def stop_or_start_time(context: Context) -> None:
-        if terminal.time.is_paused:
+        if terminal.time.is_stopped:
             terminal.time.resume()
         else:
-            terminal.time.pause()
+            terminal.time.stop()
 
     terminal.run(quit_on='q')

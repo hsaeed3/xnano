@@ -10,14 +10,14 @@ returns, here a ``Color`` made from a hue. ``pixels[column, row] = color`` draws
 import math
 
 import xnano
-from xnano.context import Frame
+from xnano.context import Context
 
 with xnano.open(width=60, height=12) as terminal:
     pixels = terminal.pixels
 
-    @terminal.loop.on_frame
-    def draw(frame: Frame) -> None:
-        time = frame.elapsed_seconds
+    @terminal.hook(on='frame')
+    def draw(context: Context) -> None:
+        time = context.time.elapsed
 
         def color(column: int, row: int) -> xnano.Color:
             wave = math.sin(column / 7 + time) + math.sin(row / 5 - time * 1.3)

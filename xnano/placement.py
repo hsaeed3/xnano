@@ -1,57 +1,19 @@
 """
 xnano.placement
 
-A buffer placed on a terminal, with a position and size that are formulas.
+A buffer placed on a canvas, with a position and size that are formulas.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Literal, cast, overload
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, cast
 
 import xnano_core as _core
 from xnano_core import EvaluationContext
 
 if TYPE_CHECKING:
-    from typing_extensions import Unpack
-
-    from xnano._customize import (
-        BitCrushAudioCustomization,
-        CoalesceEffectCustomization,
-        DarkenEffectCustomization,
-        DelayAudioCustomization,
-        DissolveEffectCustomization,
-        DistortionAudioCustomization,
-        EvolveEffectCustomization,
-        EvolveFromEffectCustomization,
-        EvolveIntoEffectCustomization,
-        ExpandEffectCustomization,
-        ExplodeEffectCustomization,
-        FadeFromEffectCustomization,
-        FadeToEffectCustomization,
-        FillCustomization,
-        FuzzCustomization,
-        GlitchEffectCustomization,
-        HighPassAudioCustomization,
-        HslShiftEffectCustomization,
-        LayoutCustomization,
-        LightenEffectCustomization,
-        LowPassAudioCustomization,
-        PaintEffectCustomization,
-        PixelsCustomization,
-        RasterCustomization,
-        ReverbAudioCustomization,
-        SaturateEffectCustomization,
-        SleepEffectCustomization,
-        SlideInEffectCustomization,
-        SlideOutEffectCustomization,
-        StretchEffectCustomization,
-        SweepInEffectCustomization,
-        SweepOutEffectCustomization,
-        TremoloAudioCustomization,
-        WriteCustomization,
-    )
-    from xnano.terminal import Terminal
+    from xnano.canvas import Canvas
 
 from xnano._appearance import Appearance, Spacing
 from xnano._axes import (
@@ -61,47 +23,7 @@ from xnano._axes import (
     check_count,
     inspect_number,
 )
-from xnano._customize import (
-    BitCrushAudioArguments,
-    CoalesceEffectArguments,
-    Customization,
-    CustomizationKind,
-    DarkenEffectArguments,
-    DelayAudioArguments,
-    DissolveEffectArguments,
-    DistortionAudioArguments,
-    EvolveEffectArguments,
-    EvolveFromEffectArguments,
-    EvolveIntoEffectArguments,
-    ExpandEffectArguments,
-    ExplodeEffectArguments,
-    FadeFromEffectArguments,
-    FadeToEffectArguments,
-    FillArguments,
-    FuzzArguments,
-    GlitchEffectArguments,
-    HighPassAudioArguments,
-    HslShiftEffectArguments,
-    LayoutArguments,
-    LightenEffectArguments,
-    LowPassAudioArguments,
-    PaintEffectArguments,
-    PixelsArguments,
-    RasterArguments,
-    ReverbAudioArguments,
-    SaturateEffectArguments,
-    SleepEffectArguments,
-    SlideInEffectArguments,
-    SlideOutEffectArguments,
-    StretchEffectArguments,
-    SweepInEffectArguments,
-    SweepOutEffectArguments,
-    TremoloAudioArguments,
-    WriteArguments,
-)
-from xnano._customize import (
-    fx as _customize_operation,
-)
+from xnano._customize import Customization, apply_effects
 from xnano._hooks import _Hooked
 from xnano._values import (
     Axis,
@@ -109,6 +31,7 @@ from xnano._values import (
     Bound,
     ColorValue,
     Content,
+    DepsT,
     NumericExpression,
     StateT,
 )
@@ -121,21 +44,18 @@ from xnano.expressions import (
 from xnano.operations import (
     ContextualOperation,
 )
-from xnano.operations import (
-    draggable as _draggable_operation,
-)
 from xnano.pixels import Pixels
 from xnano.scene import Scene
 
 
-class Placement(_Hooked[StateT]):
+class Placement(_Hooked[DepsT, StateT]):
     """
-    A buffer placed on a terminal, with a position and size that are formulas.
+    A buffer placed on a canvas, with a position and size that are formulas.
 
     Assign any of ``x``, ``y``, ``width`` and ``height`` an [`Axis`][xnano.types.Axis]:
     a number, a percentage of the parent, or an expression. Numbers apply at once;
     everything else is evaluated again before every frame, so a placement can follow the
-    clock, the terminal's size or another buffer without a callback.
+    clock, the canvas's size or another buffer without a callback.
 
     Assigning a range instead (``(0, 20)``) limits the axis rather than setting it.
     For ``x`` and ``y`` the range is how far the placement may travel, so a slider's thumb
@@ -143,20 +63,20 @@ class Placement(_Hooked[StateT]):
     by a mouse hook or [`draggable`][xnano.operations.draggable], is held inside the track.
     For ``width`` and ``height`` it is the smallest and largest size.
 
-    Percentages and ranges only change when something about the terminal does, so they
+    Percentages and ranges only change when something about the canvas does, so they
     cost nothing while it is still. An expression is assumed to change with time, so a
-    terminal with one keeps drawing every frame; use a percentage for a layout that only
-    follows the size of the terminal.
+    canvas with one keeps drawing every frame; use a percentage for a layout that only
+    follows the size of the canvas.
 
-    Get one from [`Terminal.write`][xnano.terminal.Terminal.write] or nest a child placement inside
+    Get one from [`Canvas.write`][xnano.canvas.Canvas.write] or nest a child placement inside
     another with [`Placement.write`][xnano.placement.Placement.write].
 
     Attributes:
-        buffer: The buffer that is placed.
-        terminal: The terminal the buffer is placed on.
+        core_buffer: The core buffer that is placed.
+        canvas: The canvas the buffer is placed on.
         parent: Symbolic expressions for the parent container's ``width``, ``height`` and ``size``.
-        root: Symbolic expressions for the root terminal's ``width``, ``height``, ``size`` and ``time``.
-        time: Symbolic expression for elapsed seconds on the terminal clock.
+        root: Symbolic expressions for the root canvas's ``width``, ``height``, ``size`` and ``time``.
+        time: Symbolic expression for elapsed seconds on the canvas clock.
         x: The column of the left edge, relative to the parent.
         y: The row of the top edge, relative to the parent.
         width: The width in cells.
@@ -169,12 +89,12 @@ class Placement(_Hooked[StateT]):
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=20, height=3) as terminal:
-            label = terminal.write('hi')
+        with xnano.new(width=20, height=3) as canvas:
+            label = canvas.write('hi')
             label.x = (label.parent.width - label.width) // 2
             assert label.x == 9
 
-            thumb = terminal.write('#', x=(2, 10))
+            thumb = canvas.write('#', x=(2, 10))
             thumb.x = 40
             assert thumb.x == 10
             thumb.x = 0
@@ -184,23 +104,31 @@ class Placement(_Hooked[StateT]):
 
     def __init__(
         self,
-        terminal: Terminal[StateT],
+        canvas: Canvas[DepsT, StateT],
         buffer: _core.Buffer,
         parent_buffer: _core.Buffer | None = None,
+        parent_owner: Canvas[object, object] | Placement[object, object] | None = None,
     ) -> None:
         """
-        Place a buffer on a terminal. Get one from ``terminal.write`` instead of calling this.
+        Place a buffer on a canvas. Get one from ``canvas.write`` instead of calling this.
 
         Args:
-            terminal: The terminal the buffer is placed on.
+            canvas: The canvas the buffer is placed on.
             buffer: The buffer that is placed.
-            parent_buffer: The parent buffer ``buffer`` is attached to (defaults to ``terminal.root``).
+            parent_buffer: The parent buffer ``buffer`` is attached to (defaults to
+                ``canvas.core_buffer``).
+            parent_owner: The placement or canvas that owns ``parent_buffer`` (defaults to
+                ``canvas``).
         """
         super().__init__()
-        self._terminal = terminal
+        self._canvas = canvas
         self._buffer = buffer
         self._parent_buffer: _core.Buffer = (
-            terminal._root if parent_buffer is None else parent_buffer
+            canvas._root if parent_buffer is None else parent_buffer
+        )
+        self._parent_owner: Canvas[object, object] | Placement[object, object] = cast(
+            'Canvas[object, object] | Placement[object, object]',
+            canvas if parent_owner is None else parent_owner,
         )
         self._bindings: dict[AxisName, tuple[NumericExpression, bool]] = {}
         self._limits: dict[AxisName, tuple[Bound | None, Bound | None, bool]] = {}
@@ -209,14 +137,14 @@ class Placement(_Hooked[StateT]):
         self._appearance: Appearance | None = None
 
     @property
-    def buffer(self) -> _core.Buffer:
-        """The buffer that is placed."""
+    def core_buffer(self) -> _core.Buffer:
+        """The core buffer that is placed, which core operations and widgets draw into."""
         return self._buffer
 
     @property
-    def terminal(self) -> Terminal[StateT]:
-        """The terminal the buffer is placed on."""
-        return self._terminal
+    def canvas(self) -> Canvas[DepsT, StateT]:
+        """The canvas the buffer is placed on."""
+        return self._canvas
 
     @property
     def parent(self) -> ParentExpressionScope:
@@ -225,22 +153,22 @@ class Placement(_Hooked[StateT]):
 
     @property
     def root(self) -> RootExpressionScope:
-        """Symbolic expressions for the root terminal's ``width``, ``height``, ``size`` and ``time``."""
+        """Symbolic expressions for the root canvas's ``width``, ``height``, ``size`` and ``time``."""
         return Root
 
     @property
     def time(self) -> _core.NumericValue:
-        """Symbolic expression for elapsed seconds on the terminal clock."""
+        """Symbolic expression for elapsed seconds on the canvas clock."""
         return _core.TimeElapsed
 
     def _set_axis(self, axis: AxisName, value: Axis) -> None:
-        self._terminal._require_open()
+        self._canvas._require_open()
         if isinstance(value, tuple):
             low, high = axis_limits(value, axis)
             is_time_dependent = any(
                 isinstance(bound, _core.NumericValue) for bound in value
             )
-            with self._terminal._lock:
+            with self._canvas._lock:
                 previous = self._limits.get(axis)
                 if low is None and high is None:
                     self._limits.pop(axis, None)
@@ -249,22 +177,22 @@ class Placement(_Hooked[StateT]):
             try:
                 self._enforce(axis)
             except ValueError:
-                with self._terminal._lock:
+                with self._canvas._lock:
                     if previous is None:
                         self._limits.pop(axis, None)
                     else:
                         self._limits[axis] = previous
                 raise
-            self._terminal._bindings_changed(self)
+            self._canvas._bindings_changed(self)
             return
         converted = axis_expression(value, axis)
         if isinstance(converted, (int, float)):
-            with self._terminal._lock:
+            with self._canvas._lock:
                 self._bindings.pop(axis, None)
             self._assign_within_limits(axis, converted)
             return
         is_time_dependent = isinstance(value, _core.NumericValue)
-        with self._terminal._lock:
+        with self._canvas._lock:
             self._bindings[axis] = (converted, is_time_dependent)
 
         def evaluate() -> None:
@@ -273,11 +201,11 @@ class Placement(_Hooked[StateT]):
             except _core.RuntimeRequiredError:
                 pass
 
-        if self._terminal._host.is_on_loop():
+        if self._canvas._host.is_on_loop():
             evaluate()
         else:
-            self._terminal._host.post(evaluate)
-        self._terminal._bindings_changed(self)
+            self._canvas._host.post(evaluate)
+        self._canvas._bindings_changed(self)
 
     def _assign(self, axis: AxisName, value: int) -> None:
         if getattr(self._buffer, axis) != value:
@@ -307,9 +235,9 @@ class Placement(_Hooked[StateT]):
     def _resolve_offline(self, bound: Bound) -> float:
         if isinstance(bound, (int, float)):
             return bound
-        if not self._terminal._host.is_on_loop():
+        if not self._canvas._host.is_on_loop():
             raise _core.RuntimeRequiredError(
-                'a bound that is a formula is evaluated by the terminal on its next frame'
+                'a bound that is a formula is evaluated by the canvas on its next frame'
             )
         return inspect_number(self._buffer, bound)
 
@@ -326,8 +254,8 @@ class Placement(_Hooked[StateT]):
         self._assign_within_limits(axis, getattr(self._buffer, axis))
 
     def _apply_bindings(self, runtime: _core.Runtime) -> bool:
-        """Evaluate every formula on the terminal's loop; return whether any follows time."""
-        with self._terminal._lock:
+        """Evaluate every formula on the canvas's loop; return whether any follows time."""
+        with self._canvas._lock:
             bindings = dict(self._bindings)
             limits = dict(self._limits)
 
@@ -408,7 +336,7 @@ class Placement(_Hooked[StateT]):
     def is_visible(self, value: bool) -> None:
         self._buffer.is_visible = value
 
-    def move(self, x: int = 0, y: int = 0) -> Placement[StateT]:
+    def move(self, x: int = 0, y: int = 0) -> Placement[DepsT, StateT]:
         """
         Move the placement by a number of cells along each axis.
 
@@ -431,8 +359,8 @@ class Placement(_Hooked[StateT]):
             ```python
             import xnano
 
-            with xnano.open(offscreen=True, width=20, height=3) as terminal:
-                thumb = terminal.write('#', x=(0, 10), y=1)
+            with xnano.new(width=20, height=3) as canvas:
+                thumb = canvas.write('#', x=(0, 10), y=1)
                 thumb.move(x=4, y=-1)
                 assert (thumb.x, thumb.y) == (4, 0)
                 thumb.right(99)
@@ -441,12 +369,12 @@ class Placement(_Hooked[StateT]):
         """
         horizontal = check_cells(x, 'x')
         vertical = check_cells(y, 'y')
-        self._terminal._require_open()
+        self._canvas._require_open()
         steps: tuple[tuple[AxisName, int], ...] = (('x', horizontal), ('y', vertical))
         for axis, step in steps:
             if step == 0:
                 continue
-            with self._terminal._lock:
+            with self._canvas._lock:
                 binding = self._bindings.get(axis)
             if binding is None:
                 self._set_axis(axis, getattr(self._buffer, axis) + step)
@@ -454,7 +382,7 @@ class Placement(_Hooked[StateT]):
                 self._set_axis(axis, binding[0] + step)
         return self
 
-    def up(self, count: int = 1) -> Placement[StateT]:
+    def up(self, count: int = 1) -> Placement[DepsT, StateT]:
         """
         Move the placement up by ``count`` rows; see [`move`][xnano.placement.Placement.move].
 
@@ -467,7 +395,7 @@ class Placement(_Hooked[StateT]):
         """
         return self.move(y=-check_count(count))
 
-    def down(self, count: int = 1) -> Placement[StateT]:
+    def down(self, count: int = 1) -> Placement[DepsT, StateT]:
         """
         Move the placement down by ``count`` rows; see [`move`][xnano.placement.Placement.move].
 
@@ -480,7 +408,7 @@ class Placement(_Hooked[StateT]):
         """
         return self.move(y=check_count(count))
 
-    def left(self, count: int = 1) -> Placement[StateT]:
+    def left(self, count: int = 1) -> Placement[DepsT, StateT]:
         """
         Move the placement left by ``count`` columns; see [`move`][xnano.placement.Placement.move].
 
@@ -493,7 +421,7 @@ class Placement(_Hooked[StateT]):
         """
         return self.move(x=-check_count(count))
 
-    def right(self, count: int = 1) -> Placement[StateT]:
+    def right(self, count: int = 1) -> Placement[DepsT, StateT]:
         """
         Move the placement right by ``count`` columns; see [`move`][xnano.placement.Placement.move].
 
@@ -534,7 +462,7 @@ class Placement(_Hooked[StateT]):
             background: The color shown where no sprite is drawn.
         """
         return Scene(
-            cast('Placement[object]', self), world_width, world_height, background
+            cast('Placement[object, object]', self), world_width, world_height, background
         )
 
     @property
@@ -549,7 +477,7 @@ class Placement(_Hooked[StateT]):
 
     @text.setter
     def text(self, value: str) -> None:
-        self._terminal._require_open()
+        self._canvas._require_open()
         if self._appearance is not None:
             self._appearance.text = value
             self._show_appearance()
@@ -736,16 +664,21 @@ class Placement(_Hooked[StateT]):
         appearance = self._appearance
         if appearance is None:
             return
-        self._terminal._require_open()
+        self._canvas._require_open()
         drawn = appearance.snapshot()
         self.width = drawn.width
         self.height = drawn.height
         self._buffer.update(_core.Fill(' '), _core.Paste(drawn, mode='replace'))
-        self._terminal._request_frame()
+        self._canvas._request_frame()
 
     def write(
         self,
-        content: Content | _core.Operation | _core.Style,
+        content: Content
+        | Canvas[object, object]
+        | _core.Operation
+        | _core.Style
+        | None = None,
+        /,
         *,
         x: Axis | None = None,
         y: Axis | None = None,
@@ -753,6 +686,7 @@ class Placement(_Hooked[StateT]):
         height: Axis | None = None,
         layer: int = 0,
         lock: bool = False,
+        effects: Sequence[Mapping[str, object]] = (),
         style: _core.Style | None = None,
         foreground: ColorValue | None = None,
         background: ColorValue | None = None,
@@ -769,7 +703,7 @@ class Placement(_Hooked[StateT]):
         border_style: _core.Style | None = None,
         padding: Spacing | None = None,
         margin: Spacing | None = None,
-    ) -> Placement[StateT]:
+    ) -> Placement[DepsT, StateT]:
         """
         Add a child placement inside this placement, or apply an operation or style to it.
 
@@ -787,6 +721,7 @@ class Placement(_Hooked[StateT]):
             height: Height of the child in cells.
             layer: Layer ordering among siblings.
             lock: Lock dynamic axes to their initial values.
+            effects: Effects to start on the child, as dictionaries with a ``kind`` key.
             style: Ready-made [`Style`][xnano.styles.Style] for text.
             foreground: Text foreground color.
             background: Text background color.
@@ -802,10 +737,10 @@ class Placement(_Hooked[StateT]):
             border: Border kind for a box around text.
             border_style: Style for the box's border.
             padding: Space between the border and the text; see
-                [`Terminal.write`][xnano.terminal.Terminal.write].
+                [`Canvas.write`][xnano.canvas.Canvas.write].
             margin: Space outside the box, in the same forms.
         """
-        self._terminal._require_open()
+        self._canvas._require_open()
         has_placement_options = any(
             value is not None
             for value in (
@@ -826,6 +761,7 @@ class Placement(_Hooked[StateT]):
             (
                 layer != 0,
                 lock,
+                bool(effects),
                 is_bold,
                 is_dim,
                 is_italic,
@@ -842,9 +778,10 @@ class Placement(_Hooked[StateT]):
         ):
             self.update(content)
             return self
-        return self._terminal._place_on(
+        placement = self._canvas._place_on(
             self._buffer,
-            cast('Content', content),
+            content,
+            parent_owner=cast('Placement[object, object]', self),
             x=x,
             y=y,
             width=width,
@@ -868,8 +805,13 @@ class Placement(_Hooked[StateT]):
             padding=padding,
             margin=margin,
         )
+        if effects:
+            apply_effects(cast('Placement[object, object]', placement), effects)
+        return placement
 
-    def update(self, *operations: _core.Operation | _core.Style) -> Placement[StateT]:
+    def update(
+        self, *operations: _core.Operation | _core.Style
+    ) -> Placement[DepsT, StateT]:
         """
         Change this placement's content with operations, styles or effects.
 
@@ -882,17 +824,17 @@ class Placement(_Hooked[StateT]):
             import xnano
             from xnano.effects import Effect
 
-            with xnano.open(offscreen=True, width=20, height=3) as terminal:
-                title = terminal.write('Welcome')
+            with xnano.new(width=20, height=3) as canvas:
+                title = canvas.write('Welcome')
                 title.update(Effect.dissolve(duration_milliseconds=500))
             ```
         """
-        self._terminal._require_open()
+        self._canvas._require_open()
         for item in operations:
             if isinstance(item, ContextualOperation):
-                cast('ContextualOperation[StateT]', item).apply_to(self)
+                cast('ContextualOperation[DepsT, StateT]', item).apply_to(self)
             elif isinstance(item, Customization):
-                item.apply_to(cast('Placement[object]', self))
+                item.apply_to(cast('Placement[object, object]', self))
             elif isinstance(item, _core.Style):
                 self._buffer.update(_core.ApplyStyle(item))
             else:
@@ -903,300 +845,32 @@ class Placement(_Hooked[StateT]):
                             self._enforce(axis)
         return self
 
-    def __or__(self, operation: _core.Operation | _core.Style) -> Placement[StateT]:
+    def __or__(
+        self, operation: _core.Operation | _core.Style
+    ) -> Placement[DepsT, StateT]:
         """Apply ``operation`` to this placement and return ``self``."""
         return self.update(operation)
 
-    def __ior__(self, operation: _core.Operation | _core.Style) -> Placement[StateT]:
+    def __ior__(
+        self, operation: _core.Operation | _core.Style
+    ) -> Placement[DepsT, StateT]:
         """Apply ``operation`` to this placement in place and return ``self``."""
         return self.update(operation)
 
-    @overload
-    def fx(
-        self, kind: Literal['fill'], /, **parameters: Unpack[FillArguments]
-    ) -> FillCustomization: ...
-    @overload
-    def fx(
-        self, kind: Literal['write'], /, **parameters: Unpack[WriteArguments]
-    ) -> WriteCustomization: ...
-    @overload
-    def fx(
-        self, kind: Literal['layout'], /, **parameters: Unpack[LayoutArguments]
-    ) -> LayoutCustomization: ...
-    @overload
-    def fx(
-        self, kind: Literal['fuzz'], /, **parameters: Unpack[FuzzArguments]
-    ) -> FuzzCustomization: ...
-    @overload
-    def fx(
-        self, kind: Literal['pixels'], /, **parameters: Unpack[PixelsArguments]
-    ) -> PixelsCustomization: ...
-    @overload
-    def fx(
-        self, kind: Literal['raster'], /, **parameters: Unpack[RasterArguments]
-    ) -> RasterCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.fade_to'],
-        /,
-        **parameters: Unpack[FadeToEffectArguments],
-    ) -> FadeToEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.fade_from'],
-        /,
-        **parameters: Unpack[FadeFromEffectArguments],
-    ) -> FadeFromEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.paint'],
-        /,
-        **parameters: Unpack[PaintEffectArguments],
-    ) -> PaintEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.saturate'],
-        /,
-        **parameters: Unpack[SaturateEffectArguments],
-    ) -> SaturateEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.lighten'],
-        /,
-        **parameters: Unpack[LightenEffectArguments],
-    ) -> LightenEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.darken'],
-        /,
-        **parameters: Unpack[DarkenEffectArguments],
-    ) -> DarkenEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.sweep_in'],
-        /,
-        **parameters: Unpack[SweepInEffectArguments],
-    ) -> SweepInEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.sweep_out'],
-        /,
-        **parameters: Unpack[SweepOutEffectArguments],
-    ) -> SweepOutEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.slide_in'],
-        /,
-        **parameters: Unpack[SlideInEffectArguments],
-    ) -> SlideInEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.slide_out'],
-        /,
-        **parameters: Unpack[SlideOutEffectArguments],
-    ) -> SlideOutEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.hsl_shift'],
-        /,
-        **parameters: Unpack[HslShiftEffectArguments],
-    ) -> HslShiftEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.dissolve'],
-        /,
-        **parameters: Unpack[DissolveEffectArguments],
-    ) -> DissolveEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.coalesce'],
-        /,
-        **parameters: Unpack[CoalesceEffectArguments],
-    ) -> CoalesceEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.glitch'],
-        /,
-        **parameters: Unpack[GlitchEffectArguments],
-    ) -> GlitchEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.sleep'],
-        /,
-        **parameters: Unpack[SleepEffectArguments],
-    ) -> SleepEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.evolve'],
-        /,
-        **parameters: Unpack[EvolveEffectArguments],
-    ) -> EvolveEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.evolve_into'],
-        /,
-        **parameters: Unpack[EvolveIntoEffectArguments],
-    ) -> EvolveIntoEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.evolve_from'],
-        /,
-        **parameters: Unpack[EvolveFromEffectArguments],
-    ) -> EvolveFromEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.expand'],
-        /,
-        **parameters: Unpack[ExpandEffectArguments],
-    ) -> ExpandEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.stretch'],
-        /,
-        **parameters: Unpack[StretchEffectArguments],
-    ) -> StretchEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['effect.explode'],
-        /,
-        **parameters: Unpack[ExplodeEffectArguments],
-    ) -> ExplodeEffectCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['audio.bit_crush'],
-        /,
-        **parameters: Unpack[BitCrushAudioArguments],
-    ) -> BitCrushAudioCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['audio.distortion'],
-        /,
-        **parameters: Unpack[DistortionAudioArguments],
-    ) -> DistortionAudioCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['audio.low_pass'],
-        /,
-        **parameters: Unpack[LowPassAudioArguments],
-    ) -> LowPassAudioCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['audio.high_pass'],
-        /,
-        **parameters: Unpack[HighPassAudioArguments],
-    ) -> HighPassAudioCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['audio.delay'],
-        /,
-        **parameters: Unpack[DelayAudioArguments],
-    ) -> DelayAudioCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['audio.reverb'],
-        /,
-        **parameters: Unpack[ReverbAudioArguments],
-    ) -> ReverbAudioCustomization: ...
-    @overload
-    def fx(
-        self,
-        kind: Literal['audio.tremolo'],
-        /,
-        **parameters: Unpack[TremoloAudioArguments],
-    ) -> TremoloAudioCustomization: ...
-    def fx(self, kind: CustomizationKind, /, **parameters: object) -> Customization:
-        """
-        Apply an effect or other typed customization to this placement and return it.
-
-        The returned customization stays attached: assigning one of its fields afterwards
-        changes the placement, and a running effect is stopped and started again with the
-        new values. Use the properties of the placement for how text looks (colors, border,
-        title, padding, margin).
-
-        Args:
-            kind: Which customization to apply, such as ``'fill'``, ``'effect.dissolve'`` or
-                ``'pixels'``.
-            parameters: Keyword arguments for the chosen customization kind.
-        """
-        compiled = cast('Callable[..., Customization]', _customize_operation)(
-            kind, **parameters
-        )
-        compiled.apply_to(cast('Placement[object]', self))
-        return compiled
-
-    def make_draggable(self, axis: Literal['x', 'y'] = 'x') -> Placement[StateT]:
-        """
-        Let the pointer move this placement along one axis by dragging it.
-
-        Pressing the placement grabs the pointer, so the drag keeps going when the pointer
-        leaves it. The placement follows the pointer's position inside its parent. Give the
-        axis a range first, such as ``placement.x = (0, 19)``, and the drag stays inside it.
-        Open the terminal with ``mouse=True`` to receive drags.
-
-        Args:
-            axis: ``'x'`` or ``'y'``.
-
-        Raises:
-            ValueError: ``axis`` is neither ``'x'`` nor ``'y'``.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.open(offscreen=True, width=20, height=3) as terminal:
-                thumb = terminal.write('#', x=(0, 10), y=0)
-                thumb.make_draggable()
-                assert thumb.x == 0
-            ```
-        """
-        if axis not in ('x', 'y'):
-            raise ValueError(
-                f'{axis!r} is not an axis make_draggable can move. Use "x" or "y".'
-            )
-        _draggable_operation(axis).apply_to(cast('Placement[object]', self))
-        return self
-
     def remove(self) -> None:
-        """Take the buffer off the terminal. Removing twice is harmless."""
+        """Take the buffer off the canvas. Removing twice is harmless."""
         if self._removed:
             return
         self._removed = True
         self._cancel_hooks()
-        with self._terminal._lock:
+        with self._canvas._lock:
             self._bindings.clear()
             self._limits.clear()
         try:
             self._parent_buffer.detach(self._buffer)
         except ValueError:
             pass
-        self._terminal._release(self)
+        self._canvas._release(self)
 
     def __repr__(self) -> str:
         state = 'removed' if self._removed else f'x={self.x}, y={self.y}'

@@ -36,10 +36,10 @@ def main() -> None:
             percent = job.done * 100 // STEPS
             bar.ratio = job.done / STEPS
             bar.label = f'{percent}%'
-            context.terminal.title = f'xnano job: {percent}%'
+            context.canvas.title = f'xnano job: {percent}%'
             print(f'finished file {job.done} of {STEPS}')  # noqa: T201
             if job.done == STEPS:
-                context.terminal.stop()
+                context.canvas.quit()
 
         terminal.run(quit_on='q')
     print(f'stopped after {job.done} of {STEPS} files')  # noqa: T201

@@ -244,7 +244,7 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
 
     Args:
         value: The axis value, see [`Axis`][xnano.types.Axis]. A range is not a value;
-            see [`axis_limits`][xnano.axis_limits].
+            see [`axis_limits`][xnano._axes.axis_limits].
         axis: ``'x'``, ``'y'``, ``'width'`` or ``'height'``.
 
     Raises:
@@ -300,7 +300,7 @@ def check_count(value: object, name: str = 'count') -> int:
     count = check_cells(value, name)
     if count < 0:
         raise ValueError(
-            f'{name} must be zero or more, but got {count}. To move the other way call '
-            f'the method for the opposite direction, such as down() instead of up().'
+            f'{name} must be zero or more, but got {count}. To move the other way, call the '
+            f'opposite direction: down() instead of up(), or left() instead of right().'
         )
     return count

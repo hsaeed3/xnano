@@ -33,10 +33,10 @@ def run(body: str) -> subprocess.CompletedProcess[str]:
 def test_xnano_imports_and_draws_without_the_optional_packages():
     result = run(
         """
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
-            terminal.write('ok')
-            terminal.output.render()
-            print(terminal.output.snapshot().lines()[0])
+        with xnano.new(width=8, height=1) as canvas:
+            canvas.write('ok')
+            canvas.output.render()
+            print(canvas.output.snapshot().lines()[0])
         """
     )
     assert result.returncode == 0, result.stderr
@@ -57,15 +57,15 @@ def test_using_a_module_of_a_missing_package_says_how_to_install_it(statement, e
     assert 'ImportError' in result.stderr
 
 
-def test_the_audio_of_a_terminal_says_how_to_install_it():
+def test_the_audio_of_a_canvas_says_how_to_install_it():
     result = run(
         """
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
-            terminal.audio
+        with xnano.new(width=8, height=1) as canvas:
+            canvas.audio
         """
     )
     assert result.returncode != 0
-    assert 'Terminal.audio needs sound, notes and melodies' in result.stderr
+    assert 'Canvas.audio needs sound, notes and melodies' in result.stderr
     assert 'pip install "xnano[audio]"' in result.stderr
 
 
@@ -73,7 +73,7 @@ def test_showing_an_image_file_says_how_to_install_it(tmp_path):
     result = run(
         f"""
         import pathlib
-        with xnano.open(offscreen=True, width=8, height=1) as terminal:
+        with xnano.new(width=8, height=1) as canvas:
             xnano.Image(pathlib.Path({str(tmp_path / 'x.png')!r}))
         """
     )

@@ -10,16 +10,16 @@ import dataclasses
 from typing import TYPE_CHECKING, Generic, final
 
 import xnano_core as _core
-from xnano._values import StateT_co
+from xnano._values import DepsT_co, StateT_co
 from xnano.pixels import Pixels
 from xnano_core import CoreContext
 
 if TYPE_CHECKING:
     from xnano._hooks import HookHandle
     from xnano.audio import AudioDevice
+    from xnano.canvas import Canvas
     from xnano.cursor import Cursor
     from xnano.placement import Placement
-    from xnano.terminal import Terminal
     from xnano.time import Time
 
 
@@ -147,82 +147,84 @@ class ParentContext:
 @dataclasses.dataclass(frozen=True, slots=True)
 class RootContext(Generic[StateT_co]):
     """
-    Concrete view of the root terminal inside a [`Context`][xnano.context.Context].
+    Concrete view of the root canvas inside a [`Context`][xnano.context.Context].
 
     Attributes:
-        terminal: The root [`Terminal`][xnano.terminal.Terminal].
-        state: The root terminal's typed state.
-        width: The width of the root terminal in cells.
-        height: The height of the root terminal in cells.
-        size: The size of the root terminal in cells.
-        bounds: The rectangle of the root terminal in cells.
-        time: The root terminal's [`Time`][xnano.time.Time].
-        fps: Target frame rate of the root terminal.
-        audio: The root terminal's [`AudioDevice`][xnano.audio.AudioDevice].
-        cursor: The root terminal's cursor.
+        canvas: The root [`Canvas`][xnano.canvas.Canvas].
+        state: The root canvas's typed state.
+        width: The width of the root canvas in cells.
+        height: The height of the root canvas in cells.
+        size: The size of the root canvas in cells.
+        bounds: The rectangle of the root canvas in cells.
+        time: The root canvas's [`Time`][xnano.time.Time].
+        fps: Target frame rate of the root canvas.
+        audio: The root canvas's [`AudioDevice`][xnano.audio.AudioDevice].
+        cursor: The root canvas's cursor.
     """
 
-    terminal: Terminal[object]
-    """The root [`Terminal`][xnano.terminal.Terminal]."""
+    canvas: Canvas[object, object]
+    """The root [`Canvas`][xnano.canvas.Canvas]."""
     state: StateT_co
-    """The root terminal's typed state."""
+    """The root canvas's typed state."""
 
     @property
     def width(self) -> int:
-        """The width of the root terminal in cells."""
-        return self.terminal.width
+        """The width of the root canvas in cells."""
+        return self.canvas.width
 
     @property
     def height(self) -> int:
-        """The height of the root terminal in cells."""
-        return self.terminal.height
+        """The height of the root canvas in cells."""
+        return self.canvas.height
 
     @property
     def size(self) -> _core.Size:
-        """The size of the root terminal in cells."""
-        return self.terminal.size
+        """The size of the root canvas in cells."""
+        return self.canvas.size
 
     @property
     def bounds(self) -> _core.Rectangle:
-        """The rectangle of the root terminal in cells."""
-        size = self.terminal.size
+        """The rectangle of the root canvas in cells."""
+        size = self.canvas.size
         return _core.Rectangle(0, 0, size.width, size.height)
 
     @property
     def time(self) -> Time:
-        """The root terminal's [`Time`][xnano.time.Time]."""
-        return self.terminal.time
+        """The root canvas's [`Time`][xnano.time.Time]."""
+        return self.canvas.time
 
     @property
     def fps(self) -> float:
-        """Target frame rate of the root terminal."""
-        return self.terminal.loop.fps
+        """Target frame rate of the root canvas."""
+        return self.canvas.fps
 
     @property
     def audio(self) -> AudioDevice:
-        """The root terminal's [`AudioDevice`][xnano.audio.AudioDevice]."""
-        return self.terminal.audio
+        """The root canvas's [`AudioDevice`][xnano.audio.AudioDevice]."""
+        return self.canvas.audio
 
     @property
     def cursor(self) -> Cursor:
-        """The root terminal's cursor."""
-        return self.terminal.cursor
+        """The root canvas's cursor."""
+        return self.canvas.cursor
 
 
 @final
 @dataclasses.dataclass(frozen=True, slots=True)
-class Context(Generic[StateT_co]):
+class Context(Generic[DepsT_co, StateT_co]):
     """
     What a hook or contextual operation is called with.
 
     The callback is never handed a bare event. The context carries the event, the target
-    buffer, its parent and root scopes, and the terminal it happened in.
+    buffer, its parent and root scopes, and the canvas it happened in.
 
     Attributes:
-        terminal: The terminal the hook belongs to.
-        target: The terminal or placement the hook is attached to.
-        event: The event, or ``None`` when a wait or frame tick ran. A state change is
-            delivered as a [`TerminalStateChange`][xnano_core.TerminalStateChange].
+        canvas: The canvas the hook belongs to.
+        target: The canvas or placement the hook is attached to.
+        event: The event, or ``None`` when a wait ran out. A state change is delivered as a
+            [`TerminalStateChange`][xnano_core.TerminalStateChange], a frame of
+            ``hook(on='frame')`` as a [`Frame`][xnano.context.Frame] and a step of
+            ``hook(on='tick')`` as an [`Update`][xnano.context.Update].
         hook: The registration, so the hook can call ``hook.remove()``.
         keyboard: The key event, or ``None``. Its ``key`` is the key's name.
         mouse: The mouse event, or ``None``.
@@ -230,34 +232,36 @@ class Context(Generic[StateT_co]):
         size_changed: The new size, or ``None``.
         focus_gained: The focus-gained event, or ``None``.
         bounds: The target's rectangle in screen cells.
-        state: The terminal's state.
+        state: The canvas's state.
         core: The underlying context, when the call came from the runtime.
-        size: The terminal's size in cells.
-        cursor: The terminal's cursor.
+        size: The canvas's size in cells.
+        cursor: The canvas's cursor.
         input: The keys that are pressed and the cell under the pointer.
-        audio: The terminal's [`AudioDevice`][xnano.audio.AudioDevice].
-        time: The terminal's [`Time`][xnano.time.Time].
+        audio: The canvas's [`AudioDevice`][xnano.audio.AudioDevice].
+        time: The canvas's [`Time`][xnano.time.Time].
         x: The left column of the target in screen cells.
         y: The top row of the target in screen cells.
         width: The width of the target in cells.
         height: The height of the target in cells.
         buffer: Concrete [`BufferContext`][xnano.context.BufferContext] for the target.
         parent: Concrete [`ParentContext`][xnano.context.ParentContext] for the target's parent.
-        root: Concrete [`RootContext`][xnano.context.RootContext] for the terminal.
+        root: Concrete [`RootContext`][xnano.context.RootContext] for the canvas.
     """
 
-    terminal: Terminal[object]
-    """The terminal the hook belongs to."""
-    target: Terminal[object] | Placement[object]
-    """The terminal or placement the hook is attached to."""
-    event: _core.Event | _core.TerminalStateChange | None
+    canvas: Canvas[object, object]
+    """The canvas the hook belongs to."""
+    target: Canvas[object, object] | Placement[object, object]
+    """The canvas or placement the hook is attached to."""
+    event: _core.Event | _core.TerminalStateChange | Frame | Update | None
     """
     The event, or ``None`` when a wait ran out.
 
     A state change is delivered as a
-    [`TerminalStateChange`][xnano_core.TerminalStateChange].
+    [`TerminalStateChange`][xnano_core.TerminalStateChange], a frame of ``hook(on='frame')``
+    as a [`Frame`][xnano.context.Frame] and a step of ``hook(on='tick')`` as an
+    [`Update`][xnano.context.Update].
     """
-    hook: HookHandle[object]
+    hook: HookHandle[object, object]
     """The registration, so the hook can call ``hook.remove()``."""
     keyboard: _core.KeyEvent | None
     """The key event, or ``None``. Its ``key`` is the key's name, such as ``'q'`` or ``'enter'``."""
@@ -272,36 +276,36 @@ class Context(Generic[StateT_co]):
     bounds: _core.Rectangle
     """The target's rectangle in screen cells."""
     state: StateT_co
-    """The terminal's state."""
+    """The canvas's state."""
     core: CoreContext | None
     """The underlying context, when the call came from the runtime."""
 
     @property
     def audio(self) -> AudioDevice:
-        """The terminal's audio."""
-        return self.terminal.audio
+        """The canvas's audio."""
+        return self.canvas.audio
 
     @property
     def size(self) -> _core.Size:
-        """The terminal's size in cells."""
-        return self.terminal.size
+        """The canvas's size in cells."""
+        return self.canvas.size
 
     @property
     def cursor(self) -> Cursor:
-        """The terminal's cursor."""
-        return self.terminal.cursor
+        """The canvas's cursor."""
+        return self.canvas.cursor
 
     @property
     def input(self) -> _core.InputState:
         """The keys that are pressed and the cell under the pointer."""
         if self.core is not None:
             return self.core.input
-        return self.terminal._runtime.input
+        return self.canvas._runtime.input
 
     @property
     def time(self) -> Time:
-        """The terminal's [`Time`][xnano.time.Time]."""
-        return self.terminal.time
+        """The canvas's [`Time`][xnano.time.Time]."""
+        return self.canvas.time
 
     @property
     def x(self) -> int:
@@ -334,13 +338,13 @@ class Context(Generic[StateT_co]):
         parent_buffer = getattr(self.target, '_parent_buffer', None)
         if isinstance(parent_buffer, _core.Buffer):
             return ParentContext(bounds=parent_buffer._absolute_bounds)
-        size = self.terminal.size
+        size = self.canvas.size
         return ParentContext(bounds=_core.Rectangle(0, 0, size.width, size.height))
 
     @property
     def root(self) -> RootContext[StateT_co]:
-        """Concrete [`RootContext`][xnano.context.RootContext] for the terminal."""
-        return RootContext(terminal=self.terminal, state=self.state)
+        """Concrete [`RootContext`][xnano.context.RootContext] for the canvas."""
+        return RootContext(canvas=self.canvas, state=self.state)
 
     def local(self, point: _core.Point) -> _core.Point:
         """
@@ -351,8 +355,8 @@ class Context(Generic[StateT_co]):
             import xnano
             from xnano_core import Point
 
-            with xnano.open(offscreen=True, width=20, height=4) as terminal:
-                placement = terminal.write('hi', x=10, y=1)
+            with xnano.new(width=20, height=4) as canvas:
+                placement = canvas.write('hi', x=10, y=1)
 
                 @placement.hook
                 def pressed(context: xnano.context.Context) -> None:
@@ -368,22 +372,26 @@ class Context(Generic[StateT_co]):
 @dataclasses.dataclass(frozen=True, slots=True)
 class Frame:
     """
-    One frame of a terminal's clock.
+    One frame of a canvas's clock.
 
     Attributes:
-        terminal: The terminal the frame belongs to.
-        index: How many frames came before this one.
-        elapsed_seconds: Seconds on the terminal's clock.
+        canvas: The canvas the frame belongs to.
+        index: The number of steps the canvas's clock has counted, which is
+            [`Time.frame`][xnano.time.Time.frame] when the frame was made.
+        elapsed_seconds: Seconds on the canvas's clock.
         delta_seconds: Seconds since the previous frame (``0.0`` for the first).
         area: The rectangle the frame is drawn into, in cells.
     """
 
-    terminal: Terminal[object]
-    """The terminal the frame belongs to."""
+    canvas: Canvas[object, object]
+    """The canvas the frame belongs to."""
     index: int
-    """How many frames came before this one."""
+    """
+    The number of steps the canvas's clock has counted, which is
+    [`Time.frame`][xnano.time.Time.frame] when the frame was made.
+    """
     elapsed_seconds: float
-    """Seconds on the terminal's clock."""
+    """Seconds on the canvas's clock."""
     delta_seconds: float
     """Seconds since the previous frame (``0.0`` for the first)."""
     area: _core.Rectangle
@@ -397,14 +405,14 @@ class Update:
     One step of a simulation, which runs separately from drawing.
 
     Attributes:
-        terminal: The terminal the update belongs to.
+        canvas: The canvas the update belongs to.
         elapsed_seconds: Seconds on the update's clock.
         delta_seconds: Seconds this update advances.
         is_fixed_step: Whether the update runs at a fixed rate.
     """
 
-    terminal: Terminal[object]
-    """The terminal the update belongs to."""
+    canvas: Canvas[object, object]
+    """The canvas the update belongs to."""
     elapsed_seconds: float
     """Seconds on the update's clock."""
     delta_seconds: float

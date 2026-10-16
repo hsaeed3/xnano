@@ -5,8 +5,8 @@ The terrain is baked once into an image and the hero is a four-direction sprite 
 walking cycle. Both live in a ``terminal.scene``: it draws them through a camera that follows the
 hero, redraws only when something moved, and knows which pixels are solid, so ``sprite.move_by``
 slides along water and trees. ``terminal.input`` answers "which keys are held?", and the
-simulation runs on ``loop.on_update`` with a fixed time step so the hero walks at the same speed
-on every machine.
+simulation runs on ``hook(on='tick', every=...)`` with a fixed time step so the hero walks at
+the same speed on every machine.
 
 Walk with ``wasd`` or the arrow keys, or hold the mouse button down and the hero walks toward
 the pointer; a click walks to that spot. ``space`` stops time and starts it again. Water and
@@ -17,7 +17,7 @@ import math
 import random
 
 import xnano
-from xnano.context import Context, Update
+from xnano.context import Context
 from xnano.expressions import ParentHeight
 from xnano.image import TerminalImage, from_art
 from xnano.scene import Sprite
@@ -242,23 +242,23 @@ def main() -> None:
         def show_status() -> None:
             state = (
                 'paused (space)'
-                if terminal.time.is_paused
+                if terminal.time.is_stopped
                 else 'wasd or hold the mouse: walk'
             )
             status = f'x {round(hero.sprite.x):>3} y {round(hero.sprite.y):>3}   {state}   q: quit'
             status_line.text = status
 
-        @terminal.loop.on_update(fixed_step_seconds=1 / 60)
-        def simulate(update: Update) -> None:
+        @terminal.hook(on='tick', every=1 / 60)
+        def simulate(context: Context) -> None:
             hero.step(1 / 60, terminal.input.direction())
             show_status()
 
         @terminal.on_key('space')
         def toggle_time(context: Context) -> None:
-            if terminal.time.is_paused:
+            if terminal.time.is_stopped:
                 terminal.time.resume()
             else:
-                terminal.time.pause()
+                terminal.time.stop()
             show_status()  # updates wait while time is stopped
 
         def walk_toward_pointer(context: Context) -> None:

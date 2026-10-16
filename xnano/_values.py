@@ -1,17 +1,17 @@
 """
 xnano._values
 
-Type aliases shared by the terminal, placements and pixels.
+Type aliases shared by the canvas, placements and pixels.
 """
 
 from __future__ import annotations
 
+import sys
 from typing import (
     TYPE_CHECKING,
     Literal,
     Protocol,
     TypeAlias,
-    TypeVar,
     runtime_checkable,
 )
 
@@ -30,6 +30,11 @@ from xnano_core import (
 from xnano_core import (
     TailwindColorShade as TailwindColorShade,
 )
+
+if sys.version_info >= (3, 13):
+    from typing import TypeVar
+else:
+    from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
     from xnano_image import TerminalImage
@@ -66,7 +71,7 @@ One number of a position or size: ``x``, ``y``, ``width`` or ``height``.
   ``'top'``, ``'center'`` or ``'bottom'`` for ``y``.
 * an expression such as ``(ParentWidth - Width) // 2`` or ``ParentWidth * (TimeElapsed % 4 / 4)``:
   evaluated again on every frame, with ``TimeElapsed`` and the other clock references moving
-  with the terminal's clock.
+  with the canvas's clock.
 * a range, a pair ``(low, high)``: not a value but a limit on the values the axis may
   take. For ``x`` and ``y`` it is how far the placement
   may travel, such as the track of a slider; for ``width`` and ``height`` it is the
@@ -81,22 +86,25 @@ AttributeValue: TypeAlias = 'JSONValue | _core.Color | _core.Style | _core.Buffe
 PixelEncoding: TypeAlias = Literal['half_blocks', 'braille']
 """``'half_blocks'``: one column and two rows of pixels per cell. ``'braille'``: two by four."""
 
-TerminalBackend: TypeAlias = Literal['terminal', 'offscreen']
+DepsT = TypeVar('DepsT', default=None)
+"""The type of the dependencies a canvas was given with ``new(deps=...)``, or ``None``."""
 
-StateT = TypeVar('StateT')
-"""The type of the dataclass a terminal keeps as its state, or ``None`` without one."""
+StateT = TypeVar('StateT', default=None)
+"""The type of the dataclass a canvas keeps as its state, or ``None`` without one."""
 
 ValueT = TypeVar('ValueT')
 
-StateT_co = TypeVar('StateT_co', covariant=True)
+DepsT_co = TypeVar('DepsT_co', covariant=True, default=None)
+
+StateT_co = TypeVar('StateT_co', covariant=True, default=None)
 
 
 @runtime_checkable
 class Renderable(Protocol):
     """
-    Anything a terminal can show.
+    Anything a canvas can show.
 
-    Implement ``__xnano_buffer__`` on your own class to make it addable to a terminal. A
+    Implement ``__xnano_buffer__`` on your own class to make it addable to a canvas. A
     [`Buffer`][xnano_core.Buffer] (and so every widget), a string and the bytes
     of a cell grid are renderable without it.
     """
@@ -107,4 +115,4 @@ class Renderable(Protocol):
 
 
 Content: TypeAlias = 'Buffer | Renderable | str | bytes | TerminalImage | Image'
-"""What [`Terminal.write`][xnano.terminal.Terminal.write] accepts."""
+"""What [`Canvas.write`][xnano.canvas.Canvas.write] accepts."""

@@ -41,7 +41,7 @@ with xnano.open(width=50, height=7) as terminal:
     def show_next_effect() -> None:
         name = next(names)
         heading.text = f'effect: {name}'
-        banner.buffer.update(EFFECTS[name]())
+        banner.core_buffer.update(EFFECTS[name]())
 
     show_next_effect()
 

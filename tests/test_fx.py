@@ -7,7 +7,7 @@ import pytest
 import xnano
 import xnano_core
 from xnano.context import Context
-from xnano.operations import draggable
+from xnano.operations import draggable, fx
 
 
 def render_text(buffer) -> str:
@@ -15,7 +15,7 @@ def render_text(buffer) -> str:
 
 
 def test_customize_returns_a_dataclass_operation() -> None:
-    fill = xnano.fx('fill', cell='.')
+    fill = fx('fill', cell='.')
     assert dataclasses.is_dataclass(fill)
     assert fill.cell == '.'
     assert isinstance(fill, xnano.operations.Customization)
@@ -23,58 +23,62 @@ def test_customize_returns_a_dataclass_operation() -> None:
 
 def test_customize_rejects_unknown_parameters() -> None:
     with pytest.raises(TypeError):
-        xnano.fx('fill', character='.')  # type: ignore[call-arg]
+        fx('fill', character='.')  # type: ignore[call-arg]
 
 
-def test_canvas_customize_returns_a_handle_that_edits_the_canvas() -> None:
-    canvas = xnano.new('hello', width=6, height=1)
-    dots = canvas.fx('fill', cell='.')
-    assert isinstance(dots, xnano.operations.Customization)
-    dots.cell = '#'
-    assert '#' in render_text(canvas.build())
-    dots.cell = '+'
-    assert '+' in render_text(canvas.build())
+def test_a_customization_is_a_live_handle_on_the_canvas() -> None:
+    with xnano.new('hello', width=6, height=1) as canvas:
+        dots = fx('fill', cell='.')
+        canvas.update(dots)
+        assert isinstance(dots, xnano.operations.Customization)
+        dots.cell = '#'
+        assert '#' in canvas.render()
+        dots.cell = '+'
+        assert '+' in canvas.render()
 
 
-def test_a_canvas_draws_its_border_title_and_padding_from_attributes() -> None:
-    canvas = xnano.new('hi', border='rounded', title='T', padding=1)
-    text = render_text(canvas.build())
-    assert '╭T' in text
-    canvas.border = 'double'
-    assert '╔T' in render_text(canvas.build())
-    assert canvas.padding == 1
+def test_appearance_keywords_style_the_canvas_and_never_its_content() -> None:
+    with pytest.raises(
+        TypeError, match='style the canvas itself, not its content: border'
+    ):
+        xnano.new('hi', border='rounded')
+    with xnano.new(width=6, height=3, border='rounded') as canvas:
+        assert canvas.render().split('\n')[0] == '╭────╮'
+        canvas.write('hi', x=1, y=1)
+        assert canvas.render().split('\n')[1] == '│hi  │'
 
 
 def test_a_placement_changes_its_look_after_it_is_written() -> None:
-    with xnano.open(offscreen=True, width=20, height=8) as terminal:
-        label = terminal.write('hi', border='rounded', padding={'horizontal': 1})
+    with xnano.new(width=20, height=8) as canvas:
+        label = canvas.write('hi', border='rounded', padding={'horizontal': 1})
         assert (label.width, label.height) == (6, 3)
         label.border = 'double'
         label.padding = 2
         label.text = 'hello'
         assert (label.width, label.height) == (11, 7)
-        terminal.iter(count=1).__next__()
-        assert '╔' in terminal.root.render(format='text')
+        canvas.iter(count=1).__next__()
+        assert '╔' in canvas.core_buffer.render(format='text')
         assert label.border == 'double'
 
 
 def test_margin_adds_space_outside_the_box() -> None:
-    with xnano.open(offscreen=True, width=12, height=6) as terminal:
-        label = terminal.write('hi', border='plain', margin={'left': 2, 'top': 1})
+    with xnano.new(width=12, height=6) as canvas:
+        label = canvas.write('hi', border='plain', margin={'left': 2, 'top': 1})
         assert (label.width, label.height) == (6, 4)
 
 
 def test_a_widget_cannot_take_a_text_look() -> None:
-    with xnano.open(offscreen=True, width=12, height=3) as terminal:
-        gauge = terminal.write(xnano_core.Gauge(ratio=0.5, width=10, height=1))
+    with xnano.new(width=12, height=3) as canvas:
+        gauge = canvas.write(xnano_core.Gauge(ratio=0.5, width=10, height=1))
         with pytest.raises(TypeError, match='does not show text'):
             gauge.border = 'plain'
 
 
 def test_an_effect_handle_restarts_the_effect_with_new_values() -> None:
-    with xnano.open(offscreen=True, width=10, height=1) as terminal:
-        label = terminal.write('abc')
-        effect = label.fx('effect.dissolve', duration_milliseconds=100)
+    with xnano.new(width=10, height=1) as canvas:
+        label = canvas.write('abc')
+        effect = fx('effect.dissolve', duration_milliseconds=100)
+        label.update(effect)
         key = effect.key
         assert key is not None
         effect.duration_milliseconds = 400
@@ -83,52 +87,62 @@ def test_an_effect_handle_restarts_the_effect_with_new_values() -> None:
 
 
 def test_canvas_pipes_a_customization() -> None:
-    canvas = xnano.new('x', width=4, height=1) | xnano.fx('fill', cell='.')
-    assert isinstance(canvas, xnano.canvas.Canvas)
-    assert '.' in render_text(canvas.build())
+    with xnano.new('x', width=4, height=1) as canvas:
+        assert (canvas | fx('fill', cell='.')) is canvas
+        assert isinstance(canvas, xnano.canvas.Canvas)
+        assert '.' in canvas.render()
 
 
-def test_open_mounts_a_canvas_and_uses_its_size() -> None:
-    with xnano.open(xnano.new('hi', width=10, height=2), offscreen=True) as terminal:
-        assert terminal.size.width == 10
-        assert terminal.size.height == 2
+def test_open_explains_the_keywords_it_refuses_before_taking_the_screen() -> None:
+    with xnano.new('hi', width=10, height=2, deps={'name': 'app'}) as canvas:
+        with pytest.raises(TypeError, match='takes no realtime'):
+            xnano.open(canvas, realtime=True)  # type: ignore[call-overload]
+        with pytest.raises(TypeError, match='deps was already given to xnano.new'):
+            xnano.open(canvas, deps={'name': 'other'})
+        with pytest.raises(ValueError, match='needs a height too'):
+            xnano.open(canvas, width=10)
+        assert not isinstance(canvas, xnano.Terminal)
+        assert xnano.terminal._live_terminal_open is False
 
 
-def test_open_rejects_something_that_is_not_a_canvas() -> None:
-    with pytest.raises(TypeError):
-        xnano.open('text', offscreen=True)  # type: ignore[call-overload]
+def test_open_given_content_styles_the_canvas_only_without_content() -> None:
+    with pytest.raises(TypeError, match='style the canvas itself'):
+        xnano.open('text', border='rounded')
+    assert xnano.terminal._live_terminal_open is False
 
 
-def test_terminal_customize_returns_a_handle_and_pipe_returns_the_terminal() -> None:
-    with xnano.open(offscreen=True, width=8, height=2) as terminal:
-        assert isinstance(terminal.fx('fill', cell='.'), xnano.operations.Customization)
-        assert (terminal | xnano.fx('fill', cell='.')) is terminal
+def test_a_canvas_has_no_fx_method_and_pipe_returns_the_canvas() -> None:
+    with xnano.new(width=8, height=2) as canvas:
+        assert not hasattr(canvas, 'fx')
+        assert (canvas | fx('fill', cell='.')) is canvas
+        label = canvas.write('hi')
+        assert not hasattr(label, 'fx')
 
 
 def test_nested_placement_is_draggable() -> None:
-    with xnano.open(offscreen=True, width=20, height=3) as terminal:
-        track = terminal.write(' ' * 10, y=1)
+    with xnano.new(width=20, height=3) as canvas:
+        track = canvas.write(' ' * 10, y=1)
         thumb = track.write('█', x=(0, track.width - 1), y=0) | draggable()
         assert isinstance(thumb, xnano.placement.Placement)
 
 
 def test_expression_scopes_on_placements() -> None:
-    with xnano.open(offscreen=True, width=20, height=3) as terminal:
-        ball = terminal.write('o')
+    with xnano.new(width=20, height=3) as canvas:
+        ball = canvas.write('o')
         ball.x = (ball.parent.width - ball.width) * ((ball.root.time / 2.0) % 1.0)
-        ball.x = (terminal.width - ball.width) * ((terminal.time / 2.0) % 1.0)
+        ball.x = (canvas.width - ball.width) * ((canvas.time / 2.0) % 1.0)
 
 
 def test_terminal_hook_with_a_trigger_mounts_a_contextual_operation() -> None:
     calls: list[int] = []
-    with xnano.open(offscreen=True, width=8, height=2) as terminal:
+    with xnano.new(width=8, height=2) as canvas:
 
-        @terminal.hook(on='frame')
+        @canvas.hook(on='frame')
         def record(context: xnano.context.Context) -> None:
             calls.append(1)
 
         assert isinstance(record, xnano.operations.ContextualOperation)
-        for _ in terminal.iter(count=2):
+        for _ in canvas.iter(count=2):
             pass
     assert calls
 
@@ -204,7 +218,7 @@ def test_customization_is_a_native_operation_that_sequences() -> None:
 
 
 def test_editing_a_field_changes_what_the_customization_does() -> None:
-    fill = xnano.fx('fill', cell='.')
+    fill = fx('fill', cell='.')
     fill.cell = '#'
     buffer = xnano_core.Buffer(width=3, height=1)
     buffer | fill
@@ -221,8 +235,8 @@ def test_customization_errors_say_how_to_recover() -> None:
 
 
 def test_mixed_operations_chain_in_order() -> None:
-    shader = xnano.fx('pixels', shader=lambda column, row: (255, 0, 0))
-    chained = shader | xnano.fx('fill', cell='.')
+    shader = fx('pixels', shader=lambda column, row: (255, 0, 0))
+    chained = shader | fx('fill', cell='.')
     assert isinstance(chained, xnano_core.OperationChain)
     buffer = xnano_core.Buffer(width=2, height=1)
     buffer.update(chained)
@@ -253,7 +267,7 @@ def test_audio_customization_chains_onto_sounds() -> None:
     from xnano_audio import TerminalSound
 
     sound = TerminalSound.from_samples([0.0, 0.5, -0.5, 0.25] * 64, sample_rate=8000)
-    shaped = sound | xnano.fx('audio.reverb', mix=0.3)
+    shaped = sound | fx('audio.reverb', mix=0.3)
     assert isinstance(shaped, TerminalSound)
 
 
@@ -263,21 +277,21 @@ def test_xnano_hook_makes_a_reusable_operation() -> None:
         return f'w={context.width}'
 
     assert isinstance(banner, xnano.operations.ContextualOperation)
-    with xnano.open(offscreen=True, width=8, height=1) as terminal:
-        assert terminal.write(banner).text == 'w=8'
+    with xnano.new(width=8, height=1) as canvas:
+        assert canvas.write(banner).text == 'w=8'
     assert not hasattr(xnano, 'operation')
 
 
 def test_a_hook_on_a_clock_returns_the_operation_and_an_event_hook_the_handle() -> None:
     ticks: list[float] = []
-    with xnano.open(offscreen=True, width=8, height=1) as terminal:
+    with xnano.new(width=8, height=1) as canvas:
 
-        @terminal.hook(every=0.1)
+        @canvas.hook(every=0.1)
         def tick(context: Context) -> None:
             ticks.append(context.time.elapsed)
 
-        handle = terminal.hook(lambda context: None, when=xnano_core.Trigger.key('q'))
-        terminal.loop.advance(0.35)
+        handle = canvas.hook(lambda context: None, when=xnano_core.Trigger.key('q'))
+        canvas.step(delta_seconds=0.35)
     assert isinstance(tick, xnano.operations.ContextualOperation)
     assert ticks
     assert hasattr(handle, 'remove')

@@ -1,15 +1,15 @@
 """
 Snake: a game on a fixed time step.
 
-``terminal.loop.on_update`` runs the simulation at a steady rate whatever the frame rate is, so
-the snake moves at the same speed on every machine. The arrow keys steer, ``r`` restarts after
+``hook(on='tick', every=...)`` runs the simulation at a steady rate whatever the frame rate is,
+so the snake moves at the same speed on every machine. The arrow keys steer, ``r`` restarts after
 a crash, and ``q`` quits.
 """
 
 import random
 
 import xnano
-from xnano.context import Context, Update
+from xnano.context import Context
 
 WIDTH = 30
 HEIGHT = 24  # in pixels: a cell holds two
@@ -80,8 +80,8 @@ def main() -> None:
             )
             status_line.text = status
 
-        @terminal.loop.on_update(fixed_step_seconds=0.12)
-        def tick(update: Update) -> None:
+        @terminal.hook(on='tick', every=0.12)
+        def tick(context: Context) -> None:
             game.step()
             draw()
 

@@ -7,7 +7,7 @@ move it from the keyboard, and the range holds it inside the track. Press ``q`` 
 """
 
 import xnano
-from xnano.context import Context, Frame
+from xnano.context import Context
 from xnano.operations import draggable
 
 with xnano.open(width=40, height=3, mouse=True) as terminal:
@@ -15,8 +15,8 @@ with xnano.open(width=40, height=3, mouse=True) as terminal:
     thumb = track.write('█', x=(0, track.width - 1), y=0) | draggable()
     heading = terminal.write('volume   0%   (drag the block, or press left and right)')
 
-    @terminal.loop.on_frame
-    def show_value(frame: Frame) -> None:
+    @terminal.hook(on='frame')
+    def show_value(context: Context) -> None:
         percent = round(thumb.x / 39 * 100)
         heading.text = f'volume {percent:>3}%   (drag the block, or press left and right)'
 

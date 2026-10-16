@@ -2,10 +2,11 @@
 xnano
 """
 
+from xnano import symbols as symbols
 from xnano._media import Audio, Image, from_media
-from xnano.canvas import Canvas, make, new
-from xnano.operations import fx, hook
-from xnano.terminal import Terminal, active, iter, open
+from xnano.canvas import Canvas, active, iter, new
+from xnano.operations import hook
+from xnano.terminal import Terminal, open
 from xnano_core import Color
 
 __all__ = [
@@ -15,11 +16,9 @@ __all__ = [
     'Image',
     'Terminal',
     'active',
-    'fx',
+    'from_media',
     'hook',
     'iter',
-    'make',
     'new',
-    'from_media',
     'open',
 ]

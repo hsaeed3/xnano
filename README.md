@@ -34,10 +34,10 @@ with xnano.open(width=40, height=5) as terminal:
 
     @terminal.on_key('space')
     def toggle(context: Context) -> None:
-        if terminal.time.is_paused:
+        if terminal.time.is_stopped:
             terminal.time.resume()
         else:
-            terminal.time.pause()
+            terminal.time.stop()
 
     terminal.run(quit_on='q')
 ```

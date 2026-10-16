@@ -3,7 +3,7 @@ Every event, in one log.
 
 Keys, the mouse, pastes and your own events all arrive the same way, as a context given to a
 hook. Press keys, click, drag, paste, resize the window, or press ``c`` to send an event of
-your own with ``terminal.inject``.
+your own with ``terminal.push``.
 
 A custom ``when`` can also span time. ``taps`` below is a generator: it waits for the next event with
 ``yield``, counts key presses, starts over when too much time passes, and returns the event
@@ -76,6 +76,6 @@ with xnano.open(width=60, height=10, mouse='motion') as terminal:
 
     @terminal.on_key('c')
     def send(context: Context) -> None:
-        context.terminal.inject(Event.custom('hello', data='from the example'))
+        context.canvas.push(Event.custom('hello', data='from the example'))
 
     terminal.run(quit_on='q')

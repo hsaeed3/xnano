@@ -1,7 +1,7 @@
 """
 tests.test_media
 
-Images become buffers, and animated images move on the terminal's clock.
+Images become buffers, and animated images move on the canvas's clock.
 """
 
 from __future__ import annotations
@@ -18,84 +18,83 @@ def solid(width: int, height: int, color: tuple[int, int, int]) -> TerminalImage
     return TerminalImage.from_rgba(width, height, pixels)
 
 
-def cell_at(terminal, column, row):
-    frame = terminal.output.render()
+def cell_at(canvas, column, row):
+    frame = canvas.output.render()
     return Buffer.from_cell_grid(frame.to_cell_grid())[column, row]
 
 
 @pytest.fixture
-def terminal():
-    with xnano.open(offscreen=True, width=20, height=6) as terminal:
-        yield terminal
+def canvas():
+    with xnano.new(width=20, height=6) as canvas:
+        yield canvas
 
 
 class TestImages:
-    def test_an_image_keeps_its_own_size(self, terminal):
-        placement = terminal.write(solid(8, 8, (255, 0, 0)))
+    def test_an_image_keeps_its_own_size(self, canvas):
+        placement = canvas.write(solid(8, 8, (255, 0, 0)))
         assert (placement.width, placement.height) == (8, 4)
 
-    def test_a_large_image_shrinks_to_fit_the_terminal(self, terminal):
-        placement = terminal.write(solid(80, 40, (0, 255, 0)))
+    def test_a_large_image_shrinks_to_fit_the_terminal(self, canvas):
+        placement = canvas.write(solid(80, 40, (0, 255, 0)))
         assert placement.width <= 20 and placement.height <= 6
         assert placement.width / placement.height == pytest.approx(80 / 20, rel=0.3)
 
-    def test_one_size_keeps_the_proportions(self, terminal):
-        placement = terminal.write(solid(16, 16, (0, 0, 255)), width=10)
+    def test_one_size_keeps_the_proportions(self, canvas):
+        placement = canvas.write(solid(16, 16, (0, 0, 255)), width=10)
         assert placement.width == 10
         assert placement.height == 5
 
-    def test_a_percentage_is_a_share_of_the_terminal(self, terminal):
-        placement = terminal.write(solid(16, 16, (0, 0, 255)), width='50%')
+    def test_a_percentage_is_a_share_of_the_terminal(self, canvas):
+        placement = canvas.write(solid(16, 16, (0, 0, 255)), width='50%')
         assert placement.width == 10
 
-    def test_both_sizes_fit_the_image_inside_the_box(self, terminal):
-        placement = terminal.write(solid(8, 8, (9, 9, 9)), width=12, height=3)
+    def test_both_sizes_fit_the_image_inside_the_box(self, canvas):
+        placement = canvas.write(solid(8, 8, (9, 9, 9)), width=12, height=3)
         assert (placement.width, placement.height) == (12, 3)
 
-    def test_the_cells_show_the_pixels(self, terminal):
-        terminal.write(solid(4, 2, (255, 0, 0)))
-        cell = cell_at(terminal, 0, 0)
+    def test_the_cells_show_the_pixels(self, canvas):
+        canvas.write(solid(4, 2, (255, 0, 0)))
+        cell = cell_at(canvas, 0, 0)
         assert cell.foreground.to_rgb() == (255, 0, 0)
 
-    def test_an_image_file_is_shown_from_its_path(self, terminal, tmp_path):
+    def test_an_image_file_is_shown_from_its_path(self, canvas, tmp_path):
         path = tmp_path / 'red.png'
         solid(6, 4, (255, 0, 0)).save(path)
-        placement = terminal.write(xnano.Image(path))
+        placement = canvas.write(xnano.Image(path))
         assert (placement.width, placement.height) == (6, 2)
 
-    def test_an_image_can_be_composed_before_it_is_placed(self, terminal):
-        composition = xnano.make(solid(10, 10, (1, 2, 3)), width=6)
-        buffer = composition.build()
-        assert isinstance(buffer, Buffer)
-        assert buffer.width == 6
-        assert terminal.write(composition).width == 6
+    def test_an_image_can_be_sized_before_it_is_placed(self, canvas):
+        picture = xnano.Image(solid(10, 10, (1, 2, 3)), width=6)
+        placement = canvas.write(picture)
+        assert isinstance(placement.core_buffer, Buffer)
+        assert placement.width == 6
 
 
 class TestResponsiveImages:
     def test_a_percentage_width_follows_the_terminal_size(self):
-        with xnano.open(offscreen=True, width=20, height=8) as terminal:
-            placement = terminal.write(solid(40, 40, (255, 0, 0)), width='50%')
-            terminal.loop.advance(0.05)
+        with xnano.new(width=20, height=8) as canvas:
+            placement = canvas.write(solid(40, 40, (255, 0, 0)), width='50%')
+            canvas.step(delta_seconds=0.05)
             assert placement.width == 10
-            terminal._runtime.resize(width=40, height=8)
-            terminal.loop.advance(0.05)
+            canvas._runtime.resize(width=40, height=8)
+            canvas.step(delta_seconds=0.05)
             assert placement.width == 20
-            cell = cell_at(terminal, 19, 0)
+            cell = cell_at(canvas, 19, 0)
             assert cell.foreground.to_rgb() == (255, 0, 0)
 
     def test_a_fixed_size_does_not_change_when_the_terminal_does(self):
-        with xnano.open(offscreen=True, width=20, height=8) as terminal:
-            placement = terminal.write(solid(40, 40, (255, 0, 0)), width=6)
-            terminal._runtime.resize(width=40, height=8)
-            terminal.loop.advance(0.05)
+        with xnano.new(width=20, height=8) as canvas:
+            placement = canvas.write(solid(40, 40, (255, 0, 0)), width=6)
+            canvas._runtime.resize(width=40, height=8)
+            canvas.step(delta_seconds=0.05)
             assert placement.width == 6
 
     def test_an_image_without_a_size_refits_when_the_terminal_shrinks(self):
-        with xnano.open(offscreen=True, width=40, height=20) as terminal:
-            placement = terminal.write(solid(30, 30, (0, 255, 0)))
+        with xnano.new(width=40, height=20) as canvas:
+            placement = canvas.write(solid(30, 30, (0, 255, 0)))
             assert placement.width == 30
-            terminal._runtime.resize(width=10, height=20)
-            terminal.loop.advance(0.05)
+            canvas._runtime.resize(width=10, height=20)
+            canvas.step(delta_seconds=0.05)
             assert placement.width <= 10
 
 
@@ -106,79 +105,79 @@ class TestAnimatedImages:
         return TerminalImage.from_frames(frames).with_frames_per_second(10)
 
     def test_the_frame_follows_the_clock(self, animation):
-        with xnano.open(offscreen=True, width=8, height=2) as terminal:
-            terminal.write(animation)
-            first = cell_at(terminal, 0, 0).foreground.to_rgb()
-            terminal.loop.advance(0.15)
-            second = cell_at(terminal, 0, 0).foreground.to_rgb()
-            terminal.loop.advance(0.1)
-            looped = cell_at(terminal, 0, 0).foreground.to_rgb()
+        with xnano.new(width=8, height=2) as canvas:
+            canvas.write(animation)
+            first = cell_at(canvas, 0, 0).foreground.to_rgb()
+            canvas.step(delta_seconds=0.15)
+            second = cell_at(canvas, 0, 0).foreground.to_rgb()
+            canvas.step(delta_seconds=0.1)
+            looped = cell_at(canvas, 0, 0).foreground.to_rgb()
         assert first != second
         assert looped == first
 
     def test_removing_the_placement_stops_the_animation(self, animation):
-        with xnano.open(offscreen=True, width=8, height=2) as terminal:
-            placement = terminal.write(animation)
+        with xnano.new(width=8, height=2) as canvas:
+            placement = canvas.write(animation)
             placement.remove()
-            assert not terminal._images
+            assert not canvas._images
 
 
-def test_content_that_is_not_showable_says_what_is_accepted(terminal):
+def test_content_that_is_not_showable_says_what_is_accepted(canvas):
     with pytest.raises(TypeError, match='an image or the path of an image file'):
-        terminal.write(3.5)  # type: ignore[arg-type]
+        canvas.write(3.5)  # type: ignore[arg-type]
 
 
 class TestImage:
-    def test_an_image_is_placed_with_its_own_placement(self, terminal):
+    def test_an_image_is_placed_with_its_own_placement(self, canvas):
         picture = xnano.Image(solid(16, 16, (1, 2, 3)), width=10, x=2, layer=3)
-        placement = terminal.write(picture)
+        placement = canvas.write(picture)
         assert (placement.x, placement.width, placement.height) == (2, 10, 5)
         assert placement.layer == 3
 
-    def test_an_image_can_be_sized_by_a_percentage(self, terminal):
-        placement = terminal.write(xnano.Image(solid(16, 16, (1, 2, 3)), width='50%'))
+    def test_an_image_can_be_sized_by_a_percentage(self, canvas):
+        placement = canvas.write(xnano.Image(solid(16, 16, (1, 2, 3)), width='50%'))
         assert placement.width == 10
 
-    def test_a_path_is_not_resolved_by_add(self, terminal, tmp_path):
+    def test_a_path_is_not_resolved_by_add(self, canvas, tmp_path):
         path = tmp_path / 'red.png'
         solid(6, 4, (255, 0, 0)).save(path)
         with pytest.raises(TypeError, match='xnano.Image'):
-            terminal.write(path)  # type: ignore[arg-type]
+            canvas.write(path)  # type: ignore[arg-type]
 
-    def test_an_unlocked_image_follows_the_terminal_size(self, terminal):
-        placement = terminal.write(xnano.Image(solid(16, 16, (9, 9, 9)), width='50%'))
-        terminal._runtime.resize(width=40, height=6)
-        terminal.loop.advance(0.05)
+    def test_an_unlocked_image_follows_the_terminal_size(self, canvas):
+        placement = canvas.write(xnano.Image(solid(16, 16, (9, 9, 9)), width='50%'))
+        canvas._runtime.resize(width=40, height=6)
+        canvas.step(delta_seconds=0.05)
         assert placement.width == 20
 
-    def test_a_locked_image_keeps_its_size(self, terminal):
-        placement = terminal.write(
+    def test_a_locked_image_keeps_its_size(self, canvas):
+        placement = canvas.write(
             xnano.Image(solid(16, 16, (9, 9, 9)), width='50%', lock=True)
         )
-        terminal._runtime.resize(width=40, height=6)
-        terminal.loop.advance(0.05)
+        canvas._runtime.resize(width=40, height=6)
+        canvas.step(delta_seconds=0.05)
         assert placement.width == 10
 
 
 class TestTypedStyle:
-    def test_text_takes_its_style_as_parameters(self, terminal):
-        terminal.write('hi', foreground='red', is_bold=True)
-        cell = cell_at(terminal, 0, 0)
+    def test_text_takes_its_style_as_parameters(self, canvas):
+        canvas.write('hi', foreground='red', is_bold=True)
+        cell = cell_at(canvas, 0, 0)
         assert cell.symbol == 'h'
         assert cell.foreground.to_rgb() is not None or cell.foreground is not None
 
-    def test_a_title_or_border_draws_a_box(self, terminal):
-        placement = terminal.write('hi', border='rounded', title='T')
+    def test_a_title_or_border_draws_a_box(self, canvas):
+        placement = canvas.write('hi', border='rounded', title='T')
         assert (placement.width, placement.height) == (4, 3)
 
-    def test_style_parameters_refuse_non_text(self, terminal):
+    def test_style_parameters_refuse_non_text(self, canvas):
         with pytest.raises(TypeError, match='not text'):
-            terminal.write(solid(2, 2, (1, 1, 1)), foreground='red')
+            canvas.write(solid(2, 2, (1, 1, 1)), foreground='red')
 
-    def test_lock_freezes_a_percentage(self, terminal):
-        placement = terminal.write('hi', x='50%', lock=True)
-        terminal._runtime.resize(width=40, height=6)
-        terminal.loop.advance(0.05)
+    def test_lock_freezes_a_percentage(self, canvas):
+        placement = canvas.write('hi', x='50%', lock=True)
+        canvas._runtime.resize(width=40, height=6)
+        canvas.step(delta_seconds=0.05)
         assert placement.x == 10
 
 
@@ -200,12 +199,12 @@ def wave_bytes(samples, *, channels=1, width=2, rate=8000):
 
 
 class TestFromMedia:
-    def test_an_image_path_opens_as_an_image(self, terminal, tmp_path):
+    def test_an_image_path_opens_as_an_image(self, canvas, tmp_path):
         path = tmp_path / 'red.png'
         solid(6, 4, (255, 0, 0)).save(path)
         picture = xnano.from_media(path, width=6)
         assert isinstance(picture, xnano.Image)
-        assert terminal.write(picture).width == 6
+        assert canvas.write(picture).width == 6
 
     def test_image_bytes_are_recognised_without_an_extension(self, tmp_path):
         path = tmp_path / 'red.png'
@@ -238,11 +237,11 @@ class TestFromMedia:
         with pytest.raises(ValueError, match='neither an image'):
             xnano.from_media(path)
 
-    def test_audio_can_be_played_from_the_terminal(self, terminal):
+    def test_audio_can_be_played_from_the_terminal(self, canvas):
         pytest.importorskip('xnano_audio')
         audio = xnano.Audio(wave_bytes([0, 8000, -8000, 0]))
         assert (
-            terminal.audio._sound(
+            canvas.audio._sound(
                 audio,
                 instrument='piano',
                 duration_milliseconds=1,

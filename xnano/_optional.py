@@ -35,7 +35,7 @@ def require(extra: Extra, *, needed_for: str) -> ModuleType:
 
     Args:
         extra: ``'audio'`` or ``'image'``.
-        needed_for: What was being done, such as ``'Terminal.audio'``, for the message.
+        needed_for: What was being done, such as ``'Canvas.audio'``, for the message.
 
     Raises:
         ImportError: The package is not installed. The message names the extra to install.

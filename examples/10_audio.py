@@ -66,11 +66,11 @@ def main() -> None:
 
         metronome = terminal.write('•', y=10)
         metronome.x = (ParentWidth - Width) * (terminal.audio.beat % 1.0)
-        terminal.audio.tempo = 90
+        terminal.bpm = 90
         if terminal.audio.is_available:
             terminal.audio.start()
 
-        def choose(context: Context[Keyboard], step: int) -> None:
+        def choose(context: Context[None, Keyboard], step: int) -> None:
             state = context.state
             state.index = (state.index + step) % len(INSTRUMENTS)
             highlight.text = instrument_label(INSTRUMENTS[state.index])
@@ -78,23 +78,23 @@ def main() -> None:
             message.text = f'instrument: {INSTRUMENTS[state.index]}'
 
         @terminal.on_key('up')
-        def previous(context: Context[Keyboard]) -> None:
+        def previous(context: Context[None, Keyboard]) -> None:
             choose(context, -1)
 
         @terminal.on_key('down')
-        def following(context: Context[Keyboard]) -> None:
+        def following(context: Context[None, Keyboard]) -> None:
             choose(context, 1)
 
         @terminal.on_key('left')
-        def column_back(context: Context[Keyboard]) -> None:
+        def column_back(context: Context[None, Keyboard]) -> None:
             choose(context, -ROWS)
 
         @terminal.on_key('right')
-        def column_forward(context: Context[Keyboard]) -> None:
+        def column_forward(context: Context[None, Keyboard]) -> None:
             choose(context, ROWS)
 
         @terminal.on_key(*KEYS)
-        def play_note(context: Context[Keyboard]) -> None:
+        def play_note(context: Context[None, Keyboard]) -> None:
             if context.keyboard is None:
                 return
             note = KEYS[context.keyboard.key]
@@ -104,7 +104,7 @@ def main() -> None:
                 terminal.play(note, instrument=instrument)
 
         @terminal.on_key('space')
-        def play_chord(context: Context[Keyboard]) -> None:
+        def play_chord(context: Context[None, Keyboard]) -> None:
             instrument = INSTRUMENTS[context.state.index]
             message.text = (
                 f'chord {" ".join(note.name for note in CHORD)} on {instrument}'
@@ -113,7 +113,7 @@ def main() -> None:
                 terminal.play(CHORD, instrument=instrument)
 
         @terminal.on_key('m')
-        def play_tune(context: Context[Keyboard]) -> None:
+        def play_tune(context: Context[None, Keyboard]) -> None:
             instrument = INSTRUMENTS[context.state.index]
             message.text = f'tune of {len(TUNE)} notes on {instrument}'
             if terminal.audio.is_available:

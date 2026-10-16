@@ -1,7 +1,7 @@
 """
 xnano.operations
 
-Operations that change or animate a buffer, placement, canvas or terminal.
+Operations that change or animate a buffer, placement or canvas.
 
 Pass operations to ``update``, pipe them with ``|``, or write them with ``write``. Create
 contextual operations from functions with [`hook`][xnano.operations.hook], shade
@@ -27,7 +27,7 @@ from xnano._customize import (
     fx as fx,
 )
 from xnano._hooks import HookHandle, Trigger
-from xnano._values import RGB, ColorValue, PixelEncoding, Renderable, StateT
+from xnano._values import RGB, ColorValue, DepsT, PixelEncoding, Renderable, StateT
 from xnano.context import Context, Frame, Update
 from xnano_core import (
     ApplyStyle as ApplyStyle,
@@ -78,14 +78,13 @@ from xnano_core import (
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
     from xnano.placement import Placement
-    from xnano.terminal import Terminal
 
 TargetT = TypeVar('TargetT')
 
 OperationTrigger: TypeAlias = Literal[
     'immediate',
     'frame',
-    'update',
+    'tick',
     'key',
     'click',
     'drag',
@@ -120,7 +119,7 @@ def _shade_surface(
 def _apply_result_to_surface(
     surface: _core.Surface,
     result: OperationResult,
-    target: Terminal[object] | Placement[object] | None = None,
+    target: Canvas[object, object] | Placement[object, object] | None = None,
 ) -> None:
     if result is None:
         return
@@ -151,9 +150,9 @@ def _apply_result_to_surface(
         surface.update(_core.Paste(result.__xnano_buffer__(), mode='replace'))
 
 
-class ContextualOperation(Operation, Generic[StateT]):
+class ContextualOperation(Operation, Generic[DepsT, StateT]):
     """
-    A composable operation that customizes or animates a buffer, placement, canvas or terminal.
+    A composable operation that customizes or animates a buffer, placement or canvas.
 
     Build one with [`hook`][xnano.operations.hook], [`shade`][xnano.operations.shade],
     [`draggable`][xnano.operations.draggable] or [`fx`][xnano.operations.fx].
@@ -173,8 +172,8 @@ class ContextualOperation(Operation, Generic[StateT]):
         def banner(context: xnano.context.Context) -> str:
             return f'width={context.width}'
 
-        with xnano.open(offscreen=True, width=16, height=1) as terminal:
-            placed = terminal.write(banner)
+        with xnano.new(width=16, height=1) as canvas:
+            placed = canvas.write(banner)
             assert placed.text == 'width=16'
         ```
     """
@@ -183,15 +182,15 @@ class ContextualOperation(Operation, Generic[StateT]):
 
     def __init__(
         self,
-        callback: Callable[[Context[StateT]], OperationResult] | None = None,
+        callback: Callable[[Context[DepsT, StateT]], OperationResult] | None = None,
         *,
         on: OperationTrigger = 'frame',
         every: float | None = None,
         after: float | None = None,
         keys: tuple[str, ...] = (),
-        when: Trigger[StateT] | None = None,
+        when: Trigger[DepsT, StateT] | None = None,
         surface_runner: Callable[[_core.Surface], None] | None = None,
-        placement_runner: Callable[[Placement[StateT]], None] | None = None,
+        placement_runner: Callable[[Placement[DepsT, StateT]], None] | None = None,
         steps: Sequence[_core.Operation] = (),
     ) -> None:
         """
@@ -210,12 +209,16 @@ class ContextualOperation(Operation, Generic[StateT]):
         """
         super().__init__()
         self._callback = callback
+        self._is_tick = on == 'tick'
         if every is not None:
             self._trigger = _core.Trigger.every(every)
         elif after is not None:
             self._trigger = _core.Trigger.after(after)
         else:
-            self._trigger = _core.Trigger.named(on, keys=keys)
+            # A tick is the core's simulation update.
+            self._trigger = _core.Trigger.named(
+                'update' if on == 'tick' else on, keys=keys
+            )
         self._when = when
         self._surface_runner = surface_runner
         self._placement_runner = placement_runner
@@ -229,6 +232,8 @@ class ContextualOperation(Operation, Generic[StateT]):
     @property
     def on(self) -> OperationTrigger:
         """When the operation runs."""
+        if self._is_tick:
+            return 'tick'
         return cast('OperationTrigger', self._trigger.kind)
 
     @property
@@ -246,7 +251,7 @@ class ContextualOperation(Operation, Generic[StateT]):
         """Key names that trigger a ``'key'`` operation."""
         return tuple(self._trigger.keys)
 
-    def then(self, other: _core.Operation) -> ContextualOperation[StateT]:
+    def then(self, other: _core.Operation) -> ContextualOperation[DepsT, StateT]:
         """
         Return a new operation that applies this operation and then ``other``.
 
@@ -262,7 +267,7 @@ class ContextualOperation(Operation, Generic[StateT]):
 
     def __or__(  # type: ignore[override]
         self, other: _core.Operation | _core.Style
-    ) -> ContextualOperation[StateT]:
+    ) -> ContextualOperation[DepsT, StateT]:
         """Combine this operation with another operation or style."""
         if isinstance(other, _core.Style):
             return self.then(_core.ApplyStyle(other))
@@ -276,7 +281,7 @@ class ContextualOperation(Operation, Generic[StateT]):
             )
         self.apply_to(
             cast(
-                'Terminal[StateT] | Placement[StateT] | Canvas | _core.Surface',
+                'Canvas[DepsT, StateT] | Placement[DepsT, StateT] | _core.Surface',
                 target,
             )
         )
@@ -301,29 +306,27 @@ class ContextualOperation(Operation, Generic[StateT]):
 
     def apply_to(
         self,
-        target: Terminal[StateT] | Placement[StateT] | Canvas | _core.Surface,
+        target: Canvas[DepsT, StateT] | Placement[DepsT, StateT] | _core.Surface,
     ) -> None:
         """
         Attach or execute this operation on ``target``.
 
         Args:
-            target: A [`Terminal`][xnano.terminal.Terminal], [`Placement`][xnano.placement.Placement],
-                [`Canvas`][xnano.canvas.Canvas] or [`Surface`][xnano_core.Surface].
+            target: A [`Canvas`][xnano.canvas.Canvas], a
+                [`Placement`][xnano.placement.Placement] or a [`Surface`][xnano_core.Surface].
         """
         from xnano.canvas import Canvas
         from xnano.placement import Placement
-        from xnano.terminal import Terminal
 
-        if isinstance(target, Canvas):
-            target._record_operation(self)
-            return
         if isinstance(target, _core.Surface):
             self.apply_to_surface(target)
             return
         if self._steps:
             for step in self._steps:
                 if isinstance(step, (ContextualOperation, Customization)):
-                    step.apply_to(cast('Terminal[object] | Placement[object]', target))
+                    step.apply_to(
+                        cast('Canvas[object, object] | Placement[object, object]', target)
+                    )
                 else:
                     target.update(step)
             return
@@ -336,24 +339,41 @@ class ContextualOperation(Operation, Generic[StateT]):
         callback = self._callback
         if callback is None:
             return
-        terminal: Terminal[StateT] = (
-            target if isinstance(target, Terminal) else target.terminal
+        canvas: Canvas[DepsT, StateT] = (
+            target if isinstance(target, Canvas) else target.canvas
         )
         surface = target._buffer
 
-        def run_with_context(context: Context[StateT]) -> None:
+        def run_with_context(context: Context[DepsT, StateT]) -> None:
             result = callback(context)
             _apply_result_to_surface(
                 surface,
                 result,
-                cast('Terminal[object] | Placement[object]', target),
+                cast('Canvas[object, object] | Placement[object, object]', target),
             )
 
-        def build_adhoc_context() -> Context[StateT]:
-            dummy_handle: HookHandle[StateT] = HookHandle(target, run_with_context, None)
-            return target._context_for(None, dummy_handle, event=None)
+        # Errors name the function the user wrote, not this wrapper.
+        run_with_context.__name__ = getattr(callback, '__name__', 'hook')
+        dummy_handle: HookHandle[DepsT, StateT] = HookHandle(
+            target, run_with_context, None
+        )
+
+        def build_adhoc_context(
+            event: Frame | Update | None = None,
+        ) -> Context[DepsT, StateT]:
+            return target._context_for(None, dummy_handle, event=event)
 
         trigger = self._trigger
+        if self._is_tick:
+
+            def on_tick(update: Update) -> None:
+                if isinstance(target, Placement) and target._removed:
+                    canvas._unregister(tick_registration)
+                    return
+                run_with_context(build_adhoc_context(update))
+
+            tick_registration = canvas._on_update(on_tick, fixed_step_seconds=self.every)
+            return
         if self._when is not None:
             target.hook(run_with_context, when=self._when)
             return
@@ -369,29 +389,21 @@ class ContextualOperation(Operation, Generic[StateT]):
         if trigger.kind == 'frame':
             run_with_context(build_adhoc_context())
 
-            def on_frame(_frame: Frame) -> None:
+            def on_frame(frame: Frame) -> None:
                 if isinstance(target, Placement) and target._removed:
+                    stop_frames()
                     return
-                run_with_context(build_adhoc_context())
+                run_with_context(build_adhoc_context(frame))
 
-            terminal.loop.on_frame(on_frame)
-            return
-        if trigger.kind == 'update':
-
-            def on_update(_update: Update) -> None:
-                if isinstance(target, Placement) and target._removed:
-                    return
-                run_with_context(build_adhoc_context())
-
-            terminal.loop.on_update()(on_update)
+            stop_frames = canvas._on_frame(on_frame)
             return
         target.hook(run_with_context, when=trigger)
 
 
 @overload
 def hook(
-    function: Callable[[Context[StateT]], OperationResult], /
-) -> ContextualOperation[StateT]: ...
+    function: Callable[[Context[DepsT, StateT]], OperationResult], /
+) -> ContextualOperation[DepsT, StateT]: ...
 @overload
 def hook(
     *,
@@ -399,23 +411,25 @@ def hook(
     every: float | None = None,
     after: float | None = None,
     keys: str | Sequence[str] | None = None,
-    when: Trigger[StateT] | None = None,
+    when: Trigger[DepsT, StateT] | None = None,
 ) -> Callable[
-    [Callable[[Context[StateT]], OperationResult]], ContextualOperation[StateT]
+    [Callable[[Context[DepsT, StateT]], OperationResult]],
+    ContextualOperation[DepsT, StateT],
 ]: ...
 def hook(
-    function: Callable[[Context[StateT]], OperationResult] | None = None,
+    function: Callable[[Context[DepsT, StateT]], OperationResult] | None = None,
     /,
     *,
     on: OperationTrigger = 'frame',
     every: float | None = None,
     after: float | None = None,
     keys: str | Sequence[str] | None = None,
-    when: Trigger[StateT] | None = None,
+    when: Trigger[DepsT, StateT] | None = None,
 ) -> (
-    ContextualOperation[StateT]
+    ContextualOperation[DepsT, StateT]
     | Callable[
-        [Callable[[Context[StateT]], OperationResult]], ContextualOperation[StateT]
+        [Callable[[Context[DepsT, StateT]], OperationResult]],
+        ContextualOperation[DepsT, StateT],
     ]
 ):
     """
@@ -429,10 +443,11 @@ def hook(
     Args:
         function: The function to wrap when ``@xnano.hook`` is used without parentheses.
         on: When the operation runs: ``'frame'`` (default), ``'drag'``, ``'click'``,
-            ``'key'``, ``'update'``, ``'mouse'``, ``'paste'``, ``'resize'``,
-            ``'state_change'`` or ``'immediate'``.
-        every: Run at a steady interval in seconds on the terminal's clock.
-        after: Run once after this many seconds on the terminal's clock.
+            ``'key'``, ``'tick'``, ``'mouse'``, ``'paste'``, ``'resize'``,
+            ``'state_change'`` or ``'immediate'``. ``'tick'`` with ``every`` runs once for
+            every step of ``every`` seconds.
+        every: Run at a steady interval in seconds on the canvas's clock.
+        after: Run once after this many seconds on the canvas's clock.
         keys: Key name or sequence of key names when ``on='key'``.
         when: Custom trigger function or generator.
 
@@ -444,9 +459,9 @@ def hook(
         def clock_readout(context: xnano.context.Context) -> str:
             return f'{context.time.elapsed:.1f}s'
 
-        with xnano.open(offscreen=True, width=12, height=1) as terminal:
-            readout = terminal.write(clock_readout)
-            terminal.loop.advance(0.5)
+        with xnano.new(width=12, height=1) as canvas:
+            readout = canvas.write(clock_readout)
+            canvas.step(delta_seconds=0.5)
             assert readout.text == '0.5s'
         ```
     """
@@ -455,8 +470,8 @@ def hook(
     )
 
     def wrap(
-        callback: Callable[[Context[StateT]], OperationResult],
-    ) -> ContextualOperation[StateT]:
+        callback: Callable[[Context[DepsT, StateT]], OperationResult],
+    ) -> ContextualOperation[DepsT, StateT]:
         return ContextualOperation(
             callback,
             on=on,
@@ -475,11 +490,11 @@ def shade(
     function: Callable[[int, int], ColorValue | None],
     *,
     encoding: PixelEncoding = 'half_blocks',
-) -> ContextualOperation[object]:
+) -> ContextualOperation[object, object]:
     """
     Create an operation that colors every pixel of its target from ``function(column, row)``.
 
-    Pipe it onto a buffer, canvas, placement or terminal with ``|``, pass it to ``write``, or
+    Pipe it onto a buffer, canvas or placement with ``|``, pass it to ``write``, or
     return it from an [`hook`][xnano.operations.hook] that runs on every frame.
 
     Args:
@@ -490,9 +505,9 @@ def shade(
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=8, height=2) as terminal:
-            terminal | xnano.operations.shade(lambda column, row: (column * 20, row * 40, 120))
-            assert terminal.root[0, 0].symbol == '▀'
+        with xnano.new(width=8, height=2) as canvas:
+            canvas | xnano.operations.shade(lambda column, row: (column * 20, row * 40, 120))
+            assert canvas.core_buffer[0, 0].symbol == '▀'
         ```
     """
     return ContextualOperation(
@@ -501,7 +516,7 @@ def shade(
     )
 
 
-def draggable(axis: Literal['x', 'y'] = 'x') -> ContextualOperation[object]:
+def draggable(axis: Literal['x', 'y'] = 'x') -> ContextualOperation[object, object]:
     """
     Create an operation that lets the pointer drag a placement along ``axis``.
 
@@ -520,22 +535,22 @@ def draggable(axis: Literal['x', 'y'] = 'x') -> ContextualOperation[object]:
         ```python
         import xnano
 
-        with xnano.open(offscreen=True, width=20, height=3) as terminal:
-            thumb = terminal.write('█', x=(0, 10), y=1) | xnano.operations.draggable()
+        with xnano.new(width=20, height=3) as canvas:
+            thumb = canvas.write('█', x=(0, 10), y=1) | xnano.operations.draggable()
             assert thumb.x == 0
         ```
     """
     if axis not in ('x', 'y'):
         raise ValueError(f'{axis!r} is not an axis draggable can move. Use "x" or "y".')
 
-    def attach(placement: Placement[object]) -> None:
+    def attach(placement: Placement[object, object]) -> None:
         @placement.on_click
-        def grab(context: Context[object]) -> None:
+        def grab(context: Context[object, object]) -> None:
             if isinstance(context.core, EventContext):
                 context.core.capture_pointer()
 
         @placement.on_drag
-        def move(context: Context[object]) -> None:
+        def move(context: Context[object, object]) -> None:
             mouse = context.mouse
             if mouse is None:
                 return
