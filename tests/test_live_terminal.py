@@ -161,7 +161,7 @@ class TestInput:
 with xnano.open(height=2) as terminal:
     terminal.write('press q')
 
-    @terminal.hook(when=lambda context: context.keyboard is not None and context.keyboard.key == 'q')
+    @terminal.hook(when=lambda context: context.keyboard.key is not None and context.keyboard.key == 'q')
     def quit(context):
         context.canvas.quit()
 
@@ -197,7 +197,7 @@ print('STOPPED')
 with xnano.open(height=3, mouse=True) as terminal:
     button = terminal.write('[ click ]', x=4, y=1)
 
-    @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
+    @button.hook(when=lambda context: context.mouse.position is not None and context.mouse.kind == 'press')
     def pressed(context):
         context.canvas.write('CLICKED', x=0, y=0)
 
@@ -218,7 +218,7 @@ with xnano.open(height=3, mouse=True) as terminal:
 with xnano.open(width=20, height=3, mouse=True) as terminal:
     button = terminal.write('[ click ]', x=4, y=1)
 
-    @button.hook(when=lambda context: context.mouse is not None and context.mouse.kind == 'press')
+    @button.hook(when=lambda context: context.mouse.position is not None and context.mouse.kind == 'press')
     def pressed(context):
         context.canvas.write('CLICKED', x=0, y=0)
 
@@ -245,7 +245,13 @@ import xnano
 with xnano.open(height=3, width=30, mouse=True) as terminal:
     terminal.write('-' * 30, y=1)
     thumb = terminal.write('#', x=(0, 29), y=1, layer=1)
-    thumb | xnano.operations.draggable()
+
+    @thumb.hook(on='drag')
+    def slide(context):
+        while context.mouse.is_down:
+            thumb.x = context.parent.local(context.mouse.position).x
+            context = yield
+
     terminal.run()
 """
         )
@@ -261,9 +267,9 @@ with xnano.open(height=3, width=30, mouse=True) as terminal:
 with xnano.open(height=2) as terminal:
     terminal.write('paste here')
 
-    @terminal.hook(when=lambda context: context.pasted is not None)
+    @terminal.hook(when=lambda context: context.clipboard.text is not None)
     def pasted(context):
-        context.canvas.write('GOT:' + context.pasted, x=0, y=1)
+        context.canvas.write('GOT:' + context.clipboard.text, x=0, y=1)
 
     terminal.run()
 """
@@ -591,13 +597,14 @@ with xnano.open(width=40, height=3, {settings}) as terminal:
 
     @terminal.hook
     def listen(context):
-        mouse = context.mouse
-        if mouse is not None:
-            heard.append(f'{{mouse.kind}}')
-        if context.keyboard is not None:
+        if context.mouse.kind is not None:
+            heard.append(context.mouse.kind)
+        if context.scroll.x or context.scroll.y:
+            heard.append('scroll')
+        if context.keyboard.key is not None:
             heard.append('key:' + str(context.keyboard.key))
-        if context.pasted is not None:
-            heard.append('paste:' + context.pasted)
+        if context.clipboard.text is not None:
+            heard.append('paste:' + context.clipboard.text)
         log.text = ' '.join(heard)
 
     terminal.run()
@@ -679,7 +686,7 @@ with xnano.new(width=30, height=3) as canvas:
     canvas.write('built off the screen')
     heard = canvas.write('', y=1)
 
-    @canvas.on_key('k')
+    @canvas.hook(on='key', keys='k')
     def key(context):
         heard.text = 'KEY HEARD'
 
@@ -703,7 +710,7 @@ print('ENDED')
         screen = run(
             """
 with xnano.new(width=40, height=3, fps=10) as canvas:
-    @canvas.after(5.4)
+    @canvas.hook(on='tick', after=5.4)
     def later(context):
         canvas.write(f'FIRED AT {context.time.elapsed:.1f}', y=1)
 
@@ -858,7 +865,7 @@ with xnano.open(width=30, height=3) as terminal:
 with xnano.new(width=30, height=2) as canvas:
     button = canvas.write('[ click ]')
 
-    @button.on_click
+    @button.hook(on='mouse', when="mouse.kind == 'press'")
     def pressed(context):
         canvas.write('CLICKED', y=1)
 
@@ -872,19 +879,106 @@ with xnano.new(width=30, height=2) as canvas:
         screen.press('ctrl+c')
         assert screen.finish() == 0
 
+    def test_a_scroll_hook_registered_before_open_turns_the_wheel_on(self, run):
+        screen = run(
+            """
+with xnano.new(width=40, height=3) as canvas:
+    box = canvas.write('wheel here', x=10, y=0)
+    log = canvas.write('', y=2)
+
+    @box.hook(on='scroll')
+    def wheel(context):
+        log.text = f'wheel {context.scroll.y}'
+
+    canvas.open()
+    canvas.run()
+"""
+        )
+        assert screen.wait_for('wheel here')
+        column, row = screen.find('wheel here')
+        screen.scroll(1, row, direction='down')
+        screen.settle(0.4)
+        assert screen.find('wheel 1') is None, 'the wheel outside the box is not heard'
+        screen.scroll(column + 2, row, direction='down')
+        assert screen.wait_for('wheel 1')
+        screen.press('ctrl+c')
+        assert screen.finish() == 0
+
+    def test_timer_hooks_registered_before_open_keep_running_on_the_screen(self, run):
+        screen = run(
+            """
+with xnano.new(width=40, height=4, bpm=240) as canvas:
+    log = canvas.write('', y=1)
+    beats = []
+    ticks = []
+
+    @canvas.hook(on='beat')
+    def beat(context):
+        beats.append(1)
+        log.text = f'beats {len(beats)} ticks {len(ticks)}'
+
+    @canvas.hook(on='tick', every=0.1)
+    def tick(context):
+        ticks.append(1)
+
+    @canvas.hook(on='tick', after=0.3)
+    def once(context):
+        canvas.write('ONCE', y=3)
+
+    canvas.open()
+    canvas.run()
+"""
+        )
+        assert screen.wait_for('ONCE')
+        assert screen.wait_for('beats 4')
+        assert screen.find('ONCE') is not None
+        screen.press('ctrl+c')
+        assert screen.finish() == 0
+
+    def test_a_release_hook_needs_the_release_gate(self, run):
+        screen = run(
+            """
+import xnano.errors
+with xnano.new(width=40, height=3) as canvas:
+    canvas.hook(lambda context: None, on='key', when="keyboard.kind == 'release'")
+    try:
+        canvas.open()
+    except xnano.errors.TerminalError as error:
+        print('REFUSED:', "keyboard='release_events'" in str(error), isinstance(canvas, xnano.Terminal))
+    canvas.open(keyboard='release_events')
+    print('OPENED:', isinstance(canvas, xnano.Terminal))
+"""
+        )
+        assert screen.wait_for('REFUSED: True False')
+        assert screen.wait_for('OPENED: True')
+
+    def test_a_scroll_hook_added_after_open_with_scroll_off_is_refused(self, run):
+        screen = run(
+            """
+import xnano.errors
+with xnano.open(width=60, height=3, scroll=False) as terminal:
+    try:
+        terminal.hook(lambda context: None, on='scroll')
+    except xnano.errors.TerminalError as error:
+        terminal.write('AFTER OPEN: ' + str('scroll=True' in str(error)))
+    time.sleep(1)
+"""
+        )
+        assert screen.wait_for('AFTER OPEN: True')
+
     def test_a_hook_for_a_gate_that_is_off_raises_a_teaching_error(self, run):
         screen = run(
             """
 import xnano.errors
 with xnano.new(width=60, height=3, mouse=False) as canvas:
-    canvas.on_click(lambda context: None)
+    canvas.hook(lambda context: None, on='mouse')
     try:
         canvas.open()
     except xnano.errors.TerminalError as error:
         print('AT OPEN:', 'needs mouse=True' in str(error), isinstance(canvas, xnano.Terminal))
 with xnano.open(width=60, height=3) as terminal:
     try:
-        terminal.on_click(lambda context: None)
+        terminal.hook(lambda context: None, on='mouse')
     except xnano.errors.TerminalError as error:
         terminal.write('AFTER OPEN: ' + str('mouse=True' in str(error)))
     time.sleep(1)
@@ -916,7 +1010,7 @@ with xnano.open(width=40, height=3) as terminal:
 with xnano.new(width=30, height=2) as canvas:
     canvas.open()
 
-    @canvas.after(0.3)
+    @canvas.hook(on='tick', after=0.3)
     def finish(context):
         canvas.quit()
 
@@ -950,7 +1044,7 @@ print('AFTER')
 with xnano.new(realtime=True, width=30, height=2) as canvas:
     canvas.write('realtime first')
     ticks = []
-    canvas.every(0.05)(lambda context: ticks.append(1))
+    canvas.hook(on='tick', every=0.05)(lambda context: ticks.append(1))
     time.sleep(0.3)
     before = len(ticks)
     canvas.open()
@@ -969,18 +1063,18 @@ with xnano.new(realtime=True, width=30, height=2) as canvas:
 with xnano.open(width=40, height=2, fps=10) as canvas:
     shown = canvas.write('')
 
-    @canvas.on_key('s')
+    @canvas.hook(on='key', keys='s')
     def stop(context):
         canvas.stop()
         shown.text = f'STOPPED AT {round(canvas.time.elapsed * 10)}'
 
-    @canvas.on_key('n')
+    @canvas.hook(on='key', keys='n')
     def step(context):
         before = round(canvas.time.elapsed * 10)
         canvas.step()
         shown.text = f'STEPPED {round(canvas.time.elapsed * 10) - before}'
 
-    @canvas.on_key('r')
+    @canvas.hook(on='key', keys='r')
     def resume(context):
         canvas.resume()
         shown.text = f'RESUMED {canvas.time.is_stopped}'

@@ -7,7 +7,7 @@ Which keys are held down right now, for programs that poll instead of listening.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
 from xnano.errors import TerminalClosedError
@@ -15,14 +15,25 @@ from xnano.errors import TerminalClosedError
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
 
-__all__ = ['Input']
+__all__ = [
+    'ClipboardInput',
+    'Input',
+    'KeyboardInput',
+    'MouseInput',
+    'ScrollInput',
+]
 
 # How long after the last key repeat a key still counts as held, on a terminal that does not
 # report key releases. It has to outlast the operating system's pause before a held key repeats.
 _ESTIMATED_HOLD_SECONDS = 0.45
 
 KeyNames = str | Sequence[str]
-"""One key name, or several that count the same, such as ``('a', 'left')``."""
+"""
+One key or mouse button name, or several that count the same, such as ``('a', 'left')``.
+
+The mouse buttons are called ``'mouse_left'``, ``'mouse_right'`` and ``'mouse_middle'``; see
+[`HeldMouseButtonName`][xnano.types.HeldMouseButtonName].
+"""
 
 
 def _names(keys: KeyNames) -> tuple[str, ...]:
@@ -42,9 +53,14 @@ class Input:
     terminal only sends repeats while a key is held, so a key counts as held for a short time
     after its last repeat.
 
+    The held mouse buttons are in the same vocabulary, named ``'mouse_left'``,
+    ``'mouse_right'`` and ``'mouse_middle'``, so ``canvas.input.is_down('mouse_left')`` asks
+    whether the left button is held.
+
     Attributes:
-        held_keys: The names of the keys held down right now.
-        pointer: The ``(column, row)`` under the pointer, or ``None`` before it has moved.
+        held_keys: The names of the keys and mouse buttons held down right now.
+        pointer: The ``(column, row)`` the pointer was last seen at, or ``None`` before it has
+            moved.
 
     Examples:
         ```python
@@ -85,15 +101,16 @@ class Input:
 
     @property
     def held_keys(self) -> frozenset[str]:
-        """The names of the keys held down right now."""
+        """The names of the keys and mouse buttons held down right now."""
         return self._state.pressed_keys | self._state.estimated_pressed_keys
 
     def is_down(self, keys: KeyNames) -> bool:
         """
-        Whether any of the keys is held down.
+        Whether any of the keys or mouse buttons is held down.
 
         Args:
-            keys: One key name such as ``'space'``, or several such as ``('a', 'left')``.
+            keys: One key name such as ``'space'``, or several such as ``('a', 'left')``. A
+                mouse button is ``'mouse_left'``, ``'mouse_right'`` or ``'mouse_middle'``.
         """
         held = self.held_keys
         return any(name in held for name in _names(keys))
@@ -132,5 +149,347 @@ class Input:
 
     @property
     def pointer(self) -> tuple[int, int] | None:
-        """The ``(column, row)`` under the pointer, or ``None`` before it has moved."""
+        """The ``(column, row)`` the pointer was last seen at, or ``None`` before it moved."""
         return self._state.pointer_cell
+
+
+def _modifier_text(key: _core.KeyEvent) -> str:
+    order = (
+        ('control', 'ctrl'),
+        ('alt', 'alt'),
+        ('shift', 'shift'),
+        ('super', 'super'),
+        ('meta', 'meta'),
+    )
+    parts = [text for name, text in order if name in key.modifiers]
+    parts.append(key.key)
+    return '+'.join(parts)
+
+
+class KeyboardInput:
+    """
+    The key of the current event, as properties of a hook's context.
+
+    Get one from ``context.keyboard``. It is always there: ``key`` is ``None`` unless the event
+    the hook is handling is a key. ``push`` delivers a key to the canvas, so a hook can press a
+    key for the program.
+
+    Attributes:
+        key: The name of the key, such as ``'q'`` or ``'enter'``, or ``None``.
+        kind: ``'press'``, ``'repeat'`` or ``'release'``, or ``None``.
+        modifiers: The modifier keys held with it.
+        text: The text the key types, or ``None`` for control keys and chords.
+        chord: The key with its modifiers as one text such as ``'ctrl+s'``, or ``None``.
+
+    Examples:
+        ```python
+        import xnano
+
+        with xnano.new(width=8, height=1) as canvas:
+            heard = []
+
+            @canvas.hook(on='key')
+            def listen(context: xnano.context.Context) -> None:
+                heard.append(context.keyboard.key)
+
+            @canvas.hook(on='tick', after=0.1)
+            def press_for_the_program(context: xnano.context.Context) -> None:
+                context.keyboard.push('q')
+
+            canvas.step(delta_seconds=0.2)
+            canvas.deliver_events()
+            assert heard == ['q']
+        ```
+    """
+
+    __slots__ = ('_canvas', '_event')
+
+    def __init__(self, canvas: Canvas[object, object], event: _core.Event | None) -> None:
+        """
+        Create the key view of an event. Use ``context.keyboard`` instead of calling this.
+
+        Args:
+            canvas: The canvas the event happened in.
+            event: The event being handled, or ``None``.
+        """
+        self._canvas = canvas
+        self._event = event
+
+    def get(self) -> _core.KeyEvent | None:
+        """The key event being handled, or ``None`` when the event is not a key."""
+        event = self._event
+        return event.key if event is not None else None
+
+    @property
+    def key(self) -> str | None:
+        """The name of the key, such as ``'q'`` or ``'enter'``, or ``None``."""
+        key = self.get()
+        return None if key is None else key.key
+
+    @property
+    def kind(self) -> Literal['press', 'repeat', 'release'] | None:
+        """``'press'``, ``'repeat'`` or ``'release'``, or ``None`` for any other event."""
+        key = self.get()
+        return None if key is None else key.kind
+
+    @property
+    def modifiers(self) -> frozenset[str]:
+        """The modifier keys held with the key; empty for any other event."""
+        key = self.get()
+        return frozenset() if key is None else frozenset(key.modifiers)
+
+    @property
+    def text(self) -> str | None:
+        """The text the key types, or ``None`` for control keys, chords and other events."""
+        key = self.get()
+        return None if key is None else key.text
+
+    @property
+    def chord(self) -> str | None:
+        """The key with its modifiers as one text such as ``'ctrl+s'``, or ``None``."""
+        key = self.get()
+        return None if key is None else _modifier_text(key)
+
+    def push(self, value: str | _core.KeyEvent) -> None:
+        """
+        Press a key on the canvas, as if it had been typed.
+
+        The canvas's hooks hear it at its next step, whatever the input gates say.
+
+        Args:
+            value: A key name or chord such as ``'q'`` or ``'ctrl+s'``, or a
+                [`KeyEvent`][xnano_core.KeyEvent].
+        """
+        if isinstance(value, _core.KeyEvent):
+            self._canvas.push(
+                _core.Event.key_press(_modifier_text(value), kind=value.kind)
+            )
+        else:
+            self._canvas.push(_core.Event.key_press(value))
+
+
+class MouseInput:
+    """
+    The mouse button or movement of the current event, as properties of a hook's context.
+
+    Get one from ``context.mouse``. It is always there: ``position`` is ``None`` unless the
+    event the hook is handling is a mouse press, release, drag or move. A mouse wheel report is
+    not a mouse event here; [`ScrollInput`][xnano.input.ScrollInput] owns it.
+
+    Attributes:
+        position: The cell of the event, or ``None``.
+        button: ``'left'``, ``'right'`` or ``'middle'``, or ``None``.
+        kind: ``'press'``, ``'release'``, ``'drag'`` or ``'move'``, or ``None``.
+        is_down: Whether any mouse button is held right now.
+    """
+
+    __slots__ = ('_canvas', '_event')
+
+    def __init__(self, canvas: Canvas[object, object], event: _core.Event | None) -> None:
+        """
+        Create the mouse view of an event. Use ``context.mouse`` instead of calling this.
+
+        Args:
+            canvas: The canvas the event happened in.
+            event: The event being handled, or ``None``.
+        """
+        self._canvas = canvas
+        self._event = event
+
+    def get(self) -> _core.MouseEvent | None:
+        """The mouse event being handled, or ``None`` for any other event and for the wheel."""
+        event = self._event
+        if event is None:
+            return None
+        mouse = event.mouse
+        if mouse is None or mouse.kind == 'scroll':
+            return None
+        return mouse
+
+    @property
+    def position(self) -> _core.Point | None:
+        """The cell of the event, or ``None``."""
+        mouse = self.get()
+        return None if mouse is None else mouse.position
+
+    @property
+    def button(self) -> _core.MouseButton | None:
+        """``'left'``, ``'right'`` or ``'middle'``, or ``None``."""
+        mouse = self.get()
+        return None if mouse is None else mouse.button
+
+    @property
+    def kind(self) -> Literal['press', 'release', 'drag', 'move'] | None:
+        """``'press'``, ``'release'``, ``'drag'`` or ``'move'``, or ``None``."""
+        mouse = self.get()
+        return (
+            None
+            if mouse is None
+            else cast("Literal['press', 'release', 'drag', 'move']", mouse.kind)
+        )
+
+    @property
+    def is_down(self) -> bool:
+        """Whether any mouse button is held right now."""
+        state = self._canvas._input_state
+        return False if state is None else state.is_mouse_down
+
+    def push(self, value: _core.MouseEvent | tuple[int, int]) -> None:
+        """
+        Move or click the mouse on the canvas, as if the person had.
+
+        Args:
+            value: A [`MouseEvent`][xnano_core.MouseEvent] of kind press, release, drag or
+                move, or a ``(column, row)`` pair, which moves the pointer to that cell.
+
+        Raises:
+            TypeError: The value is a mouse wheel event, which belongs to
+                ``context.scroll.push``.
+        """
+        if isinstance(value, tuple):
+            column, row = value
+            self._canvas.push(
+                _core.Event.mouse_event(column=column, row=row, kind='move')
+            )
+            return
+        if value.kind == 'scroll':
+            raise TypeError(
+                'mouse.push cannot send a mouse wheel event, because the wheel belongs to '
+                'scroll. Use context.scroll.push((x, y)) to scroll by that many steps.'
+            )
+        self._canvas.push(
+            _core.Event.mouse_event(
+                column=value.column, row=value.row, kind=value.kind, button=value.button
+            )
+        )
+
+
+class ScrollInput:
+    """
+    The mouse wheel steps of the current event, as properties of a hook's context.
+
+    Get one from ``context.scroll``. ``x`` and ``y`` are signed steps that grow right and down,
+    so scrolling up is ``y == -1``; both are ``0`` unless the event is a wheel report.
+
+    Attributes:
+        x: Horizontal steps, positive to the right.
+        y: Vertical steps, positive downward.
+    """
+
+    __slots__ = ('_canvas', '_event')
+
+    def __init__(self, canvas: Canvas[object, object], event: _core.Event | None) -> None:
+        """
+        Create the wheel view of an event. Use ``context.scroll`` instead of calling this.
+
+        Args:
+            canvas: The canvas the event happened in.
+            event: The event being handled, or ``None``.
+        """
+        self._canvas = canvas
+        self._event = event
+
+    def get(self) -> _core.MouseEvent | None:
+        """The wheel event being handled, or ``None`` for any other event."""
+        event = self._event
+        if event is None:
+            return None
+        mouse = event.mouse
+        if mouse is None or mouse.kind != 'scroll':
+            return None
+        return mouse
+
+    @property
+    def x(self) -> int:
+        """Horizontal steps, positive to the right; ``0`` unless the event is a wheel report."""
+        mouse = self.get()
+        return 0 if mouse is None else mouse.scroll_x
+
+    @property
+    def y(self) -> int:
+        """Vertical steps, positive downward; ``0`` unless the event is a wheel report."""
+        mouse = self.get()
+        return 0 if mouse is None else mouse.scroll_y
+
+    def push(self, value: tuple[int, int] | _core.MouseEvent) -> None:
+        """
+        Turn the mouse wheel on the canvas, as if the person had.
+
+        Args:
+            value: The ``(x, y)`` steps to scroll by, at the cell the pointer was last seen
+                at, or a [`MouseEvent`][xnano_core.MouseEvent] of kind scroll.
+
+        Raises:
+            TypeError: The value is a mouse event that is not a wheel report, which belongs
+                to ``context.mouse.push``.
+        """
+        if isinstance(value, tuple):
+            steps_x, steps_y = value
+            state = self._canvas._input_state
+            cell = None if state is None else state.pointer_cell
+            column, row = cell if cell is not None else (0, 0)
+        else:
+            if value.kind != 'scroll':
+                raise TypeError(
+                    f'scroll.push takes a mouse wheel event, but this is a {value.kind} '
+                    f'event. Use context.mouse.push(event) for presses, releases, drags and '
+                    f'moves.'
+                )
+            column, row = value.column, value.row
+            steps_x, steps_y = value.scroll_x, value.scroll_y
+        self._canvas.push(
+            _core.Event.mouse_event(
+                column=column, row=row, kind='scroll', scroll_x=steps_x, scroll_y=steps_y
+            )
+        )
+
+
+class ClipboardInput:
+    """
+    The pasted text of the current event, as a property of a hook's context.
+
+    Get one from ``context.clipboard``. ``text`` is ``None`` unless the event is a paste.
+
+    Attributes:
+        text: The text that was pasted, or ``None``.
+    """
+
+    __slots__ = ('_canvas', '_event')
+
+    def __init__(self, canvas: Canvas[object, object], event: _core.Event | None) -> None:
+        """
+        Create the paste view of an event. Use ``context.clipboard`` instead of calling this.
+
+        Args:
+            canvas: The canvas the event happened in.
+            event: The event being handled, or ``None``.
+        """
+        self._canvas = canvas
+        self._event = event
+
+    def get(self) -> str | None:
+        """The text that was pasted, or ``None`` when the event is not a paste."""
+        event = self._event
+        return event.pasted_text if event is not None else None
+
+    @property
+    def text(self) -> str | None:
+        """The text that was pasted, or ``None``."""
+        return self.get()
+
+    def push(self, value: str) -> None:
+        """
+        Paste text on the canvas, as if the person had.
+
+        Args:
+            value: The text to paste.
+
+        Raises:
+            TypeError: The value is not text.
+        """
+        if not isinstance(value, str):
+            raise TypeError(
+                f'clipboard.push takes the text to paste, but received {value!r}. Pass a str, '
+                f"such as context.clipboard.push('hello')."
+            )
+        self._canvas.push(_core.Event.paste(value))

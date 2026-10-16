@@ -102,7 +102,7 @@ class TestNew:
     def test_a_hook_turns_an_unset_gate_on_and_refuses_one_given_as_false(self):
         with xnano.new() as canvas:
 
-            @canvas.on_click
+            @canvas.hook(on='mouse', when="mouse.kind == 'press'")
             def click(context: xnano.context.Context) -> None:
                 pass
 
@@ -113,10 +113,12 @@ class TestNew:
     def test_a_hook_on_a_canvas_that_runs_by_itself_turns_an_unset_gate_on(self):
         for _ in range(20):
             with xnano.new(realtime=True, width=8, height=1) as canvas:
-                canvas.on_click(lambda context: None)
+                canvas.hook(
+                    lambda context: None, on='mouse', when="mouse.kind == 'press'"
+                )
                 assert canvas._gates_for_screen({})['mouse'] is True
         with xnano.new(realtime=True, width=8, height=1) as canvas:
-            canvas.on_click(lambda context: None)
+            canvas.hook(lambda context: None, on='mouse', when="mouse.kind == 'press'")
             with pytest.raises(TerminalError, match='needs mouse=True'):
                 canvas._gates_for_screen({'mouse': False})
 
@@ -139,7 +141,7 @@ class TestNew:
             with pytest.raises(TerminalError, match='hook on_drag needs mouse=True'):
                 canvas._gates_for_screen({'mouse': False})
         with xnano.new() as canvas:
-            canvas.on_click(on_click)
+            canvas.hook(on_click, on='mouse', when="mouse.kind == 'press'")
             with pytest.raises(TerminalError, match='hook on_click needs mouse=True'):
                 canvas._gates_for_screen({'mouse': False})
 
@@ -425,9 +427,11 @@ class TestTimeControls:
             ball = canvas.write('o')
             ball.x = TimeElapsed * 10
             ticks: list[float] = []
-            canvas.every(0.1)(lambda context: ticks.append(context.time.elapsed))
+            canvas.hook(on='tick', every=0.1)(
+                lambda context: ticks.append(context.time.elapsed)
+            )
             pressed: list[str] = []
-            canvas.on_key()(lambda context: pressed.append(context.keyboard.key))
+            canvas.hook(on='key')(lambda context: pressed.append(context.keyboard.key))
             canvas.step(delta_seconds=0.5)
             before = (ball.x, len(ticks))
             canvas.stop()
@@ -503,7 +507,9 @@ class TestChildCanvases:
             ball = inner.write('o')
             ball.x = TimeElapsed * 10
             ticks: list[float] = []
-            inner.every(0.1)(lambda context: ticks.append(context.time.elapsed))
+            inner.hook(on='tick', every=0.1)(
+                lambda context: ticks.append(context.time.elapsed)
+            )
             outer.write(inner)
             outer.step(delta_seconds=0.5)
             assert ball.x == 5
@@ -691,7 +697,9 @@ class TestFrameDemand:
     def test_timers_need_no_frame_calls(self, frame_calls):
         with xnano.new(width=8, height=1) as canvas:
             ticks: list[float] = []
-            canvas.every(beats=1)(lambda context: ticks.append(context.time.elapsed))
+            canvas.hook(on='beat', every=1)(
+                lambda context: ticks.append(context.time.elapsed)
+            )
             for _ in range(20):
                 canvas.step(delta_seconds=0.1)
             assert len(ticks) >= 3
@@ -712,7 +720,7 @@ class TestFrameDemand:
 
     def test_the_ledger_stays_bounded(self):
         with xnano.new(width=8, height=1) as canvas:
-            canvas.every(beats=1)(lambda context: None)
+            canvas.hook(on='beat', every=1)(lambda context: None)
             before = len(canvas._ledger)
             for _ in range(100):
                 canvas.step(delta_seconds=0.5)
@@ -739,8 +747,8 @@ class TestOpeningWithoutATerminal:
         with xnano.new(width=12, height=2, fps=10) as canvas:
             label = canvas.write('kept')
             heard: list[str] = []
-            canvas.on_key()(lambda context: heard.append(context.keyboard.key))
-            canvas.every(0.1)(lambda context: heard.append('tick'))
+            canvas.hook(on='key')(lambda context: heard.append(context.keyboard.key))
+            canvas.hook(on='tick', every=0.1)(lambda context: heard.append('tick'))
             canvas.step(delta_seconds=0.5)
             for _ in range(2):
                 with pytest.raises(RuntimeError, match='could not be opened'):
@@ -788,7 +796,9 @@ def test_the_timers_of_what_a_child_holds_move_to_the_outer_canvas():
         inner = xnano.new(width=10, height=1)
         label = inner.write('-')
         ticks: list[float] = []
-        label.every(0.1)(lambda context: ticks.append(context.time.elapsed))
+        label.hook(on='tick', every=0.1)(
+            lambda context: ticks.append(context.time.elapsed)
+        )
         inner.step(delta_seconds=0.05)
         outer.write(inner)
         outer.step(delta_seconds=0.5)
@@ -799,7 +809,7 @@ def test_the_hooks_of_a_child_canvas_hear_the_outer_canvas_and_stop_when_it_clos
     with xnano.new(width=20, height=2) as outer:
         inner = xnano.new(width=10, height=1)
         heard: list[str] = []
-        inner.on_key()(lambda context: heard.append(context.keyboard.key))
+        inner.hook(on='key')(lambda context: heard.append(context.keyboard.key))
         outer.write(inner)
         outer.push(Event.key_press('a'))
         outer.deliver_events()

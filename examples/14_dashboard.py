@@ -61,7 +61,7 @@ def main() -> None:
         terminal.write(bars, y=9, width=34, height=9)
         terminal.write(table, x=34, y=9, width=WIDTH - 34, height=9)
 
-        @terminal.every(0.2)
+        @terminal.hook(on='tick', every=0.2)
         def refresh(context: Context) -> None:
             elapsed = context.time.elapsed
             chart.datasets = [

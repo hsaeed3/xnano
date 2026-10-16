@@ -60,7 +60,7 @@ class Placement(_Hooked[DepsT, StateT]):
     Assigning a range instead (``(0, 20)``) limits the axis rather than setting it.
     For ``x`` and ``y`` the range is how far the placement may travel, so a slider's thumb
     is a placement whose ``x`` is limited to its track; whatever is assigned to it later,
-    by a mouse hook or [`draggable`][xnano.operations.draggable], is held inside the track.
+    by a drag hook, is held inside the track.
     For ``width`` and ``height`` it is the smallest and largest size.
 
     Percentages and ranges only change when something about the canvas does, so they
@@ -140,6 +140,26 @@ class Placement(_Hooked[DepsT, StateT]):
     def core_buffer(self) -> _core.Buffer:
         """The core buffer that is placed, which core operations and widgets draw into."""
         return self._buffer
+
+    def local(self, point: _core.Point) -> _core.Point:
+        """
+        Convert a cell of the screen into a cell of this placement.
+
+        Args:
+            point: A cell in screen coordinates, such as ``context.mouse.position``.
+
+        Examples:
+            ```python
+            import xnano
+            from xnano_core import Point
+
+            with xnano.new(width=20, height=4) as canvas:
+                placement = canvas.write('hi', x=10, y=1)
+                assert placement.local(Point(11, 1)) == Point(1, 0)
+            ```
+        """
+        bounds = self._buffer._absolute_bounds
+        return _core.Point(point.x - bounds.x, point.y - bounds.y)
 
     @property
     def canvas(self) -> Canvas[DepsT, StateT]:

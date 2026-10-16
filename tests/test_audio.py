@@ -238,7 +238,7 @@ class TestExpressions:
 
 class TestInHooks:
     def test_a_hook_plays_a_note_on_a_key(self, canvas):
-        @canvas.hook(when=lambda context: context.keyboard is not None)
+        @canvas.hook(when=lambda context: context.keyboard.key is not None)
         def press(context: xnano.context.Context) -> None:
             context.audio.play(context.keyboard.key)
 
@@ -454,7 +454,7 @@ class TestTerminalSoundShortcuts:
             canvas.bpm = 120  # a beat is half a second
             beats = []
 
-            @canvas.every(beats=1)
+            @canvas.hook(on='beat', every=1)
             def count(context):
                 beats.append(round(context.time.elapsed, 2))
 
@@ -463,12 +463,14 @@ class TestTerminalSoundShortcuts:
             assert beats[:3] == pytest.approx([0.5, 1.0, 1.5], abs=0.11)
             assert len(beats) == 3
 
-    def test_every_needs_exactly_one_unit(self):
+    def test_every_and_after_have_one_unit_per_kind_of_hook(self):
         with xnano.new(width=8, height=1) as canvas:
-            with pytest.raises(ValueError, match='either seconds or beats'):
-                canvas.every()
-            with pytest.raises(ValueError, match='either seconds or beats'):
-                canvas.every(1, beats=1)
+            with pytest.raises(ValueError, match='needs an on='):
+                canvas.hook(lambda context: None, every=1)
+            with pytest.raises(ValueError, match='cannot be given together'):
+                canvas.hook(lambda context: None, on='beat', every=1, after=2)
+            with pytest.raises(ValueError, match="2 seconds for on='tick' and 2 beats"):
+                canvas.hook(lambda context: None, on='key', every=2)
 
     def test_play_records_melody_text_on_a_canvas_without_a_device(self):
         with xnano.new(width=8, height=1) as canvas:

@@ -23,7 +23,7 @@ class Time:
 
     Get it from [`Canvas.time`][xnano.canvas.Canvas.time] or from ``context.time`` inside a
     hook. Everything that moves follows it: animations, effects, formulas,
-    [`every`][xnano.canvas.Canvas.every] and [`after`][xnano.canvas.Canvas.after] timers,
+    [`hook`][xnano.canvas.Canvas.hook] timers (``every`` and ``after``),
     fixed-step updates and the musical beat. Any thread may read it. Used in arithmetic it is
     the formula for [`seconds`][xnano.time.Time.seconds], so ``canvas.time / 2`` is a value
     that follows the clock. [`stop`][xnano.time.Time.stop] freezes all of them while input

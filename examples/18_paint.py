@@ -34,18 +34,18 @@ def main() -> None:
 
         @canvas.hook(when=is_painting)
         def paint(context: Context) -> None:
-            if context.mouse is None:
+            if context.mouse.position is None:
                 return
             position = context.mouse.position
             column, row = pixels.pixel_at(position.x, position.y - 1, anchor='center')
             pixels[column, row] = brush.color
 
-        @terminal.on_key(*COLORS)
+        @terminal.hook(on='key', keys=list(COLORS))
         def choose_color(context: Context) -> None:
-            if context.keyboard is not None:
+            if context.keyboard.key is not None:
                 brush.color = COLORS[context.keyboard.key]
 
-        @terminal.on_key('c')
+        @terminal.hook(on='key', keys='c')
         def clear(context: Context) -> None:
             canvas.core_buffer.update(Fill(' '))
 

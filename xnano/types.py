@@ -22,10 +22,13 @@ from xnano._hooks import (
     Hook as Hook,
 )
 from xnano._hooks import (
-    Trigger as Trigger,
+    HookGenerator as HookGenerator,
 )
 from xnano._hooks import (
-    TriggerGenerator as TriggerGenerator,
+    HookKind as HookKind,
+)
+from xnano._hooks import (
+    When as When,
 )
 from xnano._values import (
     Axis as Axis,
@@ -35,6 +38,12 @@ from xnano._values import (
 )
 from xnano._values import (
     Content as Content,
+)
+from xnano._values import (
+    HeldMouseButtonName as HeldMouseButtonName,
+)
+from xnano._values import (
+    KeyName as KeyName,
 )
 from xnano._values import (
     PixelEncoding as PixelEncoding,
@@ -53,15 +62,18 @@ __all__ = [
     'CanvasSettings',
     'Content',
     'GateSettings',
+    'HeldMouseButtonName',
     'Hook',
+    'HookGenerator',
+    'HookKind',
+    'KeyName',
     'OpenSettings',
     'PixelEncoding',
     'RangeBound',
     'Renderable',
     'Spacing',
     'SpacingDictionary',
-    'Trigger',
-    'TriggerGenerator',
+    'When',
 ]
 
 

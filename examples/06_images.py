@@ -93,32 +93,32 @@ def main() -> None:
             left, top = viewer.scene.origin
             status_line.text = f'x {left} y {top} zoom {viewer.zoom}x'
 
-        @terminal.on_key('left')
+        @terminal.hook(on='key', keys='left')
         def pan_left(context: Context) -> None:
             viewer.pan(-1, 0)
             show_status()
 
-        @terminal.on_key('right')
+        @terminal.hook(on='key', keys='right')
         def pan_right(context: Context) -> None:
             viewer.pan(1, 0)
             show_status()
 
-        @terminal.on_key('up')
+        @terminal.hook(on='key', keys='up')
         def pan_up(context: Context) -> None:
             viewer.pan(0, -1)
             show_status()
 
-        @terminal.on_key('down')
+        @terminal.hook(on='key', keys='down')
         def pan_down(context: Context) -> None:
             viewer.pan(0, 1)
             show_status()
 
-        @terminal.on_key('+', '=')
+        @terminal.hook(on='key', keys=['+', '='])
         def zoom_in(context: Context) -> None:
             viewer.zoom_by(1)
             show_status()
 
-        @terminal.on_key('-')
+        @terminal.hook(on='key', keys='-')
         def zoom_out(context: Context) -> None:
             viewer.zoom_by(-1)
             show_status()

@@ -28,10 +28,9 @@ def test_a_state_write_is_validated_and_wakes_a_hook():
     heard: list[int] = []
     with main.new(width=8, height=2, state=Settings()) as canvas:
 
-        @canvas.hook
+        @canvas.hook(on='state')
         def remember(context: Context) -> None:
-            if type(context.event).__name__ == 'TerminalStateChange':
-                heard.append(context.state.volume)
+            heard.append(context.root.state.volume)
 
         canvas.state.volume = 55
         canvas.deliver_events()

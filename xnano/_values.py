@@ -99,6 +99,31 @@ DepsT_co = TypeVar('DepsT_co', covariant=True, default=None)
 StateT_co = TypeVar('StateT_co', covariant=True, default=None)
 
 
+KeyName: TypeAlias = Literal[
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    'space', 'enter', 'escape', 'tab', 'backspace', 'delete', 'insert',
+    'home', 'end', 'page_up', 'page_down', 'up', 'down', 'left', 'right',
+    'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12',
+] | str  # fmt: skip
+"""
+The name of a key such as ``'q'``, ``'enter'`` or ``'page_up'``.
+
+A key with modifiers is written as a chord joined with ``+``, such as ``'ctrl+s'`` or
+``'shift+tab'``; the trailing ``str`` lets a chord and punctuation keys type-check while editors
+still suggest the names listed here.
+"""
+
+HeldMouseButtonName: TypeAlias = Literal['mouse_left', 'mouse_right', 'mouse_middle']
+"""
+The name of a mouse button in the held-input vocabulary of [`Input`][xnano.input.Input].
+
+``Input.is_down('mouse_left')`` asks whether the left button is held. The button of a mouse
+event keeps the names ``'left'``, ``'right'`` and ``'middle'``.
+"""
+
+
 @runtime_checkable
 class Renderable(Protocol):
     """

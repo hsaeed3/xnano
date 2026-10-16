@@ -1,7 +1,7 @@
 """
 Typed state that expressions can read.
 
-``open(state=...)`` takes a dataclass. Hooks read and write it through ``context.state``, a
+``open(state=...)`` takes a dataclass. Hooks read and write it through ``context.root.state``, a
 write is checked against the field's type, and ``terminal.ref`` turns a field into an
 expression, so the gauge follows the number with no code that redraws it. The gauge's
 label flips to the opposite colors where the bar passes under it.
@@ -37,17 +37,17 @@ with xnano.open(width=40, height=4, state=Settings()) as terminal:
         y=2,
     )
 
-    @terminal.on_key('up')
+    @terminal.hook(on='key', keys='up')
     def louder(context: Context[None, Settings]) -> None:
-        context.state.volume = min(100, context.state.volume + 5)
+        context.root.state.volume = min(100, context.root.state.volume + 5)
 
-    @terminal.on_key('down')
+    @terminal.hook(on='key', keys='down')
     def quieter(context: Context[None, Settings]) -> None:
-        context.state.volume = max(0, context.state.volume - 5)
+        context.root.state.volume = max(0, context.root.state.volume - 5)
 
-    @terminal.on_key('m')
+    @terminal.hook(on='key', keys='m')
     def mute(context: Context[None, Settings]) -> None:
-        context.state.is_muted = not context.state.is_muted
+        context.root.state.is_muted = not context.root.state.is_muted
 
     status = terminal.write('', y=1)
 

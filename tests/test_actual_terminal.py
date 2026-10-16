@@ -116,11 +116,10 @@ def test_true_color_and_print_capture_reach_the_native_terminal(actual_terminal)
     [
         """
 with xnano.open() as terminal:
-    @terminal.hook
+    @terminal.hook(on='resize')
     def observe(context):
-        if context.size_changed is not None:
-            terminal.clear()
-            terminal.write(f'RESIZED {terminal.width}x{terminal.height}')
+        terminal.clear()
+        terminal.write(f'RESIZED {context.size.width}x{context.size.height}')
     terminal.write('RESIZE READY')
     terminal.run()
 """
@@ -142,9 +141,9 @@ def test_native_window_resize_reaches_xnano(actual_terminal):
 with xnano.open() as terminal:
     @terminal.hook
     def observe(context):
-        if context.pasted is not None:
-            terminal.write(f'PASTED {context.pasted}', y=1)
-        if context.keyboard is not None and context.keyboard.key == 'a':
+        if context.clipboard.text is not None:
+            terminal.write(f'PASTED {context.clipboard.text}', y=1)
+        if context.keyboard.key is not None and context.keyboard.key == 'a':
             terminal.write('KEY RECEIVED', y=2)
     terminal.write('INPUT READY')
     terminal.run()

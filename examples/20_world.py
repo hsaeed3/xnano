@@ -253,7 +253,7 @@ def main() -> None:
             hero.step(1 / 60, terminal.input.direction())
             show_status()
 
-        @terminal.on_key('space')
+        @terminal.hook(on='key', keys='space')
         def toggle_time(context: Context) -> None:
             if terminal.time.is_stopped:
                 terminal.time.resume()
@@ -262,13 +262,13 @@ def main() -> None:
             show_status()  # updates wait while time is stopped
 
         def walk_toward_pointer(context: Context) -> None:
-            mouse = context.mouse
-            if mouse is not None and mouse.position.y < terminal.height - 1:
-                world_x, world_y = scene.world_at(mouse.position.x, mouse.position.y)
+            position = context.mouse.position
+            if position is not None and position.y < terminal.height - 1:
+                world_x, world_y = scene.world_at(position.x, position.y)
                 hero.target = (float(world_x), float(world_y))
 
-        terminal.on_click(walk_toward_pointer)
-        terminal.on_drag(walk_toward_pointer)
+        terminal.hook(walk_toward_pointer, on='mouse', when="mouse.kind == 'press'")
+        terminal.hook(walk_toward_pointer, on='drag')
         terminal.run(quit_on='q')
 
 

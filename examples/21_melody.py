@@ -4,7 +4,7 @@ Write a melody as text, and keep time with the beat.
 ``terminal.play`` takes a melody written like ``'E4:0.5 G4 rest C5+E5'``: a note name, an
 optional length in beats after a colon, ``rest`` for silence and ``+`` for a chord. Lengths are
 beats, so ``terminal.bpm`` speeds the whole tune up or slows it down, and
-``@terminal.every(beats=1)`` runs a function on every beat of that tempo, ticking a metronome
+``@terminal.hook(on='beat', every=1)`` runs a function on every beat of that tempo, ticking a metronome
 here. Without a sound device the screen still keeps time.
 
 ``m`` plays the tune, ``up`` and ``down`` change the tempo, ``space`` stops and starts time,
@@ -43,7 +43,7 @@ def main() -> None:
 
         show()
 
-        @terminal.every(beats=1)
+        @terminal.hook(on='beat', every=1)
         def metronome(context: Context) -> None:
             beats.count += 1
             show()
@@ -54,22 +54,22 @@ def main() -> None:
                     volume=0.3,
                 )
 
-        @terminal.on_key('m')
+        @terminal.hook(on='key', keys='m')
         def play_tune(context: Context) -> None:
             if terminal.audio.is_available:
                 terminal.play(TUNE, instrument='bell')
 
-        @terminal.on_key('up')
+        @terminal.hook(on='key', keys='up')
         def faster(context: Context) -> None:
             terminal.bpm = min(240, terminal.bpm + 10)
             show()
 
-        @terminal.on_key('down')
+        @terminal.hook(on='key', keys='down')
         def slower(context: Context) -> None:
             terminal.bpm = max(40, terminal.bpm - 10)
             show()
 
-        @terminal.on_key('space')
+        @terminal.hook(on='key', keys='space')
         def toggle_time(context: Context) -> None:
             if terminal.time.is_stopped:
                 terminal.time.resume()

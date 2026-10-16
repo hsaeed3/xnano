@@ -191,10 +191,10 @@ class TestTypedState:
         with xnano.new(width=8, height=1, state=Settings()) as canvas:
             seen: list[int] = []
 
-            @canvas.hook(when=lambda context: context.keyboard is not None)
+            @canvas.hook(when=lambda context: context.keyboard.key is not None)
             def press(context: xnano.context.Context[None, Settings]) -> None:
-                context.state.volume += 5
-                seen.append(context.state.volume)
+                context.root.state.volume += 5
+                seen.append(context.root.state.volume)
 
             canvas.push(Event.key_press('up'))
             canvas.step(delta_seconds=0.05)

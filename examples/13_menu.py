@@ -50,21 +50,23 @@ def main() -> None:
         terminal.write('up/down, enter, q', y=7)
         result = terminal.write('', y=6)
 
-        @terminal.on_key('up')
+        @terminal.hook(on='key', keys='up')
         def previous(context: Context[None, Menu]) -> None:
-            context.state.selected = max(0, context.state.selected - 1)
+            context.root.state.selected = max(0, context.root.state.selected - 1)
 
-        @terminal.on_key('down')
+        @terminal.hook(on='key', keys='down')
         def following(context: Context[None, Menu]) -> None:
-            context.state.selected = min(len(CHOICES) - 1, context.state.selected + 1)
+            context.root.state.selected = min(
+                len(CHOICES) - 1, context.root.state.selected + 1
+            )
 
-        @terminal.on_key('enter')
+        @terminal.hook(on='key', keys='enter')
         def choose(context: Context[None, Menu]) -> None:
-            context.state.chosen = CHOICES[context.state.selected]
-            if context.state.chosen == 'Quit':
+            context.root.state.chosen = CHOICES[context.root.state.selected]
+            if context.root.state.chosen == 'Quit':
                 context.canvas.quit()
             else:
-                result.text = f'chose {context.state.chosen}'
+                result.text = f'chose {context.root.state.chosen}'
 
         terminal.run(quit_on='q')
 

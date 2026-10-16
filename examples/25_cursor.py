@@ -30,32 +30,32 @@ with xnano.open(width=50, height=8) as terminal:
     cursor.home().down(2)
     show()
 
-    @terminal.on_key('up')
+    @terminal.hook(on='key', keys='up')
     def move_up(context: Context) -> None:
         cursor.up()
         show()
 
-    @terminal.on_key('down')
+    @terminal.hook(on='key', keys='down')
     def move_down(context: Context) -> None:
         cursor.down()
         show()
 
-    @terminal.on_key('left')
+    @terminal.hook(on='key', keys='left')
     def move_left(context: Context) -> None:
         cursor.left()
         show()
 
-    @terminal.on_key('right')
+    @terminal.hook(on='key', keys='right')
     def move_right(context: Context) -> None:
         cursor.right()
         show()
 
-    @terminal.on_key('h')
+    @terminal.hook(on='key', keys='h')
     def go_home(context: Context) -> None:
         cursor.home()
         show()
 
-    @terminal.on_key('s')
+    @terminal.hook(on='key', keys='s')
     def change_shape(context: Context) -> None:
         cursor.shape = SHAPES[(SHAPES.index(cursor.shape or 'block') + 1) % len(SHAPES)]
         show()

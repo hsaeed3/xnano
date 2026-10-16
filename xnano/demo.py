@@ -118,7 +118,7 @@ class _Demo:
             )
         )
 
-        @terminal.on_key()
+        @terminal.hook(on='key')
         def begin(context: Context) -> None:
             context.hook.remove()
             for placement in self.intro:
@@ -315,7 +315,7 @@ class _Demo:
         )
         self.remember('hover and click: the mouse is on')
 
-        @terminal.every(0.12)
+        @terminal.hook(on='tick', every=0.12)
         def refresh(context: Context) -> None:
             elapsed = context.time.elapsed
             self.wave.ratio = 0.5 + 0.45 * math.sin(elapsed * 2)
@@ -333,15 +333,15 @@ class _Demo:
                     Bar(round(4 + 3.5 * math.sin(elapsed * 1.3 + index)), name)
                 )
 
-        @terminal.on_key('tab')
+        @terminal.hook(on='key', keys='tab')
         def next_instrument(context: Context) -> None:
             self.instrument = (self.instrument + 1) % len(INSTRUMENTS)
             self.show_sound()
             self.remember(f'instrument: {INSTRUMENTS[self.instrument]}')
 
-        @terminal.on_key(*NOTES)
+        @terminal.hook(on='key', keys=list(NOTES))
         def play(context: Context) -> None:
-            if context.keyboard is None:
+            if context.keyboard.key is None:
                 return
             note = NOTES[context.keyboard.key]
             self.remember(f'note {note} on {INSTRUMENTS[self.instrument]}')
@@ -353,17 +353,17 @@ class _Demo:
                     instrument=INSTRUMENTS[self.instrument],
                 )
 
-        @terminal.on_key('m')
+        @terminal.hook(on='key', keys='m')
         def mute(context: Context) -> None:
             self.is_muted = not self.is_muted
             self.show_sound()
 
-        @terminal.on_key('e')
+        @terminal.hook(on='key', keys='e')
         def replay_effect(context: Context) -> None:
             self.art.update(Effect.coalesce(duration_milliseconds=1200))
             self.remember('effect: coalesce')
 
-        @terminal.on_key('space')
+        @terminal.hook(on='key', keys='space')
         def toggle_time(context: Context) -> None:
             if terminal.time.is_stopped:
                 terminal.time.resume()
@@ -373,9 +373,9 @@ class _Demo:
                 'time: ' + ('stopped' if terminal.time.is_stopped else 'running')
             )
 
-        @terminal.on_click
+        @terminal.hook(on='mouse', when="mouse.kind == 'press'")
         def click(context: Context) -> None:
-            if context.mouse is not None:
+            if context.mouse.position is not None:
                 self.remember(
                     f'click at {context.mouse.position.x},{context.mouse.position.y}'
                 )

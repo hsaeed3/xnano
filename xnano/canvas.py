@@ -338,6 +338,29 @@ def _refuse_canvas_spacing(function_name: str, appearance: Mapping[str, object])
         )
 
 
+def _is_gate_on(gate: str, resolved: Mapping[str, object]) -> bool:
+    """Whether the input a hook needs reaches the canvas with the gates ``resolved``."""
+    if gate == 'keyboard_release':
+        return resolved.get('keyboard') == 'release_events'
+    value = resolved.get(gate)
+    return value is not False and value is not None
+
+
+def _gate_message(
+    hook_name: str, gate: str, subject: str, resolved: Mapping[str, object]
+) -> str:
+    """Say which hook needs which gate, what the gate is now, and how to turn it on."""
+    key = 'keyboard' if gate == 'keyboard_release' else gate
+    setting = (
+        f'{key}={"release_events"!r}' if gate == 'keyboard_release' else f'{key}=True'
+    )
+    return (
+        f'The hook {hook_name} needs {setting}, but {subject} has {key}={resolved.get(key)!r}, '
+        f'so that input would never arrive. Turn it on when the canvas is created or opened: '
+        f'xnano.new({setting}), xnano.open({setting}) or canvas.open({setting}).'
+    )
+
+
 class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
     """
     A workspace of text, pixels and sound on a clock, with or without a screen.
@@ -997,12 +1020,10 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             name: gates.get(name, default) for name, default in _GATE_DEFAULTS.items()
         }
         for gate, names in needed.items():
-            if gate in gates:
-                if gates[gate] is False:
+            if gate in gates or gate not in _INFERRED_GATES:
+                if not _is_gate_on(gate, resolved):
                     raise TerminalError(
-                        f'The hook {names[0]} needs {gate}=True, but this canvas was given '
-                        f'{gate}=False, so that input would never arrive. Remove '
-                        f'{gate}=False from xnano.new() or open(), or remove the hook.'
+                        _gate_message(names[0], gate, 'this canvas', resolved)
                     )
             elif gate in _INFERRED_GATES:
                 resolved[gate] = True
@@ -1014,13 +1035,15 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         if not canvas._is_live:
             return
         for gate in handle._needed_gates():
-            if canvas._resolved_gates.get(gate) is False:
+            if not _is_gate_on(gate, canvas._resolved_gates):
                 name = getattr(handle.function, '__name__', 'hook')
                 raise TerminalError(
-                    f'The hook {name} needs {gate}=True, but this canvas is already on the '
-                    f'screen with {gate} off, so that input would never arrive. Open it with '
-                    f'{gate}=True: xnano.open({gate}=True), canvas.open({gate}=True) or '
-                    f'xnano.new({gate}=True).'
+                    _gate_message(
+                        name,
+                        gate,
+                        'this canvas, which is already on the screen,',
+                        canvas._resolved_gates,
+                    )
                 )
 
     def _attach_screen(
@@ -1294,7 +1317,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
     def _failure_text(self, failure: BaseException) -> str:
         text = (
             f'The canvas stopped because {type(failure).__name__} was raised on its '
-            f'loop: {failure}.'
+            f'loop: {str(failure).rstrip(".")}.'
         )
         report = self._failure_report
         return f'{text}\n\n{report}' if report else text
@@ -2554,10 +2577,14 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             )
         if quit_on is not None:
             keys = (quit_on,) if isinstance(quit_on, str) else tuple(quit_on)
+            if canvas._is_live and canvas._resolved_gates.get('keyboard') is False:
+                # With the keyboard off, only the interrupt gate can end the loop on Ctrl-C.
+                keys = tuple(key for key in keys if key != 'ctrl+c')
+            if keys:
 
-            @canvas.on_key(*keys)
-            def quit_key(context: Context[DepsT, StateT]) -> None:
-                context.canvas.quit()
+                @canvas.hook(on='key', keys=keys)
+                def quit_key(context: Context[DepsT, StateT]) -> None:
+                    context.canvas.quit()
 
         try:
             while not host.wait(0.1):
@@ -2597,7 +2624,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             with xnano.new(realtime=True, width=30, height=2) as canvas:
                 canvas.write('Press enter to start')
 
-                @canvas.after(0.05)
+                @canvas.hook(on='tick', after=0.05)
                 def press(context: xnano.context.Context) -> None:
                     canvas.push(Event.key_press('enter'))
 
@@ -2607,10 +2634,11 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         pressed: list[str] = []
         done = threading.Event()
 
-        @self.on_key(*keys)
+        @self.hook(on='key', keys=keys or None)
         def hear(context: Context[DepsT, StateT]) -> None:
-            if context.keyboard is not None:
-                pressed.append(context.keyboard.key)
+            key = context.keyboard.key
+            if key is not None:
+                pressed.append(key)
             context.hook.remove()
             done.set()
 
@@ -2646,7 +2674,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
 
             with xnano.new(realtime=True, width=30, height=2) as canvas:
 
-                @canvas.after(0.05)
+                @canvas.hook(on='tick', after=0.05)
                 def type_answer(context: xnano.context.Context) -> None:
                     for letter in 'Ada':
                         canvas.push(Event.key_press(letter))
@@ -2670,10 +2698,10 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self.cursor.is_visible = True
         show()
 
-        @self.on_key()
+        @self.hook(on='key', when="keyboard.kind != 'release'")
         def edit(context: Context[DepsT, StateT]) -> None:
             key = context.keyboard
-            if key is None:
+            if key.key is None:
                 return
             if key.key == 'enter':
                 done.set()

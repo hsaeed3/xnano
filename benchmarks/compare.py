@@ -969,7 +969,7 @@ def cases() -> list[Case]:
         seen = [0]
         digit = terminal.write('0')
 
-        @terminal.hook(when=lambda context: context.keyboard is not None)
+        @terminal.hook(when=lambda context: context.keyboard.key is not None)
         def count(context: xnano.context.Context) -> None:
             seen[0] += 1
             digit.text = str(seen[0] % 10)

@@ -6,7 +6,7 @@ colon and a number to hold it for that many beats (``E5:0.5`` is half a beat), a
 own lasts one beat. ``rest`` is a silence and ``|`` just marks the end of a bar. To play a part,
 give it to ``terminal.play`` with an instrument; to play several parts together, play them one
 after another in the same function. ``terminal.bpm`` sets the beats per minute, and
-``@terminal.every(beats=32)`` plays the song again every eight bars. Press ``space`` to stop and
+``@terminal.hook(on='beat', every=32)`` plays the song again every eight bars. Press ``space`` to stop and
 restart time, and ``q`` to quit.
 
 The tune is an original piece in the style of an old game's town theme.
@@ -57,17 +57,17 @@ with xnano.open(width=60, height=6) as terminal:
 
     play_song()
 
-    @terminal.every(beats=32)
+    @terminal.hook(on='beat', every=32)
     def repeat(context: Context) -> None:
         play_song()
 
-    @terminal.every(beats=1)
+    @terminal.hook(on='beat', every=1)
     def show_the_beat(context: Context) -> None:
         beats_played = int(context.time.elapsed * terminal.bpm / 60)
         bar, beat = divmod(beats_played % 32, 4)
         where.text = f'bar {bar + 1}   beat {beat + 1}'
 
-    @terminal.on_key('space')
+    @terminal.hook(on='key', keys='space')
     def stop_or_start_time(context: Context) -> None:
         if terminal.time.is_stopped:
             terminal.time.resume()

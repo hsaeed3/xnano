@@ -19,9 +19,15 @@ from xnano_core import (
     BufferExpressionScope as BufferExpressionScope,
 )
 from xnano_core import (
+    BufferRegion as BufferRegion,
+)
+from xnano_core import (
     BufferScope,
+    KeyboardScope,
+    MouseScope,
     ParentScope,
     RootScope,
+    ScrollScope,
 )
 from xnano_core import (
     BufferSize as BufferSize,
@@ -43,6 +49,33 @@ from xnano_core import (
 )
 from xnano_core import (
     IsVisible as IsVisible,
+)
+from xnano_core import (
+    KeyboardChord as KeyboardChord,
+)
+from xnano_core import (
+    KeyboardExpressionScope as KeyboardExpressionScope,
+)
+from xnano_core import (
+    KeyboardKey as KeyboardKey,
+)
+from xnano_core import (
+    KeyboardKind as KeyboardKind,
+)
+from xnano_core import (
+    MouseButtonValue as MouseButtonValue,
+)
+from xnano_core import (
+    MouseExpressionScope as MouseExpressionScope,
+)
+from xnano_core import (
+    MouseIsDown as MouseIsDown,
+)
+from xnano_core import (
+    MouseKind as MouseKind,
+)
+from xnano_core import (
+    MousePosition as MousePosition,
 )
 from xnano_core import (
     NumericValue as NumericValue,
@@ -73,6 +106,15 @@ from xnano_core import (
 )
 from xnano_core import (
     ScreenPosition as ScreenPosition,
+)
+from xnano_core import (
+    ScrollExpressionScope as ScrollExpressionScope,
+)
+from xnano_core import (
+    ScrollX as ScrollX,
+)
+from xnano_core import (
+    ScrollY as ScrollY,
 )
 from xnano_core import (
     Size as Size,
@@ -109,11 +151,27 @@ Root: RootExpressionScope = RootScope
 """Symbolic expressions for the root canvas's geometry and clock (``Root.width``, ``Root.time``)."""
 
 BufferExpressions: BufferExpressionScope = BufferScope
-"""Symbolic expressions for the current buffer's geometry (``BufferExpressions.width``, ``BufferExpressions.height``)."""
+"""
+Symbolic expressions for the current buffer's geometry (``BufferExpressions.width``,
+``BufferExpressions.height``) and its rectangle on the screen (``BufferExpressions.region``).
+"""
+
+Keyboard: KeyboardExpressionScope = KeyboardScope
+"""Symbolic expressions for the latest key event (``Keyboard.key``, ``Keyboard.kind``, ``Keyboard.chord``)."""
+
+Mouse: MouseExpressionScope = MouseScope
+"""
+Symbolic expressions for the latest mouse button or movement report (``Mouse.position``,
+``Mouse.button``, ``Mouse.kind``) and whether a button is held (``Mouse.is_down``).
+"""
+
+Scroll: ScrollExpressionScope = ScrollScope
+"""Symbolic expressions for the mouse wheel steps of the current step (``Scroll.x``, ``Scroll.y``)."""
 
 __all__ = [
     'BufferExpressionScope',
     'BufferExpressions',
+    'BufferRegion',
     'BufferSize',
     'DeviceHeight',
     'DeviceWidth',
@@ -122,6 +180,17 @@ __all__ = [
     'Focused',
     'Height',
     'IsVisible',
+    'Keyboard',
+    'KeyboardChord',
+    'KeyboardExpressionScope',
+    'KeyboardKey',
+    'KeyboardKind',
+    'Mouse',
+    'MouseButtonValue',
+    'MouseExpressionScope',
+    'MouseIsDown',
+    'MouseKind',
+    'MousePosition',
     'NumericValue',
     'Parent',
     'ParentExpressionScope',
@@ -132,6 +201,10 @@ __all__ = [
     'Position',
     'Root',
     'RootExpressionScope',
+    'Scroll',
+    'ScrollExpressionScope',
+    'ScrollX',
+    'ScrollY',
     'ScreenBounds',
     'ScreenPosition',
     'Size',

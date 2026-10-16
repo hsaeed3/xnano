@@ -26,7 +26,6 @@ from xnano.errors import (
     TerminalClosedError,
     TerminalError,
 )
-from xnano.operations import draggable
 from xnano_core import (
     Buffer,
     Cell,
@@ -479,7 +478,7 @@ class TestHooks:
 
         @canvas.hook
         def everything(context: Context) -> None:
-            if context.keyboard is not None:
+            if context.keyboard.key is not None:
                 heard.append(context.keyboard.key)
 
         for key in ('a', 'q'):
@@ -490,7 +489,7 @@ class TestHooks:
         heard: list[str] = []
 
         def is_quit(context: Context) -> bool:
-            return context.keyboard is not None and context.keyboard.key in ('q', 'c')
+            return context.keyboard.key is not None and context.keyboard.key in ('q', 'c')
 
         @canvas.hook(when=is_quit)
         def quit(context: Context) -> None:
@@ -506,8 +505,8 @@ class TestHooks:
         placement = canvas.write(Buffer(width=4, height=2), x=0, y=0)
 
         def remember(context: Context) -> None:
-            if context.keyboard is not None:
-                heard.append(type(context.target).__name__)
+            if context.keyboard.key is not None:
+                heard.append(type(context.buffer).__name__)
 
         canvas.hook(remember)
         placement.hook(remember)
@@ -518,7 +517,7 @@ class TestHooks:
         heard: list[str] = []
 
         def remember(context: Context) -> None:
-            if context.keyboard is not None:
+            if context.keyboard.key is not None:
                 heard.append(context.keyboard.key)
 
         handle = canvas.hook(remember)
@@ -531,7 +530,7 @@ class TestHooks:
     def test_stopping_from_a_key(self, canvas):
         @canvas.hook
         def quit(context: Context) -> None:
-            if context.keyboard is not None and context.keyboard.key == 'q':
+            if context.keyboard.key is not None and context.keyboard.key == 'q':
                 context.canvas.quit()
 
         dispatch(canvas, Event.key_press('q'))
@@ -547,15 +546,15 @@ class TestHooks:
         @canvas.hook
         def press(context: Context) -> None:
             if (
-                context.mouse is not None
+                context.mouse.position is not None
                 and context.mouse.kind == 'press'
                 and context.mouse.button == 'left'
             ):
-                pressed.append((context.mouse.column, context.mouse.row))
+                pressed.append((context.mouse.position.x, context.mouse.position.y))
 
         @placement.hook
         def anywhere(context: Context) -> None:
-            if context.mouse is not None and context.mouse.kind == 'press':
+            if context.mouse.position is not None and context.mouse.kind == 'press':
                 point = context.local(context.mouse.position)
                 local.append((point.x, point.y))
 
@@ -571,13 +570,14 @@ class TestHooks:
 
         @canvas.hook
         def heard(context: Context) -> None:
-            if context.size_changed is not None:
-                sizes.append((context.size_changed.width, context.size_changed.height))
-            if context.pasted is not None:
-                pasted.append(context.pasted)
-            if context.focus_gained is not None:
+            event = context.event
+            if event.kind == 'resize':
+                sizes.append((event.size.width, event.size.height))
+            if context.clipboard.text is not None:
+                pasted.append(context.clipboard.text)
+            if event.kind == 'focus_gained':
                 focus.append(True)
-            elif getattr(context.event, 'kind', None) == 'focus_lost':
+            elif event.kind == 'focus_lost':
                 focus.append(False)
 
         dispatch(canvas, Event.resize(width=30, height=9))
@@ -593,11 +593,11 @@ class TestHooks:
         ticks: list[float] = []
         once: list[float] = []
 
-        @canvas.every(0.1)
+        @canvas.hook(on='tick', every=0.1)
         def tick(context: Context) -> None:
             ticks.append(round(context.time.elapsed, 2))
 
-        @canvas.after(0.25)
+        @canvas.hook(on='tick', after=0.25)
         def later(context: Context) -> None:
             once.append(context.time.elapsed)
             context.hook.remove()
@@ -606,29 +606,16 @@ class TestHooks:
         assert ticks
         assert len(once) == 1
 
-    def test_five_clicks_and_a_parameterised_factory(self, canvas):
-        def clicks(count: int, gap: float = 1.0):
-            def trigger(context: Context):
-                seen = 0
-                event = None
-                while seen < count:
-                    event = yield gap
-                    mouse = None if event is None else getattr(event, 'mouse', None)
-                    pressed = (
-                        mouse is not None
-                        and mouse.kind == 'press'
-                        and mouse.button == 'left'
-                    )
-                    seen = seen + 1 if pressed else 0
-                return event  # noqa: B901
-
-            return trigger
-
+    def test_five_clicks_with_a_generator_hook(self, canvas):
         hits: list[int] = []
         placement = canvas.write(Buffer(width=4, height=2))
 
-        @placement.hook(when=clicks(5, gap=1.0))
-        def egg(context: Context) -> None:
+        @placement.hook(on='mouse', when="mouse.kind == 'press' and mouse.button == left")
+        def egg(context: Context):
+            presses = 1
+            while presses < 5:
+                context = yield
+                presses += 1
             hits.append(1)
             context.hook.remove()
 
@@ -647,7 +634,7 @@ class TestHooks:
         def tick(context: Context) -> None:
             ticks.append(1)
 
-        handle = canvas.every(0.1)(tick)
+        handle = canvas.hook(on='tick', every=0.1)(tick)
 
         canvas.step(delta_seconds=0.15)
         assert ticks
@@ -659,7 +646,7 @@ class TestHooks:
     def test_a_failing_hook_names_the_function(self, canvas):
         @canvas.hook
         def explode(context: Context) -> None:
-            if context.keyboard is not None:
+            if context.keyboard.key is not None:
                 raise ZeroDivisionError('nope')
 
         dispatch(canvas, Event.key_press('x'))
@@ -677,7 +664,7 @@ class TestHooks:
         def declare() -> None:
             @canvas.hook
             def remember(context: Context) -> None:
-                if context.keyboard is not None:
+                if context.keyboard.key is not None:
                     heard.append(context.keyboard.key)
 
             ready.set()
@@ -689,23 +676,31 @@ class TestHooks:
         dispatch(canvas, Event.key_press('z'))
         assert heard == ['z']
 
-    def test_draggable_matches_a_hand_written_copy(self, canvas):
-
+    def test_a_drag_hook_matches_a_hand_written_copy(self, canvas):
         library = canvas.write('#', x=(0, 10))
         custom = canvas.write('#', x=(0, 10), y=1)
 
-        def dragging(context: Context) -> bool:
-            return context.mouse is not None and context.mouse.kind == 'drag'
-
-        @custom.hook(when=dragging)
+        @custom.hook(on='drag')
         def move(context: Context) -> None:
-            point = context.local(context.mouse.position)
-            custom.x = point.x
+            custom.x = context.parent.local(context.mouse.position).x
 
-        library | draggable()
+        @library.hook(on='drag')
+        def slide(context: Context):
+            while context.mouse.is_down:
+                library.x = context.parent.local(context.mouse.position).x
+                context = yield
+
+        dispatch(canvas, Event.mouse_event(column=0, row=0, kind='press', button='left'))
         dispatch(canvas, Event.mouse_event(column=4, row=0, kind='drag', button='left'))
+        dispatch(
+            canvas, Event.mouse_event(column=4, row=0, kind='release', button='left')
+        )
+        dispatch(canvas, Event.mouse_event(column=0, row=1, kind='press', button='left'))
         dispatch(canvas, Event.mouse_event(column=4, row=1, kind='drag', button='left'))
-        assert library.x == custom.x
+        dispatch(
+            canvas, Event.mouse_event(column=4, row=1, kind='release', button='left')
+        )
+        assert library.x == custom.x == 4
 
     def test_closing_cancels_hooks(self):
         heard: list[str] = []
@@ -713,7 +708,7 @@ class TestHooks:
 
         @canvas.hook
         def remember(context: Context) -> None:
-            if context.keyboard is not None:
+            if context.keyboard.key is not None:
                 heard.append(context.keyboard.key)
 
         runtime = canvas._runtime
@@ -729,11 +724,11 @@ class TestTime:
         once: list[float] = []
         seen: list[int] = []
 
-        @canvas.every(0.1)
+        @canvas.hook(on='tick', every=0.1)
         def tick(context: Context) -> None:
             ticks.append(round(context.time.elapsed, 2))
 
-        @canvas.after(0.25)
+        @canvas.hook(on='tick', after=0.25)
         def later(context: Context) -> None:
             once.append(context.time.elapsed)
             context.hook.remove()
@@ -886,7 +881,7 @@ class TestAutonomous:
         seen: list[Canvas | None] = []
 
         def is_a(context: Context) -> bool:
-            return context.keyboard is not None and context.keyboard.key == 'a'
+            return context.keyboard.key is not None and context.keyboard.key == 'a'
 
         @autonomous.hook(when=is_a)
         def heard(context: Context) -> None:
@@ -903,7 +898,7 @@ class TestAutonomous:
 
         @autonomous.hook
         def quit(context: Context) -> None:
-            if context.keyboard is not None and context.keyboard.key == 'q':
+            if context.keyboard.key is not None and context.keyboard.key == 'q':
                 context.canvas.quit()
 
         threading.Timer(0.05, lambda: autonomous.push(Event.key_press('q'))).start()
@@ -916,11 +911,11 @@ class TestAutonomous:
         frames: list[int] = []
         once: list[int] = []
 
-        @autonomous.every(0.02)
+        @autonomous.hook(on='tick', every=0.02)
         def tick(context: Context) -> None:
             ticks.append(1)
 
-        @autonomous.after(0.02)
+        @autonomous.hook(on='tick', after=0.02)
         def later(context: Context) -> None:
             once.append(1)
             context.hook.remove()
@@ -978,7 +973,7 @@ class TestAutonomous:
 
         @canvas.hook
         def explode(context: Context) -> None:
-            if context.keyboard is not None and context.keyboard.key == 'x':
+            if context.keyboard.key is not None and context.keyboard.key == 'x':
                 raise ZeroDivisionError('nope')
 
         canvas.push(Event.key_press('x'))
@@ -999,7 +994,7 @@ class TestAutonomous:
 
                 @canvas.hook
                 def explode(context: Context) -> None:
-                    if context.keyboard is not None and context.keyboard.key == 'x':
+                    if context.keyboard.key is not None and context.keyboard.key == 'x':
                         raise ZeroDivisionError('nope')
 
                 canvas.push(Event.key_press('x'))
@@ -1036,7 +1031,7 @@ class TestKeyDecorators:
 
         seen = []
 
-        @canvas.on_key('a', 'enter')
+        @canvas.hook(on='key', keys=['a', 'enter'])
         def record(context):
             seen.append(context.keyboard.key)
 
@@ -1044,22 +1039,33 @@ class TestKeyDecorators:
             dispatch(canvas, Event.key_press(name))
         assert seen == ['a', 'enter']
 
-    def test_without_keys_it_fires_for_every_key_pressed(self, canvas):
+    def test_without_keys_it_fires_for_every_key_event(self, canvas):
         seen = []
 
-        @canvas.on_key()
+        @canvas.hook(on='key')
         def record(context):
             seen.append(context.keyboard.key)
 
         dispatch(canvas, Event.key_press('a'))
         dispatch(canvas, Event.key_press('b', kind='release'))
         dispatch(canvas, Event.key_press('c'))
-        assert seen == ['a', 'c']
+        assert seen == ['a', 'b', 'c'], 'a key hook without keys also hears releases'
+
+    def test_a_condition_on_the_kind_leaves_out_releases(self, canvas):
+        seen = []
+
+        @canvas.hook(on='key', when="keyboard.kind != 'release'")
+        def record(context):
+            seen.append(context.keyboard.key)
+
+        dispatch(canvas, Event.key_press('a'))
+        dispatch(canvas, Event.key_press('b', kind='release'))
+        assert seen == ['a']
 
     def test_after_runs_once(self, canvas):
         seen = []
 
-        @canvas.after(0.1)
+        @canvas.hook(on='tick', after=0.1)
         def later(context):
             seen.append(context.time.elapsed)
 
@@ -1069,11 +1075,11 @@ class TestKeyDecorators:
     def test_click_and_drag_decorators_hear_their_own_mouse_events(self, canvas):
         seen = []
 
-        @canvas.on_click
+        @canvas.hook(on='mouse', when="mouse.kind == 'press'")
         def click(context):
             seen.append('click')
 
-        @canvas.on_drag
+        @canvas.hook(on='drag')
         def drag(context):
             seen.append('drag')
 
@@ -1090,7 +1096,7 @@ class TestKeyReleaseDecorator:
 
         seen = []
 
-        @canvas.on_key_release('a')
+        @canvas.hook(on='key', when="keyboard.kind == 'release' and keyboard.key == a")
         def record(context):
             seen.append((context.keyboard.key, context.keyboard.kind))
 
@@ -1158,7 +1164,7 @@ class TestPausingTime:
         with new(realtime=True, width=12, height=1) as canvas:
             ticks = []
 
-            @canvas.every(0.05)
+            @canvas.hook(on='tick', every=0.05)
             def tick(context):
                 ticks.append(context.time.elapsed)
 
@@ -1181,7 +1187,7 @@ class TestPausingTime:
     def test_a_key_can_resume_a_paused_terminal(self):
         with new(width=12, height=1) as canvas:
 
-            @canvas.on_key('space')
+            @canvas.hook(on='key', keys='space')
             def toggle(context):
                 if canvas.time.is_stopped:
                     canvas.time.resume()
@@ -1198,7 +1204,7 @@ class TestPausingTime:
 
         with new(realtime=True, width=12, height=1) as canvas:
 
-            @canvas.on_key('x')
+            @canvas.hook(on='key', keys='x')
             def draw(context):
                 canvas.write('drawn')
 

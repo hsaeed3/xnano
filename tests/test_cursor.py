@@ -123,7 +123,7 @@ class TestCursor:
     def test_a_hook_sees_the_same_cursor(self, canvas):
         seen = []
 
-        @canvas.on_key('x')
+        @canvas.hook(on='key', keys='x')
         def record(context):
             seen.append((context.cursor, context.root.cursor))
 

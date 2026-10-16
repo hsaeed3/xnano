@@ -6,8 +6,10 @@ import pytest
 
 import xnano
 import xnano_core
+from xnano._hooks import HookHandle
 from xnano.context import Context
-from xnano.operations import draggable, fx
+from xnano.operations import fx
+from xnano_core import Event
 
 
 def render_text(buffer) -> str:
@@ -119,11 +121,21 @@ def test_a_canvas_has_no_fx_method_and_pipe_returns_the_canvas() -> None:
         assert not hasattr(label, 'fx')
 
 
-def test_nested_placement_is_draggable() -> None:
+def test_nested_placement_follows_a_drag_hook() -> None:
     with xnano.new(width=20, height=3) as canvas:
         track = canvas.write(' ' * 10, y=1)
-        thumb = track.write('█', x=(0, track.width - 1), y=0) | draggable()
-        assert isinstance(thumb, xnano.placement.Placement)
+        thumb = track.write('█', x=(0, track.width - 1), y=0)
+
+        @thumb.hook(on='drag')
+        def slide(context: xnano.context.Context):
+            while context.mouse.is_down:
+                thumb.x = context.parent.local(context.mouse.position).x
+                context = yield
+
+        canvas.push(Event.mouse_event(column=0, row=1, kind='press', button='left'))
+        canvas.push(Event.mouse_event(column=5, row=1, kind='drag', button='left'))
+        canvas.deliver_events()
+        assert thumb.x == 5
 
 
 def test_expression_scopes_on_placements() -> None:
@@ -133,7 +145,7 @@ def test_expression_scopes_on_placements() -> None:
         ball.x = (canvas.width - ball.width) * ((canvas.time / 2.0) % 1.0)
 
 
-def test_terminal_hook_with_a_trigger_mounts_a_contextual_operation() -> None:
+def test_a_frame_hook_runs_on_every_frame() -> None:
     calls: list[int] = []
     with xnano.new(width=8, height=2) as canvas:
 
@@ -141,7 +153,7 @@ def test_terminal_hook_with_a_trigger_mounts_a_contextual_operation() -> None:
         def record(context: xnano.context.Context) -> None:
             calls.append(1)
 
-        assert isinstance(record, xnano.operations.ContextualOperation)
+        assert isinstance(record, HookHandle)
         for _ in canvas.iter(count=2):
             pass
     assert calls
@@ -248,7 +260,6 @@ def test_triggers_decide_events_natively() -> None:
     assert not xnano_core.Trigger.key('x').matches(press)
     assert xnano_core.Trigger.key().matches(press)
     assert not xnano_core.Trigger.click().matches(press)
-    assert xnano_core.Trigger.every(0.5).seconds == 0.5
     assert xnano_core.Trigger.named('click') == xnano_core.Trigger.click()
     with pytest.raises(ValueError, match='Use one of'):
         xnano_core.Trigger.named('sometimes')
@@ -272,26 +283,41 @@ def test_audio_customization_chains_onto_sounds() -> None:
 
 
 def test_xnano_hook_makes_a_reusable_operation() -> None:
-    @xnano.hook(on='frame')
-    def banner(context: Context) -> str:
-        return f'w={context.width}'
+    ticks: list[float] = []
 
-    assert isinstance(banner, xnano.operations.ContextualOperation)
-    with xnano.new(width=8, height=1) as canvas:
-        assert canvas.write(banner).text == 'w=8'
+    @xnano.hook(on='tick', every=0.1)
+    def tick(context: Context) -> None:
+        ticks.append(round(context.time.elapsed, 1))
+
+    assert isinstance(tick, xnano.operations.ContextualOperation)
+    assert (tick.on, tick.every) == ('tick', 0.1)
+    with xnano.new(width=8, height=1) as first, xnano.new(width=8, height=1) as second:
+        first | tick
+        second | tick
+        first.step(delta_seconds=0.25)
+        second.step(delta_seconds=0.15)
+    assert len(ticks) == 3
     assert not hasattr(xnano, 'operation')
 
 
-def test_a_hook_on_a_clock_returns_the_operation_and_an_event_hook_the_handle() -> None:
-    ticks: list[float] = []
+def test_a_hook_returning_an_operation_applies_it() -> None:
     with xnano.new(width=8, height=1) as canvas:
+        label = canvas.write('hi')
 
-        @canvas.hook(every=0.1)
-        def tick(context: Context) -> None:
-            ticks.append(context.time.elapsed)
+        @label.hook(on='tick', after=0.0)
+        def tint(context: Context) -> xnano_core.Operation:
+            return xnano_core.Fill('x')
 
-        handle = canvas.hook(lambda context: None, when=xnano_core.Trigger.key('q'))
-        canvas.step(delta_seconds=0.35)
-    assert isinstance(tick, xnano.operations.ContextualOperation)
-    assert ticks
-    assert hasattr(handle, 'remove')
+        canvas.step(delta_seconds=0.1)
+        assert canvas.render().startswith('xx')
+
+
+def test_a_hook_returning_content_is_refused() -> None:
+    with pytest.raises(xnano.errors.TerminalError, match='cannot return content'):
+        with xnano.new(width=8, height=1) as canvas:
+
+            @canvas.hook(on='tick', after=0.0)
+            def draw(context: Context) -> str:
+                return 'text'
+
+            canvas.step(delta_seconds=0.1)

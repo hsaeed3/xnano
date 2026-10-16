@@ -45,7 +45,7 @@ with xnano.open(width=50, height=7) as terminal:
 
     show_next_effect()
 
-    @terminal.every(2.0)
+    @terminal.hook(on='tick', every=2.0)
     def cycle(context: Context) -> None:
         show_next_effect()
 

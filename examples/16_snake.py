@@ -85,12 +85,12 @@ def main() -> None:
             game.step()
             draw()
 
-        @terminal.on_key(*DIRECTIONS)
+        @terminal.hook(on='key', keys=list(DIRECTIONS))
         def steer(context: Context) -> None:
-            if context.keyboard is not None:
+            if context.keyboard.key is not None:
                 game.steer(DIRECTIONS[context.keyboard.key])
 
-        @terminal.on_key('r')
+        @terminal.hook(on='key', keys='r')
         def restart(context: Context) -> None:
             game.reset()
 

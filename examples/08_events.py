@@ -2,12 +2,13 @@
 Every event, in one log.
 
 Keys, the mouse, pastes and your own events all arrive the same way, as a context given to a
-hook. Press keys, click, drag, paste, resize the window, or press ``c`` to send an event of
+hook. Press keys, click, drag, scroll, paste, resize the window, or press ``c`` to send an event of
 your own with ``terminal.push``.
 
-A custom ``when`` can also span time. ``taps`` below is a generator: it waits for the next event with
-``yield``, counts key presses, starts over when too much time passes, and returns the event
-that completed it. Tap ``t`` three times quickly to see it fire. Press ``q`` to quit.
+A hook can also span several events. ``triple_tap`` below is a generator hook: it receives the
+next context at each ``yield``, counts presses of ``t``, starts over when too much time passes
+or another key comes, and logs when the third arrives. Tap ``t`` three times quickly to see
+it fire. Press ``q`` to quit.
 """
 
 import collections
@@ -15,26 +16,9 @@ import collections
 import xnano
 from xnano.context import Context
 from xnano.events import Event
+from xnano.types import HookGenerator
 
-
-def taps(key: str, count: int, within_seconds: float = 0.6):
-    """A trigger for ``count`` presses of ``key``, each within ``within_seconds`` of the last."""
-
-    def trigger(context: Context):
-        seen = 0
-        event = None
-        while seen < count:
-            event = yield within_seconds  # the next event, or None if time ran out
-            if event is None:
-                seen = 0
-            elif event.kind == 'key' and event.key.kind == 'press':
-                seen = seen + 1 if event.key.key == key else 0
-        return event  # noqa: B901
-
-    return trigger
-
-
-with xnano.open(width=60, height=10, mouse='motion') as terminal:
+with xnano.open(width=60, height=10, mouse='motion', scroll=True) as terminal:
     log: collections.deque[str] = collections.deque(maxlen=8)
     terminal.write('events (c: custom event, t t t: triple tap, q: quit)', y=0)
 
@@ -49,19 +33,18 @@ with xnano.open(width=60, height=10, mouse='motion') as terminal:
         event = context.event
         if event is None:
             return
-        if context.keyboard is not None:
+        if context.keyboard.key is not None:
             description = f'key {context.keyboard.key!r} ({context.keyboard.kind})'
-        elif context.mouse is not None:
-            mouse = context.mouse
-            if mouse.kind == 'move':
+        elif (position := context.mouse.position) is not None:
+            if context.mouse.kind == 'move':
                 return
-            description = f'mouse {mouse.kind} at {mouse.position.x},{mouse.position.y}'
-        elif context.pasted is not None:
-            description = f'paste {context.pasted!r}'
-        elif context.size_changed is not None:
-            description = (
-                f'resize {context.size_changed.width}x{context.size_changed.height}'
-            )
+            description = f'mouse {context.mouse.kind} at {position.x},{position.y}'
+        elif context.scroll.x or context.scroll.y:
+            description = f'scroll {context.scroll.x},{context.scroll.y}'
+        elif context.clipboard.text is not None:
+            description = f'paste {context.clipboard.text!r}'
+        elif isinstance(event, Event) and event.size is not None:
+            description = f'resize {event.size.width}x{event.size.height}'
         elif isinstance(event, Event) and event.kind == 'custom':
             description = f'custom {event.custom_name} {event.custom_data}'
         else:
@@ -69,12 +52,22 @@ with xnano.open(width=60, height=10, mouse='motion') as terminal:
         log.append(description)
         show()
 
-    @terminal.hook(when=taps('t', 3))
-    def triple_tap(context: Context) -> None:
+    @terminal.hook(on='key', when="keyboard.kind == 'press'")
+    def triple_tap(context: Context) -> HookGenerator:
+        taps = 0
+        last_seconds = context.time.elapsed
+        while taps < 3:
+            now_seconds = context.time.elapsed
+            is_t = context.keyboard.key == 't'
+            is_in_time = taps == 0 or now_seconds - last_seconds <= 0.6
+            taps = taps + 1 if is_t and is_in_time else int(is_t)
+            last_seconds = now_seconds
+            if taps < 3:
+                context = yield
         log.append('triple tap of t')
         show()
 
-    @terminal.on_key('c')
+    @terminal.hook(on='key', keys='c')
     def send(context: Context) -> None:
         context.canvas.push(Event.custom('hello', data='from the example'))
 
