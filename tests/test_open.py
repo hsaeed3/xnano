@@ -11,6 +11,7 @@ import pathlib
 import sys
 import textwrap
 import threading
+from typing import cast
 
 import pytest
 
@@ -34,6 +35,7 @@ from xnano_core import (
     ParentHeight,
     ParentWidth,
     Point,
+    PointerPosition,
     TimeElapsed,
     Width,
     Write,
@@ -241,7 +243,10 @@ class TestPlacements:
     def test_a_range_holds_a_formula_too(self, terminal):
         ball = terminal.write('o', x=(0, 6))
         ball.x = (ParentWidth - Width) * (TimeElapsed % 1.0)
-        positions = [ball.x, *(ball.x for _ in terminal.iter(count=8))]
+        positions = [
+            cast('int', ball.x),
+            *(cast('int', ball.x) for _ in terminal.iter(count=8)),
+        ]
         assert max(positions) == 6
         assert positions[:3] == [0, 0, 2]
 
@@ -284,10 +289,15 @@ class TestPlacements:
         ball = terminal.write('o')
         ball.x = TimeElapsed * 10
         terminal.loop.advance(0.5)
-        assert ball.x == 5
+        assert cast('int', ball.x) == 5
         ball.x = 1
         terminal.loop.advance(0.5)
-        assert ball.x == 1
+        assert cast('int', ball.x) == 1
+
+    def test_a_formula_over_unseen_input_is_explained(self, terminal):
+        placement = terminal.write('o', x=3)
+        with pytest.raises(TypeError, match='input that has not been seen'):
+            placement.x = PointerPosition.x
 
     def test_bad_axes_are_explained(self, terminal):
         placement = terminal.write('x')

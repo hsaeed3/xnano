@@ -98,6 +98,26 @@ pub enum PropertyId {
     PointerPosition,
     Layer,
     IsVisible,
+    /// The key of the current key event, or `None` while the current event is not a key.
+    KeyboardKey,
+    /// `press`, `repeat` or `release`, or `None` while the current event is not a key.
+    KeyboardKind,
+    /// The current key event as a chord such as `ctrl+s`, or `None`.
+    KeyboardChord,
+    /// `left`, `right` or `middle` for the current button or motion report, or `None`.
+    MouseButton,
+    /// `press`, `release`, `drag` or `move` for the current button or motion report, or `None`.
+    MouseKind,
+    /// The cell of the current button or motion report, or `None`. A wheel report has none.
+    MousePosition,
+    /// Whether any mouse button is held.
+    MouseIsDown,
+    /// Signed horizontal wheel steps of the current step (right is positive).
+    ScrollX,
+    /// Signed vertical wheel steps of the current step (down is positive).
+    ScrollY,
+    /// The rectangle of the buffer on the screen, in screen cells.
+    BufferRegion,
 }
 
 impl PropertyId {
@@ -128,6 +148,16 @@ impl PropertyId {
             Self::PointerPosition => "PointerPosition",
             Self::Layer => "Layer",
             Self::IsVisible => "IsVisible",
+            Self::KeyboardKey => "KeyboardKey",
+            Self::KeyboardKind => "KeyboardKind",
+            Self::KeyboardChord => "KeyboardChord",
+            Self::MouseButton => "MouseButtonValue",
+            Self::MouseKind => "MouseKind",
+            Self::MousePosition => "MousePosition",
+            Self::MouseIsDown => "MouseIsDown",
+            Self::ScrollX => "ScrollX",
+            Self::ScrollY => "ScrollY",
+            Self::BufferRegion => "BufferRegion",
         }
     }
 
@@ -164,6 +194,7 @@ impl PropertyId {
                 | Self::ScreenBounds
                 | Self::Layer
                 | Self::IsVisible
+                | Self::BufferRegion
         )
     }
 }
@@ -201,6 +232,9 @@ pub enum Function {
     Maximum,
     /// `Clamp(value, lowest, highest)`.
     Clamp,
+    /// `Contains(rectangle, point)`: whether the rectangle holds the point. False when either
+    /// side is `None`.
+    Contains,
 }
 
 impl Function {
@@ -208,7 +242,7 @@ impl Function {
     pub fn arity(self) -> usize {
         match self {
             Self::Absolute | Self::Floor | Self::Ceiling | Self::Round => 1,
-            Self::Minimum | Self::Maximum => 2,
+            Self::Minimum | Self::Maximum | Self::Contains => 2,
             Self::Clamp => 3,
         }
     }
@@ -222,6 +256,7 @@ impl Function {
             Self::Minimum => "minimum",
             Self::Maximum => "maximum",
             Self::Clamp => "clamp",
+            Self::Contains => "contains",
         }
     }
 }
@@ -250,6 +285,10 @@ impl Component {
     }
 
     fn of(self, value: &Scalar) -> Result<Scalar, EvalError> {
+        if matches!(value, Scalar::Null) {
+            // A part of a value that was never seen is not seen either.
+            return Ok(Scalar::Null);
+        }
         let part = match (value, self) {
             (Scalar::Point(point), Self::X) => point.x,
             (Scalar::Point(point), Self::Y) => point.y,
@@ -339,6 +378,11 @@ pub struct Evaluation {
 }
 
 fn compare(operation: CompareOp, left: &Scalar, right: &Scalar) -> Result<bool, EvalError> {
+    // Something never seen (no key yet, no pointer yet) is neither equal to, different from,
+    // nor ordered against anything, so a condition on it is false rather than an error.
+    if matches!(left, Scalar::Null) || matches!(right, Scalar::Null) {
+        return Ok(false);
+    }
     if let (Some(a), Some(b)) = (left.as_number(), right.as_number()) {
         let exact = match (left, right) {
             (Scalar::Integer(a), Scalar::Integer(b)) => Some(a.cmp(b)),
@@ -376,6 +420,9 @@ fn compare(operation: CompareOp, left: &Scalar, right: &Scalar) -> Result<bool, 
 }
 
 fn arithmetic(operation: ArithmeticOp, left: &Scalar, right: &Scalar) -> Result<Scalar, EvalError> {
+    if matches!(left, Scalar::Null) || matches!(right, Scalar::Null) {
+        return Ok(Scalar::Null);
+    }
     if let (Scalar::Integer(a), Scalar::Integer(b)) = (left, right) {
         let result = match operation {
             ArithmeticOp::Add => a.checked_add(*b),
@@ -447,8 +494,34 @@ fn rounded(value: f64) -> f64 {
     value.round()
 }
 
+/// A type name with the article that reads right before it ("an int", "a Point").
+fn with_article(name: &str) -> String {
+    let starts_with_vowel = name.starts_with(['a', 'e', 'i', 'o', 'u']);
+    format!("{} {name}", if starts_with_vowel { "an" } else { "a" })
+}
+
+fn contains(container: &Scalar, point: &Scalar) -> Result<Scalar, EvalError> {
+    match (container, point) {
+        (Scalar::Null, _) | (_, Scalar::Null) => Ok(Scalar::Bool(false)),
+        (Scalar::Rectangle(rectangle), Scalar::Point(point)) => {
+            Ok(Scalar::Bool(rectangle.contains(*point)))
+        }
+        (container, point) => Err(EvalError::Type(format!(
+            "cannot ask whether {} contains {}; ask a Rectangle whether it contains a Point",
+            with_article(container.type_name()),
+            with_article(point.type_name())
+        ))),
+    }
+}
+
 fn apply_function(function: Function, values: &[Scalar]) -> Result<Scalar, EvalError> {
     debug_assert_eq!(values.len(), function.arity());
+    if function == Function::Contains {
+        return contains(&values[0], &values[1]);
+    }
+    if values.iter().any(|value| matches!(value, Scalar::Null)) {
+        return Ok(Scalar::Null);
+    }
     let mut numbers = Vec::with_capacity(values.len());
     for value in values {
         numbers.push(value.as_number().ok_or_else(|| {
@@ -485,6 +558,9 @@ fn apply_function(function: Function, values: &[Scalar]) -> Result<Scalar, EvalE
                 )));
             }
             number(numbers[0].clamp(numbers[1], numbers[2]))
+        }
+        Function::Contains => {
+            unreachable!("contains returns before the numeric arguments are read")
         }
     })
 }
@@ -585,6 +661,7 @@ impl Expr {
                 component.of(&inner.evaluate_with(environment, evaluation)?)
             }
             Self::Negate(inner) => match inner.evaluate_with(environment, evaluation)? {
+                Scalar::Null => Ok(Scalar::Null),
                 Scalar::Integer(integer) => Ok(Scalar::Integer(-integer)),
                 Scalar::Float(float) => Ok(Scalar::Float(-float)),
                 other => Err(EvalError::Type(format!(
@@ -687,5 +764,73 @@ mod tests {
             Expr::literal(Scalar::Point(Point::new(1, 2))),
         );
         assert!(matches!(evaluate(wrong), Err(EvalError::Type(_))));
+    }
+
+    fn null() -> Arc<Expr> {
+        Expr::literal(Scalar::Null)
+    }
+
+    #[test]
+    fn nothing_seen_is_neither_equal_different_nor_ordered() {
+        for operation in [
+            CompareOp::Equal,
+            CompareOp::NotEqual,
+            CompareOp::Less,
+            CompareOp::LessEqual,
+            CompareOp::Greater,
+            CompareOp::GreaterEqual,
+        ] {
+            for (left, right) in [
+                (null(), integer(1)),
+                (integer(1), null()),
+                (null(), null()),
+                (null(), Expr::literal(Scalar::Text("q".to_owned()))),
+            ] {
+                let expression = Expr::Compare(operation, left, right);
+                assert_eq!(
+                    evaluate(expression),
+                    Ok(Scalar::Bool(false)),
+                    "{operation:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn parts_and_arithmetic_of_nothing_are_nothing() {
+        let part = Expr::Component(Component::X, null());
+        assert_eq!(evaluate(part), Ok(Scalar::Null));
+        let sum = Expr::Arithmetic(ArithmeticOp::Add, null(), integer(1));
+        assert_eq!(evaluate(sum), Ok(Scalar::Null));
+        let negated = Expr::Negate(null());
+        assert_eq!(evaluate(negated), Ok(Scalar::Null));
+        let absolute = Expr::Function(Function::Absolute, vec![null()]);
+        assert_eq!(evaluate(absolute), Ok(Scalar::Null));
+        let seen_part_compares = Expr::Compare(
+            CompareOp::Greater,
+            Arc::new(Expr::Component(Component::X, null())),
+            integer(0),
+        );
+        assert_eq!(evaluate(seen_part_compares), Ok(Scalar::Bool(false)));
+    }
+
+    #[test]
+    fn contains_asks_a_rectangle_about_a_point() {
+        let rectangle = Expr::literal(Scalar::Rectangle(Rectangle::new(2, 1, 4, 3)));
+        let at = |x: i32, y: i32| Expr::literal(Scalar::Point(Point::new(x, y)));
+        let contains = |point: Arc<Expr>| {
+            evaluate(Expr::Function(
+                Function::Contains,
+                vec![rectangle.clone(), point],
+            ))
+        };
+        assert_eq!(contains(at(2, 1)), Ok(Scalar::Bool(true)));
+        assert_eq!(contains(at(5, 3)), Ok(Scalar::Bool(true)));
+        assert_eq!(contains(at(6, 3)), Ok(Scalar::Bool(false)));
+        assert_eq!(contains(at(2, 4)), Ok(Scalar::Bool(false)));
+        assert_eq!(contains(null()), Ok(Scalar::Bool(false)));
+        let no_rectangle = Expr::Function(Function::Contains, vec![null(), at(2, 1)]);
+        assert_eq!(evaluate(no_rectangle), Ok(Scalar::Bool(false)));
+        assert!(matches!(contains(integer(1)), Err(EvalError::Type(_))));
     }
 }

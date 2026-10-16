@@ -610,7 +610,9 @@ impl Environment for SurfaceEnv {
                 let screen = self.screen_bounds();
                 Scalar::Point(Point::new(screen.x, screen.y))
             }
-            PropertyId::ScreenBounds => Scalar::Rectangle(self.screen_bounds()),
+            PropertyId::ScreenBounds | PropertyId::BufferRegion => {
+                Scalar::Rectangle(self.screen_bounds())
+            }
             PropertyId::PointerPosition => {
                 let shared = self.runtime(id)?;
                 match lock(&shared.input).pointer {
@@ -620,8 +622,45 @@ impl Environment for SurfaceEnv {
             }
             PropertyId::Layer => Scalar::Integer(i64::from(self.core.lock().layer)),
             PropertyId::IsVisible => Scalar::Bool(self.core.lock().is_visible),
+            PropertyId::KeyboardKey => {
+                text_or_null(lock(&self.runtime(id)?.input).last_key.clone())
+            }
+            PropertyId::KeyboardKind => text_or_null(
+                lock(&self.runtime(id)?.input)
+                    .last_key_kind
+                    .map(str::to_owned),
+            ),
+            PropertyId::KeyboardChord => {
+                text_or_null(lock(&self.runtime(id)?.input).last_chord.clone())
+            }
+            PropertyId::MouseButton => text_or_null(
+                lock(&self.runtime(id)?.input)
+                    .last_mouse_button
+                    .map(str::to_owned),
+            ),
+            PropertyId::MouseKind => text_or_null(
+                lock(&self.runtime(id)?.input)
+                    .last_mouse_kind
+                    .map(str::to_owned),
+            ),
+            PropertyId::MousePosition => match lock(&self.runtime(id)?.input).last_mouse_position {
+                Some((column, row)) => Scalar::Point(Point::new(column, row)),
+                None => Scalar::Null,
+            },
+            PropertyId::MouseIsDown => Scalar::Bool(lock(&self.runtime(id)?.input).is_mouse_down()),
+            PropertyId::ScrollX => {
+                Scalar::Integer(i64::from(lock(&self.runtime(id)?.input).scroll.0))
+            }
+            PropertyId::ScrollY => {
+                Scalar::Integer(i64::from(lock(&self.runtime(id)?.input).scroll.1))
+            }
         })
     }
+}
+
+/// A text scalar, or `Null` when nothing was seen.
+fn text_or_null(text: Option<String>) -> Scalar {
+    text.map_or(Scalar::Null, Scalar::Text)
 }
 
 /// The surface behind a context's `target`, as an expression environment.
@@ -944,6 +983,79 @@ impl PySurface {
             ));
         }
         self.edit(|grid, bounds| grid.fill(bounds, &cell, is_transparent))
+    }
+
+    /// Set the background color of a block of cells in one pass.
+    ///
+    /// `colors` is a flat, row-major sequence with `width` columns whose top-left cell is at
+    /// (`x`, `y`) in this surface; `None` leaves a cell alone.
+    #[pyo3(signature = (colors, *, width, x = 0, y = 0))]
+    fn set_background_colors(
+        &self,
+        colors: &Bound<'_, PyAny>,
+        width: i32,
+        x: i32,
+        y: i32,
+    ) -> PyResult<()> {
+        if colors.is_instance_of::<PyString>() {
+            return Err(PyTypeError::new_err(
+                "set_background_colors needs a sequence of colors such as [\"red\", \"blue\"], not \
+                 one string. Pass a list with one color (or None) for each cell.",
+            ));
+        }
+        let mut parsed: Vec<Option<xnano_terminal_runtime::style::Color>> = Vec::new();
+        let items = colors.try_iter().map_err(|_| {
+            PyTypeError::new_err(
+                "set_background_colors needs a sequence of colors such as [\"red\", \"blue\"] \
+                 with one color (or None) for each cell. Pass a list instead of a single value.",
+            )
+        })?;
+        for color in items {
+            let color = color?;
+            parsed.push(if color.is_none() {
+                None
+            } else {
+                Some(crate::style::color_arg(&color)?)
+            });
+        }
+        if width < 1 {
+            return Err(PyValueError::new_err(format!(
+                "width must be at least 1 column, not {width}. Pass the number of cells in one row \
+                 of colors."
+            )));
+        }
+        let count = i32::try_from(parsed.len()).unwrap_or(i32::MAX);
+        if count % width != 0 {
+            return Err(PyValueError::new_err(format!(
+                "the {count} colors do not fill whole rows of width={width}. Pass a flat \
+                 row-major sequence whose length is a multiple of width."
+            )));
+        }
+        let rows = count / width;
+        let (surface_width, surface_height) = self.dimensions()?;
+        let fits = x >= 0
+            && y >= 0
+            && i64::from(x) + i64::from(width) <= i64::from(surface_width)
+            && i64::from(y) + i64::from(rows) <= i64::from(surface_height);
+        if !fits {
+            return Err(PyValueError::new_err(format!(
+                "a block of {width} x {rows} cells at x={x}, y={y} does not fit a surface of \
+                 {surface_width} x {surface_height} cells. Choose x, y and width so that the \
+                 block stays inside the surface."
+            )));
+        }
+        self.edit(|grid, bounds| {
+            for (index, color) in parsed.iter().enumerate() {
+                let Some(color) = color else { continue };
+                let index = index as i32;
+                let (column, row) = (index % width, index / width);
+                let cell_x = bounds.left + (x + column) as u16;
+                let cell_y = bounds.top + (y + row) as u16;
+                if let Some(cell) = grid.buffer_mut().cell_mut((cell_x, cell_y)) {
+                    cell.set_bg(*color);
+                }
+            }
+        })
     }
 
     #[pyo3(signature = (*, encoding = "half_blocks"))]

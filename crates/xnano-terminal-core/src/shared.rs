@@ -169,6 +169,115 @@ pub struct InputData {
     pub held_keys_available: bool,
     pub pointer: Option<(i32, i32)>,
     pub estimate_timeout: Option<f64>,
+    /// The key of the latest key event, until an event of another kind replaces it.
+    pub last_key: Option<String>,
+    pub last_key_kind: Option<&'static str>,
+    /// The latest key event as a canonical chord such as `ctrl+s`.
+    pub last_chord: Option<String>,
+    /// The button of the latest button or motion report (`left`, `right`, `middle`).
+    pub last_mouse_button: Option<&'static str>,
+    /// `press`, `release`, `drag` or `move`; empty for a wheel report.
+    pub last_mouse_kind: Option<&'static str>,
+    /// The cell of the latest button or motion report.
+    pub last_mouse_position: Option<(i32, i32)>,
+    /// Signed wheel steps `(x, y)` of the step in which the wheel was reported.
+    pub scroll: (i32, i32),
+    pub last_paste: Option<String>,
+}
+
+/// The held-input names of the mouse buttons.
+const HELD_MOUSE_BUTTONS: [&str; 3] = ["mouse_left", "mouse_right", "mouse_middle"];
+
+/// The held-input name of a mouse button.
+fn held_mouse_name(button: &str) -> String {
+    format!("mouse_{button}")
+}
+
+impl InputData {
+    fn forget_key(&mut self) {
+        self.last_key = None;
+        self.last_key_kind = None;
+        self.last_chord = None;
+    }
+
+    fn forget_mouse(&mut self) {
+        self.last_mouse_button = None;
+        self.last_mouse_kind = None;
+        self.last_mouse_position = None;
+    }
+
+    /// Remember a key event; the scalars of the other kinds of event are cleared.
+    pub fn record_key(&mut self, key: &xnano_terminal_runtime::event::KeyEvent) {
+        use xnano_terminal_runtime::event::KeyModifiers;
+        self.forget_mouse();
+        self.scroll = (0, 0);
+        self.last_paste = None;
+        let mut chord = String::new();
+        for (name, flag) in [
+            ("ctrl", KeyModifiers::CONTROL),
+            ("alt", KeyModifiers::ALT),
+            ("shift", KeyModifiers::SHIFT),
+            ("super", KeyModifiers::SUPER),
+            ("meta", KeyModifiers::META),
+            ("hyper", KeyModifiers::HYPER),
+        ] {
+            if key.modifiers.contains(flag) {
+                chord.push_str(name);
+                chord.push('+');
+            }
+        }
+        chord.push_str(&key.key);
+        self.last_key = Some(key.key.clone());
+        self.last_key_kind = Some(key.kind.name());
+        self.last_chord = Some(chord);
+    }
+
+    /// Remember a mouse event and the buttons it leaves held; the scalars of the other kinds
+    /// of event are cleared. A wheel report sets only `scroll`.
+    pub fn record_mouse(&mut self, mouse: &xnano_terminal_runtime::event::MouseEvent) {
+        use xnano_terminal_runtime::event::MouseKind;
+        self.forget_key();
+        self.last_paste = None;
+        self.pointer = Some((mouse.column, mouse.row));
+        if mouse.kind == MouseKind::Scroll {
+            self.forget_mouse();
+            self.scroll = (mouse.scroll_x, mouse.scroll_y);
+            return;
+        }
+        self.scroll = (0, 0);
+        self.last_mouse_kind = Some(mouse.kind.name());
+        self.last_mouse_button = mouse
+            .button
+            .map(xnano_terminal_runtime::event::MouseButton::name);
+        self.last_mouse_position = Some((mouse.column, mouse.row));
+        if let Some(button) = mouse.button {
+            let name = held_mouse_name(button.name());
+            match mouse.kind {
+                MouseKind::Press | MouseKind::Drag => {
+                    self.pressed.insert(name);
+                }
+                MouseKind::Release => {
+                    self.pressed.remove(&name);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Remember pasted text; the scalars of the other kinds of event are cleared.
+    pub fn record_paste(&mut self, text: &str) {
+        self.forget_key();
+        self.forget_mouse();
+        self.scroll = (0, 0);
+        self.last_paste = Some(text.to_owned());
+    }
+
+    /// Whether any mouse button is held.
+    pub fn is_mouse_down(&self) -> bool {
+        HELD_MOUSE_BUTTONS
+            .iter()
+            .any(|name| self.pressed.contains(*name))
+    }
 }
 
 pub struct HitAreaData {

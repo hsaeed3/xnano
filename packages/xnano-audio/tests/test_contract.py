@@ -9,6 +9,7 @@ type its annotation promises, and every public item is documented.
 from __future__ import annotations
 
 import inspect
+import re
 from typing import Any, cast
 
 import pytest
@@ -253,3 +254,16 @@ def test_envelope_traces_the_loudness_of_a_sound():
     for points in (0, 100_001):
         with pytest.raises(ValueError, match='points'):
             sound.envelope(points)
+
+
+def test_the_stub_table_lists_every_instrument():
+    from helpers import STUB
+
+    text = STUB.read_text(encoding='utf-8')
+    module_doc = text.split('"""', 2)[1]
+    table = module_doc.split('Built-in instruments:', 1)[1].split(
+        'Percussive instruments ring', 1
+    )[0]
+    listed = set(re.findall(r'``([a-z_]+)``', table))
+    listed -= {'duration_milliseconds', 'note'}
+    assert listed == set(instrument_names())

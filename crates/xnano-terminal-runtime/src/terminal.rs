@@ -293,6 +293,8 @@ pub enum MouseCapture {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyboardMode {
+    /// Key events are not delivered from the device (an interrupt chord may still be).
+    Off,
     Basic,
     Disambiguated,
     ReleaseEvents,
@@ -302,6 +304,13 @@ pub enum KeyboardMode {
 #[derive(Debug, Clone)]
 pub struct SessionOptions {
     pub mouse: MouseCapture,
+    /// Deliver wheel reports. The terminal reports the wheel only while mouse reporting is on,
+    /// so this switches reporting on even when `mouse` is off; the reader then drops the
+    /// button and motion reports.
+    pub scroll: bool,
+    /// Keep the interrupt chord (Ctrl-C) whatever `keyboard` says: the runtime turns it into
+    /// a stop, so dropping it would leave a session that cannot be ended from the keyboard.
+    pub keeps_interrupt_chord: bool,
     pub bracketed_paste: bool,
     pub focus_reporting: bool,
     pub keyboard: KeyboardMode,
@@ -319,6 +328,31 @@ pub struct SessionOptions {
     /// Keep text written to standard output and standard error off the screen while the
     /// session is open (see [`crate::output_capture`]).
     pub should_capture_output: bool,
+}
+
+/// Whether an event that came from the device is passed on, given the session's input gates.
+///
+/// Only events from the person at the terminal are filtered: a keyboard that is off drops key
+/// events (except the interrupt chord when the session keeps it), mouse reporting that is off
+/// drops button and motion reports, and a wheel that is off drops wheel reports. Every other
+/// kind of event passes.
+pub fn should_deliver(event: &Event, options: &SessionOptions) -> bool {
+    match &event.payload {
+        EventPayload::Key(key) => {
+            options.keyboard != KeyboardMode::Off
+                || (options.keeps_interrupt_chord
+                    && key.key == "c"
+                    && key.modifiers.contains(crate::event::KeyModifiers::CONTROL))
+        }
+        EventPayload::Mouse(mouse) => {
+            if mouse.kind == crate::event::MouseKind::Scroll {
+                options.scroll
+            } else {
+                options.mouse != MouseCapture::Off
+            }
+        }
+        _ => true,
+    }
 }
 
 /// Rolls back terminal modes if taking over the terminal fails halfway through.
@@ -597,7 +631,7 @@ fn wait_for_terminal(timeout: Duration) -> Wait {
 }
 
 impl InputReader {
-    fn spawn(sink: EventSink, origin: Origin) -> Self {
+    fn spawn(sink: EventSink, origin: Origin, options: SessionOptions) -> Self {
         let should_stop = Arc::new(AtomicBool::new(false));
         let flag = Arc::clone(&should_stop);
         let handle = std::thread::Builder::new()
@@ -638,7 +672,9 @@ impl InputReader {
                                         mouse.column -= (start >> 16) as i32;
                                         mouse.row -= (start & 0xffff) as i32;
                                     }
-                                    sink(event);
+                                    if should_deliver(&event, &options) {
+                                        sink(event);
+                                    }
                                 }
                             }
                             Err(_) => {
@@ -857,7 +893,13 @@ impl TerminalSession {
             output.execute(EnterAlternateScreen)?;
             setup.modes.is_alternate_screen_enabled = true;
         }
-        match options.mouse {
+        // The terminal reports the wheel only while mouse reporting is on, so a wheel without
+        // buttons asks for button reporting and the reader drops what was not asked for.
+        let mouse_reporting = match (options.mouse, options.scroll) {
+            (MouseCapture::Off, true) => MouseCapture::Buttons,
+            (mouse, _) => mouse,
+        };
+        match mouse_reporting {
             MouseCapture::Off => {}
             MouseCapture::Buttons => {
                 output.write_all(b"\x1b[?1000h\x1b[?1002h\x1b[?1006h")?;
@@ -876,8 +918,10 @@ impl TerminalSession {
             output.execute(EnableFocusChange)?;
             setup.modes.is_focus_reporting_enabled = true;
         }
-        if options.keyboard != KeyboardMode::Basic
-            && keyboard.is_some_and(|info| info.enhancement == Status::Supported)
+        if matches!(
+            options.keyboard,
+            KeyboardMode::Disambiguated | KeyboardMode::ReleaseEvents
+        ) && keyboard.is_some_and(|info| info.enhancement == Status::Supported)
         {
             let (flags, names): (KeyboardEnhancementFlags, Vec<&'static str>) =
                 match options.keyboard {
@@ -905,7 +949,11 @@ impl TerminalSession {
         setup.armed = false;
         let mut terminal = terminal;
         let origin: Origin = Arc::new(AtomicU32::new(pack_origin(terminal.get_frame().area())));
-        let input = Some(InputReader::spawn(Arc::clone(&sink), Arc::clone(&origin)));
+        let input = Some(InputReader::spawn(
+            Arc::clone(&sink),
+            Arc::clone(&origin),
+            options.clone(),
+        ));
         #[cfg(unix)]
         if options.should_handle_exit_signals {
             exit_signals::register(&sink);
@@ -1132,5 +1180,126 @@ mod panic_scope_tests {
 
         assert_eq!(result.unwrap_err(), "test panic");
         assert!(!IS_PANIC_GUARDED.with(std::cell::Cell::get));
+    }
+}
+
+#[cfg(test)]
+mod delivery_tests {
+    use super::{KeyboardMode, MouseCapture, SessionOptions, should_deliver};
+    use crate::event::{
+        Event, EventKind, EventPayload, KeyEvent, KeyKind, KeyModifiers, MouseButton, MouseEvent,
+        MouseKind,
+    };
+    use std::time::Duration;
+
+    fn options(
+        mouse: MouseCapture,
+        scroll: bool,
+        keyboard: KeyboardMode,
+        keeps_interrupt_chord: bool,
+    ) -> SessionOptions {
+        SessionOptions {
+            mouse,
+            scroll,
+            keeps_interrupt_chord,
+            bracketed_paste: true,
+            focus_reporting: true,
+            keyboard,
+            capability_timeout: Duration::from_millis(1),
+            alternate_screen: true,
+            raw_mode: true,
+            drain_reports_on_exit: false,
+            drain_timeout: Duration::from_millis(1),
+            inline_height: None,
+            inline_width: None,
+            should_handle_exit_signals: false,
+            should_clear_on_close: false,
+            should_capture_output: false,
+        }
+    }
+
+    fn key(name: &str, modifiers: KeyModifiers) -> Event {
+        Event::new(
+            EventKind::Key,
+            EventPayload::Key(KeyEvent {
+                key: name.to_owned(),
+                text: None,
+                modifiers,
+                kind: KeyKind::Press,
+            }),
+        )
+    }
+
+    fn mouse(kind: MouseKind, scroll_y: i32) -> Event {
+        Event::new(
+            EventKind::Mouse,
+            EventPayload::Mouse(MouseEvent {
+                column: 1,
+                row: 1,
+                kind,
+                button: (kind == MouseKind::Press).then_some(MouseButton::Left),
+                scroll_x: 0,
+                scroll_y,
+            }),
+        )
+    }
+
+    #[test]
+    fn keyboard_gate_drops_keys_only_when_off() {
+        let on = options(MouseCapture::Off, false, KeyboardMode::Basic, false);
+        let off = options(MouseCapture::Off, false, KeyboardMode::Off, false);
+        assert!(should_deliver(&key("a", KeyModifiers::default()), &on));
+        assert!(!should_deliver(&key("a", KeyModifiers::default()), &off));
+    }
+
+    #[test]
+    fn interrupt_chord_survives_a_keyboard_that_is_off() {
+        let mut chord = KeyModifiers::default();
+        chord.insert(KeyModifiers::CONTROL);
+        let keeps = options(MouseCapture::Off, false, KeyboardMode::Off, true);
+        let drops = options(MouseCapture::Off, false, KeyboardMode::Off, false);
+        assert!(should_deliver(&key("c", chord), &keeps));
+        assert!(!should_deliver(&key("x", chord), &keeps));
+        assert!(!should_deliver(&key("c", KeyModifiers::default()), &keeps));
+        assert!(!should_deliver(&key("c", chord), &drops));
+    }
+
+    #[test]
+    fn mouse_and_scroll_are_separate_gates() {
+        let buttons_only = options(MouseCapture::Buttons, false, KeyboardMode::Basic, false);
+        let scroll_only = options(MouseCapture::Off, true, KeyboardMode::Basic, false);
+        let both = options(MouseCapture::Motion, true, KeyboardMode::Basic, false);
+        let neither = options(MouseCapture::Off, false, KeyboardMode::Basic, false);
+        for (settings, buttons, wheel) in [
+            (&buttons_only, true, false),
+            (&scroll_only, false, true),
+            (&both, true, true),
+            (&neither, false, false),
+        ] {
+            assert_eq!(
+                should_deliver(&mouse(MouseKind::Press, 0), settings),
+                buttons
+            );
+            assert_eq!(
+                should_deliver(&mouse(MouseKind::Move, 0), settings),
+                buttons
+            );
+            assert_eq!(
+                should_deliver(&mouse(MouseKind::Scroll, -1), settings),
+                wheel
+            );
+        }
+    }
+
+    #[test]
+    fn other_events_always_pass() {
+        let closed = options(MouseCapture::Off, false, KeyboardMode::Off, false);
+        for event in [
+            Event::new(EventKind::Paste, EventPayload::Paste("text".to_owned())),
+            Event::new(EventKind::FocusGained, EventPayload::None),
+            Event::new(EventKind::ExitRequested, EventPayload::None),
+        ] {
+            assert!(should_deliver(&event, &closed));
+        }
     }
 }

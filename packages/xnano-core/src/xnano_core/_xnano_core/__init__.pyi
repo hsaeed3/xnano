@@ -2155,10 +2155,15 @@ class InputOptions:
     Requested modes are negotiated with the terminal and restored when the runtime closes.
 
     Args:
-        mouse: The requested mouse mode.
+        mouse: The requested mouse mode. Button and motion reports reach the runtime only when
+            this is not ``'off'``.
+        scroll: Whether mouse wheel reports reach the runtime. It is independent of ``mouse``:
+            ``InputOptions(scroll=True)`` delivers the wheel and no button or motion reports.
         bracketed_paste: Whether pasted text arrives as one paste event.
         focus_reporting: Whether the terminal reports focus changes.
-        keyboard: The requested keyboard mode.
+        keyboard: The requested keyboard mode. ``'off'`` drops key events that come from the
+            terminal, except Ctrl+C when ``interrupt`` is ``'stop'``, so a runtime without a
+            keyboard can still be stopped.
         capability_timeout_milliseconds: How long to wait for capability answers.
         interrupt: Whether Ctrl+C becomes an ``'event'`` or ``'stop'`` the runtime.
 
@@ -2167,6 +2172,7 @@ class InputOptions:
 
     Attributes:
         mouse: The requested mouse mode.
+        scroll: Whether mouse wheel reports are requested.
         bracketed_paste: Whether bracketed paste is requested.
         focus_reporting: Whether focus reporting is requested.
         keyboard: The requested keyboard mode.
@@ -2178,6 +2184,10 @@ class InputOptions:
         options = InputOptions(mouse='buttons', keyboard='release_events')
         assert options.mouse == 'buttons'
         terminal = TerminalOptions(input=options)
+
+        wheel_only = InputOptions(scroll=True, keyboard='off', interrupt='stop')
+        assert wheel_only.scroll and wheel_only.mouse == 'off'
+        assert wheel_only.keyboard == 'off'
         ```
     """
 
@@ -2185,9 +2195,10 @@ class InputOptions:
         self,
         *,
         mouse: Literal['off', 'buttons', 'motion'] = 'off',
+        scroll: bool = False,
         bracketed_paste: bool = True,
         focus_reporting: bool = True,
-        keyboard: Literal['basic', 'disambiguated', 'release_events'] = 'basic',
+        keyboard: Literal['off', 'basic', 'disambiguated', 'release_events'] = 'basic',
         capability_timeout_milliseconds: int = 200,
         interrupt: Literal['event', 'stop'] = 'event',
     ) -> None:
@@ -2196,16 +2207,21 @@ class InputOptions:
 
         Args:
             mouse: ``Literal['off', 'buttons', 'motion']``. Defaults to ``'off'``.
+            scroll: ``bool``. Defaults to ``False``.
             bracketed_paste: ``bool``. Defaults to ``True``.
             focus_reporting: ``bool``. Defaults to ``True``.
-            keyboard: ``Literal['basic', 'disambiguated', 'release_events']``. Defaults to
-                ``'basic'``.
+            keyboard: ``Literal['off', 'basic', 'disambiguated', 'release_events']``. Defaults
+                to ``'basic'``.
             capability_timeout_milliseconds: ``int``. Defaults to ``200``.
             interrupt: ``Literal['event', 'stop']``. Defaults to ``'event'``.
         """
     @property
     def mouse(self) -> Literal['off', 'buttons', 'motion']:
         """The requested mouse mode."""
+
+    @property
+    def scroll(self) -> bool:
+        """Whether mouse wheel reports are requested."""
 
     @property
     def bracketed_paste(self) -> bool:
@@ -2216,7 +2232,7 @@ class InputOptions:
         """Whether focus reporting is requested."""
 
     @property
-    def keyboard(self) -> Literal['basic', 'disambiguated', 'release_events']:
+    def keyboard(self) -> Literal['off', 'basic', 'disambiguated', 'release_events']:
         """The requested keyboard mode."""
 
     @property
@@ -2226,6 +2242,29 @@ class InputOptions:
     @property
     def interrupt(self) -> Literal['event', 'stop']:
         """How Ctrl+C is handled."""
+
+    def __repr__(self) -> str:
+        """
+        Every option in keyword form.
+
+        Examples:
+            ```python
+            assert repr(InputOptions(scroll=True)).startswith("InputOptions(mouse='off', scroll=True")
+            ```
+        """
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Whether ``other`` is an ``InputOptions`` with the same options.
+
+        Examples:
+            ```python
+            assert InputOptions(scroll=True) == InputOptions(scroll=True)
+            assert InputOptions(scroll=True) != InputOptions()
+            ```
+        """
+
+    __hash__: ClassVar[None]  # type: ignore[assignment]
 
 class TerminalOptions:
     """
@@ -2416,10 +2455,37 @@ class InputState:
 
     Attributes:
         held_keys_available: Whether the terminal reports key releases.
-        pressed_keys: The keys currently held, when releases are reported.
+        pressed_keys: The keys currently held, when releases are reported, and the held mouse
+            buttons as ``'mouse_left'``, ``'mouse_right'`` and ``'mouse_middle'``.
         estimated_pressed_keys: The keys guessed to be held from a timeout, when estimates are
             enabled.
         pointer_cell: The ``(column, row)`` under the pointer, or ``None``.
+        last_key: The key of the latest key event, or ``None`` while the latest input was not a
+            key.
+        last_key_kind: ``'press'``, ``'repeat'`` or ``'release'`` for the latest key event, or
+            ``None``.
+        last_chord: The latest key event with its modifiers as text such as ``'ctrl+s'``, or
+            ``None``. Modifiers come in the order ``ctrl``, ``alt``, ``shift``, ``super``,
+            ``meta``, ``hyper``.
+        last_mouse_button: ``'left'``, ``'right'`` or ``'middle'`` for the latest button or
+            motion report, or ``None``.
+        last_mouse_kind: ``'press'``, ``'release'``, ``'drag'`` or ``'move'`` for the latest
+            button or motion report. ``None`` for a wheel report and while the latest input was
+            not a mouse event.
+        last_mouse_position: The ``(column, row)`` of the latest button or motion report, or
+            ``None``. Unlike ``pointer_cell`` it is cleared by any other kind of input.
+        scroll_x: The horizontal steps of the latest wheel report of the current step (right is
+            positive), ``0`` when no wheel report arrived or any other input followed it.
+        scroll_y: The vertical steps of the latest wheel report of the current step (down is
+            positive, so scrolling up is ``-1``), ``0`` when no wheel report arrived or any
+            other input followed it.
+        is_mouse_down: Whether any mouse button is held.
+        last_pasted_text: The text of the latest paste, or ``None`` while the latest input was
+            not a paste.
+
+    Each kind of input clears the "latest" values of the other kinds, so a value is ``None``
+    unless the latest input was of its kind. Held mouse buttons are named ``'mouse_left'``,
+    ``'mouse_right'`` and ``'mouse_middle'`` in ``pressed_keys``.
 
     Examples:
         ```python
@@ -2427,6 +2493,24 @@ class InputState:
             state = runtime.input
             assert state.pressed_keys == frozenset()
             assert state.pointer_cell is None
+
+            runtime.inject(Event.key_press('ctrl+s'))
+            runtime.step()
+            assert state.last_key == 's' and state.last_chord == 'ctrl+s'
+
+            runtime.inject(Event.mouse_event(column=4, row=1, kind='press', button='left'))
+            runtime.step()
+            assert state.is_mouse_down and 'mouse_left' in state.pressed_keys
+            assert state.last_mouse_position == (4, 1) and state.last_key is None
+
+            runtime.inject(Event.mouse_event(column=4, row=1, kind='release', button='left'))
+            runtime.inject(Event.mouse_event(column=4, row=1, kind='scroll', scroll_y=-1))
+            runtime.step()
+            assert not state.is_mouse_down
+            assert state.scroll_y == -1 and state.last_mouse_kind is None
+
+            runtime.step()
+            assert state.scroll_y == 0
         ```
     """
 
@@ -2445,6 +2529,46 @@ class InputState:
     @property
     def pointer_cell(self) -> tuple[int, int] | None:
         """The ``(column, row)`` under the pointer, or ``None``."""
+
+    @property
+    def last_key(self) -> str | None:
+        """The key of the latest key event, or ``None``."""
+
+    @property
+    def last_key_kind(self) -> Literal['press', 'repeat', 'release'] | None:
+        """Whether the latest key event was a press, repeat or release."""
+
+    @property
+    def last_chord(self) -> str | None:
+        """The latest key event with its modifiers, such as ``'ctrl+s'``."""
+
+    @property
+    def last_mouse_button(self) -> MouseButton | None:
+        """The button of the latest button or motion report."""
+
+    @property
+    def last_mouse_kind(self) -> Literal['press', 'release', 'drag', 'move'] | None:
+        """The kind of the latest button or motion report; ``None`` for a wheel report."""
+
+    @property
+    def last_mouse_position(self) -> tuple[int, int] | None:
+        """The ``(column, row)`` of the latest button or motion report."""
+
+    @property
+    def scroll_x(self) -> int:
+        """The horizontal steps of the latest wheel report of the current step."""
+
+    @property
+    def scroll_y(self) -> int:
+        """The vertical steps of the latest wheel report of the current step."""
+
+    @property
+    def is_mouse_down(self) -> bool:
+        """Whether any mouse button is held."""
+
+    @property
+    def last_pasted_text(self) -> str | None:
+        """The text of the latest paste."""
 
     def estimate_holds(self, *, timeout_seconds: float | None = None) -> None:
         """
@@ -2863,6 +2987,8 @@ class Predicate(Expression[bool]):
     A condition that evaluates to ``True`` or ``False``.
 
     Build predicates by comparing values, then combine them with ``&``, ``|`` and ``~``.
+    ``==`` and ``!=`` also build predicates, so ``(Width > 4) == False`` is a condition and not
+    a ``bool``.
 
     Examples:
         ```python
@@ -2918,6 +3044,35 @@ class Predicate(Expression[bool]):
             ```
         """
 
+    def __eq__(self, other: object) -> Predicate:  # type: ignore[override]  # pyright: ignore[reportIncompatibleMethodOverride]
+        """
+        A predicate that is true when this condition has the same truth value as ``other``.
+
+        Examples:
+            ```python
+            from xnano_core._xnano_core import Width
+
+            wide = Width > 4
+            assert Buffer(width=2, height=1).inspect(wide == False)  # noqa: E712
+            ```
+        """
+
+    def __ne__(self, other: object) -> Predicate:  # type: ignore[override]  # pyright: ignore[reportIncompatibleMethodOverride]
+        """
+        A predicate that is true when this condition has a different truth value than ``other``.
+
+        Examples:
+            ```python
+            from xnano_core._xnano_core import Width
+
+            wide = Width > 4
+            assert Buffer(width=2, height=1).inspect(wide != True)  # noqa: E712
+            ```
+        """
+
+    def __hash__(self) -> int:
+        """The identity hash, which keeps predicates usable in sets and dictionaries."""
+
     @overload
     def choose(
         self, when_true: NumberType, when_false: NumberType
@@ -2957,7 +3112,16 @@ class Value(Expression[ValueType]):
     """
     An expression that evaluates to a value.
 
-    Use ``eq`` and ``ne`` for symbolic equality; ``==`` stays ordinary Python equality.
+    ``==`` and ``!=`` build conditions, as ``equals`` and ``not_equals`` do. A comparison with a
+    value that has not been seen yet, such as the key before any key was pressed, is false
+    (``!=`` included) and never an error. Comparing with the literal ``None`` raises ``TypeError``
+    because that condition could never hold; to test that a key arrived, compare with the key
+    itself or register the hook for the ``'key'`` event. A value is hashed by identity, so expressions stay usable
+    in sets and dictionaries. Because ``==`` builds a condition, ``in`` and ``.index()`` on a list
+    or tuple of expressions raise ``TypeError`` as soon as they compare an expression with a
+    different item; look an expression up by identity (``any(item is value for item in items)``)
+    or keep expressions in a set or dictionary. Comparing an expression with an object that cannot
+    be an expression, such as ``object()``, gives ``False`` for ``==`` and ``True`` for ``!=``.
 
     Attributes:
         x: The column of a ``Point`` or the left edge of a ``Rectangle``.
@@ -2974,11 +3138,12 @@ class Value(Expression[ValueType]):
         bounds = _reference('Bounds', 'value')
         assert isinstance(bounds, Value)
         buffer = Buffer(width=4, height=1)
-        assert buffer.inspect(bounds.eq(Rectangle(0, 0, 4, 1)))
+        assert buffer.inspect(bounds.equals(Rectangle(0, 0, 4, 1)))
+        assert buffer.inspect(bounds == Rectangle(0, 0, 4, 1))
         ```
     """
 
-    def eq(self, other: ValueType | Value[ValueType]) -> Predicate:
+    def equals(self, other: ValueType | Value[ValueType]) -> Predicate:
         """
         A predicate that is true when the value equals ``other``.
 
@@ -2987,11 +3152,11 @@ class Value(Expression[ValueType]):
             from xnano_core._xnano_core import _reference
 
             width = _reference('Width', 'numeric_property')
-            assert Buffer(width=20, height=1).inspect(width.eq(20))
+            assert Buffer(width=20, height=1).inspect(width.equals(20))
             ```
         """
 
-    def ne(self, other: ValueType | Value[ValueType]) -> Predicate:
+    def not_equals(self, other: ValueType | Value[ValueType]) -> Predicate:
         """
         A predicate that is true when the value differs from ``other``.
 
@@ -3000,9 +3165,61 @@ class Value(Expression[ValueType]):
             from xnano_core._xnano_core import _reference
 
             width = _reference('Width', 'numeric_property')
-            assert Buffer(width=20, height=1).inspect(width.ne(5))
+            assert Buffer(width=20, height=1).inspect(width.not_equals(5))
             ```
         """
+
+    def contains(
+        self: Value[Rectangle],
+        other: Point | Value[Point] | Value[Point | None],
+    ) -> Predicate:
+        """
+        A condition that is true while this rectangle contains the point ``other``.
+
+        It is false, never an error, while either side has no value yet, such as a mouse
+        position before any mouse event.
+
+        Args:
+            other: The ``Point`` (or an expression that produces one) to look for.
+
+        Examples:
+            ```python
+            from xnano_core._xnano_core import Bounds, Point
+
+            buffer = Buffer(width=4, height=2)
+            assert buffer.inspect(Bounds.contains(Point(3, 1)))
+            assert not buffer.inspect(Bounds.contains(Point(4, 1)))
+            ```
+        """
+
+    def __eq__(self, other: object) -> Predicate:  # type: ignore[override]  # pyright: ignore[reportIncompatibleMethodOverride]
+        """
+        A predicate that is true when the value equals ``other``; the same as ``equals``.
+
+        Examples:
+            ```python
+            from xnano_core._xnano_core import _reference
+
+            width = _reference('Width', 'numeric_property')
+            assert Buffer(width=20, height=1).inspect(width == 20)
+            ```
+        """
+
+    def __ne__(self, other: object) -> Predicate:  # type: ignore[override]  # pyright: ignore[reportIncompatibleMethodOverride]
+        """
+        A predicate that is true when the value differs from ``other``; the same as ``not_equals``.
+
+        Examples:
+            ```python
+            from xnano_core._xnano_core import _reference
+
+            width = _reference('Width', 'numeric_property')
+            assert Buffer(width=20, height=1).inspect(width != 5)
+            ```
+        """
+
+    def __hash__(self) -> int:
+        """The identity hash, which keeps expressions usable in sets and dictionaries."""
 
     @property
     def x(self: Value[Point] | Value[Rectangle]) -> NumericValue[int]:
@@ -6938,6 +7155,46 @@ class Surface:
             buffer = Buffer(width=3, height=1)
             buffer.fill('#')
             assert buffer.text == '###'
+            ```
+        """
+
+    def set_background_colors(
+        self,
+        colors: Sequence[ColorValue | None],
+        *,
+        width: int,
+        x: int = 0,
+        y: int = 0,
+    ) -> None:
+        """
+        Set the background color of a block of cells in one pass.
+
+        Symbols and foreground colors are kept, and the whole block counts as one change (the
+        revision grows by one).
+
+        Args:
+            colors: A flat, row-major sequence of colors (names, ``(r, g, b)`` tuples or
+                [`Color`][xnano_core._xnano_core.Color] values). ``None`` leaves a cell alone.
+            width: The number of colors in one row of ``colors``.
+            x: The column of the block's top-left cell in this surface.
+            y: The row of the block's top-left cell in this surface.
+
+        Raises:
+            ValueError: ``width`` is below 1, ``len(colors)`` is not a multiple of ``width``, or
+                the block does not fit inside the surface, or an entry is not a color.
+            TypeError: ``colors`` is a single string instead of a sequence of colors, or an
+                entry has no color meaning.
+
+        Examples:
+            ```python
+            buffer = Buffer(width=3, height=2)
+            buffer.write('abc')
+            buffer.set_background_colors(['red', None, (0, 0, 255), 'green'], width=2, x=1)
+            assert buffer[1, 0].background == Color('red')
+            assert buffer[2, 0].background == Color.reset
+            assert buffer[1, 1].background == Color('#0000ff')
+            assert buffer[2, 1].background == Color('green')
+            assert buffer[1, 0].symbol == 'b'
             ```
         """
 
@@ -11634,10 +11891,12 @@ class BufferExpressionScope(ExpressionScope):
         width: The width in cells.
         height: The height in cells.
         size: The size in cells.
+        region: The rectangle on the screen, counting every parent offset.
 
     Examples:
         ```python
         assert BufferScope.width is Width
+        assert BufferScope.region is BufferRegion
         ```
     """
 
@@ -11659,6 +11918,136 @@ class BufferExpressionScope(ExpressionScope):
     @property
     def size(self) -> Value[Size]:
         """The size in cells."""
+    @property
+    def region(self) -> Value[Rectangle]:
+        """The rectangle on the screen, counting every parent offset."""
+
+class KeyboardExpressionScope(ExpressionScope):
+    """
+    The latest key event, as expressions.
+
+    Every member has no value while the latest input was not a key event, so a condition on a
+    key is false for mouse, wheel and paste events. Comparing a member with ``None`` raises
+    ``TypeError``; compare it with the key you wait for, such as ``KeyboardScope.key == 'q'``.
+
+    Attributes:
+        key: The key name, such as ``'q'`` or ``'enter'``.
+        kind: ``'press'``, ``'repeat'`` or ``'release'``.
+        chord: The key with its modifiers, such as ``'ctrl+s'``.
+
+    Examples:
+        ```python
+        with Runtime.offscreen(width=10, height=3) as runtime:
+            buffer = Buffer(width=10, height=3)
+            runtime.mount(buffer)
+            seen = []
+            buffer.add_hook(
+                lambda context: seen.append('quit'),
+                events=('key',),
+                condition=KeyboardScope.key == 'q',
+            )
+            for key in ('w', 'q'):
+                runtime.inject(Event.key_press(key))
+                runtime.step()
+            assert seen == ['quit']
+            assert buffer.inspect(KeyboardScope.chord) == 'q'
+        ```
+    """
+
+    @property
+    def key(self) -> Value[str | None]:
+        """The key name of the latest key event."""
+    @property
+    def kind(self) -> Value[Literal['press', 'repeat', 'release'] | None]:
+        """Whether the latest key event was a press, repeat or release."""
+    @property
+    def chord(self) -> Value[str | None]:
+        """The latest key event with its modifiers, such as ``'ctrl+s'``."""
+
+class MouseExpressionScope(ExpressionScope):
+    """
+    The latest mouse button or motion report, as expressions.
+
+    ``position``, ``button`` and ``kind`` describe the event being handled and have no value
+    while the latest input was a key, a paste or a wheel report, so a condition on them is false
+    (comparing with ``None`` raises ``TypeError``); ``is_down`` is the held state
+    and stays true between events while a button is held. Wheel reports belong to
+    [`ScrollScope`][xnano_core._xnano_core.ScrollScope].
+
+    Attributes:
+        position: The cell of the event.
+        button: ``'left'``, ``'right'`` or ``'middle'``.
+        kind: ``'press'``, ``'release'``, ``'drag'`` or ``'move'``.
+        is_down: Whether any button is held.
+
+    Examples:
+        ```python
+        with Runtime.offscreen(width=10, height=3) as runtime:
+            buffer = Buffer(width=4, height=2, x=1, y=1)
+            runtime.mount(buffer)
+            clicks = []
+            buffer.add_hook(
+                lambda context: clicks.append('inside'),
+                events=('mouse',),
+                condition=BufferScope.region.contains(MouseScope.position),
+            )
+            runtime.inject(Event.mouse_event(column=2, row=2, kind='move'))
+            runtime.inject(Event.mouse_event(column=8, row=2, kind='move'))
+            runtime.step()
+            assert clicks == ['inside']
+            assert buffer.inspect(MouseScope.position.x) == 8
+        ```
+    """
+
+    @property
+    def position(self) -> Value[Point | None]:
+        """The cell of the latest button or motion report."""
+    @property
+    def button(self) -> Value[MouseButton | None]:
+        """The button of the latest button or motion report."""
+    @property
+    def kind(self) -> Value[Literal['press', 'release', 'drag', 'move'] | None]:
+        """The kind of the latest button or motion report."""
+    @property
+    def is_down(self) -> Predicate:
+        """Whether any mouse button is held."""
+
+class ScrollExpressionScope(ExpressionScope):
+    """
+    The mouse wheel steps of the current step, as expressions.
+
+    Each member holds the steps of the latest wheel report of the step; reports of one step do
+    not add up, and a key, paste, button or motion report that follows a wheel report in the same
+    step clears them. Both are ``0`` when no wheel report arrived in the step. Scrolling up gives
+    a negative ``y`` and scrolling left a negative ``x``.
+
+    Attributes:
+        x: Horizontal steps (right is positive).
+        y: Vertical steps (down is positive).
+
+    Examples:
+        ```python
+        with Runtime.offscreen(width=10, height=3) as runtime:
+            buffer = Buffer(width=10, height=3)
+            runtime.mount(buffer)
+            seen = []
+            buffer.add_hook(
+                lambda context: seen.append('up'),
+                events=('mouse',),
+                condition=ScrollScope.y < 0,
+            )
+            runtime.inject(Event.mouse_event(column=1, row=1, kind='scroll', scroll_y=-1))
+            runtime.step()
+            assert seen == ['up'] and buffer.inspect(ScrollScope.y) == -1
+        ```
+    """
+
+    @property
+    def x(self) -> NumericValue[int]:
+        """Horizontal steps of the latest wheel report of the current step."""
+    @property
+    def y(self) -> NumericValue[int]:
+        """Vertical steps of the latest wheel report of the current step."""
 
 ParentScope: ParentExpressionScope
 """The parent's geometry: ``ParentScope.width``, ``ParentScope.height``, ``ParentScope.size``."""
@@ -11666,6 +12055,12 @@ RootScope: RootExpressionScope
 """The terminal's geometry and clock: ``RootScope.width``, ``RootScope.time``, ..."""
 BufferScope: BufferExpressionScope
 """A buffer's own geometry: ``BufferScope.x``, ``BufferScope.width``, ..."""
+KeyboardScope: KeyboardExpressionScope
+"""The latest key event: ``KeyboardScope.key``, ``KeyboardScope.kind``, ``KeyboardScope.chord``."""
+MouseScope: MouseExpressionScope
+"""The latest mouse button or motion report: ``MouseScope.position``, ``MouseScope.is_down``, ..."""
+ScrollScope: ScrollExpressionScope
+"""The latest wheel report of the current step: ``ScrollScope.x`` and ``ScrollScope.y``."""
 
 X: NumericValue[int | float]
 """The horizontal position of a buffer or region, in terminal cells."""
@@ -11717,8 +12112,33 @@ ScreenBounds: Value[Rectangle]
 PointerPosition: Value[Point | None]
 """The cell under the pointer, or ``None`` until the runtime has seen the pointer.
 
-Reading it needs a mounted runtime.
+It is the last known cell, held between events. ``MousePosition`` is the cell of the event
+being handled. Reading it needs a mounted runtime.
 """
+KeyboardKey: Value[str | None]
+"""The key of the latest key event, or ``None`` while the latest input was not a key."""
+KeyboardKind: Value[Literal['press', 'repeat', 'release'] | None]
+"""Whether the latest key event was a press, repeat or release, or ``None``."""
+KeyboardChord: Value[str | None]
+"""The latest key event with its modifiers, such as ``'ctrl+s'``, or ``None``."""
+MouseButtonValue: Value[MouseButton | None]
+"""The button of the latest button or motion report, or ``None``."""
+MouseKind: Value[Literal['press', 'release', 'drag', 'move'] | None]
+"""The kind of the latest button or motion report, or ``None`` (also for a wheel report)."""
+MousePosition: Value[Point | None]
+"""The cell of the latest button or motion report, or ``None``.
+
+``PointerPosition`` is the last cell the pointer was seen at, whatever came since; this one
+belongs to the event being handled.
+"""
+MouseIsDown: Predicate
+"""Whether any mouse button is held."""
+ScrollX: NumericValue[int]
+"""Horizontal steps of the latest wheel report of the current step (right is positive)."""
+ScrollY: NumericValue[int]
+"""Vertical steps of the latest wheel report of the step (down is positive, up is ``-1``)."""
+BufferRegion: Value[Rectangle]
+"""The rectangle of a buffer on the screen, counting every parent offset."""
 Layer: NumericProperty[int]
 """The paint order of a buffer among its siblings. Assign it with ``Layer(2)``."""
 IsVisible: Property[bool]

@@ -9,10 +9,22 @@ import pytest
 from xnano_core._xnano_core import (
     Bounds,
     Buffer,
+    BufferRegion,
+    BufferScope,
     Event,
+    Expression,
     Height,
     IsVisible,
+    KeyboardChord,
+    KeyboardKey,
+    KeyboardKind,
+    KeyboardScope,
     Layer,
+    MouseButtonValue,
+    MouseIsDown,
+    MouseKind,
+    MousePosition,
+    MouseScope,
     NumericValue,
     ParentHeight,
     ParentSize,
@@ -21,10 +33,14 @@ from xnano_core._xnano_core import (
     Point,
     PointerPosition,
     Position,
+    Predicate,
     Rectangle,
     RuntimeRequiredError,
     ScreenBounds,
     ScreenPosition,
+    ScrollScope,
+    ScrollX,
+    ScrollY,
     Size,
     TerminalStateSchema,
     TerminalStateStore,
@@ -223,3 +239,242 @@ def test_a_runtime_provides_a_named_external_value():
         runtime.mount(buffer)
         runtime.provide('test.level', lambda: 3)
         assert buffer.inspect(level + 1) == 4
+
+
+def mounted_buffer(runtime, **keywords):
+    buffer = Buffer(**keywords)
+    runtime.mount(buffer)
+    return buffer
+
+
+def send(runtime, *events):
+    for event in events:
+        runtime.inject(event)
+        runtime.step()
+
+
+def test_input_references_are_null_until_the_input_was_seen(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2)
+    assert buffer.inspect(KeyboardKey) is None
+    assert buffer.inspect(KeyboardKind) is None
+    assert buffer.inspect(KeyboardChord) is None
+    assert buffer.inspect(MouseButtonValue) is None
+    assert buffer.inspect(MouseKind) is None
+    assert buffer.inspect(MousePosition) is None
+    assert buffer.inspect(MouseIsDown) is False
+    assert buffer.inspect(ScrollX) == 0 and buffer.inspect(ScrollY) == 0
+    assert buffer.inspect(BufferRegion) == Rectangle(0, 0, 4, 2)
+
+
+def test_input_references_read_the_latest_event(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2)
+    send(runtime, Event.key_press('ctrl+s'))
+    assert buffer.inspect(KeyboardKey) == 's'
+    assert buffer.inspect(KeyboardKind) == 'press'
+    assert buffer.inspect(KeyboardChord) == 'ctrl+s'
+    send(runtime, Event.mouse_event(column=7, row=2, kind='press', button='right'))
+    assert buffer.inspect(KeyboardKey) is None
+    assert buffer.inspect(MouseButtonValue) == 'right'
+    assert buffer.inspect(MouseKind) == 'press'
+    assert buffer.inspect(MousePosition) == Point(7, 2)
+    assert buffer.inspect(MouseIsDown) is True
+    send(
+        runtime,
+        Event.mouse_event(column=7, row=2, kind='scroll', scroll_x=1, scroll_y=-1),
+    )
+    assert buffer.inspect(ScrollX) == 1 and buffer.inspect(ScrollY) == -1
+    assert buffer.inspect(MousePosition) is None, 'a wheel report has no button cell'
+    assert buffer.inspect(MouseIsDown) is True
+    runtime.step()
+    assert buffer.inspect(ScrollY) == 0
+
+
+def test_the_region_is_the_buffer_on_the_screen(runtime):
+    parent = Buffer(width=20, height=6, x=3, y=1)
+    child = Buffer(width=4, height=2, x=2, y=1)
+    parent.attach(child)
+    runtime.mount(parent)
+    assert (
+        child.inspect(BufferRegion)
+        == child.inspect(ScreenBounds)
+        == Rectangle(5, 2, 4, 2)
+    )
+    assert child.inspect(BufferRegion) != child.inspect(Bounds)
+    assert BufferScope.region is BufferRegion
+
+
+def test_comparing_input_that_was_never_seen_is_false_not_an_error(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2)
+    for condition in (
+        KeyboardKey == 'q',
+        KeyboardKey != 'q',
+        MouseKind == 'press',
+        MouseKind != 'press',
+        MousePosition == Point(0, 0),
+        MousePosition.x > 0,
+        MousePosition.x <= 100,
+        MousePosition.x + 1 > 0,
+        -MousePosition.x > -5,
+    ):
+        assert buffer.inspect(condition) is False, condition
+    assert buffer.inspect(MousePosition.x) is None
+    assert buffer.inspect(MousePosition.x * 2) is None
+
+
+def test_values_that_were_seen_compare_normally(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2)
+    send(runtime, Event.key_press('q'))
+    assert buffer.inspect(KeyboardKey == 'q') is True
+    assert buffer.inspect(KeyboardKey != 'q') is False
+    assert buffer.inspect(KeyboardKey != 'w') is True
+    assert buffer.inspect(KeyboardKey.equals('q')) is True
+    assert buffer.inspect(KeyboardKey.not_equals('q')) is False
+    assert buffer.inspect((KeyboardKey == 'q') & (KeyboardKind == 'press')) is True
+
+
+def test_a_rectangle_contains_a_point_and_nothing_seen_is_not_contained(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2, x=1, y=1)
+    inside = BufferRegion.contains(MousePosition)
+    assert isinstance(inside, Expression)
+    assert buffer.inspect(inside) is False, 'no pointer has been seen'
+    send(runtime, Event.mouse_event(column=1, row=1, kind='move'))
+    assert buffer.inspect(inside) is True
+    send(runtime, Event.mouse_event(column=5, row=1, kind='move'))
+    assert buffer.inspect(inside) is False, 'the right edge is outside'
+    send(runtime, Event.mouse_event(column=4, row=2, kind='move'))
+    assert buffer.inspect(inside) is True
+    assert buffer.inspect(BufferRegion.contains(Point(2, 2))) is True
+    assert buffer.inspect(Bounds.contains(Point(9, 9))) is False
+    with pytest.raises(TypeError, match='contain'):
+        buffer.inspect(BufferRegion.contains(3))
+
+
+def test_the_event_position_is_null_on_a_key_press_but_the_pointer_is_held(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2, x=1, y=1)
+    heard = []
+    buffer.add_hook(
+        lambda context: heard.append(context.event.kind),
+        events=('key', 'mouse'),
+        condition=BufferRegion.contains(MousePosition),
+    )
+    send(runtime, Event.mouse_event(column=2, row=2, kind='move'))
+    assert heard == ['mouse']
+    send(runtime, Event.key_press('a'))
+    assert heard == ['mouse'], (
+        'the pointer rests inside, but the key is not a mouse event'
+    )
+    assert buffer.inspect(PointerPosition) == Point(2, 2)
+    assert buffer.inspect(BufferRegion.contains(PointerPosition)) is True
+    assert buffer.inspect(BufferRegion.contains(MousePosition)) is False
+    send(runtime, Event.mouse_event(column=8, row=2, kind='move'))
+    assert heard == ['mouse']
+
+
+def test_comparing_a_condition_with_a_bool_builds_a_condition(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2)
+    assert isinstance(MouseIsDown == True, Predicate)
+    assert isinstance(MouseScope.is_down != False, Predicate)
+    assert buffer.inspect(MouseIsDown == False) is True
+    assert buffer.inspect(MouseIsDown == True) is False
+    assert buffer.inspect(MouseIsDown != True) is True
+    send(runtime, Event.mouse_event(column=1, row=1, kind='press', button='left'))
+    assert buffer.inspect(MouseIsDown == True) is True
+    assert buffer.inspect(MouseIsDown != False) is True
+    assert hash(MouseIsDown) == hash(MouseIsDown)
+    assert len({MouseIsDown, MouseScope.is_down}) == 1
+
+
+def test_comparing_an_expression_with_none_explains_that_it_never_holds(runtime):
+    mounted_buffer(runtime, width=4, height=2)
+    with pytest.raises(TypeError, match='always false'):
+        _ = KeyboardKey == None
+    with pytest.raises(TypeError, match='on='):
+        _ = KeyboardKey != None
+    with pytest.raises(TypeError, match='always false'):
+        _ = MouseIsDown == None
+
+
+def test_asking_a_value_that_is_not_a_rectangle_names_both_types(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2)
+    with pytest.raises(TypeError, match='whether an int contains a Point'):
+        buffer.inspect(Width.contains(Point(1, 1)))
+    with pytest.raises(TypeError, match='whether a Rectangle contains an int'):
+        buffer.inspect(BufferRegion.contains(3))
+
+
+def test_mouse_is_down_combines_with_other_conditions(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2, x=1, y=1)
+    assert isinstance(MouseIsDown, Predicate)
+    assert isinstance(MouseScope.is_down, Predicate)
+    pressed_inside = MouseScope.is_down & BufferRegion.contains(MousePosition)
+    released = ~MouseScope.is_down
+    either = MouseScope.is_down | (KeyboardKey == 'q')
+    assert buffer.inspect(pressed_inside) is False
+    assert buffer.inspect(released) is True
+    assert buffer.inspect(either) is False
+    send(runtime, Event.mouse_event(column=2, row=1, kind='press', button='left'))
+    assert buffer.inspect(pressed_inside) is True
+    assert buffer.inspect(released) is False
+    assert buffer.inspect(either) is True
+    send(runtime, Event.mouse_event(column=9, row=1, kind='drag', button='left'))
+    assert buffer.inspect(pressed_inside) is False
+    send(runtime, Event.mouse_event(column=2, row=1, kind='release', button='left'))
+    assert buffer.inspect(released) is True
+
+
+def test_a_hook_condition_can_combine_the_held_button_with_the_region(runtime):
+    buffer = mounted_buffer(runtime, width=4, height=2, x=1, y=1)
+    drags = []
+    moves = []
+    buffer.add_hook(
+        lambda context: drags.append(context.event.mouse.position),
+        events=('mouse',),
+        condition=MouseScope.is_down & BufferRegion.contains(MousePosition),
+    )
+    buffer.add_hook(
+        lambda context: moves.append(context.event.mouse.position),
+        events=('mouse',),
+        condition=~MouseScope.is_down,
+    )
+    send(runtime, Event.mouse_event(column=2, row=1, kind='move'))
+    assert drags == [] and moves == [Point(2, 1)]
+    send(runtime, Event.mouse_event(column=2, row=1, kind='press', button='left'))
+    send(runtime, Event.mouse_event(column=3, row=2, kind='drag', button='left'))
+    send(runtime, Event.mouse_event(column=9, row=2, kind='drag', button='left'))
+    assert drags == [Point(2, 1), Point(3, 2)]
+    send(runtime, Event.mouse_event(column=3, row=2, kind='release', button='left'))
+    assert len(moves) == 2
+
+
+def test_scopes_provide_the_new_references():
+    assert KeyboardScope.key is KeyboardKey
+    assert KeyboardScope.kind is KeyboardKind
+    assert KeyboardScope.chord is KeyboardChord
+    assert MouseScope.position is MousePosition
+    assert MouseScope.button is MouseButtonValue
+    assert MouseScope.kind is MouseKind
+    assert MouseScope.is_down is MouseIsDown
+    assert ScrollScope.x is ScrollX and ScrollScope.y is ScrollY
+    with pytest.raises(AttributeError, match='chord'):
+        KeyboardScope.letter  # noqa: B018
+    with pytest.raises(AttributeError, match='is_down'):
+        MouseScope.held  # noqa: B018
+    with pytest.raises(AttributeError, match='y'):
+        ScrollScope.z  # noqa: B018
+
+
+def test_an_input_condition_with_a_wheel_hook_filters_natively(runtime):
+    buffer = mounted_buffer(runtime, width=10, height=3)
+    steps = []
+    buffer.add_hook(
+        lambda context: steps.append(context.event.mouse.scroll_y),
+        events=('mouse',),
+        condition=ScrollScope.y < 0,
+    )
+    send(
+        runtime,
+        Event.mouse_event(column=1, row=1, kind='scroll', scroll_y=1),
+        Event.mouse_event(column=1, row=1, kind='scroll', scroll_y=-1),
+        Event.mouse_event(column=1, row=1, kind='move'),
+    )
+    assert steps == [-1]

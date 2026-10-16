@@ -138,10 +138,27 @@ impl PyExpression {
         Ok(py.None().into_bound(py))
     }
 
+    /// A condition that holds while this rectangle contains `other`, a point.
+    ///
+    /// It is false while `other` (or this rectangle) has no value yet, such as a pointer that
+    /// has not been seen.
+    fn contains(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyPredicate>> {
+        predicate(
+            slf.py(),
+            Arc::new(Expr::Function(
+                Function::Contains,
+                vec![expression_of(slf.as_any())?, expression_of(other)?],
+            )),
+        )
+    }
+
     fn __bool__(&self) -> PyResult<bool> {
         Err(PyTypeError::new_err(
-            "an Expression has no truth value until it is evaluated; call evaluate(context) or \
-             combine conditions with & and | instead of `and` and `or`",
+            "an Expression has no truth value until it is evaluated; call evaluate(context), or \
+             combine conditions with & and | instead of `and` and `or`. Comparing expressions \
+             with ==, using `in` or calling .index() on a list of expressions also builds a \
+             condition; look an expression up by identity (`item is value`) or keep \
+             expressions in a set or dictionary",
         ))
     }
 }
@@ -206,6 +223,24 @@ impl PyPredicate {
         predicate(slf.py(), Arc::new(Expr::Not(expression_of(slf.as_any())?)))
     }
 
+    /// `==` and `!=` build conditions, so `Mouse.is_down == False` is a condition, not a `bool`.
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        match operation {
+            CompareOp::Eq => equality(slf.as_any(), Comparison::Equal, other),
+            CompareOp::Ne => equality(slf.as_any(), Comparison::NotEqual, other),
+            _ => Ok(slf.py().NotImplemented()),
+        }
+    }
+
+    /// Expressions are hashed by identity, so they stay usable in sets and dictionaries.
+    fn __hash__(slf: &Bound<'_, Self>) -> isize {
+        slf.as_ptr() as isize
+    }
+
     /// A value that is `when_true` while this condition holds and `when_false` otherwise.
     fn choose(
         slf: &Bound<'_, Self>,
@@ -254,14 +289,61 @@ fn comparison(
     )
 }
 
+/// A condition for `==` and `!=`, or `NotImplemented` when the other side cannot be an expression,
+/// so Python falls back to identity for `in`, `list.remove` and similar generic code. Comparing
+/// with a literal `None` is refused: a value that was not seen is never equal to anything, so such
+/// a condition could never hold.
+fn equality(
+    slf: &Bound<'_, PyAny>,
+    operation: Comparison,
+    other: &Bound<'_, PyAny>,
+) -> PyResult<Py<PyAny>> {
+    let py = slf.py();
+    if other.is_none() {
+        return Err(PyTypeError::new_err(
+            "cannot compare an expression with None: a comparison with a value that was not \
+             seen is always false, so the condition would never hold. To test that a key or a \
+             button arrived, compare with the key or the button, for example \
+             KeyboardKey == 'q', or register the hook with on='key' or on='mouse'",
+        ));
+    }
+    let Ok(right) = expression_of(other) else {
+        return Ok(py.NotImplemented());
+    };
+    let condition = predicate(
+        py,
+        Arc::new(Expr::Compare(operation, expression_of(slf)?, right)),
+    )?;
+    Ok(condition.into_any())
+}
+
 #[pymethods]
 impl PyValue {
-    fn eq(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyPredicate>> {
+    fn equals(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyPredicate>> {
         comparison(slf.as_any(), Comparison::Equal, other)
     }
 
-    fn ne(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyPredicate>> {
+    fn not_equals(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyPredicate>> {
         comparison(slf.as_any(), Comparison::NotEqual, other)
+    }
+
+    /// `==` and `!=` build conditions; ordering needs a number.
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let py = slf.py();
+        match operation {
+            CompareOp::Eq => equality(slf.as_any(), Comparison::Equal, other),
+            CompareOp::Ne => equality(slf.as_any(), Comparison::NotEqual, other),
+            _ => Ok(py.NotImplemented()),
+        }
+    }
+
+    /// Expressions are hashed by identity, so they stay usable in sets and dictionaries.
+    fn __hash__(slf: &Bound<'_, Self>) -> isize {
+        slf.as_ptr() as isize
     }
 
     /// The column of a point or rectangle.
@@ -345,15 +427,20 @@ impl PyNumericValue {
         other: &Bound<'_, PyAny>,
         operation: CompareOp,
     ) -> PyResult<Py<PyAny>> {
-        let py = slf.py();
         let mapped = match operation {
+            CompareOp::Eq => return equality(slf.as_any(), Comparison::Equal, other),
+            CompareOp::Ne => return equality(slf.as_any(), Comparison::NotEqual, other),
             CompareOp::Lt => Comparison::Less,
             CompareOp::Le => Comparison::LessEqual,
             CompareOp::Gt => Comparison::Greater,
             CompareOp::Ge => Comparison::GreaterEqual,
-            CompareOp::Eq | CompareOp::Ne => return Ok(py.NotImplemented()),
         };
         Ok(comparison(slf.as_any(), mapped, other)?.into_any())
+    }
+
+    /// Expressions are hashed by identity, so they stay usable in sets and dictionaries.
+    fn __hash__(slf: &Bound<'_, Self>) -> isize {
+        slf.as_ptr() as isize
     }
 
     fn __add__(slf: &Bound<'_, Self>, other: &Bound<'_, PyAny>) -> PyResult<Py<PyNumericValue>> {
@@ -522,6 +609,16 @@ pub fn property_id(name: &str) -> Option<PropertyId> {
         "PointerPosition" => PropertyId::PointerPosition,
         "Layer" => PropertyId::Layer,
         "IsVisible" => PropertyId::IsVisible,
+        "KeyboardKey" => PropertyId::KeyboardKey,
+        "KeyboardKind" => PropertyId::KeyboardKind,
+        "KeyboardChord" => PropertyId::KeyboardChord,
+        "MouseButtonValue" => PropertyId::MouseButton,
+        "MouseKind" => PropertyId::MouseKind,
+        "MousePosition" => PropertyId::MousePosition,
+        "MouseIsDown" => PropertyId::MouseIsDown,
+        "ScrollX" => PropertyId::ScrollX,
+        "ScrollY" => PropertyId::ScrollY,
+        "BufferRegion" => PropertyId::BufferRegion,
         _ => return None,
     })
 }
@@ -776,6 +873,9 @@ impl PyConditional {
 fn _reference(py: Python<'_>, name: &str, kind: &str) -> PyResult<Py<PyAny>> {
     let id = property_id(name)
         .ok_or_else(|| PyValueError::new_err(format!("\"{name}\" is not a known property")))?;
+    if kind == "predicate" {
+        return Ok(predicate(py, Arc::new(Expr::Property(id)))?.into_any());
+    }
     let base = PyExpression {
         kind: ExpressionKind::Value(Arc::new(Expr::Property(id))),
     };

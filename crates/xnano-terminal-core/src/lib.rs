@@ -144,6 +144,16 @@ fn _xnano_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
         ("PointerPosition", "value"),
         ("Layer", "numeric_property"),
         ("IsVisible", "property"),
+        ("KeyboardKey", "value"),
+        ("KeyboardKind", "value"),
+        ("KeyboardChord", "value"),
+        ("MouseButtonValue", "value"),
+        ("MouseKind", "value"),
+        ("MousePosition", "value"),
+        ("MouseIsDown", "predicate"),
+        ("ScrollX", "numeric"),
+        ("ScrollY", "numeric"),
+        ("BufferRegion", "value"),
     ] {
         m.add(name, make_reference.call1((name, kind))?)?;
     }

@@ -904,6 +904,7 @@ impl PyRuntime {
                 }
                 let now = self.now();
                 let mut input = lock(&self.shared.input);
+                input.record_key(key);
                 match key.kind {
                     KeyKind::Release => {
                         input.pressed.remove(&key.key);
@@ -918,9 +919,8 @@ impl PyRuntime {
                     }
                 }
             }
-            EventPayload::Mouse(mouse) => {
-                lock(&self.shared.input).pointer = Some((mouse.column, mouse.row));
-            }
+            EventPayload::Mouse(mouse) => lock(&self.shared.input).record_mouse(mouse),
+            EventPayload::Paste(text) => lock(&self.shared.input).record_paste(text),
             EventPayload::Size(size) => {
                 lock(&self.shared.device).size = *size;
                 self.shared.request_frame();
@@ -1977,6 +1977,8 @@ impl PyRuntime {
         }
         let runtime = slf.borrow();
         runtime.shared.clock.tick();
+        // A wheel value lives for the step in which its event is processed.
+        lock(&runtime.shared.input).scroll = (0, 0);
         runtime.sync_lifecycle(slf)?;
         // Queued callbacks.
         let mut calls = 0;
@@ -2485,9 +2487,12 @@ impl PyRuntime {
                     "motion" => MouseCapture::Motion,
                     _ => MouseCapture::Off,
                 },
+                scroll: input.scroll,
+                keeps_interrupt_chord: input.interrupt == "stop",
                 bracketed_paste: input.bracketed_paste,
                 focus_reporting: input.focus_reporting,
                 keyboard: match input.keyboard.as_str() {
+                    "off" => KeyboardMode::Off,
                     "disambiguated" => KeyboardMode::Disambiguated,
                     "release_events" => KeyboardMode::ReleaseEvents,
                     _ => KeyboardMode::Basic,

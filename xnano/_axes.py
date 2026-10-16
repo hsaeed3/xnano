@@ -220,8 +220,22 @@ def axis_limits(
 
 
 def inspect_number(buffer: _core.Buffer, expression: NumericExpression) -> float:
-    """Evaluate a numeric expression against a buffer."""
-    return float(buffer.inspect(cast('_core.Expression[float]', expression)))
+    """
+    Evaluate a numeric expression against a buffer.
+
+    Raises:
+        TypeError: The expression reads input that has not been seen yet, such as the
+            pointer position before the pointer has moved, so it has no value.
+    """
+    result = buffer.inspect(cast('_core.Expression[float]', expression))
+    if result is None:
+        raise TypeError(
+            'This formula has no value yet because it reads input that has not been seen, '
+            'such as PointerPosition before the pointer has moved. Assign a number now and '
+            'update it from a hook that runs when the input arrives, or use a formula that '
+            'does not depend on unseen input.'
+        )
+    return float(result)
 
 
 def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:

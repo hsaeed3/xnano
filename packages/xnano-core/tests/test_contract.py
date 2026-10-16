@@ -89,3 +89,32 @@ def test_the_pixel_tuple_alias_is_named_pixel_entry():
     assert xnano_core.PixelEntry is _core_types.PixelEntry
     assert 'Pixel' not in xnano_core.__all__ and not hasattr(xnano_core, 'Pixel')
     assert not hasattr(_core_types, 'Pixel')
+
+
+def test_the_input_scopes_and_their_references_are_public():
+    import xnano_core
+
+    names = [
+        'KeyboardExpressionScope',
+        'MouseExpressionScope',
+        'ScrollExpressionScope',
+        'KeyboardScope',
+        'MouseScope',
+        'ScrollScope',
+        'KeyboardKey',
+        'KeyboardKind',
+        'KeyboardChord',
+        'MouseButtonValue',
+        'MouseKind',
+        'MousePosition',
+        'MouseIsDown',
+        'ScrollX',
+        'ScrollY',
+        'BufferRegion',
+    ]
+    for name in names:
+        assert name in xnano_core.__all__, name
+        assert getattr(xnano_core, name) is getattr(native, name), name
+    assert not hasattr(xnano_core.Value, 'eq') and not hasattr(xnano_core.Value, 'ne')
+    assert hasattr(xnano_core.Value, 'equals') and hasattr(xnano_core.Value, 'not_equals')
+    assert hasattr(xnano_core.Expression, 'contains')
