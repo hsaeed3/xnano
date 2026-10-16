@@ -54,10 +54,17 @@ from xnano._values import (
 from xnano._values import (
     Renderable as Renderable,
 )
+from xnano.pixel import (
+    PixelPreset as PixelPreset,
+)
+from xnano_core import (
+    BorderKind as BorderKind,
+)
 
 __all__ = [
     'AppearanceArguments',
     'Axis',
+    'BorderKind',
     'CanvasAppearanceArguments',
     'CanvasSettings',
     'Content',
@@ -69,6 +76,7 @@ __all__ = [
     'KeyName',
     'OpenSettings',
     'PixelEncoding',
+    'PixelPreset',
     'RangeBound',
     'Renderable',
     'Spacing',
@@ -130,7 +138,7 @@ class GateSettings(TypedDict, total=False):
 
 class CanvasAppearanceArguments(TypedDict, total=False):
     """
-    How a canvas itself looks: its colors, text modifiers and border.
+    How a canvas itself looks: its colors, text modifiers, border, padding and margin.
 
     These style the canvas, not what is written into it, so ``new()`` and ``open()`` accept
     them only without content. ``title`` is not one of them: on ``new()`` and ``open()`` it is
@@ -148,8 +156,10 @@ class CanvasAppearanceArguments(TypedDict, total=False):
         is_reversed: Whether foreground and background are swapped.
         is_hidden: Whether they are hidden.
         is_crossed_out: Whether they are struck through.
-        border: The kind of border around the canvas.
+        border: The kind of border around the canvas, ``True`` for ``'plain'``, ``False`` for none.
         border_style: The style of the border.
+        padding: Space between the border and what is written into the canvas.
+        margin: Space outside the border.
     """
 
     style: _core.Style | None
@@ -174,10 +184,14 @@ class CanvasAppearanceArguments(TypedDict, total=False):
     """Whether the cells are hidden."""
     is_crossed_out: bool
     """Whether the cells are struck through."""
-    border: _core.BorderKind | None
-    """The kind of border."""
+    border: _core.BorderKind | bool | None
+    """The kind of border; ``True`` is ``'plain'`` and ``False`` is none."""
     border_style: _core.Style | None
     """The style of the border."""
+    padding: Spacing | None
+    """Space between the border and the content."""
+    margin: Spacing | None
+    """Space outside the border."""
 
 
 class AppearanceArguments(CanvasAppearanceArguments, total=False):
@@ -186,16 +200,10 @@ class AppearanceArguments(CanvasAppearanceArguments, total=False):
 
     Attributes:
         title: A title on the border of the content.
-        padding: Space between the border and the content.
-        margin: Space outside the border.
     """
 
     title: str | None
     """A title on the border."""
-    padding: Spacing | None
-    """Space between the border and the content."""
-    margin: Spacing | None
-    """Space outside the border."""
 
 
 class CanvasSettings(GateSettings, CanvasAppearanceArguments, total=False):

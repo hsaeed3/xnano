@@ -18,8 +18,8 @@ if TYPE_CHECKING:
     from xnano_image import TerminalImage
 
     from xnano.canvas import Canvas
-    from xnano.pixels import Pixels
     from xnano.placement import Placement
+    from xnano.region import Region
 
 __all__ = ['Camera', 'Scene', 'Sprite']
 
@@ -306,7 +306,7 @@ class Scene:
         pixel, row after row, with a non-zero byte for solid ground.
         """
         self._sprites: list[Sprite] = []
-        self._pixels: Pixels = target.pixels
+        self._pixels: Region = target.region.half_blocks
         self._background = to_rgb(background)
         self._version = 0
         self._shown: tuple[int, ...] | None = None
@@ -380,7 +380,7 @@ class Scene:
             ```
         """
         left, top = self.origin
-        pixel_column, pixel_row = self._pixels.pixel_at(column, row)
+        pixel_column, pixel_row = self._pixels.pixel_for_cell(column, row)
         return left + pixel_column, top + pixel_row
 
     @property
@@ -414,7 +414,7 @@ class Scene:
             return  # nothing moved: the screen already shows this
         self._shown = signature
         red, green, blue = self._background
-        pixels.draw_rgba(
+        pixels.draw_color_bytes(
             bytes((red, green, blue, 255)) * (pixels.width * pixels.height),
             width=pixels.width,
             height=pixels.height,

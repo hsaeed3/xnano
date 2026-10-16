@@ -6,7 +6,7 @@ A canvas's cursor: where it is, how it looks, and how to move it.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import xnano_core as _core
 from xnano._axes import check_cells, check_count
@@ -14,6 +14,7 @@ from xnano._axes import check_cells, check_count
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
     from xnano.placement import Placement
+    from xnano.region import Region
 
 __all__ = ['Cursor']
 
@@ -228,16 +229,21 @@ class Cursor:
         return self
 
     def follow(
-        self, target: Placement[object, object] | _core.Buffer, *, x: int = 0, y: int = 0
+        self,
+        target: Placement[object, object] | Region | _core.Buffer,
+        *,
+        x: int = 0,
+        y: int = 0,
     ) -> Cursor:
         """
-        Keep the cursor at a place inside a placement or buffer, wherever it goes.
+        Keep the cursor at a place inside a placement, region or buffer, wherever it goes.
 
         The cursor hides while the target, or anything above it, is hidden. Assigning
         ``position`` or calling [`move`][xnano.cursor.Cursor.move] stops the following.
 
         Args:
-            target: The [`Placement`][xnano.placement.Placement] or buffer to follow.
+            target: The [`Placement`][xnano.placement.Placement],
+                [`Region`][xnano.region.Region] or buffer to follow.
             x: The column inside the target.
             y: The row inside the target.
 
@@ -253,7 +259,16 @@ class Cursor:
                 assert canvas.cursor.position == Point(12, 1)
             ```
         """
-        buffer = target if isinstance(target, _core.Buffer) else target.core_buffer
+        if isinstance(target, _core.Buffer):
+            buffer = target
+        elif hasattr(target, 'core_buffer'):
+            buffer = target.core_buffer  # type: ignore[union-attr]
+        else:
+            region = cast('Region', target)
+            buffer = region._buffer
+            left, top, _, _ = region._inset
+            x += left
+            y += top
         self._source.follow(buffer, x=x, y=y)
         self._canvas._cursor_follow = (buffer, x, y)
         return self

@@ -16,7 +16,6 @@ from xnano._values import Content, DepsT, StateT
 from xnano.canvas import (
     Canvas,
     _appearance_with_content_error,
-    _refuse_canvas_spacing,
     _split_settings,
     new,
 )
@@ -284,7 +283,6 @@ def open(
     )
     if canvas_or_content is not None and appearance:
         raise _appearance_with_content_error('open', appearance)
-    _refuse_canvas_spacing('open', appearance)
     canvas: Canvas[DepsT, StateT] = new(
         canvas_or_content,  # type: ignore[arg-type]
         title=title,

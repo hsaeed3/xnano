@@ -7,14 +7,16 @@ How a text placement or canvas looks: colors, text modifiers, border, title, pad
 from __future__ import annotations
 
 import dataclasses
-from typing import TypeAlias, TypedDict
+from typing import Final, TypeAlias, TypedDict, cast
 
 import xnano_core as _core
 from xnano._values import ColorValue
 
 __all__ = [
     'APPEARANCE_NAMES',
+    'INHERIT',
     'Appearance',
+    'BorderSideSpecification',
     'Spacing',
     'SpacingDictionary',
     'resolve_spacing',
@@ -147,6 +149,25 @@ def resolve_spacing(
     )
 
 
+INHERIT: Final = object()
+"""Marks a border side that takes the kind of the whole border."""
+
+
+@dataclasses.dataclass(slots=True)
+class BorderSideSpecification:
+    """
+    What one side of a border does differently from the others.
+
+    Attributes:
+        kind: The kind of line on this side, ``None`` when the side is not drawn, or
+            ``INHERIT`` for the kind of the whole border.
+        color: The color of this side, or ``None`` for the border's own color.
+    """
+
+    kind: object = INHERIT
+    color: ColorValue | None = None
+
+
 def _snapshot(buffer: _core.Buffer) -> _core.Buffer:
     """Copy what a buffer shows into a buffer of plain cells."""
     return _core.Buffer.from_cell_grid(buffer.to_cell_grid())
@@ -194,6 +215,43 @@ class Appearance:
     border_style: _core.Style | None = None
     padding: Spacing | None = None
     margin: Spacing | None = None
+    sides: dict[str, BorderSideSpecification] = dataclasses.field(default_factory=dict)
+    revision: int = 0
+
+    @property
+    def base_border_kind(self) -> _core.BorderKind | None:
+        """The kind of border the sides share unless they say otherwise."""
+        if self.border is not None:
+            return self.border
+        if self.title is not None or self.border_style is not None:
+            return 'plain'
+        return None
+
+    def drawn_sides(self) -> dict[str, tuple[_core.BorderKind, ColorValue | None]]:
+        """The sides that are drawn, by name, with their kind and own color."""
+        drawn: dict[str, tuple[_core.BorderKind, ColorValue | None]] = {}
+        base = self.base_border_kind
+        for name in ('top', 'right', 'bottom', 'left'):
+            specification = self.sides.get(name)
+            kind = (
+                base
+                if specification is None or specification.kind is INHERIT
+                else specification.kind
+            )
+            if kind is not None:
+                drawn[name] = (
+                    cast('_core.BorderKind', kind),
+                    None if specification is None else specification.color,
+                )
+        return drawn
+
+    def text_buffer(self) -> _core.Buffer:
+        """The text with its colors and modifiers, without border, padding or margin."""
+        buffer = _core.Buffer.with_text(self.text)
+        style = self.text_style()
+        if style is not None:
+            buffer.update(_core.ApplyStyle(style))
+        return buffer
 
     @property
     def has_style(self) -> bool:

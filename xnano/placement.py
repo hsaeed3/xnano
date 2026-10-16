@@ -7,7 +7,7 @@ A buffer placed on a canvas, with a position and size that are formulas.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
 from xnano_core import EvaluationContext
@@ -24,6 +24,7 @@ from xnano._axes import (
     inspect_number,
 )
 from xnano._customize import Customization, apply_effects
+from xnano._decoration import Decorated, insets_for
 from xnano._hooks import _Hooked
 from xnano._values import (
     Axis,
@@ -35,6 +36,7 @@ from xnano._values import (
     NumericExpression,
     StateT,
 )
+from xnano.appearance import _Looked
 from xnano.expressions import (
     Parent,
     ParentExpressionScope,
@@ -44,11 +46,11 @@ from xnano.expressions import (
 from xnano.operations import (
     ContextualOperation,
 )
-from xnano.pixels import Pixels
+from xnano.region import Region
 from xnano.scene import Scene
 
 
-class Placement(_Hooked[DepsT, StateT]):
+class Placement(_Hooked[DepsT, StateT], _Looked):
     """
     A buffer placed on a canvas, with a position and size that are formulas.
 
@@ -135,11 +137,26 @@ class Placement(_Hooked[DepsT, StateT]):
         self._removed = False
         self._is_text = False
         self._appearance: Appearance | None = None
+        self._decorated: Decorated | None = None
+        self._has_nested = False
 
     @property
     def core_buffer(self) -> _core.Buffer:
-        """The core buffer that is placed, which core operations and widgets draw into."""
-        return self._buffer
+        """
+        The core buffer of the content, which core operations and widgets draw into.
+
+        A placement with a border, padding or margin around content that is not plain text
+        draws that decoration in a buffer of its own; this is the buffer inside it.
+        """
+        self._flush_look()
+        decorated = self._decorated
+        return self._buffer if decorated is None else decorated.inner
+
+    @property
+    def _content(self) -> _core.Buffer:
+        """The buffer that the content and nested placements live in."""
+        decorated = self._decorated
+        return self._buffer if decorated is None else decorated.inner
 
     def local(self, point: _core.Point) -> _core.Point:
         """
@@ -230,6 +247,9 @@ class Placement(_Hooked[DepsT, StateT]):
     def _assign(self, axis: AxisName, value: int) -> None:
         if getattr(self._buffer, axis) != value:
             setattr(self._buffer, axis, value)
+            decorated = self._decorated
+            if decorated is not None and axis in ('width', 'height'):
+                self._refit_decoration(decorated)
 
     def _clamp(
         self, axis: AxisName, value: float, resolve: Callable[[Bound], float]
@@ -301,6 +321,7 @@ class Placement(_Hooked[DepsT, StateT]):
     @property
     def x(self) -> int:
         """The column of the left edge, relative to the parent."""
+        self._flush_look()
         return self._buffer.x
 
     @x.setter
@@ -311,6 +332,7 @@ class Placement(_Hooked[DepsT, StateT]):
     @property
     def y(self) -> int:
         """The row of the top edge, relative to the parent."""
+        self._flush_look()
         return self._buffer.y
 
     @y.setter
@@ -321,6 +343,7 @@ class Placement(_Hooked[DepsT, StateT]):
     @property
     def width(self) -> int:
         """The width in cells."""
+        self._flush_look()
         return self._buffer.width
 
     @width.setter
@@ -331,6 +354,7 @@ class Placement(_Hooked[DepsT, StateT]):
     @property
     def height(self) -> int:
         """The height in cells."""
+        self._flush_look()
         return self._buffer.height
 
     @height.setter
@@ -455,13 +479,59 @@ class Placement(_Hooked[DepsT, StateT]):
         return self.move(x=check_count(count))
 
     @property
-    def pixels(self) -> Pixels:
+    def region(self) -> Region:
         """
-        The pixels of the placed buffer: ``placement.pixels[column, row] = color``.
+        The cells of the content as a [`Region`][xnano.region.Region]: read and write
+        ``placement.region[x, y]``.
 
-        See [`Pixels`][xnano.pixels.Pixels].
+        Around text with a border, padding or margin, the region is the area inside them.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=10, height=3) as canvas:
+                label = canvas.write('abc')
+                label.region[0, 0] = xnano.Pixel('star')
+                assert label.region[0, 0].character == '★'
+            ```
         """
-        return Pixels(self._buffer.pixels())
+        self._flush_look()
+        decorated = self._decorated
+        if decorated is not None:
+            return Region(decorated.inner, owner=cast('Placement[object, object]', self))
+        inset = self._single_buffer_inset()
+        return Region(
+            self._buffer, owner=cast('Placement[object, object]', self), inset=inset
+        )
+
+    def render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
+        """
+        Draw the placement, with its border, padding and nested placements, to a string.
+
+        Args:
+            format: ``'text'`` for the characters only, ``'ansi'`` with colors and styles.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=10, height=3) as canvas:
+                card = canvas.write('hi', border='rounded')
+                assert card.render().splitlines() == ['╭──╮', '│hi│', '╰──╯']
+            ```
+        """
+        self._flush_look()
+        return self._buffer.render(format=format)
+
+    def _single_buffer_inset(self) -> tuple[int, int, int, int]:
+        """The cells of border, padding and margin around the text of a one-buffer placement."""
+        look = self._appearance
+        if look is None or not self._is_text:
+            return (0, 0, 0, 0)
+        text = look.text.split('\n')
+        insets = insets_for(look, max((len(line) for line in text), default=0), len(text))
+        return insets.as_tuple()
 
     def scene(
         self,
@@ -493,194 +563,274 @@ class Placement(_Hooked[DepsT, StateT]):
         Assign new text to change what a text placement says; the placement grows or shrinks
         to fit it, unless its size was set.
         """
-        return self._buffer.text
+        self._flush_look()
+        if self._appearance is not None and self._is_text:
+            return self._appearance.text
+        return self._content.text
 
     @text.setter
     def text(self, value: str) -> None:
         self._canvas._require_open()
         if self._appearance is not None:
+            self._flush_look()
             self._appearance.text = value
-            self._show_appearance()
+            self._look_changed()
+            self._flush_look()
             return
         lines = value.split('\n')
         self.width = max(len(line) for line in lines)
         self.height = len(lines)
         self._buffer.update(_core.Fill(' '), _core.Write(value))
 
-    @property
-    def foreground(self) -> ColorValue | None:
-        """The text color. Assigning it draws the text again."""
-        return self._appearance_of_text().foreground
-
-    @foreground.setter
-    def foreground(self, value: ColorValue | None) -> None:
-        self._appearance_of_text().foreground = value
-        self._show_appearance()
-
-    @property
-    def background(self) -> ColorValue | None:
-        """The color behind the text. Assigning it draws the text again."""
-        return self._appearance_of_text().background
-
-    @background.setter
-    def background(self, value: ColorValue | None) -> None:
-        self._appearance_of_text().background = value
-        self._show_appearance()
+    # -- the look ------------------------------------------------------------------------
 
     @property
     def style(self) -> _core.Style | None:
         """A ready-made style that the colors and modifiers are applied over."""
-        return self._appearance_of_text().style
+        look = self._appearance
+        return None if look is None else look.style
 
     @style.setter
     def style(self, value: _core.Style | None) -> None:
-        self._appearance_of_text().style = value
-        self._show_appearance()
+        self._ensure_look().style = value
+        self._look_changed()
 
     @property
     def is_bold(self) -> bool:
         """Whether the text is bold."""
-        return self._appearance_of_text().is_bold
+        look = self._appearance
+        return False if look is None else look.is_bold
 
     @is_bold.setter
     def is_bold(self, value: bool) -> None:
-        self._appearance_of_text().is_bold = value
-        self._show_appearance()
+        self._ensure_look().is_bold = value
+        self._look_changed()
 
     @property
     def is_dim(self) -> bool:
         """Whether the text is dimmed."""
-        return self._appearance_of_text().is_dim
+        look = self._appearance
+        return False if look is None else look.is_dim
 
     @is_dim.setter
     def is_dim(self, value: bool) -> None:
-        self._appearance_of_text().is_dim = value
-        self._show_appearance()
+        self._ensure_look().is_dim = value
+        self._look_changed()
 
     @property
     def is_italic(self) -> bool:
         """Whether the text is italic."""
-        return self._appearance_of_text().is_italic
+        look = self._appearance
+        return False if look is None else look.is_italic
 
     @is_italic.setter
     def is_italic(self, value: bool) -> None:
-        self._appearance_of_text().is_italic = value
-        self._show_appearance()
+        self._ensure_look().is_italic = value
+        self._look_changed()
 
     @property
     def is_underlined(self) -> bool:
         """Whether the text is underlined."""
-        return self._appearance_of_text().is_underlined
+        look = self._appearance
+        return False if look is None else look.is_underlined
 
     @is_underlined.setter
     def is_underlined(self, value: bool) -> None:
-        self._appearance_of_text().is_underlined = value
-        self._show_appearance()
+        self._ensure_look().is_underlined = value
+        self._look_changed()
 
     @property
     def is_blinking(self) -> bool:
         """Whether the text blinks."""
-        return self._appearance_of_text().is_blinking
+        look = self._appearance
+        return False if look is None else look.is_blinking
 
     @is_blinking.setter
     def is_blinking(self, value: bool) -> None:
-        self._appearance_of_text().is_blinking = value
-        self._show_appearance()
+        self._ensure_look().is_blinking = value
+        self._look_changed()
 
     @property
     def is_reversed(self) -> bool:
         """Whether foreground and background are swapped."""
-        return self._appearance_of_text().is_reversed
+        look = self._appearance
+        return False if look is None else look.is_reversed
 
     @is_reversed.setter
     def is_reversed(self, value: bool) -> None:
-        self._appearance_of_text().is_reversed = value
-        self._show_appearance()
+        self._ensure_look().is_reversed = value
+        self._look_changed()
 
     @property
     def is_hidden(self) -> bool:
         """Whether the text is hidden."""
-        return self._appearance_of_text().is_hidden
+        look = self._appearance
+        return False if look is None else look.is_hidden
 
     @is_hidden.setter
     def is_hidden(self, value: bool) -> None:
-        self._appearance_of_text().is_hidden = value
-        self._show_appearance()
+        self._ensure_look().is_hidden = value
+        self._look_changed()
 
     @property
     def is_crossed_out(self) -> bool:
         """Whether the text is struck through."""
-        return self._appearance_of_text().is_crossed_out
+        look = self._appearance
+        return False if look is None else look.is_crossed_out
 
     @is_crossed_out.setter
     def is_crossed_out(self, value: bool) -> None:
-        self._appearance_of_text().is_crossed_out = value
-        self._show_appearance()
+        self._ensure_look().is_crossed_out = value
+        self._look_changed()
 
-    @property
-    def title(self) -> str | None:
-        """The title on the border."""
-        return self._appearance_of_text().title
+    def _look_text(self) -> str:
+        return self._content.text.rstrip('\n')
 
-    @title.setter
-    def title(self, value: str | None) -> None:
-        self._appearance_of_text().title = value
-        self._show_appearance()
+    def _look_canvas(self) -> Canvas[object, object] | None:
+        return cast('Canvas[object, object]', self._canvas)
 
-    @property
-    def border(self) -> _core.BorderKind | None:
-        """The kind of border: ``'plain'``, ``'rounded'``, ``'double'`` or ``'thick'``."""
-        return self._appearance_of_text().border
+    def _look_size(self) -> tuple[int, int]:
+        look = self._appearance
+        if look is not None and self._is_text:
+            text = look.text.split('\n')
+            return (max((len(line) for line in text), default=0), len(text))
+        content = self._content
+        return (content.width, content.height)
 
-    @border.setter
-    def border(self, value: _core.BorderKind | None) -> None:
-        self._appearance_of_text().border = value
-        self._show_appearance()
+    def _ensure_look(self) -> Appearance:
+        self._canvas._require_open()
+        return super()._ensure_look()
 
-    @property
-    def border_style(self) -> _core.Style | None:
-        """The style of the border."""
-        return self._appearance_of_text().border_style
+    def _is_decoration_wanted(self, look: Appearance) -> bool:
+        """Whether text needs the two-buffer layout: per-side settings or nested content."""
+        if look.sides:
+            return True
+        has_children = self._has_nested or (
+            self._decorated is None and bool(self._buffer.children)
+        )
+        return has_children and self._has_frame(look)
 
-    @border_style.setter
-    def border_style(self, value: _core.Style | None) -> None:
-        self._appearance_of_text().border_style = value
-        self._show_appearance()
+    def _has_frame(self, look: Appearance) -> bool:
+        width, height = self._look_size()
+        insets = insets_for(look, width, height)
+        return bool(insets.horizontal or insets.vertical)
 
-    @property
-    def padding(self) -> Spacing | None:
-        """Space between the border and the text; see [`Spacing`][xnano.types.Spacing]."""
-        return self._appearance_of_text().padding
-
-    @padding.setter
-    def padding(self, value: Spacing | None) -> None:
-        self._appearance_of_text().padding = value
-        self._show_appearance()
-
-    @property
-    def margin(self) -> Spacing | None:
-        """Space outside the border, in the same forms as ``padding``."""
-        return self._appearance_of_text().margin
-
-    @margin.setter
-    def margin(self, value: Spacing | None) -> None:
-        self._appearance_of_text().margin = value
-        self._show_appearance()
-
-    def _appearance_of_text(self) -> Appearance:
-        """The look of this text placement, created from the text it shows when it has none."""
-        if self._appearance is None:
-            if not self._is_text:
-                raise TypeError(
-                    'Colors, text modifiers, title, border, padding and margin decorate text, '
-                    'but this placement does not show text. Set them on a placement made '
-                    'from a string, or give the widget its own style and block.'
+    def _redraw_look(self) -> None:
+        """Draw the current look: one buffer for text with a uniform border, else two."""
+        look = self._appearance
+        if look is None:
+            return
+        self._canvas._require_open()
+        if self._is_text:
+            if not self._is_decoration_wanted(look):
+                if self._decorated is not None:
+                    self._decorated.demote(copy_cells=False)
+                    self._decorated = None
+                self._show_appearance()
+                return
+        elif self._decorated is None and not self._has_frame(look):
+            self._apply_content_colors(look, self._buffer)
+            self._canvas._request_frame()
+            return
+        is_wrapped_now = False
+        if self._decorated is None:
+            if self._is_self_drawn():
+                self._wrap_self_drawn_content()
+                is_wrapped_now = True
+            else:
+                self._decorated = Decorated.promote(
+                    self._buffer, copy_cells=not self._is_text
                 )
-            self._appearance = Appearance(text=self._buffer.text.rstrip('\n'))
-        return self._appearance
+        decorated = self._decorated
+        assert decorated is not None
+        if self._is_text:
+            content = look.text_buffer()
+            decorated.inner.width = content.width
+            decorated.inner.height = content.height
+            decorated.inner.update(
+                _core.Fill(_core.Cell(' ')), _core.Paste(content, mode='replace')
+            )
+            insets = insets_for(look, content.width, content.height)
+            self._buffer.width = content.width + insets.horizontal
+            self._buffer.height = content.height + insets.vertical
+        else:
+            inner = decorated.inner
+            insets = insets_for(look, inner.width, inner.height)
+            previous = decorated.insets
+            self._buffer.width = max(
+                1, self._buffer.width + insets.horizontal - previous.horizontal
+            )
+            self._buffer.height = max(
+                1, self._buffer.height + insets.vertical - previous.vertical
+            )
+            if is_wrapped_now:
+                # The box around a widget must fit in the parent, so the border is not cut off.
+                parent = self._parent_buffer
+                if 0 < parent.width < self._buffer.width:
+                    self._buffer.width = max(insets.horizontal + 1, parent.width)
+                if 0 < parent.height < self._buffer.height:
+                    self._buffer.height = max(insets.vertical + 1, parent.height)
+            decorated.insets = insets
+            decorated.fit_inner()
+            self._apply_content_colors(look, inner)
+        decorated.repaint(look, insets)
+        if (
+            not self._is_text
+            and not insets.horizontal
+            and not insets.vertical
+            and not self._is_self_drawn()
+        ):
+            decorated.demote(copy_cells=True)
+            self._decorated = None
+        self._canvas._request_frame()
+
+    def _is_self_drawn(self) -> bool:
+        """Whether the content is a widget or an image, which draws its own cells."""
+        content = self._content
+        return isinstance(content, _core.Widget) or id(content) in self._canvas._images
+
+    def _wrap_self_drawn_content(self) -> None:
+        """
+        Put a widget or an image inside a new outer buffer that takes its place.
+
+        The content keeps drawing its own cells as the child of the outer buffer, which
+        carries the position, the layer, the visibility and the hooks of the placement.
+        """
+        content = self._buffer
+        parent = self._parent_buffer
+        siblings = list(parent.children)
+        later = siblings[siblings.index(content) + 1 :] if content in siblings else []
+        outer = _core.Buffer(width=content.width, height=content.height)
+        outer.x = content.x
+        outer.y = content.y
+        outer.layer = content.layer
+        outer.is_visible = content.is_visible
+        for buffer in (content, *later):
+            parent.detach(buffer)
+        content.x = 0
+        content.y = 0
+        content.layer = 0
+        content.is_visible = True
+        outer.attach(content, mode='transparent')
+        parent.attach(outer, mode='transparent')
+        for buffer in later:
+            parent.attach(buffer, mode='transparent')
+        self._buffer = outer
+        self._decorated = Decorated(outer, content)
+        for handle in list(self._registrations):
+            handle._move_to_buffer(outer)
+
+    def _refit_decoration(self, decorated: Decorated) -> None:
+        """The outer size changed: make the content follow and draw the decoration again."""
+        look = self._appearance
+        if look is None:
+            return
+        if not self._is_text:
+            decorated.fit_inner()
+        decorated.repaint(look, decorated.insets)
 
     def _show_appearance(self) -> None:
-        """Draw the text again with its current look, resizing the placement to fit."""
+        """Draw text with a uniform look into the one buffer, resizing the placement to fit."""
         appearance = self._appearance
         if appearance is None:
             return
@@ -798,8 +948,13 @@ class Placement(_Hooked[DepsT, StateT]):
         ):
             self.update(content)
             return self
+        look = self._appearance
+        if look is not None and self._decorated is None and self._has_frame(look):
+            self._has_nested = True
+            self._look_changed()
+            self._flush_look()
         placement = self._canvas._place_on(
-            self._buffer,
+            self._content,
             content,
             parent_owner=cast('Placement[object, object]', self),
             x=x,

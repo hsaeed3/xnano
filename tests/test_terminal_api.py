@@ -238,7 +238,7 @@ class TestOutputCapture:
 class TestDocumentation:
     PACKAGE = pathlib.Path(xnano.__file__).parent
 
-    PENDING_REMOVAL = frozenset({'xnano.pixels', 'xnano.scene'})
+    PENDING_REMOVAL = frozenset({'xnano.scene'})
     """Modules a later part of this release removes, whose references may still be stale."""
 
     @staticmethod

@@ -1,7 +1,7 @@
 """
 Paint with the mouse.
 
-The mouse reports cells, and ``Pixels.pixel_at`` picks the pixel of a cell the pointer is over,
+The mouse reports cells, and ``Region.pixel_for_cell`` picks the pixel of a cell the pointer is over,
 so a drag draws at twice the vertical resolution. Keys ``1`` to ``4`` choose a color, ``c``
 clears the canvas and ``q`` quits.
 """
@@ -10,7 +10,12 @@ import xnano
 from xnano.context import Context
 from xnano.operations import Fill
 
-COLORS = {'1': '#ff3030', '2': '#ffd000', '3': '#00c800', '4': '#00c8ff'}
+COLORS = {
+    '1': xnano.Color('#ff3030'),
+    '2': xnano.Color('#ffd000'),
+    '3': xnano.Color('#00c800'),
+    '4': xnano.Color('#00c8ff'),
+}
 
 
 class Brush:
@@ -26,7 +31,7 @@ def main() -> None:
     with xnano.open(width=50, height=14, mouse=True) as terminal:
         terminal.write('drag to paint, 1-4 colors, c clear, q quit', y=0)
         canvas = terminal.write(' ', y=1, width=50, height=13)
-        pixels = canvas.pixels
+        pixels = canvas.region.half_blocks
 
         def is_painting(context: Context) -> bool:
             mouse = context.mouse
@@ -37,7 +42,9 @@ def main() -> None:
             if context.mouse.position is None:
                 return
             position = context.mouse.position
-            column, row = pixels.pixel_at(position.x, position.y - 1, anchor='center')
+            column, row = pixels.pixel_for_cell(
+                position.x, position.y - 1, anchor='center'
+            )
             pixels[column, row] = brush.color
 
         @terminal.hook(on='key', keys=list(COLORS))

@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
 from xnano._appearance import APPEARANCE_NAMES, Appearance, Spacing
 from xnano._customize import Customization, apply_effects
+from xnano._decoration import Decorated, insets_for
 from xnano._hooks import HookHandle, _Hooked
 from xnano._host import _Host, _InlineHost, _Registration, _ThreadHost
 from xnano._media import Image, ImageSource, content_buffer
@@ -72,8 +73,8 @@ from xnano.operations import (
     ContextualOperation,
 )
 from xnano.output import Output
-from xnano.pixels import Pixels
 from xnano.placement import Placement
+from xnano.region import Region
 from xnano.scene import Scene
 from xnano.state import StateNamespace, bind_namespace, prepare_state, reference_for
 from xnano.time import Time
@@ -156,16 +157,20 @@ def _text_content(
         isinstance(line, str) for line in content
     ):
         content = '\n'.join(cast('Sequence[str]', content))
-    if not is_decorated:
+    if not is_decorated or not isinstance(content, str):
         return content, None
-    if not isinstance(content, str):
-        raise TypeError(
-            'Colors, text modifiers, title, border, padding and margin decorate text, but '
-            'this is not text. Add a string (or a list of lines), or give the widget its '
-            'own style and block.'
-        )
     appearance.text = content
     return appearance.snapshot(), appearance
+
+
+def _plain_appearance(appearance: Mapping[str, object]) -> dict[str, object]:
+    """The appearance keywords with ``border=False`` and ``border=True`` read as kinds."""
+    plain = dict(appearance)
+    if plain.get('border') is True:
+        plain['border'] = 'plain'
+    elif plain.get('border') is False:
+        plain['border'] = None
+    return plain
 
 
 def _effect_key(customization: Customization) -> str | None:
@@ -326,18 +331,6 @@ def _appearance_with_content_error(
     )
 
 
-def _refuse_canvas_spacing(function_name: str, appearance: Mapping[str, object]) -> None:
-    """Refuse padding and margin on the canvas itself, which are not drawn there."""
-    # Stage 5 draws padding and margin on a root canvas (DESIGN 9.3); remove this then.
-    spacing = sorted(name for name in ('padding', 'margin') if name in appearance)
-    if spacing:
-        names = ' and '.join(spacing)
-        raise TypeError(
-            f'{function_name}() cannot give the canvas itself {names}. Space the content '
-            f'instead: canvas.write(content, {spacing[0]}=...), or place it with x= and y=.'
-        )
-
-
 def _is_gate_on(gate: str, resolved: Mapping[str, object]) -> bool:
     """Whether the input a hook needs reaches the canvas with the gates ``resolved``."""
     if gate == 'keyboard_release':
@@ -485,7 +478,13 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self._title = title
         self._gates: dict[str, object] = dict(gates)
         self._resolved_gates: dict[str, object] = {}
-        self._root_appearance: dict[str, object] = dict(appearance)
+        self._appearance = (
+            Appearance(**cast('dict[str, object]', _plain_appearance(appearance)))  # type: ignore[arg-type]
+            if appearance
+            else None
+        )
+        self._decorated: Decorated | None = None
+        self._dirty_looks: dict[int, _Looked] = {}
         self._placements: list[Placement[DepsT, StateT]] = []
         self._ledger: list[_Registration] = []
         self._effects: list[
@@ -585,8 +584,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self._size = runtime.device.size
         if self._host.is_autonomous and self._size_hook is None:
             self._size_hook = self._root.add_hook(self._follow_resize, events=['resize'])
-        if self._root_appearance:
-            self._paint_root_look()
+        if self._appearance is not None:
+            self._look_is_dirty = False
+            self._redraw_look()
         if self._state_store is not None:
             runtime.watch_state(self._state_store)
         for registration in list(self._ledger):
@@ -715,8 +715,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         runtime = self._runtime_object
         if runtime is not None:
             self._size = runtime.device.size
-            if self._root_appearance:
-                self._paint_root_look()
+            if self._appearance is not None:
+                self._redraw_look()
 
     # -- frames --------------------------------------------------------------------------
 
@@ -748,6 +748,11 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         runtime = self._runtime
         size = runtime.device.size
         self._size = size
+        if self._dirty_looks:
+            with self._lock:
+                owners = list(self._dirty_looks.values())
+            for owner in owners:
+                owner._flush_look()
         with self._lock:
             placements = list(self._dynamic.values())
             listeners = list(self._frame_listeners.values())
@@ -994,7 +999,6 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         gates, appearance = _split_settings(
             'open', {name: value for name, value in settings.items() if name not in own}
         )
-        _refuse_canvas_spacing('open', appearance)
         parsed: dict[str, object] = {
             name: value for name, value in settings.items() if name in own
         }
@@ -1154,7 +1158,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             self._state_given = True
         appearance = cast('dict[str, object]', parsed['appearance'])
         if appearance:
-            self._root_appearance.update(appearance)
+            look = self._ensure_look()
+            for name, value in _plain_appearance(appearance).items():
+                setattr(look, name, value)
         try:
             new_host.bind_now()
         except BaseException:
@@ -1330,9 +1336,11 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         The core buffer the canvas draws, as large as the canvas.
 
         Everything you write is a child of this buffer, and everything drawn directly on the
-        canvas is stored in it.
+        canvas is stored in it. A canvas with a border, padding or margin draws them around
+        a buffer of its own; this is the buffer inside them.
         """
-        return self._root
+        self._flush_look()
+        return self._content
 
     @property
     def parent(self) -> ParentExpressionScope:
@@ -1563,15 +1571,91 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         return clock
 
     @property
-    def pixels(self) -> Pixels:
+    def region(self) -> Region:
         """
-        The canvas's pixels: ``canvas.pixels[column, row] = color``.
+        The cells of the canvas as a [`Region`][xnano.region.Region]: read and write
+        ``canvas.region[x, y]``.
 
-        Two pixels share a cell (one above the other); use
-        [`braille`][xnano.pixels.Pixels.braille] for eight per cell.
+        The default resolution is one cell. ``canvas.region.half_blocks`` addresses two
+        pixels per cell and ``canvas.region.braille`` eight dots.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=4, height=2) as canvas:
+                canvas.region[0, 0] = xnano.Pixel('diamond')
+                canvas.region.half_blocks[1, 0] = (255, 0, 0)
+                assert canvas.region[0, 0].character == '◆'
+                assert canvas.region.half_blocks.height == 4
+            ```
         """
         self._require_open()
-        return Pixels(self._root.pixels())
+        self._flush_look()
+        return Region(self._content, owner=cast('Canvas[object, object]', self))
+
+    # -- the look ------------------------------------------------------------------------
+
+    @property
+    def _content(self) -> _core.Buffer:
+        """The buffer that everything written on the canvas is a child of."""
+        decorated = self._decorated
+        return self._root if decorated is None else decorated.inner
+
+    def _look_canvas(self) -> Canvas[object, object] | None:
+        return None if self._is_closed else cast('Canvas[object, object]', self._canvas)
+
+    def _look_size(self) -> tuple[int, int]:
+        return (self._root.width, self._root.height)
+
+    def _ensure_look(self) -> Appearance:
+        self._require_open()
+        return super()._ensure_look()
+
+    def _look_is_dirty_for(self, owner: _Looked) -> None:
+        """An owner's look changed: draw it before the next frame."""
+        canvas = self._canvas
+        with canvas._lock:
+            is_new = id(owner) not in canvas._dirty_looks
+            canvas._dirty_looks[id(owner)] = owner
+        if is_new:
+            canvas._demand_frames()
+        canvas._request_frame()
+
+    def _look_was_drawn(self, owner: _Looked) -> None:
+        """An owner's look was drawn: stop asking for frames on its behalf."""
+        canvas = self._canvas
+        with canvas._lock:
+            was_dirty = canvas._dirty_looks.pop(id(owner), None) is not None
+        if was_dirty:
+            canvas._release_frames()
+
+    def _redraw_look(self) -> None:
+        """Draw the canvas's own colors, border, padding and margin on its cells."""
+        look = self._appearance
+        if look is None or self._runtime_object is None:
+            return
+        root = self._root
+        insets = insets_for(look, root.width, root.height)
+        has_frame = bool(insets.horizontal or insets.vertical)
+        if has_frame:
+            if self._decorated is None:
+                self._decorated = Decorated.promote(root, copy_cells=True)
+            decorated = self._decorated
+            decorated.insets = insets
+            decorated.fit_inner()
+            self._apply_content_colors(look, decorated.inner)
+            decorated.repaint(look, insets)
+        else:
+            if self._decorated is not None:
+                previous = self._decorated.insets
+                self._decorated.demote(copy_cells=True)
+                self._decorated = None
+                # The canvas keeps the size of its screen; only a placement shrinks.
+                root.width += previous.horizontal
+                root.height += previous.vertical
+            self._apply_content_colors(look, root)
+        self._request_frame()
 
     # -- writing -------------------------------------------------------------------------
 
@@ -1700,7 +1784,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         """
         self._require_open()
         placement = self._canvas._place_on(
-            self._buffer,
+            self._content,
             content,
             parent_owner=cast('Canvas[object, object]', self),
             x=x,
@@ -1754,11 +1838,34 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         is_hidden: bool = False,
         is_crossed_out: bool = False,
         title: str | None = None,
-        border: _core.BorderKind | None = None,
+        border: _core.BorderKind | bool | None = None,
         border_style: _core.Style | None = None,
         padding: Spacing | None = None,
         margin: Spacing | None = None,
     ) -> Placement[DepsT, StateT]:
+        if border is True:
+            border = 'plain'
+        elif border is False:
+            border = None
+        appearance = Appearance(
+            style=style,
+            foreground=foreground,
+            background=background,
+            is_bold=is_bold,
+            is_dim=is_dim,
+            is_italic=is_italic,
+            is_underlined=is_underlined,
+            is_blinking=is_blinking,
+            is_reversed=is_reversed,
+            is_hidden=is_hidden,
+            is_crossed_out=is_crossed_out,
+            title=title,
+            border=border,
+            border_style=border_style,
+            padding=padding,
+            margin=margin,
+        )
+        is_decorated = appearance.has_style or appearance.has_frame or margin is not None
         if isinstance(content, Canvas):
             return self._adopt(
                 parent_buffer,
@@ -1769,6 +1876,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 width=width,
                 height=height,
                 layer=layer,
+                look=appearance if is_decorated else None,
             )
         if content is None:
             content = _core.Buffer()
@@ -1780,7 +1888,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 and width is None
                 and height is None
             ):
-                if parent_buffer is self._root:
+                if parent_buffer is self._content:
                     content.apply_to(cast('Canvas[object, object]', self))
                 else:
                     content.apply_to_surface(parent_buffer)
@@ -1862,25 +1970,6 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             if is_image(content)
             else None
         )
-        appearance = Appearance(
-            style=style,
-            foreground=foreground,
-            background=background,
-            is_bold=is_bold,
-            is_dim=is_dim,
-            is_italic=is_italic,
-            is_underlined=is_underlined,
-            is_blinking=is_blinking,
-            is_reversed=is_reversed,
-            is_hidden=is_hidden,
-            is_crossed_out=is_crossed_out,
-            title=title,
-            border=border,
-            border_style=border_style,
-            padding=padding,
-            margin=margin,
-        )
-        is_decorated = appearance.has_style or appearance.has_frame or margin is not None
         text_appearance: Appearance | None = None
         is_text = picture is None and (
             isinstance(content, str)
@@ -1890,12 +1979,6 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             )
         )
         if picture is not None:
-            if is_decorated:
-                raise TypeError(
-                    'Colors, text modifiers, title, border, padding and margin decorate text, '
-                    'but this is not text. Add a string (or a list of lines), or give the '
-                    'image no decoration.'
-                )
             x = picture.x if x is None else x
             y = picture.y if y is None else y
             width = picture.width if width is None else width
@@ -1903,24 +1986,61 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             layer = picture.layer if layer == 0 else layer
             lock = lock or picture.lock
         else:
+            if isinstance(content, Region):
+                # A region is written as a snapshot, so changing it later changes nothing
+                # on the canvas.
+                content = content.copy()
             content, text_appearance = _text_content(content, appearance, is_decorated)
         buffer, source = self._buffer_for(picture or content, width, height)
+        content_buffer = buffer
+        decorated: Decorated | None = None
+        if is_decorated and not is_text and not isinstance(content, Region):
+            insets = insets_for(appearance, buffer.width, buffer.height)
+            if (insets.horizontal or insets.vertical) and isinstance(
+                buffer, _core.Widget
+            ):
+                # A widget with no size given keeps its own size, but the box around it
+                # must still fit in the parent, so the border is not cut off.
+                if width is None:
+                    available = parent_buffer.width - insets.horizontal
+                    if 0 < available < buffer.width:
+                        buffer.width = available
+                if height is None:
+                    available = parent_buffer.height - insets.vertical
+                    if 0 < available < buffer.height:
+                        buffer.height = available
+                insets = insets_for(appearance, buffer.width, buffer.height)
+            if insets.horizontal or insets.vertical:
+                # Content that is not text keeps its own buffer, inside a buffer that
+                # carries the border, padding and margin.
+                outer = _core.Buffer(
+                    width=buffer.width + insets.horizontal,
+                    height=buffer.height + insets.vertical,
+                )
+                outer.attach(buffer, mode='transparent')
+                decorated = Decorated(outer, buffer)
+                decorated.insets = insets
+                buffer = outer
         buffer.layer = layer
         placement: Placement[DepsT, StateT] = Placement(
             self, buffer, parent_buffer, parent_owner
         )
+        placement._decorated = decorated
         with self._lock:
             self._placements.append(placement)
             # Only an image that animates or follows the canvas's size is looked at before
             # a frame, so only that kind holds a demand for frames.
             needs_frames = source is not None and source.needs_frames
             if source is not None and needs_frames:
-                self._images[id(buffer)] = source
+                self._images[id(content_buffer)] = source
         if needs_frames:
             self._demand_frames()
         placement._is_text = is_text
         if text_appearance is not None:
             placement._appearance = text_appearance
+        elif is_decorated:
+            # Content that is not text takes the same look: a border, padding and colors.
+            placement._appearance = appearance
         parent_buffer.attach(buffer, mode='transparent')
         requested: list[tuple[AxisName, Axis | None]] = [
             ('x', x),
@@ -1935,6 +2055,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 placement._set_axis(axis, 0)
         if source is not None and source.animation is not None:
             self._request_frame()
+        if placement._appearance is not None and not is_text:
+            placement._look_is_dirty = True
+            placement._flush_look()
         if lock:
             for axis_name in ('x', 'y', 'width', 'height'):
                 placement._set_axis(axis_name, int(getattr(placement, axis_name)))
@@ -1951,6 +2074,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         width: Axis | None,
         height: Axis | None,
         layer: int,
+        look: Appearance | None = None,
     ) -> Placement[DepsT, StateT]:
         """Make a canvas from ``new()`` part of this one, drawn inside a placement."""
         if child._is_live:
@@ -2077,6 +2201,11 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             if requested_height is None
             else requested_height,
         )
+        if look is not None:
+            # The colors, border, padding and margin given with the canvas decorate it.
+            placement._appearance = look
+            placement._look_is_dirty = True
+            placement._flush_look()
         return placement
 
     def _buffer_for(
@@ -2102,7 +2231,10 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             if placement in canvas._placements:
                 canvas._placements.remove(placement)
             was_dynamic = canvas._dynamic.pop(id(placement), None) is not None
-            had_image = canvas._images.pop(id(buffer), None) is not None
+            had_image = (
+                canvas._images.pop(id(placement._content), None) is not None
+                or canvas._images.pop(id(buffer), None) is not None
+            )
             effects_before = len(canvas._effects)
             canvas._effects[:] = [
                 entry for entry in canvas._effects if entry[1] is not placement
@@ -2115,22 +2247,11 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         except ValueError:
             pass
 
-    def _paint_root_look(self) -> None:
-        """Draw the canvas's own colors and border on its cells."""
-        arguments = self._root_appearance
-        appearance = Appearance(**cast('dict[str, object]', arguments))  # type: ignore[arg-type]
-        style = appearance.text_style()
-        if style is not None:
-            self._root.update(_core.ApplyStyle(style))
-        if appearance.border is not None or appearance.border_style is not None:
-            self._root.update(
-                _core.Border(appearance.border or 'plain', style=appearance.border_style)
-            )
-
     def clear(self) -> None:
         """Erase everything written or drawn directly on the canvas's cells."""
         self._require_open()
-        self._root.update(_core.Fill(' '))
+        self._flush_look()
+        self._content.update(_core.Fill(' '))
 
     def update(self, *operations: _core.Operation | _core.Style) -> Self:
         """Apply operations (``Write``, ``Fill``, ``Border``, customizations and operations) to the canvas."""
@@ -2141,9 +2262,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             elif isinstance(item, Customization):
                 item.apply_to(cast('Canvas[object, object]', self))
             elif isinstance(item, _core.Style):
-                self._root.update(_core.ApplyStyle(item))
+                self._content.update(_core.ApplyStyle(item))
             else:
-                self._root.update(item)
+                self._content.update(item)
         return self
 
     def __or__(
@@ -2198,7 +2319,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             key: A ``(column, row)`` pair of integers, or a pair of slices.
         """
         self._require_open()
-        return self._root[key]
+        self._flush_look()
+        return self._content[key]
 
     def __setitem__(
         self,
@@ -2227,7 +2349,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         columns, rows = key
         if isinstance(columns, int) and isinstance(rows, int):
             if isinstance(value, str):
-                self._root[columns, rows] = value
+                self._content[columns, rows] = value
                 return
             raise TypeError(
                 'A single cell takes a string or a Cell. To fill or place something over '
@@ -2249,7 +2371,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             )
         if right <= left or bottom <= top:
             return
-        region = self._root[left:right, top:bottom]
+        region = self._content[left:right, top:bottom]
         if _is_color(value):
             region.update(_core.Background(value))
         elif isinstance(value, str):
@@ -3109,7 +3231,6 @@ def new(
     gates, appearance = _split_settings('new', settings)
     if content is not None and appearance:
         raise _appearance_with_content_error('new', appearance)
-    _refuse_canvas_spacing('new', appearance)
     canvas: Canvas[DepsT, StateT] = Canvas(
         width=_check_size('width', width),
         height=_check_size('height', height),

@@ -67,14 +67,14 @@ def main() -> None:
     """Run the game until the player quits."""
     game = Game()
     with xnano.open(width=WIDTH, height=HEIGHT // 2 + 1) as terminal:
-        pixels = terminal.pixels
+        pixels = terminal.region.half_blocks
         status_line = terminal.write('', y=HEIGHT // 2, layer=1)
 
         def draw() -> None:
             terminal.clear()
             for column, row in game.body:
-                pixels[column, row] = '#00c800'
-            pixels[game.food[0], game.food[1]] = '#ff3030'
+                pixels[column, row] = (0, 200, 0)
+            pixels[game.food[0], game.food[1]] = (255, 48, 48)
             status = (
                 'crashed: r to restart' if game.is_over else f'score {len(game.body) - 3}'
             )

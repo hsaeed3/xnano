@@ -288,11 +288,27 @@ class HookHandle(Generic[DepsT, StateT]):
         elif kind == 'beat':
             self._arm(self._beat_seconds)
         else:
-            self._core_hook = owner._buffer.add_hook(
-                self._on_core,
-                events=cast('list[_core.HookEventKind]', list(_EVENT_KINDS[kind])),
-                condition=self._native_condition(),
-            )
+            self._attach_core_hook(owner._buffer)
+
+    def _attach_core_hook(self, buffer: _core.Buffer) -> None:
+        """Listen for this hook's events on ``buffer``."""
+        self._core_hook = buffer.add_hook(
+            self._on_core,
+            events=cast('list[_core.HookEventKind]', list(_EVENT_KINDS[self.on])),
+            condition=self._native_condition(),
+        )
+
+    def _move_to_buffer(self, buffer: _core.Buffer) -> None:
+        """Move the hook to a new buffer of its owner. Safe to call from any thread."""
+
+        def move() -> None:
+            core_hook = self._core_hook
+            if core_hook is None or self._removed:
+                return
+            core_hook.cancel()
+            self._attach_core_hook(buffer)
+
+        self._owner._canvas._host.post(move)
 
     def _native_condition(self) -> _core.Predicate | None:
         """The condition the runtime checks before Python is called."""

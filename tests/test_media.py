@@ -170,9 +170,10 @@ class TestTypedStyle:
         placement = canvas.write('hi', border='rounded', title='T')
         assert (placement.width, placement.height) == (4, 3)
 
-    def test_style_parameters_refuse_non_text(self, canvas):
-        with pytest.raises(TypeError, match='not text'):
-            canvas.write(solid(2, 2, (1, 1, 1)), foreground='red')
+    def test_style_parameters_apply_to_content_that_is_not_text(self, canvas):
+        placement = canvas.write(solid(2, 2, (1, 1, 1)), border='plain')
+        assert (placement.width, placement.height) == (4, 3)
+        assert canvas.render().split('\n')[0].startswith('┌──┐')
 
     def test_lock_freezes_a_percentage(self, canvas):
         placement = canvas.write('hi', x='50%', lock=True)

@@ -46,8 +46,10 @@ def test_appearance_keywords_style_the_canvas_and_never_its_content() -> None:
         xnano.new('hi', border='rounded')
     with xnano.new(width=6, height=3, border='rounded') as canvas:
         assert canvas.render().split('\n')[0] == '╭────╮'
-        canvas.write('hi', x=1, y=1)
-        assert canvas.render().split('\n')[1] == '│hi  │'
+        canvas.write('hi')
+        assert canvas.render().split('\n')[1] == '│hi  │', (
+            'content lives inside the border'
+        )
 
 
 def test_a_placement_changes_its_look_after_it_is_written() -> None:
@@ -60,7 +62,7 @@ def test_a_placement_changes_its_look_after_it_is_written() -> None:
         assert (label.width, label.height) == (11, 7)
         canvas.iter(count=1).__next__()
         assert '╔' in canvas.core_buffer.render(format='text')
-        assert label.border == 'double'
+        assert label.border.kind == 'double'
 
 
 def test_margin_adds_space_outside_the_box() -> None:
@@ -69,11 +71,25 @@ def test_margin_adds_space_outside_the_box() -> None:
         assert (label.width, label.height) == (6, 4)
 
 
-def test_a_widget_cannot_take_a_text_look() -> None:
+def test_a_widget_takes_a_border_like_text_does() -> None:
+    with xnano.new(width=12, height=5) as canvas:
+        gauge = canvas.write(
+            xnano_core.Gauge(ratio=0.5, width=10, height=1), border='plain'
+        )
+        assert (gauge.width, gauge.height) == (12, 3)
+        assert canvas.render().split('\n')[0] == '┌──────────┐'
+        gauge.border.color = 'red'
+        gauge.border = False
+        assert (gauge.width, gauge.height) == (10, 1)
+        assert '┌' not in canvas.render()
+
+
+def test_a_widget_can_take_a_look_after_it_was_written() -> None:
     with xnano.new(width=12, height=3) as canvas:
         gauge = canvas.write(xnano_core.Gauge(ratio=0.5, width=10, height=1))
-        with pytest.raises(TypeError, match='does not show text'):
-            gauge.border = 'plain'
+        gauge.border = 'plain'
+        assert (gauge.width, gauge.height) == (12, 3)
+        assert canvas.render().split('\n')[0] == '┌──────────┐'
 
 
 def test_an_effect_handle_restarts_the_effect_with_new_values() -> None:

@@ -116,7 +116,7 @@ class TestOpening:
         assert canvas.is_closed and 'closed' in repr(canvas)
         for action in (
             lambda: canvas.write('x'),
-            lambda: canvas.pixels,
+            lambda: canvas.region,
             lambda: canvas.write('x'),
             lambda: canvas.output.render(),
             lambda: list(canvas.iter(count=1)),
@@ -360,10 +360,10 @@ class TestPlacements:
         assert canvas.output.snapshot().lines()[0] == ''
         assert 'removed' in repr(placement)
 
-    def test_a_placement_has_pixels(self, canvas):
+    def test_a_placement_has_a_region(self, canvas):
         placement = canvas.write(Buffer(width=3, height=1))
-        placement.pixels[0, 0] = (255, 0, 0)
-        assert placement.pixels.height == 2
+        placement.region.half_blocks[0, 0] = (255, 0, 0)
+        assert placement.region.half_blocks.height == 2
 
 
 class TestRegions:
@@ -414,13 +414,14 @@ class TestRegions:
 
 class TestPixels:
     def test_pixels_have_the_resolution_of_their_encoding(self, canvas):
-        assert (canvas.pixels.width, canvas.pixels.height) == (20, 12)
-        braille = canvas.pixels.braille
-        assert (braille.width, braille.height, braille.encoding) == (40, 24, 'braille')
+        pixels = canvas.region.half_blocks
+        assert (pixels.width, pixels.height) == (20, 12)
+        braille = canvas.region.braille
+        assert (braille.width, braille.height, braille.resolution) == (40, 24, 'braille')
 
-    def test_colors_may_be_tuples_or_hex(self, canvas):
-        pixels = canvas.pixels
-        pixels[0, 0] = '#ff0000'
+    def test_colors_may_be_tuples_or_colors(self, canvas):
+        pixels = canvas.region.half_blocks
+        pixels[0, 0] = Color('#ff0000')
         pixels[0, 1] = (0, 0, 255)
         assert canvas[0, 0].symbol == '▀'
         assert canvas[0, 0].foreground.to_rgb() == (255, 0, 0)
@@ -428,48 +429,49 @@ class TestPixels:
 
     def test_colors_without_channels_are_explained(self, canvas):
         with pytest.raises(ValueError, match="'#rrggbb'"):
-            canvas.pixels[0, 0] = 'reset'
+            canvas.region.half_blocks[0, 0] = Color('reset')
         with pytest.raises(ValueError, match='0 to 255'):
-            canvas.pixels[0, 0] = (300, 0, 0)
-        with pytest.raises(ValueError, match='not a color'):
-            canvas.pixels[0, 0] = 5  # type: ignore[assignment]
+            canvas.region.half_blocks[0, 0] = (300, 0, 0)
+        with pytest.raises(TypeError, match='color or a Pixel'):
+            canvas.region.half_blocks[0:2, 0] = 'red'
 
     def test_a_slice_draws_every_pixel_it_covers(self, canvas):
-        canvas.pixels[0:3, 0] = '#ff0000'
+        canvas.region.half_blocks[0:3, 0] = Color('#ff0000')
         for column in range(3):
             assert canvas[column, 0].foreground.to_rgb() == (255, 0, 0)
         assert canvas[3, 0].symbol == ' '
-        canvas.pixels[:, :] = (0, 0, 255)
+        canvas.region.half_blocks[:, :] = (0, 0, 255)
         assert canvas[19, 5].background.to_rgb() == (0, 0, 255)
 
     def test_a_slice_with_a_step_is_explained(self, canvas):
         with pytest.raises(ValueError, match='step'):
-            canvas.pixels[0:10:2, 0] = 'red'  # type: ignore[call-overload]
-        with pytest.raises(TypeError, match='\\(column, row\\)'):
-            canvas.pixels[0] = 'red'  # type: ignore[call-overload]
+            canvas.region.half_blocks[0:10:2, 0] = (255, 0, 0)
+        with pytest.raises(TypeError, match='indexed by'):
+            canvas.region.half_blocks[0] = (255, 0, 0)  # type: ignore[index]
 
     def test_a_color_object_is_a_pixel_color(self, canvas):
-        canvas.pixels[0, 0] = main.Color.from_hsl(120, 100, 50)
-        canvas.pixels[1, 0] = main.Color('#336699').lighten(0.2)
-        canvas.pixels[2, 0] = main.Color.red
+        pixels = canvas.region.half_blocks
+        pixels[0, 0] = main.Color.from_hsl(120, 100, 50)
+        pixels[1, 0] = main.Color('#336699').lighten(0.2)
+        pixels[2, 0] = main.Color.red
         assert canvas[0, 0].foreground.to_rgb() == (0, 255, 0)
         assert canvas[2, 0].foreground.to_rgb() == (205, 0, 0)
 
     def test_shading_draws_from_a_formula(self, canvas):
-        canvas.pixels.shade(
+        canvas.region.half_blocks.shade(
             lambda column, row: (column * 10, row * 10, 0) if column < 2 else None
         )
         assert canvas[1, 0].foreground.to_rgb() == (10, 0, 0)
         assert canvas[5, 0].symbol == ' '
 
     def test_many_pixels_and_images(self, canvas):
-        pixels = canvas.pixels
-        pixels.write([(0, 0, '#00ff00'), (1, 0, '#00ff00')])
+        pixels = canvas.region.half_blocks
+        pixels.shade(lambda column, row: (0, 255, 0) if row == 0 and column < 2 else None)
         assert canvas[1, 0].symbol == '▀'
-        pixels.draw_rgba(bytes([255, 0, 0, 255]) * 4, width=2, height=2, x=4, y=0)
+        pixels.draw_color_bytes(bytes([255, 0, 0, 255]) * 4, width=2, height=2, x=4, y=0)
         assert canvas[4, 0].background.to_rgb() == (255, 0, 0)
-        assert pixels.cell_at(3, 5) == (3, 2)
-        assert pixels.pixel_at(1, 1, anchor='top_left') == (1, 2)
+        assert pixels.cell_for_pixel(3, 5) == (3, 2)
+        assert pixels.pixel_for_cell(1, 1, anchor='top_left') == (1, 2)
 
 
 class TestHooks:
@@ -1113,14 +1115,14 @@ def test_a_keyboard_mode_is_stored_for_the_screen():
         new(keyboard='loud')  # type: ignore[arg-type]
 
 
-def test_pixels_accept_named_colors(canvas):
-    pixels = canvas.pixels
-    pixels[0, 0] = 'red'
-    pixels[0, 1] = 'bright_blue'
+def test_pixels_accept_colors_by_name(canvas):
+    pixels = canvas.region.half_blocks
+    pixels[0, 0] = main.Color.red
+    pixels[0, 1] = main.Color('#5c5cff')
     assert canvas[0, 0].foreground.to_rgb() == (205, 0, 0)
     assert canvas[0, 0].background.to_rgb() == (92, 92, 255)
     with pytest.raises(ValueError, match='no red, green and blue'):
-        pixels[1, 0] = 'reset'
+        pixels[1, 0] = main.Color.reset
 
 
 class TestRunQuitKeys:
@@ -1236,7 +1238,7 @@ def test_sprites_can_be_drawn_from_text_and_scrolled():
 
     sprite = from_art(['AB', '.B'], {'A': '#ff0000', 'B': (0, 0, 255)})
     with new(width=4, height=2) as canvas:
-        pixels = canvas.pixels
+        pixels = canvas.region.half_blocks
         pixels.draw_image(sprite, x=1, y=0)
         assert canvas[1, 0].foreground.to_rgb() == (255, 0, 0)
         pixels.draw_image(sprite, x=-1, y=0, mode='replace')
@@ -1265,12 +1267,12 @@ class TestWritingTheWayItIsThought:
         lines = canvas.write(['one', 'three'])
         assert (lines.width, lines.height) == (5, 2)
 
-    def test_a_widget_cannot_take_a_text_style(self, canvas):
+    def test_a_widget_takes_a_look_like_text_does(self, canvas):
         from xnano.styles import Style
         from xnano.widgets import Gauge
 
-        with pytest.raises(TypeError, match='decorate text'):
-            canvas.write(Gauge(0.5), style=Style('red'))
+        placement = canvas.write(Gauge(0.5), style=Style('red'), border='rounded')
+        assert placement.border.kind == 'rounded'
 
     @pytest.mark.parametrize(
         ('x', 'y', 'expected'),

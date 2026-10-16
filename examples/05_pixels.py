@@ -3,7 +3,7 @@ Draw pixel by pixel.
 
 Every cell holds two pixels (one on top of the other), so a 60 by 12 region is 60 by 24
 pixels. ``shade`` calls a function for each pixel with its position and uses the color it
-returns, here a ``Color`` made from a hue. ``pixels[column, row] = color`` draws one pixel and
+returns, here a ``Color`` made from a hue. ``pixels[column, row] = color`` (a ``Color`` or a ``(red, green, blue)`` tuple) draws one pixel and
 ``pixels[0:10, 2] = color`` a line. Press ``q`` to quit.
 """
 
@@ -13,7 +13,7 @@ import xnano
 from xnano.context import Context
 
 with xnano.open(width=60, height=12) as terminal:
-    pixels = terminal.pixels
+    pixels = terminal.region.half_blocks
 
     @terminal.hook(on='frame')
     def draw(context: Context) -> None:

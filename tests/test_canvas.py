@@ -164,16 +164,15 @@ class TestNew:
                 canvas.open(deps={'name': 'other'})
             assert not canvas.is_closed
 
-    def test_padding_and_margin_are_refused_on_the_canvas_itself(self):
-        for name in ('padding', 'margin'):
-            with pytest.raises(
-                TypeError, match=f'new.. cannot give the canvas itself {name}'
-            ):
-                xnano.new(**{name: 1})
-            with pytest.raises(
-                TypeError, match=f'open.. cannot give the canvas itself {name}'
-            ):
-                xnano.open(**{name: 1})
+    def test_padding_and_margin_draw_around_the_content_of_the_canvas(self):
+        with xnano.new(width=8, height=5, border='plain', padding=1) as canvas:
+            canvas.write('hi')
+            lines = canvas.render().split('\n')
+            assert lines[0] == '┌──────┐'
+            assert lines[2] == '│ hi   │'
+        with xnano.new(width=8, height=3, margin={'left': 2}) as canvas:
+            canvas.write('hi')
+            assert canvas.render().split('\n')[0] == '  hi'
 
     def test_appearance_with_content_names_the_function_that_was_called(self):
         with pytest.raises(TypeError, match=r'call open\(\) without content'):

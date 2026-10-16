@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 
 import xnano
-import xnano.pixels
+import xnano.region
 from xnano.image import from_art
 
 RED = from_art(['R', 'R'], {'R': '#ff0000'})
@@ -82,7 +82,7 @@ def test_a_scene_that_did_not_change_is_not_drawn_again(canvas, mocker):
     scene = canvas.scene(world_width=8, world_height=8)
     scene.add(RED, x=1, y=1)
     canvas.deliver_events()
-    draw = mocker.spy(xnano.pixels.Pixels, 'draw_rgba')
+    draw = mocker.spy(xnano.region.Region, 'draw_color_bytes')
     canvas.deliver_events()
     canvas.deliver_events()
     assert draw.call_count == 0
