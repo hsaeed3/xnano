@@ -8,7 +8,7 @@ screen it is opened on, and the functions that hook into events.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import (
     TYPE_CHECKING,
     Literal,
@@ -24,6 +24,27 @@ from xnano._appearance import (
 )
 from xnano._appearance import (
     SpacingDictionary as SpacingDictionary,
+)
+from xnano._customize import (
+    Effect as Effect,
+)
+from xnano._customize import (
+    PlayableEffect as PlayableEffect,
+)
+from xnano._customize import (
+    PlayableEffectKind as PlayableEffectKind,
+)
+from xnano._customize import (
+    PlayableEffectSpecification as PlayableEffectSpecification,
+)
+from xnano._customize import (
+    RenderableEffect as RenderableEffect,
+)
+from xnano._customize import (
+    RenderableEffectKind as RenderableEffectKind,
+)
+from xnano._customize import (
+    RenderableEffectSpecification as RenderableEffectSpecification,
 )
 from xnano._hooks import (
     Hook as Hook,
@@ -82,6 +103,7 @@ __all__ = [
     'CanvasAppearanceArguments',
     'CanvasSettings',
     'Content',
+    'Effect',
     'GateSettings',
     'HeldMouseButtonName',
     'Hook',
@@ -92,10 +114,15 @@ __all__ = [
     'PixelEncoding',
     'PixelPreset',
     'Playable',
+    'PlayableEffect',
+    'PlayableEffectKind',
     'PlayableEffectSpecification',
     'PlayOptions',
     'RangeBound',
     'Renderable',
+    'RenderableEffect',
+    'RenderableEffectKind',
+    'RenderableEffectSpecification',
     'Spacing',
     'SpacingDictionary',
     'SupportsPlay',
@@ -261,19 +288,12 @@ class OpenSettings(CanvasSettings, total=False):
     """The most frames drawn per second."""
     bpm: float
     """Beats per minute."""
-    effects: Sequence[Mapping[str, object]]
+    effects: Sequence[RenderableEffectSpecification]
     """Effects to apply, as dictionaries with a ``kind`` key."""
     deps: object
     """The dependencies hooks read as ``context.deps``."""
     state: object
     """A dataclass instance the canvas keeps and validates."""
-
-
-PlayableEffectSpecification: TypeAlias = Mapping[str, object]
-"""
-A sound effect written as a dictionary: a ``kind`` such as ``'audio.reverb'`` and that effect's
-keywords, for example ``{'kind': 'audio.reverb', 'mix': 0.4}``.
-"""
 
 
 @runtime_checkable

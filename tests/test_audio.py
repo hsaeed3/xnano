@@ -327,7 +327,7 @@ class TestRecording:
         [
             ({'source': 'C4', 'pan': 5}, ValueError, 'pan must be between'),
             ({'source': 'C4', 'at_beat': -1}, ValueError, 'at_beat must be 0 or more'),
-            ({'source': 'C4', 'effects': [1]}, TypeError, 'effects must hold audio'),
+            ({'source': 'C4', 'effects': [1]}, TypeError, 'effects= takes dictionaries'),
             ({'source': 300}, ValueError, 'MIDI pitch 300'),
             ({'source': -1}, ValueError, 'MIDI pitch -1'),
             ({'source': 0.5}, ValueError, 'frequency 0.5 Hz'),

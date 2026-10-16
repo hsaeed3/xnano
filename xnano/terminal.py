@@ -24,7 +24,11 @@ from xnano.errors import TerminalAlreadyOpenError
 if TYPE_CHECKING:
     from typing_extensions import Unpack
 
-    from xnano.types import CanvasSettings, OpenSettings
+    from xnano.types import (
+        CanvasSettings,
+        OpenSettings,
+        RenderableEffectSpecification,
+    )
 
 __all__ = ['Terminal', 'open']
 
@@ -155,7 +159,7 @@ def open(
     height: int | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
-    effects: Sequence[Mapping[str, object]] = (),
+    effects: Sequence[RenderableEffectSpecification] = (),
     **settings: Unpack[CanvasSettings],
 ) -> Terminal[None, None]: ...
 @overload
@@ -168,7 +172,7 @@ def open(
     height: int | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
-    effects: Sequence[Mapping[str, object]] = (),
+    effects: Sequence[RenderableEffectSpecification] = (),
     state: StateT,
     **settings: Unpack[CanvasSettings],
 ) -> Terminal[None, StateT]: ...
@@ -182,7 +186,7 @@ def open(
     height: int | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
-    effects: Sequence[Mapping[str, object]] = (),
+    effects: Sequence[RenderableEffectSpecification] = (),
     deps: DepsT,
     **settings: Unpack[CanvasSettings],
 ) -> Terminal[DepsT, None]: ...
@@ -196,7 +200,7 @@ def open(
     height: int | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
-    effects: Sequence[Mapping[str, object]] = (),
+    effects: Sequence[RenderableEffectSpecification] = (),
     deps: DepsT,
     state: StateT,
     **settings: Unpack[CanvasSettings],

@@ -1,11 +1,21 @@
 """Tests for typed customization, canvases, and operation piping."""
 
 import dataclasses
+import re
+import typing
 
 import pytest
 
 import xnano
+import xnano._customize as customize_module
+import xnano.types
 import xnano_core
+from xnano._customize import (
+    _CUSTOMIZATION_TYPES,
+    CustomizationKind,
+    FadeToEffectCustomization,
+    normalize_effect,
+)
 from xnano._hooks import HookHandle
 from xnano.context import Context
 from xnano.operations import fx
@@ -337,3 +347,449 @@ def test_a_hook_returning_content_is_refused() -> None:
                 return 'text'
 
             canvas.step(delta_seconds=0.1)
+
+
+# -- effect kinds, specifications and effects=[...] ---------------------------------------
+
+
+def specification_kind(specification: type) -> str:
+    """The ``kind`` a specification dictionary class is for, read from its annotation."""
+    annotation = specification.__annotations__['kind']
+    text = getattr(annotation, '__forward_arg__', str(annotation))
+    match = re.search(r"Literal\['([a-z_.]+)'\]", text)
+    assert match is not None, text
+    return match.group(1)
+
+
+RENDERABLE_SPECIFICATIONS = typing.get_args(xnano.types.RenderableEffectSpecification)
+PLAYABLE_SPECIFICATIONS = typing.get_args(xnano.types.PlayableEffectSpecification)
+
+
+def press(canvas: xnano.canvas.Canvas, key: str = 'a') -> None:
+    canvas.push(Event.key_press(key))
+    canvas.deliver_events()
+
+
+class TestEffectKinds:
+    def test_the_kinds_split_into_visual_and_sound(self) -> None:
+        renderable = typing.get_args(xnano.types.RenderableEffectKind)
+        playable = typing.get_args(xnano.types.PlayableEffectKind)
+        assert len(renderable) == 21
+        assert len(playable) == 7
+        assert all(kind.startswith('effect.') for kind in renderable)
+        assert all(kind.startswith('audio.') for kind in playable)
+        assert set(renderable + playable) <= set(typing.get_args(CustomizationKind))
+        assert len(RENDERABLE_SPECIFICATIONS) == 21
+        assert len(PLAYABLE_SPECIFICATIONS) == 7
+
+    def test_the_effect_unions_hold_every_customization_class(self) -> None:
+        visual = set(typing.get_args(xnano.types.RenderableEffect))
+        sound = set(typing.get_args(xnano.types.PlayableEffect))
+        assert {customization.customization_kind for customization in visual} == set(
+            typing.get_args(xnano.types.RenderableEffectKind)
+        )
+        assert {customization.customization_kind for customization in sound} == set(
+            typing.get_args(xnano.types.PlayableEffectKind)
+        )
+        assert set(typing.get_args(xnano.types.Effect)) == visual | sound
+
+    @pytest.mark.parametrize(
+        'specification', RENDERABLE_SPECIFICATIONS + PLAYABLE_SPECIFICATIONS
+    )
+    def test_a_specification_is_its_arguments_plus_a_required_kind(
+        self, specification: type
+    ) -> None:
+        kind = specification_kind(specification)
+        customization_class = _CUSTOMIZATION_TYPES[kind]
+        arguments = getattr(
+            customize_module, specification.__name__.replace('Specification', 'Arguments')
+        )
+        assert 'kind' in specification.__required_keys__
+        assert set(arguments.__annotations__) < set(specification.__annotations__)
+        assert not set(arguments.__annotations__) & set(specification.__required_keys__)
+        parameters = {field.name for field in dataclasses.fields(customization_class)}
+        assert set(arguments.__annotations__) == parameters
+
+    @pytest.mark.parametrize('specification', RENDERABLE_SPECIFICATIONS)
+    def test_a_visual_specification_becomes_its_effect(self, specification: type) -> None:
+        kind = specification_kind(specification)
+        effect = normalize_effect({'kind': kind}, 'renderable')
+        assert type(effect) is _CUSTOMIZATION_TYPES[kind]
+
+    @pytest.mark.parametrize('specification', PLAYABLE_SPECIFICATIONS)
+    def test_a_sound_specification_becomes_its_effect(self, specification: type) -> None:
+        kind = specification_kind(specification)
+        effect = normalize_effect({'kind': kind}, 'playable')
+        assert type(effect) is _CUSTOMIZATION_TYPES[kind]
+
+    def test_a_specification_carries_the_effects_keywords(self) -> None:
+        effect = normalize_effect(
+            {'kind': 'effect.fade_to', 'foreground': 'red', 'duration_milliseconds': 600},
+            'renderable',
+        )
+        assert (effect.foreground, effect.duration_milliseconds) == ('red', 600)
+        reverb = normalize_effect({'kind': 'audio.reverb', 'mix': 0.4}, 'playable')
+        assert reverb.mix == 0.4
+
+    def test_fx_is_not_exported_from_the_top_level(self) -> None:
+        assert not hasattr(xnano, 'fx')
+        assert 'fx' not in xnano.__all__
+        assert xnano.operations.fx is fx
+
+
+class TestEffectLists:
+    @pytest.mark.parametrize(
+        ('specification', 'expected', 'message'),
+        [
+            (
+                fx('effect.dissolve'),
+                'renderable',
+                r"effects= takes dictionaries such as \{'kind': 'effect.fade_to'.*"
+                r'placement \| fx',
+            ),
+            (
+                fx('audio.reverb'),
+                'playable',
+                r"effects= takes dictionaries such as \{'kind': 'audio.reverb'.*"
+                r'write the effect as a dictionary',
+            ),
+            ({'foreground': 'red'}, 'renderable', 'effects= takes dictionaries'),
+            ('effect.fade_to', 'renderable', 'effects= takes dictionaries'),
+            ({'kind': 3}, 'renderable', "The 'kind' of an effect is a string"),
+            (
+                {'kind': 'audio.reverb'},
+                'renderable',
+                "'audio.reverb' is a sound effect; pass it to play\\(effects=...\\)",
+            ),
+            (
+                {'kind': 'effect.fade_to'},
+                'playable',
+                "'effect.fade_to' is a visual effect; pass it to write\\(effects=...\\)",
+            ),
+            ({'kind': 'fill'}, 'renderable', "'fill' is not a visual effect"),
+            ({'kind': 'fill'}, 'playable', "'fill' is not a sound effect"),
+        ],
+    )
+    def test_a_wrong_entry_says_what_the_list_takes(
+        self, specification: object, expected: str, message: str
+    ) -> None:
+        with pytest.raises(TypeError, match=message):
+            normalize_effect(specification, expected)  # type: ignore[arg-type]
+
+    def test_an_unknown_effect_kind_lists_the_known_ones(self) -> None:
+        with pytest.raises(
+            ValueError, match="'effect.nope' is not a known customization"
+        ):
+            normalize_effect({'kind': 'effect.nope'}, 'renderable')
+
+    def test_new_applies_effects_to_a_canvas_without_content(self) -> None:
+        with xnano.new(
+            width=6,
+            height=1,
+            effects=[{'kind': 'effect.fade_to', 'duration_milliseconds': 500}],
+        ) as canvas:
+            assert len(canvas._effects) == 1
+            customization, target = canvas._effects[0]
+            assert target is canvas
+            assert customization.customization_kind == 'effect.fade_to'
+
+    def test_a_sound_effect_in_a_visual_list_is_refused_everywhere(self) -> None:
+        with pytest.raises(TypeError, match='is a sound effect'):
+            xnano.new(width=6, height=1, effects=[{'kind': 'audio.reverb'}])  # type: ignore[list-item]
+        with xnano.new(width=6, height=1) as canvas:
+            with pytest.raises(TypeError, match='is a sound effect'):
+                canvas.write('x', effects=[{'kind': 'audio.delay'}])  # type: ignore[list-item]
+            label = canvas.write('x')
+            with pytest.raises(TypeError, match='is a sound effect'):
+                label.write('y', effects=[{'kind': 'audio.delay'}])  # type: ignore[list-item]
+
+    def test_a_placement_write_starts_its_effects(self) -> None:
+        with xnano.new(width=8, height=2) as canvas:
+            outer = canvas.write('a')
+            inner = outer.write(
+                'b', effects=[{'kind': 'effect.dissolve', 'duration_milliseconds': 100}]
+            )
+            assert any(target is inner for _, target in canvas._effects)
+
+
+class TestCancel:
+    def test_cancel_stops_a_running_effect(self) -> None:
+        with xnano.new(width=6, height=1) as canvas:
+            label = canvas.write('hi')
+            fade = fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+            fade.apply_to(label)
+            canvas.step(delta_seconds=0.25)
+            canvas.step(delta_seconds=0.25)
+            assert '38;2;' in canvas.render(format='ansi')
+            fade.cancel()
+            canvas.step(delta_seconds=0.1)
+            assert '38;2;' not in canvas.render(format='ansi')
+            assert canvas._effects == []
+
+    def test_cancel_does_nothing_without_a_target_or_an_effect(self) -> None:
+        fx('effect.fade_to').cancel()
+        fill = fx('fill', cell='.')
+        fill.cancel()
+        with xnano.new(width=4, height=1) as canvas:
+            canvas.update(fill)
+            fill.cancel()
+            fill.cancel()
+            assert '.' in canvas.render()
+
+    def test_cancel_twice_is_harmless(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+            fade = fx('effect.dissolve', duration_milliseconds=1000)
+            fade.apply_to(canvas)
+            fade.cancel()
+            fade.cancel()
+
+
+class TestContextEffects:
+    def test_a_visual_effect_runs_on_the_hooks_placement(self) -> None:
+        with xnano.new(width=8, height=2) as canvas:
+            label = canvas.write('hi')
+            other = canvas.write('yo', y=1)
+            applied: list[object] = []
+
+            @label.hook(on='key')
+            def tint(context: Context) -> None:
+                applied.append(
+                    context.fx(
+                        'effect.fade_to', foreground='red', duration_milliseconds=1000
+                    )
+                )
+
+            press(canvas)
+            assert isinstance(applied[0], FadeToEffectCustomization)
+            assert applied[0].foreground == 'red'
+            assert [target for _, target in canvas._effects] == [label]
+            canvas.step(delta_seconds=0.5)
+            first, second = canvas.render(format='ansi').split('\n')[:2]
+            assert '38;2;' in first
+            assert '38;2;' not in second
+            del other
+
+    def test_a_hook_on_the_canvas_applies_to_the_canvas(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+
+            press(canvas)
+            assert [target for _, target in canvas._effects] == [canvas]
+            for _ in range(3):
+                canvas.step(delta_seconds=1.0)
+            assert canvas._effects == []
+
+    def test_the_effect_is_the_live_handle_fx_returns(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+            kept: list[FadeToEffectCustomization] = []
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                kept.append(
+                    context.fx(
+                        'effect.fade_to', foreground='red', duration_milliseconds=1000
+                    )
+                )
+
+            press(canvas)
+            effect = kept[0]
+            key = effect.key
+            effect.duration_milliseconds = 400
+            assert effect.key == key
+            assert effect.duration_milliseconds == 400
+
+    @pytest.mark.parametrize('kind', ['effect.nope', 'fill'])
+    def test_an_unknown_kind_lists_the_effect_kinds(self, kind: str) -> None:
+        with xnano.new(width=6, height=1) as canvas:
+            errors: list[Exception] = []
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                try:
+                    context.fx(kind)  # type: ignore[call-overload]
+                except ValueError as error:
+                    errors.append(error)
+
+            press(canvas)
+            assert len(errors) == 1
+            text = str(errors[0])
+            assert 'is not an effect, so context.fx cannot apply it' in text
+            assert 'effect.fade_to' in text
+            assert 'audio.tremolo' in text
+            assert text.count('effect.') + text.count('audio.') >= 28
+
+    def test_a_wrong_keyword_is_refused_like_fx_refuses_it(self) -> None:
+        with xnano.new(width=6, height=1) as canvas:
+            errors: list[Exception] = []
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                try:
+                    context.fx('effect.fade_to', colour='red')  # type: ignore[call-overload]
+                except TypeError as error:
+                    errors.append(error)
+
+            press(canvas)
+            assert len(errors) == 1
+            assert canvas._effects == []
+
+    def test_the_same_kind_again_replaces_the_earlier_effect(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+            seen: list[FadeToEffectCustomization] = []
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                seen.append(
+                    context.fx(
+                        'effect.fade_to', foreground='red', duration_milliseconds=1000
+                    )
+                )
+                assert context.fx.active == (seen[-1],)
+
+            press(canvas)
+            press(canvas)
+            assert len(seen) == 2
+            assert seen[0] is not seen[1]
+            assert [entry[0] for entry in canvas._effects] == [seen[1]]
+
+    def test_different_kinds_stay_together(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+            counts: list[int] = []
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+                context.fx('effect.dissolve', duration_milliseconds=1000)
+                context.fx('audio.reverb')
+                counts.append(len(context.fx.active))
+
+            press(canvas)
+            assert counts == [3]
+            assert len(canvas._effects) == 2
+
+    def test_clear_ends_the_effects_of_the_hook(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+            active: list[tuple[object, ...]] = []
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                if context.keyboard.key == 'a':
+                    context.fx(
+                        'effect.fade_to', foreground='red', duration_milliseconds=1000
+                    )
+                else:
+                    context.fx.clear()
+                    active.append(context.fx.active)
+
+            press(canvas, 'a')
+            canvas.step(delta_seconds=0.5)
+            assert '38;2;' in canvas.render(format='ansi')
+            press(canvas, 'b')
+            canvas.step(delta_seconds=0.1)
+            assert active == [()]
+            assert '38;2;' not in canvas.render(format='ansi')
+            assert canvas._effects == []
+
+    def test_clear_with_no_effects_does_nothing(self) -> None:
+        with xnano.new(width=6, height=1) as canvas:
+            cleared: list[bool] = []
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                context.fx.clear()
+                cleared.append(context.fx.active == ())
+
+            press(canvas)
+            assert cleared == [True]
+
+    def test_clear_leaves_the_effects_of_other_hooks(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+
+            @canvas.hook(on='key', keys='a')
+            def first(context: Context) -> None:
+                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+
+            @canvas.hook(on='key', keys='b')
+            def second(context: Context) -> None:
+                context.fx('effect.dissolve', duration_milliseconds=1000)
+
+            @canvas.hook(on='key', keys='c')
+            def third(context: Context) -> None:
+                context.fx.clear()
+
+            press(canvas, 'a')
+            press(canvas, 'b')
+            press(canvas, 'c')
+            assert len(canvas._effects) == 2
+
+    def test_removing_the_hook_ends_its_effects(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+
+            press(canvas)
+            canvas.step(delta_seconds=0.1)
+            assert len(canvas._effects) == 1
+            tint.remove()
+            canvas.step(delta_seconds=0.1)
+            assert canvas._effects == []
+
+    def test_removing_the_placement_ends_its_effects(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+            label = canvas.write('x')
+
+            @label.hook(on='key')
+            def tint(context: Context) -> None:
+                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+
+            press(canvas)
+            label.remove()
+            canvas.step(delta_seconds=0.1)
+            assert canvas._effects == []
+
+    def test_a_hook_that_removes_itself_leaves_no_effect_behind(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                context.hook.remove()
+                effect = context.fx(
+                    'effect.fade_to', foreground='red', duration_milliseconds=1000
+                )
+                assert isinstance(effect, FadeToEffectCustomization)
+
+            press(canvas)
+            assert canvas._effects == []
+
+    def test_closing_the_canvas_with_a_running_effect_is_clean(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+
+            @canvas.hook(on='key')
+            def tint(context: Context) -> None:
+                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+                context.fx('audio.reverb')
+
+            press(canvas)
+        assert tint._effect_state is None
+
+    def test_a_frame_hook_keeps_one_effect_while_it_runs_every_frame(self) -> None:
+        with xnano.new('hi', width=6, height=1) as canvas:
+            sizes: list[int] = []
+
+            @canvas.hook(on='frame')
+            def tint(context: Context) -> None:
+                if not context.fx.active:
+                    context.fx(
+                        'effect.fade_to', foreground='red', duration_milliseconds=1000
+                    )
+                sizes.append(len(context.fx.active))
+
+            for _ in canvas.iter(count=3):
+                pass
+            assert sizes and set(sizes) == {1}
+            assert len(canvas._effects) == 1

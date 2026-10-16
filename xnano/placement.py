@@ -6,7 +6,7 @@ A buffer placed on a canvas, with a position and size that are formulas.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
@@ -14,6 +14,7 @@ from xnano_core import EvaluationContext
 
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
+    from xnano.types import RenderableEffectSpecification
 
 from xnano._appearance import Appearance, Spacing
 from xnano._axes import (
@@ -887,7 +888,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         height: Axis | None = None,
         layer: int = 0,
         lock: bool = False,
-        effects: Sequence[Mapping[str, object]] = (),
+        effects: Sequence[RenderableEffectSpecification] = (),
         style: _core.Style | None = None,
         foreground: ColorValue | None = None,
         background: ColorValue | None = None,

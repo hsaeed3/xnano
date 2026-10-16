@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from _typeshed import DataclassInstance
     from typing_extensions import Self
 
+    from xnano._hooks import HookHandle
     from xnano.canvas import Canvas
 
 StateFieldT = TypeVar('StateFieldT')
@@ -305,7 +306,7 @@ class _HookRun:
     are committed in one transaction when it returns.
     """
 
-    __slots__ = ('is_active', 'pending', 'reads', 'snapshot', 'thread', 'track')
+    __slots__ = ('handle', 'is_active', 'pending', 'reads', 'snapshot', 'thread', 'track')
 
     def __init__(self, track: bool) -> None:
         """
@@ -315,6 +316,7 @@ class _HookRun:
             track: Whether to record the paths the call reads.
         """
         self.track = track
+        self.handle: HookHandle[object, object] | None = None
         self.is_active = False
         self.thread = 0
         self.snapshot: _core.TerminalStateSnapshot | None = None

@@ -15,10 +15,11 @@ import math
 import re
 import threading
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Final
 
 from xnano import _optional, symbols
+from xnano._customize import normalize_effect
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -174,11 +175,7 @@ class Note:
                 )
         effects = tuple(self.effects)
         for effect in effects:
-            if not isinstance(effect, Mapping) or 'kind' not in effect:
-                raise TypeError(
-                    f"A note's effects are dictionaries such as {{'kind': 'audio.reverb'}}, "
-                    f'but got {effect!r}. An fx(...) object is not accepted here.'
-                )
+            normalize_effect(effect, 'playable')
         object.__setattr__(self, 'effects', effects)
         if self.symbol is not None:
             symbols.register(self.symbol, self)

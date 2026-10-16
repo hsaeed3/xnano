@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import threading
+import typing
 
 import pytest
 from xnano_audio import (
@@ -23,7 +24,9 @@ from xnano_audio import (
 import xnano
 import xnano.audio as audio_module
 import xnano.music as music_module
+import xnano.types
 from xnano import symbols
+from xnano_core import Event
 
 
 @pytest.fixture
@@ -415,3 +418,178 @@ class TestRawForms:
         canvas.play(slow)
         canvas.play('C4')
         assert peak_after(canvas, 0.2) > 0.0
+
+
+class TestSoundEffectLists:
+    @pytest.mark.parametrize(
+        ('effects', 'message'),
+        [
+            ([{'kind': 'effect.fade_to'}], "'effect.fade_to' is a visual effect"),
+            ([{'kind': 'fill'}], "'fill' is not a sound effect"),
+            ([{'kind': 'audio.nope'}], "'audio.nope' is not a known customization"),
+        ],
+    )
+    def test_a_note_refuses_what_is_not_a_sound_effect(self, effects, message):
+        error = ValueError if 'known customization' in message else TypeError
+        with pytest.raises(error, match=message):
+            xnano.note('C4', effects=effects)
+
+    def test_a_note_checks_the_keywords_of_its_effects(self):
+        with pytest.raises(TypeError):
+            xnano.note('C4', effects=[{'kind': 'audio.reverb', 'wetness': 1}])
+
+    def test_an_fx_object_is_not_a_sound_effect_entry(self, canvas):
+        reverb = xnano.operations.fx('audio.reverb')
+        with pytest.raises(TypeError, match='write the effect as a dictionary'):
+            canvas.play('C4', effects=[reverb])  # type: ignore[list-item]
+        with pytest.raises(TypeError, match='write the effect as a dictionary'):
+            xnano.note('C4', effects=[reverb])  # type: ignore[list-item]
+
+    def test_every_sound_kind_plays(self, canvas):
+        for kind in typing.get_args(xnano.types.PlayableEffectKind):
+            canvas.play(xnano.note('C4', beats=0.2, effects=[{'kind': kind}]))
+        assert peak_after(canvas, 1.0) > 0.0
+
+
+class TestHookSoundEffects:
+    @staticmethod
+    def hear(canvas, *, press_keys=('a',)):
+        for key in press_keys:
+            canvas.push(Event.key_press(key))
+            canvas.deliver_events()
+        canvas.step(delta_seconds=1.0)
+        return canvas.audio.render_sound().samples()
+
+    def test_a_sound_effect_of_a_hook_is_added_to_what_the_hook_plays(self, canvas):
+        @canvas.hook(on='key')
+        def ring(context):
+            context.fx('audio.reverb')
+            context.audio.play(xnano.note('C5', instrument='bell'))
+
+        heard = self.hear(canvas)
+        reverb = render_note('bell', 'C5', effects=[TerminalAudioEffect.reverb()])
+        plain = render_note('bell', 'C5')
+        assert heard[:1000] == pytest.approx(reverb.samples()[:1000], abs=1e-6)
+        assert heard[:1000] != plain.samples()[:1000]
+
+    def test_the_effect_applies_to_every_form_of_sound(self, canvas):
+        @canvas.hook(on='key')
+        def ring(context):
+            context.fx('audio.distortion')
+            context.canvas.play('C4')
+            context.audio.play('C4 E4')
+            context.canvas.play(render_note('bell', 'C6'))
+
+        canvas.push(Event.key_press('a'))
+        canvas.deliver_events()
+        recordings = canvas.audio._recordings
+        assert len(recordings) == 3
+        for recording in recordings:
+            assert 'distortion' in repr(recording.key).lower()
+
+    def test_a_note_keeps_its_own_effects_and_gains_the_hooks(self, canvas):
+        @canvas.hook(on='key')
+        def ring(context):
+            context.fx('audio.tremolo')
+            context.audio.play(
+                xnano.note('C5', instrument='bell', effects=[{'kind': 'audio.reverb'}])
+            )
+
+        heard = self.hear(canvas)
+        expected = render_note(
+            'bell',
+            'C5',
+            effects=[TerminalAudioEffect.reverb(), TerminalAudioEffect.tremolo()],
+        )
+        assert heard[:1000] == pytest.approx(expected.samples()[:1000], abs=1e-6)
+
+    def test_sound_played_outside_the_hook_is_not_changed(self, canvas):
+        @canvas.hook(on='key')
+        def set_effect(context):
+            context.fx('audio.reverb')
+
+        canvas.push(Event.key_press('a'))
+        canvas.deliver_events()
+        canvas.play(xnano.note('C5', instrument='bell'))
+        canvas.step(delta_seconds=1.0)
+        heard = canvas.audio.render_sound().samples()
+        plain = render_note('bell', 'C5')
+        assert heard[:1000] == pytest.approx(plain.samples()[:1000], abs=1e-6)
+
+    def test_the_effect_stays_for_later_runs_of_the_hook(self, canvas):
+        @canvas.hook(on='key')
+        def ring(context):
+            if context.keyboard.key == 'a':
+                context.fx('audio.reverb')
+            else:
+                context.audio.play(xnano.note('C5', instrument='bell'))
+
+        heard = self.hear(canvas, press_keys=('a', 'b'))
+        reverb = render_note('bell', 'C5', effects=[TerminalAudioEffect.reverb()])
+        assert heard[:1000] == pytest.approx(reverb.samples()[:1000], abs=1e-6)
+
+    def test_clear_stops_adding_the_effect(self, canvas):
+        @canvas.hook(on='key')
+        def ring(context):
+            context.fx('audio.reverb')
+            context.fx.clear()
+            context.audio.play(xnano.note('C5', instrument='bell'))
+
+        heard = self.hear(canvas)
+        plain = render_note('bell', 'C5')
+        assert heard[:1000] == pytest.approx(plain.samples()[:1000], abs=1e-6)
+
+    def test_removing_the_hook_stops_adding_the_effect(self, canvas):
+        @canvas.hook(on='key')
+        def ring(context: xnano.context.Context) -> None:
+            context.fx('audio.reverb')
+
+        canvas.push(Event.key_press('a'))
+        canvas.deliver_events()
+        (handle,) = canvas._registrations
+        assert handle._effect_state is not None
+        handle.remove()
+        assert handle._effect_state is None
+        assert audio_module.hook_effects(canvas) == ()
+
+    def test_another_hook_is_not_affected(self, canvas):
+        @canvas.hook(on='key', keys='a')
+        def first(context):
+            context.fx('audio.reverb')
+
+        @canvas.hook(on='key', keys='b')
+        def second(context):
+            context.audio.play(xnano.note('C5', instrument='bell'))
+
+        heard = self.hear(canvas, press_keys=('a', 'b'))
+        plain = render_note('bell', 'C5')
+        assert heard[:1000] == pytest.approx(plain.samples()[:1000], abs=1e-6)
+
+    def test_a_thread_that_is_not_the_hook_gets_no_effects(self, canvas):
+        outcome: list[tuple[object, ...]] = []
+
+        @canvas.hook(on='key')
+        def ring(context):
+            context.fx('audio.reverb')
+            worker = threading.Thread(
+                target=lambda: outcome.append(audio_module.hook_effects(canvas))
+            )
+            worker.start()
+            worker.join()
+            outcome.append(audio_module.hook_effects(canvas))
+
+        canvas.push(Event.key_press('a'))
+        canvas.deliver_events()
+        assert outcome[0] == ()
+        assert len(outcome[1]) == 1
+        assert audio_module.hook_effects(canvas) == ()
+
+    def test_a_visual_effect_does_not_reach_the_sound(self, canvas):
+        @canvas.hook(on='key')
+        def ring(context):
+            context.fx('effect.fade_to', foreground='red', duration_milliseconds=100)
+            context.audio.play('C4')
+            assert audio_module.hook_effects(canvas) == ()
+
+        canvas.push(Event.key_press('a'))
+        canvas.deliver_events()

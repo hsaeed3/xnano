@@ -14,10 +14,11 @@ import dataclasses
 import math
 import threading
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Final, TypeAlias, cast
 
 from xnano import _optional, symbols
+from xnano._customize import normalize_effect
 from xnano._media import Audio
 from xnano.music import Note, PlayHandle
 
@@ -45,9 +46,9 @@ from xnano._values import NumericExpression  # noqa: E402
 from xnano_core._xnano_core import _external  # the hook for values an extension provides  # noqa: E402
 
 if TYPE_CHECKING:
-    from xnano._customize import AudioCustomization, CustomizationKind
+    from xnano._customize import AudioCustomization
     from xnano.canvas import Canvas
-    from xnano.types import Playable
+    from xnano.types import Playable, PlayableEffectSpecification
 
 __all__ = [
     'Audio',
@@ -247,6 +248,8 @@ class _Options:
     beats: float | None
     velocity: float | None
     effects: tuple[TerminalAudioEffect, ...] | None
+    extra_effects: tuple[TerminalAudioEffect, ...] = ()
+    """Effects of the running hook, added to a note's own effects or to the call's."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -281,50 +284,43 @@ def _check_velocity(velocity: float) -> None:
 
 
 def resolve_effects(
-    effects: Sequence[object] | None,
+    effects: Sequence[PlayableEffectSpecification] | None,
 ) -> tuple[TerminalAudioEffect, ...]:
     """
     Turn the effects of a ``play()`` call or a note into ``TerminalAudioEffect`` objects.
 
     Args:
-        effects: Audio effects, or dictionaries with a ``kind`` key such as
-            ``{'kind': 'audio.reverb', 'mix': 0.4}``.
+        effects: Dictionaries with a ``kind`` key such as ``{'kind': 'audio.reverb', 'mix':
+            0.4}``.
 
     Raises:
-        TypeError: An element is not an audio effect, or names a visual effect.
+        TypeError: An element is not such a dictionary, or names a visual effect.
     """
     if not effects:
         return ()
-    from xnano.operations import fx
-
     resolved: list[TerminalAudioEffect] = []
     for effect in effects:
         if isinstance(effect, TerminalAudioEffect):
             resolved.append(effect)
             continue
-        if isinstance(effect, Mapping) and isinstance(effect.get('kind'), str):
-            parameters = dict(effect)
-            kind = cast('str', parameters.pop('kind'))
-            if kind.startswith('effect.'):
-                raise TypeError(
-                    f'{kind!r} is a visual effect; pass it to write(effects=...) or '
-                    f'draw(effects=...), not to a sound. Sound effects have kinds that '
-                    f"start with 'audio.', such as 'audio.reverb'."
-                )
-            built = fx(cast('CustomizationKind', kind), **parameters)  # type: ignore[call-overload]
-            if not kind.startswith('audio.'):
-                raise TypeError(
-                    f'{kind!r} is not a sound effect. Use a kind that starts with '
-                    f"'audio.', such as 'audio.reverb'."
-                )
-            resolved.append(cast('AudioCustomization', built).to_audio_effect())
-            continue
-        raise TypeError(
-            f'effects must hold audio effects, but one was {effect!r}. Pass dictionaries '
-            f"such as {{'kind': 'audio.reverb'}}, or build effects with "
-            f'xnano_audio.TerminalAudioEffect, for example TerminalAudioEffect.reverb().'
-        )
+        built = normalize_effect(effect, 'playable')
+        resolved.append(cast('AudioCustomization', built).to_audio_effect())
     return tuple(resolved)
+
+
+def hook_effects(canvas: Canvas[object, object]) -> tuple[TerminalAudioEffect, ...]:
+    """
+    The sound effects of the hook that is running right now on this thread.
+
+    These are the effects the hook set with ``context.fx``; a sound it plays gets them too.
+    Returns an empty tuple when no hook is running or the running hook set none.
+    """
+    run = canvas._active_run
+    if run is None or not run.is_active or run.thread != threading.get_ident():
+        return ()
+    handle = run.handle
+    state = None if handle is None else handle._effect_state
+    return () if state is None else state.audio_effects()
 
 
 _STANDARD_SAMPLE_RATE: Final = 44100
@@ -378,10 +374,11 @@ def plan_call(
     instrument: InstrumentName | None,
     beats: float | None,
     velocity: float | None,
-    effects: Sequence[object] | None,
+    effects: Sequence[PlayableEffectSpecification] | None,
     volume: float,
     pan: float,
     at_beat: int | None,
+    extra_effects: tuple[TerminalAudioEffect, ...] = (),
 ) -> list[_Planned]:
     """
     Check the arguments of a ``play()`` call and work out every sound it makes.
@@ -397,7 +394,11 @@ def plan_call(
     if velocity is not None:
         _check_velocity(velocity)
     options = _Options(
-        instrument, beats, velocity, None if effects is None else resolve_effects(effects)
+        instrument,
+        beats,
+        velocity,
+        None if effects is None else resolve_effects(effects),
+        extra_effects,
     )
     planned: list[_Planned] = []
     _plan_into(planned, source, options, bpm, 0.0)
@@ -434,7 +435,7 @@ def _plan_into(
         return _plan_into(planned, source.sound, options, bpm, offset)
     if isinstance(source, TerminalSound):
         sound = source
-        effects = options.effects or ()
+        effects = (options.effects or ()) + options.extra_effects
         length = sound.duration_milliseconds / 1000.0
         planned.append(
             _Planned(
@@ -510,7 +511,9 @@ def _plan_pitches(
     beats = options.beats if options.beats is not None else beats
     instrument = options.instrument if options.instrument is not None else instrument
     velocity = options.velocity if options.velocity is not None else velocity
-    effects = options.effects if options.effects is not None else effects
+    effects = (
+        options.effects if options.effects is not None else effects
+    ) + options.extra_effects
     _check_instrument(instrument)
     _check_velocity(velocity)
     milliseconds = _milliseconds(beats, bpm)
@@ -554,7 +557,7 @@ def _plan_melody(
     """Add a melody, which plays its own notes at their own lengths."""
     instrument = options.instrument if options.instrument is not None else 'piano'
     _check_instrument(instrument)
-    effects = options.effects or ()
+    effects = (options.effects or ()) + options.extra_effects
     effect_names = tuple(repr(effect) for effect in effects)
     key = (
         'melody',
@@ -664,7 +667,7 @@ class AudioDevice:
         instrument: InstrumentName | None = None,
         beats: float | None = None,
         velocity: float | None = None,
-        effects: Sequence[object] | None = None,
+        effects: Sequence[PlayableEffectSpecification] | None = None,
         volume: float = 1.0,
         pan: float = 0.0,
         at_beat: int | None = None,
@@ -695,9 +698,10 @@ class AudioDevice:
                 of its own. ``1.0`` unless a ``Note`` says otherwise.
             velocity: How hard a note is played, 0.0 to 1.0; ``0.8`` unless a ``Note`` says
                 otherwise.
-            effects: Effects applied after the instrument, or to a sound as it is played:
-                dictionaries such as ``{'kind': 'audio.reverb'}``, or
-                [`TerminalAudioEffect`][xnano_audio.TerminalAudioEffect] objects.
+            effects: Effects applied after the instrument, or to a sound as it is played,
+                as dictionaries such as ``{'kind': 'audio.reverb'}``. A hook that called
+                ``context.fx`` with a sound effect adds its effects to every sound it
+                plays.
             volume: Playback gain, 0.0 to 1.0.
             pan: Stereo position from -1.0 (left) to 1.0 (right). A recording is mono.
             at_beat: Start when the musical clock reaches this beat. The clock is started if
@@ -739,6 +743,7 @@ class AudioDevice:
             volume=volume,
             pan=pan,
             at_beat=at_beat,
+            extra_effects=hook_effects(canvas),
         )
         if self.is_offline:
             return self._record(planned, volume=volume, at_beat=at_beat)

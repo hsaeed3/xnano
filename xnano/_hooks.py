@@ -24,6 +24,7 @@ import xnano_core as _core
 from xnano_core import CoreContext
 
 if TYPE_CHECKING:
+    from xnano._effect_controller import EffectState
     from xnano._host import _Registration
     from xnano.canvas import Canvas
     from xnano.placement import Placement
@@ -234,6 +235,7 @@ class HookHandle(Generic[DepsT, StateT]):
         self._state_run: _HookRun = _HookRun(track=on == 'state')
         self._followed: frozenset[tuple[str | int, ...]] | None = None
         self._plugin_state: StateNamespace | None = None
+        self._effect_state: EffectState | None = None
 
     @property
     def is_removed(self) -> bool:
@@ -245,6 +247,10 @@ class HookHandle(Generic[DepsT, StateT]):
         if self._removed:
             return
         self._removed = True
+        effect_state = self._effect_state
+        if effect_state is not None:
+            self._effect_state = None
+            effect_state.clear()
         generator = self._generator
         self._generator = None
         if generator is not None and inspect.getgeneratorstate(generator) != (
@@ -535,6 +541,7 @@ class HookHandle(Generic[DepsT, StateT]):
             run = _HookRun(track=run.track)
         previous = canvas._active_run
         run.begin()
+        run.handle = cast('HookHandle[object, object]', self)
         canvas._active_run = run
         try:
             predicate = self._when.predicate

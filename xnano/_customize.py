@@ -23,7 +23,7 @@ from xnano._axes import to_rgb
 from xnano._values import RGB, ColorValue, PixelEncoding
 
 if TYPE_CHECKING:
-    from typing_extensions import Unpack
+    from typing_extensions import Required, Unpack
     from xnano_audio import TerminalAudioEffect
 
     from xnano.canvas import Canvas
@@ -72,6 +72,34 @@ class Customization(_core.Customization):
                 target._canvas._record_effect(self, target)
         elif isinstance(target, _core.Surface):
             target.update(self)
+
+    def cancel(self) -> None:
+        """
+        Stop this effect on the target it was applied to.
+
+        Does nothing for an effect that was never applied or has already finished, and for a
+        customization that is not an effect.
+
+        Examples:
+            ```python
+            import xnano
+            from xnano.operations import fx
+
+            with xnano.new('hi', width=4, height=1) as canvas:
+                fade = fx('effect.fade_to', foreground='red', duration_milliseconds=5000)
+                fade.apply_to(canvas)
+                fade.cancel()
+                fade.cancel()
+            ```
+        """
+        target = self.__dict__.get('_target')
+        key = getattr(self, 'key', None)
+        if target is None or not isinstance(key, str):
+            return
+        if not self.customization_kind.startswith('effect.'):
+            return
+        surface = target._buffer if hasattr(target, '_buffer') else target
+        surface.update(_core.CancelEffect(key))
 
     def _attach(self, target: object) -> None:
         """Remember the target, and give a running effect a key so it can be stopped."""
@@ -1499,6 +1527,462 @@ _CUSTOMIZATION_TYPES: dict[str, type[Customization]] = {
     'audio.tremolo': TremoloAudioCustomization,
 }
 
+RenderableEffectKind = Literal[
+    'effect.fade_to',
+    'effect.fade_from',
+    'effect.paint',
+    'effect.saturate',
+    'effect.lighten',
+    'effect.darken',
+    'effect.sweep_in',
+    'effect.sweep_out',
+    'effect.slide_in',
+    'effect.slide_out',
+    'effect.hsl_shift',
+    'effect.dissolve',
+    'effect.coalesce',
+    'effect.glitch',
+    'effect.sleep',
+    'effect.evolve',
+    'effect.evolve_into',
+    'effect.evolve_from',
+    'effect.expand',
+    'effect.stretch',
+    'effect.explode',
+]
+"""The kinds of effect that change how a buffer looks: ``fx`` kinds that start with ``'effect.'``."""
+
+PlayableEffectKind = Literal[
+    'audio.bit_crush',
+    'audio.distortion',
+    'audio.low_pass',
+    'audio.high_pass',
+    'audio.delay',
+    'audio.reverb',
+    'audio.tremolo',
+]
+"""The kinds of effect that change how a sound plays: ``fx`` kinds that start with ``'audio.'``."""
+
+RenderableEffectArguments = (
+    FadeToEffectArguments
+    | FadeFromEffectArguments
+    | PaintEffectArguments
+    | SaturateEffectArguments
+    | LightenEffectArguments
+    | DarkenEffectArguments
+    | SweepInEffectArguments
+    | SweepOutEffectArguments
+    | SlideInEffectArguments
+    | SlideOutEffectArguments
+    | HslShiftEffectArguments
+    | DissolveEffectArguments
+    | CoalesceEffectArguments
+    | GlitchEffectArguments
+    | SleepEffectArguments
+    | EvolveEffectArguments
+    | EvolveIntoEffectArguments
+    | EvolveFromEffectArguments
+    | ExpandEffectArguments
+    | StretchEffectArguments
+    | ExplodeEffectArguments
+)
+"""The keyword arguments of ``fx(kind, ...)`` and ``context.fx(kind, ...)`` for a visual effect."""
+
+PlayableEffectArguments = (
+    BitCrushAudioArguments
+    | DistortionAudioArguments
+    | LowPassAudioArguments
+    | HighPassAudioArguments
+    | DelayAudioArguments
+    | ReverbAudioArguments
+    | TremoloAudioArguments
+)
+"""The keyword arguments of ``fx(kind, ...)`` and ``context.fx(kind, ...)`` for a sound effect."""
+
+
+class FadeToEffectSpecification(FadeToEffectArguments):
+    """
+    The dictionary form of the ``'effect.fade_to'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.fade_to'``.
+    """
+
+    kind: Required[Literal['effect.fade_to']]
+
+
+class FadeFromEffectSpecification(FadeFromEffectArguments):
+    """
+    The dictionary form of the ``'effect.fade_from'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.fade_from'``.
+    """
+
+    kind: Required[Literal['effect.fade_from']]
+
+
+class PaintEffectSpecification(PaintEffectArguments):
+    """
+    The dictionary form of the ``'effect.paint'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.paint'``.
+    """
+
+    kind: Required[Literal['effect.paint']]
+
+
+class SaturateEffectSpecification(SaturateEffectArguments):
+    """
+    The dictionary form of the ``'effect.saturate'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.saturate'``.
+    """
+
+    kind: Required[Literal['effect.saturate']]
+
+
+class LightenEffectSpecification(LightenEffectArguments):
+    """
+    The dictionary form of the ``'effect.lighten'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.lighten'``.
+    """
+
+    kind: Required[Literal['effect.lighten']]
+
+
+class DarkenEffectSpecification(DarkenEffectArguments):
+    """
+    The dictionary form of the ``'effect.darken'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.darken'``.
+    """
+
+    kind: Required[Literal['effect.darken']]
+
+
+class SweepInEffectSpecification(SweepInEffectArguments):
+    """
+    The dictionary form of the ``'effect.sweep_in'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.sweep_in'``.
+    """
+
+    kind: Required[Literal['effect.sweep_in']]
+
+
+class SweepOutEffectSpecification(SweepOutEffectArguments):
+    """
+    The dictionary form of the ``'effect.sweep_out'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.sweep_out'``.
+    """
+
+    kind: Required[Literal['effect.sweep_out']]
+
+
+class SlideInEffectSpecification(SlideInEffectArguments):
+    """
+    The dictionary form of the ``'effect.slide_in'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.slide_in'``.
+    """
+
+    kind: Required[Literal['effect.slide_in']]
+
+
+class SlideOutEffectSpecification(SlideOutEffectArguments):
+    """
+    The dictionary form of the ``'effect.slide_out'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.slide_out'``.
+    """
+
+    kind: Required[Literal['effect.slide_out']]
+
+
+class HslShiftEffectSpecification(HslShiftEffectArguments):
+    """
+    The dictionary form of the ``'effect.hsl_shift'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.hsl_shift'``.
+    """
+
+    kind: Required[Literal['effect.hsl_shift']]
+
+
+class DissolveEffectSpecification(DissolveEffectArguments):
+    """
+    The dictionary form of the ``'effect.dissolve'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.dissolve'``.
+    """
+
+    kind: Required[Literal['effect.dissolve']]
+
+
+class CoalesceEffectSpecification(CoalesceEffectArguments):
+    """
+    The dictionary form of the ``'effect.coalesce'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.coalesce'``.
+    """
+
+    kind: Required[Literal['effect.coalesce']]
+
+
+class GlitchEffectSpecification(GlitchEffectArguments):
+    """
+    The dictionary form of the ``'effect.glitch'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.glitch'``.
+    """
+
+    kind: Required[Literal['effect.glitch']]
+
+
+class SleepEffectSpecification(SleepEffectArguments):
+    """
+    The dictionary form of the ``'effect.sleep'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.sleep'``.
+    """
+
+    kind: Required[Literal['effect.sleep']]
+
+
+class EvolveEffectSpecification(EvolveEffectArguments):
+    """
+    The dictionary form of the ``'effect.evolve'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.evolve'``.
+    """
+
+    kind: Required[Literal['effect.evolve']]
+
+
+class EvolveIntoEffectSpecification(EvolveIntoEffectArguments):
+    """
+    The dictionary form of the ``'effect.evolve_into'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.evolve_into'``.
+    """
+
+    kind: Required[Literal['effect.evolve_into']]
+
+
+class EvolveFromEffectSpecification(EvolveFromEffectArguments):
+    """
+    The dictionary form of the ``'effect.evolve_from'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.evolve_from'``.
+    """
+
+    kind: Required[Literal['effect.evolve_from']]
+
+
+class ExpandEffectSpecification(ExpandEffectArguments):
+    """
+    The dictionary form of the ``'effect.expand'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.expand'``.
+    """
+
+    kind: Required[Literal['effect.expand']]
+
+
+class StretchEffectSpecification(StretchEffectArguments):
+    """
+    The dictionary form of the ``'effect.stretch'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.stretch'``.
+    """
+
+    kind: Required[Literal['effect.stretch']]
+
+
+class ExplodeEffectSpecification(ExplodeEffectArguments):
+    """
+    The dictionary form of the ``'effect.explode'`` visual effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'effect.explode'``.
+    """
+
+    kind: Required[Literal['effect.explode']]
+
+
+class BitCrushAudioSpecification(BitCrushAudioArguments):
+    """
+    The dictionary form of the ``'audio.bit_crush'`` sound effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'audio.bit_crush'``.
+    """
+
+    kind: Required[Literal['audio.bit_crush']]
+
+
+class DistortionAudioSpecification(DistortionAudioArguments):
+    """
+    The dictionary form of the ``'audio.distortion'`` sound effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'audio.distortion'``.
+    """
+
+    kind: Required[Literal['audio.distortion']]
+
+
+class LowPassAudioSpecification(LowPassAudioArguments):
+    """
+    The dictionary form of the ``'audio.low_pass'`` sound effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'audio.low_pass'``.
+    """
+
+    kind: Required[Literal['audio.low_pass']]
+
+
+class HighPassAudioSpecification(HighPassAudioArguments):
+    """
+    The dictionary form of the ``'audio.high_pass'`` sound effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'audio.high_pass'``.
+    """
+
+    kind: Required[Literal['audio.high_pass']]
+
+
+class DelayAudioSpecification(DelayAudioArguments):
+    """
+    The dictionary form of the ``'audio.delay'`` sound effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'audio.delay'``.
+    """
+
+    kind: Required[Literal['audio.delay']]
+
+
+class ReverbAudioSpecification(ReverbAudioArguments):
+    """
+    The dictionary form of the ``'audio.reverb'`` sound effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'audio.reverb'``.
+    """
+
+    kind: Required[Literal['audio.reverb']]
+
+
+class TremoloAudioSpecification(TremoloAudioArguments):
+    """
+    The dictionary form of the ``'audio.tremolo'`` sound effect in ``effects=[...]``.
+
+    Attributes:
+        kind: Always ``'audio.tremolo'``.
+    """
+
+    kind: Required[Literal['audio.tremolo']]
+
+
+RenderableEffectSpecification = (
+    FadeToEffectSpecification
+    | FadeFromEffectSpecification
+    | PaintEffectSpecification
+    | SaturateEffectSpecification
+    | LightenEffectSpecification
+    | DarkenEffectSpecification
+    | SweepInEffectSpecification
+    | SweepOutEffectSpecification
+    | SlideInEffectSpecification
+    | SlideOutEffectSpecification
+    | HslShiftEffectSpecification
+    | DissolveEffectSpecification
+    | CoalesceEffectSpecification
+    | GlitchEffectSpecification
+    | SleepEffectSpecification
+    | EvolveEffectSpecification
+    | EvolveIntoEffectSpecification
+    | EvolveFromEffectSpecification
+    | ExpandEffectSpecification
+    | StretchEffectSpecification
+    | ExplodeEffectSpecification
+)
+"""One visual effect as a dictionary for ``effects=[...]``: its ``kind`` and its keywords."""
+
+PlayableEffectSpecification = (
+    BitCrushAudioSpecification
+    | DistortionAudioSpecification
+    | LowPassAudioSpecification
+    | HighPassAudioSpecification
+    | DelayAudioSpecification
+    | ReverbAudioSpecification
+    | TremoloAudioSpecification
+)
+"""One sound effect as a dictionary for ``effects=[...]``: its ``kind`` and its keywords."""
+
+RenderableEffect = (
+    FadeToEffectCustomization
+    | FadeFromEffectCustomization
+    | PaintEffectCustomization
+    | SaturateEffectCustomization
+    | LightenEffectCustomization
+    | DarkenEffectCustomization
+    | SweepInEffectCustomization
+    | SweepOutEffectCustomization
+    | SlideInEffectCustomization
+    | SlideOutEffectCustomization
+    | HslShiftEffectCustomization
+    | DissolveEffectCustomization
+    | CoalesceEffectCustomization
+    | GlitchEffectCustomization
+    | SleepEffectCustomization
+    | EvolveEffectCustomization
+    | EvolveIntoEffectCustomization
+    | EvolveFromEffectCustomization
+    | ExpandEffectCustomization
+    | StretchEffectCustomization
+    | ExplodeEffectCustomization
+)
+"""A visual effect as ``fx(...)`` and ``context.fx(...)`` return it."""
+
+PlayableEffect = (
+    BitCrushAudioCustomization
+    | DistortionAudioCustomization
+    | LowPassAudioCustomization
+    | HighPassAudioCustomization
+    | DelayAudioCustomization
+    | ReverbAudioCustomization
+    | TremoloAudioCustomization
+)
+"""A sound effect as ``fx(...)`` and ``context.fx(...)`` return it."""
+
+Effect = RenderableEffect | PlayableEffect
+"""Any visual or sound effect."""
+
 
 @overload
 def fx(
@@ -1689,9 +2173,74 @@ def fx(kind: CustomizationKind, /, **parameters: object) -> Customization:
     return factory(**parameters)
 
 
+def normalize_effect(
+    specification: object, expected: Literal['renderable', 'playable']
+) -> Customization:
+    """
+    Turn one entry of an ``effects=[...]`` list into the effect it describes.
+
+    Args:
+        specification: A dictionary with a ``kind`` key and that effect's keywords, such as
+            ``{'kind': 'effect.fade_to', 'foreground': 'red'}``.
+        expected: ``'renderable'`` for a list that styles a buffer, ``'playable'`` for a list
+            that styles a sound.
+
+    Returns:
+        The effect, not yet applied to anything.
+
+    Raises:
+        TypeError: The entry is not such a dictionary, or its ``kind`` belongs to the other
+            list or is not an effect.
+        ValueError: The ``kind`` looks like an effect but is not a known one.
+    """
+    is_renderable = expected == 'renderable'
+    prefix = 'effect.' if is_renderable else 'audio.'
+    sample = 'effect.fade_to' if is_renderable else 'audio.reverb'
+    example = f"{{'kind': {sample!r}, ...}}"
+    if not isinstance(specification, Mapping) or 'kind' not in specification:
+        if not isinstance(specification, Customization):
+            hint = "Write each effect as a dictionary with a 'kind' key."
+        elif is_renderable:
+            hint = (
+                'An fx(...) object is applied with placement | fx(...) or '
+                'placement.update(fx(...)).'
+            )
+        else:
+            hint = 'An fx(...) object is not accepted here; write the effect as a dictionary.'
+        raise TypeError(
+            f'effects= takes dictionaries such as {example}, but got {specification!r}. {hint}'
+        )
+    parameters = dict(specification)
+    kind = parameters.pop('kind')
+    if not isinstance(kind, str):
+        raise TypeError(
+            f"The 'kind' of an effect is a string such as {sample!r}, but was {kind!r}."
+        )
+    if kind.startswith(prefix):
+        return fx(cast('CustomizationKind', kind), **parameters)  # type: ignore[call-overload]
+    if kind.startswith(('effect.', 'audio.')):
+        if is_renderable:
+            raise TypeError(
+                f'{kind!r} is a sound effect; pass it to play(effects=...) or '
+                f'note(effects=...), not to a visual list such as write(effects=...). '
+                f"Visual effects have kinds that start with 'effect.', such as "
+                f"'effect.fade_to'."
+            )
+        raise TypeError(
+            f'{kind!r} is a visual effect; pass it to write(effects=...) or '
+            f'draw(effects=...), not to a sound. Sound effects have kinds that start with '
+            f"'audio.', such as 'audio.reverb'."
+        )
+    noun = 'a visual effect' if is_renderable else 'a sound effect'
+    raise TypeError(
+        f'{kind!r} is not {noun}, so it cannot be in effects=. Use a kind that starts with '
+        f"'{prefix}', such as {sample!r}."
+    )
+
+
 def apply_effects(
     target: Canvas[object, object] | Placement[object, object],
-    effects: Sequence[Mapping[str, object]],
+    effects: Sequence[RenderableEffectSpecification],
 ) -> list[Customization]:
     """
     Start each effect of an ``effects=[...]`` list on ``target`` and return the live handles.
@@ -1707,20 +2256,7 @@ def apply_effects(
     """
     applied: list[Customization] = []
     for specification in effects:
-        if not isinstance(specification, Mapping) or 'kind' not in specification:
-            raise TypeError(
-                f"effects= takes dictionaries such as {{'kind': 'effect.fade_to', ...}}, but "
-                f'got {specification!r}. An fx(...) object is applied with '
-                f'placement | fx(...) or placement.update(fx(...)).'
-            )
-        parameters = dict(specification)
-        kind = parameters.pop('kind')
-        if not isinstance(kind, str) or not kind.startswith('effect.'):
-            raise TypeError(
-                f'{kind!r} is not a visual effect, so it cannot be in effects=. Use a kind '
-                f"that starts with 'effect.', such as 'effect.fade_to'."
-            )
-        customization = fx(cast('CustomizationKind', kind), **parameters)  # type: ignore[call-overload]
+        customization = normalize_effect(specification, 'renderable')
         customization.apply_to(target)
         applied.append(customization)
     return applied

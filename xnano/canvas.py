@@ -35,7 +35,12 @@ if TYPE_CHECKING:
     from xnano.context import Context
     from xnano.music import PlayHandle
     from xnano.terminal import Terminal
-    from xnano.types import CanvasSettings, OpenSettings, PlayOptions
+    from xnano.types import (
+        CanvasSettings,
+        OpenSettings,
+        PlayOptions,
+        RenderableEffectSpecification,
+    )
 
 from xnano._appearance import APPEARANCE_NAMES, Appearance, Spacing
 from xnano._customize import Customization, apply_effects
@@ -456,7 +461,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         title: str | None,
         gates: Mapping[str, object],
         appearance: Mapping[str, object],
-        effects: Sequence[Mapping[str, object]],
+        effects: Sequence[RenderableEffectSpecification],
     ) -> None:
         """
         Create a canvas. Use [`new`][xnano.new] instead of calling this.
@@ -1326,7 +1331,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         if parsed.get('effects'):
             apply_effects(
                 cast('Canvas[object, object]', self),
-                cast('Sequence[Mapping[str, object]]', parsed['effects']),
+                cast('Sequence[RenderableEffectSpecification]', parsed['effects']),
             )
         from xnano.terminal import Terminal
 
@@ -1831,7 +1836,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         height: Axis | None = None,
         layer: int = 0,
         lock: bool = False,
-        effects: Sequence[Mapping[str, object]] = (),
+        effects: Sequence[RenderableEffectSpecification] = (),
         style: _core.Style | None = None,
         foreground: ColorValue | None = None,
         background: ColorValue | None = None,
@@ -3235,7 +3240,7 @@ def new(
     bpm: float = 120.0,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[Mapping[str, object]] = (),
+    effects: Sequence[RenderableEffectSpecification] = (),
     **settings: Unpack[CanvasSettings],
 ) -> Canvas[None, None]: ...
 @overload
@@ -3249,7 +3254,7 @@ def new(
     bpm: float = 120.0,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[Mapping[str, object]] = (),
+    effects: Sequence[RenderableEffectSpecification] = (),
     state: StateT,
     **settings: Unpack[CanvasSettings],
 ) -> Canvas[None, StateT]: ...
@@ -3264,7 +3269,7 @@ def new(
     bpm: float = 120.0,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[Mapping[str, object]] = (),
+    effects: Sequence[RenderableEffectSpecification] = (),
     deps: DepsT,
     **settings: Unpack[CanvasSettings],
 ) -> Canvas[DepsT, None]: ...
@@ -3279,7 +3284,7 @@ def new(
     bpm: float = 120.0,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[Mapping[str, object]] = (),
+    effects: Sequence[RenderableEffectSpecification] = (),
     deps: DepsT,
     state: StateT,
     **settings: Unpack[CanvasSettings],
@@ -3294,7 +3299,7 @@ def new(
     bpm: float = 120.0,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[Mapping[str, object]] = (),
+    effects: Sequence[RenderableEffectSpecification] = (),
     deps: object = _UNSET,
     state: object = _UNSET,
     **settings: object,
