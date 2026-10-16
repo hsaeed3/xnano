@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from xnano.cursor import Cursor
     from xnano.input import Input
     from xnano.placement import Placement
+    from xnano.state import StateNamespace
     from xnano.time import Time
 
 __all__ = ['Context', 'Frame', 'Plugin', 'Update']
@@ -36,6 +37,8 @@ class Plugin:
 
     Attributes:
         hook: The hook this attachment belongs to.
+        state: State that belongs to this attachment alone, read with ``get`` and written
+            with ``push``; see [`StateNamespace`][xnano.state.StateNamespace].
     """
 
     __slots__ = ('hook',)
@@ -48,6 +51,35 @@ class Plugin:
             hook: The hook that is running.
         """
         self.hook = hook
+
+    @property
+    def state(self) -> StateNamespace:
+        """
+        State that belongs to this hook alone.
+
+        No other hook or placement sees it, and it is deleted when the hook is removed. To
+        share a value between hooks, keep it in ``context.root.state``.
+
+        Examples:
+            ```python
+            import xnano
+            from xnano_core import Event
+
+            with xnano.new(width=8, height=1) as canvas:
+
+                @canvas.hook(on='key')
+                def count(context: xnano.context.Context) -> None:
+                    state = context.plugin.state
+                    state.push('presses', state.get('presses', default=0) + 1)
+                    context.root.state.push('latest', state.get('presses'))
+
+                canvas.push(Event.key_press('a'))
+                canvas.push(Event.key_press('b'))
+                canvas.deliver_events()
+                assert canvas.state.get('latest') == 2
+            ```
+        """
+        return self.hook._state_namespace()
 
 
 @final

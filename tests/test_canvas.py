@@ -41,8 +41,7 @@ class TestNew:
             assert not canvas.time.is_realtime
             assert canvas.deps is None
             assert canvas.is_running and not canvas.is_closed
-            with pytest.raises(TerminalError, match=r'new\(state='):
-                _ = canvas.state
+            assert canvas.state.get('anything') is None
 
     def test_the_settings_are_kept(self):
         with xnano.new(

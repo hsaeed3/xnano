@@ -279,6 +279,34 @@ with xnano.open(height=2) as terminal:
         assert screen.wait_for('GOT:two words')
 
 
+class TestState:
+    def test_a_state_hook_draws_what_a_key_hook_pushed(self, run):
+        screen = run(
+            """
+with xnano.open(height=2) as terminal:
+    label = terminal.write('count: 0')
+
+    @terminal.hook(on='key', keys='a')
+    def count(context):
+        state = context.root.state
+        state.push('count', state.get('count', default=0) + 1)
+
+    @terminal.hook(on='state')
+    def show(context):
+        label.text = f"count: {context.root.state.get('count', default=0)}"
+
+    terminal.run()
+"""
+        )
+        assert screen.wait_for('count: 0')
+        screen.press('a')
+        assert screen.wait_for('count: 1')
+        screen.press('a')
+        assert screen.wait_for('count: 2')
+        screen.press('ctrl+c')
+        assert screen.finish() == 0
+
+
 class TestDrawing:
     def test_a_formula_moves_without_being_driven(self, run):
         screen = run(

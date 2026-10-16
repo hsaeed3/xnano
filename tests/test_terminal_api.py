@@ -183,9 +183,9 @@ class TestTypedState:
             canvas.step(delta_seconds=0.05)
             assert thumb.x == 12
 
-    def test_a_canvas_without_state_says_how_to_add_it(self, canvas):
-        with pytest.raises(xnano.errors.TerminalError, match=r'new\(state='):
-            _ = canvas.state
+    def test_a_canvas_without_a_dataclass_still_has_a_state(self, canvas):
+        canvas.state.push('volume', 3)
+        assert canvas.state.get('volume') == 3
 
     def test_the_context_carries_the_same_state(self):
         with xnano.new(width=8, height=1, state=Settings()) as canvas:

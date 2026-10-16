@@ -12,6 +12,7 @@ import itertools
 import math
 import threading
 import time as wall_clock
+from collections import deque
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import (
     TYPE_CHECKING,
@@ -24,7 +25,7 @@ from typing import (
 )
 
 import xnano_core as _core
-from xnano_core import FrameContext, UpdateContext
+from xnano_core import CoreContext, FrameContext, JSONValue, UpdateContext
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -75,7 +76,19 @@ from xnano.output import Output
 from xnano.placement import Placement
 from xnano.region import Region
 from xnano.scene import Scene
-from xnano.state import StateNamespace, bind_namespace, prepare_state, reference_for
+from xnano.state import (
+    StateFollower,
+    StateNamespace,
+    _HookRun,
+    _StateAccessor,
+    _StateFollowers,
+    commit_pending,
+    create_branch,
+    prepare_state,
+    reference_for,
+    remove_branch,
+    state_field_names,
+)
 from xnano.time import Time
 
 __all__ = ['Canvas', 'active', 'iter', 'new']
@@ -131,6 +144,8 @@ _CANVAS_APPEARANCE_NAMES: Final = APPEARANCE_NAMES - {'title'}
 
 # A manual clock can jump far in one step, and every fixed step it crossed is run.
 _MANUAL_CATCH_UP_STEPS: Final = 1 << 30
+_MAXIMUM_STATE_RERUNS: Final = 64
+"""The most times one hook runs again in one step because of the state its own runs changed."""
 
 _MAXIMUM_BPM: Final = 600000.0
 
@@ -505,11 +520,18 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self._carried: dict[str, object] | None = None
         self._cursor_follow: tuple[_core.Buffer, int, int] | None = None
         self._state_namespace: StateNamespace | None = None
-        self._state_store = (
-            None
-            if state is _UNSET or state is None
-            else prepare_state(cast('DataclassInstance', state))
-        )
+        self._state_fields: frozenset[str] = frozenset()
+        self._state_store: _core.TerminalStateStore | None = None
+        if state is not _UNSET and state is not None:
+            self._state_store = prepare_state(cast('DataclassInstance', state))
+            self._state_fields = state_field_names(cast('DataclassInstance', state))
+        self._state_followers: _StateFollowers | None = None
+        self._state_subscription: _core.TerminalStateSubscription | None = None
+        self._state_hook: _core.Hook | None = None
+        self._state_marked: dict[StateFollower, _core.TerminalStateChange] = {}
+        self._internal_revisions: deque[int] = deque(maxlen=16)
+        self._namespace_identifiers = itertools.count(1)
+        self._active_run: _HookRun | None = None
         self._images: dict[int, ImageSource] = {}
         # Only placements with a formula or a range need looking at before each frame.
         self._dynamic: dict[int, Placement[DepsT, StateT]] = {}
@@ -551,10 +573,6 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             self._finalize()
             raise
         try:
-            if self._state_store is not None:
-                self._state_namespace = bind_namespace(
-                    self._state_store, self._request_frame
-                )
             if effects:
                 apply_effects(cast('Canvas[object, object]', self), effects)
         except BaseException:
@@ -586,7 +604,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         if self._appearance is not None:
             self._look_is_dirty = False
             self._redraw_look()
-        if self._state_store is not None:
+        if self._state_followers is not None and self._state_store is not None:
             runtime.watch_state(self._state_store)
         for registration in list(self._ledger):
             registration.bind(runtime)
@@ -641,6 +659,14 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         if self._size_hook is not None:
             self._size_hook.cancel()
             self._size_hook = None
+        if self._state_hook is not None:
+            self._state_hook.cancel()
+            self._state_hook = None
+        if self._state_subscription is not None:
+            self._state_subscription.cancel()
+            self._state_subscription = None
+        self._state_followers = None
+        self._state_marked.clear()
         with self._lock:
             placements = list(self._placements)
         for placement in placements:
@@ -906,6 +932,126 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         canvas = self._canvas
         canvas._host.post(lambda: canvas._runtime.request_frame())
 
+    # -- state ---------------------------------------------------------------------------
+
+    def _ensure_store(self) -> _core.TerminalStateStore:
+        """The canvas's state store, which is built the first time something needs it."""
+        canvas = self._canvas
+        store = canvas._state_store
+        if store is None:
+            with canvas._lock:
+                store = canvas._state_store
+                if store is None:
+                    store = canvas._state_store = prepare_state(None)
+        return store
+
+    def _create_root_namespace(self) -> StateNamespace:
+        """The namespace of the whole state, which ``canvas.state`` returns."""
+        canvas = self._canvas
+        with canvas._lock:
+            namespace = canvas._state_namespace
+            if namespace is None:
+                canvas._ensure_store()
+                namespace = canvas._state_namespace = StateNamespace(
+                    cast('Canvas[object, object]', canvas),
+                    (),
+                    fields=canvas._state_fields,
+                )
+        return namespace
+
+    def _new_state_namespace(self, kind: str) -> StateNamespace:
+        """A namespace of its own for a placement (``'buffers'``) or a hook (``'plugins'``)."""
+        canvas = self._canvas
+        store = canvas._ensure_store()
+        base = ('xnano', kind, str(next(canvas._namespace_identifiers)))
+        revision = create_branch(store, base)
+        if revision is not None:
+            canvas._internal_revisions.append(revision)
+        return StateNamespace(cast('Canvas[object, object]', canvas), base)
+
+    def _remove_state_branch(self, base: tuple[str | int, ...]) -> None:
+        """Delete the branch of a namespace whose placement or hook is gone."""
+        canvas = self._canvas
+        store = canvas._state_store
+        if store is None:
+            return
+        revision = remove_branch(store, base)
+        if revision is not None:
+            canvas._internal_revisions.append(revision)
+
+    def _commit_state(
+        self, pending: dict[tuple[str | int, ...], JSONValue]
+    ) -> _core.TerminalStateChange | None:
+        """Save pushed values in one transaction and make sure a frame follows."""
+        canvas = self._canvas
+        store = canvas._ensure_store()
+        change = commit_pending(store, pending)
+        if change is not None:
+            runtime = canvas._runtime_object
+            if runtime is not None and canvas._host.is_on_loop():
+                runtime.request_frame()
+            else:
+                canvas._request_frame()
+        return change
+
+    def _follow_state(
+        self,
+        follower: StateFollower,
+        paths: frozenset[tuple[str | int, ...]] | None,
+    ) -> None:
+        """Run ``follower`` again when a path in ``paths`` changes, or any path when ``None``."""
+        canvas = self._canvas
+        followers = canvas._state_followers
+        if followers is None:
+            store = canvas._ensure_store()
+            followers = canvas._state_followers = _StateFollowers()
+            canvas._state_subscription = store.subscribe([()], canvas._on_state_change)
+            canvas._state_hook = canvas._root.add_hook(
+                canvas._flush_state, events=['state_change']
+            )
+            canvas._runtime.watch_state(store)
+        followers.follow(follower, paths)
+
+    def _unfollow_state(self, follower: StateFollower) -> None:
+        """Stop running ``follower`` when state changes."""
+        canvas = self._canvas
+        followers = canvas._state_followers
+        if followers is not None:
+            followers.unfollow(follower)
+        canvas._state_marked.pop(follower, None)
+
+    def _on_state_change(self, change: _core.TerminalStateChange) -> None:
+        """Mark the followers a committed change reaches. Runs while the store is drained."""
+        followers = self._state_followers
+        if followers is None or change.revision in self._internal_revisions:
+            return
+        revision = change.revision
+        for follower in followers.affected(change.paths):
+            if revision not in follower._own_revisions:
+                self._state_marked[follower] = change
+
+    def _flush_state(self, _: CoreContext) -> None:
+        """Run the followers that were marked, then those their commits marked in turn."""
+        store = self._state_store
+        marked = self._state_marked
+        if store is None or not marked:
+            return
+        runs: dict[StateFollower, int] = {}
+        while marked:
+            batch = list(marked.items())
+            marked.clear()
+            for follower, change in batch:
+                count = runs.get(follower, 0) + 1
+                runs[follower] = count
+                if count > _MAXIMUM_STATE_RERUNS:
+                    marked.clear()
+                    follower._state_loop(
+                        change, [other for other in runs if other is not follower]
+                    )
+                    return
+                follower._state_followed(change)
+            store.drain_notifications()
+
     def _bindings_changed(self, placement: Placement[DepsT, StateT]) -> None:
         """A formula or range was set: look at the placement before each frame."""
         canvas = self._canvas
@@ -1152,8 +1298,20 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             self._deps = cast('DepsT', parsed['deps'])
             self._deps_given = True
         if 'state' in parsed and parsed['state'] is not None:
-            self._state_store = prepare_state(cast('DataclassInstance', parsed['state']))
-            self._state_namespace = bind_namespace(self._state_store, self._request_frame)
+            instance = cast('DataclassInstance', parsed['state'])
+            earlier = self._state_store
+            free = None
+            if earlier is not None:
+                free = {
+                    key: value
+                    for key, value in cast(
+                        'dict[str, JSONValue]', earlier.snapshot().to_value()
+                    ).items()
+                    if key != 'xnano'
+                }
+            self._state_store = prepare_state(instance, free)
+            self._state_fields = state_field_names(instance)
+            self._state_namespace = None
             self._state_given = True
         appearance = cast('dict[str, object]', parsed['appearance'])
         if appearance:
@@ -3013,25 +3171,21 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         """
         return self.audio.play(playable, **options)
 
-    @property
-    def state(self) -> StateT:
-        """
-        The canvas's state: the dataclass passed to ``new(state=...)``.
+    state = _StateAccessor()
+    """
+    The canvas's state: values that hooks and your code share, read and written by path.
 
-        Reading and writing its fields goes through the canvas's state store, so a write
-        is validated against the field's type, updates every expression that reads it,
-        and draws a frame. It can be used from any thread.
+    ``canvas.state.get('player.score')`` reads a value and ``canvas.state.push('player.score',
+    3)`` writes one; see [`StateNamespace`][xnano.state.StateNamespace] for the path rules. A
+    canvas created with ``new(state=Settings())`` also gives the fields of the dataclass as
+    attributes with their declared types, so ``canvas.state.volume`` is an ``int`` for a field
+    declared ``volume: int``; a write is checked against the field's type. A type checker
+    sees ``get`` and ``push`` only on a canvas without a state dataclass, but both exist on
+    every canvas.
 
-        Raises:
-            TerminalError: The canvas was created without ``state``.
-        """
-        namespace = self._canvas._state_namespace
-        if namespace is None:
-            raise TerminalError(
-                'This canvas has no state. Create it with xnano.new(state=YourDataclass()) '
-                'to give hooks something to read and write.'
-            )
-        return cast('StateT', namespace)
+    The state can be used from any thread. A write updates every expression that reads the
+    field and draws a frame.
+    """
 
     def ref(self, reader: Callable[[StateT], ValueT]) -> _core.StateReference[ValueT]:
         """

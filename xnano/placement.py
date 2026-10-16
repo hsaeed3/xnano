@@ -48,6 +48,7 @@ from xnano.operations import (
 )
 from xnano.region import Region
 from xnano.scene import Scene
+from xnano.state import StateNamespace
 
 
 class Placement(_Hooked[DepsT, StateT], _Looked):
@@ -139,6 +140,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         self._appearance: Appearance | None = None
         self._decorated: Decorated | None = None
         self._has_nested = False
+        self._state_namespace: StateNamespace | None = None
 
     @property
     def core_buffer(self) -> _core.Buffer:
@@ -182,6 +184,35 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
     def canvas(self) -> Canvas[DepsT, StateT]:
         """The canvas the buffer is placed on."""
         return self._canvas
+
+    @property
+    def state(self) -> StateNamespace:
+        """
+        State that belongs to this placement, read with ``get`` and written with ``push``.
+
+        It is the state of one placement, separate from the canvas's own
+        ([`Canvas.state`][xnano.canvas.Canvas.state]) and from that of other placements, and
+        it is deleted when the placement is removed. See
+        [`StateNamespace`][xnano.state.StateNamespace] for the path rules.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=8, height=1) as canvas:
+                first = canvas.write('a')
+                second = canvas.write('b')
+                first.state.push('clicks', 2)
+                assert first.state.get('clicks') == 2
+                assert second.state.get('clicks', default=0) == 0
+            ```
+        """
+        namespace = self._state_namespace
+        if namespace is None:
+            namespace = self._state_namespace = self._canvas._new_state_namespace(
+                'buffers'
+            )
+        return namespace
 
     @property
     def parent(self) -> ParentExpressionScope:
@@ -1038,6 +1069,10 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             return
         self._removed = True
         self._cancel_hooks()
+        namespace = self._state_namespace
+        if namespace is not None:
+            self._state_namespace = None
+            namespace._remove()
         with self._canvas._lock:
             self._bindings.clear()
             self._limits.clear()

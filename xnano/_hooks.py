@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import difflib
 import inspect
+from collections import deque
 from collections.abc import Callable, Generator, Sequence
 from typing import (
     TYPE_CHECKING,
@@ -32,6 +33,7 @@ from xnano._values import DepsT, KeyName, StateT
 from xnano._when import CompiledWhen, compile_when, normalize_chord
 from xnano.context import Context, Frame, Update
 from xnano.errors import TerminalError
+from xnano.state import StateFollower, StateNamespace, _HookRun, dotted
 
 HookKind: TypeAlias = Literal[
     'frame',
@@ -89,9 +91,9 @@ _EVENT_KINDS: Final[dict[str | None, tuple[str, ...]]] = {
     'focus': ('focus_gained', 'focus_lost'),
     'resize': ('resize',),
     'custom': ('custom',),
-    'state': ('state_change',),
+    'state': (),
 }
-"""The core event kinds each ``on`` listens to."""
+"""The core event kinds each ``on`` listens to; ``'state'`` is followed through the state store."""
 
 _TIMED: Final = frozenset({'frame', 'tick', 'beat'})
 _LEGACY_ON: Final[dict[str, str]] = {
@@ -228,6 +230,10 @@ class HookHandle(Generic[DepsT, StateT]):
         self._stop_frames: Callable[[], None] | None = None
         self._due: float | None = None
         self._is_captured = False
+        self._own_revisions: deque[int] = deque(maxlen=4)
+        self._state_run: _HookRun = _HookRun(track=on == 'state')
+        self._followed: frozenset[tuple[str | int, ...]] | None = None
+        self._plugin_state: StateNamespace | None = None
 
     @property
     def is_removed(self) -> bool:
@@ -265,6 +271,12 @@ class HookHandle(Generic[DepsT, StateT]):
         self._stop_frames = None
         if stop_frames is not None:
             stop_frames()
+        canvas = self._owner._canvas
+        canvas._unfollow_state(self)
+        plugin_state = self._plugin_state
+        if plugin_state is not None:
+            self._plugin_state = None
+            plugin_state._remove()
 
     # -- registering ---------------------------------------------------------------------
 
@@ -287,6 +299,8 @@ class HookHandle(Generic[DepsT, StateT]):
                 )
         elif kind == 'beat':
             self._arm(self._beat_seconds)
+        elif kind == 'state':
+            canvas._follow_state(self, self._followed)
         else:
             self._attach_core_hook(owner._buffer)
 
@@ -515,15 +529,91 @@ class HookHandle(Generic[DepsT, StateT]):
         return True
 
     def _run(self, context: Context[DepsT, StateT]) -> None:
-        predicate = self._when.predicate
-        if predicate is not None and not predicate(context):
+        canvas = self._owner._canvas
+        run = self._state_run
+        if run.is_active:
+            run = _HookRun(track=run.track)
+        previous = canvas._active_run
+        run.begin()
+        canvas._active_run = run
+        try:
+            predicate = self._when.predicate
+            if predicate is None or predicate(context):
+                if self._is_generator_function:
+                    self._advance(context)
+                else:
+                    result = self.function(context)
+                    if result is not None:
+                        self._apply_result(result)
+        except BaseException:
+            run.discard()
+            raise
+        finally:
+            canvas._active_run = previous
+        self._finish_run(canvas, run)
+
+    def _finish_run(self, canvas: Canvas[DepsT, StateT], run: _HookRun) -> None:
+        """Save what the run pushed in one transaction and note what it read."""
+        run.is_active = False
+        run.snapshot = None
+        pending = run.pending
+        if pending:
+            try:
+                change = canvas._commit_state(pending)
+            finally:
+                pending.clear()
+            if change is not None:
+                self._own_revisions.append(change.revision)
+        if run.track and run.reads:
+            reads = frozenset(run.reads)
+            run.reads.clear()
+            if reads != self._followed:
+                self._followed = reads
+                canvas._follow_state(self, reads)
+
+    def _state_followed(self, change: _core.TerminalStateChange) -> None:
+        """Run again because state this hook follows changed. Runs on the canvas's loop."""
+        if self._removed:
             return
-        if self._is_generator_function:
-            self._advance(context)
-            return
-        result = self.function(context)
-        if result is not None:
-            self._apply_result(result)
+        try:
+            if self._passes_expression():
+                self._run(self._context(None, change))
+        except Exception as error:
+            self._fail(change, error)
+
+    def _state_loop(
+        self, change: _core.TerminalStateChange, others: list[StateFollower]
+    ) -> None:
+        """Report that this hook keeps being run again by hooks that change what it reads."""
+        names = [_hook_name(self.function)]
+        names.extend(
+            _hook_name(other.function)
+            for other in others
+            if isinstance(other, HookHandle)
+        )
+        path = dotted(change.paths[0]) if change.paths else ''
+        if len(names) == 1:
+            text = (
+                f'The hook {names[0]!r} keeps being run again because {path!r} keeps '
+                f'changing. Make the hook stop writing what it reads, or write only when the '
+                f'value differs.'
+            )
+        else:
+            listed = ', '.join(repr(name) for name in names[:-1]) + f' and {names[-1]!r}'
+            text = (
+                f'The hooks {listed} keep changing {path!r} for each other. Make one of '
+                f'them stop writing it, or write only when the value differs.'
+            )
+        self._fail(change, TerminalError(text))
+
+    def _state_namespace(self) -> StateNamespace:
+        """The namespace of this hook's own state, which ``context.plugin.state`` returns."""
+        namespace = self._plugin_state
+        if namespace is None:
+            namespace = self._plugin_state = self._owner._canvas._new_state_namespace(
+                'plugins'
+            )
+        return namespace
 
     def _advance(self, context: Context[DepsT, StateT]) -> None:
         """Start the generator, or resume it with the newest context."""
@@ -589,6 +679,8 @@ class HookHandle(Generic[DepsT, StateT]):
 
     def _rebind(self, runtime: _core.Runtime) -> None:
         """Register again with a new runtime."""
+        if self.on == 'state' and not self._removed:
+            self._owner._canvas._follow_state(self, self._followed)
 
 
 class _Hooked(Generic[DepsT, StateT]):
@@ -789,11 +881,10 @@ class _Hooked(Generic[DepsT, StateT]):
             registration.remove()
 
 
-def _event_of(
-    core_context: CoreContext,
-) -> _core.Event | _core.TerminalStateChange | None:
-    state_change = core_context.state_change
+def _hook_name(function: Callable[..., object]) -> str:
+    return getattr(function, '__name__', 'hook')
+
+
+def _event_of(core_context: CoreContext) -> _core.Event | None:
     event: _core.Event | None = getattr(core_context, 'event', None)
-    if state_change is not None and (event is None or event.kind == 'state_change'):
-        return state_change
     return event

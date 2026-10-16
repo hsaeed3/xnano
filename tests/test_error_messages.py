@@ -70,6 +70,75 @@ def writes_a_path():
         canvas.write(pathlib.Path('picture.png'))  # type: ignore[arg-type]
 
 
+def reads_the_reserved_key():
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.state.get('xnano.buffers')
+
+
+def pushes_the_whole_root():
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.state.push('', {'a': 1})
+
+
+def pushes_a_wrong_type():
+    import dataclasses
+
+    @dataclasses.dataclass
+    class Settings:
+        volume: int = 1
+
+    with xnano.new(width=8, height=1, state=Settings()) as canvas:
+        canvas.state.push('volume', 'loud')
+
+
+def pushes_to_a_removed_placement():
+    with xnano.new(width=8, height=1) as canvas:
+        placement = canvas.write('a')
+        namespace = placement.state
+        placement.remove()
+        namespace.push('x', 1)
+
+
+def reads_an_attribute_that_is_not_a_field():
+    import dataclasses
+
+    @dataclasses.dataclass
+    class Settings:
+        volume: int = 1
+
+    with xnano.new(width=8, height=1, state=Settings()) as canvas:
+        canvas.state.loudness  # type: ignore[attr-defined]  # noqa: B018
+
+
+def names_a_field_get():
+    import dataclasses
+
+    @dataclasses.dataclass
+    class Settings:
+        get: int = 1
+
+    with xnano.new(width=8, height=1, state=Settings()):
+        pass
+
+
+def hooks_that_feed_each_other():
+    canvas = xnano.new(width=8, height=1)
+
+    @canvas.hook(on='state')
+    def ping(context):
+        state = context.root.state
+        state.push('ping', state.get('pong', default=0) + 1)
+
+    @canvas.hook(on='state')
+    def pong(context):
+        state = context.root.state
+        state.push('pong', state.get('ping', default=0) + 1)
+
+    canvas.state.push('ping', 1)
+    canvas.deliver_events()
+    canvas.close()
+
+
 @pytest.mark.parametrize(
     ('raiser', 'error', 'parts'),
     [
@@ -144,6 +213,50 @@ def writes_a_path():
             a_gate_that_is_off,
             TerminalError,
             ['needs scroll=True', 'xnano.new(scroll=True)', 'scroll=False'],
+        ),
+        (
+            lambda: xnano.state.parse_path('player..score'),
+            ValueError,
+            ["'player..score'", 'empty part', "'player.score'"],
+        ),
+        (
+            reads_the_reserved_key,
+            ValueError,
+            ["'xnano.buffers'", "starts with 'xnano'", 'another name'],
+        ),
+        (
+            pushes_the_whole_root,
+            ValueError,
+            ['whole root state', "push('score', 1)"],
+        ),
+        (
+            pushes_a_wrong_type,
+            TerminalError,
+            ["push 'volume' to 'loud'", 'Use a value the field accepts'],
+        ),
+        (
+            pushes_to_a_removed_placement,
+            TerminalError,
+            ["Could not push 'x'", 'was removed', 'still on the canvas'],
+        ),
+        (
+            reads_an_attribute_that_is_not_a_field,
+            AttributeError,
+            ['loudness is not a field', "get('loudness')"],
+        ),
+        (
+            names_a_field_get,
+            TerminalError,
+            ["field named 'get'", 'Rename the field'],
+        ),
+        (
+            hooks_that_feed_each_other,
+            TerminalError,
+            [
+                "hooks 'ping' and 'pong' keep changing",
+                'stop writing it',
+                'only when the value differs',
+            ],
         ),
     ],
 )
