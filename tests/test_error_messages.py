@@ -46,6 +46,30 @@ def a_gate_that_is_off():
         canvas._gates_for_screen({'scroll': False})
 
 
+def plays_an_unknown_name():
+    xnano.note('C2', symbol='kick_drum')
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.play('kik_drum')
+
+
+def plays_a_pixel_name():
+    xnano.Pixel('#', symbol='wall_cell')
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.play('wall_cell')
+
+
+def writes_bytes():
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.write(b'abc')  # type: ignore[arg-type]
+
+
+def writes_a_path():
+    import pathlib
+
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.write(pathlib.Path('picture.png'))  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize(
     ('raiser', 'error', 'parts'),
     [
@@ -87,6 +111,35 @@ def a_gate_that_is_off():
             ['must yield nothing', 'context = yield', "on='tick'"],
         ),
         (returns_content, TerminalError, ['cannot return content', '@xnano.renderable']),
+        (
+            plays_an_unknown_name,
+            ValueError,
+            [
+                "'kik_drum' is not a known sound symbol",
+                "'kick_drum'",
+                'an octave',
+                "symbol='kik_drum'",
+            ],
+        ),
+        (plays_a_pixel_name, TypeError, ['a Pixel symbol', 'Note or an Audio']),
+        (
+            lambda: xnano.note('H9'),
+            ValueError,
+            ["'H9' is not a note name", 'optional # or b'],
+        ),
+        (lambda: xnano.note('C4', beats=0), ValueError, ['beats must be', 'half a beat']),
+        (
+            lambda: xnano.note('C4', instrument='kazoo'),
+            ValueError,
+            ["'kazoo' is not an instrument", 'Use one of'],
+        ),
+        (
+            lambda: xnano.note('C4', symbol='C4'),
+            ValueError,
+            ["'C4' reads as a note", 'Pick another name'],
+        ),
+        (writes_bytes, TypeError, ['raw bytes', 'xnano.from_image(data)']),
+        (writes_a_path, TypeError, ['is a path', 'xnano.from_image(path)']),
         (
             a_gate_that_is_off,
             TerminalError,

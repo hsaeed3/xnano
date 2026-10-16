@@ -330,8 +330,15 @@ class TestPlacements:
                 return Buffer.with_text('hi')
 
         grid = Buffer.with_text('cell').to_cell_grid()
-        for content in ('text', grid, Greeting(), Buffer.with_text('buffer')):
+        for content in (
+            'text',
+            Greeting(),
+            Buffer.from_cell_grid(grid),
+            Buffer.with_text('buffer'),
+        ):
             assert canvas.write(content).width > 0
+        with pytest.raises(TypeError, match='does not accept raw bytes'):
+            canvas.write(grid)  # type: ignore[arg-type]
         with pytest.raises(TypeError, match='Cannot show a int'):
             canvas.write(5)  # type: ignore[arg-type]
 

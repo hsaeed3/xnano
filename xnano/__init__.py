@@ -3,8 +3,9 @@ xnano
 """
 
 from xnano import symbols as symbols
-from xnano._media import Audio, Image, from_media
+from xnano._media import Audio, Image, from_audio, from_image
 from xnano.canvas import Canvas, active, iter, new
+from xnano.music import Note, note, play
 from xnano.operations import hook
 from xnano.pixel import Pixel
 from xnano.region import box, write
@@ -16,14 +17,18 @@ __all__ = [
     'Canvas',
     'Color',
     'Image',
+    'Note',
     'Pixel',
     'Terminal',
     'active',
     'box',
-    'from_media',
+    'from_audio',
+    'from_image',
     'hook',
     'iter',
     'new',
+    'note',
     'open',
+    'play',
     'write',
 ]

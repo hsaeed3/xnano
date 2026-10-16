@@ -9,6 +9,7 @@ type its annotation promises, and every public item is documented.
 from __future__ import annotations
 
 import inspect
+import pathlib
 import re
 from typing import Any, cast
 
@@ -267,3 +268,21 @@ def test_the_stub_table_lists_every_instrument():
     listed = set(re.findall(r'``([a-z_]+)``', table))
     listed -= {'duration_milliseconds', 'note'}
     assert listed == set(instrument_names())
+
+
+def test_python_exposes_every_instrument_the_synth_defines():
+    """The Rust instrument table and ``instrument_names()`` list exactly the same names."""
+    source = (
+        pathlib.Path(__file__).resolve().parents[3]
+        / 'crates'
+        / 'xnano-terminal-audio'
+        / 'src'
+        / 'instruments.rs'
+    )
+    if not source.exists():
+        pytest.skip('the Rust sources are not part of this checkout')
+    defined = re.findall(r'instrument!\("([a-z_]+)"', source.read_text(encoding='utf-8'))
+    assert len(defined) > 10
+    assert list(instrument_names()) == defined
+    for name in defined:
+        assert render_note(name, 'C4', duration_milliseconds=50).peak > 0.0, name

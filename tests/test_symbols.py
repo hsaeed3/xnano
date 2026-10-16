@@ -90,3 +90,74 @@ class TestUnknownNames:
 
     def test_each_test_starts_with_the_registry_it_had(self):
         assert 'wall' not in symbols.names()
+
+
+class TestSymbolKeywords:
+    """``symbol=`` on a value registers it, and the same call again replaces it."""
+
+    def test_pixel_note_image_and_audio_register_themselves(self):
+        from xnano_audio import TerminalSound
+        from xnano_image import TerminalImage
+
+        pixel = xnano.Pixel('#', symbol='wall_cell')
+        note = xnano.note('C4', symbol='tone_cell')
+        image = xnano.Image(
+            TerminalImage.from_rgba(1, 1, bytes([1, 2, 3, 255])), symbol='dot_cell'
+        )
+        audio = xnano.Audio(TerminalSound.from_samples([0.0, 0.5]), symbol='blip_cell')
+        assert symbols.lookup('wall_cell') is pixel
+        assert symbols.lookup('tone_cell') is note
+        assert symbols.lookup('dot_cell') is image
+        assert symbols.lookup('blip_cell') is audio
+        assert (pixel.symbol, note.symbol, image.symbol, audio.symbol) == (
+            'wall_cell',
+            'tone_cell',
+            'dot_cell',
+            'blip_cell',
+        )
+
+    def test_the_factories_take_the_same_keyword(self):
+        from xnano_audio import TerminalSound
+        from xnano_image import TerminalImage
+
+        image = xnano.from_image(
+            TerminalImage.from_rgba(1, 1, bytes(4)), symbol='dot_factory'
+        )
+        audio = xnano.from_audio(
+            TerminalSound.from_samples([0.0, 0.5]), symbol='blip_factory'
+        )
+        assert symbols.names(kind=xnano.Image) == ('dot_factory',)
+        assert symbols.names(kind=Audio) == ('blip_factory',)
+        assert symbols.lookup('dot_factory') is image
+        assert symbols.lookup('blip_factory') is audio
+
+    def test_a_value_without_the_keyword_registers_nothing(self):
+        xnano.note('C4')
+        xnano.Pixel('#')
+        assert symbols.names() == ()
+
+    def test_building_the_same_symbol_twice_keeps_the_newer_one(self):
+        first = xnano.note('C4', symbol='tone_twice')
+        second = xnano.note('D4', symbol='tone_twice')
+        assert symbols.lookup('tone_twice') is second
+        assert symbols.lookup('tone_twice') is not first
+
+    def test_a_name_cannot_belong_to_two_kinds(self):
+        xnano.note('C4', symbol='shared_name')
+        with pytest.raises(
+            ValueError, match="already a Note.*symbols.remove\\('shared_name'\\)"
+        ):
+            xnano.Pixel('#', symbol='shared_name')
+        assert isinstance(symbols.lookup('shared_name'), xnano.Note)
+
+    def test_the_pixel_name_resolves_and_an_unknown_one_lists_the_known(self):
+        xnano.Pixel('#', symbol='wall_cell')
+        assert xnano.Pixel('wall_cell').character == '#'
+        with pytest.raises(ValueError, match='wall_cell'):
+            xnano.Pixel('wall_cel')
+
+    def test_a_note_name_cannot_be_a_symbol_for_any_value(self):
+        with pytest.raises(ValueError, match='reads as a note'):
+            xnano.Pixel('#', symbol='A4')
+        with pytest.raises(ValueError, match='reads as a note'):
+            xnano.note('C4', symbol='rest')

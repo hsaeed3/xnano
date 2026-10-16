@@ -39,11 +39,11 @@ class TestAutomaticSizing:
         placement = canvas.write('hello', x=3, width=8)
         assert (placement.x, placement.width, placement.height) == (3, 8, 1)
 
-    def test_bytes_of_a_cell_grid_are_sized_by_the_grid(self, canvas):
+    def test_a_cell_buffer_is_sized_by_the_buffer(self, canvas):
         from xnano_core import Buffer
 
         grid = Buffer.with_text('abcd').to_cell_grid()
-        assert canvas.write(grid).width == 4
+        assert canvas.write(Buffer.from_cell_grid(grid)).width == 4
 
     def test_each_axis_can_be_left_out_on_its_own(self, canvas):
         placement = canvas.write('hello', y=2)

@@ -9,7 +9,14 @@ screen it is opened on, and the functions that hook into events.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Literal, TypedDict
+from typing import (
+    TYPE_CHECKING,
+    Literal,
+    Protocol,
+    TypeAlias,
+    TypedDict,
+    runtime_checkable,
+)
 
 import xnano_core as _core
 from xnano._appearance import (
@@ -61,6 +68,13 @@ from xnano_core import (
     BorderKind as BorderKind,
 )
 
+if TYPE_CHECKING:
+    from xnano_audio import InstrumentName
+
+    from xnano._media import Audio
+    from xnano.context import Context
+    from xnano.music import Note
+
 __all__ = [
     'AppearanceArguments',
     'Axis',
@@ -77,10 +91,14 @@ __all__ = [
     'OpenSettings',
     'PixelEncoding',
     'PixelPreset',
+    'Playable',
+    'PlayableEffectSpecification',
+    'PlayOptions',
     'RangeBound',
     'Renderable',
     'Spacing',
     'SpacingDictionary',
+    'SupportsPlay',
     'When',
 ]
 
@@ -249,3 +267,65 @@ class OpenSettings(CanvasSettings, total=False):
     """The dependencies hooks read as ``context.deps``."""
     state: object
     """A dataclass instance the canvas keeps and validates."""
+
+
+PlayableEffectSpecification: TypeAlias = Mapping[str, object]
+"""
+A sound effect written as a dictionary: a ``kind`` such as ``'audio.reverb'`` and that effect's
+keywords, for example ``{'kind': 'audio.reverb', 'mix': 0.4}``.
+"""
+
+
+@runtime_checkable
+class SupportsPlay(Protocol):
+    """
+    Anything that can be played: an object with a ``__xnano_play__`` method.
+
+    The method receives the [`Context`][xnano.context.Context] and returns what to play.
+    No base class is needed; a dataclass or a plain class qualifies.
+    """
+
+    def __xnano_play__(self, context: Context) -> Playable:
+        """Return what to play."""
+        ...
+
+
+Playable: TypeAlias = 'str | Note | Audio | SupportsPlay | Sequence[Playable]'
+"""
+Anything [`play`][xnano.play] and [`Canvas.play`][xnano.canvas.Canvas.play] accept: a
+[`Note`][xnano.Note], an [`Audio`][xnano.Audio], an object with ``__xnano_play__``, a
+sequence of those that plays one after another, or a ``str``: the name of a registered
+symbol, a note name such as ``'C#4'``, or melody text such as ``'C4 E4 G4:2'``.
+"""
+
+
+class PlayOptions(TypedDict, total=False):
+    """
+    The keyword options of [`play`][xnano.play]. An option replaces the same value on a
+    [`Note`][xnano.Note].
+
+    Attributes:
+        instrument: A built-in instrument, from
+            [`instrument_names`][xnano_audio.instrument_names].
+        velocity: How hard a note is played, from 0.0 to 1.0.
+        effects: Sound effects as dictionaries with a ``kind`` key.
+        volume: Playback gain from 0.0 to 1.0.
+        pan: Stereo position from -1.0 (left) to 1.0 (right).
+        at_beat: Start when the musical clock reaches this beat.
+        beats: How long a note name, a number or a ``Note`` is held, in beats.
+    """
+
+    instrument: InstrumentName
+    """A built-in instrument name."""
+    velocity: float
+    """How hard a note is played."""
+    effects: Sequence[PlayableEffectSpecification]
+    """Sound effects as dictionaries with a ``kind`` key."""
+    volume: float
+    """Playback gain."""
+    pan: float
+    """Stereo position."""
+    at_beat: int
+    """The beat of the musical clock to start on."""
+    beats: float
+    """The length in beats."""

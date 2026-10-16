@@ -336,7 +336,7 @@ with xnano.open(width=8, height=2) as terminal:
 from xnano_image import TerminalImage
 image = TerminalImage.from_rgba(4, 2, bytes([0, 255, 0, 255]) * 8)
 with xnano.open(width=10, height=2) as terminal:
-    terminal.write(image)
+    terminal.write(xnano.Image(image))
     time.sleep(1.2)
 """
         )
@@ -361,12 +361,13 @@ class TestGraphicsProtocols:
     """The escape sequences of each protocol reach the terminal; the emulator cannot draw them."""
 
     SCRIPT = """
+from xnano_core import Buffer
 from xnano_image import TerminalGraphics, TerminalImage
 image = TerminalImage.from_rgba(16, 16, bytes([255, 0, 0, 255]) * 256)
 graphics = TerminalGraphics.from_capabilities(protocol={protocol!r}, cell_size_in_pixels=(8, 16))
 grid = image.to_cell_grid(4, 2, graphics=graphics)
 with xnano.open(width=10, height=3) as terminal:
-    terminal.write(grid)
+    terminal.write(Buffer.from_cell_grid(grid))
     time.sleep(1)
 """
 

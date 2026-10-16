@@ -105,7 +105,9 @@ class _Demo:
         terminal = self.terminal
         clip = TerminalImage.from_xni((ASSETS / 'luffy.xni').read_bytes())
         self.intro.append(
-            terminal.write(clip, x='center', y='center', width='100%', height='100%')
+            terminal.write(
+                xnano.Image(clip), x='center', y='center', width='100%', height='100%'
+            )
         )
         self.intro.append(terminal.write(wordmark(), x='center', y='center', layer=2))
         self.intro.append(

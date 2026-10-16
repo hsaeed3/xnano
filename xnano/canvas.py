@@ -29,13 +29,12 @@ from xnano_core import FrameContext, UpdateContext
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
     from typing_extensions import Self, TypeIs, Unpack
-    from xnano_audio import InstrumentName, TerminalAudioEffect
-    from xnano_image import TerminalImage
 
-    from xnano.audio import AudioDevice, Playable
+    from xnano.audio import AudioDevice, PlaySource
     from xnano.context import Context
+    from xnano.music import PlayHandle
     from xnano.terminal import Terminal
-    from xnano.types import CanvasSettings, OpenSettings
+    from xnano.types import CanvasSettings, OpenSettings, PlayOptions
 
 from xnano._appearance import APPEARANCE_NAMES, Appearance, Spacing
 from xnano._customize import Customization, apply_effects
@@ -43,7 +42,7 @@ from xnano._decoration import Decorated, insets_for
 from xnano._hooks import HookHandle, _Hooked
 from xnano._host import _Host, _InlineHost, _Registration, _ThreadHost
 from xnano._media import Image, ImageSource, content_buffer
-from xnano._optional import is_image, require
+from xnano._optional import require
 from xnano._values import (
     RGB,
     Axis,
@@ -1707,9 +1706,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         time. It may not have been given ``state`` or ``deps``, which belong to the outermost
         canvas.
 
-        An image is added as an image: a [`TerminalImage`][xnano_image.TerminalImage] or the
-        [`Image`][xnano.Image] (never a file path; see
-        [`from_media`][xnano.from_media]). With neither ``width`` nor ``height`` it keeps
+        An image is added as an [`Image`][xnano.Image] (never a file path or a bare
+        [`TerminalImage`][xnano_image.TerminalImage]; load one with
+        [`from_image`][xnano.from_image]). With neither ``width`` nor ``height`` it keeps
         its own proportions at its own size, shrunk to fit the canvas. With one of them the
         other follows the image's proportions, and with both the image fits inside that box. An
         image sized by a percentage, or by the canvas because you gave no size, is converted
@@ -1963,13 +1962,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 custom_placement._set_axis('height', height)
             custom_placement.update(content)
             return custom_placement
-        picture = (
-            content
-            if isinstance(content, Image)
-            else Image(cast('TerminalImage', content))
-            if is_image(content)
-            else None
-        )
+        picture = content if isinstance(content, Image) else None
         text_appearance: Appearance | None = None
         is_text = picture is None and (
             isinstance(content, str)
@@ -2997,24 +2990,16 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             canvas._input = Input(cast('Canvas[object, object]', canvas))
         return canvas._input
 
-    def play(
-        self,
-        source: Playable,
-        *,
-        instrument: InstrumentName = 'piano',
-        duration_milliseconds: int = 500,
-        velocity: float = 0.8,
-        effects: list[TerminalAudioEffect] | None = None,
-        volume: float = 1.0,
-        pan: float = 0.0,
-        at_beat: int | None = None,
-    ) -> None:
+    def play(self, playable: PlaySource, /, **options: Unpack[PlayOptions]) -> PlayHandle:
         """
-        Play a sound, a note, a melody or melody text, and return at once.
+        Play a note, a sound, a symbol name, a melody or a sequence of those, and return at once.
 
-        This is [`audio.play`][xnano.audio.AudioDevice.play]; see it for every argument. On
-        a canvas from ``new()`` the sound is recorded instead of played; read it with
-        [`audio.render_sound`][xnano.audio.AudioDevice.render_sound].
+        This is [`audio.play`][xnano.audio.AudioDevice.play]; see it for what ``playable`` may
+        be and for every option. On a canvas from ``new()`` the sound is recorded instead of
+        played; read it with [`audio.render_sound`][xnano.audio.AudioDevice.render_sound].
+
+        Returns:
+            A [`PlayHandle`][xnano.music.PlayHandle] that tells when the sound is over.
 
         Examples:
             ```python
@@ -3026,16 +3011,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 assert canvas.audio.render_sound().duration_milliseconds == 1000.0
             ```
         """
-        self.audio.play(
-            source,
-            instrument=instrument,
-            duration_milliseconds=duration_milliseconds,
-            velocity=velocity,
-            effects=effects,
-            volume=volume,
-            pan=pan,
-            at_beat=at_beat,
-        )
+        return self.audio.play(playable, **options)
 
     @property
     def state(self) -> StateT:

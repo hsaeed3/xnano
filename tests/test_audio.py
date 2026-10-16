@@ -281,7 +281,7 @@ class TestRecording:
         assert len(calls) == 2
 
     def test_a_note_rings_on_into_the_next_window(self, manual):
-        manual.audio.play('C4', duration_milliseconds=300)
+        manual.audio.play('C4', beats=0.6)
         manual.step()
         first = manual.audio.render_sound()
         manual.step()
@@ -333,19 +333,22 @@ class TestRecording:
             ({'source': 0.5}, ValueError, 'frequency 0.5 Hz'),
             ({'source': 'abchz'}, ValueError, 'not a frequency'),
             ({'source': '5hz'}, ValueError, 'frequency 5.0 Hz'),
-            ({'source': 'C4', 'duration_milliseconds': -5}, ValueError, 'between 1 and'),
+            ({'source': 'C4', 'beats': -5}, ValueError, 'beats must be a length'),
+            ({'source': 'C4', 'beats': 0}, ValueError, 'beats must be a length'),
+            ({'source': 'C4', 'beats': 2001}, ValueError, 'beats must be a length'),
             (
-                {'source': 'C4', 'duration_milliseconds': 60001},
+                {'source': 'C4', 'beats': float('nan')},
                 ValueError,
-                'between 1 and',
+                'beats must be a number',
             ),
+            ({'source': 'C4', 'volume': 2.0}, ValueError, 'volume must be'),
         ],
     )
     def test_every_bad_argument_is_rejected_where_play_is_called(
         self, manual, arguments, error, message
     ):
         with pytest.raises(error, match=message):
-            manual.audio.play(**arguments)
+            manual.audio.play(arguments.pop('source'), **arguments)
         manual.step(delta_seconds=1.0)
         assert (
             max(abs(sample) for sample in manual.audio.render_sound().samples()) == 0.0

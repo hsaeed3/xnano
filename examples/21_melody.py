@@ -50,7 +50,7 @@ def main() -> None:
             if terminal.audio.is_available:
                 terminal.play(
                     'C6' if beats.count % 4 == 1 else 'G5',
-                    duration_milliseconds=round(0.1 * 60000 / terminal.bpm),
+                    beats=0.1,
                     volume=0.3,
                 )
 

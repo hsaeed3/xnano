@@ -105,7 +105,7 @@ def main() -> None:
             (MUSHROOM, 'mushroom', 45),
             (SLIME, 'slime', 66),
         ):
-            terminal.write(sprite, x=column, y=2, width=sprite.width * 2)
+            terminal.write(xnano.Image(sprite), x=column, y=2, width=sprite.width * 2)
             terminal.write(name.center(20), x=column - 1, y=11, style=Style(dim=True))
         terminal.run(quit_on='q')
 

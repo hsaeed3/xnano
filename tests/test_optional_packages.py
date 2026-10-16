@@ -57,6 +57,44 @@ def test_using_a_module_of_a_missing_package_says_how_to_install_it(statement, e
     assert 'ImportError' in result.stderr
 
 
+def test_a_note_can_be_defined_without_the_audio_package():
+    result = run(
+        """
+        note = xnano.note(['C4', 'E4'], beats=2.0, symbol='tone_extra')
+        print(note.pitch, xnano.symbols.lookup('tone_extra') is note)
+        """
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "('C4', 'E4') True"
+
+
+def test_playing_without_the_audio_package_says_how_to_install_it():
+    result = run(
+        """
+        xnano.play(xnano.note('C4'))
+        """
+    )
+    assert result.returncode != 0
+    assert 'pip install "xnano[audio]"' in result.stderr
+
+
+def test_the_audio_value_says_how_to_install_it_and_from_image_too():
+    result = run(
+        """
+        xnano.from_audio(b'RIFF')
+        """
+    )
+    assert result.returncode != 0
+    assert 'pip install "xnano[audio]"' in result.stderr
+    result = run(
+        """
+        xnano.from_image(b'x')
+        """
+    )
+    assert result.returncode != 0
+    assert 'pip install "xnano[image]"' in result.stderr
+
+
 def test_the_audio_of_a_canvas_says_how_to_install_it():
     result = run(
         """

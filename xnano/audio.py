@@ -9,13 +9,17 @@ utilities for sound playback and composition. Needs the optional ``audio`` extra
 from __future__ import annotations
 
 import collections
+import collections.abc
 import dataclasses
+import math
 import threading
-from collections.abc import Callable
+import time
+from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Final, TypeAlias, cast
 
-from xnano import _optional
+from xnano import _optional, symbols
 from xnano._media import Audio
+from xnano.music import Note, PlayHandle
 
 _optional.require('audio', needed_for='xnano.audio')
 
@@ -41,7 +45,9 @@ from xnano._values import NumericExpression  # noqa: E402
 from xnano_core._xnano_core import _external  # the hook for values an extension provides  # noqa: E402
 
 if TYPE_CHECKING:
+    from xnano._customize import AudioCustomization, CustomizationKind
     from xnano.canvas import Canvas
+    from xnano.types import Playable
 
 __all__ = [
     'Audio',
@@ -49,7 +55,7 @@ __all__ = [
     'InstrumentName',
     'NoteName',
     'Pitch',
-    'Playable',
+    'PlaySource',
     'TerminalAudioEffect',
     'TerminalAudioError',
     'TerminalAudioUnavailableError',
@@ -59,20 +65,22 @@ __all__ = [
     'instrument_names',
 ]
 
-Playable: TypeAlias = (
-    Audio | TerminalSound | TerminalNote | TerminalMelody | NoteName | int | float | str
+PlaySource: TypeAlias = (
+    'Playable | int | float | TerminalSound | TerminalNote | TerminalMelody'
 )
 """
-Anything [`AudioDevice.play`][xnano.audio.AudioDevice.play] accepts: an [`Audio`][xnano.Audio], a rendered sound, a note, a melody, a
-[`NoteName`][xnano.audio.NoteName] such as ``'C#4'``, a MIDI note number such as ``60``, a frequency
-in hertz, or text: ``'440hz'``, or a melody such as ``'C4 E4 G4:2 rest C5+E5+G5'`` (see
-[`AudioDevice.play`][xnano.audio.AudioDevice.play]).
+Anything [`AudioDevice.play`][xnano.audio.AudioDevice.play] accepts: a
+[`Playable`][xnano.types.Playable] (a [`Note`][xnano.Note], an [`Audio`][xnano.Audio], a symbol name, a
+note name such as ``'C#4'``, melody text, or a sequence of those), a MIDI note number such as
+``60``, a frequency in hertz, or a rendered sound, note or melody from ``xnano-audio``.
 """
 
 
-def _parse_melody(text: str, beats_per_minute: float) -> TerminalMelody:
+def _parse_melody(
+    text: str, beats_per_minute: float, default_beats: float = 1.0
+) -> TerminalMelody:
     """
-    Read a melody written as text: notes separated by spaces, one beat each.
+    Read a melody written as text: notes separated by spaces, ``default_beats`` each.
 
     ``C4`` is a note, ``C4:0.5`` holds it for half a beat, ``C4+E4+G4`` is a chord, and
     ``rest`` (or ``-``) is a silence, which takes ``:beats`` the same way, and ``|`` is a bar line
@@ -84,7 +92,7 @@ def _parse_melody(text: str, beats_per_minute: float) -> TerminalMelody:
             continue
         name, _, length = entry.partition(':')
         try:
-            beats = float(length) if length else 1.0
+            beats = float(length) if length else default_beats
             if name.lower() in ('rest', '-'):
                 melody = melody.appended_rest(beats)
             else:
@@ -121,10 +129,11 @@ _LONGEST_NOTE_MILLISECONDS: Final = 60000
 def _check_play_arguments(
     source: object,
     *,
-    duration_milliseconds: int,
-    effects: list[TerminalAudioEffect] | None,
+    beats: float | None,
+    bpm: float,
     pan: float,
     at_beat: int | None,
+    volume: float,
 ) -> None:
     """Raise the error a bad ``play()`` argument deserves, where ``play()`` was called."""
     if not -1.0 <= pan <= 1.0:
@@ -137,18 +146,12 @@ def _check_play_arguments(
             f'at_beat must be 0 or more, but was {at_beat!r}. Pass the beat of the musical '
             f'clock to start on, or remove at_beat to start now.'
         )
-    if not 1 <= duration_milliseconds <= _LONGEST_NOTE_MILLISECONDS:
+    if not 0.0 <= volume <= 1.0:
         raise ValueError(
-            f'duration_milliseconds must be between 1 and {_LONGEST_NOTE_MILLISECONDS}, but '
-            f'was {duration_milliseconds!r}. Use 500 for half a second.'
+            f'volume must be from 0.0 to 1.0, but was {volume!r}. Use 1.0 for full volume.'
         )
-    for effect in effects or ():
-        if not isinstance(effect, TerminalAudioEffect):
-            raise TypeError(
-                f'effects must hold audio effects, but one was {effect!r}. Build effects '
-                f'with xnano_audio.TerminalAudioEffect, for example '
-                f'TerminalAudioEffect.reverb().'
-            )
+    if beats is not None:
+        _milliseconds(beats, bpm)
     if isinstance(source, bool):
         return
     if isinstance(source, int):
@@ -173,6 +176,28 @@ def _check_play_arguments(
                 f'"440hz", or use a note name such as "C4".'
             ) from None
         _check_hertz(hertz)
+
+
+def _milliseconds(beats: float, bpm: float) -> int:
+    """The length in milliseconds of ``beats`` at ``bpm``, or the error that explains why not."""
+    if (
+        isinstance(beats, bool)
+        or not isinstance(beats, (int, float))
+        or not math.isfinite(beats)
+    ):
+        raise ValueError(
+            f'beats must be a number of beats such as 1.0, but was {beats!r}. Use 0.5 for '
+            f'half a beat.'
+        )
+    milliseconds = round(beats * 60000.0 / bpm)
+    if not 1 <= milliseconds <= _LONGEST_NOTE_MILLISECONDS:
+        longest = _LONGEST_NOTE_MILLISECONDS / 60000.0 * bpm
+        raise ValueError(
+            f'beats must be a length from a thousandth of a second to a minute, but {beats!r} '
+            f'beats at {bpm:g} bpm is {milliseconds} milliseconds. Use more than 0 and at '
+            f'most {longest:g} beats at this tempo.'
+        )
+    return milliseconds
 
 
 def _check_hertz(hertz: float) -> None:
@@ -212,6 +237,344 @@ class _Recording:
     source: object
     synthesize: Callable[[], TerminalSound]
     volume: float
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _Options:
+    """The options of one ``play()`` call that override what a note carries."""
+
+    instrument: InstrumentName | None
+    beats: float | None
+    velocity: float | None
+    effects: tuple[TerminalAudioEffect, ...] | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _Planned:
+    """One sound that a ``play()`` call will make: when it starts and how to make it."""
+
+    offset_seconds: float
+    length_seconds: float
+    key: tuple[object, ...]
+    anchor: object | None
+    synthesize: Callable[[], TerminalSound]
+
+
+_INSTRUMENTS: Final = frozenset(instrument_names())
+"""Every built-in instrument name, read once."""
+
+
+def _check_instrument(instrument: str) -> None:
+    if instrument not in _INSTRUMENTS:
+        raise ValueError(
+            f'{instrument!r} is not an instrument. Use one of: '
+            f'{", ".join(instrument_names())}.'
+        )
+
+
+def _check_velocity(velocity: float) -> None:
+    if not 0.0 <= velocity <= 1.0:
+        raise ValueError(
+            f'velocity must be from 0.0 to 1.0, but was {velocity!r}. Use 0.8 for an '
+            f'ordinary note.'
+        )
+
+
+def resolve_effects(
+    effects: Sequence[object] | None,
+) -> tuple[TerminalAudioEffect, ...]:
+    """
+    Turn the effects of a ``play()`` call or a note into ``TerminalAudioEffect`` objects.
+
+    Args:
+        effects: Audio effects, or dictionaries with a ``kind`` key such as
+            ``{'kind': 'audio.reverb', 'mix': 0.4}``.
+
+    Raises:
+        TypeError: An element is not an audio effect, or names a visual effect.
+    """
+    if not effects:
+        return ()
+    from xnano.operations import fx
+
+    resolved: list[TerminalAudioEffect] = []
+    for effect in effects:
+        if isinstance(effect, TerminalAudioEffect):
+            resolved.append(effect)
+            continue
+        if isinstance(effect, Mapping) and isinstance(effect.get('kind'), str):
+            parameters = dict(effect)
+            kind = cast('str', parameters.pop('kind'))
+            if kind.startswith('effect.'):
+                raise TypeError(
+                    f'{kind!r} is a visual effect; pass it to write(effects=...) or '
+                    f'draw(effects=...), not to a sound. Sound effects have kinds that '
+                    f"start with 'audio.', such as 'audio.reverb'."
+                )
+            built = fx(cast('CustomizationKind', kind), **parameters)  # type: ignore[call-overload]
+            if not kind.startswith('audio.'):
+                raise TypeError(
+                    f'{kind!r} is not a sound effect. Use a kind that starts with '
+                    f"'audio.', such as 'audio.reverb'."
+                )
+            resolved.append(cast('AudioCustomization', built).to_audio_effect())
+            continue
+        raise TypeError(
+            f'effects must hold audio effects, but one was {effect!r}. Pass dictionaries '
+            f"such as {{'kind': 'audio.reverb'}}, or build effects with "
+            f'xnano_audio.TerminalAudioEffect, for example TerminalAudioEffect.reverb().'
+        )
+    return tuple(resolved)
+
+
+_STANDARD_SAMPLE_RATE: Final = 44100
+"""The sample rate of every synthesized sound, which a mix needs all its layers to have."""
+
+
+def _at_standard_rate(sound: TerminalSound) -> TerminalSound:
+    """``sound`` at 44100 Hz, so it can be mixed with synthesized sounds."""
+    rate = sound.sample_rate
+    if rate == _STANDARD_SAMPLE_RATE:
+        return sound
+    samples = sound.samples()
+    count = max(1, round(len(samples) * _STANDARD_SAMPLE_RATE / rate))
+    scale = (len(samples) - 1) / max(1, count - 1)
+    converted: list[float] = []
+    for index in range(count):
+        position = index * scale
+        before = int(position)
+        after = min(before + 1, len(samples) - 1)
+        share = position - before
+        converted.append(samples[before] * (1.0 - share) + samples[after] * share)
+    return TerminalSound.from_samples(converted, sample_rate=_STANDARD_SAMPLE_RATE)
+
+
+def mix_planned(planned: list[_Planned]) -> TerminalSound:
+    """Synthesize the sounds of a ``play()`` call and mix them on their timeline."""
+    sounds = [(item.synthesize(), item.offset_seconds) for item in planned]
+    if len(sounds) > 1:
+        sounds = [(_at_standard_rate(sound), offset) for sound, offset in sounds]
+    if len(sounds) == 1:
+        return sounds[0][0]
+    end = max(offset + sound.duration_milliseconds / 1000.0 for sound, offset in sounds)
+    return TerminalSound.mix(
+        [(sound, offset, 1.0) for sound, offset in sounds], duration_seconds=end
+    )
+
+
+def _known_sound_names() -> str:
+    names = sorted(
+        name
+        for name, value in symbols._registry.items()
+        if isinstance(value, (Note, Audio))
+    )
+    return ', '.join(repr(name) for name in names) if names else 'none yet'
+
+
+def plan_call(
+    source: object,
+    *,
+    bpm: float,
+    instrument: InstrumentName | None,
+    beats: float | None,
+    velocity: float | None,
+    effects: Sequence[object] | None,
+    volume: float,
+    pan: float,
+    at_beat: int | None,
+) -> list[_Planned]:
+    """
+    Check the arguments of a ``play()`` call and work out every sound it makes.
+
+    Returns:
+        The sounds, with their start times in seconds from the start of the call.
+    """
+    _check_play_arguments(
+        source, beats=beats, bpm=bpm, pan=pan, at_beat=at_beat, volume=volume
+    )
+    if instrument is not None:
+        _check_instrument(instrument)
+    if velocity is not None:
+        _check_velocity(velocity)
+    options = _Options(
+        instrument, beats, velocity, None if effects is None else resolve_effects(effects)
+    )
+    planned: list[_Planned] = []
+    _plan_into(planned, source, options, bpm, 0.0)
+    return planned
+
+
+def _plan_into(
+    planned: list[_Planned], source: object, options: _Options, bpm: float, offset: float
+) -> float:
+    """Add the sounds of ``source`` starting ``offset`` seconds in; return where it ends."""
+    if isinstance(source, str):
+        registered = symbols._registry.get(source)
+        if registered is not None:
+            if not isinstance(registered, (Note, Audio)):
+                raise TypeError(
+                    f'{source!r} is a {type(registered).__name__} symbol, and play() makes '
+                    f'sound from a Note or an Audio. Known sound symbols: '
+                    f'{_known_sound_names()}.'
+                )
+            return _plan_into(planned, registered, options, bpm, offset)
+    if isinstance(source, Note):
+        return _plan_pitches(
+            planned,
+            source.pitch if isinstance(source.pitch, tuple) else (source.pitch,),
+            options,
+            bpm,
+            offset,
+            beats=source.beats,
+            instrument=source.instrument,
+            velocity=source.velocity,
+            effects=resolve_effects(source.effects),
+        )
+    if isinstance(source, Audio):
+        return _plan_into(planned, source.sound, options, bpm, offset)
+    if isinstance(source, TerminalSound):
+        sound = source
+        effects = options.effects or ()
+        length = sound.duration_milliseconds / 1000.0
+        planned.append(
+            _Planned(
+                offset,
+                length,
+                (id(sound), tuple(repr(effect) for effect in effects)),
+                sound,
+                lambda: sound.with_effects(list(effects)) if effects else sound,
+            )
+        )
+        return offset + length
+    if isinstance(source, TerminalNote):
+        melody = TerminalMelody(
+            [source.with_start_beats(0.0)], tempo_map=TerminalTempoMap(bpm)
+        )
+        return _plan_melody(planned, melody, source, options, bpm, offset, source)
+    if isinstance(source, TerminalMelody):
+        return _plan_melody(planned, source, source, options, bpm, offset, source)
+    if isinstance(source, str) and _is_melody_text(source):
+        beats = options.beats if options.beats is not None else 1.0
+        melody = _parse_melody(source, bpm, beats)
+        return _plan_melody(planned, melody, source, options, bpm, offset, None, beats)
+    if isinstance(source, (str, int, float)):
+        _check_pitch_text(source)
+        return _plan_pitches(planned, (source,), options, bpm, offset)
+    if isinstance(source, collections.abc.Sequence) and not isinstance(
+        source, (bytes, bytearray)
+    ):
+        if len(source) == 0:
+            raise ValueError(
+                'play() was given an empty sequence, so there is nothing to play. Pass '
+                'notes such as [note("C4"), note("E4")].'
+            )
+        for element in source:
+            offset = _plan_into(planned, element, options, bpm, offset)
+        return offset
+    raise TypeError(
+        f'Cannot play a {type(source).__name__}. Play a Note, an Audio, a symbol name, a '
+        f'note name such as "C4", melody text such as "C4 E4 G4:2", a MIDI number, a '
+        f'frequency, or a sequence of those.'
+    )
+
+
+def _check_pitch_text(source: str | int | float) -> None:
+    """Raise the error for a ``str`` that is no symbol, note name or melody text."""
+    if isinstance(source, (int, float)) or source.strip().lower().endswith('hz'):
+        return
+    try:
+        TerminalNote(cast('Pitch', source))
+    except ValueError as error:
+        raise ValueError(
+            f'{source!r} is not a known sound symbol, a note name or melody text. {error} '
+            f'Known sound symbols: {_known_sound_names()}. A note name is a letter, an '
+            f'optional # or b, and an octave, such as "C4" or "Bb3"; melody text is notes '
+            f'separated by spaces, such as "C4 E4 G4:2"; register a sound with '
+            f'symbol={source!r} when you create it.'
+        ) from None
+
+
+def _plan_pitches(
+    planned: list[_Planned],
+    pitches: tuple[object, ...],
+    options: _Options,
+    bpm: float,
+    offset: float,
+    *,
+    beats: float = 1.0,
+    instrument: InstrumentName = 'piano',
+    velocity: float = 0.8,
+    effects: tuple[TerminalAudioEffect, ...] = (),
+) -> float:
+    """Add one note, or one chord when there are several pitches."""
+    beats = options.beats if options.beats is not None else beats
+    instrument = options.instrument if options.instrument is not None else instrument
+    velocity = options.velocity if options.velocity is not None else velocity
+    effects = options.effects if options.effects is not None else effects
+    _check_instrument(instrument)
+    _check_velocity(velocity)
+    milliseconds = _milliseconds(beats, bpm)
+    effect_names = tuple(repr(effect) for effect in effects)
+    key = ('pitches', pitches, instrument, velocity, milliseconds, effect_names)
+
+    def synthesize() -> TerminalSound:
+        sounds = [
+            render_note(
+                instrument,
+                cast('Pitch', pitch),
+                duration_milliseconds=milliseconds,
+                velocity=velocity,
+                effects=list(effects) or None,
+            )
+            for pitch in pitches
+        ]
+        if len(sounds) == 1:
+            return sounds[0]
+        longest = max(sound.duration_milliseconds for sound in sounds) / 1000.0
+        gain = 1.0 / math.sqrt(len(sounds))
+        return TerminalSound.mix(
+            [(sound, 0.0, gain) for sound in sounds], duration_seconds=longest
+        )
+
+    length = milliseconds / 1000.0
+    planned.append(_Planned(offset, length + _RELEASE_SECONDS, key, None, synthesize))
+    return offset + length
+
+
+def _plan_melody(
+    planned: list[_Planned],
+    melody: TerminalMelody,
+    identity: object,
+    options: _Options,
+    bpm: float,
+    offset: float,
+    anchor: object | None,
+    default_beats: float = 1.0,
+) -> float:
+    """Add a melody, which plays its own notes at their own lengths."""
+    instrument = options.instrument if options.instrument is not None else 'piano'
+    _check_instrument(instrument)
+    effects = options.effects or ()
+    effect_names = tuple(repr(effect) for effect in effects)
+    key = (
+        'melody',
+        id(identity) if anchor is not None else identity,
+        instrument,
+        bpm,
+        default_beats,
+        effect_names,
+    )
+    length = melody.duration_seconds
+    planned.append(
+        _Planned(
+            offset,
+            length + _RELEASE_SECONDS,
+            key,
+            anchor,
+            lambda: melody.render(instrument, effects=list(effects) or None),
+        )
+    )
+    return offset + length
 
 
 class AudioDevice:
@@ -269,6 +632,7 @@ class AudioDevice:
         self._level = _external(_LEVEL_NAME, True)
         self._beat = _external(_BEAT_NAME, True)
         self._recordings: list[_Recording] = []
+        self._pruned_at = canvas.time.elapsed
         self._rendered_until = canvas.time.elapsed
         self._synthesized: collections.OrderedDict[
             tuple[object, ...], tuple[object, TerminalSound]
@@ -295,57 +659,69 @@ class AudioDevice:
 
     def play(
         self,
-        source: Playable,
+        source: PlaySource,
         *,
-        instrument: InstrumentName = 'piano',
-        duration_milliseconds: int = 500,
-        velocity: float = 0.8,
-        effects: list[TerminalAudioEffect] | None = None,
+        instrument: InstrumentName | None = None,
+        beats: float | None = None,
+        velocity: float | None = None,
+        effects: Sequence[object] | None = None,
         volume: float = 1.0,
         pan: float = 0.0,
         at_beat: int | None = None,
-    ) -> None:
+    ) -> PlayHandle:
         """
-        Play a sound, a note or a melody, and return at once.
+        Play something that makes sound, and return at once.
+
+        ``source`` is a [`Note`][xnano.Note], an [`Audio`][xnano.Audio], the name of a
+        registered symbol, a note name such as ``'C#4'``, a MIDI number such as ``60``, a
+        frequency in hertz, melody text, or a sequence of those that plays one after another.
+        A ``str`` is a symbol name first; if no symbol has that name it is a note name, a
+        frequency such as ``'440hz'`` or melody text. Melody text has spaces, ``:2`` holds a
+        note for two beats, ``rest`` is a silence, ``+`` joins a chord and ``|`` marks a bar:
+        ``'C4 E4 G4:2 rest C5+E5+G5'``. An option you pass here replaces the same value on a
+        ``Note``, so ``play(note('C4'), instrument='violin')`` plays the violin.
 
         On a canvas without a device the sound is recorded at the canvas's current time and
         nothing is synthesized until [`render_sound`][xnano.audio.AudioDevice.render_sound]
         asks for it; the arguments are still checked here.
 
         Args:
-            source: What to play: an [`Audio`][xnano.Audio], a
-                [`TerminalSound`][xnano_audio.TerminalSound], a
-                [`TerminalNote`][xnano_audio.TerminalNote], a
-                [`TerminalMelody`][xnano_audio.TerminalMelody], a note name (``'C#4'``),
-                a MIDI note number (``60``) or a frequency in hertz. Text with spaces is a
-                melody at the canvas's tempo: ``'C4 E4 G4:2 rest C5+E5+G5'`` plays notes one
-                beat each, ``:2`` holds one for two beats, ``rest`` is a silence, ``+``
-                joins a chord and ``|`` marks a bar.
+            source: What to play.
             instrument: A built-in instrument for notes and melodies, from
-                [`instrument_names`][xnano_audio.instrument_names]. A sound is played as
-                it is.
-            duration_milliseconds: How long a note name, number or frequency is held.
-            velocity: How hard a note name, number or frequency is played, 0.0 to 1.0.
-            effects: Effects applied after the instrument, or to a sound as it is played.
+                [`instrument_names`][xnano_audio.instrument_names]; ``'piano'`` unless a
+                ``Note`` says otherwise. A sound is played as it is.
+            beats: How long a note name, number, frequency or ``Note`` is held, in beats at
+                the canvas's tempo, and how long melody text holds a note that gives no length
+                of its own. ``1.0`` unless a ``Note`` says otherwise.
+            velocity: How hard a note is played, 0.0 to 1.0; ``0.8`` unless a ``Note`` says
+                otherwise.
+            effects: Effects applied after the instrument, or to a sound as it is played:
+                dictionaries such as ``{'kind': 'audio.reverb'}``, or
+                [`TerminalAudioEffect`][xnano_audio.TerminalAudioEffect] objects.
             volume: Playback gain, 0.0 to 1.0.
             pan: Stereo position from -1.0 (left) to 1.0 (right). A recording is mono.
             at_beat: Start when the musical clock reaches this beat. The clock is started if
                 it is not running.
 
+        Returns:
+            A [`PlayHandle`][xnano.music.PlayHandle] that tells when the sound is over.
+
         Raises:
             TerminalAudioUnavailableError: The canvas plays on a device, and this computer has
                 no sound output device.
-            ValueError: An argument is out of range, or the instrument is unknown.
+            ValueError: An argument is out of range, the instrument is unknown, or a ``str``
+                is neither a symbol, a note name nor melody text. The message lists the known
+                sound symbols.
+            TypeError: ``source`` cannot be played, or an effect is not an audio effect.
 
         Examples:
             ```python
             import xnano
-            from xnano_audio import TerminalNote
 
             with xnano.new(width=8, height=1) as canvas:
                 canvas.audio.play('C4')
                 canvas.audio.play(64, instrument='bell')
-                canvas.audio.play(TerminalNote('G4', duration_beats=0.5))
+                canvas.audio.play(xnano.note('G4', beats=0.5))
                 canvas.audio.play('C4 E4 G4:2 rest C5+E5+G5')
                 canvas.step(delta_seconds=0.5)
                 assert canvas.audio.render_sound().duration_milliseconds == 500.0
@@ -353,163 +729,81 @@ class AudioDevice:
         """
         canvas = self._canvas
         canvas._require_open()
-        _check_play_arguments(
+        planned = plan_call(
             source,
-            duration_milliseconds=duration_milliseconds,
+            bpm=canvas.bpm,
+            instrument=instrument,
+            beats=beats,
+            velocity=velocity,
             effects=effects,
+            volume=volume,
             pan=pan,
             at_beat=at_beat,
         )
         if self.is_offline:
-            self._record(
-                source,
-                instrument=instrument,
-                duration_milliseconds=duration_milliseconds,
-                velocity=velocity,
-                effects=effects,
-                volume=volume,
-                at_beat=at_beat,
-            )
-            return
+            return self._record(planned, volume=volume, at_beat=at_beat)
         if not TerminalAudioPlayer.is_available():
             raise TerminalAudioUnavailableError(
                 'AudioDevice.play needs a sound output device, but this computer has none that '
                 'can be opened. Check canvas.audio.is_available before playing, or play on a '
                 'canvas from xnano.new(), which records the sound for render_sound().'
             )
-        sound = self._sound(
-            source,
-            instrument=instrument,
-            duration_milliseconds=duration_milliseconds,
-            velocity=velocity,
-            effects=effects,
+        sound = mix_planned(planned)
+        handle = PlayHandle(
+            clock=time.monotonic,
+            end_seconds=time.monotonic() + sound.duration_milliseconds / 1000.0,
         )
-        canvas._host.post(lambda: self._play_on_loop(sound, volume, pan, at_beat))
-
-    def _sound(
-        self,
-        source: Playable,
-        *,
-        instrument: InstrumentName,
-        duration_milliseconds: int,
-        velocity: float,
-        effects: list[TerminalAudioEffect] | None,
-    ) -> TerminalSound:
-        bpm = self._canvas.bpm
-        if isinstance(source, Audio):
-            source = source.sound
-        if isinstance(source, TerminalSound):
-            return source.with_effects(effects) if effects else source
-        if isinstance(source, TerminalNote):
-            melody = TerminalMelody(
-                [source.with_start_beats(0.0)],
-                tempo_map=TerminalTempoMap(bpm),
-            )
-            return melody.render(instrument, effects=effects)
-        if isinstance(source, TerminalMelody):
-            return source.render(instrument, effects=effects)
-        if isinstance(source, str) and _is_melody_text(source):
-            return _parse_melody(source, bpm).render(instrument, effects=effects)
-        return render_note(
-            instrument,
-            source,
-            duration_milliseconds=duration_milliseconds,
-            velocity=velocity,
-            effects=effects,
+        canvas._host.post(
+            lambda: handle._is_removed or self._play_on_loop(sound, volume, pan, at_beat)
         )
+        return handle
 
     def _record(
-        self,
-        source: Playable,
-        *,
-        instrument: InstrumentName,
-        duration_milliseconds: int,
-        velocity: float,
-        effects: list[TerminalAudioEffect] | None,
-        volume: float,
-        at_beat: int | None,
-    ) -> None:
+        self, planned: list[_Planned], *, volume: float, at_beat: int | None
+    ) -> PlayHandle:
         """Remember what was played and when, without synthesizing it."""
-        if instrument not in instrument_names():
-            raise ValueError(
-                f'{instrument!r} is not an instrument. Use one of: '
-                f'{", ".join(instrument_names())}.'
-            )
-        if not 0.0 <= velocity <= 1.0:
-            raise ValueError(
-                f'velocity must be from 0.0 to 1.0, but was {velocity!r}. Use 0.8 for an '
-                f'ordinary note.'
-            )
-        if not 0.0 <= volume <= 1.0:
-            raise ValueError(
-                f'volume must be from 0.0 to 1.0, but was {volume!r}. Use 1.0 for full volume.'
-            )
-        bpm = self._canvas.bpm
-        if isinstance(source, Audio):
-            source = source.sound
-        # Melody text and plain pitches are keyed by their value; objects by their identity.
-        key_source: object = source
-        if isinstance(source, TerminalSound):
-            length = source.duration_milliseconds / 1000.0
-        elif isinstance(source, TerminalNote):
-            length = source.duration_beats * 60.0 / bpm + _RELEASE_SECONDS
-        elif isinstance(source, TerminalMelody):
-            length = source.duration_seconds + _RELEASE_SECONDS
-        elif isinstance(source, str) and _is_melody_text(source):
-            source = _parse_melody(source, bpm)
-            length = source.duration_seconds + _RELEASE_SECONDS
-        else:
-            # A note name: building a note checks it. Numbers were checked by play().
-            if isinstance(source, str) and not source.strip().lower().endswith('hz'):
-                TerminalNote(cast('Pitch', source))
-            length = duration_milliseconds / 1000.0 + _RELEASE_SECONDS
-        effect_names = tuple(repr(effect) for effect in effects or ())
-        is_keyed_by_identity = isinstance(
-            key_source, (TerminalSound, TerminalNote, TerminalMelody)
-        )
-        key: tuple[object, ...] = (
-            id(key_source) if is_keyed_by_identity else key_source,
-            instrument,
-            velocity,
-            duration_milliseconds,
-            bpm,
-            effect_names,
-        )
-        captured = source
-
-        def synthesize() -> TerminalSound:
-            return self._sound(
-                captured,
-                instrument=instrument,
-                duration_milliseconds=duration_milliseconds,
-                velocity=velocity,
-                effects=effects,
-            )
-
-        now = self._canvas.time.elapsed
+        canvas = self._canvas
+        now = canvas.time.elapsed
         start = now
         if at_beat is not None:
             if self._clock_origin_seconds is None:
                 self._start_offline_clock(now)
             origin = cast('float', self._clock_origin_seconds)
             start = max(now, origin + at_beat * 60.0 / self._clock_bpm)
-        recording = _Recording(
-            start,
-            start + length,
-            key,
-            key_source if is_keyed_by_identity else None,
-            synthesize,
-            volume,
-        )
+        recordings = [
+            _Recording(
+                start + item.offset_seconds,
+                start + item.offset_seconds + item.length_seconds,
+                item.key,
+                item.anchor,
+                item.synthesize,
+                volume,
+            )
+            for item in planned
+        ]
         with self._lock:
-            horizon = now - _RETENTION_SECONDS
-            recordings = [
-                item for item in self._recordings if item.end_seconds >= horizon
+            if not 0.0 <= now - self._pruned_at < 1.0:
+                horizon = now - _RETENTION_SECONDS
+                self._recordings = [
+                    item for item in self._recordings if item.end_seconds >= horizon
+                ]
+                self._pruned_at = now
+            self._recordings.extend(recordings)
+            if len(self._recordings) > _MOST_RECORDINGS:
+                del self._recordings[: len(self._recordings) - _MOST_RECORDINGS]
+        return PlayHandle(
+            clock=lambda: canvas.time.elapsed,
+            end_seconds=max(recording.end_seconds for recording in recordings),
+            cancel=lambda: self._forget(recordings),
+        )
+
+    def _forget(self, recordings: list[_Recording]) -> None:
+        """Drop recordings that have not finished, so the rest of them is never rendered."""
+        forgotten = {id(recording) for recording in recordings}
+        with self._lock:
+            self._recordings = [
+                item for item in self._recordings if id(item) not in forgotten
             ]
-            recordings.append(recording)
-            if len(recordings) > _MOST_RECORDINGS:
-                recordings = recordings[-_MOST_RECORDINGS:]
-            self._recordings = recordings
 
     def render_sound(self) -> TerminalSound:
         """
@@ -578,7 +872,7 @@ class AudioDevice:
         if cached is not None and cached[0] is recording.source:
             self._synthesized.move_to_end(recording.key)
             return cached[1]
-        sound = recording.synthesize()
+        sound = _at_standard_rate(recording.synthesize())
         self._synthesized[recording.key] = (recording.source, sound)
         self._synthesized.move_to_end(recording.key)
         if len(self._synthesized) > _CACHED_SOUNDS:
