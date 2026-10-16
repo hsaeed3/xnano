@@ -679,13 +679,13 @@ from xnano_core._xnano_core._core_types import (
     PasteMode as PasteMode,
 )
 from xnano_core._xnano_core._core_types import (
-    Pixel as Pixel,
-)
-from xnano_core._xnano_core._core_types import (
     PixelAnchor as PixelAnchor,
 )
 from xnano_core._xnano_core._core_types import (
     PixelEncoding as PixelEncoding,
+)
+from xnano_core._xnano_core._core_types import (
+    PixelEntry as PixelEntry,
 )
 from xnano_core._xnano_core._core_types import (
     Propagate as Propagate,
@@ -879,9 +879,9 @@ __all__ = [
     'ParentWidth',
     'Paste',
     'PasteMode',
-    'Pixel',
     'PixelAnchor',
     'PixelEncoding',
+    'PixelEntry',
     'PixelView',
     'Pixels',
     'Place',

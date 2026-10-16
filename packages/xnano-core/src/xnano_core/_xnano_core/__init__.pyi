@@ -107,13 +107,13 @@ from ._core_types import (
     PasteMode as PasteMode,
 )
 from ._core_types import (
-    Pixel as Pixel,
-)
-from ._core_types import (
     PixelAnchor as PixelAnchor,
 )
 from ._core_types import (
     PixelEncoding as PixelEncoding,
+)
+from ._core_types import (
+    PixelEntry as PixelEntry,
 )
 from ._core_types import (
     RasterMode as RasterMode,
@@ -393,13 +393,18 @@ class Rectangle:
             ```
         """
 
-    def translate(self, horizontal: int = 0, vertical: int = 0) -> Rectangle:
+    def translate(self, x: int = 0, y: int = 0) -> Rectangle:
         """
         Move the rectangle by a number of columns and rows.
+
+        Args:
+            x: Columns to move right; negative values move left.
+            y: Rows to move down; negative values move up.
 
         Examples:
             ```python
             assert Rectangle(0, 0, 4, 2).translate(2, 1) == Rectangle(2, 1, 4, 2)
+            assert Rectangle(5, 5, 4, 2).translate(x=-1, y=-2) == Rectangle(4, 3, 4, 2)
             ```
         """
 
@@ -709,6 +714,53 @@ class Color:
             ```
         """
 
+    def darken(
+        self, amount: float, *, color_space: Literal['rgb', 'hsl', 'hsv'] = 'hsl'
+    ) -> Color:
+        """
+        A darker color.
+
+        Args:
+            amount: A fraction from 0.0 (unchanged) to 1.0 (black). Use
+                [`lighten`][xnano_core._xnano_core.Color.lighten] to make a color lighter.
+            color_space: The space the change runs through.
+
+        Returns:
+            The darkened color; the original is unchanged.
+
+        Raises:
+            ValueError: ``amount`` is outside 0.0 to 1.0, the color is ``reset``, or
+                ``color_space`` is not a color space.
+
+        Examples:
+            ```python
+            assert Color('#808080').darken(1.0).to_rgb() == (0, 0, 0)
+            base = Color('#336699')
+            assert base.darken(0.2).to_hsl()[2] < base.to_hsl()[2]
+            assert base.darken(0.0) == base
+            ```
+        """
+
+    def inverse(self) -> Color:
+        """
+        The color that has each red, green and blue channel inverted.
+
+        Named and indexed colors are inverted through their standard values, so the result
+        is always a true color.
+
+        Returns:
+            The inverted true color; the original is unchanged.
+
+        Raises:
+            ValueError: The color is ``reset``, which has no fixed value.
+
+        Examples:
+            ```python
+            assert Color('#ff8000').inverse().to_hex() == '#007fff'
+            assert Color('#ff8000').inverse().inverse() == Color('#ff8000')
+            ```
+        """
+
     def saturate(
         self, factor: float, *, color_space: Literal['rgb', 'hsl', 'hsv'] = 'hsl'
     ) -> Color:
@@ -830,7 +882,8 @@ class Clock:
     The time source a runtime reads, either real or manually advanced.
 
     A monotonic clock follows real time, so wall-clock adjustments never affect it. A
-    manual clock moves only when you advance it, which makes tests and replays exact.
+    manual clock moves only when you advance it, which makes tests and replays exact. Either
+    kind can be stopped; a stopped clock does not move until it is resumed or stepped by hand.
 
     Attributes:
         source: Whether the clock follows real time or is advanced by hand.
@@ -840,7 +893,7 @@ class Clock:
         delta_milliseconds: Milliseconds between the two most recent frames.
         frame: The number of frames the clock has counted.
         frames_per_second: The frame rate measured over recent frames.
-        is_paused: Whether the clock is paused.
+        is_stopped: Whether the clock is stopped.
 
     Examples:
         ```python
@@ -852,14 +905,29 @@ class Clock:
     """
 
     @classmethod
-    def monotonic(cls) -> Clock:
+    def monotonic(cls, *, elapsed_seconds: float = 0.0, frame: int = 0) -> Clock:
         """
         A clock that follows real elapsed time.
+
+        Args:
+            elapsed_seconds: The time the clock starts at, zero or more.
+            frame: The number of frames the clock has already counted, zero or more.
+
+        Returns:
+            A running clock that follows real time.
+
+        Raises:
+            ValueError: ``elapsed_seconds`` is negative or not finite, or ``frame`` is
+                negative.
 
         Examples:
             ```python
             clock = Clock.monotonic()
             assert clock.source == 'monotonic'
+
+            continued = Clock.monotonic(elapsed_seconds=2.0, frame=120)
+            assert continued.elapsed_seconds >= 2.0
+            assert continued.frame == 120
             ```
         """
 
@@ -869,7 +937,10 @@ class Clock:
         A clock that moves only through [`advance`][xnano_core._xnano_core.Clock.advance].
 
         Args:
-            elapsed_seconds: The time the clock starts at.
+            elapsed_seconds: The time the clock starts at, zero or more.
+
+        Raises:
+            ValueError: ``elapsed_seconds`` is negative or not finite.
 
         Examples:
             ```python
@@ -907,31 +978,61 @@ class Clock:
         """The frame rate measured over recent frames."""
 
     @property
-    def is_paused(self) -> bool:
-        """Whether the clock is paused."""
+    def is_stopped(self) -> bool:
+        """Whether the clock is stopped."""
 
-    def pause(self) -> None:
+    def stop(self) -> None:
         """
         Stop time from advancing.
+
+        The time spent stopped is not counted in ``elapsed_seconds``.
 
         Examples:
             ```python
             clock = Clock.manual()
-            clock.pause()
-            assert clock.is_paused
+            clock.stop()
+            assert clock.is_stopped
             ```
         """
 
     def resume(self) -> None:
         """
-        Let time advance again after a pause.
+        Let time advance again after it was stopped.
 
         Examples:
             ```python
             clock = Clock.manual()
-            clock.pause()
+            clock.stop()
             clock.resume()
-            assert not clock.is_paused
+            assert not clock.is_stopped
+            ```
+        """
+
+    def step(self, milliseconds: int) -> None:
+        """
+        Move time forward by exactly ``milliseconds``.
+
+        A manual clock can always be stepped. A monotonic clock can be stepped only while it
+        is stopped, which lets a stopped clock advance one frame at a time.
+
+        Args:
+            milliseconds: How far to move, zero or more.
+
+        Raises:
+            ValueError: ``milliseconds`` is negative, or the clock is a monotonic clock
+                that is running.
+
+        Examples:
+            ```python
+            clock = Clock.monotonic()
+            clock.stop()
+            before = clock.elapsed_milliseconds
+            clock.step(250)
+            assert abs(clock.elapsed_milliseconds - (before + 250.0)) < 1e-6
+
+            manual = Clock.manual()
+            manual.step(100)
+            assert manual.elapsed_milliseconds == 100.0
             ```
         """
 
@@ -953,13 +1054,13 @@ class Clock:
             ```
         """
 
-    def derive(self, *, rate: float = 1.0, paused: bool = False) -> SimulationClock:
+    def derive(self, *, rate: float = 1.0, is_stopped: bool = False) -> SimulationClock:
         """
         Create a clock that follows this one at a different speed.
 
         Args:
             rate: How fast the new clock runs compared to this one. Zero or more.
-            paused: Whether the new clock starts paused.
+            is_stopped: Whether the new clock starts stopped.
 
         Examples:
             ```python
@@ -972,14 +1073,14 @@ class Clock:
 
 class SimulationClock:
     """
-    A clock derived from a parent clock, with its own rate and pause state.
+    A clock derived from a parent clock, with its own rate and stopped state.
 
     Changing the rate keeps elapsed time continuous. Rates are finite and nonnegative.
 
     Attributes:
         parent: The clock this clock follows.
         rate: How fast this clock runs compared to its parent. Assign to change it.
-        paused: Whether this clock is paused. Assign to pause or resume it.
+        is_stopped: Whether this clock is stopped. Assign to stop or resume it.
         elapsed_seconds: Seconds of simulation time.
         delta_seconds: Seconds of simulation time between the two most recent calls to
             ``sample``.
@@ -988,9 +1089,9 @@ class SimulationClock:
         ```python
         simulation = Clock.manual().derive(rate=1.0)
         simulation.rate = 2.0
-        simulation.paused = True
+        simulation.is_stopped = True
         assert simulation.rate == 2.0
-        assert simulation.paused
+        assert simulation.is_stopped
         ```
     """
 
@@ -1005,11 +1106,11 @@ class SimulationClock:
     @rate.setter
     def rate(self, value: float) -> None: ...
     @property
-    def paused(self) -> bool:
-        """Whether this clock is paused. Assign to pause or resume it."""
+    def is_stopped(self) -> bool:
+        """Whether this clock is stopped. Assign to stop or resume it."""
 
-    @paused.setter
-    def paused(self, value: bool) -> None: ...
+    @is_stopped.setter
+    def is_stopped(self, value: bool) -> None: ...
     @property
     def elapsed_seconds(self) -> float:
         """Seconds of simulation time."""
@@ -1035,27 +1136,27 @@ class SimulationClock:
             ```
         """
 
-    def pause(self) -> None:
+    def stop(self) -> None:
         """
-        Pause this clock without affecting its parent.
+        Stop this clock without affecting its parent.
 
         Examples:
             ```python
             simulation = Clock.manual().derive()
-            simulation.pause()
-            assert simulation.paused
+            simulation.stop()
+            assert simulation.is_stopped
             ```
         """
 
     def resume(self) -> None:
         """
-        Resume this clock after a pause.
+        Resume this clock after it was stopped.
 
         Examples:
             ```python
-            simulation = Clock.manual().derive(paused=True)
+            simulation = Clock.manual().derive(is_stopped=True)
             simulation.resume()
-            assert not simulation.paused
+            assert not simulation.is_stopped
             ```
         """
 
@@ -1517,8 +1618,8 @@ class MouseEvent:
         row: The row under the pointer.
         kind: What the mouse did.
         button: The button involved, or ``None`` for moves and scrolls.
-        scroll_horizontal: Horizontal scroll steps, negative for left.
-        scroll_vertical: Vertical scroll steps, negative for up.
+        scroll_x: Horizontal scroll steps, negative for left and positive for right.
+        scroll_y: Vertical scroll steps, negative for up and positive for down.
 
     Examples:
         ```python
@@ -1549,12 +1650,12 @@ class MouseEvent:
         """The button involved, or ``None`` for moves and scrolls."""
 
     @property
-    def scroll_horizontal(self) -> int:
-        """Horizontal scroll steps, negative for left."""
+    def scroll_x(self) -> int:
+        """Horizontal scroll steps, negative for left and positive for right."""
 
     @property
-    def scroll_vertical(self) -> int:
-        """Vertical scroll steps, negative for up."""
+    def scroll_y(self) -> int:
+        """Vertical scroll steps, negative for up and positive for down."""
 
 class Event:
     """
@@ -1661,8 +1762,8 @@ class Event:
         row: int,
         kind: MouseEventKind,
         button: MouseButton | None = None,
-        scroll_horizontal: int = 0,
-        scroll_vertical: int = 0,
+        scroll_x: int = 0,
+        scroll_y: int = 0,
     ) -> Event:
         """
         A mouse event.
@@ -1672,13 +1773,16 @@ class Event:
             row: The row under the pointer.
             kind: What the mouse did.
             button: The button involved in a press, release or drag.
-            scroll_horizontal: Horizontal scroll steps.
-            scroll_vertical: Vertical scroll steps.
+            scroll_x: Horizontal scroll steps, negative for left and positive for right.
+            scroll_y: Vertical scroll steps, negative for up and positive for down.
 
         Examples:
             ```python
-            event = Event.mouse_event(column=0, row=0, kind='scroll', scroll_vertical=-1)
-            assert event.mouse.scroll_vertical == -1
+            event = Event.mouse_event(column=0, row=0, kind='scroll', scroll_y=-1)
+            assert event.mouse.scroll_y == -1
+
+            sideways = Event.mouse_event(column=0, row=0, kind='scroll', scroll_x=2)
+            assert (sideways.mouse.scroll_x, sideways.mouse.scroll_y) == (2, 0)
             ```
         """
 
@@ -3581,24 +3685,26 @@ class Move(Operation):
     Move the target buffer relative to its current position in its parent.
 
     Args:
-        horizontal: Columns to move right; negative values move left.
-        vertical: Rows to move down; negative values move up.
+        x: Columns to move right; negative values move left.
+        y: Rows to move down; negative values move up.
 
     Examples:
         ```python
         buffer = Buffer(width=4, height=1, x=2, y=1)
         buffer.update(Move(1, 1))
         assert (buffer.x, buffer.y) == (3, 2)
+        buffer.update(Move(x=-2, y=-1))
+        assert (buffer.x, buffer.y) == (1, 1)
         ```
     """
 
-    def __init__(self, horizontal: int = 0, vertical: int = 0) -> None:
+    def __init__(self, x: int = 0, y: int = 0) -> None:
         """
         Create a Move.
 
         Args:
-            horizontal: ``int``. Defaults to ``0``.
-            vertical: ``int``. Defaults to ``0``.
+            x: ``int``. Defaults to ``0``.
+            y: ``int``. Defaults to ``0``.
         """
 
 class Place(Operation):
@@ -3980,7 +4086,7 @@ class Pixels(Operation):
 
     def __init__(
         self,
-        pixels: Iterable[Pixel],
+        pixels: Iterable[PixelEntry],
         *,
         encoding: PixelEncoding = 'half_blocks',
         clip: bool = True,
@@ -3991,7 +4097,7 @@ class Pixels(Operation):
         Create a Pixels.
 
         Args:
-            pixels: ``Iterable[Pixel]``.
+            pixels: ``Iterable[PixelEntry]``.
             encoding: ``PixelEncoding``. Defaults to ``'half_blocks'``.
             clip: ``bool``. Defaults to ``True``.
             x: ``int | None``. Defaults to ``None``.
@@ -6643,7 +6749,7 @@ class PixelView:
     def height(self) -> int:
         """The height of the view in pixels."""
 
-    def write(self, pixels: Iterable[Pixel], *, clip: bool = True) -> None:
+    def write(self, pixels: Iterable[PixelEntry], *, clip: bool = True) -> None:
         """
         Draw pixels in order.
 
@@ -7521,13 +7627,14 @@ class Runtime:
         inline_width: int | None = None,
         should_handle_exit_signals: bool = True,
         options: TerminalOptions | None = None,
+        clock: Clock | None = None,
         registry: Registry | None = None,
     ) -> Runtime:
         """
         Create a runtime that draws to the terminal and reads its input.
 
-        Live runtimes use a monotonic clock. Terminal modes the runtime turns on are
-        restored on every exit path.
+        Live runtimes use a new monotonic clock unless you pass one. Terminal modes the
+        runtime turns on are restored on every exit path.
 
         Args:
             tick_interval_milliseconds: How often ``'tick'`` events fire, or ``None``
@@ -7540,6 +7647,9 @@ class Runtime:
             should_handle_exit_signals: Whether interrupt and terminate signals
                 request an exit.
             options: Raw mode, alternate screen and input negotiation settings.
+            clock: The clock the runtime reads, for example a
+                [`Clock`][xnano_core._xnano_core.Clock] that continues from the time of an
+                earlier runtime. ``None`` creates a monotonic clock.
             registry: The operation registry for the runtime.
 
         Examples:
@@ -7547,6 +7657,10 @@ class Runtime:
             runtime = Runtime.live(frame_interval_milliseconds=33)
             assert not runtime.is_closed
             runtime.close()
+
+            continued = Runtime.live(clock=Clock.monotonic(elapsed_seconds=5.0))
+            assert continued.clock.elapsed_seconds >= 5.0
+            continued.close()
             ```
         """
 

@@ -108,8 +108,8 @@ pub enum Operation {
         height: i32,
     },
     Move {
-        horizontal: i32,
-        vertical: i32,
+        x: i32,
+        y: i32,
     },
     Place {
         x: i32,
@@ -337,16 +337,13 @@ impl Operation {
                 core.resize(*width, *height)
                     .map_err(OperationError::Invalid)
             }
-            Self::Move {
-                horizontal,
-                vertical,
-            } => {
+            Self::Move { x, y } => {
                 require_buffer(target, "moved")?;
-                let (x, y) = {
+                let (current_x, current_y) = {
                     let state = core.lock();
                     (state.x, state.y)
                 };
-                core.move_to(x.saturating_add(*horizontal), y.saturating_add(*vertical));
+                core.move_to(current_x.saturating_add(*x), current_y.saturating_add(*y));
                 Ok(())
             }
             Self::Place { x, y } => {

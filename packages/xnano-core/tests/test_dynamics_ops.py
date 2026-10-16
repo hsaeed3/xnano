@@ -75,6 +75,32 @@ def test_colors_positions_and_sizes_follow_state():
     assert buffer[0, 0].foreground.to_rgb() is None or True
 
 
+def test_move_takes_x_and_y_by_position_or_keyword():
+    buffer = Buffer(width=4, height=1, x=5, y=5)
+    buffer.update(Move(1, 2))
+    assert (buffer.x, buffer.y) == (6, 7)
+    buffer.update(Move(x=-2, y=-3))
+    assert (buffer.x, buffer.y) == (4, 4)
+    buffer.update(Move(y=1))
+    assert (buffer.x, buffer.y) == (4, 5)
+    buffer.update(Move())
+    assert (buffer.x, buffer.y) == (4, 5)
+
+
+def test_move_no_longer_accepts_the_layout_names():
+    with pytest.raises(TypeError):
+        Move(horizontal=1)
+    with pytest.raises(TypeError):
+        Move(vertical=1)
+
+
+def test_move_follows_a_state_reference_by_keyword():
+    store = make_store({'column': 3})
+    buffer = Buffer(width=4, height=1, x=1, y=0)
+    buffer.update(Move(x=store.reference()['column'].number))
+    assert (buffer.x, buffer.y) == (4, 0)
+
+
 def test_fixed_settings_still_fail_where_they_are_written():
     with pytest.raises(ValueError, match='write mode'):
         Write('x', mode='nope')

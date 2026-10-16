@@ -244,7 +244,7 @@ class PixelsArguments(TypedDict, total=False):
     """
 
     shader: Callable[[int, int], ColorValue | None] | None
-    pixels: Iterable[_core.Pixel] | None
+    pixels: Iterable[_core.PixelEntry] | None
     encoding: PixelEncoding
     clip: bool
     x: int | None
@@ -267,7 +267,7 @@ class PixelsCustomization(Customization):
 
     customization_kind = 'pixels'
     shader: Callable[[int, int], ColorValue | None] | None = None
-    pixels: Iterable[_core.Pixel] | None = None
+    pixels: Iterable[_core.PixelEntry] | None = None
     encoding: PixelEncoding = 'half_blocks'
     clip: bool = True
     x: int | None = None

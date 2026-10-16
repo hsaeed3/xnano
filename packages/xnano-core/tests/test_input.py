@@ -48,8 +48,9 @@ def test_event_constructors():
     mouse = Event.mouse_event(column=4, row=2, kind='press', button='left')
     assert (mouse.mouse.column, mouse.mouse.row, mouse.mouse.button) == (4, 2, 'left')
     assert mouse.mouse.position.x == 4
-    scroll = Event.mouse_event(column=0, row=0, kind='scroll', scroll_vertical=-1)
-    assert scroll.mouse.scroll_vertical == -1
+    scroll = Event.mouse_event(column=0, row=0, kind='scroll', scroll_y=-1)
+    assert scroll.mouse.scroll_y == -1
+    assert scroll.mouse.scroll_x == 0
     assert Event.focus_gained().kind == 'focus_gained'
     with pytest.raises(ValueError, match='mouse button'):
         Event.mouse_event(column=0, row=0, kind='press', button='thumb')
@@ -309,3 +310,19 @@ def test_live_runtimes_are_lazy():
     assert not runtime.device.is_raw_mode_enabled
     assert runtime.clock.source == 'monotonic'
     runtime.close()
+
+
+def test_a_hook_hears_the_signed_scroll_steps_of_a_wheel_event(runtime):
+    buffer = Buffer(width=12, height=3)
+    runtime.mount(buffer)
+    heard = []
+    buffer.add_hook(
+        lambda context: heard.append(
+            (context.event.mouse.scroll_x, context.event.mouse.scroll_y)
+        ),
+        events=('mouse',),
+    )
+    runtime.inject(Event.mouse_event(column=2, row=1, kind='scroll', scroll_y=-1))
+    runtime.inject(Event.mouse_event(column=2, row=1, kind='scroll', scroll_x=2))
+    runtime.step()
+    assert heard == [(0, -1), (2, 0)]

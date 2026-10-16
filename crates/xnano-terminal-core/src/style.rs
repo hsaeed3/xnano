@@ -321,6 +321,34 @@ impl PyColor {
         })
     }
 
+    /// Darken by a fraction from 0.0 to 1.0.
+    #[pyo3(signature = (amount, *, color_space = "hsl"))]
+    fn darken(&self, amount: f32, color_space: &str) -> PyResult<Self> {
+        if !amount.is_finite() || !(0.0..=1.0).contains(&amount) {
+            return Err(PyValueError::new_err(format!(
+                "Color.darken needs an amount from 0.0 to 1.0, not {amount}; use Color.lighten to make a color lighter"
+            )));
+        }
+        convertible(self.inner)?;
+        Ok(Self {
+            inner: color_space_arg(color_space)?.lighten(&self.inner, -amount),
+        })
+    }
+
+    /// The color that has each red, green and blue channel inverted.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn inverse(&self) -> PyResult<Self> {
+        if self.inner == Color::Reset {
+            return Err(PyValueError::new_err(
+                "Color.reset has no fixed value, so it cannot be inverted.",
+            ));
+        }
+        let (red, green, blue) = self.inner.to_rgb();
+        Ok(Self {
+            inner: Color::Rgb(255 - red, 255 - green, 255 - blue),
+        })
+    }
+
     /// Scale saturation: 0.0 removes it, 1.0 keeps it, more than 1.0 boosts it.
     #[pyo3(signature = (factor, *, color_space = "hsl"))]
     fn saturate(&self, factor: f32, color_space: &str) -> PyResult<Self> {

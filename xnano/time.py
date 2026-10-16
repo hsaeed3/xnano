@@ -92,7 +92,7 @@ class Time:
     @property
     def is_paused(self) -> bool:
         """Whether time is stopped."""
-        return self._terminal._time_source.is_paused
+        return self._terminal._time_source.is_stopped
 
     @property
     def is_realtime(self) -> bool:
@@ -121,7 +121,7 @@ class Time:
         """
         terminal = self._terminal
         terminal._require_open()
-        terminal._time_source.pause()
+        terminal._time_source.stop()
         audio = terminal._audio
         if audio is not None:
             terminal._host.post(audio._hold)

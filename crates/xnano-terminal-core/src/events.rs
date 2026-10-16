@@ -101,13 +101,13 @@ impl PyMouseEvent {
     }
 
     #[getter]
-    fn scroll_horizontal(&self) -> i32 {
-        self.inner.scroll_horizontal
+    fn scroll_x(&self) -> i32 {
+        self.inner.scroll_x
     }
 
     #[getter]
-    fn scroll_vertical(&self) -> i32 {
-        self.inner.scroll_vertical
+    fn scroll_y(&self) -> i32 {
+        self.inner.scroll_y
     }
 
     fn __repr__(&self) -> String {
@@ -227,15 +227,15 @@ impl PyEvent {
     }
 
     #[classmethod]
-    #[pyo3(signature = (*, column, row, kind, button = None, scroll_horizontal = 0, scroll_vertical = 0))]
+    #[pyo3(signature = (*, column, row, kind, button = None, scroll_x = 0, scroll_y = 0))]
     fn mouse_event(
         _cls: &Bound<'_, pyo3::types::PyType>,
         column: i32,
         row: i32,
         kind: &str,
         button: Option<&str>,
-        scroll_horizontal: i32,
-        scroll_vertical: i32,
+        scroll_x: i32,
+        scroll_y: i32,
     ) -> PyResult<Self> {
         let kind = MouseKind::from_name(kind).ok_or_else(|| {
             PyValueError::new_err(format!(
@@ -257,8 +257,8 @@ impl PyEvent {
                 row,
                 kind,
                 button,
-                scroll_horizontal,
-                scroll_vertical,
+                scroll_x,
+                scroll_y,
             }),
         )))
     }

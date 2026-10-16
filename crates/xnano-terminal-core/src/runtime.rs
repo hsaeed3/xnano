@@ -1459,7 +1459,7 @@ impl PyRuntime {
     #[classmethod]
     #[pyo3(signature = (*, tick_interval_milliseconds = None, frame_interval_milliseconds = 16,
         inline_height = None, inline_width = None, should_handle_exit_signals = true, options = None,
-        registry = None))]
+        clock = None, registry = None))]
     fn live(
         cls: &Bound<'_, PyType>,
         tick_interval_milliseconds: Option<i64>,
@@ -1468,6 +1468,7 @@ impl PyRuntime {
         inline_width: Option<u16>,
         should_handle_exit_signals: bool,
         options: Option<PyTerminalOptions>,
+        clock: Option<Py<PyClock>>,
         registry: Option<Py<PyAny>>,
     ) -> PyResult<Py<PyAny>> {
         let py = cls.py();
@@ -1482,6 +1483,7 @@ impl PyRuntime {
             "options",
             options.map(|options| Bound::new(py, options)).transpose()?,
         )?;
+        keywords.set_item("clock", clock)?;
         keywords.set_item("registry", registry)?;
         Ok(cls.call((), Some(&keywords))?.unbind())
     }

@@ -99,8 +99,8 @@ Modifier: TypeAlias = Literal[
 Coordinate: TypeAlias = tuple[int, int]
 """A ``(column, row)`` pair."""
 
-Pixel: TypeAlias = tuple[int, int, tuple[int, int, int]]
-"""A pixel: ``(column, row, (red, green, blue))``."""
+PixelEntry: TypeAlias = tuple[int, int, tuple[int, int, int]]
+"""One pixel: ``(column, row, (red, green, blue))``."""
 
 PixelEncoding: TypeAlias = Literal['half_blocks', 'braille']
 

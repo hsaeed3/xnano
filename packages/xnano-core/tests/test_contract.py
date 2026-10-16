@@ -79,3 +79,13 @@ def test_the_native_runtime_finds_the_python_objects_it_constructs():
         assert type(context) is _core_types.CoreContext
         assert isinstance(runtime.registry, _core_types.Registry)
         assert str(buffer()) == buffer.render(format='ansi')
+
+
+def test_the_pixel_tuple_alias_is_named_pixel_entry():
+    import xnano_core
+    from xnano_core._xnano_core import _core_types
+
+    assert 'PixelEntry' in xnano_core.__all__ and hasattr(xnano_core, 'PixelEntry')
+    assert xnano_core.PixelEntry is _core_types.PixelEntry
+    assert 'Pixel' not in xnano_core.__all__ and not hasattr(xnano_core, 'Pixel')
+    assert not hasattr(_core_types, 'Pixel')

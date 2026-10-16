@@ -183,19 +183,19 @@ impl PyResize {
 #[pymethods]
 impl PyMove {
     #[new]
-    #[pyo3(signature = (horizontal = None, vertical = None))]
+    #[pyo3(signature = (x = None, y = None))]
     fn new(
         py: Python<'_>,
-        horizontal: Option<&Bound<'_, PyAny>>,
-        vertical: Option<&Bound<'_, PyAny>>,
+        x: Option<&Bound<'_, PyAny>>,
+        y: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<PyClassInitializer<Self>> {
-        let horizontal = optional_i32(horizontal)?;
-        let vertical = optional_i32(vertical)?;
-        let bound = horizontal.is_bound() || vertical.is_bound();
+        let x = optional_i32(x)?;
+        let y = optional_i32(y)?;
+        let bound = x.is_bound() || y.is_bound();
         Ok(finish(py, "Move", bound, move |resolver| {
             Ok(Operation::Move {
-                horizontal: resolver.get(&horizontal)?,
-                vertical: resolver.get(&vertical)?,
+                x: resolver.get(&x)?,
+                y: resolver.get(&y)?,
             })
         })?
         .add_subclass(Self))

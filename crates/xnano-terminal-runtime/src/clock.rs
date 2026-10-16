@@ -57,22 +57,35 @@ impl std::fmt::Debug for Clock {
 
 impl Clock {
     pub fn monotonic() -> Arc<Self> {
-        Self::create(ClockSource::Monotonic, 0.0)
+        Self::monotonic_from(0.0, 0)
+    }
+
+    /// A monotonic clock that starts at `elapsed_seconds` and has already counted `frame` frames.
+    pub fn monotonic_from(elapsed_seconds: f64, frame: u64) -> Arc<Self> {
+        Arc::new(Self {
+            source: ClockSource::Monotonic,
+            start: Instant::now(),
+            state: Mutex::new(ClockState {
+                manual_seconds: 0.0,
+                paused_total: -elapsed_seconds,
+                paused_since: None,
+                last_elapsed: elapsed_seconds,
+                delta: 0.0,
+                frame,
+                frames_per_second: 0.0,
+            }),
+        })
     }
 
     pub fn manual(elapsed_seconds: f64) -> Arc<Self> {
-        Self::create(ClockSource::Manual, elapsed_seconds)
-    }
-
-    fn create(source: ClockSource, elapsed: f64) -> Arc<Self> {
         Arc::new(Self {
-            source,
+            source: ClockSource::Manual,
             start: Instant::now(),
             state: Mutex::new(ClockState {
-                manual_seconds: elapsed,
+                manual_seconds: elapsed_seconds,
                 paused_total: 0.0,
                 paused_since: None,
-                last_elapsed: elapsed,
+                last_elapsed: elapsed_seconds,
                 delta: 0.0,
                 frame: 0,
                 frames_per_second: 0.0,
@@ -165,6 +178,24 @@ impl Clock {
         let mut state = lock(&self.state);
         state.manual_seconds += milliseconds as f64 / 1000.0;
         true
+    }
+
+    /// Move time forward by exactly `milliseconds`. A manual clock always moves; a monotonic
+    /// clock moves only while it is paused. Returns `false` for a running monotonic clock.
+    pub fn step(&self, milliseconds: u64) -> bool {
+        let mut state = lock(&self.state);
+        let seconds = milliseconds as f64 / 1000.0;
+        if state.paused_since.is_some() {
+            state.paused_total -= seconds;
+            return true;
+        }
+        match self.source {
+            ClockSource::Manual => {
+                state.manual_seconds += seconds;
+                true
+            }
+            ClockSource::Monotonic => false,
+        }
     }
 
     pub fn derive(self: &Arc<Self>, rate: f64, is_paused: bool) -> Arc<SimulationClock> {
@@ -264,5 +295,55 @@ impl SimulationClock {
         }
         let remaining = target - self.elapsed_locked(&state);
         Some((remaining / state.rate).max(0.0))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_manual_clock_steps_whether_or_not_it_is_stopped() {
+        let clock = Clock::manual(0.0);
+        assert!(clock.step(250));
+        assert!((clock.elapsed_seconds() - 0.25).abs() < 1e-9);
+        clock.pause();
+        assert!(clock.step(750));
+        assert!((clock.elapsed_seconds() - 1.0).abs() < 1e-9);
+        clock.resume();
+        assert!((clock.elapsed_seconds() - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_monotonic_clock_steps_only_while_it_is_stopped() {
+        let clock = Clock::monotonic();
+        assert!(!clock.step(10));
+        clock.pause();
+        let before = clock.elapsed_seconds();
+        assert!(clock.step(2000));
+        assert!((clock.elapsed_seconds() - (before + 2.0)).abs() < 1e-9);
+        clock.resume();
+        assert!(clock.elapsed_seconds() >= before + 2.0);
+    }
+
+    #[test]
+    fn a_step_is_the_delta_of_the_next_frame() {
+        let clock = Clock::manual(0.0);
+        clock.tick();
+        clock.step(40);
+        clock.tick();
+        assert!((clock.delta_seconds() - 0.04).abs() < 1e-9);
+        assert_eq!(clock.frame(), 2);
+    }
+
+    #[test]
+    fn a_monotonic_clock_can_start_at_an_elapsed_time_and_frame() {
+        let clock = Clock::monotonic_from(2.0, 120);
+        assert!(clock.elapsed_seconds() >= 2.0);
+        assert!(clock.elapsed_seconds() < 3.0);
+        assert_eq!(clock.frame(), 120);
+        clock.tick();
+        assert_eq!(clock.frame(), 121);
+        assert!(clock.delta_seconds() < 1.0);
     }
 }

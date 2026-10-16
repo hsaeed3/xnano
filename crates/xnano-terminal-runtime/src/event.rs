@@ -268,8 +268,8 @@ pub struct MouseEvent {
     pub row: i32,
     pub kind: MouseKind,
     pub button: Option<MouseButton>,
-    pub scroll_horizontal: i32,
-    pub scroll_vertical: i32,
+    pub scroll_x: i32,
+    pub scroll_y: i32,
 }
 
 impl MouseEvent {
@@ -484,7 +484,7 @@ pub mod terminal {
         Some(match source {
             ct::Event::Key(key) => Event::new(EventKind::Key, EventPayload::Key(key_event(key))),
             ct::Event::Mouse(mouse) => {
-                let (kind, button, horizontal, vertical) = match mouse.kind {
+                let (kind, button, scroll_x, scroll_y) = match mouse.kind {
                     ct::MouseEventKind::Down(button) => {
                         (MouseKind::Press, Some(mouse_button(button)), 0, 0)
                     }
@@ -507,8 +507,8 @@ pub mod terminal {
                         row: i32::from(mouse.row),
                         kind,
                         button,
-                        scroll_horizontal: horizontal,
-                        scroll_vertical: vertical,
+                        scroll_x,
+                        scroll_y,
                     }),
                 )
             }

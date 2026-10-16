@@ -122,5 +122,12 @@ def test_the_values_an_event_was_built_with_can_be_read_back():
     assert Event.timer('blink').timer_key == 'blink'
     key = Event.key_press('shift+up').key
     assert key.key == 'up'
-    scroll = Event.mouse_event(column=0, row=0, kind='scroll', scroll_vertical=-2).mouse
-    assert scroll.scroll_vertical == -2
+    scroll = Event.mouse_event(column=0, row=0, kind='scroll', scroll_y=-2).mouse
+    assert scroll.scroll_y == -2
+    sideways = Event.mouse_event(column=0, row=0, kind='scroll', scroll_x=3).mouse
+    assert (sideways.scroll_x, sideways.scroll_y) == (3, 0)
+    assert (scroll.scroll_x, scroll.scroll_y) == (0, -2)
+    assert not hasattr(scroll, 'scroll_horizontal')
+    assert not hasattr(scroll, 'scroll_vertical')
+    with pytest.raises(TypeError):
+        Event.mouse_event(column=0, row=0, kind='scroll', scroll_vertical=1)

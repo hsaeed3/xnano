@@ -262,7 +262,7 @@ def test_paused_clocks_pause_updates(runtime):
     runtime.on_update(
         lambda c: calls.append(c.delta_seconds), target=buffer, clock=simulation
     )
-    simulation.pause()
+    simulation.stop()
     runtime.advance_clock(100)
     runtime.step()
     assert calls == []
@@ -516,3 +516,119 @@ def test_context_helpers(runtime):
     runtime.waker().wake()
     runtime.step()
     assert captured == [(3, 1, False, True, True)]
+
+
+def test_a_clock_stops_resumes_and_does_not_count_the_stopped_time():
+    clock = Clock.manual()
+    clock.advance(1000)
+    clock.stop()
+    assert clock.is_stopped
+    clock.advance(5000)
+    assert clock.elapsed_seconds == 1.0
+    clock.resume()
+    assert not clock.is_stopped
+    assert clock.elapsed_seconds == 1.0
+    clock.advance(500)
+    assert clock.elapsed_seconds == 1.5
+
+
+def test_clocks_no_longer_use_the_pause_names():
+    clock = Clock.manual()
+    assert not hasattr(clock, 'pause') and not hasattr(clock, 'is_paused')
+    simulation = clock.derive()
+    assert not hasattr(simulation, 'pause') and not hasattr(simulation, 'paused')
+    with pytest.raises(TypeError):
+        clock.derive(paused=True)
+
+
+def test_simulation_clocks_stop_and_resume():
+    simulation = Clock.manual().derive(is_stopped=True)
+    assert simulation.is_stopped
+    simulation.resume()
+    assert not simulation.is_stopped
+    simulation.stop()
+    assert simulation.is_stopped
+    simulation.is_stopped = False
+    assert not simulation.is_stopped
+    assert 'is_stopped=False' in repr(simulation)
+
+
+def test_a_manual_clock_steps_by_hand_and_a_step_reaches_the_delta():
+    clock = Clock.manual()
+    clock.step(250)
+    assert clock.elapsed_milliseconds == 250.0
+    runtime = Runtime.offscreen(width=2, height=1, clock=clock)
+    runtime.step()
+    clock.step(100)
+    runtime.step()
+    assert clock.delta_seconds == pytest.approx(0.1)
+    assert clock.frame == 2
+    runtime.close()
+
+
+def test_a_stopped_monotonic_clock_steps_by_hand_and_resumes_without_a_jump():
+    clock = Clock.monotonic()
+    clock.stop()
+    before = clock.elapsed_seconds
+    clock.step(2000)
+    assert clock.elapsed_seconds == pytest.approx(before + 2.0)
+    assert clock.is_stopped
+    clock.resume()
+    assert 2.0 <= clock.elapsed_seconds < 3.0
+
+
+def test_a_running_monotonic_clock_refuses_to_be_stepped_and_says_what_to_do():
+    clock = Clock.monotonic()
+    with pytest.raises(ValueError, match=r'running wall clock.*stop\(\) first'):
+        clock.step(10)
+    with pytest.raises(ValueError, match=r'Clock\.step cannot move time backwards'):
+        Clock.manual().step(-1)
+
+
+def test_a_monotonic_clock_refuses_a_negative_frame_count():
+    with pytest.raises(ValueError, match='frame of zero or more'):
+        Clock.monotonic(frame=-1)
+
+
+def test_the_delta_after_a_step_on_a_stopped_clock_is_the_step():
+    clock = Clock.monotonic()
+    clock.stop()
+    clock.step(0)
+    clock.step(40)
+    runtime = Runtime.offscreen(width=2, height=1, clock=clock)
+    runtime.step()
+    clock.step(40)
+    runtime.step()
+    assert clock.delta_seconds == pytest.approx(0.04, abs=1e-6)
+    runtime.close()
+
+
+def test_a_monotonic_clock_can_start_at_an_elapsed_time_and_frame():
+    clock = Clock.monotonic(elapsed_seconds=2.0, frame=120)
+    assert clock.source == 'monotonic'
+    assert 2.0 <= clock.elapsed_seconds < 3.0
+    assert clock.frame == 120
+    default = Clock.monotonic()
+    assert default.frame == 0 and default.elapsed_seconds < 1.0
+    for bad in (-1.0, float('inf'), float('nan')):
+        with pytest.raises(ValueError, match='elapsed_seconds'):
+            Clock.monotonic(elapsed_seconds=bad)
+        with pytest.raises(ValueError, match='elapsed_seconds'):
+            Clock.manual(elapsed_seconds=bad)
+
+
+def test_a_live_runtime_accepts_the_clock_of_an_earlier_runtime():
+    import inspect
+
+    parameters = inspect.signature(Runtime.live).parameters
+    assert parameters['clock'].default is None
+    assert parameters['clock'].kind is inspect.Parameter.KEYWORD_ONLY
+    clock = Clock.monotonic(elapsed_seconds=5.0, frame=7)
+    runtime = Runtime.live(clock=clock)
+    try:
+        assert runtime.clock.elapsed_seconds >= 5.0
+        assert runtime.clock.frame == 7
+    finally:
+        runtime.close()
+    with pytest.raises(TypeError):
+        Runtime.live(clock=object())
