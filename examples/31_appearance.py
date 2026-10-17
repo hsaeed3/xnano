@@ -77,7 +77,7 @@ with xnano.open(width=70, height=12) as terminal:
         if is_fading[0]:
             context.fx.clear()
         else:
-            context.fx('effect.fade_to', foreground='red', duration_milliseconds=500)
+            context.fx.fade_to(foreground='red', duration_milliseconds=500)
         is_fading[0] = not is_fading[0]
         describe()
 

@@ -139,12 +139,99 @@ def test_open_given_content_styles_the_canvas_only_without_content() -> None:
     assert xnano.terminal._live_terminal_open is False
 
 
-def test_a_canvas_has_no_fx_method_and_pipe_returns_the_canvas() -> None:
+def test_pipe_returns_the_canvas() -> None:
     with xnano.new(width=8, height=2) as canvas:
-        assert not hasattr(canvas, 'fx')
         assert (canvas | fx('fill', cell='.')) is canvas
-        label = canvas.write('hi')
-        assert not hasattr(label, 'fx')
+
+
+class TestNamedEffects:
+    def test_a_placement_starts_a_named_effect_at_once(self) -> None:
+        with xnano.new(width=8, height=1) as canvas:
+            label = canvas.write('hi')
+            fade = label.fx.fade_to(foreground='red', duration_milliseconds=100)
+            assert fade.foreground == 'red'
+            assert label.fx.active == (fade,)
+            assert [entry[0] for entry in canvas._effects] == [fade]
+
+    def test_a_key_hook_starts_an_effect_on_another_placement(self) -> None:
+        with xnano.new(width=20, height=1) as canvas:
+            content = canvas.write('Press e')
+
+            @canvas.hook(on='key')
+            def flash(context: Context) -> None:
+                if context.keyboard.key == 'e':
+                    content.fx.dissolve(duration_milliseconds=1000)
+
+            press(canvas, 'x')
+            assert content.fx.active == ()
+            press(canvas, 'e')
+            assert len(content.fx.active) == 1
+            assert canvas._effects[0][1] is content
+
+    def test_the_same_kind_again_replaces_the_earlier_effect(self) -> None:
+        with xnano.new(width=8, height=1) as canvas:
+            label = canvas.write('hi')
+            first = label.fx.fade_to(foreground='red', duration_milliseconds=1000)
+            second = label.fx.fade_to(foreground='blue', duration_milliseconds=1000)
+            assert label.fx.active == (second,)
+            assert first is not second
+            canvas.step()
+            assert [entry[0] for entry in canvas._effects] == [second]
+
+    def test_clear_and_remove_stop_the_effects(self) -> None:
+        with xnano.new(width=8, height=1) as canvas:
+            label = canvas.write('hi')
+            label.fx.fade_to(foreground='red', duration_milliseconds=1000)
+            label.fx.clear()
+            assert label.fx.active == ()
+            label.fx.glitch(duration_milliseconds=1000)
+            label.remove()
+            assert label._renderable_effects.active == ()
+
+    def test_a_removed_placement_refuses_an_effect(self) -> None:
+        with xnano.new(width=8, height=1) as canvas:
+            label = canvas.write('hi')
+            label.remove()
+            with pytest.raises(xnano.errors.TerminalClosedError, match='was removed'):
+                label.fx.fade_to(foreground='red')
+
+    def test_the_canvas_has_its_own_effects(self) -> None:
+        with xnano.new('hello', width=8, height=1) as canvas:
+            dissolve = canvas.fx.dissolve(duration_milliseconds=300)
+            assert canvas.fx.active == (dissolve,)
+            assert canvas._effects[0][1] is canvas
+
+    def test_visual_and_sound_effects_have_their_own_names(self) -> None:
+        with xnano.new(width=8, height=1) as canvas:
+            label = canvas.write('hi')
+            with pytest.raises(AttributeError, match='reverb is a sound effect'):
+                label.fx.reverb  # noqa: B018
+            with pytest.raises(AttributeError, match='fade_to is a visual effect'):
+                canvas.audio.fx.fade_to  # noqa: B018
+            with pytest.raises(AttributeError, match="no effect named 'fade'"):
+                canvas.fx.fade  # noqa: B018
+
+    def test_audio_effects_apply_to_every_sound_played_after_them(self) -> None:
+        def late_peak(*, with_delay: bool) -> float:
+            with xnano.new(width=8, height=1) as canvas:
+                if with_delay:
+                    echo = canvas.audio.fx.delay(
+                        time_milliseconds=300.0, feedback=0.6, mix=0.8
+                    )
+                    assert canvas.audio.fx.active == (echo,)
+                canvas.play(xnano.note('C4', beats=0.25))
+                canvas.step(delta_seconds=1.5)
+                samples = list(canvas.audio.render_sound().samples())
+                return max(abs(value) for value in samples[len(samples) // 2 :])
+
+        assert late_peak(with_delay=False) == 0.0
+        assert late_peak(with_delay=True) > 0.01
+
+    def test_clear_removes_the_audio_effects(self) -> None:
+        with xnano.new(width=8, height=1) as canvas:
+            canvas.audio.fx.reverb(mix=0.5)
+            canvas.audio.fx.clear()
+            assert canvas.audio.fx.active == ()
 
 
 def test_nested_placement_follows_a_drag_hook() -> None:
@@ -554,9 +641,7 @@ class TestContextEffects:
             @label.hook(on='key')
             def tint(context: Context) -> None:
                 applied.append(
-                    context.fx(
-                        'effect.fade_to', foreground='red', duration_milliseconds=1000
-                    )
+                    context.fx.fade_to(foreground='red', duration_milliseconds=1000)
                 )
 
             press(canvas)
@@ -574,7 +659,7 @@ class TestContextEffects:
 
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
-                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+                context.fx.fade_to(foreground='red', duration_milliseconds=1000)
 
             press(canvas)
             assert [target for _, target in canvas._effects] == [canvas]
@@ -589,9 +674,7 @@ class TestContextEffects:
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
                 kept.append(
-                    context.fx(
-                        'effect.fade_to', foreground='red', duration_milliseconds=1000
-                    )
+                    context.fx.fade_to(foreground='red', duration_milliseconds=1000)
                 )
 
             press(canvas)
@@ -601,25 +684,24 @@ class TestContextEffects:
             assert effect.key == key
             assert effect.duration_milliseconds == 400
 
-    @pytest.mark.parametrize('kind', ['effect.nope', 'fill'])
-    def test_an_unknown_kind_lists_the_effect_kinds(self, kind: str) -> None:
+    @pytest.mark.parametrize('name', ['nope', 'fill'])
+    def test_an_unknown_name_lists_the_effects(self, name: str) -> None:
         with xnano.new(width=6, height=1) as canvas:
             errors: list[Exception] = []
 
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
                 try:
-                    context.fx(kind)  # type: ignore[call-overload]
-                except ValueError as error:
+                    getattr(context.fx, name)
+                except AttributeError as error:
                     errors.append(error)
 
             press(canvas)
             assert len(errors) == 1
             text = str(errors[0])
-            assert 'is not an effect, so context.fx cannot apply it' in text
-            assert 'effect.fade_to' in text
-            assert 'audio.tremolo' in text
-            assert text.count('effect.') + text.count('audio.') >= 28
+            assert f'context.fx has no effect named {name!r}' in text
+            assert 'fade_to' in text
+            assert 'tremolo' in text
 
     def test_a_wrong_keyword_is_refused_like_fx_refuses_it(self) -> None:
         with xnano.new(width=6, height=1) as canvas:
@@ -628,7 +710,7 @@ class TestContextEffects:
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
                 try:
-                    context.fx('effect.fade_to', colour='red')  # type: ignore[call-overload]
+                    context.fx.fade_to(colour='red')  # type: ignore[call-overload]
                 except TypeError as error:
                     errors.append(error)
 
@@ -643,9 +725,7 @@ class TestContextEffects:
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
                 seen.append(
-                    context.fx(
-                        'effect.fade_to', foreground='red', duration_milliseconds=1000
-                    )
+                    context.fx.fade_to(foreground='red', duration_milliseconds=1000)
                 )
                 assert context.fx.active == (seen[-1],)
 
@@ -661,9 +741,9 @@ class TestContextEffects:
 
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
-                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
-                context.fx('effect.dissolve', duration_milliseconds=1000)
-                context.fx('audio.reverb')
+                context.fx.fade_to(foreground='red', duration_milliseconds=1000)
+                context.fx.dissolve(duration_milliseconds=1000)
+                context.fx.reverb()
                 counts.append(len(context.fx.active))
 
             press(canvas)
@@ -677,9 +757,7 @@ class TestContextEffects:
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
                 if context.keyboard.key == 'a':
-                    context.fx(
-                        'effect.fade_to', foreground='red', duration_milliseconds=1000
-                    )
+                    context.fx.fade_to(foreground='red', duration_milliseconds=1000)
                 else:
                     context.fx.clear()
                     active.append(context.fx.active)
@@ -710,11 +788,11 @@ class TestContextEffects:
 
             @canvas.hook(on='key', keys='a')
             def first(context: Context) -> None:
-                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+                context.fx.fade_to(foreground='red', duration_milliseconds=1000)
 
             @canvas.hook(on='key', keys='b')
             def second(context: Context) -> None:
-                context.fx('effect.dissolve', duration_milliseconds=1000)
+                context.fx.dissolve(duration_milliseconds=1000)
 
             @canvas.hook(on='key', keys='c')
             def third(context: Context) -> None:
@@ -730,7 +808,7 @@ class TestContextEffects:
 
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
-                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+                context.fx.fade_to(foreground='red', duration_milliseconds=1000)
 
             press(canvas)
             canvas.step(delta_seconds=0.1)
@@ -745,7 +823,7 @@ class TestContextEffects:
 
             @label.hook(on='key')
             def tint(context: Context) -> None:
-                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
+                context.fx.fade_to(foreground='red', duration_milliseconds=1000)
 
             press(canvas)
             label.remove()
@@ -758,9 +836,7 @@ class TestContextEffects:
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
                 context.hook.remove()
-                effect = context.fx(
-                    'effect.fade_to', foreground='red', duration_milliseconds=1000
-                )
+                effect = context.fx.fade_to(foreground='red', duration_milliseconds=1000)
                 assert isinstance(effect, FadeToEffectCustomization)
 
             press(canvas)
@@ -771,8 +847,8 @@ class TestContextEffects:
 
             @canvas.hook(on='key')
             def tint(context: Context) -> None:
-                context.fx('effect.fade_to', foreground='red', duration_milliseconds=1000)
-                context.fx('audio.reverb')
+                context.fx.fade_to(foreground='red', duration_milliseconds=1000)
+                context.fx.reverb()
 
             press(canvas)
         assert tint._effect_state is None
@@ -784,9 +860,7 @@ class TestContextEffects:
             @canvas.hook(on='frame')
             def tint(context: Context) -> None:
                 if not context.fx.active:
-                    context.fx(
-                        'effect.fade_to', foreground='red', duration_milliseconds=1000
-                    )
+                    context.fx.fade_to(foreground='red', duration_milliseconds=1000)
                 sizes.append(len(context.fx.active))
 
             for _ in canvas.iter(count=3):

@@ -875,9 +875,7 @@ class TestEffectsInComponents:
 
         @xnano.renderable
         def fancy(context: Context) -> str:
-            effect = context.fx(
-                'effect.fade_to', foreground='red', duration_milliseconds=200
-            )
+            effect = context.fx.fade_to(foreground='red', duration_milliseconds=200)
             seen.append((effect, context.fx.active))
             return 'hello'
 

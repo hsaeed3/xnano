@@ -912,11 +912,11 @@ class _Hooked(Generic[DepsT, StateT]):
                 heard = []
 
                 @canvas.hook(on='key', keys=['q', 'escape'])
-                def leave(context: xnano.context.Context) -> None:
+                def leave(context: xnano.Context) -> None:
                     heard.append(context.keyboard.key)
 
                 @canvas.hook(on='tick', every=0.5)
-                def blink(context: xnano.context.Context) -> None:
+                def blink(context: xnano.Context) -> None:
                     heard.append('tick')
 
                 canvas.push(Event.key_press('q'))

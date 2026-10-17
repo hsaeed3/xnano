@@ -46,6 +46,12 @@ from xnano._customize import (
 from xnano._effect_controller import (
     EffectController as EffectController,
 )
+from xnano._effect_controller import (
+    PlayableEffects as PlayableEffects,
+)
+from xnano._effect_controller import (
+    RenderableEffects as RenderableEffects,
+)
 from xnano._hooks import (
     Hook as Hook,
 )
@@ -143,6 +149,7 @@ __all__ = [
     'PlayableEffect',
     'PlayableEffectKind',
     'PlayableEffectSpecification',
+    'PlayableEffects',
     'PlayOptions',
     'PlaySource',
     'RangeBound',
@@ -150,6 +157,7 @@ __all__ = [
     'RenderableEffect',
     'RenderableEffectKind',
     'RenderableEffectSpecification',
+    'RenderableEffects',
     'ResamplingFilter',
     'Spacing',
     'SpacingDictionary',

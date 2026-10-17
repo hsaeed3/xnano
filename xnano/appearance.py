@@ -409,6 +409,15 @@ class ColorSlot:
         return f'ColorSlot({self._name}={self.value!r})'
 
 
+def _unknown_color_slot(name: str) -> AttributeError:
+    """The error for ``owner.color.<name>`` when ``name`` is neither ``fg`` nor ``bg``."""
+    slot = 'bg' if name in ('background', 'back') else 'fg'
+    return AttributeError(
+        f'color has no {name!r}. Its two colors are color.fg, the text, and color.bg, what is '
+        f'behind it: write color.{slot} = ... instead.'
+    )
+
+
 class Colors:
     """
     The two colors of an owner: ``fg`` is the text, ``bg`` is what is behind it.
@@ -433,6 +442,14 @@ class Colors:
             owner: The canvas, placement or region.
         """
         self._owner = owner
+
+    def __getattr__(self, name: str) -> object:
+        raise _unknown_color_slot(name)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name not in ('_owner', 'fg', 'bg'):
+            raise _unknown_color_slot(name)
+        object.__setattr__(self, name, value)
 
     @property
     def fg(self) -> ColorSlot:

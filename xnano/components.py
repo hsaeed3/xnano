@@ -87,7 +87,7 @@ class ComponentContext(Generic[DepsT, StateT]):
         import xnano
 
         @xnano.renderable
-        def gauge(context: xnano.context.Context, ratio: float = 0.0) -> str:
+        def gauge(context: xnano.Context, ratio: float = 0.0) -> str:
             return '#' * round(ratio * 10)
 
         with xnano.new(width=12, height=1) as canvas:
@@ -338,7 +338,7 @@ class _HookSource:
             from xnano_core import Event
 
             @xnano.renderable
-            def label(context: xnano.context.Context, text: str = 'x') -> str:
+            def label(context: xnano.Context, text: str = 'x') -> str:
                 return text
 
             with xnano.new(width=10, height=1) as canvas:
@@ -346,7 +346,7 @@ class _HookSource:
 
                 @label.hook(on='key', keys='a')
                 def heard(
-                    context: xnano.context.Context,
+                    context: xnano.Context,
                     component_context: xnano.components.ComponentContext,
                 ) -> None:
                     pressed.append(component_context.arguments['text'])
@@ -429,7 +429,7 @@ def _own_signature(function: Callable[..., object], decorator: str) -> inspect.S
         name = getattr(function, '__name__', 'the function')
         raise TypeError(
             f'@xnano.{decorator} needs a function whose first parameter is the context, '
-            f'but {name} has none. Write def {name}(context: xnano.context.Context, ...): '
+            f'but {name} has none. Write def {name}(context: xnano.Context, ...): '
             f'and give the rest of the parameters when you write it: '
             f'canvas.write({name}(...)).'
         )
@@ -634,7 +634,7 @@ def renderable(  # pyright: ignore[reportGeneralTypeIssues]
         import xnano
 
         @xnano.renderable
-        def gauge(context: xnano.context.Context, ratio: float = 0.5) -> str:
+        def gauge(context: xnano.Context, ratio: float = 0.5) -> str:
             return '#' * round(ratio * 10)
 
         with xnano.new(width=12, height=1) as canvas:
@@ -670,7 +670,7 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
         import xnano
 
         @xnano.playable
-        def chord(context: xnano.context.Context, root: str = 'C4') -> xnano.Note:
+        def chord(context: xnano.Context, root: str = 'C4') -> xnano.Note:
             return xnano.note(root, beats=0.5)
 
         with xnano.new(width=8, height=1) as canvas:

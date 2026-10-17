@@ -594,3 +594,13 @@ class TestColorSlotHints:
             label.color.bg.darken(0.1)
         with pytest.raises(TerminalError, match=r'border\.color = "red"'):
             ColorSlot(label, 'border').darken(0.1)
+
+
+@pytest.mark.parametrize(('name', 'slot'), [('foreground', 'fg'), ('background', 'bg')])
+def test_a_long_color_name_points_to_its_slot(name: str, slot: str) -> None:
+    with xnano.new(width=8, height=1) as canvas:
+        label = canvas.write('hi')
+        with pytest.raises(AttributeError, match=f'write color.{slot} = '):
+            setattr(label.color, name, 'red')
+        with pytest.raises(AttributeError, match=f"color has no '{name}'"):
+            getattr(label.color, name)

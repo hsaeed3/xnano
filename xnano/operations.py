@@ -100,7 +100,7 @@ class ContextualOperation(Operation, Generic[DepsT, StateT]):
         counted = []
 
         @xnano.hook(on='tick', every=0.5)
-        def count(context: xnano.context.Context) -> None:
+        def count(context: xnano.Context) -> None:
             counted.append(context.time.elapsed)
 
         with xnano.new(width=16, height=1) as canvas:
@@ -318,7 +318,7 @@ def hook(
         readings = []
 
         @xnano.hook(on='frame')
-        def clock_readout(context: xnano.context.Context) -> None:
+        def clock_readout(context: xnano.Context) -> None:
             readings.append(round(context.time.elapsed, 1))
 
         with xnano.new(width=12, height=1) as canvas:

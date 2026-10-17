@@ -1587,7 +1587,7 @@ RenderableEffectArguments = (
     | StretchEffectArguments
     | ExplodeEffectArguments
 )
-"""The keyword arguments of ``fx(kind, ...)`` and ``context.fx(kind, ...)`` for a visual effect."""
+"""The keyword arguments of ``fx(kind, ...)`` and the methods of ``placement.fx`` and ``context.fx`` for a visual effect."""
 
 PlayableEffectArguments = (
     BitCrushAudioArguments
@@ -1598,7 +1598,7 @@ PlayableEffectArguments = (
     | ReverbAudioArguments
     | TremoloAudioArguments
 )
-"""The keyword arguments of ``fx(kind, ...)`` and ``context.fx(kind, ...)`` for a sound effect."""
+"""The keyword arguments of ``fx(kind, ...)`` and the methods of ``canvas.audio.fx`` and ``context.fx`` for a sound effect."""
 
 
 class FadeToEffectSpecification(FadeToEffectArguments):
@@ -1968,7 +1968,7 @@ RenderableEffect = (
     | StretchEffectCustomization
     | ExplodeEffectCustomization
 )
-"""A visual effect as ``fx(...)`` and ``context.fx(...)`` return it."""
+"""A visual effect as ``fx(...)`` and the methods of ``placement.fx`` and ``context.fx`` return it."""
 
 PlayableEffect = (
     BitCrushAudioCustomization
@@ -1979,7 +1979,7 @@ PlayableEffect = (
     | ReverbAudioCustomization
     | TremoloAudioCustomization
 )
-"""A sound effect as ``fx(...)`` and ``context.fx(...)`` return it."""
+"""A sound effect as ``fx(...)`` and the methods of ``canvas.audio.fx`` and ``context.fx`` return it."""
 
 EffectCustomization = RenderableEffect | PlayableEffect
 """

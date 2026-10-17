@@ -70,7 +70,7 @@ class Plugin:
             with xnano.new(width=8, height=1) as canvas:
 
                 @canvas.hook(on='key')
-                def count(context: xnano.context.Context) -> None:
+                def count(context: xnano.Context) -> None:
                     state = context.plugin.state
                     state.push('presses', state.get('presses', default=0) + 1)
                     context.root.state.push('latest', state.get('presses'))
@@ -176,7 +176,7 @@ class Context(Generic[DepsT_co, StateT_co]):
             heard = []
 
             @label.hook(on='mouse', when="mouse.kind == 'press'")
-            def pressed(context: xnano.context.Context) -> None:
+            def pressed(context: xnano.Context) -> None:
                 heard.append((context.mouse.position.x, context.buffer.x))
 
             canvas.push(Event.mouse_event(column=3, row=0, kind='press', button='left'))
@@ -366,7 +366,7 @@ class Context(Generic[DepsT_co, StateT_co]):
                 placement = canvas.write('hi', x=10, y=1)
 
                 @placement.hook(on='mouse')
-                def pressed(context: xnano.context.Context) -> None:
+                def pressed(context: xnano.Context) -> None:
                     if context.mouse.position is not None:
                         context.local(context.mouse.position)
 

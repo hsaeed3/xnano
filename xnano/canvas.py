@@ -60,6 +60,7 @@ from xnano._customize import (
     normalize_effect,
 )
 from xnano._decoration import Decorated, insets_for, paint_decoration
+from xnano._effect_controller import RenderableEffects
 from xnano._hooks import HookHandle, _Hooked
 from xnano._host import _Host, _InlineHost, _Registration, _ThreadHost
 from xnano._media import Image, ImageSource, content_buffer
@@ -676,6 +677,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         except BaseException:
             self.close(raise_failure=False)
             raise
+        self._renderable_effects = RenderableEffects(cast('Canvas[object, object]', self))
         self._seal()
 
     # -- the runtime ---------------------------------------------------------------------
@@ -3152,7 +3154,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 canvas.write('Press enter to start')
 
                 @canvas.hook(on='tick', after=0.05)
-                def press(context: xnano.context.Context) -> None:
+                def press(context: xnano.Context) -> None:
                     canvas.push(Event.key_press('enter'))
 
                 assert canvas.wait_for_key('enter') == 'enter'
@@ -3202,7 +3204,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             with xnano.new(realtime=True, width=30, height=2) as canvas:
 
                 @canvas.hook(on='tick', after=0.05)
-                def type_answer(context: xnano.context.Context) -> None:
+                def type_answer(context: xnano.Context) -> None:
                     for letter in 'Ada':
                         canvas.push(Event.key_press(letter))
                     canvas.push(Event.key_press('enter'))
@@ -3388,6 +3390,29 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                     canvas._audio = audio
                     canvas._host.post(lambda: audio._bind(canvas._runtime))
         return canvas._audio
+
+    @property
+    def fx(self) -> RenderableEffects:
+        """
+        The visual effects of the canvas itself, one method for each effect.
+
+        ``canvas.fx.fade_to(background='navy')`` starts a fade over the whole canvas at once,
+        and ``canvas.fx.clear()`` stops what was started here. A placement has its own
+        [`fx`][xnano.placement.Placement.fx], and the sound effects of what the canvas plays are
+        [`canvas.audio.fx`][xnano.audio.AudioDevice.fx]. See
+        [`RenderableEffects`][xnano.types.RenderableEffects].
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new('hello', width=8, height=1) as canvas:
+                canvas.fx.dissolve(duration_milliseconds=300)
+                assert len(canvas.fx.active) == 1
+            ```
+        """
+        self._require_open()
+        return self._renderable_effects
 
     @property
     def input(self) -> Input:
