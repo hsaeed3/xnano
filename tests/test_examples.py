@@ -635,7 +635,9 @@ def test_components_draw_from_the_clock_deps_and_hooks(example):
         'gauges follow the clock'
     )
     screen.press('r')
-    assert screen.wait_until(lambda: 'gauge heard r' in screen.text)
+    assert screen.wait_for('gauge heard r, 1 in all')
+    screen.press('r')
+    assert screen.wait_for('gauge heard r, 2 in all'), 'each placement counts for itself'
     screen.press('h')
     assert screen.wait_for('the dependencies name xnano.local')
     quit_with_q(screen)
@@ -648,8 +650,11 @@ def test_gestures_drag_scroll_and_conditions(example):
     screen.send('\x1b[<0;5;5M')  # press inside the box
     screen.send('\x1b[<32;9;6M')  # drag
     assert screen.wait_for('drag 8,3'), 'the drag hook follows the pointer'
+    assert screen.wait_for('left held'), 'the left button is held while dragging'
+    assert screen.wait_for('moves 1'), 'the box keeps its own state'
     screen.send('\x1b[<0;9;6m')
     assert screen.wait_for('drag released')
+    assert screen.wait_for('left free')
     screen.scroll(5, 4, direction='up')
     screen.scroll(5, 4, direction='up')
     assert screen.wait_for('zoom  -2')
@@ -705,6 +710,8 @@ def test_notes_render_offline_and_play_by_name(example):
     assert screen.wait_for('played 4 notes at 120 bpm')
     screen.press('p')
     assert screen.wait_for('played the arpeggio, a playable function')
+    screen.press('f')
+    assert screen.wait_for('played a class that plays itself')
     quit_with_q(screen)
 
 

@@ -9,7 +9,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 import xnano_core as _core
-from xnano._axes import check_cells, check_count
+from xnano._attributes import _SealedAttributes
+from xnano._axes import LEAST_CELL, MOST_CELL, check_cells, check_count
 
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
@@ -19,7 +20,16 @@ if TYPE_CHECKING:
 __all__ = ['Cursor']
 
 
-class Cursor:
+def _check_flag(name: str, value: object, on: str, off: str) -> None:
+    """Refuse a cursor flag that is not ``True`` or ``False``."""
+    if not isinstance(value, bool):
+        raise TypeError(
+            f'{name} must be True or False, but got {value!r}. Pass {name}=True to {on}, or '
+            f'{name}=False to {off}.'
+        )
+
+
+class Cursor(_SealedAttributes):
     """
     The one cursor a canvas has.
 
@@ -43,6 +53,10 @@ class Cursor:
         is_blinking: Whether the cursor blinks. Setting it without a shape uses a block.
         is_visible: Whether the cursor is shown when it has a position.
 
+    Raises:
+        TypeError: ``is_blinking`` or ``is_visible`` is assigned a value that is not
+            ``True`` or ``False``.
+
     Examples:
         ```python
         import xnano
@@ -63,6 +77,7 @@ class Cursor:
             canvas: The canvas the cursor belongs to.
         """
         self._canvas = canvas
+        self._seal()
 
     @property
     def _source(self) -> _core.Cursor:
@@ -75,6 +90,18 @@ class Cursor:
 
     @position.setter
     def position(self, value: _core.Point | tuple[int, int] | None) -> None:
+        if (
+            isinstance(value, tuple)
+            and len(value) == 2
+            and all(
+                isinstance(item, int) and not isinstance(item, bool) for item in value
+            )
+            and not all(LEAST_CELL <= item <= MOST_CELL for item in value)
+        ):
+            raise ValueError(
+                f'A cursor position takes whole numbers from {LEAST_CELL} to {MOST_CELL}, '
+                f'but got {value!r}. Pass a cell of the canvas, such as (3, 1).'
+            )
         self._source.position = value
         self._canvas._cursor_follow = None
 
@@ -94,6 +121,7 @@ class Cursor:
 
     @is_blinking.setter
     def is_blinking(self, value: bool) -> None:
+        _check_flag('is_blinking', value, 'make the cursor blink', 'keep it steady')
         self._source.is_blinking = value
 
     @property
@@ -103,6 +131,7 @@ class Cursor:
 
     @is_visible.setter
     def is_visible(self, value: bool) -> None:
+        _check_flag('is_visible', value, 'show the cursor', 'hide it')
         self._source.is_visible = value
 
     def move(self, x: int = 0, y: int = 0) -> Cursor:
@@ -118,6 +147,7 @@ class Cursor:
 
         Raises:
             TypeError: An amount is not a whole number.
+            ValueError: An amount is outside the range of a cell number.
 
         Examples:
             ```python
@@ -248,6 +278,13 @@ class Cursor:
             x: The column inside the target.
             y: The row inside the target.
 
+        Raises:
+            TerminalClosedError: The target is a placement, or a region of one, that was
+                already removed, or its canvas is closed.
+            TypeError: The target is not a placement, a region or a buffer, or ``x`` or ``y``
+                is not a whole number.
+            ValueError: ``x`` or ``y`` is outside the range of a cell number.
+
         Examples:
             ```python
             import xnano
@@ -260,9 +297,14 @@ class Cursor:
                 assert canvas.cursor.position == Point(12, 1)
             ```
         """
+        x = check_cells(x, 'x')
+        y = check_cells(y, 'y')
         if isinstance(target, _core.Buffer):
             buffer = target
         elif hasattr(target, 'core_buffer'):
+            require_attached = getattr(target, '_require_attached', None)
+            if require_attached is not None:
+                require_attached()
             buffer = target.core_buffer  # type: ignore[union-attr]
         else:
             if not hasattr(target, '_inset'):
@@ -272,10 +314,13 @@ class Cursor:
                     f'canvas.cursor.follow(canvas.write("name")).'
                 )
             region = cast('Region', target)
+            require_owner_attached = getattr(region._owner, '_require_attached', None)
+            if require_owner_attached is not None:
+                require_owner_attached()
             buffer = region._buffer
             left, top, _, _ = region._inset
-            x += left
-            y += top
+            x = check_cells(x + left, 'x')
+            y = check_cells(y + top, 'y')
         self._source.follow(buffer, x=x, y=y)
         self._canvas._cursor_follow = (buffer, x, y)
         return self

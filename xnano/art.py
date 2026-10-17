@@ -15,8 +15,9 @@ from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
 from xnano import symbols
+from xnano._appearance import MOST_CELLS
 from xnano._axes import to_rgb
-from xnano._customize import apply_effects, normalize_effect
+from xnano._customize import apply_effects, effect_sequence, normalize_effect
 from xnano._optional import is_image
 from xnano._values import Anchor, ColorValue
 
@@ -81,6 +82,26 @@ def _clamp_axis(wanted: int, world: int, view: int) -> int:
     if world <= view:
         return -((view - world) // 2)  # the world is smaller than the screen: center it
     return max(0, min(world - view, wanted))
+
+
+def _check_pixels(
+    value: object, *, name: str, verb: str, opposite: str | None = None
+) -> None:
+    """Refuse a distance that is not a finite number of pixels."""
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+    ):
+        raise TypeError(
+            f'{verb}() takes {name} as a finite number of pixels, but got {value!r}. Pass a '
+            f'number such as {name}=1 to move by one pixel.'
+        )
+    if opposite is not None and value < 0:
+        raise ValueError(
+            f'{name} must be zero or more, but got {value}. To move the other way, call '
+            f'{opposite}() instead of {verb}().'
+        )
 
 
 class Art:
@@ -201,7 +222,10 @@ class Art:
         self._children: list[Art] = []
         self._parent: Art | None = None
         self._symbol: str | None = None
-        effects = tuple(effects)
+        effects = cast(
+            'tuple[RenderableEffectSpecification, ...]',
+            effect_sequence(effects, 'renderable'),
+        )
         for effect in effects:
             normalize_effect(effect, 'renderable')
         self._effects: tuple[RenderableEffectSpecification, ...] = effects
@@ -479,6 +503,8 @@ class Art:
             assert (hero.x, hero.y) == (4, 3)
             ```
         """
+        _check_pixels(x, name='x', verb='move')
+        _check_pixels(y, name='y', verb='move')
         before_x, before_y = self._x, self._y
         self.x = self._advance(self._x, self._y, x, is_horizontal=True)
         self.y = self._advance(self._x, self._y, y, is_horizontal=False)
@@ -498,6 +524,7 @@ class Art:
         Returns:
             The distance moved in pixels, ``0.0`` when blocked.
         """
+        _check_pixels(count, name='count', verb='up', opposite='down')
         return abs(self.move(y=-count)[1])
 
     def down(self, count: float = 1) -> float:
@@ -514,6 +541,7 @@ class Art:
         Returns:
             The distance moved in pixels, ``0.0`` when blocked.
         """
+        _check_pixels(count, name='count', verb='down', opposite='up')
         return abs(self.move(y=count)[1])
 
     def left(self, count: float = 1) -> float:
@@ -530,6 +558,7 @@ class Art:
         Returns:
             The distance moved in pixels, ``0.0`` when blocked.
         """
+        _check_pixels(count, name='count', verb='left', opposite='right')
         return abs(self.move(x=-count)[0])
 
     def right(self, count: float = 1) -> float:
@@ -546,6 +575,7 @@ class Art:
         Returns:
             The distance moved in pixels, ``0.0`` when blocked.
         """
+        _check_pixels(count, name='count', verb='right', opposite='left')
         return abs(self.move(x=count)[0])
 
     def _advance(
@@ -553,9 +583,13 @@ class Art:
     ) -> float:
         """Walk along one axis a pixel at a time, so a thin wall cannot be stepped over."""
         position = x if is_horizontal else y
-        remaining = abs(distance)
         sign = 1.0 if distance > 0 else -1.0
         parent = self._parent
+        if parent is None:
+            return position + distance
+        # Everything outside the world is solid, so walking further than the world is wide
+        # and tall cannot get anywhere a shorter walk would not.
+        remaining = min(abs(distance), float(parent._width + parent._height))
         while remaining > 0:
             step = min(1.0, remaining) * sign
             ahead = position + step
@@ -819,9 +853,10 @@ def draw(
     What ``source`` is decides what is made:
 
     * Text with a newline, or a list of rows: pixel art painted with ``palette``.
-    * Text without a newline: the name of a registered art (see [`symbols`][xnano.symbols]);
-      you get a copy. A one-row picture is a list, ``draw(['GG'], palette)``, so that a call
-      never changes meaning because a symbol was registered later.
+    * Text without a newline: the name of a registered art or image (see
+      [`symbols`][xnano.symbols]); you get a copy of the art, or the pixels of the image.
+      A one-row picture is a list, ``draw(['GG'], palette)``, so that a call never changes
+      meaning because a symbol was registered later.
     * An [`Image`][xnano.Image] or a picture from ``xnano.image``: its pixels are copied
       (the first frame of an animation).
     * ``bytes`` of red, green, blue and alpha, with ``width`` and ``height``.
@@ -867,6 +902,12 @@ def draw(
         ```
     """
     if isinstance(source, str) and '\n' not in source:
+        from xnano._media import Image as MediaImage
+
+        if source in symbols.names(kind=MediaImage):
+            # The name of a registered image draws that image.
+            source = symbols.lookup(source, kind=MediaImage)
+    if isinstance(source, str) and '\n' not in source:
         try:
             registered = symbols.lookup(source, kind=Art)
         except ValueError as error:
@@ -877,7 +918,10 @@ def draw(
         art = registered._copy()
         if background is not None:
             art.background = background
-        effects = tuple(effects)
+        effects = cast(
+            'tuple[RenderableEffectSpecification, ...]',
+            effect_sequence(effects, 'renderable'),
+        )
         if effects:
             for effect in effects:
                 normalize_effect(effect, 'renderable')
@@ -962,6 +1006,11 @@ def _rows_to_pixels(
             'draw needs at least one row, and every row the same length, but got '
             f'row lengths {[len(row) for row in rows]}. Pad the short rows with ".".'
         )
+    if len(rows[0]) > MOST_CELLS:
+        raise ValueError(
+            f'draw() takes rows of at most {MOST_CELLS} characters, but the rows have '
+            f'{len(rows[0])}. Pass shorter rows, or split the picture in several.'
+        )
     channels = {character: (*to_rgb(color), 255) for character, color in colors.items()}
     transparent = bytes(_RGBA)
     pixels = b''.join(
@@ -985,6 +1034,12 @@ def _art_rows(art: str | Sequence[str]) -> list[str]:
 
 def _palette_colors(palette: Mapping[str, ColorValue] | str) -> Mapping[str, ColorValue]:
     if not isinstance(palette, str):
+        if not isinstance(palette, Mapping):
+            raise TypeError(
+                f'The palette is a mapping from a character to a color, or a string of '
+                f"character=color pairs, but got {palette!r}. Pass {{'#': 'white'}} or "
+                f"'#=white .=black'."
+            )
         return palette
     colors: dict[str, ColorValue] = {}
     for pair in palette.split():

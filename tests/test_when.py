@@ -322,6 +322,12 @@ class TestOperators:
         assert hook_heard(canvas, "keyboard.key not in ('a', 'b')", *events) == 1
         assert hook_heard(canvas, "keyboard.key != 'a'", *events) == 2
 
+    def test_negation_holds_for_an_event_without_the_input(self, canvas):
+        events = [Event.key_press('q'), Event.paste('x')]
+        assert hook_heard(canvas, "keyboard.key != 'q'", *events) == 0
+        assert hook_heard(canvas, "not keyboard.key == 'q'", *events) == 1
+        assert hook_heard(canvas, "keyboard.key not in ('q',)", *events) == 1
+
     def test_arithmetic_and_negation(self, canvas):
         placement = canvas.write('abc')
         events = [Event.key_press('a')]
@@ -399,11 +405,30 @@ class TestErrors:
             ('keyboard.key ==', 'is not valid'),
             ("[x for x in 'ab']", 'ListComp is not allowed'),
             ('mouse.position == None', 'cannot be built'),
+            ('not keyboard.key', 'not needs a comparison, but keyboard.key is a value'),
         ],
     )
     def test_a_bad_string_says_what_is_wrong(self, text, message):
         with pytest.raises(ValueError, match=message):
             parse_when(text)
+
+    def test_the_suggestion_after_not_fits_the_value(self):
+        with pytest.raises(ValueError, match=r'such as not root.time > 2'):
+            parse_when('not root.time')
+        with pytest.raises(ValueError, match=r"such as not mouse.button == 'left'"):
+            parse_when('not mouse.button')
+        with pytest.raises(ValueError, match=r"such as not keyboard.key == 'q'"):
+            parse_when('not keyboard.key')
+
+    def test_not_applies_to_a_constant_as_in_python(self):
+        with pytest.raises(
+            ValueError, match="'not True' is False, which is not a condition"
+        ):
+            parse_when('not True')
+        with pytest.raises(
+            ValueError, match="'not False' is True, which is not a condition"
+        ):
+            parse_when('not False')
 
     def test_the_message_shows_the_column(self):
         with pytest.raises(ValueError, match=r'at column 16') as error:
@@ -462,3 +487,12 @@ class TestUnseenValues:
         canvas.push(Event.key_press('a'))
         canvas.deliver_events()
         assert heard == ['hyper+a']
+
+
+class TestArithmeticErrors:
+    def test_arithmetic_on_a_name_says_which_operands_are_not_numbers(self):
+        with xnano.new(width=8, height=1) as canvas:
+            with pytest.raises(
+                ValueError, match=r'\+ cannot be applied to keyboard\.key and 1'
+            ):
+                canvas.hook(lambda context: None, when='keyboard.key + 1')

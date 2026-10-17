@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import array
 import dataclasses
+import inspect
 import io
 import math
 import os
 import pathlib
 import sys
 import wave
+import weakref
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal, cast
 
@@ -219,6 +221,45 @@ def content_buffer(
         raise TypeError(str(error)) from None
 
 
+_CHECKED_METHODS: weakref.WeakSet[object] = weakref.WeakSet()
+"""Functions of methods already found to accept a context, so each is inspected once."""
+
+
+def check_context_method(content: object, name: str) -> None:
+    """
+    Refuse an ``__xnano_render__`` or ``__xnano_play__`` method that cannot take the context.
+
+    A method that passes is remembered, so a component drawn every frame is inspected once.
+
+    Raises:
+        TypeError: The method does not accept one argument besides ``self``.
+    """
+    method = getattr(content, name)
+    function = getattr(method, '__func__', None)
+    if function is not None and function in _CHECKED_METHODS:
+        return
+    try:
+        inspect.signature(method).bind(None)
+    except TypeError:
+        kind = type(content).__name__
+        produces = (
+            'what it plays, such as a Note or melody text'
+            if name == '__xnano_play__'
+            else 'the content'
+        )
+        raise TypeError(
+            f'{kind}.{name} must take the context, but it cannot be called with one. '
+            f'Write def {name}(self, context): ... and return {produces}.'
+        ) from None
+    except ValueError:
+        return
+    if function is not None:
+        try:
+            _CHECKED_METHODS.add(function)
+        except TypeError:
+            pass
+
+
 def _content_buffer(
     content: Content,
     *,
@@ -274,6 +315,7 @@ def _content_buffer(
                 f'again ({names}). Return text, a Region, an Art, a Buffer or another '
                 f'finished value instead of an object that renders itself.'
             )
+        check_context_method(content, '__xnano_render__')
         result = content.__xnano_render__(context)  # type: ignore[arg-type]
         try:
             return _content_buffer(
@@ -449,6 +491,7 @@ class Image:
             ImportError: ``xnano-image`` is not installed. Install it with
                 ``pip install "xnano[image]"``.
             TypeError: ``source`` is not a path, bytes or an image.
+            FileNotFoundError: ``source`` is a path with no file at it.
             ValueError: ``symbol`` cannot be a symbol name, or another kind of value
                 already has it.
         """
@@ -459,7 +502,13 @@ class Image:
             if isinstance(source, bytes):
                 image = module.TerminalImage.from_bytes(source)
             elif isinstance(source, (str, os.PathLike)):
-                image = module.TerminalImage.open(pathlib.Path(source))
+                path = pathlib.Path(source)
+                if not path.is_file():
+                    raise FileNotFoundError(
+                        f'Image could not load {str(path)!r}, because no image file exists '
+                        f'there. Check the path, or pass the bytes of the image.'
+                    )
+                image = module.TerminalImage.open(path)
             else:
                 raise TypeError(
                     f'Image needs the path of an image file, the bytes of an image or an '
@@ -530,6 +579,7 @@ class Audio:
             ImportError: ``xnano-audio`` is not installed. Install it with
                 ``pip install "xnano[audio]"``.
             TypeError: ``source`` is not a path, bytes or a sound.
+            FileNotFoundError: ``source`` is a path to a file that does not exist.
             ValueError: The file is not a PCM WAV file that xnano can read, or ``symbol`` cannot
                 be a symbol name, or another kind of value already has it.
         """
@@ -539,7 +589,13 @@ class Audio:
         elif isinstance(source, bytes):
             sound = _decode_wave(module, source)
         elif isinstance(source, (str, os.PathLike)):
-            sound = _decode_wave(module, pathlib.Path(source).read_bytes())
+            path = pathlib.Path(source)
+            if not path.is_file():
+                raise FileNotFoundError(
+                    f'Audio could not load {str(path)!r}, because no WAV file exists '
+                    f'there. Check the path, or pass the bytes of the sound.'
+                )
+            sound = _decode_wave(module, path.read_bytes())
         else:
             raise TypeError(
                 f'Audio needs the path of a WAV file, the bytes of one or a sound, but got '
@@ -560,8 +616,9 @@ def _decode_wave(module: ModuleType, data: bytes) -> TerminalSound:
             sample_rate = reader.getframerate()
             frames = reader.readframes(reader.getnframes())
     except (wave.Error, EOFError) as error:
+        detail = f' ({error})' if str(error) else ''
         raise ValueError(
-            f'This is not a PCM WAV file that xnano can read ({error}). Convert the sound '
+            f'This is not a PCM WAV file that xnano can read{detail}. Convert the sound '
             f'to a 16-bit PCM WAV file, or build a sound with xnano_audio.TerminalSound.'
         ) from None
     if sample_width == 1:

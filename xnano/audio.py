@@ -15,10 +15,10 @@ import math
 import threading
 import time
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Final, TypeAlias, cast
+from typing import TYPE_CHECKING, Final, cast
 
 from xnano import _optional, symbols
-from xnano._customize import normalize_effect
+from xnano._customize import effect_sequence, normalize_effect
 from xnano._media import Audio
 from xnano.music import Note, PlayHandle
 
@@ -42,13 +42,13 @@ from xnano_audio import (  # noqa: E402
 )
 
 import xnano_core as _core  # noqa: E402
-from xnano._values import NumericExpression  # noqa: E402
+from xnano._values import NumericExpression, PlaySource  # noqa: E402
 from xnano_core._xnano_core import _external  # the hook for values an extension provides  # noqa: E402
 
 if TYPE_CHECKING:
     from xnano._customize import AudioCustomization
     from xnano.canvas import Canvas
-    from xnano.types import Playable, PlayableEffectSpecification
+    from xnano.types import PlayableEffectSpecification
 
 __all__ = [
     'Audio',
@@ -65,16 +65,6 @@ __all__ = [
     'TerminalSound',
     'instrument_names',
 ]
-
-PlaySource: TypeAlias = (
-    'Playable | int | float | TerminalSound | TerminalNote | TerminalMelody'
-)
-"""
-Anything [`AudioDevice.play`][xnano.audio.AudioDevice.play] accepts: a
-[`Playable`][xnano.types.Playable] (a [`Note`][xnano.Note], an [`Audio`][xnano.Audio], a symbol name, a
-note name such as ``'C#4'``, melody text, or a sequence of those), a MIDI note number such as
-``60``, a frequency in hertz, or a rendered sound, note or melody from ``xnano-audio``.
-"""
 
 
 def _parse_melody(
@@ -291,7 +281,7 @@ def _check_velocity(velocity: float) -> None:
         )
 
 
-def resolve_effects(
+def _resolve_effects(
     effects: Sequence[PlayableEffectSpecification] | None,
 ) -> tuple[TerminalAudioEffect, ...]:
     """
@@ -307,7 +297,7 @@ def resolve_effects(
     if not effects:
         return ()
     resolved: list[TerminalAudioEffect] = []
-    for effect in effects:
+    for effect in effect_sequence(effects, 'playable'):
         if isinstance(effect, TerminalAudioEffect):
             resolved.append(effect)
             continue
@@ -316,7 +306,7 @@ def resolve_effects(
     return tuple(resolved)
 
 
-def hook_effects(canvas: Canvas[object, object]) -> tuple[TerminalAudioEffect, ...]:
+def _hook_effects(canvas: Canvas[object, object]) -> tuple[TerminalAudioEffect, ...]:
     """
     The sound effects of the hook that is running right now on this thread.
 
@@ -353,7 +343,7 @@ def _at_standard_rate(sound: TerminalSound) -> TerminalSound:
     return TerminalSound.from_samples(converted, sample_rate=_STANDARD_SAMPLE_RATE)
 
 
-def mix_planned(planned: list[_Planned]) -> TerminalSound:
+def _mix_planned(planned: list[_Planned]) -> TerminalSound:
     """Synthesize the sounds of a ``play()`` call and mix them on their timeline."""
     sounds = [(item.synthesize(), item.offset_seconds) for item in planned]
     if len(sounds) > 1:
@@ -375,7 +365,7 @@ def _known_sound_names() -> str:
     return ', '.join(repr(name) for name in names) if names else 'none yet'
 
 
-def plan_call(
+def _plan_call(
     source: object,
     *,
     bpm: float,
@@ -405,7 +395,7 @@ def plan_call(
         instrument,
         beats,
         velocity,
-        None if effects is None else resolve_effects(effects),
+        None if effects is None else _resolve_effects(effects),
         extra_effects,
     )
     planned: list[_Planned] = []
@@ -437,7 +427,7 @@ def _plan_into(
             beats=source.beats,
             instrument=source.instrument,
             velocity=source.velocity,
-            effects=resolve_effects(source.effects),
+            effects=_resolve_effects(source.effects),
         )
     if isinstance(source, Audio):
         return _plan_into(planned, source.sound, options, bpm, offset)
@@ -759,7 +749,7 @@ class AudioDevice:
         """
         canvas = self._canvas
         canvas._require_open()
-        planned = plan_call(
+        planned = _plan_call(
             source,
             bpm=canvas.bpm,
             instrument=instrument,
@@ -769,7 +759,7 @@ class AudioDevice:
             volume=volume,
             pan=pan,
             at_beat=at_beat,
-            extra_effects=hook_effects(canvas),
+            extra_effects=_hook_effects(canvas),
         )
         if self.is_offline:
             return self._record(planned, volume=volume, at_beat=at_beat)
@@ -779,7 +769,7 @@ class AudioDevice:
                 'can be opened. Check canvas.audio.is_available before playing, or play on a '
                 'canvas from xnano.new(), which records the sound for render_sound().'
             )
-        sound = mix_planned(planned)
+        sound = _mix_planned(planned)
         handle = PlayHandle(
             clock=time.monotonic,
             end_seconds=time.monotonic() + sound.duration_milliseconds / 1000.0,

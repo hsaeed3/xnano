@@ -35,7 +35,7 @@ def test_a_position_is_a_point_or_a_pair(runtime, screen):
 
 
 def test_a_bad_position_is_explained(runtime):
-    with pytest.raises(TypeError, match='Point or a \\(column, row\\) pair'):
+    with pytest.raises(TypeError, match='Point or an \\(x, y\\) pair'):
         runtime.cursor.position = 'here'
     with pytest.raises(TypeError, match='whole numbers'):
         runtime.cursor.position = (1, 2, 3)

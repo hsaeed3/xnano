@@ -174,6 +174,52 @@ class TestLiveViews:
         label.region.resize(6, 2)
         assert (label.width, label.height) == (8, 4)
 
+    def test_resize_gives_the_region_the_requested_size_inside_a_decoration(self, canvas):
+        block = canvas.write(
+            xnano.box(4, 2, border=False), x=2, y=1, border='plain', padding=1
+        )
+        block.region.resize(6, 3)
+        canvas.step()
+        assert (block.region.width, block.region.height) == (6, 3)
+        shrunk = canvas.write(
+            xnano.box(4, 2, border=False), x=2, y=1, border='plain', padding=1
+        )
+        shrunk.region.resize(1, 1)
+        canvas.step()
+        assert (shrunk.region.width, shrunk.region.height) == (1, 1)
+
+    def test_resizing_a_decorated_box_draws_its_border_at_the_new_size(self):
+        frame = xnano.box(5, 3, border='plain', padding=1)
+        frame.resize(8, 5)
+        assert frame.render().splitlines() == [
+            '┌──────┐',
+            '│      │',
+            '│      │',
+            '│      │',
+            '└──────┘',
+        ]
+        frame.border = 'double'
+        assert frame.render().splitlines() == [
+            '╔══════╗',
+            '║      ║',
+            '║      ║',
+            '║      ║',
+            '╚══════╝',
+        ]
+
+    def test_shrinking_a_decorated_box_keeps_its_border_whole(self):
+        plain = xnano.box(6, 4, border='plain')
+        plain[1, 1] = 'X'
+        plain[4, 2] = 'Y'
+        plain.resize(4, 3)
+        assert plain.render().splitlines() == ['┌──┐', '│X │', '└──┘']
+        padded = xnano.box(8, 6, border='plain', padding=1)
+        padded.resize(4, 4)
+        assert padded.render().splitlines() == ['┌──┐', '│  │', '│  │', '└──┘']
+        tiny = xnano.box(6, 4, border='plain')
+        tiny.resize(3, 3)
+        assert tiny.render().splitlines() == ['┌─┐', '│ │', '└─┘']
+
     def test_resize_on_a_canvas_view_is_refused(self, canvas):
         with pytest.raises(TerminalError, match='follows its screen'):
             canvas.region.resize(3, 3)

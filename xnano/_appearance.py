@@ -7,6 +7,7 @@ How a text placement or canvas looks: colors, text modifiers, border, title, pad
 from __future__ import annotations
 
 import dataclasses
+import math
 from typing import Final, TypeAlias, TypedDict, cast
 
 import xnano_core as _core
@@ -76,6 +77,31 @@ bottom edges, read when the spacing is applied.
 """
 
 
+def _refuse_negative(value: float, name: str, *, shown: object = None) -> None:
+    """Refuse a space that is less than nothing, or that is not a number of cells."""
+    if value < 0 or (isinstance(value, float) and not math.isfinite(value)):
+        keyword = name.split('[')[0]
+        raise ValueError(
+            f'{name} must be zero or more and finite, but got '
+            f'{value if shown is None else shown!r}. '
+            f'Pass {keyword}=0 for no space.'
+        )
+
+
+MOST_CELLS: Final = 65535
+
+
+def _within_cells(cells: int, name: str, shown: object) -> int:
+    """Return ``cells`` when a buffer can hold that much space."""
+    if cells > MOST_CELLS:
+        keyword = name.split('[')[0]
+        raise ValueError(
+            f'{name} must be at most {MOST_CELLS} cells, but got {shown!r}. Pass a smaller '
+            f'space, such as {keyword}=2.'
+        )
+    return cells
+
+
 def _cells(value: object, available: int, name: str) -> int:
     keyword = name.split('[')[0]
     if isinstance(value, bool):
@@ -83,17 +109,19 @@ def _cells(value: object, available: int, name: str) -> int:
             f'{name} must be a whole number of cells, a float or a percentage string, but '
             f'got {value!r}. Pass {keyword}=1, {keyword}=0.1 or {keyword}="10%".'
         )
-    if isinstance(value, int):
-        return max(0, value)
-    if isinstance(value, float):
-        return max(0, round(available * value))
+    if isinstance(value, (int, float)):
+        _refuse_negative(value, name)
+        if isinstance(value, int):
+            return _within_cells(value, name, value)
+        return _within_cells(round(available * value), name, value)
     if isinstance(value, str) and value.strip().endswith('%'):
         try:
             share = float(value.strip()[:-1]) / 100.0
         except ValueError:
             share = None
         if share is not None:
-            return max(0, round(available * share))
+            _refuse_negative(share, name, shown=value)
+            return _within_cells(round(available * share), name, value)
     raise TypeError(
         f'{name} must be a whole number of cells, a float or a percentage string, but got '
         f'{value!r}. Pass {keyword}=1, {keyword}=0.1 or {keyword}="10%".'
@@ -225,7 +253,7 @@ class Appearance:
         is_hidden: Whether the text is hidden.
         is_crossed_out: Whether the text is struck through.
         title: A title on the border.
-        border: The kind of border: ``'plain'``, ``'rounded'``, ``'double'`` or ``'thick'``.
+        border: The kind of border, a [`BorderKind`][xnano.types.BorderKind] such as ``'plain'``.
         border_style: The style of the border.
         padding: Space between the border and the text.
         margin: Space outside the border.

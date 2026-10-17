@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import difflib
 import inspect
+import math
 from collections import deque
 from collections.abc import Callable, Generator, Sequence
 from typing import (
@@ -34,7 +35,7 @@ from xnano._values import DepsT, KeyName, StateT
 from xnano._when import CompiledWhen, compile_when, normalize_chord
 from xnano.context import Context, Frame, Update
 from xnano.errors import TerminalError
-from xnano.state import StateFollower, StateNamespace, _HookRun, dotted
+from xnano.state import StateNamespace, _dotted, _HookRun, _StateFollower
 
 HookKind: TypeAlias = Literal[
     'frame',
@@ -109,6 +110,50 @@ _LEGACY_ON: Final[dict[str, str]] = {
 _MAXIMUM_CATCH_UP: Final = 100_000
 
 
+def _is_finite(value: float) -> bool:
+    """Whether ``value`` is a number that has a finite size in seconds or beats."""
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
+def _check_hook_function(function: object, *, arguments: int = 1) -> None:
+    """Refuse something that cannot be called with a hook's arguments."""
+    name = getattr(function, '__name__', None) or repr(function)
+    if not callable(function):
+        raise TypeError(
+            f'hook() takes a function of the context, such as hook(lambda context: ...), but '
+            f'got {function!r}. Pass the function itself, without calling it.'
+        )
+    if inspect.iscoroutinefunction(function) or inspect.isasyncgenfunction(function):
+        raise TypeError(
+            f'{name} is an async function, but a hook is a plain function or a generator '
+            f'function, which the canvas calls and which never waits. Write it with def, '
+            f'and hand slow work to another thread.'
+        )
+    try:
+        signature = inspect.signature(function, follow_wrapped=False)
+    except (TypeError, ValueError):
+        return
+    try:
+        signature.bind(*([None] * arguments))
+    except TypeError:
+        received = (
+            'the context' if arguments == 1 else 'the context and the component context'
+        )
+        parameters = 'context' if arguments == 1 else 'context, component_context'
+        written = (
+            f'lambda {parameters}: ... or def my_hook({parameters})'
+            if name.startswith('<')
+            else f'def {name}({parameters})'
+        )
+        raise TypeError(
+            f'{name} cannot take the arguments a hook receives, which are {received}. '
+            f'Write it as {written}.'
+        ) from None
+
+
 def _check_hook_arguments(
     owner: _Hooked[object, object],
     on: str | None,
@@ -120,6 +165,11 @@ def _check_hook_arguments(
     kinds = ', '.join(
         repr(kind) for kind in (*_EVENT_KINDS, 'frame', 'tick', 'beat') if kind
     )
+    if on is not None and not isinstance(on, str):
+        raise TypeError(
+            f"on= takes one kind of hook as text, such as on='key', but got {on!r}. To listen "
+            f'to several kinds, register one hook for each. The kinds are {kinds}.'
+        )
     if on is not None and on not in _EVENT_KINDS and on not in _TIMED:
         legacy = _LEGACY_ON.get(on)
         if legacy is not None:
@@ -159,12 +209,13 @@ def _check_hook_arguments(
         if value is not None and (
             isinstance(value, bool)
             or not isinstance(value, (int, float))
+            or not _is_finite(value)
             or (value <= 0 if name == 'every' else value < 0)
         ):
             minimum = 'above 0' if name == 'every' else '0 or more'
             raise ValueError(
-                f'{name}= must be a number {minimum}, but was {value!r}. In seconds for '
-                f"on='tick' and in beats for on='beat'."
+                f'{name}= must be a finite number {minimum}, but was {value!r}. In seconds '
+                f"for on='tick' and in beats for on='beat'."
             )
     if keys is not None and on != 'key':
         raise ValueError(
@@ -184,6 +235,12 @@ def _check_hook_arguments(
             f'but got {keys!r}.'
         )
     names = (keys,) if isinstance(keys, str) else tuple(cast('Sequence[str]', keys))
+    for name in names:
+        if not isinstance(name, str):
+            raise TypeError(
+                f"keys= takes key names such as 'q' or 'ctrl+s', but one of them is "
+                f'{name!r}. Write each key as text, for example keys=["q", "escape"].'
+            )
     return tuple(normalize_chord(name) for name in names)
 
 
@@ -613,7 +670,7 @@ class HookHandle(Generic[DepsT, StateT]):
             self._fail(change, error)
 
     def _state_loop(
-        self, change: _core.TerminalStateChange, others: list[StateFollower]
+        self, change: _core.TerminalStateChange, others: list[_StateFollower]
     ) -> None:
         """Report that this hook keeps being run again by hooks that change what it reads."""
         names = [_hook_name(self.function)]
@@ -622,7 +679,7 @@ class HookHandle(Generic[DepsT, StateT]):
             for other in others
             if isinstance(other, HookHandle)
         )
-        path = dotted(change.paths[0]) if change.paths else ''
+        path = _dotted(change.paths[0]) if change.paths else ''
         if len(names) == 1:
             text = (
                 f'The hook {names[0]!r} keeps being run again because {path!r} keeps '
@@ -772,9 +829,9 @@ class _Hooked(Generic[DepsT, StateT]):
 
         ``on`` says what to listen to. A hook without ``on`` hears every input event. A mouse,
         scroll or drag hook on a placement hears only the pointer inside the placement, and a
-        press inside holds the pointer for the hook until the button is released. A hook that
-        matches an event stops it from reaching the parent; a hook that does not match lets it
-        through.
+        press inside holds the pointer for the hook until the button is released. A pointer hook
+        that matches an event stops it from reaching the parent; a hook that does not match lets
+        it through. Keys are not consumed: while nothing has focus, every key hook hears a key.
 
         ``hook(function, ...)`` attaches one function, and ``@target.hook(...)`` decorates the
         function that follows. A hook function may be a generator that receives a new context
@@ -784,8 +841,9 @@ class _Hooked(Generic[DepsT, StateT]):
         ``every`` and ``after`` are seconds for ``on='tick'`` and beats for ``on='beat'``:
         ``every=2`` means 2 seconds for a tick hook and 2 beats for a beat hook. On a canvas
         from ``new()`` a hook that is due several times in one ``step`` runs once for each
-        interval. The function's return value is ignored, unless it is an operation, a style
-        or an effect, which is applied to this target.
+        interval, up to 100,000 times in one step; the intervals that remain run in the steps
+        that follow. The function's return value is ignored, unless it is an operation, a
+        style or an effect, which is applied to this target.
 
         Args:
             function: The function to call with a [`Context`][xnano.context.Context].
@@ -798,7 +856,11 @@ class _Hooked(Generic[DepsT, StateT]):
                 turned on when the canvas opens. An expression or a function does not, so a
                 condition that reads ``Mouse``, ``Scroll`` or key releases needs the gate set
                 on ``new()`` or ``open()`` yourself: ``mouse=True``, ``scroll=True`` or
-                ``keyboard='release_events'``.
+                ``keyboard='release_events'``. A comparison with an input the event does not
+                carry, such as ``keyboard.key`` on a paste, does not hold; ``!=`` is one of
+                them, so ``keyboard.key != 'q'`` hears only key events. ``not`` and ``not in``
+                negate the whole comparison, so ``not keyboard.key == 'q'`` and
+                ``keyboard.key not in ['q']`` also hold for events that have no key.
             every: Repeat every this many seconds (``'tick'``) or beats (``'beat'``).
             after: Run once after this many seconds (``'tick'``) or beats (``'beat'``).
             keys: The key or keys an ``on='key'`` hook reacts to, such as ``'q'`` or
@@ -814,7 +876,8 @@ class _Hooked(Generic[DepsT, StateT]):
             ValueError: The combination of arguments does not make sense, a key name is
                 unknown, or a ``when`` string is not a condition. The message says what to
                 write instead.
-            TypeError: ``when`` is a plain ``bool``.
+            TypeError: ``on`` is not text, ``when`` is a plain ``bool``, or the function is not callable with a
+                context, or is an ``async`` function.
             TerminalError: ``requires_deps`` is true and the canvas was created without
                 ``deps``, or the canvas is on a screen with an input gate this hook needs
                 turned off.
@@ -841,7 +904,7 @@ class _Hooked(Generic[DepsT, StateT]):
             ```
         """
         canvas = self._canvas
-        canvas._require_open()
+        self._require_attached()
         owner = cast('_Hooked[object, object]', self)
         normalized_keys = _check_hook_arguments(owner, on, every, after, keys)
         compiled = compile_when(when)
@@ -864,6 +927,7 @@ class _Hooked(Generic[DepsT, StateT]):
         def attach(
             callback: Hook[DepsT, StateT],
         ) -> HookHandle[DepsT, StateT]:
+            _check_hook_function(callback)
             return self._attach_hook(
                 cast('Callable[[Context[DepsT, StateT]], object]', callback),
                 on=on,
@@ -907,8 +971,18 @@ class _Hooked(Generic[DepsT, StateT]):
         error: BaseException,
     ) -> None:
         name = getattr(function, '__name__', 'hook')
+        if isinstance(event, _core.Event):
+            handling = f' while handling {event!r}'
+        elif isinstance(event, Update):
+            handling = ' while running its timer'
+        elif isinstance(event, Frame):
+            handling = ' while drawing a frame'
+        elif event is None:
+            handling = ''
+        else:
+            handling = ' while following the state'
         failure = TerminalError(
-            f'The hook {name} failed while handling {event!r}: {type(error).__name__}: '
+            f'The hook {name} failed{handling}: {type(error).__name__}: '
             f'{str(error).rstrip(".")}. Fix the hook, then create a new canvas with xnano.new() or '
             f'xnano.open().'
         )

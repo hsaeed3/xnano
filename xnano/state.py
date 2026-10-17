@@ -41,6 +41,8 @@ if TYPE_CHECKING:
     from xnano._hooks import HookHandle
     from xnano.canvas import Canvas
 
+__all__ = ['StateNamespace', 'StatePath', 'parse_path']
+
 StateFieldT = TypeVar('StateFieldT')
 StateRootT = TypeVar('StateRootT')
 
@@ -82,7 +84,7 @@ def parse_path(path: str) -> StatePath:
     return tuple(parsed)
 
 
-def dotted(path: StatePath) -> str:
+def _dotted(path: StatePath) -> str:
     """Write a state path the way ``get`` and ``push`` take it."""
     return '.'.join(str(part) for part in path)
 
@@ -187,7 +189,7 @@ class StateNamespace:
             if parsed[:1] == (_RESERVED_ROOT_KEY,):
                 raise ValueError(_reserved_message(path))
             if not parsed:
-                value = read_state(self._canvas, absolute, default)
+                value = _read_state(self._canvas, absolute, default)
                 if isinstance(value, dict):
                     return {
                         key: item
@@ -195,7 +197,7 @@ class StateNamespace:
                         if key != _RESERVED_ROOT_KEY
                     }
                 return value
-        return read_state(self._canvas, absolute, default)
+        return _read_state(self._canvas, absolute, default)
 
     def push(self, path: str, value: JSONValue) -> None:
         """
@@ -251,7 +253,7 @@ class StateNamespace:
                 f'Could not push {path!r}: this state belongs to a placement or hook that '
                 f'was removed. Push to the state of one that is still on the canvas.'
             )
-        write_state(self._canvas, base + parsed, self._declared_form(parsed, value))
+        _write_state(self._canvas, base + parsed, self._declared_form(parsed, value))
 
     def _declared_form(self, parsed: StatePath, value: JSONValue) -> JSONValue:
         """``value`` as the declared type of the field at ``parsed`` stores it."""
@@ -263,11 +265,16 @@ class StateNamespace:
         return cast('JSONValue', _stored_form(value, annotation))
 
     def __getattr__(self, name: str) -> JSONValue:
+        try:
+            object.__getattribute__(self, '_fields')
+        except AttributeError:
+            # A copy that has not been filled in yet has no fields to look a name up in.
+            raise AttributeError(name) from None
         if name not in self._fields:
             raise AttributeError(self._unknown_field_message(name, 'Read', 'get'))
         return cast(
             'JSONValue',
-            _declared_value(read_state(self._canvas, (name,), None), self._fields[name]),
+            _declared_value(_read_state(self._canvas, (name,), None), self._fields[name]),
         )
 
     def _unknown_field_message(self, name: str, verb: str, method: str) -> str:
@@ -285,12 +292,15 @@ class StateNamespace:
         )
 
     def __setattr__(self, name: str, value: JSONValue) -> None:
+        if name in StateNamespace.__slots__:
+            object.__setattr__(self, name, value)
+            return
         if name not in self._fields:
             raise TerminalError(self._unknown_field_message(name, 'Assign', 'push'))
-        write_state(self._canvas, (name,), self._declared_form((name,), value))
+        _write_state(self._canvas, (name,), self._declared_form((name,), value))
 
     def __repr__(self) -> str:
-        return f'StateNamespace(path={dotted(self._base)!r})'
+        return f'StateNamespace(path={_dotted(self._base)!r})'
 
     def _remove(self) -> None:
         """Delete this namespace's branch of the store; later pushes raise."""
@@ -317,6 +327,7 @@ class _StateAccessor:
     ) -> Self | StateNamespace | StateT:
         if instance is None:
             return self
+        instance._require_own_presence()
         canvas = instance._canvas
         namespace = canvas._state_namespace
         if namespace is None:
@@ -427,12 +438,14 @@ class _StateFollowers:
 
     def __init__(self) -> None:
         """Start with no followers."""
-        self._everything: set[StateFollower] = set()
-        self._paths: dict[StateFollower, frozenset[StatePath]] = {}
-        self._exact: dict[StatePath, set[StateFollower]] = {}
-        self._prefixes: dict[StatePath, set[StateFollower]] = {}
+        self._everything: set[_StateFollower] = set()
+        self._paths: dict[_StateFollower, frozenset[StatePath]] = {}
+        self._exact: dict[StatePath, set[_StateFollower]] = {}
+        self._prefixes: dict[StatePath, set[_StateFollower]] = {}
 
-    def follow(self, follower: StateFollower, paths: frozenset[StatePath] | None) -> None:
+    def follow(
+        self, follower: _StateFollower, paths: frozenset[StatePath] | None
+    ) -> None:
         """Make ``follower`` follow ``paths``, or every change when ``paths`` is ``None``."""
         self.unfollow(follower)
         if paths is None:
@@ -444,7 +457,7 @@ class _StateFollowers:
             for length in range(len(path) + 1):
                 self._prefixes.setdefault(path[:length], set()).add(follower)
 
-    def unfollow(self, follower: StateFollower) -> None:
+    def unfollow(self, follower: _StateFollower) -> None:
         """Stop following."""
         self._everything.discard(follower)
         paths = self._paths.pop(follower, None)
@@ -455,7 +468,7 @@ class _StateFollowers:
             for length in range(len(path) + 1):
                 self._discard(self._prefixes, path[:length], follower)
 
-    def affected(self, changed: Iterable[StatePath]) -> set[StateFollower]:
+    def affected(self, changed: Iterable[StatePath]) -> set[_StateFollower]:
         """The followers that read a path inside, or around, one of the ``changed`` paths."""
         result = set(self._everything)
         exact = self._exact
@@ -474,9 +487,9 @@ class _StateFollowers:
 
     @staticmethod
     def _discard(
-        index: dict[StatePath, set[StateFollower]],
+        index: dict[StatePath, set[_StateFollower]],
         path: StatePath,
-        follower: StateFollower,
+        follower: _StateFollower,
     ) -> None:
         followers = index.get(path)
         if followers is None:
@@ -486,7 +499,7 @@ class _StateFollowers:
             del index[path]
 
 
-class StateFollower(Protocol):
+class _StateFollower(Protocol):
     """What the canvas needs from a hook or component that follows state paths."""
 
     _own_revisions: deque[int]
@@ -496,13 +509,13 @@ class StateFollower(Protocol):
         ...
 
     def _state_loop(
-        self, change: _core.TerminalStateChange, others: list[StateFollower]
+        self, change: _core.TerminalStateChange, others: list[_StateFollower]
     ) -> None:
         """Report that this follower and ``others`` keep changing each other's state."""
         ...
 
 
-def read_state(
+def _read_state(
     canvas: Canvas[object, object], path: StatePath, default: JSONValue
 ) -> JSONValue:
     """Read ``path`` inside a running hook (with its pushes) or straight from the store."""
@@ -517,7 +530,7 @@ def read_state(
         return default
 
 
-def write_state(
+def _write_state(
     canvas: Canvas[object, object], path: StatePath, value: JSONValue
 ) -> None:
     """Stage ``value`` in the running hook, or save it at once."""
@@ -528,7 +541,7 @@ def write_state(
     canvas._commit_state({path: value})
 
 
-def commit_pending(
+def _commit_pending(
     store: _core.TerminalStateStore, pending: dict[StatePath, JSONValue]
 ) -> _core.TerminalStateChange | None:
     """
@@ -555,7 +568,7 @@ def commit_pending(
         raise _push_error(pending, error) from error
 
 
-def create_branch(store: _core.TerminalStateStore, base: StatePath) -> int | None:
+def _create_branch(store: _core.TerminalStateStore, base: StatePath) -> int | None:
     """Create the empty object of a placement or hook namespace; return the revision."""
     transaction = store.transaction()
     transaction.set(base, {})
@@ -563,7 +576,7 @@ def create_branch(store: _core.TerminalStateStore, base: StatePath) -> int | Non
     return None if change is None else change.revision
 
 
-def remove_branch(store: _core.TerminalStateStore, base: StatePath) -> int | None:
+def _remove_branch(store: _core.TerminalStateStore, base: StatePath) -> int | None:
     """Delete a namespace's object when it exists; return the revision."""
     if not store.snapshot().exists(base):
         return None
@@ -666,10 +679,10 @@ def _push_error(
     if len(pending) == 1:
         path, value = next(iter(pending.items()))
         return TerminalError(
-            f'Could not set {dotted(path)!r} to {value!r}: {error}. Use a value that matches '
+            f'Could not set {_dotted(path)!r} to {value!r}: {error}. Use a value that matches '
             f'the type the field declares.'
         )
-    names = ', '.join(repr(dotted(path)) for path in pending)
+    names = ', '.join(repr(_dotted(path)) for path in pending)
     return TerminalError(
         f'Could not save the values pushed to {names}: {error}. Nothing was saved. Use '
         f'values the fields accept.'
@@ -689,7 +702,7 @@ def _type_hints(kind: type) -> dict[str, object]:
         ) from error
 
 
-def state_field_types(instance: DataclassInstance) -> dict[str, object]:
+def _state_field_types(instance: DataclassInstance) -> dict[str, object]:
     """The declared type of every field of a state dataclass, by field name."""
     hints = _type_hints(type(instance))
     return {
@@ -765,7 +778,7 @@ def _declared_value(value: object, annotation: object) -> object:
     return value
 
 
-def prepare_state(
+def _prepare_state(
     instance: DataclassInstance | None, free: Mapping[str, JSONValue] | None = None
 ) -> _core.TerminalStateStore:
     """
@@ -785,7 +798,7 @@ def prepare_state(
                 f'{instance!r} is not a state dataclass. Pass an instance of a dataclass, '
                 f'such as xnano.new(state=Settings()).'
             )
-        reserved = sorted(_RESERVED_FIELD_NAMES & state_field_types(instance).keys())
+        reserved = sorted(_RESERVED_FIELD_NAMES & _state_field_types(instance).keys())
         if reserved:
             raise TerminalError(
                 f'The state dataclass {type(instance).__name__} has a field named '
@@ -805,7 +818,47 @@ def prepare_state(
     )
 
 
-def reference_for(
+def _replaced_state(
+    before: _core.TerminalStateSnapshot, store: _core.TerminalStateStore
+) -> _core.TerminalStateChange | None:
+    """
+    Describe how the values of a new store differ from the earlier ones.
+
+    Args:
+        before: A snapshot of the store that is being replaced.
+        store: The store that replaces it.
+
+    Returns:
+        The change followers should hear, or ``None`` when no value differs. It is a real
+        change of a scratch store that held the earlier values, so its revisions count from
+        that store.
+    """
+    earlier = cast('dict[str, JSONValue]', before.to_value())
+    current = cast('dict[str, JSONValue]', store.snapshot().to_value())
+    operations: list[dict[str, JSONValue]] = []
+    for key in [*earlier, *(key for key in current if key not in earlier)]:
+        if key not in current:
+            operation = 'remove'
+        elif key not in earlier:
+            operation = 'add'
+        elif earlier[key] != current[key]:
+            operation = 'replace'
+        else:
+            continue
+        pointer = '/' + key.replace('~', '~0').replace('/', '~1')
+        entry: dict[str, JSONValue] = {'op': operation, 'path': pointer}
+        if operation != 'remove':
+            entry['value'] = current[key]
+        operations.append(entry)
+    if not operations:
+        return None
+    scratch = _core.TerminalStateStore(
+        earlier, schema=_core.TerminalStateSchema.compile({})
+    )
+    return scratch.apply(_core.TerminalStatePatch.from_value(operations))
+
+
+def _reference_for(
     store: _core.TerminalStateStore,
     reader: Callable[[StateRootT], StateFieldT],
 ) -> _core.StateReference[StateFieldT]:

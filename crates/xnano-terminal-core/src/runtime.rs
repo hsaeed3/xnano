@@ -922,7 +922,18 @@ impl PyRuntime {
             EventPayload::Mouse(mouse) => lock(&self.shared.input).record_mouse(mouse),
             EventPayload::Paste(text) => lock(&self.shared.input).record_paste(text),
             EventPayload::Size(size) => {
-                lock(&self.shared.device).size = *size;
+                #[allow(unused_mut)]
+                let mut resolved = *size;
+                // An inline region keeps its own height, so a hook that hears the resize sees
+                // the size of the region and not the size of the window.
+                #[cfg(feature = "terminal")]
+                if let Some(session) = self.session.borrow_mut().as_mut()
+                    && session.is_inline()
+                    && let Ok(viewport) = session.viewport()
+                {
+                    resolved = viewport;
+                }
+                lock(&self.shared.device).size = resolved;
                 self.shared.request_frame();
             }
             _ => {}

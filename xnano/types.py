@@ -74,7 +74,7 @@ from xnano._values import (
     Axis as Axis,
 )
 from xnano._values import (
-    ColorValue,
+    ColorValue as ColorValue,
 )
 from xnano._values import (
     Content as Content,
@@ -90,6 +90,9 @@ from xnano._values import (
 )
 from xnano._values import (
     Playable as Playable,
+)
+from xnano._values import (
+    PlaySource as PlaySource,
 )
 from xnano._values import (
     RangeBound as RangeBound,
@@ -121,6 +124,7 @@ __all__ = [
     'BorderKind',
     'CanvasAppearanceArguments',
     'CanvasSettings',
+    'ColorValue',
     'Content',
     'EffectController',
     'EffectCustomization',
@@ -140,6 +144,7 @@ __all__ = [
     'PlayableEffectKind',
     'PlayableEffectSpecification',
     'PlayOptions',
+    'PlaySource',
     'RangeBound',
     'Renderable',
     'RenderableEffect',

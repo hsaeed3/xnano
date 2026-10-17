@@ -126,6 +126,23 @@ class TestRootNamespace:
             canvas.state.push('score', 3)
             assert canvas.state.get('score') == 3
 
+    def test_a_namespace_that_is_not_filled_in_yet_has_no_attributes(self):
+        blank = StateNamespace.__new__(StateNamespace)
+        assert not hasattr(blank, '__setstate__')
+        assert not hasattr(blank, 'volume')
+
+    def test_a_namespace_can_be_copied(self):
+        import copy
+
+        with main.new(width=8, height=1) as canvas:
+            canvas.state.push('score', 3)
+            duplicate = copy.copy(canvas.state)
+            assert duplicate.get('score') == 3
+            duplicate.push('score', 4)
+            assert canvas.state.get('score') == 4
+            placement_state = copy.copy(canvas.write('a').state)
+            assert repr(placement_state).startswith('StateNamespace(')
+
     def test_pushing_a_deep_path_creates_the_objects_on_the_way(self):
         with main.new(width=8, height=1) as canvas:
             canvas.state.push('player.stats.score', 3)
@@ -217,9 +234,9 @@ class TestRootNamespace:
             assert canvas.state.get('x') == 9
 
     def test_a_replacing_store_keeps_the_free_paths_it_is_given(self):
-        from xnano.state import prepare_state
+        from xnano.state import _prepare_state
 
-        store = prepare_state(Typed(), {'earlier': 1, 'volume': 99})
+        store = _prepare_state(Typed(), {'earlier': 1, 'volume': 99})
         value = store.snapshot().to_value()
         assert value['earlier'] == 1
         assert value['volume'] == 0.5
@@ -468,6 +485,18 @@ class TestFollowingPaths:
             canvas.deliver_events()
             assert [type(event).__name__ for event in events] == ['TerminalStateChange']
 
+    def test_a_replaced_store_is_described_by_a_real_state_change(self):
+        import xnano_core
+        from xnano.state import _prepare_state, _replaced_state
+
+        earlier = _prepare_state(None, {'a': 1, 'b': 2})
+        replacement = _prepare_state(None, {'a': 5, 'c': 3})
+        change = _replaced_state(earlier.snapshot(), replacement)
+        assert isinstance(change, xnano_core.TerminalStateChange)
+        assert set(change.paths) >= {('a',), ('b',), ('c',)}
+        assert change.after.to_value()['a'] == 5
+        assert _replaced_state(earlier.snapshot(), earlier) is None
+
     def test_a_state_hook_that_pushes_what_it_read_does_not_loop(self):
         runs: list[int] = []
         with main.new(width=8, height=1) as canvas:
@@ -612,7 +641,7 @@ class TestStateAcrossOpen:
             placement = canvas.write('hi')
             placement.state.push('clicks', 3)
             canvas.state.push('free', 1)
-            replacement = main.state.prepare_state(
+            replacement = main.state._prepare_state(
                 Settings(), canvas._state_store.snapshot().to_value()
             )
             assert replacement.snapshot(('free',)).to_value() == 1

@@ -1,5 +1,9 @@
 """
 xnano
+
+Terminal interfaces that you describe in a few lines. Create a canvas with ``new()`` to draw
+off the screen, or with ``open()`` to draw in your terminal, write text, widgets, art, images
+and other canvases onto it, and react to the keyboard, the mouse, time and state with hooks.
 """
 
 from xnano import symbols as symbols

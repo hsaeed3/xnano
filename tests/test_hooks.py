@@ -210,8 +210,8 @@ class TestArguments:
             ),
             ({'on': 'tick', 'every': 1, 'after': 2}, 'cannot be given together'),
             ({'on': 'tick', 'keys': 'a'}, r"keys= is for on='key'"),
-            ({'on': 'tick', 'every': 0}, 'must be a number above 0'),
-            ({'on': 'tick', 'after': -1}, 'must be a number 0 or more'),
+            ({'on': 'tick', 'every': 0}, 'must be a finite number above 0'),
+            ({'on': 'tick', 'after': -1}, 'must be a finite number 0 or more'),
             ({'on': 'click'}, r"""on='mouse', when="mouse.kind == 'press'\""""),
             ({'on': 'immediate'}, r"on='tick', after=0.0"),
             ({'on': 'state_change'}, r"on='state'"),
@@ -221,6 +221,67 @@ class TestArguments:
     def test_a_bad_combination_names_the_fix(self, canvas, arguments, message):
         with pytest.raises(ValueError, match=message):
             canvas.hook(lambda context: None, **arguments)
+
+    @pytest.mark.parametrize('seconds', [float('nan'), float('inf')])
+    def test_a_timer_must_be_a_finite_number(self, canvas, seconds):
+        with pytest.raises(ValueError, match='every= must be a finite number above 0'):
+            canvas.hook(lambda context: None, on='tick', every=seconds)
+        with pytest.raises(ValueError, match='after= must be a finite number 0 or more'):
+            canvas.hook(lambda context: None, on='tick', after=seconds)
+
+    def test_a_tiny_timer_catches_up_a_bounded_number_of_times_per_step(self, canvas):
+        runs: list[int] = []
+        canvas.hook(lambda context: runs.append(1), on='tick', every=1e-9)
+        canvas.step(delta_seconds=1.0)
+        assert len(runs) == 100_000
+
+    def test_a_hook_must_be_a_function_that_takes_the_context(self, canvas):
+        async def asynchronous(context):
+            pass
+
+        with pytest.raises(TypeError, match='takes a function of the context'):
+            canvas.hook(5, on='tick')
+        with pytest.raises(TypeError, match='takes a function of the context'):
+            canvas.hook('abc', on='tick')
+        with pytest.raises(TypeError, match='asynchronous is an async function'):
+            canvas.hook(asynchronous, on='key')
+        with pytest.raises(TypeError, match=r'cannot take the arguments a hook receives'):
+            canvas.hook(lambda: None, on='tick')
+        with pytest.raises(
+            TypeError, match=r'Write it as lambda context: \.\.\.'
+        ) as caught:
+            canvas.hook(lambda: None, on='tick')
+        assert 'def <lambda>' not in str(caught.value)
+        with pytest.raises(TypeError, match='takes a function of the context'):
+            xnano.hook(5)
+        with pytest.raises(TypeError, match='async function'):
+            canvas.hook(on='key')(asynchronous)
+
+    @pytest.mark.parametrize(
+        'arguments',
+        [
+            {'on': 'bogus'},
+            {'on': 'key', 'keys': 'entr'},
+            {'on': 'key', 'every': 1},
+            {'on': 'tick', 'every': -1},
+            {'on': 'tick', 'when': True},
+        ],
+    )
+    def test_an_operation_hook_refuses_bad_arguments_where_it_is_written(self, arguments):
+        with pytest.raises((TypeError, ValueError)):
+            xnano.hook(**arguments)
+
+    def test_an_interval_too_large_to_be_a_number_is_explained(self, canvas):
+        with pytest.raises(ValueError, match='every= must be a finite number above 0'):
+            canvas.hook(lambda context: None, on='tick', every=10**400)
+
+    def test_a_hook_without_an_event_is_reported_without_one(self, canvas):
+        canvas.hook(lambda context: 1 / 0, on='tick', after=0.0)
+        with pytest.raises(TerminalError) as caught:
+            canvas.step()
+            canvas.step()
+        assert 'while handling None' not in str(caught.value)
+        assert 'ZeroDivisionError' in str(caught.value)
 
     def test_resize_on_a_placement_says_to_use_the_canvas(self, canvas):
         placement = canvas.write('x')

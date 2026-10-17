@@ -223,6 +223,46 @@ class TestClipboard:
             ClipboardInput(canvas, None).push(3)  # type: ignore[arg-type]
 
 
+class TestHeldNamesAreChecked:
+    def test_a_misspelled_key_or_button_is_explained(self, canvas):
+        with pytest.raises(
+            ValueError, match=r"'entr' is not a key or a mouse button.*'enter'"
+        ):
+            canvas.input.is_down('entr')
+        with pytest.raises(ValueError, match=r"'left_mouse'.*one of 'mouse_left'"):
+            canvas.input.is_down('left_mouse')
+        with pytest.raises(ValueError, match=r"'lefft' is not a key or a mouse button"):
+            canvas.input.axis('lefft', 'right')
+        with pytest.raises(ValueError) as caught:
+            canvas.input.is_down('left_mouse')
+        assert 'chord' not in str(caught.value)
+
+    def test_a_name_that_is_not_text_is_explained(self, canvas):
+        for keys in (5, None, ['a', 5]):
+            with pytest.raises(TypeError, match=r'Held input takes a key name'):
+                canvas.input.is_down(keys)
+        with pytest.raises(TypeError, match=r'Held input takes a key name'):
+            canvas.input.direction(left=1)
+
+
+class TestHeldNamesMatchTheHeldKeys:
+    def test_an_alias_or_a_capital_matches_the_key_that_is_held(self, canvas):
+        canvas.input  # noqa: B018
+        push(canvas, Event.key_press('escape'))
+        push(canvas, Event.key_press('space'))
+        assert canvas.input.is_down('Esc') is True
+        assert canvas.input.is_down('Space') is True
+        assert canvas.input.is_down('Enter') is False
+
+    def test_a_chord_or_a_modifier_is_explained(self, canvas):
+        with pytest.raises(
+            ValueError, match=r"'ctrl\+s' is a modifier or a chord.*hook\(keys="
+        ):
+            canvas.input.is_down('ctrl+s')
+        with pytest.raises(ValueError, match="'shift' is a modifier or a chord"):
+            canvas.input.axis('shift', 'right')
+
+
 class TestHeldMouseButtons:
     def test_the_buttons_are_in_the_held_input_vocabulary(self, canvas):
         canvas.hook(lambda context: None, on='mouse')
@@ -287,3 +327,25 @@ class TestPushedPairs:
         assert 'mouse.push takes a pair of whole numbers' in errors[0]
         assert 'scroll.push takes a pair of whole numbers' in errors[1]
         assert 'scroll.push takes a MouseEvent' in errors[2]
+
+    def test_a_number_out_of_range_is_explained_and_changes_nothing(self, canvas):
+        errors = []
+
+        def try_push(context: Context, call: str, value: object) -> None:
+            try:
+                getattr(context, call).push(value)
+            except ValueError as error:
+                errors.append(str(error))
+
+        def attempt(context: Context) -> None:
+            try_push(context, 'mouse', (10**12, 5))
+            try_push(context, 'scroll', (0, 10**12))
+            try_push(context, 'scroll', (0, 1))
+
+        canvas.hook(attempt, on='key')
+        push(canvas, Event.key_press('a'))
+        assert len(errors) == 2
+        assert 'mouse.push takes whole numbers from' in errors[0]
+        assert 'scroll.push takes whole numbers from' in errors[1]
+        assert 'steps of the wheel' in errors[1]
+        assert 'a cell on the screen' in errors[0]

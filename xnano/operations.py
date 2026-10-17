@@ -23,7 +23,7 @@ from xnano._customize import (
 from xnano._customize import (
     fx as fx,
 )
-from xnano._hooks import HookKind, When
+from xnano._hooks import HookKind, When, _check_hook_arguments, _check_hook_function
 from xnano._values import DepsT, KeyName, StateT
 from xnano.context import Context
 from xnano_core import (
@@ -70,6 +70,7 @@ from xnano_core import (
 )
 
 if TYPE_CHECKING:
+    from xnano._hooks import _Hooked
     from xnano.canvas import Canvas
     from xnano.placement import Placement
 
@@ -304,6 +305,12 @@ def hook(
         keys: The key or keys an ``on='key'`` hook reacts to.
         requires_deps: Whether the hook needs the dependencies given to ``new(deps=...)``.
 
+    Raises:
+        TypeError: ``function`` cannot be called with a context, ``keys`` is not a key name
+            or a list of them, or ``when`` is not a condition.
+        ValueError: ``on``, ``every``, ``after``, ``keys`` or ``when`` is not valid, or they
+            do not fit together.
+
     Examples:
         ```python
         import xnano
@@ -320,6 +327,12 @@ def hook(
         assert readings == [0.5]
         ```
     """
+    from xnano._when import compile_when
+
+    _check_hook_arguments(
+        cast('_Hooked[object, object]', object()), on, every, after, keys
+    )
+    compile_when(when)
     normalized_keys: tuple[str, ...] = (
         () if keys is None else (keys,) if isinstance(keys, str) else tuple(keys)
     )
@@ -327,6 +340,7 @@ def hook(
     def wrap(
         callback: Callable[[Context[DepsT, StateT]], object],
     ) -> ContextualOperation[DepsT, StateT]:
+        _check_hook_function(callback)
         return ContextualOperation(
             callback,
             on=on,

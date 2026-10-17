@@ -46,10 +46,10 @@ Motion from a formula of the clock, with no loop.
 ```text
 
                ●
-                                             ●
+                                            ●
                             ●
 
-frame 85       1.9s
+frame 83       1.9s
 ```
 
 ## `04_slider.py`
@@ -66,16 +66,16 @@ volume   0%   (drag the block, or press
 Per-pixel drawing, two pixels to a cell.
 
 ```text
-▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
-▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
-▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀
-▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀
-▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  ▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ▀▀
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ```
@@ -116,10 +116,10 @@ tachyonfx effects, one after another.
 effect: dissolve
 
 
-x  no   na o    a       no  xn  o
-   no    a o  x         no   n n
-x an          x  n      no   n
-x  n    na    xn      n n    n  o
+x an   xna    x       n      na
+x  n    na      ano   n  o     no
+x   o  x      x      x  n     a
+   n    nano   n n   x  no   n  o
 ```
 
 ## `08_events.py`
@@ -163,7 +163,7 @@ up/down: instrument  a-k: scale  space: chord  m: tune  q: quit
  guitar                square                tom
  electric_guitar       saw                   cowbell
  pluck                 triangle
-                                                            •
+  •
 C5   on electric_piano
 ```
 
@@ -185,11 +185,11 @@ Composed widgets that follow the clock.
 
 ```text
 ╭load────────────────────────────────────────────╮
-│██████████████████████cpu                       │
+│█████████████████████▊cpu                       │
 ╰────────────────────────────────────────────────╯
 
 ╭history─────────────────────────────────────────╮
-│                             ▄▅▆▆▇▇██▇▇▇▆▅▅▄▃▂▂▁│
+│                              ▄▅▆▆▇▇▇█▇▇▇▆▅▅▄▃▂▂│
 ╰────────────────────────────────────────────────╯
 ```
 
@@ -240,8 +240,8 @@ Shapes in your own coordinates.
 ```text
 ╭orbit───────────────────────────────────────────╮
 │                         ⢀⣀⣀⡀                   │
-│                  ⡀   ⠄ ⢰⡫  ⠉⣷                  │
-│           ⡀  ⠈          ⠉⠙⠚⠉⠁   ⠈  ⢀           │
+│                  ⡀   ⠄ ⢸⡩  ⢉⣇                  │
+│           ⡀  ⠈          ⠉⠙⠋⠉    ⠈  ⢀           │
 │        ⢀                              ⡀        │
 │      ⢀                                  ⡀      │
 │     ⡀              ⢀⣀⠤⠤⠤⠤⣀⡀              ⢀     │
@@ -264,14 +264,14 @@ A game on a fixed time step.
 
 
 
-
+      ▀
 
 
             ▄
 
 
 
-          ▄
+
 
 score 0
 ```
@@ -308,17 +308,17 @@ drag to paint, 1-4 colors, c clear, q quit
 A playable pixel-art world with a walking hero.
 
 ```text
-      ▀ ▀▀▀▀▀▀▀       ▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀      ▀ ▀▀   ▀    ▀ ▀▀       ▀▀ ▀▀▀   ▀
-        ▀ ▀▀▀▀▀▀▀▀   ▀   ▀▀▀▀▀▀ ▀    ▀▀               ▀▀    ▀ ▀    ▀ ▀▀▀▀
-      ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ▀ ▀▀▀▀▀▀▀      ▀        ▀▀      ▀ ▀  ▀    ▀▀▀▀  ▀▀▀▀   ▀
-▀        ▀▀▀▀▀▀▀▀▀▀▀▀▀▀   ▀▀▀▀▀ ▀▀  ▀   ▀    ▀▀   ▀        ▀     ▀▀▀▀▀▀  ▀
-▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀      ▀▀▀▀▀▀       ▀  ▀   ▀   ▀  ▀▀  ▀   ▀    ▀
- ▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀ ▀  ▀▀   ▀▀▀         ▀ ▀ ▀  ▀  ▀  ▀  ▀          ▀
-▀ ▀▀ ▀▀  ▀▀▀▀▀▀▀▀ ▀▀ ▀▀▀▀▀▀ ▀▀▀    ▀▀ ▀   ▀  ▀    ▀ ▀  ▀  ▀  ▀  ▀    ▀ ▀ ▀ ▀ ▀
-▀  ▀▀ ▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀ ▀   ▀ ▀    ▀    ▀  ▀  ▀  ▀  ▀   ▀  ▀   ▀
-▀▀  ▀    ▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀  ▀   ▀▀ ▀▀  ▀▀▀  ▀ ▀    ▀      ▀ ▀ ▀▀ ▀ ▀
-▀▀▀ ▀      ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀  ▀  ▀   ▀▀   ▀▀▀▀▀  ▀  ▀      ▀▀▀▀▀ ▀▀▀▀▀ ▀
-▀ ▀  ▀     ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀ ▀▀ ▀ ▀▀▀▀▀▀    ▀▀▀    ▀           ▀ ▀▀ ▀
+       ▀ ▀▀▀▀▀▀▀       ▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀      ▀▀   ▀    ▀ ▀▀       ▀▀ ▀▀▀   ▀
+       ▀ ▀▀▀▀▀▀▀▀   ▀   ▀▀▀▀▀▀ ▀    ▀▀               ▀▀    ▀ ▀    ▀ ▀▀▀▀       ▀
+     ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ▀ ▀▀▀▀▀▀▀      ▀        ▀▀      ▀ ▀  ▀    ▀▀▀▀  ▀▀▀▀   ▀▀
+        ▀▀▀▀▀▀▀▀▀▀▀▀▀▀   ▀▀▀▀▀ ▀▀  ▀   ▀    ▀▀   ▀        ▀     ▀▀▀▀▀▀  ▀
+▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀      ▀▀▀▀▀▀       ▀  ▀   ▀   ▀  ▀▀  ▀   ▀    ▀
+▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀ ▀  ▀▀   ▀▀▀         ▀ ▀ ▀  ▀  ▀  ▀  ▀          ▀
+ ▀▀ ▀▀  ▀▀▀▀▀▀▀▀ ▀▀ ▀▀▀▀▀▀ ▀▀▀    ▀▀ ▀   ▀  ▀    ▀ ▀  ▀  ▀  ▀  ▀    ▀ ▀ ▀ ▀ ▀
+  ▀▀ ▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀ ▀   ▀ ▀    ▀    ▀  ▀  ▀  ▀  ▀   ▀  ▀   ▀
+▀  ▀    ▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀  ▀▀   ▀ ▀▀  ▀▀▀  ▀ ▀    ▀      ▀ ▀ ▀▀ ▀ ▀
+▀▀ ▀      ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀   ▀  ▀  ▀▀   ▀▀▀▀▀  ▀  ▀      ▀▀▀▀▀ ▀▀▀▀▀ ▀
+ ▀  ▀     ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀ ▀▀▀ ▀ ▀▀▀▀▀    ▀▀▀    ▀           ▀ ▀▀ ▀
 ▀▀▀     ▀▀  ▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀ ▀▀▀▀▀▀    ▀▀▀        ▀   ▀ ▀ ▀▀ ▀▀▀▀
  ▀▀▀▀▀    ▀▀▀▀▀▀    ▀▀▀    ▀▀▀    ▀▀▀▀▀▀▀ ▀▀   ▀  ▀▀▀▀▀▀▀▀   ▀   ▀▀▀▀▀▀▀▀▀▀▀▀ ▀
 ▀        ▀▀▀▀▀▀▀▀        ▀▀▀▀▀     ▀▀▀  ▀▀     ▀ ▀▀▀▀▀▀▀▀▀   ▀ ▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
@@ -439,27 +439,27 @@ frame 0 at 0.0 seconds
 frame 1 at 0.1 seconds
 frame 2 at 0.2 seconds
 this canvas runs by itself
-frame 24 at 1.5 seconds
+frame 24 at 1.4 seconds
 
 time stopped   space resume   n step   q quit
 ```
 
 ## `27_components.py`
 
-Components from a function and a class, with dependencies and hooks.
+Components from a function and a class, with dependencies, hooks and state kept per placement.
 
 ```text
 dashboard on xnano.local
 
 cpu   [##..................]
-memory[###################.]
+memory[##############......]
 
-the cpu gauge heard r
+the cpu gauge heard r, 2 in all
 ```
 
 ## `28_gestures.py`
 
-Drag and scroll hooks, conditions and state that hooks follow.
+Drag and scroll hooks that turn the mouse on by themselves, conditions and state that hooks follow.
 
 ```text
 drag or scroll in the box   z push   r reset   q quit
@@ -471,7 +471,7 @@ drag or scroll in the box   z push   r reset   q quit
 │                            │
 ╰────────────────────────────╯
 zoom   2
-drag none
+drag none   left free   moves 0
 ```
 
 ## `29_art.py`
@@ -496,13 +496,13 @@ walking
 
 ## `30_notes.py`
 
-Notes as values, a playable function, rendered offline and played by name.
+Notes as values, playable functions and classes, rendered offline and played by name.
 
 ```text
 offline: 2.0 seconds, peak 0.88
-k kick   c clip   m melody   p arpeggio   q quit
+k kick  c clip  m melody  p arpeggio  f fanfare  q quit
 
-played the arpeggio, a playable function
+played a class that plays itself
 ```
 
 ## `31_appearance.py`

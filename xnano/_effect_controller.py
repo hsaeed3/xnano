@@ -402,8 +402,8 @@ class EffectController:
         """
         End the effects this hook has set.
 
-        Visual effects stop on the buffer and sound effects are no longer added to what the
-        hook plays. Does nothing when the hook has set none.
+        Visual effects stop on the buffer, and the hook's sound effects are not applied to what
+        it plays. Does nothing when the hook has set none.
         """
         state = self._context.hook._effect_state
         if state is not None:

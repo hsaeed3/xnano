@@ -257,8 +257,8 @@ class PixelsArguments(TypedDict, total=False):
     Keyword arguments for ``fx('pixels', ...)``.
 
     Attributes:
-        shader: Optional function ``(column, row) -> color`` evaluated across the target's pixel grid.
-        pixels: Optional explicit iterable of ``(column, row, (red, green, blue))`` pixels.
+        shader: Optional function ``(x, y) -> color`` evaluated across the target's pixel grid.
+        pixels: Optional explicit iterable of ``(x, y, (red, green, blue))`` pixels.
         encoding: ``'half_blocks'`` or ``'braille'``.
         clip: Whether out-of-bounds pixels are clipped instead of raising ``IndexError``.
         x: Column offset of the explicit pixels, or ``None``.
@@ -279,8 +279,8 @@ class PixelsCustomization(Customization):
     Dataclass customization that colors pixels from a shader function or iterable (``'pixels'``).
 
     Attributes:
-        shader: Optional function ``(column, row) -> color`` evaluated across the target's pixel grid.
-        pixels: Optional explicit iterable of ``(column, row, (red, green, blue))`` pixels.
+        shader: Optional function ``(x, y) -> color`` evaluated across the target's pixel grid.
+        pixels: Optional explicit iterable of ``(x, y, (red, green, blue))`` pixels.
         encoding: ``'half_blocks'`` or ``'braille'``.
         clip: Whether out-of-bounds pixels are clipped instead of raising ``IndexError``.
         x: Column offset of the explicit pixels, or ``None``.
@@ -310,11 +310,11 @@ class PixelsCustomization(Customization):
         if self.shader is not None:
             view = surface.pixels(encoding=self.encoding)
             colored: list[tuple[int, int, RGB]] = []
-            for row in range(view.height):
-                for column in range(view.width):
-                    color = self.shader(column, row)
+            for y in range(view.height):
+                for x in range(view.width):
+                    color = self.shader(x, y)
                     if color is not None:
-                        colored.append((column, row, to_rgb(color)))
+                        colored.append((x, y, to_rgb(color)))
             view.write(colored)
 
 
@@ -2137,7 +2137,7 @@ def fx(kind: CustomizationKind, /, **parameters: object) -> Customization:
     pixels, visual effect (``'effect.<name>'``) or audio effect (``'audio.<name>'``).
 
     Each ``kind`` overloads the keyword arguments with ``Unpack`` over its corresponding
-    ``TypedDict`` and returns the matching [`Customization`][xnano._customize.Customization]
+    ``TypedDict`` and returns the matching [`Customization`][xnano.operations.Customization]
     dataclass. The returned dataclass can be inspected, mutated, returned from an
     [`hook`][xnano.operations.hook], piped with ``|``, or passed to ``add`` and
     ``update``.
@@ -2150,6 +2150,7 @@ def fx(kind: CustomizationKind, /, **parameters: object) -> Customization:
 
     Raises:
         ValueError: ``kind`` is not a recognized customization kind.
+        TypeError: A keyword is not a setting of that kind. The message lists its settings.
 
     Examples:
         ```python
@@ -2174,8 +2175,40 @@ def fx(kind: CustomizationKind, /, **parameters: object) -> Customization:
         raise ValueError(
             f'{kind!r} is not a known customization kind. Choose one of: {valid}.'
         )
+    accepted = [field.name for field in fields(customization_class) if field.init]  # type: ignore[arg-type]
+    unknown = [name for name in parameters if name not in accepted]
+    if unknown:
+        what = 'effect' if kind.startswith(('effect.', 'audio.')) else 'customization'
+        raise TypeError(
+            f'The {what} {kind!r} has no setting called {unknown[0]!r}. Its settings are: '
+            f'{", ".join(accepted)}.'
+        )
     factory = cast('Callable[..., Customization]', customization_class)
     return factory(**parameters)
+
+
+def effect_sequence(
+    effects: object, expected: Literal['renderable', 'playable']
+) -> tuple[object, ...]:
+    """
+    Return the entries of an ``effects=[...]`` argument, refusing a value that is not a list.
+
+    Args:
+        effects: The value given as ``effects=``.
+        expected: ``'renderable'`` for a list that styles a buffer, ``'playable'`` for a list
+            that styles a sound.
+
+    Raises:
+        TypeError: The value is a string, a single dictionary or anything else that is not a
+            list of effects.
+    """
+    if isinstance(effects, (str, bytes, Mapping)) or not isinstance(effects, Iterable):
+        sample = 'effect.fade_to' if expected == 'renderable' else 'audio.reverb'
+        raise TypeError(
+            f"effects= takes a list of dictionaries such as [{{'kind': {sample!r}, ...}}], "
+            f'but got {effects!r}. Pass a list, even for one effect.'
+        )
+    return tuple(effects)
 
 
 def normalize_effect(
@@ -2231,13 +2264,6 @@ def normalize_effect(
                 f'{kind!r} is not a known {"visual" if is_renderable else "sound"} effect. '
                 f'Use one of: {known}.'
             )
-        accepted = [field.name for field in fields(customization_class) if field.init]  # type: ignore[arg-type]
-        unknown = [name for name in parameters if name not in accepted]
-        if unknown:
-            raise TypeError(
-                f'The effect {kind!r} has no setting called {unknown[0]!r}. Its settings are: '
-                f'{", ".join(accepted)}.'
-            )
         return fx(cast('CustomizationKind', kind), **parameters)  # type: ignore[call-overload]
     if kind.startswith(('effect.', 'audio.')):
         if is_renderable:
@@ -2275,13 +2301,8 @@ def apply_effects(
         TypeError: An entry is not such a dictionary, or names something that is not a
             visual effect.
     """
-    if isinstance(effects, (str, bytes, dict)) or not isinstance(effects, Iterable):
-        raise TypeError(
-            f'effects takes a list of effects, but got {effects!r}. Pass a list such as '
-            f"[{{'kind': 'effect.fade_to', 'foreground': 'red'}}]."
-        )
     applied: list[Customization] = []
-    for specification in effects:
+    for specification in effect_sequence(effects, 'renderable'):
         customization = normalize_effect(specification, 'renderable')
         customization.apply_to(target)
         applied.append(customization)

@@ -27,6 +27,7 @@ from typing import (
 )
 
 import xnano_core as _core
+from xnano._media import check_context_method
 from xnano._values import DepsT, StateT
 from xnano.context import Context, ReadLog
 from xnano.errors import TerminalError
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
     from xnano.canvas import Canvas
     from xnano.context import Frame
     from xnano.placement import Placement
-    from xnano.state import StateFollower, StateNamespace
+    from xnano.state import StateNamespace, _StateFollower
     from xnano.types import HookKind, KeyName, PlayOptions, When
 
 __all__ = [
@@ -305,7 +306,8 @@ class _HookSource:
         The function receives the hook's [`Context`][xnano.context.Context] and a
         [`ComponentContext`][xnano.components.ComponentContext]. The arguments are those of
         ``hook`` on a placement, and a mouse, scroll or drag hook hears only the pointer
-        inside the placement. On a component function the hook is installed on every
+        inside the placement. Keys are not consumed: while nothing has focus, every key hook
+        hears a key. On a component function the hook is installed on every
         placement of that function, those that exist now and those created later; on a
         component made by calling it, only on its placements. A playable component has no
         placement: its hook is installed on the canvas when the component is played.
@@ -355,7 +357,7 @@ class _HookSource:
                 assert pressed == ['hi']
             ```
         """
-        from xnano._hooks import _check_hook_arguments
+        from xnano._hooks import _check_hook_arguments, _check_hook_function
         from xnano._when import compile_when
 
         _check_hook_arguments(
@@ -365,6 +367,7 @@ class _HookSource:
         settings = _HookSettings(on, when, every, after, keys, requires_deps)
 
         def attach(callback: Callable[..., object]) -> ComponentHook:
+            _check_hook_function(callback, arguments=2)
             component_hook = ComponentHook(self, callback, settings)
             self._hooks.append(component_hook)
             try:
@@ -409,6 +412,14 @@ class _HookSource:
 
 
 def _own_signature(function: Callable[..., object], decorator: str) -> inspect.Signature:
+    if inspect.isclass(function) or not callable(function):
+        raise TypeError(
+            f'@xnano.{decorator} decorates a function, such as @xnano.{decorator} '
+            f'def {"gauge" if decorator == "renderable" else "chime"}(context): ..., but got '
+            f'{function!r}. A class is a component when it '
+            f'has a method __xnano_{"render" if decorator == "renderable" else "play"}__'
+            f'(self, context).'
+        )
     signature = inspect.signature(function)
     parameters = list(signature.parameters.values())
     if not parameters or parameters[0].kind not in (
@@ -615,7 +626,8 @@ def renderable(  # pyright: ignore[reportGeneralTypeIssues]
         function: The function ``(context, **own_parameters) -> content``.
 
     Raises:
-        TypeError: The function takes no context parameter.
+        TypeError: The decorated object is a class or is not callable, or the function takes
+            no context parameter.
 
     Examples:
         ```python
@@ -650,7 +662,8 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
         function: The function ``(context, **own_parameters) -> playable``.
 
     Raises:
-        TypeError: The function takes no context parameter.
+        TypeError: The decorated object is a class or is not callable, or the function takes
+            no context parameter.
 
     Examples:
         ```python
@@ -672,7 +685,7 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
 # -- running components --------------------------------------------------------------------
 
 
-def is_component(content: object) -> bool:
+def _is_component(content: object) -> bool:
     """Whether ``content`` is an object that draws itself with ``__xnano_render__``."""
     return not isinstance(content, type) and hasattr(content, '__xnano_render__')
 
@@ -688,7 +701,7 @@ class _Stack:
         return cast('Renderable', list(self.items))
 
 
-def as_component(content: object) -> object | None:
+def _as_component(content: object) -> object | None:
     """
     Return the component to run for ``content``, or ``None`` when it is not one.
 
@@ -697,10 +710,10 @@ def as_component(content: object) -> object | None:
     """
     if isinstance(content, (str, bytes, bytearray)):
         return None
-    if is_component(content):
+    if _is_component(content):
         return content
     if isinstance(content, Sequence) and any(
-        as_component(item) is not None for item in content
+        _as_component(item) is not None for item in content
     ):
         return _Stack(content)
     return None
@@ -813,11 +826,11 @@ class _Driver:
             self._followed = reads or None
             if reads:
                 canvas._host.post(
-                    lambda: canvas._follow_state(cast('StateFollower', self), reads)
+                    lambda: canvas._follow_state(cast('_StateFollower', self), reads)
                 )
             else:
                 canvas._host.post(
-                    lambda: canvas._unfollow_state(cast('StateFollower', self))
+                    lambda: canvas._unfollow_state(cast('_StateFollower', self))
                 )
 
     # -- what marks it dirty -------------------------------------------------------------
@@ -857,7 +870,7 @@ class _Driver:
         raise NotImplementedError
 
     def _state_loop(
-        self, change: _core.TerminalStateChange, others: list[StateFollower]
+        self, change: _core.TerminalStateChange, others: list[_StateFollower]
     ) -> None:
         path = '.'.join(str(part) for part in change.paths[0]) if change.paths else ''
         self._fail(
@@ -894,14 +907,14 @@ class _Driver:
             handle.remove()
         self._input_hooks.clear()
         canvas = self._canvas
-        canvas._host.post(lambda: canvas._unfollow_state(cast('StateFollower', self)))
+        canvas._host.post(lambda: canvas._unfollow_state(cast('_StateFollower', self)))
         namespace = self._plugin_state
         if namespace is not None:
             self._plugin_state = None
             namespace._remove()
 
 
-class ComponentDriver(_Driver):
+class _ComponentDriver(_Driver):
     """
     Draws a component into its placement, and again when something it read changes.
 
@@ -1131,7 +1144,7 @@ def _caller_stack_level() -> int:
     return level
 
 
-def attach_component(
+def _attach_component(
     placement: Placement[object, object],
     component: object,
     *,
@@ -1139,7 +1152,7 @@ def attach_component(
     is_height_given: bool,
 ) -> None:
     """Draw ``component`` in ``placement``, install its hooks and keep it up to date."""
-    driver = ComponentDriver(
+    driver = _ComponentDriver(
         placement,
         component,
         is_width_given=is_width_given,
@@ -1167,6 +1180,7 @@ def _resolve_playable(
     if isinstance(item, (str, bytes, bytearray)):
         return item
     if hasattr(item, '__xnano_play__'):
+        check_context_method(item, '__xnano_play__')
         played = cast('SupportsPlay[object, object]', item).__xnano_play__(
             cast('Context[object, object]', context)
         )
@@ -1188,7 +1202,7 @@ def _holds_component(item: object) -> bool:
     return isinstance(item, Sequence) and any(_holds_component(part) for part in item)
 
 
-class PlayableDriver(_Driver):
+class _PlayableDriver(_Driver):
     """
     Plays a playable component, and plays it again on a beat when something it read changed.
 
@@ -1293,7 +1307,7 @@ class _ComponentPlayHandle(PlayHandle):
 
     __slots__ = ('_driver',)
 
-    def __init__(self, driver: PlayableDriver) -> None:
+    def __init__(self, driver: _PlayableDriver) -> None:
         """Wrap the driver of a playable component."""
         super().__init__(clock=lambda: 0.0, end_seconds=0.0, cancel=driver.close)
         self._driver = driver
@@ -1304,7 +1318,7 @@ class _ComponentPlayHandle(PlayHandle):
         return self._is_removed or self._driver.is_finished
 
 
-def play_component(
+def _play_component(
     canvas: Canvas[object, object], playable_value: object, options: PlayOptions
 ) -> PlayHandle | None:
     """
@@ -1315,6 +1329,6 @@ def play_component(
     """
     if not _holds_component(playable_value):
         return None
-    driver = PlayableDriver(canvas, playable_value, options)
+    driver = _PlayableDriver(canvas, playable_value, options)
     driver.start()
     return _ComponentPlayHandle(driver)

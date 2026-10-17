@@ -2373,7 +2373,7 @@ class Cursor:
         """
         The cell the cursor is at, counted from the top-left of the runtime's area.
 
-        Assign a ``Point``, a ``(column, row)`` pair or ``None`` to hide the cursor.
+        Assign a ``Point``, an ``(x, y)`` pair or ``None`` to hide the cursor.
         Assigning a position stops the cursor following a buffer. A cursor outside the
         area is not shown.
         """

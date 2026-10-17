@@ -79,7 +79,7 @@ class TestOpening:
         with pytest.raises(ValueError, match="mouse='buttons' is mouse=True"):
             new(mouse='buttons')  # type: ignore[arg-type]
 
-    def test_offscreen_is_not_a_setting_any_more_than_realtime_is_on_a_screen(self):
+    def test_open_refuses_offscreen_and_realtime_and_points_to_new(self):
         with pytest.raises(TypeError, match=r'xnano\.new\(\.\.\.\)'):
             open_terminal(offscreen=True)  # type: ignore[call-overload]
         with pytest.raises(TypeError, match='takes no realtime'):
@@ -343,7 +343,9 @@ class TestPlacements:
         placement.remove()
 
     def test_a_negative_size_names_the_setting_and_a_fix(self, canvas):
-        with pytest.raises(ValueError, match='width must be 0 or more cells'):
+        with pytest.raises(
+            ValueError, match='width must be a whole number of cells from 0 to 65535'
+        ):
             canvas.write('x', width=-3)
         assert len(canvas._placements) == 0
 
@@ -495,7 +497,7 @@ class TestRegions:
         assert canvas.region[1, 1].character == 'a'
 
 
-class TestPixels:
+class TestRegionResolution:
     def test_pixels_have_the_resolution_of_their_encoding(self, canvas):
         pixels = canvas.region.half_blocks
         assert (pixels.width, pixels.height) == (20, 12)
@@ -520,8 +522,8 @@ class TestPixels:
 
     def test_a_slice_draws_every_pixel_it_covers(self, canvas):
         canvas.region.half_blocks[0:3, 0] = Color('#ff0000')
-        for column in range(3):
-            assert canvas.core_buffer[column, 0].foreground.to_rgb() == (255, 0, 0)
+        for x in range(3):
+            assert canvas.core_buffer[x, 0].foreground.to_rgb() == (255, 0, 0)
         assert canvas.core_buffer[3, 0].symbol == ' '
         canvas.region.half_blocks[:, :] = (0, 0, 255)
         assert canvas.core_buffer[19, 5].background.to_rgb() == (0, 0, 255)
@@ -542,14 +544,14 @@ class TestPixels:
 
     def test_shading_draws_from_a_formula(self, canvas):
         canvas.region.half_blocks.shade(
-            lambda column, row: (column * 10, row * 10, 0) if column < 2 else None
+            lambda x, y: (x * 10, y * 10, 0) if x < 2 else None
         )
         assert canvas.core_buffer[1, 0].foreground.to_rgb() == (10, 0, 0)
         assert canvas.core_buffer[5, 0].symbol == ' '
 
     def test_many_pixels_and_images(self, canvas):
         pixels = canvas.region.half_blocks
-        pixels.shade(lambda column, row: (0, 255, 0) if row == 0 and column < 2 else None)
+        pixels.shade(lambda x, y: (0, 255, 0) if y == 0 and x < 2 else None)
         assert canvas.core_buffer[1, 0].symbol == '▀'
         pixels.draw_color_bytes(bytes([255, 0, 0, 255]) * 4, width=2, height=2, x=4, y=0)
         assert canvas.core_buffer[4, 0].background.to_rgb() == (255, 0, 0)
@@ -1052,6 +1054,21 @@ class TestAutonomous:
         autonomous._host.post(lambda: autonomous._runtime.resize(width=30, height=5))
         assert wait_for(lambda: autonomous.width == 30)
 
+    def test_open_from_a_hook_of_a_canvas_that_runs_by_itself_is_refused(self):
+        with new(realtime=True, width=8, height=1) as canvas:
+            messages: list[str] = []
+
+            def hear(context: Context) -> None:
+                try:
+                    context.root.open()
+                except TerminalError as error:
+                    messages.append(str(error))
+
+            canvas.hook(hear, on='tick', after=0.0)
+            assert wait_for(lambda: bool(messages))
+            assert 'open() was called from a hook' in messages[0]
+            assert canvas.is_running
+
     def test_a_failing_callback_stops_the_terminal_and_is_reported(self):
         canvas = new(realtime=True, width=8, height=1)
 
@@ -1417,6 +1434,44 @@ class TestWaitingForTheUser:
         )
         assert answer == 'Ada'
 
+    def test_prompt_puts_the_cursor_after_wide_characters_and_restores_it(self):
+        import time
+
+        with new(realtime=True, width=30, height=3) as canvas:
+            before = (canvas.cursor.shape, canvas.cursor.is_blinking)
+            results: list[str] = []
+            thread = threading.Thread(
+                target=lambda: results.append(canvas.prompt('Name: '))
+            )
+            thread.start()
+            time.sleep(0.3)
+            for key in ('世', '界', 'a'):
+                canvas.push(Event.key_press(key))
+                time.sleep(0.05)
+            assert wait_for(lambda: canvas.cursor.position == Point(11, 0))
+            canvas.push(Event.key_press('enter'))
+            thread.join(timeout=5)
+            assert results == ['世界a']
+            assert (canvas.cursor.shape, canvas.cursor.is_blinking) == before
+
+    def test_prompt_keeps_a_cursor_that_followed_a_placement_following_it(self):
+        import time
+
+        with new(realtime=True, width=30, height=3) as canvas:
+            field = canvas.write('field', x=2, y=1)
+            canvas.cursor.follow(field, x=1)
+            results: list[str] = []
+            thread = threading.Thread(
+                target=lambda: results.append(canvas.prompt('Name: ', y=2))
+            )
+            thread.start()
+            time.sleep(0.3)
+            canvas.push(Event.key_press('enter'))
+            thread.join(timeout=5)
+            assert results == ['']
+            field.x = 10
+            assert wait_for(lambda: canvas.cursor.position == Point(11, 1))
+
     def test_a_terminal_that_never_moves_cannot_be_waited_on(self, canvas):
         with pytest.raises(TerminalError, match='never moves by itself'):
             canvas.wait_for_key('q')
@@ -1619,7 +1674,7 @@ class TestTeachingErrorsOnWrongTypes:
     def test_the_title_and_effects_and_keys_say_what_they_take(self, canvas):
         with pytest.raises(TypeError, match='title must be text'):
             canvas.title = 5  # type: ignore[assignment]
-        with pytest.raises(TypeError, match='effects takes a list'):
+        with pytest.raises(TypeError, match='effects= takes a list'):
             canvas.write('a', effects=1)  # type: ignore[arg-type]
         with pytest.raises(TypeError, match='keys= takes'):
             canvas.hook(lambda context: None, on='key', keys=5)  # type: ignore[arg-type]
@@ -1638,6 +1693,56 @@ class TestTeachingErrorsOnWrongTypes:
             placement.right(-1)
         with pytest.raises(ValueError, match=r'call down\(\) instead of up\(\)'):
             canvas.cursor.up(-1)
+
+    def test_arguments_of_the_wrong_kind_are_explained_where_they_are_given(self, canvas):
+        from xnano.input import KeyboardInput
+        from xnano.operations import fx
+
+        with pytest.raises(TypeError, match='title must be text or None'):
+            new(title=5)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='title must be text or None'):
+            canvas.open(title=5)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='keys= takes key names'):
+            canvas.hook(lambda context: None, on='key', keys=[5])  # type: ignore[list-item]
+        with pytest.raises(TypeError, match='keyboard.push takes a key name'):
+            KeyboardInput(canvas, None).push(5)  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="'zzz' is not a key name"):
+            KeyboardInput(canvas, None).push('zzz')
+        with pytest.raises(
+            TypeError, match="effect 'effect.fade_to' has no setting called 'color'"
+        ):
+            fx('effect.fade_to', color='red')  # type: ignore[call-overload]
+        with pytest.raises(TypeError, match='shade.. takes a function of the position'):
+            canvas.color.bg.shade(5)  # type: ignore[arg-type]
+
+    def test_a_missing_image_file_names_the_path(self):
+        with pytest.raises(FileNotFoundError, match='nonexistent.png'):
+            main.from_image('nonexistent.png')
+
+    def test_a_missing_sound_file_is_explained_like_a_missing_image(self):
+        pytest.importorskip('xnano_audio')
+        with pytest.raises(
+            FileNotFoundError, match='Audio could not load.*Check the path'
+        ):
+            main.from_audio('nonexistent.wav')
+        with pytest.raises(
+            ValueError, match=r'not a PCM WAV file that xnano can read[^(]'
+        ):
+            main.from_audio(b'')
+
+    def test_a_space_cannot_be_negative(self, canvas):
+        with pytest.raises(ValueError, match='padding must be zero or more'):
+            canvas.write('a', padding=-1)
+        with pytest.raises(ValueError, match='margin must be zero or more'):
+            canvas.write('a', margin='-10%')
+
+    @pytest.mark.parametrize('value', [float('nan'), float('inf'), 'nan%', 'inf%'])
+    def test_a_space_cannot_be_infinite_or_not_a_number(self, canvas, value):
+        with pytest.raises(ValueError, match='padding must be zero or more and finite'):
+            canvas.write('a', padding=value)
+        placement = canvas.write('a')
+        with pytest.raises(ValueError, match='padding must be zero or more and finite'):
+            placement.padding = value
 
     def test_requires_deps_explains_the_two_ways_to_give_them(self, canvas):
         with pytest.raises(TerminalError, match=r'canvas\.open\(deps='):
@@ -1660,3 +1765,88 @@ class TestThreadErrorsNameTheOperation:
         assert len(caught) == 1
         assert isinstance(caught[0], TerminalError)
         assert 'step was used from another thread' in str(caught[0])
+
+    @pytest.mark.parametrize(
+        ('call', 'name'),
+        [
+            (lambda canvas, placement: canvas.state.push('a', 1), 'push'),
+            (
+                lambda canvas, placement: placement.hook(lambda context: None, on='tick'),
+                'hook',
+            ),
+        ],
+    )
+    def test_the_call_the_user_wrote_is_named_not_a_helper(self, canvas, call, name):
+        caught: list[BaseException] = []
+        placement = canvas.write('xy')
+
+        def other() -> None:
+            try:
+                call(canvas, placement)
+            except BaseException as error:
+                caught.append(error)
+
+        thread = threading.Thread(target=other)
+        thread.start()
+        thread.join()
+        assert len(caught) == 1
+        assert f'{name} was used from another thread' in str(caught[0])
+
+    def test_assigning_a_state_field_from_another_thread_says_what_was_used(self):
+        import dataclasses
+
+        @dataclasses.dataclass
+        class Score:
+            value: int = 0
+
+        caught: list[BaseException] = []
+        with new(width=10, height=3, state=Score()) as canvas:
+
+            def other() -> None:
+                try:
+                    canvas.state.value = 3
+                except BaseException as error:
+                    caught.append(error)
+
+            thread = threading.Thread(target=other)
+            thread.start()
+            thread.join()
+            assert len(caught) == 1
+            assert str(caught[0]).startswith('This canvas was used from another thread')
+            assert canvas.state.get('value') == 0
+
+    def test_a_push_refused_on_another_thread_saves_nothing(self, canvas):
+        caught: list[BaseException] = []
+
+        def other() -> None:
+            try:
+                canvas.state.push('refused', 2)
+            except BaseException as error:
+                caught.append(error)
+
+        thread = threading.Thread(target=other)
+        thread.start()
+        thread.join()
+        assert len(caught) == 1
+        assert canvas.state.get('refused') is None
+
+    def test_a_user_module_that_starts_with_xnano_is_not_part_of_xnano(self, canvas):
+        import types
+
+        module = types.ModuleType('xnano_application')
+        exec(  # noqa: S102
+            'def update_everything(canvas):\n    canvas.cursor.up()\n', module.__dict__
+        )
+        caught: list[BaseException] = []
+
+        def go() -> None:
+            try:
+                module.update_everything(canvas)
+            except BaseException as error:
+                caught.append(error)
+
+        thread = threading.Thread(target=go)
+        thread.start()
+        thread.join()
+        assert len(caught) == 1
+        assert 'up was used from another thread' in str(caught[0])

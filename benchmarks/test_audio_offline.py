@@ -4,13 +4,13 @@ benchmarks.test_audio_offline
 Benchmarks for sound on a canvas whose clock you move: playing records a description, and
 ``render_sound()`` mixes what overlaps the window with the native mixer.
 
-Baselines (Apple M-series, Python 3.11; the first row is Python work only, the second was
+Measured on Apple M-series, Python 3.11 (the first row is Python work only, the second was
 measured on a debug build and is lower on an optimized one):
 
-| Case | Before | This version |
-| --- | --- | --- |
-| ``play(note)`` on a canvas without a device | 7740 us (synthesis) | 6.5 us |
-| ``render_sound()`` of one second with four cached notes | 14000 us (Python mix) | 2100 us (debug) |
+| Case | Time |
+| --- | --- |
+| ``play(note)`` on a canvas without a device | 6.5 us |
+| ``render_sound()`` of one second with four cached notes | 2100 us (debug) |
 
 The budgets below are asserted only on an optimized build.
 """

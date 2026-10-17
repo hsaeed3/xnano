@@ -40,6 +40,8 @@ from typing_extensions import Never
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from xnano_audio import TerminalMelody, TerminalNote, TerminalSound
+
     from xnano._media import Audio, Image
     from xnano.art import Art
     from xnano.context import Context
@@ -185,6 +187,16 @@ Anything [`play`][xnano.play] and [`Canvas.play`][xnano.canvas.Canvas.play] acce
 [`Note`][xnano.Note], an [`Audio`][xnano.Audio], an object with ``__xnano_play__``, a
 sequence of those that plays one after another, or a ``str``: the name of a registered
 symbol, a note name such as ``'C#4'``, or melody text such as ``'C4 E4 G4:2'``.
+"""
+
+PlaySource: TypeAlias = (
+    'Playable | int | float | TerminalSound | TerminalNote | TerminalMelody'
+)
+"""
+Anything [`play`][xnano.play] and [`Canvas.play`][xnano.canvas.Canvas.play] accept: a
+[`Playable`][xnano.types.Playable] (a [`Note`][xnano.Note], an [`Audio`][xnano.Audio], a symbol
+name, a note name such as ``'C#4'``, melody text, or a sequence of those), a MIDI note number
+such as ``60``, a frequency in hertz, or a rendered sound, note or melody from ``xnano-audio``.
 """
 
 Content: TypeAlias = 'Renderable | Playable'

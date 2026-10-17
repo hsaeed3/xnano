@@ -20,7 +20,7 @@ import xnano_core as _core
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
 
-from xnano.errors import TerminalClosedError, TerminalError, release_frames
+from xnano.errors import TerminalClosedError, TerminalError, _release_frames
 
 ResultT = TypeVar('ResultT')
 
@@ -28,19 +28,19 @@ _CALL_TIMEOUT_SECONDS: Final = 10.0
 
 
 def _public_operation() -> str | None:
-    """The name of the public xnano method or property that is running, if there is one."""
+    """The name of the public xnano call the user made, which is the outermost xnano frame."""
     frame = sys._getframe(2)
+    operation = None
     while frame is not None:
         name = frame.f_code.co_name
         module = frame.f_globals.get('__name__', '')
-        if (
-            module.startswith('xnano')
-            and not name.startswith(('_', '<'))
-            and not module.startswith('xnano._')
-        ):
-            return name
+        if module == 'xnano' or module.startswith('xnano.'):
+            if not name.startswith(('_', '<')):
+                operation = name
+        elif operation is not None:
+            break
         frame = frame.f_back
-    return None
+    return operation
 
 
 class _Registration:
@@ -199,7 +199,11 @@ class _InlineHost(_Host):
     def require_usable(self) -> None:
         if threading.current_thread() is not self._thread:
             operation = _public_operation()
-            subject = 'This canvas' if operation is None else f'{operation} was used from'
+            subject = (
+                'This canvas was used from'
+                if operation is None
+                else f'{operation} was used from'
+            )
             raise TerminalError(
                 f'{subject} another thread, but a canvas with a manual clock belongs to the '
                 f'thread that created it. Use it from the thread that called xnano.new(), or '
@@ -210,8 +214,10 @@ class _InlineHost(_Host):
         if self._runtime is not None and threading.current_thread() is not self._thread:
             raise TerminalError(
                 'A canvas with a manual clock belongs to the thread that created it, and '
-                'this is another one. Close it from the thread that called xnano.new(), or '
-                'create it with xnano.new(realtime=True) to use it from several threads.'
+                'this is another one. Close it from the thread that called xnano.new(), for '
+                'example with a with block in that thread, or create it with '
+                'xnano.new(realtime=True) to use it from several threads, including after '
+                'the thread that created it has ended.'
             )
 
     def retire(self) -> None:
@@ -299,9 +305,9 @@ class _ThreadHost(_Host):
         canvas = self._canvas
         runtime: _core.Runtime | None = None
         try:
-            from xnano.canvas import _active_canvas
+            from xnano.canvas import _make_current
 
-            _active_canvas.set(canvas)
+            _make_current(canvas)
             runtime = self._create_runtime()
             runtime.__enter__()
             self._waker = runtime.waker()
@@ -316,7 +322,7 @@ class _ThreadHost(_Host):
             except BaseException as error:
                 # The caller re-raises this error on its own thread, so it must not carry
                 # frames that hold the runtime, which only this thread may drop.
-                release_frames(error)
+                _release_frames(error)
                 self._bind_error = error
                 if not self._defer_bind:
                     self._startup_error = error
@@ -344,8 +350,8 @@ class _ThreadHost(_Host):
             if self._is_bound:
                 canvas._forget_runtime()
             runtime = None
-            release_frames(self._startup_error)
-            release_frames(self._bind_error)
+            _release_frames(self._startup_error)
+            _release_frames(self._bind_error)
             self._ready.set()
             self._bind_done.set()
             self._finished.set()
@@ -388,6 +394,14 @@ class _ThreadHost(_Host):
                 f'callback that never returns is blocking its loop; keep callbacks short, '
                 f'or hand slow work to another thread.'
             ) from None
+
+    def require_retirable(self) -> None:
+        if self.is_on_loop():
+            raise TerminalError(
+                'open() was called from a hook of a canvas that runs by itself, and the '
+                'canvas cannot move to the screen while its own loop is running the hook. '
+                'Call open() from the thread that created the canvas, outside its hooks.'
+            )
 
     def wait(self, timeout: float | None = None) -> bool:
         """Wait for the loop to finish; return whether it has."""

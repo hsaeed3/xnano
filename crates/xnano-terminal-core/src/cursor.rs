@@ -100,7 +100,7 @@ fn point_arg(value: &Bound<'_, PyAny>) -> PyResult<Point> {
         return Ok(Point::new(x, y));
     }
     Err(PyTypeError::new_err(format!(
-        "a cursor position is a Point or a (column, row) pair of whole numbers, or None to \
+        "a cursor position is a Point or an (x, y) pair of whole numbers, or None to \
          hide the cursor, but got {}",
         value.repr()?
     )))

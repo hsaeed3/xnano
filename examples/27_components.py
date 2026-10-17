@@ -6,7 +6,8 @@ Components: functions and classes that draw themselves.
 it read the clock; a component that reads nothing dynamic is drawn once. Any class with a
 ``__xnano_render__`` method is a component too. Dependencies given to ``xnano.new(deps=...)``
 reach every component as ``context.deps``. ``gauge.hook(...)`` attaches a hook to every
-placement of the component, and receives the component's own parameters. Press ``r`` to say
+placement of the component, and receives the component's own parameters; the hook counts what
+it heard in ``context.plugin.state``, which each placement keeps for itself. Press ``r`` to say
 which gauge heard it, ``h`` for a hook that needs the dependencies (``requires_deps=True``),
 and ``q`` to quit.
 """
@@ -56,6 +57,10 @@ with xnano.open(width=40, height=6, deps=Services(host='xnano.local')) as termin
 
     @gauge.hook(on='key', keys='r')
     def answer(context: Context, component: ComponentContext) -> None:
-        message.text = f'the {component.arguments["label"]} gauge heard r'
+        state = context.plugin.state
+        earlier = state.get('heard', default=0)
+        heard = earlier + 1 if isinstance(earlier, int) else 1
+        state.push('heard', heard)
+        message.text = f'the {component.arguments["label"]} gauge heard r, {heard} in all'
 
     terminal.run(quit_on='q')

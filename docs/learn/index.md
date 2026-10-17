@@ -34,11 +34,12 @@ heart = xnano.draw(
     'R=#e03040',
 )
 print(card.render())
-print(heart.render())
+print(heart.render(format='ansi'))
 ```
 
 A [`Pixel`][xnano.Pixel] is one cell or dot: `xnano.Pixel('diamond', foreground='red')`.
-A character the palette does not name, such as `.`, is transparent.
+A character the palette does not name, such as `.`, is transparent. Pixel art keeps its
+color only in the `ansi` format, so print it with `render(format='ansi')`.
 
 ## Put it on a canvas
 

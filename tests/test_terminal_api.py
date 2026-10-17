@@ -205,10 +205,10 @@ class TestTypedState:
 
 class TestOutputCapture:
     def test_a_canvas_on_the_screen_that_cannot_hold_output_back_warns(self):
-        from xnano.terminal import warn_if_output_is_not_held_back
+        from xnano.terminal import _warn_if_output_is_not_held_back
 
         with pytest.warns(RuntimeWarning, match='capture=False'):
-            warn_if_output_is_not_held_back(requested=True, is_held_back=False)
+            _warn_if_output_is_not_held_back(requested=True, is_held_back=False)
 
     @pytest.mark.parametrize(
         ('requested', 'is_held_back'), [(True, True), (False, False)]
@@ -218,11 +218,11 @@ class TestOutputCapture:
     ):
         import warnings
 
-        from xnano.terminal import warn_if_output_is_not_held_back
+        from xnano.terminal import _warn_if_output_is_not_held_back
 
         with warnings.catch_warnings():
             warnings.simplefilter('error')
-            warn_if_output_is_not_held_back(
+            _warn_if_output_is_not_held_back(
                 requested=requested, is_held_back=is_held_back
             )
 
@@ -441,6 +441,27 @@ class TestDocumentation:
         assert private == []
 
 
+class TestDocumentationSite:
+    ROOT = pathlib.Path(xnano.__file__).resolve().parent.parent
+
+    def test_the_reference_is_read_from_the_source(self):
+        text = (self.ROOT / 'zensical.toml').read_text()
+        assert re.search(
+            r'^\[project\.plugins\.mkdocstrings\.handlers\.python\]', text, re.M
+        )
+        assert re.search(
+            r'^\[project\.plugins\.mkdocstrings\.handlers\.python\.options\]', text, re.M
+        )
+
+    def test_every_page_in_the_navigation_exists(self):
+        text = (self.ROOT / 'zensical.toml').read_text()
+        navigation = text[text.index('nav = [') :]
+        pages = re.findall(r'^\s*\{?[^#\n]*?"([\w/.-]+\.md)"', navigation, re.M)
+        assert pages
+        missing = [page for page in pages if not (self.ROOT / 'docs' / page).exists()]
+        assert missing == []
+
+
 class TestOutputCaptureStatus:
     def test_a_canvas_off_the_screen_holds_nothing_back(self):
         with xnano.new(width=4, height=1) as canvas:
@@ -454,3 +475,9 @@ class TestReturnTypesAreReachable:
         assert xnano.types.HookHandle is xnano._hooks.HookHandle
         assert xnano.types.EffectController is xnano._effect_controller.EffectController
         assert xnano.types.EffectCustomization is not xnano.effects.Effect
+
+
+def test_the_color_value_alias_is_public_in_types():
+    import xnano.types
+
+    assert 'ColorValue' in xnano.types.__all__

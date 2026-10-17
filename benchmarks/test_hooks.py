@@ -7,9 +7,8 @@ and a key that no hook wants.
 Each call pushes 100 key events and delivers them in one step, so the cost of an event is the
 time of the call divided by 100.
 
-Baselines, measured on an optimized build before this version (Apple M-series, Python 3.11):
-7.57 us per event with one registered hook and 42.07 us with ten; a natively filtered hook
-costs 0.16 us per event.
+Measured on an optimized build (Apple M-series, Python 3.11): 7.57 us per event with one
+registered hook and 42.07 us with ten; a natively filtered hook costs 0.16 us per event.
 
 The budgets below are asserted only on an optimized build: a debug build is several times
 slower and says nothing about the code's speed.

@@ -89,6 +89,17 @@ class TestDraw:
         assert registered.symbol == 'player'
         assert xnano.symbols.lookup('player', kind=Art) is registered
 
+    def test_the_name_of_a_registered_image_draws_that_image(self):
+        xnano.from_image(
+            TerminalImage.from_rgba(2, 1, bytes([255, 0, 0, 255] * 2)), symbol='redsquare'
+        )
+        try:
+            art = draw('redsquare')
+            assert (art.width, art.height) == (2, 1)
+            assert art.symbol is None
+        finally:
+            xnano.symbols.remove('redsquare')
+
     def test_an_unknown_symbol_lists_the_known_ones_and_says_how_to_draw_one_row(self):
         draw(['W'], {'W': 'white'}, symbol='wall')
         with pytest.raises(ValueError, match="'GG' is not a known Art symbol") as caught:
@@ -371,6 +382,22 @@ class TestMovement:
         art = red()
         assert art.move(3, -2) == (3.0, -2.0)
         assert (art.x, art.y) == (3, -2)
+
+    def test_a_very_long_walk_ends_at_the_edge_of_the_world(self):
+        world = draw(None, width=10, height=4)
+        hero = world.add(red(), x=3, y=1)
+        assert hero.right(10**17) == 6
+        assert hero.x == 9
+        assert red().move(10**17, 0) == (10.0**17, 0.0)
+
+    def test_a_distance_must_be_a_finite_number_of_pixels(self):
+        art = red()
+        with pytest.raises(TypeError, match=r'move\(\) takes x as a finite number'):
+            art.move(float('inf'), 0)
+        with pytest.raises(TypeError, match=r'right\(\) takes count as a finite number'):
+            art.right('2')  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match=r'call right\(\) instead of left\(\)'):
+            art.left(-1)
 
     def test_a_solid_child_blocks_other_children_but_not_itself(self):
         world = draw(None, width=10, height=4)

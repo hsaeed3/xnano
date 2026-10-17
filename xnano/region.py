@@ -19,6 +19,7 @@ from typing import (
 import xnano_core as _core
 from xnano._appearance import (
     APPEARANCE_NAMES,
+    MOST_CELLS,
     Appearance,
     Spacing,
     check_border_kind,
@@ -82,6 +83,16 @@ def _plain(color: _core.Color | None) -> ColorValue | None:
 
 def _snapshot(surface: _core.Surface) -> _core.Buffer:
     return _core.Buffer.from_cell_grid(surface.to_cell_grid())
+
+
+def _check_shade_function(function: object) -> None:
+    """Refuse a ``shade`` argument that is not a function of a position."""
+    if not callable(function):
+        raise TypeError(
+            f'shade() takes a function of the position, such as shade(lambda x, y: (x * 10, '
+            f'0, 0)), but got {function!r}. Pass a function that returns a color for each '
+            f'(x, y), or None to leave the cell alone.'
+        )
 
 
 class Region(_Looked):
@@ -173,6 +184,7 @@ class Region(_Looked):
         self._appearance = look
         self._canvas: Canvas[object, object] | None = None
         self._insets_applied: tuple[int, int, int, int] | None = None
+        self._seal()
 
     @classmethod
     def _from_buffer(cls, buffer: _core.Buffer) -> Region:
@@ -374,8 +386,9 @@ class Region(_Looked):
 
         Raises:
             TerminalError: The region is the view of a canvas, whose size follows its screen,
-                or it was made by ``write``, whose size follows its text.
-            ValueError: A size is below 1.
+                a slice of another region, or it was made by ``write``, whose size follows
+                its text.
+            ValueError: A size is below 1 or above 65535.
         """
         _check_cell_counts('resize', width, height)
         if width < 1 or height < 1:
@@ -391,18 +404,63 @@ class Region(_Looked):
                 'xnano.box(width, height), or change the text or the padding.'
             )
         if self._is_standalone:
-            self._buffer.width = width
-            self._buffer.height = height
+            self._resize_standalone(width, height)
             return
         if owner is None or not hasattr(owner, '_set_axis'):
+            if owner is None or any(self._inset):
+                raise TerminalError(
+                    'A slice of a region is a window onto it and cannot be resized. Resize the '
+                    'region it was taken from with its resize(width, height), or take a new '
+                    'slice.'
+                )
             raise TerminalError(
                 'The size of a canvas follows its screen or its width and height; set '
                 'those instead of resizing its region.'
             )
         left, top, right, bottom = self._inset
         placement = cast('Placement[object, object]', owner)
-        placement.width = width + left + right
-        placement.height = height + top + bottom
+        extra_width = left + right
+        extra_height = top + bottom
+        decorated = getattr(placement, '_decorated', None)
+        if decorated is not None:
+            extra_width += decorated.insets.horizontal
+            extra_height += decorated.insets.vertical
+        placement.width = width + extra_width
+        placement.height = height + extra_height
+
+    def _resize_standalone(self, width: int, height: int) -> None:
+        """Resize the cells of a standalone region and draw its border, padding and margin again."""
+        buffer = self._buffer
+        if self._appearance is None:
+            buffer.width = width
+            buffer.height = height
+            return
+        self._flush_look()
+        carried: _core.Buffer | None = None
+        previous = self._insets_applied
+        if previous is not None:
+            left, top, right, bottom = previous
+            inner_width = max(0, buffer.width - left - right)
+            inner_height = max(0, buffer.height - top - bottom)
+            if inner_width and inner_height:
+                carried = _snapshot(
+                    buffer[left : left + inner_width, top : top + inner_height]
+                )
+        buffer.width = width
+        buffer.height = height
+        buffer.update(_core.Fill(_BLANK))
+        self._insets_applied = None
+        self._redraw_look()
+        applied = self._insets_applied
+        if carried is not None and applied is not None:
+            kept_width = min(carried.width, max(0, width - applied[0] - applied[2]))
+            kept_height = min(carried.height, max(0, height - applied[1] - applied[3]))
+            if kept_width and kept_height:
+                if (kept_width, kept_height) != (carried.width, carried.height):
+                    carried = _snapshot(carried[0:kept_width, 0:kept_height])
+                buffer.update(
+                    _core.Paste(carried, x=applied[0], y=applied[1], mode='replace')
+                )
 
     # -- the resolution views ------------------------------------------------------------
 
@@ -757,6 +815,7 @@ class Region(_Looked):
                 assert canvas.region.half_blocks[0, 3].foreground is not None
             ```
         """
+        _check_shade_function(function)
         if self._resolution == 'cells':
             width, height = self._cell_size()
             if width == 0 or height == 0:
@@ -779,6 +838,7 @@ class Region(_Looked):
         self, function: Callable[[int, int], ColorValue | None]
     ) -> None:
         """Color the text of every cell from a function of its position, in one write."""
+        _check_shade_function(function)
         width, height = self._cell_size()
         if width == 0 or height == 0:
             return
@@ -945,6 +1005,11 @@ def _check_cell_counts(function_name: str, width: object, height: object) -> Non
                 f'{function_name}() takes the {name} as a whole number of cells, but got '
                 f'{value!r}. Pass a number such as 4.'
             )
+        if value > MOST_CELLS:
+            raise ValueError(
+                f'{function_name}() takes the {name} as at most {MOST_CELLS} cells, but got '
+                f'{value!r}. Pass a number such as 40.'
+            )
 
 
 def _standalone_look(
@@ -1030,7 +1095,7 @@ def box(width: int, height: int, /, **appearance: Unpack[AppearanceArguments]) -
             kind or ``False``.
 
     Raises:
-        ValueError: A size is below 1.
+        ValueError: A size is below 1 or above 65535.
 
     Examples:
         ```python

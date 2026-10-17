@@ -6,6 +6,8 @@ Errors a canvas raises about itself.
 
 from __future__ import annotations
 
+__all__ = ['TerminalAlreadyOpenError', 'TerminalClosedError', 'TerminalError']
+
 
 class TerminalError(RuntimeError):
     """Base class of the errors a canvas raises about itself."""
@@ -19,7 +21,7 @@ class TerminalAlreadyOpenError(TerminalError):
     """Raised when a second canvas is opened on the screen while one is already there."""
 
 
-def release_frames(error: BaseException | None) -> str:
+def _release_frames(error: BaseException | None) -> str:
     """
     Drop the stack frames an error and the errors that caused it carry, and return their text.
 

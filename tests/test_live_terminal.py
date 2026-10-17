@@ -400,6 +400,21 @@ with xnano.open(width=14, height=6) as terminal:
         assert screen.cell(1, 1).data in ('▀', ' ', '█')
         assert 'ff0000' in (screen.cell(1, 1).fg, screen.cell(1, 1).bg)
 
+    def test_a_look_changed_before_opening_is_drawn_once_and_asks_for_no_frames(
+        self, run
+    ):
+        screen = run(
+            """
+canvas = xnano.new(width=20, height=5)
+canvas.border = 'plain'
+canvas.open()
+time.sleep(0.3)
+canvas.write(f'dirty={len(canvas._dirty_looks)} demand={canvas._frame_demand}', x=1, y=1)
+time.sleep(1.5)
+"""
+        )
+        assert screen.wait_for('dirty=0 demand=0')
+
     def test_a_component_that_reads_the_time_keeps_drawing(self, run):
         screen = run(
             """
@@ -528,6 +543,29 @@ with xnano.open() as terminal:
         assert screen.find('middle') == (15, 1)
         screen.resize(8, 50)
         assert screen.wait_until(lambda: screen.find('middle') == (25, 1), timeout=5)
+
+
+class TestInlineResize:
+    def test_a_resize_hook_sees_the_size_of_the_inline_region(self, run):
+        screen = run(
+            """
+with xnano.open(height=4) as terminal:
+    terminal.write('region')
+    sizes = []
+
+    @terminal.hook(on='resize')
+    def resized(context):
+        sizes.append((terminal.size.width, terminal.size.height))
+        terminal.write('SIZES ' + repr(sizes[-1]).replace(' ', ''), y=1)
+
+    terminal.run()
+""",
+            rows=12,
+            columns=60,
+        )
+        assert screen.wait_for('region')
+        screen.resize(12, 30)
+        assert screen.wait_for('SIZES (30,4)')
 
 
 class TestOutputCapture:
@@ -816,6 +854,35 @@ with xnano.new(width=40, height=3) as canvas:
         )
         assert screen.wait_for('STOPPED True AT 2.00')
         assert screen.wait_for('STEPPED TO 2.01')
+
+    def test_state_given_to_open_reaches_what_follows_it(self, run):
+        screen = run(
+            """
+import dataclasses
+
+@dataclasses.dataclass
+class Settings:
+    volume: int = 3
+
+with xnano.new(width=30, height=3) as canvas:
+    @xnano.renderable
+    def shown(context):
+        return 'v=%s' % context.root.state.get('volume', 'none')
+
+    heard = canvas.write('', y=2)
+
+    @canvas.hook(on='state')
+    def hear(context):
+        heard.text = 'HEARD %s' % context.root.state.get('volume', 'none')
+
+    canvas.write(shown)
+    canvas.step(delta_seconds=0.2)
+    canvas.open(state=Settings(volume=7))
+    time.sleep(2)
+"""
+        )
+        assert screen.wait_for('v=7')
+        assert screen.wait_for('HEARD 7')
 
     def test_effects_given_to_open_start_on_the_screen(self, run):
         screen = run(

@@ -6,17 +6,20 @@ Notes as values, rendered without a device and played on the keyboard.
 on a canvas whose clock you move, and ``render_sound()`` returns the sound of those seconds, so
 the numbers it prints are the same on every run. ``xnano.from_audio`` loads a PCM WAV file or
 bytes (here a tone built in memory) and registers it as ``'clip'``. ``@xnano.playable`` makes a
-function that returns a note, and ``xnano.play(arpeggio())`` plays what it returns.
+function that returns a note, and ``xnano.play(arpeggio())`` plays what it returns. A class
+with a ``__xnano_play__`` method plays itself the same way: ``xnano.play(Fanfare(...))``.
 Then the screen opens: ``k`` plays the kick, ``c`` the clip, ``m`` the melody, ``p`` the
-arpeggio, and ``q`` quits.
+arpeggio, ``f`` the fanfare, and ``q`` quits.
 """
 
+import dataclasses
 import io
 import math
 import struct
 import wave
 
 import xnano
+from xnano.audio import Pitch
 from xnano.context import Context
 
 
@@ -51,6 +54,16 @@ def arpeggio(context: Context) -> list[xnano.Note]:
     ]
 
 
+@dataclasses.dataclass(frozen=True)
+class Fanfare:
+    """A class that plays itself: the method is all it needs."""
+
+    names: tuple[Pitch, ...]
+
+    def __xnano_play__(self, context: Context) -> list[xnano.Note]:
+        return [xnano.note(name, beats=0.25, instrument='bell') for name in self.names]
+
+
 with xnano.new(width=20, height=1, bpm=120, fps=10) as offline:
     offline.play(melody)
     offline.play('kick')
@@ -59,8 +72,8 @@ with xnano.new(width=20, height=1, bpm=120, fps=10) as offline:
     seconds = sound.duration_milliseconds / 1000
     print(f'offline: {seconds:.1f} seconds, peak {sound.peak:.2f}')  # noqa: T201
 
-with xnano.open(width=50, height=3, bpm=120) as terminal:
-    terminal.write('k kick   c clip   m melody   p arpeggio   q quit')
+with xnano.open(width=58, height=3, bpm=120) as terminal:
+    terminal.write('k kick  c clip  m melody  p arpeggio  f fanfare  q quit')
     message = terminal.write('nothing played yet', y=2)
 
     @terminal.hook(on='key', keys='k')
@@ -82,5 +95,10 @@ with xnano.open(width=50, height=3, bpm=120) as terminal:
     def climb(context: Context) -> None:
         xnano.play(arpeggio())
         message.text = 'played the arpeggio, a playable function'
+
+    @terminal.hook(on='key', keys='f')
+    def fanfare(context: Context) -> None:
+        xnano.play(Fanfare(('G4', 'C5', 'E5')))
+        message.text = 'played a class that plays itself'
 
     terminal.run(quit_on='q')

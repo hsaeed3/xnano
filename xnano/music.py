@@ -19,7 +19,7 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Final
 
 from xnano import _optional, symbols
-from xnano._customize import normalize_effect
+from xnano._customize import effect_sequence, normalize_effect
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from xnano_audio import InstrumentName, Pitch, TerminalAudioPlayer
 
     from xnano.context import Context
-    from xnano.types import Playable, PlayableEffectSpecification, PlayOptions
+    from xnano.types import PlayableEffectSpecification, PlayOptions, PlaySource
 
 __all__ = ['Note', 'PlayHandle', 'note', 'play']
 
@@ -184,7 +184,7 @@ class Note:
                     f'{self.instrument!r} is not an instrument. Use one of: '
                     f'{", ".join(names)}.'
                 )
-        effects = tuple(self.effects)
+        effects = effect_sequence(self.effects, 'playable')
         for effect in effects:
             normalize_effect(effect, 'playable')
         object.__setattr__(self, 'effects', effects)
@@ -250,7 +250,7 @@ def note(
         beats=beats,
         instrument=instrument,
         velocity=velocity,
-        effects=tuple(effects),
+        effects=effect_sequence(effects, 'playable'),  # type: ignore[arg-type]
         symbol=symbol,
     )
 
@@ -319,7 +319,7 @@ class PlayHandle:
             self._cancel()
 
 
-def play(playable: Playable, /, **options: Unpack[PlayOptions]) -> PlayHandle:
+def play(playable: PlaySource, /, **options: Unpack[PlayOptions]) -> PlayHandle:
     """
     Play a note, a sound, a symbol name, a melody or a sequence of those.
 
@@ -382,7 +382,7 @@ class _DefaultPlayer:
     def play(self, playable: object, **options: object) -> PlayHandle:
         from xnano import audio
 
-        planned = audio.plan_call(
+        planned = audio._plan_call(
             playable,
             bpm=_DEFAULT_BPM,
             instrument=options.get('instrument'),  # type: ignore[arg-type]
@@ -393,7 +393,7 @@ class _DefaultPlayer:
             pan=options.get('pan', 0.0),  # type: ignore[arg-type]
             at_beat=options.get('at_beat'),  # type: ignore[arg-type]
         )
-        sound = audio.mix_planned(planned)
+        sound = audio._mix_planned(planned)
         with self._lock:
             player = self._open()
             at_beat = options.get('at_beat')

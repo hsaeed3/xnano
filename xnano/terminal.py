@@ -63,7 +63,7 @@ class Terminal(Canvas[DepsT, StateT]):
     """
 
 
-def warn_if_output_is_not_held_back(*, requested: bool, is_held_back: bool) -> None:
+def _warn_if_output_is_not_held_back(*, requested: bool, is_held_back: bool) -> None:
     """Say so when ``capture`` could not be honored on this platform."""
     if requested and not is_held_back:
         warnings.warn(

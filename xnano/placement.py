@@ -14,10 +14,11 @@ from xnano_core import EvaluationContext
 
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
-    from xnano.components import ComponentDriver
+    from xnano.components import _ComponentDriver
     from xnano.types import RenderableEffectSpecification
 
-from xnano._appearance import Appearance, Spacing
+from xnano._appearance import MOST_CELLS, Appearance, Spacing
+from xnano._attributes import refuse_unknown_keywords
 from xnano._axes import (
     axis_expression,
     axis_limits,
@@ -54,6 +55,8 @@ from xnano.operations import (
 )
 from xnano.region import Region
 from xnano.state import StateNamespace
+
+__all__ = ['Placement']
 
 
 class Placement(_Hooked[DepsT, StateT], _Looked):
@@ -146,7 +149,8 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         self._decorated: Decorated | None = None
         self._has_nested = False
         self._state_namespace: StateNamespace | None = None
-        self._driver: ComponentDriver | None = None
+        self._driver: _ComponentDriver | None = None
+        self._seal()
 
     @property
     def core_buffer(self) -> _core.Buffer:
@@ -319,6 +323,15 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
                 raise ValueError(
                     f'{axis} is {value}, which is too far from the canvas to be a cell. '
                     f'Pass a number of cells near the canvas, such as {axis}=0.'
+                ) from None
+            except ValueError:
+                if axis not in ('width', 'height'):
+                    raise
+                raise ValueError(
+                    f'{axis} must be a whole number of cells from 0 to {MOST_CELLS}, but the '
+                    f'{axis} given works out to {value} cells on this canvas. Pass a size '
+                    f"such as {axis}=4 or a share such as {axis}='50%', or leave {axis} out "
+                    f'to use the size of the content.'
                 ) from None
             driver = self._driver
             if (
@@ -938,6 +951,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         self._buffer.update(_core.Fill(' '), _core.Paste(drawn, mode='replace'))
         self._canvas._request_frame()
 
+    @refuse_unknown_keywords
     def write(
         self,
         content: Content | Canvas[object, object] | None = None,
@@ -996,8 +1010,9 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             is_hidden: Whether text is hidden.
             is_crossed_out: Whether text is struck through.
             title: Title for a box around text.
-            border: Border kind for a box around the content; ``True`` for ``'plain'`` and
-                ``False`` for none.
+            border: The kind of border for a box around the content, a
+                [`BorderKind`][xnano.types.BorderKind] such as ``'plain'``, ``'rounded'``,
+                ``'double'`` or ``'thick'``; ``True`` for ``'plain'`` and ``False`` for none.
             border_style: Style for the box's border.
             padding: Space between the border and the text; see
                 [`Canvas.write`][xnano.canvas.Canvas.write].

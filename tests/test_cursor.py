@@ -109,6 +109,29 @@ class TestCursor:
         field.down()
         assert canvas.cursor.position == Point(12, 2)
 
+    def test_a_position_that_is_not_a_point_says_x_and_y(self, canvas):
+        with pytest.raises(TypeError, match=r'an \(x, y\) pair of whole numbers'):
+            canvas.cursor.position = 5  # type: ignore[assignment]
+
+    def test_a_removed_placement_cannot_be_followed(self, canvas):
+        field = canvas.write('abc', x=1, y=1)
+        field.remove()
+        with pytest.raises(
+            xnano.errors.TerminalClosedError, match='placement was removed'
+        ):
+            canvas.cursor.follow(field)
+        canvas.step()
+        assert canvas.cursor.position is None
+
+    def test_a_region_of_a_removed_placement_cannot_be_followed(self, canvas):
+        field = canvas.write('abc', x=1, y=1)
+        region = field.region
+        field.remove()
+        with pytest.raises(
+            xnano.errors.TerminalClosedError, match='placement was removed'
+        ):
+            canvas.cursor.follow(region)
+
     def test_moving_stops_following_and_unfollow_leaves_the_cursor_in_place(self, canvas):
         field = canvas.write('name', x=5, y=1)
         canvas.cursor.follow(field)
@@ -219,3 +242,11 @@ class TestMovingCanvases:
         assert card._bindings['x'][0] is not None
         canvas.step()
         assert card.x == 17
+
+
+class TestCursorFlags:
+    @pytest.mark.parametrize('name', ['is_visible', 'is_blinking'])
+    @pytest.mark.parametrize('value', [5, 'x', None])
+    def test_a_flag_that_is_not_a_boolean_says_what_to_pass(self, canvas, name, value):
+        with pytest.raises(TypeError, match=rf'{name} must be True or False, but got'):
+            setattr(canvas.cursor, name, value)

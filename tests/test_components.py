@@ -268,6 +268,23 @@ class TestWhenItRunsAgain:
         assert len(calls) == 3
         assert canvas._frame_demand == 0
 
+    @pytest.mark.parametrize('spelling', ['root', 'canvas'])
+    def test_reading_the_time_through_the_canvas_runs_it_every_frame(
+        self, canvas, spelling
+    ):
+        counter, calls = self.counting(
+            lambda context: getattr(context, spelling).time.elapsed
+        )
+        placement = canvas.write(counter)
+        canvas.step(delta_seconds=0.1)
+        canvas.step(delta_seconds=0.1)
+        assert len(calls) == 3
+        assert text_of(placement) == '3'
+        placement.remove()
+        canvas.step(delta_seconds=0.1)
+        assert len(calls) == 3
+        assert canvas._frame_demand == 0
+
     def test_a_buffer_changed_in_place_shows_when_the_component_runs_again(self, canvas):
         shared = Buffer.with_text('aaaa')
         standalone = xnano.write('bbbb')
@@ -703,7 +720,7 @@ class TestPlayables:
         def tune(context: Context) -> xnano.Note:
             return xnano.note('C4')
 
-        for play in (xnano.audio.plan_call, None):
+        for play in (xnano.audio._plan_call, None):
             with pytest.raises(TypeError, match=r'needs a canvas to run in') as raised:
                 if play is None:
                     canvas.audio.play(tune)
@@ -882,3 +899,65 @@ class TestEffectsInComponents:
             canvas.write(once)
             canvas.step()
             assert canvas.render().startswith('once')
+
+
+class TestDecoratorArguments:
+    @pytest.mark.parametrize('decorator', ['renderable', 'playable'])
+    @pytest.mark.parametrize('value', [5, None, 'text'])
+    def test_something_that_is_not_a_function_is_explained(self, decorator, value):
+        with pytest.raises(TypeError, match=rf'@xnano\.{decorator} decorates a function'):
+            getattr(xnano, decorator)(value)
+
+    def test_a_class_is_pointed_at_the_protocol_method(self):
+        class Gauge:
+            pass
+
+        with pytest.raises(TypeError, match=r'__xnano_render__\(self, context\)'):
+            xnano.renderable(Gauge)
+
+    def test_a_play_method_without_a_context_says_what_it_returns(self):
+        class Chime:
+            def __xnano_play__(self):
+                return 'C4'
+
+        with xnano.new(width=4, height=1) as canvas:
+            with pytest.raises(TypeError, match=r'return what it plays, such as a Note'):
+                canvas.play(Chime())
+
+    def test_the_example_of_the_refusal_fits_the_decorator(self):
+        with pytest.raises(TypeError, match=r'def gauge\(context\)'):
+            xnano.renderable(None)
+        with pytest.raises(TypeError, match=r'def chime\(context\)'):
+            xnano.playable(None)
+
+    def test_the_context_check_inspects_a_method_once(self, monkeypatch):
+        import inspect
+
+        calls = []
+        real = inspect.signature
+
+        def counting(function, *arguments, **keywords):
+            calls.append(function)
+            return real(function, *arguments, **keywords)
+
+        class Gauge:
+            def __xnano_render__(self, context):
+                return 'x'
+
+        monkeypatch.setattr(inspect, 'signature', counting)
+        from xnano._media import check_context_method
+
+        for _ in range(5):
+            check_context_method(Gauge(), '__xnano_render__')
+        assert len(calls) == 1
+
+    def test_a_render_method_without_a_context_is_explained(self):
+        class Gauge:
+            def __xnano_render__(self):
+                return 'x'
+
+        with xnano.new(width=4, height=1) as canvas:
+            with pytest.raises(
+                TypeError, match=r'Gauge\.__xnano_render__ must take the context'
+            ):
+                canvas.write(Gauge())

@@ -112,7 +112,7 @@ def make_push_three(namespace: str) -> tuple[Callable[[Context], None], list[int
     return functions[namespace], counter
 
 
-def read_state(canvas: Canvas, namespace: str) -> dict[str, object]:
+def _read_state(canvas: Canvas, namespace: str) -> dict[str, object]:
     if namespace == 'root':
         return {key: canvas.state.get(key) for key in 'abc'}
     placement = canvas._placements[0]
@@ -133,7 +133,7 @@ def test_three_pushes(benchmark, namespace: str) -> None:
             lambda: deliver(canvas, event), rounds=ROUNDS, warmup_rounds=20, iterations=1
         )
         last = counter[0]
-        assert read_state(canvas, namespace) == {'a': last, 'b': last, 'c': last}
+        assert _read_state(canvas, namespace) == {'a': last, 'b': last, 'c': last}
         measured = minimum_microseconds(lambda: deliver(canvas, event))
     with xnano.new(width=80, height=24) as baseline:
         label = baseline.write('x')

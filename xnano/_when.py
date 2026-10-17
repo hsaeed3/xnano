@@ -190,6 +190,19 @@ def _fail(text: str, node: ast.AST | None, problem: str) -> ValueError:
     return ValueError(f'The condition {text!r} has a problem{where}: {problem}{pointer}')
 
 
+def _not_example(shown: str) -> tuple[str, str] | None:
+    """A comparison to suggest after ``not``, and the same condition without it."""
+    if shown.endswith(('.key', '.chord')):
+        return "== 'q'", "!= 'q'"
+    if shown.endswith('.button'):
+        return "== 'left'", "!= 'left'"
+    if shown.endswith('.kind'):
+        return "== 'press'", "!= 'press'"
+    if shown.endswith(('.position', '.size', '.region')):
+        return None
+    return '> 2', '<= 2'
+
+
 class _Parser:
     """Check a condition string and turn it into an expression, or a function of the context."""
 
@@ -427,6 +440,50 @@ class _Parser:
 
         return predicate
 
+    def _join(
+        self, node: ast.BoolOp, joined: object, value: object, index: int
+    ) -> object:
+        """Join two native conditions with ``and`` or ``or``, or explain why they cannot be."""
+        try:
+            return (
+                joined & value  # type: ignore[operator]
+                if isinstance(node.op, ast.And)
+                else joined | value  # type: ignore[operator]
+            )
+        except TypeError:
+            word = 'and' if isinstance(node.op, ast.And) else 'or'
+            raise _fail(
+                self.text,
+                node,
+                f'{word} joins comparisons, but {ast.unparse(node.values[index])} '
+                f'and {ast.unparse(node.values[index + 1])} are not both '
+                f'comparisons. Compare each side first, as in '
+                f"keyboard.key == 'q' {word} buffer.width > 10.",
+            ) from None
+
+    def _compare_pair(
+        self, node: ast.Compare, operands: list[object], index: int, *, is_native: bool
+    ) -> object:
+        """Compare two neighbors of a chain, or explain why they cannot be ordered."""
+        operator = node.ops[index]
+        try:
+            return _compare(
+                operator, operands[index], operands[index + 1], is_native=is_native
+            )
+        except TypeError:
+            if not is_native or type(operator) not in _COMPARISON_SYMBOLS:
+                raise
+            pair = [node.left, *node.comparators][index : index + 2]
+            symbol = _COMPARISON_SYMBOLS[type(operator)]
+            raise _fail(
+                self.text,
+                node,
+                f'{symbol} cannot compare {ast.unparse(pair[0])} with '
+                f'{ast.unparse(pair[1])}, because one of them is not a number. '
+                f'Ordering works on numbers such as buffer.width; key names and '
+                f"text have no order, so use == or != or in, as in keyboard.key == 'q'.",
+            ) from None
+
     def _build(
         self, node: ast.expr, names: dict[str, object], *, is_native: bool
     ) -> object:
@@ -453,29 +510,63 @@ class _Parser:
             if operand is None and not is_native and not isinstance(node.op, ast.Not):
                 return None
             if isinstance(node.op, ast.Not):
-                return ~operand if is_native else not operand  # type: ignore[operator]
-            return -operand  # type: ignore[operator]
+                if not is_native or isinstance(operand, bool):
+                    return not operand
+                try:
+                    return ~operand  # type: ignore[operator]
+                except TypeError:
+                    shown = ast.unparse(node.operand)
+                    suggestion = _not_example(shown)
+                    if suggestion is None:
+                        raise TypeError(
+                            f'not needs a comparison, but {shown} is a value. Compare it '
+                            f'with == or !=, such as not {shown} == value.'
+                        ) from None
+                    example, other = suggestion
+                    raise TypeError(
+                        f'not needs a comparison, but {shown} is a value. Compare it, such as '
+                        f'not {shown} {example}, or write {shown} {other} instead.'
+                    ) from None
+            try:
+                return -operand  # type: ignore[operator]
+            except TypeError:
+                raise _fail(
+                    self.text,
+                    node,
+                    f'- cannot be applied to {ast.unparse(node.operand)}, because it is not a '
+                    f'number. Only numbers such as buffer.width can be negated; key names '
+                    f'and text cannot, so compare them with == or != instead.',
+                ) from None
         if isinstance(node, ast.BinOp):
             left, right = build(node.left), build(node.right)
             if not is_native and (left is None or right is None):
                 return None
-            if isinstance(node.op, ast.Add):
-                return left + right  # type: ignore[operator]
-            if isinstance(node.op, ast.Sub):
-                return left - right  # type: ignore[operator]
-            if isinstance(node.op, ast.Mult):
-                return left * right  # type: ignore[operator]
-            return left / right  # type: ignore[operator]
+            try:
+                if isinstance(node.op, ast.Add):
+                    return left + right  # type: ignore[operator]
+                if isinstance(node.op, ast.Sub):
+                    return left - right  # type: ignore[operator]
+                if isinstance(node.op, ast.Mult):
+                    return left * right  # type: ignore[operator]
+                return left / right  # type: ignore[operator]
+            except TypeError:
+                symbol = {ast.Add: '+', ast.Sub: '-', ast.Mult: '*'}.get(
+                    type(node.op), '/'
+                )
+                raise _fail(
+                    self.text,
+                    node,
+                    f'{symbol} cannot be applied to {ast.unparse(node.left)} and '
+                    f'{ast.unparse(node.right)}, because one of them is not a number. '
+                    f'Arithmetic works on numbers such as buffer.width or time, as in '
+                    f'buffer.width + 2 > 10.',
+                ) from None
         if isinstance(node, ast.BoolOp):
             values = [build(value) for value in node.values]
             if is_native:
                 joined = values[0]
-                for value in values[1:]:
-                    joined = (
-                        joined & value  # type: ignore[operator]
-                        if isinstance(node.op, ast.And)
-                        else joined | value  # type: ignore[operator]
-                    )
+                for index, value in enumerate(values[1:]):
+                    joined = self._join(node, joined, value, index)
                 return joined
             if isinstance(node.op, ast.And):
                 return all(build(value) for value in node.values)
@@ -483,16 +574,22 @@ class _Parser:
         if isinstance(node, ast.Compare):
             operands = [build(node.left), *(build(item) for item in node.comparators)]
             results = [
-                _compare(
-                    operator, operands[index], operands[index + 1], is_native=is_native
-                )
-                for index, operator in enumerate(node.ops)
+                self._compare_pair(node, operands, index, is_native=is_native)
+                for index in range(len(node.ops))
             ]
             joined = results[0]
             for result in results[1:]:
                 joined = joined & result if is_native else (joined and result)  # type: ignore[operator]
             return joined
         raise AssertionError(f'unchecked node {node!r}')
+
+
+_COMPARISON_SYMBOLS: Final[dict[type[ast.cmpop], str]] = {
+    ast.Lt: '<',
+    ast.LtE: '<=',
+    ast.Gt: '>',
+    ast.GtE: '>=',
+}
 
 
 def _member_of(node: ast.expr) -> tuple[str, str] | None:

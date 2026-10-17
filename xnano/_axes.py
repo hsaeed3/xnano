@@ -18,6 +18,7 @@ import xnano_core as _core
 if TYPE_CHECKING:
     pass
 
+from xnano._appearance import MOST_CELLS
 from xnano._values import (
     RGB,
     Axis,
@@ -277,19 +278,21 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
 
 def check_size(converted: object, axis: AxisName, value: object) -> None:
     """
-    Refuse a width or height that is a negative number of cells.
+    Refuse a width or height that is a negative number of cells or more than a buffer holds.
 
     Raises:
-        ValueError: ``axis`` is ``'width'`` or ``'height'`` and ``converted`` is below 0.
+        ValueError: ``axis`` is ``'width'`` or ``'height'`` and ``converted`` is below 0 or
+            above 65535.
     """
     if (
         axis in ('width', 'height')
         and isinstance(converted, (int, float))
-        and converted < 0
+        and (converted < 0 or converted > MOST_CELLS)
     ):
         raise ValueError(
-            f'{axis} must be 0 or more cells, but was {value!r}. Pass a size such as '
-            f'{axis}=4, or leave {axis} out to use the size of the content.'
+            f'{axis} must be a whole number of cells from 0 to {MOST_CELLS}, but was '
+            f'{value!r}. Pass a size such as {axis}=4, or leave {axis} out to use the size '
+            f'of the content.'
         )
 
 
@@ -306,17 +309,27 @@ def check_axis(value: Axis, axis: AxisName) -> None:
     check_size(axis_expression(value, axis), axis, value)
 
 
+_LEAST_LAYER: Final = -(2**31)
+_MOST_LAYER: Final = 2**31 - 1
+
+
 def check_layer(value: object) -> int:
     """
     Return ``value`` when it is a whole number that can be a layer.
 
     Raises:
         TypeError: The value is not a whole number.
+        ValueError: The value is outside the range of a layer.
     """
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(
             f'layer must be a whole number, but got {value!r}. Pass layer=1 to draw above '
             f'the rest, or layer=-1 to draw below it.'
+        )
+    if not _LEAST_LAYER <= value <= _MOST_LAYER:
+        raise ValueError(
+            f'layer must be a whole number from {_LEAST_LAYER} to {_MOST_LAYER}, but got '
+            f'{value!r}. Pass layer=1 to draw above the rest, or layer=-1 to draw below it.'
         )
     return value
 
@@ -336,17 +349,28 @@ def check_point(value: object) -> _core.Point:
     return value
 
 
+LEAST_CELL: Final = -(2**31)
+MOST_CELL: Final = 2**31 - 1
+
+
 def check_cells(value: object, name: str) -> int:
     """
     Return ``value`` when it is a whole number of cells.
 
     Raises:
         TypeError: The value is not a whole number.
+        ValueError: The value is outside the range of a cell number.
     """
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(
             f'{name} must be a whole number of cells, but got {value!r}. Pass '
-            f'{name}=1 to move one cell, or a negative number to move the other way.'
+            f'{name}=1 for one cell, or a negative number for the other way.'
+        )
+    if not LEAST_CELL <= value <= MOST_CELL:
+        raise ValueError(
+            f'{name} must be a whole number of cells from {LEAST_CELL} to {MOST_CELL}, '
+            f'but got {value!r}. Pass {name}=1 for one cell, or a negative number for the '
+            f'other way.'
         )
     return value
 
@@ -362,12 +386,17 @@ def check_count(value: object, *, verb: str, opposite: str) -> int:
 
     Raises:
         TypeError: The value is not a whole number.
-        ValueError: The value is negative.
+        ValueError: The value is negative or above the range of a cell number.
     """
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(
             f'count must be a whole number of cells, but got {value!r}. Pass count=1 to '
             f'move one cell with {verb}().'
+        )
+    if value > MOST_CELL:
+        raise ValueError(
+            f'count must be at most {MOST_CELL}, but got {value}. Pass a smaller count, '
+            f'such as count=1 to move one cell with {verb}().'
         )
     if value < 0:
         raise ValueError(

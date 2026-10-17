@@ -21,6 +21,7 @@ from xnano._appearance import (
     Spacing,
     SpacingDictionary,
 )
+from xnano._attributes import _SealedAttributes
 from xnano._values import ColorName, ColorValue
 from xnano.errors import TerminalError
 
@@ -94,7 +95,7 @@ def _checked_spacing(value: object, field: str) -> Spacing:
     return cast('Spacing', value)
 
 
-class _Looked:
+class _Looked(_SealedAttributes):
     """
     The owner of a look: a canvas, a placement or a region.
 

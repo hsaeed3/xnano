@@ -550,7 +550,7 @@ class TestHookSoundEffects:
         assert handle._effect_state is not None
         handle.remove()
         assert handle._effect_state is None
-        assert audio_module.hook_effects(canvas) == ()
+        assert audio_module._hook_effects(canvas) == ()
 
     def test_another_hook_is_not_affected(self, canvas):
         @canvas.hook(on='key', keys='a')
@@ -572,24 +572,24 @@ class TestHookSoundEffects:
         def ring(context):
             context.fx('audio.reverb')
             worker = threading.Thread(
-                target=lambda: outcome.append(audio_module.hook_effects(canvas))
+                target=lambda: outcome.append(audio_module._hook_effects(canvas))
             )
             worker.start()
             worker.join()
-            outcome.append(audio_module.hook_effects(canvas))
+            outcome.append(audio_module._hook_effects(canvas))
 
         canvas.push(Event.key_press('a'))
         canvas.deliver_events()
         assert outcome[0] == ()
         assert len(outcome[1]) == 1
-        assert audio_module.hook_effects(canvas) == ()
+        assert audio_module._hook_effects(canvas) == ()
 
     def test_a_visual_effect_does_not_reach_the_sound(self, canvas):
         @canvas.hook(on='key')
         def ring(context):
             context.fx('effect.fade_to', foreground='red', duration_milliseconds=100)
             context.audio.play('C4')
-            assert audio_module.hook_effects(canvas) == ()
+            assert audio_module._hook_effects(canvas) == ()
 
         canvas.push(Event.key_press('a'))
         canvas.deliver_events()

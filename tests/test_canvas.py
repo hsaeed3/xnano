@@ -8,9 +8,11 @@ into it, and how it ends.
 from __future__ import annotations
 
 import dataclasses
+import gc
 import pathlib
 import re
 import threading
+import weakref
 from typing import cast
 
 import pytest
@@ -491,6 +493,54 @@ class TestChildCanvases:
             assert outer.is_running
             assert outer.render().split('\n')[1] == ''
 
+    def test_changing_the_look_of_a_written_canvas_redraws_it(self):
+        with xnano.new(width=14, height=6) as outer:
+            inner = xnano.new(width=8, height=3, border='double')
+            outer.write(inner, x=1, y=1)
+            outer.step()
+            assert outer.render().split('\n')[1] == ' ╔══════╗'
+            inner.border = 'plain'
+            outer.step()
+            assert outer.render().split('\n')[1] == ' ┌──────┐'
+            inner.border = False
+            outer.step()
+            assert outer.render().strip() == ''
+
+    def test_a_look_set_before_a_canvas_is_written_is_drawn_and_can_change(self):
+        with xnano.new(width=12, height=6) as outer:
+            inner = xnano.new(width=6, height=3)
+            inner.border = 'rounded'
+            outer.write(inner)
+            outer.step()
+            assert outer.render().split('\n')[0] == '\u256d\u2500\u2500\u2500\u2500\u256e'
+            inner.border = 'double'
+            outer.step()
+            assert outer.render().split('\n')[0] == '\u2554\u2550\u2550\u2550\u2550\u2557'
+
+    def test_a_look_set_on_a_placement_before_its_canvas_is_written_is_drawn(self):
+        with xnano.new(width=12, height=6) as outer:
+            inner = xnano.new(width=10, height=4)
+            placement = inner.write('hi')
+            placement.border = 'plain'
+            outer.write(inner)
+            outer.step()
+            assert outer.render().split('\n')[0] == '\u250c\u2500\u2500\u2510'
+            placement.border = 'double'
+            outer.step()
+            assert outer.render().split('\n')[0] == '\u2554\u2550\u2550\u2557'
+
+    def test_removing_a_look_larger_than_the_canvas_keeps_its_size(self):
+        with xnano.new(width=12, height=6) as outer:
+            inner = xnano.new(width=8, height=3)
+            inner.write('hi')
+            placement = outer.write(inner)
+            inner.margin = 2
+            outer.step()
+            inner.margin = 0
+            outer.step()
+            assert (placement.width, placement.height) == (8, 3)
+            assert (inner.size.width, inner.size.height) == (8, 3)
+
     def test_a_child_renders_its_own_cells_and_not_the_outer_frame(self):
         with xnano.new(width=20, height=3) as outer:
             inner = xnano.new(width=6, height=1)
@@ -817,6 +867,136 @@ def test_the_hooks_of_a_child_canvas_hear_the_outer_canvas_and_stop_when_it_clos
         outer.deliver_events()
         assert heard == ['a']
         assert inner not in outer._children
+
+
+class TestClosingAWrittenCanvas:
+    def test_closing_a_canvas_closes_the_canvases_written_into_it(self):
+        outer = xnano.new(width=10, height=4)
+        middle = xnano.new(width=6, height=3)
+        innermost = xnano.new(width=3, height=1)
+        innermost.write('b')
+        middle.write(innermost)
+        outer.write(middle)
+        hits: list[int] = []
+        innermost.hook(lambda context: hits.append(1), on='tick')
+        outer.step()
+        middle.close()
+        assert innermost.is_closed
+        outer.step()
+        assert hits == [1]
+        assert outer._children == []
+        with pytest.raises(TerminalClosedError):
+            innermost.write('zz')
+        outer.close()
+
+    def test_a_closed_written_canvas_does_not_control_the_outer_canvas(self):
+        outer = xnano.new(width=10, height=3)
+        inner = xnano.new(width=4, height=1)
+        outer.write(inner)
+        inner.close()
+        frame = outer.time.frame
+        for call in (
+            inner.step,
+            inner.deliver_events,
+            inner.stop,
+            inner.resume,
+            inner.quit,
+        ):
+            with pytest.raises(TerminalClosedError):
+                call()
+        assert outer.time.frame == frame
+        assert not outer.time.is_stopped
+        assert outer.is_running
+        outer.close()
+
+    def test_a_closed_written_canvas_refuses_every_other_call_too(self):
+        outer = xnano.new(width=10, height=3)
+        inner = xnano.new(width=4, height=1)
+        outer.write(inner)
+        inner.close()
+        for call in (
+            lambda: inner.hook(lambda context: None, on='tick'),
+            lambda: inner.push(Event.custom('late')),
+            lambda: inner.play('C4'),
+            lambda: inner.audio,
+            lambda: inner.input,
+            lambda: inner.state,
+            lambda: inner.render(),
+            lambda: inner.region,
+            lambda: inner.cursor,
+        ):
+            with pytest.raises(TerminalClosedError):
+                call()
+        outer.close()
+
+    def test_canvases_dropped_without_closing_are_collected(self):
+        references = []
+
+        def create_and_drop() -> None:
+            canvas = xnano.new(width=8, height=2)
+            canvas.write('hello')
+            canvas.render()
+            references.append(weakref.ref(canvas))
+
+        for _ in range(50):
+            create_and_drop()
+        gc.collect()
+        assert [reference for reference in references if reference() is not None] == []
+        assert xnano.active(is_required=False) is None
+
+    def test_a_canvas_dropped_without_closing_leaves_the_one_around_it(self):
+        with xnano.new(width=4, height=1) as outer:
+            inner = xnano.new(width=4, height=1)
+            reference = weakref.ref(inner)
+            del inner
+            gc.collect()
+            assert reference() is None
+            assert xnano.active() is outer
+
+    def test_a_closed_written_canvas_cannot_iterate_or_read_the_time(self):
+        outer = xnano.new(width=10, height=3)
+        inner = xnano.new(width=4, height=1)
+        outer.write(inner)
+        inner.close()
+        frame = outer.time.frame
+        with pytest.raises(TerminalClosedError):
+            list(inner.iter(count=2))
+        with pytest.raises(TerminalClosedError):
+            _ = inner.time
+        assert outer.time.frame == frame
+        outer.close()
+
+    def test_a_canvas_written_two_levels_deep_belongs_to_the_root(self):
+        root = xnano.new(width=10, height=4)
+        middle = xnano.new(width=6, height=3)
+        innermost = xnano.new(width=3, height=1)
+        innermost.write('b')
+        middle.write(innermost)
+        root.write(middle)
+        assert innermost._canvas is root
+        assert innermost._root_canvas is root
+        innermost.close()
+        assert innermost not in root._children
+        assert middle in root._children
+        root.close()
+
+    def test_quitting_a_canvas_written_two_levels_deep_ends_a_realtime_root(self):
+        with xnano.new(width=10, height=4, realtime=True) as root:
+            middle = xnano.new(width=6, height=3)
+            innermost = xnano.new(width=3, height=1)
+            middle.write(innermost)
+            root.write(middle)
+            innermost.quit()
+            assert not root.is_running
+
+    def test_pushing_something_that_is_not_an_event_leaves_a_realtime_canvas_running(
+        self,
+    ):
+        with xnano.new(width=10, height=3, realtime=True) as canvas:
+            with pytest.raises(TypeError, match=r'push\(\) takes an Event'):
+                canvas.push(5)  # type: ignore[arg-type]
+            canvas.write('x')
+            assert canvas.is_running
 
 
 class TestRefusedSettings:
