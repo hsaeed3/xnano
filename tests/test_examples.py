@@ -381,6 +381,7 @@ def test_progress(example):
         'printed text appears when the screen closes'
     )
     assert 'stopped after 20 of 20 files' in output
+    assert 'finished file 21' not in output, 'no timer runs after quit()'
 
 
 def hero_position(screen: Screen) -> tuple[int, int]:

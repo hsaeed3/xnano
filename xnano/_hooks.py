@@ -617,6 +617,9 @@ class HookHandle(Generic[DepsT, StateT]):
 
     def _run(self, context: Context[DepsT, StateT]) -> None:
         canvas = self._owner._canvas
+        if canvas._stop_requested.is_set():
+            # The loop was asked to end, so an event or timer that was already queued is dropped.
+            return
         run = self._state_run
         if run.is_active:
             run = _HookRun(track=run.track)

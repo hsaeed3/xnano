@@ -680,3 +680,58 @@ class TestGates:
             assert 'xnano.new(scroll=True)' in text
             assert 'canvas.open(scroll=True)' in text
             assert 'scroll=False' in text
+
+
+class TestQuitting:
+    def test_no_hook_runs_after_quit_in_the_same_step(self, canvas):
+        heard: list[str] = []
+
+        @canvas.hook(on='tick', every=0.1)
+        def first(context: Context) -> None:
+            heard.append('first')
+            context.canvas.quit()
+
+        @canvas.hook(on='tick', every=0.1)
+        def second(context: Context) -> None:
+            heard.append('second')
+
+        canvas.hook(lambda context: heard.append('key'), on='key')
+        canvas.step(delta_seconds=1.0)
+        assert heard == ['first']
+        push(canvas, Event.key_press('a'))
+        canvas.step(delta_seconds=1.0)
+        assert heard == ['first'], 'a canvas that quit runs no hook again'
+
+    def test_an_event_queued_before_quit_is_dropped(self, canvas):
+        heard: list[str] = []
+
+        @canvas.hook(on='key')
+        def quit_key(context: Context) -> None:
+            heard.append('quit')
+            context.canvas.quit()
+
+        canvas.hook(lambda context: heard.append('late'), on='key')
+        push(canvas, Event.key_press('a'), Event.key_press('b'))
+        assert heard == ['quit']
+
+    @pytest.mark.parametrize('attempt', range(20))
+    def test_a_timer_that_quits_runs_exactly_as_often_as_it_counts(self, attempt):
+        steps = 5
+        counter = {'done': 0, 'late': 0}
+        has_quit = {'value': False}
+        with xnano.new(realtime=True, width=10, height=1, fps=60) as running:
+
+            @running.hook(on='tick', every=0.01)
+            def work(context: Context) -> None:
+                counter['done'] += 1
+                if counter['done'] == steps:
+                    has_quit['value'] = True
+                    context.canvas.quit()
+
+            @running.hook(on='tick', every=0.01)
+            def watch(context: Context) -> None:
+                counter['late'] += int(has_quit['value'])
+
+            running.run(quit_on=None)
+        assert counter['done'] == steps
+        assert counter['late'] == 0, 'a second timer ran after quit()'

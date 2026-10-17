@@ -908,6 +908,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
 
     def _on_loop_frame(self, core_context: FrameContext) -> None:
         """Before a frame: follow the size, images and formulas, then the frame functions."""
+        if self._host.is_autonomous and self._stop_requested.is_set():
+            # The loop was asked to end: nothing is evaluated for the frames that remain.
+            return
         runtime = self._runtime
         size = runtime.device.size
         self._size = size
