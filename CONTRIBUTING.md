@@ -294,10 +294,15 @@ in a `finally` block; the pytest fixture handles cleanup and artifact capture.
 
 ## Benchmarks, CPU and memory
 
-Each package keeps its benchmarks in `packages/<name>/benchmarks/`. Run them
-against an optimized build, which `make benchmark` (per package) and
-`make benchmark-all` (every package) build first. A debug build says nothing
-about speed.
+Each package keeps its benchmarks in `packages/<name>/benchmarks/`, and the `xnano`
+package keeps its own in the root `benchmarks/`. Run them against an optimized build,
+which `make benchmark` (per package), `make benchmark-xnano` (the root `benchmarks/`)
+and `make benchmark-all` (all of them) build first. A debug build says nothing about
+speed. The time budgets in the root `benchmarks/` are wall-clock limits, so they are
+checked only when `XNANO_CHECK_BUDGETS=1` is set (`make benchmark-xnano` sets it), the
+extension is an optimized build, and `CODSPEED_ENV` is unset: CodSpeed instruments the
+process and runs each benchmark its own way, so a budget there means nothing. Without the
+variable every benchmark still runs and asserts on its result.
 
 ```bash
 make benchmark-all

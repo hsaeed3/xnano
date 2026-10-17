@@ -1,7 +1,7 @@
 """
 tests.test_terminal_api
 
-The shape of the terminal's interface, automatic sizing and injected events.
+The shape of the canvas's interface, automatic sizing and injected events.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import ast
 import dataclasses
 import inspect
 import pathlib
+import re
 import typing
 
 import pytest
@@ -19,53 +20,64 @@ from xnano_core import Event
 
 
 @pytest.fixture
-def terminal():
-    with xnano.open(offscreen=True, width=20, height=6) as terminal:
-        yield terminal
+def canvas():
+    with xnano.new(width=20, height=6) as canvas:
+        yield canvas
 
 
 class TestAutomaticSizing:
-    def test_everything_left_out_is_taken_from_the_content(self, terminal):
-        placement = terminal.write('hello')
+    def test_everything_left_out_is_taken_from_the_content(self, canvas):
+        placement = canvas.write('hello')
         assert (placement.x, placement.y) == (0, 0)
         assert (placement.width, placement.height) == (5, 1)
 
-    def test_several_lines_set_the_height(self, terminal):
-        placement = terminal.write('one\ntwo\nthree')
+    def test_several_lines_set_the_height(self, canvas):
+        placement = canvas.write('one\ntwo\nthree')
         assert (placement.width, placement.height) == (5, 3)
 
-    def test_a_given_number_wins_over_the_content(self, terminal):
-        placement = terminal.write('hello', x=3, width=8)
+    def test_a_given_number_wins_over_the_content(self, canvas):
+        placement = canvas.write('hello', x=3, width=8)
         assert (placement.x, placement.width, placement.height) == (3, 8, 1)
 
-    def test_bytes_of_a_cell_grid_are_sized_by_the_grid(self, terminal):
+    def test_a_cell_buffer_is_sized_by_the_buffer(self, canvas):
         from xnano_core import Buffer
 
         grid = Buffer.with_text('abcd').to_cell_grid()
-        assert terminal.write(grid).width == 4
+        assert canvas.write(Buffer.from_cell_grid(grid)).width == 4
 
-    def test_each_axis_can_be_left_out_on_its_own(self, terminal):
-        placement = terminal.write('hello', y=2)
+    def test_each_axis_can_be_left_out_on_its_own(self, canvas):
+        placement = canvas.write('hello', y=2)
         assert (placement.x, placement.y, placement.width) == (0, 2, 5)
 
 
 class TestInterface:
-    def test_the_terminal_groups_what_is_not_declaring(self, terminal):
-        assert isinstance(terminal.loop, xnano.loop.Loop)
-        assert isinstance(terminal.output, xnano.output.Output)
-        assert isinstance(terminal.audio, xnano.audio.AudioDevice)
+    def test_the_canvas_groups_what_is_not_declaring(self, canvas):
+        assert isinstance(canvas.output, xnano.output.Output)
+        assert isinstance(canvas.audio, xnano.audio.AudioDevice)
+        assert isinstance(canvas.time, xnano.time.Time)
 
-    def test_machinery_is_not_part_of_the_interface(self, terminal):
+    def test_the_time_controls_are_part_of_the_interface(self, canvas):
+        for name in ('step', 'iter', 'stop', 'resume', 'quit', 'render', 'open', 'push'):
+            assert callable(getattr(canvas, name)), name
+
+    def test_machinery_is_not_part_of_the_interface(self, canvas):
         for name in (
+            'loop',
             'core',
             'run_soon',
-            'render',
             'snapshot',
             'advance',
-            'step',
             'frames',
+            'is_live',
+            'is_autonomous',
+            'is_stopped',
+            'backend',
+            'inject',
+            'tempo',
+            'note',
+            'fx',
         ):
-            assert not hasattr(terminal, name), name
+            assert not hasattr(canvas, name), name
 
     def test_the_top_level_names_are_what_xnano_exports(self):
         public = {name for name in dir(xnano) if not name.startswith('_')}
@@ -79,10 +91,18 @@ class TestInterface:
         assert left_over == set()
 
     @pytest.mark.parametrize(
-        'name', ['axis_expression', 'axis_limits', 'to_rgb', 'find_active', 'Stop']
+        'name',
+        ['axis_expression', 'axis_limits', 'to_rgb', 'Stop', 'fx', 'make'],
     )
     def test_machinery_is_not_exported(self, name):
         assert name not in xnano.__all__
+        assert not hasattr(xnano, name)
+
+    def test_the_removed_modules_are_gone(self):
+        import importlib
+
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module('xnano.loop')
 
     def test_no_module_uses_any(self):
         package = pathlib.Path(xnano.__file__).parent
@@ -98,7 +118,7 @@ class TestInterface:
 
 
 class TestInjectedEvents:
-    def test_every_kind_of_event_reaches_a_hook_on_the_terminal(self, terminal):
+    def test_every_kind_of_event_reaches_a_hook_on_the_canvas(self, canvas):
         events = {
             'key': Event.key_press('a'),
             'paste': Event.paste('text'),
@@ -109,32 +129,32 @@ class TestInjectedEvents:
         }
         heard: list[str] = []
 
-        @terminal.hook
+        @canvas.hook
         def listen(context: xnano.context.Context) -> None:
             assert context.event is not None
             heard.append(context.event.kind)
 
         for event in events.values():
-            terminal.inject(event)
-        terminal.loop.advance(0.05)
+            canvas.push(event)
+        canvas.step(delta_seconds=0.05)
         assert sorted(heard) == sorted(events)
 
-    def test_a_custom_event_carries_a_name_and_data(self, terminal):
+    def test_a_custom_event_carries_a_name_and_data(self, canvas):
         seen: list[tuple[str | None, str | None]] = []
 
-        @terminal.hook(when=lambda context: context.event.kind == 'custom')
+        @canvas.hook(when=lambda context: context.event.kind == 'custom')
         def volume(context: xnano.context.Context) -> None:
             seen.append((context.event.custom_name, context.event.custom_data))
 
-        terminal.inject(Event.custom('volume_changed', data='7'))
-        terminal.loop.advance(0.05)
+        canvas.push(Event.custom('volume_changed', data='7'))
+        canvas.step(delta_seconds=0.05)
         assert seen == [('volume_changed', '7')]
 
-    def test_injecting_into_a_closed_terminal_says_so(self):
-        with xnano.open(offscreen=True, width=4, height=1) as terminal:
+    def test_pushing_into_a_closed_canvas_says_so(self):
+        with xnano.new(width=4, height=1) as canvas:
             pass
         with pytest.raises(xnano.errors.TerminalClosedError):
-            terminal.inject(Event.wake())
+            canvas.push(Event.wake())
 
 
 @dataclasses.dataclass
@@ -145,50 +165,50 @@ class Settings:
 
 class TestTypedState:
     def test_the_state_is_the_dataclass_that_was_given(self):
-        with xnano.open(offscreen=True, width=8, height=1, state=Settings()) as terminal:
-            assert terminal.state.volume == 40
-            terminal.state.volume = 55
-            assert terminal.state.volume == 55
+        with xnano.new(width=8, height=1, state=Settings()) as canvas:
+            assert canvas.state.volume == 40
+            canvas.state.volume = 55
+            assert canvas.state.volume == 55
 
     def test_a_value_of_the_wrong_type_is_refused(self):
-        with xnano.open(offscreen=True, width=8, height=1, state=Settings()) as terminal:
+        with xnano.new(width=8, height=1, state=Settings()) as canvas:
             with pytest.raises(xnano.errors.TerminalError, match='volume'):
-                terminal.state.volume = 'loud'  # type: ignore[assignment]
+                canvas.state.volume = 'loud'  # type: ignore[assignment]
 
     def test_a_reference_drives_an_axis(self):
-        with xnano.open(offscreen=True, width=30, height=2, state=Settings()) as terminal:
-            thumb = terminal.write('#')
-            thumb.x = terminal.ref(lambda state: state.volume)
-            terminal.state.volume = 12
-            terminal.loop.advance(0.05)
+        with xnano.new(width=30, height=2, state=Settings()) as canvas:
+            thumb = canvas.write('#')
+            thumb.x = canvas.state_reference(lambda state: state.volume)
+            canvas.state.volume = 12
+            canvas.step(delta_seconds=0.05)
             assert thumb.x == 12
 
-    def test_a_terminal_without_state_says_how_to_add_it(self, terminal):
-        with pytest.raises(xnano.errors.TerminalError, match=r'open\(state='):
-            _ = terminal.state
+    def test_a_canvas_without_a_dataclass_still_has_a_state(self, canvas):
+        canvas.state.push('volume', 3)
+        assert canvas.state.get('volume') == 3
 
     def test_the_context_carries_the_same_state(self):
-        with xnano.open(offscreen=True, width=8, height=1, state=Settings()) as terminal:
+        with xnano.new(width=8, height=1, state=Settings()) as canvas:
             seen: list[int] = []
 
-            @terminal.hook(when=lambda context: context.keyboard is not None)
-            def press(context: xnano.context.Context[Settings]) -> None:
-                context.state.volume += 5
-                seen.append(context.state.volume)
+            @canvas.hook(when=lambda context: context.keyboard.key is not None)
+            def press(context: xnano.context.Context[None, Settings]) -> None:
+                context.root.state.volume += 5
+                seen.append(context.root.state.volume)
 
-            terminal.inject(Event.key_press('up'))
-            terminal.loop.advance(0.05)
+            canvas.push(Event.key_press('up'))
+            canvas.step(delta_seconds=0.05)
             assert seen == [45]
-            assert terminal.state.volume == 45
+            assert canvas.state.volume == 45
             assert typing.get_type_hints(Settings)['volume'] is int
 
 
 class TestOutputCapture:
-    def test_a_live_terminal_that_cannot_hold_output_back_warns(self):
-        from xnano.terminal import warn_if_output_is_not_held_back
+    def test_a_canvas_on_the_screen_that_cannot_hold_output_back_warns(self):
+        from xnano.terminal import _warn_if_output_is_not_held_back
 
         with pytest.warns(RuntimeWarning, match='capture=False'):
-            warn_if_output_is_not_held_back(requested=True, is_held_back=False)
+            _warn_if_output_is_not_held_back(requested=True, is_held_back=False)
 
     @pytest.mark.parametrize(
         ('requested', 'is_held_back'), [(True, True), (False, False)]
@@ -198,25 +218,76 @@ class TestOutputCapture:
     ):
         import warnings
 
-        from xnano.terminal import warn_if_output_is_not_held_back
+        from xnano.terminal import _warn_if_output_is_not_held_back
 
         with warnings.catch_warnings():
             warnings.simplefilter('error')
-            warn_if_output_is_not_held_back(
+            _warn_if_output_is_not_held_back(
                 requested=requested, is_held_back=is_held_back
             )
 
-    def test_an_offscreen_terminal_never_warns(self):
+    def test_a_canvas_off_the_screen_never_warns(self):
         import warnings
 
         with warnings.catch_warnings():
             warnings.simplefilter('error')
-            with xnano.open(offscreen=True, width=4, height=1):
+            with xnano.new(width=4, height=1):
                 pass
 
 
 class TestDocumentation:
     PACKAGE = pathlib.Path(xnano.__file__).parent
+
+    PENDING_REMOVAL: frozenset[str] = frozenset()
+    """Modules a later part of this release removes, whose references may still be stale."""
+
+    @staticmethod
+    def _resolves(dotted: str) -> bool:
+        import importlib
+
+        parts = dotted.split('.')
+        for cut in range(len(parts), 0, -1):
+            try:
+                found: object = importlib.import_module('.'.join(parts[:cut]))
+            except ImportError:
+                continue
+            for name in parts[cut:]:
+                if hasattr(found, name):
+                    found = getattr(found, name)
+                elif name in getattr(found, '__annotations__', {}):
+                    found = None
+                else:
+                    return False
+            return True
+        return False
+
+    def test_cross_references_resolve(self):
+        reference = re.compile(r'\]\[([A-Za-z_][\w.]*)\]')
+        repository = self.PACKAGE.parent
+        texts: list[tuple[str, str]] = []
+        for path in sorted(self.PACKAGE.glob('*.py')):
+            for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
+                if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
+                    if isinstance(node.value.value, str):
+                        texts.append((path.name, node.value.value))
+        documents = [
+            repository / 'README.md',
+            *sorted((repository / 'docs' / 'learn').rglob('*.md')),
+        ]
+        texts.extend((path.name, path.read_text(encoding='utf-8')) for path in documents)
+        broken = sorted(
+            {
+                f'{where}: {dotted}'
+                for where, text in texts
+                for dotted in reference.findall(text)
+                if not self._resolves(dotted)
+                and not any(
+                    dotted == module or dotted.startswith(f'{module}.')
+                    for module in self.PENDING_REMOVAL
+                )
+            }
+        )
+        assert broken == []
 
     def test_every_public_attribute_has_inline_documentation(self):
         repository = self.PACKAGE.parent
@@ -370,7 +441,43 @@ class TestDocumentation:
         assert private == []
 
 
+class TestDocumentationSite:
+    ROOT = pathlib.Path(xnano.__file__).resolve().parent.parent
+
+    def test_the_reference_is_read_from_the_source(self):
+        text = (self.ROOT / 'zensical.toml').read_text()
+        assert re.search(
+            r'^\[project\.plugins\.mkdocstrings\.handlers\.python\]', text, re.M
+        )
+        assert re.search(
+            r'^\[project\.plugins\.mkdocstrings\.handlers\.python\.options\]', text, re.M
+        )
+
+    def test_every_page_in_the_navigation_exists(self):
+        text = (self.ROOT / 'zensical.toml').read_text()
+        navigation = text[text.index('nav = [') :]
+        pages = re.findall(r'^\s*\{?[^#\n]*?"([\w/.-]+\.md)"', navigation, re.M)
+        assert pages
+        missing = [page for page in pages if not (self.ROOT / 'docs' / page).exists()]
+        assert missing == []
+
+
 class TestOutputCaptureStatus:
-    def test_an_offscreen_terminal_holds_nothing_back(self):
-        with xnano.open(offscreen=True, width=4, height=1) as terminal:
-            assert terminal.output.is_captured is False
+    def test_a_canvas_off_the_screen_holds_nothing_back(self):
+        with xnano.new(width=4, height=1) as canvas:
+            assert canvas.output.is_captured is False
+
+
+class TestReturnTypesAreReachable:
+    def test_hook_handles_and_effect_controllers_are_public_types(self):
+        import xnano.types
+
+        assert xnano.types.HookHandle is xnano._hooks.HookHandle
+        assert xnano.types.EffectController is xnano._effect_controller.EffectController
+        assert xnano.types.EffectCustomization is not xnano.effects.Effect
+
+
+def test_the_color_value_alias_is_public_in_types():
+    import xnano.types
+
+    assert 'ColorValue' in xnano.types.__all__

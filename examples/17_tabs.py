@@ -63,11 +63,11 @@ def main() -> None:
 
         show(0)
 
-        @terminal.on_key('left')
+        @terminal.hook(on='key', keys='left')
         def previous(context: Context) -> None:
             show(state.selected - 1)
 
-        @terminal.on_key('right')
+        @terminal.hook(on='key', keys='right')
         def following(context: Context) -> None:
             show(state.selected + 1)
 

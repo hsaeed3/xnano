@@ -1,0 +1,85 @@
+"""Every ``Examples:`` code block in the stub's docstrings runs as written."""
+
+from __future__ import annotations
+
+import ast
+import os
+import pathlib
+import re
+import textwrap
+
+import pytest
+
+import xnano_audio._xnano_audio as native
+from xnano_audio import TerminalAudioPlayer, TerminalMicrophone
+
+STUB = pathlib.Path(native.__file__).parent / '_xnano_audio' / '__init__.pyi'
+if not STUB.exists():
+    STUB = pathlib.Path(native.__file__).parent / '__init__.pyi'
+PREAMBLE = 'from xnano_audio import *\n'
+
+
+def collect() -> list[tuple[str, str]]:
+    found = []
+
+    def visit(node: ast.AST, prefix: str = '') -> None:
+        for child in getattr(node, 'body', []):
+            if not isinstance(child, (ast.ClassDef, ast.FunctionDef)):
+                continue
+            name = prefix + child.name
+            doc = ast.get_docstring(child) or ''
+            if 'Examples:' in doc:
+                section = doc.split('Examples:', 1)[1]
+                for index, block in enumerate(
+                    re.findall(r'```python\n(.*?)```', section, re.DOTALL)
+                ):
+                    found.append((f'{name}[{index}]', textwrap.dedent(block)))
+            if isinstance(child, ast.ClassDef):
+                visit(child, name + '.')
+
+    visit(ast.parse(STUB.read_text(encoding='utf-8')))
+    return found
+
+
+EXAMPLES = collect()
+
+
+def test_the_stub_documents_the_mixer_with_an_example():
+    assert any(name.startswith('TerminalSound.mix') for name, _ in EXAMPLES)
+
+
+def skip_when_the_example_needs_a_missing_device(code: str) -> None:
+    """Skip an example that opens a device this machine does not have."""
+    if 'TerminalMicrophone(' in code and not TerminalMicrophone.is_available():
+        pytest.skip('no audio input device')
+    opens_output = (
+        'TerminalAudioPlayer(' in code or 'TerminalStreamingAudioPlayer(' in code
+    )
+    guarded = 'is_output_available' in code
+    if opens_output and not guarded and not TerminalAudioPlayer.is_available():
+        pytest.skip('no audio output device')
+
+
+def plays_audibly(code: str) -> bool:
+    """Whether running the example makes sound on the machine's output device."""
+    return any(
+        marker in code
+        for marker in (
+            'TerminalAudioPlayer(',
+            'TerminalStreamingAudioPlayer(',
+            'play_note',
+            'play_sound',
+        )
+    )
+
+
+@pytest.mark.parametrize(('name', 'code'), EXAMPLES, ids=[name for name, _ in EXAMPLES])
+def test_example_runs(name, code):
+    skip_when_the_example_needs_a_missing_device(code)
+    if plays_audibly(code) and os.environ.get('XNANO_AUDIBLE_EXAMPLES') != '1':
+        compile(PREAMBLE + code, name, 'exec')
+        pytest.skip('set XNANO_AUDIBLE_EXAMPLES=1 to hear the examples that play sound')
+    try:
+        exec(PREAMBLE + code, {})  # noqa: S102
+    except native.TerminalAudioUnavailableError as error:
+        pytest.skip(f'audio device unavailable: {error}')

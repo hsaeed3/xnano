@@ -3,7 +3,7 @@ xnano.buffers
 
 Buffers: grids of cells that hold text and styles.
 
-A [`Buffer`][xnano.buffers.Buffer] is what a terminal draws; each [`Cell`][xnano.buffers.Cell] holds
+A [`Buffer`][xnano.buffers.Buffer] is what a canvas draws; each [`Cell`][xnano.buffers.Cell] holds
 one symbol with its colors.
 """
 

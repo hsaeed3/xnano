@@ -3,7 +3,7 @@ xnano.effects
 
 Animated effects that change how a buffer looks over time, such as fading or dissolving.
 
-An effect is applied to a buffer like any operation and runs on the terminal's clock until it
+An effect is applied to a buffer like any operation and runs on the canvas's clock until it
 finishes or is cancelled.
 """
 

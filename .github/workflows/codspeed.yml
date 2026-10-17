@@ -58,6 +58,7 @@ jobs:
           mode: simulation
           run: >-
             uv run --no-sync pytest --codspeed
+            benchmarks
             packages/xnano-core/benchmarks
             packages/xnano-image/benchmarks
             packages/xnano-audio/benchmarks

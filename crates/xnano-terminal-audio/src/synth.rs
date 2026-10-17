@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
@@ -15,6 +15,12 @@ use crate::instruments::{INSTRUMENTS, Note, find};
 use crate::pitch;
 
 pub const DEFAULT_SAMPLE_RATE: u32 = 44_100;
+/// The longest window `TerminalSound.mix` renders.
+const MAXIMUM_MIX_SECONDS: f64 = 3_600.0;
+/// The most samples `TerminalSound.mix` renders at once: an hour at 48 kHz, about 690 MB.
+const MAXIMUM_MIX_SAMPLES: usize = 172_800_000;
+/// The largest gain `TerminalSound.mix` accepts for one layer.
+const MAXIMUM_MIX_GAIN: f64 = 1_000.0;
 const MAX_NOTE_MS: u32 = 60_000;
 /// Most effects one render accepts; every reverb or echo also adds a tail.
 pub const MAX_EFFECTS: usize = 32;
@@ -241,6 +247,71 @@ pub struct PySound {
     pub(crate) sample_rate: u32,
 }
 
+/// The Python type name of a value, for error messages.
+fn type_name(value: &Bound<'_, PyAny>) -> String {
+    value
+        .get_type()
+        .name()
+        .map_or_else(|_| "object".to_owned(), |name| name.to_string())
+}
+
+/// The `(sound, offset_seconds, gain)` layers given to `TerminalSound.mix`, each checked for its
+/// shape so a mistake names the layer and what to pass.
+fn mix_layers(layers: &Bound<'_, PyAny>) -> PyResult<Vec<(PySound, f64, f64)>> {
+    let shape = "TerminalSound.mix needs layers as a sequence of (sound, offset_seconds, gain) \
+                 tuples, for example [(kick, 0.0, 1.0), (snare, 0.5, 0.8)]";
+    let items = layers.try_iter().map_err(|_| {
+        PyTypeError::new_err(format!(
+            "{shape}; got a {} instead of a sequence. Pass a list of layers.",
+            type_name(layers)
+        ))
+    })?;
+    let mut parsed = Vec::new();
+    for (index, item) in items.enumerate() {
+        let item = item?;
+        if item.extract::<PySound>().is_ok() {
+            return Err(PyTypeError::new_err(format!(
+                "{shape}; layer {index} is a TerminalSound on its own. Wrap it as (sound, 0.0, \
+                 1.0)."
+            )));
+        }
+        let parts = match item.extract::<Vec<Bound<'_, PyAny>>>() {
+            Ok(parts) if !item.is_instance_of::<pyo3::types::PyString>() => parts,
+            _ => {
+                return Err(PyTypeError::new_err(format!(
+                    "{shape}; layer {index} is a {}. Wrap each sound as (sound, offset_seconds, \
+                     gain).",
+                    type_name(&item)
+                )));
+            }
+        };
+        if parts.len() != 3 {
+            return Err(PyValueError::new_err(format!(
+                "{shape}; layer {index} has {} values. Pass exactly (sound, offset_seconds, gain), \
+                 for example (sound, 0.0, 1.0).",
+                parts.len()
+            )));
+        }
+        let sound = parts[0].extract::<PySound>().map_err(|_| {
+            PyTypeError::new_err(format!(
+                "{shape}; the first value of layer {index} is a {}, not a TerminalSound. Render \
+                 the sound first and pass it as (sound, offset_seconds, gain).",
+                type_name(&parts[0])
+            ))
+        })?;
+        let number = |position: usize, label: &str| {
+            parts[position].extract::<f64>().map_err(|_| {
+                PyTypeError::new_err(format!(
+                    "{shape}; the {label} of layer {index} must be a number, not a {}.",
+                    type_name(&parts[position])
+                ))
+            })
+        };
+        parsed.push((sound, number(1, "offset_seconds")?, number(2, "gain")?));
+    }
+    Ok(parsed)
+}
+
 #[pymethods]
 impl PySound {
     /// Build a sound from your own mono floats (a custom instrument, a
@@ -343,6 +414,117 @@ impl PySound {
             samples: processed.into(),
             sample_rate: self.sample_rate,
         })
+    }
+
+    /// Mix sounds placed on a timeline into one sound.
+    ///
+    /// Each layer is `(sound, offset_seconds, gain)`: the sound begins `offset_seconds` into the
+    /// timeline and is multiplied by `gain`, from 0.0 to 1000.0. The window holds at most
+    /// 172,800,000 samples (an hour at 48 kHz). The result is the part of the timeline from
+    /// `start_seconds` for `duration_seconds`, summed and limited to -1.0..1.0.
+    #[staticmethod]
+    #[pyo3(signature = (layers, *, duration_seconds, start_seconds = 0.0, sample_rate = DEFAULT_SAMPLE_RATE))]
+    fn mix(
+        py: Python<'_>,
+        layers: &Bound<'_, PyAny>,
+        duration_seconds: f64,
+        start_seconds: f64,
+        sample_rate: u32,
+    ) -> PyResult<Self> {
+        if !(8_000..=192_000).contains(&sample_rate) {
+            return Err(invalid(format!(
+                "sample_rate must be between 8000 and 192000, got {sample_rate}. Pass the rate the \
+                 sounds were rendered at."
+            )));
+        }
+        if !duration_seconds.is_finite()
+            || duration_seconds <= 0.0
+            || duration_seconds > MAXIMUM_MIX_SECONDS
+        {
+            return Err(invalid(format!(
+                "duration_seconds must be a number above 0 and at most {MAXIMUM_MIX_SECONDS}, got \
+                 {duration_seconds}. Pass the length of the window to mix."
+            )));
+        }
+        if !start_seconds.is_finite() {
+            return Err(invalid(format!(
+                "start_seconds must be a finite number, got {start_seconds}. Pass the time on the \
+                 timeline where the mixed sound begins."
+            )));
+        }
+        let length = (duration_seconds * f64::from(sample_rate)).round() as usize;
+        if length == 0 {
+            return Err(invalid(format!(
+                "duration_seconds={duration_seconds} is shorter than one sample at {sample_rate} \
+                 Hz. Pass a longer window."
+            )));
+        }
+        if length > MAXIMUM_MIX_SAMPLES {
+            return Err(invalid(format!(
+                "duration_seconds={duration_seconds} at {sample_rate} Hz needs {length} samples, but \
+                 TerminalSound.mix renders at most {MAXIMUM_MIX_SAMPLES} samples at once. Shorten \
+                 the window, lower sample_rate, or mix the timeline in pieces with start_seconds."
+            )));
+        }
+        let mut mixed: Vec<f32> = Vec::new();
+        if mixed.try_reserve_exact(length).is_err() {
+            return Err(invalid(format!(
+                "there is not enough memory to mix {length} samples. Shorten duration_seconds, \
+                 lower sample_rate, or mix the timeline in pieces with start_seconds."
+            )));
+        }
+        mixed.resize(length, 0.0);
+        let layers = mix_layers(layers)?;
+        let rate = f64::from(sample_rate);
+        // (samples, index in the output where sample 0 of the layer lands, gain)
+        let mut placed: Vec<(Arc<[f32]>, i64, f32)> = Vec::with_capacity(layers.len());
+        for (index, (sound, offset_seconds, gain)) in layers.into_iter().enumerate() {
+            if sound.sample_rate != sample_rate {
+                return Err(invalid(format!(
+                    "layer {index} was rendered at {} Hz but the mix is at {sample_rate} Hz. \
+                     Render every sound at the same rate and pass it as sample_rate.",
+                    sound.sample_rate
+                )));
+            }
+            if !offset_seconds.is_finite() {
+                return Err(invalid(format!(
+                    "layer {index} has offset_seconds={offset_seconds}. Use a finite number of \
+                     seconds on the timeline."
+                )));
+            }
+            if !gain.is_finite() || !(0.0..=MAXIMUM_MIX_GAIN).contains(&gain) {
+                return Err(invalid(format!(
+                    "layer {index} has gain={gain:?}. Use a number from 0.0 to {MAXIMUM_MIX_GAIN:?}."
+                )));
+            }
+            let landing = ((offset_seconds - start_seconds) * rate).round() as i64;
+            placed.push((sound.samples, landing, gain as f32));
+        }
+        let samples = py.detach(move || {
+            let mut mixed = mixed;
+            for (samples, landing, gain) in &placed {
+                let first = (*landing).max(0) as usize;
+                if first >= length {
+                    continue;
+                }
+                let skipped = landing.saturating_neg().max(0) as usize;
+                if skipped >= samples.len() {
+                    continue;
+                }
+                let count = (length - first).min(samples.len() - skipped);
+                for (target, source) in mixed[first..first + count]
+                    .iter_mut()
+                    .zip(&samples[skipped..skipped + count])
+                {
+                    *target += source * gain;
+                }
+            }
+            for sample in &mut mixed {
+                *sample = sample.clamp(-1.0, 1.0);
+            }
+            mixed
+        });
+        Self::build(samples, sample_rate)
     }
 
     /// Apply one or more audio effects (or sequences of audio effects) and return the new sound.

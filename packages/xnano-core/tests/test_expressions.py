@@ -69,8 +69,30 @@ def test_arithmetic_and_comparisons_build_expressions():
     assert buffer.inspect((Width > 4) & (Height < 5)) is True
     assert buffer.inspect(~(Width > 4)) is False
     assert buffer.inspect((Width < 4) | (Height > 1)) is True
-    assert buffer.inspect(Width.eq(8)) is True
-    assert buffer.inspect(Width.ne(8)) is False
+    assert buffer.inspect(Width.equals(8)) is True
+    assert buffer.inspect(Width.not_equals(8)) is False
+    assert buffer.inspect(Width == 8) is True
+    assert buffer.inspect(Width != 8) is False
+    assert isinstance(Width == 8, Predicate)
+
+
+def test_expression_values_are_hashable_by_identity():
+    assert len({Width, Height, Width}) == 2
+    table = {Width: 'width'}
+    assert table[Width] == 'width'
+    assert Width in {Width}
+    assert (Width == 8) is not (Width == 8)
+    assert hash(Width) == hash(Width)
+
+
+def test_comparing_an_expression_with_a_foreign_object_falls_back_to_identity():
+    sentinel = object()
+    assert (Width == sentinel) is False
+    assert (Width != sentinel) is True
+    assert (Width + 1 == sentinel) is False
+    assert (Width + 1 != sentinel) is True
+    assert sentinel not in [Width, Height]
+    assert (Width == 8) is not False
 
 
 def test_expressions_have_no_truth_value():
@@ -78,6 +100,16 @@ def test_expressions_have_no_truth_value():
         bool(Width > 4)
     with pytest.raises(TypeError, match='no truth value'):
         _ = (Width > 4) and (Height > 1)
+
+
+def test_list_membership_of_expressions_explains_the_identity_lookup():
+    items = [Width, Height]
+    with pytest.raises(TypeError, match=r'==, using `in` or calling \.index\(\)'):
+        _ = Height in items
+    with pytest.raises(TypeError, match='identity'):
+        items.index(Height)
+    assert any(item is Height for item in items)
+    assert Height in set(items)
 
 
 def test_division_by_zero_and_type_errors_are_explained():

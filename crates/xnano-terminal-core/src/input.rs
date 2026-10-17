@@ -208,9 +208,10 @@ pub fn detect_terminal_capabilities(
     frozen,
     from_py_object
 )]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PyInputOptions {
     pub mouse: String,
+    pub scroll: bool,
     pub bracketed_paste: bool,
     pub focus_reporting: bool,
     pub keyboard: String,
@@ -233,10 +234,11 @@ fn choice(value: &str, name: &str, allowed: &[&str]) -> PyResult<()> {
 #[pymethods]
 impl PyInputOptions {
     #[new]
-    #[pyo3(signature = (*, mouse = "off", bracketed_paste = true, focus_reporting = true, keyboard = "basic",
+    #[pyo3(signature = (*, mouse = "off", scroll = false, bracketed_paste = true, focus_reporting = true, keyboard = "basic",
         capability_timeout_milliseconds = 200, interrupt = "event"))]
     pub(crate) fn new(
         mouse: &str,
+        scroll: bool,
         bracketed_paste: bool,
         focus_reporting: bool,
         keyboard: &str,
@@ -247,11 +249,12 @@ impl PyInputOptions {
         choice(
             keyboard,
             "keyboard mode",
-            &["basic", "disambiguated", "release_events"],
+            &["off", "basic", "disambiguated", "release_events"],
         )?;
         choice(interrupt, "interrupt mode", &["event", "stop"])?;
         Ok(Self {
             mouse: mouse.to_owned(),
+            scroll,
             bracketed_paste,
             focus_reporting,
             keyboard: keyboard.to_owned(),
@@ -263,6 +266,11 @@ impl PyInputOptions {
     #[getter]
     fn mouse(&self) -> &str {
         &self.mouse
+    }
+
+    #[getter]
+    fn scroll(&self) -> bool {
+        self.scroll
     }
 
     #[getter]
@@ -289,6 +297,37 @@ impl PyInputOptions {
     fn interrupt(&self) -> &str {
         &self.interrupt
     }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "InputOptions(mouse='{}', scroll={}, bracketed_paste={}, focus_reporting={}, \
+             keyboard='{}', capability_timeout_milliseconds={}, interrupt='{}')",
+            self.mouse,
+            if self.scroll { "True" } else { "False" },
+            if self.bracketed_paste {
+                "True"
+            } else {
+                "False"
+            },
+            if self.focus_reporting {
+                "True"
+            } else {
+                "False"
+            },
+            self.keyboard,
+            self.capability_timeout_milliseconds,
+            self.interrupt
+        )
+    }
+
+    fn __eq__(&self, other: &Bound<'_, PyAny>) -> bool {
+        other
+            .extract::<PyInputOptions>()
+            .is_ok_and(|other| *self == other)
+    }
+
+    #[classattr]
+    const __hash__: Option<Py<PyAny>> = None;
 }
 
 #[pyclass(
@@ -324,7 +363,7 @@ impl PyTerminalOptions {
     ) -> PyResult<Self> {
         let input = match input {
             Some(input) => input,
-            None => PyInputOptions::new("off", true, true, "basic", 200, "event")?,
+            None => PyInputOptions::new("off", false, true, true, "basic", 200, "event")?,
         };
         Ok(Self {
             input,
@@ -406,6 +445,56 @@ impl PyInputState {
     #[getter]
     fn pointer_cell(&self) -> Option<(i32, i32)> {
         lock(&self.shared.input).pointer
+    }
+
+    #[getter]
+    fn last_key(&self) -> Option<String> {
+        lock(&self.shared.input).last_key.clone()
+    }
+
+    #[getter]
+    fn last_key_kind(&self) -> Option<&'static str> {
+        lock(&self.shared.input).last_key_kind
+    }
+
+    #[getter]
+    fn last_chord(&self) -> Option<String> {
+        lock(&self.shared.input).last_chord.clone()
+    }
+
+    #[getter]
+    fn last_mouse_button(&self) -> Option<&'static str> {
+        lock(&self.shared.input).last_mouse_button
+    }
+
+    #[getter]
+    fn last_mouse_kind(&self) -> Option<&'static str> {
+        lock(&self.shared.input).last_mouse_kind
+    }
+
+    #[getter]
+    fn last_mouse_position(&self) -> Option<(i32, i32)> {
+        lock(&self.shared.input).last_mouse_position
+    }
+
+    #[getter]
+    fn scroll_x(&self) -> i32 {
+        lock(&self.shared.input).scroll.0
+    }
+
+    #[getter]
+    fn scroll_y(&self) -> i32 {
+        lock(&self.shared.input).scroll.1
+    }
+
+    #[getter]
+    fn is_mouse_down(&self) -> bool {
+        lock(&self.shared.input).is_mouse_down()
+    }
+
+    #[getter]
+    fn last_pasted_text(&self) -> Option<String> {
+        lock(&self.shared.input).last_paste.clone()
     }
 
     #[pyo3(signature = (*, timeout_seconds = None))]

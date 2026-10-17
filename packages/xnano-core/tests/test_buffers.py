@@ -10,6 +10,7 @@ from xnano_core._xnano_core import (
     Buffer,
     Cell,
     Clear,
+    Color,
     Fill,
     Foreground,
     InvalidRegionError,
@@ -116,6 +117,99 @@ def test_fill_and_clear():
     assert rows(buffer) == ['', '']
     with pytest.raises(ValueError, match='one column'):
         buffer.fill('世')
+
+
+def test_background_colors_are_set_in_one_batch():
+    buffer = Buffer(['abc', 'def'])
+    buffer.update(Background('green'))
+    before = buffer.revision
+    buffer.set_background_colors(
+        ['red', None, (0, 0, 255), Color('#00ff00'), 'blue', None], width=3
+    )
+    assert buffer.revision == before + 1, 'one batch counts as one change'
+    assert buffer[0, 0].background == Color('red')
+    assert buffer[1, 0].background == Color('green'), 'None leaves a cell unchanged'
+    assert buffer[2, 0].background == Color('#0000ff')
+    assert buffer[0, 1].background == Color('#00ff00')
+    assert buffer[1, 1].background == Color('blue')
+    assert buffer[2, 1].background == Color('green'), 'None leaves a cell unchanged'
+    assert rows(buffer) == ['abc', 'def'], 'symbols are kept'
+
+
+def test_background_colors_keep_the_foreground_and_accept_an_offset_block():
+    buffer = Buffer(['abcd', 'efgh'])
+    buffer.update(Foreground('red'))
+    buffer.set_background_colors(['white', 'black'], width=1, x=2, y=0)
+    assert buffer[2, 0].background == Color('white')
+    assert buffer[2, 1].background == Color('black')
+    assert buffer[2, 0].foreground == Color('red')
+    assert buffer[1, 0].background == Color.reset
+
+
+def test_foreground_colors_are_set_in_one_batch_and_keep_the_rest():
+    buffer = Buffer(['abc', 'def'])
+    buffer.set_background_colors(['white'] * 6, width=3)
+    before = buffer.revision
+    buffer.set_foreground_colors(
+        ['red', None, (0, 0, 255), 'green', 'blue', None], width=3
+    )
+    assert buffer.revision == before + 1, 'one batch counts as one change'
+    assert buffer[0, 0].foreground == Color('red')
+    assert buffer[1, 0].foreground == Color.reset
+    assert buffer[2, 0].foreground == Color('#0000ff')
+    assert buffer[0, 1].foreground == Color('green')
+    assert buffer[0, 0].background == Color('white')
+    assert rows(buffer) == ['abc', 'def'], 'symbols are kept'
+    with pytest.raises(ValueError, match='does not fit'):
+        buffer.set_foreground_colors(['red', 'red'], width=2, x=2)
+    with pytest.raises(TypeError, match='set_foreground_colors needs a sequence'):
+        buffer.set_foreground_colors('red', width=1)  # type: ignore[arg-type]
+
+
+def test_background_colors_of_a_region_use_local_coordinates():
+    buffer = Buffer(['abcd', 'efgh', 'ijkl'])
+    region = buffer[1:3, 1:3]
+    region.set_background_colors(['red', 'green'], width=2)
+    assert buffer[1, 1].background == Color('red')
+    assert buffer[2, 1].background == Color('green')
+    assert buffer[0, 1].background == Color.reset
+    assert buffer[1, 2].background == Color.reset
+
+
+def test_background_colors_refuse_a_block_that_does_not_fit_and_say_why():
+    buffer = Buffer(['abc', 'def'])
+    with pytest.raises(ValueError, match='width=2'):
+        buffer.set_background_colors(['red', 'red', 'red'], width=2)
+    with pytest.raises(ValueError, match='at least 1'):
+        buffer.set_background_colors(['red'], width=0)
+    with pytest.raises(ValueError, match='does not fit'):
+        buffer.set_background_colors(['red', 'red'], width=2, x=2)
+    with pytest.raises(ValueError, match='does not fit'):
+        buffer.set_background_colors(['red', 'red', 'red'], width=1, y=0, x=-1)
+    with pytest.raises(ValueError, match='does not fit'):
+        buffer.set_background_colors(['red'] * 3, width=1, y=1)
+    with pytest.raises(ValueError, match='color'):
+        buffer.set_background_colors(['not a color'], width=1)
+    with pytest.raises(TypeError, match='color'):
+        buffer.set_background_colors([object()], width=1)
+    with pytest.raises(TypeError, match='needs a sequence of colors'):
+        buffer.set_background_colors(5, width=1)  # type: ignore[arg-type]
+    assert buffer[0, 0].background == Color.reset, 'a refused call changes nothing'
+
+
+def test_background_colors_refuse_offsets_too_large_to_add_without_overflow():
+    buffer = Buffer(width=3, height=2)
+    with pytest.raises(ValueError, match='does not fit'):
+        buffer.set_background_colors(['red', 'red'], width=2, x=2**31 - 1)
+    with pytest.raises(ValueError, match='does not fit'):
+        buffer.set_background_colors(['red', 'red'], width=1, y=2**31 - 1)
+
+
+def test_background_colors_ask_for_a_sequence_when_given_one_string():
+    buffer = Buffer(width=3, height=1)
+    with pytest.raises(TypeError, match='sequence of colors'):
+        buffer.set_background_colors('red', width=1)
+    assert buffer[0, 0].background == Color.reset
 
 
 def test_regions_share_storage_and_use_local_indexes():

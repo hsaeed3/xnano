@@ -52,6 +52,9 @@ from xnano_core._xnano_core import (
     BufferExpressionScope as BufferExpressionScope,
 )
 from xnano_core._xnano_core import (
+    BufferRegion as BufferRegion,
+)
+from xnano_core._xnano_core import (
     BufferScope as BufferScope,
 )
 from xnano_core._xnano_core import (
@@ -253,6 +256,21 @@ from xnano_core._xnano_core import (
     KeyboardCapabilities as KeyboardCapabilities,
 )
 from xnano_core._xnano_core import (
+    KeyboardChord as KeyboardChord,
+)
+from xnano_core._xnano_core import (
+    KeyboardExpressionScope as KeyboardExpressionScope,
+)
+from xnano_core._xnano_core import (
+    KeyboardKey as KeyboardKey,
+)
+from xnano_core._xnano_core import (
+    KeyboardKind as KeyboardKind,
+)
+from xnano_core._xnano_core import (
+    KeyboardScope as KeyboardScope,
+)
+from xnano_core._xnano_core import (
     KeyEvent as KeyEvent,
 )
 from xnano_core._xnano_core import (
@@ -274,7 +292,25 @@ from xnano_core._xnano_core import (
     Margin as Margin,
 )
 from xnano_core._xnano_core import (
+    MouseButtonValue as MouseButtonValue,
+)
+from xnano_core._xnano_core import (
     MouseEvent as MouseEvent,
+)
+from xnano_core._xnano_core import (
+    MouseExpressionScope as MouseExpressionScope,
+)
+from xnano_core._xnano_core import (
+    MouseIsDown as MouseIsDown,
+)
+from xnano_core._xnano_core import (
+    MouseKind as MouseKind,
+)
+from xnano_core._xnano_core import (
+    MousePosition as MousePosition,
+)
+from xnano_core._xnano_core import (
+    MouseScope as MouseScope,
 )
 from xnano_core._xnano_core import (
     Move as Move,
@@ -383,6 +419,18 @@ from xnano_core._xnano_core import (
 )
 from xnano_core._xnano_core import (
     Scrollbar as Scrollbar,
+)
+from xnano_core._xnano_core import (
+    ScrollExpressionScope as ScrollExpressionScope,
+)
+from xnano_core._xnano_core import (
+    ScrollScope as ScrollScope,
+)
+from xnano_core._xnano_core import (
+    ScrollX as ScrollX,
+)
+from xnano_core._xnano_core import (
+    ScrollY as ScrollY,
 )
 from xnano_core._xnano_core import (
     SequenceOperation as SequenceOperation,
@@ -679,13 +727,13 @@ from xnano_core._xnano_core._core_types import (
     PasteMode as PasteMode,
 )
 from xnano_core._xnano_core._core_types import (
-    Pixel as Pixel,
-)
-from xnano_core._xnano_core._core_types import (
     PixelAnchor as PixelAnchor,
 )
 from xnano_core._xnano_core._core_types import (
     PixelEncoding as PixelEncoding,
+)
+from xnano_core._xnano_core._core_types import (
+    PixelEntry as PixelEntry,
 )
 from xnano_core._xnano_core._core_types import (
     Propagate as Propagate,
@@ -758,6 +806,7 @@ __all__ = [
     'Bounds',
     'Buffer',
     'BufferExpressionScope',
+    'BufferRegion',
     'BufferScope',
     'BufferSize',
     'Calendar',
@@ -854,6 +903,11 @@ __all__ = [
     'KeyModifier',
     'KeyName',
     'KeyboardCapabilities',
+    'KeyboardChord',
+    'KeyboardExpressionScope',
+    'KeyboardKey',
+    'KeyboardKind',
+    'KeyboardScope',
     'Layer',
     'Layout',
     'LineGauge',
@@ -862,8 +916,14 @@ __all__ = [
     'Margin',
     'Modifier',
     'MouseButton',
+    'MouseButtonValue',
     'MouseEvent',
     'MouseEventKind',
+    'MouseExpressionScope',
+    'MouseIsDown',
+    'MouseKind',
+    'MousePosition',
+    'MouseScope',
     'Move',
     'NumericProperty',
     'NumericValue',
@@ -879,9 +939,9 @@ __all__ = [
     'ParentWidth',
     'Paste',
     'PasteMode',
-    'Pixel',
     'PixelAnchor',
     'PixelEncoding',
+    'PixelEntry',
     'PixelView',
     'Pixels',
     'Place',
@@ -910,6 +970,10 @@ __all__ = [
     'ScheduledCall',
     'ScreenBounds',
     'ScreenPosition',
+    'ScrollExpressionScope',
+    'ScrollScope',
+    'ScrollX',
+    'ScrollY',
     'Scrollbar',
     'SequenceOperation',
     'SetState',

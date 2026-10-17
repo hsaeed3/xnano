@@ -9,6 +9,8 @@ from xnano_core._xnano_core import (
     Event,
     InputOptions,
     KeyBinding,
+    KeyboardScope,
+    MouseScope,
     Rectangle,
     Runtime,
     TerminalOptions,
@@ -48,8 +50,9 @@ def test_event_constructors():
     mouse = Event.mouse_event(column=4, row=2, kind='press', button='left')
     assert (mouse.mouse.column, mouse.mouse.row, mouse.mouse.button) == (4, 2, 'left')
     assert mouse.mouse.position.x == 4
-    scroll = Event.mouse_event(column=0, row=0, kind='scroll', scroll_vertical=-1)
-    assert scroll.mouse.scroll_vertical == -1
+    scroll = Event.mouse_event(column=0, row=0, kind='scroll', scroll_y=-1)
+    assert scroll.mouse.scroll_y == -1
+    assert scroll.mouse.scroll_x == 0
     assert Event.focus_gained().kind == 'focus_gained'
     with pytest.raises(ValueError, match='mouse button'):
         Event.mouse_event(column=0, row=0, kind='press', button='thumb')
@@ -309,3 +312,218 @@ def test_live_runtimes_are_lazy():
     assert not runtime.device.is_raw_mode_enabled
     assert runtime.clock.source == 'monotonic'
     runtime.close()
+
+
+def test_a_hook_hears_the_signed_scroll_steps_of_a_wheel_event(runtime):
+    buffer = Buffer(width=12, height=3)
+    runtime.mount(buffer)
+    heard = []
+    buffer.add_hook(
+        lambda context: heard.append(
+            (context.event.mouse.scroll_x, context.event.mouse.scroll_y)
+        ),
+        events=('mouse',),
+    )
+    runtime.inject(Event.mouse_event(column=2, row=1, kind='scroll', scroll_y=-1))
+    runtime.inject(Event.mouse_event(column=2, row=1, kind='scroll', scroll_x=2))
+    runtime.step()
+    assert heard == [(0, -1), (2, 0)]
+
+
+def test_the_scroll_gate_is_independent_and_the_keyboard_can_be_off():
+    default = InputOptions()
+    assert default.scroll is False and default.keyboard == 'basic'
+    wheel_only = InputOptions(scroll=True, keyboard='off', interrupt='stop')
+    assert wheel_only.scroll is True and wheel_only.mouse == 'off'
+    assert wheel_only.keyboard == 'off' and wheel_only.interrupt == 'stop'
+    with pytest.raises(ValueError, match='keyboard mode'):
+        InputOptions(keyboard='none')
+    assert TerminalOptions().input.scroll is False
+    assert TerminalOptions(input=wheel_only).input.scroll is True
+
+
+def test_input_options_print_and_compare_by_their_options():
+    assert InputOptions(scroll=True) == InputOptions(scroll=True)
+    assert InputOptions(scroll=True) != InputOptions(scroll=False)
+    assert InputOptions() != 'off'
+    assert repr(InputOptions(mouse='motion', scroll=True, interrupt='stop')) == (
+        "InputOptions(mouse='motion', scroll=True, bracketed_paste=True, "
+        "focus_reporting=True, keyboard='basic', capability_timeout_milliseconds=200, "
+        "interrupt='stop')"
+    )
+
+
+def test_a_live_runtime_accepts_the_new_gates_without_opening_the_terminal():
+    options = TerminalOptions(
+        input=InputOptions(scroll=True, keyboard='off', interrupt='stop')
+    )
+    runtime = Runtime.live(options=options)
+    assert runtime.device.backend == 'terminal'
+    assert not runtime.device.is_mouse_capture_enabled
+    runtime.close()
+
+
+def test_the_latest_key_is_remembered_with_its_canonical_chord(runtime):
+    runtime.mount(Buffer())
+    state = runtime.input
+    assert state.last_key is None and state.last_chord is None
+    for binding, key, chord in (
+        ('q', 'q', 'q'),
+        ('ctrl+s', 's', 'ctrl+s'),
+        ('shift+ctrl+a', 'a', 'ctrl+shift+a'),
+        ('alt+shift+ctrl+left', 'left', 'ctrl+alt+shift+left'),
+        ('A', 'a', 'shift+a'),
+    ):
+        runtime.inject(Event.key_press(binding))
+        runtime.step()
+        assert (state.last_key, state.last_chord) == (key, chord), binding
+        assert state.last_key_kind == 'press'
+    runtime.inject(Event.key_press('left', kind='release'))
+    runtime.step()
+    assert state.last_key_kind == 'release'
+    assert KeyBinding.parse(state.last_chord).matches(Event.key_press('left'))
+
+
+def test_mouse_buttons_are_held_from_press_to_release(runtime):
+    runtime.mount(Buffer())
+    state = runtime.input
+    assert state.is_mouse_down is False
+    runtime.inject(Event.mouse_event(column=3, row=1, kind='press', button='left'))
+    runtime.step()
+    assert state.is_mouse_down is True
+    assert state.pressed_keys == {'mouse_left'}
+    assert (state.last_mouse_button, state.last_mouse_kind) == ('left', 'press')
+    assert state.last_mouse_position == (3, 1)
+    runtime.inject(Event.mouse_event(column=5, row=2, kind='drag', button='left'))
+    runtime.inject(Event.mouse_event(column=5, row=2, kind='press', button='right'))
+    runtime.step()
+    assert state.pressed_keys == {'mouse_left', 'mouse_right'}
+    assert state.last_mouse_kind == 'press' and state.last_mouse_button == 'right'
+    runtime.inject(Event.mouse_event(column=5, row=2, kind='release', button='left'))
+    runtime.step()
+    assert state.pressed_keys == {'mouse_right'} and state.is_mouse_down is True
+    runtime.inject(Event.mouse_event(column=5, row=2, kind='release', button='right'))
+    runtime.step()
+    assert state.pressed_keys == frozenset() and state.is_mouse_down is False
+    assert state.last_mouse_kind == 'release'
+    runtime.inject(Event.mouse_event(column=1, row=1, kind='move'))
+    runtime.step()
+    assert state.last_mouse_kind == 'move' and state.last_mouse_button is None
+
+
+def test_losing_focus_releases_the_held_mouse_buttons(runtime):
+    runtime.mount(Buffer())
+    runtime.inject(Event.mouse_event(column=3, row=1, kind='press', button='middle'))
+    runtime.step()
+    assert runtime.input.pressed_keys == {'mouse_middle'}
+    runtime.inject(Event.focus_lost())
+    runtime.step()
+    assert runtime.input.pressed_keys == frozenset()
+    assert runtime.input.is_mouse_down is False
+
+
+def test_a_wheel_value_lives_for_one_step_and_belongs_to_the_wheel_only(runtime):
+    runtime.mount(Buffer())
+    state = runtime.input
+    runtime.inject(Event.mouse_event(column=4, row=2, kind='press', button='left'))
+    runtime.step()
+    runtime.inject(Event.mouse_event(column=6, row=1, kind='scroll', scroll_y=-1))
+    runtime.step()
+    assert (state.scroll_x, state.scroll_y) == (0, -1)
+    assert state.last_mouse_kind is None and state.last_mouse_button is None
+    assert state.last_mouse_position is None
+    assert state.pointer_cell == (6, 1), 'the wheel still moves the pointer'
+    assert state.is_mouse_down is True, 'held state survives a wheel step'
+    runtime.inject(Event.mouse_event(column=6, row=1, kind='scroll', scroll_x=2))
+    runtime.step()
+    assert (state.scroll_x, state.scroll_y) == (2, 0)
+    runtime.step()
+    assert (state.scroll_x, state.scroll_y) == (0, 0)
+
+
+def test_a_step_with_several_wheel_reports_holds_the_latest_one(runtime):
+    runtime.mount(Buffer())
+    state = runtime.input
+    for _ in range(3):
+        runtime.inject(Event.mouse_event(column=1, row=1, kind='scroll', scroll_y=1))
+    runtime.step()
+    assert state.scroll_y == 1, 'wheel reports of one step do not add up'
+    runtime.inject(Event.mouse_event(column=1, row=1, kind='scroll', scroll_y=1))
+    runtime.inject(Event.mouse_event(column=2, row=1, kind='move'))
+    runtime.step()
+    assert state.scroll_y == 0, 'a motion report after the wheel clears it'
+
+
+def test_pasted_text_is_remembered_until_other_input_arrives(runtime):
+    runtime.mount(Buffer())
+    state = runtime.input
+    assert state.last_pasted_text is None
+    runtime.inject(Event.key_press('x'))
+    runtime.inject(Event.paste('hello'))
+    runtime.step()
+    assert state.last_pasted_text == 'hello'
+    assert state.last_key is None and state.last_chord is None
+    runtime.inject(Event.key_press('y'))
+    runtime.step()
+    assert state.last_pasted_text is None and state.last_key == 'y'
+
+
+def test_each_kind_of_input_clears_the_latest_values_of_the_others(runtime):
+    runtime.mount(Buffer())
+    state = runtime.input
+    runtime.inject(Event.key_press('q'))
+    runtime.step()
+    runtime.inject(Event.mouse_event(column=1, row=1, kind='move'))
+    runtime.step()
+    assert (
+        state.last_key is None
+        and state.last_key_kind is None
+        and state.last_chord is None
+    )
+    assert state.last_mouse_position == (1, 1)
+    runtime.inject(Event.key_press('w'))
+    runtime.step()
+    assert state.last_key == 'w'
+    assert state.last_mouse_kind is None and state.last_mouse_position is None
+    assert state.pointer_cell == (1, 1), 'the held pointer cell is not event scoped'
+
+
+def test_a_key_scoped_condition_does_not_fire_on_a_later_mouse_event(runtime):
+    buffer = Buffer(width=10, height=3)
+    runtime.mount(buffer)
+    heard = []
+    buffer.add_hook(
+        lambda context: heard.append(context.event.kind),
+        events=('key', 'mouse', 'paste'),
+        condition=KeyboardScope.key == 'q',
+    )
+    for event in (
+        Event.key_press('w'),
+        Event.key_press('q'),
+        Event.mouse_event(column=1, row=1, kind='move'),
+        Event.mouse_event(column=1, row=1, kind='scroll', scroll_y=1),
+        Event.paste('q'),
+    ):
+        runtime.inject(event)
+        runtime.step()
+    assert heard == ['key']
+
+
+def test_a_mouse_scoped_condition_does_not_fire_on_a_later_key_press(runtime):
+    buffer = Buffer(width=10, height=3)
+    runtime.mount(buffer)
+    heard = []
+    buffer.add_hook(
+        lambda context: heard.append(context.event.kind),
+        events=('key', 'mouse', 'paste'),
+        condition=MouseScope.button == 'left',
+    )
+    for event in (
+        Event.mouse_event(column=1, row=1, kind='press', button='left'),
+        Event.key_press('a'),
+        Event.paste('a'),
+        Event.mouse_event(column=1, row=1, kind='scroll', scroll_y=1),
+    ):
+        runtime.inject(event)
+        runtime.step()
+    assert heard == ['mouse']

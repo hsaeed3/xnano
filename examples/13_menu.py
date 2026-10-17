@@ -1,9 +1,9 @@
 """
 A menu: pick one item with the keyboard.
 
-The highlighted row lives in the terminal's typed state, and ``terminal.ref`` turns it into an
-expression the list follows, so the hooks only change a number. ``up`` and ``down`` move,
-``enter`` chooses, and choosing ``Quit`` (or pressing ``q``) leaves.
+The highlighted row lives in the terminal's typed state, and ``terminal.state_reference``
+turns it into an expression the list follows, so the hooks only change a number. ``up`` and
+``down`` move, ``enter`` chooses, and choosing ``Quit`` (or pressing ``q``) leaves.
 """
 
 from dataclasses import dataclass
@@ -35,7 +35,7 @@ def selected_of(menu: Menu) -> int:
 def main() -> None:
     """Show the menu and react to the keyboard."""
     with xnano.open(width=30, height=8, state=Menu()) as terminal:
-        selection = terminal.ref(selected_of)
+        selection = terminal.state_reference(selected_of)
         terminal.write(
             ItemList(
                 list(CHOICES),
@@ -50,21 +50,23 @@ def main() -> None:
         terminal.write('up/down, enter, q', y=7)
         result = terminal.write('', y=6)
 
-        @terminal.on_key('up')
-        def previous(context: Context[Menu]) -> None:
-            context.state.selected = max(0, context.state.selected - 1)
+        @terminal.hook(on='key', keys='up')
+        def previous(context: Context[None, Menu]) -> None:
+            context.root.state.selected = max(0, context.root.state.selected - 1)
 
-        @terminal.on_key('down')
-        def following(context: Context[Menu]) -> None:
-            context.state.selected = min(len(CHOICES) - 1, context.state.selected + 1)
+        @terminal.hook(on='key', keys='down')
+        def following(context: Context[None, Menu]) -> None:
+            context.root.state.selected = min(
+                len(CHOICES) - 1, context.root.state.selected + 1
+            )
 
-        @terminal.on_key('enter')
-        def choose(context: Context[Menu]) -> None:
-            context.state.chosen = CHOICES[context.state.selected]
-            if context.state.chosen == 'Quit':
-                context.terminal.stop()
+        @terminal.hook(on='key', keys='enter')
+        def choose(context: Context[None, Menu]) -> None:
+            context.root.state.chosen = CHOICES[context.root.state.selected]
+            if context.root.state.chosen == 'Quit':
+                context.canvas.quit()
             else:
-                result.text = f'chose {context.state.chosen}'
+                result.text = f'chose {context.root.state.chosen}'
 
         terminal.run(quit_on='q')
 

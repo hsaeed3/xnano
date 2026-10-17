@@ -1,17 +1,17 @@
 """
 xnano._values
 
-Type aliases shared by the terminal, placements and pixels.
+Type aliases shared by the canvas, placements and pixels.
 """
 
 from __future__ import annotations
 
+import sys
 from typing import (
     TYPE_CHECKING,
     Literal,
     Protocol,
     TypeAlias,
-    TypeVar,
     runtime_checkable,
 )
 
@@ -31,10 +31,22 @@ from xnano_core import (
     TailwindColorShade as TailwindColorShade,
 )
 
-if TYPE_CHECKING:
-    from xnano_image import TerminalImage
+if sys.version_info >= (3, 13):
+    from typing import Never, TypeVar
+else:
+    from typing_extensions import Never, TypeVar
 
-    from xnano._media import Image
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from xnano_audio import TerminalMelody, TerminalNote, TerminalSound
+
+    from xnano._media import Audio, Image
+    from xnano.art import Art
+    from xnano.context import Context
+    from xnano.music import Note
+    from xnano.pixel import Pixel
+    from xnano.region import Region
     from xnano_core import Buffer
 
 # --------------------------------------------------------------------------------------
@@ -66,7 +78,7 @@ One number of a position or size: ``x``, ``y``, ``width`` or ``height``.
   ``'top'``, ``'center'`` or ``'bottom'`` for ``y``.
 * an expression such as ``(ParentWidth - Width) // 2`` or ``ParentWidth * (TimeElapsed % 4 / 4)``:
   evaluated again on every frame, with ``TimeElapsed`` and the other clock references moving
-  with the terminal's clock.
+  with the canvas's clock.
 * a range, a pair ``(low, high)``: not a value but a limit on the values the axis may
   take. For ``x`` and ``y`` it is how far the placement
   may travel, such as the track of a slider; for ``width`` and ``height`` it is the
@@ -81,30 +93,118 @@ AttributeValue: TypeAlias = 'JSONValue | _core.Color | _core.Style | _core.Buffe
 PixelEncoding: TypeAlias = Literal['half_blocks', 'braille']
 """``'half_blocks'``: one column and two rows of pixels per cell. ``'braille'``: two by four."""
 
-TerminalBackend: TypeAlias = Literal['terminal', 'offscreen']
+DepsT = TypeVar('DepsT', default=None)
+"""The type of the dependencies a canvas was given with ``new(deps=...)``, or ``None``."""
 
-StateT = TypeVar('StateT')
-"""The type of the dataclass a terminal keeps as its state, or ``None`` without one."""
+StateT = TypeVar('StateT', default=None)
+"""The type of the dataclass a canvas keeps as its state, or ``None`` without one."""
 
 ValueT = TypeVar('ValueT')
 
-StateT_co = TypeVar('StateT_co', covariant=True)
+DepsT_co = TypeVar('DepsT_co', covariant=True, default=None)
+
+StateT_co = TypeVar('StateT_co', covariant=True, default=None)
+
+DepsT_contra = TypeVar('DepsT_contra', contravariant=True, default=Never)
+
+StateT_contra = TypeVar('StateT_contra', contravariant=True, default=Never)
+
+
+KeyName: TypeAlias = Literal[
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    'space', 'enter', 'escape', 'tab', 'backspace', 'delete', 'insert',
+    'home', 'end', 'page_up', 'page_down', 'up', 'down', 'left', 'right',
+    'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12',
+] | str  # fmt: skip
+"""
+The name of a key such as ``'q'``, ``'enter'`` or ``'page_up'``.
+
+A key with modifiers is written as a chord joined with ``+``, such as ``'ctrl+s'`` or
+``'shift+tab'``; the trailing ``str`` lets a chord and punctuation keys type-check while editors
+still suggest the names listed here.
+"""
+
+HeldMouseButtonName: TypeAlias = Literal['mouse_left', 'mouse_right', 'mouse_middle']
+"""
+The name of a mouse button in the held-input vocabulary of [`Input`][xnano.input.Input].
+
+``Input.is_down('mouse_left')`` asks whether the left button is held. The button of a mouse
+event keeps the names ``'left'``, ``'right'`` and ``'middle'``.
+"""
 
 
 @runtime_checkable
-class Renderable(Protocol):
+class SupportsRender(Protocol[DepsT_contra, StateT_contra]):
     """
-    Anything a terminal can show.
+    Anything that draws itself: an object with a ``__xnano_render__`` method.
 
-    Implement ``__xnano_buffer__`` on your own class to make it addable to a terminal. A
-    [`Buffer`][xnano_core.Buffer] (and so every widget), a string and the bytes
-    of a cell grid are renderable without it.
+    The method receives the [`Context`][xnano.context.Context] and returns what to draw, which
+    is any [`Renderable`][xnano.types.Renderable]. No base class is needed; a dataclass or a
+    plain class qualifies. The context may be annotated with the dependency and state types
+    the component reads, such as ``Context[Services]``. The method runs again, on the next
+    frame, only when it read something that changes (the time, the size, state or an input).
     """
 
-    def __xnano_buffer__(self) -> _core.Buffer:
-        """Return the buffer that shows this object."""
+    def __xnano_render__(
+        self, context: Context[DepsT_contra, StateT_contra]
+    ) -> Renderable:
+        """Return what to draw."""
         ...
 
 
-Content: TypeAlias = 'Buffer | Renderable | str | bytes | TerminalImage | Image'
-"""What [`Terminal.write`][xnano.terminal.Terminal.write] accepts."""
+@runtime_checkable
+class SupportsPlay(Protocol[DepsT_contra, StateT_contra]):
+    """
+    Anything that can be played: an object with a ``__xnano_play__`` method.
+
+    The method receives the [`Context`][xnano.context.Context] and returns what to play.
+    No base class is needed; a dataclass or a plain class qualifies. The context may be
+    annotated with the dependency and state types the component reads, such as
+    ``Context[Services]``.
+    """
+
+    def __xnano_play__(self, context: Context[DepsT_contra, StateT_contra]) -> Playable:
+        """Return what to play."""
+        ...
+
+
+Renderable: TypeAlias = (
+    'str | Region | Art | Pixel | Image | Buffer | SupportsRender | Sequence[Renderable]'
+)
+"""
+Anything [`Canvas.write`][xnano.canvas.Canvas.write] accepts: text, a
+[`Region`][xnano.region.Region], an [`Art`][xnano.art.Art], a [`Pixel`][xnano.Pixel], an
+[`Image`][xnano.Image], a core [`Buffer`][xnano_core.Buffer], an object with
+``__xnano_render__``, or a sequence of those, which is stacked from top to bottom.
+"""
+
+Playable: TypeAlias = 'str | Note | Audio | SupportsPlay | Sequence[Playable]'
+"""
+Anything [`play`][xnano.play] and [`Canvas.play`][xnano.canvas.Canvas.play] accept: a
+[`Note`][xnano.Note], an [`Audio`][xnano.Audio], an object with ``__xnano_play__``, a
+sequence of those that plays one after another, or a ``str``: the name of a registered
+symbol, a note name such as ``'C#4'``, or melody text such as ``'C4 E4 G4:2'``.
+"""
+
+PlaySource: TypeAlias = (
+    'Playable | int | float | TerminalSound | TerminalNote | TerminalMelody'
+)
+"""
+Anything [`play`][xnano.play] and [`Canvas.play`][xnano.canvas.Canvas.play] accept: a
+[`Playable`][xnano.types.Playable] (a [`Note`][xnano.Note], an [`Audio`][xnano.Audio], a symbol
+name, a note name such as ``'C#4'``, melody text, or a sequence of those), a MIDI note number
+such as ``60``, a frequency in hertz, or a rendered sound, note or melody from ``xnano-audio``.
+"""
+
+Content: TypeAlias = 'Renderable | Playable'
+"""Anything a canvas can show or play: a ``Renderable`` or a ``Playable``."""
+
+Anchor: TypeAlias = tuple[int, int]
+"""
+The ``(x, y)`` pixel inside an [`Art`][xnano.art.Art] that sits at the art's ``(x, y)``.
+
+``anchor=(3, 8)`` makes ``(x, y)`` the place a character's feet touch; ``(0, 0)`` is the top-left
+pixel.
+"""

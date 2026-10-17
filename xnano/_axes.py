@@ -6,6 +6,7 @@ Turn axis values (numbers, percentages, ranges, expressions) into core expressio
 
 from __future__ import annotations
 
+import math
 from typing import (
     TYPE_CHECKING,
     Final,
@@ -17,6 +18,7 @@ import xnano_core as _core
 if TYPE_CHECKING:
     pass
 
+from xnano._appearance import MOST_CELLS
 from xnano._values import (
     RGB,
     Axis,
@@ -153,11 +155,14 @@ def _percentage(text: str, axis: AxisName) -> float:
             f"the parent such as '50%', a range such as (1, 10), or an expression."
         )
     try:
-        return float(stripped[:-1]) / 100.0
+        share = float(stripped[:-1]) / 100.0
     except ValueError:
+        share = math.nan
+    if not math.isfinite(share):
         raise ValueError(
             f"{text!r} is not a percentage. Write a number followed by '%', such as '50%'."
-        ) from None
+        )
+    return share
 
 
 def _limit_bound(value: object, axis: AxisName) -> Bound:
@@ -220,8 +225,22 @@ def axis_limits(
 
 
 def inspect_number(buffer: _core.Buffer, expression: NumericExpression) -> float:
-    """Evaluate a numeric expression against a buffer."""
-    return float(buffer.inspect(cast('_core.Expression[float]', expression)))
+    """
+    Evaluate a numeric expression against a buffer.
+
+    Raises:
+        TypeError: The expression reads input that has not been seen yet, such as the
+            pointer position before the pointer has moved, so it has no value.
+    """
+    result = buffer.inspect(cast('_core.Expression[float]', expression))
+    if result is None:
+        raise TypeError(
+            'This formula has no value yet because it reads input that has not been seen, '
+            'such as PointerPosition before the pointer has moved. Assign a number now and '
+            'update it from a hook that runs when the input arrives, or use a formula that '
+            'does not depend on unseen input.'
+        )
+    return float(result)
 
 
 def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
@@ -230,7 +249,7 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
 
     Args:
         value: The axis value, see [`Axis`][xnano.types.Axis]. A range is not a value;
-            see [`axis_limits`][xnano.axis_limits].
+            see [`axis_limits`][xnano._axes.axis_limits].
         axis: ``'x'``, ``'y'``, ``'width'`` or ``'height'``.
 
     Raises:
@@ -238,7 +257,7 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
     """
     if axis not in _AXIS_NAMES:
         raise ValueError(f'{axis!r} is not an axis; use one of {", ".join(_AXIS_NAMES)}.')
-    if isinstance(value, bool):
+    if isinstance(value, bool) or (isinstance(value, float) and not math.isfinite(value)):
         raise ValueError(
             f'{value!r} is not a valid {axis}. Give a number of cells, a percentage string, '
             f'a range or an expression.'
@@ -258,3 +277,133 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
         f'{value!r} is not a valid {axis}. Give a number of cells, a percentage string, a '
         f'range or an expression.'
     )
+
+
+def check_size(converted: object, axis: AxisName, value: object) -> None:
+    """
+    Refuse a width or height that is a negative number of cells or more than a buffer holds.
+
+    Raises:
+        ValueError: ``axis`` is ``'width'`` or ``'height'`` and ``converted`` is below 0 or
+            above 65535.
+    """
+    if (
+        axis in ('width', 'height')
+        and isinstance(converted, (int, float))
+        and (converted < 0 or converted > MOST_CELLS)
+    ):
+        raise ValueError(
+            f'{axis} must be a whole number of cells from 0 to {MOST_CELLS}, but was '
+            f'{value!r}. Pass a size such as {axis}=4, or leave {axis} out to use the size '
+            f'of the content.'
+        )
+
+
+def check_axis(value: Axis, axis: AxisName) -> None:
+    """
+    Raise the error that assigning ``value`` to ``axis`` would raise, changing nothing.
+
+    Raises:
+        ValueError: The value is not one of the forms an axis accepts.
+    """
+    if isinstance(value, tuple):
+        axis_limits(value, axis)
+        return
+    check_size(axis_expression(value, axis), axis, value)
+
+
+_LEAST_LAYER: Final = -(2**31)
+_MOST_LAYER: Final = 2**31 - 1
+
+
+def check_layer(value: object) -> int:
+    """
+    Return ``value`` when it is a whole number that can be a layer.
+
+    Raises:
+        TypeError: The value is not a whole number.
+        ValueError: The value is outside the range of a layer.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(
+            f'layer must be a whole number, but got {value!r}. Pass layer=1 to draw above '
+            f'the rest, or layer=-1 to draw below it.'
+        )
+    if not _LEAST_LAYER <= value <= _MOST_LAYER:
+        raise ValueError(
+            f'layer must be a whole number from {_LEAST_LAYER} to {_MOST_LAYER}, but got '
+            f'{value!r}. Pass layer=1 to draw above the rest, or layer=-1 to draw below it.'
+        )
+    return value
+
+
+def check_point(value: object) -> _core.Point:
+    """
+    Return ``value`` when it is a screen cell.
+
+    Raises:
+        TypeError: The value is not a [`Point`][xnano_core.Point].
+    """
+    if not isinstance(value, _core.Point):
+        raise TypeError(
+            f'local() takes a Point, but got {value!r}. Pass a cell such as '
+            f'context.mouse.position, or xnano_core.Point(x, y).'
+        )
+    return value
+
+
+LEAST_CELL: Final = -(2**31)
+MOST_CELL: Final = 2**31 - 1
+
+
+def check_cells(value: object, name: str) -> int:
+    """
+    Return ``value`` when it is a whole number of cells.
+
+    Raises:
+        TypeError: The value is not a whole number.
+        ValueError: The value is outside the range of a cell number.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(
+            f'{name} must be a whole number of cells, but got {value!r}. Pass '
+            f'{name}=1 for one cell, or a negative number for the other way.'
+        )
+    if not LEAST_CELL <= value <= MOST_CELL:
+        raise ValueError(
+            f'{name} must be a whole number of cells from {LEAST_CELL} to {MOST_CELL}, '
+            f'but got {value!r}. Pass {name}=1 for one cell, or a negative number for the '
+            f'other way.'
+        )
+    return value
+
+
+def check_count(value: object, *, verb: str, opposite: str) -> int:
+    """
+    Return ``value`` when it is a whole number of cells that is not negative.
+
+    Args:
+        value: The count to check.
+        verb: The name of the method the count was given to, such as ``'up'``.
+        opposite: The name of the method that moves the other way, such as ``'down'``.
+
+    Raises:
+        TypeError: The value is not a whole number.
+        ValueError: The value is negative or above the range of a cell number.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(
+            f'count must be a whole number of cells, but got {value!r}. Pass count=1 to '
+            f'move one cell with {verb}().'
+        )
+    if value > MOST_CELL:
+        raise ValueError(
+            f'count must be at most {MOST_CELL}, but got {value}. Pass a smaller count, '
+            f'such as count=1 to move one cell with {verb}().'
+        )
+    if value < 0:
+        raise ValueError(
+            f'count must be zero or more, but got {value}. To move the other way, call '
+            f'{opposite}() instead of {verb}().'
+        )
+    return value

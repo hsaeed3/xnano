@@ -1,8 +1,8 @@
 """
 Typed state that expressions can read.
 
-``open(state=...)`` takes a dataclass. Hooks read and write it through ``context.state``, a
-write is checked against the field's type, and ``terminal.ref`` turns a field into an
+``open(state=...)`` takes a dataclass. Hooks read and write it through ``context.root.state``, a
+write is checked against the field's type, and ``terminal.state_reference`` turns a field into an
 expression, so the gauge follows the number with no code that redraws it. The gauge's
 label flips to the opposite colors where the bar passes under it.
 Press ``up`` and ``down`` to change the volume, ``m`` to mute, ``q`` to quit.
@@ -11,7 +11,7 @@ Press ``up`` and ``down`` to change the volume, ``m`` to mute, ``q`` to quit.
 import dataclasses
 
 import xnano
-from xnano.context import Context, Frame
+from xnano.context import Context
 from xnano.styles import Style
 from xnano.widgets import Gauge
 
@@ -29,7 +29,7 @@ def volume_of(settings: Settings) -> int:
 
 with xnano.open(width=40, height=4, state=Settings()) as terminal:
     terminal.write('up/down: volume   m: mute   q: quit')
-    volume = terminal.ref(volume_of)
+    volume = terminal.state_reference(volume_of)
     # The gauge draws its label in the opposite colors wherever the bar passes under it.
     bar = Style(foreground=(0, 200, 0), background=(40, 40, 40))
     terminal.write(
@@ -37,22 +37,22 @@ with xnano.open(width=40, height=4, state=Settings()) as terminal:
         y=2,
     )
 
-    @terminal.on_key('up')
-    def louder(context: Context[Settings]) -> None:
-        context.state.volume = min(100, context.state.volume + 5)
+    @terminal.hook(on='key', keys='up')
+    def louder(context: Context[None, Settings]) -> None:
+        context.root.state.volume = min(100, context.root.state.volume + 5)
 
-    @terminal.on_key('down')
-    def quieter(context: Context[Settings]) -> None:
-        context.state.volume = max(0, context.state.volume - 5)
+    @terminal.hook(on='key', keys='down')
+    def quieter(context: Context[None, Settings]) -> None:
+        context.root.state.volume = max(0, context.root.state.volume - 5)
 
-    @terminal.on_key('m')
-    def mute(context: Context[Settings]) -> None:
-        context.state.is_muted = not context.state.is_muted
+    @terminal.hook(on='key', keys='m')
+    def mute(context: Context[None, Settings]) -> None:
+        context.root.state.is_muted = not context.root.state.is_muted
 
     status = terminal.write('', y=1)
 
-    @terminal.loop.on_frame
-    def show(frame: Frame) -> None:
+    @terminal.hook(on='frame')
+    def show(context: Context[None, Settings]) -> None:
         state = terminal.state
         text = 'muted' if state.is_muted else f'volume {state.volume}'
         status.text = text

@@ -30,16 +30,16 @@ def main() -> None:
         bar = LineGauge(0.0, label='0%')
         terminal.write(bar, y=1, width=40, height=1)
 
-        @terminal.every(SECONDS_PER_STEP)
+        @terminal.hook(on='tick', every=SECONDS_PER_STEP)
         def work(context: Context) -> None:
             job.done += 1
             percent = job.done * 100 // STEPS
             bar.ratio = job.done / STEPS
             bar.label = f'{percent}%'
-            context.terminal.title = f'xnano job: {percent}%'
+            context.canvas.title = f'xnano job: {percent}%'
             print(f'finished file {job.done} of {STEPS}')  # noqa: T201
             if job.done == STEPS:
-                context.terminal.stop()
+                context.canvas.quit()
 
         terminal.run(quit_on='q')
     print(f'stopped after {job.done} of {STEPS} files')  # noqa: T201

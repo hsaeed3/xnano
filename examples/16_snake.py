@@ -1,15 +1,15 @@
 """
 Snake: a game on a fixed time step.
 
-``terminal.loop.on_update`` runs the simulation at a steady rate whatever the frame rate is, so
-the snake moves at the same speed on every machine. The arrow keys steer, ``r`` restarts after
+``hook(on='tick', every=...)`` runs the simulation at a steady rate whatever the frame rate is,
+so the snake moves at the same speed on every machine. The arrow keys steer, ``r`` restarts after
 a crash, and ``q`` quits.
 """
 
 import random
 
 import xnano
-from xnano.context import Context, Update
+from xnano.context import Context
 
 WIDTH = 30
 HEIGHT = 24  # in pixels: a cell holds two
@@ -67,30 +67,30 @@ def main() -> None:
     """Run the game until the player quits."""
     game = Game()
     with xnano.open(width=WIDTH, height=HEIGHT // 2 + 1) as terminal:
-        pixels = terminal.pixels
+        pixels = terminal.region.half_blocks
         status_line = terminal.write('', y=HEIGHT // 2, layer=1)
 
         def draw() -> None:
             terminal.clear()
             for column, row in game.body:
-                pixels[column, row] = '#00c800'
-            pixels[game.food[0], game.food[1]] = '#ff3030'
+                pixels[column, row] = (0, 200, 0)
+            pixels[game.food[0], game.food[1]] = (255, 48, 48)
             status = (
                 'crashed: r to restart' if game.is_over else f'score {len(game.body) - 3}'
             )
             status_line.text = status
 
-        @terminal.loop.on_update(fixed_step_seconds=0.12)
-        def tick(update: Update) -> None:
+        @terminal.hook(on='tick', every=0.12)
+        def tick(context: Context) -> None:
             game.step()
             draw()
 
-        @terminal.on_key(*DIRECTIONS)
+        @terminal.hook(on='key', keys=list(DIRECTIONS))
         def steer(context: Context) -> None:
-            if context.keyboard is not None:
+            if context.keyboard.key is not None:
                 game.steer(DIRECTIONS[context.keyboard.key])
 
-        @terminal.on_key('r')
+        @terminal.hook(on='key', keys='r')
         def restart(context: Context) -> None:
             game.reset()
 

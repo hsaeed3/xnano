@@ -14,20 +14,28 @@ pub struct PyClock {
 #[pymethods]
 impl PyClock {
     #[classmethod]
-    fn monotonic(_cls: &Bound<'_, pyo3::types::PyType>) -> Self {
-        Self {
-            inner: Clock::monotonic(),
+    #[pyo3(signature = (*, elapsed_seconds = 0.0, frame = 0))]
+    fn monotonic(
+        _cls: &Bound<'_, pyo3::types::PyType>,
+        elapsed_seconds: f64,
+        frame: i64,
+    ) -> PyResult<Self> {
+        check_elapsed(elapsed_seconds)?;
+        if frame < 0 {
+            return Err(PyValueError::new_err(format!(
+                "Clock.monotonic needs a frame of zero or more, but frame is {frame}. Pass the \
+                 number of frames the clock has already counted."
+            )));
         }
+        Ok(Self {
+            inner: Clock::monotonic_from(elapsed_seconds, frame as u64),
+        })
     }
 
     #[classmethod]
     #[pyo3(signature = (*, elapsed_seconds = 0.0))]
     fn manual(_cls: &Bound<'_, pyo3::types::PyType>, elapsed_seconds: f64) -> PyResult<Self> {
-        if !elapsed_seconds.is_finite() || elapsed_seconds < 0.0 {
-            return Err(PyValueError::new_err(
-                "elapsed_seconds must be a finite number that is zero or more",
-            ));
-        }
+        check_elapsed(elapsed_seconds)?;
         Ok(Self {
             inner: Clock::manual(elapsed_seconds),
         })
@@ -69,11 +77,11 @@ impl PyClock {
     }
 
     #[getter]
-    fn is_paused(&self) -> bool {
+    fn is_stopped(&self) -> bool {
         self.inner.is_paused()
     }
 
-    fn pause(&self) {
+    fn stop(&self) {
         self.inner.pause();
     }
 
@@ -81,27 +89,27 @@ impl PyClock {
         self.inner.resume();
     }
 
-    fn advance(&self, milliseconds: i64) -> PyResult<()> {
+    fn step(&self, milliseconds: i64) -> PyResult<()> {
         if milliseconds < 0 {
             return Err(PyValueError::new_err(format!(
-                "a clock cannot move backwards: advance by {milliseconds} milliseconds is negative; \
-                 pass zero or more"
+                "Clock.step cannot move time backwards: {milliseconds} milliseconds is negative. \
+                 Pass zero or more milliseconds."
             )));
         }
-        if !self.inner.advance(milliseconds as u64) {
+        if !self.inner.step(milliseconds as u64) {
             return Err(PyValueError::new_err(
-                "only a manual clock can be advanced; create one with Clock.manual() for \
-                 deterministic tests",
+                "A running wall clock cannot be stepped by hand. Call stop() first, or use a \
+                 manual clock.",
             ));
         }
         Ok(())
     }
 
-    #[pyo3(signature = (*, rate = 1.0, paused = false))]
-    fn derive(&self, rate: f64, paused: bool) -> PyResult<PySimulationClock> {
+    #[pyo3(signature = (*, rate = 1.0, is_stopped = false))]
+    fn derive(&self, rate: f64, is_stopped: bool) -> PyResult<PySimulationClock> {
         check_rate(rate)?;
         Ok(PySimulationClock {
-            inner: self.inner.derive(rate, paused),
+            inner: self.inner.derive(rate, is_stopped),
         })
     }
 
@@ -112,6 +120,15 @@ impl PyClock {
             self.elapsed_seconds()
         )
     }
+}
+
+fn check_elapsed(elapsed_seconds: f64) -> PyResult<()> {
+    if !elapsed_seconds.is_finite() || elapsed_seconds < 0.0 {
+        return Err(PyValueError::new_err(
+            "elapsed_seconds must be a finite number that is zero or more",
+        ));
+    }
+    Ok(())
 }
 
 fn check_rate(rate: f64) -> PyResult<()> {
@@ -150,12 +167,12 @@ impl PySimulationClock {
     }
 
     #[getter]
-    fn paused(&self) -> bool {
+    fn is_stopped(&self) -> bool {
         self.inner.is_paused()
     }
 
     #[setter]
-    fn set_paused(&self, value: bool) {
+    fn set_is_stopped(&self, value: bool) {
         self.inner.set_paused(value);
     }
 
@@ -173,7 +190,7 @@ impl PySimulationClock {
         self.inner.sample();
     }
 
-    fn pause(&self) {
+    fn stop(&self) {
         self.inner.set_paused(true);
     }
 
@@ -183,7 +200,7 @@ impl PySimulationClock {
 
     fn __repr__(&self) -> String {
         format!(
-            "SimulationClock(rate={}, paused={}, elapsed_seconds={:.3})",
+            "SimulationClock(rate={}, is_stopped={}, elapsed_seconds={:.3})",
             self.inner.rate(),
             if self.inner.is_paused() {
                 "True"

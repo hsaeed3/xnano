@@ -414,7 +414,7 @@ def cases() -> list[Case]:
     )
 
     def columns_xnano() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=12)
+        terminal = xnano.new(width=WIDTH, height=12)
         panel_width = WIDTH // 3
         for index in range(3):
             terminal.write(
@@ -488,7 +488,7 @@ def cases() -> list[Case]:
     # -- many things ------------------------------------------------------------------------
 
     def many_xnano() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
+        terminal = xnano.new(width=WIDTH, height=HEIGHT)
         for index in range(500):
             terminal.write(f'item {index}', x=index % 60, y=index % HEIGHT)
         return xnano_frame(terminal)
@@ -581,7 +581,7 @@ def cases() -> list[Case]:
 
     def frame_one_xnano(width: int, height: int) -> Callable[[], Callable[[], object]]:
         def build() -> Callable[[], object]:
-            terminal = xnano.open(offscreen=True, width=width, height=height)
+            terminal = xnano.new(width=width, height=height)
             for row in range(height):
                 terminal.write(f'line {row:<4}' + 'x' * (width - 9), y=row)
             counter = [0]
@@ -651,8 +651,8 @@ def cases() -> list[Case]:
         )
 
     def frame_all_xnano() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
-        pixels = terminal.pixels
+        terminal = xnano.new(width=WIDTH, height=HEIGHT)
+        pixels = terminal.region.half_blocks
         tick = [0]
 
         def run() -> str:
@@ -737,7 +737,7 @@ def cases() -> list[Case]:
     )
 
     def formula_xnano() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
+        terminal = xnano.new(width=WIDTH, height=HEIGHT)
         for row in range(HEIGHT):
             ball = terminal.write('●', y=row)
             ball.x = (xnano.expressions.ParentWidth - xnano.expressions.Width) * (
@@ -747,7 +747,7 @@ def cases() -> list[Case]:
 
         def run() -> str:
             counter[0] += 1
-            terminal.loop.advance(1 / 60)
+            terminal.step(delta_seconds=1 / 60)
             return terminal.output.snapshot().ansi
 
         return run
@@ -944,15 +944,15 @@ def cases() -> list[Case]:
     # -- only xnano has these, so they show cost without a rival ----------------------------
 
     def effect_frame() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
+        terminal = xnano.new(width=WIDTH, height=HEIGHT)
         for row in range(HEIGHT):
             terminal.write('effects keep running ' * 3, y=row)
-        terminal.root.update(
+        terminal.core_buffer.update(
             xnano.effects.Effect.fade_to((255, 0, 0), duration_milliseconds=10_000_000)
         )
 
         def run() -> str:
-            terminal.loop.advance(1 / 60)
+            terminal.step(delta_seconds=1 / 60)
             return terminal.output.snapshot().ansi
 
         return run
@@ -965,11 +965,11 @@ def cases() -> list[Case]:
     )
 
     def key_round_trip() -> Callable[[], object]:
-        terminal = xnano.open(offscreen=True, width=WIDTH, height=HEIGHT)
+        terminal = xnano.new(width=WIDTH, height=HEIGHT)
         seen = [0]
         digit = terminal.write('0')
 
-        @terminal.hook(when=lambda context: context.keyboard is not None)
+        @terminal.hook(when=lambda context: context.keyboard.key is not None)
         def count(context: xnano.context.Context) -> None:
             seen[0] += 1
             digit.text = str(seen[0] % 10)
@@ -977,8 +977,8 @@ def cases() -> list[Case]:
         event = xnano.events.Event.key_press('a')
 
         def run() -> str:
-            terminal.inject(event)
-            terminal.loop.advance(1 / 60)
+            terminal.push(event)
+            terminal.step(delta_seconds=1 / 60)
             return str(seen[0])
 
         return run
@@ -995,14 +995,12 @@ def cases() -> list[Case]:
         volume: int = 0
 
     def state_to_frame() -> Callable[[], object]:
-        terminal = xnano.open(
-            offscreen=True, width=WIDTH, height=HEIGHT, state=Settings()
-        )
+        terminal = xnano.new(width=WIDTH, height=HEIGHT, state=Settings())
 
         def volume(state: Settings) -> int:
             return state.volume
 
-        reference = terminal.ref(volume)
+        reference = terminal.state_reference(volume)
         bar = terminal.write(Gauge(reference.number / 100, width=60, height=1))
         assert bar
         counter = [0]
@@ -1010,7 +1008,7 @@ def cases() -> list[Case]:
         def run() -> str:
             counter[0] += 1
             terminal.state.volume = counter[0] % 100
-            terminal.loop.advance(1 / 60)
+            terminal.step(delta_seconds=1 / 60)
             return terminal.output.snapshot().ansi
 
         return run
@@ -1096,7 +1094,7 @@ def _xnano_panel() -> str:
 
 
 def _open_close_xnano() -> str:
-    with xnano.open(offscreen=True, width=WIDTH, height=HEIGHT) as terminal:
+    with xnano.new(width=WIDTH, height=HEIGHT) as terminal:
         terminal.write('hello')
         return terminal.output.render().ansi
 

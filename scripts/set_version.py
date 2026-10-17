@@ -19,13 +19,14 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_MANIFEST = ROOT / "Cargo.toml"
 ROOT_PYPROJECT = ROOT / "pyproject.toml"
 DOCS_DIR = ROOT / "docs"
+LEGACY_DOCS_DIR = DOCS_DIR / "v1"
 CRATES = {
     "xnano-core": ROOT / "crates/xnano-terminal-core/Cargo.toml",
     "xnano-audio": ROOT / "crates/xnano-terminal-audio/Cargo.toml",
     "xnano-image": ROOT / "crates/xnano-terminal-image/Cargo.toml",
 }
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.\d+)?$")
-MARKDOWN_PIN_RE = re.compile(r"(?P<quote>['\"])xnano>=[^'\"]+(?P=quote)")
+MARKDOWN_PIN_RE = re.compile(r"(?P<quote>['\"])xnano>=[^'\",]+(?P=quote)")
 AUTO_START = "# [! AUTO-VERSIONING - DO NOT EDIT THIS BY HAND]"
 AUTO_END = "# [! END AUTO-VERSIONING]"
 
@@ -163,12 +164,19 @@ def expected_pyproject() -> str:
 
 
 def markdown_pin_paths() -> list[Path]:
-    """Return README/docs Markdown files containing an xnano install pin."""
+    """
+    Return README/docs Markdown files containing an xnano install pin to keep current.
+
+    A pin with an upper bound (``xnano>=1.2.3,<2``) is a pin to an older major version and
+    is never matched, and the legacy ``docs/v1`` pages are never searched.
+    """
     candidates = [ROOT / "README.md", *DOCS_DIR.rglob("*.md")]
     return [
         path
         for path in candidates
-        if path.is_file() and MARKDOWN_PIN_RE.search(path.read_text(encoding="utf-8"))
+        if path.is_file()
+        and LEGACY_DOCS_DIR not in path.parents
+        and MARKDOWN_PIN_RE.search(path.read_text(encoding="utf-8"))
     ]
 
 

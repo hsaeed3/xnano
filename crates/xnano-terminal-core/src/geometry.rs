@@ -350,10 +350,10 @@ impl PyRectangle {
         }
     }
 
-    #[pyo3(signature = (horizontal = 0, vertical = 0))]
-    fn translate(&self, horizontal: i32, vertical: i32) -> Self {
+    #[pyo3(signature = (x = 0, y = 0))]
+    fn translate(&self, x: i32, y: i32) -> Self {
         Self {
-            inner: self.inner.translate(horizontal, vertical),
+            inner: self.inner.translate(x, y),
         }
     }
 

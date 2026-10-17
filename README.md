@@ -22,6 +22,49 @@
 
 ## Quick start
 
+Build the pieces first, from the inside out. Each is a value that needs no screen; visual values
+render on their own, and notes need no sound device until they are played:
+
+```python
+import xnano
+
+card = xnano.write('Hello, world!', border='rounded', padding={'horizontal': 2})
+heart = xnano.draw(
+    """
+    .RR.RR.
+    RRRRRRR
+    .RRRRR.
+    ..RRR..
+    ...R...
+    """,
+    'R=#e03040',
+)
+bell = xnano.note('C5', instrument='bell')  # played with `pip install "xnano[audio]"`
+
+print(card.render())
+```
+
+A canvas is a virtual terminal: a size, a clock, hooks, a cursor, sound and state, with no screen.
+Write the values onto it, move its time yourself, and print what it drew. The same canvas can then be
+put on your screen:
+
+```python
+import xnano
+
+card = xnano.write('Hello, world!', border='rounded', padding={'horizontal': 2})
+
+with xnano.new(width=40, height=6) as canvas:
+    canvas.write(card, x='center')
+    for frame in canvas.iter(count=3):  # three frames of a clock that you move
+        pass
+    print(canvas.render())
+    canvas.open()  # the same canvas, now a xnano.Terminal on your screen
+    canvas.run(quit_on='q')
+```
+
+Everything you write can move, and every position and size can be a number, a word such as
+`'center'`, or a formula of time or of the canvas's size. Hooks react to what happens:
+
 ```python
 import xnano
 from xnano.context import Context
@@ -32,24 +75,27 @@ with xnano.open(width=40, height=5) as terminal:
     ball = terminal.write('●', y=4)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)  # a formula, evaluated every frame
 
-    @terminal.on_key('space')
+    @terminal.hook(on='key', keys='space')
     def toggle(context: Context) -> None:
-        if terminal.time.is_paused:
-            terminal.time.resume()
+        if context.time.is_stopped:
+            context.canvas.resume()
         else:
-            terminal.time.pause()
+            context.canvas.stop()
 
     terminal.run(quit_on='q')
 ```
 
-`xnano.open()` gives you a terminal. You `write` text, widgets, images and pixels to it, and every
-position and size can be a number, a word such as `'center'`, or a formula of time or of the
-terminal's size. Decorators named for what happens (`on_key`, `on_click`, `every`, `after`)
-react, `terminal.input` tells a game which keys are held, `terminal.scene()` gives pixel-art
-worlds a camera and collision, and `terminal.play('C4 E4 G4:2')` plays a melody written as text.
-There are no base classes to subclass and no layout tree to declare.
+`xnano.open()` is `xnano.new()` on your screen. `hook(on='frame' | 'tick' | 'beat' | 'key' |
+'mouse' | 'scroll' | 'drag' | 'paste' | 'focus' | 'resize' | 'state' | 'custom', ...)` takes a
+condition as a string (`when="mouse.position in buffer.region"`), an expression or a function,
+and a generator hook waits for the next event with `context = yield`. `@xnano.renderable` turns a
+function into a component that is drawn again only when it read something that changes, and
+`@xnano.playable` into one that plays a new result when what it read changes. `xnano.draw` makes
+pixel art with a camera and collision, `xnano.play('C4 E4 G4:2')` plays a melody written as text,
+and `canvas.state` keeps values that hooks follow. There are no base classes to subclass and no
+layout tree to declare.
 
-The [`examples/`](./examples) folder has twenty-one runnable programs, from hello world to a
+The [`examples/`](./examples) folder has thirty-one runnable programs, from hello world to a
 playable pixel-art world, and `examples/README.md` shows what each one draws.
 
 ## See it
@@ -80,7 +126,7 @@ edges; give it a number and it is locked. The thumbnail in the corner is locked
 
 ### Pixel art written as text
 
-`from_art` turns a block of characters and a short palette into an image
+`xnano.draw` turns a block of characters and a short palette into pixel art
 ([`23_sprites.py`](./examples/23_sprites.py)).
 
 ![Sprites written as text](./docs/assets/readme/sprites.png)
@@ -131,15 +177,16 @@ metapackage that holds the terminal API. The backends can also be installed on t
 
 | Distribution | Import | Purpose |
 | --- | --- | --- |
-| [`xnano`](.) | `xnano` | The terminal API: `open`, placements, hooks, input, pixels, scenes and sound. |
+| [`xnano`](.) | `xnano` | The terminal API: `new`, `open`, placements, hooks, components, input, regions, art and sound. |
 | [`xnano-core`](./packages/xnano-core) | `xnano_core` | The Rust-backed engine: buffers, widgets, layout, state, input, runtime and effects. |
 | [`xnano-audio`](./packages/xnano-audio) | `xnano_audio` | Audio synthesis, playback, capture and beat-based melodies. |
 | [`xnano-image`](./packages/xnano-image) | `xnano_image` | Image and animation decoding, processing and terminal-cell conversion. |
 
 Names live in modules named for what they hold, so the top-level `xnano` stays small:
 `xnano.widgets`, `xnano.expressions`, `xnano.effects`, `xnano.operations`, `xnano.styles`,
-`xnano.events`, `xnano.geometry`, `xnano.buffers`, `xnano.scene`, `xnano.types` and
-`xnano.errors`, plus the optional `xnano.audio` and `xnano.image`.
+`xnano.events`, `xnano.geometry`, `xnano.buffers`, `xnano.art`, `xnano.region`, `xnano.pixel`,
+`xnano.appearance`, `xnano.components`, `xnano.symbols`, `xnano.types` and `xnano.errors`, plus the
+optional `xnano.audio` and `xnano.image`.
 
 ## xnano v1
 

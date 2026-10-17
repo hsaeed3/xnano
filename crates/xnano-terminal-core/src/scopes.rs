@@ -97,7 +97,7 @@ scope!(
 scope!(
     PyBufferScope,
     "BufferExpressionScope",
-    &["x", "y", "position", "width", "height", "size"],
+    &["x", "y", "position", "width", "height", "size", "region"],
     {
         x => "X",
         y => "Y",
@@ -105,22 +105,58 @@ scope!(
         width => "Width",
         height => "Height",
         size => "BufferSize",
+        region => "BufferRegion",
     }
 );
+
+scope!(
+    PyKeyboardScope,
+    "KeyboardExpressionScope",
+    &["key", "kind", "chord"],
+    {
+        key => "KeyboardKey",
+        kind => "KeyboardKind",
+        chord => "KeyboardChord",
+    }
+);
+
+scope!(
+    PyMouseScope,
+    "MouseExpressionScope",
+    &["position", "button", "kind", "is_down"],
+    {
+        position => "MousePosition",
+        button => "MouseButtonValue",
+        kind => "MouseKind",
+        is_down => "MouseIsDown",
+    }
+);
+
+scope!(PyScrollScope, "ScrollExpressionScope", &["x", "y"], {
+    x => "ScrollX",
+    y => "ScrollY",
+});
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyExpressionScope>()?;
     m.add_class::<PyParentScope>()?;
     m.add_class::<PyRootScope>()?;
     m.add_class::<PyBufferScope>()?;
+    m.add_class::<PyKeyboardScope>()?;
+    m.add_class::<PyMouseScope>()?;
+    m.add_class::<PyScrollScope>()?;
     Ok(())
 }
 
-/// Add the `ParentScope`, `RootScope` and `BufferScope` objects to the module.
+/// Add the `ParentScope`, `RootScope`, `BufferScope`, `KeyboardScope`, `MouseScope` and
+/// `ScrollScope` objects to the module.
 pub fn add_scopes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();
     m.add("ParentScope", PyParentScope::instance(py)?)?;
     m.add("RootScope", PyRootScope::instance(py)?)?;
     m.add("BufferScope", PyBufferScope::instance(py)?)?;
+    m.add("KeyboardScope", PyKeyboardScope::instance(py)?)?;
+    m.add("MouseScope", PyMouseScope::instance(py)?)?;
+    m.add("ScrollScope", PyScrollScope::instance(py)?)?;
     Ok(())
 }

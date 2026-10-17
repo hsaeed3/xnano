@@ -57,14 +57,14 @@ classifiers = [
 # [pyproject.toml](https://github.com/pydantic/monty/blob/main/packages/pydantic-monty/pyproject.toml),
 #
 # [! AUTO-VERSIONING - DO NOT EDIT THIS BY HAND]
-version = '2.0.0b3'
+version = '2.0.0b4'
 dependencies = [
-    "xnano-core>=2.0.0b3",
+    "xnano-core>=2.0.0b4",
 ]
 
 [project.optional-dependencies]
 audio = [
-    "xnano-audio>=0.2.0,<0.3",
+    "xnano-audio>=0.3.0,<0.4",
 ]
 image = [
     "xnano-image>=0.2.0,<0.3",
@@ -112,8 +112,8 @@ compare = [
 
 [tool.codespell]
 # `ratatui` and `iTerm2` are proper names; the rest are intentional identifiers
-# (a `shft` key alias, a fraction's `numer`ator, the `NotIn` AST node, ...).
-ignore-words-list = 'ratatui,iterm,shft,numer,nd,abd,notin,trough'
+# (a `shft` key alias, a fraction's `numer`ator, the `NotIn` AST node, a text cut one cell short in a test, ...).
+ignore-words-list = 'ratatui,iterm,shft,numer,nd,abd,notin,trough,insid'
 
 [tool.coverage.run]
 source = ['xnano', 'xnano_core', 'xnano_audio', 'xnano_image']

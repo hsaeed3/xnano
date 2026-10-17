@@ -1,6 +1,7 @@
 """Device-free tests: instruments, notes and effects render to plain samples."""
 
 import math
+from typing import Any, cast
 
 import pytest
 
@@ -441,3 +442,168 @@ def test_sample_bytes_round_trip():
 def test_custom_samples_are_validated(build):
     with pytest.raises(ValueError):
         build()
+
+
+# --------------------------------------------------------------------- mix
+
+
+def tone(value: float, samples: int, sample_rate: int = 44100) -> TerminalSound:
+    return TerminalSound.from_samples([value] * samples, sample_rate=sample_rate)
+
+
+def test_mix_places_each_layer_at_its_offset():
+    rate = 8000
+    mixed = TerminalSound.mix(
+        [(tone(0.25, 4000, rate), 0.0, 1.0), (tone(0.5, 2000, rate), 0.25, 1.0)],
+        duration_seconds=1.0,
+        sample_rate=rate,
+    )
+    data = mixed.samples()
+    assert len(data) == rate and mixed.sample_rate == rate
+    assert data[0] == pytest.approx(0.25) and data[1999] == pytest.approx(0.25)
+    assert data[2000] == pytest.approx(0.75) and data[3999] == pytest.approx(0.75)
+    assert data[4000] == 0.0 and data[-1] == 0.0
+
+
+def test_mix_applies_gain_and_limits_the_sum():
+    rate = 8000
+    loud = tone(0.9, 800, rate)
+    mixed = TerminalSound.mix(
+        [(loud, 0.0, 1.0), (loud, 0.0, 1.0), (loud, 0.0, 0.5)],
+        duration_seconds=0.1,
+        sample_rate=rate,
+    )
+    assert max(mixed.samples()) == 1.0 and mixed.peak == 1.0
+    negative = TerminalSound.mix(
+        [(tone(-0.9, 800, rate), 0.0, 2.0)], duration_seconds=0.1, sample_rate=rate
+    )
+    assert min(negative.samples()) == -1.0
+    silent = TerminalSound.mix([(loud, 0.0, 0.0)], duration_seconds=0.1, sample_rate=rate)
+    assert silent.peak == 0.0
+
+
+def test_mix_cuts_layers_at_the_edges_of_the_window():
+    rate = 8000
+    ramp = TerminalSound.from_samples(
+        [index / 8000 for index in range(8000)], sample_rate=rate
+    )
+    window = TerminalSound.mix(
+        [(ramp, 0.0, 1.0)], duration_seconds=0.25, start_seconds=0.5, sample_rate=rate
+    )
+    data = window.samples()
+    assert len(data) == 2000
+    assert data[0] == pytest.approx(0.5) and data[-1] == pytest.approx(5999 / 8000)
+    early = TerminalSound.mix(
+        [(ramp, 0.5, 1.0)], duration_seconds=0.25, start_seconds=0.0, sample_rate=rate
+    )
+    assert early.peak == 0.0, 'a layer that starts after the window adds nothing'
+    ended = TerminalSound.mix(
+        [(ramp, -2.0, 1.0)], duration_seconds=0.25, start_seconds=0.0, sample_rate=rate
+    )
+    assert ended.peak == 0.0, 'a layer that ended before the window adds nothing'
+    running = TerminalSound.mix(
+        [(ramp, -0.5, 1.0)], duration_seconds=0.25, start_seconds=0.0, sample_rate=rate
+    )
+    assert running.samples()[0] == pytest.approx(0.5)
+
+
+def test_mix_drops_layers_that_land_far_outside_the_window():
+    rate = 8000
+    note = TerminalSound.from_samples([0.5] * 800, sample_rate=rate)
+    far_before = TerminalSound.mix(
+        [(note, -1e15, 1.0)], duration_seconds=0.25, sample_rate=rate
+    )
+    assert len(far_before) == 2000 and far_before.peak == 0.0
+    far_after = TerminalSound.mix(
+        [(note, 0.0, 1.0)], duration_seconds=0.25, start_seconds=1e300, sample_rate=rate
+    )
+    assert far_after.peak == 0.0
+    far_ahead = TerminalSound.mix(
+        [(note, 1e15, 1.0)], duration_seconds=0.25, sample_rate=rate
+    )
+    assert far_ahead.peak == 0.0
+
+
+def test_mix_of_no_layers_is_silence_of_the_requested_length():
+    silence = TerminalSound.mix([], duration_seconds=0.5)
+    assert len(silence) == 22050 and silence.peak == 0.0
+    assert silence.sample_rate == 44100
+
+
+def test_mix_matches_a_note_rendered_alone():
+    note = render_note('piano', 'C4', duration_milliseconds=300)
+    alone = TerminalSound.mix(
+        [(note, 0.0, 1.0)], duration_seconds=note.duration_milliseconds / 1000
+    )
+    assert alone.samples() == pytest.approx(note.samples())
+
+
+@pytest.mark.parametrize(
+    ('layers', 'keywords', 'message'),
+    [
+        ([], {'duration_seconds': 0.0}, 'duration_seconds'),
+        ([], {'duration_seconds': -1.0}, 'duration_seconds'),
+        ([], {'duration_seconds': float('nan')}, 'duration_seconds'),
+        ([], {'duration_seconds': 4000.0}, 'at most 3600'),
+        ([], {'duration_seconds': 1e-9}, 'shorter than one sample'),
+        ([], {'duration_seconds': 1.0, 'sample_rate': 100}, 'sample_rate'),
+        ([], {'duration_seconds': 1.0, 'start_seconds': float('inf')}, 'start_seconds'),
+        ([(tone(0.1, 10, 8000), 0.0, 1.0)], {'duration_seconds': 1.0}, 'Hz'),
+        (
+            [(tone(0.1, 10), float('nan'), 1.0)],
+            {'duration_seconds': 1.0},
+            'offset_seconds',
+        ),
+        ([(tone(0.1, 10), 0.0, -1.0)], {'duration_seconds': 1.0}, 'gain'),
+        ([(tone(0.1, 10), 0.0, float('inf'))], {'duration_seconds': 1.0}, 'gain'),
+        ([(tone(0.1, 10), 0.0, 1000.5)], {'duration_seconds': 1.0}, 'from 0.0 to 1000.0'),
+        ([(tone(0.1, 10), 0.0, 1e300)], {'duration_seconds': 1.0}, 'from 0.0 to 1000.0'),
+        (
+            [],
+            {'duration_seconds': 3600.0, 'sample_rate': 192000},
+            r'at most 172800000 samples.*Shorten the window, lower sample_rate',
+        ),
+    ],
+)
+def test_mix_refuses_bad_arguments_and_says_what_to_pass(layers, keywords, message):
+    with pytest.raises(ValueError, match=message):
+        TerminalSound.mix(layers, **keywords)
+
+
+def test_mix_takes_its_window_by_keyword_and_layers_as_tuples():
+    with pytest.raises(TypeError):
+        cast(Any, TerminalSound.mix)([], 1.0)
+    with pytest.raises(
+        TypeError, match=r'layer 0 is a TerminalSound on its own.*\(sound, 0\.0, 1\.0\)'
+    ):
+        TerminalSound.mix([tone(0.1, 10)], duration_seconds=1.0)  # type: ignore[list-item]
+    with pytest.raises(ValueError, match=r'layer 0 has 2 values.*offset_seconds, gain'):
+        TerminalSound.mix([(tone(0.1, 10), 0.0)], duration_seconds=1.0)  # type: ignore[list-item]
+    with pytest.raises(TypeError, match=r'first value of layer 0 is a str'):
+        TerminalSound.mix([('x', 0.0, 1.0)], duration_seconds=1.0)  # type: ignore[list-item]
+    with pytest.raises(TypeError, match=r'offset_seconds of layer 0 must be a number'):
+        TerminalSound.mix([(tone(0.1, 10), 'soon', 1.0)], duration_seconds=1.0)  # type: ignore[list-item]
+    with pytest.raises(TypeError, match=r'sequence of \(sound, offset_seconds, gain\)'):
+        TerminalSound.mix(5, duration_seconds=1.0)  # type: ignore[arg-type]
+
+
+def test_mix_accepts_the_largest_gain_without_producing_invalid_samples():
+    rate = 8000
+    mixed = TerminalSound.mix(
+        [(tone(0.5, 800, rate), 0.0, 1000.0), (tone(-0.5, 800, rate), 0.0, 1000.0)],
+        duration_seconds=0.2,
+        sample_rate=rate,
+    )
+    assert not any(math.isnan(sample) for sample in mixed.samples()), (
+        'no NaN reaches the mix'
+    )
+    assert mixed.peak == 0.0
+    clipped = TerminalSound.mix(
+        [(tone(0.5, 800, rate), 0.0, 1000.0)], duration_seconds=0.1, sample_rate=rate
+    )
+    assert clipped.peak == 1.0
+
+
+def test_mix_accepts_a_window_within_the_sample_limit():
+    mixed = TerminalSound.mix([], duration_seconds=1.0, sample_rate=48000)
+    assert len(mixed) == 48000 and mixed.peak == 0.0

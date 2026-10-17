@@ -3,7 +3,7 @@ xnano.widgets
 
 Widgets that draw themselves: text, tables, charts, gauges, canvases and lists.
 
-A widget is a description of something to draw. Pass one to [`Terminal.write`][xnano.terminal.Terminal.write]
+A widget is a description of something to draw. Pass one to [`Canvas.write`][xnano.canvas.Canvas.write]
 or draw it into a [`Buffer`][xnano.buffers.Buffer]; every number and text in it can be an
 [`Expression`][xnano.expressions.Expression] that is evaluated again on each frame.
 """

@@ -393,6 +393,55 @@ class TerminalSound:
                 [`TerminalAudioEffect`][xnano_audio.TerminalAudioEffect].
         """
     # Rust binding
+    @staticmethod
+    def mix(
+        layers: Sequence[tuple[TerminalSound, float, float]],
+        *,
+        duration_seconds: float,
+        start_seconds: float = 0.0,
+        sample_rate: int = 44100,
+    ) -> TerminalSound:
+        """
+        Mix sounds placed on a timeline into one sound.
+
+        The result is the part of the timeline from ``start_seconds`` for
+        ``duration_seconds``. Each layer is added at its offset, multiplied by its gain, and
+        the sum is limited to -1.0 to 1.0. A layer that starts before the window is cut at
+        the window's start, and one that runs past its end is cut there. The GIL is released
+        while mixing.
+
+        Args:
+            layers: ``(sound, offset_seconds, gain)`` tuples. ``offset_seconds`` is where on the
+                timeline the sound begins (it may be negative or before ``start_seconds``) and
+                ``gain`` is a factor of 0.0 or more.
+            duration_seconds: The length of the mixed sound, above 0 and at most 3600.
+            start_seconds: The time on the timeline where the mixed sound begins.
+            sample_rate: Samples per second, 8000 to 192000. Every layer must have been
+                rendered at this rate.
+
+        Raises:
+            ValueError: If ``duration_seconds`` or ``sample_rate`` is out of range, the window
+                holds more than 172800000 samples or cannot be allocated, a layer does not have
+                exactly three values, an offset is not finite, a gain is not a finite number from
+                0.0 to 1000.0, or a layer was rendered at a different sample rate.
+            TypeError: If ``layers`` is not a sequence of ``(sound, offset_seconds, gain)``
+                tuples, or an offset or gain is not a number.
+
+        Examples:
+            ```python
+            beat = render_note("kick", "C2")
+            note = render_note("sine", "A4", duration_milliseconds=500)
+            window = TerminalSound.mix(
+                [(beat, 0.0, 1.0), (note, 0.5, 0.5)],
+                duration_seconds=1.0,
+            )
+            assert window.duration_milliseconds == 1000.0
+            assert window.peak <= 1.0
+            quiet = TerminalSound.mix([(note, 0.0, 0.0)], duration_seconds=0.25)
+            assert quiet.peak == 0.0
+            ```
+        """
+    # Rust binding
     def add(self, *effects: AudioEffectSource) -> TerminalSound:
         """
         Apply one or more audio effects (or effect chains) in order and return the new sound.

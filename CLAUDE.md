@@ -48,7 +48,7 @@ Package-level commands (run inside a `packages/<name>` directory) add the follow
 
 ### Benchmarks, CPU & Memory Logging
 
-Benchmarks live in `packages/<name>/benchmarks/` and run against an optimized build (`make benchmark` per package, `make benchmark-all` at the root). `pytest --resource-log` (also `--resource-log-json PATH`, `--resource-log-top COUNT`, `--resource-log-python-memory`) records the wall time, CPU time and resident-memory growth of every test or benchmark; the plugin is `scripts/resource_logging.py`, registered from each suite's `conftest.py`.
+Benchmarks live in `packages/<name>/benchmarks/`, and those of the `xnano` package itself in the root `benchmarks/`; they run against an optimized build (`make benchmark` per package, `make benchmark-xnano` for the root ones, `make benchmark-all` for all of them). `pytest --resource-log` (also `--resource-log-json PATH`, `--resource-log-top COUNT`, `--resource-log-python-memory`) records the wall time, CPU time and resident-memory growth of every test or benchmark; the plugin is `scripts/resource_logging.py`, registered from each suite's `conftest.py`.
 
 A benchmark must assert on its result, must not time an identical operation on identical input twice in a row when the second call can take a shortcut, sets `rounds` explicitly with `benchmark.pedantic` when the first call is faster than the rest, times a widget change together with the frame that draws it, and keeps setup out of the timed call. See `CONTRIBUTING.md` for the details.
 
@@ -58,7 +58,7 @@ A benchmark must assert on its result, must not time an identical operation on i
 
 ### Testing a Live Terminal
 
-`tests/test_live_terminal.py` runs real programs on a pseudo-terminal and reads their screen through `tests/emulator.py`, which wraps the `pyte` terminal emulator. The emulator answers the terminal's own questions (cursor position, attributes), so a test sees what a user sees: text on the screen, colors, the cursor, a region below a shell prompt. It also sends keys, mouse reports, pastes and window resizes. Use it for anything that touches the live path; the offscreen terminal cannot catch bugs in how a frame reaches a real screen.
+`tests/test_live_terminal.py` runs real programs on a pseudo-terminal and reads their screen through `tests/emulator.py`, which wraps the `pyte` terminal emulator. The emulator answers the terminal's own questions (cursor position, attributes), so a test sees what a user sees: text on the screen, colors, the cursor, a region below a shell prompt. It also sends keys, mouse reports, pastes and window resizes. Use it for anything that touches the live path; a canvas from `xnano.new()` (which has no screen) cannot catch bugs in how a frame reaches a real screen.
 
 ### Examples
 
@@ -204,6 +204,7 @@ Apply the rules below to every name, signature, type, error, and docstring you w
 - Never abbreviate: public or private names, parameters, variables, modules, and types alike. `FunctionReference` not `FunctionRef`, `Configuration` not `Config`, `Attribute` not `Attr`, `Context` not `Ctx`, `Message` not `Msg`, `Parameters` not `Params`, `Directory` not `Dir`, `Index` not `Idx`, `Application` not `App`.
 - A short form being conventional elsewhere is not a reason to use it here.
 - The only accepted short forms are standard acronyms with no longer form in everyday use: `URL`, `HTTP`, `API`, `CLI`, `TUI`, `HTML`, `CSS`, `JSON`, `UUID`, `UTF8`, `IO`, `id`.
+- The other accepted short forms are `fg` and `bg` (the foreground and background slots of `color`), `fps` (frames per second), `bpm` (beats per minute), `deps` (dependencies: `deps=`, `context.deps`, `requires_deps`) and `fx` (effects: `context.fx`). They are written exactly like this everywhere: `realtime` and `scroll` are whole words, and a new abbreviation is not added to this list without a decision from the maintainer.
 - No single-letter names, including loop and comprehension variables. Use `index`, `item`, `row`, `column`.
 - Booleans read as questions: `is_visible`, `has_focus`, `should_wrap`.
 - Before introducing any name, check it for abbreviations. If it has one, rewrite it now, not later.

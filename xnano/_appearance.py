@@ -7,14 +7,17 @@ How a text placement or canvas looks: colors, text modifiers, border, title, pad
 from __future__ import annotations
 
 import dataclasses
-from typing import TypeAlias, TypedDict
+import math
+from typing import Final, TypeAlias, TypedDict, cast
 
 import xnano_core as _core
 from xnano._values import ColorValue
 
 __all__ = [
     'APPEARANCE_NAMES',
+    'INHERIT',
     'Appearance',
+    'BorderSideSpecification',
     'Spacing',
     'SpacingDictionary',
     'resolve_spacing',
@@ -74,26 +77,62 @@ bottom edges, read when the spacing is applied.
 """
 
 
+def _refuse_negative(value: float, name: str, *, shown: object = None) -> None:
+    """Refuse a space that is less than nothing, or that is not a number of cells."""
+    if value < 0 or (isinstance(value, float) and not math.isfinite(value)):
+        keyword = name.split('[')[0]
+        raise ValueError(
+            f'{name} must be zero or more and finite, but got '
+            f'{value if shown is None else shown!r}. '
+            f'Pass {keyword}=0 for no space.'
+        )
+
+
+MOST_CELLS: Final = 65535
+
+
+def _within_cells(cells: int, name: str, shown: object) -> int:
+    """Return ``cells`` when a buffer can hold that much space."""
+    if cells > MOST_CELLS:
+        keyword = name.split('[')[0]
+        raise ValueError(
+            f'{name} must be at most {MOST_CELLS} cells, but got {shown!r}. Pass a smaller '
+            f'space, such as {keyword}=2.'
+        )
+    return cells
+
+
+def _scaled_cells(available: int, factor: float) -> int:
+    """Return ``available * factor`` in cells, or more than a buffer holds if it overflows."""
+    product = available * factor
+    if not math.isfinite(product) or product > MOST_CELLS:
+        return MOST_CELLS + 1
+    return round(product)
+
+
 def _cells(value: object, available: int, name: str) -> int:
+    keyword = name.split('[')[0]
     if isinstance(value, bool):
         raise TypeError(
             f'{name} must be a whole number of cells, a float or a percentage string, but '
-            f'got {value!r}. Pass padding=1, padding=0.1 or padding="10%".'
+            f'got {value!r}. Pass {keyword}=1, {keyword}=0.1 or {keyword}="10%".'
         )
-    if isinstance(value, int):
-        return max(0, value)
-    if isinstance(value, float):
-        return max(0, round(available * value))
+    if isinstance(value, (int, float)):
+        _refuse_negative(value, name)
+        if isinstance(value, int):
+            return _within_cells(value, name, value)
+        return _within_cells(_scaled_cells(available, value), name, value)
     if isinstance(value, str) and value.strip().endswith('%'):
         try:
             share = float(value.strip()[:-1]) / 100.0
         except ValueError:
             share = None
         if share is not None:
-            return max(0, round(available * share))
+            _refuse_negative(share, name, shown=value)
+            return _within_cells(_scaled_cells(available, share), name, value)
     raise TypeError(
         f'{name} must be a whole number of cells, a float or a percentage string, but got '
-        f'{value!r}. Pass padding=1, padding=0.1 or padding="10%".'
+        f'{value!r}. Pass {keyword}=1, {keyword}=0.1 or {keyword}="10%".'
     )
 
 
@@ -147,9 +186,60 @@ def resolve_spacing(
     )
 
 
+def check_border_kind(border: object) -> None:
+    """
+    Refuse a border that is not a kind, a ``bool`` or ``None``.
+
+    Raises:
+        ValueError: The border is not one of ``'plain'``, ``'rounded'``, ``'double'`` or
+            ``'thick'``.
+    """
+    if border is None or isinstance(border, bool):
+        return
+    if border not in ('plain', 'rounded', 'double', 'thick'):
+        raise ValueError(
+            f'{border!r} is not a border kind. Use "plain", "rounded", "double" or '
+            f'"thick", True for "plain", or False to remove the border.'
+        )
+
+
+INHERIT: Final = object()
+"""Marks a border side that takes the kind of the whole border."""
+
+
+@dataclasses.dataclass(slots=True)
+class BorderSideSpecification:
+    """
+    What one side of a border does differently from the others.
+
+    Attributes:
+        kind: The kind of line on this side, ``None`` when the side is not drawn, or
+            ``INHERIT`` for the kind of the whole border.
+        color: The color of this side, or ``None`` for the border's own color.
+    """
+
+    kind: object = INHERIT
+    color: ColorValue | None = None
+
+
 def _snapshot(buffer: _core.Buffer) -> _core.Buffer:
     """Copy what a buffer shows into a buffer of plain cells."""
     return _core.Buffer.from_cell_grid(buffer.to_cell_grid())
+
+
+_BOOLEAN_FIELDS: Final = frozenset(
+    {
+        'is_bold',
+        'is_dim',
+        'is_italic',
+        'is_underlined',
+        'is_blinking',
+        'is_reversed',
+        'is_hidden',
+        'is_crossed_out',
+    }
+)
+_STYLE_FIELDS: Final = frozenset({'style', 'border_style'})
 
 
 @dataclasses.dataclass(slots=True)
@@ -171,7 +261,7 @@ class Appearance:
         is_hidden: Whether the text is hidden.
         is_crossed_out: Whether the text is struck through.
         title: A title on the border.
-        border: The kind of border: ``'plain'``, ``'rounded'``, ``'double'`` or ``'thick'``.
+        border: The kind of border, a [`BorderKind`][xnano.types.BorderKind] such as ``'plain'``.
         border_style: The style of the border.
         padding: Space between the border and the text.
         margin: Space outside the border.
@@ -194,6 +284,86 @@ class Appearance:
     border_style: _core.Style | None = None
     padding: Spacing | None = None
     margin: Spacing | None = None
+    sides: dict[str, BorderSideSpecification] = dataclasses.field(default_factory=dict)
+    revision: int = 0
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """Set a field, refusing a value of the wrong type and leaving the field as it was."""
+        if name in _BOOLEAN_FIELDS:
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f'{name} must be True or False, but got {value!r}. Pass {name}=True '
+                    f'to turn it on, or {name}=False to turn it off.'
+                )
+        elif name in _STYLE_FIELDS:
+            if value is not None and not isinstance(
+                value, (_core.Style, _core.DynamicStyle)
+            ):
+                raise TypeError(
+                    f'{name} must be a Style or None, but got {value!r}. Pass a style such '
+                    f'as {name}=Style(foreground="red"), or None for none.'
+                )
+        elif name in ('foreground', 'background'):
+            if value is not None and not isinstance(value, _core.Color):
+                try:
+                    _core.Color(value)  # type: ignore[arg-type]
+                except (TypeError, ValueError) as error:
+                    raise type(error)(
+                        f'{name} must be a color, but got {value!r}: '
+                        f'{str(error).rstrip(".")}.'
+                    ) from None
+        elif name == 'title':
+            if value is not None and not isinstance(value, str):
+                raise TypeError(
+                    f'title must be text or None, but got {value!r}. Pass a string such '
+                    f'as title="Menu", or None for no title.'
+                )
+            if value is not None and ('\n' in value or '\r' in value):
+                raise ValueError(
+                    f'title must be a single line, but got {value!r}. Pass a title without '
+                    f'line breaks, such as title="Menu".'
+                )
+        elif name == 'text' and not isinstance(value, str):
+            raise TypeError(
+                f'text must be a string, but got {value!r}. Pass text such as "hello", '
+                f'and join lines with newlines.'
+            )
+        object.__setattr__(self, name, value)
+
+    @property
+    def base_border_kind(self) -> _core.BorderKind | None:
+        """The kind of border the sides share unless they say otherwise."""
+        if self.border is not None:
+            return self.border
+        if self.title is not None or self.border_style is not None:
+            return 'plain'
+        return None
+
+    def drawn_sides(self) -> dict[str, tuple[_core.BorderKind, ColorValue | None]]:
+        """The sides that are drawn, by name, with their kind and own color."""
+        drawn: dict[str, tuple[_core.BorderKind, ColorValue | None]] = {}
+        base = self.base_border_kind
+        for name in ('top', 'right', 'bottom', 'left'):
+            specification = self.sides.get(name)
+            kind = (
+                base
+                if specification is None or specification.kind is INHERIT
+                else specification.kind
+            )
+            if kind is not None:
+                drawn[name] = (
+                    cast('_core.BorderKind', kind),
+                    None if specification is None else specification.color,
+                )
+        return drawn
+
+    def text_buffer(self) -> _core.Buffer:
+        """The text with its colors and modifiers, without border, padding or margin."""
+        buffer = _core.Buffer.with_text(self.text)
+        style = self.text_style()
+        if style is not None:
+            buffer.update(_core.ApplyStyle(style))
+        return buffer
 
     @property
     def has_style(self) -> bool:

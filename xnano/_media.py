@@ -8,24 +8,31 @@ from __future__ import annotations
 
 import array
 import dataclasses
+import inspect
 import io
 import math
 import os
 import pathlib
 import sys
 import wave
-from typing import TYPE_CHECKING, Literal, TypedDict, cast
+import weakref
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
+from xnano import symbols
+from xnano._axes import to_rgb
 from xnano._optional import is_image, require
-from xnano._values import Axis, Content, Renderable
+from xnano._values import Axis, ColorValue, Content
+from xnano.errors import TerminalError
 
 if TYPE_CHECKING:
     from types import ModuleType
 
-    from typing_extensions import Unpack
     from xnano_audio import TerminalSound
     from xnano_image import TerminalImage
+
+    from xnano.context import Context
 
 __all__ = [
     'Audio',
@@ -33,8 +40,9 @@ __all__ = [
     'ImageAnimation',
     'ImageSource',
     'content_buffer',
+    'from_audio',
+    'from_image',
     'image_buffer',
-    'from_media',
 ]
 
 _PIXELS_PER_CELL_ROW = 2
@@ -161,6 +169,19 @@ def _fitted_size(image: TerminalImage, limit: _core.Size | None) -> tuple[int, i
     return columns, rows
 
 
+class _NotRenderable(TypeError):
+    """Raised for content that cannot be shown; remembers the offending object."""
+
+    def __init__(self, message: str, content: object) -> None:
+        """Remember the message and the content that cannot be shown."""
+        super().__init__(message)
+        self.content = content
+
+
+_MAXIMUM_RENDER_DEPTH = 8
+"""How many times a result may itself be something that renders, before it is a cycle."""
+
+
 def content_buffer(
     content: Content,
     *,
@@ -168,76 +189,235 @@ def content_buffer(
     rows: int | None = None,
     limit: _core.Size | None = None,
     elapsed_seconds: float = 0.0,
+    context: Context[object, object] | None = None,
 ) -> tuple[_core.Buffer, ImageAnimation | None]:
     """
     Return the buffer that shows any content, and the animation that moves it, if any.
 
     Args:
-        content: A buffer or widget, text, the bytes of a cell grid, an image or the path
-            of an image file, or an object with an ``__xnano_buffer__`` method.
+        content: A buffer or widget, text, a region, art, a pixel, an image, an object with an
+            ``__xnano_render__`` method, or a sequence of those.
         columns: The width in cells of an image.
         rows: The height in cells of an image.
         limit: The largest area an image may take when neither size is given.
         elapsed_seconds: The clock time at which an animated image starts.
+        context: What ``__xnano_render__`` methods are called with.
 
     Raises:
         TypeError: The content is not something that can be shown.
+        TerminalError: A render method returns itself again and again.
     """
-    if isinstance(content, _core.Buffer):
-        return content, None
-    if isinstance(content, str):
-        return _core.Buffer.with_text(content), None
-    if isinstance(content, bytes):
-        return _core.Buffer.from_cell_grid(content), None
-    if isinstance(content, os.PathLike):
-        raise TypeError(
-            f'{content!r} is a path, and write shows images, not paths. Load it first with '
-            f'xnano.Image(path) or xnano.from_media(path).'
-        )
-    if is_image(content):
-        image = cast('TerminalImage', content)
-        return image_buffer(
-            image,
+    try:
+        return _content_buffer(
+            content,
             columns=columns,
             rows=rows,
             limit=limit,
             elapsed_seconds=elapsed_seconds,
+            context=context,
+            _chain=(),
         )
-    if isinstance(content, Renderable):
-        buffer = content.__xnano_buffer__()
-        if not isinstance(buffer, _core.Buffer):
-            raise TypeError(
-                f'{type(content).__name__}.__xnano_buffer__ returned '
-                f'{type(buffer).__name__}, but it must return a Buffer.'
+    except _NotRenderable as error:
+        raise TypeError(str(error)) from None
+
+
+_CHECKED_METHODS: weakref.WeakSet[object] = weakref.WeakSet()
+"""Functions of methods already found to accept a context, so each is inspected once."""
+
+
+def check_context_method(content: object, name: str) -> None:
+    """
+    Refuse an ``__xnano_render__`` or ``__xnano_play__`` method that cannot take the context.
+
+    A method that passes is remembered, so a component drawn every frame is inspected once.
+
+    Raises:
+        TypeError: The method does not accept one argument besides ``self``.
+    """
+    method = getattr(content, name)
+    function = getattr(method, '__func__', None)
+    if function is not None and function in _CHECKED_METHODS:
+        return
+    try:
+        inspect.signature(method).bind(None)
+    except TypeError:
+        kind = type(content).__name__
+        produces = (
+            'what it plays, such as a Note or melody text'
+            if name == '__xnano_play__'
+            else 'the content'
+        )
+        raise TypeError(
+            f'{kind}.{name} must take the context, but it cannot be called with one. '
+            f'Write def {name}(self, context): ... and return {produces}.'
+        ) from None
+    except ValueError:
+        return
+    if function is not None:
+        try:
+            _CHECKED_METHODS.add(function)
+        except TypeError:
+            pass
+
+
+def _content_buffer(
+    content: Content,
+    *,
+    columns: int | None,
+    rows: int | None,
+    limit: _core.Size | None,
+    elapsed_seconds: float,
+    context: Context[object, object] | None,
+    _chain: tuple[type, ...],
+) -> tuple[_core.Buffer, ImageAnimation | None]:
+    """Do the work of [`content_buffer`][xnano._media.content_buffer], tracking the chain."""
+    if isinstance(content, _core.Buffer):
+        return content, None
+    if isinstance(content, str):
+        return _core.Buffer.with_text(content), None
+    if isinstance(content, (bytes, bytearray)):
+        raise TypeError(
+            'write() does not accept raw bytes. Write the cell buffer instead: '
+            'canvas.write(Buffer.from_cell_grid(data)), or for picture bytes use '
+            'xnano.from_image(data) or xnano.draw(data, width=..., height=...).'
+        )
+    if isinstance(content, os.PathLike):
+        raise TypeError(
+            f'{content!r} is a path, and write shows images, not paths. Load it first with '
+            f'xnano.from_image(path) and write the result.'
+        )
+    if isinstance(content, Image):
+        return image_buffer(
+            content.image,
+            columns=columns,
+            rows=rows,
+            limit=limit,
+            elapsed_seconds=elapsed_seconds,
+            fit=content.fit,
+            resampling_filter=content.resampling_filter,
+            background=content.background,
+        )
+    if is_image(content):
+        raise TypeError(
+            'write() does not accept a TerminalImage directly. Wrap it: '
+            'canvas.write(Image(terminal_image)), or load a file with xnano.from_image(path).'
+        )
+    from xnano.canvas import Canvas
+
+    if isinstance(content, Canvas):
+        raise TypeError(
+            'A canvas is written with canvas.write(child) directly; a component or a '
+            'sequence cannot contain one.'
+        )
+    if not isinstance(content, type) and hasattr(content, '__xnano_render__'):
+        kind = type(content)
+        if len(_chain) >= _MAXIMUM_RENDER_DEPTH:
+            names = ' -> '.join(item.__name__ for item in (*_chain, kind))
+            raise TerminalError(
+                f'{kind.__name__}.__xnano_render__ keeps returning something that renders '
+                f'again ({names}). Return text, a Region, an Art, a Buffer or another '
+                f'finished value instead of an object that renders itself.'
             )
-        return buffer, None
-    raise TypeError(
-        f'Cannot show a {type(content).__name__}. Use a Buffer or a widget, a string, the '
-        f'bytes of a cell grid, an image or the path of an image file, or an object with '
-        f'an __xnano_buffer__ method that returns a Buffer.'
+        check_context_method(content, '__xnano_render__')
+        result = content.__xnano_render__(context)  # type: ignore[arg-type]
+        try:
+            return _content_buffer(
+                result,
+                columns=columns,
+                rows=rows,
+                limit=limit,
+                elapsed_seconds=elapsed_seconds,
+                context=context,
+                _chain=(*_chain, kind),
+            )
+        except _NotRenderable as error:
+            if error.content is not result:
+                raise
+            raise TypeError(
+                f'{kind.__name__}.__xnano_render__ returned {type(result).__name__}, but it '
+                f'must return something write() accepts: text, a Region, an Art, a Pixel, an '
+                f'Image, a Buffer, an object with __xnano_render__, or a sequence of those.'
+            ) from None
+    if isinstance(content, Sequence):
+        return _stack(
+            content,
+            columns=columns,
+            rows=rows,
+            limit=limit,
+            elapsed_seconds=elapsed_seconds,
+            context=context,
+            chain=_chain,
+        ), None
+    missing = (
+        ' It has an __xnano_play__ method but no __xnano_render__ method, so it can be '
+        'played with canvas.play() but not written.'
+        if hasattr(content, '__xnano_play__')
+        else ' It has no __xnano_render__ method.'
     )
+    raise _NotRenderable(
+        f'Cannot show a {type(content).__name__}.{missing} Use a string, a Region, an Art, '
+        f'a Pixel, an xnano.Image (made with xnano.from_image(path)), a Buffer or widget, '
+        f'an object with an __xnano_render__ method, or a sequence of those.',
+        content,
+    )
+
+
+def _stack(
+    items: Sequence[object],
+    *,
+    columns: int | None,
+    rows: int | None,
+    limit: _core.Size | None,
+    elapsed_seconds: float,
+    context: Context[object, object] | None,
+    chain: tuple[type, ...],
+) -> _core.Buffer:
+    """Draw the items one below the other, as wide as the widest."""
+    results = [
+        _content_buffer(
+            cast('Content', item),
+            columns=columns,
+            rows=rows,
+            limit=limit,
+            elapsed_seconds=elapsed_seconds,
+            context=context,
+            _chain=chain,
+        )
+        for item in items
+    ]
+    if any(animation is not None for _, animation in results):
+        raise TypeError(
+            'An animated image cannot be shown inside a sequence, because only its first '
+            'frame would be drawn. Write it on its own with canvas.write(image), or return '
+            'it by itself from __xnano_render__ instead of in a list.'
+        )
+    buffers = [buffer for buffer, _ in results]
+    stacked = _core.Buffer(
+        width=max((buffer.width for buffer in buffers), default=0),
+        height=sum(buffer.height for buffer in buffers),
+    )
+    offset = 0
+    for buffer in buffers:
+        stacked.update(_core.Paste(buffer, y=offset, mode='replace'))
+        offset += buffer.height
+    return stacked
 
 
 ImageFit = Literal['contain', 'cover', 'stretch', 'crop', 'smart']
 ResamplingFilter = Literal['nearest', 'bilinear', 'catmull_rom', 'lanczos3']
 
-_IMAGE_SUFFIXES = frozenset(
-    {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.xni', '.bmp', '.tif', '.tiff'}
-)
-_AUDIO_SUFFIXES = frozenset({'.wav', '.wave'})
-
 
 @dataclasses.dataclass(frozen=True, slots=True, init=False)
 class Image:
     """
-    An image and how it is shown: what [`Terminal.write`][xnano.terminal.Terminal.write] takes
-    to put a picture on the terminal.
+    An image and how it is shown: what [`Canvas.write`][xnano.canvas.Canvas.write] takes
+    to put a picture on the canvas.
 
     Make one from the path of an image file, its bytes, or a
     [`TerminalImage`][xnano_image.TerminalImage]. A file is read once, here, where you can
     see it; ``write`` never takes a path. The placement values are what ``write`` uses when it
     is not given its own. An image sized by a percentage (or not sized at all) is converted
-    again whenever the terminal is resized, so it always fits; give it a number, or
+    again whenever the canvas is resized, so it always fits; give it a number, or
     ``lock=True``, and it keeps its size.
 
     Attributes:
@@ -247,13 +427,15 @@ class Image:
         width: The width: cells, a percentage, an expression, or ``None`` for the picture's own.
         height: The height, in the same forms.
         layer: Content with a higher layer is drawn over content with a lower one.
-        lock: Whether the image keeps the size it was shown at when the terminal is resized.
+        lock: Whether the image keeps the size it was shown at when the canvas is resized.
         fit: How the picture sits in a box of ``width`` by ``height``: ``'contain'`` (the
             default), ``'cover'``, ``'stretch'``, ``'crop'`` or ``'smart'``.
         resampling_filter: How pixels are blended when it is resized. By default a small
             picture that is enlarged keeps hard pixel edges (``'nearest'``) and any other is
             smoothed (``'lanczos3'``).
         background: The color behind transparent pixels and padding.
+        symbol: The name the image is registered under in [`symbols`][xnano.symbols], or
+            ``None``.
 
     Examples:
         ```python
@@ -261,8 +443,8 @@ class Image:
         from xnano.image import TerminalImage
 
         picture = xnano.Image(TerminalImage.from_rgba(2, 2, bytes([255, 0, 0, 255]) * 4), width=8)
-        with xnano.open(offscreen=True, width=20, height=6) as terminal:
-            terminal.write(picture, x='center')
+        with xnano.new(width=20, height=6) as canvas:
+            canvas.write(picture, x='center')
         # xnano.Image('photo.png', width='100%') loads a file, and refits when the window resizes.
         ```
     """
@@ -277,6 +459,7 @@ class Image:
     fit: ImageFit | None
     resampling_filter: ResamplingFilter | None
     background: tuple[int, int, int]
+    symbol: str | None
 
     def __init__(
         self,
@@ -290,31 +473,37 @@ class Image:
         lock: bool = False,
         fit: ImageFit | None = None,
         resampling_filter: ResamplingFilter | None = None,
-        background: tuple[int, int, int] = (0, 0, 0),
+        background: ColorValue = (0, 0, 0),
         speed: float = 1.0,
+        symbol: str | None = None,
     ) -> None:
         """
         Load an image and set how it is shown.
 
         Args:
             source: The path of an image file (PNG, JPEG, GIF, WebP or XNI), the bytes of one,
-                or an image. An animated file plays on the terminal's clock.
+                or an image. An animated file plays on the canvas's clock.
             x: The column of the left edge: cells, a percentage, a word such as ``'center'``, an
                 expression or a range. See [`Axis`][xnano.types.Axis].
             y: The row of the top edge, in the same forms.
             width: The width, in the same forms; the picture's own when ``None``.
             height: The height, in the same forms.
             layer: Content with a higher layer is drawn over content with a lower one.
-            lock: Keep the size the image has when it is added, whatever the terminal does.
+            lock: Keep the size the image has when it is added, whatever the canvas does.
             fit: How the picture sits in a box of ``width`` by ``height``.
             resampling_filter: How pixels are blended when it is resized.
-            background: The color behind transparent pixels and padding.
+            background: The color behind transparent pixels and padding, as a color name, a
+                hex string, an ``(r, g, b)`` tuple or a [`Color`][xnano_core.Color].
             speed: How fast an animated image plays: ``2.0`` is twice as fast.
+            symbol: A name to register the image under in [`symbols`][xnano.symbols].
 
         Raises:
             ImportError: ``xnano-image`` is not installed. Install it with
                 ``pip install "xnano[image]"``.
             TypeError: ``source`` is not a path, bytes or an image.
+            FileNotFoundError: ``source`` is a path with no file at it.
+            ValueError: ``symbol`` cannot be a symbol name, or another kind of value
+                already has it.
         """
         if is_image(source):
             image = cast('TerminalImage', source)
@@ -323,7 +512,13 @@ class Image:
             if isinstance(source, bytes):
                 image = module.TerminalImage.from_bytes(source)
             elif isinstance(source, (str, os.PathLike)):
-                image = module.TerminalImage.open(pathlib.Path(source))
+                path = pathlib.Path(source)
+                if not path.is_file():
+                    raise FileNotFoundError(
+                        f'Image could not load {str(path)!r}, because no image file exists '
+                        f'there. Check the path, or pass the bytes of the image.'
+                    )
+                image = module.TerminalImage.open(path)
             else:
                 raise TypeError(
                     f'Image needs the path of an image file, the bytes of an image or an '
@@ -341,15 +536,18 @@ class Image:
             ('lock', lock),
             ('fit', fit),
             ('resampling_filter', resampling_filter),
-            ('background', background),
+            ('background', to_rgb(background)),
+            ('symbol', symbol),
         ):
             object.__setattr__(self, name, value)
+        if symbol is not None:
+            symbols.register(symbol, self)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, init=False)
 class Audio:
     """
-    A sound you can play with [`Terminal.play`][xnano.terminal.Terminal.play] or
+    A sound you can play with [`Canvas.play`][xnano.canvas.Canvas.play] or
     [`AudioDevice.play`][xnano.audio.AudioDevice.play].
 
     Make one from the path of a WAV file, the bytes of one, or a
@@ -357,6 +555,8 @@ class Audio:
 
     Attributes:
         sound: The rendered sound.
+        symbol: The name the sound is registered under in [`symbols`][xnano.symbols], or
+            ``None``. ``play('kick')`` plays the sound registered as ``'kick'``.
 
     Examples:
         ```python
@@ -369,19 +569,29 @@ class Audio:
     """
 
     sound: TerminalSound
+    symbol: str | None
 
-    def __init__(self, source: TerminalSound | os.PathLike[str] | str | bytes) -> None:
+    def __init__(
+        self,
+        source: TerminalSound | os.PathLike[str] | str | bytes,
+        *,
+        symbol: str | None = None,
+    ) -> None:
         """
         Load a sound.
 
         Args:
             source: The path of a WAV file, the bytes of one, or a sound.
+            symbol: A name to register the sound under in [`symbols`][xnano.symbols], so
+                ``play(name)`` plays it.
 
         Raises:
             ImportError: ``xnano-audio`` is not installed. Install it with
                 ``pip install "xnano[audio]"``.
             TypeError: ``source`` is not a path, bytes or a sound.
-            ValueError: The file is not a PCM WAV file that xnano can read.
+            FileNotFoundError: ``source`` is a path to a file that does not exist.
+            ValueError: The file is not a PCM WAV file that xnano can read, or ``symbol`` cannot
+                be a symbol name, or another kind of value already has it.
         """
         module = require('audio', needed_for='xnano.Audio')
         if isinstance(source, module.TerminalSound):
@@ -389,13 +599,22 @@ class Audio:
         elif isinstance(source, bytes):
             sound = _decode_wave(module, source)
         elif isinstance(source, (str, os.PathLike)):
-            sound = _decode_wave(module, pathlib.Path(source).read_bytes())
+            path = pathlib.Path(source)
+            if not path.is_file():
+                raise FileNotFoundError(
+                    f'Audio could not load {str(path)!r}, because no WAV file exists '
+                    f'there. Check the path, or pass the bytes of the sound.'
+                )
+            sound = _decode_wave(module, path.read_bytes())
         else:
             raise TypeError(
                 f'Audio needs the path of a WAV file, the bytes of one or a sound, but got '
                 f'{type(source).__name__}. Pass Audio("sound.wav").'
             )
         object.__setattr__(self, 'sound', sound)
+        object.__setattr__(self, 'symbol', symbol)
+        if symbol is not None:
+            symbols.register(symbol, self)
 
 
 def _decode_wave(module: ModuleType, data: bytes) -> TerminalSound:
@@ -407,8 +626,9 @@ def _decode_wave(module: ModuleType, data: bytes) -> TerminalSound:
             sample_rate = reader.getframerate()
             frames = reader.readframes(reader.getnframes())
     except (wave.Error, EOFError) as error:
+        detail = f' ({error})' if str(error) else ''
         raise ValueError(
-            f'This is not a PCM WAV file that xnano can read ({error}). Convert the sound '
+            f'This is not a PCM WAV file that xnano can read{detail}. Convert the sound '
             f'to a 16-bit PCM WAV file, or build a sound with xnano_audio.TerminalSound.'
         ) from None
     if sample_width == 1:
@@ -439,48 +659,51 @@ def _decode_wave(module: ModuleType, data: bytes) -> TerminalSound:
     return module.TerminalSound.from_samples(values, sample_rate=sample_rate)
 
 
-class _ImageOptions(TypedDict, total=False):
-    """The keyword arguments of [`Image`][xnano.Image], for [`from_media`][xnano.from_media]."""
-
-    x: Axis | None
-    y: Axis | None
-    width: Axis | None
-    height: Axis | None
-    layer: int
-    lock: bool
-    fit: ImageFit | None
-    resampling_filter: ResamplingFilter | None
-    background: tuple[int, int, int]
-    speed: float
-
-
-def from_media(
-    source: TerminalImage | TerminalSound | os.PathLike[str] | str | bytes,
+def from_image(
+    source: TerminalImage | os.PathLike[str] | str | bytes,
     /,
-    **options: Unpack[_ImageOptions],
-) -> Image | Audio:
+    *,
+    x: Axis | None = None,
+    y: Axis | None = None,
+    width: Axis | None = None,
+    height: Axis | None = None,
+    layer: int = 0,
+    lock: bool = False,
+    fit: ImageFit | None = None,
+    resampling_filter: ResamplingFilter | None = None,
+    background: ColorValue = (0, 0, 0),
+    speed: float = 1.0,
+    symbol: str | None = None,
+) -> Image:
     """
-    Open an image, an animation or a sound from a file path or from bytes.
+    Load an image or an animation from a file path or from bytes.
 
-    The kind is read from the file's extension, or from its first bytes when it has none or
-    when you pass bytes: a WAV file becomes an [`Audio`][xnano.Audio], and PNG, JPEG, GIF,
-    WebP and XNI files become an [`Image`][xnano.Image] (an animated one plays on the
-    terminal's clock). Use `Image` or `Audio` directly when you already know which you have.
+    This is [`Image`][xnano.Image] with the same arguments: PNG, JPEG, GIF, WebP and XNI files
+    are read, and an animated one plays on the canvas's clock. Write the result with
+    ``canvas.write(picture)``.
 
     Args:
-        source: A path, the bytes of a file, a
-            [`TerminalImage`][xnano_image.TerminalImage] or a
-            [`TerminalSound`][xnano_audio.TerminalSound].
-        **options: How an image is shown; see [`Image`][xnano.Image]. A sound takes none.
+        source: The path of an image file, the bytes of one, or a
+            [`TerminalImage`][xnano_image.TerminalImage].
+        x: The column of the left edge; see [`Image`][xnano.Image].
+        y: The row of the top edge.
+        width: The width: cells, a percentage, an expression, or ``None`` for the picture's own.
+        height: The height, in the same forms.
+        layer: Content with a higher layer is drawn over content with a lower one.
+        lock: Keep the size the image has when it is added, whatever the canvas does.
+        fit: How the picture sits in a box of ``width`` by ``height``.
+        resampling_filter: How pixels are blended when it is resized.
+        background: The color behind transparent pixels and padding.
+        speed: How fast an animated image plays: ``2.0`` is twice as fast.
+        symbol: A name to register the image under in [`symbols`][xnano.symbols].
 
     Returns:
-        An [`Image`][xnano.Image] or an [`Audio`][xnano.Audio].
+        The [`Image`][xnano.Image].
 
     Raises:
-        ImportError: The package for the kind of file is not installed.
-        TypeError: ``source`` is not something that can be opened, or options were given for
-            a sound.
-        ValueError: The file is neither an image nor a WAV file.
+        ImportError: ``xnano-image`` is not installed. Install it with
+            ``pip install "xnano[image]"``.
+        TypeError: ``source`` is not a path, bytes or an image.
         FileNotFoundError: The path does not exist.
 
     Examples:
@@ -488,66 +711,70 @@ def from_media(
         import xnano
         from xnano.image import TerminalImage
 
-        picture = xnano.from_media(TerminalImage.from_rgba(1, 1, bytes([255, 0, 0, 255])), width=4)
+        picture = xnano.from_image(
+            TerminalImage.from_rgba(1, 1, bytes([255, 0, 0, 255])), width=4, symbol='red_dot'
+        )
         assert isinstance(picture, xnano.Image)
+        assert xnano.symbols.lookup('red_dot') is picture
         ```
     """
-    kind = _kind_of(source)
-    if kind == 'audio':
-        if options:
-            raise TypeError(
-                f'A sound takes no display options, but {", ".join(sorted(options))} '
-                f'{"was" if len(options) == 1 else "were"} given. Remove them, or load an '
-                f'image instead.'
-            )
-        return Audio(cast('TerminalSound | os.PathLike[str] | str | bytes', source))
     return Image(
-        cast('TerminalImage | os.PathLike[str] | str | bytes', source), **options
+        source,
+        x=x,
+        y=y,
+        width=width,
+        height=height,
+        layer=layer,
+        lock=lock,
+        fit=fit,
+        resampling_filter=resampling_filter,
+        background=background,
+        speed=speed,
+        symbol=symbol,
     )
 
 
-def _kind_of(source: object) -> Literal['image', 'audio']:
-    if is_image(source):
-        return 'image'
-    module = sys.modules.get('xnano_audio')
-    if module is not None and isinstance(source, module.TerminalSound):
-        return 'audio'
-    if isinstance(source, (str, os.PathLike)):
-        path = pathlib.Path(source)
-        suffix = path.suffix.lower()
-        if suffix in _AUDIO_SUFFIXES:
-            return 'audio'
-        if suffix in _IMAGE_SUFFIXES:
-            return 'image'
-        with path.open('rb') as stream:
-            head = stream.read(12)
-    elif isinstance(source, bytes):
-        head = source[:12]
-    else:
-        raise TypeError(
-            f'from_media needs the path of a file, the bytes of one, an image or a sound, but got '
-            f'{type(source).__name__}. Pass from_media("picture.png") or from_media("sound.wav").'
-        )
-    if head[:4] == b'RIFF' and head[8:12] == b'WAVE':
-        return 'audio'
-    if (
-        head[:4] == b'RIFF'
-        and head[8:12] == b'WEBP'
-        or head[:4]
-        in (
-            b'\x89PNG',
-            b'GIF8',
-            b'\xff\xd8\xff\xe0',
-            b'\xff\xd8\xff\xe1',
-            b'\xff\xd8\xff\xdb',
-        )
-    ):
-        return 'image'
-    raise ValueError(
-        'This file is neither an image (PNG, JPEG, GIF, WebP or XNI) nor a WAV sound. '
-        'Pass a file of one of those kinds, or use Image(...) or Audio(...) on a file you '
-        'know how to read.'
-    )
+def from_audio(
+    source: TerminalSound | os.PathLike[str] | str | bytes,
+    /,
+    *,
+    symbol: str | None = None,
+) -> Audio:
+    """
+    Load a sound from a WAV file path or from bytes.
+
+    This is [`Audio`][xnano.Audio] with the same arguments. Play the result with
+    ``canvas.play(sound)``, or give it a ``symbol`` and play it by name.
+
+    Args:
+        source: The path of a PCM WAV file, the bytes of one, or a
+            [`TerminalSound`][xnano_audio.TerminalSound].
+        symbol: A name to register the sound under in [`symbols`][xnano.symbols], so
+            ``play(name)`` plays it.
+
+    Returns:
+        The [`Audio`][xnano.Audio].
+
+    Raises:
+        ImportError: ``xnano-audio`` is not installed. Install it with
+            ``pip install "xnano[audio]"``.
+        TypeError: ``source`` is not a path, bytes or a sound.
+        ValueError: The file is not a PCM WAV file that xnano can read.
+        FileNotFoundError: The path does not exist.
+
+    Examples:
+        ```python
+        import xnano
+        from xnano_audio import TerminalSound
+
+        beep = xnano.from_audio(TerminalSound.from_samples([0.0, 0.5, -0.5, 0.0]), symbol='beep')
+        with xnano.new(width=8, height=1) as canvas:
+            canvas.play('beep')
+            canvas.step(delta_seconds=0.1)
+            assert canvas.audio.render_sound().peak > 0.0
+        ```
+    """
+    return Audio(source, symbol=symbol)
 
 
 def _convert(
@@ -587,13 +814,13 @@ def cells(value: Axis | None, available: int) -> int | None:
 @dataclasses.dataclass(slots=True)
 class ImageSource:
     """
-    An image shown in a buffer, converted again when the terminal's size changes it.
+    An image shown in a buffer, converted again when the canvas's size changes it.
 
     Attributes:
         image: The image.
         width: The requested width, as an [`Axis`][xnano.types.Axis], or ``None``.
         height: The requested height, or ``None``.
-        size: The terminal size the buffer was converted for.
+        size: The canvas size the buffer was converted for.
         buffer: The buffer that shows the image.
         animation: The animation that moves it, for an animated image.
     """
@@ -616,21 +843,30 @@ class ImageSource:
         size: _core.Size,
         elapsed_seconds: float,
     ) -> ImageSource:
-        """Convert an image for a terminal of this ``size``."""
+        """Convert an image for a canvas of this ``size``."""
         buffer, animation = _convert(picture, width, height, size, elapsed_seconds)
         return cls(picture.image, width, height, size, buffer, animation, picture)
 
-    def refresh(self, size: _core.Size, elapsed_seconds: float) -> None:
-        """Convert the image again for a terminal of a new ``size``, if its size matters."""
-        if size == self.size:
-            return
-        self.size = size
-        depends_on_size = not self.picture.lock and (
+    @property
+    def depends_on_size(self) -> bool:
+        """Whether the canvas's size decides how large the image is drawn."""
+        return not self.picture.lock and (
             (self.width is None and self.height is None)
             or isinstance(self.width, str)
             or isinstance(self.height, str)
         )
-        if not depends_on_size:
+
+    @property
+    def needs_frames(self) -> bool:
+        """Whether the image must be looked at before every frame: it animates or resizes."""
+        return self.animation is not None or self.depends_on_size
+
+    def refresh(self, size: _core.Size, elapsed_seconds: float) -> None:
+        """Convert the image again for a canvas of a new ``size``, if its size matters."""
+        if size == self.size:
+            return
+        self.size = size
+        if not self.depends_on_size:
             return
         buffer, animation = _convert(
             self.picture, self.width, self.height, size, elapsed_seconds

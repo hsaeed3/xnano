@@ -904,6 +904,7 @@ impl PyRuntime {
                 }
                 let now = self.now();
                 let mut input = lock(&self.shared.input);
+                input.record_key(key);
                 match key.kind {
                     KeyKind::Release => {
                         input.pressed.remove(&key.key);
@@ -918,11 +919,21 @@ impl PyRuntime {
                     }
                 }
             }
-            EventPayload::Mouse(mouse) => {
-                lock(&self.shared.input).pointer = Some((mouse.column, mouse.row));
-            }
+            EventPayload::Mouse(mouse) => lock(&self.shared.input).record_mouse(mouse),
+            EventPayload::Paste(text) => lock(&self.shared.input).record_paste(text),
             EventPayload::Size(size) => {
-                lock(&self.shared.device).size = *size;
+                #[allow(unused_mut)]
+                let mut resolved = *size;
+                // An inline region keeps its own height, so a hook that hears the resize sees
+                // the size of the region and not the size of the window.
+                #[cfg(feature = "terminal")]
+                if let Some(session) = self.session.borrow_mut().as_mut()
+                    && session.is_inline()
+                    && let Ok(viewport) = session.viewport()
+                {
+                    resolved = viewport;
+                }
+                lock(&self.shared.device).size = resolved;
                 self.shared.request_frame();
             }
             _ => {}
@@ -1459,7 +1470,7 @@ impl PyRuntime {
     #[classmethod]
     #[pyo3(signature = (*, tick_interval_milliseconds = None, frame_interval_milliseconds = 16,
         inline_height = None, inline_width = None, should_handle_exit_signals = true, options = None,
-        registry = None))]
+        clock = None, registry = None))]
     fn live(
         cls: &Bound<'_, PyType>,
         tick_interval_milliseconds: Option<i64>,
@@ -1468,6 +1479,7 @@ impl PyRuntime {
         inline_width: Option<u16>,
         should_handle_exit_signals: bool,
         options: Option<PyTerminalOptions>,
+        clock: Option<Py<PyClock>>,
         registry: Option<Py<PyAny>>,
     ) -> PyResult<Py<PyAny>> {
         let py = cls.py();
@@ -1482,6 +1494,7 @@ impl PyRuntime {
             "options",
             options.map(|options| Bound::new(py, options)).transpose()?,
         )?;
+        keywords.set_item("clock", clock)?;
         keywords.set_item("registry", registry)?;
         Ok(cls.call((), Some(&keywords))?.unbind())
     }
@@ -1975,6 +1988,8 @@ impl PyRuntime {
         }
         let runtime = slf.borrow();
         runtime.shared.clock.tick();
+        // A wheel value lives for the step in which its event is processed.
+        lock(&runtime.shared.input).scroll = (0, 0);
         runtime.sync_lifecycle(slf)?;
         // Queued callbacks.
         let mut calls = 0;
@@ -2483,9 +2498,12 @@ impl PyRuntime {
                     "motion" => MouseCapture::Motion,
                     _ => MouseCapture::Off,
                 },
+                scroll: input.scroll,
+                keeps_interrupt_chord: input.interrupt == "stop",
                 bracketed_paste: input.bracketed_paste,
                 focus_reporting: input.focus_reporting,
                 keyboard: match input.keyboard.as_str() {
+                    "off" => KeyboardMode::Off,
                     "disambiguated" => KeyboardMode::Disambiguated,
                     "release_events" => KeyboardMode::ReleaseEvents,
                     _ => KeyboardMode::Basic,

@@ -8,16 +8,21 @@ icon: "fontawesome/solid/x"
 xnano is a terminal for Python, built on the [ratatui](https://ratatui.rs) and
 [tachyonfx](https://github.com/ratatui/tachyonfx) Rust crates. It gives you a surface of
 cells to put things on: text, widgets, images, pixels and sound. There is no framework to learn
-first. Every position and size can be a formula of time, of the terminal's size or of anything
-else on screen, so a layout is a line of Python that is evaluated again on every frame.
+first. You build small values from the inside out (`xnano.write`, `xnano.draw`, `xnano.note`),
+put them on a canvas, and the canvas can be put on your screen. Every position and size can be a
+formula of time, of the canvas's size or of anything else on screen, so a layout is a line of
+Python that is evaluated again on every frame.
 
 ```python
 import xnano
 from xnano.expressions import ParentWidth, TimeElapsed, Width
 
-with xnano.open(width=40, height=3) as terminal:
-    terminal.write('Hello, world!', x='center')
-    ball = terminal.write('●', y=2)
+card = xnano.write('Hello, world!', border='rounded', padding={'horizontal': 2})
+print(card.render())  # a value renders on its own, with no screen
+
+with xnano.open(width=40, height=6) as terminal:
+    terminal.write(card, x='center')
+    ball = terminal.write('●', y=5)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
     terminal.run(quit_on='q')
 ```
@@ -26,13 +31,13 @@ The `xnano` distribution installs the terminal and its Rust engine, and two opti
 
 | Distribution | Import | What it provides |
 | --- | --- | --- |
-| `xnano` | `xnano` | The terminal API: `open`, placements, hooks, input, pixels, scenes and sound. |
+| `xnano` | `xnano` | The terminal API: `new`, `open`, placements, hooks, components, input, regions, art and sound. |
 | `xnano-core` | `xnano_core` | The compiled engine: buffers, widgets, operations, effects and the expression language. |
 | `xnano-audio` | `xnano_audio` | Synthesis, melodies, playback and capture. Install with `pip install "xnano[audio]"`. |
 | `xnano-image` | `xnano_image` | Image and animation loading and conversion to terminal cells. Install with `pip install "xnano[image]"`. |
 
 Start with the [getting started guide](learn/index.md), then read the
-[API reference](api-reference/index.md). The repository's `examples/` folder has twenty-one
+[API reference](api-reference/index.md). The repository's `examples/` folder has thirty-one
 runnable programs, from a hello world to a playable pixel-art world.
 
 !!! note "Looking for xnano v1?"

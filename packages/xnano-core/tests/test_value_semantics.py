@@ -141,6 +141,17 @@ def test_rectangle_helpers():
     assert (area | Rectangle(0, 0, 1, 1)) == area.union(Rectangle(0, 0, 1, 1))
 
 
+def test_rectangle_translate_takes_x_and_y_and_inset_keeps_the_layout_names():
+    area = Rectangle(5, 5, 4, 2)
+    assert area.translate(2, 1) == Rectangle(7, 6, 4, 2)
+    assert area.translate(x=-1, y=-2) == Rectangle(4, 3, 4, 2)
+    assert area.translate(y=1) == Rectangle(5, 6, 4, 2)
+    assert area.translate() == area
+    with pytest.raises(TypeError):
+        area.translate(horizontal=1)
+    assert Rectangle(0, 0, 10, 5).inset(horizontal=1, vertical=1) == Rectangle(1, 1, 8, 3)
+
+
 def test_color_constants_and_conversions():
     assert Color.red == Color('red') and Color.dark_gray == Color('dark_gray')
     assert Color.reset.is_reset and not Color.red.is_reset
@@ -157,6 +168,41 @@ def test_color_constants_and_conversions():
         Color.red.lerp('blue', 0.5, color_space='lab')
     with pytest.raises(ValueError, match='hue'):
         Color.from_hsl(400, 0, 0)
+
+
+def test_darken_moves_toward_black_and_rejects_amounts_outside_zero_to_one():
+    base = Color('#336699')
+    assert base.darken(0.0) == base
+    assert Color('#808080').darken(1.0).to_rgb() == (0, 0, 0)
+    assert base.darken(0.2).to_hsl()[2] < base.to_hsl()[2]
+    assert base.darken(0.2) == base.lighten(-0.2)
+    for color_space in ('rgb', 'hsl', 'hsv'):
+        assert base.darken(0.3, color_space=color_space) == base.lighten(
+            -0.3, color_space=color_space
+        )
+    assert Color('red').darken(0.5).to_hsl()[2] < Color('red').to_hsl()[2]
+    with pytest.raises(ValueError, match='lighten'):
+        base.darken(-0.1)
+    with pytest.raises(ValueError, match='0.0 to 1.0'):
+        base.darken(1.5)
+    with pytest.raises(ValueError, match='0.0 to 1.0'):
+        base.darken(float('nan'))
+    with pytest.raises(ValueError, match='reset'):
+        Color.reset.darken(0.5)
+    with pytest.raises(ValueError, match='color space'):
+        base.darken(0.5, color_space='lab')
+
+
+def test_inverse_flips_every_channel_and_inverting_twice_restores_the_color():
+    assert Color('#ff8000').inverse().to_hex() == '#007fff'
+    assert Color('#000000').inverse() == Color('#ffffff')
+    assert Color('#336699').inverse().inverse() == Color('#336699')
+    named = Color('red').inverse()
+    assert named.to_hex() == '#7fffff'
+    assert Color('red').to_rgb() is None, 'named colors have no fixed value of their own'
+    assert Color('white').inverse() != Color('white')
+    with pytest.raises(ValueError, match='cannot be inverted'):
+        Color.reset.inverse()
 
 
 def test_style_builders_and_modifiers():

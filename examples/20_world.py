@@ -1,12 +1,12 @@
 """
 A small playable world with an animated pixel-art character.
 
-The terrain is baked once into an image and the hero is a four-direction sprite with a
-walking cycle. Both live in a ``terminal.scene``: it draws them through a camera that follows the
-hero, redraws only when something moved, and knows which pixels are solid, so ``sprite.move_by``
+The terrain is baked once into pixels and the hero is a four-direction sprite with a walking
+cycle. Both live in one ``xnano.draw`` world: it draws them through a camera that follows the
+hero, redraws only when something moved, and knows which pixels are solid, so ``hero.move``
 slides along water and trees. ``terminal.input`` answers "which keys are held?", and the
-simulation runs on ``loop.on_update`` with a fixed time step so the hero walks at the same speed
-on every machine.
+simulation runs on ``hook(on='tick', every=...)`` with a fixed time step so the hero walks at
+the same speed on every machine.
 
 Walk with ``wasd`` or the arrow keys, or hold the mouse button down and the hero walks toward
 the pointer; a click walks to that spot. ``space`` stops time and starts it again. Water and
@@ -17,10 +17,9 @@ import math
 import random
 
 import xnano
-from xnano.context import Context, Update
+from xnano.art import Art
+from xnano.context import Context
 from xnano.expressions import ParentHeight
-from xnano.image import TerminalImage, from_art
-from xnano.scene import Sprite
 
 WORLD_WIDTH = 480
 WORLD_HEIGHT = 288
@@ -62,8 +61,8 @@ LEGS = {
 }
 
 
-def sprite(facing: str, gait: str) -> TerminalImage:
-    """The hero facing ``'up'``, ``'down'``, ``'left'`` or ``'right'``, at one step of the walk."""
+def sprite_rows(facing: str, gait: str) -> tuple[str, ...]:
+    """The rows of the hero facing ``'up'``, ``'down'``, ``'left'`` or ``'right'``, at one step."""
     view = (
         'side' if facing in ('left', 'right') else ('back' if facing == 'up' else 'front')
     )
@@ -74,11 +73,11 @@ def sprite(facing: str, gait: str) -> TerminalImage:
     )
     if facing == 'left':
         rows = tuple(row[::-1] for row in rows)
-    return from_art(rows, PALETTE)
+    return rows
 
 
 SPRITES = {
-    (facing, gait): sprite(facing, gait)
+    (facing, gait): sprite_rows(facing, gait)
     for facing in ('up', 'down', 'left', 'right')
     for gait in ('idle', 'stride', 'pass')
 }
@@ -105,8 +104,8 @@ def make_noise(generator: random.Random, cell: int):
     return noise
 
 
-def bake_world(seed: int) -> tuple[TerminalImage, bytearray]:
-    """The whole world as an image, and a mask that says which pixels cannot be walked on."""
+def bake_world(seed: int) -> tuple[bytes, bytearray]:
+    """The whole world as pixels, and a mask that says which pixels cannot be walked on."""
     generator = random.Random(seed)
     height = make_noise(generator, 64)
     detail = make_noise(generator, 8)
@@ -139,7 +138,7 @@ def bake_world(seed: int) -> tuple[TerminalImage, bytearray]:
         elif generator.random() < 0.3:
             flower = generator.choice([(250, 230, 90), (240, 120, 160), (250, 250, 250)])
             picture[index * 4 : index * 4 + 4] = bytes((*flower, 255))
-    return TerminalImage.from_rgba(WORLD_WIDTH, WORLD_HEIGHT, bytes(picture)), solid
+    return bytes(picture), solid
 
 
 def plant_tree(picture: bytearray, solid: bytearray, x: int, y: int) -> None:
@@ -158,13 +157,14 @@ def plant_tree(picture: bytearray, solid: bytearray, x: int, y: int) -> None:
 
 
 class Hero:
-    """The hero's sprite, where it is walking to, and how it looks while doing so."""
+    """The hero's art, where it is walking to, and how it looks while doing so."""
 
-    def __init__(self, sprite: Sprite) -> None:
+    def __init__(self, sprite: Art) -> None:
         self.sprite = sprite
         self.target: tuple[float, float] | None = None
         self.facing = 'down'
         self.walked = 0.0
+        self.shown: tuple[str, str] | None = None
 
     def step(self, seconds: float, direction: tuple[int, int]) -> None:
         """
@@ -188,7 +188,9 @@ class Hero:
         length = (
             SPEED * seconds if direction != (0, 0) else min(distance, SPEED * seconds)
         )
-        walked = sprite.move_by(delta_x / distance * length, delta_y / distance * length)
+        walked = math.hypot(
+            *sprite.move(delta_x / distance * length, delta_y / distance * length)
+        )
         if walked == 0:
             self.target = None  # blocked
             self.show('idle')
@@ -202,7 +204,10 @@ class Hero:
 
     def show(self, gait: str) -> None:
         """Show the hero facing the way it walks, at one step of the walking cycle."""
-        self.sprite.image = SPRITES[self.facing, gait]
+        if self.shown == (self.facing, gait):
+            return
+        self.shown = (self.facing, gait)
+        self.sprite.replace(SPRITES[self.facing, gait], PALETTE)
         self.sprite.anchor = (
             3,
             9 if gait == 'pass' else 8,
@@ -225,50 +230,56 @@ def main() -> None:
     picture, solid = bake_world(seed=7)
     with xnano.open(mouse=True, keyboard='release_events', title='world') as terminal:
         # Everything but the last row is the world; the last row says where the hero is.
-        view = terminal.write(' ', width='100%', height=ParentHeight - 1)
-        scene = view.scene(WORLD_WIDTH, WORLD_HEIGHT, background='black')
-        scene.solid = solid
-        scene.add(picture)
+        world = xnano.draw(
+            picture, width=WORLD_WIDTH, height=WORLD_HEIGHT, background='black'
+        )
+        world.solid_map = solid
+        view = terminal.write(world, width='100%', height=ParentHeight - 1)
         start_x, start_y = find_grass(solid)
         hero = Hero(
-            scene.add(
-                SPRITES['down', 'idle'], x=start_x, y=start_y, anchor=(3, 8), layer=1
+            world.add(
+                xnano.draw(SPRITES['down', 'idle'], PALETTE),
+                x=start_x,
+                y=start_y,
+                anchor=(3, 8),
+                layer=1,
             )
         )
-        scene.camera.follow(hero.sprite)
+        world.camera.follow(hero.sprite)
 
         status_line = terminal.write('', y='bottom', layer=1)
 
         def show_status() -> None:
             state = (
                 'paused (space)'
-                if terminal.time.is_paused
+                if terminal.time.is_stopped
                 else 'wasd or hold the mouse: walk'
             )
             status = f'x {round(hero.sprite.x):>3} y {round(hero.sprite.y):>3}   {state}   q: quit'
             status_line.text = status
 
-        @terminal.loop.on_update(fixed_step_seconds=1 / 60)
-        def simulate(update: Update) -> None:
+        @terminal.hook(on='tick', every=1 / 60)
+        def simulate(context: Context) -> None:
             hero.step(1 / 60, terminal.input.direction())
             show_status()
 
-        @terminal.on_key('space')
+        @terminal.hook(on='key', keys='space')
         def toggle_time(context: Context) -> None:
-            if terminal.time.is_paused:
+            if terminal.time.is_stopped:
                 terminal.time.resume()
             else:
-                terminal.time.pause()
+                terminal.time.stop()
             show_status()  # updates wait while time is stopped
 
         def walk_toward_pointer(context: Context) -> None:
-            mouse = context.mouse
-            if mouse is not None and mouse.position.y < terminal.height - 1:
-                world_x, world_y = scene.world_at(mouse.position.x, mouse.position.y)
+            position = context.mouse.position
+            if position is not None and position.y < terminal.height - 1:
+                cell = view.local(position)
+                world_x, world_y = world.world_for_cell(cell.x, cell.y)
                 hero.target = (float(world_x), float(world_y))
 
-        terminal.on_click(walk_toward_pointer)
-        terminal.on_drag(walk_toward_pointer)
+        terminal.hook(walk_toward_pointer, on='mouse', when="mouse.kind == 'press'")
+        terminal.hook(walk_toward_pointer, on='drag')
         terminal.run(quit_on='q')
 
 

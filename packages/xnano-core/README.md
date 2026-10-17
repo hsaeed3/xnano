@@ -8,7 +8,7 @@ The compiled Rust engine for building terminal interfaces: buffers, widgets, lay
 pip install xnano-core
 ```
 
-Most people install the top-level `xnano` package instead, which adds the terminal API (`xnano.open()`, placements, hooks, scenes and sound) on top of this engine:
+Most people install the top-level `xnano` package instead, which adds the terminal API (`xnano.new()`, `xnano.open()`, placements, hooks, components, art and sound) on top of this engine:
 
 ```bash
 pip install xnano
@@ -42,7 +42,7 @@ assert clock.elapsed_milliseconds == 2000.0
 - **Expression language**: scalar expressions that react to state changes and user input
 - **Input**: keyboard and mouse events with key bindings and focus management
 - **State management**: declarative state schema with validation, patches, and observations
-- **Runtime**: offscreen and live terminal execution with event loops and frame timing
+- **Runtime**: offscreen and live terminal execution with event loops and frame timing, and a clock that can be stopped, stepped and resumed
 
 ## Links
 

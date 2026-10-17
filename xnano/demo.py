@@ -15,7 +15,7 @@ import pathlib
 
 import xnano
 from xnano.buffers import Buffer, Cell
-from xnano.context import Context, Frame
+from xnano.context import Context
 from xnano.effects import Effect
 from xnano.expressions import (
     Height,
@@ -63,7 +63,7 @@ FEATURES = (
     ('formulas for positions', 'live'),
     ('typed state', 'ready'),
     ('tachyonfx effects', 'live'),
-    ('pixels and scenes', 'live'),
+    ('pixels and art', 'live'),
     ('images and animations', 'live'),
     ('notes and melodies', 'live'),
     ('mouse and keyboard', 'live'),
@@ -83,7 +83,7 @@ def row(fraction: float) -> NumericValue[int | float]:
 class _Demo:
     """The demo's panels, and what changes in them."""
 
-    def __init__(self, terminal: Terminal[None]) -> None:
+    def __init__(self, terminal: Terminal[None, None]) -> None:
         """
         Prepare the panels' state.
 
@@ -95,7 +95,7 @@ class _Demo:
         self.instrument = 0
         self.events: collections.deque[str] = collections.deque(maxlen=8)
         self.samples = [3] * 40
-        self.intro: list[Placement[None]] = []
+        self.intro: list[Placement[None, None]] = []
         self.log = Paragraph('', style=Style(INK))
 
     # -- the opening animation ----------------------------------------------------------
@@ -105,7 +105,9 @@ class _Demo:
         terminal = self.terminal
         clip = TerminalImage.from_xni((ASSETS / 'luffy.xni').read_bytes())
         self.intro.append(
-            terminal.write(clip, x='center', y='center', width='100%', height='100%')
+            terminal.write(
+                xnano.Image(clip), x='center', y='center', width='100%', height='100%'
+            )
         )
         self.intro.append(terminal.write(wordmark(), x='center', y='center', layer=2))
         self.intro.append(
@@ -118,7 +120,7 @@ class _Demo:
             )
         )
 
-        @terminal.on_key()
+        @terminal.hook(on='key')
         def begin(context: Context) -> None:
             context.hook.remove()
             for placement in self.intro:
@@ -248,9 +250,9 @@ class _Demo:
             for angle in range(36)
         ]
 
-        @terminal.loop.on_frame
-        def draw(frame: Frame) -> None:
-            time = frame.elapsed_seconds
+        @terminal.hook(on='frame')
+        def draw(context: Context) -> None:
+            time = context.time.elapsed
             self.canvas.clear_shapes()
             self.canvas.extend_shapes(
                 [
@@ -315,7 +317,7 @@ class _Demo:
         )
         self.remember('hover and click: the mouse is on')
 
-        @terminal.every(0.12)
+        @terminal.hook(on='tick', every=0.12)
         def refresh(context: Context) -> None:
             elapsed = context.time.elapsed
             self.wave.ratio = 0.5 + 0.45 * math.sin(elapsed * 2)
@@ -333,44 +335,49 @@ class _Demo:
                     Bar(round(4 + 3.5 * math.sin(elapsed * 1.3 + index)), name)
                 )
 
-        @terminal.on_key('tab')
+        @terminal.hook(on='key', keys='tab')
         def next_instrument(context: Context) -> None:
             self.instrument = (self.instrument + 1) % len(INSTRUMENTS)
             self.show_sound()
             self.remember(f'instrument: {INSTRUMENTS[self.instrument]}')
 
-        @terminal.on_key(*NOTES)
+        @terminal.hook(on='key', keys=list(NOTES))
         def play(context: Context) -> None:
-            if context.keyboard is None:
+            if context.keyboard.key is None:
                 return
             note = NOTES[context.keyboard.key]
             self.remember(f'note {note} on {INSTRUMENTS[self.instrument]}')
             if not self.is_muted and terminal.audio.is_available:
-                terminal.note(note, 0.5, instrument=INSTRUMENTS[self.instrument])
+                from xnano.audio import TerminalNote
 
-        @terminal.on_key('m')
+                terminal.play(
+                    TerminalNote(note, duration_beats=0.5),
+                    instrument=INSTRUMENTS[self.instrument],
+                )
+
+        @terminal.hook(on='key', keys='m')
         def mute(context: Context) -> None:
             self.is_muted = not self.is_muted
             self.show_sound()
 
-        @terminal.on_key('e')
+        @terminal.hook(on='key', keys='e')
         def replay_effect(context: Context) -> None:
             self.art.update(Effect.coalesce(duration_milliseconds=1200))
             self.remember('effect: coalesce')
 
-        @terminal.on_key('space')
+        @terminal.hook(on='key', keys='space')
         def toggle_time(context: Context) -> None:
-            if terminal.time.is_paused:
+            if terminal.time.is_stopped:
                 terminal.time.resume()
             else:
-                terminal.time.pause()
+                terminal.time.stop()
             self.remember(
-                'time: ' + ('stopped' if terminal.time.is_paused else 'running')
+                'time: ' + ('stopped' if terminal.time.is_stopped else 'running')
             )
 
-        @terminal.on_click
+        @terminal.hook(on='mouse', when="mouse.kind == 'press'")
         def click(context: Context) -> None:
-            if context.mouse is not None:
+            if context.mouse.position is not None:
                 self.remember(
                     f'click at {context.mouse.position.x},{context.mouse.position.y}'
                 )

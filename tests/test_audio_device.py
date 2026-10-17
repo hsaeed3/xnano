@@ -20,27 +20,27 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_a_note_plays_on_the_real_device_and_the_clock_runs():
-    with xnano.open(offscreen=True, realtime=True, width=8, height=1) as terminal:
-        terminal.audio.tempo = 240
-        terminal.audio.play('C4', volume=0.0)
-        terminal.audio.start()
+    with xnano.new(realtime=True, width=8, height=1) as canvas:
+        canvas.bpm = 240
+        canvas.audio.play('C4', volume=0.0)
+        canvas.audio.start()
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
-            if terminal.inspect(terminal.audio.beat) > 0.5:
+            if canvas.inspect(canvas.audio.beat) > 0.5:
                 break
             time.sleep(0.05)
-        assert terminal.inspect(terminal.audio.beat) > 0.5
+        assert canvas.inspect(canvas.audio.beat) > 0.5
 
 
 def test_a_melody_is_scheduled_on_a_beat_of_the_real_clock():
     melody = TerminalMelody([TerminalNote('C4'), TerminalNote('E4', start_beats=1)])
-    with xnano.open(offscreen=True, realtime=True, width=8, height=1) as terminal:
-        terminal.audio.play(melody, volume=0.0, at_beat=1)
+    with xnano.new(realtime=True, width=8, height=1) as canvas:
+        canvas.audio.play(melody, volume=0.0, at_beat=1)
         # Playing on a beat starts the clock.
         deadline = time.monotonic() + 3
-        while time.monotonic() < deadline and terminal.inspect(terminal.audio.beat) <= 0:
+        while time.monotonic() < deadline and canvas.inspect(canvas.audio.beat) <= 0:
             time.sleep(0.05)
-        assert terminal.inspect(terminal.audio.beat) > 0
+        assert canvas.inspect(canvas.audio.beat) > 0
 
 
 @pytest.mark.skipif(
@@ -48,7 +48,7 @@ def test_a_melody_is_scheduled_on_a_beat_of_the_real_clock():
     reason='opening the microphone can ask for permission; set XNANO_TEST_MICROPHONE=1',
 )
 def test_the_microphone_level_is_a_number_between_zero_and_one():
-    with xnano.open(offscreen=True, realtime=True, width=8, height=1) as terminal:
+    with xnano.new(realtime=True, width=8, height=1) as canvas:
         time.sleep(0.3)
-        level = terminal.inspect(terminal.audio.level)
+        level = canvas.inspect(canvas.audio.level)
         assert 0.0 <= level <= 1.0

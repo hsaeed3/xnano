@@ -8,7 +8,7 @@ Synthesize, play and capture sound in Python without audio files or extra depend
 pip install xnano-audio
 ```
 
-Or install it as an extra of the top-level `xnano` package, which exposes it as `xnano.audio` and adds `terminal.play`, `terminal.note` and `terminal.tempo`:
+Or install it as an extra of the top-level `xnano` package, which exposes it as `xnano.audio` and adds `xnano.note`, `xnano.play`, `xnano.from_audio`, `canvas.audio`, `canvas.play` and `canvas.bpm`:
 
 ```bash
 pip install "xnano[audio]"
@@ -43,6 +43,7 @@ sound = melody.render('piano')
 - **Effects**: reverb, delay, distortion, filters, tremolo and bit-crushing, composable and reusable
 - **Melodies**: notes arranged on a beat timeline with tempo maps and time signatures
 - **Playback**: play sounds and instruments on the default output device with sample-accurate timing
+- **Mixing**: `TerminalSound.mix` combines sounds, each with an offset and a gain, into one
 - **Capture**: read the level of the default input device (microphone)
 - **No audio files**: every sound is computed on the fly
 

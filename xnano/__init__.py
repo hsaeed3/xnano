@@ -1,11 +1,21 @@
 """
 xnano
+
+Terminal interfaces that you describe in a few lines. Create a canvas with ``new()`` to draw
+off the screen, or with ``open()`` to draw in your terminal, write text, widgets, art, images
+and other canvases onto it, and react to the keyboard, the mouse, time and state with hooks.
 """
 
-from xnano._media import Audio, Image, from_media
-from xnano.canvas import Canvas, make, new
-from xnano.operations import fx, hook
-from xnano.terminal import Terminal, active, iter, open
+from xnano import symbols as symbols
+from xnano._media import Audio, Image, from_audio, from_image
+from xnano.art import draw
+from xnano.canvas import Canvas, active, iter, new
+from xnano.components import playable, renderable
+from xnano.music import Note, note, play
+from xnano.operations import hook
+from xnano.pixel import Pixel
+from xnano.region import box, write
+from xnano.terminal import Terminal, open
 from xnano_core import Color
 
 __all__ = [
@@ -13,13 +23,21 @@ __all__ = [
     'Canvas',
     'Color',
     'Image',
+    'Note',
+    'Pixel',
     'Terminal',
     'active',
-    'fx',
+    'box',
+    'draw',
+    'from_audio',
+    'from_image',
     'hook',
     'iter',
-    'make',
     'new',
-    'from_media',
+    'note',
     'open',
+    'play',
+    'playable',
+    'renderable',
+    'write',
 ]
