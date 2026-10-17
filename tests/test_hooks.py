@@ -248,20 +248,20 @@ class TestArguments:
         async def asynchronous(context):
             pass
 
-        with pytest.raises(TypeError, match='takes a function of the context'):
+        with pytest.raises(TypeError, match='takes a function, such as'):
             canvas.hook(5, on='tick')
-        with pytest.raises(TypeError, match='takes a function of the context'):
+        with pytest.raises(TypeError, match='takes a function, such as'):
             canvas.hook('abc', on='tick')
         with pytest.raises(TypeError, match='asynchronous is an async function'):
             canvas.hook(asynchronous, on='key')
         with pytest.raises(TypeError, match=r'cannot take the arguments a hook receives'):
-            canvas.hook(lambda: None, on='tick')
+            canvas.hook(lambda first, second: None, on='tick')
         with pytest.raises(
-            TypeError, match=r'Write it as lambda context: \.\.\.'
+            TypeError, match=r'Write it as lambda context: \.\.\..*no parameters at all'
         ) as caught:
-            canvas.hook(lambda: None, on='tick')
+            canvas.hook(lambda first, second: None, on='tick')
         assert 'def <lambda>' not in str(caught.value)
-        with pytest.raises(TypeError, match='takes a function of the context'):
+        with pytest.raises(TypeError, match='takes a function, such as'):
             xnano.hook(5)
         with pytest.raises(TypeError, match='async function'):
             canvas.hook(on='key')(asynchronous)
@@ -744,3 +744,51 @@ class TestQuitting:
             running.run(quit_on=None)
         assert counter['done'] == steps
         assert counter['late'] == 0, 'a second timer ran after quit()'
+
+
+class TestHooksWithoutParameters:
+    def test_a_hook_without_parameters_runs(self) -> None:
+        with xnano.new(width=8, height=1) as canvas:
+            label = canvas.write('hi')
+            seen: list[str] = []
+
+            @canvas.hook(on='key')
+            def on_canvas():
+                seen.append('canvas')
+
+            @label.hook
+            def bare():
+                seen.append('bare')
+
+            canvas.push(Event.key_press('a'))
+            canvas.deliver_events()
+            assert sorted(seen) == ['bare', 'canvas']
+            assert on_canvas.function.__name__ == 'on_canvas'
+
+    def test_a_generator_without_parameters_receives_the_next_contexts(self) -> None:
+        with xnano.new(width=8, height=1) as canvas:
+            keys: list[str | None] = []
+
+            @canvas.hook(on='key')
+            def spanning():
+                while True:
+                    context = yield
+                    keys.append(context.keyboard.key)
+
+            for key in 'abc':
+                canvas.push(Event.key_press(key))
+                canvas.deliver_events()
+            assert keys == ['b', 'c']
+
+    def test_an_operation_hook_without_parameters_runs(self) -> None:
+        seen: list[str] = []
+
+        @xnano.hook(on='key')
+        def counted():
+            seen.append('key')
+
+        with xnano.new(width=8, height=1) as canvas:
+            canvas.write('hi') | counted
+            canvas.push(Event.key_press('a'))
+            canvas.deliver_events()
+            assert seen == ['key']

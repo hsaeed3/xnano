@@ -77,12 +77,49 @@ class TestDecorators:
         with pytest.raises(TypeError, match='cannot be called with those arguments'):
             label('a', colour='red')  # type: ignore[call-arg]
 
-    def test_the_function_must_take_a_context(self):
+    def test_a_function_without_parameters_is_called_without_the_context(self, canvas):
+        @xnano.renderable
+        def title():
+            return 'hello'
+
+        canvas.write(title)
+        assert canvas.render().splitlines()[0].startswith('hello')
+
+    def test_a_playable_without_parameters_plays(self, canvas):
+        @xnano.playable
+        def chime():
+            return xnano.note('C5', beats=0.5)
+
+        canvas.play(chime)
+        canvas.step(delta_seconds=0.5)
+        assert canvas.audio.render_sound().peak > 0.0
+
+    def test_a_keyword_only_first_parameter_cannot_take_the_context(self):
         with pytest.raises(TypeError, match='first parameter is the context'):
 
             @xnano.renderable
-            def nothing() -> str:  # type: ignore[misc]
+            def nothing(*, context: Context) -> str:  # type: ignore[misc]
                 return ''
+
+    def test_a_component_hook_may_take_fewer_arguments(self, canvas):
+        @xnano.renderable
+        def label(context: Context) -> str:
+            return 'x'
+
+        seen: list[str] = []
+
+        @label.hook(on='key')
+        def without_parameters() -> None:
+            seen.append('none')
+
+        @label.hook(on='key')
+        def context_only(context: Context) -> None:
+            seen.append(context.keyboard.key or '')
+
+        canvas.write(label)
+        canvas.push(Event.key_press('k'))
+        canvas.deliver_events()
+        assert sorted(seen) == ['k', 'none']
 
     def test_a_failed_first_run_leaves_nothing_on_the_canvas(self, canvas):
         @xnano.renderable

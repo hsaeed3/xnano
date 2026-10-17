@@ -7,6 +7,7 @@ Hooks: functions that a canvas or a placement calls when something happens.
 from __future__ import annotations
 
 import difflib
+import functools
 import inspect
 import math
 from collections import deque
@@ -81,10 +82,14 @@ neither equal to nor different from anything, so every comparison with it is fal
 HookGenerator: TypeAlias = Generator[None, Context[DepsT, StateT], None]
 """A hook that spans several events: it receives the next context at each bare ``yield``."""
 
-Hook: TypeAlias = Callable[
-    [Context[DepsT, StateT]], 'object | HookGenerator[DepsT, StateT]'
-]
-"""What a canvas or placement calls when an event counts."""
+Hook: TypeAlias = (
+    Callable[[Context[DepsT, StateT]], 'object | HookGenerator[DepsT, StateT]']
+    | Callable[[], 'object | HookGenerator[DepsT, StateT]']
+)
+"""
+What a canvas or placement calls when an event counts: a function of the
+[`Context`][xnano.context.Context], or a function with no parameters when it needs none.
+"""
 
 _EVENT_KINDS: Final[dict[str | None, tuple[str, ...]]] = {
     None: ('key', 'mouse', 'paste', 'resize', 'focus_gained', 'focus_lost', 'custom'),
@@ -118,13 +123,21 @@ def _is_finite(value: float) -> bool:
         return False
 
 
-def _check_hook_function(function: object, *, arguments: int = 1) -> None:
-    """Refuse something that cannot be called with a hook's arguments."""
+def _check_hook_function(
+    function: object, *, arguments: int = 1
+) -> Callable[..., object]:
+    """
+    Refuse something that cannot be called with a hook's arguments, and return what to call.
+
+    A hook receives ``arguments`` values (the context, and for a component hook the component
+    context). A function may take fewer of them, down to none: it then gets the leading ones it
+    takes, through a wrapper that keeps its name and stays a generator function when it is one.
+    """
     name = getattr(function, '__name__', None) or repr(function)
     if not callable(function):
         raise TypeError(
-            f'hook() takes a function of the context, such as hook(lambda context: ...), but '
-            f'got {function!r}. Pass the function itself, without calling it.'
+            f'hook() takes a function, such as hook(lambda context: ...) or a def with no '
+            f'parameters, but got {function!r}. Pass the function itself, without calling it.'
         )
     if inspect.iscoroutinefunction(function) or inspect.isasyncgenfunction(function):
         raise TypeError(
@@ -135,10 +148,14 @@ def _check_hook_function(function: object, *, arguments: int = 1) -> None:
     try:
         signature = inspect.signature(function, follow_wrapped=False)
     except (TypeError, ValueError):
-        return
-    try:
-        signature.bind(*([None] * arguments))
-    except TypeError:
+        return function
+    for count in range(arguments, -1, -1):
+        try:
+            signature.bind(*([None] * count))
+        except TypeError:
+            continue
+        break
+    else:
         received = (
             'the context' if arguments == 1 else 'the context and the component context'
         )
@@ -150,8 +167,30 @@ def _check_hook_function(function: object, *, arguments: int = 1) -> None:
         )
         raise TypeError(
             f'{name} cannot take the arguments a hook receives, which are {received}. '
-            f'Write it as {written}.'
+            f'Write it as {written}, or with no parameters at all.'
         ) from None
+    if count == arguments:
+        return function
+    return _taking_leading_arguments(function, count)
+
+
+def _taking_leading_arguments(
+    function: Callable[..., object], count: int
+) -> Callable[..., object]:
+    """Wrap ``function`` so that it is called with only the first ``count`` arguments."""
+    if inspect.isgeneratorfunction(function):
+
+        @functools.wraps(function)
+        def generator_hook(*received: object) -> Generator[None, object, None]:
+            yield from cast('Generator[None, object, None]', function(*received[:count]))
+
+        return generator_hook
+
+    @functools.wraps(function)
+    def plain_hook(*received: object) -> object:
+        return function(*received[:count])
+
+    return plain_hook
 
 
 def _check_hook_arguments(
@@ -867,7 +906,8 @@ class _Hooked(Generic[DepsT, StateT]):
         style or an effect, which is applied to this target.
 
         Args:
-            function: The function to call with a [`Context`][xnano.context.Context].
+            function: The function to call with a [`Context`][xnano.context.Context], or a
+                function with no parameters, which is called without it.
             on: What to listen to: ``'frame'``, ``'tick'``, ``'beat'``, ``'key'``, ``'mouse'``,
                 ``'scroll'``, ``'drag'``, ``'paste'``, ``'focus'``, ``'resize'``, ``'state'``
                 or ``'custom'``. See [`HookKind`][xnano.types.HookKind].
@@ -948,9 +988,11 @@ class _Hooked(Generic[DepsT, StateT]):
         def attach(
             callback: Hook[DepsT, StateT],
         ) -> HookHandle[DepsT, StateT]:
-            _check_hook_function(callback)
             return self._attach_hook(
-                cast('Callable[[Context[DepsT, StateT]], object]', callback),
+                cast(
+                    'Callable[[Context[DepsT, StateT]], object]',
+                    _check_hook_function(callback),
+                ),
                 on=on,
                 when=compiled,
                 every=every,

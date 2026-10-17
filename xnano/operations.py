@@ -23,7 +23,13 @@ from xnano._customize import (
 from xnano._customize import (
     fx as fx,
 )
-from xnano._hooks import HookKind, When, _check_hook_arguments, _check_hook_function
+from xnano._hooks import (
+    Hook,
+    HookKind,
+    When,
+    _check_hook_arguments,
+    _check_hook_function,
+)
 from xnano._values import DepsT, KeyName, StateT
 from xnano.context import Context
 from xnano_core import (
@@ -255,9 +261,7 @@ class ContextualOperation(Operation, Generic[DepsT, StateT]):
 
 
 @overload
-def hook(
-    function: Callable[[Context[DepsT, StateT]], object], /
-) -> ContextualOperation[DepsT, StateT]: ...
+def hook(function: Hook[DepsT, StateT], /) -> ContextualOperation[DepsT, StateT]: ...
 @overload
 def hook(
     *,
@@ -268,11 +272,11 @@ def hook(
     keys: KeyName | Sequence[KeyName] | None = None,
     requires_deps: bool = False,
 ) -> Callable[
-    [Callable[[Context[DepsT, StateT]], object]],
+    [Hook[DepsT, StateT]],
     ContextualOperation[DepsT, StateT],
 ]: ...
 def hook(
-    function: Callable[[Context[DepsT, StateT]], object] | None = None,
+    function: Hook[DepsT, StateT] | None = None,
     /,
     *,
     on: HookKind | None = None,
@@ -284,7 +288,7 @@ def hook(
 ) -> (
     ContextualOperation[DepsT, StateT]
     | Callable[
-        [Callable[[Context[DepsT, StateT]], object]],
+        [Hook[DepsT, StateT]],
         ContextualOperation[DepsT, StateT],
     ]
 ):
@@ -297,7 +301,8 @@ def hook(
     target it runs on.
 
     Args:
-        function: The function to wrap when ``@xnano.hook`` is used without parentheses.
+        function: The function to wrap when ``@xnano.hook`` is used without parentheses: a
+            function of the [`Context`][xnano.context.Context], or one with no parameters.
         on: What the hook listens to; see [`HookKind`][xnano.types.HookKind].
         when: A condition that must hold; see [`When`][xnano.types.When].
         every: Repeat every this many seconds (``'tick'``) or beats (``'beat'``).
@@ -340,9 +345,11 @@ def hook(
     def wrap(
         callback: Callable[[Context[DepsT, StateT]], object],
     ) -> ContextualOperation[DepsT, StateT]:
-        _check_hook_function(callback)
         return ContextualOperation(
-            callback,
+            cast(
+                'Callable[[Context[DepsT, StateT]], object]',
+                _check_hook_function(callback),
+            ),
             on=on,
             every=every,
             after=after,
