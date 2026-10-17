@@ -343,7 +343,7 @@ def hook(
     )
 
     def wrap(
-        callback: Callable[[Context[DepsT, StateT]], object],
+        callback: Hook[DepsT, StateT],
     ) -> ContextualOperation[DepsT, StateT]:
         return ContextualOperation(
             cast(

@@ -10,7 +10,10 @@ import contextvars
 import difflib
 import itertools
 import math
+import os
 import re
+import shutil
+import sys
 import threading
 import time as wall_clock
 import weakref
@@ -72,6 +75,8 @@ from xnano._values import (
     ColorValue,
     Content,
     DepsT,
+    KeyName,
+    Percentage,
     StateT,
     ValueT,
 )
@@ -296,19 +301,79 @@ def _check_title(value: object) -> str | None:
     return value
 
 
-def _check_size(name: str, value: object) -> int | None:
+def _check_size(name: str, value: object) -> int | str | None:
+    """
+    Check a ``width`` or ``height`` of ``new()`` or ``open()``: cells, or a percentage.
+
+    A percentage is kept as written, and read against the window when the canvas needs
+    cells.
+    """
     if value is None:
         return None
+    if isinstance(value, str):
+        stripped = value.strip()
+        share = _size_share(stripped)
+        if share is None or not 0.0 < share <= 1.0:
+            raise ValueError(
+                f'{name} must be a whole number of cells or a percentage of the window from '
+                f"above 0% to 100%, but was {value!r}. Pass {name}=40 or {name}='50%', or "
+                f'leave it out.'
+            )
+        return stripped
     if (
         isinstance(value, bool)
         or not isinstance(value, int)
         or not 1 <= value <= MOST_CELLS
     ):
         raise ValueError(
-            f'{name} must be a whole number of cells from 1 to {MOST_CELLS}, but was '
-            f'{value!r}. Pass {name}=40, or leave it out.'
+            f'{name} must be a whole number of cells from 1 to {MOST_CELLS}, or a percentage '
+            f"of the window such as '50%', but was {value!r}. Pass {name}=40 or "
+            f"{name}='50%', or leave it out."
         )
     return value
+
+
+def _size_share(text: str) -> float | None:
+    """The share of ``'50%'`` (0.5), or ``None`` when the text is not a percentage."""
+    if not text.endswith('%'):
+        return None
+    try:
+        share = float(text[:-1]) / 100.0
+    except ValueError:
+        return None
+    return share if math.isfinite(share) else None
+
+
+def _is_whole_window(value: int | str | None) -> bool:
+    """Whether a checked size is ``None`` or ``'100%'``: all of the window along that axis."""
+    return value is None or (isinstance(value, str) and _size_share(value) == 1.0)
+
+
+def _size_in_cells(value: int | str | None, available: int, default: int) -> int:
+    """The cells of a checked size: the number, a share of ``available``, or ``default``."""
+    if value is None:
+        return default
+    if isinstance(value, int):
+        return value
+    share = _size_share(value) or 1.0
+    return max(1, min(MOST_CELLS, round(available * share)))
+
+
+def _window_size() -> os.terminal_size:
+    """
+    The size of the terminal this program runs in, or 80 by 24 when it has none.
+
+    The terminal itself is asked first, through standard output, input or error, so a
+    ``COLUMNS`` or ``LINES`` variable left over in the environment does not change it.
+    """
+    for stream in (sys.__stdout__, sys.__stdin__, sys.__stderr__):
+        try:
+            size = os.get_terminal_size(stream.fileno())  # type: ignore[union-attr]
+        except (AttributeError, OSError, ValueError):
+            continue
+        if size.columns > 0 and size.lines > 0:
+            return size
+    return shutil.get_terminal_size((80, 24))
 
 
 def _validate_gate_values(gates: Mapping[str, object]) -> None:
@@ -540,8 +605,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
     def __init__(
         self,
         *,
-        width: int | None,
-        height: int | None,
+        width: int | str | None,
+        height: int | str | None,
         fps: float,
         bpm: float,
         is_realtime: bool,
@@ -556,8 +621,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         Create a canvas. Use [`new`][xnano.new] instead of calling this.
 
         Args:
-            width: The width in cells, or ``None`` for 80.
-            height: The height in cells, or ``None`` for 24.
+            width: The width in cells or as a percentage of the window, or ``None`` for 80.
+            height: The height in cells or as a percentage of the window, or ``None`` for 24.
             fps: The most frames drawn per second.
             bpm: Beats per minute.
             is_realtime: Whether the canvas runs on the wall clock, on a thread of its own.
@@ -647,8 +712,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             (weakref.ref(cast('Canvas[object, object]', self)), *self._previous_chain)
         )
         self._host: _Host
-        columns = 80 if width is None else width
-        rows = 24 if height is None else height
+        window = _window_size()
+        columns = _size_in_cells(width, window.columns, 80)
+        rows = _size_in_cells(height, window.lines, 24)
         interval_milliseconds = max(1, round(1000.0 / fps))
 
         def create_runtime() -> _core.Runtime:
@@ -1220,8 +1286,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self,
         *,
         title: str | None = None,
-        width: int | None = None,
-        height: int | None = None,
+        width: int | Percentage | str | None = None,
+        height: int | Percentage | str | None = None,
         **settings: Unpack[OpenSettings],
     ) -> Terminal[DepsT, StateT]:
         """
@@ -1236,14 +1302,15 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
 
         ``width`` and ``height`` are the size of the canvas: the ones given here, else the
         ones given to ``new()``, draw in a region of that size below the cursor; a canvas
-        created without a size fills the whole window. Any other keyword of ``new()`` except
+        created without a size, or with ``'100%'`` for both, fills the whole window. A
+        percentage such as ``'50%'`` is a share of the window when the canvas is opened. Any other keyword of ``new()`` except
         ``realtime`` may be given and applies before the canvas is shown; a gate given here
         wins over the one given to ``new()``. ``title`` is the window title.
 
         Args:
             title: The window title; ``None`` keeps the canvas's title.
-            width: The width of the region to draw in.
-            height: The height of the region to draw in.
+            width: The width of the region to draw in: cells, or a percentage of the window.
+            height: The height of the region to draw in: cells, or a percentage of the window.
             settings: Gates, appearance keywords, ``fps``, ``bpm``, ``effects``, and ``deps``
                 and ``state`` for a canvas that was created without them; see
                 [`OpenSettings`][xnano.types.OpenSettings].
@@ -1354,8 +1421,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self,
         *,
         title: str | None,
-        width: int | None,
-        height: int | None,
+        width: int | str | None,
+        height: int | str | None,
         settings: Mapping[str, object],
     ) -> None:
         """Move the canvas onto a live runtime that draws on the screen."""
@@ -1376,15 +1443,27 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             )
         self._host.require_retirable()
         parsed = self._parse_open_settings(settings)
-        width = _check_size('width', width)
-        height = _check_size('height', height)
-        if width is None and height is None:
-            width, height = self._requested_width, self._requested_height
-        if width is not None and height is None:
-            raise ValueError(
-                'A canvas on the screen with a width needs a height too, because it draws in '
-                'a region of that size. Add height=..., or remove width.'
+        checked_width = _check_size('width', width)
+        checked_height = _check_size('height', height)
+        if checked_width is None and checked_height is None:
+            checked_width, checked_height = self._requested_width, self._requested_height
+        if _is_whole_window(checked_width) and _is_whole_window(checked_height):
+            # Neither size, or '100%' for both: the whole window, following its size.
+            width = height = None
+        else:
+            if checked_height is None:
+                raise ValueError(
+                    'A canvas on the screen with a width needs a height too, because it draws '
+                    'in a region of that size. Add height=... (cells, or a percentage such as '
+                    "'50%'), or remove width."
+                )
+            window = _window_size()
+            width = (
+                None
+                if _is_whole_window(checked_width)
+                else _size_in_cells(checked_width, window.columns, window.columns)
             )
+            height = _size_in_cells(checked_height, window.lines, window.lines)
         gates = {**self._gates, **cast('dict[str, object]', parsed['gates'])}
         resolved = self._gates_for_screen(gates)
         replacement: _core.TerminalStateStore | None = None
@@ -1553,8 +1632,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self._is_realtime = False
         self._carried = dict(carried)
         elapsed = cast('float', carried['elapsed_seconds'])
-        columns = 80 if self._requested_width is None else self._requested_width
-        rows = 24 if self._requested_height is None else self._requested_height
+        window = _window_size()
+        columns = _size_in_cells(self._requested_width, window.columns, 80)
+        rows = _size_in_cells(self._requested_height, window.lines, 24)
         interval_milliseconds = max(1, round(1000.0 / self._fps))
 
         def create_runtime() -> _core.Runtime:
@@ -3077,7 +3157,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         if not canvas._is_closed and canvas._host.is_autonomous:
             canvas._host.post(lambda: canvas._stop_runtime())
 
-    def run(self, *, quit_on: str | Sequence[str] | None = 'ctrl+c') -> None:
+    def run(self, *, quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c') -> None:
         """
         Wait until the canvas's loop ends.
 
@@ -3126,7 +3206,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             canvas._failure = None
             raise TerminalError(canvas._failure_text(failure)) from failure
 
-    def wait_for_key(self, *keys: str) -> str:
+    def wait_for_key(self, *keys: KeyName) -> str:
         """
         Wait until a key is pressed, and return its name.
 
@@ -3532,8 +3612,8 @@ def new(
     content: Content | Canvas[object, object] | None = None,
     /,
     *,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
     realtime: bool = False,
@@ -3546,8 +3626,8 @@ def new(
     content: Content | Canvas[object, object] | None = None,
     /,
     *,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
     realtime: bool = False,
@@ -3561,8 +3641,8 @@ def new(
     content: Content | Canvas[object, object] | None = None,
     /,
     *,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
     realtime: bool = False,
@@ -3576,8 +3656,8 @@ def new(
     content: Content | Canvas[object, object] | None = None,
     /,
     *,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
     realtime: bool = False,
@@ -3591,8 +3671,8 @@ def new(
     content: Content | Canvas[object, object] | None = None,
     /,
     *,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
     realtime: bool = False,
@@ -3630,10 +3710,12 @@ def new(
 
     Args:
         content: Something to write into the canvas at once, such as text or a widget.
-        width: The width in cells; 80 when ``None``. On the screen it is the width of the
-            region the canvas draws in.
-        height: The height in cells; 24 when ``None``. On the screen it is the height of the
-            region the canvas draws in.
+        width: The width in cells, or a percentage of the window such as ``'50%'``, read
+            when the canvas is created; 80 when ``None``. On the screen it is the width of
+            the region the canvas draws in, read again when it is opened.
+        height: The height in cells, or a percentage of the window such as ``'50%'``; 24
+            when ``None``. On the screen it is the height of the region the canvas draws
+            in, and ``'100%'`` for both sizes fills the whole window.
         fps: The most frames drawn per second, and the length of one step of ``iter()``.
         bpm: Beats per minute for beat timers, notes and melodies.
         realtime: Whether the canvas runs by itself on the wall clock, on a thread of its own.

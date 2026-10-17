@@ -622,7 +622,7 @@ def renderable(
     function: Callable[[], Renderable], /
 ) -> RenderableFunction[[], None, None]: ...
 @overload
-def renderable(
+def renderable(  # pyright: ignore[reportGeneralTypeIssues]
     function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Renderable], /
 ) -> RenderableFunction[ParametersT, DepsT, StateT]: ...
 def renderable(  # pyright: ignore[reportGeneralTypeIssues]
@@ -666,13 +666,18 @@ def renderable(  # pyright: ignore[reportGeneralTypeIssues]
             assert canvas.render().strip() == '###'
         ```
     """
-    return RenderableFunction(function)
+    return RenderableFunction(
+        cast(
+            'Callable[Concatenate[Context[DepsT, StateT], ParametersT], Renderable]',
+            function,
+        )
+    )
 
 
 @overload
 def playable(function: Callable[[], Playable], /) -> PlayableFunction[[], None, None]: ...
 @overload
-def playable(
+def playable(  # pyright: ignore[reportGeneralTypeIssues]
     function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Playable], /
 ) -> PlayableFunction[ParametersT, DepsT, StateT]: ...
 def playable(  # pyright: ignore[reportGeneralTypeIssues]
@@ -711,7 +716,12 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
             assert canvas.audio.render_sound().peak > 0.0
         ```
     """
-    return PlayableFunction(function)
+    return PlayableFunction(
+        cast(
+            'Callable[Concatenate[Context[DepsT, StateT], ParametersT], Playable]',
+            function,
+        )
+    )
 
 
 # -- running components --------------------------------------------------------------------

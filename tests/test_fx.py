@@ -887,3 +887,24 @@ class TestEffectSettings:
             xnano.draw(['G'], {'G': 'red'}, effects=[{'kind': 'effect.nope'}])  # type: ignore[list-item]
         with pytest.raises(TypeError, match='sound effect'):
             xnano.draw(['G'], {'G': 'red'}, effects=[{'kind': 'audio.reverb'}])  # type: ignore[list-item]
+
+
+class TestSuggestedValues:
+    def test_every_interpolation_is_one_the_engine_accepts(self) -> None:
+        names = typing.get_args(xnano.types.Interpolation)
+        assert typing.get_args(xnano_core.Interpolation) == names
+        with xnano.new('hi', width=4, height=1) as canvas:
+            for name in names:
+                canvas.fx.fade_to(foreground='red', interpolation=name)
+                canvas.step(delta_seconds=0.01)
+
+    def test_every_motion_direction_is_one_the_engine_accepts(self) -> None:
+        with xnano.new('hi', width=4, height=1) as canvas:
+            for direction in typing.get_args(xnano.types.MotionDirection):
+                canvas.fx.sweep_in(direction=direction, duration_milliseconds=10)
+                canvas.fx.stretch(direction=direction, duration_milliseconds=10)
+                canvas.step(delta_seconds=0.01)
+
+    def test_percentages_are_suggested_in_steps_of_five(self) -> None:
+        steps = typing.get_args(xnano.types.Percentage)
+        assert steps == tuple(f'{share}%' for share in range(5, 101, 5))

@@ -749,3 +749,24 @@ def test_appearance_changes_borders_colors_and_padding(example):
         'a second press clears the effect with context.fx.clear()'
     )
     quit_with_q(screen)
+
+
+def test_effects_start_on_a_placement_from_a_key(example):
+    screen = example('32_effects.py', rows=10, columns=70)
+    assert screen.wait_until(lambda: screen.is_alternate)
+    assert screen.wait_for('Press any key to change the color of this text')
+    assert screen.wait_for('effects: none')
+    text = screen.find('Press any key')
+    assert text is not None
+    assert text[1] == 4, 'the text is centered in the whole window'
+    before = screen.cell(text[0], text[1]).fg
+    screen.press('a')
+    assert screen.wait_until(lambda: screen.cell(text[0], text[1]).fg != before)
+    screen.press('e')
+    assert screen.wait_for('effects: effect.fade_to')
+    screen.press('g')
+    assert screen.wait_for('effects: effect.fade_to, effect.glitch')
+    screen.press('x')
+    assert screen.wait_for('effects: none')
+    screen.press('q')
+    assert screen.finish() == 0

@@ -22,7 +22,7 @@ from xnano._appearance import (
     SpacingDictionary,
 )
 from xnano._attributes import _SealedAttributes
-from xnano._values import ColorName, ColorValue
+from xnano._values import ColorName, ColorValue, Percentage
 from xnano.errors import TerminalError
 
 if TYPE_CHECKING:
@@ -793,7 +793,7 @@ class Edges:
         return self._edge('top')
 
     @top.setter
-    def top(self, value: int | float | str) -> None:
+    def top(self, value: int | float | Percentage | str) -> None:
         self._set_edge('top', value)
 
     @property
@@ -802,7 +802,7 @@ class Edges:
         return self._edge('right')
 
     @right.setter
-    def right(self, value: int | float | str) -> None:
+    def right(self, value: int | float | Percentage | str) -> None:
         self._set_edge('right', value)
 
     @property
@@ -811,7 +811,7 @@ class Edges:
         return self._edge('bottom')
 
     @bottom.setter
-    def bottom(self, value: int | float | str) -> None:
+    def bottom(self, value: int | float | Percentage | str) -> None:
         self._set_edge('bottom', value)
 
     @property
@@ -820,7 +820,7 @@ class Edges:
         return self._edge('left')
 
     @left.setter
-    def left(self, value: int | float | str) -> None:
+    def left(self, value: int | float | Percentage | str) -> None:
         self._set_edge('left', value)
 
     def __repr__(self) -> str:

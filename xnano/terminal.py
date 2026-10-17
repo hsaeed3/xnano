@@ -12,10 +12,12 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Final, cast, overload
 
 import xnano_core as _core
-from xnano._values import Content, DepsT, StateT
+from xnano._values import Content, DepsT, Percentage, StateT
 from xnano.canvas import (
     Canvas,
     _appearance_with_content_error,
+    _check_size,
+    _is_whole_window,
     _split_settings,
     new,
 )
@@ -145,8 +147,8 @@ def open(
     /,
     *,
     title: str | None = None,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     **settings: Unpack[OpenSettings],
 ) -> Terminal[DepsT, StateT]: ...
 @overload
@@ -155,8 +157,8 @@ def open(
     /,
     *,
     title: str | None = None,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
     effects: Sequence[RenderableEffectSpecification] = (),
@@ -168,8 +170,8 @@ def open(
     /,
     *,
     title: str | None = None,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
     effects: Sequence[RenderableEffectSpecification] = (),
@@ -182,8 +184,8 @@ def open(
     /,
     *,
     title: str | None = None,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
     effects: Sequence[RenderableEffectSpecification] = (),
@@ -196,8 +198,8 @@ def open(
     /,
     *,
     title: str | None = None,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     fps: float = 60.0,
     bpm: float = 120.0,
     effects: Sequence[RenderableEffectSpecification] = (),
@@ -210,8 +212,8 @@ def open(
     /,
     *,
     title: str | None = None,
-    width: int | None = None,
-    height: int | None = None,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
     **settings: object,
 ) -> Terminal[DepsT, StateT]:
     """
@@ -225,9 +227,10 @@ def open(
     gives the screen back.
 
     By default the canvas takes over the whole window, on the alternate screen so that your
-    shell's history comes back untouched. Give ``height`` (and optionally ``width``) to draw in
-    a region of that size below the cursor instead; that region is erased when the canvas
-    closes, unless you pass ``clear=False``. ``title`` is the window title.
+    shell's history comes back untouched; ``width='100%', height='100%'`` asks for the same.
+    Give ``height`` (and optionally ``width``) to draw in a region of that size below the cursor
+    instead, in cells or as a percentage of the window such as ``'50%'``; that region is erased
+    when the canvas closes, unless you pass ``clear=False``. ``title`` is the window title.
 
     The input gates say what the screen reports: ``mouse`` for buttons and drags, ``scroll``
     for the wheel, ``keyboard``, ``paste``, ``focus`` and ``interrupt`` (``Ctrl-C``), and
@@ -238,9 +241,10 @@ def open(
     Args:
         canvas_or_content: A canvas from ``new()``, or content to write into a new canvas.
         title: The window title; ``None`` keeps the canvas's title.
-        width: The width of the region to draw in; the whole window when neither ``width``
-            nor ``height`` is given.
-        height: The height of the region to draw in.
+        width: The width of the region to draw in, in cells or as a percentage of the
+            window; the whole window when neither ``width`` nor ``height`` is given.
+        height: The height of the region to draw in, in cells or as a percentage of the
+            window.
         settings: The other keywords of ``new()`` except ``realtime``: the gates, the
             canvas's look, ``fps``, ``bpm``, ``effects``, ``deps`` and ``state``.
 
@@ -275,10 +279,11 @@ def open(
             'Remove realtime=..., or keep the canvas off the screen with '
             'xnano.new(realtime=True).'
         )
-    if width is not None and height is None:
+    if height is None and not _is_whole_window(_check_size('width', width)):
         raise ValueError(
             'A canvas on the screen with a width needs a height too, because it draws in a '
-            'region of that size. Add height=..., or remove width.'
+            "region of that size. Add height=... (cells, or a percentage such as '50%'), or "
+            'remove width.'
         )
     # Checked here as well as in new(), so that an error names open().
     own = {'fps', 'bpm', 'effects', 'deps', 'state'}

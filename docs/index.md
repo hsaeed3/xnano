@@ -37,7 +37,7 @@ The `xnano` distribution installs the terminal and its Rust engine, and two opti
 | `xnano-image` | `xnano_image` | Image and animation loading and conversion to terminal cells. Install with `pip install "xnano[image]"`. |
 
 Start with the [getting started guide](learn/index.md), then read the
-[API reference](api-reference/index.md). The repository's `examples/` folder has thirty-one
+[API reference](api-reference/index.md). The repository's `examples/` folder has thirty-two
 runnable programs, from a hello world to a playable pixel-art world.
 
 !!! note "Looking for xnano v1?"

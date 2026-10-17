@@ -169,11 +169,11 @@ class _RenderableEffectMethods:
         Fade the colors to ``foreground`` and ``background``.
 
         Keyword Args:
-            foreground: Target foreground color, or ``None``.
-            background: Target background color, or ``None``.
-            duration_milliseconds: Duration of the fade in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            foreground (ColorValue | Expression[ColorValue] | None): Target foreground color, or ``None``.
+            background (ColorValue | Expression[ColorValue] | None): Target background color, or ``None``.
+            duration_milliseconds (int | Expression[int | float] | None): Duration of the fade in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -190,11 +190,11 @@ class _RenderableEffectMethods:
         Fade the colors in from ``foreground`` and ``background``.
 
         Keyword Args:
-            foreground: Starting foreground color, or ``None``.
-            background: Starting background color, or ``None``.
-            duration_milliseconds: Duration of the fade in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            foreground (ColorValue | Expression[ColorValue] | None): Starting foreground color, or ``None``.
+            background (ColorValue | Expression[ColorValue] | None): Starting background color, or ``None``.
+            duration_milliseconds (int | Expression[int | float] | None): Duration of the fade in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -211,11 +211,11 @@ class _RenderableEffectMethods:
         Paint ``foreground`` and ``background`` over the colors.
 
         Keyword Args:
-            foreground: Foreground color to paint, or ``None``.
-            background: Background color to paint, or ``None``.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            foreground (ColorValue | Expression[ColorValue] | None): Foreground color to paint, or ``None``.
+            background (ColorValue | Expression[ColorValue] | None): Background color to paint, or ``None``.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -230,11 +230,11 @@ class _RenderableEffectMethods:
         Make the colors more or less saturated.
 
         Keyword Args:
-            foreground: Foreground saturation change, or ``None``.
-            background: Background saturation change, or ``None``.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            foreground (float | Expression[int | float] | None): Foreground saturation change, or ``None``.
+            background (float | Expression[int | float] | None): Background saturation change, or ``None``.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -251,11 +251,11 @@ class _RenderableEffectMethods:
         Lighten the colors.
 
         Keyword Args:
-            foreground: Foreground lightness increase, or ``None``.
-            background: Background lightness increase, or ``None``.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            foreground (float | Expression[int | float] | None): Foreground lightness increase, or ``None``.
+            background (float | Expression[int | float] | None): Background lightness increase, or ``None``.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -272,11 +272,11 @@ class _RenderableEffectMethods:
         Darken the colors.
 
         Keyword Args:
-            foreground: Foreground darkness increase, or ``None``.
-            background: Background darkness increase, or ``None``.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            foreground (float | Expression[int | float] | None): Foreground darkness increase, or ``None``.
+            background (float | Expression[int | float] | None): Background darkness increase, or ``None``.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -291,13 +291,13 @@ class _RenderableEffectMethods:
         Reveal the content behind a sweep of ``color`` in ``direction``.
 
         Keyword Args:
-            direction: Sweep direction (such as ``'left_to_right'``).
-            gradient_length: Length of the sweep gradient in cells.
-            randomness: Random offset across rows or columns.
-            color: Starting sweep color.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            direction (MotionDirection | Expression[str] | None): Sweep direction (such as ``'left_to_right'``).
+            gradient_length (int | Expression[int | float] | None): Length of the sweep gradient in cells.
+            randomness (int | Expression[int | float] | None): Random offset across rows or columns.
+            color (ColorValue | Expression[ColorValue] | None): Starting sweep color.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -314,13 +314,13 @@ class _RenderableEffectMethods:
         Hide the content behind a sweep of ``color`` in ``direction``.
 
         Keyword Args:
-            direction: Sweep direction (such as ``'left_to_right'``).
-            gradient_length: Length of the sweep gradient in cells.
-            randomness: Random offset across rows or columns.
-            color: Ending sweep color.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            direction (MotionDirection | Expression[str] | None): Sweep direction (such as ``'left_to_right'``).
+            gradient_length (int | Expression[int | float] | None): Length of the sweep gradient in cells.
+            randomness (int | Expression[int | float] | None): Random offset across rows or columns.
+            color (ColorValue | Expression[ColorValue] | None): Ending sweep color.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -337,13 +337,13 @@ class _RenderableEffectMethods:
         Slide the content in, in ``direction``.
 
         Keyword Args:
-            direction: Slide direction (such as ``'left_to_right'``).
-            gradient_length: Length of the gradient trail in cells.
-            randomness: Random offset across rows or columns.
-            color: Color behind the sliding cells.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            direction (MotionDirection | Expression[str] | None): Slide direction (such as ``'left_to_right'``).
+            gradient_length (int | Expression[int | float] | None): Length of the gradient trail in cells.
+            randomness (int | Expression[int | float] | None): Random offset across rows or columns.
+            color (ColorValue | Expression[ColorValue] | None): Color behind the sliding cells.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -360,13 +360,13 @@ class _RenderableEffectMethods:
         Slide the content out, in ``direction``.
 
         Keyword Args:
-            direction: Slide direction (such as ``'left_to_right'``).
-            gradient_length: Length of the gradient trail in cells.
-            randomness: Random offset across rows or columns.
-            color: Color left behind the sliding cells.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            direction (MotionDirection | Expression[str] | None): Slide direction (such as ``'left_to_right'``).
+            gradient_length (int | Expression[int | float] | None): Length of the gradient trail in cells.
+            randomness (int | Expression[int | float] | None): Random offset across rows or columns.
+            color (ColorValue | Expression[ColorValue] | None): Color left behind the sliding cells.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -383,11 +383,11 @@ class _RenderableEffectMethods:
         Shift the hue, saturation and lightness of the colors.
 
         Keyword Args:
-            foreground: ``(hue, saturation, lightness)`` shift for foreground colors.
-            background: ``(hue, saturation, lightness)`` shift for background colors.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            foreground (HslShiftTuple | None): ``(hue, saturation, lightness)`` shift for foreground colors.
+            background (HslShiftTuple | None): ``(hue, saturation, lightness)`` shift for background colors.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -404,10 +404,10 @@ class _RenderableEffectMethods:
         Dissolve the content into ``style``, cell by cell.
 
         Keyword Args:
-            style: Style dissolved into.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            style (Style | DynamicStyle | None): Style dissolved into.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -424,10 +424,10 @@ class _RenderableEffectMethods:
         Bring the content together out of ``style``, cell by cell.
 
         Keyword Args:
-            style: Style coalesced from.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            style (Style | DynamicStyle | None): Style coalesced from.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -444,11 +444,11 @@ class _RenderableEffectMethods:
         Make a share of the cells glitch for a moment.
 
         Keyword Args:
-            ratio: Fraction of cells affected by the glitch.
-            duration_milliseconds: Duration in milliseconds.
-            start_delay_milliseconds: ``(minimum, maximum)`` delay before a cell glitches.
-            action_milliseconds: ``(minimum, maximum)`` duration of each cell glitch.
-            key: Optional effect key for replacement or cancellation.
+            ratio (float | Expression[int | float] | None): Fraction of cells affected by the glitch.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            start_delay_milliseconds (tuple[int, int]): ``(minimum, maximum)`` delay before a cell glitches.
+            action_milliseconds (tuple[int, int]): ``(minimum, maximum)`` duration of each cell glitch.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -463,9 +463,9 @@ class _RenderableEffectMethods:
         Wait for ``duration_milliseconds`` without changing anything.
 
         Keyword Args:
-            duration_milliseconds: Pause duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            duration_milliseconds (int | Expression[int | float]): Pause duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -480,11 +480,11 @@ class _RenderableEffectMethods:
         Cycle the cells through a progression of ``symbols``.
 
         Keyword Args:
-            symbols: Named symbol progression (such as ``'circles'``, ``'blocks'`` or ``'shaded'``).
-            style: Optional style applied to the evolving symbols.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            symbols (EvolveSymbolSet | Expression[str] | None): The symbols stepped through, such as ``'circles'``, ``'squares'`` or ``'shaded'``.
+            style (Style | DynamicStyle | None): Optional style applied to the evolving symbols.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -499,11 +499,11 @@ class _RenderableEffectMethods:
         Turn the content into a progression of ``symbols``.
 
         Keyword Args:
-            symbols: Named symbol progression (such as ``'circles'``, ``'blocks'`` or ``'shaded'``).
-            style: Optional style applied to the evolving symbols.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            symbols (EvolveSymbolSet | Expression[str] | None): The symbols stepped through, such as ``'circles'``, ``'squares'`` or ``'shaded'``.
+            style (Style | DynamicStyle | None): Optional style applied to the evolving symbols.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -520,11 +520,11 @@ class _RenderableEffectMethods:
         Grow the content out of a progression of ``symbols``.
 
         Keyword Args:
-            symbols: Named symbol progression (such as ``'circles'``, ``'blocks'`` or ``'shaded'``).
-            style: Optional style applied to the evolving symbols.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            symbols (EvolveSymbolSet | Expression[str] | None): The symbols stepped through, such as ``'circles'``, ``'squares'`` or ``'shaded'``.
+            style (Style | DynamicStyle | None): Optional style applied to the evolving symbols.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -541,11 +541,11 @@ class _RenderableEffectMethods:
         Expand ``style`` outward from the center.
 
         Keyword Args:
-            direction: ``'horizontal'`` or ``'vertical'``.
-            style: Style expanded outward from the center.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            direction (Literal['horizontal', 'vertical'] | Expression[str] | None): ``'horizontal'`` or ``'vertical'``.
+            style (Style | DynamicStyle | None): Style expanded outward from the center.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -560,11 +560,11 @@ class _RenderableEffectMethods:
         Stretch ``style`` across the area in ``direction``.
 
         Keyword Args:
-            direction: ``'left_to_right'``, ``'right_to_left'``, ``'up_to_down'`` or ``'down_to_up'``.
-            style: Style stretched across the area.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            direction (MotionDirection | Expression[str] | None): ``'left_to_right'``, ``'right_to_left'``, ``'up_to_down'`` or ``'down_to_up'``.
+            style (Style | DynamicStyle | None): Style stretched across the area.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -581,11 +581,11 @@ class _RenderableEffectMethods:
         Throw the cells outward.
 
         Keyword Args:
-            force: Outward force throwing the cells.
-            randomness: Variation in force from cell to cell.
-            duration_milliseconds: Duration in milliseconds.
-            interpolation: Easing curve name.
-            key: Optional effect key for replacement or cancellation.
+            force (float | Expression[int | float] | None): Outward force throwing the cells.
+            randomness (float | Expression[int | float] | None): Variation in force from cell to cell.
+            duration_milliseconds (int | Expression[int | float] | None): Duration in milliseconds.
+            interpolation (Interpolation | Expression[str] | None): The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
+            key (str | Expression[str] | None): Optional effect key for replacement or cancellation.
 
         Returns:
             The running effect. Assigning one of its fields starts it again with the new
@@ -611,8 +611,8 @@ class _PlayableEffectMethods:
         Lower the resolution of the sound, for a gritty, retro tone.
 
         Keyword Args:
-            bits: Quantization resolution in bits (``1`` to ``16``).
-            downsample: Sample-hold factor (``1`` to ``256``).
+            bits (int): Quantization resolution in bits (``1`` to ``16``).
+            downsample (int): Sample-hold factor (``1`` to ``256``).
 
         Returns:
             The effect. Assigning one of its fields changes the sounds played after that.
@@ -628,7 +628,7 @@ class _PlayableEffectMethods:
         Distort the sound by driving it into soft clipping.
 
         Keyword Args:
-            drive: Input gain before soft-clipping (``0.1`` to ``100.0``).
+            drive (float): Input gain before soft-clipping (``0.1`` to ``100.0``).
 
         Returns:
             The effect. Assigning one of its fields changes the sounds played after that.
@@ -644,8 +644,8 @@ class _PlayableEffectMethods:
         Keep the frequencies below ``cutoff`` and soften those above it.
 
         Keyword Args:
-            cutoff: Corner frequency in hertz (``20.0`` to ``20000.0``).
-            resonance: Filter resonance Q (``0.1`` to ``20.0``).
+            cutoff (float): Corner frequency in hertz (``20.0`` to ``20000.0``).
+            resonance (float): Filter resonance Q (``0.1`` to ``20.0``).
 
         Returns:
             The effect. Assigning one of its fields changes the sounds played after that.
@@ -661,8 +661,8 @@ class _PlayableEffectMethods:
         Keep the frequencies above ``cutoff`` and soften those below it.
 
         Keyword Args:
-            cutoff: Corner frequency in hertz (``20.0`` to ``20000.0``).
-            resonance: Filter resonance Q (``0.1`` to ``20.0``).
+            cutoff (float): Corner frequency in hertz (``20.0`` to ``20000.0``).
+            resonance (float): Filter resonance Q (``0.1`` to ``20.0``).
 
         Returns:
             The effect. Assigning one of its fields changes the sounds played after that.
@@ -676,9 +676,9 @@ class _PlayableEffectMethods:
         Repeat the sound as fading echoes.
 
         Keyword Args:
-            time_milliseconds: Delay time between echoes in milliseconds (``1.0`` to ``2000.0``).
-            feedback: Echo feedback ratio (``0.0`` to ``0.95``).
-            mix: Wet/dry mix ratio (``0.0`` to ``1.0``).
+            time_milliseconds (float): Delay time between echoes in milliseconds (``1.0`` to ``2000.0``).
+            feedback (float): Echo feedback ratio (``0.0`` to ``0.95``).
+            mix (float): Wet/dry mix ratio (``0.0`` to ``1.0``).
 
         Returns:
             The effect. Assigning one of its fields changes the sounds played after that.
@@ -692,9 +692,9 @@ class _PlayableEffectMethods:
         Add the reverberation of a room.
 
         Keyword Args:
-            room: Room size (``0.0`` to ``1.0``).
-            damping: High-frequency damping (``0.0`` to ``1.0``).
-            mix: Wet/dry mix ratio (``0.0`` to ``1.0``).
+            room (float): Room size (``0.0`` to ``1.0``).
+            damping (float): High-frequency damping (``0.0`` to ``1.0``).
+            mix (float): Wet/dry mix ratio (``0.0`` to ``1.0``).
 
         Returns:
             The effect. Assigning one of its fields changes the sounds played after that.
@@ -708,8 +708,8 @@ class _PlayableEffectMethods:
         Pulse the volume up and down.
 
         Keyword Args:
-            rate_hertz: Modulation rate in hertz (``0.1`` to ``40.0``).
-            depth: Modulation depth (``0.0`` to ``1.0``).
+            rate_hertz (float): Modulation rate in hertz (``0.1`` to ``40.0``).
+            depth (float): Modulation depth (``0.0`` to ``1.0``).
 
         Returns:
             The effect. Assigning one of its fields changes the sounds played after that.

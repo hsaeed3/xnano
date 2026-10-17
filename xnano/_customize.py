@@ -21,7 +21,13 @@ from typing import (
 
 import xnano_core as _core
 from xnano._axes import to_rgb
-from xnano._values import RGB, ColorValue, PixelEncoding
+from xnano._values import (
+    RGB,
+    ColorValue,
+    Interpolation,
+    MotionDirection,
+    PixelEncoding,
+)
 
 if TYPE_CHECKING:
     from typing_extensions import Required, Unpack
@@ -383,14 +389,14 @@ class FadeToEffectArguments(TypedDict, total=False):
         foreground: Target foreground color, or ``None``.
         background: Target background color, or ``None``.
         duration_milliseconds: Duration of the fade in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     foreground: ColorValue | _core.Expression[ColorValue] | None
     background: ColorValue | _core.Expression[ColorValue] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -403,7 +409,7 @@ class FadeToEffectCustomization(Customization):
         foreground: Target foreground color, or ``None``.
         background: Target background color, or ``None``.
         duration_milliseconds: Duration of the fade in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -411,7 +417,7 @@ class FadeToEffectCustomization(Customization):
     foreground: ColorValue | _core.Expression[ColorValue] | None = None
     background: ColorValue | _core.Expression[ColorValue] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -423,14 +429,14 @@ class FadeFromEffectArguments(TypedDict, total=False):
         foreground: Starting foreground color, or ``None``.
         background: Starting background color, or ``None``.
         duration_milliseconds: Duration of the fade in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     foreground: ColorValue | _core.Expression[ColorValue] | None
     background: ColorValue | _core.Expression[ColorValue] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -443,7 +449,7 @@ class FadeFromEffectCustomization(Customization):
         foreground: Starting foreground color, or ``None``.
         background: Starting background color, or ``None``.
         duration_milliseconds: Duration of the fade in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -451,7 +457,7 @@ class FadeFromEffectCustomization(Customization):
     foreground: ColorValue | _core.Expression[ColorValue] | None = None
     background: ColorValue | _core.Expression[ColorValue] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -463,14 +469,14 @@ class PaintEffectArguments(TypedDict, total=False):
         foreground: Foreground color to paint, or ``None``.
         background: Background color to paint, or ``None``.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     foreground: ColorValue | _core.Expression[ColorValue] | None
     background: ColorValue | _core.Expression[ColorValue] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -483,7 +489,7 @@ class PaintEffectCustomization(Customization):
         foreground: Foreground color to paint, or ``None``.
         background: Background color to paint, or ``None``.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -491,7 +497,7 @@ class PaintEffectCustomization(Customization):
     foreground: ColorValue | _core.Expression[ColorValue] | None = None
     background: ColorValue | _core.Expression[ColorValue] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -503,14 +509,14 @@ class SaturateEffectArguments(TypedDict, total=False):
         foreground: Foreground saturation change, or ``None``.
         background: Background saturation change, or ``None``.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     foreground: float | _core.Expression[int | float] | None
     background: float | _core.Expression[int | float] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -523,7 +529,7 @@ class SaturateEffectCustomization(Customization):
         foreground: Foreground saturation change, or ``None``.
         background: Background saturation change, or ``None``.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -531,7 +537,7 @@ class SaturateEffectCustomization(Customization):
     foreground: float | _core.Expression[int | float] | None = None
     background: float | _core.Expression[int | float] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -543,14 +549,14 @@ class LightenEffectArguments(TypedDict, total=False):
         foreground: Foreground lightness increase, or ``None``.
         background: Background lightness increase, or ``None``.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     foreground: float | _core.Expression[int | float] | None
     background: float | _core.Expression[int | float] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -563,7 +569,7 @@ class LightenEffectCustomization(Customization):
         foreground: Foreground lightness increase, or ``None``.
         background: Background lightness increase, or ``None``.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -571,7 +577,7 @@ class LightenEffectCustomization(Customization):
     foreground: float | _core.Expression[int | float] | None = None
     background: float | _core.Expression[int | float] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -583,14 +589,14 @@ class DarkenEffectArguments(TypedDict, total=False):
         foreground: Foreground darkness increase, or ``None``.
         background: Background darkness increase, or ``None``.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     foreground: float | _core.Expression[int | float] | None
     background: float | _core.Expression[int | float] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -603,7 +609,7 @@ class DarkenEffectCustomization(Customization):
         foreground: Foreground darkness increase, or ``None``.
         background: Background darkness increase, or ``None``.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -611,7 +617,7 @@ class DarkenEffectCustomization(Customization):
     foreground: float | _core.Expression[int | float] | None = None
     background: float | _core.Expression[int | float] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -625,16 +631,16 @@ class SweepInEffectArguments(TypedDict, total=False):
         randomness: Random offset across rows or columns.
         color: Starting sweep color.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
-    direction: str | _core.Expression[str] | None
+    direction: MotionDirection | _core.Expression[str] | None
     gradient_length: int | _core.Expression[int | float] | None
     randomness: int | _core.Expression[int | float] | None
     color: ColorValue | _core.Expression[ColorValue] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -649,17 +655,17 @@ class SweepInEffectCustomization(Customization):
         randomness: Random offset across rows or columns.
         color: Starting sweep color.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     customization_kind = 'effect.sweep_in'
-    direction: str | _core.Expression[str] | None = None
+    direction: MotionDirection | _core.Expression[str] | None = None
     gradient_length: int | _core.Expression[int | float] | None = None
     randomness: int | _core.Expression[int | float] | None = None
     color: ColorValue | _core.Expression[ColorValue] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -673,16 +679,16 @@ class SweepOutEffectArguments(TypedDict, total=False):
         randomness: Random offset across rows or columns.
         color: Ending sweep color.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
-    direction: str | _core.Expression[str] | None
+    direction: MotionDirection | _core.Expression[str] | None
     gradient_length: int | _core.Expression[int | float] | None
     randomness: int | _core.Expression[int | float] | None
     color: ColorValue | _core.Expression[ColorValue] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -697,17 +703,17 @@ class SweepOutEffectCustomization(Customization):
         randomness: Random offset across rows or columns.
         color: Ending sweep color.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     customization_kind = 'effect.sweep_out'
-    direction: str | _core.Expression[str] | None = None
+    direction: MotionDirection | _core.Expression[str] | None = None
     gradient_length: int | _core.Expression[int | float] | None = None
     randomness: int | _core.Expression[int | float] | None = None
     color: ColorValue | _core.Expression[ColorValue] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -721,16 +727,16 @@ class SlideInEffectArguments(TypedDict, total=False):
         randomness: Random offset across rows or columns.
         color: Color behind the sliding cells.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
-    direction: str | _core.Expression[str] | None
+    direction: MotionDirection | _core.Expression[str] | None
     gradient_length: int | _core.Expression[int | float] | None
     randomness: int | _core.Expression[int | float] | None
     color: ColorValue | _core.Expression[ColorValue] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -745,17 +751,17 @@ class SlideInEffectCustomization(Customization):
         randomness: Random offset across rows or columns.
         color: Color behind the sliding cells.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     customization_kind = 'effect.slide_in'
-    direction: str | _core.Expression[str] | None = None
+    direction: MotionDirection | _core.Expression[str] | None = None
     gradient_length: int | _core.Expression[int | float] | None = None
     randomness: int | _core.Expression[int | float] | None = None
     color: ColorValue | _core.Expression[ColorValue] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -769,16 +775,16 @@ class SlideOutEffectArguments(TypedDict, total=False):
         randomness: Random offset across rows or columns.
         color: Color left behind the sliding cells.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
-    direction: str | _core.Expression[str] | None
+    direction: MotionDirection | _core.Expression[str] | None
     gradient_length: int | _core.Expression[int | float] | None
     randomness: int | _core.Expression[int | float] | None
     color: ColorValue | _core.Expression[ColorValue] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -793,17 +799,17 @@ class SlideOutEffectCustomization(Customization):
         randomness: Random offset across rows or columns.
         color: Color left behind the sliding cells.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     customization_kind = 'effect.slide_out'
-    direction: str | _core.Expression[str] | None = None
+    direction: MotionDirection | _core.Expression[str] | None = None
     gradient_length: int | _core.Expression[int | float] | None = None
     randomness: int | _core.Expression[int | float] | None = None
     color: ColorValue | _core.Expression[ColorValue] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -815,14 +821,14 @@ class HslShiftEffectArguments(TypedDict, total=False):
         foreground: ``(hue, saturation, lightness)`` shift for foreground colors.
         background: ``(hue, saturation, lightness)`` shift for background colors.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     foreground: HslShiftTuple | None
     background: HslShiftTuple | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -835,7 +841,7 @@ class HslShiftEffectCustomization(Customization):
         foreground: ``(hue, saturation, lightness)`` shift for foreground colors.
         background: ``(hue, saturation, lightness)`` shift for background colors.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -843,7 +849,7 @@ class HslShiftEffectCustomization(Customization):
     foreground: HslShiftTuple | None = None
     background: HslShiftTuple | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -854,13 +860,13 @@ class DissolveEffectArguments(TypedDict, total=False):
     Attributes:
         style: Style dissolved into.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     style: _core.Style | _core.DynamicStyle | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -872,14 +878,14 @@ class DissolveEffectCustomization(Customization):
     Attributes:
         style: Style dissolved into.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     customization_kind = 'effect.dissolve'
     style: _core.Style | _core.DynamicStyle | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -890,13 +896,13 @@ class CoalesceEffectArguments(TypedDict, total=False):
     Attributes:
         style: Style coalesced from.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     style: _core.Style | _core.DynamicStyle | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -908,14 +914,14 @@ class CoalesceEffectCustomization(Customization):
     Attributes:
         style: Style coalesced from.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     customization_kind = 'effect.coalesce'
     style: _core.Style | _core.DynamicStyle | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -965,12 +971,12 @@ class SleepEffectArguments(TypedDict, total=False):
 
     Attributes:
         duration_milliseconds: Pause duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     duration_milliseconds: int | _core.Expression[int | float]
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -981,13 +987,13 @@ class SleepEffectCustomization(Customization):
 
     Attributes:
         duration_milliseconds: Pause duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     customization_kind = 'effect.sleep'
     duration_milliseconds: int | _core.Expression[int | float] = 500
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -996,17 +1002,17 @@ class EvolveEffectArguments(TypedDict, total=False):
     Keyword arguments for ``fx('effect.evolve', ...)``.
 
     Attributes:
-        symbols: Named symbol progression (such as ``'circles'``, ``'blocks'`` or ``'shaded'``).
+        symbols: The symbols stepped through, such as ``'circles'``, ``'squares'`` or ``'shaded'``.
         style: Optional style applied to the evolving symbols.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     symbols: _core.EvolveSymbolSet | _core.Expression[str] | None
     style: _core.Style | _core.DynamicStyle | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -1016,10 +1022,10 @@ class EvolveEffectCustomization(Customization):
     Dataclass customization for ``Effect.evolve`` (``'effect.evolve'``).
 
     Attributes:
-        symbols: Named symbol progression (such as ``'circles'``, ``'blocks'`` or ``'shaded'``).
+        symbols: The symbols stepped through, such as ``'circles'``, ``'squares'`` or ``'shaded'``.
         style: Optional style applied to the evolving symbols.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -1027,7 +1033,7 @@ class EvolveEffectCustomization(Customization):
     symbols: _core.EvolveSymbolSet | _core.Expression[str] | None = None
     style: _core.Style | _core.DynamicStyle | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -1036,17 +1042,17 @@ class EvolveIntoEffectArguments(TypedDict, total=False):
     Keyword arguments for ``fx('effect.evolve_into', ...)``.
 
     Attributes:
-        symbols: Named symbol progression (such as ``'circles'``, ``'blocks'`` or ``'shaded'``).
+        symbols: The symbols stepped through, such as ``'circles'``, ``'squares'`` or ``'shaded'``.
         style: Optional style applied to the evolving symbols.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     symbols: _core.EvolveSymbolSet | _core.Expression[str] | None
     style: _core.Style | _core.DynamicStyle | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -1056,10 +1062,10 @@ class EvolveIntoEffectCustomization(Customization):
     Dataclass customization for ``Effect.evolve_into`` (``'effect.evolve_into'``).
 
     Attributes:
-        symbols: Named symbol progression (such as ``'circles'``, ``'blocks'`` or ``'shaded'``).
+        symbols: The symbols stepped through, such as ``'circles'``, ``'squares'`` or ``'shaded'``.
         style: Optional style applied to the evolving symbols.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -1067,7 +1073,7 @@ class EvolveIntoEffectCustomization(Customization):
     symbols: _core.EvolveSymbolSet | _core.Expression[str] | None = None
     style: _core.Style | _core.DynamicStyle | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -1076,17 +1082,17 @@ class EvolveFromEffectArguments(TypedDict, total=False):
     Keyword arguments for ``fx('effect.evolve_from', ...)``.
 
     Attributes:
-        symbols: Named symbol progression (such as ``'circles'``, ``'blocks'`` or ``'shaded'``).
+        symbols: The symbols stepped through, such as ``'circles'``, ``'squares'`` or ``'shaded'``.
         style: Optional style applied to the evolving symbols.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     symbols: _core.EvolveSymbolSet | _core.Expression[str] | None
     style: _core.Style | _core.DynamicStyle | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -1096,10 +1102,10 @@ class EvolveFromEffectCustomization(Customization):
     Dataclass customization for ``Effect.evolve_from`` (``'effect.evolve_from'``).
 
     Attributes:
-        symbols: Named symbol progression (such as ``'circles'``, ``'blocks'`` or ``'shaded'``).
+        symbols: The symbols stepped through, such as ``'circles'``, ``'squares'`` or ``'shaded'``.
         style: Optional style applied to the evolving symbols.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -1107,7 +1113,7 @@ class EvolveFromEffectCustomization(Customization):
     symbols: _core.EvolveSymbolSet | _core.Expression[str] | None = None
     style: _core.Style | _core.DynamicStyle | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -1119,14 +1125,14 @@ class ExpandEffectArguments(TypedDict, total=False):
         direction: ``'horizontal'`` or ``'vertical'``.
         style: Style expanded outward from the center.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     direction: Literal['horizontal', 'vertical'] | _core.Expression[str] | None
     style: _core.Style | _core.DynamicStyle | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -1139,7 +1145,7 @@ class ExpandEffectCustomization(Customization):
         direction: ``'horizontal'`` or ``'vertical'``.
         style: Style expanded outward from the center.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -1147,7 +1153,7 @@ class ExpandEffectCustomization(Customization):
     direction: Literal['horizontal', 'vertical'] | _core.Expression[str] | None = None
     style: _core.Style | _core.DynamicStyle | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -1159,18 +1165,14 @@ class StretchEffectArguments(TypedDict, total=False):
         direction: ``'left_to_right'``, ``'right_to_left'``, ``'up_to_down'`` or ``'down_to_up'``.
         style: Style stretched across the area.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
-    direction: (
-        Literal['left_to_right', 'right_to_left', 'up_to_down', 'down_to_up']
-        | _core.Expression[str]
-        | None
-    )
+    direction: MotionDirection | _core.Expression[str] | None
     style: _core.Style | _core.DynamicStyle | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -1183,19 +1185,15 @@ class StretchEffectCustomization(Customization):
         direction: ``'left_to_right'``, ``'right_to_left'``, ``'up_to_down'`` or ``'down_to_up'``.
         style: Style stretched across the area.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     customization_kind = 'effect.stretch'
-    direction: (
-        Literal['left_to_right', 'right_to_left', 'up_to_down', 'down_to_up']
-        | _core.Expression[str]
-        | None
-    ) = None
+    direction: MotionDirection | _core.Expression[str] | None = None
     style: _core.Style | _core.DynamicStyle | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
@@ -1207,14 +1205,14 @@ class ExplodeEffectArguments(TypedDict, total=False):
         force: Outward force throwing the cells.
         randomness: Variation in force from cell to cell.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
     force: float | _core.Expression[int | float] | None
     randomness: float | _core.Expression[int | float] | None
     duration_milliseconds: int | _core.Expression[int | float] | None
-    interpolation: str | _core.Expression[str] | None
+    interpolation: Interpolation | _core.Expression[str] | None
     key: str | _core.Expression[str] | None
 
 
@@ -1227,7 +1225,7 @@ class ExplodeEffectCustomization(Customization):
         force: Outward force throwing the cells.
         randomness: Variation in force from cell to cell.
         duration_milliseconds: Duration in milliseconds.
-        interpolation: Easing curve name.
+        interpolation: The easing curve, such as ``'linear'`` or ``'quad_in_out'``.
         key: Optional effect key for replacement or cancellation.
     """
 
@@ -1235,7 +1233,7 @@ class ExplodeEffectCustomization(Customization):
     force: float | _core.Expression[int | float] | None = None
     randomness: float | _core.Expression[int | float] | None = None
     duration_milliseconds: int | _core.Expression[int | float] | None = None
-    interpolation: str | _core.Expression[str] | None = None
+    interpolation: Interpolation | _core.Expression[str] | None = None
     key: str | _core.Expression[str] | None = None
 
 
