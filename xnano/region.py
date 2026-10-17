@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from xnano._media import Image
     from xnano._values import Content
     from xnano.canvas import Canvas
+    from xnano.context import Context
     from xnano.placement import Placement
     from xnano.types import AppearanceArguments
 
@@ -882,7 +883,7 @@ class Region(_Looked):
         """Return the characters of the region, so ``print(region)`` shows it."""
         return self.render()
 
-    def __xnano_buffer__(self) -> _core.Buffer:
+    def __xnano_render__(self, context: Context | None = None) -> _core.Buffer:
         """Return the buffer that shows the region: its own, or a copy for a view."""
         if self._is_standalone:
             self._flush_look()

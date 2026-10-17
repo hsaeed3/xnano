@@ -37,9 +37,14 @@ else:
     from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
-    from xnano_image import TerminalImage
+    from collections.abc import Sequence
 
-    from xnano._media import Image
+    from xnano._media import Audio, Image
+    from xnano.art import Art
+    from xnano.context import Context
+    from xnano.music import Note
+    from xnano.pixel import Pixel
+    from xnano.region import Region
     from xnano_core import Buffer
 
 # --------------------------------------------------------------------------------------
@@ -125,19 +130,60 @@ event keeps the names ``'left'``, ``'right'`` and ``'middle'``.
 
 
 @runtime_checkable
-class Renderable(Protocol):
+class SupportsRender(Protocol):
     """
-    Anything a canvas can show.
+    Anything that draws itself: an object with a ``__xnano_render__`` method.
 
-    Implement ``__xnano_buffer__`` on your own class to make it addable to a canvas. A
-    [`Buffer`][xnano_core.Buffer] (and so every widget), a string and the bytes
-    of a cell grid are renderable without it.
+    The method receives the [`Context`][xnano.context.Context] and returns what to draw, which
+    is any [`Renderable`][xnano.types.Renderable]. No base class is needed; a dataclass or a
+    plain class qualifies. The method runs again, on the next frame, only when it read
+    something that changes (the time, the size, state or an input).
     """
 
-    def __xnano_buffer__(self) -> _core.Buffer:
-        """Return the buffer that shows this object."""
+    def __xnano_render__(self, context: Context) -> Renderable:
+        """Return what to draw."""
         ...
 
 
-Content: TypeAlias = 'Buffer | Renderable | str | bytes | TerminalImage | Image'
-"""What [`Canvas.write`][xnano.canvas.Canvas.write] accepts."""
+@runtime_checkable
+class SupportsPlay(Protocol):
+    """
+    Anything that can be played: an object with a ``__xnano_play__`` method.
+
+    The method receives the [`Context`][xnano.context.Context] and returns what to play.
+    No base class is needed; a dataclass or a plain class qualifies.
+    """
+
+    def __xnano_play__(self, context: Context) -> Playable:
+        """Return what to play."""
+        ...
+
+
+Renderable: TypeAlias = (
+    'str | Region | Art | Pixel | Image | Buffer | SupportsRender | Sequence[Renderable]'
+)
+"""
+Anything [`Canvas.write`][xnano.canvas.Canvas.write] accepts: text, a
+[`Region`][xnano.region.Region], an [`Art`][xnano.art.Art], a [`Pixel`][xnano.Pixel], an
+[`Image`][xnano.Image], a core [`Buffer`][xnano_core.Buffer], an object with
+``__xnano_render__``, or a sequence of those, which is stacked from top to bottom.
+"""
+
+Playable: TypeAlias = 'str | Note | Audio | SupportsPlay | Sequence[Playable]'
+"""
+Anything [`play`][xnano.play] and [`Canvas.play`][xnano.canvas.Canvas.play] accept: a
+[`Note`][xnano.Note], an [`Audio`][xnano.Audio], an object with ``__xnano_play__``, a
+sequence of those that plays one after another, or a ``str``: the name of a registered
+symbol, a note name such as ``'C#4'``, or melody text such as ``'C4 E4 G4:2'``.
+"""
+
+Content: TypeAlias = 'Renderable | Playable'
+"""Anything a canvas can show or play: a ``Renderable`` or a ``Playable``."""
+
+Anchor: TypeAlias = tuple[int, int]
+"""
+The ``(column, row)`` pixel inside an [`Art`][xnano.art.Art] that sits at the art's ``(x, y)``.
+
+``anchor=(3, 8)`` makes ``(x, y)`` the place a character's feet touch; ``(0, 0)`` is the top-left
+pixel.
+"""

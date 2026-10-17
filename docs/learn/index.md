@@ -83,5 +83,5 @@ playable world.
 The top-level `xnano` holds the main API. Everything else is in a module named for what it
 holds: [`xnano.widgets`][xnano.widgets], [`xnano.expressions`][xnano.expressions],
 [`xnano.effects`][xnano.effects], [`xnano.styles`][xnano.styles],
-[`xnano.events`][xnano.events], [`xnano.scene`][xnano.scene] and so on, with the optional
+[`xnano.events`][xnano.events], [`xnano.art`][xnano.art] and so on, with the optional
 `xnano.audio` and `xnano.image`.

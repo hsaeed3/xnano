@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from xnano.state import StateNamespace
     from xnano.time import Time
 
-__all__ = ['Context', 'Frame', 'Plugin', 'Update']
+__all__ = ['Context', 'Frame', 'Plugin', 'ReadLog', 'Update']
 
 
 @final
@@ -45,10 +45,11 @@ class Plugin:
 
     def __init__(self, hook: HookHandle[object, object]) -> None:
         """
-        Create the attachment of a hook. Use ``context.plugin`` instead of calling this.
+        Create the attachment of a hook or component. Use ``context.plugin`` instead of
+        calling this.
 
         Args:
-            hook: The hook that is running.
+            hook: The hook or component driver that is running.
         """
         self.hook = hook
 
@@ -80,6 +81,44 @@ class Plugin:
             ```
         """
         return self.hook._state_namespace()
+
+
+@final
+class ReadLog:
+    """
+    What a component read while it was evaluated: the record that decides when it runs again.
+
+    A component that read nothing that changes is evaluated once. One that read the time is
+    evaluated again on every frame (or every beat for a playable), one that read the size
+    when the screen is resized, and one that read an input when that input arrives.
+
+    Attributes:
+        uses_time: Whether it read the clock, the event or the held keys.
+        uses_size: Whether it read the size of the canvas or of a buffer.
+        uses_deps: Whether it read the dependencies.
+        input_kinds: The kinds of input it read: ``'key'``, ``'mouse'``, ``'scroll'`` or
+            ``'paste'``.
+    """
+
+    __slots__ = ('input_kinds', 'uses_deps', 'uses_size', 'uses_time')
+
+    def __init__(self) -> None:
+        """Start an empty record."""
+        self.uses_time = False
+        self.uses_size = False
+        self.uses_deps = False
+        self.input_kinds: set[str] = set()
+
+    @property
+    def is_dynamic(self) -> bool:
+        """Whether anything that changes was read (the dependencies never change)."""
+        return self.uses_time or self.uses_size or bool(self.input_kinds)
+
+    def __repr__(self) -> str:
+        return (
+            f'ReadLog(uses_time={self.uses_time}, uses_size={self.uses_size}, '
+            f'uses_deps={self.uses_deps}, input_kinds={sorted(self.input_kinds)})'
+        )
 
 
 @final
@@ -145,16 +184,10 @@ class Context(Generic[DepsT_co, StateT_co]):
         ```
     """
 
-    __slots__ = ('_core', '_owner', 'canvas', 'event', 'hook')
+    __slots__ = ('_core', '_event', '_log', '_owner', 'canvas', 'hook')
 
     canvas: Canvas[DepsT_co, StateT_co]
     """The root canvas the hook belongs to."""
-    event: _core.Event | _core.TerminalStateChange | Frame | Update | None
-    """
-    The event: a core event for input, a [`Frame`][xnano.context.Frame] for ``hook(on='frame')``,
-    an [`Update`][xnano.context.Update] for ``hook(on='tick')``, a state change for
-    ``hook(on='state')``, or ``None`` when no event caused the call.
-    """
     hook: HookHandle[object, object]
     """The registration, so the hook can call ``hook.remove()``."""
 
@@ -165,6 +198,7 @@ class Context(Generic[DepsT_co, StateT_co]):
         hook: HookHandle[object, object],
         event: _core.Event | _core.TerminalStateChange | Frame | Update | None,
         core: _core.CoreContext | None,
+        log: ReadLog | None = None,
     ) -> None:
         """
         Create a context. The runtime does this for you; hooks receive one.
@@ -175,12 +209,26 @@ class Context(Generic[DepsT_co, StateT_co]):
             hook: The hook that is called.
             event: The event, or ``None``.
             core: The runtime's context for the event, or ``None``.
+            log: Where to record what is read, for a component; ``None`` for a hook.
         """
         self.canvas = canvas
         self._owner = owner
         self.hook = hook
-        self.event = event
+        self._event = event
         self._core = core
+        self._log = log
+
+    @property
+    def event(self) -> _core.Event | _core.TerminalStateChange | Frame | Update | None:
+        """
+        The event: a core event for input, a [`Frame`][xnano.context.Frame] for
+        ``hook(on='frame')``, an [`Update`][xnano.context.Update] for ``hook(on='tick')``, a
+        state change for ``hook(on='state')``, or ``None`` when no event caused the call.
+        """
+        log = self._log
+        if log is not None:
+            log.uses_time = True
+        return self._event
 
     @property
     def _root_canvas(self) -> Canvas[object, object]:
@@ -188,37 +236,59 @@ class Context(Generic[DepsT_co, StateT_co]):
 
     @property
     def _input_event(self) -> _core.Event | None:
-        event = self.event
+        event = self._event
         return event if isinstance(event, _core.Event) else None
+
+    def _read(self, kind: str) -> None:
+        """Record that a component read an input of ``kind``."""
+        log = self._log
+        if log is not None:
+            log.input_kinds.add(kind)
+
+    def _read_size(self) -> None:
+        log = self._log
+        if log is not None:
+            log.uses_size = True
+
+    def _read_time(self) -> None:
+        log = self._log
+        if log is not None:
+            log.uses_time = True
 
     @property
     def keyboard(self) -> KeyboardInput:
         """The key of the event; ``key`` is ``None`` unless the event is a key."""
+        self._read('key')
         return KeyboardInput(self._root_canvas, self._input_event)
 
     @property
     def mouse(self) -> MouseInput:
         """The mouse button or movement of the event; ``position`` is ``None`` for any other."""
+        self._read('mouse')
         return MouseInput(self._root_canvas, self._input_event)
 
     @property
     def scroll(self) -> ScrollInput:
         """The mouse wheel steps of the event; ``x`` and ``y`` are ``0`` unless it is a wheel."""
+        self._read('scroll')
         return ScrollInput(self._root_canvas, self._input_event)
 
     @property
     def clipboard(self) -> ClipboardInput:
         """The pasted text of the event; ``text`` is ``None`` unless the event is a paste."""
+        self._read('paste')
         return ClipboardInput(self._root_canvas, self._input_event)
 
     @property
     def buffer(self) -> Placement[object, object] | Canvas[object, object]:
         """The placement the hook is attached to, or the canvas for a hook on the canvas."""
+        self._read_size()
         return self._owner
 
     @property
     def parent(self) -> Placement[object, object] | Canvas[object, object]:
         """What contains the hook's placement: another placement, or the canvas."""
+        self._read_size()
         owner = self._owner
         parent = getattr(owner, '_parent_owner', None)
         if parent is None:
@@ -229,6 +299,7 @@ class Context(Generic[DepsT_co, StateT_co]):
     @property
     def root(self) -> Canvas[DepsT_co, StateT_co]:
         """The root canvas."""
+        self._read_size()
         return self.canvas
 
     @property
@@ -239,6 +310,9 @@ class Context(Generic[DepsT_co, StateT_co]):
     @property
     def deps(self) -> DepsT_co:
         """The dependencies given to ``new(deps=...)``, or ``None``."""
+        log = self._log
+        if log is not None:
+            log.uses_deps = True
         return self.canvas.deps
 
     @property
@@ -249,11 +323,13 @@ class Context(Generic[DepsT_co, StateT_co]):
     @property
     def time(self) -> Time:
         """The canvas's [`Time`][xnano.time.Time]."""
+        self._read_time()
         return self.canvas.time
 
     @property
     def audio(self) -> AudioDevice:
         """The canvas's [`AudioDevice`][xnano.audio.AudioDevice]."""
+        self._read_time()
         return self.canvas.audio
 
     @property
@@ -264,11 +340,13 @@ class Context(Generic[DepsT_co, StateT_co]):
     @property
     def size(self) -> _core.Size:
         """The canvas's size in cells."""
+        self._read_size()
         return self.canvas.size
 
     @property
     def input(self) -> Input:
         """The keys and mouse buttons held down right now."""
+        self._read_time()
         return self.canvas.input
 
     def local(self, point: _core.Point) -> _core.Point:

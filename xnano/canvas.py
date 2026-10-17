@@ -60,6 +60,7 @@ from xnano._values import (
     ValueT,
 )
 from xnano.appearance import _Looked
+from xnano.components import as_component, attach_component, play_component
 from xnano.context import Frame, Update
 from xnano.cursor import Cursor
 from xnano.errors import (
@@ -78,9 +79,9 @@ from xnano.operations import (
     ContextualOperation,
 )
 from xnano.output import Output
+from xnano.pixel import Pixel
 from xnano.placement import Placement
 from xnano.region import Region
-from xnano.scene import Scene
 from xnano.state import (
     StateFollower,
     StateNamespace,
@@ -358,16 +359,24 @@ def _is_gate_on(gate: str, resolved: Mapping[str, object]) -> bool:
     return value is not False and value is not None
 
 
+def _hook_label(function: object) -> str:
+    """Name a hook for a message: ``hook name``, or ``component name`` for a component's."""
+    component_name = getattr(function, '_component_name', None)
+    if component_name is not None:
+        return f'component {component_name}'
+    return f'hook {getattr(function, "__name__", "hook")}'
+
+
 def _gate_message(
-    hook_name: str, gate: str, subject: str, resolved: Mapping[str, object]
+    label: str, gate: str, subject: str, resolved: Mapping[str, object]
 ) -> str:
-    """Say which hook needs which gate, what the gate is now, and how to turn it on."""
+    """Say which hook or component needs which gate, what the gate is now, and how to turn it on."""
     key = 'keyboard' if gate == 'keyboard_release' else gate
     setting = (
         f'{key}={"release_events"!r}' if gate == 'keyboard_release' else f'{key}=True'
     )
     return (
-        f'The hook {hook_name} needs {setting}, but {subject} has {key}={resolved.get(key)!r}, '
+        f'The {label} needs {setting}, but {subject} has {key}={resolved.get(key)!r}, '
         f'so that input would never arrive. Turn it on when the canvas is created or opened: '
         f'xnano.new({setting}), xnano.open({setting}) or canvas.open({setting}).'
     )
@@ -785,9 +794,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 owner._flush_look()
         with self._lock:
             placements = list(self._dynamic.values())
-            listeners = list(self._frame_listeners.values())
-        # A function that runs before every frame needs a frame to run before.
-        is_time_dependent = bool(listeners)
+        is_time_dependent = False
         elapsed_seconds = runtime.clock.elapsed_seconds
         for source in list(self._images.values()):
             source.refresh(size, elapsed_seconds)
@@ -815,6 +822,12 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 self._release_frames()
         if self._effects:
             is_time_dependent |= self._follow_effects(runtime)
+        # Taken after the formulas ran: a component whose placement they resized asks for a
+        # listener, which must run before this frame is drawn. A function that runs before
+        # every frame needs a frame to run before.
+        with self._lock:
+            listeners = list(self._frame_listeners.values())
+        is_time_dependent |= bool(listeners)
         for listener in listeners:
             listener(core_context)
         if is_time_dependent:
@@ -1167,9 +1180,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         # every hook registered before this call has joined.
         for handle in self._host.call(self._hook_handles):
             for gate in handle._needed_gates():
-                needed.setdefault(gate, []).append(
-                    getattr(handle.function, '__name__', 'hook')
-                )
+                needed.setdefault(gate, []).append(_hook_label(handle.function))
         resolved = {
             name: gates.get(name, default) for name, default in _GATE_DEFAULTS.items()
         }
@@ -1190,10 +1201,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             return
         for gate in handle._needed_gates():
             if not _is_gate_on(gate, canvas._resolved_gates):
-                name = getattr(handle.function, '__name__', 'hook')
                 raise TerminalError(
                     _gate_message(
-                        name,
+                        _hook_label(handle.function),
                         gate,
                         'this canvas, which is already on the screen,',
                         canvas._resolved_gates,
@@ -2040,6 +2050,56 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 layer=layer,
                 look=appearance if is_decorated else None,
             )
+        component = (
+            None
+            if content is None
+            or isinstance(content, (Region, Pixel, Image, _core.Operation, _core.Style))
+            or isinstance(content, (ContextualOperation, Customization))
+            else as_component(content)
+        )
+        if component is not None:
+            # A component is drawn into an empty placement that has the position and the
+            # look the caller asked for; its first result then gives the placement its size.
+            placement = self._place_on(
+                parent_buffer,
+                None,
+                parent_owner=parent_owner,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                layer=layer,
+                style=style,
+                foreground=foreground,
+                background=background,
+                is_bold=is_bold,
+                is_dim=is_dim,
+                is_italic=is_italic,
+                is_underlined=is_underlined,
+                is_blinking=is_blinking,
+                is_reversed=is_reversed,
+                is_hidden=is_hidden,
+                is_crossed_out=is_crossed_out,
+                title=title,
+                border=border,
+                border_style=border_style,
+                padding=padding,
+                margin=margin,
+            )
+            try:
+                attach_component(
+                    cast('Placement[object, object]', placement),
+                    component,
+                    is_width_given=width is not None,
+                    is_height_given=height is not None,
+                )
+            except BaseException:
+                placement.remove()
+                raise
+            if lock:
+                for axis_name in ('x', 'y', 'width', 'height'):
+                    placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+            return placement
         if content is None:
             content = _core.Buffer()
         if isinstance(content, ContextualOperation):
@@ -3117,28 +3177,6 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                     canvas._host.post(lambda: audio._bind(canvas._runtime))
         return canvas._audio
 
-    def scene(
-        self,
-        world_width: int,
-        world_height: int,
-        *,
-        background: ColorValue = (0, 0, 0),
-    ) -> Scene:
-        """
-        Make a pixel world drawn on this canvas, seen through a camera.
-
-        Put sprites in it with [`Scene.add`][xnano.scene.Scene.add]; the scene redraws only when
-        something changed. See [`Scene`][xnano.scene.Scene].
-
-        Args:
-            world_width: The width of the world in pixels.
-            world_height: The height of the world in pixels.
-            background: The color shown where no sprite is drawn.
-        """
-        return Scene(
-            cast('Canvas[object, object]', self), world_width, world_height, background
-        )
-
     @property
     def input(self) -> Input:
         """
@@ -3174,6 +3212,12 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 assert canvas.audio.render_sound().duration_milliseconds == 1000.0
             ```
         """
+        if hasattr(playable, '__xnano_play__') or not isinstance(playable, str):
+            handle = play_component(
+                cast('Canvas[object, object]', self._canvas), playable, options
+            )
+            if handle is not None:
+                return handle
         return self.audio.play(playable, **options)
 
     state = _StateAccessor()

@@ -63,7 +63,7 @@ FEATURES = (
     ('formulas for positions', 'live'),
     ('typed state', 'ready'),
     ('tachyonfx effects', 'live'),
-    ('pixels and scenes', 'live'),
+    ('pixels and art', 'live'),
     ('images and animations', 'live'),
     ('notes and melodies', 'live'),
     ('mouse and keyboard', 'live'),

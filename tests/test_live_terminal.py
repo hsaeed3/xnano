@@ -384,6 +384,54 @@ with xnano.open(width=10, height=1) as terminal:
         assert screen.wait_for('hello')
         assert screen.wait_until(lambda: screen.cell(0, 0).fg == 'ff0000', timeout=5)
 
+    def test_border_draws_around_art_and_widgets(self, run):
+        screen = run(
+            """
+from xnano.widgets import Gauge
+art = xnano.draw(['RR', 'RR'], {'R': '#ff0000'})
+with xnano.open(width=14, height=6) as terminal:
+    terminal.write(art, border='rounded')
+    terminal.write(Gauge(ratio=0.5, width=6, height=1), x=6, border='plain')
+    time.sleep(1.5)
+"""
+        )
+        assert screen.wait_for('╭')
+        assert screen.wait_for('┌')
+        assert screen.cell(1, 1).data in ('▀', ' ', '█')
+        assert 'ff0000' in (screen.cell(1, 1).fg, screen.cell(1, 1).bg)
+
+    def test_a_component_that_reads_the_time_keeps_drawing(self, run):
+        screen = run(
+            """
+@xnano.renderable
+def clock(context):
+    return str(int(context.time.elapsed))
+
+with xnano.open(width=6, height=1) as terminal:
+    terminal.write(clock)
+    time.sleep(4)
+"""
+        )
+        assert screen.wait_for('0')
+        assert screen.wait_until(lambda: '2' in screen.text, timeout=6)
+
+    def test_a_component_wakes_on_a_key(self, run):
+        screen = run(
+            """
+@xnano.renderable
+def last(context):
+    return context.keyboard.key or '-'
+
+with xnano.open(width=6, height=1) as terminal:
+    terminal.write(last)
+    terminal.run()
+"""
+        )
+        assert screen.wait_for('-')
+        screen.press('x')
+        assert screen.wait_for('x')
+        screen.press('ctrl+c')
+
 
 class TestGraphicsProtocols:
     """The escape sequences of each protocol reach the terminal; the emulator cannot draw them."""

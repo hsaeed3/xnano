@@ -664,11 +664,7 @@ class HookHandle(Generic[DepsT, StateT]):
         if isinstance(result, (_core.Operation, _core.Style)):
             owner.update(result)  # type: ignore[attr-defined]
             return
-        if (
-            isinstance(result, (str, _core.Buffer))
-            or hasattr(result, '__xnano_render__')
-            or hasattr(result, '__xnano_buffer__')
-        ):
+        if isinstance(result, (str, _core.Buffer)) or hasattr(result, '__xnano_render__'):
             name = getattr(self.function, '__name__', 'hook')
             raise TerminalError(
                 f'The hook {name} returned content to draw, but a hook cannot return '

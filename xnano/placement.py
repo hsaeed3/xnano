@@ -14,6 +14,7 @@ from xnano_core import EvaluationContext
 
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
+    from xnano.components import ComponentDriver
     from xnano.types import RenderableEffectSpecification
 
 from xnano._appearance import Appearance, Spacing
@@ -48,7 +49,6 @@ from xnano.operations import (
     ContextualOperation,
 )
 from xnano.region import Region
-from xnano.scene import Scene
 from xnano.state import StateNamespace
 
 
@@ -142,6 +142,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         self._decorated: Decorated | None = None
         self._has_nested = False
         self._state_namespace: StateNamespace | None = None
+        self._driver: ComponentDriver | None = None
 
     @property
     def core_buffer(self) -> _core.Buffer:
@@ -279,6 +280,13 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
     def _assign(self, axis: AxisName, value: int) -> None:
         if getattr(self._buffer, axis) != value:
             setattr(self._buffer, axis, value)
+            driver = self._driver
+            if (
+                driver is not None
+                and axis in ('width', 'height')
+                and driver.is_size_followed
+            ):
+                driver.refresh()
             decorated = self._decorated
             if decorated is not None and axis in ('width', 'height'):
                 self._refit_decoration(decorated)
@@ -565,27 +573,35 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         insets = insets_for(look, max((len(line) for line in text), default=0), len(text))
         return insets.as_tuple()
 
-    def scene(
-        self,
-        world_width: int,
-        world_height: int,
-        *,
-        background: ColorValue = (0, 0, 0),
-    ) -> Scene:
+    def refresh(self) -> None:
         """
-        Make a pixel world drawn on this placement, seen through a camera.
+        Draw a placement made from a component again, at the next frame.
 
-        Put sprites in it with [`Scene.add`][xnano.scene.Scene.add]; the scene redraws only when
-        something changed. See [`Scene`][xnano.scene.Scene].
+        A component is evaluated once, and again only when it read something that changes. When
+        something it does not track changes, such as a field of a class-based component or a
+        value in ``context.deps``, call this to evaluate it again. A placement that was not made
+        from a component has nothing to evaluate, so this does nothing.
 
-        Args:
-            world_width: The width of the world in pixels.
-            world_height: The height of the world in pixels.
-            background: The color shown where no sprite is drawn.
+        Examples:
+            ```python
+            import xnano
+
+            @xnano.renderable
+            def counter(context: xnano.context.Context) -> str:
+                return str(context.deps['count'])
+
+            dependencies = {'count': 0}
+            with xnano.new(width=4, height=1, deps=dependencies) as canvas:
+                placement = canvas.write(counter)
+                dependencies['count'] = 7
+                placement.refresh()
+                canvas.step()
+                assert canvas.render().strip() == '7'
+            ```
         """
-        return Scene(
-            cast('Placement[object, object]', self), world_width, world_height, background
-        )
+        driver = self._driver
+        if driver is not None:
+            driver.refresh()
 
     @property
     def text(self) -> str:
@@ -1069,6 +1085,10 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         if self._removed:
             return
         self._removed = True
+        driver = self._driver
+        if driver is not None:
+            self._driver = None
+            driver.close()
         self._cancel_hooks()
         namespace = self._state_namespace
         if namespace is not None:

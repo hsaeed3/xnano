@@ -8,11 +8,14 @@ from __future__ import annotations
 
 import dataclasses
 import difflib
-from typing import Final, Literal, TypeAlias, get_args
+from typing import TYPE_CHECKING, Final, Literal, TypeAlias, get_args
 
 import xnano_core as _core
 from xnano import symbols
 from xnano._values import ColorValue
+
+if TYPE_CHECKING:
+    from xnano.context import Context
 
 __all__ = ['Pixel', 'PixelPreset']
 
@@ -230,7 +233,7 @@ class Pixel:
         """Return the character of the pixel, so ``print(pixel)`` shows what it draws."""
         return self.character
 
-    def __xnano_buffer__(self) -> _core.Buffer:
+    def __xnano_render__(self, context: Context | None = None) -> _core.Buffer:
         """Return a buffer of one cell that shows the pixel."""
         buffer = _core.Buffer(width=1, height=1)
         buffer[0, 0] = self.cell()

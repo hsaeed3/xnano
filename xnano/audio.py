@@ -472,10 +472,23 @@ def _plan_into(
         for element in source:
             offset = _plan_into(planned, element, options, bpm, offset)
         return offset
+    if hasattr(source, '__xnano_play__'):
+        raise TypeError(
+            f'Cannot play a {type(source).__name__} here. It has an __xnano_play__ method, '
+            f'which needs a canvas to run in, and this call has none. Play it with '
+            f'canvas.play(component), or call xnano.play(component) while a canvas is '
+            f'running.'
+        )
+    missing = (
+        ' It has an __xnano_render__ method but no __xnano_play__ method, so it can be '
+        'written with canvas.write() but not played.'
+        if hasattr(source, '__xnano_render__')
+        else ' It has no __xnano_play__ method.'
+    )
     raise TypeError(
-        f'Cannot play a {type(source).__name__}. Play a Note, an Audio, a symbol name, a '
-        f'note name such as "C4", melody text such as "C4 E4 G4:2", a MIDI number, a '
-        f'frequency, or a sequence of those.'
+        f'Cannot play a {type(source).__name__}.{missing} Play a Note, an Audio, an object '
+        f'with __xnano_play__, a symbol name, a note name such as "C4", melody text such as '
+        f'"C4 E4 G4:2", a MIDI number, a frequency, or a sequence of those.'
     )
 
 

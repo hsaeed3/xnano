@@ -12,10 +12,7 @@ from collections.abc import Sequence
 from typing import (
     TYPE_CHECKING,
     Literal,
-    Protocol,
-    TypeAlias,
     TypedDict,
-    runtime_checkable,
 )
 
 import xnano_core as _core
@@ -59,6 +56,9 @@ from xnano._hooks import (
     When as When,
 )
 from xnano._values import (
+    Anchor as Anchor,
+)
+from xnano._values import (
     Axis as Axis,
 )
 from xnano._values import (
@@ -77,10 +77,19 @@ from xnano._values import (
     PixelEncoding as PixelEncoding,
 )
 from xnano._values import (
+    Playable as Playable,
+)
+from xnano._values import (
     RangeBound as RangeBound,
 )
 from xnano._values import (
     Renderable as Renderable,
+)
+from xnano._values import (
+    SupportsPlay as SupportsPlay,
+)
+from xnano._values import (
+    SupportsRender as SupportsRender,
 )
 from xnano.pixel import (
     PixelPreset as PixelPreset,
@@ -92,11 +101,9 @@ from xnano_core import (
 if TYPE_CHECKING:
     from xnano_audio import InstrumentName
 
-    from xnano._media import Audio
-    from xnano.context import Context
-    from xnano.music import Note
 
 __all__ = [
+    'Anchor',
     'AppearanceArguments',
     'Axis',
     'BorderKind',
@@ -126,6 +133,7 @@ __all__ = [
     'Spacing',
     'SpacingDictionary',
     'SupportsPlay',
+    'SupportsRender',
     'When',
 ]
 
@@ -294,29 +302,6 @@ class OpenSettings(CanvasSettings, total=False):
     """The dependencies hooks read as ``context.deps``."""
     state: object
     """A dataclass instance the canvas keeps and validates."""
-
-
-@runtime_checkable
-class SupportsPlay(Protocol):
-    """
-    Anything that can be played: an object with a ``__xnano_play__`` method.
-
-    The method receives the [`Context`][xnano.context.Context] and returns what to play.
-    No base class is needed; a dataclass or a plain class qualifies.
-    """
-
-    def __xnano_play__(self, context: Context) -> Playable:
-        """Return what to play."""
-        ...
-
-
-Playable: TypeAlias = 'str | Note | Audio | SupportsPlay | Sequence[Playable]'
-"""
-Anything [`play`][xnano.play] and [`Canvas.play`][xnano.canvas.Canvas.play] accept: a
-[`Note`][xnano.Note], an [`Audio`][xnano.Audio], an object with ``__xnano_play__``, a
-sequence of those that plays one after another, or a ``str``: the name of a registered
-symbol, a note name such as ``'C#4'``, or melody text such as ``'C4 E4 G4:2'``.
-"""
 
 
 class PlayOptions(TypedDict, total=False):

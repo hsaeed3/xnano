@@ -324,9 +324,10 @@ class TestPlacements:
         with pytest.raises(ValueError, match='not a valid x'):
             placement.x = None  # type: ignore[assignment]
 
+    @pytest.mark.filterwarnings('ignore:Greeting is drawn once')
     def test_content_kinds(self, canvas):
         class Greeting:
-            def __xnano_buffer__(self) -> Buffer:
+            def __xnano_render__(self, context) -> Buffer:
                 return Buffer.with_text('hi')
 
         grid = Buffer.with_text('cell').to_cell_grid()
@@ -343,10 +344,10 @@ class TestPlacements:
             canvas.write(5)  # type: ignore[arg-type]
 
         class Broken:
-            def __xnano_buffer__(self) -> int:
+            def __xnano_render__(self, context) -> int:
                 return 1
 
-        with pytest.raises(TypeError, match='must return a Buffer'):
+        with pytest.raises(TypeError, match='Broken.__xnano_render__ returned int'):
             canvas.write(Broken())  # type: ignore[arg-type]
 
     def test_layers_order_the_drawing(self, canvas):
@@ -1241,9 +1242,10 @@ class TestPolledInput:
 
 
 def test_sprites_can_be_drawn_from_text_and_scrolled():
-    from xnano.image import from_art
+    from xnano.image import TerminalImage
 
-    sprite = from_art(['AB', '.B'], {'A': '#ff0000', 'B': (0, 0, 255)})
+    red, blue, none = (255, 0, 0, 255), (0, 0, 255, 255), (0, 0, 0, 0)
+    sprite = TerminalImage.from_rgba(2, 2, bytes(red + blue + none + blue))
     with new(width=4, height=2) as canvas:
         pixels = canvas.region.half_blocks
         pixels.draw_image(sprite, x=1, y=0)
@@ -1252,8 +1254,6 @@ def test_sprites_can_be_drawn_from_text_and_scrolled():
         assert canvas[0, 0].background.to_rgb() == (0, 0, 255), (
             'a negative offset scrolls'
         )
-    with pytest.raises(ValueError, match='every row the same length'):
-        from_art(['AB', 'A'], {'A': 'red'})
 
 
 class TestWritingTheWayItIsThought:

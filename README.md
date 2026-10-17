@@ -138,7 +138,7 @@ metapackage that holds the terminal API. The backends can also be installed on t
 
 Names live in modules named for what they hold, so the top-level `xnano` stays small:
 `xnano.widgets`, `xnano.expressions`, `xnano.effects`, `xnano.operations`, `xnano.styles`,
-`xnano.events`, `xnano.geometry`, `xnano.buffers`, `xnano.scene`, `xnano.types` and
+`xnano.events`, `xnano.geometry`, `xnano.buffers`, `xnano.art`, `xnano.types` and
 `xnano.errors`, plus the optional `xnano.audio` and `xnano.image`.
 
 ## xnano v1

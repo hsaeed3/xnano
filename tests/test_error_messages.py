@@ -46,6 +46,104 @@ def a_gate_that_is_off():
         canvas._gates_for_screen({'scroll': False})
 
 
+@xnano.renderable
+def label_with_text(context, text):
+    return text
+
+
+class _OnlyRenders:
+    def __xnano_render__(self, context):
+        return 'x'
+
+
+class _OnlyPlays:
+    def __xnano_play__(self, context):
+        return xnano.note('C4')
+
+
+class _ReturnsANumber:
+    def __xnano_render__(self, context):
+        return 1
+
+
+class _RendersItself:
+    def __xnano_render__(self, context):
+        return self
+
+
+def writes_a_component_that_needs_arguments():
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.write(label_with_text)
+
+
+def declares_a_component_without_a_context():
+    @xnano.renderable
+    def nothing():
+        return ''
+
+
+def writes_something_that_only_plays():
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.write(_OnlyPlays())
+
+
+def plays_something_that_only_renders():
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.play(_OnlyRenders())
+
+
+def writes_a_component_that_returns_a_number():
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.write(_ReturnsANumber())
+
+
+def writes_a_component_that_renders_itself():
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.write(_RendersItself())
+
+
+def writes_a_component_that_returns_a_canvas():
+    child = xnano.new(width=4, height=1)
+
+    class Holder:
+        def __xnano_render__(self, context):
+            return child
+
+    try:
+        with xnano.new(width=8, height=1) as canvas:
+            canvas.write(Holder())
+    finally:
+        child.close()
+
+
+def a_component_gate_that_is_off():
+    @xnano.renderable
+    def wheel(context):
+        return str(context.scroll.y)
+
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.write(wheel)
+        canvas._gates_for_screen({'scroll': False})
+
+
+def a_component_hook_that_needs_dependencies():
+    @xnano.renderable
+    def label(context):
+        return 'x'
+
+    label.hook(lambda context, component: None, on='key', requires_deps=True)
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.write(label)
+
+
+def draws_rows_of_different_lengths():
+    xnano.draw(['A', 'BB'], {'A': 'red', 'B': 'blue'})
+
+
+def draws_an_unknown_symbol():
+    xnano.draw('unknown_art_symbol')
+
+
 def plays_an_unknown_name():
     xnano.note('C2', symbol='kick_drum')
     with xnano.new(width=8, height=1) as canvas:
@@ -206,6 +304,65 @@ def hooks_that_feed_each_other():
             lambda: xnano.note('C4', symbol='C4'),
             ValueError,
             ["'C4' reads as a note", 'Pick another name'],
+        ),
+        (
+            writes_a_component_that_needs_arguments,
+            TypeError,
+            ['needs arguments', 'canvas.write(label_with_text(...))'],
+        ),
+        (
+            declares_a_component_without_a_context,
+            TypeError,
+            ['first parameter is the context', 'def nothing(context'],
+        ),
+        (
+            writes_something_that_only_plays,
+            TypeError,
+            ['no __xnano_render__ method', 'canvas.play()', 'Use a string'],
+        ),
+        (
+            plays_something_that_only_renders,
+            TypeError,
+            [
+                'no __xnano_play__ method',
+                'canvas.write()',
+                'an object with __xnano_play__',
+            ],
+        ),
+        (
+            writes_a_component_that_returns_a_number,
+            TypeError,
+            ['_ReturnsANumber.__xnano_render__ returned int', 'must return something'],
+        ),
+        (
+            writes_a_component_that_renders_itself,
+            TerminalError,
+            ['keeps returning something that renders', 'Return text'],
+        ),
+        (
+            writes_a_component_that_returns_a_canvas,
+            TypeError,
+            ['canvas.write(child) directly'],
+        ),
+        (
+            a_component_gate_that_is_off,
+            TerminalError,
+            ['The component wheel needs scroll=True', 'xnano.new(scroll=True)'],
+        ),
+        (
+            a_component_hook_that_needs_dependencies,
+            TerminalError,
+            ['needs dependencies', 'xnano.new(deps='],
+        ),
+        (
+            draws_rows_of_different_lengths,
+            ValueError,
+            ['every row the same length', 'Pad the short rows'],
+        ),
+        (
+            draws_an_unknown_symbol,
+            ValueError,
+            ["'unknown_art_symbol' is not a known Art symbol", 'symbol='],
         ),
         (writes_bytes, TypeError, ['raw bytes', 'xnano.from_image(data)']),
         (writes_a_path, TypeError, ['is a path', 'xnano.from_image(path)']),
