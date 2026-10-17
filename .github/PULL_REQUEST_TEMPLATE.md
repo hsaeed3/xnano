@@ -13,6 +13,13 @@
 
 <!-- List the exact commands you ran, for example `make format-all`, `make check` and `make test`. -->
 
+## Release notes
+
+<!-- Optional. Write one release-notes block per package this pull request changes for users;
+     the next release of that package publishes it. See "Release notes" in CONTRIBUTING.md
+     for the two markers that surround a block. Without a block, the release lists the
+     pull request title. -->
+
 ## AI disclosure
 
 <!-- Mandatory when any code, documentation or text in this PR was generated or assisted by AI.

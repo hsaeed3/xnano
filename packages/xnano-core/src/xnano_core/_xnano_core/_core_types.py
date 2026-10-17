@@ -108,8 +108,44 @@ CursorShape: TypeAlias = Literal['block', 'bar', 'underline']
 """What a terminal cursor looks like."""
 """How logical pixels pack into cells."""
 
-Interpolation: TypeAlias = Literal['linear', 'ease_in', 'ease_out', 'ease_in_out']
-"""How an effect eases between its start and end."""
+Interpolation: TypeAlias = Literal[
+    'linear',
+    'back_in',
+    'back_out',
+    'back_in_out',
+    'bounce_in',
+    'bounce_out',
+    'bounce_in_out',
+    'circ_in',
+    'circ_out',
+    'circ_in_out',
+    'cubic_in',
+    'cubic_out',
+    'cubic_in_out',
+    'elastic_in',
+    'elastic_out',
+    'elastic_in_out',
+    'expo_in',
+    'expo_out',
+    'expo_in_out',
+    'quad_in',
+    'quad_out',
+    'quad_in_out',
+    'quart_in',
+    'quart_out',
+    'quart_in_out',
+    'quint_in',
+    'quint_out',
+    'quint_in_out',
+    'sine_in',
+    'sine_out',
+    'sine_in_out',
+    'smooth_step',
+    'spring',
+    'reverse',
+    'ease_in',
+]
+"""How an effect eases between its start and end; ``'ease_in'`` is ``'quad_in'``."""
 
 KeyModifier: TypeAlias = Literal['control', 'shift', 'alt', 'super', 'meta', 'hyper']
 """A modifier key held during a key event."""

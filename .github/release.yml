@@ -20,3 +20,7 @@ changelog:
     - title: Fixes
       labels:
         - relnotes-fix
+    # a pull request without a release-notes label is still listed
+    - title: Other Changes
+      labels:
+        - '*'

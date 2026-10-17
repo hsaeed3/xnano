@@ -87,7 +87,7 @@ class ComponentContext(Generic[DepsT, StateT]):
         import xnano
 
         @xnano.renderable
-        def gauge(context: xnano.context.Context, ratio: float = 0.0) -> str:
+        def gauge(context: xnano.Context, ratio: float = 0.0) -> str:
             return '#' * round(ratio * 10)
 
         with xnano.new(width=12, height=1) as canvas:
@@ -338,7 +338,7 @@ class _HookSource:
             from xnano_core import Event
 
             @xnano.renderable
-            def label(context: xnano.context.Context, text: str = 'x') -> str:
+            def label(context: xnano.Context, text: str = 'x') -> str:
                 return text
 
             with xnano.new(width=10, height=1) as canvas:
@@ -346,7 +346,7 @@ class _HookSource:
 
                 @label.hook(on='key', keys='a')
                 def heard(
-                    context: xnano.context.Context,
+                    context: xnano.Context,
                     component_context: xnano.components.ComponentContext,
                 ) -> None:
                     pressed.append(component_context.arguments['text'])
@@ -367,8 +367,9 @@ class _HookSource:
         settings = _HookSettings(on, when, every, after, keys, requires_deps)
 
         def attach(callback: Callable[..., object]) -> ComponentHook:
-            _check_hook_function(callback, arguments=2)
-            component_hook = ComponentHook(self, callback, settings)
+            component_hook = ComponentHook(
+                self, _check_hook_function(callback, arguments=2), settings
+            )
             self._hooks.append(component_hook)
             try:
                 self._install_everywhere(component_hook)
@@ -411,7 +412,15 @@ class _HookSource:
 # -- decorated functions and the components they make --------------------------------------
 
 
-def _own_signature(function: Callable[..., object], decorator: str) -> inspect.Signature:
+def _own_signature(
+    function: Callable[..., object], decorator: str
+) -> tuple[inspect.Signature, bool]:
+    """
+    The parameters a component is written with, and whether its function takes the context.
+
+    The first positional parameter is the context. A function with no parameters at all takes
+    nothing, so it is called without the context.
+    """
     if inspect.isclass(function) or not callable(function):
         raise TypeError(
             f'@xnano.{decorator} decorates a function, such as @xnano.{decorator} '
@@ -422,18 +431,20 @@ def _own_signature(function: Callable[..., object], decorator: str) -> inspect.S
         )
     signature = inspect.signature(function)
     parameters = list(signature.parameters.values())
-    if not parameters or parameters[0].kind not in (
+    if not parameters:
+        return signature, False
+    if parameters[0].kind not in (
         inspect.Parameter.POSITIONAL_ONLY,
         inspect.Parameter.POSITIONAL_OR_KEYWORD,
     ):
         name = getattr(function, '__name__', 'the function')
         raise TypeError(
             f'@xnano.{decorator} needs a function whose first parameter is the context, '
-            f'but {name} has none. Write def {name}(context: xnano.context.Context, ...): '
-            f'and give the rest of the parameters when you write it: '
-            f'canvas.write({name}(...)).'
+            f'or one with no parameters, but {name} starts with {parameters[0]}. Write '
+            f'def {name}(context: xnano.Context, ...): and give the rest of the parameters '
+            f'when you write it: canvas.write({name}(...)).'
         )
-    return signature.replace(parameters=parameters[1:])
+    return signature.replace(parameters=parameters[1:]), True
 
 
 class _ComponentFunction(_HookSource, Generic[ParametersT, DepsT, StateT]):
@@ -449,7 +460,7 @@ class _ComponentFunction(_HookSource, Generic[ParametersT, DepsT, StateT]):
         """Keep the function. Use ``@xnano.renderable`` or ``@xnano.playable`` instead."""
         super().__init__()
         self._function = function
-        self._signature = _own_signature(function, self._decorator)
+        self._signature, self._takes_context = _own_signature(function, self._decorator)
         functools.update_wrapper(self, function)  # pyright: ignore[reportArgumentType]
 
     @property
@@ -478,6 +489,8 @@ class _ComponentFunction(_HookSource, Generic[ParametersT, DepsT, StateT]):
                 f'{name}{self._signature} needs arguments, so it cannot be used without '
                 f'them. Give them when you use it: canvas.write({name}(...)).'
             ) from None
+        if not self._takes_context:
+            return self._function()  # type: ignore[call-arg]
         return self._function(context)  # type: ignore[call-arg]
 
     def __repr__(self) -> str:
@@ -506,8 +519,9 @@ class _BoundComponent(_HookSource):
         return (self.function, self)
 
     def _call(self, context: Context[object, object]) -> object:
+        leading = (context,) if self.function._takes_context else ()
         return self.function._function(  # type: ignore[call-arg]
-            context, *self._bound.args, **self._bound.kwargs
+            *leading, *self._bound.args, **self._bound.kwargs
         )
 
     def __repr__(self) -> str:
@@ -603,15 +617,25 @@ class PlayableFunction(_ComponentFunction[ParametersT, DepsT, StateT]):
         return cast('Playable', self._call_with_defaults(context))
 
 
+@overload
+def renderable(
+    function: Callable[[], Renderable], /
+) -> RenderableFunction[[], None, None]: ...
+@overload
 def renderable(  # pyright: ignore[reportGeneralTypeIssues]
-    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Renderable],
+    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Renderable], /
+) -> RenderableFunction[ParametersT, DepsT, StateT]: ...
+def renderable(  # pyright: ignore[reportGeneralTypeIssues]
+    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Renderable]
+    | Callable[[], Renderable],
     /,
-) -> RenderableFunction[ParametersT, DepsT, StateT]:
+) -> RenderableFunction[ParametersT, DepsT, StateT] | RenderableFunction[[], None, None]:
     """
     Turn a function into a component that draws itself.
 
     The function takes the [`Context`][xnano.context.Context] first, then its own parameters,
-    and returns anything ``canvas.write`` accepts. The decorated object is the component:
+    and returns anything ``canvas.write`` accepts; a function with no parameters at all is
+    called without the context. The decorated object is the component:
     ``canvas.write(gauge)`` draws it with its defaults, ``canvas.write(gauge(ratio=0.7))`` gives
     it parameters, and ``gauge.hook(...)`` adds behavior to its placements.
 
@@ -626,15 +650,15 @@ def renderable(  # pyright: ignore[reportGeneralTypeIssues]
         function: The function ``(context, **own_parameters) -> content``.
 
     Raises:
-        TypeError: The decorated object is a class or is not callable, or the function takes
-            no context parameter.
+        TypeError: The decorated object is a class or is not callable, or the function's
+            first parameter is keyword-only or variadic, so it cannot take the context.
 
     Examples:
         ```python
         import xnano
 
         @xnano.renderable
-        def gauge(context: xnano.context.Context, ratio: float = 0.5) -> str:
+        def gauge(context: xnano.Context, ratio: float = 0.5) -> str:
             return '#' * round(ratio * 10)
 
         with xnano.new(width=12, height=1) as canvas:
@@ -642,18 +666,31 @@ def renderable(  # pyright: ignore[reportGeneralTypeIssues]
             assert canvas.render().strip() == '###'
         ```
     """
-    return RenderableFunction(function)
+    return RenderableFunction(
+        cast(
+            'Callable[Concatenate[Context[DepsT, StateT], ParametersT], Renderable]',
+            function,
+        )
+    )
 
 
+@overload
+def playable(function: Callable[[], Playable], /) -> PlayableFunction[[], None, None]: ...
+@overload
 def playable(  # pyright: ignore[reportGeneralTypeIssues]
-    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Playable],
+    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Playable], /
+) -> PlayableFunction[ParametersT, DepsT, StateT]: ...
+def playable(  # pyright: ignore[reportGeneralTypeIssues]
+    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Playable]
+    | Callable[[], Playable],
     /,
-) -> PlayableFunction[ParametersT, DepsT, StateT]:
+) -> PlayableFunction[ParametersT, DepsT, StateT] | PlayableFunction[[], None, None]:
     """
     Turn a function into a component that plays itself.
 
     The function takes the [`Context`][xnano.context.Context] first, then its own parameters,
-    and returns anything ``canvas.play`` accepts. It is evaluated once when played, and again
+    and returns anything ``canvas.play`` accepts; a function with no parameters at all is
+    called without the context. It is evaluated once when played, and again
     on a beat only when it read something that changes (the time or the beat, a state path or
     an input), playing the new result each time. ``canvas.play`` returns a
     [`PlayHandle`][xnano.music.PlayHandle] whose ``remove()`` stops it.
@@ -662,15 +699,15 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
         function: The function ``(context, **own_parameters) -> playable``.
 
     Raises:
-        TypeError: The decorated object is a class or is not callable, or the function takes
-            no context parameter.
+        TypeError: The decorated object is a class or is not callable, or the function's
+            first parameter is keyword-only or variadic, so it cannot take the context.
 
     Examples:
         ```python
         import xnano
 
         @xnano.playable
-        def chord(context: xnano.context.Context, root: str = 'C4') -> xnano.Note:
+        def chord(context: xnano.Context, root: str = 'C4') -> xnano.Note:
             return xnano.note(root, beats=0.5)
 
         with xnano.new(width=8, height=1) as canvas:
@@ -679,7 +716,12 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
             assert canvas.audio.render_sound().peak > 0.0
         ```
     """
-    return PlayableFunction(function)
+    return PlayableFunction(
+        cast(
+            'Callable[Concatenate[Context[DepsT, StateT], ParametersT], Playable]',
+            function,
+        )
+    )
 
 
 # -- running components --------------------------------------------------------------------

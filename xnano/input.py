@@ -128,7 +128,7 @@ class Input:
             hero = canvas.write('@')
 
             @canvas.hook(on='tick', every=1 / 30)
-            def walk(context: xnano.context.Context) -> None:
+            def walk(context: xnano.Context) -> None:
                 step_x, step_y = canvas.input.direction()
                 hero.x += step_x
                 hero.y += step_y
@@ -267,11 +267,11 @@ class KeyboardInput:
             heard = []
 
             @canvas.hook(on='key')
-            def listen(context: xnano.context.Context) -> None:
+            def listen(context: xnano.Context) -> None:
                 heard.append(context.keyboard.key)
 
             @canvas.hook(on='tick', after=0.1)
-            def press_for_the_program(context: xnano.context.Context) -> None:
+            def press_for_the_program(context: xnano.Context) -> None:
                 context.keyboard.push('q')
 
             canvas.step(delta_seconds=0.2)

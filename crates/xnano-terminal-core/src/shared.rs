@@ -37,6 +37,9 @@ struct QueueState {
     events: VecDeque<Event>,
     calls: VecDeque<QueuedCall>,
     is_wake_requested: bool,
+    /// Threads blocked in `EventQueue::wait`. Counted under the lock, so a notifier that
+    /// reads zero knows no thread can start waiting without first seeing what it queued.
+    waiters: usize,
 }
 
 type Notifier = Arc<dyn Fn() + Send + Sync>;
@@ -62,14 +65,23 @@ impl Default for EventQueue {
 
 impl EventQueue {
     fn notify(&self) {
-        // Taking the lock first orders this after a waiter has either seen the new state or
-        // started waiting, so the wake-up cannot fall between its check and its wait.
-        drop(lock(&self.state));
-        self.ready.notify_all();
-        let notifiers: Vec<Notifier> = lock(&self.notifiers)
-            .iter()
-            .map(|(_, notifier)| Arc::clone(notifier))
-            .collect();
+        // Reading the waiters under the lock orders this after a waiter has either seen the
+        // new state or started waiting, so the wake-up cannot fall between its check and its
+        // wait. Without a waiter there is nothing to wake, and `notify_all` would still cost a
+        // system call on every queued event and frame request.
+        if lock(&self.state).waiters > 0 {
+            self.ready.notify_all();
+        }
+        let notifiers: Vec<Notifier> = {
+            let registered = lock(&self.notifiers);
+            if registered.is_empty() {
+                return;
+            }
+            registered
+                .iter()
+                .map(|(_, notifier)| Arc::clone(notifier))
+                .collect()
+        };
         for notifier in notifiers {
             notifier();
         }
@@ -115,7 +127,7 @@ impl EventQueue {
     /// Block until something is queued, `should_return` says so, or `timeout` passes.
     /// `None` waits without limit.
     pub fn wait(&self, timeout: Option<Duration>, should_return: impl Fn() -> bool) {
-        let state = lock(&self.state);
+        let mut state = lock(&self.state);
         if !state.events.is_empty()
             || !state.calls.is_empty()
             || state.is_wake_requested
@@ -123,14 +135,18 @@ impl EventQueue {
         {
             return;
         }
-        match timeout {
-            Some(timeout) => {
-                drop(self.ready.wait_timeout(state, timeout));
-            }
-            None => {
-                drop(self.ready.wait(state));
-            }
-        }
+        state.waiters += 1;
+        let mut state = match timeout {
+            Some(timeout) => match self.ready.wait_timeout(state, timeout) {
+                Ok((state, _)) => state,
+                Err(poisoned) => poisoned.into_inner().0,
+            },
+            None => match self.ready.wait(state) {
+                Ok(state) => state,
+                Err(poisoned) => poisoned.into_inner(),
+            },
+        };
+        state.waiters -= 1;
     }
 
     /// Call `notifier` (from any thread) whenever something is queued.

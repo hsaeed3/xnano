@@ -65,10 +65,54 @@ AxisName: TypeAlias = Literal['x', 'y', 'width', 'height']
 Bound: TypeAlias = Number | NumericExpression
 """One end of a range, once a percentage has become an expression."""
 
-RangeBound: TypeAlias = Number | str | NumericExpression | None
+Percentage: TypeAlias = Literal[
+    '5%',
+    '10%',
+    '15%',
+    '20%',
+    '25%',
+    '30%',
+    '35%',
+    '40%',
+    '45%',
+    '50%',
+    '55%',
+    '60%',
+    '65%',
+    '70%',
+    '75%',
+    '80%',
+    '85%',
+    '90%',
+    '95%',
+    '100%',
+]
+"""
+A share of the space a size or position is measured against, such as ``'50%'``.
+
+Editors suggest the steps of 5% listed here, and every other percentage, such as ``'33%'`` or
+``'12.5%'``, works the same way; a parameter that takes a percentage also takes any ``str``.
+"""
+
+HorizontalPosition: TypeAlias = Literal['left', 'center', 'right']
+"""A word that places something inside its parent along ``x``."""
+
+VerticalPosition: TypeAlias = Literal['top', 'center', 'bottom']
+"""A word that places something inside its parent along ``y``."""
+
+RangeBound: TypeAlias = Number | Percentage | str | NumericExpression | None
 """One end of a range as written: cells, a percentage string, an expression, or ``None``."""
 
-Axis: TypeAlias = int | float | str | tuple[RangeBound, RangeBound] | NumericExpression
+Axis: TypeAlias = (
+    int
+    | float
+    | Percentage
+    | HorizontalPosition
+    | VerticalPosition
+    | str
+    | tuple[RangeBound, RangeBound]
+    | NumericExpression
+)
 """
 One number of a position or size: ``x``, ``y``, ``width`` or ``height``.
 
@@ -89,6 +133,53 @@ One number of a position or size: ``x``, ``y``, ``width`` or ``height``.
 
 AttributeValue: TypeAlias = 'JSONValue | _core.Color | _core.Style | _core.Buffer | _core.Operation | _core.Expression[int] | _core.Expression[float] | _core.Expression[str] | _core.Expression[bool] | tuple[RangeBound, RangeBound]'  # noqa: E501
 """What a buffer attribute can be set to: plain data, a color, a style, or an expression."""
+
+Interpolation: TypeAlias = Literal[
+    'linear',
+    'back_in',
+    'back_out',
+    'back_in_out',
+    'bounce_in',
+    'bounce_out',
+    'bounce_in_out',
+    'circ_in',
+    'circ_out',
+    'circ_in_out',
+    'cubic_in',
+    'cubic_out',
+    'cubic_in_out',
+    'elastic_in',
+    'elastic_out',
+    'elastic_in_out',
+    'expo_in',
+    'expo_out',
+    'expo_in_out',
+    'quad_in',
+    'quad_out',
+    'quad_in_out',
+    'quart_in',
+    'quart_out',
+    'quart_in_out',
+    'quint_in',
+    'quint_out',
+    'quint_in_out',
+    'sine_in',
+    'sine_out',
+    'sine_in_out',
+    'smooth_step',
+    'spring',
+    'reverse',
+    'ease_in',
+]
+"""
+How an effect eases between its start and end: ``'linear'``, or a curve such as
+``'quad_in_out'`` or ``'bounce_out'``. ``'ease_in'`` is ``'quad_in'``.
+"""
+
+MotionDirection: TypeAlias = Literal[
+    'left_to_right', 'right_to_left', 'up_to_down', 'down_to_up'
+]
+"""The direction a sweep, slide or stretch effect moves in."""
 
 PixelEncoding: TypeAlias = Literal['half_blocks', 'braille']
 """``'half_blocks'``: one column and two rows of pixels per cell. ``'braille'``: two by four."""

@@ -362,6 +362,35 @@ A pull request is ready to merge when:
 Release preparation should remain separate from ordinary feature and fix pull
 requests unless the release is the explicit purpose of the change.
 
+## Release notes
+
+Pushing a release tag such as `xnano-core/v2.0.0-beta.4` publishes the package
+and its GitHub release. The notes of that release come from the descriptions of
+the pull requests merged since the previous release of the same package: each
+block between the two markers below, for that package, oldest pull request
+first.
+
+```markdown
+<!-- release-notes: xnano-core -->
+# xnano-core 2.0.0-beta.4
+
+- What changed, written for users of the package.
+<!-- /release-notes -->
+```
+
+The package in the opening marker is one of `xnano`, `xnano-core`,
+`xnano-audio` or `xnano-image`, and one description may hold a block for each.
+The markers are HTML comments, so they do not show on the pull request page.
+When no pull request has a block for the package, GitHub lists the pull request
+titles in the categories of `.github/release.yml`. The notes can be edited on
+the release page after publishing; `make history` then rebuilds `HISTORY.md`
+from them. `.github/scripts/release_notes.py` writes the notes, and running it
+with a tag and an output file shows what a release would publish:
+
+```bash
+uv run --script .github/scripts/release_notes.py xnano/v2.0.0-beta.4 notes.md
+```
+
 ## Reporting bugs
 
 A useful bug report includes:

@@ -1175,3 +1175,36 @@ class TestOpeningWithoutATerminalMessage:
         )
         assert result.returncode != 0
         assert result.stdout == b''
+
+
+class TestPercentageSizes:
+    @pytest.fixture
+    def window(self, monkeypatch):
+        import os
+
+        size = os.terminal_size((120, 40))
+        monkeypatch.setattr(xnano.canvas, '_window_size', lambda: size)
+        return size
+
+    def test_a_percentage_is_a_share_of_the_window(self, window):
+        with xnano.new(width='50%', height='25%') as canvas:
+            assert (canvas.width, canvas.height) == (60, 10)
+
+    def test_one_hundred_percent_is_the_whole_window(self, window):
+        with xnano.new(width='100%', height='100%') as canvas:
+            assert (canvas.width, canvas.height) == (120, 40)
+
+    def test_any_percentage_works_and_rounds_to_cells(self, window):
+        with xnano.new(width='33%', height='12.5%') as canvas:
+            assert (canvas.width, canvas.height) == (40, 5)
+
+    @pytest.mark.parametrize('value', ['0%', '150%', 'half', '%', '-5%', 'nan%'])
+    def test_a_bad_percentage_is_refused(self, value):
+        with pytest.raises(ValueError, match='or a percentage of the window'):
+            xnano.new(width=value)
+
+    def test_a_canvas_written_into_another_keeps_its_share_of_the_parent(self):
+        with xnano.new(width=40, height=10) as outer:
+            inner = xnano.new(width='50%', height='50%')
+            placement = outer.write(inner)
+            assert (placement.width, placement.height) == (20, 5)

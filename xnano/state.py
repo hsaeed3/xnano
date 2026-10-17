@@ -127,7 +127,7 @@ class StateNamespace:
             assert canvas.state.get('player.lives', default=0) == 0
 
             @canvas.hook(on='key')
-            def count(context: xnano.context.Context) -> None:
+            def count(context: xnano.Context) -> None:
                 state = context.root.state
                 state.push('player.score', state.get('player.score') + 1)
         ```

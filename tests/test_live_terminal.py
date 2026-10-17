@@ -545,6 +545,53 @@ with xnano.open() as terminal:
         assert screen.wait_until(lambda: screen.find('middle') == (25, 1), timeout=5)
 
 
+class TestPercentageSizes:
+    def test_one_hundred_percent_fills_the_window(self, run):
+        screen = run(
+            PROMPT
+            + """
+with xnano.open(width='100%', height='100%') as terminal:
+    terminal.write('WHOLE', x='right', y='bottom')
+    time.sleep(1)
+""",
+            rows=10,
+            columns=40,
+        )
+        assert screen.wait_until(lambda: screen.is_alternate)
+        assert screen.wait_for('WHOLE')
+        assert screen.find('WHOLE') == (35, 9)
+        assert screen.finish() == 0
+
+    def test_a_percentage_height_is_a_share_of_the_window(self, run):
+        screen = run(
+            """
+with xnano.open(height='50%') as terminal:
+    terminal.write('SIZE ' + repr((terminal.width, terminal.height)).replace(' ', ''))
+    terminal.run()
+""",
+            rows=12,
+            columns=60,
+        )
+        assert screen.wait_for('SIZE (60,6)')
+        assert not screen.is_alternate
+        screen.press('ctrl+c')
+        assert screen.finish() == 0
+
+    def test_a_percentage_width_and_height_draw_a_region(self, run):
+        screen = run(
+            """
+with xnano.open(width='25%', height='25%') as terminal:
+    terminal.write('SIZE ' + repr((terminal.width, terminal.height)).replace(' ', ''))
+    terminal.run()
+""",
+            rows=12,
+            columns=80,
+        )
+        assert screen.wait_for('SIZE (20,3)')
+        screen.press('ctrl+c')
+        assert screen.finish() == 0
+
+
 class TestInlineResize:
     def test_a_resize_hook_sees_the_size_of_the_inline_region(self, run):
         screen = run(

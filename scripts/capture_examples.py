@@ -170,6 +170,13 @@ SPECS: dict[str, tuple[int, int, float, tuple[str, ...], str]] = {
         ("b", "t", "c"),
         "Colors, borders, padding, margin and effects of any owner, started and cleared from a hook.",
     ),
+    "32_effects.py": (
+        10,
+        70,
+        1.0,
+        ("a", "e"),
+        "Named effects started on a placement from a key, in a canvas that fills the window.",
+    ),
     "19_progress.py": (
         6,
         50,
