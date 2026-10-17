@@ -463,7 +463,7 @@ class TestHookSoundEffects:
     def test_a_sound_effect_of_a_hook_is_added_to_what_the_hook_plays(self, canvas):
         @canvas.hook(on='key')
         def ring(context):
-            context.fx('audio.reverb')
+            context.fx.reverb()
             context.audio.play(xnano.note('C5', instrument='bell'))
 
         heard = self.hear(canvas)
@@ -475,7 +475,7 @@ class TestHookSoundEffects:
     def test_the_effect_applies_to_every_form_of_sound(self, canvas):
         @canvas.hook(on='key')
         def ring(context):
-            context.fx('audio.distortion')
+            context.fx.distortion()
             context.canvas.play('C4')
             context.audio.play('C4 E4')
             context.canvas.play(render_note('bell', 'C6'))
@@ -490,7 +490,7 @@ class TestHookSoundEffects:
     def test_a_note_keeps_its_own_effects_and_gains_the_hooks(self, canvas):
         @canvas.hook(on='key')
         def ring(context):
-            context.fx('audio.tremolo')
+            context.fx.tremolo()
             context.audio.play(
                 xnano.note('C5', instrument='bell', effects=[{'kind': 'audio.reverb'}])
             )
@@ -506,7 +506,7 @@ class TestHookSoundEffects:
     def test_sound_played_outside_the_hook_is_not_changed(self, canvas):
         @canvas.hook(on='key')
         def set_effect(context):
-            context.fx('audio.reverb')
+            context.fx.reverb()
 
         canvas.push(Event.key_press('a'))
         canvas.deliver_events()
@@ -520,7 +520,7 @@ class TestHookSoundEffects:
         @canvas.hook(on='key')
         def ring(context):
             if context.keyboard.key == 'a':
-                context.fx('audio.reverb')
+                context.fx.reverb()
             else:
                 context.audio.play(xnano.note('C5', instrument='bell'))
 
@@ -531,7 +531,7 @@ class TestHookSoundEffects:
     def test_clear_stops_adding_the_effect(self, canvas):
         @canvas.hook(on='key')
         def ring(context):
-            context.fx('audio.reverb')
+            context.fx.reverb()
             context.fx.clear()
             context.audio.play(xnano.note('C5', instrument='bell'))
 
@@ -542,7 +542,7 @@ class TestHookSoundEffects:
     def test_removing_the_hook_stops_adding_the_effect(self, canvas):
         @canvas.hook(on='key')
         def ring(context: xnano.context.Context) -> None:
-            context.fx('audio.reverb')
+            context.fx.reverb()
 
         canvas.push(Event.key_press('a'))
         canvas.deliver_events()
@@ -555,7 +555,7 @@ class TestHookSoundEffects:
     def test_another_hook_is_not_affected(self, canvas):
         @canvas.hook(on='key', keys='a')
         def first(context):
-            context.fx('audio.reverb')
+            context.fx.reverb()
 
         @canvas.hook(on='key', keys='b')
         def second(context):
@@ -570,7 +570,7 @@ class TestHookSoundEffects:
 
         @canvas.hook(on='key')
         def ring(context):
-            context.fx('audio.reverb')
+            context.fx.reverb()
             worker = threading.Thread(
                 target=lambda: outcome.append(audio_module._hook_effects(canvas))
             )
@@ -587,7 +587,7 @@ class TestHookSoundEffects:
     def test_a_visual_effect_does_not_reach_the_sound(self, canvas):
         @canvas.hook(on='key')
         def ring(context):
-            context.fx('effect.fade_to', foreground='red', duration_milliseconds=100)
+            context.fx.fade_to(foreground='red', duration_milliseconds=100)
             context.audio.play('C4')
             assert audio_module._hook_effects(canvas) == ()
 

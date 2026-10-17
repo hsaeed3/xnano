@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Final, cast
 
 from xnano import _optional, symbols
 from xnano._customize import effect_sequence, normalize_effect
+from xnano._effect_controller import PlayableEffects
 from xnano._media import Audio
 from xnano.music import Note, PlayHandle
 
@@ -638,6 +639,7 @@ class AudioDevice:
             canvas: The canvas the audio belongs to.
         """
         self._canvas = canvas
+        self._playable_effects = PlayableEffects(self)
         self._lock = threading.Lock()
         self._player: TerminalAudioPlayer | None = None
         self._microphone: TerminalMicrophone | None = None
@@ -675,6 +677,30 @@ class AudioDevice:
         return self.is_offline or TerminalAudioPlayer.is_available()
 
     # -- playing ------------------------------------------------------------------------
+
+    @property
+    def fx(self) -> PlayableEffects:
+        """
+        The sound effects of everything this canvas plays, one method for each effect.
+
+        ``canvas.audio.fx.reverb(mix=0.4)`` adds a reverb to every sound played after it, from
+        any hook or from your own code, and ``canvas.audio.fx.clear()`` removes what was added
+        here. A sound that is already playing keeps the effects it started with. See
+        [`PlayableEffects`][xnano.types.PlayableEffects].
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=8, height=1) as canvas:
+                canvas.audio.fx.reverb(room=0.8, mix=0.5)
+                canvas.play('C4')
+                canvas.step(delta_seconds=0.5)
+                assert canvas.audio.render_sound().peak > 0.0
+            ```
+        """
+        self._canvas._require_open()
+        return self._playable_effects
 
     def play(
         self,
@@ -759,7 +785,7 @@ class AudioDevice:
             volume=volume,
             pan=pan,
             at_beat=at_beat,
-            extra_effects=_hook_effects(canvas),
+            extra_effects=_hook_effects(canvas) + self._playable_effects._audio_effects(),
         )
         if self.is_offline:
             return self._record(planned, volume=volume, at_beat=at_beat)

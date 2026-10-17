@@ -11,7 +11,7 @@ import math
 from typing import Final, TypeAlias, TypedDict, cast
 
 import xnano_core as _core
-from xnano._values import ColorValue
+from xnano._values import ColorValue, Percentage
 
 __all__ = [
     'APPEARANCE_NAMES',
@@ -59,15 +59,15 @@ class SpacingDictionary(TypedDict, total=False):
         horizontal: The space left and right, unless ``left`` or ``right`` is given.
     """
 
-    top: int | float | str
-    right: int | float | str
-    bottom: int | float | str
-    left: int | float | str
-    vertical: int | float | str
-    horizontal: int | float | str
+    top: int | float | Percentage | str
+    right: int | float | Percentage | str
+    bottom: int | float | Percentage | str
+    left: int | float | Percentage | str
+    vertical: int | float | Percentage | str
+    horizontal: int | float | Percentage | str
 
 
-Spacing: TypeAlias = int | float | str | SpacingDictionary
+Spacing: TypeAlias = int | float | Percentage | str | SpacingDictionary
 """
 Space around text: one value for every edge or a [`SpacingDictionary`][xnano.types.SpacingDictionary].
 

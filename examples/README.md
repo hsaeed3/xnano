@@ -524,6 +524,23 @@ b border  t top  c color  d darker  l lighter  p pad  f fade  q quit
 border double   padding 2   text yellow   fade off
 ```
 
+## `32_effects.py`
+
+Named effects started on a placement from a key, in a canvas that fills the window.
+
+```text
+e fade   g glitch   x clear   q quit
+
+
+
+            Press any key to change the color of this text
+
+
+
+
+effects: effect.fade_to
+```
+
 ## `19_progress.py`
 
 A job with a progress bar, window title and printed output.

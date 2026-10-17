@@ -67,7 +67,6 @@ Everything you write can move, and every position and size can be a number, a wo
 
 ```python
 import xnano
-from xnano.context import Context
 from xnano.expressions import ParentWidth, TimeElapsed, Width
 
 with xnano.open(width=40, height=5) as terminal:
@@ -76,11 +75,12 @@ with xnano.open(width=40, height=5) as terminal:
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)  # a formula, evaluated every frame
 
     @terminal.hook(on='key', keys='space')
-    def toggle(context: Context) -> None:
+    def toggle(context: xnano.Context) -> None:
         if context.time.is_stopped:
             context.canvas.resume()
         else:
             context.canvas.stop()
+            ball.fx.fade_to(foreground='red', duration_milliseconds=300)
 
     terminal.run(quit_on='q')
 ```
@@ -88,14 +88,16 @@ with xnano.open(width=40, height=5) as terminal:
 `xnano.open()` is `xnano.new()` on your screen. `hook(on='frame' | 'tick' | 'beat' | 'key' |
 'mouse' | 'scroll' | 'drag' | 'paste' | 'focus' | 'resize' | 'state' | 'custom', ...)` takes a
 condition as a string (`when="mouse.position in buffer.region"`), an expression or a function,
-and a generator hook waits for the next event with `context = yield`. `@xnano.renderable` turns a
+and a generator hook waits for the next event with `context = yield`. Every effect is a method of
+what it changes: `ball.fx.fade_to(...)`, `canvas.fx.dissolve(...)` and `canvas.audio.fx.reverb(...)`.
+`@xnano.renderable` turns a
 function into a component that is drawn again only when it read something that changes, and
 `@xnano.playable` into one that plays a new result when what it read changes. `xnano.draw` makes
 pixel art with a camera and collision, `xnano.play('C4 E4 G4:2')` plays a melody written as text,
 and `canvas.state` keeps values that hooks follow. There are no base classes to subclass and no
 layout tree to declare.
 
-The [`examples/`](./examples) folder has thirty-one runnable programs, from hello world to a
+The [`examples/`](./examples) folder has thirty-two runnable programs, from hello world to a
 playable pixel-art world, and `examples/README.md` shows what each one draws.
 
 ## See it

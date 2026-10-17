@@ -102,14 +102,14 @@ with xnano.open(width=30, height=3) as terminal:
     elapsed = terminal.write('  0.0s')
 
     @terminal.hook(on='key', keys='space')
-    def toggle(context: xnano.context.Context) -> None:
+    def toggle(context: xnano.Context) -> None:
         if context.time.is_stopped:
             context.canvas.resume()
         else:
             context.canvas.stop()
 
     @terminal.hook(on='tick', every=1.0)
-    def tick(context: xnano.context.Context) -> None:
+    def tick(context: xnano.Context) -> None:
         elapsed.text = f'{context.time.elapsed:5.1f}s'
 
     terminal.run(quit_on='q')

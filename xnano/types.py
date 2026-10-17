@@ -46,6 +46,12 @@ from xnano._customize import (
 from xnano._effect_controller import (
     EffectController as EffectController,
 )
+from xnano._effect_controller import (
+    PlayableEffects as PlayableEffects,
+)
+from xnano._effect_controller import (
+    RenderableEffects as RenderableEffects,
+)
 from xnano._hooks import (
     Hook as Hook,
 )
@@ -83,7 +89,19 @@ from xnano._values import (
     HeldMouseButtonName as HeldMouseButtonName,
 )
 from xnano._values import (
+    HorizontalPosition as HorizontalPosition,
+)
+from xnano._values import (
+    Interpolation as Interpolation,
+)
+from xnano._values import (
     KeyName as KeyName,
+)
+from xnano._values import (
+    MotionDirection as MotionDirection,
+)
+from xnano._values import (
+    Percentage as Percentage,
 )
 from xnano._values import (
     PixelEncoding as PixelEncoding,
@@ -105,6 +123,9 @@ from xnano._values import (
 )
 from xnano._values import (
     SupportsRender as SupportsRender,
+)
+from xnano._values import (
+    VerticalPosition as VerticalPosition,
 )
 from xnano.pixel import (
     PixelPreset as PixelPreset,
@@ -134,14 +155,19 @@ __all__ = [
     'HookGenerator',
     'HookHandle',
     'HookKind',
+    'HorizontalPosition',
     'ImageFit',
+    'Interpolation',
     'KeyName',
+    'MotionDirection',
     'OpenSettings',
+    'Percentage',
     'PixelEncoding',
     'PixelPreset',
     'Playable',
     'PlayableEffect',
     'PlayableEffectKind',
+    'PlayableEffects',
     'PlayableEffectSpecification',
     'PlayOptions',
     'PlaySource',
@@ -149,12 +175,14 @@ __all__ = [
     'Renderable',
     'RenderableEffect',
     'RenderableEffectKind',
+    'RenderableEffects',
     'RenderableEffectSpecification',
     'ResamplingFilter',
     'Spacing',
     'SpacingDictionary',
     'SupportsPlay',
     'SupportsRender',
+    'VerticalPosition',
     'When',
 ]
 

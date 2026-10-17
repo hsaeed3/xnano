@@ -75,7 +75,6 @@ class TestInterface:
             'inject',
             'tempo',
             'note',
-            'fx',
         ):
             assert not hasattr(canvas, name), name
 

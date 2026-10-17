@@ -79,7 +79,7 @@ def writes_a_component_that_needs_arguments():
 
 def declares_a_component_without_a_context():
     @xnano.renderable
-    def nothing():
+    def nothing(*, context):  # type: ignore[misc]
         return ''
 
 

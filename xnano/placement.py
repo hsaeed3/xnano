@@ -31,6 +31,7 @@ from xnano._axes import (
 )
 from xnano._customize import Customization, apply_effects
 from xnano._decoration import Decorated, insets_for
+from xnano._effect_controller import RenderableEffects
 from xnano._hooks import _Hooked
 from xnano._values import (
     Axis,
@@ -150,6 +151,9 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         self._has_nested = False
         self._state_namespace: StateNamespace | None = None
         self._driver: _ComponentDriver | None = None
+        self._renderable_effects = RenderableEffects(
+            cast('Placement[object, object]', self)
+        )
         self._seal()
 
     @property
@@ -576,6 +580,35 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         return self.move(x=check_count(count, verb='right', opposite='left'))
 
     @property
+    def fx(self) -> RenderableEffects:
+        """
+        The visual effects of this placement, one method for each effect.
+
+        ``placement.fx.fade_to(foreground='red')`` starts a fade on the placement at once, from
+        a hook or from anywhere else, and ``placement.fx.clear()`` stops what was started here.
+        See [`RenderableEffects`][xnano.types.RenderableEffects].
+
+        Examples:
+            ```python
+            import xnano
+            from xnano.events import Event
+
+            with xnano.new(width=20, height=1) as canvas:
+                content = canvas.write('Press e')
+
+                @canvas.hook(on='key')
+                def flash(context: xnano.Context) -> None:
+                    if context.keyboard.key == 'e':
+                        content.fx.fade_to(foreground='red', duration_milliseconds=200)
+
+                canvas.push(Event.key_press('e'))
+                canvas.step()
+                assert len(content.fx.active) == 1
+            ```
+        """
+        return self._renderable_effects
+
+    @property
     def region(self) -> Region:
         """
         The cells of the content as a [`Region`][xnano.region.Region]: read and write
@@ -644,7 +677,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             import xnano
 
             @xnano.renderable
-            def counter(context: xnano.context.Context) -> str:
+            def counter(context: xnano.Context) -> str:
                 return str(context.deps['count'])
 
             dependencies = {'count': 0}
@@ -1135,6 +1168,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             self._driver = None
             driver.close()
         self._cancel_hooks()
+        self._renderable_effects.clear()
         namespace = self._state_namespace
         if namespace is not None:
             self._state_namespace = None
