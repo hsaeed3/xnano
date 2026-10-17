@@ -10,6 +10,7 @@ import textwrap
 import pytest
 
 import xnano_audio._xnano_audio as native
+from xnano_audio import TerminalAudioPlayer, TerminalMicrophone
 
 STUB = pathlib.Path(native.__file__).parent / '_xnano_audio' / '__init__.pyi'
 if not STUB.exists():
@@ -46,6 +47,19 @@ def test_the_stub_documents_the_mixer_with_an_example():
     assert any(name.startswith('TerminalSound.mix') for name, _ in EXAMPLES)
 
 
+def skip_when_the_example_needs_a_missing_device(code: str) -> None:
+    """Skip an example that opens a device this machine does not have."""
+    if 'TerminalMicrophone(' in code and not TerminalMicrophone.is_available():
+        pytest.skip('no audio input device')
+    opens_output = (
+        'TerminalAudioPlayer(' in code or 'TerminalStreamingAudioPlayer(' in code
+    )
+    guarded = 'is_output_available' in code
+    if opens_output and not guarded and not TerminalAudioPlayer.is_available():
+        pytest.skip('no audio output device')
+
+
 @pytest.mark.parametrize(('name', 'code'), EXAMPLES, ids=[name for name, _ in EXAMPLES])
 def test_example_runs(name, code):
+    skip_when_the_example_needs_a_missing_device(code)
     exec(PREAMBLE + code, {})  # noqa: S102

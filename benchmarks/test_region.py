@@ -13,7 +13,8 @@ shading 3840 half-block pixels with the frame takes about 3.5 ms; a single cell 
 pixel that already holds its core cell takes about 0.5 us, and a cold pixel about 1.8 us; a
 read takes about 1.4 us.
 
-The budgets are asserted only on an optimized build: a debug build is several times slower and
+The budgets are asserted only when ``XNANO_CHECK_BUDGETS=1`` is set on an optimized build
+outside CodSpeed (``make benchmark-xnano`` does it): a debug build is several times slower and
 says nothing about the code's speed.
 """
 
@@ -23,9 +24,9 @@ import itertools
 import time
 
 import pytest
+from benchmark_budgets import check_budget
 
 import xnano
-import xnano_core
 from xnano import Pixel
 
 WIDTH = 80
@@ -56,18 +57,6 @@ READ_BUDGET_MICROSECONDS = 2.0
 REPEATS = 1000
 
 
-def check_budget(measured: float, budget: float, unit: str, what: str) -> None:
-    if not xnano_core.is_optimized_build:
-        pytest.skip(
-            f'{what} took {measured:.2f} {unit}, but this is a debug build, so the budget '
-            f'of {budget:.2f} {unit} is not checked. Build with make benchmark-all to '
-            f'check it.'
-        )
-    assert measured <= budget, (
-        f'{what} took {measured:.2f} {unit}; the budget is {budget} {unit}'
-    )
-
-
 def fastest(function, *, rounds: int = 15) -> float:
     """The fastest of several calls, in seconds."""
     results = []
@@ -90,13 +79,12 @@ def test_half_block_shade_with_its_frame(benchmark):
 
         benchmark.pedantic(shade_and_draw, rounds=10, iterations=1)
         assert canvas.region.half_blocks[3, 3].foreground is not None
-        measured = fastest(shade_and_draw) * 1e3
-    check_budget(
-        measured,
-        HALF_BLOCK_SHADE_BUDGET_MILLISECONDS,
-        'ms',
-        'half-block shade with a frame',
-    )
+        check_budget(
+            lambda: fastest(shade_and_draw) * 1e3,
+            HALF_BLOCK_SHADE_BUDGET_MILLISECONDS,
+            'half-block shade with a frame',
+            unit='ms',
+        )
 
 
 def test_cell_shade_with_its_frame(benchmark):
@@ -111,10 +99,12 @@ def test_cell_shade_with_its_frame(benchmark):
 
         benchmark.pedantic(shade_and_draw, rounds=10, iterations=1)
         assert region[5, 5].background is not None
-        measured = fastest(shade_and_draw) * 1e3
-    check_budget(
-        measured, CELL_SHADE_BUDGET_MILLISECONDS, 'ms', 'cell shade with a frame'
-    )
+        check_budget(
+            lambda: fastest(shade_and_draw) * 1e3,
+            CELL_SHADE_BUDGET_MILLISECONDS,
+            'cell shade with a frame',
+            unit='ms',
+        )
 
 
 @pytest.mark.parametrize(
@@ -138,13 +128,12 @@ def test_foreground_shade_with_its_frame(benchmark, width, height, budget):
         benchmark.pedantic(shade_and_draw, rounds=10, iterations=1)
         assert canvas.region[1, 0].character == 'b'
         assert canvas.region[1, 0].foreground is not None
-        measured = fastest(shade_and_draw) * 1e3
-    check_budget(
-        measured,
-        budget,
-        'ms',
-        f'foreground shade of {width} by {height} with a frame',
-    )
+        check_budget(
+            lambda: fastest(shade_and_draw) * 1e3,
+            budget,
+            f'foreground shade of {width} by {height} with a frame',
+            unit='ms',
+        )
 
 
 def test_a_cell_written_from_a_warm_pixel(benchmark):
@@ -160,8 +149,11 @@ def test_a_cell_written_from_a_warm_pixel(benchmark):
         benchmark.pedantic(write_many, rounds=20, iterations=1)
         canvas.step()
         assert region[3, 3].character == '★'
-        measured = fastest(write_many) / REPEATS * 1e6
-    check_budget(measured, WARM_WRITE_BUDGET_MICROSECONDS, 'us', 'a warm pixel write')
+        check_budget(
+            lambda: fastest(write_many) / REPEATS * 1e6,
+            WARM_WRITE_BUDGET_MICROSECONDS,
+            'a warm pixel write',
+        )
 
 
 def test_a_cell_written_from_a_new_pixel(benchmark):
@@ -175,8 +167,11 @@ def test_a_cell_written_from_a_new_pixel(benchmark):
         benchmark.pedantic(write_many, rounds=20, iterations=1)
         canvas.step()
         assert region[3, 3].character == '•'
-        measured = fastest(write_many) / REPEATS * 1e6
-    check_budget(measured, COLD_WRITE_BUDGET_MICROSECONDS, 'us', 'a cold pixel write')
+        check_budget(
+            lambda: fastest(write_many) / REPEATS * 1e6,
+            COLD_WRITE_BUDGET_MICROSECONDS,
+            'a cold pixel write',
+        )
 
 
 def test_a_cell_read_as_a_pixel(benchmark):
@@ -192,5 +187,8 @@ def test_a_cell_read_as_a_pixel(benchmark):
 
         found = benchmark.pedantic(read_many, rounds=20, iterations=1)
         assert found.character == '★'
-        measured = fastest(read_many) / REPEATS * 1e6
-    check_budget(measured, READ_BUDGET_MICROSECONDS, 'us', 'a pixel read')
+        check_budget(
+            lambda: fastest(read_many) / REPEATS * 1e6,
+            READ_BUDGET_MICROSECONDS,
+            'a pixel read',
+        )

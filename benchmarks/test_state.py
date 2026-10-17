@@ -8,8 +8,9 @@ Each call pushes 100 key events and delivers them in one step, so the cost of on
 time of the call divided by 100. Three pushes are measured on each namespace (the root of the
 canvas, a placement and a hook) because the state store's cost grows with the depth of a path.
 
-The budgets below are asserted only on an optimized build: a debug build is several times
-slower and says nothing about the code's speed.
+The budgets are asserted only when ``XNANO_CHECK_BUDGETS=1`` is set on an optimized build
+outside CodSpeed (``make benchmark-xnano`` does it): a debug build is several times slower and
+says nothing about the code's speed.
 """
 
 from __future__ import annotations
@@ -19,9 +20,9 @@ import time
 from collections.abc import Callable
 
 import pytest
+from benchmark_budgets import assert_within_budget, budgets_are_checked
 
 import xnano
-import xnano_core
 from xnano._values import DepsT, StateT
 from xnano.canvas import Canvas
 from xnano.context import Context
@@ -49,17 +50,6 @@ class Settings:
     volume: int = 40
     brightness: int = 7
     contrast: int = 3
-
-
-def check_budget(measured: float, budget: float, what: str) -> None:
-    if not xnano_core.is_optimized_build:
-        pytest.skip(
-            f'{what} took {measured:.2f} us, but this is a debug build, so the budget of '
-            f'{budget:.2f} us is not checked. Build with make benchmark-all to check it.'
-        )
-    assert measured <= budget, (
-        f'{what} took {measured:.2f} us; the budget is {budget:.2f} us'
-    )
 
 
 def deliver(canvas: Canvas[DepsT, StateT], event: Event) -> None:
@@ -134,14 +124,21 @@ def test_three_pushes(benchmark, namespace: str) -> None:
         )
         last = counter[0]
         assert _read_state(canvas, namespace) == {'a': last, 'b': last, 'c': last}
-        measured = minimum_microseconds(lambda: deliver(canvas, event))
-    with xnano.new(width=80, height=24) as baseline:
-        label = baseline.write('x')
-        label.hook(no_op, on='key')
-        empty = minimum_microseconds(lambda: deliver(baseline, event))
-    check_budget(
-        measured - empty, THREE_PUSHES_BUDGET_MICROSECONDS, f'three pushes ({namespace})'
-    )
+        measured = (
+            minimum_microseconds(lambda: deliver(canvas, event))
+            if budgets_are_checked()
+            else 0.0
+        )
+    if budgets_are_checked():
+        with xnano.new(width=80, height=24) as baseline:
+            label = baseline.write('x')
+            label.hook(no_op, on='key')
+            empty = minimum_microseconds(lambda: deliver(baseline, event))
+        assert_within_budget(
+            measured - empty,
+            THREE_PUSHES_BUDGET_MICROSECONDS,
+            f'three pushes ({namespace})',
+        )
 
 
 def test_typed_read(benchmark) -> None:
@@ -170,13 +167,17 @@ def test_typed_read(benchmark) -> None:
                     iterations=1,
                 )
                 assert heard and heard[-1] == 40
-            results[name] = minimum_microseconds(lambda: deliver(canvas, event))
-    first = results['one'] - results['none']
-    warm = (results['three'] - results['one']) / 2
-    check_budget(
-        first, FIRST_READ_BUDGET_MICROSECONDS, 'the first typed read of a hook call'
-    )
-    check_budget(warm, WARM_READ_BUDGET_MICROSECONDS, 'a later typed read of a hook call')
+            if budgets_are_checked():
+                results[name] = minimum_microseconds(lambda: deliver(canvas, event))
+    if budgets_are_checked():
+        first = results['one'] - results['none']
+        warm = (results['three'] - results['one']) / 2
+        assert_within_budget(
+            first, FIRST_READ_BUDGET_MICROSECONDS, 'the first typed read of a hook call'
+        )
+        assert_within_budget(
+            warm, WARM_READ_BUDGET_MICROSECONDS, 'a later typed read of a hook call'
+        )
 
 
 def test_many_readers(benchmark) -> None:
@@ -209,11 +210,15 @@ def test_many_readers(benchmark) -> None:
         benchmark.pedantic(
             lambda: commit(crowded), rounds=30, warmup_rounds=3, iterations=1
         )
-        zero = minimum_microseconds(lambda: commit(alone), rounds=30)
-        many = minimum_microseconds(lambda: commit(crowded), rounds=30)
+        if budgets_are_checked():
+            zero = minimum_microseconds(lambda: commit(alone), rounds=30)
+            many = minimum_microseconds(lambda: commit(crowded), rounds=30)
+            assert_within_budget(
+                many / zero,
+                READERS_BUDGET_RATIO,
+                'a commit with a thousand followers (ratio)',
+                unit='times',
+            )
     finally:
         alone.close()
         crowded.close()
-    check_budget(
-        many / zero, READERS_BUDGET_RATIO, 'a commit with a thousand followers (ratio)'
-    )

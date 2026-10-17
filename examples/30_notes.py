@@ -9,7 +9,8 @@ bytes (here a tone built in memory) and registers it as ``'clip'``. ``@xnano.pla
 function that returns a note, and ``xnano.play(arpeggio())`` plays what it returns. A class
 with a ``__xnano_play__`` method plays itself the same way: ``xnano.play(Fanfare(...))``.
 Then the screen opens: ``k`` plays the kick, ``c`` the clip, ``m`` the melody, ``p`` the
-arpeggio, ``f`` the fanfare, and ``q`` quits.
+arpeggio, ``f`` the fanfare, and ``q`` quits. A computer without a sound device keeps the
+offline part and the screen, and says so instead of playing.
 """
 
 import dataclasses
@@ -73,32 +74,47 @@ with xnano.new(width=20, height=1, bpm=120, fps=10) as offline:
     print(f'offline: {seconds:.1f} seconds, peak {sound.peak:.2f}')  # noqa: T201
 
 with xnano.open(width=58, height=3, bpm=120) as terminal:
+    has_sound_device = terminal.audio.is_available
     terminal.write('k kick  c clip  m melody  p arpeggio  f fanfare  q quit')
-    message = terminal.write('nothing played yet', y=2)
+    message = terminal.write(
+        'nothing played yet' if has_sound_device else 'no sound device: rendered offline',
+        y=2,
+    )
+
+    def announce(what: str) -> None:
+        """Show what was played, or that there is no sound device to play it on."""
+        message.text = (
+            f'played {what}' if has_sound_device else f'no sound device: skipped {what}'
+        )
 
     @terminal.hook(on='key', keys='k')
     def kick(context: Context) -> None:
-        xnano.play('kick')
-        message.text = 'played the kick by name'
+        if has_sound_device:
+            xnano.play('kick')
+        announce('the kick by name')
 
     @terminal.hook(on='key', keys='c')
     def clip(context: Context) -> None:
-        xnano.play('clip')
-        message.text = 'played the clip loaded with from_audio'
+        if has_sound_device:
+            xnano.play('clip')
+        announce('the clip loaded with from_audio')
 
     @terminal.hook(on='key', keys='m')
     def tune(context: Context) -> None:
-        xnano.play(melody)
-        message.text = f'played {len(melody)} notes at {context.canvas.bpm:g} bpm'
+        if has_sound_device:
+            xnano.play(melody)
+        announce(f'{len(melody)} notes at {context.canvas.bpm:g} bpm')
 
     @terminal.hook(on='key', keys='p')
     def climb(context: Context) -> None:
-        xnano.play(arpeggio())
-        message.text = 'played the arpeggio, a playable function'
+        if has_sound_device:
+            xnano.play(arpeggio())
+        announce('the arpeggio, a playable function')
 
     @terminal.hook(on='key', keys='f')
     def fanfare(context: Context) -> None:
-        xnano.play(Fanfare(('G4', 'C5', 'E5')))
-        message.text = 'played a class that plays itself'
+        if has_sound_device:
+            xnano.play(Fanfare(('G4', 'C5', 'E5')))
+        announce('a class that plays itself')
 
     terminal.run(quit_on='q')

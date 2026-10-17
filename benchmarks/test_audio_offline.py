@@ -12,17 +12,17 @@ measured on a debug build and is lower on an optimized one):
 | ``play(note)`` on a canvas without a device | 6.5 us |
 | ``render_sound()`` of one second with four cached notes | 2100 us (debug) |
 
-The budgets below are asserted only on an optimized build.
+The budgets below are asserted only when ``XNANO_CHECK_BUDGETS=1`` is set on an optimized
+build outside CodSpeed (``make benchmark-xnano`` does it).
 """
 
 from __future__ import annotations
 
 import time
 
-import pytest
+from benchmark_budgets import check_budget
 
 import xnano
-import xnano_core
 
 PLAY_BUDGET_MICROSECONDS = 12.0
 """Recording a note costs a description, not a synthesis."""
@@ -44,17 +44,6 @@ def minimum_microseconds(function, *, number: int, repeat: int = 7) -> float:
     return min(results)
 
 
-def check_budget(measured: float, budget: float, what: str) -> None:
-    if not xnano_core.is_optimized_build:
-        pytest.skip(
-            f'{what} took {measured:.2f} us, but this is a debug build, so the budget of '
-            f'{budget:.2f} us is not checked. Build with make benchmark-all to check it.'
-        )
-    assert measured <= budget, (
-        f'{what} took {measured:.2f} us; the budget is {budget:.2f} us'
-    )
-
-
 def test_playing_a_note_records_it_without_synthesizing(benchmark):
     note = xnano.note('C4', beats=0.5)
     with xnano.new(width=8, height=1) as canvas:
@@ -66,7 +55,7 @@ def test_playing_a_note_records_it_without_synthesizing(benchmark):
         assert benchmark.pedantic(play, rounds=200, iterations=10) > 0
         canvas.audio._recordings.clear()
         check_budget(
-            minimum_microseconds(play, number=500),
+            lambda: minimum_microseconds(play, number=500),
             PLAY_BUDGET_MICROSECONDS,
             'canvas.play(note) without a device',
         )
@@ -86,7 +75,7 @@ def test_rendering_a_second_of_four_cached_notes(benchmark):
         render()
         assert benchmark.pedantic(render, rounds=30, iterations=1) == 1000.0
         check_budget(
-            minimum_microseconds(render, number=10),
+            lambda: minimum_microseconds(render, number=10),
             MIX_BUDGET_MICROSECONDS,
             'render_sound() of one second with four cached notes',
         )

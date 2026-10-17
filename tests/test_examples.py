@@ -17,6 +17,7 @@ pytest.importorskip('pyte')
 if sys.platform == 'win32':
     pytest.skip('needs a pseudo-terminal', allow_module_level=True)
 from emulator import Screen  # noqa: E402
+from xnano_audio import TerminalAudioPlayer  # noqa: E402
 
 pytestmark = pytest.mark.skipif(sys.platform == 'win32', reason='needs a pseudo-terminal')
 
@@ -699,19 +700,25 @@ def test_art_walks_blocks_and_draws_cells(example):
 
 
 def test_notes_render_offline_and_play_by_name(example):
+    has_sound_device = TerminalAudioPlayer.is_available()
     screen = example('30_notes.py', rows=8, columns=60)
     assert screen.wait_for('k kick')
     assert re.search(r'offline: 2\.0 seconds, peak 0\.\d\d', screen.text)
-    screen.press('k')
-    assert screen.wait_for('played the kick by name')
-    screen.press('c')
-    assert screen.wait_for('played the clip loaded with from_audio')
-    screen.press('m')
-    assert screen.wait_for('played 4 notes at 120 bpm')
-    screen.press('p')
-    assert screen.wait_for('played the arpeggio, a playable function')
-    screen.press('f')
-    assert screen.wait_for('played a class that plays itself')
+    if not has_sound_device:
+        assert screen.wait_for('no sound device: rendered offline')
+    sounds = [
+        ('k', 'the kick by name'),
+        ('c', 'the clip loaded with from_audio'),
+        ('m', '4 notes at 120 bpm'),
+        ('p', 'the arpeggio, a playable function'),
+        ('f', 'a class that plays itself'),
+    ]
+    for key, what in sounds:
+        screen.press(key)
+        if has_sound_device:
+            assert screen.wait_for(f'played {what}')
+        else:
+            assert screen.wait_for(f'no sound device: skipped {what}')
     quit_with_q(screen)
 
 

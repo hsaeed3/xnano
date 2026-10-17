@@ -10,18 +10,18 @@ time of the call divided by 100.
 Measured on an optimized build (Apple M-series, Python 3.11): 7.57 us per event with one
 registered hook and 42.07 us with ten; a natively filtered hook costs 0.16 us per event.
 
-The budgets below are asserted only on an optimized build: a debug build is several times
-slower and says nothing about the code's speed.
+The budgets are asserted only when ``XNANO_CHECK_BUDGETS=1`` is set on an optimized build
+outside CodSpeed (``make benchmark-xnano`` does it): a debug build is several times slower and
+says nothing about the code's speed.
 """
 
 from __future__ import annotations
 
 import time
 
-import pytest
+from benchmark_budgets import check_budget
 
 import xnano
-import xnano_core
 from xnano.context import Context
 from xnano_core import Event
 
@@ -47,17 +47,6 @@ def minimum_microseconds(function, *, rounds: int = 30) -> float:
     return min(results)
 
 
-def check_budget(measured: float, budget: float, what: str) -> None:
-    if not xnano_core.is_optimized_build:
-        pytest.skip(
-            f'{what} took {measured:.2f} us, but this is a debug build, so the budget of '
-            f'{budget:.2f} us is not checked. Build with make benchmark-all to check it.'
-        )
-    assert measured <= budget, (
-        f'{what} took {measured:.2f} us; the budget is {budget:.2f} us'
-    )
-
-
 def deliver(canvas, event: Event) -> None:
     for _ in range(EVENTS):
         canvas.push(event)
@@ -73,10 +62,16 @@ def test_one_matching_hook(benchmark):
     with xnano.new(width=80, height=24) as canvas:
         canvas.hook(hook, on='key', keys='a')
         event = Event.key_press('a')
+        deliver(canvas, event)
+        assert len(heard) == EVENTS
         benchmark.pedantic(lambda: deliver(canvas, event), rounds=30, iterations=1)
-        assert len(heard) == 30 * EVENTS
-        measured = minimum_microseconds(lambda: deliver(canvas, event))
-    check_budget(measured, ONE_HOOK_BUDGET_MICROSECONDS, 'one matching hook')
+        assert len(heard) > EVENTS
+        assert len(heard) % EVENTS == 0
+        check_budget(
+            lambda: minimum_microseconds(lambda: deliver(canvas, event)),
+            ONE_HOOK_BUDGET_MICROSECONDS,
+            'one matching hook',
+        )
 
 
 def test_ten_hooks_of_which_one_matches(benchmark):
@@ -90,10 +85,16 @@ def test_ten_hooks_of_which_one_matches(benchmark):
             canvas.hook(hook, on='key', keys=key)
         canvas.hook(hook, on='key', keys='a')
         event = Event.key_press('a')
+        deliver(canvas, event)
+        assert len(heard) == EVENTS
         benchmark.pedantic(lambda: deliver(canvas, event), rounds=30, iterations=1)
-        assert len(heard) == 30 * EVENTS
-        measured = minimum_microseconds(lambda: deliver(canvas, event))
-    check_budget(measured, TEN_HOOKS_BUDGET_MICROSECONDS, 'ten hooks, one matching')
+        assert len(heard) > EVENTS
+        assert len(heard) % EVENTS == 0
+        check_budget(
+            lambda: minimum_microseconds(lambda: deliver(canvas, event)),
+            TEN_HOOKS_BUDGET_MICROSECONDS,
+            'ten hooks, one matching',
+        )
 
 
 def test_a_key_that_no_hook_wants(benchmark):
@@ -107,5 +108,8 @@ def test_a_key_that_no_hook_wants(benchmark):
         event = Event.key_press('z')
         benchmark.pedantic(lambda: deliver(canvas, event), rounds=30, iterations=1)
         assert built == []
-        measured = minimum_microseconds(lambda: deliver(canvas, event))
-    check_budget(measured, FILTERED_BUDGET_MICROSECONDS, 'a filtered key')
+        check_budget(
+            lambda: minimum_microseconds(lambda: deliver(canvas, event)),
+            FILTERED_BUDGET_MICROSECONDS,
+            'a filtered key',
+        )

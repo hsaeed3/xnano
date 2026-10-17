@@ -12,10 +12,9 @@ from __future__ import annotations
 import itertools
 import time
 
-import pytest
+from benchmark_budgets import check_budget
 
 import xnano
-import xnano_core
 from xnano.effects import Effect
 from xnano.operations import Border, Write
 from xnano.widgets import Gauge
@@ -79,15 +78,6 @@ POINTER_BUDGET_MICROSECONDS = 263.0
 PLACEMENTS = 200
 
 
-def check_decoration_budget(measured: float, budget: float, what: str) -> None:
-    if not xnano_core.is_optimized_build:
-        pytest.skip(
-            f'{what} took {measured:.1f} us, but this is a debug build, so the budget of '
-            f'{budget:.1f} us is not checked. Build with make benchmark-all to check it.'
-        )
-    assert measured <= budget, f'{what} took {measured:.1f} us; the budget is {budget} us'
-
-
 def fastest_microseconds(function, *, rounds: int = 30) -> float:
     results = []
     for _ in range(rounds):
@@ -104,8 +94,11 @@ def test_a_bordered_text_is_written_and_removed(benchmark):
             canvas.write('hi', border='rounded').remove()
 
         benchmark.pedantic(write_and_remove, rounds=50, iterations=20)
-        measured = fastest_microseconds(write_and_remove)
-    check_decoration_budget(measured, CREATE_BUDGET_MICROSECONDS, 'write with a border')
+        check_budget(
+            lambda: fastest_microseconds(write_and_remove),
+            CREATE_BUDGET_MICROSECONDS,
+            'write with a border',
+        )
 
 
 def _screen_of_cards(canvas, *, has_side_override: bool) -> list:
@@ -130,8 +123,11 @@ def test_a_frame_of_bordered_text_placements(benchmark):
             canvas.step()
 
         benchmark.pedantic(change_and_draw, rounds=30, iterations=1)
-        measured = fastest_microseconds(change_and_draw)
-    check_decoration_budget(measured, FRAME_BUDGET_MICROSECONDS, 'a frame of 200 cards')
+        check_budget(
+            lambda: fastest_microseconds(change_and_draw),
+            FRAME_BUDGET_MICROSECONDS,
+            'a frame of 200 cards',
+        )
 
 
 def test_a_pointer_move_over_bordered_text_placements(benchmark):
@@ -144,8 +140,11 @@ def test_a_pointer_move_over_bordered_text_placements(benchmark):
             canvas.step()
 
         benchmark.pedantic(move_and_step, rounds=30, iterations=1)
-        measured = fastest_microseconds(move_and_step)
-    check_decoration_budget(measured, POINTER_BUDGET_MICROSECONDS, 'a pointer move')
+        check_budget(
+            lambda: fastest_microseconds(move_and_step),
+            POINTER_BUDGET_MICROSECONDS,
+            'a pointer move',
+        )
 
 
 def test_a_frame_of_text_placements_with_two_buffers_is_recorded(benchmark):
