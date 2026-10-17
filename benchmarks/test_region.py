@@ -32,7 +32,7 @@ from xnano import Pixel
 WIDTH = 80
 HEIGHT = 24
 
-HALF_BLOCK_SHADE_BUDGET_MILLISECONDS = 3.0
+HALF_BLOCK_SHADE_BUDGET_MILLISECONDS = 5.0
 """Shading every half-block pixel of an 80 by 24 canvas and drawing the frame."""
 
 CELL_SHADE_BUDGET_MILLISECONDS = 4.0

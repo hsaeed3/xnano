@@ -102,6 +102,14 @@ def _within_cells(cells: int, name: str, shown: object) -> int:
     return cells
 
 
+def _scaled_cells(available: int, factor: float) -> int:
+    """Return ``available * factor`` in cells, or more than a buffer holds if it overflows."""
+    product = available * factor
+    if not math.isfinite(product) or product > MOST_CELLS:
+        return MOST_CELLS + 1
+    return round(product)
+
+
 def _cells(value: object, available: int, name: str) -> int:
     keyword = name.split('[')[0]
     if isinstance(value, bool):
@@ -113,7 +121,7 @@ def _cells(value: object, available: int, name: str) -> int:
         _refuse_negative(value, name)
         if isinstance(value, int):
             return _within_cells(value, name, value)
-        return _within_cells(round(available * value), name, value)
+        return _within_cells(_scaled_cells(available, value), name, value)
     if isinstance(value, str) and value.strip().endswith('%'):
         try:
             share = float(value.strip()[:-1]) / 100.0
@@ -121,7 +129,7 @@ def _cells(value: object, available: int, name: str) -> int:
             share = None
         if share is not None:
             _refuse_negative(share, name, shown=value)
-            return _within_cells(round(available * share), name, value)
+            return _within_cells(_scaled_cells(available, share), name, value)
     raise TypeError(
         f'{name} must be a whole number of cells, a float or a percentage string, but got '
         f'{value!r}. Pass {keyword}=1, {keyword}=0.1 or {keyword}="10%".'
@@ -309,6 +317,11 @@ class Appearance:
                 raise TypeError(
                     f'title must be text or None, but got {value!r}. Pass a string such '
                     f'as title="Menu", or None for no title.'
+                )
+            if value is not None and ('\n' in value or '\r' in value):
+                raise ValueError(
+                    f'title must be a single line, but got {value!r}. Pass a title without '
+                    f'line breaks, such as title="Menu".'
                 )
         elif name == 'text' and not isinstance(value, str):
             raise TypeError(

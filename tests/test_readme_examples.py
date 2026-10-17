@@ -31,7 +31,9 @@ def blocks() -> list[tuple[str, int, str]]:
     for page in PAGES:
         text = page.read_text(encoding='utf-8')
         for number, match in enumerate(BLOCK.finditer(text), 1):
-            found.append((page.name, number, match.group(1)))
+            found.append(
+                (page.relative_to(REPOSITORY).as_posix(), number, match.group(1))
+            )
     return found
 
 
@@ -39,7 +41,11 @@ CASES = blocks()
 
 
 def test_the_pages_have_examples():
-    assert {name for name, _, _ in CASES} == {'README.md', 'index.md'}
+    assert {name for name, _, _ in CASES} == {
+        'README.md',
+        'docs/index.md',
+        'docs/learn/index.md',
+    }
     assert len(CASES) >= 9
 
 

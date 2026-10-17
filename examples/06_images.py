@@ -72,9 +72,20 @@ class Viewer:
             return  # an image larger than the limit cannot be enlarged again
         view_width, view_height = self.view_size
         ratio = ZOOMS[index] / self.zoom
+        # A picture smaller than the screen is centered, so its pixel at the screen edge is negative.
+        origin_x = (
+            -((view_width - self.world.width) // 2)
+            if self.world.width <= view_width
+            else self.left
+        )
+        origin_y = (
+            -((view_height - self.world.height) // 2)
+            if self.world.height <= view_height
+            else self.top
+        )
         center = (
-            (self.left + view_width / 2) * ratio,
-            (self.top + view_height / 2) * ratio,
+            (origin_x + view_width / 2) * ratio,
+            (origin_y + view_height / 2) * ratio,
         )
         self.zoom_index = index
         zoom = self.zoom

@@ -6,6 +6,8 @@ One hook, one native registration, the events it hears and how generator hooks w
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import pytest
 
 import xnano
@@ -94,18 +96,25 @@ class TestRegistration:
         push(canvas, Event.key_press('a'), Event.key_press('b'))
         assert heard == [1]
 
-    def test_a_bare_hook_hears_input_but_not_state_changes(self, canvas):
+    def test_a_bare_hook_hears_input_but_not_state_changes(self):
+        @dataclass
+        class Counter:
+            value: int = 0
+
         kinds: list[str] = []
-        canvas.hook(lambda context: kinds.append(context.event.kind))
-        push(
-            canvas,
-            Event.key_press('a'),
-            Event.paste('x'),
-            Event.custom('ping'),
-            Event.resize(width=10, height=3),
-            Event.focus_gained(),
-            Event.mouse_event(column=1, row=1, kind='move'),
-        )
+        with xnano.new(width=20, height=6, fps=10, state=Counter()) as canvas:
+            canvas.hook(lambda context: kinds.append(context.event.kind))
+            push(
+                canvas,
+                Event.key_press('a'),
+                Event.paste('x'),
+                Event.custom('ping'),
+                Event.resize(width=10, height=3),
+                Event.focus_gained(),
+                Event.mouse_event(column=1, row=1, kind='move'),
+            )
+            canvas.state.value = 1
+            canvas.deliver_events()
         assert kinds == ['key', 'paste', 'custom', 'resize', 'focus_gained', 'mouse']
 
     def test_the_kinds_of_events(self, canvas):

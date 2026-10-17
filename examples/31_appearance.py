@@ -1,8 +1,9 @@
 """
 How things look: colors, borders, padding, margin and effects.
 
-Every canvas, placement and region has the same four properties. ``color.fg`` and ``color.bg``
-are the text and background colors, and ``color.bg.darken(0.1)`` changes the owner in place.
+Every canvas, placement and standalone region (made by ``xnano.write()`` or ``xnano.box()``)
+has the same four properties. ``color.fg`` and ``color.bg`` are the text and background
+colors, and ``color.bg.darken(0.1)`` changes the owner in place.
 ``border`` takes a kind (``'plain'``, ``'rounded'``, ``'double'``, ``'thick'``) or ``False``,
 and each side has its own: ``border.top = 'double'``. ``padding`` and ``margin`` can be set one
 edge at a time. Several assignments in a row are drawn together, once per frame. The card starts

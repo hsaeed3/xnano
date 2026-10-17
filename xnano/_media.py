@@ -293,6 +293,9 @@ def _content_buffer(
             rows=rows,
             limit=limit,
             elapsed_seconds=elapsed_seconds,
+            fit=content.fit,
+            resampling_filter=content.resampling_filter,
+            background=content.background,
         )
     if is_image(content):
         raise TypeError(
@@ -308,7 +311,7 @@ def _content_buffer(
         )
     if not isinstance(content, type) and hasattr(content, '__xnano_render__'):
         kind = type(content)
-        if kind in _chain or len(_chain) >= _MAXIMUM_RENDER_DEPTH:
+        if len(_chain) >= _MAXIMUM_RENDER_DEPTH:
             names = ' -> '.join(item.__name__ for item in (*_chain, kind))
             raise TerminalError(
                 f'{kind.__name__}.__xnano_render__ keeps returning something that renders '
@@ -370,7 +373,7 @@ def _stack(
     chain: tuple[type, ...],
 ) -> _core.Buffer:
     """Draw the items one below the other, as wide as the widest."""
-    buffers = [
+    results = [
         _content_buffer(
             cast('Content', item),
             columns=columns,
@@ -379,9 +382,16 @@ def _stack(
             elapsed_seconds=elapsed_seconds,
             context=context,
             _chain=chain,
-        )[0]
+        )
         for item in items
     ]
+    if any(animation is not None for _, animation in results):
+        raise TypeError(
+            'An animated image cannot be shown inside a sequence, because only its first '
+            'frame would be drawn. Write it on its own with canvas.write(image), or return '
+            'it by itself from __xnano_render__ instead of in a list.'
+        )
+    buffers = [buffer for buffer, _ in results]
     stacked = _core.Buffer(
         width=max((buffer.width for buffer in buffers), default=0),
         height=sum(buffer.height for buffer in buffers),

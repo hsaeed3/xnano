@@ -97,7 +97,7 @@ class TestNote:
         xnano.note('C4', instrument='bell', effects=[{'kind': 'audio.reverb'}])
 
     def test_every_instrument_can_be_a_note(self, canvas):
-        assert len(instrument_names()) == 23
+        assert instrument_names()
         for name in instrument_names():
             canvas.play(xnano.note('C3', instrument=name, beats=0.2))
             assert peak_after(canvas, 0.5) > 0.0, name

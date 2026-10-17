@@ -121,17 +121,18 @@ def test_fill_and_clear():
 
 def test_background_colors_are_set_in_one_batch():
     buffer = Buffer(['abc', 'def'])
+    buffer.update(Background('green'))
     before = buffer.revision
     buffer.set_background_colors(
         ['red', None, (0, 0, 255), Color('#00ff00'), 'blue', None], width=3
     )
     assert buffer.revision == before + 1, 'one batch counts as one change'
     assert buffer[0, 0].background == Color('red')
-    assert buffer[1, 0].background == Color.reset
+    assert buffer[1, 0].background == Color('green'), 'None leaves a cell unchanged'
     assert buffer[2, 0].background == Color('#0000ff')
     assert buffer[0, 1].background == Color('#00ff00')
     assert buffer[1, 1].background == Color('blue')
-    assert buffer[2, 1].background == Color.reset
+    assert buffer[2, 1].background == Color('green'), 'None leaves a cell unchanged'
     assert rows(buffer) == ['abc', 'def'], 'symbols are kept'
 
 

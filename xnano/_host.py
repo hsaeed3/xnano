@@ -347,7 +347,9 @@ class _ThreadHost(_Host):
                     canvas._record_failure(error)
             # The runtime may only be dropped on this thread, so let go of every reference
             # to it (the canvas and any traceback hold some) before the thread ends.
-            if self._is_bound:
+            if self._is_bound or (
+                runtime is not None and canvas._runtime_object is runtime
+            ):
                 canvas._forget_runtime()
             runtime = None
             _release_frames(self._startup_error)

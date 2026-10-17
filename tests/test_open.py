@@ -1716,6 +1716,7 @@ class TestTeachingErrorsOnWrongTypes:
             canvas.color.bg.shade(5)  # type: ignore[arg-type]
 
     def test_a_missing_image_file_names_the_path(self):
+        pytest.importorskip('xnano_image')
         with pytest.raises(FileNotFoundError, match='nonexistent.png'):
             main.from_image('nonexistent.png')
 

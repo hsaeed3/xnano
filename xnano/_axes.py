@@ -155,11 +155,14 @@ def _percentage(text: str, axis: AxisName) -> float:
             f"the parent such as '50%', a range such as (1, 10), or an expression."
         )
     try:
-        return float(stripped[:-1]) / 100.0
+        share = float(stripped[:-1]) / 100.0
     except ValueError:
+        share = math.nan
+    if not math.isfinite(share):
         raise ValueError(
             f"{text!r} is not a percentage. Write a number followed by '%', such as '50%'."
-        ) from None
+        )
+    return share
 
 
 def _limit_bound(value: object, axis: AxisName) -> Bound:

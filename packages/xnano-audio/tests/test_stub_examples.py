@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import os
 import pathlib
 import re
 import textwrap
@@ -59,7 +60,26 @@ def skip_when_the_example_needs_a_missing_device(code: str) -> None:
         pytest.skip('no audio output device')
 
 
+def plays_audibly(code: str) -> bool:
+    """Whether running the example makes sound on the machine's output device."""
+    return any(
+        marker in code
+        for marker in (
+            'TerminalAudioPlayer(',
+            'TerminalStreamingAudioPlayer(',
+            'play_note',
+            'play_sound',
+        )
+    )
+
+
 @pytest.mark.parametrize(('name', 'code'), EXAMPLES, ids=[name for name, _ in EXAMPLES])
 def test_example_runs(name, code):
     skip_when_the_example_needs_a_missing_device(code)
-    exec(PREAMBLE + code, {})  # noqa: S102
+    if plays_audibly(code) and os.environ.get('XNANO_AUDIBLE_EXAMPLES') != '1':
+        compile(PREAMBLE + code, name, 'exec')
+        pytest.skip('set XNANO_AUDIBLE_EXAMPLES=1 to hear the examples that play sound')
+    try:
+        exec(PREAMBLE + code, {})  # noqa: S102
+    except native.TerminalAudioUnavailableError as error:
+        pytest.skip(f'audio device unavailable: {error}')

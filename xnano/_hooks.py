@@ -458,7 +458,9 @@ class HookHandle(Generic[DepsT, StateT]):
             needed.add('focus')
         elif kind is None:
             needed.update(
-                gate for gate in ('mouse', 'scroll') if gate in self._when.reads
+                gate
+                for gate in ('keyboard', 'mouse', 'scroll')
+                if gate in self._when.reads
             )
         if self._when.mentions_release:
             needed.add('keyboard_release')
@@ -582,11 +584,15 @@ class HookHandle(Generic[DepsT, StateT]):
         event = _event_of(core_context)
         try:
             kind = self.on
-            if kind in ('mouse', 'scroll', 'drag') and not self._handle_pointer(
-                core_context, event
-            ):
-                return
-            self._run(self._context(core_context, event))
+            context = self._context(core_context, event)
+            is_predicate_checked = False
+            if kind in ('mouse', 'scroll', 'drag'):
+                should_run, is_predicate_checked = self._handle_pointer(
+                    core_context, event, context
+                )
+                if not should_run:
+                    return
+            self._run(context, is_predicate_checked=is_predicate_checked)
         except Exception as error:
             self._fail(event, error)
 
@@ -594,28 +600,40 @@ class HookHandle(Generic[DepsT, StateT]):
         self,
         core_context: CoreContext,
         event: _core.Event | _core.TerminalStateChange | None,
-    ) -> bool:
-        """Scope a pointer event to the region and capture the pointer; say whether to run."""
+        context: Context[DepsT, StateT],
+    ) -> tuple[bool, bool]:
+        """
+        Scope a pointer event to the region and capture the pointer.
+
+        Return whether to run the hook, and whether its Python condition was already
+        checked here (a press is only captured when the condition holds).
+        """
         mouse = event.mouse if isinstance(event, _core.Event) else None
         if mouse is None:
-            return False
+            return False, False
         kind = self.on
         if not self._is_captured and not core_context.bounds.contains(mouse.position):
-            return False
+            return False, False
         mouse_kind = mouse.kind
         if mouse_kind == 'press' and kind in ('mouse', 'drag'):
+            predicate = self._when.predicate
+            is_checked = not self._is_captured and predicate is not None
+            if is_checked and predicate is not None and not predicate(context):
+                return False, True
             capture = getattr(core_context, 'capture_pointer', None)
             if capture is not None:
                 capture()
             self._is_captured = True
-            return kind == 'mouse'
+            return kind == 'mouse', is_checked
         if mouse_kind == 'release' and kind in ('mouse', 'drag'):
             self._is_captured = False
             # Only a running generator hears the release that ends its drag.
-            return kind == 'mouse' or self._generator is not None
-        return True
+            return kind == 'mouse' or self._generator is not None, False
+        return True, False
 
-    def _run(self, context: Context[DepsT, StateT]) -> None:
+    def _run(
+        self, context: Context[DepsT, StateT], *, is_predicate_checked: bool = False
+    ) -> None:
         canvas = self._owner._canvas
         if canvas._stop_requested.is_set():
             # The loop was asked to end, so an event or timer that was already queued is dropped.
@@ -629,7 +647,7 @@ class HookHandle(Generic[DepsT, StateT]):
         canvas._active_run = run
         try:
             predicate = self._when.predicate
-            if predicate is None or predicate(context):
+            if predicate is None or is_predicate_checked or predicate(context):
                 if self._is_generator_function:
                     self._advance(context)
                 else:

@@ -129,11 +129,11 @@ compare: .uv
 .PHONY: benchmark-xnano ## Run the benchmarks of the xnano package (benchmarks/) against optimized builds
 benchmark-xnano: .uv
 	@set -e; for package in $(packages); do extra=""; if [ "$$package" = "xnano-audio" ]; then extra="$(audio-device-features)"; fi; (cd packages/$$package && $(uv-run-no-sync) maturin develop --uv --release $$extra); done
-	XNANO_CHECK_BUDGETS=1 $(uv-run-no-sync) pytest benchmarks --benchmark-enable
+	XNANO_CHECK_BUDGETS=1 $(uv-run-no-sync) pytest benchmarks --benchmark-enable --resource-log
 
 .PHONY: benchmark-all ## Run the xnano benchmarks and every package's benchmarks against optimized builds
 benchmark-all: .uv benchmark-xnano
-	@set -e; for package in $(packages); do $(MAKE) -C packages/$$package benchmark; done
+	@set -e; for package in $(packages); do (cd packages/$$package && $(uv-run-no-sync) pytest benchmarks --benchmark-enable --benchmark-columns=min,median,max --benchmark-sort=name --resource-log); done
 
 .PHONY: test  ## Run all tests without building the packages
 test: test-rust

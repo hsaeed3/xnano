@@ -8,6 +8,7 @@ visual effects and audio effects, compiled through [`fx`][xnano.operations.fx].
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, fields
 from typing import (
     TYPE_CHECKING,
@@ -2202,7 +2203,9 @@ def effect_sequence(
         TypeError: The value is a string, a single dictionary or anything else that is not a
             list of effects.
     """
-    if isinstance(effects, (str, bytes, Mapping)) or not isinstance(effects, Iterable):
+    if isinstance(effects, (str, bytes, Mapping, AbstractSet)) or not isinstance(
+        effects, Iterable
+    ):
         sample = 'effect.fade_to' if expected == 'renderable' else 'audio.reverb'
         raise TypeError(
             f"effects= takes a list of dictionaries such as [{{'kind': {sample!r}, ...}}], "

@@ -22,8 +22,8 @@
 
 ## Quick start
 
-Build the pieces first, from the inside out. Each of these is a value that needs no screen and no
-sound device, and renders on its own:
+Build the pieces first, from the inside out. Each is a value that needs no screen; visual values
+render on their own, and notes need no sound device until they are played:
 
 ```python
 import xnano
@@ -85,13 +85,15 @@ with xnano.open(width=40, height=5) as terminal:
     terminal.run(quit_on='q')
 ```
 
-`xnano.open()` is `xnano.new()` on your screen. `hook(on='key' | 'mouse' | 'scroll' | 'drag' | 'tick' |
-'beat' | 'state', ...)` takes a condition as a string (`when="mouse.position in buffer.region"`),
-an expression or a function, and a generator hook waits for the next event with
-`context = yield`. `@xnano.renderable` and `@xnano.playable` turn a function into a component that
-is drawn again only when it read something that changes. `xnano.draw` makes pixel art with a camera
-and collision, `xnano.play('C4 E4 G4:2')` plays a melody written as text, and `canvas.state` keeps
-values that hooks follow. There are no base classes to subclass and no layout tree to declare.
+`xnano.open()` is `xnano.new()` on your screen. `hook(on='frame' | 'tick' | 'beat' | 'key' |
+'mouse' | 'scroll' | 'drag' | 'paste' | 'focus' | 'resize' | 'state' | 'custom', ...)` takes a
+condition as a string (`when="mouse.position in buffer.region"`), an expression or a function,
+and a generator hook waits for the next event with `context = yield`. `@xnano.renderable` turns a
+function into a component that is drawn again only when it read something that changes, and
+`@xnano.playable` into one that plays a new result when what it read changes. `xnano.draw` makes
+pixel art with a camera and collision, `xnano.play('C4 E4 G4:2')` plays a melody written as text,
+and `canvas.state` keeps values that hooks follow. There are no base classes to subclass and no
+layout tree to declare.
 
 The [`examples/`](./examples) folder has thirty-one runnable programs, from hello world to a
 playable pixel-art world, and `examples/README.md` shows what each one draws.

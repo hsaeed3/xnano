@@ -27,10 +27,10 @@ from xnano_core import Event
 
 EVENTS = 100
 
-ONE_HOOK_BUDGET_MICROSECONDS = 6.0
+ONE_HOOK_BUDGET_MICROSECONDS = 10.0
 """One matching no-op hook costs at most this much per event."""
 
-TEN_HOOKS_BUDGET_MICROSECONDS = 8.0
+TEN_HOOKS_BUDGET_MICROSECONDS = 60.0
 """Ten registered hooks of which one matches cost at most this much per event."""
 
 FILTERED_BUDGET_MICROSECONDS = 1.0

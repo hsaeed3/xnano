@@ -32,10 +32,9 @@ from xnano_core import (
 )
 
 if sys.version_info >= (3, 13):
-    from typing import TypeVar
+    from typing import Never, TypeVar
 else:
-    from typing_extensions import TypeVar
-from typing_extensions import Never
+    from typing_extensions import Never, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

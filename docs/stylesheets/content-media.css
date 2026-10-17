@@ -19,59 +19,6 @@
 .md-typeset p:has(> a:only-child > picture:only-child) {
     transform: none;
 }
-/* Inline image previews open on hover and keyboard focus. */
-.image-tooltip {
-    position: relative;
-    cursor: help;
-    text-decoration: underline dotted;
-    text-underline-offset: 0.2em;
-}
-.image-tooltip-content {
-    position: absolute;
-    z-index: 10;
-    right: 0;
-    bottom: calc(100% + 10px);
-    width: min(240px, 70vw);
-    padding: 6px;
-    border-radius: 6px;
-    background: var(--md-default-bg-color);
-    box-shadow: 0 4px 16px rgb(0 0 0 / 25%);
-    visibility: hidden;
-    opacity: 0;
-    transform: translateY(5px);
-    transition:
-        opacity 160ms ease-out,
-        transform 160ms ease-out,
-        visibility 0s linear 160ms;
-}
-/* Keep the hover area continuous across the space above the text. */
-.image-tooltip-content::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    height: 10px;
-}
-.image-tooltip-content img {
-    display: block;
-    width: 100%;
-    border-radius: 3px;
-}
-.image-tooltip:hover .image-tooltip-content,
-.image-tooltip:focus .image-tooltip-content {
-    visibility: visible;
-    opacity: 1;
-    transform: translateY(0);
-    transition-delay: 0s;
-}
-@media (prefers-reduced-motion: reduce) {
-    .image-tooltip-content {
-        transform: none;
-        transition: none;
-    }
-}
-
 /* ── Theme-aware demo GIFs ─────────────────────────────────────────────── */
 .xnano-demo {
     margin: 1.25rem 0;
