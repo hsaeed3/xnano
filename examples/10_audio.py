@@ -3,24 +3,24 @@ Play notes on every instrument.
 
 The list shows every built-in instrument. ``up`` and ``down`` choose one (``left`` and
 ``right`` jump a column), and the keys ``a`` to ``k`` play a major scale on it, ``space`` a
-chord and ``m`` a short tune. Notes are values you can do arithmetic on: ``root + 4`` is four
-semitones above ``root``, ``a + b`` plays one after the other, ``a | b`` plays together and
-``phrase * 2`` repeats. The dot follows the musical clock. Sounds are rendered without a device
+chord and ``m`` a short tune. ``xnano.note('C4')`` is a value that needs no device, a list of
+notes plays one after the other, and a note with several pitches is a chord. The dot follows
+the musical clock. Sounds are rendered without a device
 and played on the terminal's own loop, so nothing here ever waits for sound. Press ``q`` to quit.
 """
 
 import dataclasses
 
 import xnano
-from xnano.audio import InstrumentName, TerminalNote, instrument_names
+from xnano.audio import InstrumentName, instrument_names
 from xnano.context import Context
 from xnano.expressions import ParentWidth, Width
 
-root = TerminalNote('C4')
-major_scale = (0, 2, 4, 5, 7, 9, 11, 12)
-KEYS = {key: root + steps for key, steps in zip('asdfghjk', major_scale, strict=True)}
-CHORD = root | (root + 4) | (root + 7)
-TUNE = ((root + (root + 4) + (root + 7)) * 2) + (root + 12)
+SCALE = ('C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5')
+KEYS = {key: xnano.note(pitch) for key, pitch in zip('asdfghjk', SCALE, strict=True)}
+CHORD_PITCHES = ('C4', 'E4', 'G4')
+CHORD = xnano.note(CHORD_PITCHES)
+TUNE = [xnano.note(pitch) for pitch in (*CHORD_PITCHES, *CHORD_PITCHES, 'C5')]
 INSTRUMENTS: list[InstrumentName] = instrument_names()
 ROWS = 8  # instruments per column of the list
 COLUMN_WIDTH = 22
@@ -97,18 +97,16 @@ def main() -> None:
         def play_note(context: Context[None, Keyboard]) -> None:
             if context.keyboard.key is None:
                 return
-            note = KEYS[context.keyboard.key]
+            chosen = KEYS[context.keyboard.key]
             instrument = INSTRUMENTS[context.root.state.index]
-            message.text = f'{note.name:<4} on {instrument}'
+            message.text = f'{chosen.pitch!s:<4} on {instrument}'
             if terminal.audio.is_available:
-                terminal.play(note, instrument=instrument)
+                terminal.play(chosen, instrument=instrument)
 
         @terminal.hook(on='key', keys='space')
         def play_chord(context: Context[None, Keyboard]) -> None:
             instrument = INSTRUMENTS[context.root.state.index]
-            message.text = (
-                f'chord {" ".join(note.name for note in CHORD)} on {instrument}'
-            )
+            message.text = f'chord {" ".join(CHORD_PITCHES)} on {instrument}'
             if terminal.audio.is_available:
                 terminal.play(CHORD, instrument=instrument)
 

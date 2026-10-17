@@ -1144,7 +1144,9 @@ def _resolve_playable(
     if isinstance(item, (str, bytes, bytearray)):
         return item
     if hasattr(item, '__xnano_play__'):
-        played = cast('SupportsPlay', item).__xnano_play__(cast('Context', context))
+        played = cast('SupportsPlay[object, object]', item).__xnano_play__(
+            cast('Context[object, object]', context)
+        )
         if played is item:
             return item
         return _resolve_playable(played, context, depth + 1)

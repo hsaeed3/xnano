@@ -163,6 +163,28 @@ class TestScroll:
         assert contexts[0].scroll.y == -1
         assert contexts[0].event.mouse.position == Point(4, 1)
 
+    def test_push_scrolls_at_a_pointer_pushed_before_the_next_step(self, canvas):
+        contexts = record(canvas, on='scroll')
+        MouseInput(canvas, None).push((6, 2))
+        ScrollInput(canvas, None).push((0, 1))
+        canvas.deliver_events()
+        assert contexts[0].scroll.y == 1
+        assert contexts[0].event.mouse.position == Point(6, 2)
+
+    def test_push_scrolls_at_the_seen_pointer_after_a_pushed_move_was_delivered(
+        self, canvas
+    ):
+        contexts = record(canvas, on='scroll')
+        canvas.push(Event.mouse_event(column=1, row=1, kind='move'))
+        canvas.deliver_events()
+        MouseInput(canvas, None).push((3, 3))
+        canvas.deliver_events()
+        canvas.push(Event.mouse_event(column=1, row=1, kind='move'))
+        canvas.deliver_events()
+        ScrollInput(canvas, None).push((0, 1))
+        canvas.deliver_events()
+        assert contexts[0].event.mouse.position == Point(1, 1)
+
     def test_push_accepts_a_wheel_event(self, canvas):
         contexts = record(canvas, on='scroll')
         wheel = Event.mouse_event(column=2, row=2, kind='scroll', scroll_x=3).mouse

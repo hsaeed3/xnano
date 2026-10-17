@@ -294,10 +294,11 @@ in a `finally` block; the pytest fixture handles cleanup and artifact capture.
 
 ## Benchmarks, CPU and memory
 
-Each package keeps its benchmarks in `packages/<name>/benchmarks/`. Run them
-against an optimized build, which `make benchmark` (per package) and
-`make benchmark-all` (every package) build first. A debug build says nothing
-about speed.
+Each package keeps its benchmarks in `packages/<name>/benchmarks/`, and the `xnano`
+package keeps its own in the root `benchmarks/`. Run them against an optimized build,
+which `make benchmark` (per package), `make benchmark-xnano` (the root `benchmarks/`)
+and `make benchmark-all` (all of them) build first. A debug build says nothing about
+speed, and the budgets in the root `benchmarks/` are skipped on one.
 
 ```bash
 make benchmark-all

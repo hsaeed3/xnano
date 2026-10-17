@@ -7,6 +7,7 @@ Every example in ``examples/`` runs on a live terminal and shows what it promise
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 import time
 
@@ -581,4 +582,134 @@ def test_cursor(example):
     screen.press('s')
     assert screen.wait_for('shape bar')
     assert b'\x1b[5 q' in screen.raw, 'a blinking bar'
+    quit_with_q(screen)
+
+
+def test_canvas_stops_resumes_and_steps_from_the_keyboard(example):
+    pattern = re.compile(r'frame \d+ at ([\d.]+) seconds')
+
+    def elapsed(screen: Screen) -> float:
+        return float(pattern.findall(screen.text)[-1])
+
+    screen = example('26_canvas.py', rows=12, columns=70)
+    assert screen.wait_for('time runs')
+    lines = screen.lines()
+    assert lines[:3] == [
+        'frame 0 at 0.0 seconds',
+        'frame 1 at 0.1 seconds',
+        'frame 2 at 0.2 seconds',
+    ], 'the screenless part prints the same frames on every run'
+    screen.press(' ')
+    assert screen.wait_for('time stopped')
+    screen.settle(0.3)
+    frozen = elapsed(screen)
+    screen.settle(0.6)
+    assert elapsed(screen) == frozen, 'a stopped canvas keeps its time'
+    screen.press('n')
+    assert screen.wait_until(lambda: 0.05 < elapsed(screen) - frozen < 0.15)
+    assert 'time stopped' in screen.text, 'a step leaves the canvas stopped'
+    screen.press(' ')
+    assert screen.wait_for('time runs')
+    assert screen.wait_until(lambda: elapsed(screen) > frozen + 0.5)
+    quit_with_q(screen)
+
+
+def test_components_draw_from_the_clock_deps_and_hooks(example):
+    screen = example('27_components.py', rows=10, columns=60)
+    assert screen.wait_for('dashboard on xnano.local')
+    assert screen.wait_for('cpu')
+
+    def bars() -> tuple[str, ...]:
+        return tuple(line for line in screen.lines() if '[' in line)
+
+    first = bars()
+    assert len(first) == 2
+    assert screen.wait_until(lambda: bars() != first, timeout=5), (
+        'gauges follow the clock'
+    )
+    screen.press('r')
+    assert screen.wait_until(lambda: 'gauge heard r' in screen.text)
+    quit_with_q(screen)
+
+
+def test_gestures_drag_scroll_and_conditions(example):
+    screen = example('28_gestures.py', rows=14, columns=70)
+    assert screen.wait_for('a box that hears gestures')
+    assert screen.wait_for('zoom   0') and screen.wait_for('drag none')
+    screen.send('\x1b[<0;5;5M')  # press inside the box
+    screen.send('\x1b[<32;9;6M')  # drag
+    assert screen.wait_for('drag 8,3'), 'the drag hook follows the pointer'
+    screen.send('\x1b[<0;9;6m')
+    assert screen.wait_for('drag released')
+    screen.scroll(5, 4, direction='up')
+    screen.scroll(5, 4, direction='up')
+    assert screen.wait_for('zoom  -2')
+    screen.scroll(60, 4, direction='up')
+    screen.settle(0.3)
+    assert screen.find('zoom  -2') is not None, 'a wheel outside the box is not heard'
+    screen.press('z')
+    assert screen.wait_for('zoom  -1'), 'a pushed scroll step reaches the box'
+    screen.press('r')
+    assert screen.wait_for('zoom   0') and screen.wait_for('drag none')
+    quit_with_q(screen)
+
+
+def test_art_walks_blocks_and_draws_cells(example):
+    screen = example('29_art.py', rows=16, columns=62)
+    assert screen.wait_for('arrows walk')
+    assert screen.wait_until(lambda: screen.find('✓') is not None)
+    top = screen.find('█ ◆ ★ ✓ ✗')
+    assert top is not None, 'Pixel presets are single cells of a standalone box'
+    assert screen.wait_for('cells, by value')
+    assert screen.wait_until(lambda: screen.cell(top[0] - 1, top[1]).bg != 'default')
+    assert any(
+        screen.cell(column, row).bg == '9a7b4f' or screen.cell(column, row).fg == '9a7b4f'
+        for column in range(14, 20)
+        for row in range(3, 8)
+    ), 'the wall registered as a symbol is in the world'
+    assert screen.find('◆') is not None
+    screen.press('right')
+    assert screen.wait_for('walking')
+    for _ in range(10):
+        screen.press('right')
+    assert screen.wait_for('blocked: a wall is in the way')
+    screen.press('left')
+    assert screen.wait_for('walking')
+    quit_with_q(screen)
+
+
+def test_notes_render_offline_and_play_by_name(example):
+    screen = example('30_notes.py', rows=8, columns=60)
+    assert screen.wait_for('k kick')
+    assert re.search(r'offline: 2\.0 seconds, peak 0\.\d\d', screen.text)
+    screen.press('k')
+    assert screen.wait_for('played the kick by name')
+    screen.press('c')
+    assert screen.wait_for('played the clip loaded with from_audio')
+    screen.press('m')
+    assert screen.wait_for('played 4 notes at 120 bpm')
+    quit_with_q(screen)
+
+
+def test_appearance_changes_borders_colors_and_padding(example):
+    screen = example('31_appearance.py', rows=14, columns=80)
+    assert screen.wait_for('a card with a look')
+    assert screen.wait_for('border rounded   padding 2')
+    card = screen.find('a card with a look')
+    assert card is not None
+    before = screen.cell(card[0], card[1]).bg
+    assert before == '335577'
+    screen.press('t')
+    assert screen.wait_until(lambda: '═' in screen.lines()[2])
+    assert '│' in screen.text, 'only the top side changed'
+    screen.press('b')
+    assert screen.wait_for('border double')
+    screen.press('c')
+    assert screen.wait_for('text yellow')
+    screen.press('p')
+    assert screen.wait_for('padding 3')
+    screen.press('d')
+    assert screen.wait_until(lambda: screen.cell(card[0] - 1, card[1]).bg != before)
+    screen.press('f')
+    screen.settle(0.3)
     quit_with_q(screen)

@@ -340,7 +340,8 @@ class MouseInput:
 
         Args:
             value: A [`MouseEvent`][xnano_core.MouseEvent] of kind press, release, drag or
-                move, or a ``(column, row)`` pair, which moves the pointer to that cell.
+                move, or a ``(column, row)`` pair, which moves the pointer to that cell. A
+                ``context.scroll.push((x, y))`` that follows turns the wheel at that cell.
 
         Raises:
             TypeError: The value is a mouse wheel event, which belongs to
@@ -348,6 +349,13 @@ class MouseInput:
         """
         if isinstance(value, tuple):
             column, row = value
+            state = self._canvas._input_state
+            seen = None if state is None else state.pointer_cell
+            self._canvas._pushed_pointer = (
+                (column, row),
+                seen,
+                self._canvas._time_source.frame,
+            )
             self._canvas.push(
                 _core.Event.mouse_event(column=column, row=row, kind='move')
             )
@@ -417,7 +425,8 @@ class ScrollInput:
 
         Args:
             value: The ``(x, y)`` steps to scroll by, at the cell the pointer was last seen
-                at, or a [`MouseEvent`][xnano_core.MouseEvent] of kind scroll.
+                at (a pointer moved with ``context.mouse.push`` counts as seen there at
+                once), or a [`MouseEvent`][xnano_core.MouseEvent] of kind scroll.
 
         Raises:
             TypeError: The value is a mouse event that is not a wheel report, which belongs
@@ -427,6 +436,13 @@ class ScrollInput:
             steps_x, steps_y = value
             state = self._canvas._input_state
             cell = None if state is None else state.pointer_cell
+            pushed = self._canvas._pushed_pointer
+            if (
+                pushed is not None
+                and pushed[1] == cell
+                and pushed[2] == self._canvas._time_source.frame
+            ):
+                cell = pushed[0]
             column, row = cell if cell is not None else (0, 0)
         else:
             if value.kind != 'scroll':

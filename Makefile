@@ -126,8 +126,13 @@ compare: .uv
 	@set -e; for package in $(packages); do extra=""; if [ "$$package" = "xnano-audio" ]; then extra="$(audio-device-features)"; fi; (cd packages/$$package && $(uv-run-no-sync) maturin develop --uv --release $$extra); done
 	$(uv-run-no-sync) python benchmarks/compare.py $(ARGS)
 
-.PHONY: benchmark-all ## Run every package's benchmarks against optimized builds
-benchmark-all: .uv
+.PHONY: benchmark-xnano ## Run the benchmarks of the xnano package (benchmarks/) against optimized builds
+benchmark-xnano: .uv
+	@set -e; for package in $(packages); do extra=""; if [ "$$package" = "xnano-audio" ]; then extra="$(audio-device-features)"; fi; (cd packages/$$package && $(uv-run-no-sync) maturin develop --uv --release $$extra); done
+	$(uv-run-no-sync) pytest benchmarks --benchmark-enable
+
+.PHONY: benchmark-all ## Run the xnano benchmarks and every package's benchmarks against optimized builds
+benchmark-all: .uv benchmark-xnano
 	@set -e; for package in $(packages); do $(MAKE) -C packages/$$package benchmark; done
 
 .PHONY: test  ## Run all tests without building the packages

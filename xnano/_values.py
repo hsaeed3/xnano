@@ -35,6 +35,7 @@ if sys.version_info >= (3, 13):
     from typing import TypeVar
 else:
     from typing_extensions import TypeVar
+from typing_extensions import Never
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -103,6 +104,10 @@ DepsT_co = TypeVar('DepsT_co', covariant=True, default=None)
 
 StateT_co = TypeVar('StateT_co', covariant=True, default=None)
 
+DepsT_contra = TypeVar('DepsT_contra', contravariant=True, default=Never)
+
+StateT_contra = TypeVar('StateT_contra', contravariant=True, default=Never)
+
 
 KeyName: TypeAlias = Literal[
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -130,31 +135,36 @@ event keeps the names ``'left'``, ``'right'`` and ``'middle'``.
 
 
 @runtime_checkable
-class SupportsRender(Protocol):
+class SupportsRender(Protocol[DepsT_contra, StateT_contra]):
     """
     Anything that draws itself: an object with a ``__xnano_render__`` method.
 
     The method receives the [`Context`][xnano.context.Context] and returns what to draw, which
     is any [`Renderable`][xnano.types.Renderable]. No base class is needed; a dataclass or a
-    plain class qualifies. The method runs again, on the next frame, only when it read
-    something that changes (the time, the size, state or an input).
+    plain class qualifies. The context may be annotated with the dependency and state types
+    the component reads, such as ``Context[Services]``. The method runs again, on the next
+    frame, only when it read something that changes (the time, the size, state or an input).
     """
 
-    def __xnano_render__(self, context: Context) -> Renderable:
+    def __xnano_render__(
+        self, context: Context[DepsT_contra, StateT_contra]
+    ) -> Renderable:
         """Return what to draw."""
         ...
 
 
 @runtime_checkable
-class SupportsPlay(Protocol):
+class SupportsPlay(Protocol[DepsT_contra, StateT_contra]):
     """
     Anything that can be played: an object with a ``__xnano_play__`` method.
 
     The method receives the [`Context`][xnano.context.Context] and returns what to play.
-    No base class is needed; a dataclass or a plain class qualifies.
+    No base class is needed; a dataclass or a plain class qualifies. The context may be
+    annotated with the dependency and state types the component reads, such as
+    ``Context[Services]``.
     """
 
-    def __xnano_play__(self, context: Context) -> Playable:
+    def __xnano_play__(self, context: Context[DepsT_contra, StateT_contra]) -> Playable:
         """Return what to play."""
         ...
 

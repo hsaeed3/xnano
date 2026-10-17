@@ -558,6 +558,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self._clock: _core.Clock | None = None
         self._cursor: _core.Cursor | None = None
         self._input_state: _core.InputState | None = None
+        self._pushed_pointer: tuple[tuple[int, int], object, int] | None = None
         self._size = _core.Size(0, 0)
         self._previous = _active_canvas.get()
         _active_canvas.set(cast('Canvas[object, object]', self))
@@ -2725,6 +2726,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 if self._frame_demand:
                     runtime.request_frame()
                 runtime.step()
+                self._pushed_pointer = None
 
     def step(self, *, delta_seconds: float | None = None) -> Frame:
         """
@@ -2793,6 +2795,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             if self._frame_demand:
                 runtime.request_frame()
             runtime.step()
+            self._pushed_pointer = None
             return self._frame_now(milliseconds / 1000.0)
         if not self._time_source.is_stopped:
             raise TerminalError(
@@ -2856,6 +2859,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             canvas._host.call(lambda: canvas._runtime.request_frame())
             return
         canvas._runtime.step()
+        canvas._pushed_pointer = None
 
     def stop(self) -> None:
         """

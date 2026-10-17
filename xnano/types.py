@@ -152,13 +152,15 @@ class GateSettings(TypedDict, total=False):
 
     Attributes:
         mouse: ``True`` reports button presses, releases and drags; ``'motion'`` reports
-            every movement as well. Off by default. The wheel is the ``scroll`` gate.
-        scroll: Whether the mouse wheel is reported. Off by default.
+            every movement as well. Unset by default: turned on when a hook registered before
+            the canvas is opened needs it. The wheel is the ``scroll`` gate.
+        scroll: Whether the mouse wheel is reported. Unset by default: turned on when a hook
+            registered before the canvas is opened needs it.
         keyboard: ``True`` for ordinary key presses, ``'disambiguated'`` to tell keys such as
             ``escape`` and ``alt+key`` apart, ``'release_events'`` to also report repeats and
             releases, and ``False`` to ignore keys. ``True`` by default.
         paste: Whether pasted text arrives as one paste event instead of as key presses.
-            On by default.
+            Unset by default, which means on.
         focus: Whether the window gaining and losing focus is reported. On by default.
         interrupt: Whether ``Ctrl-C`` ends the loop. ``False`` delivers it as a key press.
             On by default.

@@ -496,6 +496,24 @@ class Region(_Looked):
             TypeError: The key is a screen [`Point`][xnano_core.Point] or not a pair.
             ValueError: A slice has a step, or a slice is taken from a pixel resolution.
         """
+        if type(key) is tuple and len(key) == 2 and self._resolution == 'cells':
+            column, row = key
+            if type(column) is int and type(row) is int:
+                self._flush_look()
+                buffer = self._buffer
+                if (
+                    not any(self._inset)
+                    and 0 <= column < buffer.width
+                    and 0 <= row < buffer.height
+                ):
+                    cell = buffer[column, row]
+                    foreground = cell.foreground
+                    background = cell.background
+                    return Pixel._of(
+                        cell.symbol,
+                        None if foreground is None or foreground.is_reset else foreground,
+                        None if background is None or background.is_reset else background,
+                    )
         self._check_point(key)
         column, row = key
         if isinstance(column, slice) or isinstance(row, slice):
@@ -592,6 +610,18 @@ class Region(_Looked):
                 pixel resolution.
             ValueError: A slice has a step.
         """
+        if type(key) is tuple and len(key) == 2 and self._resolution == 'cells':
+            column, row = key
+            if type(column) is int and type(row) is int and type(value) is Pixel:
+                self._flush_look()
+                buffer = self._buffer
+                if (
+                    not any(self._inset)
+                    and 0 <= column < buffer.width
+                    and 0 <= row < buffer.height
+                ):
+                    buffer[column, row] = value.cell()
+                    return
         self._check_point(key)
         column, row = key
         if isinstance(column, int) and isinstance(row, int):
