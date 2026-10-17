@@ -429,3 +429,36 @@ class TestInputlessConditions:
 
     def test_a_timed_hook_may_read_time(self, canvas):
         canvas.hook(lambda context: None, on='tick', when='root.time > 2')
+
+
+class TestUnseenValues:
+    def test_not_equal_is_false_for_a_value_the_event_did_not_carry(self):
+        native: list[str] = []
+        python: list[str] = []
+        with xnano.new(width=8, height=1, deps=1) as canvas:
+            canvas.hook(
+                lambda context: native.append(context.event.kind),
+                when="keyboard.key != 'q'",
+            )
+            canvas.hook(
+                lambda context: python.append(context.event.kind),
+                when="keyboard.key != 'q' and deps",
+            )
+            canvas.push(Event.mouse_event(column=1, row=1, kind='move'))
+            canvas.push(Event.key_press('r'))
+            canvas.deliver_events()
+        assert native == ['key']
+        assert python == native
+
+    def test_the_hyper_modifier_is_part_of_a_chord(self, canvas):
+        assert normalize_chord('hyper+a') == 'hyper+a'
+        heard: list[str] = []
+        canvas.hook(
+            lambda context: heard.append(context.keyboard.chord),
+            on='key',
+            keys=['hyper+a'],
+        )
+        canvas.push(Event.key_press('hyper+a'))
+        canvas.push(Event.key_press('a'))
+        canvas.deliver_events()
+        assert heard == ['hyper+a']

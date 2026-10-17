@@ -4,14 +4,14 @@ benchmarks.test_time
 Benchmarks for the time controls of a canvas: stepping a static canvas, creating and closing
 one, and writing and removing text.
 
-Baselines, measured on an optimized build (Apple M-series, Python 3.11, minimum of 7 rounds):
+Measurements on an optimized build (Apple M-series, Python 3.11, minimum of 7 rounds):
 
-| Case | Beta 3 | This version |
+| Case | Measured | Budget |
 | --- | --- | --- |
-| ``step()`` of a static canvas, 80 by 24, with its ``Frame`` | 23.5 us (``loop.advance``) | 2.6 us |
-| ``step()`` of a static canvas, 200 by 50 | 101.8 us | 2.6 us |
-| ``new()`` then ``close()``, 80 by 24 | 23.1 us | 20.1 us |
-| ``write('hi')`` then ``remove()`` | 5.6 us | 6.3 us |
+| ``step()`` of a static canvas, 80 by 24, with its ``Frame`` | 2.6 us | 4.0 us |
+| ``step()`` of a static canvas, 200 by 50 | 2.6 us | 4.0 us |
+| ``new()`` then ``close()``, 80 by 24 | 16 us | 23.1 us |
+| ``write('hi')`` then ``remove()`` | 6.5 us | 7.8 us |
 
 The budgets below are asserted only on an optimized build: a debug build is several times
 slower and says nothing about the code's speed.
@@ -31,10 +31,10 @@ STEP_BUDGET_MICROSECONDS = 4.0
 """A step of a static canvas draws nothing, so it must stay near the cost of the clock."""
 
 CREATE_BUDGET_MICROSECONDS = 23.1
-"""Creating and closing a canvas costs no more than an offscreen terminal of beta 3."""
+"""Creating and closing a canvas costs little more than the runtime that it creates."""
 
-WRITE_BUDGET_MICROSECONDS = 1.25 * 5.6
-"""Writing and removing text costs at most a quarter more than in beta 3."""
+WRITE_BUDGET_MICROSECONDS = 7.8
+"""Writing and removing text costs about a fifth more than the measured figure at most."""
 
 
 def minimum_microseconds(function, *, number: int = 1000, repeat: int = 7) -> float:

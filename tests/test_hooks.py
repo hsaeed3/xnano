@@ -500,6 +500,16 @@ class TestRegions:
         push(canvas, Event.mouse_event(column=1, row=1, kind='move'))
         assert heard == ['canvas']
 
+    def test_a_key_reaches_every_buffer_while_nothing_has_focus(self, canvas):
+        first = canvas.write('x')
+        second = canvas.write('y', y=1)
+        heard = []
+        first.hook(lambda context: heard.append('first'), on='key')
+        second.hook(lambda context: heard.append('second'), on='key')
+        canvas.hook(lambda context: heard.append('canvas'), on='key')
+        push(canvas, Event.key_press('r'))
+        assert sorted(heard) == ['canvas', 'first', 'second']
+
     def test_two_hooks_on_one_buffer_both_run(self, canvas):
         heard = []
         canvas.hook(lambda context: heard.append(1), on='key')

@@ -1000,7 +1000,7 @@ def cases() -> list[Case]:
         def volume(state: Settings) -> int:
             return state.volume
 
-        reference = terminal.ref(volume)
+        reference = terminal.state_reference(volume)
         bar = terminal.write(Gauge(reference.number / 100, width=60, height=1))
         assert bar
         counter = [0]

@@ -70,6 +70,7 @@ _MODIFIER_TEXT: Final = (
     ('shift', 'shift'),
     ('super', 'super'),
     ('meta', 'meta'),
+    ('hyper', 'hyper'),
 )
 
 _MEMBERS: Final[dict[str, tuple[str, ...]]] = {
@@ -535,6 +536,8 @@ def _compare(
     if isinstance(operator, ast.Eq):
         return left == right
     if isinstance(operator, ast.NotEq):
+        if not is_native and (left is None or right is None):
+            return False
         return left != right
     if not is_native and (left is None or right is None):
         return False

@@ -234,3 +234,56 @@ class TestHeldMouseButtons:
         assert 'mouse_left' in canvas.input.held_keys
         push(canvas, Event.mouse_event(column=1, row=1, kind='release', button='left'))
         assert canvas.input.is_down('mouse_left') is False
+
+
+class TestMousePush:
+    def test_a_mouse_event_inside_an_event_is_unwrapped(self, canvas):
+        heard = record(canvas, 'mouse')
+        canvas.hook(
+            lambda context: context.mouse.push(
+                Event.mouse_event(column=2, row=1, kind='move')
+            ),
+            on='key',
+        )
+        push(canvas, Event.key_press('a'))
+        assert [item.mouse.kind for item in heard] == ['move']
+
+    def test_values_that_are_not_mouse_input_are_explained(self, canvas):
+        errors = []
+
+        def try_push(context: Context, value: object) -> None:
+            try:
+                context.mouse.push(value)  # type: ignore[arg-type]
+            except TypeError as error:
+                errors.append(str(error))
+
+        def attempt(context: Context) -> None:
+            try_push(context, Event.key_press('b'))
+            try_push(context, 'move')
+
+        canvas.hook(attempt, on='key')
+        push(canvas, Event.key_press('a'))
+        assert 'takes a mouse event' in errors[0]
+        assert 'MouseEvent or an (x, y) pair' in errors[1]
+
+
+class TestPushedPairs:
+    def test_a_pair_that_is_not_two_whole_numbers_is_explained(self, canvas):
+        errors = []
+
+        def try_push(context: Context, call: str, value: object) -> None:
+            try:
+                getattr(context, call).push(value)
+            except TypeError as error:
+                errors.append(str(error))
+
+        def attempt(context: Context) -> None:
+            try_push(context, 'mouse', (1, 2, 3))
+            try_push(context, 'scroll', (1,))
+            try_push(context, 'scroll', 5)
+
+        canvas.hook(attempt, on='key')
+        push(canvas, Event.key_press('a'))
+        assert 'mouse.push takes a pair of whole numbers' in errors[0]
+        assert 'scroll.push takes a pair of whole numbers' in errors[1]
+        assert 'scroll.push takes a MouseEvent' in errors[2]

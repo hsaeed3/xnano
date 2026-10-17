@@ -39,6 +39,7 @@ else:
     from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
+    from xnano._effect_controller import EffectState
     from xnano._hooks import HookHandle, _Hooked
     from xnano._values import Content, Playable, Renderable, SupportsPlay
     from xnano.canvas import Canvas
@@ -90,7 +91,12 @@ class ComponentContext(Generic[DepsT, StateT]):
 
         with xnano.new(width=12, height=1) as canvas:
             seen = []
-            gauge.hook(lambda context, own: seen.append(own.arguments['ratio']), on='tick')
+            gauge.hook(
+                lambda context, component_context: seen.append(
+                    component_context.arguments['ratio']
+                ),
+                on='tick',
+            )
             canvas.write(gauge(ratio=0.5))
             canvas.step(delta_seconds=0.1)
             assert seen == [0.5]
@@ -126,7 +132,7 @@ class ComponentHook:
     ``remove`` takes it off all of them. It never starts a placement of its own.
 
     Attributes:
-        handles: The [`HookHandle`][xnano._hooks.HookHandle] on each placement it is installed
+        handles: The [`HookHandle`][xnano.types.HookHandle] on each placement it is installed
             on right now.
         is_removed: Whether ``remove`` was called.
     """
@@ -337,8 +343,11 @@ class _HookSource:
                 pressed = []
 
                 @label.hook(on='key', keys='a')
-                def heard(context, component) -> None:
-                    pressed.append(component.arguments['text'])
+                def heard(
+                    context: xnano.context.Context,
+                    component_context: xnano.components.ComponentContext,
+                ) -> None:
+                    pressed.append(component_context.arguments['text'])
 
                 canvas.write(label(text='hi'))
                 canvas.push(Event.key_press('a'))
@@ -712,6 +721,7 @@ class _Driver:
         self._own_revisions: deque[int] = deque(maxlen=4)
         self._input_hooks: dict[str, HookHandle[object, object]] = {}
         self._plugin_state: StateNamespace | None = None
+        self._effect_state: EffectState | None = None
 
     @property
     def _canvas(self) -> Canvas[object, object]:
@@ -727,6 +737,15 @@ class _Driver:
     def is_closed(self) -> bool:
         """Whether the driver was closed."""
         return self._is_closed
+
+    @property
+    def is_removed(self) -> bool:
+        """Whether the component stopped being drawn."""
+        return self._is_closed
+
+    def remove(self) -> None:
+        """Stop re-running the component. Removing it twice does nothing."""
+        self.close()
 
     @property
     def _name(self) -> str:
@@ -867,6 +886,10 @@ class _Driver:
         if self._is_closed:
             return
         self._is_closed = True
+        effect_state = self._effect_state
+        if effect_state is not None:
+            self._effect_state = None
+            effect_state.clear()
         for handle in self._input_hooks.values():
             handle.remove()
         self._input_hooks.clear()

@@ -6,6 +6,7 @@ The loop a canvas runs on: inline for a manual clock, a thread otherwise.
 
 from __future__ import annotations
 
+import sys
 import threading
 from collections.abc import Callable
 from typing import (
@@ -24,6 +25,22 @@ from xnano.errors import TerminalClosedError, TerminalError, release_frames
 ResultT = TypeVar('ResultT')
 
 _CALL_TIMEOUT_SECONDS: Final = 10.0
+
+
+def _public_operation() -> str | None:
+    """The name of the public xnano method or property that is running, if there is one."""
+    frame = sys._getframe(2)
+    while frame is not None:
+        name = frame.f_code.co_name
+        module = frame.f_globals.get('__name__', '')
+        if (
+            module.startswith('xnano')
+            and not name.startswith(('_', '<'))
+            and not module.startswith('xnano._')
+        ):
+            return name
+        frame = frame.f_back
+    return None
 
 
 class _Registration:
@@ -108,6 +125,12 @@ class _Host:
     def require_retirable(self) -> None:
         """Raise a TerminalError when the calling thread may not retire this host."""
 
+    def require_closable(self) -> None:
+        """Raise a TerminalError when the calling thread may not close this host."""
+
+    def require_usable(self) -> None:
+        """Raise a TerminalError when the calling thread may not use the runtime."""
+
 
 class _InlineHost(_Host):
     """
@@ -135,10 +158,17 @@ class _InlineHost(_Host):
         # Entering the runtime is what marks the loop as running.
         runtime.__enter__()
         self._runtime: _core.Runtime | None = runtime
-        canvas._bind(runtime)
+        try:
+            canvas._bind(runtime)
+        except BaseException:
+            # A runtime that was entered must be closed on this thread, or it is leaked.
+            self._runtime = None
+            runtime.close()
+            canvas._forget_runtime()
+            raise
 
     def is_on_loop(self) -> bool:
-        return True
+        return threading.current_thread() is self._thread
 
     def post(self, function: Callable[[], object]) -> None:
         function()
@@ -151,8 +181,12 @@ class _InlineHost(_Host):
         if runtime is None:
             return
         self._canvas._detach()
+        self._canvas._size = runtime.device.size
         self._runtime = None
         runtime.close()
+        # The runtime holds the callbacks that refer to the canvas, so the canvas must let go
+        # of the runtime for the garbage collector to free either of them.
+        self._canvas._forget_runtime()
 
     def require_retirable(self) -> None:
         if threading.current_thread() is not self._thread:
@@ -162,13 +196,33 @@ class _InlineHost(_Host):
                 'xnano.new().'
             )
 
+    def require_usable(self) -> None:
+        if threading.current_thread() is not self._thread:
+            operation = _public_operation()
+            subject = 'This canvas' if operation is None else f'{operation} was used from'
+            raise TerminalError(
+                f'{subject} another thread, but a canvas with a manual clock belongs to the '
+                f'thread that created it. Use it from the thread that called xnano.new(), or '
+                f'create it with xnano.new(realtime=True) to use it from several threads.'
+            )
+
+    def require_closable(self) -> None:
+        if self._runtime is not None and threading.current_thread() is not self._thread:
+            raise TerminalError(
+                'A canvas with a manual clock belongs to the thread that created it, and '
+                'this is another one. Close it from the thread that called xnano.new(), or '
+                'create it with xnano.new(realtime=True) to use it from several threads.'
+            )
+
     def retire(self) -> None:
         runtime = self._runtime
         if runtime is None:
             return
         self.require_retirable()
+        self._canvas._size = runtime.device.size
         self._runtime = None
         runtime.close()
+        self._canvas._forget_runtime()
 
 
 class _ThreadHost(_Host):
@@ -260,8 +314,13 @@ class _ThreadHost(_Host):
                 canvas._bind(runtime)
                 self._is_bound = True
             except BaseException as error:
+                # The caller re-raises this error on its own thread, so it must not carry
+                # frames that hold the runtime, which only this thread may drop.
+                release_frames(error)
                 self._bind_error = error
-                raise
+                if not self._defer_bind:
+                    self._startup_error = error
+                return
             finally:
                 self._bind_done.set()
             self._ready.set()

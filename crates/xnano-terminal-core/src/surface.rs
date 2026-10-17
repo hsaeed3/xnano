@@ -463,6 +463,66 @@ impl PySurface {
         Ok((i32::from(bounds.width()), i32::from(bounds.height())))
     }
 
+    /// Check a block of colors for `name` and parse it: a flat, row-major sequence with `width`
+    /// columns whose top-left cell is at (`x`, `y`) in this surface, `None` for a cell to skip.
+    fn color_block(
+        &self,
+        name: &str,
+        colors: &Bound<'_, PyAny>,
+        width: i32,
+        x: i32,
+        y: i32,
+    ) -> PyResult<Vec<Option<xnano_terminal_runtime::style::Color>>> {
+        if colors.is_instance_of::<PyString>() {
+            return Err(PyTypeError::new_err(format!(
+                "{name} needs a sequence of colors such as [\"red\", \"blue\"], not one string. \
+                 Pass a list with one color (or None) for each cell."
+            )));
+        }
+        let mut parsed: Vec<Option<xnano_terminal_runtime::style::Color>> = Vec::new();
+        let items = colors.try_iter().map_err(|_| {
+            PyTypeError::new_err(format!(
+                "{name} needs a sequence of colors such as [\"red\", \"blue\"] with one color \
+                 (or None) for each cell. Pass a list instead of a single value."
+            ))
+        })?;
+        for color in items {
+            let color = color?;
+            parsed.push(if color.is_none() {
+                None
+            } else {
+                Some(crate::style::color_arg(&color)?)
+            });
+        }
+        if width < 1 {
+            return Err(PyValueError::new_err(format!(
+                "width must be at least 1 column, not {width}. Pass the number of cells in one row \
+                 of colors."
+            )));
+        }
+        let count = i32::try_from(parsed.len()).unwrap_or(i32::MAX);
+        if count % width != 0 {
+            return Err(PyValueError::new_err(format!(
+                "the {count} colors do not fill whole rows of width={width}. Pass a flat \
+                 row-major sequence whose length is a multiple of width."
+            )));
+        }
+        let rows = count / width;
+        let (surface_width, surface_height) = self.dimensions()?;
+        let fits = x >= 0
+            && y >= 0
+            && i64::from(x) + i64::from(width) <= i64::from(surface_width)
+            && i64::from(y) + i64::from(rows) <= i64::from(surface_height);
+        if !fits {
+            return Err(PyValueError::new_err(format!(
+                "a block of {width} x {rows} cells at x={x}, y={y} does not fit a surface of \
+                 {surface_width} x {surface_height} cells. Choose x, y and width so that the \
+                 block stays inside the surface."
+            )));
+        }
+        Ok(parsed)
+    }
+
     fn edit(&self, change: impl FnOnce(&mut Grid, Bounds)) -> PyResult<()> {
         let bounds = self.bounds()?;
         {
@@ -997,53 +1057,7 @@ impl PySurface {
         x: i32,
         y: i32,
     ) -> PyResult<()> {
-        if colors.is_instance_of::<PyString>() {
-            return Err(PyTypeError::new_err(
-                "set_background_colors needs a sequence of colors such as [\"red\", \"blue\"], not \
-                 one string. Pass a list with one color (or None) for each cell.",
-            ));
-        }
-        let mut parsed: Vec<Option<xnano_terminal_runtime::style::Color>> = Vec::new();
-        let items = colors.try_iter().map_err(|_| {
-            PyTypeError::new_err(
-                "set_background_colors needs a sequence of colors such as [\"red\", \"blue\"] \
-                 with one color (or None) for each cell. Pass a list instead of a single value.",
-            )
-        })?;
-        for color in items {
-            let color = color?;
-            parsed.push(if color.is_none() {
-                None
-            } else {
-                Some(crate::style::color_arg(&color)?)
-            });
-        }
-        if width < 1 {
-            return Err(PyValueError::new_err(format!(
-                "width must be at least 1 column, not {width}. Pass the number of cells in one row \
-                 of colors."
-            )));
-        }
-        let count = i32::try_from(parsed.len()).unwrap_or(i32::MAX);
-        if count % width != 0 {
-            return Err(PyValueError::new_err(format!(
-                "the {count} colors do not fill whole rows of width={width}. Pass a flat \
-                 row-major sequence whose length is a multiple of width."
-            )));
-        }
-        let rows = count / width;
-        let (surface_width, surface_height) = self.dimensions()?;
-        let fits = x >= 0
-            && y >= 0
-            && i64::from(x) + i64::from(width) <= i64::from(surface_width)
-            && i64::from(y) + i64::from(rows) <= i64::from(surface_height);
-        if !fits {
-            return Err(PyValueError::new_err(format!(
-                "a block of {width} x {rows} cells at x={x}, y={y} does not fit a surface of \
-                 {surface_width} x {surface_height} cells. Choose x, y and width so that the \
-                 block stays inside the surface."
-            )));
-        }
+        let parsed = self.color_block("set_background_colors", colors, width, x, y)?;
         self.edit(|grid, bounds| {
             for (index, color) in parsed.iter().enumerate() {
                 let Some(color) = color else { continue };
@@ -1053,6 +1067,33 @@ impl PySurface {
                 let cell_y = bounds.top + (y + row) as u16;
                 if let Some(cell) = grid.buffer_mut().cell_mut((cell_x, cell_y)) {
                     cell.set_bg(*color);
+                }
+            }
+        })
+    }
+
+    /// Set the foreground color of a block of cells in one pass.
+    ///
+    /// `colors` is a flat, row-major sequence with `width` columns whose top-left cell is at
+    /// (`x`, `y`) in this surface; `None` leaves a cell alone.
+    #[pyo3(signature = (colors, *, width, x = 0, y = 0))]
+    fn set_foreground_colors(
+        &self,
+        colors: &Bound<'_, PyAny>,
+        width: i32,
+        x: i32,
+        y: i32,
+    ) -> PyResult<()> {
+        let parsed = self.color_block("set_foreground_colors", colors, width, x, y)?;
+        self.edit(|grid, bounds| {
+            for (index, color) in parsed.iter().enumerate() {
+                let Some(color) = color else { continue };
+                let index = index as i32;
+                let (column, row) = (index % width, index / width);
+                let cell_x = bounds.left + (x + column) as u16;
+                let cell_y = bounds.top + (y + row) as u16;
+                if let Some(cell) = grid.buffer_mut().cell_mut((cell_x, cell_y)) {
+                    cell.set_fg(*color);
                 }
             }
         })

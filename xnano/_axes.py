@@ -6,6 +6,7 @@ Turn axis values (numbers, percentages, ranges, expressions) into core expressio
 
 from __future__ import annotations
 
+import math
 from typing import (
     TYPE_CHECKING,
     Final,
@@ -252,7 +253,7 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
     """
     if axis not in _AXIS_NAMES:
         raise ValueError(f'{axis!r} is not an axis; use one of {", ".join(_AXIS_NAMES)}.')
-    if isinstance(value, bool):
+    if isinstance(value, bool) or (isinstance(value, float) and not math.isfinite(value)):
         raise ValueError(
             f'{value!r} is not a valid {axis}. Give a number of cells, a percentage string, '
             f'a range or an expression.'
@@ -274,6 +275,67 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
     )
 
 
+def check_size(converted: object, axis: AxisName, value: object) -> None:
+    """
+    Refuse a width or height that is a negative number of cells.
+
+    Raises:
+        ValueError: ``axis`` is ``'width'`` or ``'height'`` and ``converted`` is below 0.
+    """
+    if (
+        axis in ('width', 'height')
+        and isinstance(converted, (int, float))
+        and converted < 0
+    ):
+        raise ValueError(
+            f'{axis} must be 0 or more cells, but was {value!r}. Pass a size such as '
+            f'{axis}=4, or leave {axis} out to use the size of the content.'
+        )
+
+
+def check_axis(value: Axis, axis: AxisName) -> None:
+    """
+    Raise the error that assigning ``value`` to ``axis`` would raise, changing nothing.
+
+    Raises:
+        ValueError: The value is not one of the forms an axis accepts.
+    """
+    if isinstance(value, tuple):
+        axis_limits(value, axis)
+        return
+    check_size(axis_expression(value, axis), axis, value)
+
+
+def check_layer(value: object) -> int:
+    """
+    Return ``value`` when it is a whole number that can be a layer.
+
+    Raises:
+        TypeError: The value is not a whole number.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(
+            f'layer must be a whole number, but got {value!r}. Pass layer=1 to draw above '
+            f'the rest, or layer=-1 to draw below it.'
+        )
+    return value
+
+
+def check_point(value: object) -> _core.Point:
+    """
+    Return ``value`` when it is a screen cell.
+
+    Raises:
+        TypeError: The value is not a [`Point`][xnano_core.Point].
+    """
+    if not isinstance(value, _core.Point):
+        raise TypeError(
+            f'local() takes a Point, but got {value!r}. Pass a cell such as '
+            f'context.mouse.position, or xnano_core.Point(x, y).'
+        )
+    return value
+
+
 def check_cells(value: object, name: str) -> int:
     """
     Return ``value`` when it is a whole number of cells.
@@ -289,18 +351,27 @@ def check_cells(value: object, name: str) -> int:
     return value
 
 
-def check_count(value: object, name: str = 'count') -> int:
+def check_count(value: object, *, verb: str, opposite: str) -> int:
     """
     Return ``value`` when it is a whole number of cells that is not negative.
+
+    Args:
+        value: The count to check.
+        verb: The name of the method the count was given to, such as ``'up'``.
+        opposite: The name of the method that moves the other way, such as ``'down'``.
 
     Raises:
         TypeError: The value is not a whole number.
         ValueError: The value is negative.
     """
-    count = check_cells(value, name)
-    if count < 0:
-        raise ValueError(
-            f'{name} must be zero or more, but got {count}. To move the other way, call the '
-            f'opposite direction: down() instead of up(), or left() instead of right().'
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(
+            f'count must be a whole number of cells, but got {value!r}. Pass count=1 to '
+            f'move one cell with {verb}().'
         )
-    return count
+    if value < 0:
+        raise ValueError(
+            f'count must be zero or more, but got {value}. To move the other way, call '
+            f'{opposite}() instead of {verb}().'
+        )
+    return value

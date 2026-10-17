@@ -583,3 +583,14 @@ def test_removing_the_border_of_a_canvas_keeps_its_size():
         canvas.step()
         assert (canvas.region.width, canvas.region.height) == (8, 4)
         assert canvas.render().split('\n')[0] == 'hi'
+
+
+class TestColorSlotHints:
+    def test_the_hint_names_the_slot_that_has_no_color(self, canvas):
+        label = canvas.write('hi', border='plain')
+        with pytest.raises(TerminalError, match=r'color\.fg = "red"'):
+            label.color.fg.darken(0.1)
+        with pytest.raises(TerminalError, match=r'color\.bg = "red"'):
+            label.color.bg.darken(0.1)
+        with pytest.raises(TerminalError, match=r'border\.color = "red"'):
+            ColorSlot(label, 'border').darken(0.1)

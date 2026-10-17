@@ -18,6 +18,7 @@ import pytest
 import xnano as main
 import xnano.terminal as terminal_module
 from xnano import active, new
+from xnano import hook as xnano_hook
 from xnano import open as open_terminal
 from xnano.canvas import Canvas
 from xnano.context import Context
@@ -36,6 +37,7 @@ from xnano_core import (
     ParentWidth,
     Point,
     PointerPosition,
+    Style,
     TimeElapsed,
     Width,
     Write,
@@ -309,6 +311,79 @@ class TestPlacements:
         with pytest.raises(TypeError, match='input that has not been seen'):
             placement.x = PointerPosition.x
 
+    def test_a_rejected_formula_leaves_nothing_behind(self, canvas):
+        with pytest.raises(TypeError, match='input that has not been seen'):
+            canvas.write('ghost', x=PointerPosition.x)
+        assert len(canvas._placements) == 0
+        assert 'ghost' not in canvas.render()
+        placement = canvas.write('o', x=3)
+        with pytest.raises(TypeError, match='input that has not been seen'):
+            placement.x = PointerPosition.x
+        assert 'x' not in placement._bindings
+        placement.y = TimeElapsed * 0
+        canvas.step()
+        assert placement.x == 3
+
+    def test_a_removed_placement_refuses_every_change_the_same_way(self, canvas):
+        placement = canvas.write('a')
+        placement.remove()
+        actions = [
+            lambda: placement.write('x'),
+            lambda: placement.hook(lambda context: None, on='tick'),
+            lambda: setattr(placement, 'text', 'b'),
+            lambda: setattr(placement, 'x', 3),
+            lambda: setattr(placement, 'is_bold', True),
+            lambda: placement.move(x=1),
+            lambda: placement.update(Style(foreground='red')),
+            lambda: placement.state,
+        ]
+        for action in actions:
+            with pytest.raises(TerminalClosedError, match='was removed'):
+                action()
+        placement.remove()
+
+    def test_a_negative_size_names_the_setting_and_a_fix(self, canvas):
+        with pytest.raises(ValueError, match='width must be 0 or more cells'):
+            canvas.write('x', width=-3)
+        assert len(canvas._placements) == 0
+
+    def test_a_rejected_formula_is_reported_on_a_canvas_that_runs_by_itself(self):
+        with new(width=10, height=2, realtime=True) as running:
+            placement = running.write('ok')
+            with pytest.raises(TypeError, match='input that has not been seen'):
+                placement.x = PointerPosition.x
+            with pytest.raises(TypeError, match='input that has not been seen'):
+                running.write('ghost', x=PointerPosition.x)
+            assert 'x' not in placement._bindings
+            assert len(running._placements) == 1
+            assert running.is_running
+
+    def test_operations_are_applied_not_written(self, canvas):
+        from xnano_core import Move, Style
+
+        for operation in (Style(foreground='red'), Move(x=1, y=0)):
+            with pytest.raises(
+                TypeError, match=r'canvas\.update\(\.\.\.\) or canvas \| operation'
+            ):
+                canvas.write(operation)  # type: ignore[arg-type]
+        parent = canvas.write('box', width=6, height=2)
+        with pytest.raises(TypeError, match=r'placement\.update\(\.\.\.\)'):
+            parent.write(Style(foreground='red'))  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='xnano.hook|ContextualOperation|changes'):
+            canvas.write(xnano_hook(lambda context: None, on='tick'))  # type: ignore[arg-type]
+        assert not hasattr(canvas, '__getitem__')
+
+    def test_removing_a_placement_removes_what_is_nested_in_it(self, canvas):
+        parent = canvas.write('outer', width=8, height=2)
+        inner = parent.write('inner')
+        deeper = inner.write('deeper')
+        keeper = canvas.write('kept', y=3)
+        parent.remove()
+        assert canvas._placements == [keeper]
+        assert inner._removed and deeper._removed
+        with pytest.raises(TerminalError, match='was removed'):
+            parent.state.push('a', 1)
+
     def test_bad_axes_are_explained(self, canvas):
         placement = canvas.write('x')
         with pytest.raises(ValueError, match='not a percentage'):
@@ -376,20 +451,20 @@ class TestPlacements:
 
 class TestRegions:
     def test_a_color_fills_the_background(self, canvas):
-        canvas[0:3, 0:2] = Color('#336699')
-        assert canvas[1, 1].background.to_rgb() == (0x33, 0x66, 0x99)
-        assert canvas[3, 0].background.to_rgb() is None
-        canvas[4:6, 0:1] = (1, 2, 3)
-        assert canvas[4, 0].background.to_rgb() == (1, 2, 3)
+        canvas.region[0:3, 0:2] = Color('#336699')
+        assert canvas.region[1, 1].background.to_rgb() == (0x33, 0x66, 0x99)
+        assert canvas.region[3, 0].background is None
+        canvas.region[4:6, 0:1] = (1, 2, 3)
+        assert canvas.region[4, 0].background.to_rgb() == (1, 2, 3)
 
     def test_a_string_is_written(self, canvas):
-        canvas[2:12, 1:2] = 'hello'
-        assert canvas[2, 1].symbol == 'h'
-        canvas[0, 0] = 'z'
-        assert canvas[0, 0].symbol == 'z'
+        canvas.region[2:12, 1:2] = 'hello'
+        assert canvas.region[2, 1].character == 'h'
+        canvas.region[0, 0] = 'z'
+        assert canvas.region[0, 0].character == 'z'
 
     def test_a_buffer_covers_the_region(self, canvas):
-        canvas[4:8, 2:4] = Buffer(width=1, height=1)
+        canvas.region[4:8, 2:4] = Buffer(width=1, height=1)
         placement = canvas._placements[-1]
         assert (placement.x, placement.y, placement.width, placement.height) == (
             4,
@@ -399,25 +474,25 @@ class TestRegions:
         )
 
     def test_slices_can_be_open_and_empty_regions_are_ignored(self, canvas):
-        canvas[:, 5:] = (255, 255, 255)
-        assert canvas[19, 5].background.to_rgb() == (255, 255, 255)
-        canvas[5:5, 0:1] = 'x'
+        canvas.region[:, 5:] = (255, 255, 255)
+        assert canvas.region[19, 5].background.to_rgb() == (255, 255, 255)
+        canvas.region[5:5, 0:1] = 'x'
 
     def test_steps_and_single_cell_fills_are_explained(self, canvas):
         with pytest.raises(ValueError, match='step'):
-            canvas[0:6:2, 0:1] = 'x'
-        with pytest.raises(TypeError, match='single cell'):
-            canvas[0, 0] = (1, 2, 3)
+            canvas.region[0:6:2, 0:1] = 'x'
+        with pytest.raises(IndexError, match='outside this region'):
+            canvas.region[0:3, 99] = 'x'
 
     def test_clear_erases_the_cells(self, canvas):
         canvas.write('hello')
         canvas.clear()
-        assert canvas[0, 0].symbol == ' '
+        assert canvas.region[0, 0].character == ' '
 
     def test_update_and_inspect(self, canvas):
         canvas.update(Write('abc', x=1, y=1))
         assert canvas.inspect(Width) == 20
-        assert canvas[1, 1].symbol == 'a'
+        assert canvas.region[1, 1].character == 'a'
 
 
 class TestPixels:
@@ -431,9 +506,9 @@ class TestPixels:
         pixels = canvas.region.half_blocks
         pixels[0, 0] = Color('#ff0000')
         pixels[0, 1] = (0, 0, 255)
-        assert canvas[0, 0].symbol == '▀'
-        assert canvas[0, 0].foreground.to_rgb() == (255, 0, 0)
-        assert canvas[0, 0].background.to_rgb() == (0, 0, 255)
+        assert canvas.core_buffer[0, 0].symbol == '▀'
+        assert canvas.core_buffer[0, 0].foreground.to_rgb() == (255, 0, 0)
+        assert canvas.core_buffer[0, 0].background.to_rgb() == (0, 0, 255)
 
     def test_colors_without_channels_are_explained(self, canvas):
         with pytest.raises(ValueError, match="'#rrggbb'"):
@@ -446,10 +521,10 @@ class TestPixels:
     def test_a_slice_draws_every_pixel_it_covers(self, canvas):
         canvas.region.half_blocks[0:3, 0] = Color('#ff0000')
         for column in range(3):
-            assert canvas[column, 0].foreground.to_rgb() == (255, 0, 0)
-        assert canvas[3, 0].symbol == ' '
+            assert canvas.core_buffer[column, 0].foreground.to_rgb() == (255, 0, 0)
+        assert canvas.core_buffer[3, 0].symbol == ' '
         canvas.region.half_blocks[:, :] = (0, 0, 255)
-        assert canvas[19, 5].background.to_rgb() == (0, 0, 255)
+        assert canvas.core_buffer[19, 5].background.to_rgb() == (0, 0, 255)
 
     def test_a_slice_with_a_step_is_explained(self, canvas):
         with pytest.raises(ValueError, match='step'):
@@ -462,22 +537,22 @@ class TestPixels:
         pixels[0, 0] = main.Color.from_hsl(120, 100, 50)
         pixels[1, 0] = main.Color('#336699').lighten(0.2)
         pixels[2, 0] = main.Color.red
-        assert canvas[0, 0].foreground.to_rgb() == (0, 255, 0)
-        assert canvas[2, 0].foreground.to_rgb() == (205, 0, 0)
+        assert canvas.core_buffer[0, 0].foreground.to_rgb() == (0, 255, 0)
+        assert canvas.core_buffer[2, 0].foreground.to_rgb() == (205, 0, 0)
 
     def test_shading_draws_from_a_formula(self, canvas):
         canvas.region.half_blocks.shade(
             lambda column, row: (column * 10, row * 10, 0) if column < 2 else None
         )
-        assert canvas[1, 0].foreground.to_rgb() == (10, 0, 0)
-        assert canvas[5, 0].symbol == ' '
+        assert canvas.core_buffer[1, 0].foreground.to_rgb() == (10, 0, 0)
+        assert canvas.core_buffer[5, 0].symbol == ' '
 
     def test_many_pixels_and_images(self, canvas):
         pixels = canvas.region.half_blocks
         pixels.shade(lambda column, row: (0, 255, 0) if row == 0 and column < 2 else None)
-        assert canvas[1, 0].symbol == '▀'
+        assert canvas.core_buffer[1, 0].symbol == '▀'
         pixels.draw_color_bytes(bytes([255, 0, 0, 255]) * 4, width=2, height=2, x=4, y=0)
-        assert canvas[4, 0].background.to_rgb() == (255, 0, 0)
+        assert canvas.core_buffer[4, 0].background.to_rgb() == (255, 0, 0)
         assert pixels.cell_for_pixel(3, 5) == (3, 2)
         assert pixels.pixel_for_cell(1, 1, anchor='top_left') == (1, 2)
 
@@ -659,9 +734,8 @@ class TestHooks:
             if context.keyboard.key is not None:
                 raise ZeroDivisionError('nope')
 
-        dispatch(canvas, Event.key_press('x'))
         with pytest.raises(TerminalError, match='explode') as caught:
-            canvas.close()
+            dispatch(canvas, Event.key_press('x'))
         cause = caught.value.__cause__
         while cause is not None and not isinstance(cause, ZeroDivisionError):
             cause = cause.__cause__
@@ -782,8 +856,8 @@ class TestTime:
 class TestCellAccess:
     def test_terminal_cells_are_indexable(self, canvas):
         canvas.update(Write('ab'))
-        assert isinstance(canvas[0, 0], Cell)
-        assert canvas[0:2, 0:1][0, 0].symbol == 'a'
+        assert isinstance(canvas.core_buffer[0, 0], Cell)
+        assert canvas.core_buffer[0:2, 0:1][0, 0].symbol == 'a'
 
 
 def python_examples():
@@ -1019,7 +1093,7 @@ class TestAutonomous:
         assert canvas.is_closed and not canvas.is_running
 
 
-def test_terminal_title_can_be_set_changed_and_cleared_offscreen():
+def test_terminal_title_can_be_set_changed_and_cleared_on_a_screenless_canvas():
     with new(title='Initial') as canvas:
         assert canvas.title == 'Initial'
         canvas.title = 'Changed'
@@ -1127,8 +1201,8 @@ def test_pixels_accept_colors_by_name(canvas):
     pixels = canvas.region.half_blocks
     pixels[0, 0] = main.Color.red
     pixels[0, 1] = main.Color('#5c5cff')
-    assert canvas[0, 0].foreground.to_rgb() == (205, 0, 0)
-    assert canvas[0, 0].background.to_rgb() == (92, 92, 255)
+    assert canvas.core_buffer[0, 0].foreground.to_rgb() == (205, 0, 0)
+    assert canvas.core_buffer[0, 0].background.to_rgb() == (92, 92, 255)
     with pytest.raises(ValueError, match='no red, green and blue'):
         pixels[1, 0] = main.Color.reset
 
@@ -1194,7 +1268,7 @@ class TestPausingTime:
             assert len(ticks) > count, 'and carry on after it resumes'
             assert canvas.time.elapsed - frozen < 0.5, 'the pause is not counted'
 
-    def test_a_key_can_resume_a_paused_terminal(self):
+    def test_a_key_can_resume_a_stopped_terminal(self):
         with new(width=12, height=1) as canvas:
 
             @canvas.hook(on='key', keys='space')
@@ -1209,7 +1283,7 @@ class TestPausingTime:
             dispatch(canvas, Event.key_press('space'))
             assert not canvas.time.is_stopped
 
-    def test_a_paused_terminal_still_draws_what_a_hook_changes(self):
+    def test_a_stopped_terminal_still_draws_what_a_hook_changes(self):
         import time
 
         with new(realtime=True, width=12, height=1) as canvas:
@@ -1249,9 +1323,9 @@ def test_sprites_can_be_drawn_from_text_and_scrolled():
     with new(width=4, height=2) as canvas:
         pixels = canvas.region.half_blocks
         pixels.draw_image(sprite, x=1, y=0)
-        assert canvas[1, 0].foreground.to_rgb() == (255, 0, 0)
+        assert canvas.core_buffer[1, 0].foreground.to_rgb() == (255, 0, 0)
         pixels.draw_image(sprite, x=-1, y=0, mode='replace')
-        assert canvas[0, 0].background.to_rgb() == (0, 0, 255), (
+        assert canvas.core_buffer[0, 0].background.to_rgb() == (0, 0, 255), (
             'a negative offset scrolls'
         )
 
@@ -1357,3 +1431,232 @@ def test_assigning_text_to_a_placement_changes_what_it_shows(canvas):
     assert canvas.output.snapshot().lines()[0] == 'bye'
     text.text = 'one\ntwo'
     assert (text.width, text.height) == (3, 2)
+
+
+class TestRemovingBeforeTheNextFrame:
+    def test_a_look_changed_just_before_remove_is_never_drawn(self, canvas):
+        placement = canvas.write('hi')
+        placement.color.fg = 'red'
+        placement.border = True
+        placement.padding = 1
+        placement.remove()
+        assert not canvas._dirty_looks
+        canvas.step()
+        assert canvas.render().strip() == ''
+
+    def test_a_running_canvas_survives_it(self):
+        with new(width=20, height=5, realtime=True) as running:
+            placement = running.write('hi')
+            placement.color.fg = 'red'
+            placement.remove()
+            running.write('still here')
+            running.stop()
+            running.step()
+            assert 'still here' in running.render()
+
+
+class TestFormulasThatLoseTheirValue:
+    def test_an_axis_follows_the_pointer_until_the_pointer_is_forgotten(self, canvas):
+        from xnano.expressions import Mouse
+
+        canvas.push(Event.mouse_event(column=7, row=1, kind='move'))
+        canvas.step()
+        placement = canvas.write('a')
+        placement.x = Mouse.position.x
+        assert placement.x == 7
+        canvas.push(Event.key_press('a'))
+        canvas.step()
+        canvas.step()
+        assert placement.x == 7, (
+            'the axis keeps its last value while the formula has none'
+        )
+
+    def test_an_axis_bound_to_a_state_field_that_becomes_none_keeps_its_value(self):
+        from dataclasses import dataclass
+
+        @dataclass
+        class Fields:
+            maybe: int | None = 3
+
+        with new(width=20, height=3, state=Fields()) as stated:
+            placement = stated.write('a')
+            placement.x = stated.state_reference(lambda fields: fields.maybe)
+            stated.step()
+            assert placement.x == 3
+            stated.state.push('maybe', None)
+            stated.step()
+            stated.step()
+            assert placement.x == 3
+            stated.state.push('maybe', 5)
+            stated.step()
+            assert placement.x == 5
+
+
+class TestWritingACanvasIntoAnother:
+    def test_a_refused_write_leaves_the_child_ready_to_be_written_again(self):
+        outer = new(width=20, height=4)
+        child = new(width=5, height=1)
+        child.write('kid')
+        try:
+            for keywords in (
+                {'x': 'bad'},
+                {'width': -1},
+                {'height': -1},
+                {'width': 'zz'},
+                {'layer': 'x'},
+            ):
+                with pytest.raises((ValueError, TypeError)):
+                    outer.write(child, **keywords)  # type: ignore[arg-type]
+                assert child._canvas is child
+                assert not outer._children
+            child.step()
+            outer.write(child)
+            outer.step()
+            assert 'kid' in outer.render()
+        finally:
+            outer.close()
+
+    def test_lock_freezes_the_formulas_of_a_written_canvas(self):
+        with new(width=20, height=4) as outer:
+            child = new(width=5, height=1)
+            locked = outer.write(child, x='50%', lock=True)
+            assert not locked._bindings
+            assert locked.x == 10
+
+    def test_removing_the_placement_closes_the_canvas_inside_it(self):
+        with new(width=20, height=4) as outer:
+            child = new(width=5, height=1)
+            holder = outer.write(child)
+            holder.remove()
+            assert child.is_closed
+            assert child not in outer._children
+            with pytest.raises(TerminalClosedError):
+                child.write('late')
+
+    def test_adding_and_removing_canvases_does_not_grow_the_list_of_children(self):
+        with new(width=20, height=4) as outer:
+            for _ in range(5):
+                outer.write(new(width=5, height=1)).remove()
+            assert outer._children == []
+
+
+class TestSteppingWhileClosing:
+    def test_a_stopped_canvas_closed_from_another_thread_ends_the_step_at_once(self):
+        import time
+
+        running = new(width=10, height=2, realtime=True)
+        running.stop()
+        closer = threading.Timer(0.05, running.close)
+        closer.start()
+        started = time.monotonic()
+        try:
+            with pytest.raises(TerminalError):
+                while time.monotonic() - started < 3:
+                    running.step()
+        finally:
+            closer.join()
+        assert time.monotonic() - started < 3
+
+    def test_a_step_that_is_too_large_says_how_to_step(self, canvas):
+        with pytest.raises(ValueError, match='at most'):
+            canvas.step(delta_seconds=1e300)
+
+
+class TestTheCursorAndARemovedPlacement:
+    def test_a_cursor_that_followed_a_placement_loses_its_position_with_it(self, canvas):
+        field = canvas.write('field', x=3, y=1)
+        canvas.cursor.follow(field, x=2)
+        canvas.step()
+        assert canvas.cursor.position == Point(5, 1)
+        field.remove()
+        canvas.step()
+        assert canvas.cursor.position is None
+
+    def test_following_something_else_says_what_to_pass(self, canvas):
+        with pytest.raises(TypeError, match='placement, a region or a buffer'):
+            canvas.cursor.follow('a')  # type: ignore[arg-type]
+
+
+class TestTeachingErrorsOnWrongTypes:
+    def test_modifiers_and_styles_are_checked_where_they_are_set(self, canvas):
+        placement = canvas.write('a')
+        with pytest.raises(TypeError, match='is_bold must be True or False'):
+            placement.is_bold = 'x'  # type: ignore[assignment]
+        assert placement.is_bold is False
+        with pytest.raises(TypeError, match='style must be a Style'):
+            placement.style = 5  # type: ignore[assignment]
+        with pytest.raises(TypeError, match='is_bold must be True or False'):
+            canvas.write('a', is_bold='x')  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='title must be text'):
+            canvas.write('a', title=5)  # type: ignore[arg-type]
+        with pytest.raises((TypeError, ValueError), match='foreground must be a color'):
+            canvas.write('a', foreground='nocolor')
+        with pytest.raises(TypeError, match='text must be a string'):
+            placement.text = 5  # type: ignore[assignment]
+        canvas.step()
+
+    def test_the_layer_is_a_whole_number(self, canvas):
+        placement = canvas.write('a')
+        with pytest.raises(TypeError, match='layer must be a whole number'):
+            placement.layer = 'a'  # type: ignore[assignment]
+        with pytest.raises(TypeError, match='layer must be a whole number'):
+            canvas.write('a', layer='a')  # type: ignore[arg-type]
+        assert len(canvas._placements) == 1
+
+    def test_a_position_that_is_not_a_cell_is_refused(self, canvas):
+        placement = canvas.write('a')
+        with pytest.raises(ValueError, match='not a valid x'):
+            placement.x = float('inf')
+        with pytest.raises(ValueError, match='too far'):
+            placement.x = 2**40
+
+    def test_a_margin_error_names_margin_in_its_advice(self):
+        with pytest.raises(TypeError, match=r'Pass margin=1, margin=0\.1'):
+            new(margin='x')  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match=r'Pass padding=1, padding=0\.1'):
+            new(padding='x')  # type: ignore[arg-type]
+
+    def test_the_title_and_effects_and_keys_say_what_they_take(self, canvas):
+        with pytest.raises(TypeError, match='title must be text'):
+            canvas.title = 5  # type: ignore[assignment]
+        with pytest.raises(TypeError, match='effects takes a list'):
+            canvas.write('a', effects=1)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='keys= takes'):
+            canvas.hook(lambda context: None, on='key', keys=5)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='takes a function'):
+            canvas.state_reference(5)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='takes a Point'):
+            canvas.local((1, 1))  # type: ignore[arg-type]
+
+    def test_counts_name_the_method_and_its_opposite(self, canvas):
+        placement = canvas.write('a')
+        with pytest.raises(
+            TypeError, match=r'Pass count=1 to move one cell with right\(\)'
+        ):
+            placement.right('a')  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match=r'call left\(\) instead of right\(\)'):
+            placement.right(-1)
+        with pytest.raises(ValueError, match=r'call down\(\) instead of up\(\)'):
+            canvas.cursor.up(-1)
+
+    def test_requires_deps_explains_the_two_ways_to_give_them(self, canvas):
+        with pytest.raises(TerminalError, match=r'canvas\.open\(deps='):
+            canvas.hook(lambda context: None, on='tick', requires_deps=True)
+
+
+class TestThreadErrorsNameTheOperation:
+    def test_using_a_manual_canvas_from_another_thread_names_the_call(self, canvas):
+        caught: list[BaseException] = []
+
+        def other() -> None:
+            try:
+                canvas.step()
+            except BaseException as error:
+                caught.append(error)
+
+        thread = threading.Thread(target=other)
+        thread.start()
+        thread.join()
+        assert len(caught) == 1
+        assert isinstance(caught[0], TerminalError)
+        assert 'step was used from another thread' in str(caught[0])

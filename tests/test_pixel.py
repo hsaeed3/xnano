@@ -135,3 +135,18 @@ def test_a_pixel_prints_as_its_character():
 
     assert str(Pixel('star')) == '\u2605'
     assert str(Pixel('x', foreground='red')) == 'x'
+
+
+def test_a_pixel_names_a_bad_color_and_takes_options_by_keyword():
+    with pytest.raises(ValueError, match='foreground of a pixel must be a color'):
+        Pixel('block', foreground='nocolor')
+    with pytest.raises(TypeError, match='background of a pixel must be a color'):
+        Pixel('block', background=5)  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        Pixel('block', 'red')  # type: ignore[misc]
+
+
+def test_a_pixel_cannot_be_a_control_character():
+    for character in ('\x1b', '\n'):
+        with pytest.raises(ValueError, match='control character'):
+            Pixel(character)

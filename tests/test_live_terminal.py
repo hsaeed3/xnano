@@ -756,7 +756,7 @@ print('STOPPED')
 class TestOpeningACanvas:
     """A canvas from ``xnano.new()`` is put on the screen with ``open()``."""
 
-    def test_a_canvas_built_offscreen_opens_on_the_screen(self, run):
+    def test_a_screenless_canvas_opens_on_the_screen(self, run):
         screen = run(
             """
 with xnano.new(width=30, height=3) as canvas:
@@ -816,6 +816,51 @@ with xnano.new(width=40, height=3) as canvas:
         )
         assert screen.wait_for('STOPPED True AT 2.00')
         assert screen.wait_for('STEPPED TO 2.01')
+
+    def test_effects_given_to_open_start_on_the_screen(self, run):
+        screen = run(
+            """
+fade = [{'kind': 'effect.fade_to', 'foreground': 'red', 'duration_milliseconds': 300}]
+with xnano.new(width=12, height=2) as canvas:
+    canvas.write('faded')
+    canvas.open(effects=fade)
+    time.sleep(2)
+"""
+        )
+        assert screen.wait_for('faded')
+        assert screen.wait_until(
+            lambda: screen.cell(0, 0).fg in ('cd0000', 'ff0000'), timeout=5
+        )
+
+    def test_effects_given_to_xnano_open_with_a_canvas_start_on_the_screen(self, run):
+        screen = run(
+            """
+fade = [{'kind': 'effect.fade_to', 'foreground': 'red', 'duration_milliseconds': 300}]
+with xnano.new(width=12, height=2) as canvas:
+    canvas.write('faded')
+    xnano.open(canvas, effects=fade)
+    time.sleep(2)
+"""
+        )
+        assert screen.wait_for('faded')
+        assert screen.wait_until(
+            lambda: screen.cell(0, 0).fg in ('cd0000', 'ff0000'), timeout=5
+        )
+
+    def test_a_bad_appearance_value_leaves_the_canvas_usable_and_leaks_nothing(self, run):
+        screen = run(
+            """
+with xnano.new(width=20, height=3) as canvas:
+    canvas.write('hi')
+    try:
+        canvas.open(margin='x')
+    except TypeError:
+        print('REFUSED', type(canvas).__name__, canvas.is_closed)
+    canvas.step()
+"""
+        )
+        assert screen.wait_for('REFUSED Canvas False')
+        assert screen.finish() == 0
 
     def test_open_draws_inline_at_the_size_given_to_new(self, run):
         screen = run(
@@ -919,6 +964,83 @@ with xnano.new() as canvas:
         assert screen.wait_for('start')
         screen.resize(8, 50)
         assert screen.wait_for('WIDTH 50')
+
+    def test_state_given_to_open_keeps_what_already_followed_the_state(self, run):
+        screen = run(
+            """
+from dataclasses import dataclass
+
+@dataclass
+class Settings:
+    volume: int = 1
+
+seen = []
+with xnano.new(width=40, height=3) as canvas:
+    @canvas.hook(on='state')
+    def watch(context):
+        seen.append(context.root.state.get('volume'))
+
+    placement = canvas.write('hi')
+    placement.state.push('clicks', 3)
+    canvas.step()
+    canvas.open(state=Settings())
+    canvas.state.push('volume', 5)
+    time.sleep(0.5)
+    canvas.write(f'SEEN {seen[-1]} CLICKS {placement.state.get("clicks")}', y=1)
+    time.sleep(1)
+"""
+        )
+        assert screen.wait_for('SEEN 5 CLICKS 3')
+
+    def test_a_canvas_asked_to_quit_before_it_opens_runs_on_the_screen(self, run):
+        screen = run(
+            """
+with xnano.new(width=40, height=2) as canvas:
+    canvas.write('hi')
+    canvas.quit()
+    canvas.open()
+    time.sleep(0.3)
+    found = xnano.active(is_required=False) is canvas
+    canvas.write(f'RUNNING {canvas.is_running} ACTIVE {found}', y=1)
+    time.sleep(1)
+"""
+        )
+        assert screen.wait_for('RUNNING True ACTIVE True')
+
+    def test_a_hook_for_state_hears_a_push_made_right_after_it_is_declared(self, run):
+        screen = run(
+            """
+with xnano.open(width=40, height=2) as terminal:
+    seen = []
+
+    @terminal.hook(on='state')
+    def watch(context):
+        seen.append(context.root.state.get('x'))
+
+    terminal.state.push('x', 1)
+    time.sleep(0.5)
+    terminal.write(f'SEEN {seen}', y=1)
+    time.sleep(1)
+"""
+        )
+        assert screen.wait_for('SEEN [1]')
+
+    def test_a_child_canvas_with_a_mouse_hook_is_refused_by_a_screen_without_the_mouse(
+        self, run
+    ):
+        screen = run(
+            """
+with xnano.open(width=30, height=3, mouse=False) as terminal:
+    child = xnano.new(width=8, height=2)
+    child.hook(on='mouse')(lambda context: None)
+    try:
+        terminal.write(child)
+    except xnano.errors.TerminalError as error:
+        terminal.write('REFUSED', y=1)
+    time.sleep(1)
+"""
+        )
+        assert screen.wait_for('REFUSED')
 
     def test_a_child_canvas_draws_inside_its_parent(self, run):
         screen = run(

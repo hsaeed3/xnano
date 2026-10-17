@@ -391,7 +391,7 @@ class TestEffectKinds:
         assert {customization.customization_kind for customization in sound} == set(
             typing.get_args(xnano.types.PlayableEffectKind)
         )
-        assert set(typing.get_args(xnano.types.Effect)) == visual | sound
+        assert set(typing.get_args(xnano.types.EffectCustomization)) == visual | sound
 
     @pytest.mark.parametrize(
         'specification', RENDERABLE_SPECIFICATIONS + PLAYABLE_SPECIFICATIONS
@@ -478,7 +478,7 @@ class TestEffectLists:
 
     def test_an_unknown_effect_kind_lists_the_known_ones(self) -> None:
         with pytest.raises(
-            ValueError, match="'effect.nope' is not a known customization"
+            ValueError, match="'effect.nope' is not a known visual effect"
         ):
             normalize_effect({'kind': 'effect.nope'}, 'renderable')
 
@@ -793,3 +793,23 @@ class TestContextEffects:
                 pass
             assert sizes and set(sizes) == {1}
             assert len(canvas._effects) == 1
+
+
+class TestEffectSettings:
+    def test_an_unknown_setting_names_the_kind_and_the_accepted_settings(self) -> None:
+        with pytest.raises(
+            TypeError, match="effect 'effect.dissolve' has no setting called 'color'"
+        ):
+            normalize_effect({'kind': 'effect.dissolve', 'color': 'red'}, 'renderable')
+        with xnano.new(width=4, height=1) as canvas:
+            with pytest.raises(TypeError, match='duration_milliseconds'):
+                canvas.write(
+                    'x',
+                    effects=[{'kind': 'effect.dissolve', 'color': 'red'}],  # type: ignore[list-item]
+                )
+
+    def test_draw_checks_its_effects_at_the_call(self) -> None:
+        with pytest.raises(ValueError, match='is not a known visual effect'):
+            xnano.draw(['G'], {'G': 'red'}, effects=[{'kind': 'effect.nope'}])  # type: ignore[list-item]
+        with pytest.raises(TypeError, match='sound effect'):
+            xnano.draw(['G'], {'G': 'red'}, effects=[{'kind': 'audio.reverb'}])  # type: ignore[list-item]

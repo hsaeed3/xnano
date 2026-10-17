@@ -33,7 +33,7 @@ if TYPE_CHECKING:
         DissolveEffectCustomization,
         DistortionAudioArguments,
         DistortionAudioCustomization,
-        Effect,
+        EffectCustomization,
         EvolveEffectArguments,
         EvolveEffectCustomization,
         EvolveFromEffectArguments,
@@ -168,7 +168,7 @@ class EffectController:
         return self._context
 
     @property
-    def active(self) -> tuple[Effect, ...]:
+    def active(self) -> tuple[EffectCustomization, ...]:
         """The effects the hook has set and not cleared or replaced."""
         state = self._context.hook._effect_state
         if state is None:
@@ -359,7 +359,7 @@ class EffectController:
         /,
         **parameters: Unpack[TremoloAudioArguments],
     ) -> TremoloAudioCustomization: ...
-    def __call__(self, kind: str, /, **parameters: object) -> Effect:
+    def __call__(self, kind: str, /, **parameters: object) -> EffectCustomization:
         """
         Apply an effect for as long as the hook is active.
 

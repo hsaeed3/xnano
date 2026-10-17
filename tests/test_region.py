@@ -385,3 +385,83 @@ class TestCursorFollowsARegion:
         canvas.cursor.follow(label.region, x=2)
         canvas.step()
         assert canvas.cursor.position == Point(3 + 1 + 2, 1 + 1)
+
+
+class TestCoordinates:
+    def test_an_integer_beside_a_slice_must_be_inside_the_region(self, canvas):
+        region = canvas.region
+        for key in ((99, slice(0, 2)), (-1, slice(0, 2)), (slice(0, 2), 7)):
+            with pytest.raises(IndexError, match='outside this region'):
+                region[key]
+            with pytest.raises(IndexError, match='outside this region'):
+                region[key] = Pixel('block')
+        assert region[3, 0:2].height == 2
+
+    def test_wrong_arguments_say_what_to_pass(self):
+        with pytest.raises(TypeError, match='whole number of cells'):
+            xnano.box('a', 2)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='whole number of cells'):
+            xnano.box(2.5, 2)  # type: ignore[arg-type]
+        card = xnano.box(4, 2)
+        with pytest.raises(TypeError, match='whole number of cells'):
+            card.resize('a', 4)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='xnano.Image'):
+            card.draw_image(5)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='takes a Point'):
+            card.local((1, 1))  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match=r'canvas\.write\(region, x=1\)'):
+            xnano.write('a', x=1)  # type: ignore[call-arg]
+        with pytest.raises(TypeError, match=r'canvas\.write\(region, width=1\)'):
+            xnano.box(2, 2, width=1)  # type: ignore[call-arg]
+
+    def test_write_and_box_say_what_they_take(self):
+        with pytest.raises(TypeError, match=r'xnano\.write\(\) takes text'):
+            xnano.write(5)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='canvas.write'):
+            xnano.write({'a': 1})  # type: ignore[arg-type]
+
+    def test_a_standalone_region_is_shaded_through_its_colors(self):
+        card = xnano.box(6, 3)
+        card.color.bg.shade(lambda x, y: (x * 40, y * 40, 0))
+        assert card[5, 2].background.to_rgb() == (200, 80, 0)
+        label = xnano.write('hi', foreground='red')
+        label.color.fg.shade(lambda x, y: (x * 40, y * 40, 0))
+        assert label[1, 0].foreground.to_rgb() == (40, 0, 0)
+
+    def test_a_region_with_no_columns_is_shaded_without_error(self, canvas):
+        empty = canvas.write('x', width=0)
+        empty.color.bg.shade(lambda x, y: 'red')
+        empty.color.fg.shade(lambda x, y: 'red')
+        canvas.region[3:3, 0:2].shade(lambda x, y: 'red')
+
+    def test_the_foreground_shade_keeps_symbols_and_backgrounds(self, canvas):
+        canvas.region[0:3, 0:1] = 'abc'
+        canvas.region[0:3, 0:1] = Color('#102030')
+        canvas.color.fg.shade(lambda x, y: (x * 10, 0, 0) if x < 2 else None)
+        first = canvas.region[1, 0]
+        assert first.character == 'b'
+        assert first.foreground.to_rgb() == (10, 0, 0)
+        assert first.background.to_rgb() == (0x10, 0x20, 0x30)
+        assert canvas.region[2, 0].foreground is None
+
+
+class TestBoxArgumentsTeach:
+    def test_a_border_kind_that_does_not_exist_names_the_kinds(self):
+        with pytest.raises(ValueError, match='is not a border kind'):
+            xnano.box(4, 2, border='single')  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match='is not a border kind'):
+            xnano.write('a', border='single')  # type: ignore[arg-type]
+
+    def test_a_color_modifier_or_title_of_the_wrong_type_is_refused(self):
+        with pytest.raises((TypeError, ValueError), match='foreground must be a color'):
+            xnano.box(4, 2, foreground='nocolor')
+        with pytest.raises(TypeError, match='is_bold must be True or False'):
+            xnano.box(4, 2, is_bold='x')  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='title must be text'):
+            xnano.box(4, 2, title=5)  # type: ignore[arg-type]
+
+    def test_a_placement_keyword_hint_gives_a_working_example(self):
+        with pytest.raises(TypeError, match=r"effects=\[\{'kind': 'effect.fade_to'"):
+            xnano.write('a', effects=1)  # type: ignore[call-arg]
+        with pytest.raises(TypeError, match=r'lock=True'):
+            xnano.write('a', lock=1)  # type: ignore[call-arg]

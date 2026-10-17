@@ -885,7 +885,12 @@ impl TerminalSession {
         setup.armed = true;
         let mut output = terminal_output();
         if options.raw_mode {
-            enable_raw_mode()?;
+            if let Err(error) = enable_raw_mode() {
+                // Nothing was changed yet, so there is nothing to put back, and the reset
+                // sequence must not be written to a stream that is not a terminal.
+                setup.armed = false;
+                return Err(error);
+            }
             setup.modes.is_raw_mode_enabled = true;
         }
         let is_inline = options.inline_height.is_some();

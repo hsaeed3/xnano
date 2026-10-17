@@ -30,6 +30,12 @@ class Time:
     keeps arriving, and [`step`][xnano.time.Time.step] moves a frozen clock one frame at a
     time.
 
+    ``elapsed``, ``delta`` and ``fps`` are numbers you read now; ``seconds`` and
+    ``milliseconds`` are formulas that a placement keeps following. A
+    [`Frame`][xnano.context.Frame] carries the same numbers as ``elapsed_seconds`` and
+    ``delta_seconds``. ``fps`` here is the rate measured over recent frames, while
+    [`Canvas.fps`][xnano.canvas.Canvas.fps] is the most frames the canvas draws per second.
+
     Attributes:
         elapsed: Seconds since the canvas started, not counting time spent stopped.
         elapsed_milliseconds: The same, in milliseconds.

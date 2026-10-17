@@ -10,6 +10,7 @@ import dataclasses
 from typing import TYPE_CHECKING, Generic, cast, final
 
 import xnano_core as _core
+from xnano._axes import check_point
 from xnano._effect_controller import EffectController
 from xnano._values import DepsT_co, StateT_co
 from xnano.input import ClipboardInput, KeyboardInput, MouseInput, ScrollInput
@@ -372,6 +373,7 @@ class Context(Generic[DepsT_co, StateT_co]):
                 assert placement.local(Point(11, 1)) == Point(1, 0)
             ```
         """
+        point = check_point(point)
         bounds = self._owner._buffer._absolute_bounds
         return _core.Point(point.x - bounds.x, point.y - bounds.y)
 

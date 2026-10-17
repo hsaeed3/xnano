@@ -38,7 +38,7 @@ class Cursor:
 
     Attributes:
         position: The cell the cursor is at as a [`Point`][xnano_core.Point], or ``None`` when
-            it has none. Assign a ``Point``, a ``(column, row)`` pair or ``None``.
+            it has none. Assign a ``Point``, an ``(x, y)`` pair or ``None``.
         shape: ``'block'``, ``'bar'`` or ``'underline'``; ``None`` keeps the user's own shape.
         is_blinking: Whether the cursor blinks. Setting it without a shape uses a block.
         is_visible: Whether the cursor is shown when it has a position.
@@ -155,7 +155,7 @@ class Cursor:
             TypeError: ``count`` is not a whole number.
             ValueError: ``count`` is negative.
         """
-        return self.move(y=-check_count(count))
+        return self.move(y=-check_count(count, verb='up', opposite='down'))
 
     def down(self, count: int = 1) -> Cursor:
         """
@@ -168,7 +168,7 @@ class Cursor:
             TypeError: ``count`` is not a whole number.
             ValueError: ``count`` is negative.
         """
-        return self.move(y=check_count(count))
+        return self.move(y=check_count(count, verb='down', opposite='up'))
 
     def left(self, count: int = 1) -> Cursor:
         """
@@ -181,7 +181,7 @@ class Cursor:
             TypeError: ``count`` is not a whole number.
             ValueError: ``count`` is negative.
         """
-        return self.move(x=-check_count(count))
+        return self.move(x=-check_count(count, verb='left', opposite='right'))
 
     def right(self, count: int = 1) -> Cursor:
         """
@@ -194,7 +194,7 @@ class Cursor:
             TypeError: ``count`` is not a whole number.
             ValueError: ``count`` is negative.
         """
-        return self.move(x=check_count(count))
+        return self.move(x=check_count(count, verb='right', opposite='left'))
 
     def home(self) -> Cursor:
         """Put the cursor in the top-left cell."""
@@ -238,8 +238,9 @@ class Cursor:
         """
         Keep the cursor at a place inside a placement, region or buffer, wherever it goes.
 
-        The cursor hides while the target, or anything above it, is hidden. Assigning
-        ``position`` or calling [`move`][xnano.cursor.Cursor.move] stops the following.
+        The cursor hides while the target, or anything above it, is hidden, and it loses its
+        position when the target is removed. Assigning ``position`` or calling
+        [`move`][xnano.cursor.Cursor.move] stops the following.
 
         Args:
             target: The [`Placement`][xnano.placement.Placement],
@@ -264,6 +265,12 @@ class Cursor:
         elif hasattr(target, 'core_buffer'):
             buffer = target.core_buffer  # type: ignore[union-attr]
         else:
+            if not hasattr(target, '_inset'):
+                raise TypeError(
+                    f'follow() takes a placement, a region or a buffer, but got {target!r}. '
+                    f'Pass what canvas.write(...) returned, for example '
+                    f'canvas.cursor.follow(canvas.write("name")).'
+                )
             region = cast('Region', target)
             buffer = region._buffer
             left, top, _, _ = region._inset

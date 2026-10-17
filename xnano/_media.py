@@ -19,8 +19,9 @@ from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
 from xnano import symbols
+from xnano._axes import to_rgb
 from xnano._optional import is_image, require
-from xnano._values import Axis, Content
+from xnano._values import Axis, ColorValue, Content
 from xnano.errors import TerminalError
 
 if TYPE_CHECKING:
@@ -420,7 +421,7 @@ class Image:
         lock: bool = False,
         fit: ImageFit | None = None,
         resampling_filter: ResamplingFilter | None = None,
-        background: tuple[int, int, int] = (0, 0, 0),
+        background: ColorValue = (0, 0, 0),
         speed: float = 1.0,
         symbol: str | None = None,
     ) -> None:
@@ -439,7 +440,8 @@ class Image:
             lock: Keep the size the image has when it is added, whatever the canvas does.
             fit: How the picture sits in a box of ``width`` by ``height``.
             resampling_filter: How pixels are blended when it is resized.
-            background: The color behind transparent pixels and padding.
+            background: The color behind transparent pixels and padding, as a color name, a
+                hex string, an ``(r, g, b)`` tuple or a [`Color`][xnano_core.Color].
             speed: How fast an animated image plays: ``2.0`` is twice as fast.
             symbol: A name to register the image under in [`symbols`][xnano.symbols].
 
@@ -475,7 +477,7 @@ class Image:
             ('lock', lock),
             ('fit', fit),
             ('resampling_filter', resampling_filter),
-            ('background', background),
+            ('background', to_rgb(background)),
             ('symbol', symbol),
         ):
             object.__setattr__(self, name, value)
@@ -602,7 +604,7 @@ def from_image(
     lock: bool = False,
     fit: ImageFit | None = None,
     resampling_filter: ResamplingFilter | None = None,
-    background: tuple[int, int, int] = (0, 0, 0),
+    background: ColorValue = (0, 0, 0),
     speed: float = 1.0,
     symbol: str | None = None,
 ) -> Image:

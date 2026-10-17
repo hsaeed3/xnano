@@ -389,7 +389,7 @@ def hooks_that_feed_each_other():
         (
             pushes_a_wrong_type,
             TerminalError,
-            ["push 'volume' to 'loud'", 'Use a value the field accepts'],
+            ["set 'volume' to 'loud'", 'the type the field declares'],
         ),
         (
             pushes_to_a_removed_placement,

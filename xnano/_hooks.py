@@ -72,6 +72,9 @@ The condition of a hook: an expression, a function of the context, or a string.
   names ``keyboard``, ``mouse``, ``scroll``, ``buffer``, ``parent``, ``root``, ``time`` and
   ``deps``, and the operators ``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=``, ``in``, ``and``,
   ``or`` and ``not``.
+
+A value the event did not carry, such as ``keyboard.key`` while a mouse event arrives, is
+neither equal to nor different from anything, so every comparison with it is false.
 """
 
 HookGenerator: TypeAlias = Generator[None, Context[DepsT, StateT], None]
@@ -120,7 +123,10 @@ def _check_hook_arguments(
     if on is not None and on not in _EVENT_KINDS and on not in _TIMED:
         legacy = _LEGACY_ON.get(on)
         if legacy is not None:
-            raise ValueError(f'on={on!r} is now hook({legacy}). The kinds are {kinds}.')
+            raise ValueError(
+                f'on={on!r} is not a kind of hook. Use hook({legacy}) instead. The kinds '
+                f'are {kinds}.'
+            )
         close = difflib.get_close_matches(
             on, [kind for kind in (*_EVENT_KINDS, *_TIMED) if kind], n=1
         )
@@ -172,6 +178,11 @@ def _check_hook_arguments(
         )
     if keys is None:
         return ()
+    if not isinstance(keys, (str, list, tuple, set, frozenset)):
+        raise TypeError(
+            f"keys= takes a key name such as 'q' or a list of them such as ['q', 'escape'], "
+            f'but got {keys!r}.'
+        )
     names = (keys,) if isinstance(keys, str) else tuple(cast('Sequence[str]', keys))
     return tuple(normalize_chord(name) for name in names)
 
@@ -293,6 +304,19 @@ class HookHandle(Generic[DepsT, StateT]):
         owner = self._owner
         canvas = owner._canvas
         owner._registrations.append(self)
+        try:
+            self._register_kind(canvas, owner)
+        except BaseException:
+            # A hook that could not be registered must not stay listed as a live one.
+            self._removed = True
+            if self in owner._registrations:
+                owner._registrations.remove(self)
+            raise
+
+    def _register_kind(
+        self, canvas: Canvas[DepsT, StateT], owner: _Hooked[DepsT, StateT]
+    ) -> None:
+        """Register with the runtime in the way this hook's trigger needs."""
         kind = self.on
         if kind == 'frame':
             self._stop_frames = canvas._on_frame(self._on_frame)
@@ -699,6 +723,10 @@ class _Hooked(Generic[DepsT, StateT]):
         """
         self._registrations: list[HookHandle[DepsT, StateT]] = []
 
+    def _require_attached(self) -> None:
+        """Raise when this object can no longer hold a hook."""
+        self._canvas._require_open()
+
     @overload
     def hook(
         self,
@@ -765,10 +793,12 @@ class _Hooked(Generic[DepsT, StateT]):
                 ``'scroll'``, ``'drag'``, ``'paste'``, ``'focus'``, ``'resize'``, ``'state'``
                 or ``'custom'``. See [`HookKind`][xnano.types.HookKind].
             when: A condition that must hold: an expression, a function of the context, or a
-                string. See [`When`][xnano.types.When]. A condition that tests for key
-                releases needs the ``keyboard='release_events'`` gate; xnano checks that only
-                when the condition is a string, so with an expression or a function set the
-                gate on ``new()`` or ``open()`` yourself.
+                string. See [`When`][xnano.types.When]. A string tells xnano which input
+                the hook needs, so the mouse, scroll and key-release gates it reads are
+                turned on when the canvas opens. An expression or a function does not, so a
+                condition that reads ``Mouse``, ``Scroll`` or key releases needs the gate set
+                on ``new()`` or ``open()`` yourself: ``mouse=True``, ``scroll=True`` or
+                ``keyboard='release_events'``.
             every: Repeat every this many seconds (``'tick'``) or beats (``'beat'``).
             after: Run once after this many seconds (``'tick'``) or beats (``'beat'``).
             keys: The key or keys an ``on='key'`` hook reacts to, such as ``'q'`` or
@@ -825,9 +855,10 @@ class _Hooked(Generic[DepsT, StateT]):
                 )
         if requires_deps and not canvas._deps_given:
             raise TerminalError(
-                'This hook needs dependencies (requires_deps=True), but the canvas was '
-                'created without any. Give them when you create the canvas: '
-                'xnano.new(deps=your_dependencies), or xnano.open(deps=your_dependencies).'
+                'This hook needs dependencies (requires_deps=True), but the canvas has none '
+                'yet. Give them when you create the canvas: xnano.new(deps=your_dependencies) '
+                'or xnano.open(deps=your_dependencies), or open the canvas with '
+                'canvas.open(deps=your_dependencies) before you register this hook.'
             )
 
         def attach(
@@ -856,11 +887,17 @@ class _Hooked(Generic[DepsT, StateT]):
         after: float | None,
         keys: tuple[str, ...],
     ) -> HookHandle[DepsT, StateT]:
+        self._require_attached()
         handle: HookHandle[DepsT, StateT] = HookHandle(
             self, function, on=on, when=when, every=every, after=after, keys=keys
         )
         self._canvas._check_gates(handle)
-        self._canvas._host.post(handle._register)
+        if on == 'state':
+            # A state change pushed right after this call must reach the hook, so it
+            # subscribes before the call returns.
+            self._canvas._host.call(handle._register)
+        else:
+            self._canvas._host.post(handle._register)
         return handle
 
     def _fail(
@@ -877,6 +914,7 @@ class _Hooked(Generic[DepsT, StateT]):
         )
         failure.__cause__ = error
         self._canvas._record_failure(failure)
+        self._canvas._stop_requested.set()
         self._canvas._stop_runtime()
 
     def _cancel_hooks(self) -> None:

@@ -8,7 +8,8 @@ and each side has its own: ``border.top = 'double'``. ``padding`` and ``margin``
 edge at a time. Several assignments in a row are drawn together, once per frame. The card starts
 with an effect from ``effects=[...]``, and ``context.fx`` starts another while a hook runs.
 Press ``b`` for the next border, ``t`` for a double top, ``c`` for the next text color, ``d`` and
-``l`` to darken and lighten, ``p`` to widen the padding, ``f`` for a fade, and ``q`` to quit.
+``l`` to darken and lighten, ``p`` to widen the padding, ``f`` to start the fade and again to
+clear it with ``context.fx.clear()``, and ``q`` to quit.
 """
 
 import xnano
@@ -30,11 +31,12 @@ with xnano.open(width=70, height=12) as terminal:
     )
     status = terminal.write('', y=11)
     chosen = [0]
+    is_fading = [False]
 
     def describe() -> None:
         status.text = (
             f'border {card.border.kind}   padding {card.padding.left}   '
-            f'text {COLORS[chosen[0]]}'.ljust(70)
+            f'text {COLORS[chosen[0]]}   fade {"on" if is_fading[0] else "off"}'.ljust(70)
         )
 
     describe()
@@ -71,6 +73,11 @@ with xnano.open(width=70, height=12) as terminal:
 
     @terminal.hook(on='key', keys='f')
     def fade(context: Context) -> None:
-        context.fx('effect.fade_to', foreground='red', duration_milliseconds=500)
+        if is_fading[0]:
+            context.fx.clear()
+        else:
+            context.fx('effect.fade_to', foreground='red', duration_milliseconds=500)
+        is_fading[0] = not is_fading[0]
+        describe()
 
     terminal.run(quit_on='q')

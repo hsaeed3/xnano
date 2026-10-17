@@ -817,3 +817,181 @@ def test_the_hooks_of_a_child_canvas_hear_the_outer_canvas_and_stop_when_it_clos
         outer.deliver_events()
         assert heard == ['a']
         assert inner not in outer._children
+
+
+class TestRefusedSettings:
+    def test_a_bad_border_kind_is_explained_before_anything_is_created(self):
+        with pytest.raises(ValueError, match='"nonsense" is not a border kind|nonsense'):
+            xnano.new(border='nonsense')  # type: ignore[arg-type]
+        with xnano.new(width=8, height=1) as canvas:
+            with pytest.raises(ValueError, match='is not a border kind'):
+                canvas.open(border='nonsense')  # type: ignore[arg-type]
+            assert not isinstance(canvas, xnano.Terminal)
+            assert xnano.terminal._live_terminal_open is False
+            canvas.step()
+
+    @pytest.mark.parametrize(
+        'settings',
+        [
+            {'margin': 'x'},
+            {'padding': 'x'},
+            {'foreground': 'nocolor'},
+            {'background': 'nocolor'},
+            {'is_bold': 'x'},
+            {'border_style': 'nonsense'},
+        ],
+    )
+    def test_a_bad_appearance_value_is_refused_by_open_before_the_screen_is_claimed(
+        self, settings
+    ):
+        with xnano.new(width=8, height=1) as canvas:
+            canvas.write('hi')
+            with pytest.raises((TypeError, ValueError)):
+                canvas.open(**settings)  # type: ignore[arg-type]
+            assert type(canvas) is xnano.Canvas
+            assert not canvas.is_closed
+            assert xnano.terminal._live_terminal_open is False
+            canvas.step()
+
+    def test_a_bad_effect_is_refused_by_open_before_the_screen_is_claimed(self):
+        with xnano.new(width=8, height=1) as canvas:
+            with pytest.raises(TypeError, match="has no setting called 'color'"):
+                canvas.open(effects=[{'kind': 'effect.dissolve', 'color': 'red'}])  # type: ignore[list-item]
+            with pytest.raises(ValueError, match='is not a known visual effect'):
+                canvas.open(effects=[{'kind': 'effect.bogus'}])  # type: ignore[list-item]
+            assert not isinstance(canvas, xnano.Terminal)
+            assert xnano.terminal._live_terminal_open is False
+
+    def test_a_canvas_is_created_with_new_and_the_error_says_so(self):
+        with pytest.raises(TypeError, match=r'xnano\.new\(\.\.\.\)'):
+            xnano.Canvas()  # type: ignore[call-arg]
+
+    def test_padding_and_margin_are_accepted_for_the_canvas_itself(self):
+        with xnano.new(width=8, height=3, padding=1, margin=1) as canvas:
+            assert canvas.padding.top == 1 and canvas.margin.left == 1
+
+
+class TestManualCanvasThreads:
+    def test_using_the_runtime_from_another_thread_is_explained(self):
+        canvas = xnano.new(width=8, height=1)
+        failures: list[BaseException] = []
+
+        def attempt(action) -> None:
+            try:
+                action()
+            except BaseException as error:
+                failures.append(error)
+
+        for action in (canvas.step, canvas.render, canvas.close):
+            thread = threading.Thread(target=attempt, args=(action,))
+            thread.start()
+            thread.join()
+        assert len(failures) == 3
+        assert all(isinstance(error, TerminalError) for error in failures)
+        assert 'thread that created it' in str(failures[2])
+        assert all('realtime=True' in str(error) for error in failures)
+        assert not canvas.is_closed
+        canvas.close()
+        assert canvas.is_closed
+
+    def test_a_hook_refused_on_another_thread_is_not_left_registered(self):
+        canvas = xnano.new(width=8, height=1)
+        failures: list[BaseException] = []
+
+        def attempt() -> None:
+            try:
+                canvas.hook(lambda context: None, on='tick')
+            except BaseException as error:
+                failures.append(error)
+
+        thread = threading.Thread(target=attempt)
+        thread.start()
+        thread.join()
+        assert len(failures) == 1 and 'realtime=True' in str(failures[0])
+        assert canvas._registrations == []
+        assert canvas._ledger == []
+        canvas.close()
+
+    def test_the_size_of_a_closed_canvas_is_the_size_it_had(self):
+        canvas = xnano.new(width=10, height=2)
+        canvas.write('hi')
+        canvas.step()
+        canvas.close()
+        assert (canvas.width, canvas.height) == (10, 2)
+        assert tuple(canvas.size) == (10, 2)
+
+
+class TestFailingHooks:
+    def test_a_failing_hook_stops_a_canvas_that_you_step(self):
+        calls: list[int] = []
+
+        def explode(context) -> None:
+            calls.append(1)
+            raise ZeroDivisionError('nope')
+
+        canvas = xnano.new(width=8, height=1)
+        canvas.hook(explode, on='tick')
+        with pytest.raises(TerminalError, match='explode.*ZeroDivisionError'):
+            canvas.step()
+        assert canvas.is_closed and not canvas.is_running
+        with pytest.raises(TerminalClosedError, match='ZeroDivisionError'):
+            canvas.step()
+        assert calls == [1]
+        canvas.close()
+
+    def test_a_failing_hook_ends_iteration_with_the_error(self):
+        canvas = xnano.new(width=8, height=1)
+        canvas.hook(lambda context: 1 / 0, on='tick')
+        with pytest.raises(TerminalError, match='ZeroDivisionError'):
+            list(canvas.iter(count=3))
+        canvas.close()
+
+
+class TestReleasedRuntime:
+    def test_a_closed_canvas_with_callbacks_is_freed_by_the_garbage_collector(self):
+        import gc
+        import weakref
+
+        references = []
+        for _ in range(3):
+            canvas = xnano.new(width=20, height=4)
+            canvas.write('x').hook(lambda context: None, on='key')
+            canvas.hook(lambda context: None, on='tick')
+            canvas.step()
+            canvas.close()
+            references.append(weakref.ref(canvas))
+            del canvas
+        gc.collect()
+        assert [reference() for reference in references] == [None, None, None]
+
+
+class TestOpeningWithoutATerminalMessage:
+    @pytest.mark.skipif(
+        __import__('sys').platform == 'win32',
+        reason='a Windows runner has a console to draw on',
+    )
+    def test_the_error_says_to_draw_into_a_canvas_instead(self):
+        with xnano.new(width=8, height=1) as canvas:
+            with pytest.raises(TerminalError) as caught:
+                canvas.open(height=1)
+            text = str(caught.value)
+            assert 'xnano.new()' in text and 'canvas.render()' in text
+            assert 'Runtime.offscreen' not in text
+            assert not isinstance(canvas, xnano.Terminal)
+
+    @pytest.mark.skipif(
+        __import__('sys').platform == 'win32',
+        reason='a Windows runner has a console to draw on',
+    )
+    def test_a_failed_open_leaves_standard_output_untouched(self):
+        import subprocess
+        import sys
+
+        result = subprocess.run(  # noqa: S603
+            [sys.executable, '-c', 'import xnano\nxnano.open(height=3)'],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode != 0
+        assert result.stdout == b''

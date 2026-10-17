@@ -37,9 +37,12 @@ HALF_BLOCK_SHADE_BUDGET_MILLISECONDS = 3.0
 CELL_SHADE_BUDGET_MILLISECONDS = 4.0
 """Shading every cell of an 80 by 24 canvas and drawing the frame."""
 
-FOREGROUND_SHADE_BUDGET_MILLISECONDS = 10.0
-"""Coloring the text of every cell of an 80 by 24 canvas and drawing the frame; each cell's
-symbol is read, so it costs more than a background shade."""
+FOREGROUND_SHADE_BUDGET_MILLISECONDS = 1.0
+"""Coloring the text of every cell of an 80 by 24 canvas and drawing the frame; it is one pass
+over the cells, like a background shade."""
+
+LARGE_FOREGROUND_SHADE_BUDGET_MILLISECONDS = 3.0
+"""The same for a 200 by 50 canvas, where the function is called for ten thousand cells."""
 
 WARM_WRITE_BUDGET_MICROSECONDS = 1.0
 """Writing a pixel that already holds its core cell into one cell."""
@@ -114,9 +117,16 @@ def test_cell_shade_with_its_frame(benchmark):
     )
 
 
-def test_foreground_shade_with_its_frame(benchmark):
+@pytest.mark.parametrize(
+    ('width', 'height', 'budget'),
+    [
+        (WIDTH, HEIGHT, FOREGROUND_SHADE_BUDGET_MILLISECONDS),
+        (200, 50, LARGE_FOREGROUND_SHADE_BUDGET_MILLISECONDS),
+    ],
+)
+def test_foreground_shade_with_its_frame(benchmark, width, height, budget):
     phases = itertools.count()
-    with xnano.new(width=WIDTH, height=HEIGHT) as canvas:
+    with xnano.new(width=width, height=height) as canvas:
         canvas.region[0:4, 0:1] = 'abcd'
         slot = canvas.color.fg
 
@@ -131,9 +141,9 @@ def test_foreground_shade_with_its_frame(benchmark):
         measured = fastest(shade_and_draw) * 1e3
     check_budget(
         measured,
-        FOREGROUND_SHADE_BUDGET_MILLISECONDS,
+        budget,
         'ms',
-        'foreground shade with a frame',
+        f'foreground shade of {width} by {height} with a frame',
     )
 
 

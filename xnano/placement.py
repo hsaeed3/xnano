@@ -23,6 +23,9 @@ from xnano._axes import (
     axis_limits,
     check_cells,
     check_count,
+    check_layer,
+    check_point,
+    check_size,
     inspect_number,
 )
 from xnano._customize import Customization, apply_effects
@@ -39,6 +42,7 @@ from xnano._values import (
     StateT,
 )
 from xnano.appearance import _Looked
+from xnano.errors import TerminalClosedError
 from xnano.expressions import (
     Parent,
     ParentExpressionScope,
@@ -179,6 +183,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
                 assert placement.local(Point(11, 1)) == Point(1, 0)
             ```
         """
+        point = check_point(point)
         bounds = self._buffer._absolute_bounds
         return _core.Point(point.x - bounds.x, point.y - bounds.y)
 
@@ -194,8 +199,10 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
 
         It is the state of one placement, separate from the canvas's own
         ([`Canvas.state`][xnano.canvas.Canvas.state]) and from that of other placements, and
-        it is deleted when the placement is removed. See
-        [`StateNamespace`][xnano.state.StateNamespace] for the path rules.
+        it is deleted when the placement is removed. Asking a removed placement for its state
+        raises a [`TerminalClosedError`][xnano.errors.TerminalClosedError], so finish with the
+        state before calling ``remove``. See [`StateNamespace`][xnano.state.StateNamespace] for the
+        path rules.
 
         Examples:
             ```python
@@ -209,6 +216,11 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
                 assert second.state.get('clicks', default=0) == 0
             ```
         """
+        if self._removed:
+            raise TerminalClosedError(
+                'This placement was removed from its canvas, so it no longer has state. Read '
+                'state from canvas.state, or from a placement that is still on the canvas.'
+            )
         namespace = self._state_namespace
         if namespace is None:
             namespace = self._state_namespace = self._canvas._new_state_namespace(
@@ -231,8 +243,18 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         """Symbolic expression for elapsed seconds on the canvas clock."""
         return _core.TimeElapsed
 
-    def _set_axis(self, axis: AxisName, value: Axis) -> None:
+    def _require_attached(self) -> None:
+        """Raise when the canvas is closed or this placement was removed from it."""
         self._canvas._require_open()
+        if self._removed:
+            raise TerminalClosedError(
+                'This placement was removed from its canvas, so it can no longer change or '
+                'hold anything. Write to the canvas again with canvas.write(...) to put '
+                'something on it.'
+            )
+
+    def _set_axis(self, axis: AxisName, value: Axis) -> None:
+        self._require_attached()
         if isinstance(value, tuple):
             low, high = axis_limits(value, axis)
             is_time_dependent = any(
@@ -257,13 +279,16 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             return
         converted = axis_expression(value, axis)
         if isinstance(converted, (int, float)):
+            check_size(converted, axis, value)
             with self._canvas._lock:
                 self._bindings.pop(axis, None)
             self._assign_within_limits(axis, converted)
             return
         is_time_dependent = isinstance(value, _core.NumericValue)
+        binding = (converted, is_time_dependent)
         with self._canvas._lock:
-            self._bindings[axis] = (converted, is_time_dependent)
+            previous = self._bindings.get(axis)
+            self._bindings[axis] = binding
 
         def evaluate() -> None:
             try:
@@ -271,15 +296,30 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             except _core.RuntimeRequiredError:
                 pass
 
-        if self._canvas._host.is_on_loop():
-            evaluate()
-        else:
-            self._canvas._host.post(evaluate)
+        try:
+            # The first value is worked out now, on the canvas's loop, so that a formula that
+            # cannot be evaluated is reported to the caller instead of stopping the canvas.
+            self._canvas._host.call(evaluate)
+        except BaseException:
+            # A formula that cannot be evaluated is not kept.
+            with self._canvas._lock:
+                if self._bindings.get(axis) is binding:
+                    if previous is None:
+                        del self._bindings[axis]
+                    else:
+                        self._bindings[axis] = previous
+            raise
         self._canvas._bindings_changed(self)
 
     def _assign(self, axis: AxisName, value: int) -> None:
         if getattr(self._buffer, axis) != value:
-            setattr(self._buffer, axis, value)
+            try:
+                setattr(self._buffer, axis, value)
+            except OverflowError:
+                raise ValueError(
+                    f'{axis} is {value}, which is too far from the canvas to be a cell. '
+                    f'Pass a number of cells near the canvas, such as {axis}=0.'
+                ) from None
             driver = self._driver
             if (
                 driver is not None
@@ -292,7 +332,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
                 self._refit_decoration(decorated)
 
     def _clamp(
-        self, axis: AxisName, value: float, resolve: Callable[[Bound], float]
+        self, axis: AxisName, value: float, resolve: Callable[[Bound], float | None]
     ) -> float:
         """Hold a value inside the axis's range, if it has one."""
         limits = self._limits.get(axis)
@@ -339,7 +379,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             bindings = dict(self._bindings)
             limits = dict(self._limits)
 
-        def resolve(bound: Bound) -> float:
+        def resolve(bound: Bound) -> float | None:
             if isinstance(bound, (int, float)):
                 return bound
             return bound.evaluate(EvaluationContext(buffer=self._buffer, runtime=runtime))
@@ -351,6 +391,10 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
                 value = expression.evaluate(
                     EvaluationContext(buffer=self._buffer, runtime=runtime)
                 )
+                if value is None:
+                    # Input or state the formula reads has no value at this moment, so the
+                    # axis keeps what it had until the formula has one again.
+                    continue
             else:
                 value = getattr(self._buffer, axis)
             self._assign(axis, _round_half_away(self._clamp(axis, value, resolve)))
@@ -409,7 +453,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
 
     @layer.setter
     def layer(self, value: int) -> None:
-        self._buffer.layer = value
+        self._buffer.layer = check_layer(value)
 
     @property
     def is_visible(self) -> bool:
@@ -453,7 +497,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         """
         horizontal = check_cells(x, 'x')
         vertical = check_cells(y, 'y')
-        self._canvas._require_open()
+        self._require_attached()
         steps: tuple[tuple[AxisName, int], ...] = (('x', horizontal), ('y', vertical))
         for axis, step in steps:
             if step == 0:
@@ -477,7 +521,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             TypeError: ``count`` is not a whole number.
             ValueError: ``count`` is negative.
         """
-        return self.move(y=-check_count(count))
+        return self.move(y=-check_count(count, verb='up', opposite='down'))
 
     def down(self, count: int = 1) -> Placement[DepsT, StateT]:
         """
@@ -490,7 +534,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             TypeError: ``count`` is not a whole number.
             ValueError: ``count`` is negative.
         """
-        return self.move(y=check_count(count))
+        return self.move(y=check_count(count, verb='down', opposite='up'))
 
     def left(self, count: int = 1) -> Placement[DepsT, StateT]:
         """
@@ -503,7 +547,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             TypeError: ``count`` is not a whole number.
             ValueError: ``count`` is negative.
         """
-        return self.move(x=-check_count(count))
+        return self.move(x=-check_count(count, verb='left', opposite='right'))
 
     def right(self, count: int = 1) -> Placement[DepsT, StateT]:
         """
@@ -516,7 +560,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             TypeError: ``count`` is not a whole number.
             ValueError: ``count`` is negative.
         """
-        return self.move(x=check_count(count))
+        return self.move(x=check_count(count, verb='right', opposite='left'))
 
     @property
     def region(self) -> Region:
@@ -618,7 +662,12 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
 
     @text.setter
     def text(self, value: str) -> None:
-        self._canvas._require_open()
+        self._require_attached()
+        if not isinstance(value, str):
+            raise TypeError(
+                f'text must be a string, but got {value!r}. Pass text such as "hello", and '
+                f'join lines with newlines.'
+            )
         if self._appearance is not None:
             self._flush_look()
             self._appearance.text = value
@@ -746,7 +795,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         return (content.width, content.height)
 
     def _ensure_look(self) -> Appearance:
-        self._canvas._require_open()
+        self._require_attached()
         return super()._ensure_look()
 
     def _is_decoration_wanted(self, look: Appearance) -> bool:
@@ -766,7 +815,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
     def _redraw_look(self) -> None:
         """Draw the current look: one buffer for text with a uniform border, else two."""
         look = self._appearance
-        if look is None:
+        if look is None or self._removed:
             return
         self._canvas._require_open()
         if self._is_text:
@@ -891,11 +940,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
 
     def write(
         self,
-        content: Content
-        | Canvas[object, object]
-        | _core.Operation
-        | _core.Style
-        | None = None,
+        content: Content | Canvas[object, object] | None = None,
         /,
         *,
         x: Axis | None = None,
@@ -917,22 +962,21 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         is_hidden: bool = False,
         is_crossed_out: bool = False,
         title: str | None = None,
-        border: _core.BorderKind | None = None,
+        border: _core.BorderKind | bool | None = None,
         border_style: _core.Style | None = None,
         padding: Spacing | None = None,
         margin: Spacing | None = None,
     ) -> Placement[DepsT, StateT]:
         """
-        Add a child placement inside this placement, or apply an operation or style to it.
+        Add a child placement inside this placement.
 
         A child placement's ``x``, ``y``, ``width`` and ``height`` are measured relative to
         this placement's buffer, so ``track.write('█', x=(0, track.width - 1), y=0)`` moves
-        inside ``track``. When ``content`` is an [`Operation`][xnano.operations.Operation] or
-        [`Style`][xnano.styles.Style] and no placement arguments are given, it is applied to
-        this placement and ``self`` is returned.
+        inside ``track``. To change this placement with an operation, a style or an effect, use
+        [`update`][xnano.placement.Placement.update].
 
         Args:
-            content: Child content to place inside this buffer, or an operation/style to apply.
+            content: Child content to place inside this buffer.
             x: Column of the child's left edge, relative to this placement.
             y: Row of the child's top edge, relative to this placement.
             width: Width of the child in cells.
@@ -952,50 +996,14 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             is_hidden: Whether text is hidden.
             is_crossed_out: Whether text is struck through.
             title: Title for a box around text.
-            border: Border kind for a box around text.
+            border: Border kind for a box around the content; ``True`` for ``'plain'`` and
+                ``False`` for none.
             border_style: Style for the box's border.
             padding: Space between the border and the text; see
                 [`Canvas.write`][xnano.canvas.Canvas.write].
             margin: Space outside the box, in the same forms.
         """
-        self._canvas._require_open()
-        has_placement_options = any(
-            value is not None
-            for value in (
-                x,
-                y,
-                width,
-                height,
-                style,
-                foreground,
-                background,
-                title,
-                border,
-                border_style,
-                padding,
-                margin,
-            )
-        ) or any(
-            (
-                layer != 0,
-                lock,
-                bool(effects),
-                is_bold,
-                is_dim,
-                is_italic,
-                is_underlined,
-                is_blinking,
-                is_reversed,
-                is_hidden,
-                is_crossed_out,
-            )
-        )
-        if (
-            isinstance(content, (_core.Operation, _core.Style))
-            and not has_placement_options
-        ):
-            self.update(content)
-            return self
+        self._require_attached()
         look = self._appearance
         if look is not None and self._decorated is None and self._has_frame(look):
             self._has_nested = True
@@ -1052,7 +1060,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
                 title.update(Effect.dissolve(duration_milliseconds=500))
             ```
         """
-        self._canvas._require_open()
+        self._require_attached()
         for item in operations:
             if isinstance(item, ContextualOperation):
                 cast('ContextualOperation[DepsT, StateT]', item).apply_to(self)
@@ -1085,6 +1093,28 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         if self._removed:
             return
         self._removed = True
+        # A look that was waiting to be drawn is dropped with the placement.
+        self._look_is_dirty = False
+        canvas = self._canvas
+        if not canvas._is_closed:
+            canvas._look_was_drawn(self)
+        with canvas._lock:
+            nested = [
+                other
+                for other in canvas._placements
+                if other._parent_owner is self
+                or getattr(other._parent_owner, '_parent_placement', None) is self
+            ]
+        for other in nested:
+            other.remove()
+        follow = canvas._cursor_follow
+        if (
+            follow is not None
+            and not canvas._is_closed
+            and any(follow[0] is buffer for buffer in (self._buffer, self._content))
+        ):
+            # A cursor that followed this placement has nowhere to be once it is gone.
+            canvas._cursor_view.position = None
         driver = self._driver
         if driver is not None:
             self._driver = None
@@ -1102,6 +1132,15 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         except ValueError:
             pass
         self._canvas._release(self)
+        with canvas._lock:
+            children = [
+                child
+                for child in canvas._children
+                if child._parent_placement is self and not child._is_closed
+            ]
+        for child in children:
+            # A canvas written into this placement is closed with it.
+            child.close()
 
     def __repr__(self) -> str:
         state = 'removed' if self._removed else f'x={self.x}, y={self.y}'

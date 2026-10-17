@@ -317,7 +317,7 @@ class TestRecording:
     def test_arguments_are_checked_when_playing(self, manual):
         with pytest.raises(ValueError, match='not an instrument'):
             manual.audio.play('C4', instrument='kazoo')  # type: ignore[arg-type]
-        with pytest.raises(ValueError, match='unrecognized pitch'):
+        with pytest.raises(ValueError, match='is not a known sound symbol, a note name'):
             manual.audio.play('X9')
         with pytest.raises(ValueError, match='velocity'):
             manual.audio.play('C4', velocity=2.0)
@@ -327,6 +327,11 @@ class TestRecording:
         [
             ({'source': 'C4', 'pan': 5}, ValueError, 'pan must be between'),
             ({'source': 'C4', 'at_beat': -1}, ValueError, 'at_beat must be 0 or more'),
+            (
+                {'source': 'C4', 'at_beat': 'a'},
+                TypeError,
+                'at_beat must be a whole number',
+            ),
             ({'source': 'C4', 'effects': [1]}, TypeError, 'effects= takes dictionaries'),
             ({'source': 300}, ValueError, 'MIDI pitch 300'),
             ({'source': -1}, ValueError, 'MIDI pitch -1'),
@@ -378,6 +383,27 @@ class TestRecording:
         manual.step(delta_seconds=1.0)
         assert manual.inspect(manual.audio.beat) == pytest.approx(3.0)
 
+    def test_stopping_a_stopped_canvas_still_resumes_the_beat(self, manual):
+        manual.audio.start()
+        manual.step(delta_seconds=0.5)
+        manual.stop()
+        manual.stop()
+        manual.step(delta_seconds=0.5)
+        manual.resume()
+        manual.step(delta_seconds=0.5)
+        assert manual.inspect(manual.audio.beat) == pytest.approx(2.0)
+
+    def test_a_formula_that_reads_the_beat_still_draws_in_the_outer_canvas(self):
+        with xnano.new(width=20, height=4) as outer:
+            child = xnano.new(width=10, height=2)
+            child.audio.start()
+            dot = child.write('o')
+            dot.x = child.audio.beat * 4
+            child.step(delta_seconds=0.5)
+            outer.write(child)
+            outer.step(delta_seconds=0.5)
+            assert dot.x == 0
+
     def test_stopping_time_and_the_audio_verbs_hold_the_beat(self, manual):
         manual.audio.start()
         manual.step(delta_seconds=0.5)
@@ -389,6 +415,16 @@ class TestRecording:
         assert manual.inspect(manual.audio.beat) == pytest.approx(2.0)
         manual.audio.stop()
         assert manual.inspect(manual.audio.beat) == 0.0
+
+    def test_starting_the_clock_on_a_stopped_canvas_starts_it_held(self, manual):
+        manual.stop()
+        manual.audio.start()
+        manual.step(delta_seconds=0.5)
+        manual.step(delta_seconds=0.5)
+        assert manual.inspect(manual.audio.beat) == pytest.approx(0.0)
+        manual.resume()
+        manual.step(delta_seconds=0.5)
+        assert manual.inspect(manual.audio.beat) == pytest.approx(1.0)
 
     def test_a_new_note_object_is_never_heard_as_an_earlier_one(self, manual):
         def crossings(sound: TerminalSound) -> int:
@@ -482,3 +518,19 @@ class TestTerminalSoundShortcuts:
             canvas.step(delta_seconds=0.5)
             assert canvas.audio.render_sound().duration_milliseconds == 500.0
             assert not hasattr(canvas, 'note')
+
+
+class TestRenderingAfterALongGap:
+    def test_a_canvas_not_asked_for_a_minute_returns_the_last_minute(self, manual):
+        manual.audio.play('C4')
+        manual.step(delta_seconds=200)
+        assert manual.audio.render_sound().duration_milliseconds == pytest.approx(60000.0)
+
+    def test_a_gap_beyond_the_longest_sound_still_renders(self, manual):
+        assert manual.audio.is_offline
+        manual.step(delta_seconds=5000)
+        sound = manual.audio.render_sound()
+        assert sound.duration_milliseconds == pytest.approx(60000.0)
+        manual.audio.play('C4')
+        manual.step()
+        assert max(abs(sample) for sample in manual.audio.render_sound().samples()) > 0.0

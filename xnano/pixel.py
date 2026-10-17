@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import difflib
+import unicodedata
 from typing import TYPE_CHECKING, Final, Literal, TypeAlias, get_args
 
 import xnano_core as _core
@@ -157,6 +158,7 @@ class Pixel:
     def __init__(
         self,
         preset_or_character: PixelPreset | str = 'block',
+        *,
         foreground: ColorValue | None = None,
         background: ColorValue | None = None,
         symbol: str | None = None,
@@ -175,9 +177,29 @@ class Pixel:
                 f'A pixel is made from a preset name, a symbol name or one character, but '
                 f'got {preset_or_character!r}. Try Pixel("block") or Pixel("#").'
             )
+        for color_name, color in (('foreground', foreground), ('background', background)):
+            if color is None:
+                continue
+            try:
+                if color_name == 'foreground':
+                    _core.Cell(' ', foreground=color)
+                else:
+                    _core.Cell(' ', background=color)
+            except (TypeError, ValueError) as error:
+                raise type(error)(
+                    f'The {color_name} of a pixel must be a color, but was {color!r}. Use a '
+                    f'name such as "red", a hex string such as "#ff8800", an (r, g, b) '
+                    f'tuple or a Color.'
+                ) from error
         name = preset_or_character
         known_symbol: str | None = None
         if len(name) == 1:
+            if unicodedata.category(name) == 'Cc':
+                raise ValueError(
+                    f'A pixel cannot be the control character {name!r}, because a cell '
+                    f'cannot hold one. Pass a printable character such as Pixel("#"), or a '
+                    f'preset such as Pixel("block").'
+                )
             character = name
         elif name in _PRESET_CHARACTERS:
             character = _PRESET_CHARACTERS[name]

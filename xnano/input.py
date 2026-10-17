@@ -59,8 +59,9 @@ class Input:
 
     Attributes:
         held_keys: The names of the keys and mouse buttons held down right now.
-        pointer: The ``(column, row)`` the pointer was last seen at, or ``None`` before it has
-            moved.
+        pointer: The ``(x, y)`` cell the pointer was last seen at, with ``x`` growing to the
+            right and ``y`` down, or ``None`` before it has moved. It is the cell that
+            ``context.mouse.position`` gives as a point.
 
     Examples:
         ```python
@@ -149,7 +150,12 @@ class Input:
 
     @property
     def pointer(self) -> tuple[int, int] | None:
-        """The ``(column, row)`` the pointer was last seen at, or ``None`` before it moved."""
+        """
+        The ``(x, y)`` cell the pointer was last seen at, or ``None`` before it moved.
+
+        ``x`` grows to the right and ``y`` down. ``context.mouse.position`` gives the same cell
+        as a point.
+        """
         return self._state.pointer_cell
 
 
@@ -160,6 +166,7 @@ def _modifier_text(key: _core.KeyEvent) -> str:
         ('shift', 'shift'),
         ('super', 'super'),
         ('meta', 'meta'),
+        ('hyper', 'hyper'),
     )
     parts = [text for name, text in order if name in key.modifiers]
     parts.append(key.key)
@@ -268,6 +275,17 @@ class KeyboardInput:
             self._canvas.push(_core.Event.key_press(value))
 
 
+def _cell_pair(value: tuple[object, ...], name: str) -> tuple[int, int]:
+    """Return ``value`` when it is a pair of whole numbers."""
+    if len(value) != 2 or any(
+        isinstance(item, bool) or not isinstance(item, int) for item in value
+    ):
+        raise TypeError(
+            f'{name} takes a pair of whole numbers such as (3, 1), but got {value!r}.'
+        )
+    return cast('tuple[int, int]', value)
+
+
 class MouseInput:
     """
     The mouse button or movement of the current event, as properties of a hook's context.
@@ -340,15 +358,16 @@ class MouseInput:
 
         Args:
             value: A [`MouseEvent`][xnano_core.MouseEvent] of kind press, release, drag or
-                move, or a ``(column, row)`` pair, which moves the pointer to that cell. A
-                ``context.scroll.push((x, y))`` that follows turns the wheel at that cell.
+                move (or an [`Event`][xnano_core.Event] that holds one), or an ``(x, y)``
+                pair, which moves the pointer to that cell. A ``context.scroll.push((x, y))``
+                that follows turns the wheel at that cell.
 
         Raises:
             TypeError: The value is a mouse wheel event, which belongs to
                 ``context.scroll.push``.
         """
         if isinstance(value, tuple):
-            column, row = value
+            column, row = _cell_pair(value, 'mouse.push')
             state = self._canvas._input_state
             seen = None if state is None else state.pointer_cell
             self._canvas._pushed_pointer = (
@@ -360,6 +379,18 @@ class MouseInput:
                 _core.Event.mouse_event(column=column, row=row, kind='move')
             )
             return
+        if isinstance(value, _core.Event):
+            if value.mouse is None:
+                raise TypeError(
+                    f'mouse.push takes a mouse event, but got a {value.kind!r} event. Push '
+                    f'it with canvas.push(event), or build a mouse event with '
+                    f'Event.mouse_event(...).'
+                )
+            value = value.mouse
+        if not isinstance(value, _core.MouseEvent):
+            raise TypeError(
+                f'mouse.push takes a MouseEvent or an (x, y) pair, but got {value!r}.'
+            )
         if value.kind == 'scroll':
             raise TypeError(
                 'mouse.push cannot send a mouse wheel event, because the wheel belongs to '
@@ -433,7 +464,7 @@ class ScrollInput:
                 to ``context.mouse.push``.
         """
         if isinstance(value, tuple):
-            steps_x, steps_y = value
+            steps_x, steps_y = _cell_pair(value, 'scroll.push')
             state = self._canvas._input_state
             cell = None if state is None else state.pointer_cell
             pushed = self._canvas._pushed_pointer
@@ -445,6 +476,11 @@ class ScrollInput:
                 cell = pushed[0]
             column, row = cell if cell is not None else (0, 0)
         else:
+            if not isinstance(value, _core.MouseEvent):
+                raise TypeError(
+                    f'scroll.push takes a MouseEvent of kind scroll or an (x, y) pair of '
+                    f'steps, but got {value!r}.'
+                )
             if value.kind != 'scroll':
                 raise TypeError(
                     f'scroll.push takes a mouse wheel event, but this is a {value.kind} '

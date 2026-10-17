@@ -192,7 +192,7 @@ Content: TypeAlias = 'Renderable | Playable'
 
 Anchor: TypeAlias = tuple[int, int]
 """
-The ``(column, row)`` pixel inside an [`Art`][xnano.art.Art] that sits at the art's ``(x, y)``.
+The ``(x, y)`` pixel inside an [`Art`][xnano.art.Art] that sits at the art's ``(x, y)``.
 
 ``anchor=(3, 8)`` makes ``(x, y)`` the place a character's feet touch; ``(0, 0)`` is the top-left
 pixel.

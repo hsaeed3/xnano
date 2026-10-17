@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Literal, cast
 import xnano_core as _core
 from xnano import symbols
 from xnano._axes import to_rgb
-from xnano._customize import apply_effects
+from xnano._customize import apply_effects, normalize_effect
 from xnano._optional import is_image
 from xnano._values import Anchor, ColorValue
 
@@ -107,7 +107,7 @@ class Art:
         y: The pixel row of the anchor inside the parent art.
         layer: Children with a higher layer are drawn over lower ones.
         is_visible: Whether the art is drawn.
-        anchor: The ``(column, row)`` pixel inside the art that sits at ``(x, y)``.
+        anchor: The ``(x, y)`` pixel inside the art that sits at ``(x, y)``.
         background: The color behind the art and its children, or ``None`` for none.
         solid_map: Which pixels of the art's world cannot be walked on, or ``None``.
         camera: What part of the world is on screen.
@@ -201,7 +201,10 @@ class Art:
         self._children: list[Art] = []
         self._parent: Art | None = None
         self._symbol: str | None = None
-        self._effects: tuple[RenderableEffectSpecification, ...] = tuple(effects)
+        effects = tuple(effects)
+        for effect in effects:
+            normalize_effect(effect, 'renderable')
+        self._effects: tuple[RenderableEffectSpecification, ...] = effects
         self._version = 0
         self._cache_key: tuple[int, ...] | None = None
         self._cache_buffer: _core.Buffer | None = None
@@ -276,7 +279,7 @@ class Art:
 
     @property
     def anchor(self) -> Anchor:
-        """The ``(column, row)`` pixel inside the art that sits at ``(x, y)``."""
+        """The ``(x, y)`` pixel inside the art that sits at ``(x, y)``."""
         return self._anchor
 
     @anchor.setter
@@ -339,7 +342,7 @@ class Art:
             y: The pixel row of the child's anchor inside this art.
             layer: Children with a higher layer are drawn over lower ones; children on the
                 same layer are drawn in the order they were added.
-            anchor: The ``(column, row)`` pixel of the child that sits at ``(x, y)``.
+            anchor: The ``(x, y)`` pixel of the child that sits at ``(x, y)``.
             is_solid: Whether the child's opaque pixels block the movement of other children.
 
         Returns:
@@ -482,19 +485,67 @@ class Art:
         return (self._x - before_x, self._y - before_y)
 
     def up(self, count: float = 1) -> float:
-        """Move up by ``count`` pixels; return how far it moved."""
+        """
+        Move up by ``count`` pixels, sliding along solid ground, and say how far it got.
+
+        Unlike [`Placement.up`][xnano.placement.Placement.up], which returns the placement
+        so calls chain, this returns the distance moved, so a game can tell when the art was
+        blocked.
+
+        Args:
+            count: How many pixels to move; pixels are half a cell.
+
+        Returns:
+            The distance moved in pixels, ``0.0`` when blocked.
+        """
         return abs(self.move(y=-count)[1])
 
     def down(self, count: float = 1) -> float:
-        """Move down by ``count`` pixels; return how far it moved."""
+        """
+        Move down by ``count`` pixels, sliding along solid ground, and say how far it got.
+
+        Unlike [`Placement.down`][xnano.placement.Placement.down], which returns the placement
+        so calls chain, this returns the distance moved, so a game can tell when the art was
+        blocked.
+
+        Args:
+            count: How many pixels to move; pixels are half a cell.
+
+        Returns:
+            The distance moved in pixels, ``0.0`` when blocked.
+        """
         return abs(self.move(y=count)[1])
 
     def left(self, count: float = 1) -> float:
-        """Move left by ``count`` pixels; return how far it moved."""
+        """
+        Move left by ``count`` pixels, sliding along solid ground, and say how far it got.
+
+        Unlike [`Placement.left`][xnano.placement.Placement.left], which returns the placement
+        so calls chain, this returns the distance moved, so a game can tell when the art was
+        blocked.
+
+        Args:
+            count: How many pixels to move; pixels are half a cell.
+
+        Returns:
+            The distance moved in pixels, ``0.0`` when blocked.
+        """
         return abs(self.move(x=-count)[0])
 
     def right(self, count: float = 1) -> float:
-        """Move right by ``count`` pixels; return how far it moved."""
+        """
+        Move right by ``count`` pixels, sliding along solid ground, and say how far it got.
+
+        Unlike [`Placement.right`][xnano.placement.Placement.right], which returns the placement
+        so calls chain, this returns the distance moved, so a game can tell when the art was
+        blocked.
+
+        Args:
+            count: How many pixels to move; pixels are half a cell.
+
+        Returns:
+            The distance moved in pixels, ``0.0`` when blocked.
+        """
         return abs(self.move(x=count)[0])
 
     def _advance(
@@ -757,9 +808,10 @@ def draw(
     effects: Sequence[RenderableEffectSpecification] = (),
 ) -> Art:
     """
-    Make pixel art from text, a picture, bytes or nothing, one character per pixel.
+    Build pixel art from text, a picture, bytes or nothing (does not draw).
 
-    This is how pixel-art sprites are written in code. Text rows (a multi-line string, which
+    This is how pixel-art sprites are written in code, one character per pixel. Nothing is
+    drawn: the art is a value that you write into a canvas. Text rows (a multi-line string, which
     may be indented, or a list of rows) are painted with a palette that says what each
     character means; any character the palette does not name, such as ``'.'``, is a
     transparent pixel. The palette is a mapping, or one string of ``character=color`` pairs.
@@ -825,8 +877,11 @@ def draw(
         art = registered._copy()
         if background is not None:
             art.background = background
+        effects = tuple(effects)
         if effects:
-            art._effects = tuple(effects)
+            for effect in effects:
+                normalize_effect(effect, 'renderable')
+            art._effects = effects
         if symbol is not None:
             symbols.register(symbol, art)
             art._symbol = symbol

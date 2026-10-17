@@ -77,10 +77,11 @@ bottom edges, read when the spacing is applied.
 
 
 def _cells(value: object, available: int, name: str) -> int:
+    keyword = name.split('[')[0]
     if isinstance(value, bool):
         raise TypeError(
             f'{name} must be a whole number of cells, a float or a percentage string, but '
-            f'got {value!r}. Pass padding=1, padding=0.1 or padding="10%".'
+            f'got {value!r}. Pass {keyword}=1, {keyword}=0.1 or {keyword}="10%".'
         )
     if isinstance(value, int):
         return max(0, value)
@@ -95,7 +96,7 @@ def _cells(value: object, available: int, name: str) -> int:
             return max(0, round(available * share))
     raise TypeError(
         f'{name} must be a whole number of cells, a float or a percentage string, but got '
-        f'{value!r}. Pass padding=1, padding=0.1 or padding="10%".'
+        f'{value!r}. Pass {keyword}=1, {keyword}=0.1 or {keyword}="10%".'
     )
 
 
@@ -149,6 +150,23 @@ def resolve_spacing(
     )
 
 
+def check_border_kind(border: object) -> None:
+    """
+    Refuse a border that is not a kind, a ``bool`` or ``None``.
+
+    Raises:
+        ValueError: The border is not one of ``'plain'``, ``'rounded'``, ``'double'`` or
+            ``'thick'``.
+    """
+    if border is None or isinstance(border, bool):
+        return
+    if border not in ('plain', 'rounded', 'double', 'thick'):
+        raise ValueError(
+            f'{border!r} is not a border kind. Use "plain", "rounded", "double" or '
+            f'"thick", True for "plain", or False to remove the border.'
+        )
+
+
 INHERIT: Final = object()
 """Marks a border side that takes the kind of the whole border."""
 
@@ -171,6 +189,21 @@ class BorderSideSpecification:
 def _snapshot(buffer: _core.Buffer) -> _core.Buffer:
     """Copy what a buffer shows into a buffer of plain cells."""
     return _core.Buffer.from_cell_grid(buffer.to_cell_grid())
+
+
+_BOOLEAN_FIELDS: Final = frozenset(
+    {
+        'is_bold',
+        'is_dim',
+        'is_italic',
+        'is_underlined',
+        'is_blinking',
+        'is_reversed',
+        'is_hidden',
+        'is_crossed_out',
+    }
+)
+_STYLE_FIELDS: Final = frozenset({'style', 'border_style'})
 
 
 @dataclasses.dataclass(slots=True)
@@ -217,6 +250,44 @@ class Appearance:
     margin: Spacing | None = None
     sides: dict[str, BorderSideSpecification] = dataclasses.field(default_factory=dict)
     revision: int = 0
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """Set a field, refusing a value of the wrong type and leaving the field as it was."""
+        if name in _BOOLEAN_FIELDS:
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f'{name} must be True or False, but got {value!r}. Pass {name}=True '
+                    f'to turn it on, or {name}=False to turn it off.'
+                )
+        elif name in _STYLE_FIELDS:
+            if value is not None and not isinstance(
+                value, (_core.Style, _core.DynamicStyle)
+            ):
+                raise TypeError(
+                    f'{name} must be a Style or None, but got {value!r}. Pass a style such '
+                    f'as {name}=Style(foreground="red"), or None for none.'
+                )
+        elif name in ('foreground', 'background'):
+            if value is not None and not isinstance(value, _core.Color):
+                try:
+                    _core.Color(value)  # type: ignore[arg-type]
+                except (TypeError, ValueError) as error:
+                    raise type(error)(
+                        f'{name} must be a color, but got {value!r}: '
+                        f'{str(error).rstrip(".")}.'
+                    ) from None
+        elif name == 'title':
+            if value is not None and not isinstance(value, str):
+                raise TypeError(
+                    f'title must be text or None, but got {value!r}. Pass a string such '
+                    f'as title="Menu", or None for no title.'
+                )
+        elif name == 'text' and not isinstance(value, str):
+            raise TypeError(
+                f'text must be a string, but got {value!r}. Pass text such as "hello", '
+                f'and join lines with newlines.'
+            )
+        object.__setattr__(self, name, value)
 
     @property
     def base_border_kind(self) -> _core.BorderKind | None:

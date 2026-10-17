@@ -426,11 +426,11 @@ class TestSoundEffectLists:
         [
             ([{'kind': 'effect.fade_to'}], "'effect.fade_to' is a visual effect"),
             ([{'kind': 'fill'}], "'fill' is not a sound effect"),
-            ([{'kind': 'audio.nope'}], "'audio.nope' is not a known customization"),
+            ([{'kind': 'audio.nope'}], "'audio.nope' is not a known sound effect"),
         ],
     )
     def test_a_note_refuses_what_is_not_a_sound_effect(self, effects, message):
-        error = ValueError if 'known customization' in message else TypeError
+        error = ValueError if 'known sound effect' in message else TypeError
         with pytest.raises(error, match=message):
             xnano.note('C4', effects=effects)
 
@@ -593,3 +593,16 @@ class TestHookSoundEffects:
 
         canvas.push(Event.key_press('a'))
         canvas.deliver_events()
+
+
+class TestNoteValues:
+    def test_a_velocity_or_instrument_of_the_wrong_type_is_explained(self):
+        with pytest.raises(ValueError, match='velocity must be a number'):
+            xnano.note('C4', velocity='loud')  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match='instrument must be the name'):
+            xnano.note('C4', instrument=3)  # type: ignore[arg-type]
+
+    def test_the_options_of_a_note_are_keywords(self):
+        with pytest.raises(TypeError):
+            xnano.note('C4', 2.0)  # type: ignore[misc]
+        assert xnano.note('C4', beats=2.0).beats == 2.0

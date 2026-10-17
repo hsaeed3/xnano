@@ -8,7 +8,7 @@ visual effects and audio effects, compiled through [`fx`][xnano.operations.fx].
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import (
     TYPE_CHECKING,
     Literal,
@@ -1980,8 +1980,13 @@ PlayableEffect = (
 )
 """A sound effect as ``fx(...)`` and ``context.fx(...)`` return it."""
 
-Effect = RenderableEffect | PlayableEffect
-"""Any visual or sound effect."""
+EffectCustomization = RenderableEffect | PlayableEffect
+"""
+Any visual or sound effect, as the customization that ``fx(...)`` returns.
+
+This is not [`Effect`][xnano.effects.Effect], the class whose methods build a visual effect
+for ``update``.
+"""
 
 
 @overload
@@ -2217,6 +2222,22 @@ def normalize_effect(
             f"The 'kind' of an effect is a string such as {sample!r}, but was {kind!r}."
         )
     if kind.startswith(prefix):
+        customization_class = _CUSTOMIZATION_TYPES.get(kind)
+        if customization_class is None:
+            known = ', '.join(
+                sorted(name for name in _CUSTOMIZATION_TYPES if name.startswith(prefix))
+            )
+            raise ValueError(
+                f'{kind!r} is not a known {"visual" if is_renderable else "sound"} effect. '
+                f'Use one of: {known}.'
+            )
+        accepted = [field.name for field in fields(customization_class) if field.init]  # type: ignore[arg-type]
+        unknown = [name for name in parameters if name not in accepted]
+        if unknown:
+            raise TypeError(
+                f'The effect {kind!r} has no setting called {unknown[0]!r}. Its settings are: '
+                f'{", ".join(accepted)}.'
+            )
         return fx(cast('CustomizationKind', kind), **parameters)  # type: ignore[call-overload]
     if kind.startswith(('effect.', 'audio.')):
         if is_renderable:
@@ -2254,6 +2275,11 @@ def apply_effects(
         TypeError: An entry is not such a dictionary, or names something that is not a
             visual effect.
     """
+    if isinstance(effects, (str, bytes, dict)) or not isinstance(effects, Iterable):
+        raise TypeError(
+            f'effects takes a list of effects, but got {effects!r}. Pass a list such as '
+            f"[{{'kind': 'effect.fade_to', 'foreground': 'red'}}]."
+        )
     applied: list[Customization] = []
     for specification in effects:
         customization = normalize_effect(specification, 'renderable')

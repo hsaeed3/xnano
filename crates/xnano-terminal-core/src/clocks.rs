@@ -89,22 +89,6 @@ impl PyClock {
         self.inner.resume();
     }
 
-    fn advance(&self, milliseconds: i64) -> PyResult<()> {
-        if milliseconds < 0 {
-            return Err(PyValueError::new_err(format!(
-                "Clock.advance cannot move time backwards: {milliseconds} milliseconds is negative. \
-                 Pass zero or more milliseconds."
-            )));
-        }
-        if !self.inner.advance(milliseconds as u64) {
-            return Err(PyValueError::new_err(
-                "only a manual clock can be advanced; create one with Clock.manual() for \
-                 deterministic tests",
-            ));
-        }
-        Ok(())
-    }
-
     fn step(&self, milliseconds: i64) -> PyResult<()> {
         if milliseconds < 0 {
             return Err(PyValueError::new_err(format!(

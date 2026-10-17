@@ -67,10 +67,11 @@ def _check_pitch(pitch: object) -> None:
     if audio is not None:
         try:
             audio.TerminalNote(pitch)
-        except ValueError as error:
+        except ValueError:
             raise ValueError(
-                f'{pitch!r} is not a note name. {error} Write a letter, an optional # or b, '
-                f'and an octave, such as "C4" or "Bb3", or use a MIDI number.'
+                f'{pitch!r} is not a note name. Write a letter, an optional # or b, and an '
+                f'octave, such as "C4" or "Bb3", or use a MIDI number from 0 to '
+                f'{_MOST_MIDI_NUMBER}.'
             ) from None
     elif not _NOTE_NAME.match(pitch):
         raise ValueError(
@@ -160,6 +161,16 @@ class Note:
                 f'beats must be a number above 0, but was {self.beats!r}. Use 1.0 for one '
                 f'beat or 0.5 for half a beat.'
             )
+        if isinstance(self.velocity, bool) or not isinstance(self.velocity, (int, float)):
+            raise ValueError(
+                f'velocity must be a number from 0.0 to 1.0, but was {self.velocity!r}. Use '
+                f'0.8 for an ordinary note.'
+            )
+        if not isinstance(self.instrument, str):
+            raise ValueError(
+                f'instrument must be the name of a built-in instrument, such as "piano", '
+                f'but was {self.instrument!r}.'
+            )
         if not 0.0 <= self.velocity <= 1.0:
             raise ValueError(
                 f'velocity must be from 0.0 to 1.0, but was {self.velocity!r}. Use 0.8 for '
@@ -187,6 +198,7 @@ class Note:
 
 def note(
     pitch: Pitch | Sequence[Pitch],
+    *,
     beats: float = 1.0,
     instrument: InstrumentName = 'piano',
     velocity: float = 0.8,

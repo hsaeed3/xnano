@@ -1,9 +1,9 @@
 """
 A menu: pick one item with the keyboard.
 
-The highlighted row lives in the terminal's typed state, and ``terminal.ref`` turns it into an
-expression the list follows, so the hooks only change a number. ``up`` and ``down`` move,
-``enter`` chooses, and choosing ``Quit`` (or pressing ``q``) leaves.
+The highlighted row lives in the terminal's typed state, and ``terminal.state_reference``
+turns it into an expression the list follows, so the hooks only change a number. ``up`` and
+``down`` move, ``enter`` chooses, and choosing ``Quit`` (or pressing ``q``) leaves.
 """
 
 from dataclasses import dataclass
@@ -35,7 +35,7 @@ def selected_of(menu: Menu) -> int:
 def main() -> None:
     """Show the menu and react to the keyboard."""
     with xnano.open(width=30, height=8, state=Menu()) as terminal:
-        selection = terminal.ref(selected_of)
+        selection = terminal.state_reference(selected_of)
         terminal.write(
             ItemList(
                 list(CHOICES),

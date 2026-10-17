@@ -274,3 +274,16 @@ class TestFromAudio:
         canvas.play(audio)
         canvas.step(delta_seconds=0.001)
         assert canvas.audio.render_sound().peak > 0.0
+
+
+def test_an_image_background_may_be_any_color_value():
+    from xnano.types import ImageFit, ResamplingFilter
+
+    assert ImageFit and ResamplingFilter
+    picture = xnano.from_image(
+        TerminalImage.from_rgba(1, 1, bytes((255, 0, 0, 255))), background='#000080'
+    )
+    assert picture.background == (0, 0, 128)
+    assert xnano.Image(
+        TerminalImage.from_rgba(1, 1, bytes((255, 0, 0, 255))), background=(1, 2, 3)
+    ).background == (1, 2, 3)

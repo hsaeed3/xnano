@@ -145,6 +145,26 @@ def test_background_colors_keep_the_foreground_and_accept_an_offset_block():
     assert buffer[1, 0].background == Color.reset
 
 
+def test_foreground_colors_are_set_in_one_batch_and_keep_the_rest():
+    buffer = Buffer(['abc', 'def'])
+    buffer.set_background_colors(['white'] * 6, width=3)
+    before = buffer.revision
+    buffer.set_foreground_colors(
+        ['red', None, (0, 0, 255), 'green', 'blue', None], width=3
+    )
+    assert buffer.revision == before + 1, 'one batch counts as one change'
+    assert buffer[0, 0].foreground == Color('red')
+    assert buffer[1, 0].foreground == Color.reset
+    assert buffer[2, 0].foreground == Color('#0000ff')
+    assert buffer[0, 1].foreground == Color('green')
+    assert buffer[0, 0].background == Color('white')
+    assert rows(buffer) == ['abc', 'def'], 'symbols are kept'
+    with pytest.raises(ValueError, match='does not fit'):
+        buffer.set_foreground_colors(['red', 'red'], width=2, x=2)
+    with pytest.raises(TypeError, match='set_foreground_colors needs a sequence'):
+        buffer.set_foreground_colors('red', width=1)  # type: ignore[arg-type]
+
+
 def test_background_colors_of_a_region_use_local_coordinates():
     buffer = Buffer(['abcd', 'efgh', 'ijkl'])
     region = buffer[1:3, 1:3]

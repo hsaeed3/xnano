@@ -92,7 +92,7 @@ class TestInterface:
 
     @pytest.mark.parametrize(
         'name',
-        ['axis_expression', 'axis_limits', 'to_rgb', 'find_active', 'Stop', 'fx', 'make'],
+        ['axis_expression', 'axis_limits', 'to_rgb', 'Stop', 'fx', 'make'],
     )
     def test_machinery_is_not_exported(self, name):
         assert name not in xnano.__all__
@@ -178,7 +178,7 @@ class TestTypedState:
     def test_a_reference_drives_an_axis(self):
         with xnano.new(width=30, height=2, state=Settings()) as canvas:
             thumb = canvas.write('#')
-            thumb.x = canvas.ref(lambda state: state.volume)
+            thumb.x = canvas.state_reference(lambda state: state.volume)
             canvas.state.volume = 12
             canvas.step(delta_seconds=0.05)
             assert thumb.x == 12
@@ -445,3 +445,12 @@ class TestOutputCaptureStatus:
     def test_a_canvas_off_the_screen_holds_nothing_back(self):
         with xnano.new(width=4, height=1) as canvas:
             assert canvas.output.is_captured is False
+
+
+class TestReturnTypesAreReachable:
+    def test_hook_handles_and_effect_controllers_are_public_types(self):
+        import xnano.types
+
+        assert xnano.types.HookHandle is xnano._hooks.HookHandle
+        assert xnano.types.EffectController is xnano._effect_controller.EffectController
+        assert xnano.types.EffectCustomization is not xnano.effects.Effect

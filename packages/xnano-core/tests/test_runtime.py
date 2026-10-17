@@ -171,7 +171,7 @@ def test_simulation_clock_delta_updates_when_sampled():
     simulation = parent.derive(rate=2.0)
 
     simulation.sample()
-    parent.advance(100)
+    parent.step(100)
     simulation.sample()
 
     assert simulation.delta_seconds == pytest.approx(0.2)
@@ -520,16 +520,17 @@ def test_context_helpers(runtime):
 
 def test_a_clock_stops_resumes_and_does_not_count_the_stopped_time():
     clock = Clock.manual()
-    clock.advance(1000)
+    clock.step(1000)
     clock.stop()
     assert clock.is_stopped
-    clock.advance(5000)
     assert clock.elapsed_seconds == 1.0
+    clock.step(5000)
+    assert clock.elapsed_seconds == 6.0
     clock.resume()
     assert not clock.is_stopped
-    assert clock.elapsed_seconds == 1.0
-    clock.advance(500)
-    assert clock.elapsed_seconds == 1.5
+    assert clock.elapsed_seconds == 6.0
+    clock.step(500)
+    assert clock.elapsed_seconds == 6.5
 
 
 def test_clocks_no_longer_use_the_pause_names():

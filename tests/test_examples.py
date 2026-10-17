@@ -599,6 +599,13 @@ def test_canvas_stops_resumes_and_steps_from_the_keyboard(example):
         'frame 1 at 0.1 seconds',
         'frame 2 at 0.2 seconds',
     ], 'the screenless part prints the same frames on every run'
+    assert lines[3].startswith('this canvas runs by itself'), (
+        'a canvas that runs by itself'
+    )
+    column, row = screen.find('this canvas runs by itself')
+    assert screen.cell(column, row).fg == 'green', (
+        'render(format="ansi") keeps the colors'
+    )
     screen.press(' ')
     assert screen.wait_for('time stopped')
     screen.settle(0.3)
@@ -629,6 +636,8 @@ def test_components_draw_from_the_clock_deps_and_hooks(example):
     )
     screen.press('r')
     assert screen.wait_until(lambda: 'gauge heard r' in screen.text)
+    screen.press('h')
+    assert screen.wait_for('the dependencies name xnano.local')
     quit_with_q(screen)
 
 
@@ -668,6 +677,12 @@ def test_art_walks_blocks_and_draws_cells(example):
         for row in range(3, 8)
     ), 'the wall registered as a symbol is in the world'
     assert screen.find('◆') is not None
+    assert any(screen.cell(column, 10).bg != 'default' for column in range(36, 56)), (
+        'region.draw_image paints the picture into the strip'
+    )
+    assert any('\u2800' < character <= '\u28ff' for character in screen.text), (
+        'braille dots draw at the resolution of dots'
+    )
     screen.press('right')
     assert screen.wait_for('walking')
     for _ in range(10):
@@ -688,6 +703,8 @@ def test_notes_render_offline_and_play_by_name(example):
     assert screen.wait_for('played the clip loaded with from_audio')
     screen.press('m')
     assert screen.wait_for('played 4 notes at 120 bpm')
+    screen.press('p')
+    assert screen.wait_for('played the arpeggio, a playable function')
     quit_with_q(screen)
 
 
@@ -711,5 +728,9 @@ def test_appearance_changes_borders_colors_and_padding(example):
     screen.press('d')
     assert screen.wait_until(lambda: screen.cell(card[0] - 1, card[1]).bg != before)
     screen.press('f')
-    screen.settle(0.3)
+    assert screen.wait_for('fade on')
+    screen.press('f')
+    assert screen.wait_for('fade off'), (
+        'a second press clears the effect with context.fx.clear()'
+    )
     quit_with_q(screen)

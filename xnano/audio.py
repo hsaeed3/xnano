@@ -142,6 +142,14 @@ def _check_play_arguments(
             f'pan must be between -1.0 (left) and 1.0 (right), but was {pan!r}. Use 0.0 for '
             f'the center.'
         )
+    if at_beat is not None and (
+        isinstance(at_beat, bool) or not isinstance(at_beat, int)
+    ):
+        raise TypeError(
+            f'at_beat must be a whole number of beats, but was {at_beat!r}. Pass the beat of '
+            f'the musical clock to start on, such as at_beat=4, or remove at_beat to start '
+            f'now.'
+        )
     if at_beat is not None and at_beat < 0:
         raise ValueError(
             f'at_beat must be 0 or more, but was {at_beat!r}. Pass the beat of the musical '
@@ -498,9 +506,9 @@ def _check_pitch_text(source: str | int | float) -> None:
         return
     try:
         TerminalNote(cast('Pitch', source))
-    except ValueError as error:
+    except ValueError:
         raise ValueError(
-            f'{source!r} is not a known sound symbol, a note name or melody text. {error} '
+            f'{source!r} is not a known sound symbol, a note name or melody text. '
             f'Known sound symbols: {_known_sound_names()}. A note name is a letter, an '
             f'optional # or b, and an octave, such as "C4" or "Bb3"; melody text is notes '
             f'separated by spaces, such as "C4 E4 G4:2"; register a sound with '
@@ -663,7 +671,12 @@ class AudioDevice:
 
     @property
     def is_offline(self) -> bool:
-        """Whether this canvas records sound instead of playing it on a device."""
+        """
+        Whether this canvas records sound instead of playing it on a device.
+
+        It is the opposite of [`Time.is_realtime`][xnano.time.Time.is_realtime]: a canvas that
+        runs on the wall clock plays on a device, and one whose clock you move records.
+        """
         return not self._canvas._is_realtime
 
     @property
@@ -866,7 +879,7 @@ class AudioDevice:
             )
         now = canvas.time.elapsed
         with self._lock:
-            start = self._rendered_until
+            start = max(self._rendered_until, now - _RETENTION_SECONDS)
             self._rendered_until = now
             playing = [
                 item
@@ -955,6 +968,8 @@ class AudioDevice:
         if self.is_offline:
             if self._clock_origin_seconds is None:
                 self._start_offline_clock(canvas.time.elapsed)
+                if canvas._time_source.is_stopped:
+                    self._hold()
             return
         canvas._host.post(self._start_on_loop)
 
@@ -962,6 +977,8 @@ class AudioDevice:
         player = self._open_player()
         if player is not None and not player.is_clock_running:
             player.start_clock()
+            if self._canvas._time_source.is_stopped:
+                self._hold()
 
     def resume(self) -> None:
         """Let the musical clock run on from where [`pause`][xnano.audio.AudioDevice.pause] left it."""
@@ -970,13 +987,13 @@ class AudioDevice:
     def _hold(self) -> None:
         """Pause the musical clock because the canvas stopped. Runs on the canvas's loop."""
         if self.is_offline:
-            self._is_held = self._clock_origin_seconds is not None
-            if self._is_held:
+            if self._clock_origin_seconds is not None:
+                self._is_held = True
                 self._pause_offline_clock()
             return
         player = self._player
-        self._is_held = player is not None and player.is_clock_running
-        if self._is_held and player is not None:
+        if player is not None and player.is_clock_running:
+            self._is_held = True
             player.pause_clock()
 
     def _release(self) -> None:
@@ -1005,7 +1022,13 @@ class AudioDevice:
         canvas._host.post(lambda: self._player and self._player.pause_clock())
 
     def stop(self) -> None:
-        """Stop the musical clock and return it to the first beat."""
+        """
+        Stop the musical clock and return it to the first beat.
+
+        This rewinds only the musical clock. To freeze the whole canvas, including this
+        clock, use [`Canvas.stop`][xnano.canvas.Canvas.stop]; it resumes from where it stood
+        with [`Canvas.resume`][xnano.canvas.Canvas.resume].
+        """
         canvas = self._canvas
         canvas._require_open()
         if self.is_offline:

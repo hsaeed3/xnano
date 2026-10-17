@@ -66,16 +66,16 @@ def test_a_canvas_draws_a_changed_frame(benchmark):
 
 # -- decoration ---------------------------------------------------------------------------
 #
-# Baselines, measured on an optimized build before the appearance objects (Apple M-series,
-# Python 3.11): `write('hi', border='rounded')` plus `remove()` takes 21.06 us; 200 bordered
-# text placements on a 200 by 50 canvas draw a frame in 849 us and take 164 us for a pointer
+# Budgets, set against a release build without coverage instrumentation (Apple M-series,
+# Python 3.11): `write('hi', border='rounded')` plus `remove()` takes 12 us; 200 bordered
+# text placements on a 200 by 50 canvas draw a frame in 238 us and take 239 us for a pointer
 # move plus a step. Text with a uniform border is one buffer, so the budgets are 1.3 times the
 # first figure and 1.1 times the other two. The same screen with a border on a different
 # side of every placement uses two buffers each; it is recorded and has no budget.
 
-CREATE_BUDGET_MICROSECONDS = 27.4
-FRAME_BUDGET_MICROSECONDS = 934.0
-POINTER_BUDGET_MICROSECONDS = 180.4
+CREATE_BUDGET_MICROSECONDS = 15.6
+FRAME_BUDGET_MICROSECONDS = 262.0
+POINTER_BUDGET_MICROSECONDS = 263.0
 PLACEMENTS = 200
 
 

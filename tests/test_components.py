@@ -850,3 +850,35 @@ class TestNestedCanvases:
             inner = outer.write(label)
             inner.remove()
             assert inner._driver is None or inner._driver.is_closed
+
+
+class TestEffectsInComponents:
+    def test_a_renderable_can_set_an_effect_through_the_context(self):
+        seen = []
+
+        @xnano.renderable
+        def fancy(context: Context) -> str:
+            effect = context.fx(
+                'effect.fade_to', foreground='red', duration_milliseconds=200
+            )
+            seen.append((effect, context.fx.active))
+            return 'hello'
+
+        with xnano.new(width=10, height=1) as canvas:
+            placement = canvas.write(fancy)
+            canvas.step(delta_seconds=0.1)
+            assert seen and seen[0][1] == (seen[0][0],)
+            assert 'hello' in canvas.render()
+            placement.remove()
+
+    def test_a_component_context_can_clear_effects_and_remove_itself(self):
+        @xnano.renderable
+        def once(context: Context) -> str:
+            context.fx.clear()
+            context.hook.remove()
+            return 'once'
+
+        with xnano.new(width=10, height=1) as canvas:
+            canvas.write(once)
+            canvas.step()
+            assert canvas.render().startswith('once')

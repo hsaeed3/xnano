@@ -5,8 +5,10 @@ Notes as values, rendered without a device and played on the keyboard.
 ``xnano.play('kick')`` plays it by name. The first part of this program plays a short melody
 on a canvas whose clock you move, and ``render_sound()`` returns the sound of those seconds, so
 the numbers it prints are the same on every run. ``xnano.from_audio`` loads a PCM WAV file or
-bytes (here a tone built in memory) and registers it as ``'clip'``. Then the screen opens: ``k``
-plays the kick, ``c`` the clip, ``m`` the melody, and ``q`` quits.
+bytes (here a tone built in memory) and registers it as ``'clip'``. ``@xnano.playable`` makes a
+function that returns a note, and ``xnano.play(arpeggio())`` plays what it returns.
+Then the screen opens: ``k`` plays the kick, ``c`` the clip, ``m`` the melody, ``p`` the
+arpeggio, and ``q`` quits.
 """
 
 import io
@@ -40,6 +42,15 @@ melody = [
     xnano.note(name, beats=0.5, instrument='bell') for name in ('C4', 'E4', 'G4', 'C5')
 ]
 
+
+@xnano.playable
+def arpeggio(context: Context) -> list[xnano.Note]:
+    """Three notes that climb."""
+    return [
+        xnano.note(name, beats=0.25, instrument='bell') for name in ('C4', 'E4', 'G4')
+    ]
+
+
 with xnano.new(width=20, height=1, bpm=120, fps=10) as offline:
     offline.play(melody)
     offline.play('kick')
@@ -49,7 +60,7 @@ with xnano.new(width=20, height=1, bpm=120, fps=10) as offline:
     print(f'offline: {seconds:.1f} seconds, peak {sound.peak:.2f}')  # noqa: T201
 
 with xnano.open(width=50, height=3, bpm=120) as terminal:
-    terminal.write('k kick   c clip   m melody   q quit')
+    terminal.write('k kick   c clip   m melody   p arpeggio   q quit')
     message = terminal.write('nothing played yet', y=2)
 
     @terminal.hook(on='key', keys='k')
@@ -66,5 +77,10 @@ with xnano.open(width=50, height=3, bpm=120) as terminal:
     def tune(context: Context) -> None:
         xnano.play(melody)
         message.text = f'played {len(melody)} notes at {context.canvas.bpm:g} bpm'
+
+    @terminal.hook(on='key', keys='p')
+    def climb(context: Context) -> None:
+        xnano.play(arpeggio())
+        message.text = 'played the arpeggio, a playable function'
 
     terminal.run(quit_on='q')

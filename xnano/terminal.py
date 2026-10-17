@@ -250,10 +250,10 @@ def open(
 
     Raises:
         TerminalAlreadyOpenError: Another canvas is already on the screen.
-        TypeError: ``realtime`` was given, an appearance keyword was given with content,
-            ``padding`` or ``margin`` was given, or a keyword is unknown.
+        TerminalError: There is no terminal to draw on.
+        TypeError: ``realtime`` was given, an appearance keyword was given with content, or a
+            keyword is unknown.
         ValueError: A ``width`` was given without a ``height``, or a value is out of range.
-        RuntimeError: There is no terminal to draw on.
 
     Examples:
         ```text

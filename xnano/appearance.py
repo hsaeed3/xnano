@@ -328,9 +328,14 @@ class ColorSlot:
     def _require_value(self, verb: str) -> _core.Color:
         value = self.value
         if value is None:
+            example = {
+                'foreground': 'color.fg = "red"',
+                'background': 'color.bg = "red"',
+                'border': 'border.color = "red"',
+            }[self._name]
             raise TerminalError(
                 f'Cannot {verb} a color that is not set. Assign a color first, for '
-                f'example color.{"fg" if self._name == "foreground" else "bg"} = "red".'
+                f'example {example}.'
             )
         return value
 
@@ -390,7 +395,10 @@ class ColorSlot:
                 'Assign a color to border.color, or shade the content with color.fg.shade '
                 'or color.bg.shade.'
             )
-        region = self._owner.region
+        from xnano.region import Region
+
+        owner = self._owner
+        region = owner if isinstance(owner, Region) else owner.region
         if self._name == 'foreground':
             region._shade_foreground(function)
         else:

@@ -23,7 +23,7 @@ from xnano._appearance import (
     SpacingDictionary as SpacingDictionary,
 )
 from xnano._customize import (
-    Effect as Effect,
+    EffectCustomization as EffectCustomization,
 )
 from xnano._customize import (
     PlayableEffect as PlayableEffect,
@@ -43,6 +43,9 @@ from xnano._customize import (
 from xnano._customize import (
     RenderableEffectSpecification as RenderableEffectSpecification,
 )
+from xnano._effect_controller import (
+    EffectController as EffectController,
+)
 from xnano._hooks import (
     Hook as Hook,
 )
@@ -50,10 +53,19 @@ from xnano._hooks import (
     HookGenerator as HookGenerator,
 )
 from xnano._hooks import (
+    HookHandle as HookHandle,
+)
+from xnano._hooks import (
     HookKind as HookKind,
 )
 from xnano._hooks import (
     When as When,
+)
+from xnano._media import (
+    ImageFit as ImageFit,
+)
+from xnano._media import (
+    ResamplingFilter as ResamplingFilter,
 )
 from xnano._values import (
     Anchor as Anchor,
@@ -110,12 +122,15 @@ __all__ = [
     'CanvasAppearanceArguments',
     'CanvasSettings',
     'Content',
-    'Effect',
+    'EffectController',
+    'EffectCustomization',
     'GateSettings',
     'HeldMouseButtonName',
     'Hook',
     'HookGenerator',
+    'HookHandle',
     'HookKind',
+    'ImageFit',
     'KeyName',
     'OpenSettings',
     'PixelEncoding',
@@ -130,6 +145,7 @@ __all__ = [
     'RenderableEffect',
     'RenderableEffectKind',
     'RenderableEffectSpecification',
+    'ResamplingFilter',
     'Spacing',
     'SpacingDictionary',
     'SupportsPlay',

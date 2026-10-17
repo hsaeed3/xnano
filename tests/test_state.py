@@ -5,7 +5,7 @@ Typed and dynamic state: namespaces, snapshots and transactions, and hooks that 
 """
 
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pytest
 from typing_extensions import assert_type
@@ -45,7 +45,7 @@ def test_a_state_write_is_validated_and_wakes_a_hook():
 
 def test_a_reference_can_be_an_axis():
     with main.new(width=20, height=2, state=Settings(volume=4)) as canvas:
-        thumb = canvas.write('#', x=canvas.ref(lambda state: state.volume))
+        thumb = canvas.write('#', x=canvas.state_reference(lambda state: state.volume))
         canvas.deliver_events()
         assert thumb.x == 4
         canvas.state.volume = 7
@@ -65,7 +65,7 @@ def test_an_unsupported_field_is_named():
 def test_open_without_state_has_no_reference():
     with main.new(width=4, height=1) as canvas:
         with pytest.raises(TerminalError, match='no state'):
-            canvas.ref(lambda state: state.volume)
+            canvas.state_reference(lambda state: state.volume)
 
 
 def test_an_expression_still_places_a_buffer():
@@ -79,6 +79,17 @@ def test_an_expression_still_places_a_buffer():
 class Typed:
     volume: float = 0.5
     muted: bool = False
+
+
+@dataclass
+class Inner:
+    depth: float = 1.0
+
+
+@dataclass
+class NestedSettings:
+    inner: Inner = field(default_factory=Inner)
+    volume: float = 0.5
 
 
 def number(value: JSONValue) -> int:
@@ -151,6 +162,24 @@ class TestRootNamespace:
             assert canvas.state.volume == 0.25
             assert namespace.get('extra.count') == 1
 
+    def test_a_nested_dataclass_field_is_read_as_its_declared_type(self):
+        with main.new(width=8, height=1, state=NestedSettings()) as canvas:
+            assert canvas.state.inner == Inner(depth=1.0)
+            canvas.state.push('inner.depth', 4)
+            assert canvas.state.inner.depth == 4.0
+            canvas.state.inner = Inner(depth=7)
+            assert canvas.state.inner == Inner(depth=7.0)
+            canvas.state.push('inner', {'depth': 9})
+            assert canvas.state.inner == Inner(depth=9.0)
+
+    def test_a_whole_number_written_to_a_float_field_is_a_float(self):
+        with main.new(width=8, height=1, state=NestedSettings()) as canvas:
+            canvas.state.push('volume', 2)
+            assert isinstance(canvas.state.volume, float)
+            canvas.state.volume = 3  # type: ignore[assignment]
+            assert canvas.state.volume == 3.0
+            assert isinstance(canvas.state.inner.depth, float)
+
     def test_the_declared_type_of_the_accessor_follows_the_state_argument(self):
         with main.new(width=8, height=1, state=Typed()) as typed:
             assert_type(typed.state.volume, float)
@@ -174,7 +203,9 @@ class TestRootNamespace:
 
     def test_a_value_the_field_refuses_names_the_path_and_the_fix(self):
         with main.new(width=8, height=1, state=Typed()) as canvas:
-            with pytest.raises(TerminalError, match=r"push 'volume' to 'loud'.*accepts"):
+            with pytest.raises(
+                TerminalError, match=r"set 'volume' to 'loud'.*the field declares"
+            ):
                 canvas.state.push('volume', 'loud')  # type: ignore[attr-defined]
             assert canvas.state.volume == 0.5
 
@@ -253,10 +284,10 @@ class TestHookRuns:
             raise RuntimeError('boom')
 
         canvas.push(Event.key_press('a'))
-        canvas.deliver_events()
-        assert canvas.state.get('a') is None
         with pytest.raises(TerminalError, match='boom'):
-            canvas.close()
+            canvas.deliver_events()
+        assert canvas.state.get('a') is None
+        canvas.close()
 
     def test_a_value_the_field_refuses_inside_a_hook_stops_the_canvas_with_the_fix(self):
         canvas = main.new(width=8, height=1, state=Typed())
@@ -266,7 +297,7 @@ class TestHookRuns:
             context.root.state.volume = 'loud'  # type: ignore[assignment]
 
         canvas.push(Event.key_press('a'))
-        with pytest.raises(TerminalError, match=r"push 'volume' to 'loud'"):
+        with pytest.raises(TerminalError, match=r"set 'volume' to 'loud'"):
             canvas.deliver_events()
             canvas.close()
 
@@ -573,3 +604,79 @@ class TestFollowerIndex:
         index.unfollow(anything)
         assert index.affected([('a', 'b')]) == set()
         assert index.affected([('c',)]) == {far}
+
+
+class TestStateAcrossOpen:
+    def test_the_state_of_the_placements_survives_a_replaced_store(self):
+        with main.new(width=8, height=1) as canvas:
+            placement = canvas.write('hi')
+            placement.state.push('clicks', 3)
+            canvas.state.push('free', 1)
+            replacement = main.state.prepare_state(
+                Settings(), canvas._state_store.snapshot().to_value()
+            )
+            assert replacement.snapshot(('free',)).to_value() == 1
+            assert replacement.snapshot().to_value()['xnano']['buffers']
+
+    def test_a_non_root_namespace_says_it_has_no_declared_fields(self):
+        with main.new(width=8, height=1, state=Settings()) as canvas:
+            placement = canvas.write('hi')
+            with pytest.raises(AttributeError, match='only the canvas.s own state does'):
+                placement.state.volume  # noqa: B018
+            with pytest.raises(TerminalError, match='no declared fields'):
+                placement.state.volume = 3
+            with pytest.raises(AttributeError, match="this canvas's state"):
+                canvas.state.nothing  # noqa: B018
+
+    def test_a_hook_on_the_state_of_a_realtime_canvas_hears_the_next_push(self):
+        import time
+
+        heard = []
+        with main.new(realtime=True, width=8, height=1) as canvas:
+
+            @canvas.hook(on='state')
+            def watch(context: Context) -> None:
+                heard.append(context.root.state.get('x'))
+
+            canvas.state.push('x', 1)
+            deadline = time.monotonic() + 3
+            while time.monotonic() < deadline and 1 not in heard:
+                time.sleep(0.01)
+        assert 1 in heard
+
+    def test_the_active_run_belongs_to_each_thread(self):
+        import threading
+
+        with main.new(width=8, height=1) as canvas:
+            marker = object()
+            canvas._active_run = marker  # type: ignore[assignment]
+            seen = []
+            thread = threading.Thread(target=lambda: seen.append(canvas._active_run))
+            thread.start()
+            thread.join()
+            assert seen == [None]
+            assert canvas._active_run is marker
+            canvas._active_run = None
+
+
+class TestLocalStateTypes:
+    def test_a_state_defined_inside_a_function_says_where_to_define_it(self):
+        source = """
+from __future__ import annotations
+from dataclasses import dataclass, field
+
+def make():
+    @dataclass
+    class Inner:
+        value: int = 1
+
+    @dataclass
+    class Outer:
+        inner: Inner = field(default_factory=Inner)
+
+    return Outer()
+"""
+        namespace: dict[str, object] = {}
+        exec(source, namespace)  # noqa: S102
+        with pytest.raises(TerminalError, match='top level of a module'):
+            main.new(state=namespace['make']())  # type: ignore[operator]

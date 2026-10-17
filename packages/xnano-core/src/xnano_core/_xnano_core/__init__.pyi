@@ -160,7 +160,7 @@ from ._core_types import (
 
 __version__: str
 is_optimized_build: bool
-"""Whether the extension was built with optimizations. Timing a debug build says nothing."""
+"""Whether the extension was built with optimizations and without coverage instrumentation. Timing any other build says nothing."""
 
 ValueType = TypeVar('ValueType')
 ValueType_co = TypeVar('ValueType_co', covariant=True)
@@ -879,14 +879,14 @@ class Style:
 
 class Clock:
     """
-    The time source a runtime reads, either real or manually advanced.
+    The time source a runtime reads, either real or stepped by hand.
 
     A monotonic clock follows real time, so wall-clock adjustments never affect it. A
-    manual clock moves only when you advance it, which makes tests and replays exact. Either
+    manual clock moves only when you step it, which makes tests and replays exact. Either
     kind can be stopped; a stopped clock does not move until it is resumed or stepped by hand.
 
     Attributes:
-        source: Whether the clock follows real time or is advanced by hand.
+        source: Whether the clock follows real time or is stepped by hand.
         elapsed_seconds: Seconds since the clock started.
         elapsed_milliseconds: Milliseconds since the clock started.
         delta_seconds: Seconds between the two most recent frames.
@@ -898,7 +898,7 @@ class Clock:
     Examples:
         ```python
         clock = Clock.manual()
-        clock.advance(1500)
+        clock.step(1500)
         assert clock.elapsed_seconds == 1.5
         assert clock.source == 'manual'
         ```
@@ -934,7 +934,7 @@ class Clock:
     @classmethod
     def manual(cls, *, elapsed_seconds: float = 0.0) -> Clock:
         """
-        A clock that moves only through [`advance`][xnano_core._xnano_core.Clock.advance].
+        A clock that moves only through [`step`][xnano_core._xnano_core.Clock.step].
 
         Args:
             elapsed_seconds: The time the clock starts at, zero or more.
@@ -951,7 +951,7 @@ class Clock:
 
     @property
     def source(self) -> Literal['monotonic', 'manual']:
-        """Whether the clock follows real time or is advanced by hand."""
+        """Whether the clock follows real time or is stepped by hand."""
 
     @property
     def elapsed_seconds(self) -> float:
@@ -1036,24 +1036,6 @@ class Clock:
             ```
         """
 
-    def advance(self, milliseconds: int) -> None:
-        """
-        Move a manual clock forward.
-
-        Args:
-            milliseconds: How far to move, zero or more.
-
-        Raises:
-            ValueError: The clock is monotonic, or ``milliseconds`` is negative.
-
-        Examples:
-            ```python
-            clock = Clock.manual()
-            clock.advance(250)
-            assert clock.elapsed_milliseconds == 250.0
-            ```
-        """
-
     def derive(self, *, rate: float = 1.0, is_stopped: bool = False) -> SimulationClock:
         """
         Create a clock that follows this one at a different speed.
@@ -1130,7 +1112,7 @@ class SimulationClock:
             parent = Clock.manual()
             simulation = parent.derive(rate=2.0)
             simulation.sample()
-            parent.advance(100)
+            parent.step(100)
             simulation.sample()
             assert simulation.delta_seconds == 0.2
             ```
@@ -7194,6 +7176,46 @@ class Surface:
             assert buffer[2, 0].background == Color.reset
             assert buffer[1, 1].background == Color('#0000ff')
             assert buffer[2, 1].background == Color('green')
+            assert buffer[1, 0].symbol == 'b'
+            ```
+        """
+
+    def set_foreground_colors(
+        self,
+        colors: Sequence[ColorValue | None],
+        *,
+        width: int,
+        x: int = 0,
+        y: int = 0,
+    ) -> None:
+        """
+        Set the foreground color of a block of cells in one pass.
+
+        Symbols and background colors are kept, and the whole block counts as one change (the
+        revision grows by one).
+
+        Args:
+            colors: A flat, row-major sequence of colors (names, ``(r, g, b)`` tuples or
+                [`Color`][xnano_core._xnano_core.Color] values). ``None`` leaves a cell alone.
+            width: The number of colors in one row of ``colors``.
+            x: The column of the block's top-left cell in this surface.
+            y: The row of the block's top-left cell in this surface.
+
+        Raises:
+            ValueError: ``width`` is below 1, ``len(colors)`` is not a multiple of ``width``, or
+                the block does not fit inside the surface, or an entry is not a color.
+            TypeError: ``colors`` is a single string instead of a sequence of colors, or an
+                entry has no color meaning.
+
+        Examples:
+            ```python
+            buffer = Buffer(width=3, height=2)
+            buffer.write('abc')
+            buffer.set_foreground_colors(['red', None, (0, 0, 255), 'green'], width=2, x=1)
+            assert buffer[1, 0].foreground == Color('red')
+            assert buffer[2, 0].foreground == Color.reset
+            assert buffer[1, 1].foreground == Color('#0000ff')
+            assert buffer[2, 1].foreground == Color('green')
             assert buffer[1, 0].symbol == 'b'
             ```
         """

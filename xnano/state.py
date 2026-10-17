@@ -107,7 +107,9 @@ class StateNamespace:
 
     On the root of a canvas created with ``new(state=Settings())``, the fields of the dataclass
     are also attributes with their declared types, and a write is checked against the field's
-    type.
+    type. A field that holds a nested dataclass reads as a new instance of that dataclass, so
+    changing it changes nothing: assign the field or push a path to save a change. A whole
+    number written to a ``float`` field is stored and read as a ``float``.
 
     Attributes:
         <field>: Every field of the state dataclass, on the root namespace only.
@@ -133,7 +135,7 @@ class StateNamespace:
 
     _canvas: Canvas[object, object]
     _base: StatePath
-    _fields: frozenset[str]
+    _fields: Mapping[str, object]
     _is_removed: bool
 
     def __init__(
@@ -141,7 +143,7 @@ class StateNamespace:
         canvas: Canvas[object, object],
         base: StatePath,
         *,
-        fields: frozenset[str] = frozenset(),
+        fields: Mapping[str, object] | None = None,
     ) -> None:
         """
         Create a namespace. Use ``canvas.state``, ``placement.state`` or ``context.plugin.state``.
@@ -149,11 +151,12 @@ class StateNamespace:
         Args:
             canvas: The root canvas that owns the state store.
             base: Where the namespace starts in the store.
-            fields: The names of the state dataclass fields, for the root namespace.
+            fields: The declared type of every state dataclass field by name, for the root
+                namespace.
         """
         object.__setattr__(self, '_canvas', canvas)
         object.__setattr__(self, '_base', base)
-        object.__setattr__(self, '_fields', fields)
+        object.__setattr__(self, '_fields', {} if fields is None else fields)
         object.__setattr__(self, '_is_removed', False)
 
     def get(self, path: str, default: JSONValue = None) -> JSONValue:
@@ -197,6 +200,10 @@ class StateNamespace:
     def push(self, path: str, value: JSONValue) -> None:
         """
         Write ``value`` at ``path``, creating the objects on the way.
+
+        A name at the root that is not a declared field is added as a new value, so check the
+        spelling of a root path. Inside a declared object, a name that is not one of its fields
+        is refused.
 
         Inside a hook the write is saved when the hook returns; elsewhere it is saved at once.
         The canvas draws a frame afterwards.
@@ -244,24 +251,43 @@ class StateNamespace:
                 f'Could not push {path!r}: this state belongs to a placement or hook that '
                 f'was removed. Push to the state of one that is still on the canvas.'
             )
-        write_state(self._canvas, base + parsed, value)
+        write_state(self._canvas, base + parsed, self._declared_form(parsed, value))
+
+    def _declared_form(self, parsed: StatePath, value: JSONValue) -> JSONValue:
+        """``value`` as the declared type of the field at ``parsed`` stores it."""
+        if self._base or not parsed or not isinstance(parsed[0], str):
+            return value
+        annotation: object = self._fields.get(parsed[0])
+        for part in parsed[1:]:
+            annotation = _member_annotation(annotation, part)
+        return cast('JSONValue', _stored_form(value, annotation))
 
     def __getattr__(self, name: str) -> JSONValue:
         if name not in self._fields:
-            raise AttributeError(
-                f"{name} is not a field of this canvas's state. Read a field declared on the "
-                f'dataclass passed to xnano.new(state=...), or use get({name!r}) for a path.'
+            raise AttributeError(self._unknown_field_message(name, 'Read', 'get'))
+        return cast(
+            'JSONValue',
+            _declared_value(read_state(self._canvas, (name,), None), self._fields[name]),
+        )
+
+    def _unknown_field_message(self, name: str, verb: str, method: str) -> str:
+        """Explain that ``name`` is not an attribute of this namespace."""
+        if not self._base:
+            return (
+                f"{name} is not a field of this canvas's state. {verb} a field declared on "
+                f'the dataclass passed to xnano.new(state=...), or use {method}({name!r}'
+                f'{", value" if method == "push" else ""}) for a path.'
             )
-        return read_state(self._canvas, (name,), None)
+        return (
+            f'{name} is not an attribute of this state, which has no declared fields: only '
+            f"the canvas's own state does. Use {method}({name!r}"
+            f'{", value" if method == "push" else ""}) with a path instead.'
+        )
 
     def __setattr__(self, name: str, value: JSONValue) -> None:
         if name not in self._fields:
-            raise TerminalError(
-                f"{name} is not a field of this canvas's state. Assign a field declared on "
-                f'the dataclass passed to xnano.new(state=...), or use push({name!r}, value) '
-                f'to save a value at a path.'
-            )
-        write_state(self._canvas, (name,), value)
+            raise TerminalError(self._unknown_field_message(name, 'Assign', 'push'))
+        write_state(self._canvas, (name,), self._declared_form((name,), value))
 
     def __repr__(self) -> str:
         return f'StateNamespace(path={dotted(self._base)!r})'
@@ -640,8 +666,8 @@ def _push_error(
     if len(pending) == 1:
         path, value = next(iter(pending.items()))
         return TerminalError(
-            f'Could not push {dotted(path)!r} to {value!r}: {error}. Use a value the field '
-            f'accepts.'
+            f'Could not set {dotted(path)!r} to {value!r}: {error}. Use a value that matches '
+            f'the type the field declares.'
         )
     names = ', '.join(repr(dotted(path)) for path in pending)
     return TerminalError(
@@ -650,9 +676,93 @@ def _push_error(
     )
 
 
-def state_field_names(instance: DataclassInstance) -> frozenset[str]:
-    """The names of the fields of a state dataclass."""
-    return frozenset(field.name for field in dataclasses.fields(instance))
+def _type_hints(kind: type) -> dict[str, object]:
+    """The resolved annotations of a state dataclass, with a teaching error for a local type."""
+    try:
+        return get_type_hints(kind)
+    except NameError as error:
+        raise TerminalError(
+            f'The types of the fields of {kind.__name__} could not be resolved: {error}. '
+            f'xnano resolves field types by name, so define the state dataclasses at the '
+            f'top level of a module (not inside a function), or remove '
+            f'`from __future__ import annotations` from that module.'
+        ) from error
+
+
+def state_field_types(instance: DataclassInstance) -> dict[str, object]:
+    """The declared type of every field of a state dataclass, by field name."""
+    hints = _type_hints(type(instance))
+    return {
+        field.name: hints.get(field.name, field.type)
+        for field in dataclasses.fields(instance)
+    }
+
+
+def _dataclass_of(annotation: object) -> type[DataclassInstance] | None:
+    """The dataclass an annotation names, also inside ``Optional``, or ``None``."""
+    if isinstance(annotation, type) and dataclasses.is_dataclass(annotation):
+        return cast('type[DataclassInstance]', annotation)
+    if get_origin(annotation) in (Union, types.UnionType):
+        members = [item for item in get_args(annotation) if item is not type(None)]
+        if len(members) == 1:
+            return _dataclass_of(members[0])
+    return None
+
+
+def _is_float(annotation: object) -> bool:
+    """Whether an annotation is ``float``, also inside ``Optional``."""
+    if annotation is float:
+        return True
+    if get_origin(annotation) in (Union, types.UnionType):
+        members = [item for item in get_args(annotation) if item is not type(None)]
+        return len(members) == 1 and members[0] is float
+    return False
+
+
+def _member_annotation(annotation: object, part: str | int) -> object:
+    """The declared type of the field ``part`` of a dataclass annotation, or ``None``."""
+    kind = _dataclass_of(annotation)
+    if kind is None or not isinstance(part, str):
+        return None
+    return _type_hints(kind).get(part)
+
+
+def _stored_form(value: object, annotation: object) -> object:
+    """``value`` as a declared type keeps it: a dataclass as a dictionary, a number as a float."""
+    kind = _dataclass_of(annotation)
+    if kind is not None:
+        if dataclasses.is_dataclass(value) and not isinstance(value, type):
+            value = {
+                field.name: getattr(value, field.name)
+                for field in dataclasses.fields(value)
+            }
+        if isinstance(value, dict):
+            hints = _type_hints(kind)
+            return {
+                key: _stored_form(item, hints.get(key)) for key, item in value.items()
+            }
+        return value
+    if _is_float(annotation) and isinstance(value, int) and not isinstance(value, bool):
+        return float(value)
+    return value
+
+
+def _declared_value(value: object, annotation: object) -> object:
+    """A stored ``value`` as its declared type: a nested dataclass is rebuilt from its fields."""
+    kind = _dataclass_of(annotation)
+    if kind is not None:
+        if not isinstance(value, dict):
+            return value
+        hints = _type_hints(kind)
+        arguments = {
+            field.name: _declared_value(value[field.name], hints.get(field.name))
+            for field in dataclasses.fields(kind)
+            if field.init and field.name in value
+        }
+        return kind(**arguments)
+    if _is_float(annotation) and isinstance(value, int) and not isinstance(value, bool):
+        return float(value)
+    return value
 
 
 def prepare_state(
@@ -663,7 +773,8 @@ def prepare_state(
 
     Args:
         instance: The state dataclass instance, or ``None`` for a store of free paths only.
-        free: Values of free paths to keep, for a store that replaces an earlier one.
+        free: Values of the earlier store to keep, for a store that replaces it: its free
+            paths and the branches xnano keeps for placements and hooks.
     """
     value: dict[str, JSONValue] = {}
     if instance is None:
@@ -674,7 +785,7 @@ def prepare_state(
                 f'{instance!r} is not a state dataclass. Pass an instance of a dataclass, '
                 f'such as xnano.new(state=Settings()).'
             )
-        reserved = sorted(_RESERVED_FIELD_NAMES & state_field_names(instance))
+        reserved = sorted(_RESERVED_FIELD_NAMES & state_field_types(instance).keys())
         if reserved:
             raise TerminalError(
                 f'The state dataclass {type(instance).__name__} has a field named '
@@ -688,7 +799,7 @@ def prepare_state(
     if free:
         for key, item in free.items():
             value.setdefault(key, item)
-    value[_RESERVED_ROOT_KEY] = {'buffers': {}, 'plugins': {}}
+    value.setdefault(_RESERVED_ROOT_KEY, {'buffers': {}, 'plugins': {}})
     return _core.TerminalStateStore(
         value, schema=_core.TerminalStateSchema.compile(schema)
     )
@@ -726,7 +837,7 @@ def _root_schema(kind: type[DataclassInstance] | None) -> JSONSchema:
 
 
 def _schema(kind: type[DataclassInstance]) -> JSONSchema:
-    hints = get_type_hints(kind)
+    hints = _type_hints(kind)
     properties = {}
     for field in dataclasses.fields(kind):
         properties[field.name] = _json_type(hints.get(field.name, field.type), field.name)
@@ -761,7 +872,7 @@ def _attribute_path(reader: Callable[..., object]) -> tuple[str, ...]:
         tree = ast.parse(textwrap.dedent(source))
     except (OSError, SyntaxError) as error:
         raise TypeError(
-            'ref() needs a function or lambda that reads fields, such as '
+            'state_reference() needs a function or lambda that reads fields, such as '
             'lambda state: state.volume.'
         ) from error
     lambdas = [node for node in ast.walk(tree) if isinstance(node, ast.Lambda)]
@@ -776,7 +887,7 @@ def _attribute_path(reader: Callable[..., object]) -> tuple[str, ...]:
         node = node.value
     if not isinstance(node, ast.Name) or not names:
         raise TypeError(
-            'ref() could not read a field path from that function. Write '
+            'state_reference() could not read a field path from that function. Write '
             'lambda state: state.volume, or lambda state: state.player.x.'
         )
     return tuple(reversed(names))

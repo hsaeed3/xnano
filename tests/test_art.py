@@ -140,6 +140,15 @@ class TestDraw:
         with pytest.raises(ValueError, match='at least 1 by 1'):
             Art(None, 0, 3)
 
+    def test_effects_given_as_a_one_shot_iterable_are_kept(self):
+        specification = {'kind': 'effect.dissolve'}
+        art = draw(['G'], {'G': 'red'}, effects=(item for item in [specification]))
+        assert art._effects == (specification,)
+        registered = draw(['G'], {'G': 'red'}, symbol='one_shot_effects')
+        again = draw('one_shot_effects', effects=(item for item in [specification]))
+        assert again._effects == (specification,)
+        assert registered._effects == ()
+
     def test_effects_run_on_every_placement_that_shows_the_art(self, canvas):
         art = draw(
             ['RR', 'RR'],

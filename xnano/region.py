@@ -21,8 +21,9 @@ from xnano._appearance import (
     APPEARANCE_NAMES,
     Appearance,
     Spacing,
+    check_border_kind,
 )
-from xnano._axes import to_rgb
+from xnano._axes import check_point, to_rgb
 from xnano._decoration import insets_for, paint_decoration
 from xnano._values import RGB, ColorValue
 from xnano.appearance import (
@@ -355,6 +356,7 @@ class Region(_Looked):
         Args:
             point: A cell in screen coordinates, such as ``context.mouse.position``.
         """
+        point = check_point(point)
         return _core.Point(point.x - self.x, point.y - self.y)
 
     def resize(self, width: int, height: int) -> None:
@@ -375,6 +377,7 @@ class Region(_Looked):
                 or it was made by ``write``, whose size follows its text.
             ValueError: A size is below 1.
         """
+        _check_cell_counts('resize', width, height)
         if width < 1 or height < 1:
             raise ValueError(
                 f'A region is at least 1 by 1 cells, but resize got {width} by {height}. '
@@ -580,6 +583,11 @@ class Region(_Looked):
             raise TypeError(
                 f'A region coordinate is a whole number or a slice, but got {index!r}.'
             )
+        if not 0 <= index < size:
+            raise IndexError(
+                f'The {name} coordinate {index} is outside this region, which has {size} '
+                f'cells along {name}. Region coordinates start at 0 in the top-left corner.'
+            )
         return index, index + 1
 
     # -- writing -------------------------------------------------------------------------
@@ -751,10 +759,12 @@ class Region(_Looked):
         """
         if self._resolution == 'cells':
             width, height = self._cell_size()
+            if width == 0 or height == 0:
+                return
             colors = [
                 function(column, row) for row in range(height) for column in range(width)
             ]
-            self._surface().set_background_colors(colors, width=max(1, width))
+            self._surface().set_background_colors(colors, width=width)
             return
         view = self._pixel_view()
         colored: list[tuple[int, int, RGB]] = []
@@ -769,24 +779,13 @@ class Region(_Looked):
         self, function: Callable[[int, int], ColorValue | None]
     ) -> None:
         """Color the text of every cell from a function of its position, in one write."""
-        surface = self._surface()
         width, height = self._cell_size()
-        writes: list[_core.Operation] = []
-        for row in range(height):
-            for column in range(width):
-                color = function(column, row)
-                if color is not None:
-                    writes.append(
-                        _core.Write(
-                            surface[column, row].symbol,
-                            x=column,
-                            y=row,
-                            style=_core.Style(foreground=color),
-                            mode='preserve_background',
-                        )
-                    )
-        if writes:
-            surface.update(*writes)
+        if width == 0 or height == 0:
+            return
+        colors = [
+            function(column, row) for row in range(height) for column in range(width)
+        ]
+        self._surface().set_foreground_colors(colors, width=width)
 
     def draw_color_bytes(
         self,
@@ -842,6 +841,11 @@ class Region(_Looked):
         from xnano._media import Image as MediaImage
 
         picture = image.image if isinstance(image, MediaImage) else image
+        if not hasattr(picture, 'to_rgba'):
+            raise TypeError(
+                f'draw_image() takes an xnano.Image or a picture from xnano.image, but got '
+                f'{image!r}. Load one with xnano.from_image(path) first.'
+            )
         self.draw_color_bytes(
             picture.to_rgba(frame_index),
             width=picture.width,
@@ -928,16 +932,42 @@ class Region(_Looked):
         )
 
 
+_PLACEMENT_NAMES: Final = frozenset(
+    {'x', 'y', 'width', 'height', 'layer', 'lock', 'effects'}
+)
+
+
+def _check_cell_counts(function_name: str, width: object, height: object) -> None:
+    """Raise a ``TypeError`` that says what to pass when a size is not a whole number."""
+    for name, value in (('width', width), ('height', height)):
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError(
+                f'{function_name}() takes the {name} as a whole number of cells, but got '
+                f'{value!r}. Pass a number such as 4.'
+            )
+
+
 def _standalone_look(
     function_name: str, text: str, appearance: dict[str, object], default_border: bool
 ) -> Appearance:
     unknown = sorted(set(appearance) - APPEARANCE_NAMES)
     if unknown:
+        hint = ''
+        if unknown[0] in _PLACEMENT_NAMES:
+            examples = {
+                'lock': 'True',
+                'effects': "[{'kind': 'effect.fade_to', 'foreground': 'red'}]",
+            }
+            hint = (
+                f' Position it when you write it on a canvas: '
+                f'canvas.write(region, {unknown[0]}={examples.get(unknown[0], "1")}).'
+            )
         raise TypeError(
             f'{function_name}() has no setting called {unknown[0]!r}. The look of a region '
-            f'is {", ".join(sorted(APPEARANCE_NAMES))}.'
+            f'is {", ".join(sorted(APPEARANCE_NAMES))}.{hint}'
         )
     settings = dict(appearance)
+    check_border_kind(settings.get('border'))
     border = settings.get('border', 'plain' if default_border else None)
     if border is True:
         border = 'plain'
@@ -949,9 +979,10 @@ def _standalone_look(
 
 def write(text: str, /, **appearance: Unpack[AppearanceArguments]) -> Region:
     """
-    Make a standalone region from text, sized to the text.
+    Build a standalone region from text (does not draw).
 
-    The region owns its cells. Write it into a canvas with ``canvas.write(region)``, print it
+    The region is sized to the text and is a value that you write into a canvas. It owns its
+    cells. Write it into a canvas with ``canvas.write(region)``, print it
     with [`render`][xnano.region.Region.render], or change its look afterwards with
     ``region.border`` and its siblings.
 
@@ -959,6 +990,9 @@ def write(text: str, /, **appearance: Unpack[AppearanceArguments]) -> Region:
         text: The text, line by line.
         appearance: The look of the text: colors, text modifiers, ``border``, ``title``,
             ``padding`` and ``margin``; see [`AppearanceArguments`][xnano.types.AppearanceArguments].
+
+    Raises:
+        TypeError: ``text`` is not a string.
 
     Examples:
         ```python
@@ -970,6 +1004,11 @@ def write(text: str, /, **appearance: Unpack[AppearanceArguments]) -> Region:
         assert card.render().strip() == 'hello'
         ```
     """
+    if not isinstance(text, str):
+        raise TypeError(
+            f'xnano.write() takes text, but got {text!r}. To show other content, create a '
+            f'canvas with xnano.new() and call canvas.write(content).'
+        )
     look = _standalone_look('write', text, cast('dict[str, object]', appearance), False)
     region = Region(
         _core.Buffer(width=1, height=1), is_standalone=True, look=look, is_text=True
@@ -980,7 +1019,9 @@ def write(text: str, /, **appearance: Unpack[AppearanceArguments]) -> Region:
 
 def box(width: int, height: int, /, **appearance: Unpack[AppearanceArguments]) -> Region:
     """
-    Make an empty standalone rectangle of cells with a border.
+    Build an empty standalone rectangle of cells with a border (does not draw).
+
+    The region is a value that you write into a canvas.
 
     Args:
         width: The width in cells, border included.
@@ -999,6 +1040,7 @@ def box(width: int, height: int, /, **appearance: Unpack[AppearanceArguments]) -
         assert frame.render().splitlines() == ['┌───┐', '│   │', '└───┘']
         ```
     """
+    _check_cell_counts('xnano.box', width, height)
     if width < 1 or height < 1:
         raise ValueError(
             f'A box is at least 1 by 1 cells, but got {width} by {height}. Pass whole '
