@@ -349,13 +349,23 @@ def _is_whole_window(value: int | str | None) -> bool:
     return value is None or (isinstance(value, str) and _size_share(value) == 1.0)
 
 
-def _size_in_cells(value: int | str | None, available: int, default: int) -> int:
-    """The cells of a checked size: the number, a share of ``available``, or ``default``."""
-    if value is None:
-        return default
+def _size_in_cells(
+    value: int | str | None,
+    along: Literal['columns', 'lines'],
+    default: int | None = None,
+) -> int:
+    """
+    The cells of a checked size: the number, a share of the window, or ``default``.
+
+    The window is asked for its size only for a percentage, and ``default=None`` stands for
+    the whole window along that axis.
+    """
     if isinstance(value, int):
         return value
-    share = _size_share(value) or 1.0
+    if value is None and default is not None:
+        return default
+    available = getattr(_window_size(), along)
+    share = 1.0 if value is None else (_size_share(value) or 1.0)
     return max(1, min(MOST_CELLS, round(available * share)))
 
 
@@ -712,9 +722,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             (weakref.ref(cast('Canvas[object, object]', self)), *self._previous_chain)
         )
         self._host: _Host
-        window = _window_size()
-        columns = _size_in_cells(width, window.columns, 80)
-        rows = _size_in_cells(height, window.lines, 24)
+        columns = _size_in_cells(width, 'columns', 80)
+        rows = _size_in_cells(height, 'lines', 24)
         interval_milliseconds = max(1, round(1000.0 / fps))
 
         def create_runtime() -> _core.Runtime:
@@ -1457,13 +1466,12 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                     'in a region of that size. Add height=... (cells, or a percentage such as '
                     "'50%'), or remove width."
                 )
-            window = _window_size()
             width = (
                 None
                 if _is_whole_window(checked_width)
-                else _size_in_cells(checked_width, window.columns, window.columns)
+                else _size_in_cells(checked_width, 'columns')
             )
-            height = _size_in_cells(checked_height, window.lines, window.lines)
+            height = _size_in_cells(checked_height, 'lines')
         gates = {**self._gates, **cast('dict[str, object]', parsed['gates'])}
         resolved = self._gates_for_screen(gates)
         replacement: _core.TerminalStateStore | None = None
@@ -1632,9 +1640,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self._is_realtime = False
         self._carried = dict(carried)
         elapsed = cast('float', carried['elapsed_seconds'])
-        window = _window_size()
-        columns = _size_in_cells(self._requested_width, window.columns, 80)
-        rows = _size_in_cells(self._requested_height, window.lines, 24)
+        columns = _size_in_cells(self._requested_width, 'columns', 80)
+        rows = _size_in_cells(self._requested_height, 'lines', 24)
         interval_milliseconds = max(1, round(1000.0 / self._fps))
 
         def create_runtime() -> _core.Runtime:
