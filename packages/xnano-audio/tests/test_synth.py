@@ -556,6 +556,13 @@ def test_mix_matches_a_note_rendered_alone():
         ),
         ([(tone(0.1, 10), 0.0, -1.0)], {'duration_seconds': 1.0}, 'gain'),
         ([(tone(0.1, 10), 0.0, float('inf'))], {'duration_seconds': 1.0}, 'gain'),
+        ([(tone(0.1, 10), 0.0, 1000.5)], {'duration_seconds': 1.0}, 'from 0.0 to 1000.0'),
+        ([(tone(0.1, 10), 0.0, 1e300)], {'duration_seconds': 1.0}, 'from 0.0 to 1000.0'),
+        (
+            [],
+            {'duration_seconds': 3600.0, 'sample_rate': 192000},
+            r'at most 172800000 samples.*Shorten the window, lower sample_rate',
+        ),
     ],
 )
 def test_mix_refuses_bad_arguments_and_says_what_to_pass(layers, keywords, message):
@@ -578,3 +585,25 @@ def test_mix_takes_its_window_by_keyword_and_layers_as_tuples():
         TerminalSound.mix([(tone(0.1, 10), 'soon', 1.0)], duration_seconds=1.0)  # type: ignore[list-item]
     with pytest.raises(TypeError, match=r'sequence of \(sound, offset_seconds, gain\)'):
         TerminalSound.mix(5, duration_seconds=1.0)  # type: ignore[arg-type]
+
+
+def test_mix_accepts_the_largest_gain_without_producing_invalid_samples():
+    rate = 8000
+    mixed = TerminalSound.mix(
+        [(tone(0.5, 800, rate), 0.0, 1000.0), (tone(-0.5, 800, rate), 0.0, 1000.0)],
+        duration_seconds=0.2,
+        sample_rate=rate,
+    )
+    assert not any(math.isnan(sample) for sample in mixed.samples()), (
+        'no NaN reaches the mix'
+    )
+    assert mixed.peak == 0.0
+    clipped = TerminalSound.mix(
+        [(tone(0.5, 800, rate), 0.0, 1000.0)], duration_seconds=0.1, sample_rate=rate
+    )
+    assert clipped.peak == 1.0
+
+
+def test_mix_accepts_a_window_within_the_sample_limit():
+    mixed = TerminalSound.mix([], duration_seconds=1.0, sample_rate=48000)
+    assert len(mixed) == 48000 and mixed.peak == 0.0

@@ -420,9 +420,10 @@ class TerminalSound:
                 rendered at this rate.
 
         Raises:
-            ValueError: If ``duration_seconds`` or ``sample_rate`` is out of range, a layer
-                does not have exactly three values, an offset is not finite, a gain is negative
-                or not finite, or a layer was rendered at a different sample rate.
+            ValueError: If ``duration_seconds`` or ``sample_rate`` is out of range, the window
+                holds more than 172800000 samples or cannot be allocated, a layer does not have
+                exactly three values, an offset is not finite, a gain is not a finite number from
+                0.0 to 1000.0, or a layer was rendered at a different sample rate.
             TypeError: If ``layers`` is not a sequence of ``(sound, offset_seconds, gain)``
                 tuples, or an offset or gain is not a number.
 

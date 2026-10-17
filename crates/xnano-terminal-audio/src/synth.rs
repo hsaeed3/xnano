@@ -17,6 +17,10 @@ use crate::pitch;
 pub const DEFAULT_SAMPLE_RATE: u32 = 44_100;
 /// The longest window `TerminalSound.mix` renders.
 const MAXIMUM_MIX_SECONDS: f64 = 3_600.0;
+/// The most samples `TerminalSound.mix` renders at once: an hour at 48 kHz, about 690 MB.
+const MAXIMUM_MIX_SAMPLES: usize = 172_800_000;
+/// The largest gain `TerminalSound.mix` accepts for one layer.
+const MAXIMUM_MIX_GAIN: f64 = 1_000.0;
 const MAX_NOTE_MS: u32 = 60_000;
 /// Most effects one render accepts; every reverb or echo also adds a tail.
 pub const MAX_EFFECTS: usize = 32;
@@ -415,7 +419,8 @@ impl PySound {
     /// Mix sounds placed on a timeline into one sound.
     ///
     /// Each layer is `(sound, offset_seconds, gain)`: the sound begins `offset_seconds` into the
-    /// timeline and is multiplied by `gain`. The result is the part of the timeline from
+    /// timeline and is multiplied by `gain`, from 0.0 to 1000.0. The window holds at most
+    /// 172,800,000 samples (an hour at 48 kHz). The result is the part of the timeline from
     /// `start_seconds` for `duration_seconds`, summed and limited to -1.0..1.0.
     #[staticmethod]
     #[pyo3(signature = (layers, *, duration_seconds, start_seconds = 0.0, sample_rate = DEFAULT_SAMPLE_RATE))]
@@ -454,6 +459,21 @@ impl PySound {
                  Hz. Pass a longer window."
             )));
         }
+        if length > MAXIMUM_MIX_SAMPLES {
+            return Err(invalid(format!(
+                "duration_seconds={duration_seconds} at {sample_rate} Hz needs {length} samples, but \
+                 TerminalSound.mix renders at most {MAXIMUM_MIX_SAMPLES} samples at once. Shorten \
+                 the window, lower sample_rate, or mix the timeline in pieces with start_seconds."
+            )));
+        }
+        let mut mixed: Vec<f32> = Vec::new();
+        if mixed.try_reserve_exact(length).is_err() {
+            return Err(invalid(format!(
+                "there is not enough memory to mix {length} samples. Shorten duration_seconds, \
+                 lower sample_rate, or mix the timeline in pieces with start_seconds."
+            )));
+        }
+        mixed.resize(length, 0.0);
         let layers = mix_layers(layers)?;
         let rate = f64::from(sample_rate);
         // (samples, index in the output where sample 0 of the layer lands, gain)
@@ -472,16 +492,16 @@ impl PySound {
                      seconds on the timeline."
                 )));
             }
-            if !gain.is_finite() || gain < 0.0 {
+            if !gain.is_finite() || !(0.0..=MAXIMUM_MIX_GAIN).contains(&gain) {
                 return Err(invalid(format!(
-                    "layer {index} has gain={gain}. Use a finite number of 0.0 or more."
+                    "layer {index} has gain={gain:?}. Use a number from 0.0 to {MAXIMUM_MIX_GAIN:?}."
                 )));
             }
             let landing = ((offset_seconds - start_seconds) * rate).round() as i64;
             placed.push((sound.samples, landing, gain as f32));
         }
         let samples = py.detach(move || {
-            let mut mixed = vec![0.0_f32; length];
+            let mut mixed = mixed;
             for (samples, landing, gain) in &placed {
                 let first = (*landing).max(0) as usize;
                 if first >= length {
