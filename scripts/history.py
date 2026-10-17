@@ -2,8 +2,9 @@
 """
 Build ``HISTORY.md`` from the GitHub release notes of every xnano package.
 
-Each release is published by the CI workflow with notes that GitHub generates from the
-pull requests and labels described in ``.github/release.yml``. This script reads those
+Each release is published by the CI workflow with the notes that
+``.github/scripts/release_notes.py`` writes from the pull requests merged since the
+package's previous release (see "Release notes" in ``CONTRIBUTING.md``). This script reads those
 notes with the GitHub command line (``gh``), groups them by package (the part of the tag
 before the ``/``), and writes them newest first. Nothing in ``HISTORY.md`` is written by hand.
 

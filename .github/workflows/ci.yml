@@ -475,7 +475,14 @@ jobs:
     permissions:
       id-token: write
       contents: write
+      pull-requests: read
     steps:
+      # the full history and every tag, to find the pull requests since the previous release
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: false
@@ -497,12 +504,17 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
 
+      - name: Write the release notes
+        run: uv run --script .github/scripts/release_notes.py "$GITHUB_REF_NAME" release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ needs.plan.outputs.package }} ${{ needs.plan.outputs.version }}
           prerelease: ${{ needs.plan.outputs.is_prerelease }}
-          generate_release_notes: true
+          body_path: release-notes.md
           fail_on_unmatched_files: true
           files: dist/*
 
@@ -521,7 +533,14 @@ jobs:
     permissions:
       id-token: write
       contents: write
+      pull-requests: read
     steps:
+      # the full history and every tag, to find the pull requests since the previous release
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: false
@@ -542,11 +561,16 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
 
+      - name: Write the release notes
+        run: uv run --script .github/scripts/release_notes.py "$GITHUB_REF_NAME" release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.ref_name }}
           name: xnano ${{ needs.plan.outputs.version }}
           prerelease: ${{ needs.plan.outputs.is_prerelease }}
-          generate_release_notes: true
+          body_path: release-notes.md
           fail_on_unmatched_files: true
           files: dist/*
