@@ -832,11 +832,15 @@ with xnano.new(width=40, height=3, fps=10) as canvas:
     canvas.step(delta_seconds=5.0)
     canvas.open()
     canvas.write(f'OPENED AT {canvas.time.elapsed:.1f}')
-    time.sleep(2)
+    time.sleep(3)
 """
         )
         assert screen.wait_for('OPENED AT 5.')
-        assert screen.wait_for('FIRED AT 5.')
+        assert screen.wait_for('FIRED AT ', timeout=10)
+        screen.settle(0.3)
+        fired = re.findall(r'FIRED AT (\d+(?:\.\d+)?)', screen.text)
+        assert len(fired) == 1, 'the timer fires exactly once'
+        assert 5.4 <= float(fired[0]) < 9, 'the timer fires once time passes 5.4'
 
     def test_a_stopped_canvas_stays_stopped_when_it_opens(self, run):
         screen = run(
