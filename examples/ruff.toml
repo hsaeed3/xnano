@@ -1,5 +1,0 @@
-# Examples are scripts: their hooks are small named functions, documented by the module text.
-extend = "../pyproject.toml"
-
-[lint]
-extend-ignore = ["D101", "D103"]

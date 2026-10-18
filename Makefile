@@ -162,6 +162,7 @@ clean:
 	rm -rf *.egg-info
 	rm -f .coverage
 	rm -f .coverage.*
+	find . -type f -name '*.profraw' -not -path './.venv/*' -delete
 	rm -f coverage.lcov
 	rm -rf build
 	rm -rf dist
