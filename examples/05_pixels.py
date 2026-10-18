@@ -11,13 +11,12 @@ returns, here a ``Color`` made from a hue. ``pixels[x, y] = color`` (a ``Color``
 import math
 
 import xnano
-from xnano.context import Context
 
 with xnano.open(width=60, height=12) as terminal:
     pixels = terminal.region.half_blocks
 
     @terminal.hook(on='frame')
-    def draw(context: Context) -> None:
+    def draw(context: xnano.Context) -> None:
         time = context.time.elapsed
 
         def color(x: int, y: int) -> xnano.Color:

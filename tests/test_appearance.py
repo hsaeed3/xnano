@@ -275,6 +275,72 @@ class TestBorder:
         canvas.step()
         assert 'italic' in block.core_buffer[0, 0].style.modifiers
 
+    @pytest.mark.parametrize(
+        ('keyword', 'field'),
+        [
+            ('bold', 'is_bold'),
+            ('dim', 'is_dim'),
+            ('italic', 'is_italic'),
+            ('underline', 'is_underlined'),
+            ('blink', 'is_blinking'),
+            ('reverse', 'is_reversed'),
+            ('hidden', 'is_hidden'),
+            ('crossed_out', 'is_crossed_out'),
+        ],
+    )
+    def test_each_text_modifier_is_a_keyword_a_property_and_a_method(
+        self, canvas, keyword, field
+    ):
+        written = canvas.write('x', **{keyword: True})
+        assert getattr(written, field) is True
+        chained = canvas.write('y', x=2)
+        assert getattr(chained, keyword)() is chained
+        canvas.step()
+        assert getattr(chained, field) is True
+        assert keyword in chained.core_buffer[0, 0].style.modifiers
+        getattr(chained, keyword)(False)
+        canvas.step()
+        assert getattr(chained, field) is False
+        assert keyword not in chained.core_buffer[0, 0].style.modifiers
+
+    def test_a_canvas_takes_the_text_modifiers_as_settings_and_properties(self):
+        with new(width=4, height=1, bold=True) as styled:
+            assert styled.is_bold
+            assert styled.italic().blink() is styled
+            assert styled.is_italic and styled.is_blinking
+            styled.is_bold = False
+            assert not styled.is_bold
+
+    def test_a_text_modifier_method_refuses_a_value_that_is_not_a_boolean(self, canvas):
+        label = canvas.write('x')
+        with pytest.raises(TypeError, match='is_bold must be True or False'):
+            label.bold('yes')  # type: ignore[arg-type]
+        assert label.is_bold is False
+
+    def test_the_old_modifier_keywords_are_refused(self, canvas):
+        with pytest.raises(TypeError):
+            canvas.write('x', is_bold=True)  # type: ignore[call-arg]
+        with pytest.raises(TypeError, match="no setting called 'is_bold'"):
+            new(width=4, height=1, is_bold=True)  # type: ignore[call-overload]
+
+    def test_a_color_slot_can_be_set_to_a_random_color_or_shade(self, canvas):
+        import random
+
+        label = canvas.write('hi')
+        random.seed(3)
+        chosen = label.color.fg.random()
+        random.seed(3)
+        assert chosen == Color.random()
+        assert label.color.fg.value == chosen
+        shade = label.color.bg.random('blue')
+        assert label.color.bg.value == shade
+        assert round(shade.to_hsl()[0]) == round(Color('blue').to_hsl()[0])
+        canvas.step()
+        assert label.core_buffer[0, 0].foreground == chosen
+        boxed = canvas.write('box', y=2, border='plain')
+        border = boxed.border.color.random('#ff8800')
+        assert boxed.border.color.value == border
+
     def test_a_border_is_refused_on_a_closed_canvas(self):
         with new(width=6, height=3) as opened:
             label = opened.write('hi')

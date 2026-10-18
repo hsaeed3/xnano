@@ -13,7 +13,6 @@ wait. ``render(format='ansi')`` returns its frame with the colors as escape code
 """
 
 import xnano
-from xnano.context import Context
 from xnano.events import Event
 
 canvas = xnano.new(width=52, height=3, fps=10)
@@ -28,7 +27,7 @@ with xnano.new(width=52, height=1, realtime=True) as running:
     running.write('this canvas runs by itself', foreground='green')
 
     @running.hook(on='tick', after=0.05)
-    def finish(context: Context) -> None:
+    def finish() -> None:
         running.push(Event.key_press('enter'))
 
     running.wait_for_key('enter')
@@ -36,7 +35,7 @@ with xnano.new(width=52, height=1, realtime=True) as running:
 
 
 @canvas.hook(on='frame')
-def show_frame(context: Context) -> None:
+def show_frame(context: xnano.Context) -> None:
     index = context.time.frame
     counter.text = f'frame {index} at {context.time.elapsed:.1f} seconds'
     status.text = (
@@ -47,7 +46,7 @@ def show_frame(context: Context) -> None:
 
 
 @canvas.hook(on='key', keys='space')
-def toggle(context: Context) -> None:
+def toggle(context: xnano.Context) -> None:
     if context.time.is_stopped:
         context.canvas.resume()
     else:
@@ -55,7 +54,7 @@ def toggle(context: Context) -> None:
 
 
 @canvas.hook(on='key', keys='n')
-def step_once(context: Context) -> None:
+def step_once(context: xnano.Context) -> None:
     if context.time.is_stopped:
         context.canvas.step()
 

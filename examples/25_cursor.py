@@ -8,7 +8,6 @@ the top-left cell and ``shape`` changes how it looks. Press the arrow keys to mo
 """
 
 import xnano
-from xnano.context import Context
 from xnano.styles import Style
 
 SHAPES = ('block', 'bar', 'underline')
@@ -31,32 +30,32 @@ with xnano.open(width=50, height=8) as terminal:
     show()
 
     @terminal.hook(on='key', keys='up')
-    def move_up(context: Context) -> None:
+    def move_up() -> None:
         cursor.up()
         show()
 
     @terminal.hook(on='key', keys='down')
-    def move_down(context: Context) -> None:
+    def move_down() -> None:
         cursor.down()
         show()
 
     @terminal.hook(on='key', keys='left')
-    def move_left(context: Context) -> None:
+    def move_left() -> None:
         cursor.left()
         show()
 
     @terminal.hook(on='key', keys='right')
-    def move_right(context: Context) -> None:
+    def move_right() -> None:
         cursor.right()
         show()
 
     @terminal.hook(on='key', keys='h')
-    def go_home(context: Context) -> None:
+    def go_home() -> None:
         cursor.home()
         show()
 
     @terminal.hook(on='key', keys='s')
-    def change_shape(context: Context) -> None:
+    def change_shape() -> None:
         cursor.shape = SHAPES[(SHAPES.index(cursor.shape or 'block') + 1) % len(SHAPES)]
         show()
 

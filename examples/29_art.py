@@ -17,7 +17,6 @@ the arrow keys to walk and ``q`` to quit.
 import pathlib
 
 import xnano
-from xnano.context import Context
 
 PICTURE = pathlib.Path(__file__).parent / 'assets' / 'mountain-dusk.png'
 
@@ -72,19 +71,19 @@ with xnano.open(width=58, height=13) as terminal:
         say('walking' if moved != (0.0, 0.0) else 'blocked: a wall is in the way')
 
     @terminal.hook(on='key', keys='left')
-    def left(context: Context) -> None:
+    def left() -> None:
         walk(-2, 0)
 
     @terminal.hook(on='key', keys='right')
-    def right(context: Context) -> None:
+    def right() -> None:
         walk(2, 0)
 
     @terminal.hook(on='key', keys='up')
-    def up(context: Context) -> None:
+    def up() -> None:
         walk(0, -2)
 
     @terminal.hook(on='key', keys='down')
-    def down(context: Context) -> None:
+    def down() -> None:
         walk(0, 2)
 
     terminal.run(quit_on='q')

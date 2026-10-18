@@ -8,7 +8,6 @@ by itself, or press ``q`` to stop early.
 """
 
 import xnano
-from xnano.context import Context
 from xnano.widgets import LineGauge
 
 STEPS = 20
@@ -31,7 +30,7 @@ def main() -> None:
         terminal.write(bar, y=1, width=40, height=1)
 
         @terminal.hook(on='tick', every=SECONDS_PER_STEP)
-        def work(context: Context) -> None:
+        def work(context: xnano.Context) -> None:
             job.done += 1
             percent = job.done * 100 // STEPS
             bar.ratio = job.done / STEPS

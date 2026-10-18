@@ -288,6 +288,35 @@ impl PyColor {
         })
     }
 
+    /// A random true color, or a random shade of ``base``: its hue and saturation with any
+    /// lightness from 15 to 85 percent. Draws from Python's ``random`` module, so
+    /// ``random.seed`` repeats the same colors.
+    #[classmethod]
+    #[pyo3(signature = (base = None))]
+    fn random(
+        _cls: &Bound<'_, pyo3::types::PyType>,
+        py: Python<'_>,
+        base: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Self> {
+        let random = py.import("random")?;
+        let Some(base) = base else {
+            let mut channels = [0_u8; 3];
+            for channel in &mut channels {
+                *channel = random.call_method1("randint", (0, 255))?.extract()?;
+            }
+            return Ok(Self {
+                inner: Color::Rgb(channels[0], channels[1], channels[2]),
+            });
+        };
+        let base = color_arg(base)?;
+        convertible(base)?;
+        let (hue, saturation, _) = color_to_hsl(&base);
+        let lightness: f32 = random.call_method1("uniform", (15.0, 85.0))?.extract()?;
+        Ok(Self {
+            inner: color_from_hsl(hue, saturation, lightness),
+        })
+    }
+
     /// Hue (degrees), saturation and lightness (percent); named colors use their standard values.
     #[allow(clippy::wrong_self_convention)]
     fn to_hsl(&self) -> PyResult<(f32, f32, f32)> {

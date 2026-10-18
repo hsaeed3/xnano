@@ -175,7 +175,7 @@ class TestImage:
 
 class TestTypedStyle:
     def test_text_takes_its_style_as_parameters(self, canvas):
-        canvas.write('hi', foreground='red', is_bold=True)
+        canvas.write('hi', foreground='red', bold=True)
         cell = cell_at(canvas, 0, 0)
         assert cell.symbol == 'h'
         assert cell.foreground.to_rgb() is not None or cell.foreground is not None

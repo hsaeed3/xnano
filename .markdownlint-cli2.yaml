@@ -1,0 +1,4 @@
+# examples/README.md is written by scripts/capture_examples.py and holds terminal screens
+# wider than any line length a hand-written page keeps to.
+ignores:
+  - examples/README.md

@@ -257,10 +257,12 @@ class TestPlayOnTheActiveCanvas:
         assert peak_after(canvas, 0.5) > 0.0
 
     def test_play_goes_to_the_innermost_canvas(self):
-        with xnano.new(width=4, height=1) as outer, xnano.new(width=4, height=1) as inner:
+        outer = xnano.new(width=4, height=1)
+        with xnano.new(width=4, height=1) as inner:
             xnano.play('C4')
             assert len(inner.audio._recordings) == 1
             assert outer.audio._recordings == []
+        outer.close()
 
 
 class FakePlayer:

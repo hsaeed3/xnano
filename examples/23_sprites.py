@@ -9,7 +9,6 @@ for the next frame on a timer. Press ``q`` to quit.
 """
 
 import xnano
-from xnano.context import Context
 from xnano.styles import Style
 
 PALETTE = (
@@ -103,7 +102,7 @@ def main() -> None:
         frames = {'index': 0}
 
         @terminal.hook(on='tick', every=1 / 3)
-        def animate(context: Context) -> None:
+        def animate() -> None:
             frames['index'] = (frames['index'] + 1) % len(SLIME_FRAMES)
             SLIME.replace(SLIME_FRAMES[frames['index']], PALETTE)
 

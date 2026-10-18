@@ -13,7 +13,6 @@ The tune is an original piece in the style of an old game's town theme.
 """
 
 import xnano
-from xnano.context import Context
 
 # Eight bars of four beats each, in E minor.
 LEAD = """
@@ -58,17 +57,17 @@ with xnano.open(width=60, height=6) as terminal:
     play_song()
 
     @terminal.hook(on='beat', every=32)
-    def repeat(context: Context) -> None:
+    def repeat() -> None:
         play_song()
 
     @terminal.hook(on='beat', every=1)
-    def show_the_beat(context: Context) -> None:
+    def show_the_beat(context: xnano.Context) -> None:
         beats_played = int(context.time.elapsed * terminal.bpm / 60)
         bar, beat = divmod(beats_played % 32, 4)
         where.text = f'bar {bar + 1}   beat {beat + 1}'
 
     @terminal.hook(on='key', keys='space')
-    def stop_or_start_time(context: Context) -> None:
+    def stop_or_start_time() -> None:
         if terminal.time.is_stopped:
             terminal.time.resume()
         else:

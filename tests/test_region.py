@@ -501,8 +501,8 @@ class TestBoxArgumentsTeach:
     def test_a_color_modifier_or_title_of_the_wrong_type_is_refused(self):
         with pytest.raises((TypeError, ValueError), match='foreground must be a color'):
             xnano.box(4, 2, foreground='nocolor')
-        with pytest.raises(TypeError, match='is_bold must be True or False'):
-            xnano.box(4, 2, is_bold='x')  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='bold must be True or False'):
+            xnano.box(4, 2, bold='x')  # type: ignore[arg-type]
         with pytest.raises(TypeError, match='title must be text'):
             xnano.box(4, 2, title=5)  # type: ignore[arg-type]
 

@@ -18,7 +18,6 @@ import random
 
 import xnano
 from xnano.art import Art
-from xnano.context import Context
 from xnano.expressions import ParentHeight
 
 WORLD_WIDTH = 480
@@ -259,19 +258,19 @@ def main() -> None:
             status_line.text = status
 
         @terminal.hook(on='tick', every=1 / 60)
-        def simulate(context: Context) -> None:
+        def simulate() -> None:
             hero.step(1 / 60, terminal.input.direction())
             show_status()
 
         @terminal.hook(on='key', keys='space')
-        def toggle_time(context: Context) -> None:
+        def toggle_time() -> None:
             if terminal.time.is_stopped:
                 terminal.time.resume()
             else:
                 terminal.time.stop()
             show_status()  # updates wait while time is stopped
 
-        def walk_toward_pointer(context: Context) -> None:
+        def walk_toward_pointer(context: xnano.Context) -> None:
             position = context.mouse.position
             if position is not None and position.y < terminal.height - 1:
                 cell = view.local(position)

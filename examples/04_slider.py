@@ -9,7 +9,6 @@ quit.
 """
 
 import xnano
-from xnano.context import Context
 from xnano.types import HookGenerator
 
 with xnano.open(width=40, height=3, mouse=True) as terminal:
@@ -18,7 +17,7 @@ with xnano.open(width=40, height=3, mouse=True) as terminal:
     heading = terminal.write('volume   0%   (drag the block, or press left and right)')
 
     @thumb.hook(on='drag')
-    def slide(context: Context) -> HookGenerator:
+    def slide(context: xnano.Context) -> HookGenerator:
         while context.mouse.is_down:
             pointer = context.mouse.position
             if pointer is not None:
@@ -26,16 +25,16 @@ with xnano.open(width=40, height=3, mouse=True) as terminal:
             context = yield
 
     @terminal.hook(on='frame')
-    def show_value(context: Context) -> None:
+    def show_value() -> None:
         percent = round(thumb.x / 39 * 100)
         heading.text = f'volume {percent:>3}%   (drag the block, or press left and right)'
 
     @terminal.hook(on='key', keys='left')
-    def lower(context: Context) -> None:
+    def lower() -> None:
         thumb.left(2)
 
     @terminal.hook(on='key', keys='right')
-    def raise_volume(context: Context) -> None:
+    def raise_volume() -> None:
         thumb.right(2)
 
     terminal.run(quit_on='q')

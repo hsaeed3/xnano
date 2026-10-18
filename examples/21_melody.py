@@ -12,7 +12,6 @@ here. Without a sound device the screen still keeps time.
 """
 
 import xnano
-from xnano.context import Context
 
 TUNE = 'E4:0.5 E4:0.5 rest:0.5 E4:0.5 rest:0.5 C4:0.5 E4 G4:2 rest G3:2'
 
@@ -44,7 +43,7 @@ def main() -> None:
         show()
 
         @terminal.hook(on='beat', every=1)
-        def metronome(context: Context) -> None:
+        def metronome() -> None:
             beats.count += 1
             show()
             if terminal.audio.is_available:
@@ -55,22 +54,22 @@ def main() -> None:
                 )
 
         @terminal.hook(on='key', keys='m')
-        def play_tune(context: Context) -> None:
+        def play_tune() -> None:
             if terminal.audio.is_available:
                 terminal.play(TUNE, instrument='bell')
 
         @terminal.hook(on='key', keys='up')
-        def faster(context: Context) -> None:
+        def faster() -> None:
             terminal.bpm = min(240, terminal.bpm + 10)
             show()
 
         @terminal.hook(on='key', keys='down')
-        def slower(context: Context) -> None:
+        def slower() -> None:
             terminal.bpm = max(40, terminal.bpm - 10)
             show()
 
         @terminal.hook(on='key', keys='space')
-        def toggle_time(context: Context) -> None:
+        def toggle_time() -> None:
             if terminal.time.is_stopped:
                 terminal.time.resume()
             else:

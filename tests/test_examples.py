@@ -770,3 +770,24 @@ def test_effects_start_on_a_placement_from_a_key(example):
     assert screen.wait_for('effects: none')
     screen.press('q')
     assert screen.finish() == 0
+
+
+def test_layout_stacks_in_write_order_and_text_stops_at_the_edges(example):
+    screen = example('33_layout.py', rows=14, columns=70)
+    assert screen.wait_for('Press any key to change the color of this text')
+    assert screen.wait_for('Use the arrow keys to move this text')
+    top = screen.find('Press any key')
+    movable = screen.find('Use the arrow keys')
+    assert top is not None and movable is not None
+    assert top[1] == 2, 'the text written first is centered in the top half'
+    assert movable[1] == 7, 'the canvas written second takes the bottom half'
+    for _ in range(6):
+        screen.send('\x1b[A')
+    for _ in range(30):
+        screen.send('\x1b[D')
+    assert screen.wait_until(lambda: screen.find('Use the arrow keys') == (1, 6))
+    before = screen.cell(top[0], top[1]).fg
+    screen.press('a')
+    assert screen.wait_until(lambda: screen.cell(top[0], top[1]).fg != before)
+    screen.press('q')
+    assert screen.finish() == 0

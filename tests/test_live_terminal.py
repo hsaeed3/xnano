@@ -1148,9 +1148,9 @@ with xnano.open(width=40, height=2) as terminal:
     ):
         screen = run(
             """
+child = xnano.new(width=8, height=2)
+child.hook(on='mouse')(lambda context: None)
 with xnano.open(width=30, height=3, mouse=False) as terminal:
-    child = xnano.new(width=8, height=2)
-    child.hook(on='mouse')(lambda context: None)
     try:
         terminal.write(child)
     except xnano.errors.TerminalError as error:
@@ -1159,6 +1159,66 @@ with xnano.open(width=30, height=3, mouse=False) as terminal:
 """
         )
         assert screen.wait_for('REFUSED')
+
+    def test_a_canvas_created_in_the_terminal_block_hears_keys_and_shows_once_written(
+        self, run
+    ):
+        screen = run(
+            """
+with xnano.open(width=30, height=4) as terminal:
+    with xnano.new(height='50%') as canvas:
+        canvas.write('arrows')
+    terminal.write('HIDDEN' if 'arrows' in terminal.render() else 'NOT YET', y=3)
+    terminal.write(canvas)
+
+    @canvas.hook(on='key')
+    def move(context):
+        if context.keyboard.key == 'down':
+            canvas.down()
+            terminal.write('MOVED', x=10, y=3)
+
+    terminal.run(quit_on='q')
+"""
+        )
+        assert screen.wait_for('NOT YET')
+        assert screen.wait_for('arrows')
+        before = screen.find('arrows')
+        assert before is not None
+        screen.send('\x1b[B')
+        assert screen.wait_for('MOVED')
+        assert screen.wait_until(
+            lambda: screen.find('arrows') == (before[0], before[1] + 1)
+        )
+        screen.send('q')
+        assert screen.finish() == 0
+
+    def test_terminal_content_written_in_a_canvas_block_moves_by_its_hooks(self, run):
+        screen = run(
+            """
+with xnano.open(width=30, height=6) as terminal:
+    terminal.write('footer', y=5)
+    with xnano.new(height='50%') as canvas:
+        movable = terminal.write('arrows', y='center')
+
+    @canvas.hook(on='key')
+    def move(context):
+        if context.keyboard.key == 'down':
+            movable.down()
+            terminal.write('MOVED', x=10, y=5)
+
+    terminal.run(quit_on='q')
+"""
+        )
+        assert screen.wait_for('footer')
+        before = screen.find('arrows')
+        assert before is not None
+        screen.send('\x1b[B')
+        assert screen.wait_for('MOVED')
+        assert screen.wait_until(
+            lambda: screen.find('arrows') == (before[0], before[1] + 1)
+        )
+        screen.send('q')
+        assert screen.finish() == 0
 
     def test_a_child_canvas_draws_inside_its_parent(self, run):
         screen = run(
@@ -1309,13 +1369,12 @@ with xnano.open(width=60, height=3) as terminal:
         screen = run(
             """
 import xnano.errors
-with xnano.open(width=40, height=3) as terminal:
-    with xnano.new(width=10, height=1) as other:
-        other.write('kept')
-        try:
-            other.open()
-        except xnano.errors.TerminalAlreadyOpenError:
-            terminal.write('REFUSED ' + other.render())
+with xnano.new(width=10, height=1) as other, xnano.open(width=40, height=3) as terminal:
+    other.write('kept')
+    try:
+        other.open()
+    except xnano.errors.TerminalAlreadyOpenError:
+        terminal.write('REFUSED ' + other.render())
     time.sleep(1)
 """
         )

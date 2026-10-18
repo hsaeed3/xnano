@@ -9,7 +9,6 @@ Press ``q`` to quit.
 import math
 
 import xnano
-from xnano.context import Context
 from xnano.widgets import Block, Canvas, CanvasCircle, CanvasLabel, CanvasPoints
 
 
@@ -29,7 +28,7 @@ def main() -> None:
         ]
 
         @terminal.hook(on='frame')
-        def draw(context: Context) -> None:
+        def draw(context: xnano.Context) -> None:
             angle = context.time.elapsed
             canvas.clear_shapes()
             canvas.extend_shapes(

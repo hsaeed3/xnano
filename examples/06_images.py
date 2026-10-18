@@ -17,7 +17,6 @@ import sys
 
 import xnano
 from xnano.art import Art
-from xnano.context import Context
 from xnano.image import TerminalImage
 from xnano.placement import Placement
 
@@ -119,32 +118,32 @@ def main() -> None:
             status_line.text = f'x {viewer.left} y {viewer.top} zoom {viewer.zoom}x'
 
         @terminal.hook(on='key', keys='left')
-        def pan_left(context: Context) -> None:
+        def pan_left() -> None:
             viewer.pan(-1, 0)
             show_status()
 
         @terminal.hook(on='key', keys='right')
-        def pan_right(context: Context) -> None:
+        def pan_right() -> None:
             viewer.pan(1, 0)
             show_status()
 
         @terminal.hook(on='key', keys='up')
-        def pan_up(context: Context) -> None:
+        def pan_up() -> None:
             viewer.pan(0, -1)
             show_status()
 
         @terminal.hook(on='key', keys='down')
-        def pan_down(context: Context) -> None:
+        def pan_down() -> None:
             viewer.pan(0, 1)
             show_status()
 
         @terminal.hook(on='key', keys=['+', '='])
-        def zoom_in(context: Context) -> None:
+        def zoom_in() -> None:
             viewer.zoom_by(1)
             show_status()
 
         @terminal.hook(on='key', keys='-')
-        def zoom_out(context: Context) -> None:
+        def zoom_out() -> None:
             viewer.zoom_by(-1)
             show_status()
 

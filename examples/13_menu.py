@@ -9,7 +9,6 @@ turns it into an expression the list follows, so the hooks only change a number.
 from dataclasses import dataclass
 
 import xnano
-from xnano.context import Context
 from xnano.styles import Style
 from xnano.widgets import Block, ItemList
 
@@ -51,17 +50,17 @@ def main() -> None:
         result = terminal.write('', y=6)
 
         @terminal.hook(on='key', keys='up')
-        def previous(context: Context[None, Menu]) -> None:
+        def previous(context: xnano.Context[None, Menu]) -> None:
             context.root.state.selected = max(0, context.root.state.selected - 1)
 
         @terminal.hook(on='key', keys='down')
-        def following(context: Context[None, Menu]) -> None:
+        def following(context: xnano.Context[None, Menu]) -> None:
             context.root.state.selected = min(
                 len(CHOICES) - 1, context.root.state.selected + 1
             )
 
         @terminal.hook(on='key', keys='enter')
-        def choose(context: Context[None, Menu]) -> None:
+        def choose(context: xnano.Context[None, Menu]) -> None:
             context.root.state.chosen = CHOICES[context.root.state.selected]
             if context.root.state.chosen == 'Quit':
                 context.canvas.quit()

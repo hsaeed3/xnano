@@ -18,7 +18,6 @@ scroll in the box, press ``z`` to push a scroll step with the keyboard, ``r`` to
 """
 
 import xnano
-from xnano.context import Context
 from xnano.expressions import Keyboard, Mouse, Scroll
 from xnano.types import HookGenerator
 
@@ -32,7 +31,7 @@ with xnano.new(width=56, height=10) as canvas:
     dragging = canvas.write('drag none', y=9)
 
     @panel.hook(on='drag', when=Mouse.button == 'left')
-    def drag(context: Context) -> HookGenerator:
+    def drag(context: xnano.Context) -> HookGenerator:
         state = context.root.state
         while context.mouse.is_down:
             pointer = context.mouse.position
@@ -48,14 +47,14 @@ with xnano.new(width=56, height=10) as canvas:
         state.push('held', False)
 
     @panel.hook(on='scroll', when=Scroll.y != 0)
-    def scroll(context: Context) -> None:
+    def scroll(context: xnano.Context) -> None:
         state = context.root.state
         zoom = state.get('zoom', 0)
         if isinstance(zoom, int):
             state.push('zoom', zoom + context.scroll.y)
 
     @canvas.hook(on='state')
-    def show(context: Context) -> None:
+    def show(context: xnano.Context) -> None:
         state = context.root.state
         readout.text = f'zoom {state.get("zoom", 0):>3}'
         held = 'held' if state.get('held', False) else 'free'
@@ -63,12 +62,12 @@ with xnano.new(width=56, height=10) as canvas:
         dragging.text = f'drag {state.get("drag", "none")}   left {held}   moves {moves}'
 
     @canvas.hook(on='key', when=Keyboard.key == 'z')
-    def push_a_step(context: Context) -> None:
+    def push_a_step(context: xnano.Context) -> None:
         context.mouse.push((panel.x + 3, panel.y + 2))
         context.scroll.push((0, 1))
 
     @canvas.hook(on='key', when="keyboard.key == 'r'")
-    def reset(context: Context) -> None:
+    def reset(context: xnano.Context) -> None:
         context.root.state.push('zoom', 0)
         context.root.state.push('drag', 'none')
         panel.state.push('moves', 0)
