@@ -1,9 +1,7 @@
 """
 xnano
 
-Terminal interfaces that you describe in a few lines. Create a canvas with ``new()`` to draw
-off the screen, or with ``open()`` to draw in your terminal, write text, widgets, art, images
-and other canvases onto it, and react to the keyboard, the mouse, time and state with hooks.
+An extremely nano python terminal experience; built on [ratatui](https://ratatui.rs/).
 """
 
 from xnano import symbols as symbols
