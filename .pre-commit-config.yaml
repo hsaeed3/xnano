@@ -63,10 +63,10 @@ repos:
         types_or: [python, pyi, rust]
         language: system
         pass_filenames: false
-      # `make check` runs lint-all, spellcheck, typecheck and test-coverage across every package
+      # Formatting, lints, spelling and types across every package; the test suites run in CI
       - id: check
-        name: Check (make check)
-        entry: make check
+        name: Check (format, lint, spelling and types)
+        entry: make lint-all spellcheck typecheck
         language: system
         pass_filenames: false
         always_run: true
