@@ -80,10 +80,16 @@ from xnano._values import (
     Axis as Axis,
 )
 from xnano._values import (
+    CanvasLayout as CanvasLayout,
+)
+from xnano._values import (
     ColorValue as ColorValue,
 )
 from xnano._values import (
     Content as Content,
+)
+from xnano._values import (
+    EdgeBehavior as EdgeBehavior,
 )
 from xnano._values import (
     HeldMouseButtonName as HeldMouseButtonName,
@@ -144,9 +150,11 @@ __all__ = [
     'Axis',
     'BorderKind',
     'CanvasAppearanceArguments',
+    'CanvasLayout',
     'CanvasSettings',
     'ColorValue',
     'Content',
+    'EdgeBehavior',
     'EffectController',
     'EffectCustomization',
     'GateSettings',
@@ -252,14 +260,14 @@ class CanvasAppearanceArguments(TypedDict, total=False):
         style: A ready-made style that the colors and modifiers are applied over.
         foreground: The color of the cells no content covers.
         background: The color behind the cells no content covers.
-        is_bold: Whether the canvas's own cells are bold.
-        is_dim: Whether they are dimmed.
-        is_italic: Whether they are italic.
-        is_underlined: Whether they are underlined.
-        is_blinking: Whether they blink.
-        is_reversed: Whether foreground and background are swapped.
-        is_hidden: Whether they are hidden.
-        is_crossed_out: Whether they are struck through.
+        bold: Whether the canvas's own cells are bold.
+        dim: Whether they are dimmed.
+        italic: Whether they are italic.
+        underline: Whether they are underlined.
+        blink: Whether they blink.
+        reverse: Whether foreground and background are swapped.
+        hidden: Whether they are hidden.
+        crossed_out: Whether they are struck through.
         border: The kind of border around the canvas, ``True`` for ``'plain'``, ``False`` for none.
         border_style: The style of the border.
         padding: Space between the border and what is written into the canvas.
@@ -272,21 +280,21 @@ class CanvasAppearanceArguments(TypedDict, total=False):
     """The foreground color."""
     background: ColorValue | None
     """The background color."""
-    is_bold: bool
+    bold: bool
     """Whether the cells are bold."""
-    is_dim: bool
+    dim: bool
     """Whether the cells are dimmed."""
-    is_italic: bool
+    italic: bool
     """Whether the cells are italic."""
-    is_underlined: bool
+    underline: bool
     """Whether the cells are underlined."""
-    is_blinking: bool
+    blink: bool
     """Whether the cells blink."""
-    is_reversed: bool
+    reverse: bool
     """Whether foreground and background are swapped."""
-    is_hidden: bool
+    hidden: bool
     """Whether the cells are hidden."""
-    is_crossed_out: bool
+    crossed_out: bool
     """Whether the cells are struck through."""
     border: _core.BorderKind | bool | None
     """The kind of border; ``True`` is ``'plain'`` and ``False`` is none."""
@@ -324,7 +332,17 @@ class CanvasSettings(GateSettings, CanvasAppearanceArguments, total=False):
             ``alternate_screen``.
         background: See [`CanvasAppearanceArguments`][xnano.types.CanvasAppearanceArguments];
             the same for the other appearance keys.
+        layout: How the canvas places what is written on it; see
+            [`CanvasLayout`][xnano.types.CanvasLayout]. ``'overlay'`` when left out.
+        edges: What content written on the canvas does at the edges of its area, unless it
+            is given its own; see [`EdgeBehavior`][xnano.types.EdgeBehavior]. ``'clip'``
+            when left out.
     """
+
+    layout: CanvasLayout
+    """How the canvas places what is written on it."""
+    edges: EdgeBehavior
+    """What content does at the edges of its area."""
 
 
 class OpenSettings(CanvasSettings, total=False):

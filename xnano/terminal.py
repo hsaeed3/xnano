@@ -17,9 +17,9 @@ from xnano.canvas import (
     Canvas,
     _appearance_with_content_error,
     _check_size,
+    _create,
     _is_whole_window,
     _split_settings,
-    new,
 )
 from xnano.errors import TerminalAlreadyOpenError
 
@@ -286,13 +286,13 @@ def open(
             'remove width.'
         )
     # Checked here as well as in new(), so that an error names open().
-    own = {'fps', 'bpm', 'effects', 'deps', 'state'}
+    own = {'fps', 'bpm', 'effects', 'deps', 'state', 'layout', 'edges'}
     _, appearance = _split_settings(
         'open', {name: value for name, value in settings.items() if name not in own}
     )
     if canvas_or_content is not None and appearance:
         raise _appearance_with_content_error('open', appearance)
-    canvas: Canvas[DepsT, StateT] = new(
+    canvas: Canvas[DepsT, StateT] = _create(
         canvas_or_content,  # type: ignore[arg-type]
         title=title,
         width=width,

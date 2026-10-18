@@ -14,7 +14,6 @@ clear it with ``context.fx.clear()``, and ``q`` to quit.
 """
 
 import xnano
-from xnano.context import Context
 
 BORDERS = ('plain', 'rounded', 'double', 'thick')
 COLORS = ('white', 'yellow', 'green', 'cyan', 'magenta')
@@ -43,37 +42,37 @@ with xnano.open(width=70, height=12) as terminal:
     describe()
 
     @terminal.hook(on='key', keys='b')
-    def next_border(context: Context) -> None:
+    def next_border() -> None:
         card.border = BORDERS[(BORDERS.index(card.border.kind) + 1) % len(BORDERS)]
         card.border.color = 'cyan'
         describe()
 
     @terminal.hook(on='key', keys='t')
-    def double_top(context: Context) -> None:
+    def double_top() -> None:
         card.border.top = 'double'
 
     @terminal.hook(on='key', keys='c')
-    def next_color(context: Context) -> None:
+    def next_color() -> None:
         chosen[0] = (chosen[0] + 1) % len(COLORS)
         card.color.fg = COLORS[chosen[0]]
         describe()
 
     @terminal.hook(on='key', keys='d')
-    def darker(context: Context) -> None:
+    def darker() -> None:
         card.color.bg.darken(0.15)
 
     @terminal.hook(on='key', keys='l')
-    def lighter(context: Context) -> None:
+    def lighter() -> None:
         card.color.bg.lighten(0.15)
 
     @terminal.hook(on='key', keys='p')
-    def wider(context: Context) -> None:
+    def wider() -> None:
         card.padding.left = card.padding.left + 1
         card.padding.right = card.padding.right + 1
         describe()
 
     @terminal.hook(on='key', keys='f')
-    def fade(context: Context) -> None:
+    def fade(context: xnano.Context) -> None:
         if is_fading[0]:
             context.fx.clear()
         else:

@@ -394,12 +394,12 @@ class TestRecording:
         assert manual.inspect(manual.audio.beat) == pytest.approx(2.0)
 
     def test_a_formula_that_reads_the_beat_still_draws_in_the_outer_canvas(self):
+        child = xnano.new(width=10, height=2)
+        child.audio.start()
+        dot = child.write('o')
+        dot.x = child.audio.beat * 4
+        child.step(delta_seconds=0.5)
         with xnano.new(width=20, height=4) as outer:
-            child = xnano.new(width=10, height=2)
-            child.audio.start()
-            dot = child.write('o')
-            dot.x = child.audio.beat * 4
-            child.step(delta_seconds=0.5)
             outer.write(child)
             outer.step(delta_seconds=0.5)
             assert dot.x == 0

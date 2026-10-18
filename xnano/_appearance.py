@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+from collections.abc import Mapping
 from typing import Final, TypeAlias, TypedDict, cast
 
 import xnano_core as _core
@@ -16,6 +17,7 @@ from xnano._values import ColorValue, Percentage
 __all__ = [
     'APPEARANCE_NAMES',
     'INHERIT',
+    'MODIFIER_FIELDS',
     'Appearance',
     'BorderSideSpecification',
     'Spacing',
@@ -27,14 +29,14 @@ APPEARANCE_NAMES = frozenset(
     {
         'foreground',
         'background',
-        'is_bold',
-        'is_dim',
-        'is_italic',
-        'is_underlined',
-        'is_blinking',
-        'is_reversed',
-        'is_hidden',
-        'is_crossed_out',
+        'bold',
+        'dim',
+        'italic',
+        'underline',
+        'blink',
+        'reverse',
+        'hidden',
+        'crossed_out',
         'style',
         'title',
         'border',
@@ -43,6 +45,42 @@ APPEARANCE_NAMES = frozenset(
         'margin',
     }
 )
+
+MODIFIER_FIELDS: Final = {
+    'bold': 'is_bold',
+    'dim': 'is_dim',
+    'italic': 'is_italic',
+    'underline': 'is_underlined',
+    'blink': 'is_blinking',
+    'reverse': 'is_reversed',
+    'hidden': 'is_hidden',
+    'crossed_out': 'is_crossed_out',
+}
+"""The text modifier keywords of ``write``, ``new`` and ``open``, and the property each sets."""
+
+
+def appearance_fields(appearance: Mapping[str, object]) -> dict[str, object]:
+    """
+    Rename the text modifier keywords of an appearance to the fields of ``Appearance``.
+
+    Raises:
+        TypeError: A text modifier keyword is not ``True`` or ``False``.
+    """
+    fields: dict[str, object] = {}
+    for name, value in appearance.items():
+        field = MODIFIER_FIELDS.get(name)
+        if field is None:
+            fields[name] = value
+            continue
+        if not isinstance(value, bool):
+            raise TypeError(
+                f'{name} must be True or False, but got {value!r}. Pass {name}=True to turn '
+                f'it on, or {name}=False to turn it off.'
+            )
+        fields[field] = value
+    return fields
+
+
 """The names ``write`` and ``new`` read as appearance instead of buffer attributes."""
 
 
@@ -292,8 +330,8 @@ class Appearance:
         if name in _BOOLEAN_FIELDS:
             if not isinstance(value, bool):
                 raise TypeError(
-                    f'{name} must be True or False, but got {value!r}. Pass {name}=True '
-                    f'to turn it on, or {name}=False to turn it off.'
+                    f'{name} must be True or False, but got {value!r}. Set it to True to '
+                    f'turn it on, or to False to turn it off.'
                 )
         elif name in _STYLE_FIELDS:
             if value is not None and not isinstance(

@@ -22,6 +22,7 @@ from xnano._appearance import (
     MOST_CELLS,
     Appearance,
     Spacing,
+    appearance_fields,
     check_border_kind,
 )
 from xnano._axes import check_point, to_rgb
@@ -1031,7 +1032,7 @@ def _standalone_look(
             f'{function_name}() has no setting called {unknown[0]!r}. The look of a region '
             f'is {", ".join(sorted(APPEARANCE_NAMES))}.{hint}'
         )
-    settings = dict(appearance)
+    settings = appearance_fields(appearance)
     check_border_kind(settings.get('border'))
     border = settings.get('border', 'plain' if default_border else None)
     if border is True:

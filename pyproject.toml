@@ -57,9 +57,9 @@ classifiers = [
 # [pyproject.toml](https://github.com/pydantic/monty/blob/main/packages/pydantic-monty/pyproject.toml),
 #
 # [! AUTO-VERSIONING - DO NOT EDIT THIS BY HAND]
-version = '2.0.0b4'
+version = '2.0.0'
 dependencies = [
-    "xnano-core>=2.0.0b4",
+    "xnano-core>=2.0.0",
 ]
 
 [project.optional-dependencies]

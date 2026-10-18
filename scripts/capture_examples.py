@@ -177,6 +177,13 @@ SPECS: dict[str, tuple[int, int, float, tuple[str, ...], str]] = {
         ("a", "e"),
         "Named effects started on a placement from a key, in a canvas that fills the window.",
     ),
+    "33_layout.py": (
+        14,
+        70,
+        1.0,
+        ("down", "left"),
+        "A terminal that stacks what is written in order, with text that stops at the edges.",
+    ),
     "19_progress.py": (
         6,
         50,

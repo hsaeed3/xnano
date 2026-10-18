@@ -24,7 +24,6 @@ from typing import (
     Final,
     Generic,
     Literal,
-    NoReturn,
     cast,
     overload,
 )
@@ -52,10 +51,17 @@ from xnano._appearance import (
     MOST_CELLS,
     Appearance,
     Spacing,
+    appearance_fields,
     check_border_kind,
 )
 from xnano._attributes import refuse_unknown_keywords
-from xnano._axes import check_axis, check_layer, check_point
+from xnano._axes import (
+    check_axis,
+    check_edges,
+    check_layer,
+    check_layout,
+    check_point,
+)
 from xnano._customize import (
     Customization,
     apply_effects,
@@ -72,15 +78,19 @@ from xnano._values import (
     RGB,
     Axis,
     AxisName,
+    CanvasLayout,
     ColorValue,
     Content,
     DepsT,
+    EdgeBehavior,
     KeyName,
     Percentage,
     StateT,
     ValueT,
+    WrittenDepsT,
+    WrittenStateT,
 )
-from xnano.appearance import _Looked
+from xnano.appearance import _Looked, _TextModifiers
 from xnano.components import _as_component, _attach_component, _play_component
 from xnano.context import Frame, ReadLog, Update
 from xnano.cursor import Cursor
@@ -147,6 +157,24 @@ def _current_canvas() -> Canvas[object, object] | None:
 
 def _make_current(canvas: Canvas[object, object]) -> None:
     _active_canvas.set((weakref.ref(canvas),))
+
+
+_enclosing_canvases: contextvars.ContextVar[
+    tuple[weakref.ref[Canvas[object, object]], ...]
+] = contextvars.ContextVar('xnano.enclosing_canvases', default=())
+"""Weak references to the canvases whose ``with`` block is running, innermost first.
+
+``new()`` writes the canvas it creates into the innermost one that is still running.
+"""
+
+
+def _enclosing_canvas() -> Canvas[object, object] | None:
+    """Return the innermost running canvas whose ``with`` block the caller is inside."""
+    for reference in _enclosing_canvases.get():
+        canvas = reference()
+        if canvas is not None and canvas.is_running:
+            return canvas
+    return None
 
 
 class _Unset:
@@ -229,8 +257,8 @@ def _text_content(
 
 
 def _plain_appearance(appearance: Mapping[str, object]) -> dict[str, object]:
-    """The appearance keywords with ``border=False`` and ``border=True`` read as kinds."""
-    plain = dict(appearance)
+    """The appearance keywords as ``Appearance`` fields, with ``border=True`` and ``False`` as kinds."""
+    plain = appearance_fields(appearance)
     if plain.get('border') is True:
         plain['border'] = 'plain'
     elif plain.get('border') is False:
@@ -353,20 +381,56 @@ def _size_in_cells(
     value: int | str | None,
     along: Literal['columns', 'lines'],
     default: int | None = None,
+    available: int | None = None,
 ) -> int:
     """
-    The cells of a checked size: the number, a share of the window, or ``default``.
+    The cells of a checked size: the number, a share of the space, or ``default``.
 
-    The window is asked for its size only for a percentage, and ``default=None`` stands for
-    the whole window along that axis.
+    The space is ``available`` cells when given, which also stands for ``default``, and the
+    window otherwise. The window is asked for its size only for a percentage, and
+    ``default=None`` stands for the whole window along that axis.
     """
     if isinstance(value, int):
         return value
+    if available is not None:
+        default = None
     if value is None and default is not None:
         return default
-    available = getattr(_window_size(), along)
+    space: int = getattr(_window_size(), along) if available is None else available
     share = 1.0 if value is None else (_size_share(value) or 1.0)
-    return max(1, min(MOST_CELLS, round(available * share)))
+    return max(1, min(MOST_CELLS, round(space * share)))
+
+
+def _slot_rule(size: Axis | None, axis_name: str) -> _core.SizeRule:
+    """The size of a slot on a stacking canvas: cells, a percentage, or a share of the rest."""
+    if size is None:
+        return _core.SizeRule.fill()
+    if isinstance(size, int) and not isinstance(size, bool) and size >= 0:
+        return _core.SizeRule.cells(size)
+    if isinstance(size, str):
+        share = _size_share(size)
+        if share is not None and 0.0 <= share <= 1.0:
+            return _core.SizeRule.percent(round(share * 100))
+    raise ValueError(
+        f'On a canvas with a column or row layout, the {axis_name} of what is written is the '
+        f'size of its slot, so it must be a number of cells or a percentage, but got '
+        f"{size!r}. Pass {axis_name}=3 or {axis_name}='50%', or leave it out to share the "
+        f'space that is left.'
+    )
+
+
+def _canvas_size(
+    width: int | str | None,
+    height: int | str | None,
+    enclosing_size: tuple[int, int] | None,
+) -> tuple[int, int]:
+    """The columns and rows of a new canvas, measured in its enclosing canvas when it has one."""
+    if enclosing_size is None:
+        return _size_in_cells(width, 'columns', 80), _size_in_cells(height, 'lines', 24)
+    return (
+        _size_in_cells(width, 'columns', available=enclosing_size[0]),
+        _size_in_cells(height, 'lines', available=enclosing_size[1]),
+    )
 
 
 def _window_size() -> os.terminal_size:
@@ -463,7 +527,18 @@ def _split_settings(
             known = sorted(
                 _GATE_NAMES
                 | _CANVAS_APPEARANCE_NAMES
-                | {'width', 'height', 'fps', 'bpm', 'title', 'effects', 'deps', 'state'}
+                | {
+                    'width',
+                    'height',
+                    'fps',
+                    'bpm',
+                    'title',
+                    'effects',
+                    'deps',
+                    'state',
+                    'layout',
+                    'edges',
+                }
             )
             close = difflib.get_close_matches(name, known, n=2)
             hint = (
@@ -528,7 +603,7 @@ _MOST_STEP_SECONDS: Final = 1_000_000_000
 """The most seconds one step may move a clock by."""
 
 
-class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
+class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
     """
     A workspace of text, pixels and sound on a clock, with or without a screen.
 
@@ -626,6 +701,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         gates: Mapping[str, object],
         appearance: Mapping[str, object],
         effects: Sequence[RenderableEffectSpecification],
+        enclosing: Canvas[object, object] | None = None,
+        layout: CanvasLayout = 'overlay',
+        edges: EdgeBehavior = 'clip',
     ) -> None:
         """
         Create a canvas. Use [`new`][xnano.new] instead of calling this.
@@ -642,6 +720,10 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             gates: The input gates that were given, by name.
             appearance: The appearance keywords of the canvas itself, by name.
             effects: Effects to apply to the canvas, as dictionaries with a ``kind`` key.
+            enclosing: The canvas whose ``with`` block this one was created in, which its
+                sizes are measured in and which closes it, or ``None``.
+            layout: How the canvas places what is written on it.
+            edges: What content written on the canvas does at the edges of its area.
         """
         super().__init__()
         self._canvas = self
@@ -679,6 +761,25 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self._size_hook: _core.Hook | None = None
         self._parent_placement: Placement[object, object] | None = None
         self._children: list[Canvas[object, object]] = []
+        self._enclosing: weakref.ref[Canvas[object, object]] | None = None
+        self._enclosing_size: tuple[int, int] | None = None
+        self._nested_canvases: list[weakref.ref[Canvas[object, object]]] = []
+        self._areas: dict[int, Placement[object, object]] = {}
+        self._is_hidden_until_written = False
+        self._layout: CanvasLayout = layout
+        self._edges: EdgeBehavior = edges
+        self._slots: list[
+            tuple[Placement[object, object] | None, _core.Buffer, _core.SizeRule]
+        ] = []
+        self._is_layout_pending = False
+        self._pending_layouts: dict[int, Canvas[object, object]] = {}
+        if enclosing is not None:
+            self._enclosing = weakref.ref(enclosing)
+            self._enclosing_size = (enclosing.width, enclosing.height)
+            with enclosing._lock:
+                enclosing._nested_canvases.append(
+                    weakref.ref(cast('Canvas[object, object]', self))
+                )
         self._is_closed = False
         self._is_finalized = False
         self._stop_requested = threading.Event()
@@ -722,8 +823,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             (weakref.ref(cast('Canvas[object, object]', self)), *self._previous_chain)
         )
         self._host: _Host
-        columns = _size_in_cells(width, 'columns', 80)
-        rows = _size_in_cells(height, 'lines', 24)
+        columns, rows = _canvas_size(width, height, self._enclosing_size)
         interval_milliseconds = max(1, round(1000.0 / fps))
 
         def create_runtime() -> _core.Runtime:
@@ -996,6 +1096,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 owners = list(self._dirty_looks.values())
             for owner in owners:
                 owner._flush_look()
+        if self._pending_layouts:
+            self._apply_pending_layouts()
         with self._lock:
             placements = list(self._dynamic.values())
         is_time_dependent = False
@@ -1008,18 +1110,14 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         finished = []
         for placement in placements:
             is_time_dependent |= placement._apply_bindings(runtime)
-            if not placement._bindings and not placement._limits:
+            if not placement._needs_frames():
                 finished.append(id(placement))
         if finished:
             released = 0
             with self._lock:
                 for key in finished:
                     placement = self._dynamic.get(key)
-                    if (
-                        placement is not None
-                        and not placement._bindings
-                        and not placement._limits
-                    ):
+                    if placement is not None and not placement._needs_frames():
                         del self._dynamic[key]
                         released += 1
             for _ in range(released):
@@ -1366,7 +1464,13 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                     f'{name} was already given to xnano.new(), and a canvas keeps the {name} '
                     f'it was created with. Remove {name}= from open().'
                 )
-        own = {'fps', 'bpm', 'effects', 'deps', 'state'}
+        if 'layout' in settings and settings['layout'] != self._layout:
+            raise TypeError(
+                f'A canvas keeps the layout it was created with, {self._layout!r}. Create it '
+                f'with xnano.new(layout={settings["layout"]!r}) instead, or remove layout= '
+                f'from open().'
+            )
+        own = {'fps', 'bpm', 'effects', 'deps', 'state', 'layout', 'edges'}
         gates, appearance = _split_settings(
             'open', {name: value for name, value in settings.items() if name not in own}
         )
@@ -1377,6 +1481,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             parsed['fps'] = _check_fps(parsed['fps'])
         if 'bpm' in parsed:
             parsed['bpm'] = _check_bpm(parsed['bpm'])
+        if 'edges' in parsed:
+            parsed['edges'] = check_edges(parsed['edges'])
         if 'effects' in parsed:
             parsed['effects'] = [
                 normalize_effect(specification, 'renderable')
@@ -1561,6 +1667,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self._fps = fps
         if 'bpm' in parsed:
             self._bpm = cast('float', parsed['bpm'])
+        if 'edges' in parsed:
+            self._edges = cast('EdgeBehavior', parsed['edges'])
         if 'deps' in parsed:
             self._deps = cast('DepsT', parsed['deps'])
             self._deps_given = True
@@ -1640,8 +1748,9 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         self._is_realtime = False
         self._carried = dict(carried)
         elapsed = cast('float', carried['elapsed_seconds'])
-        columns = _size_in_cells(self._requested_width, 'columns', 80)
-        rows = _size_in_cells(self._requested_height, 'lines', 24)
+        columns, rows = _canvas_size(
+            self._requested_width, self._requested_height, self._enclosing_size
+        )
         interval_milliseconds = max(1, round(1000.0 / self._fps))
 
         def create_runtime() -> _core.Runtime:
@@ -1664,10 +1773,54 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
     # -- context management and closing --------------------------------------------------
 
     def __enter__(self) -> Self:
+        _enclosing_canvases.set(
+            (
+                weakref.ref(cast('Canvas[object, object]', self)),
+                *_enclosing_canvases.get(),
+            )
+        )
         return self
 
     def __exit__(self, exception_type: object, *rest: object) -> None:
+        _enclosing_canvases.set(
+            tuple(
+                reference
+                for reference in _enclosing_canvases.get()
+                if reference() is not self
+            )
+        )
+        if self._canvas is not self or self._enclosing_canvas_is_running():
+            # It stays usable, and ends with the canvas it is part of or was created in.
+            if _current_canvas() is self:
+                _active_canvas.set(self._previous_chain)
+            return
         self.close(raise_failure=exception_type is None)
+
+    def _enclosing_canvas_is_running(self) -> bool:
+        """Whether the canvas this one was created in is still running."""
+        enclosing = None if self._enclosing is None else self._enclosing()
+        return enclosing is not None and enclosing.is_running
+
+    def _is_enclosed_by(self, outer: Canvas[object, object]) -> bool:
+        """Whether this canvas was created, directly or through others, in ``outer``'s block."""
+        reference = self._enclosing
+        while reference is not None:
+            enclosing = reference()
+            if enclosing is None:
+                return False
+            if enclosing is outer:
+                return True
+            reference = enclosing._enclosing
+        return False
+
+    def _close_nested_canvases(self) -> None:
+        """Close the canvases created in this one's block that were not written anywhere."""
+        with self._lock:
+            nested = [reference() for reference in self._nested_canvases]
+            self._nested_canvases.clear()
+        for canvas in nested:
+            if canvas is not None and canvas._canvas is canvas:
+                canvas.close(raise_failure=False)
 
     @property
     def is_closed(self) -> bool:
@@ -1731,8 +1884,11 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         """
         Release everything the canvas holds, and give the screen back if it has one.
 
-        Closing twice is harmless. Leaving a ``with`` block closes the canvas. A canvas that
-        was written into another canvas is taken off it and leaves that one running.
+        Closing twice is harmless. Leaving a ``with`` block closes the canvas, unless it is
+        part of another canvas or was created inside another canvas's ``with`` block: then it
+        stays usable and closes with that canvas. Closing a canvas closes the canvases created
+        inside its block that were not written anywhere. Closing a canvas that was written into
+        another one takes it off and leaves that one running.
 
         Args:
             raise_failure: Whether to raise the error a callback raised on the loop, which
@@ -1742,6 +1898,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         Raises:
             TerminalError: A callback raised on the canvas's loop, or the loop would not stop.
         """
+        self._close_nested_canvases()
         if self._canvas is not self:
             if not self._is_closed:
                 self._is_closed = True
@@ -1885,72 +2042,111 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         bounds = self._root._absolute_bounds
         return _core.Point(point.x - bounds.x, point.y - bounds.y)
 
-    def _refuse_to_move(self) -> NoReturn:
-        raise TerminalError(
-            'A canvas sits at the origin and cannot be moved. Move a placement instead: '
-            'placement.move(...), or canvas.write(..., x=, y=).'
-        )
+    def _written_placement(self) -> Placement[object, object]:
+        """Return the placement this canvas is drawn in, or refuse when it has none."""
+        placement = self._parent_placement
+        if placement is None:
+            raise TerminalError(
+                'This canvas is not written into another canvas, so it sits at the origin and '
+                'cannot be moved. Move a placement instead: placement.move(...), or '
+                'canvas.write(..., x=, y=). To move a canvas, create it inside the "with" block '
+                'of another canvas, or write it into one with outer.write(canvas).'
+            )
+        self._require_open()
+        return placement
 
-    def move(self, x: int = 0, y: int = 0) -> NoReturn:
+    def move(self, x: int = 0, y: int = 0) -> Self:
         """
-        Refuse to move: a canvas sits at the origin. Move a placement instead.
+        Move a canvas that is written into another one by a number of cells along each axis.
+
+        This moves the placement the canvas is drawn in; see
+        [`Placement.move`][xnano.placement.Placement.move].
 
         Args:
-            x: Columns to move right.
-            y: Rows to move down.
+            x: Columns to move right; a negative number moves left.
+            y: Rows to move down; a negative number moves up.
+
+        Returns:
+            The canvas, so calls can chain.
 
         Raises:
-            TerminalError: Always; it says to move a placement.
-        """
-        self._refuse_to_move()
+            TerminalError: The canvas is not written into another canvas, so it sits at the
+                origin and cannot move.
+            TypeError: An amount is not a whole number.
 
-    def up(self, count: int = 1) -> NoReturn:
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=3) as outer:
+                inner = outer.new('box', width=4, height=1)
+                inner.move(x=2, y=1)
+                assert (inner.x, inner.y) == (2, 1)
+                assert outer.render().splitlines()[1] == '  box'
+            ```
         """
-        Refuse to move: a canvas sits at the origin. Move a placement instead.
+        self._written_placement().move(x=x, y=y)
+        return self
+
+    def up(self, count: int = 1) -> Self:
+        """
+        Move a written canvas up by ``count`` rows; see [`move`][xnano.canvas.Canvas.move].
 
         Args:
             count: How many rows to move.
 
         Raises:
-            TerminalError: Always; it says to move a placement.
+            TerminalError: The canvas is not written into another canvas.
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
         """
-        self._refuse_to_move()
+        self._written_placement().up(count)
+        return self
 
-    def down(self, count: int = 1) -> NoReturn:
+    def down(self, count: int = 1) -> Self:
         """
-        Refuse to move: a canvas sits at the origin. Move a placement instead.
+        Move a written canvas down by ``count`` rows; see [`move`][xnano.canvas.Canvas.move].
 
         Args:
             count: How many rows to move.
 
         Raises:
-            TerminalError: Always; it says to move a placement.
+            TerminalError: The canvas is not written into another canvas.
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
         """
-        self._refuse_to_move()
+        self._written_placement().down(count)
+        return self
 
-    def left(self, count: int = 1) -> NoReturn:
+    def left(self, count: int = 1) -> Self:
         """
-        Refuse to move: a canvas sits at the origin. Move a placement instead.
+        Move a written canvas left by ``count`` columns; see [`move`][xnano.canvas.Canvas.move].
 
         Args:
             count: How many columns to move.
 
         Raises:
-            TerminalError: Always; it says to move a placement.
+            TerminalError: The canvas is not written into another canvas.
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
         """
-        self._refuse_to_move()
+        self._written_placement().left(count)
+        return self
 
-    def right(self, count: int = 1) -> NoReturn:
+    def right(self, count: int = 1) -> Self:
         """
-        Refuse to move: a canvas sits at the origin. Move a placement instead.
+        Move a written canvas right by ``count`` columns; see [`move`][xnano.canvas.Canvas.move].
 
         Args:
             count: How many columns to move.
 
         Raises:
-            TerminalError: Always; it says to move a placement.
+            TerminalError: The canvas is not written into another canvas.
+            TypeError: ``count`` is not a whole number.
+            ValueError: ``count`` is negative.
         """
-        self._refuse_to_move()
+        self._written_placement().right(count)
+        return self
 
     # -- settings ------------------------------------------------------------------------
 
@@ -2146,10 +2342,74 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
 
     # -- writing -------------------------------------------------------------------------
 
+    def new(
+        self,
+        content: Content | None = None,
+        /,
+        *,
+        width: int | Percentage | str | None = None,
+        height: int | Percentage | str | None = None,
+        effects: Sequence[RenderableEffectSpecification] = (),
+        **settings: Unpack[CanvasSettings],
+    ) -> Canvas[DepsT, StateT]:
+        """
+        Create a canvas inside this one and draw it here at once, at the top-left corner.
+
+        This is [`new`][xnano.new] followed by ``canvas.write(child)``: the child's size is
+        measured in this canvas (``'50%'`` is half of it, and no size fills it), it runs on
+        this canvas's time and hears its input, and it closes with this canvas. Move it with
+        [`move`][xnano.canvas.Canvas.move] and its relatives, or create it with
+        [`new`][xnano.new] and write it with ``x`` and ``y`` to place it elsewhere.
+
+        Args:
+            content: Something to write into the new canvas at once, such as text.
+            width: The width in cells, or a percentage of this canvas such as ``'50%'``.
+            height: The height in cells, or a percentage of this canvas.
+            effects: Effects to apply to the new canvas, as dictionaries with a ``kind`` key.
+            settings: The input gates and the new canvas's own look; see
+                [`CanvasSettings`][xnano.types.CanvasSettings].
+
+        Returns:
+            The new [`Canvas`][xnano.canvas.Canvas], already drawn in this one.
+
+        Raises:
+            TypeError: An appearance keyword was given with content, or a keyword is unknown.
+            ValueError: A size, gate or border kind is out of range.
+            TerminalError: This canvas is closed, or a hook of the new canvas needs a gate
+                this canvas turned off.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=12, height=4) as outer:
+                panel = outer.new(height='50%', border='plain')
+                assert (panel.width, panel.height) == (12, 2)
+                assert outer.render().splitlines()[0] == '┌──────────┐'
+            ```
+        """
+        self._require_open()
+        canvas: Canvas[DepsT, StateT] = _create(
+            content,
+            width=width,
+            height=height,
+            fps=self.fps,
+            bpm=self.bpm,
+            effects=effects,
+            enclosing=cast('Canvas[object, object]', self),
+            **settings,
+        )
+        try:
+            self.write(cast('Canvas[object, object]', canvas))
+        except BaseException:
+            canvas.close(raise_failure=False)
+            raise
+        return canvas
+
     @refuse_unknown_keywords
     def write(
         self,
-        content: Content | Canvas[object, object] | None = None,
+        content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
         /,
         *,
         x: Axis | None = None,
@@ -2158,18 +2418,19 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         height: Axis | None = None,
         layer: int = 0,
         lock: bool = False,
+        edges: EdgeBehavior | None = None,
         effects: Sequence[RenderableEffectSpecification] = (),
         style: _core.Style | None = None,
         foreground: ColorValue | None = None,
         background: ColorValue | None = None,
-        is_bold: bool = False,
-        is_dim: bool = False,
-        is_italic: bool = False,
-        is_underlined: bool = False,
-        is_blinking: bool = False,
-        is_reversed: bool = False,
-        is_hidden: bool = False,
-        is_crossed_out: bool = False,
+        bold: bool = False,
+        dim: bool = False,
+        italic: bool = False,
+        underline: bool = False,
+        blink: bool = False,
+        reverse: bool = False,
+        hidden: bool = False,
+        crossed_out: bool = False,
         title: str | None = None,
         border: _core.BorderKind | bool | None = None,
         border_style: _core.Style | None = None,
@@ -2185,6 +2446,11 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         the content, so ``canvas.write('hello')`` shows five cells of text where it is.
         Change the text later by assigning the placement's
         [`text`][xnano.placement.Placement.text].
+
+        Inside the ``with`` block of a canvas created in this one's block, what is written here
+        is placed and clipped within that canvas's area of this one: where it is written, or
+        the top-left corner while it is not. Positions such as ``y='center'`` are measured in
+        that area, and that canvas's ``edges`` applies there.
 
         A canvas from [`new`][xnano.new] that is written here becomes part of this one: it
         draws inside the placement, its own clock is set aside and it runs on this canvas's
@@ -2217,20 +2483,23 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             layer: Content with a higher layer is drawn over content with a lower one.
             lock: Keep the position and size the content has now, whatever the canvas's
                 size does afterwards: percentages, words and formulas are read once.
+            edges: What the content does at the edges of its area: ``'clip'``, ``'stop'`` or
+                ``'wrap'``; see [`Placement.edges`][xnano.placement.Placement.edges]. Left
+                out, it follows what it is written on.
             effects: Effects to start on the placement, as dictionaries with a ``kind``
                 key, such as ``[{'kind': 'effect.fade_to', 'foreground': 'red'}]``.
             style: A ready-made [`Style`][xnano.styles.Style] for text. The parameters below
                 are applied over it.
             foreground: The text color.
             background: The color behind the text.
-            is_bold: Whether the text is bold.
-            is_dim: Whether the text is dimmed.
-            is_italic: Whether the text is italic.
-            is_underlined: Whether the text is underlined.
-            is_blinking: Whether the text blinks.
-            is_reversed: Whether foreground and background are swapped.
-            is_hidden: Whether the text is hidden.
-            is_crossed_out: Whether the text is struck through.
+            bold: Whether the text is bold.
+            dim: Whether the text is dimmed.
+            italic: Whether the text is italic.
+            underline: Whether the text is underlined.
+            blink: Whether the text blinks.
+            reverse: Whether foreground and background are swapped.
+            hidden: Whether the text is hidden.
+            crossed_out: Whether the text is struck through.
             title: A title on the border of a box around the text.
             border: The kind of border for a box around the content, a
                 [`BorderKind`][xnano.types.BorderKind] such as ``'plain'``, ``'rounded'``,
@@ -2264,48 +2533,298 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                     x='center',
                     y='bottom',
                     foreground='green',
-                    is_bold=True,
+                    bold=True,
                     border='rounded',
                     title='Status',
                 )
             ```
         """
         self._require_open()
-        placement = self._canvas._place_on(
-            self._content,
-            content,
-            parent_owner=cast('Canvas[object, object]', self),
-            x=x,
-            y=y,
-            width=width,
-            height=height,
-            layer=layer,
-            lock=lock,
-            style=style,
-            foreground=foreground,
-            background=background,
-            is_bold=is_bold,
-            is_dim=is_dim,
-            is_italic=is_italic,
-            is_underlined=is_underlined,
-            is_blinking=is_blinking,
-            is_reversed=is_reversed,
-            is_hidden=is_hidden,
-            is_crossed_out=is_crossed_out,
-            title=title,
-            border=border,
-            border_style=border_style,
-            padding=padding,
-            margin=margin,
-        )
+        if edges is not None:
+            edges = check_edges(edges)
+        area = self._area_for_write(content)
+        if area is not None:
+            return area.write(  # type: ignore[return-value]
+                content,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                layer=layer,
+                lock=lock,
+                edges=edges,
+                effects=effects,
+                style=style,
+                foreground=foreground,
+                background=background,
+                bold=bold,
+                dim=dim,
+                italic=italic,
+                underline=underline,
+                blink=blink,
+                reverse=reverse,
+                hidden=hidden,
+                crossed_out=crossed_out,
+                title=title,
+                border=border,
+                border_style=border_style,
+                padding=padding,
+                margin=margin,
+            )
+        parent_buffer = self._content
+        slot: _core.Buffer | None = None
+        if self._layout != 'overlay':
+            slot, width, height = self._open_slot(content, width, height)
+            parent_buffer = slot
+        try:
+            placement = self._canvas._place_on(
+                parent_buffer,
+                content,
+                parent_owner=cast('Canvas[object, object]', self),
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                layer=layer,
+                lock=lock,
+                style=style,
+                foreground=foreground,
+                background=background,
+                bold=bold,
+                dim=dim,
+                italic=italic,
+                underline=underline,
+                blink=blink,
+                reverse=reverse,
+                hidden=hidden,
+                crossed_out=crossed_out,
+                title=title,
+                border=border,
+                border_style=border_style,
+                padding=padding,
+                margin=margin,
+            )
+        except BaseException:
+            if slot is not None:
+                self._close_slot(slot)
+            raise
+        if slot is not None:
+            self._slots[-1] = (
+                cast('Placement[object, object]', placement),
+                *self._slots[-1][1:],
+            )
         if effects:
             apply_effects(cast('Placement[object, object]', placement), effects)
+        placement._take_edges(edges, content)
         return placement
+
+    # -- the layout ----------------------------------------------------------------------
+
+    def _open_slot(
+        self,
+        content: Content | Canvas[WrittenDepsT, WrittenStateT] | None,
+        width: Axis | None,
+        height: Axis | None,
+    ) -> tuple[_core.Buffer, Axis | None, Axis | None]:
+        """
+        Attach the next slot of a stacking canvas, sized from the content's size on its axis.
+
+        Returns:
+            The slot, and the width and height to write the content with inside it: a size
+            on the stacking axis becomes the slot's size, and the content fills the slot.
+        """
+        is_column = self._layout == 'column'
+        size = height if is_column else width
+        if size is None and isinstance(content, Canvas):
+            size = content._requested_height if is_column else content._requested_width
+        rule = _slot_rule(size, 'height' if is_column else 'width')
+        if size is not None:
+            if is_column:
+                height = '100%'
+            else:
+                width = '100%'
+        slot = _core.Buffer()
+        self._mark_layout_pending()
+        self._content.attach(slot, geometry='inherit', mode='transparent')
+        with self._lock:
+            self._slots.append((None, slot, rule))
+        # The loop may have laid the canvas out between the mark and the attach.
+        self._mark_layout_pending()
+        return slot, width, height
+
+    def _close_slot(self, slot: _core.Buffer) -> None:
+        """Detach a slot and give its space to the slots that are left."""
+        with self._lock:
+            self._slots[:] = [entry for entry in self._slots if entry[1] is not slot]
+        self._mark_layout_pending()
+        try:
+            self._content.detach(slot)
+        except ValueError:
+            pass
+        self._mark_layout_pending()
+
+    def _slot_of(self, placement: Placement[object, object]) -> _core.Buffer | None:
+        """The slot a placement written on this canvas stacks in, or ``None``."""
+        with self._lock:
+            for owner, slot, _ in self._slots:
+                if owner is placement:
+                    return slot
+        return None
+
+    def _mark_layout_pending(self) -> None:
+        """
+        Split the canvas among its slots once, before the next frame.
+
+        Solving a layout gets slow as slots are added, so writes and removals in a row are
+        laid out together. Until then the slots overlap, which attaches and detaches cheaply.
+        """
+        root = self._canvas
+        with root._lock:
+            if self._is_layout_pending:
+                return
+            self._is_layout_pending = True
+            root._pending_layouts[id(self)] = cast('Canvas[object, object]', self)
+        self._content.update(_core.Layout('overlay'))
+        root._demand_frames()
+        if not root._is_closed:
+            root._host.post(lambda: root._runtime.request_frame())
+
+    def _apply_pending_layouts(self) -> None:
+        """Lay out every canvas that was written to or removed from since the last frame."""
+        with self._lock:
+            pending = list(self._pending_layouts.values())
+            self._pending_layouts.clear()
+            for canvas in pending:
+                canvas._is_layout_pending = False
+        for canvas in pending:
+            if not canvas._is_closed:
+                canvas._apply_layout()
+            self._release_frames()
+
+    def _apply_layout(self) -> None:
+        """Split the canvas among its slots, in the order they were written."""
+        with self._lock:
+            rules = [rule for _, _, rule in self._slots]
+        self._content.update(
+            _core.Layout(cast('Literal["row", "column"]', self._layout), sizes=rules)
+        )
+
+    @property
+    def layout(self) -> CanvasLayout:
+        """
+        How the canvas places what is written on it, chosen when the canvas is created.
+
+        ``'overlay'`` places every piece on its own over the whole canvas. ``'column'``
+        stacks the pieces from top to bottom in the order they are written, and ``'row'``
+        from left to right. Each piece then takes a slot: one with a size on the stacking
+        axis (``height`` in a column, ``width`` in a row, in cells or as a percentage) gets
+        exactly that, and the others share what is left equally. Inside its slot a piece is
+        positioned as on any canvas, so ``y='center'`` and ``y='50%'`` are measured in the
+        slot. Removing a piece gives its slot back. A canvas created inside the ``with``
+        block of a stacking canvas takes a slot only once it is written.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=10, layout='column') as terminal:
+                terminal.write('top half', y='center')
+                panel = terminal.new(height='50%')
+                panel.write('bottom half')
+                rows = terminal.render().splitlines()
+                assert (rows[2], rows[5]) == ('top half', 'bottom half')
+            ```
+        """
+        return self._layout
+
+    @property
+    def edges(self) -> EdgeBehavior:
+        """
+        What content written on the canvas does at the edges of its area, unless given its own.
+
+        ``'clip'`` lets it move past the edge, where it is not drawn; ``'stop'`` holds it
+        inside its area when it moves; ``'wrap'`` continues text on the next rows of its
+        area. A piece written with ``edges=...`` keeps its own; see
+        [`Placement.edges`][xnano.placement.Placement.edges].
+
+        Raises:
+            ValueError: The value is not ``'clip'``, ``'stop'`` or ``'wrap'``.
+        """
+        return self._edges
+
+    @edges.setter
+    def edges(self, value: EdgeBehavior) -> None:
+        self._require_open()
+        self._edges = check_edges(value)
+        root = self._canvas
+        with root._lock:
+            placements = list(root._placements)
+        for placement in placements:
+            if not placement._removed and placement._edges is None:
+                placement._follow_edges()
+
+    def _area_for_write(
+        self, content: Content | Canvas[WrittenDepsT, WrittenStateT] | None
+    ) -> Placement[object, object] | None:
+        """
+        The area of this canvas that a write lands in, or ``None`` for all of it.
+
+        Inside the ``with`` block of a canvas created in this one's block, it is that canvas's
+        area of this one.
+        """
+        for reference in _enclosing_canvases.get():
+            entered = reference()
+            if entered is None or not entered.is_running:
+                continue
+            if entered is self or entered is content:
+                return None
+            if not entered._is_enclosed_by(cast('Canvas[object, object]', self)):
+                return None
+            return entered._area_on(cast('Canvas[object, object]', self))
+        return None
+
+    def _area_on(self, outer: Canvas[object, object]) -> Placement[object, object]:
+        """The empty placement of ``outer`` that covers this canvas's area of it."""
+        area = self._areas.get(id(outer))
+        if area is not None and not area._removed and area._parent_owner is outer:
+            return area
+        placement = self._parent_placement
+        slot = None if placement is None else outer._slot_of(placement)
+        if slot is not None:
+            area = outer._canvas._place_on(
+                slot, None, parent_owner=outer, x=0, y=0, width='100%', height='100%'
+            )
+            area._edges_owner = cast('Canvas[object, object]', self)
+            self._areas[id(outer)] = cast('Placement[object, object]', area)
+            return cast('Placement[object, object]', area)
+        is_written_here = placement is not None and placement._parent_owner is outer
+        enclosing = None if self._enclosing is None else self._enclosing()
+        if enclosing is outer:
+            width: Axis = (
+                '100%' if self._requested_width is None else self._requested_width
+            )
+            height: Axis = (
+                '100%' if self._requested_height is None else self._requested_height
+            )
+        else:
+            width, height = self.width, self.height
+        area = outer._canvas._place_on(
+            outer._content,
+            None,
+            parent_owner=outer,
+            x=self.x if is_written_here else 0,
+            y=self.y if is_written_here else 0,
+            width=width,
+            height=height,
+        )
+        area._edges_owner = cast('Canvas[object, object]', self)
+        self._areas[id(outer)] = cast('Placement[object, object]', area)
+        return cast('Placement[object, object]', area)
 
     def _place_on(
         self,
         parent_buffer: _core.Buffer,
-        content: Content | Canvas[object, object] | None,
+        content: Content | Canvas[WrittenDepsT, WrittenStateT] | None,
         *,
         parent_owner: Canvas[object, object] | Placement[object, object],
         x: Axis | None = None,
@@ -2317,14 +2836,14 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         style: _core.Style | None = None,
         foreground: ColorValue | None = None,
         background: ColorValue | None = None,
-        is_bold: bool = False,
-        is_dim: bool = False,
-        is_italic: bool = False,
-        is_underlined: bool = False,
-        is_blinking: bool = False,
-        is_reversed: bool = False,
-        is_hidden: bool = False,
-        is_crossed_out: bool = False,
+        bold: bool = False,
+        dim: bool = False,
+        italic: bool = False,
+        underline: bool = False,
+        blink: bool = False,
+        reverse: bool = False,
+        hidden: bool = False,
+        crossed_out: bool = False,
         title: str | None = None,
         border: _core.BorderKind | bool | None = None,
         border_style: _core.Style | None = None,
@@ -2340,14 +2859,18 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             style=style,
             foreground=foreground,
             background=background,
-            is_bold=is_bold,
-            is_dim=is_dim,
-            is_italic=is_italic,
-            is_underlined=is_underlined,
-            is_blinking=is_blinking,
-            is_reversed=is_reversed,
-            is_hidden=is_hidden,
-            is_crossed_out=is_crossed_out,
+            **appearance_fields(  # type: ignore[arg-type]
+                {
+                    'bold': bold,
+                    'dim': dim,
+                    'italic': italic,
+                    'underline': underline,
+                    'blink': blink,
+                    'reverse': reverse,
+                    'hidden': hidden,
+                    'crossed_out': crossed_out,
+                }
+            ),
             title=title,
             border=border,
             border_style=border_style,
@@ -2365,7 +2888,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         if isinstance(content, Canvas):
             return self._adopt(
                 parent_buffer,
-                content,
+                cast('Canvas[object, object]', content),
                 parent_owner=parent_owner,
                 x=x,
                 y=y,
@@ -2395,14 +2918,14 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 style=style,
                 foreground=foreground,
                 background=background,
-                is_bold=is_bold,
-                is_dim=is_dim,
-                is_italic=is_italic,
-                is_underlined=is_underlined,
-                is_blinking=is_blinking,
-                is_reversed=is_reversed,
-                is_hidden=is_hidden,
-                is_crossed_out=is_crossed_out,
+                bold=bold,
+                dim=dim,
+                italic=italic,
+                underline=underline,
+                blink=blink,
+                reverse=reverse,
+                hidden=hidden,
+                crossed_out=crossed_out,
                 title=title,
                 border=border,
                 border_style=border_style,
@@ -2564,10 +3087,17 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 owner = owner._parent_owner
             else:
                 owner = owner._parent_placement
-        if child._canvas is not child:
+        is_showing = child._canvas is not child and child._is_hidden_until_written
+        if child._canvas is not child and not is_showing:
             raise TerminalError(
                 'A canvas can be written into one other canvas, once, and never into itself. '
                 'Create another canvas with xnano.new() for a second copy.'
+            )
+        if is_showing and child._canvas is not self._canvas:
+            raise TerminalError(
+                'This canvas was created inside the "with" block of another canvas, so it '
+                'belongs to that one and can only be shown inside it. Create it outside that '
+                '"with" block to write it into another canvas.'
             )
         for name in ('state', 'deps'):
             if getattr(child, f'_{name}_given'):
@@ -2588,6 +3118,19 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         for axis_name, value in requested_axes:
             if value is not None:
                 check_axis(value, axis_name)
+        if is_showing:
+            return self._show_hidden_canvas(
+                parent_buffer,
+                child,
+                parent_owner=parent_owner,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                layer=layer,
+                look=look,
+                lock=lock,
+            )
         handles = child._host.call(child._hook_handles)
         for handle in handles:
             self._check_gates(cast('HookHandle[DepsT, StateT]', handle))
@@ -2609,6 +3152,8 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
                 if registration is not child._frame_registration
             ]
             moved_effects = list(child._effects)
+            moved_layouts = dict(child._pending_layouts)
+            child._pending_layouts.clear()
             child._placements.clear()
             child._dynamic.clear()
             child._images.clear()
@@ -2634,6 +3179,7 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
             root._frame_listeners.update(moved_listeners)
             root._ledger.extend(moved_ledger)
             root._effects.extend(moved_effects)
+            root._pending_layouts.update(moved_layouts)
             inner_children = list(child._children)
             for inner in inner_children:
                 inner._canvas = cast('Canvas[object, object]', root)
@@ -2649,7 +3195,12 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         if _current_canvas() is child:
             _active_canvas.set(child._previous_chain)
         parent_buffer.attach(child_buffer, mode='transparent')
-        for _ in range(len(moved_images) + len(moved_listeners) + len(moved_effects)):
+        for _ in range(
+            len(moved_images)
+            + len(moved_listeners)
+            + len(moved_effects)
+            + len(moved_layouts)
+        ):
             root._demand_frames()
         for moved in moved_dynamic:
             root._bindings_changed(cast('Placement[DepsT, StateT]', moved))
@@ -2666,39 +3217,108 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         root._host.post(bind_on_root)
         try:
             self._flush_moved_looks(child, moved_placements)
-            requested_width = child._requested_width
-            requested_height = child._requested_height
-            placement._set_axis('x', 0 if x is None else x)
-            placement._set_axis('y', 0 if y is None else y)
-            placement._set_axis(
-                'width',
-                width
-                if width is not None
-                else '100%'
-                if requested_width is None
-                else requested_width,
+            self._lay_out_written_canvas(
+                placement,
+                child,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                look=look,
+                lock=lock,
             )
-            placement._set_axis(
-                'height',
-                height
-                if height is not None
-                else '100%'
-                if requested_height is None
-                else requested_height,
-            )
-            if look is not None:
-                # The colors, border, padding and margin given with the canvas decorate it.
-                placement._appearance = look
-                placement._look_is_dirty = True
-                placement._flush_look()
-            if lock:
-                for axis_name in ('x', 'y', 'width', 'height'):
-                    placement._set_axis(axis_name, int(getattr(placement, axis_name)))
         except BaseException:
             # As with any other content, a write that fails leaves nothing behind.
             placement.remove()
             raise
         return placement
+
+    def _show_hidden_canvas(
+        self,
+        parent_buffer: _core.Buffer,
+        child: Canvas[object, object],
+        *,
+        parent_owner: Canvas[object, object] | Placement[object, object],
+        x: Axis | None,
+        y: Axis | None,
+        width: Axis | None,
+        height: Axis | None,
+        layer: int,
+        look: Appearance | None,
+        lock: bool,
+    ) -> Placement[DepsT, StateT]:
+        """Show a canvas that was created in a ``with`` block, where it is written now."""
+        placement = cast('Placement[DepsT, StateT]', child._parent_placement)
+        child_buffer = child._root
+        if placement._parent_buffer is not parent_buffer:
+            try:
+                placement._parent_buffer.detach(child_buffer)
+            except ValueError:
+                pass
+            placement._parent_buffer = parent_buffer
+            placement._parent_owner = parent_owner
+            parent_buffer.attach(child_buffer, mode='transparent')
+        placement._canvas = self
+        child_buffer.layer = layer
+        try:
+            self._lay_out_written_canvas(
+                placement,
+                child,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                look=look,
+                lock=lock,
+            )
+        except BaseException:
+            placement.remove()
+            raise
+        child._is_hidden_until_written = False
+        placement.is_visible = True
+        return placement
+
+    def _lay_out_written_canvas(
+        self,
+        placement: Placement[DepsT, StateT],
+        child: Canvas[object, object],
+        *,
+        x: Axis | None,
+        y: Axis | None,
+        width: Axis | None,
+        height: Axis | None,
+        look: Appearance | None,
+        lock: bool,
+    ) -> None:
+        """Give the placement of a written canvas its position, size and look."""
+        requested_width = child._requested_width
+        requested_height = child._requested_height
+        placement._set_axis('x', 0 if x is None else x)
+        placement._set_axis('y', 0 if y is None else y)
+        placement._set_axis(
+            'width',
+            width
+            if width is not None
+            else '100%'
+            if requested_width is None
+            else requested_width,
+        )
+        placement._set_axis(
+            'height',
+            height
+            if height is not None
+            else '100%'
+            if requested_height is None
+            else requested_height,
+        )
+        if look is not None:
+            # The colors, border, padding and margin given with the canvas decorate it.
+            placement._appearance = look
+            placement._look_is_dirty = True
+            placement._flush_look()
+        if lock:
+            for axis_name in ('x', 'y', 'width', 'height'):
+                placement._set_axis(axis_name, int(getattr(placement, axis_name)))
 
     def _flush_moved_looks(
         self,
@@ -2739,6 +3359,11 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
         return buffer, None
 
     def _release(self, placement: Placement[DepsT, StateT]) -> None:
+        owner = placement._parent_owner
+        if isinstance(owner, Canvas) and owner._slots and not owner._is_closed:
+            slot = owner._slot_of(cast('Placement[object, object]', placement))
+            if slot is not None:
+                owner._close_slot(slot)
         canvas = self._canvas
         buffer = placement._buffer
         with canvas._lock:
@@ -3616,13 +4241,13 @@ class Canvas(_Hooked[DepsT, StateT], _Looked, Generic[DepsT, StateT]):
 
 @overload
 def new(
-    content: Content | Canvas[object, object] | None = None,
+    content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
     /,
     *,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
-    fps: float = 60.0,
-    bpm: float = 120.0,
+    fps: float | None = None,
+    bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
     effects: Sequence[RenderableEffectSpecification] = (),
@@ -3630,13 +4255,13 @@ def new(
 ) -> Canvas[None, None]: ...
 @overload
 def new(
-    content: Content | Canvas[object, object] | None = None,
+    content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
     /,
     *,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
-    fps: float = 60.0,
-    bpm: float = 120.0,
+    fps: float | None = None,
+    bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
     effects: Sequence[RenderableEffectSpecification] = (),
@@ -3645,13 +4270,13 @@ def new(
 ) -> Canvas[None, StateT]: ...
 @overload
 def new(
-    content: Content | Canvas[object, object] | None = None,
+    content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
     /,
     *,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
-    fps: float = 60.0,
-    bpm: float = 120.0,
+    fps: float | None = None,
+    bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
     effects: Sequence[RenderableEffectSpecification] = (),
@@ -3660,13 +4285,13 @@ def new(
 ) -> Canvas[DepsT, None]: ...
 @overload
 def new(
-    content: Content | Canvas[object, object] | None = None,
+    content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
     /,
     *,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
-    fps: float = 60.0,
-    bpm: float = 120.0,
+    fps: float | None = None,
+    bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
     effects: Sequence[RenderableEffectSpecification] = (),
@@ -3675,13 +4300,13 @@ def new(
     **settings: Unpack[CanvasSettings],
 ) -> Canvas[DepsT, StateT]: ...
 def new(
-    content: Content | Canvas[object, object] | None = None,
+    content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
     /,
     *,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
-    fps: float = 60.0,
-    bpm: float = 120.0,
+    fps: float | None = None,
+    bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
     effects: Sequence[RenderableEffectSpecification] = (),
@@ -3711,6 +4336,18 @@ def new(
     covers. ``padding`` and ``margin`` pad and space the canvas itself. ``title`` is the
     window title.
 
+    Created inside the ``with`` block of another canvas, the new canvas belongs to that one
+    from the start but is hidden in it: its size is measured in that canvas (``'50%'`` is
+    half of it, and no size fills it), it runs on that canvas's time and its hooks hear that
+    canvas's input. ``outer.write(canvas, x=..., y=...)`` shows it, once, where it is
+    written. Leaving its own ``with`` block keeps it; it closes with the canvas it belongs
+    to. Inside its ``with`` block, ``outer.write(...)`` places content within the new
+    canvas's area of ``outer``. It takes that canvas's ``edges`` unless given its own.
+    [`Canvas.new`][xnano.canvas.Canvas.new] creates a canvas that is shown at once. A canvas
+    given ``state`` or ``deps`` stays on its own, because those belong to the outermost
+    canvas: it is measured in the canvas around it, takes its ``fps``, ``bpm`` and ``edges``
+    unless given its own, and closes with it.
+
     The input gates (``mouse``, ``scroll``, ``keyboard``, ``paste``, ``focus``, ``interrupt``,
     ``capture``, ``clear``, ``alternate_screen``) are stored and take effect when the canvas
     is opened on the screen; see [`GateSettings`][xnano.types.GateSettings].
@@ -3723,8 +4360,10 @@ def new(
         height: The height in cells, or a percentage of the window such as ``'50%'``; 24
             when ``None``. On the screen it is the height of the region the canvas draws
             in, and ``'100%'`` for both sizes fills the whole window.
-        fps: The most frames drawn per second, and the length of one step of ``iter()``.
-        bpm: Beats per minute for beat timers, notes and melodies.
+        fps: The most frames drawn per second, and the length of one step of ``iter()``;
+            the enclosing canvas's, else 60, when ``None``.
+        bpm: Beats per minute for beat timers, notes and melodies; the enclosing canvas's,
+            else 120, when ``None``.
         realtime: Whether the canvas runs by itself on the wall clock, on a thread of its own.
         title: The window title, shown when the canvas is on the screen.
         effects: Effects to apply to the canvas, as dictionaries with a ``kind`` key.
@@ -3753,11 +4392,76 @@ def new(
 
         with xnano.new('hello', width=8, height=1) as greeting:
             assert greeting.render() == 'hello'
+
+        with xnano.new(width=12, height=4) as outer:
+            with xnano.new(height='50%') as inner:
+                inner.write('inside')
+            assert (inner.width, inner.height) == (12, 2)
+            assert outer.render().strip() == ''
+            outer.write(inner, y=2)
+            assert outer.render().splitlines()[2] == 'inside'
+            assert xnano.active() is outer
         ```
     """
+    enclosing = _enclosing_canvas()
+    canvas: Canvas[DepsT, StateT] = _create(
+        content,
+        width=width,
+        height=height,
+        fps=fps,
+        bpm=bpm,
+        realtime=realtime,
+        title=title,
+        effects=effects,
+        deps=deps,
+        state=state,
+        enclosing=enclosing,
+        **settings,
+    )
+    if enclosing is not None and deps is _UNSET and state is _UNSET:
+        try:
+            placement = enclosing._canvas._place_on(
+                enclosing._content,
+                cast('Canvas[object, object]', canvas),
+                parent_owner=enclosing,
+            )
+            placement.is_visible = False
+        except BaseException:
+            canvas.close(raise_failure=False)
+            raise
+        canvas._is_hidden_until_written = True
+    return canvas
+
+
+def _create(
+    content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
+    /,
+    *,
+    width: int | Percentage | str | None = None,
+    height: int | Percentage | str | None = None,
+    fps: float | None = None,
+    bpm: float | None = None,
+    realtime: bool = False,
+    title: str | None = None,
+    effects: Sequence[RenderableEffectSpecification] = (),
+    deps: object = _UNSET,
+    state: object = _UNSET,
+    enclosing: Canvas[object, object] | None = None,
+    **settings: object,
+) -> Canvas[DepsT, StateT]:
+    """Create a canvas as ``new()`` describes, measured in ``enclosing`` when given."""
+    settings = dict(settings)
+    layout = check_layout(settings.pop('layout', 'overlay'))
+    edges = check_edges(
+        settings.pop('edges', 'clip' if enclosing is None else enclosing.edges)
+    )
     gates, appearance = _split_settings('new', settings)
     if content is not None and appearance:
         raise _appearance_with_content_error('new', appearance)
+    if fps is None:
+        fps = 60.0 if enclosing is None else enclosing.fps
+    if bpm is None:
+        bpm = 120.0 if enclosing is None else enclosing.bpm
     canvas: Canvas[DepsT, StateT] = Canvas(
         width=_check_size('width', width),
         height=_check_size('height', height),
@@ -3770,6 +4474,9 @@ def new(
         gates=gates,
         appearance=appearance,
         effects=effects,
+        enclosing=enclosing,
+        layout=layout,
+        edges=edges,
     )
     if content is not None:
         try:
@@ -3800,9 +4507,11 @@ def active(*, is_required: bool = True) -> Canvas[object, object] | None:
     """
     Return the innermost canvas that is running in this thread or task.
 
-    A canvas is active from the moment it is created until it ends: inside nested ``with``
-    blocks the inner one wins, and a canvas that was asked to [`quit`][xnano.canvas.Canvas.quit]
-    gives way to the one around it. Hooks run on a canvas's loop see that canvas.
+    A canvas is active from the moment it is created until it ends: the most recently created
+    one wins, and a canvas that was asked to [`quit`][xnano.canvas.Canvas.quit] gives way to the
+    one created before it. A canvas created inside the ``with`` block of another one belongs
+    to that canvas, so the outer canvas stays active. Hooks run on a canvas's loop see that
+    canvas.
 
     Args:
         is_required: Whether to raise when no canvas is running.
@@ -3816,9 +4525,10 @@ def active(*, is_required: bool = True) -> Canvas[object, object] | None:
 
         assert xnano.active(is_required=False) is None
         with xnano.new(width=4, height=1) as outer:
-            with xnano.new(width=4, height=1) as inner:
-                assert xnano.active() is inner
             assert xnano.active() is outer
+            with xnano.new(width=4, height=1):
+                assert xnano.active() is outer
+        assert xnano.active(is_required=False) is None
         ```
     """
     canvas = next(

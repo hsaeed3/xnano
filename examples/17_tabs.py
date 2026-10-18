@@ -6,7 +6,6 @@ switching only changes which placement is visible. ``left`` and ``right`` change
 """
 
 import xnano
-from xnano.context import Context
 from xnano.styles import Style
 from xnano.widgets import Block, Calendar, Paragraph, Table, Tabs
 
@@ -64,11 +63,11 @@ def main() -> None:
         show(0)
 
         @terminal.hook(on='key', keys='left')
-        def previous(context: Context) -> None:
+        def previous() -> None:
             show(state.selected - 1)
 
         @terminal.hook(on='key', keys='right')
-        def following(context: Context) -> None:
+        def following() -> None:
             show(state.selected + 1)
 
         terminal.run(quit_on='q')

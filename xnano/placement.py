@@ -24,6 +24,7 @@ from xnano._axes import (
     axis_limits,
     check_cells,
     check_count,
+    check_edges,
     check_layer,
     check_point,
     check_size,
@@ -40,10 +41,13 @@ from xnano._values import (
     ColorValue,
     Content,
     DepsT,
+    EdgeBehavior,
     NumericExpression,
     StateT,
+    WrittenDepsT,
+    WrittenStateT,
 )
-from xnano.appearance import _Looked
+from xnano.appearance import _TextModifiers
 from xnano.errors import TerminalClosedError
 from xnano.expressions import (
     Parent,
@@ -60,7 +64,7 @@ from xnano.state import StateNamespace
 __all__ = ['Placement']
 
 
-class Placement(_Hooked[DepsT, StateT], _Looked):
+class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     """
     A buffer placed on a canvas, with a position and size that are formulas.
 
@@ -146,6 +150,11 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         self._limits: dict[AxisName, tuple[Bound | None, Bound | None, bool]] = {}
         self._removed = False
         self._is_text = False
+        self._edges: EdgeBehavior | None = None
+        # An area that terminal.write uses inside a canvas's block follows that canvas.
+        self._edges_owner: Canvas[object, object] | None = None
+        self._wrapped_text: str | None = None
+        self._wrapped_width: int | None = None
         self._appearance: Appearance | None = None
         self._decorated: Decorated | None = None
         self._has_nested = False
@@ -351,7 +360,10 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
     def _clamp(
         self, axis: AxisName, value: float, resolve: Callable[[Bound], float | None]
     ) -> float:
-        """Hold a value inside the axis's range, if it has one."""
+        """Hold a value inside the axis's range, or inside its area with ``edges='stop'``."""
+        edge_range = self._edge_range(axis)
+        if edge_range is not None:
+            return min(max(value, edge_range[0]), edge_range[1])
         limits = self._limits.get(axis)
         if limits is None:
             return value
@@ -402,6 +414,8 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             return bound.evaluate(EvaluationContext(buffer=self._buffer, runtime=runtime))
 
         axes: set[AxisName] = {*bindings, *limits}
+        if self.edges == 'stop':
+            axes.update(('x', 'y'))
         for axis in axes:
             if axis in bindings:
                 expression, _ = bindings[axis]
@@ -415,6 +429,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             else:
                 value = getattr(self._buffer, axis)
             self._assign(axis, _round_half_away(self._clamp(axis, value, resolve)))
+        self._refresh_wrap()
         return any(flag for _, flag in bindings.values()) or any(
             flag for _, _, flag in limits.values()
         )
@@ -481,6 +496,107 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
     def is_visible(self, value: bool) -> None:
         self._buffer.is_visible = value
 
+    @property
+    def edges(self) -> EdgeBehavior:
+        """
+        What this content does at the edges of its area: ``'clip'``, ``'stop'`` or ``'wrap'``.
+
+        Its area is what it is written on: the canvas, the placement around it, or its slot
+        on a canvas with a ``'column'`` or ``'row'`` layout. Content written on the outer
+        canvas inside the ``with`` block of a canvas created in it lives in that canvas's
+        area, and follows that canvas's ``edges``. ``'clip'`` lets it move past an
+        edge, where it is not drawn. ``'stop'`` holds it inside the area whenever it moves
+        or is assigned a position, so a moved piece stops at the edge; a range given for
+        ``x`` or ``y`` takes the place of the area's edges on that axis. ``'wrap'`` continues
+        text on the next rows of the area, wrapped again whenever the area's width changes;
+        on content that is not text it is the same as ``'clip'``. Assign ``None`` to follow
+        what it is written on again: the setting of the placement around it, or the canvas's
+        ``edges``.
+
+        Raises:
+            ValueError: The value is not ``'clip'``, ``'stop'``, ``'wrap'`` or ``None``.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=10, height=3) as canvas:
+                ball = canvas.write('o', edges='stop')
+                ball.right(50).down(50)
+                assert (ball.x, ball.y) == (9, 2)
+                note = canvas.write('one two three', edges='wrap')
+                assert note.text == 'one two three'
+                assert canvas.render().splitlines()[:2] == ['one two', 'three']
+            ```
+        """
+        if self._edges is not None:
+            return self._edges
+        owner = self._edges_owner or self._parent_owner
+        return owner.edges
+
+    @edges.setter
+    def edges(self, value: EdgeBehavior | None) -> None:
+        self._require_attached()
+        self._edges = None if value is None else check_edges(value)
+        self._follow_edges()
+
+    def _take_edges(self, edges: EdgeBehavior | None, content: object) -> None:
+        """Keep the edges a write was given, and the text it wrote for wrapping."""
+        self._edges = edges
+        behavior = self.edges
+        if behavior == 'clip':
+            return
+        if behavior == 'wrap' and self._is_text:
+            if isinstance(content, str):
+                self._wrapped_text = content
+            elif isinstance(content, (list, tuple)):
+                self._wrapped_text = '\n'.join(cast('Sequence[str]', content))
+        self._follow_edges()
+
+    def _follow_edges(self) -> None:
+        """Apply the edges setting now, and look at the placement before each frame."""
+        self._refresh_wrap()
+        for axis in ('x', 'y'):
+            self._enforce(cast('AxisName', axis))
+        if self._needs_frames():
+            self._canvas._bindings_changed(self)
+
+    def _needs_frames(self) -> bool:
+        """Whether a formula, a range or the edges setting is looked at before each frame."""
+        return bool(self._bindings or self._limits) or self.edges in ('stop', 'wrap')
+
+    def _edge_range(self, axis: AxisName) -> tuple[int, int] | None:
+        """The positions ``'stop'`` holds ``x`` or ``y`` within, or ``None`` when it does not."""
+        if axis not in ('x', 'y') or axis in self._limits or self.edges != 'stop':
+            return None
+        parent = self._parent_buffer
+        if axis == 'x':
+            room = parent.width - self._buffer.width
+        else:
+            room = parent.height - self._buffer.height
+        return (0, max(0, room))
+
+    def _refresh_wrap(self) -> None:
+        """Wrap text at its area's width, or show the text as written once it no longer wraps."""
+        if not self._is_text:
+            return
+        written = self._wrapped_text
+        if self.edges != 'wrap':
+            if written is not None:
+                self._wrapped_text = None
+                self._wrapped_width = None
+                self._show_text(written)
+            return
+        if written is None:
+            written = self.text
+            self._wrapped_text = written
+        width = self._parent_buffer.width
+        if width == self._wrapped_width or width <= 0:
+            return
+        self._wrapped_width = width
+        lines = _core.layout_text(written, width=width).lines
+        self._show_text('\n'.join(line.text.rstrip() for line in lines))
+
     def move(self, x: int = 0, y: int = 0) -> Placement[DepsT, StateT]:
         """
         Move the placement by a number of cells along each axis.
@@ -523,8 +639,15 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
                 binding = self._bindings.get(axis)
             if binding is None:
                 self._set_axis(axis, getattr(self._buffer, axis) + step)
-            else:
-                self._set_axis(axis, binding[0] + step)
+                continue
+            # A formula moves only as far as its range or edges let it, so moves past an
+            # edge do not pile up and have to be undone before the opposite move shows.
+            current = getattr(self._buffer, axis)
+            try:
+                target = self._clamp(axis, current + step, self._resolve_offline)
+            except _core.RuntimeRequiredError:
+                target = current + step
+            self._set_axis(axis, binding[0] + _round_half_away(target - current))
         return self
 
     def up(self, count: int = 1) -> Placement[DepsT, StateT]:
@@ -701,6 +824,8 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         Assign new text to change what a text placement says; the placement grows or shrinks
         to fit it, unless its size was set.
         """
+        if self._wrapped_text is not None:
+            return self._wrapped_text
         self._flush_look()
         if self._appearance is not None and self._is_text:
             return self._appearance.text
@@ -714,6 +839,15 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
                 f'text must be a string, but got {value!r}. Pass text such as "hello", and '
                 f'join lines with newlines.'
             )
+        if self._wrapped_text is not None:
+            self._wrapped_text = value
+            self._wrapped_width = None
+            self._refresh_wrap()
+            return
+        self._show_text(value)
+
+    def _show_text(self, value: str) -> None:
+        """Draw text in the placement, which grows or shrinks to fit it."""
         if self._appearance is not None:
             self._flush_look()
             self._appearance.text = value
@@ -736,94 +870,6 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
     @style.setter
     def style(self, value: _core.Style | None) -> None:
         self._ensure_look().style = value
-        self._look_changed()
-
-    @property
-    def is_bold(self) -> bool:
-        """Whether the text is bold."""
-        look = self._appearance
-        return False if look is None else look.is_bold
-
-    @is_bold.setter
-    def is_bold(self, value: bool) -> None:
-        self._ensure_look().is_bold = value
-        self._look_changed()
-
-    @property
-    def is_dim(self) -> bool:
-        """Whether the text is dimmed."""
-        look = self._appearance
-        return False if look is None else look.is_dim
-
-    @is_dim.setter
-    def is_dim(self, value: bool) -> None:
-        self._ensure_look().is_dim = value
-        self._look_changed()
-
-    @property
-    def is_italic(self) -> bool:
-        """Whether the text is italic."""
-        look = self._appearance
-        return False if look is None else look.is_italic
-
-    @is_italic.setter
-    def is_italic(self, value: bool) -> None:
-        self._ensure_look().is_italic = value
-        self._look_changed()
-
-    @property
-    def is_underlined(self) -> bool:
-        """Whether the text is underlined."""
-        look = self._appearance
-        return False if look is None else look.is_underlined
-
-    @is_underlined.setter
-    def is_underlined(self, value: bool) -> None:
-        self._ensure_look().is_underlined = value
-        self._look_changed()
-
-    @property
-    def is_blinking(self) -> bool:
-        """Whether the text blinks."""
-        look = self._appearance
-        return False if look is None else look.is_blinking
-
-    @is_blinking.setter
-    def is_blinking(self, value: bool) -> None:
-        self._ensure_look().is_blinking = value
-        self._look_changed()
-
-    @property
-    def is_reversed(self) -> bool:
-        """Whether foreground and background are swapped."""
-        look = self._appearance
-        return False if look is None else look.is_reversed
-
-    @is_reversed.setter
-    def is_reversed(self, value: bool) -> None:
-        self._ensure_look().is_reversed = value
-        self._look_changed()
-
-    @property
-    def is_hidden(self) -> bool:
-        """Whether the text is hidden."""
-        look = self._appearance
-        return False if look is None else look.is_hidden
-
-    @is_hidden.setter
-    def is_hidden(self, value: bool) -> None:
-        self._ensure_look().is_hidden = value
-        self._look_changed()
-
-    @property
-    def is_crossed_out(self) -> bool:
-        """Whether the text is struck through."""
-        look = self._appearance
-        return False if look is None else look.is_crossed_out
-
-    @is_crossed_out.setter
-    def is_crossed_out(self, value: bool) -> None:
-        self._ensure_look().is_crossed_out = value
         self._look_changed()
 
     def _look_text(self) -> str:
@@ -987,7 +1033,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
     @refuse_unknown_keywords
     def write(
         self,
-        content: Content | Canvas[object, object] | None = None,
+        content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
         /,
         *,
         x: Axis | None = None,
@@ -996,18 +1042,19 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         height: Axis | None = None,
         layer: int = 0,
         lock: bool = False,
+        edges: EdgeBehavior | None = None,
         effects: Sequence[RenderableEffectSpecification] = (),
         style: _core.Style | None = None,
         foreground: ColorValue | None = None,
         background: ColorValue | None = None,
-        is_bold: bool = False,
-        is_dim: bool = False,
-        is_italic: bool = False,
-        is_underlined: bool = False,
-        is_blinking: bool = False,
-        is_reversed: bool = False,
-        is_hidden: bool = False,
-        is_crossed_out: bool = False,
+        bold: bool = False,
+        dim: bool = False,
+        italic: bool = False,
+        underline: bool = False,
+        blink: bool = False,
+        reverse: bool = False,
+        hidden: bool = False,
+        crossed_out: bool = False,
         title: str | None = None,
         border: _core.BorderKind | bool | None = None,
         border_style: _core.Style | None = None,
@@ -1030,18 +1077,21 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             height: Height of the child in cells.
             layer: Layer ordering among siblings.
             lock: Lock dynamic axes to their initial values.
+            edges: What the content does at the edges of its area: ``'clip'``, ``'stop'`` or
+                ``'wrap'``; see [`Placement.edges`][xnano.placement.Placement.edges]. Left
+                out, it follows what it is written on.
             effects: Effects to start on the child, as dictionaries with a ``kind`` key.
             style: Ready-made [`Style`][xnano.styles.Style] for text.
             foreground: Text foreground color.
             background: Text background color.
-            is_bold: Whether text is bold.
-            is_dim: Whether text is dimmed.
-            is_italic: Whether text is italic.
-            is_underlined: Whether text is underlined.
-            is_blinking: Whether text blinks.
-            is_reversed: Whether foreground and background are swapped.
-            is_hidden: Whether text is hidden.
-            is_crossed_out: Whether text is struck through.
+            bold: Whether text is bold.
+            dim: Whether text is dimmed.
+            italic: Whether text is italic.
+            underline: Whether text is underlined.
+            blink: Whether text blinks.
+            reverse: Whether foreground and background are swapped.
+            hidden: Whether text is hidden.
+            crossed_out: Whether text is struck through.
             title: Title for a box around text.
             border: The kind of border for a box around the content, a
                 [`BorderKind`][xnano.types.BorderKind] such as ``'plain'``, ``'rounded'``,
@@ -1052,6 +1102,8 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             margin: Space outside the box, in the same forms.
         """
         self._require_attached()
+        if edges is not None:
+            edges = check_edges(edges)
         look = self._appearance
         if look is not None and self._decorated is None and self._has_frame(look):
             self._has_nested = True
@@ -1070,14 +1122,14 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
             style=style,
             foreground=foreground,
             background=background,
-            is_bold=is_bold,
-            is_dim=is_dim,
-            is_italic=is_italic,
-            is_underlined=is_underlined,
-            is_blinking=is_blinking,
-            is_reversed=is_reversed,
-            is_hidden=is_hidden,
-            is_crossed_out=is_crossed_out,
+            bold=bold,
+            dim=dim,
+            italic=italic,
+            underline=underline,
+            blink=blink,
+            reverse=reverse,
+            hidden=hidden,
+            crossed_out=crossed_out,
             title=title,
             border=border,
             border_style=border_style,
@@ -1086,6 +1138,7 @@ class Placement(_Hooked[DepsT, StateT], _Looked):
         )
         if effects:
             apply_effects(cast('Placement[object, object]', placement), effects)
+        placement._take_edges(edges, content)
         return placement
 
     def update(

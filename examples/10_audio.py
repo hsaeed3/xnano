@@ -13,7 +13,6 @@ import dataclasses
 
 import xnano
 from xnano.audio import InstrumentName, instrument_names
-from xnano.context import Context
 from xnano.expressions import ParentWidth, Width
 
 SCALE = ('C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5')
@@ -60,7 +59,7 @@ def main() -> None:
             x=chosen_x,
             y=chosen_y,
             layer=1,
-            is_reversed=True,
+            reverse=True,
         )
         message = terminal.write('', y=11)
 
@@ -70,7 +69,7 @@ def main() -> None:
         if terminal.audio.is_available:
             terminal.audio.start()
 
-        def choose(context: Context[None, Keyboard], step: int) -> None:
+        def choose(context: xnano.Context[None, Keyboard], step: int) -> None:
             state = context.root.state
             state.index = (state.index + step) % len(INSTRUMENTS)
             highlight.text = instrument_label(INSTRUMENTS[state.index])
@@ -78,23 +77,23 @@ def main() -> None:
             message.text = f'instrument: {INSTRUMENTS[state.index]}'
 
         @terminal.hook(on='key', keys='up')
-        def previous(context: Context[None, Keyboard]) -> None:
+        def previous(context: xnano.Context[None, Keyboard]) -> None:
             choose(context, -1)
 
         @terminal.hook(on='key', keys='down')
-        def following(context: Context[None, Keyboard]) -> None:
+        def following(context: xnano.Context[None, Keyboard]) -> None:
             choose(context, 1)
 
         @terminal.hook(on='key', keys='left')
-        def column_back(context: Context[None, Keyboard]) -> None:
+        def column_back(context: xnano.Context[None, Keyboard]) -> None:
             choose(context, -ROWS)
 
         @terminal.hook(on='key', keys='right')
-        def column_forward(context: Context[None, Keyboard]) -> None:
+        def column_forward(context: xnano.Context[None, Keyboard]) -> None:
             choose(context, ROWS)
 
         @terminal.hook(on='key', keys=list(KEYS))
-        def play_note(context: Context[None, Keyboard]) -> None:
+        def play_note(context: xnano.Context[None, Keyboard]) -> None:
             if context.keyboard.key is None:
                 return
             chosen = KEYS[context.keyboard.key]
@@ -104,14 +103,14 @@ def main() -> None:
                 terminal.play(chosen, instrument=instrument)
 
         @terminal.hook(on='key', keys='space')
-        def play_chord(context: Context[None, Keyboard]) -> None:
+        def play_chord(context: xnano.Context[None, Keyboard]) -> None:
             instrument = INSTRUMENTS[context.root.state.index]
             message.text = f'chord {" ".join(CHORD_PITCHES)} on {instrument}'
             if terminal.audio.is_available:
                 terminal.play(CHORD, instrument=instrument)
 
         @terminal.hook(on='key', keys='m')
-        def play_tune(context: Context[None, Keyboard]) -> None:
+        def play_tune(context: xnano.Context[None, Keyboard]) -> None:
             instrument = INSTRUMENTS[context.root.state.index]
             message.text = f'tune of {len(TUNE)} notes on {instrument}'
             if terminal.audio.is_available:

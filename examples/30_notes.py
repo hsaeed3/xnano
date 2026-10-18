@@ -21,7 +21,6 @@ import wave
 
 import xnano
 from xnano.audio import Pitch
-from xnano.context import Context
 
 
 def tone(frequency: float, seconds: float) -> bytes:
@@ -48,7 +47,7 @@ melody = [
 
 
 @xnano.playable
-def arpeggio(context: Context) -> list[xnano.Note]:
+def arpeggio(context: xnano.Context) -> list[xnano.Note]:
     """Three notes that climb."""
     return [
         xnano.note(name, beats=0.25, instrument='bell') for name in ('C4', 'E4', 'G4')
@@ -61,7 +60,7 @@ class Fanfare:
 
     names: tuple[Pitch, ...]
 
-    def __xnano_play__(self, context: Context) -> list[xnano.Note]:
+    def __xnano_play__(self, context: xnano.Context) -> list[xnano.Note]:
         return [xnano.note(name, beats=0.25, instrument='bell') for name in self.names]
 
 
@@ -88,31 +87,31 @@ with xnano.open(width=58, height=3, bpm=120) as terminal:
         )
 
     @terminal.hook(on='key', keys='k')
-    def kick(context: Context) -> None:
+    def kick() -> None:
         if has_sound_device:
             xnano.play('kick')
         announce('the kick by name')
 
     @terminal.hook(on='key', keys='c')
-    def clip(context: Context) -> None:
+    def clip() -> None:
         if has_sound_device:
             xnano.play('clip')
         announce('the clip loaded with from_audio')
 
     @terminal.hook(on='key', keys='m')
-    def tune(context: Context) -> None:
+    def tune(context: xnano.Context) -> None:
         if has_sound_device:
             xnano.play(melody)
         announce(f'{len(melody)} notes at {context.canvas.bpm:g} bpm')
 
     @terminal.hook(on='key', keys='p')
-    def climb(context: Context) -> None:
+    def climb() -> None:
         if has_sound_device:
             xnano.play(arpeggio())
         announce('the arpeggio, a playable function')
 
     @terminal.hook(on='key', keys='f')
-    def fanfare(context: Context) -> None:
+    def fanfare() -> None:
         if has_sound_device:
             xnano.play(Fanfare(('G4', 'C5', 'E5')))
         announce('a class that plays itself')

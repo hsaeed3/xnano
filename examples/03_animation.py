@@ -7,7 +7,6 @@ Press ``q`` to quit.
 """
 
 import xnano
-from xnano.context import Context
 
 with xnano.open(width=60, height=6) as terminal:
     for row, seconds in enumerate((1.5, 2.5, 4.0), start=1):
@@ -17,7 +16,7 @@ with xnano.open(width=60, height=6) as terminal:
     counter = terminal.write('frame 0', y=5)
 
     @terminal.hook(on='frame')
-    def count(context: Context) -> None:
+    def count(context: xnano.Context) -> None:
         counter.text = f'frame {context.time.frame:<6} {context.time.elapsed:5.1f}s'
 
     terminal.run(quit_on='q')

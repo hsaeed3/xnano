@@ -104,11 +104,14 @@ class TestOpening:
         assert active(is_required=False) is None
         with pytest.raises(TerminalClosedError, match='No canvas is running'):
             active()
-        with new() as outer:
-            assert active() is outer
-            with new() as inner:
-                assert active() is inner
-            assert active() is outer
+        outer = new()
+        assert active() is outer
+        with new() as inner:
+            assert active() is inner
+        assert active() is outer
+        with outer, new() as hidden:
+            assert active() is outer, 'a canvas created in its block belongs to it'
+            assert hidden._canvas is outer
         assert active(is_required=False) is None
 
     def test_a_closed_terminal_explains_itself(self):
@@ -1640,8 +1643,8 @@ class TestTeachingErrorsOnWrongTypes:
         assert placement.is_bold is False
         with pytest.raises(TypeError, match='style must be a Style'):
             placement.style = 5  # type: ignore[assignment]
-        with pytest.raises(TypeError, match='is_bold must be True or False'):
-            canvas.write('a', is_bold='x')  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match='bold must be True or False'):
+            canvas.write('a', bold='x')  # type: ignore[arg-type]
         with pytest.raises(TypeError, match='title must be text'):
             canvas.write('a', title=5)  # type: ignore[arg-type]
         with pytest.raises((TypeError, ValueError), match='foreground must be a color'):

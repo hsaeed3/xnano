@@ -17,7 +17,6 @@ import math
 
 import xnano
 from xnano.components import ComponentContext
-from xnano.context import Context
 
 
 @dataclasses.dataclass(frozen=True)
@@ -29,7 +28,7 @@ class Services:
 
 
 @xnano.renderable
-def gauge(context: Context[Services], label: str, speed: float = 0.5) -> str:
+def gauge(context: xnano.Context[Services], label: str, speed: float = 0.5) -> str:
     """A bar that fills and empties on the clock."""
     filled = round((math.sin(context.time.elapsed * speed * math.tau) + 1) / 2 * 20)
     return f'{label:<6}[{"#" * filled}{"." * (20 - filled)}]'
@@ -41,7 +40,7 @@ class Badge:
 
     name: str
 
-    def __xnano_render__(self, context: Context[Services]) -> str:
+    def __xnano_render__(self, context: xnano.Context[Services]) -> str:
         return f'{self.name} on {context.deps.host}'
 
 
@@ -52,11 +51,11 @@ with xnano.open(width=40, height=6, deps=Services(host='xnano.local')) as termin
     message = terminal.write('press r to ask a gauge, h for the host', y=5)
 
     @terminal.hook(on='key', keys='h', requires_deps=True)
-    def host(context: Context[Services]) -> None:
+    def host(context: xnano.Context[Services]) -> None:
         message.text = f'the dependencies name {context.deps.host}'
 
     @gauge.hook(on='key', keys='r')
-    def answer(context: Context, component: ComponentContext) -> None:
+    def answer(context: xnano.Context, component: ComponentContext) -> None:
         state = context.plugin.state
         earlier = state.get('heard', default=0)
         heard = earlier + 1 if isinstance(earlier, int) else 1

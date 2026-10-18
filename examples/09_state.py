@@ -11,7 +11,6 @@ Press ``up`` and ``down`` to change the volume, ``m`` to mute, ``q`` to quit.
 import dataclasses
 
 import xnano
-from xnano.context import Context
 from xnano.styles import Style
 from xnano.widgets import Gauge
 
@@ -38,21 +37,21 @@ with xnano.open(width=40, height=4, state=Settings()) as terminal:
     )
 
     @terminal.hook(on='key', keys='up')
-    def louder(context: Context[None, Settings]) -> None:
+    def louder(context: xnano.Context[None, Settings]) -> None:
         context.root.state.volume = min(100, context.root.state.volume + 5)
 
     @terminal.hook(on='key', keys='down')
-    def quieter(context: Context[None, Settings]) -> None:
+    def quieter(context: xnano.Context[None, Settings]) -> None:
         context.root.state.volume = max(0, context.root.state.volume - 5)
 
     @terminal.hook(on='key', keys='m')
-    def mute(context: Context[None, Settings]) -> None:
+    def mute(context: xnano.Context[None, Settings]) -> None:
         context.root.state.is_muted = not context.root.state.is_muted
 
     status = terminal.write('', y=1)
 
     @terminal.hook(on='frame')
-    def show(context: Context[None, Settings]) -> None:
+    def show(context: xnano.Context[None, Settings]) -> None:
         state = terminal.state
         text = 'muted' if state.is_muted else f'volume {state.volume}'
         status.text = text

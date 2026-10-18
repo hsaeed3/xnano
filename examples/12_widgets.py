@@ -10,7 +10,6 @@ import collections
 import math
 
 import xnano
-from xnano.context import Context
 from xnano.expressions import TimeElapsed
 from xnano.widgets import Block, Gauge, Sparkline
 
@@ -25,7 +24,7 @@ with xnano.open(width=50, height=9) as terminal:
     terminal.write(history, x=1, y=5)
 
     @terminal.hook(on='tick', every=0.1)
-    def sample(context: Context) -> None:
+    def sample(context: xnano.Context) -> None:
         elapsed = context.time.elapsed
         samples.append(round(50 + 50 * math.sin(elapsed * 2)))
         history.values = list(samples)

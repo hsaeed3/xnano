@@ -24,7 +24,9 @@ from xnano._values import (
     Axis,
     AxisName,
     Bound,
+    CanvasLayout,
     ColorValue,
+    EdgeBehavior,
     NumericExpression,
     RangeBound,
 )
@@ -314,6 +316,38 @@ def check_axis(value: Axis, axis: AxisName) -> None:
 
 _LEAST_LAYER: Final = -(2**31)
 _MOST_LAYER: Final = 2**31 - 1
+
+
+def check_edges(value: object) -> EdgeBehavior:
+    """
+    Return ``value`` when it is an edges setting.
+
+    Raises:
+        ValueError: The value is not ``'clip'``, ``'stop'`` or ``'wrap'``.
+    """
+    if value not in ('clip', 'stop', 'wrap'):
+        raise ValueError(
+            f"edges must be 'clip', 'stop' or 'wrap', but got {value!r}. Pass edges='stop' to "
+            f"keep content inside its area when it moves, edges='wrap' to continue text on "
+            f"the next rows, or edges='clip' to let it move past the edge."
+        )
+    return cast('EdgeBehavior', value)
+
+
+def check_layout(value: object) -> CanvasLayout:
+    """
+    Return ``value`` when it is a canvas layout.
+
+    Raises:
+        ValueError: The value is not ``'overlay'``, ``'column'`` or ``'row'``.
+    """
+    if value not in ('overlay', 'column', 'row'):
+        raise ValueError(
+            f"layout must be 'overlay', 'column' or 'row', but got {value!r}. Pass "
+            f"layout='column' to stack what is written from top to bottom, layout='row' to "
+            f"stack it from left to right, or layout='overlay' to place each piece on its own."
+        )
+    return cast('CanvasLayout', value)
 
 
 def check_layer(value: object) -> int:

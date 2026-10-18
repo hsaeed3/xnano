@@ -3,11 +3,10 @@ Paint with the mouse.
 
 The mouse reports cells, and ``Region.pixel_for_cell`` picks the pixel of a cell the pointer is over,
 so a drag draws at twice the vertical resolution. Keys ``1`` to ``4`` choose a color, ``c``
-clears the canvas and ``q`` quits.
+clears the paper and ``q`` quits.
 """
 
 import xnano
-from xnano.context import Context
 from xnano.operations import Fill
 
 COLORS = {
@@ -30,15 +29,15 @@ def main() -> None:
     brush = Brush()
     with xnano.open(width=50, height=14, mouse=True) as terminal:
         terminal.write('drag to paint, 1-4 colors, c clear, q quit', y=0)
-        canvas = terminal.write(' ', y=1, width=50, height=13)
-        pixels = canvas.region.half_blocks
+        paper = terminal.write(' ', y=1, width=50, height=13)
+        pixels = paper.region.half_blocks
 
-        def is_painting(context: Context) -> bool:
+        def is_painting(context: xnano.Context) -> bool:
             mouse = context.mouse
             return mouse is not None and mouse.kind in ('press', 'drag')
 
-        @canvas.hook(when=is_painting)
-        def paint(context: Context) -> None:
+        @paper.hook(when=is_painting)
+        def paint(context: xnano.Context) -> None:
             if context.mouse.position is None:
                 return
             position = context.mouse.position
@@ -48,13 +47,13 @@ def main() -> None:
             pixels[column, row] = brush.color
 
         @terminal.hook(on='key', keys=list(COLORS))
-        def choose_color(context: Context) -> None:
+        def choose_color(context: xnano.Context) -> None:
             if context.keyboard.key is not None:
                 brush.color = COLORS[context.keyboard.key]
 
         @terminal.hook(on='key', keys='c')
-        def clear(context: Context) -> None:
-            canvas.core_buffer.update(Fill(' '))
+        def clear() -> None:
+            paper.update(Fill(' '))
 
         terminal.run(quit_on='q')
 

@@ -2,6 +2,7 @@
 Every event, in one log.
 
 Keys, the mouse, pastes and your own events all arrive the same way, as a context given to a
+hook. Each new line of the log flashes with ``placement.fx.fade_from``, an effect started from the
 hook. Press keys, click, drag, scroll, paste, resize the window, or press ``c`` to send an event of
 your own with ``terminal.push``.
 
@@ -14,7 +15,6 @@ it fire. Press ``q`` to quit.
 import collections
 
 import xnano
-from xnano.context import Context
 from xnano.events import Event
 from xnano.types import HookGenerator
 
@@ -24,12 +24,15 @@ with xnano.open(width=60, height=10, mouse='motion', scroll=True) as terminal:
 
     rows = [terminal.write('', y=row + 2) for row in range(8)]
 
-    def show() -> None:
+    def add_to_log(description: str) -> None:
+        log.append(description)
         for row, placement in enumerate(rows):
             placement.text = log[row] if row < len(log) else ''
+        newest = rows[len(log) - 1]
+        newest.fx.fade_from(foreground='yellow', duration_milliseconds=400)
 
     @terminal.hook
-    def record(context: Context) -> None:
+    def record(context: xnano.Context) -> None:
         event = context.event
         if event is None:
             return
@@ -49,11 +52,10 @@ with xnano.open(width=60, height=10, mouse='motion', scroll=True) as terminal:
             description = f'custom {event.custom_name} {event.custom_data}'
         else:
             description = event.kind if isinstance(event, Event) else 'state change'
-        log.append(description)
-        show()
+        add_to_log(description)
 
     @terminal.hook(on='key', when="keyboard.kind == 'press'")
-    def triple_tap(context: Context) -> HookGenerator:
+    def triple_tap(context: xnano.Context) -> HookGenerator:
         taps = 0
         last_seconds = context.time.elapsed
         while taps < 3:
@@ -64,11 +66,10 @@ with xnano.open(width=60, height=10, mouse='motion', scroll=True) as terminal:
             last_seconds = now_seconds
             if taps < 3:
                 context = yield
-        log.append('triple tap of t')
-        show()
+        add_to_log('triple tap of t')
 
     @terminal.hook(on='key', keys='c')
-    def send(context: Context) -> None:
+    def send(context: xnano.Context) -> None:
         context.canvas.push(Event.custom('hello', data='from the example'))
 
     terminal.run(quit_on='q')

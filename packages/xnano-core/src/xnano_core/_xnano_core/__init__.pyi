@@ -629,6 +629,39 @@ class Color:
             ```
         """
 
+    @classmethod
+    def random(
+        cls, base: Color | ColorName | str | tuple[int, int, int] | None = None
+    ) -> Color:
+        """
+        A random true color, or a random shade of ``base``.
+
+        Without ``base`` every red, green and blue channel is picked at random. With ``base``
+        the color keeps its hue and saturation and takes a random lightness from 15 to 85
+        percent, so every color it returns is a lighter or darker shade of ``base``. The
+        colors come from Python's [`random`](https://docs.python.org/3/library/random.html)
+        module, so ``random.seed(...)`` repeats them.
+
+        Args:
+            base: The color to pick shades of, or ``None`` for any color.
+
+        Raises:
+            ValueError: ``base`` is ``Color.reset``, or not a color.
+
+        Examples:
+            ```python
+            import random
+
+            random.seed(7)
+            first = Color.random()
+            random.seed(7)
+            assert Color.random() == first
+
+            hue, saturation, _ = Color.random('#3366cc').to_hsl()
+            assert round(hue) == 220 and round(saturation) == 60
+            ```
+        """
+
     def to_hsl(self) -> tuple[float, float, float]:
         """
         The hue (degrees), saturation and lightness (percentages) of the color.

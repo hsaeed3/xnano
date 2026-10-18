@@ -170,6 +170,27 @@ def test_color_constants_and_conversions():
         Color.from_hsl(400, 0, 0)
 
 
+def test_random_colors_repeat_with_a_seed_and_keep_the_hue_of_a_base():
+    import random
+
+    random.seed(11)
+    colors = [Color.random() for _ in range(5)]
+    random.seed(11)
+    assert [Color.random() for _ in range(5)] == colors
+    assert all(color.to_rgb() is not None for color in colors)
+    assert len(set(colors)) > 1
+    for base in ('#3366cc', Color.red, (200, 40, 40)):
+        base_color = base if isinstance(base, Color) else Color(base)
+        base_hue, base_saturation, _ = base_color.to_hsl()
+        for _ in range(20):
+            hue, saturation, lightness = Color.random(base).to_hsl()
+            assert abs(hue - base_hue) < 2 or abs(abs(hue - base_hue) - 360) < 2
+            assert abs(saturation - base_saturation) < 2
+            assert 14 <= lightness <= 86
+    with pytest.raises(ValueError, match='reset'):
+        Color.random(Color.reset)
+
+
 def test_darken_moves_toward_black_and_rejects_amounts_outside_zero_to_one():
     base = Color('#336699')
     assert base.darken(0.0) == base

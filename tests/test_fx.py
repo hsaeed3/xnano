@@ -404,10 +404,11 @@ def test_xnano_hook_makes_a_reusable_operation() -> None:
 
     assert isinstance(tick, xnano.operations.ContextualOperation)
     assert (tick.on, tick.every) == ('tick', 0.1)
-    with xnano.new(width=8, height=1) as first, xnano.new(width=8, height=1) as second:
+    with xnano.new(width=8, height=1) as first:
         first | tick
-        second | tick
         first.step(delta_seconds=0.25)
+    with xnano.new(width=8, height=1) as second:
+        second | tick
         second.step(delta_seconds=0.15)
     assert len(ticks) == 3
     assert not hasattr(xnano, 'operation')

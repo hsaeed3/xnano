@@ -100,6 +100,22 @@ HorizontalPosition: TypeAlias = Literal['left', 'center', 'right']
 VerticalPosition: TypeAlias = Literal['top', 'center', 'bottom']
 """A word that places something inside its parent along ``y``."""
 
+CanvasLayout: TypeAlias = Literal['overlay', 'column', 'row']
+"""
+How a canvas places what is written on it.
+
+``'overlay'`` places every piece on its own, over the whole canvas. ``'column'`` stacks the
+pieces from top to bottom in the order they are written, and ``'row'`` from left to right.
+"""
+
+EdgeBehavior: TypeAlias = Literal['clip', 'stop', 'wrap']
+"""
+What content does at the edges of its area.
+
+``'clip'`` lets it go past the edge, where it is not drawn. ``'stop'`` holds it inside the
+area when it moves. ``'wrap'`` continues text on the next rows of the area.
+"""
+
 RangeBound: TypeAlias = Number | Percentage | str | NumericExpression | None
 """One end of a range as written: cells, a percentage string, an expression, or ``None``."""
 
@@ -191,6 +207,12 @@ StateT = TypeVar('StateT', default=None)
 """The type of the dataclass a canvas keeps as its state, or ``None`` without one."""
 
 ValueT = TypeVar('ValueT')
+
+WrittenDepsT = TypeVar('WrittenDepsT')
+"""The dependencies type of a canvas that is written into another, whatever it is."""
+
+WrittenStateT = TypeVar('WrittenStateT')
+"""The state type of a canvas that is written into another, whatever it is."""
 
 DepsT_co = TypeVar('DepsT_co', covariant=True, default=None)
 

@@ -286,13 +286,14 @@ class TestEnding:
 class TestActive:
     def test_the_innermost_running_canvas_is_active(self):
         assert xnano.active(is_required=False) is None
-        with xnano.new(width=4, height=1) as outer:
-            assert xnano.active() is outer
-            with xnano.new(width=4, height=1) as inner:
-                assert xnano.active() is inner
-                inner.quit()
-                assert xnano.active() is outer, 'a canvas that quit gives way'
-            assert xnano.active() is outer
+        outer = xnano.new(width=4, height=1)
+        assert xnano.active() is outer
+        with xnano.new(width=4, height=1) as inner:
+            assert xnano.active() is inner
+            inner.quit()
+            assert xnano.active() is outer, 'a canvas that quit gives way'
+        assert xnano.active() is outer
+        outer.close()
         assert xnano.active(is_required=False) is None
         with pytest.raises(TerminalClosedError, match='No canvas is running'):
             xnano.active()
@@ -593,6 +594,93 @@ class TestChildCanvases:
                 inner.write(outer)
             with pytest.raises(TerminalError, match='Open the outer canvas'):
                 inner.open()
+
+
+class TestCanvasesCreatedInsideAnother:
+    def test_its_size_and_clock_are_measured_in_the_canvas_around_it(self):
+        with xnano.new(width=20, height=10, fps=10, bpm=90):
+            with xnano.new(width='50%', height='30%') as inner:
+                assert (inner.width, inner.height) == (10, 3)
+                assert (inner.fps, inner.bpm) == (10, 90)
+            with xnano.new() as filling:
+                assert (filling.width, filling.height) == (20, 10)
+            with xnano.new(width=4, height=2) as own:
+                assert (own.width, own.height) == (4, 2)
+            with xnano.new(width='50%', state=Settings()) as on_its_own:
+                assert (on_its_own.width, on_its_own.fps, on_its_own.bpm) == (10, 10, 90)
+
+    def test_it_is_not_drawn_until_it_is_written(self):
+        with xnano.new(width=12, height=4) as outer:
+            with xnano.new(height='50%') as inner:
+                inner.write('inside')
+                assert xnano.active() is outer
+            assert inner.time is outer.time
+            assert outer.render().strip() == ''
+            outer.write(inner, y=2)
+            assert outer.render().splitlines()[2] == 'inside'
+            assert inner.down() is inner
+            assert inner.y == 3
+
+    def test_it_outlives_its_own_block_and_closes_with_the_canvas_around_it(self):
+        with xnano.new(width=12, height=4) as outer:
+            with xnano.new(height='50%') as inner:
+                pass
+            assert not inner.is_closed
+            heard: list[str] = []
+            inner.hook(on='key')(lambda context: heard.append(context.keyboard.key))
+            outer.write(inner)
+            outer.push(Event.key_press('a'))
+            outer.deliver_events()
+            assert heard == ['a']
+            with xnano.new() as never_written:
+                pass
+        assert inner.is_closed
+        assert never_written.is_closed
+
+    def test_a_canvas_created_outside_any_block_closes_with_its_own(self):
+        with xnano.new(width=4, height=1):
+            pass
+        with xnano.new(width=4, height=1) as later:
+            pass
+        assert later.is_closed
+
+    def test_writing_on_the_outer_canvas_inside_its_block_lands_in_its_area(self):
+        with xnano.new(width=12, height=4) as outer:
+            with xnano.new(width=6, height='50%') as inner:
+                outer.write('abcdefgh', x='center', y='center')
+                inner.write('i')
+            outer.write('after', y=3)
+            assert outer.render().splitlines() == ['bcdefg', '', '', 'after']
+
+    def test_the_area_follows_where_the_canvas_is_written(self):
+        with xnano.new(width=12, height=4) as outer:
+            inner = xnano.new(width=4, height=2)
+            outer.write(inner, x=6, y=2)
+            with inner:
+                outer.write('ab', x='right', y='bottom')
+            assert outer.render().splitlines()[3] == '        ab'
+
+    def test_a_canvas_that_is_not_written_refuses_to_move(self):
+        with xnano.new(width=4, height=1) as canvas:
+            with pytest.raises(TerminalError, match='not written into another canvas'):
+                canvas.up()
+
+
+class TestCanvasNew:
+    def test_it_creates_a_canvas_drawn_here_at_once(self):
+        with xnano.new(width=12, height=4, fps=10) as outer:
+            panel = outer.new('hi', height='50%')
+            assert (panel.width, panel.height, panel.fps) == (12, 2, 10)
+            assert panel._canvas is outer
+            assert outer.render().splitlines()[0] == 'hi'
+            panel.right(2)
+            assert outer.render().splitlines()[0] == '  hi'
+        assert panel.is_closed
+
+    def test_a_canvas_it_creates_takes_a_look(self):
+        with xnano.new(width=6, height=3) as outer:
+            outer.new(border='plain')
+            assert outer.render().splitlines()[0] == '┌────┐'
 
 
 class TestRemovedNames:
@@ -944,14 +1032,15 @@ class TestClosingAWrittenCanvas:
         assert [reference for reference in references if reference() is not None] == []
         assert xnano.active(is_required=False) is None
 
-    def test_a_canvas_dropped_without_closing_leaves_the_one_around_it(self):
-        with xnano.new(width=4, height=1) as outer:
-            inner = xnano.new(width=4, height=1)
-            reference = weakref.ref(inner)
-            del inner
-            gc.collect()
-            assert reference() is None
-            assert xnano.active() is outer
+    def test_a_canvas_dropped_without_closing_leaves_the_one_before_it(self):
+        outer = xnano.new(width=4, height=1)
+        inner = xnano.new(width=4, height=1)
+        reference = weakref.ref(inner)
+        del inner
+        gc.collect()
+        assert reference() is None
+        assert xnano.active() is outer
+        outer.close()
 
     def test_a_closed_written_canvas_cannot_iterate_or_read_the_time(self):
         outer = xnano.new(width=10, height=3)
@@ -1017,7 +1106,7 @@ class TestRefusedSettings:
             {'padding': 'x'},
             {'foreground': 'nocolor'},
             {'background': 'nocolor'},
-            {'is_bold': 'x'},
+            {'bold': 'x'},
             {'border_style': 'nonsense'},
         ],
     )
