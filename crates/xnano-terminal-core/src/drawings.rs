@@ -148,6 +148,22 @@ pub struct PyDrawingFrame {
 
 #[pymethods]
 impl PyDrawingFrame {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["duration_milliseconds"])
+    }
+
     #[new]
     #[pyo3(signature = (drawing, *, duration_milliseconds = 100))]
     fn new(drawing: &PyDrawing, duration_milliseconds: i64) -> PyResult<Self> {
@@ -190,6 +206,10 @@ pub struct PyDrawingAnimation {
 
 #[pymethods]
 impl PyDrawingAnimation {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["#frames", "should_loop"])
+    }
+
     #[new]
     #[pyo3(signature = (frames, *, should_loop = true))]
     fn new(frames: Vec<PyDrawingFrame>, should_loop: bool) -> PyResult<Self> {

@@ -19,8 +19,6 @@ from typing import (
     TYPE_CHECKING,
     Final,
     Protocol,
-    TypeAlias,
-    TypeVar,
     Union,
     cast,
     get_args,
@@ -30,7 +28,8 @@ from typing import (
 )
 
 import xnano_core as _core
-from xnano._values import DepsT, StateT
+from xnano._schema._generics import DepsT, StateFieldT, StateRootT, StateT
+from xnano._schema._state import StatePath as StatePath
 from xnano.errors import TerminalError
 from xnano_core import JSONSchema, JSONValue
 
@@ -38,16 +37,10 @@ if TYPE_CHECKING:
     from _typeshed import DataclassInstance
     from typing_extensions import Self
 
-    from xnano._hooks import HookHandle
     from xnano.canvas import Canvas
+    from xnano.hooks._handles import HookHandle
 
 __all__ = ['StateNamespace', 'StatePath', 'parse_path']
-
-StateFieldT = TypeVar('StateFieldT')
-StateRootT = TypeVar('StateRootT')
-
-StatePath: TypeAlias = tuple[str | int, ...]
-"""A path in the state store: object keys and array indexes, outermost first."""
 
 _RESERVED_ROOT_KEY: Final = 'xnano'
 _RESERVED_FIELD_NAMES: Final = frozenset({_RESERVED_ROOT_KEY, 'get', 'push'})

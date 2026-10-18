@@ -27,27 +27,25 @@ from typing import (
 )
 
 import xnano_core as _core
-from xnano._media import check_context_method
-from xnano._values import DepsT, StateT
+from xnano._internal._content import check_context_method
+from xnano._schema._generics import DepsT, ParametersT, StateT
+from xnano.audio._notes import Note, PlayHandle
 from xnano.context import Context, ReadLog
 from xnano.errors import TerminalError
-from xnano.music import PlayHandle
 from xnano.state import StatePath, _HookRun
 
-if sys.version_info >= (3, 13):
-    from typing import ParamSpec
-else:
-    from typing_extensions import ParamSpec
-
 if TYPE_CHECKING:
-    from xnano._effect_controller import EffectState
-    from xnano._hooks import HookHandle, _Hooked
-    from xnano._values import Content, Playable, Renderable, SupportsPlay
+    from xnano._schema._content import Content, Playable, Renderable, SupportsPlay
+    from xnano._schema._hooks import KeyName
+    from xnano._schema._media import PlayOptions
     from xnano.canvas import Canvas
     from xnano.context import Frame
+    from xnano.effects._controller import EffectState
+    from xnano.hooks._handles import HookHandle, _Hooked
     from xnano.placement import Placement
+    from xnano.region import Region
     from xnano.state import StateNamespace, _StateFollower
-    from xnano.types import HookKind, KeyName, PlayOptions, When
+    from xnano.types import HookKind, When
 
 __all__ = [
     'ComponentContext',
@@ -59,8 +57,6 @@ __all__ = [
     'playable',
     'renderable',
 ]
-
-ParametersT = ParamSpec('ParametersT')
 
 _INPUT_EVENTS = {'key': 'key', 'mouse': 'mouse', 'scroll': 'scroll', 'paste': 'paste'}
 _warned_classes: set[type] = set()
@@ -133,7 +129,7 @@ class ComponentHook:
     ``remove`` takes it off all of them. It never starts a placement of its own.
 
     Attributes:
-        handles: The [`HookHandle`][xnano.types.HookHandle] on each placement it is installed
+        handles: The [`HookHandle`][xnano.hooks.HookHandle] on each placement it is installed
             on right now.
         is_removed: Whether ``remove`` was called.
     """
@@ -198,8 +194,15 @@ class ComponentHook:
         | PlayableComponent[object, object]
         | RenderableFunction[..., object, object]
         | PlayableFunction[..., object, object],
+        *,
+        timeline: Callable[[], Region[float]] | None = None,
     ) -> None:
-        """Install the hook on a placement (or on the canvas for a playable)."""
+        """
+        Install the hook on a placement (or on the canvas for a playable).
+
+        ``timeline`` returns the region on the timeline of what a playable is playing; the
+        hook's contexts report it as ``context.region``.
+        """
         if self._is_removed:
             return
         placement = target if hasattr(target, 'refresh') else None
@@ -215,16 +218,23 @@ class ComponentHook:
             def generator_hook(
                 hook_context: Context[object, object],
             ) -> Generator[None, Context[object, object], None]:
-                yield from cast(
+                running = cast(
                     'Generator[None, Context[object, object], None]',
                     function(hook_context, context),
                 )
+                if timeline is None:
+                    yield from running
+                    return
+                hook_context._timeline = timeline
+                yield from _resumed_on_timeline(running, timeline)
 
             wrapped: Callable[..., object] = generator_hook
         else:
 
             @functools.wraps(function)
             def plain_hook(hook_context: Context[object, object]) -> object:
+                if timeline is not None:
+                    hook_context._timeline = timeline
                 return function(hook_context, context)
 
             wrapped = plain_hook
@@ -245,6 +255,28 @@ class ComponentHook:
         return f'ComponentHook({state})'
 
 
+def _resumed_on_timeline(
+    running: Generator[None, Context[object, object], None],
+    timeline: Callable[[], Region[float]],
+) -> Generator[None, Context[object, object], None]:
+    """
+    Run a generator hook, giving each context that resumes it the ``timeline`` of a playable.
+
+    A generator hook is resumed with a new context at each event, and only the first one
+    passes through the hook that installed it.
+    """
+    try:
+        yielded = next(running)
+        while True:
+            resumed = yield yielded
+            resumed._timeline = timeline
+            yielded = running.send(resumed)
+    except StopIteration:
+        return
+    finally:
+        running.close()
+
+
 class _PlacementLike:
     """Stands in for a placement while the arguments of a component hook are checked."""
 
@@ -257,7 +289,9 @@ class _HookSource:
     def __init__(self) -> None:
         """Start with no hooks and no placements."""
         self._hooks: list[ComponentHook] = []
-        self._targets: list[tuple[object, object]] = []
+        self._targets: list[
+            tuple[object, object, Callable[[], Region[float]] | None]
+        ] = []
 
     def _owners(self) -> tuple[_HookSource, ...]:
         """Where hooks for this component are kept: itself, and its function if it has one."""
@@ -314,8 +348,8 @@ class _HookSource:
 
         Args:
             function: The function to call, or ``None`` to use this as a decorator.
-            on: What to listen to; see [`HookKind`][xnano.types.HookKind].
-            when: A condition that must hold; see [`When`][xnano.types.When].
+            on: What to listen to; see [`HookKind`][xnano.hooks.HookKind].
+            when: A condition that must hold; see [`When`][xnano.hooks.When].
             every: Repeat every this many seconds (``'tick'``) or beats (``'beat'``).
             after: Run once after this many seconds or beats.
             keys: The key or keys an ``on='key'`` hook reacts to.
@@ -357,8 +391,8 @@ class _HookSource:
                 assert pressed == ['hi']
             ```
         """
-        from xnano._hooks import _check_hook_arguments, _check_hook_function
-        from xnano._when import compile_when
+        from xnano.hooks._handles import _check_hook_arguments, _check_hook_function
+        from xnano.hooks._triggers import compile_when
 
         _check_hook_arguments(
             cast('_Hooked[object, object]', _PlacementLike()), on, every, after, keys
@@ -384,21 +418,34 @@ class _HookSource:
 
     def _install_everywhere(self, component_hook: ComponentHook) -> None:
         """Install a new hook on every placement the component has now."""
-        for target, component in list(self._targets):
+        for target, component, timeline in list(self._targets):
             component_hook._install(
                 cast('Placement[object, object]', target),
                 cast('RenderableComponent[object, object]', component),
+                timeline=timeline,
             )
 
-    def _placed(self, target: object, component: object) -> None:
-        """Install every hook of this component, and of its function, on a new target."""
+    def _placed(
+        self,
+        target: object,
+        component: object,
+        *,
+        timeline: Callable[[], Region[float]] | None = None,
+    ) -> None:
+        """
+        Install every hook of this component, and of its function, on a new target.
+
+        ``timeline`` is given for a playable: it returns the region on the timeline of what
+        the playable is playing.
+        """
         for owner in self._owners():
             for component_hook in list(owner._hooks):
                 component_hook._install(
                     cast('Placement[object, object]', target),
                     cast('RenderableComponent[object, object]', component),
+                    timeline=timeline,
                 )
-            owner._targets.append((target, component))
+            owner._targets.append((target, component, timeline))
 
     def _released(self, target: object) -> None:
         for owner in self._owners():
@@ -693,7 +740,7 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
     called without the context. It is evaluated once when played, and again
     on a beat only when it read something that changes (the time or the beat, a state path or
     an input), playing the new result each time. ``canvas.play`` returns a
-    [`PlayHandle`][xnano.music.PlayHandle] whose ``remove()`` stops it.
+    [`PlayHandle`][xnano.audio.PlayHandle] whose ``remove()`` stops it.
 
     Args:
         function: The function ``(context, **own_parameters) -> playable``.
@@ -818,6 +865,10 @@ class _Driver:
 
     # -- evaluating ----------------------------------------------------------------------
 
+    def _timeline(self) -> Callable[[], Region[float]] | None:
+        """Returns the region on the timeline of what is playing, or ``None`` off the timeline."""
+        return None
+
     def _context(
         self,
         owner: Placement[object, object] | Canvas[object, object],
@@ -831,6 +882,7 @@ class _Driver:
             cast('_core.Event | _core.TerminalStateChange | Frame | None', event),
             None,
             log=log,
+            timeline=self._timeline(),
         )
 
     def _run(self, call: Callable[[], object]) -> tuple[object, ReadLog, _HookRun]:
@@ -1050,7 +1102,7 @@ class _ComponentDriver(_Driver):
         context = self._context(self.placement, event, log)
 
         def call() -> _core.Buffer:
-            from xnano._media import content_buffer
+            from xnano._internal._content import content_buffer
 
             buffer, _ = content_buffer(
                 cast('Content', self.component), limit=canvas.size, context=context
@@ -1217,7 +1269,7 @@ def _resolve_playable(
     if depth > 8:
         raise TerminalError(
             f'{type(item).__name__}.__xnano_play__ keeps returning something that plays '
-            f'again. Return a Note, an Audio, text or a list of those.'
+            f'again. Return a Note, a Sound, text or a list of those.'
         )
     if isinstance(item, (str, bytes, bytearray)):
         return item
@@ -1235,8 +1287,6 @@ def _resolve_playable(
 
 
 def _holds_component(item: object) -> bool:
-    from xnano.music import Note
-
     if isinstance(item, (str, bytes, bytearray, Note)):
         return False
     if hasattr(item, '__xnano_play__'):
@@ -1273,6 +1323,7 @@ class _PlayableDriver(_Driver):
         self._handles: list[PlayHandle] = []
         self._beat_hook: HookHandle[object, object] | None = None
         self._component_hooks: list[HookHandle[object, object]] = []
+        self._playing: PlayHandle | None = None
 
     @property
     def is_finished(self) -> bool:
@@ -1283,12 +1334,45 @@ class _PlayableDriver(_Driver):
             return False
         return all(handle.is_finished for handle in self._handles)
 
+    def _timeline_region(self) -> Region[float]:
+        """
+        Where the sound the component played last is on the timeline of the canvas.
+
+        Before it has played anything the region is empty and starts at the beat the canvas
+        has reached, or at the ``at_beat`` it is played on.
+        """
+        playing = self._playing
+        if playing is not None:
+            region = playing._region
+            if region is not None:
+                return region
+        from xnano.region import _timeline_region
+
+        canvas = self._canvas
+        at_beat = self._options.get('at_beat')
+        return _timeline_region(
+            start_beats=(
+                canvas.time.elapsed * canvas.bpm / 60.0
+                if at_beat is None
+                else float(at_beat)
+            ),
+            length_beats=0.0,
+            pitches=(),
+            tempo_changes=((0.0, canvas.bpm),),
+        )
+
+    def _timeline(self) -> Callable[[], Region[float]] | None:
+        return self._timeline_region
+
     def start(self) -> None:
         """Play the component for the first time, and let errors reach the caller."""
         component = self.component
         placed = getattr(component, '_placed', None)
         if placed is not None:
-            placed(self._canvas, component)
+            if isinstance(component, _HookSource):
+                placed(self._canvas, component, timeline=self._timeline_region)
+            else:
+                placed(self._canvas, component)
         self.evaluate(None)
 
     def evaluate(self, event: object) -> None:
@@ -1305,7 +1389,10 @@ class _PlayableDriver(_Driver):
         if self._is_closed:
             return
         self._handles = [handle for handle in self._handles if not handle.is_finished]
-        self._handles.append(canvas.audio.play(cast('Playable', result), **self._options))
+        handle = canvas.audio.play(cast('Playable', result), **self._options)
+        self._handles.append(handle)
+        if handle._has_region:
+            self._playing = handle
         if (log.uses_time or log.input_kinds or self._followed) and (
             self._beat_hook is None
         ):

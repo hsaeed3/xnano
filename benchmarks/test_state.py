@@ -23,7 +23,7 @@ import pytest
 from benchmark_budgets import assert_within_budget, budgets_are_checked
 
 import xnano
-from xnano._values import DepsT, StateT
+from xnano._schema._generics import DepsT, StateT
 from xnano.canvas import Canvas
 from xnano.context import Context
 from xnano_core import Event

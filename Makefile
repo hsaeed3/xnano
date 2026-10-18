@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 # Python packages live in `packages/`, and every Rust crate lives in `crates/` (one Cargo workspace).
 packages = xnano-core xnano-audio xnano-image
-sources = xnano tests packages scripts examples benchmarks .github/scripts
+sources = xnano tests packages scripts benchmarks .github/scripts
 NUM_THREADS?=1
 
 # This is used to stop uv from rebuilding a .so file through `uv run` invoked operations
@@ -64,7 +64,7 @@ install-terminal:
 		sudo apt-get update && sudo apt-get install -y kitty xvfb xauth libgl1-mesa-dri fonts-dejavu-core; \
 	else echo 'Install Kitty and, on headless Linux, Xvfb with your system package manager.' >&2; exit 1; fi
 
-.PHONY: readme-images ## Photograph the README's examples in real Kitty windows (needs make install-terminal)
+.PHONY: readme-images ## Photograph the demo and the README Quick Start examples in a real Kitty window (needs make install-terminal)
 readme-images: .uv
 	$(uv-run-no-sync) python scripts/readme_images.py
 
@@ -162,6 +162,7 @@ clean:
 	rm -rf *.egg-info
 	rm -f .coverage
 	rm -f .coverage.*
+	find . -type f -name '*.profraw' -not -path './.venv/*' -delete
 	rm -f coverage.lcov
 	rm -rf build
 	rm -rf dist

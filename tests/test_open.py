@@ -14,9 +14,10 @@ import threading
 from typing import cast
 
 import pytest
+from documented_attributes import documented_attributes
 
 import xnano as main
-import xnano.terminal as terminal_module
+import xnano.terminal._screen as screen_module
 from xnano import active, new
 from xnano import hook as xnano_hook
 from xnano import open as open_terminal
@@ -93,10 +94,10 @@ class TestOpening:
         for _ in range(2):
             with pytest.raises(RuntimeError, match='could not be opened'):
                 open_terminal(height=2)
-            assert terminal_module._live_terminal_open is False
+            assert screen_module.is_screen_claimed is False
 
     def test_a_second_live_terminal_is_refused(self, monkeypatch):
-        monkeypatch.setattr(terminal_module, '_live_terminal_open', True)
+        monkeypatch.setattr(screen_module, 'is_screen_claimed', True)
         with pytest.raises(TerminalAlreadyOpenError, match='only one screen'):
             open_terminal()
 
@@ -168,7 +169,7 @@ class TestFrames:
         for frame in canvas.iter(count=3):
             canvas.write(str(frame.index), x=frame.index, y=0)
         canvas.output.render()
-        assert canvas.output.snapshot().lines()[0] == '012'
+        assert canvas.output.lines()[0] == '012'
 
     def test_a_step_moves_the_clock_and_draws(self, canvas):
         canvas.step(delta_seconds=0.25)
@@ -177,6 +178,80 @@ class TestFrames:
     def test_run_would_wait_forever_on_a_manual_clock(self, canvas):
         with pytest.raises(TerminalError, match='wait forever'):
             canvas.run()
+
+
+class TestOutput:
+    def test_the_last_frame_is_read_without_drawing(self):
+        with new(width=12, height=2) as canvas:
+            canvas.write('hello', x=1, y=1)
+            assert canvas.output.text == '\n'
+            assert canvas.output.revision == 0
+            canvas.step()
+            assert canvas.output.text == '\n hello'
+            assert canvas.output.lines() == ['', ' hello']
+            assert canvas.output.revision == 1
+
+    def test_each_value_matches_the_snapshot(self):
+        with new(width=6, height=2) as canvas:
+            canvas.write('hi', foreground='red')
+            canvas.output.render()
+            snapshot = canvas.output.snapshot()
+            assert canvas.output.text == snapshot.text
+            assert canvas.output.ansi == snapshot.ansi
+            assert canvas.output.size == snapshot.size
+            assert canvas.output.revision == snapshot.revision
+            assert canvas.output.cursor_position == snapshot.cursor_position
+            assert canvas.output.is_cursor_visible == snapshot.is_cursor_visible
+            assert canvas.output.lines() == snapshot.lines()
+            assert canvas.output.to_cell_grid() == snapshot.to_cell_grid()
+            assert '\x1b[' in canvas.output.ansi
+            assert isinstance(canvas.output.to_cell_grid(), bytes)
+            assert (canvas.output.size.width, canvas.output.size.height) == (6, 2)
+
+    def test_the_cursor_of_the_last_frame_is_readable(self):
+        with new(width=6, height=2) as canvas:
+            canvas.step()
+            assert canvas.output.cursor_position is None
+            assert canvas.output.is_cursor_visible is False
+            canvas.cursor.position = (2, 1)
+            canvas.step()
+            assert canvas.output.cursor_position == Point(2, 1)
+            assert canvas.output.is_cursor_visible is True
+            canvas.cursor.hide()
+            canvas.step()
+            assert canvas.output.cursor_position is None
+            assert canvas.output.is_cursor_visible is False
+
+    def test_a_canvas_written_into_another_reads_the_frame_of_the_outer_one(self):
+        with new(width=10, height=2) as outer:
+            inner = new(width=4, height=1)
+            outer.write(inner, x=2, y=1)
+            inner.write('ab')
+            assert inner.output is outer.output
+            outer.step()
+            assert inner.output.lines() == ['', '  ab']
+            assert inner.output.text == outer.output.text
+
+    @pytest.mark.parametrize(
+        'name',
+        [
+            'text',
+            'ansi',
+            'size',
+            'revision',
+            'cursor_position',
+            'is_cursor_visible',
+            'lines',
+            'to_cell_grid',
+        ],
+    )
+    def test_a_closed_canvas_refuses_every_read(self, name):
+        canvas = new(width=4, height=1)
+        canvas.close()
+        with pytest.raises(TerminalClosedError, match='has been closed'):
+            value = getattr(canvas.output, name)
+            if name in ('lines', 'to_cell_grid'):
+                value()
 
 
 class TestPlacements:
@@ -434,18 +509,18 @@ class TestPlacements:
         canvas.write(Buffer.with_text('a'), layer=1)
         canvas.write(Buffer.with_text('b'), layer=0)
         canvas.output.render()
-        assert canvas.output.snapshot().lines()[0] == 'a'
+        assert canvas.output.lines()[0] == 'a'
 
     def test_removing_and_hiding(self, canvas):
         placement = canvas.write('hi')
         placement.is_visible = False
         canvas.output.render()
-        assert canvas.output.snapshot().lines()[0] == ''
+        assert canvas.output.lines()[0] == ''
         placement.is_visible = True
         placement.remove()
         placement.remove()
         canvas.output.render()
-        assert canvas.output.snapshot().lines()[0] == ''
+        assert canvas.output.lines()[0] == ''
         assert 'removed' in repr(placement)
 
     def test_a_placement_has_a_region(self, canvas):
@@ -855,7 +930,7 @@ class TestTime:
             if done.is_set():
                 break
         assert done.is_set()
-        assert canvas.output.snapshot().lines()[0].startswith('x')
+        assert canvas.output.lines()[0].startswith('x')
 
 
 class TestCellAccess:
@@ -865,30 +940,60 @@ class TestCellAccess:
         assert canvas.core_buffer[0:2, 0:1][0, 0].symbol == 'a'
 
 
+LAZY_REEXPORT_MODULES = (
+    'expressions.py',
+    'styles.py',
+    'geometry.py',
+    'events.py',
+    'buffers.py',
+    'widgets.py',
+    'operations.py',
+)
+"""The modules whose names are documented inside their ``if TYPE_CHECKING:`` block."""
+
+
+def python_blocks(docstring: str) -> list[str]:
+    """The source of every ``python`` fence in a docstring."""
+    blocks: list[str] = []
+    inside = False
+    block: list[str] = []
+    for line in docstring.splitlines():
+        if line.strip() == '```python':
+            inside, block = True, []
+        elif line.strip() == '```' and inside:
+            inside = False
+            blocks.append(textwrap.dedent('\n'.join(block)))
+        elif inside:
+            block.append(line)
+    return blocks
+
+
 def python_examples():
     """Every ``python`` block in the docstrings of xnano's public modules."""
     examples = []
     root = pathlib.Path(main.__file__).parent
-    for path in sorted(root.glob('*.py')):
-        if path.name == '__init__.py':
-            continue
+    paths = [path for path in sorted(root.glob('*.py')) if path.name != '__init__.py']
+    paths.extend(sorted(root.glob('hooks/*.py')))
+    paths.extend(sorted(root.glob('effects/*.py')))
+    paths.extend(sorted(root.glob('art/*.py')))
+    paths.extend(sorted(root.glob('audio/*.py')))
+    for path in paths:
         tree = ast.parse(path.read_text(encoding='utf-8'))
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
                 docstring = ast.get_docstring(node)
-                if not docstring:
-                    continue
-                lines = docstring.splitlines()
-                inside = False
-                block: list[str] = []
-                for line in lines:
-                    if line.strip() == '```python':
-                        inside, block = True, []
-                    elif line.strip() == '```' and inside:
-                        inside = False
-                        examples.append((node.name, textwrap.dedent('\n'.join(block))))
-                    elif inside:
-                        block.append(line)
+                if docstring:
+                    examples.extend(
+                        (node.name, block) for block in python_blocks(docstring)
+                    )
+        if path.name in LAZY_REEXPORT_MODULES:
+            for name, docstring in documented_attributes(tree):
+                # An example that opens the screen cannot run in a test.
+                examples.extend(
+                    (name, block)
+                    for block in python_blocks(docstring)
+                    if 'xnano.open(' not in block
+                )
     return examples
 
 
@@ -924,21 +1029,19 @@ class TestAutonomous:
 
     def test_what_is_declared_appears_at_once(self, autonomous):
         autonomous.write('hi', x=3)
-        assert wait_for(lambda: autonomous.output.snapshot().lines()[0] == '   hi')
+        assert wait_for(lambda: autonomous.output.lines()[0] == '   hi')
         autonomous.write('yo', x=0, y=1)
-        assert wait_for(lambda: autonomous.output.snapshot().lines()[1] == 'yo')
+        assert wait_for(lambda: autonomous.output.lines()[1] == 'yo')
         placement = autonomous.write('gone')
-        assert wait_for(lambda: 'gone' in autonomous.output.snapshot().lines()[0])
+        assert wait_for(lambda: 'gone' in autonomous.output.lines()[0])
         placement.remove()
-        assert wait_for(lambda: 'gone' not in autonomous.output.snapshot().lines()[0])
+        assert wait_for(lambda: 'gone' not in autonomous.output.lines()[0])
 
     def test_the_cursor_can_be_set_from_any_thread(self, autonomous):
         autonomous.cursor.position = (2, 1)
         autonomous.cursor.shape = 'bar'
         assert autonomous.cursor.position == Point(2, 1)
-        assert wait_for(
-            lambda: autonomous.output.snapshot().cursor_position == Point(2, 1)
-        )
+        assert wait_for(lambda: autonomous.output.cursor_position == Point(2, 1))
 
     def test_a_burst_of_declarations_is_drawn_together(self, autonomous):
         frames: list[int] = []
@@ -947,7 +1050,7 @@ class TestAutonomous:
         before = len(frames)
         for number in range(500):
             autonomous.write(str(number % 10), x=number % 20, y=2)
-        assert wait_for(lambda: autonomous.output.snapshot().lines()[2] != '')
+        assert wait_for(lambda: autonomous.output.lines()[2] != '')
         assert len(frames) - before < 20
 
     def test_a_formula_keeps_moving_while_the_program_is_busy(self, autonomous):
@@ -1316,10 +1419,10 @@ class TestPausingTime:
             canvas.push(Event.key_press('x'))
             deadline = time.monotonic() + 3
             while time.monotonic() < deadline:
-                if 'drawn' in canvas.output.snapshot().lines()[0]:
+                if 'drawn' in canvas.output.lines()[0]:
                     break
                 time.sleep(0.02)
-            assert 'drawn' in canvas.output.snapshot().lines()[0]
+            assert 'drawn' in canvas.output.lines()[0]
 
 
 class TestPolledInput:
@@ -1336,7 +1439,7 @@ class TestPolledInput:
 
 
 def test_sprites_can_be_drawn_from_text_and_scrolled():
-    from xnano.image import TerminalImage
+    from xnano_image import TerminalImage
 
     red, blue, none = (255, 0, 0, 255), (0, 0, 255, 255), (0, 0, 0, 0)
     sprite = TerminalImage.from_rgba(2, 2, bytes(red + blue + none + blue))
@@ -1393,7 +1496,7 @@ class TestWritingTheWayItIsThought:
             canvas.write('hi', y='left')
 
     def test_a_placement_takes_operations_such_as_effects(self, canvas):
-        from xnano.effects import Effect
+        from xnano.operations import Effect
 
         text = canvas.write('hi')
         text.update(Effect.dissolve(duration_milliseconds=200))
@@ -1486,7 +1589,7 @@ def test_assigning_text_to_a_placement_changes_what_it_shows(canvas):
     assert text.text == 'bye'
     assert (text.width, text.height) == (3, 1)
     canvas.deliver_events()
-    assert canvas.output.snapshot().lines()[0] == 'bye'
+    assert canvas.output.lines()[0] == 'bye'
     text.text = 'one\ntwo'
     assert (text.width, text.height) == (3, 2)
 
@@ -1698,8 +1801,8 @@ class TestTeachingErrorsOnWrongTypes:
             canvas.cursor.up(-1)
 
     def test_arguments_of_the_wrong_kind_are_explained_where_they_are_given(self, canvas):
+        from xnano.effects import effect
         from xnano.input import KeyboardInput
-        from xnano.operations import fx
 
         with pytest.raises(TypeError, match='title must be text or None'):
             new(title=5)  # type: ignore[arg-type]
@@ -1714,25 +1817,25 @@ class TestTeachingErrorsOnWrongTypes:
         with pytest.raises(
             TypeError, match="effect 'effect.fade_to' has no setting called 'color'"
         ):
-            fx('effect.fade_to', color='red')  # type: ignore[call-overload]
+            effect('effect.fade_to', color='red')  # type: ignore[call-overload]
         with pytest.raises(TypeError, match='shade.. takes a function of the position'):
             canvas.color.bg.shade(5)  # type: ignore[arg-type]
 
     def test_a_missing_image_file_names_the_path(self):
         pytest.importorskip('xnano_image')
         with pytest.raises(FileNotFoundError, match='nonexistent.png'):
-            main.from_image('nonexistent.png')
+            main.load_image('nonexistent.png')
 
     def test_a_missing_sound_file_is_explained_like_a_missing_image(self):
         pytest.importorskip('xnano_audio')
         with pytest.raises(
-            FileNotFoundError, match='Audio could not load.*Check the path'
+            FileNotFoundError, match='Sound could not load.*Check the path'
         ):
-            main.from_audio('nonexistent.wav')
+            main.load_sound('nonexistent.wav')
         with pytest.raises(
             ValueError, match=r'not a PCM WAV file that xnano can read[^(]'
         ):
-            main.from_audio(b'')
+            main.load_sound(b'')
 
     def test_a_space_cannot_be_negative(self, canvas):
         with pytest.raises(ValueError, match='padding must be zero or more'):
@@ -1816,7 +1919,11 @@ class TestThreadErrorsNameTheOperation:
             thread.start()
             thread.join()
             assert len(caught) == 1
-            assert str(caught[0]).startswith('This canvas was used from another thread')
+            error = caught[0]
+            assert isinstance(error, TerminalError) and error.code == 'canvas.thread'
+            assert error.details[0].message.startswith(
+                'This canvas was used from another thread'
+            )
             assert canvas.state.get('value') == 0
 
     def test_a_push_refused_on_another_thread_saves_nothing(self, canvas):

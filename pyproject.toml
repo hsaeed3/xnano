@@ -12,6 +12,9 @@ build-backend = 'hatchling.build'
 [tool.hatch.build.targets.wheel]
 packages = ['xnano']
 
+[tool.hatch.build.targets.sdist]
+exclude = ['/docs']
+
 [tool.uv]
 managed = true
 
@@ -145,7 +148,7 @@ norecursedirs = [
 
 #
 [tool.basedpyright]
-include = ['xnano', 'tests', 'packages', 'scripts', 'examples', 'benchmarks', '.github/scripts']
+include = ['xnano', 'tests', 'packages', 'scripts', 'benchmarks', '.github/scripts']
 exclude = ['**/__pycache__', '**/.venv', '**/target']
 pythonVersion = '3.10'
 typeCheckingMode = 'standard'

@@ -267,6 +267,10 @@ impl PyPixelView {
 
 #[pymethods]
 impl PyPixelView {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["encoding", "width", "height"])
+    }
+
     #[getter]
     fn surface(&self, py: Python<'_>) -> Py<PyAny> {
         self.surface.clone_ref(py)
@@ -881,6 +885,10 @@ pub fn buffer_of<'py>(surface: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>
 
 #[pymethods]
 impl PySurface {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["width", "height"])
+    }
+
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if self.region.is_some() {
             return Ok(());

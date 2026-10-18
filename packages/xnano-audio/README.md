@@ -1,6 +1,7 @@
 # xnano-audio
 
-Synthesize, play and capture sound in Python without audio files or extra dependencies.
+Synthesize, play and capture sound in Python without audio files or extra
+dependencies.
 
 ## Install
 
@@ -8,13 +9,16 @@ Synthesize, play and capture sound in Python without audio files or extra depend
 pip install xnano-audio
 ```
 
-Or install it as an extra of the top-level `xnano` package, which exposes it as `xnano.audio` and adds `xnano.note`, `xnano.play`, `xnano.from_audio`, `canvas.audio`, `canvas.play` and `canvas.bpm`:
+Or install it as an extra of the top-level `xnano` package, which exposes it as
+`xnano.audio` and adds `xnano.note`, `xnano.play`, `xnano.load_sound`,
+`canvas.audio`, `canvas.play` and `canvas.bpm`:
 
 ```bash
 pip install "xnano[audio]"
 ```
 
-On Linux, playing on an audio device requires ALSA. Synthesis and rendering work without a device everywhere.
+On Linux, playing on an audio device requires ALSA. Synthesis and rendering work
+without a device everywhere.
 
 ## Example
 
@@ -39,17 +43,22 @@ sound = melody.render('piano')
 
 ## What it provides
 
-- **Synthesis**: 20+ built-in instruments (piano, organ, guitar, synth, kick, snare, bells, etc.) rendered deterministically to raw samples
-- **Effects**: reverb, delay, distortion, filters, tremolo and bit-crushing, composable and reusable
-- **Melodies**: notes arranged on a beat timeline with tempo maps and time signatures
-- **Playback**: play sounds and instruments on the default output device with sample-accurate timing
-- **Mixing**: `TerminalSound.mix` combines sounds, each with an offset and a gain, into one
+- **Synthesis**: 20+ built-in instruments (piano, organ, guitar, synth, kick,
+  snare, bells, etc.) rendered deterministically to raw samples
+- **Effects**: reverb, delay, distortion, filters, tremolo and bit-crushing,
+  composable and reusable
+- **Melodies**: notes arranged on a beat timeline with tempo maps and time
+  signatures
+- **Playback**: play sounds and instruments on the default output device with
+  sample-accurate timing
+- **Mixing**: `TerminalSound.mix` combines sounds, each with an offset and a
+  gain, into one
 - **Capture**: read the level of the default input device (microphone)
 - **No audio files**: every sound is computed on the fly
 
 ## Links
 
-- **Repository**: https://github.com/hsaeed3/xnano
-- **Documentation**: https://xnano.hammad.app
-- **API reference**: https://xnano.hammad.app/api-reference/
+- **Repository**: <https://github.com/hsaeed3/xnano>
+- **Documentation**: <https://xnano.hammad.app>
+- **API reference**: <https://xnano.hammad.app/api-reference/>
 - **License**: MIT

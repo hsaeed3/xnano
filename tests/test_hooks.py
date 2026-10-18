@@ -11,9 +11,10 @@ from dataclasses import dataclass
 import pytest
 
 import xnano
-from xnano._hooks import HookHandle
 from xnano.context import Context
 from xnano.errors import TerminalError
+from xnano.hooks import HookHandle
+from xnano.terminal._settings import gates_for_screen
 from xnano_core import Buffer, Event, Style
 
 
@@ -624,21 +625,21 @@ class TestGates:
         with xnano.new(width=8, height=1) as canvas:
             canvas.hook(lambda context: None, on='scroll')
             canvas.hook(lambda context: None, on='mouse')
-            resolved = canvas._gates_for_screen({})
+            resolved = gates_for_screen(canvas, {})
             assert resolved['scroll'] is True
             assert resolved['mouse'] is True
 
     def test_a_hook_that_needs_nothing_leaves_the_gates_alone(self):
         with xnano.new(width=8, height=1) as canvas:
             canvas.hook(lambda context: None, on='key')
-            resolved = canvas._gates_for_screen({})
+            resolved = gates_for_screen(canvas, {})
             assert resolved['scroll'] is False
             assert resolved['mouse'] is False
 
     def test_a_bare_hook_that_reads_the_mouse_turns_it_on(self):
         with xnano.new(width=8, height=1) as canvas:
             canvas.hook(lambda context: None, when='mouse.is_down')
-            assert canvas._gates_for_screen({})['mouse'] is True
+            assert gates_for_screen(canvas, {})['mouse'] is True
 
     @pytest.mark.parametrize(
         ('on', 'gate'),
@@ -652,39 +653,39 @@ class TestGates:
 
             canvas.hook(listener, on=on)
             with pytest.raises(TerminalError, match=rf'hook listener needs {gate}=True'):
-                canvas._gates_for_screen({gate: False})
+                gates_for_screen(canvas, {gate: False})
 
     def test_the_keyboard_gate_when_off(self):
         with xnano.new(width=8, height=1) as canvas:
             canvas.hook(lambda context: None, on='key')
             with pytest.raises(TerminalError, match='needs keyboard=True'):
-                canvas._gates_for_screen({'keyboard': False})
+                gates_for_screen(canvas, {'keyboard': False})
 
     def test_focus_hooks_need_the_focus_gate(self):
         with xnano.new(width=8, height=1) as canvas:
             canvas.hook(lambda context: None, on='focus')
             with pytest.raises(TerminalError, match='needs focus=True'):
-                canvas._gates_for_screen({'focus': False})
+                gates_for_screen(canvas, {'focus': False})
 
     def test_a_release_test_needs_the_release_gate(self):
         with xnano.new(width=8, height=1) as canvas:
             canvas.hook(lambda context: None, on='key', when="keyboard.kind == 'release'")
             with pytest.raises(TerminalError, match="needs keyboard='release_events'"):
-                canvas._gates_for_screen({})
-            assert canvas._gates_for_screen({'keyboard': 'release_events'})[
+                gates_for_screen(canvas, {})
+            assert gates_for_screen(canvas, {'keyboard': 'release_events'})[
                 'keyboard'
             ] == ('release_events')
 
     def test_not_equal_to_release_does_not_need_the_gate(self):
         with xnano.new(width=8, height=1) as canvas:
             canvas.hook(lambda context: None, on='key', when="keyboard.kind != 'release'")
-            assert canvas._gates_for_screen({})['keyboard'] is True
+            assert gates_for_screen(canvas, {})['keyboard'] is True
 
     def test_the_error_says_how_to_turn_the_gate_on(self):
         with xnano.new(width=8, height=1) as canvas:
             canvas.hook(lambda context: None, on='scroll')
             with pytest.raises(TerminalError) as error:
-                canvas._gates_for_screen({'scroll': False})
+                gates_for_screen(canvas, {'scroll': False})
             text = str(error.value)
             assert 'xnano.new(scroll=True)' in text
             assert 'canvas.open(scroll=True)' in text

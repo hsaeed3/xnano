@@ -13,7 +13,7 @@ import warnings
 import pytest
 
 import xnano
-import xnano.audio
+import xnano.audio._player
 from xnano.components import (
     ComponentContext,
     ComponentHook,
@@ -677,8 +677,14 @@ class TestComponentHooks:
 
         with pytest.raises(ValueError, match='keys= is for'):
             label.hook(lambda context, component: None, on='mouse', keys='a')
-        with pytest.raises(ValueError, match='resize events are reported to the canvas'):
+        with pytest.raises(
+            ValueError, match='resize events are reported to the canvas'
+        ) as raised:
             label.hook(lambda context, component: None, on='resize')
+        assert 'context.canvas.size for the window' in str(raised.value)
+        assert 'context.region for the cells inside its border and padding' in str(
+            raised.value
+        )
         with pytest.raises(ValueError, match='needs an on='):
             label.hook(lambda context, component: None, every=1)
 
@@ -757,7 +763,7 @@ class TestPlayables:
         def tune(context: Context) -> xnano.Note:
             return xnano.note('C4')
 
-        for play in (xnano.audio._plan_call, None):
+        for play in (xnano.audio._player._plan_call, None):
             with pytest.raises(TypeError, match=r'needs a canvas to run in') as raised:
                 if play is None:
                     canvas.audio.play(tune)
@@ -824,6 +830,108 @@ class TestPlayables:
         handle.remove()
         canvas.step(delta_seconds=1.0)
         assert len(calls) == 3
+
+    def test_a_playable_reads_the_timeline_region_of_the_sound_it_played_last(
+        self, canvas
+    ):
+        regions = []
+
+        @xnano.playable
+        def pulse(context: Context) -> xnano.Note:
+            _ = context.time.elapsed
+            regions.append(context.region)
+            return xnano.note(('C4', 'G4'), beats=0.25)
+
+        canvas.play(pulse)
+        canvas.step(delta_seconds=0.5)
+        canvas.step(delta_seconds=0.5)
+        first, *later = regions
+        assert (first.width, first.height) == (0.0, 0), (
+            'nothing has played on the first run'
+        )
+        assert [region.x for region in later] == [0.0, 1.0]
+        for region in later:
+            assert (region.width, region.y, region.height) == (0.25, 60, 8)
+            assert region.resolution == 'beats'
+        assert later[1].milliseconds.x == 500.0, 'a beat is half a second at bpm 120'
+        with pytest.raises(TerminalError, match='screen') as raised:
+            _ = later[0].half_blocks
+        assert raised.value.code == 'canvas.state'
+
+    def test_a_playable_that_has_not_played_starts_its_region_at_the_beat_of_the_canvas(
+        self, canvas
+    ):
+        canvas.step(delta_seconds=1.0)
+        regions = []
+
+        @xnano.playable
+        def tune(context: Context) -> xnano.Note:
+            regions.append(context.region)
+            return xnano.note('C4')
+
+        canvas.play(tune, at_beat=8)
+        assert (regions[0].x, regions[0].width, regions[0].height) == (8.0, 0.0, 0)
+
+        canvas.play(tune)
+        assert (regions[1].x, regions[1].width) == (2.0, 0.0), 'one second is two beats'
+
+    def test_the_size_of_a_playable_is_the_size_of_the_canvas(self, canvas):
+        sizes = []
+
+        @xnano.playable
+        def tune(context: Context) -> xnano.Note:
+            sizes.append(context.size)
+            return xnano.note('C4')
+
+        canvas.play(tune)
+        assert sizes == [canvas.size]
+
+    def test_a_playable_hook_sees_the_timeline_of_the_sound(self, canvas):
+        @xnano.playable
+        def chord(context: Context) -> xnano.Note:
+            return xnano.note(('E4', 'B4'), beats=2)
+
+        seen = []
+        chord.hook(
+            lambda context, component: seen.append(context.region), on='key', keys='x'
+        )
+        canvas.play(chord)
+        push(canvas, Event.key_press('x'))
+        (region,) = seen
+        assert region.resolution == 'beats'
+        assert (region.x, region.width, region.y, region.height) == (0.0, 2.0, 64, 8)
+
+    def test_a_generator_hook_of_a_playable_sees_the_timeline_of_every_event(
+        self, canvas
+    ):
+        widths: list[float] = []
+
+        @xnano.playable
+        def blip(context: Context) -> xnano.Note:
+            return xnano.note('A4', beats=0.5)
+
+        @blip.hook(on='key')
+        def watch(context: Context, component: ComponentContext):
+            while True:
+                widths.append(context.region.width)
+                context = yield
+
+        canvas.play(blip)
+        push(canvas, Event.key_press('a'))
+        push(canvas, Event.key_press('b'))
+        assert widths == [0.5, 0.5]
+
+    def test_a_hook_of_a_renderable_keeps_the_screen_region(self, canvas):
+        @xnano.renderable
+        def label(context: Context) -> str:
+            return 'ab'
+
+        seen = []
+        label.hook(lambda context, component: seen.append(context.region), on='key')
+        canvas.write(label, x=3, y=2)
+        push(canvas, Event.key_press('a'))
+        assert seen[0].resolution == 'cells'
+        assert (seen[0].x, seen[0].y) == (3, 2)
 
     def test_a_playable_makes_the_sound_the_function_returns(self, canvas):
         @xnano.playable
@@ -980,7 +1088,7 @@ class TestDecoratorArguments:
                 return 'x'
 
         monkeypatch.setattr(inspect, 'signature', counting)
-        from xnano._media import check_context_method
+        from xnano._internal._content import check_context_method
 
         for _ in range(5):
             check_context_method(Gauge(), '__xnano_render__')

@@ -7887,6 +7887,8 @@ class Runtime:
         buffers: The mounted root buffers.
         needs_frame: Whether the next step will draw a frame.
         title: Window title last set on this runtime; ``None`` clears the title.
+        frame_interval_milliseconds: The shortest time between frames; it may change while the
+            runtime runs.
         is_output_captured: Whether a live runtime is holding back standard output and standard
             error.
         effects: The running effects, with controls to start, inspect and cancel them.
@@ -8374,6 +8376,26 @@ class Runtime:
         """
 
     @property
+    def frame_interval_milliseconds(self) -> int:
+        """
+        The shortest time between frames, in milliseconds.
+
+        Assign a new interval at any time; the next frame is paced by it.
+
+        Raises:
+            ValueError: The interval assigned is not a positive number of milliseconds.
+
+        Examples:
+            ```python
+            with Runtime.offscreen(width=4, height=1, frame_interval_milliseconds=16) as runtime:
+                runtime.frame_interval_milliseconds = 50
+                assert runtime.frame_interval_milliseconds == 50
+            ```
+        """
+
+    @frame_interval_milliseconds.setter
+    def frame_interval_milliseconds(self, value: int) -> None: ...
+    @property
     def title(self) -> str | None:
         """
         Window title last set on this runtime.
@@ -8594,6 +8616,162 @@ class FrameSnapshot:
                 assert cell_grid_size(packed) == (4, 2)
             ```
         """
+
+class ErrorDetail:
+    """
+    One labelled problem of an [`ErrorReport`][xnano_core.ErrorReport].
+
+    Modelled on a line error of pydantic-core's ``ValidationError``: a ``code`` that labels
+    the kind of problem, the ``location`` of the value it is about, a ``message``, an
+    optional ``hint`` that says what to do next, and the value itself. Pass the value as
+    ``input_value=...`` only when the problem is about one; ``None`` is a value too.
+
+    Args:
+        code: The label of the problem, such as ``'validation.type'``.
+        message: What went wrong, in a sentence.
+        location: Where the value is: a name, an index, or a sequence of them, outermost
+            first. ``('settings', 'items', 0)`` reads ``settings.items[0]``.
+        hint: What to do next, or ``None``.
+        input_value: The value the problem is about.
+
+    Attributes:
+        code: The label of the problem.
+        message: What went wrong, in a sentence.
+        location: Where the value is: names and indexes, outermost first.
+        hint: What to do next, or ``None``.
+        has_input_value: Whether the detail carries the value the problem is about.
+        input_value: The value the problem is about; ``None`` when there is none.
+        input_type: The name of the type of the input value, or ``None`` without one.
+
+    Raises:
+        ValueError: ``code`` is empty.
+        TypeError: The location holds something other than names and indexes, or a keyword
+            other than ``input_value`` was given.
+
+    Examples:
+        ```python
+        detail = ErrorDetail(
+            'validation.bounds',
+            'height must be at most 65535 cells.',
+            location=('write', 'height'),
+            input_value=70000,
+        )
+        assert (detail.code, detail.location) == ('validation.bounds', ('write', 'height'))
+        assert detail.has_input_value and detail.input_type == 'int'
+        assert not ErrorDetail('canvas.closed', 'The canvas is closed.').has_input_value
+        ```
+    """
+
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        location: str | int | Sequence[str | int] | None = None,
+        hint: str | None = None,
+        input_value: object = ...,
+    ) -> None: ...
+    @property
+    def code(self) -> str:
+        """The label of the problem, such as ``'validation.type'``."""
+
+    @property
+    def message(self) -> str:
+        """What went wrong, in a sentence."""
+
+    @property
+    def location(self) -> tuple[str | int, ...]:
+        """Where the value is: names and indexes, outermost first."""
+
+    @property
+    def hint(self) -> str | None:
+        """What to do next, or ``None``."""
+
+    @property
+    def has_input_value(self) -> bool:
+        """Whether the detail carries the value the problem is about."""
+
+    @property
+    def input_value(self) -> object:
+        """The value the problem is about; ``None`` when there is none."""
+
+    @property
+    def input_type(self) -> str | None:
+        """The name of the type of the input value, or ``None`` when there is no input value."""
+
+class ErrorReport:
+    """
+    One or more labelled problems, formatted like a pydantic ``ValidationError``.
+
+    A report is what a [`ReportedError`][xnano_core.ReportedError] is raised with. Its text
+    has a heading that counts the problems, then for each one its location, its message
+    with ``[code=..., input_value=..., input_type=...]``, and its hint.
+
+    Args:
+        title: What the report is about, such as ``'canvas.write()'``; may be empty.
+        details: The problems, at least one.
+
+    Attributes:
+        title: What the report is about; may be empty.
+        details: The problems, in the order they were found.
+
+    Raises:
+        ValueError: ``details`` is empty.
+
+    Examples:
+        ```python
+        report = ErrorReport(
+            'write()',
+            [ErrorDetail('validation.type', 'layer must be a whole number.', location='layer', input_value='top')],
+        )
+        assert str(report).splitlines() == [
+            '1 error in write()',
+            'layer',
+            "  layer must be a whole number. [code=validation.type, input_value='top', input_type=str]",
+        ]
+        assert report.error_count() == 1
+        assert report.render(is_colored=True) != str(report)
+        ```
+    """
+
+    def __init__(self, title: str, details: Sequence[ErrorDetail]) -> None: ...
+    @property
+    def title(self) -> str:
+        """What the report is about, such as ``'canvas.write()'``; may be empty."""
+
+    @property
+    def details(self) -> tuple[ErrorDetail, ...]:
+        """The problems, in the order they were found."""
+
+    def error_count(self) -> int:
+        """How many problems the report has."""
+
+    def render(self, *, is_colored: bool = False) -> str:
+        """
+        The report as text.
+
+        Args:
+            is_colored: Whether to style it with ANSI colors for a terminal.
+        """
+
+class ReportedError(Exception):
+    """
+    An error raised with an [`ErrorReport`][xnano_core.ErrorReport] as its one argument.
+
+    ``str(error)`` is the report, and ``error.args[0]`` is the report itself. Subclass it to
+    give an error a report; ``xnano.TerminalError`` does.
+
+    Examples:
+        ```python
+        report = ErrorReport('', [ErrorDetail('canvas.closed', 'The canvas is closed.')])
+        error = ReportedError(report)
+        assert error.args[0] is report
+        assert str(error) == str(report)
+        assert str(error).splitlines()[1] == '  The canvas is closed. [code=canvas.closed]'
+        ```
+    """
+
+    def __init__(self, report: ErrorReport) -> None: ...
 
 class RenderError(RuntimeError):
     """

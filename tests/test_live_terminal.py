@@ -544,6 +544,134 @@ with xnano.open() as terminal:
         screen.resize(8, 50)
         assert screen.wait_until(lambda: screen.find('middle') == (25, 1), timeout=5)
 
+    def test_a_resize_hook_reads_the_new_size_and_region_of_the_window(self, run):
+        screen = run(
+            """
+with xnano.open() as terminal:
+    @terminal.hook(on='resize')
+    def observe(context):
+        terminal.clear()
+        region = context.region
+        terminal.write(
+            f'RESIZED {context.size.width}x{context.size.height} '
+            f'REGION {region.width}x{region.height}'
+        )
+    terminal.write('RESIZE READY')
+    terminal.run()
+""",
+            rows=8,
+            columns=30,
+        )
+        assert screen.wait_for('RESIZE READY')
+        screen.resize(18, 60)
+        assert screen.wait_for('RESIZED 60x18 REGION 60x18')
+
+    def test_a_resize_hook_of_a_bordered_window_reads_the_area_inside_the_border(
+        self, run
+    ):
+        screen = run(
+            """
+with xnano.open() as terminal:
+    terminal.border = 'plain'
+
+    @terminal.hook(on='resize')
+    def observe(context):
+        terminal.write(
+            f'INSIDE {context.size.width}x{context.size.height} '
+            f'OUTSIDE {terminal.size.width}x{terminal.size.height}',
+            x=1,
+            y=2,
+        )
+    terminal.write('RESIZE READY', x=1, y=1)
+    terminal.run()
+""",
+            rows=8,
+            columns=40,
+        )
+        assert screen.wait_for('RESIZE READY')
+        screen.resize(18, 60)
+        assert screen.wait_for('INSIDE 58x16 OUTSIDE 60x18')
+
+
+class TestTerminalDetails:
+    """What an open terminal says about its window, its settings and what it can do."""
+
+    def test_the_window_is_larger_than_a_region_and_the_settings_are_resolved(self, run):
+        screen = run(
+            """
+with xnano.open(height=2, mouse=True) as terminal:
+    terminal.write(
+        f'W{terminal.window.width}x{terminal.window.height} '
+        f'S{terminal.width}x{terminal.height} '
+        f'M{terminal.settings["mouse"]}'
+    )
+    time.sleep(1)
+""",
+            rows=12,
+            columns=60,
+        )
+        assert screen.wait_for('W60x12 S60x2 MTrue')
+
+    def test_the_size_expressions_are_the_area_the_program_draws_on(self, run):
+        screen = run(
+            """
+from xnano.expressions import TerminalHeight, TerminalWidth
+with xnano.open(height=3) as terminal:
+    terminal.write(
+        f'T{terminal.inspect(TerminalWidth)}x{terminal.inspect(TerminalHeight)} '
+        f'W{terminal.window.width}x{terminal.window.height}'
+    )
+    time.sleep(1)
+""",
+            rows=12,
+            columns=50,
+        )
+        assert screen.wait_for('T50x3 W50x12')
+
+    def test_the_size_expressions_of_a_canvas_that_takes_the_window_are_the_window(
+        self, run
+    ):
+        screen = run(
+            """
+from xnano.expressions import TerminalHeight, TerminalWidth
+with xnano.open() as terminal:
+    terminal.write(
+        f'T{terminal.inspect(TerminalWidth)}x{terminal.inspect(TerminalHeight)} '
+        f'W{terminal.window.width}x{terminal.window.height}'
+    )
+    time.sleep(1)
+""",
+            rows=12,
+            columns=50,
+        )
+        assert screen.wait_for('T50x12 W50x12')
+
+    def test_the_terminal_reports_what_it_answered_when_it_was_opened(self, run):
+        screen = run(
+            """
+with xnano.open(height=2) as terminal:
+    terminal.write(
+        type(terminal.capabilities).__name__ + ' ' + terminal.capabilities.graphics.protocol
+    )
+    time.sleep(1)
+"""
+        )
+        assert screen.wait_for('TerminalCapabilities')
+
+    def test_the_function_does_not_ask_a_terminal_that_is_open(self, run):
+        screen = run(
+            """
+import xnano.errors
+with xnano.open(height=2) as terminal:
+    try:
+        xnano.terminal.capabilities()
+    except xnano.errors.TerminalAlreadyOpenError:
+        terminal.write('REFUSED')
+    time.sleep(0.8)
+"""
+        )
+        assert screen.wait_for('REFUSED')
+
 
 class TestPercentageSizes:
     def test_one_hundred_percent_fills_the_window(self, run):
@@ -1217,6 +1345,26 @@ with xnano.open(width=30, height=6) as terminal:
         assert screen.wait_until(
             lambda: screen.find('arrows') == (before[0], before[1] + 1)
         )
+        screen.send('q')
+        assert screen.finish() == 0
+
+    def test_a_hook_changes_the_frame_rate_of_a_running_terminal(self, run):
+        screen = run(
+            """
+with xnano.open(width=30, height=2, fps=60) as terminal:
+    label = terminal.write('fps 60')
+
+    @terminal.hook(on='key', keys='s')
+    def slow_down(context):
+        context.canvas.fps = 5
+        label.text = f'fps {context.canvas.fps:g}'
+
+    terminal.run(quit_on='q')
+"""
+        )
+        assert screen.wait_for('fps 60')
+        screen.send('s')
+        assert screen.wait_for('fps 5')
         screen.send('q')
         assert screen.finish() == 0
 

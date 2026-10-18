@@ -147,7 +147,8 @@ struct Mount {
 #[cfg_attr(not(feature = "terminal"), allow(dead_code))]
 struct Config {
     backend: Backend,
-    frame_interval_milliseconds: u64,
+    // A Cell so the frame rate can change while the runtime runs; only its thread reads it.
+    frame_interval_milliseconds: Cell<u64>,
     inline_height: Option<u16>,
     inline_width: Option<u16>,
     should_handle_exit_signals: bool,
@@ -178,6 +179,18 @@ pub struct PyStepResult {
 
 #[pymethods]
 impl PyStepResult {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
     #[getter]
     fn events_processed(&self) -> usize {
         self.events_processed
@@ -218,6 +231,29 @@ pub struct PyFrameMetrics {
 
 #[pymethods]
 impl PyFrameMetrics {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(
+            slf.as_any(),
+            &[
+                "frames",
+                "last_frame_microseconds",
+                "average_frame_microseconds",
+            ],
+        )
+    }
+
     #[getter]
     fn frames(&self) -> u64 {
         self.frames
@@ -243,6 +279,22 @@ pub struct PyFrameSnapshot {
 
 #[pymethods]
 impl PyFrameSnapshot {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["size", "revision", "cursor_position"])
+    }
+
     #[getter]
     fn size(&self) -> PySize {
         PySize {
@@ -297,6 +349,10 @@ pub struct PyEventStream {
 
 #[pymethods]
 impl PyEventStream {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &[])
+    }
+
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
@@ -357,6 +413,10 @@ pub struct PyWaker {
 
 #[pymethods]
 impl PyWaker {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &[])
+    }
+
     #[pyo3(signature = (callback, *arguments))]
     fn call_soon(&self, callback: Py<PyAny>, arguments: Py<PyTuple>) {
         self.shared.queue.push_call(QueuedCall {
@@ -1269,7 +1329,7 @@ impl PyRuntime {
         {
             return None;
         }
-        let frame = self.config.frame_interval_milliseconds as f64 / 1000.0;
+        let frame = self.config.frame_interval_milliseconds.get() as f64 / 1000.0;
         let since = self.pace_now() - self.last_present_seconds.get();
         (since < frame).then_some(frame - since)
     }
@@ -1296,7 +1356,7 @@ impl PyRuntime {
                 consider(seconds);
             }
         }
-        let frame = self.config.frame_interval_milliseconds as f64 / 1000.0;
+        let frame = self.config.frame_interval_milliseconds.get() as f64 / 1000.0;
         {
             let motion = lock(&self.shared.motion);
             if motion.effects.iter().any(|effect| !lock(effect).is_paused) {
@@ -1428,7 +1488,7 @@ impl PyRuntime {
             shared,
             config: Config {
                 backend,
-                frame_interval_milliseconds: frame_interval,
+                frame_interval_milliseconds: Cell::new(frame_interval),
                 inline_height,
                 inline_width,
                 should_handle_exit_signals,
@@ -1939,7 +1999,8 @@ impl PyRuntime {
                     (None, _, _) => None,
                 };
                 let queue = &runtime.shared;
-                let frame_seconds = runtime.config.frame_interval_milliseconds as f64 / 1000.0;
+                let frame_seconds =
+                    runtime.config.frame_interval_milliseconds.get() as f64 / 1000.0;
                 let mut remaining = wait;
                 // Set once a frame is wanted but not yet due, so waiting for it to fall due
                 // is not cut short by the request that is already known.
@@ -2022,7 +2083,7 @@ impl PyRuntime {
         let mut did_render = false;
         if runtime.shared.is_running.load(Ordering::SeqCst) && runtime.needs_frame_now(py) {
             let is_paced = runtime.shared.clock.source() == ClockSource::Monotonic;
-            let frame = runtime.config.frame_interval_milliseconds as f64 / 1000.0;
+            let frame = runtime.config.frame_interval_milliseconds.get() as f64 / 1000.0;
             let since = runtime.pace_now() - runtime.last_present_seconds.get();
             if !is_paced || !runtime.has_rendered.get() || since >= frame {
                 drop(runtime);
@@ -2083,6 +2144,19 @@ impl PyRuntime {
         Self::link_object(slf)?;
         slf.borrow().sync_lifecycle(slf)?;
         Self::render_frame(slf)
+    }
+
+    /// The shortest time between frames, in milliseconds; it may change while the runtime runs.
+    #[getter]
+    fn frame_interval_milliseconds(&self) -> u64 {
+        self.config.frame_interval_milliseconds.get()
+    }
+
+    #[setter]
+    fn set_frame_interval_milliseconds(&self, value: i64) -> PyResult<()> {
+        let interval = milliseconds(value, "frame_interval_milliseconds")?;
+        self.config.frame_interval_milliseconds.set(interval);
+        Ok(())
     }
 
     /// The last window title set on this runtime.

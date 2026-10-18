@@ -159,23 +159,3 @@ def test_keyboard_and_bracketed_paste_use_the_native_terminal_encoder(actual_ter
     actual_terminal.wait_for('PASTED clipboard content')
     actual_terminal.press('ctrl+c')
     assert actual_terminal.finish() == 0
-
-
-@pytest.mark.parametrize(
-    'actual_terminal',
-    [
-        f"""
-import runpy
-runpy.run_path({str(pathlib.Path(__file__).resolve().parent.parent / 'examples' / '20_world.py')!r}, run_name='__main__')
-"""
-    ],
-    indirect=True,
-)
-def test_world_fills_the_window(actual_terminal):
-    actual_terminal.wait_for('hold the mouse')
-    lines = actual_terminal.text().splitlines()
-    assert 'hold the mouse' in lines[23], (
-        'the status line is on the last row of the window'
-    )
-    actual_terminal.press('q')
-    assert actual_terminal.finish() == 0

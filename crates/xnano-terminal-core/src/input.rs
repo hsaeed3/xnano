@@ -37,6 +37,18 @@ pub struct PyKeyboardCapabilities {
 
 #[pymethods]
 impl PyKeyboardCapabilities {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
     #[getter]
     fn enhancement(&self) -> &'static str {
         status_name(self.enhancement)
@@ -133,6 +145,18 @@ impl PyTerminalCapabilities {
 
 #[pymethods]
 impl PyTerminalCapabilities {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
     #[getter]
     fn is_terminal(&self) -> bool {
         self.is_terminal
@@ -349,6 +373,31 @@ pub struct PyTerminalOptions {
 
 #[pymethods]
 impl PyTerminalOptions {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(
+            slf.as_any(),
+            &[
+                "input",
+                "alternate_screen",
+                "raw_mode",
+                "should_capture_output",
+                "should_clear_on_close",
+            ],
+        )
+    }
+
     #[new]
     #[pyo3(signature = (*, input = None, alternate_screen = true, raw_mode = true, drain_reports_on_exit = true,
         drain_timeout_milliseconds = 250, should_capture_output = true, should_clear_on_close = false))]
@@ -419,6 +468,18 @@ pub struct PyInputState {
 
 #[pymethods]
 impl PyInputState {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(
+            slf.as_any(),
+            &[
+                "last_key",
+                "pressed_keys",
+                "last_mouse_position",
+                "is_mouse_down",
+            ],
+        )
+    }
+
     #[getter]
     fn held_keys_available(&self) -> bool {
         lock(&self.shared.input).held_keys_available
@@ -523,6 +584,18 @@ pub struct PyDevice {
 
 #[pymethods]
 impl PyDevice {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(
+            slf.as_any(),
+            &[
+                "backend",
+                "size",
+                "is_inline",
+                "is_alternate_screen_enabled",
+            ],
+        )
+    }
+
     #[getter]
     fn backend(&self) -> &'static str {
         match lock(&self.shared.device).backend {
@@ -659,6 +732,10 @@ pub struct PyFocusScope {
 
 #[pymethods]
 impl PyFocusScope {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["is_active"])
+    }
+
     #[getter]
     fn is_active(&self) -> bool {
         self.is_active.load(Ordering::SeqCst)
@@ -707,6 +784,10 @@ fn target_parts(
 
 #[pymethods]
 impl PyInputRouter {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &[])
+    }
+
     #[pyo3(signature = (callback, *, target, events = None, binding = None, priority = 0))]
     fn on(
         &self,

@@ -206,6 +206,10 @@ impl PyMicrophone {
 
 #[pymethods]
 impl PyMicrophone {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["sample_rate", "channels", "is_open"])
+    }
+
     /// Open the default input device and start capturing.
     #[new]
     fn new() -> PyResult<Self> {

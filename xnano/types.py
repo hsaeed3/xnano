@@ -2,180 +2,352 @@
 xnano.types
 
 The types that describe what `xnano` accepts: positions and sizes as an axis, anything that can
-be added to a canvas, space around text, pixel encodings, the settings of a canvas and of the
-screen it is opened on, and the functions that hook into events.
+be added to a canvas, space around text, pixel encodings, anchors and presets, the resolutions of a
+region, the settings of a canvas and of the screen it is opened on, the labels of its errors, the
+paths of its state, the functions and key names that hook into events, and the effects: their
+kinds, the dictionaries an ``effects=[...]`` list takes, the schemas of the settings of the
+Dynamic operations and the objects behind the ``.fx`` properties.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import (
-    TYPE_CHECKING,
-    Literal,
-    TypedDict,
+from xnano._schema._appearance import (
+    AppearanceArguments as AppearanceArguments,
 )
-
-import xnano_core as _core
-from xnano._appearance import (
-    Spacing as Spacing,
+from xnano._schema._appearance import (
+    CanvasAppearanceArguments as CanvasAppearanceArguments,
 )
-from xnano._appearance import (
-    SpacingDictionary as SpacingDictionary,
-)
-from xnano._customize import (
-    EffectCustomization as EffectCustomization,
-)
-from xnano._customize import (
-    PlayableEffect as PlayableEffect,
-)
-from xnano._customize import (
-    PlayableEffectKind as PlayableEffectKind,
-)
-from xnano._customize import (
-    PlayableEffectSpecification as PlayableEffectSpecification,
-)
-from xnano._customize import (
-    RenderableEffect as RenderableEffect,
-)
-from xnano._customize import (
-    RenderableEffectKind as RenderableEffectKind,
-)
-from xnano._customize import (
-    RenderableEffectSpecification as RenderableEffectSpecification,
-)
-from xnano._effect_controller import (
-    EffectController as EffectController,
-)
-from xnano._effect_controller import (
-    PlayableEffects as PlayableEffects,
-)
-from xnano._effect_controller import (
-    RenderableEffects as RenderableEffects,
-)
-from xnano._hooks import (
-    Hook as Hook,
-)
-from xnano._hooks import (
-    HookGenerator as HookGenerator,
-)
-from xnano._hooks import (
-    HookHandle as HookHandle,
-)
-from xnano._hooks import (
-    HookKind as HookKind,
-)
-from xnano._hooks import (
-    When as When,
-)
-from xnano._media import (
-    ImageFit as ImageFit,
-)
-from xnano._media import (
-    ResamplingFilter as ResamplingFilter,
-)
-from xnano._values import (
-    Anchor as Anchor,
-)
-from xnano._values import (
-    Axis as Axis,
-)
-from xnano._values import (
-    CanvasLayout as CanvasLayout,
-)
-from xnano._values import (
+from xnano._schema._appearance import (
     ColorValue as ColorValue,
 )
-from xnano._values import (
-    Content as Content,
+from xnano._schema._appearance import (
+    Spacing as Spacing,
 )
-from xnano._values import (
-    EdgeBehavior as EdgeBehavior,
+from xnano._schema._appearance import (
+    SpacingDictionary as SpacingDictionary,
 )
-from xnano._values import (
-    HeldMouseButtonName as HeldMouseButtonName,
+from xnano._schema._axes import (
+    Axis as Axis,
 )
-from xnano._values import (
+from xnano._schema._axes import (
     HorizontalPosition as HorizontalPosition,
 )
-from xnano._values import (
-    Interpolation as Interpolation,
-)
-from xnano._values import (
-    KeyName as KeyName,
-)
-from xnano._values import (
-    MotionDirection as MotionDirection,
-)
-from xnano._values import (
+from xnano._schema._axes import (
     Percentage as Percentage,
 )
-from xnano._values import (
-    PixelEncoding as PixelEncoding,
-)
-from xnano._values import (
-    Playable as Playable,
-)
-from xnano._values import (
-    PlaySource as PlaySource,
-)
-from xnano._values import (
+from xnano._schema._axes import (
     RangeBound as RangeBound,
 )
-from xnano._values import (
-    Renderable as Renderable,
-)
-from xnano._values import (
-    SupportsPlay as SupportsPlay,
-)
-from xnano._values import (
-    SupportsRender as SupportsRender,
-)
-from xnano._values import (
+from xnano._schema._axes import (
     VerticalPosition as VerticalPosition,
 )
-from xnano.pixel import (
+from xnano._schema._content import (
+    Content as Content,
+)
+from xnano._schema._content import (
+    Playable as Playable,
+)
+from xnano._schema._content import (
+    PlaySource as PlaySource,
+)
+from xnano._schema._content import (
+    Renderable as Renderable,
+)
+from xnano._schema._content import (
+    SupportsPlay as SupportsPlay,
+)
+from xnano._schema._content import (
+    SupportsRender as SupportsRender,
+)
+from xnano._schema._effects import (
+    BitCrushAudioEffectParametersSchema as BitCrushAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    CoalesceEffectParametersSchema as CoalesceEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    DarkenEffectParametersSchema as DarkenEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    DelayAudioEffectParametersSchema as DelayAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    DissolveEffectParametersSchema as DissolveEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    DistortionAudioEffectParametersSchema as DistortionAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    EffectKind as EffectKind,
+)
+from xnano._schema._effects import (
+    EffectSpecification as EffectSpecification,
+)
+from xnano._schema._effects import (
+    EvolveEffectParametersSchema as EvolveEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    EvolveFromEffectParametersSchema as EvolveFromEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    EvolveIntoEffectParametersSchema as EvolveIntoEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    ExpandEffectParametersSchema as ExpandEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    ExplodeEffectParametersSchema as ExplodeEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    FadeFromEffectParametersSchema as FadeFromEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    FadeToEffectParametersSchema as FadeToEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    GlitchEffectParametersSchema as GlitchEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    HighPassAudioEffectParametersSchema as HighPassAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    HslShiftEffectParametersSchema as HslShiftEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    LightenEffectParametersSchema as LightenEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    LowPassAudioEffectParametersSchema as LowPassAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    PaintEffectParametersSchema as PaintEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    PlayableEffect as PlayableEffect,
+)
+from xnano._schema._effects import (
+    PlayableEffectKind as PlayableEffectKind,
+)
+from xnano._schema._effects import (
+    PlayableEffectSpecification as PlayableEffectSpecification,
+)
+from xnano._schema._effects import (
+    RenderableEffect as RenderableEffect,
+)
+from xnano._schema._effects import (
+    RenderableEffectKind as RenderableEffectKind,
+)
+from xnano._schema._effects import (
+    RenderableEffectSpecification as RenderableEffectSpecification,
+)
+from xnano._schema._effects import (
+    ReverbAudioEffectParametersSchema as ReverbAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SaturateEffectParametersSchema as SaturateEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SleepEffectParametersSchema as SleepEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SlideInEffectParametersSchema as SlideInEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SlideOutEffectParametersSchema as SlideOutEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    StretchEffectParametersSchema as StretchEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SweepInEffectParametersSchema as SweepInEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SweepOutEffectParametersSchema as SweepOutEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    TremoloAudioEffectParametersSchema as TremoloAudioEffectParametersSchema,
+)
+from xnano._schema._errors import (
+    TerminalErrorCode as TerminalErrorCode,
+)
+from xnano._schema._hooks import (
+    HeldMouseButtonName as HeldMouseButtonName,
+)
+from xnano._schema._hooks import (
+    Hook as Hook,
+)
+from xnano._schema._hooks import (
+    HookKind as HookKind,
+)
+from xnano._schema._hooks import (
+    HookResult as HookResult,
+)
+from xnano._schema._hooks import (
+    KeyName as KeyName,
+)
+from xnano._schema._hooks import (
+    KeyNames as KeyNames,
+)
+from xnano._schema._hooks import (
+    When as When,
+)
+from xnano._schema._layout import (
+    Anchor as Anchor,
+)
+from xnano._schema._layout import (
+    CanvasLayout as CanvasLayout,
+)
+from xnano._schema._layout import (
+    EdgeBehavior as EdgeBehavior,
+)
+from xnano._schema._layout import (
+    Interpolation as Interpolation,
+)
+from xnano._schema._layout import (
+    MotionDirection as MotionDirection,
+)
+from xnano._schema._layout import (
+    PixelAnchor as PixelAnchor,
+)
+from xnano._schema._layout import (
+    PixelEncoding as PixelEncoding,
+)
+from xnano._schema._layout import (
     PixelPreset as PixelPreset,
+)
+from xnano._schema._layout import (
+    Resolution as Resolution,
+)
+from xnano._schema._media import (
+    ImageFit as ImageFit,
+)
+from xnano._schema._media import (
+    PlayOptions as PlayOptions,
+)
+from xnano._schema._media import (
+    ResamplingFilter as ResamplingFilter,
+)
+from xnano._schema._operations import (
+    DynamicFillSchema as DynamicFillSchema,
+)
+from xnano._schema._operations import (
+    DynamicFuzzSchema as DynamicFuzzSchema,
+)
+from xnano._schema._operations import (
+    DynamicLayoutSchema as DynamicLayoutSchema,
+)
+from xnano._schema._operations import (
+    DynamicPixelsSchema as DynamicPixelsSchema,
+)
+from xnano._schema._operations import (
+    DynamicRasterSchema as DynamicRasterSchema,
+)
+from xnano._schema._operations import (
+    DynamicWriteSchema as DynamicWriteSchema,
+)
+from xnano._schema._operations import (
+    OperationResult as OperationResult,
+)
+from xnano._schema._state import (
+    StatePath as StatePath,
+)
+from xnano._schema._terminal import (
+    CanvasSettings as CanvasSettings,
+)
+from xnano._schema._terminal import (
+    CapabilityStatus as CapabilityStatus,
+)
+from xnano._schema._terminal import (
+    ColorProfile as ColorProfile,
+)
+from xnano._schema._terminal import (
+    GraphicsProtocol as GraphicsProtocol,
+)
+from xnano._schema._terminal import (
+    OpenSettings as OpenSettings,
+)
+from xnano._schema._terminal import (
+    TerminalSettings as TerminalSettings,
+)
+from xnano.effects import (
+    EffectController as EffectController,
+)
+from xnano.effects._properties import (
+    PlayableEffectProperties as PlayableEffectProperties,
+)
+from xnano.effects._properties import (
+    RenderableEffectProperties as RenderableEffectProperties,
+)
+from xnano.hooks import (
+    HookHandle as HookHandle,
 )
 from xnano_core import (
     BorderKind as BorderKind,
 )
 
-if TYPE_CHECKING:
-    from xnano_audio import InstrumentName
-
-
 __all__ = [
     'Anchor',
     'AppearanceArguments',
     'Axis',
+    'BitCrushAudioEffectParametersSchema',
     'BorderKind',
     'CanvasAppearanceArguments',
     'CanvasLayout',
     'CanvasSettings',
+    'CapabilityStatus',
+    'CoalesceEffectParametersSchema',
+    'ColorProfile',
     'ColorValue',
     'Content',
+    'DarkenEffectParametersSchema',
+    'DelayAudioEffectParametersSchema',
+    'DissolveEffectParametersSchema',
+    'DistortionAudioEffectParametersSchema',
+    'DynamicFillSchema',
+    'DynamicFuzzSchema',
+    'DynamicLayoutSchema',
+    'DynamicPixelsSchema',
+    'DynamicRasterSchema',
+    'DynamicWriteSchema',
     'EdgeBehavior',
     'EffectController',
-    'EffectCustomization',
-    'GateSettings',
+    'EffectKind',
+    'EffectSpecification',
+    'EvolveEffectParametersSchema',
+    'EvolveFromEffectParametersSchema',
+    'EvolveIntoEffectParametersSchema',
+    'ExpandEffectParametersSchema',
+    'ExplodeEffectParametersSchema',
+    'FadeFromEffectParametersSchema',
+    'FadeToEffectParametersSchema',
+    'GlitchEffectParametersSchema',
+    'GraphicsProtocol',
     'HeldMouseButtonName',
+    'HighPassAudioEffectParametersSchema',
     'Hook',
-    'HookGenerator',
     'HookHandle',
     'HookKind',
+    'HookResult',
     'HorizontalPosition',
+    'HslShiftEffectParametersSchema',
     'ImageFit',
     'Interpolation',
     'KeyName',
+    'KeyNames',
+    'LightenEffectParametersSchema',
+    'LowPassAudioEffectParametersSchema',
     'MotionDirection',
     'OpenSettings',
+    'OperationResult',
+    'PaintEffectParametersSchema',
     'Percentage',
+    'PixelAnchor',
     'PixelEncoding',
     'PixelPreset',
     'Playable',
     'PlayableEffect',
     'PlayableEffectKind',
-    'PlayableEffects',
+    'PlayableEffectProperties',
     'PlayableEffectSpecification',
     'PlayOptions',
     'PlaySource',
@@ -183,223 +355,26 @@ __all__ = [
     'Renderable',
     'RenderableEffect',
     'RenderableEffectKind',
-    'RenderableEffects',
+    'RenderableEffectProperties',
     'RenderableEffectSpecification',
     'ResamplingFilter',
+    'Resolution',
+    'ReverbAudioEffectParametersSchema',
+    'SaturateEffectParametersSchema',
+    'SleepEffectParametersSchema',
+    'SlideInEffectParametersSchema',
+    'SlideOutEffectParametersSchema',
     'Spacing',
     'SpacingDictionary',
+    'StatePath',
+    'StretchEffectParametersSchema',
     'SupportsPlay',
     'SupportsRender',
+    'SweepInEffectParametersSchema',
+    'SweepOutEffectParametersSchema',
+    'TerminalErrorCode',
+    'TerminalSettings',
+    'TremoloAudioEffectParametersSchema',
     'VerticalPosition',
     'When',
 ]
-
-
-class GateSettings(TypedDict, total=False):
-    """
-    What a screen reports to a canvas: the input gates of ``new()`` and ``open()``.
-
-    A canvas stores the gates it is given and applies them when it is opened on a screen;
-    a canvas without a screen has no device to report anything, and events pushed with
-    [`Canvas.push`][xnano.canvas.Canvas.push] reach hooks whatever the gates say. A gate that
-    is left out takes its default. ``mouse``, ``scroll`` and ``paste`` are turned on when the
-    canvas is opened if a hook registered before that needs them; a gate given as ``False``
-    stays off, and a hook that needs it raises a
-    [`TerminalError`][xnano.errors.TerminalError] that says which gate to turn on.
-
-    Attributes:
-        mouse: ``True`` reports button presses, releases and drags; ``'motion'`` reports
-            every movement as well. Unset by default: turned on when a hook registered before
-            the canvas is opened needs it. The wheel is the ``scroll`` gate.
-        scroll: Whether the mouse wheel is reported. Unset by default: turned on when a hook
-            registered before the canvas is opened needs it.
-        keyboard: ``True`` for ordinary key presses, ``'disambiguated'`` to tell keys such as
-            ``escape`` and ``alt+key`` apart, ``'release_events'`` to also report repeats and
-            releases, and ``False`` to ignore keys. ``True`` by default.
-        paste: Whether pasted text arrives as one paste event instead of as key presses.
-            Unset by default, which means on.
-        focus: Whether the window gaining and losing focus is reported. On by default.
-        interrupt: Whether ``Ctrl-C`` ends the loop. ``False`` delivers it as a key press.
-            On by default.
-        capture: Whether text printed while the screen is in use is held back and printed
-            when the canvas closes. On by default.
-        clear: Whether what was drawn is erased when the canvas closes. On by default.
-        alternate_screen: Whether a full-window canvas draws on the alternate screen, so the
-            shell's history comes back untouched. On by default.
-    """
-
-    mouse: bool | Literal['motion']
-    """``True`` for presses, releases and drags; ``'motion'`` for every movement too."""
-    scroll: bool
-    """Whether the mouse wheel is reported."""
-    keyboard: bool | Literal['disambiguated', 'release_events']
-    """Which key events are reported, or ``False`` for none."""
-    paste: bool
-    """Whether pasted text arrives as one paste event."""
-    focus: bool
-    """Whether the window gaining and losing focus is reported."""
-    interrupt: bool
-    """Whether ``Ctrl-C`` ends the loop."""
-    capture: bool
-    """Whether printed text is held back while the screen is in use."""
-    clear: bool
-    """Whether what was drawn is erased when the canvas closes."""
-    alternate_screen: bool
-    """Whether a full-window canvas draws on the alternate screen."""
-
-
-class CanvasAppearanceArguments(TypedDict, total=False):
-    """
-    How a canvas itself looks: its colors, text modifiers, border, padding and margin.
-
-    These style the canvas, not what is written into it, so ``new()`` and ``open()`` accept
-    them only without content. ``title`` is not one of them: on ``new()`` and ``open()`` it is
-    the window title.
-
-    Attributes:
-        style: A ready-made style that the colors and modifiers are applied over.
-        foreground: The color of the cells no content covers.
-        background: The color behind the cells no content covers.
-        bold: Whether the canvas's own cells are bold.
-        dim: Whether they are dimmed.
-        italic: Whether they are italic.
-        underline: Whether they are underlined.
-        blink: Whether they blink.
-        reverse: Whether foreground and background are swapped.
-        hidden: Whether they are hidden.
-        crossed_out: Whether they are struck through.
-        border: The kind of border around the canvas, ``True`` for ``'plain'``, ``False`` for none.
-        border_style: The style of the border.
-        padding: Space between the border and what is written into the canvas.
-        margin: Space outside the border.
-    """
-
-    style: _core.Style | None
-    """A ready-made style that the colors and modifiers are applied over."""
-    foreground: ColorValue | None
-    """The foreground color."""
-    background: ColorValue | None
-    """The background color."""
-    bold: bool
-    """Whether the cells are bold."""
-    dim: bool
-    """Whether the cells are dimmed."""
-    italic: bool
-    """Whether the cells are italic."""
-    underline: bool
-    """Whether the cells are underlined."""
-    blink: bool
-    """Whether the cells blink."""
-    reverse: bool
-    """Whether foreground and background are swapped."""
-    hidden: bool
-    """Whether the cells are hidden."""
-    crossed_out: bool
-    """Whether the cells are struck through."""
-    border: _core.BorderKind | bool | None
-    """The kind of border; ``True`` is ``'plain'`` and ``False`` is none."""
-    border_style: _core.Style | None
-    """The style of the border."""
-    padding: Spacing | None
-    """Space between the border and the content."""
-    margin: Spacing | None
-    """Space outside the border."""
-
-
-class AppearanceArguments(CanvasAppearanceArguments, total=False):
-    """
-    How written content looks: the appearance keywords of ``write``.
-
-    Attributes:
-        title: A title on the border of the content.
-    """
-
-    title: str | None
-    """A title on the border."""
-
-
-class CanvasSettings(GateSettings, CanvasAppearanceArguments, total=False):
-    """
-    The keyword settings of [`new`][xnano.new]: the input gates and the canvas's own look.
-
-    Every key is described where it is declared, in
-    [`GateSettings`][xnano.types.GateSettings] and
-    [`CanvasAppearanceArguments`][xnano.types.CanvasAppearanceArguments].
-
-    Attributes:
-        mouse: See [`GateSettings`][xnano.types.GateSettings]; the same for ``scroll``,
-            ``keyboard``, ``paste``, ``focus``, ``interrupt``, ``capture``, ``clear`` and
-            ``alternate_screen``.
-        background: See [`CanvasAppearanceArguments`][xnano.types.CanvasAppearanceArguments];
-            the same for the other appearance keys.
-        layout: How the canvas places what is written on it; see
-            [`CanvasLayout`][xnano.types.CanvasLayout]. ``'overlay'`` when left out.
-        edges: What content written on the canvas does at the edges of its area, unless it
-            is given its own; see [`EdgeBehavior`][xnano.types.EdgeBehavior]. ``'clip'``
-            when left out.
-    """
-
-    layout: CanvasLayout
-    """How the canvas places what is written on it."""
-    edges: EdgeBehavior
-    """What content does at the edges of its area."""
-
-
-class OpenSettings(CanvasSettings, total=False):
-    """
-    The keyword settings of [`Canvas.open`][xnano.canvas.Canvas.open] and of
-    [`open`][xnano.open] given a canvas.
-
-    Everything ``new()`` takes except ``realtime`` (a screen always runs in real time) and the
-    content. ``deps`` and ``state`` are accepted only by a canvas created without them.
-
-    Attributes:
-        fps: The most frames drawn per second.
-        bpm: Beats per minute for beat hooks, notes and melodies.
-        effects: Effects to apply to the canvas, as dictionaries with a ``kind`` key.
-        deps: The dependencies hooks and components read as ``context.deps``.
-        state: A dataclass instance the canvas keeps and validates.
-    """
-
-    fps: float
-    """The most frames drawn per second."""
-    bpm: float
-    """Beats per minute."""
-    effects: Sequence[RenderableEffectSpecification]
-    """Effects to apply, as dictionaries with a ``kind`` key."""
-    deps: object
-    """The dependencies hooks read as ``context.deps``."""
-    state: object
-    """A dataclass instance the canvas keeps and validates."""
-
-
-class PlayOptions(TypedDict, total=False):
-    """
-    The keyword options of [`play`][xnano.play]. An option replaces the same value on a
-    [`Note`][xnano.Note].
-
-    Attributes:
-        instrument: A built-in instrument, from
-            [`instrument_names`][xnano_audio.instrument_names].
-        velocity: How hard a note is played, from 0.0 to 1.0.
-        effects: Sound effects as dictionaries with a ``kind`` key.
-        volume: Playback gain from 0.0 to 1.0.
-        pan: Stereo position from -1.0 (left) to 1.0 (right).
-        at_beat: Start when the musical clock reaches this beat.
-        beats: How long a note name, a number or a ``Note`` is held, in beats.
-    """
-
-    instrument: InstrumentName
-    """A built-in instrument name."""
-    velocity: float
-    """How hard a note is played."""
-    effects: Sequence[PlayableEffectSpecification]
-    """Sound effects as dictionaries with a ``kind`` key."""
-    volume: float
-    """Playback gain."""
-    pan: float
-    """Stereo position."""
-    at_beat: int
-    """The beat of the musical clock to start on."""
-    beats: float
-    """The length in beats."""

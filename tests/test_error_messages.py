@@ -9,8 +9,9 @@ from __future__ import annotations
 import pytest
 
 import xnano
-from xnano._when import parse_when
 from xnano.errors import TerminalError
+from xnano.hooks._triggers import parse_when
+from xnano.terminal._settings import gates_for_screen
 from xnano_core import Event
 
 
@@ -44,7 +45,7 @@ def returns_content():
 def a_gate_that_is_off():
     with xnano.new(width=8, height=1) as canvas:
         canvas.hook(lambda context: None, on='scroll')
-        canvas._gates_for_screen({'scroll': False})
+        gates_for_screen(canvas, {'scroll': False})
 
 
 @xnano.renderable
@@ -124,7 +125,7 @@ def a_component_gate_that_is_off():
 
     with xnano.new(width=8, height=1) as canvas:
         canvas.write(wheel)
-        canvas._gates_for_screen({'scroll': False})
+        gates_for_screen(canvas, {'scroll': False})
 
 
 def a_component_hook_that_needs_dependencies():
@@ -289,7 +290,7 @@ def hooks_that_feed_each_other():
                 "symbol='kik_drum'",
             ],
         ),
-        (plays_a_pixel_name, TypeError, ['a Pixel symbol', 'Note or an Audio']),
+        (plays_a_pixel_name, TypeError, ['a Pixel symbol', 'Melody or a Sound']),
         (
             lambda: xnano.note('H9'),
             ValueError,
@@ -365,8 +366,8 @@ def hooks_that_feed_each_other():
             ValueError,
             ["'unknown_art_symbol' is not a known Art symbol", 'symbol='],
         ),
-        (writes_bytes, TypeError, ['raw bytes', 'xnano.from_image(data)']),
-        (writes_a_path, TypeError, ['is a path', 'xnano.from_image(path)']),
+        (writes_bytes, TypeError, ['raw bytes', 'xnano.load_image(data)']),
+        (writes_a_path, TypeError, ['is a path', 'xnano.load_image(path)']),
         (
             a_gate_that_is_off,
             TerminalError,
@@ -439,7 +440,7 @@ def test_the_error_teaches_the_recovery(raiser, error, parts):
             ValueError,
             ['from 1 to 65535'],
         ),
-        (lambda canvas: xnano.box(10**20, 3), ValueError, ['at most 65535']),
+        (lambda canvas: xnano.box(10**20, 3), TerminalError, ['65535']),
         (lambda canvas: canvas.write('a', layer=10**20), ValueError, ['layer must be']),
         (lambda canvas: canvas.write('a', padding=10**20), ValueError, ['at most 65535']),
         (lambda canvas: canvas.write('a', margin=10**20), ValueError, ['at most 65535']),

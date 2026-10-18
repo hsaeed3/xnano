@@ -49,6 +49,22 @@ fn alignment_arg(name: &str) -> PyResult<ratatui_core::layout::Alignment> {
 
 #[pymethods]
 impl PyBlockTitle {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["text", "alignment", "position"])
+    }
+
     #[new]
     #[pyo3(signature = (text, *, position = "top", alignment = None, style = None))]
     fn new(

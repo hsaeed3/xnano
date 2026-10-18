@@ -16,7 +16,6 @@ import pathlib
 import xnano
 from xnano.buffers import Buffer, Cell
 from xnano.context import Context
-from xnano.effects import Effect
 from xnano.expressions import (
     Height,
     NumericValue,
@@ -25,7 +24,6 @@ from xnano.expressions import (
     TimeElapsed,
     Width,
 )
-from xnano.image import TerminalImage
 from xnano.placement import Placement
 from xnano.styles import Style
 from xnano.terminal import Terminal
@@ -34,9 +32,9 @@ from xnano.widgets import (
     BarChart,
     Block,
     Calendar,
-    Canvas,
-    CanvasCircle,
-    CanvasPoints,
+    Figure,
+    FigureCircle,
+    FigurePoints,
     LineGauge,
     Paragraph,
     Sparkline,
@@ -103,11 +101,9 @@ class _Demo:
     def start(self) -> None:
         """Play the opening animation, then build the panels on the first key."""
         terminal = self.terminal
-        clip = TerminalImage.from_xni((ASSETS / 'luffy.xni').read_bytes())
+        clip = xnano.load_image(ASSETS / 'luffy.xni')
         self.intro.append(
-            terminal.write(
-                xnano.Image(clip), x='center', y='center', width='100%', height='100%'
-            )
+            terminal.write(clip, x='center', y='center', width='100%', height='100%')
         )
         self.intro.append(terminal.write(wordmark(), x='center', y='center', layer=2))
         self.intro.append(
@@ -156,7 +152,7 @@ class _Demo:
         self.panel('widgets', 0.0, 0.27, 0.3, 0.62)
         self.panel('features', 0.0, 0.27, 0.62, 1.0)
         self.panel('pixel art', 0.27, 0.73, 0.0, 0.6)
-        self.panel('canvas', 0.27, 0.73, 0.6, 1.0)
+        self.panel('figure', 0.27, 0.73, 0.6, 1.0)
         self.panel('sound', 0.73, 1.0, 0.0, 0.34)
         self.panel('calendar', 0.73, 1.0, 0.34, 0.66)
         self.panel('events', 0.73, 1.0, 0.66, 1.0)
@@ -165,7 +161,7 @@ class _Demo:
         self.build_widgets()
         self.build_features()
         self.build_art()
-        self.build_canvas()
+        self.build_figure()
         self.build_sound()
         self.build_calendar()
         self.build_events()
@@ -233,12 +229,12 @@ class _Demo:
         art.y = row(0.0) + (row(0.6) - row(0.0) - Height) // 2
         self.art = art
 
-    def build_canvas(self) -> None:
+    def build_figure(self) -> None:
         """Shapes in coordinates of your own, redrawn on every frame."""
         terminal = self.terminal
-        self.canvas = Canvas(x_bounds=(-10, 10), y_bounds=(-10, 10), marker='braille')
+        self.figure = Figure(x_bounds=(-10, 10), y_bounds=(-10, 10), marker='braille')
         terminal.write(
-            self.canvas,
+            self.figure,
             x=edge(0.27) + 1,
             y=row(0.6) + 1,
             width=edge(0.73) - edge(0.27) - 2,
@@ -253,13 +249,13 @@ class _Demo:
         @terminal.hook(on='frame')
         def draw(context: Context) -> None:
             time = context.time.elapsed
-            self.canvas.clear_shapes()
-            self.canvas.extend_shapes(
+            self.figure.clear_shapes()
+            self.figure.extend_shapes(
                 [
-                    CanvasPoints(orbit, 'gray'),
-                    CanvasCircle(0, 0, 2, 'yellow'),
-                    CanvasCircle(8 * math.cos(time), 8 * math.sin(time), 1, 'cyan'),
-                    CanvasCircle(
+                    FigurePoints(orbit, 'gray'),
+                    FigureCircle(0, 0, 2, 'yellow'),
+                    FigureCircle(8 * math.cos(time), 8 * math.sin(time), 1, 'cyan'),
+                    FigureCircle(
                         4 * math.cos(time * 2.2), 4 * math.sin(time * 2.2), 0.6, 'magenta'
                     ),
                 ]
@@ -348,10 +344,8 @@ class _Demo:
             note = NOTES[context.keyboard.key]
             self.remember(f'note {note} on {INSTRUMENTS[self.instrument]}')
             if not self.is_muted and terminal.audio.is_available:
-                from xnano.audio import TerminalNote
-
                 terminal.play(
-                    TerminalNote(note, duration_beats=0.5),
+                    xnano.note(note, beats=0.5),
                     instrument=INSTRUMENTS[self.instrument],
                 )
 
@@ -362,7 +356,7 @@ class _Demo:
 
         @terminal.hook(on='key', keys='e')
         def replay_effect(context: Context) -> None:
-            self.art.update(Effect.coalesce(duration_milliseconds=1200))
+            self.art.update(xnano.effect('effect.coalesce', duration_milliseconds=1200))
             self.remember('effect: coalesce')
 
         @terminal.hook(on='key', keys='space')

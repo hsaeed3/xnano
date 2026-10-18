@@ -17,9 +17,8 @@ if TYPE_CHECKING:
     from xnano.components import _ComponentDriver
     from xnano.types import RenderableEffectSpecification
 
-from xnano._appearance import MOST_CELLS, Appearance, Spacing
-from xnano._attributes import refuse_unknown_keywords
-from xnano._axes import (
+from xnano._internal._attributes import refuse_unknown_keywords
+from xnano._internal._axes import (
     axis_expression,
     axis_limits,
     check_cells,
@@ -30,24 +29,17 @@ from xnano._axes import (
     check_size,
     inspect_number,
 )
-from xnano._customize import Customization, apply_effects
-from xnano._decoration import Decorated, insets_for
-from xnano._effect_controller import RenderableEffects
-from xnano._hooks import _Hooked
-from xnano._values import (
-    Axis,
-    AxisName,
-    Bound,
-    ColorValue,
-    Content,
-    DepsT,
-    EdgeBehavior,
-    NumericExpression,
-    StateT,
-    WrittenDepsT,
-    WrittenStateT,
-)
-from xnano.appearance import _TextModifiers
+from xnano._internal._dynamic_operations import DynamicOperation
+from xnano._schema._appearance import ColorValue, Spacing
+from xnano._schema._axes import Axis, AxisName, Bound, NumericExpression
+from xnano._schema._content import Content
+from xnano._schema._generics import DepsT, StateT, WrittenDepsT, WrittenStateT
+from xnano._schema._layout import EdgeBehavior
+from xnano.appearance._decoration import Decorated, insets_for
+from xnano.appearance._look import MOST_CELLS, Appearance
+from xnano.appearance._owners import _TextModifiers
+from xnano.effects._properties import RenderableEffectProperties
+from xnano.effects._registry import apply_effects
 from xnano.errors import TerminalClosedError
 from xnano.expressions import (
     Parent,
@@ -55,6 +47,7 @@ from xnano.expressions import (
     Root,
     RootExpressionScope,
 )
+from xnano.hooks._handles import _Hooked
 from xnano.operations import (
     ContextualOperation,
 )
@@ -150,6 +143,9 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         self._limits: dict[AxisName, tuple[Bound | None, Bound | None, bool]] = {}
         self._removed = False
         self._is_text = False
+        # Whether the placement draws the look of a box from xnano.box(), whose size
+        # includes its border and padding.
+        self._is_box = False
         self._edges: EdgeBehavior | None = None
         # An area that terminal.write uses inside a canvas's block follows that canvas.
         self._edges_owner: Canvas[object, object] | None = None
@@ -160,7 +156,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         self._has_nested = False
         self._state_namespace: StateNamespace | None = None
         self._driver: _ComponentDriver | None = None
-        self._renderable_effects = RenderableEffects(
+        self._renderable_effects = RenderableEffectProperties(
             cast('Placement[object, object]', self)
         )
         self._seal()
@@ -356,6 +352,14 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             decorated = self._decorated
             if decorated is not None and axis in ('width', 'height'):
                 self._refit_decoration(decorated)
+            elif (
+                axis in ('width', 'height')
+                and self._is_box
+                and self._appearance is not None
+            ):
+                # The cells a resize added take the colors of the box.
+                self._apply_content_colors(self._appearance, self._buffer)
+                self._canvas._request_frame()
 
     def _clamp(
         self, axis: AxisName, value: float, resolve: Callable[[Bound], float | None]
@@ -703,13 +707,13 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         return self.move(x=check_count(count, verb='right', opposite='left'))
 
     @property
-    def fx(self) -> RenderableEffects:
+    def fx(self) -> RenderableEffectProperties:
         """
         The visual effects of this placement, one method for each effect.
 
         ``placement.fx.fade_to(foreground='red')`` starts a fade on the placement at once, from
         a hook or from anywhere else, and ``placement.fx.clear()`` stops what was started here.
-        See [`RenderableEffects`][xnano.types.RenderableEffects].
+        See [`RenderableEffectProperties`][xnano.effects.RenderableEffectProperties].
 
         Examples:
             ```python
@@ -732,12 +736,16 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         return self._renderable_effects
 
     @property
-    def region(self) -> Region:
+    def region(self) -> Region[int]:
         """
         The cells of the content as a [`Region`][xnano.region.Region]: read and write
         ``placement.region[x, y]``.
 
-        Around text with a border, padding or margin, the region is the area inside them.
+        Around text with a border, padding or margin, the region is the area inside them. The
+        same holds for a box from [`box`][xnano.box] whose look the placement draws: a box
+        with a relative size, a box written with a ``width`` or a ``height``, and a box
+        written with a look. A box written as it is, with no size and no look, is a snapshot
+        whose border is part of its cells, so the region includes the border.
 
         Examples:
             ```python
@@ -749,13 +757,23 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 assert label.region[0, 0].character == '★'
             ```
         """
+        buffer, inset = self._region_buffer()
+        return Region(buffer, owner=cast('Placement[object, object]', self), inset=inset)
+
+    def _region_buffer(self) -> tuple[_core.Buffer, tuple[int, int, int, int]]:
+        """The buffer that ``region`` addresses, drawn up to date, and the cells left out of it."""
         self._flush_look()
         decorated = self._decorated
         if decorated is not None:
-            return Region(decorated.inner, owner=cast('Placement[object, object]', self))
-        inset = self._single_buffer_inset()
-        return Region(
-            self._buffer, owner=cast('Placement[object, object]', self), inset=inset
+            return decorated.inner, (0, 0, 0, 0)
+        return self._buffer, self._single_buffer_inset()
+
+    def _region_cell_size(self) -> tuple[int, int]:
+        """The width and height of ``region`` in cells, without making the region."""
+        buffer, (left, top, right, bottom) = self._region_buffer()
+        return (
+            max(0, buffer.width - left - right),
+            max(0, buffer.height - top - bottom),
         )
 
     def render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
@@ -944,21 +962,27 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             self._buffer.height = content.height + insets.vertical
         else:
             inner = decorated.inner
-            insets = insets_for(look, inner.width, inner.height)
-            previous = decorated.insets
-            self._buffer.width = max(
-                1, self._buffer.width + insets.horizontal - previous.horizontal
-            )
-            self._buffer.height = max(
-                1, self._buffer.height + insets.vertical - previous.vertical
-            )
-            if is_wrapped_now:
-                # The box around a widget must fit in the parent, so the border is not cut off.
-                parent = self._parent_buffer
-                if 0 < parent.width < self._buffer.width:
-                    self._buffer.width = max(insets.horizontal + 1, parent.width)
-                if 0 < parent.height < self._buffer.height:
-                    self._buffer.height = max(insets.vertical + 1, parent.height)
+            if self._is_box:
+                # The size of a box includes its border and padding, so they take room
+                # inside it instead of growing it.
+                insets = insets_for(look, self._buffer.width, self._buffer.height)
+            else:
+                insets = insets_for(look, inner.width, inner.height)
+                previous = decorated.insets
+                self._buffer.width = max(
+                    1, self._buffer.width + insets.horizontal - previous.horizontal
+                )
+                self._buffer.height = max(
+                    1, self._buffer.height + insets.vertical - previous.vertical
+                )
+                if is_wrapped_now:
+                    # The box around a widget must fit in the parent, so the border is not
+                    # cut off.
+                    parent = self._parent_buffer
+                    if 0 < parent.width < self._buffer.width:
+                        self._buffer.width = max(insets.horizontal + 1, parent.width)
+                    if 0 < parent.height < self._buffer.height:
+                        self._buffer.height = max(insets.vertical + 1, parent.height)
             decorated.insets = insets
             decorated.fit_inner()
             self._apply_content_colors(look, inner)
@@ -1014,8 +1038,12 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         look = self._appearance
         if look is None:
             return
+        if self._is_box:
+            decorated.insets = insets_for(look, self._buffer.width, self._buffer.height)
         if not self._is_text:
             decorated.fit_inner()
+            if self._is_box:
+                self._apply_content_colors(look, decorated.inner)
         decorated.repaint(look, decorated.insets)
 
     def _show_appearance(self) -> None:
@@ -1069,6 +1097,11 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         inside ``track``. To change this placement with an operation, a style or an effect, use
         [`update`][xnano.placement.Placement.update].
 
+        A box from [`box`][xnano.box] with a percentage, formula or state reference size is
+        measured against this placement and drawn again when it changes size; see
+        [`Canvas.write`][xnano.canvas.Canvas.write] for how the look given here applies over
+        the look of the box.
+
         Args:
             content: Child content to place inside this buffer.
             x: Column of the child's left edge, relative to this placement.
@@ -1102,6 +1135,9 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             margin: Space outside the box, in the same forms.
         """
         self._require_attached()
+        if isinstance(content, Region):
+            content._require_drawable('placement.write()')
+            width, height = content._written_size(width, height)
         if edges is not None:
             edges = check_edges(edges)
         look = self._appearance
@@ -1154,7 +1190,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         Examples:
             ```python
             import xnano
-            from xnano.effects import Effect
+            from xnano.operations import Effect
 
             with xnano.new(width=20, height=3) as canvas:
                 title = canvas.write('Welcome')
@@ -1165,7 +1201,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         for item in operations:
             if isinstance(item, ContextualOperation):
                 cast('ContextualOperation[DepsT, StateT]', item).apply_to(self)
-            elif isinstance(item, Customization):
+            elif isinstance(item, DynamicOperation):
                 item.apply_to(cast('Placement[object, object]', self))
             elif isinstance(item, _core.Style):
                 self._buffer.update(_core.ApplyStyle(item))

@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
+from xnano._schema._hooks import KeyNames as KeyNames
 from xnano.errors import TerminalClosedError
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ __all__ = [
     'ClipboardInput',
     'Input',
     'KeyboardInput',
+    'KeyNames',
     'MouseInput',
     'ScrollInput',
 ]
@@ -27,14 +29,6 @@ __all__ = [
 # How long after the last key repeat a key still counts as held, on a terminal that does not
 # report key releases. It has to outlast the operating system's pause before a held key repeats.
 _ESTIMATED_HOLD_SECONDS = 0.45
-
-KeyNames = str | Sequence[str]
-"""
-One key or mouse button name, or several that count the same, such as ``('a', 'left')``.
-
-The mouse buttons are called ``'mouse_left'``, ``'mouse_right'`` and ``'mouse_middle'``; see
-[`HeldMouseButtonName`][xnano.types.HeldMouseButtonName].
-"""
 
 
 # The range of a cell number or a number of wheel steps that an event can carry.
@@ -51,7 +45,7 @@ def _names(keys: KeyNames) -> tuple[str, ...]:
     """The names in ``keys`` as the runtime spells them, each checked to be one key or button."""
     import difflib
 
-    from xnano._when import _KEY_NAMES, normalize_chord
+    from xnano.hooks._triggers import _KEY_NAMES, normalize_chord
 
     if isinstance(keys, str):
         names: tuple[object, ...] = (keys,)
@@ -332,7 +326,7 @@ class KeyboardInput:
         """
         Press a key on the canvas, as if it had been typed.
 
-        The canvas's hooks hear it at its next step, whatever the input gates say.
+        The canvas's hooks hear it at its next step, whatever the terminal settings say.
 
         Args:
             value: A key name or chord such as ``'q'`` or ``'ctrl+s'``, or a
@@ -353,7 +347,7 @@ class KeyboardInput:
                     f"keyboard.push takes a key name such as 'q' or 'ctrl+s', or a KeyEvent, "
                     f'but got {value!r}. Pass the key as text: keyboard.push("q").'
                 )
-            from xnano._when import normalize_chord
+            from xnano.hooks._triggers import normalize_chord
 
             normalize_chord(value)
             self._canvas.push(_core.Event.key_press(value))

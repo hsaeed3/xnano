@@ -4,93 +4,497 @@ xnano.operations
 Operations that change or animate a buffer, placement or canvas.
 
 Pass operations to ``update`` or pipe them with ``|``. Create a reusable hook from a function
-with [`hook`][xnano.operations.hook], or build typed style, border, block and effect
-customizations with [`fx`][xnano.operations.fx].
+with [`hook`][xnano.hooks.hook]. Animated effects such as [`Effect`][xnano.operations.Effect]
+(``Effect.fade_to(...)``, ``Effect.dissolve(...)``) and
+[`CancelEffect`][xnano.operations.CancelEffect] are operations as well and apply the same way.
+
+The Dynamic operations ([`DynamicFill`][xnano.operations.DynamicFill],
+[`DynamicWrite`][xnano.operations.DynamicWrite],
+[`DynamicLayout`][xnano.operations.DynamicLayout],
+[`DynamicFuzz`][xnano.operations.DynamicFuzz],
+[`DynamicPixels`][xnano.operations.DynamicPixels] and
+[`DynamicRaster`][xnano.operations.DynamicRaster]) are operations whose settings are dataclass
+fields holding plain values: numbers, text, cells and styles. The fields are read every time the
+operation is applied, and assigning a field of an applied operation applies it again with the
+new value. A field does not follow an expression over time. To make a position or size follow
+an expression, give the expression to the placement itself (``placement.x = ...``) or change the
+field from a hook. The parameters of an effect, which can follow an expression while it runs,
+are built with [`effect`][xnano.effects.effect].
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast, overload
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Final, Generic, Literal, cast
 
 import xnano_core as _core
-from xnano._customize import (
-    Customization as Customization,
-)
-from xnano._customize import (
-    CustomizationKind as CustomizationKind,
-)
-from xnano._customize import (
-    fx as fx,
-)
-from xnano._hooks import (
-    Hook,
-    HookKind,
-    When,
-    _check_hook_arguments,
-    _check_hook_function,
-)
-from xnano._values import DepsT, KeyName, StateT
+from xnano._internal._axes import to_rgb
+from xnano._internal._dynamic_operations import DynamicOperation
+from xnano._schema._appearance import RGB, ColorValue
+from xnano._schema._generics import DepsT, StateT, TargetT
+from xnano._schema._hooks import HookKind, When
+from xnano._schema._layout import PixelEncoding
+from xnano._schema._operations import OperationResult as OperationResult
 from xnano.context import Context
-from xnano_core import (
-    ApplyStyle as ApplyStyle,
-)
-from xnano_core import (
-    Background as Background,
-)
-from xnano_core import (
-    Border as Border,
-)
-from xnano_core import (
-    Clear as Clear,
-)
-from xnano_core import (
-    Fill as Fill,
-)
-from xnano_core import (
-    Foreground as Foreground,
-)
-from xnano_core import (
-    Layout as Layout,
-)
-from xnano_core import (
-    Margin as Margin,
-)
-from xnano_core import (
-    Move as Move,
-)
-from xnano_core import (
-    Operation as Operation,
-)
-from xnano_core import (
-    Paste as Paste,
-)
-from xnano_core import (
-    Place as Place,
-)
-from xnano_core import (
-    Resize as Resize,
-)
-from xnano_core import (
-    Write as Write,
-)
 
 if TYPE_CHECKING:
-    from xnano._hooks import _Hooked
     from xnano.canvas import Canvas
     from xnano.placement import Placement
+    from xnano_core import ApplyStyle as _CoreApplyStyle
+    from xnano_core import Background as _CoreBackground
+    from xnano_core import Border as _CoreBorder
+    from xnano_core import CancelEffect as _CoreCancelEffect
+    from xnano_core import Clear as _CoreClear
+    from xnano_core import Dissolve as _CoreDissolve
+    from xnano_core import Effect as _CoreEffect
+    from xnano_core import Fade as _CoreFade
+    from xnano_core import Fill as _CoreFill
+    from xnano_core import Foreground as _CoreForeground
+    from xnano_core import Fuzz as _CoreFuzz
+    from xnano_core import Glitch as _CoreGlitch
+    from xnano_core import Layout as _CoreLayout
+    from xnano_core import Margin as _CoreMargin
+    from xnano_core import Move as _CoreMove
+    from xnano_core import Operation as _CoreOperation
+    from xnano_core import Paste as _CorePaste
+    from xnano_core import Place as _CorePlace
+    from xnano_core import Resize as _CoreResize
+    from xnano_core import Write as _CoreWrite
 
-TargetT = TypeVar('TargetT')
+    ApplyStyle = _CoreApplyStyle
+    """
+    An operation that patches a style onto every cell of its target.
 
-OperationResult: TypeAlias = '_core.Operation | _core.Style | Customization | None'
-"""What a function decorated with [`hook`][xnano.operations.hook] may return."""
+    Colors and modifiers that the [`Style`][xnano.styles.Style] leaves unset stay as they
+    are, so it adds to the look of the target instead of replacing it.
+
+    ```python
+    import xnano
+    from xnano.operations import ApplyStyle
+    from xnano.styles import Style
+
+    with xnano.new(width=8, height=1) as canvas:
+        text = canvas.write('hi')
+        text | ApplyStyle(Style('green', bold=True))
+        assert 'bold' in text.core_buffer[0, 0].style.modifiers
+    ```
+    """
+
+    Background = _CoreBackground
+    """
+    An operation that sets the background color of every cell of its target.
+
+    The color is a name, a hex string, a ``(red, green, blue)`` tuple or a
+    [`Color`][xnano.styles.Color].
+
+    ```python
+    import xnano
+    from xnano.operations import Background
+
+    with xnano.new(width=8, height=1) as canvas:
+        text = canvas.write('hi')
+        text | Background((0, 0, 255))
+        assert text.core_buffer[0, 0].background.to_rgb() == (0, 0, 255)
+    ```
+    """
+
+    Border = _CoreBorder
+    """
+    An operation that draws a border around the edge of its target.
+
+    The kind is ``'plain'``, ``'rounded'``, ``'double'`` or ``'thick'``, and a
+    [`Style`][xnano.styles.Style] colors the border cells.
+
+    Maps to [`ratatui::widgets::Block`](https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Block.html)
+    with [`BorderType`](https://docs.rs/ratatui/0.30.0/ratatui/widgets/enum.BorderType.html).
+
+    ```python
+    import xnano
+    from xnano.operations import Border
+
+    with xnano.new(width=6, height=3) as canvas:
+        canvas | Border('rounded')
+        assert canvas.render().splitlines()[0] == '╭────╮'
+    ```
+    """
+
+    CancelEffect = _CoreCancelEffect
+    """
+    An operation that stops the running effect that was started with a key.
+
+    Give an effect a ``key`` when it is created, then apply ``CancelEffect(key)`` to stop it
+    before it ends. The target looks as it did before the effect.
+
+    ```python
+    import xnano
+    from xnano.operations import CancelEffect, Dissolve
+
+    with xnano.new(width=10, height=1) as canvas:
+        text = canvas.write('hello')
+        text | Dissolve(duration_milliseconds=100, seed=1, key='fade-out')
+        text | CancelEffect('fade-out')
+        canvas.step(delta_seconds=0.05)
+        canvas.step(delta_seconds=0.05)
+        assert canvas.render() == 'hello'
+    ```
+    """
+
+    Clear = _CoreClear
+    """
+    A widget of blank cells that hide whatever is behind them.
+
+    Write one onto a canvas to erase the area it covers. Its ``symbol`` is the one-column
+    character every cell shows, a space by default.
+
+    Maps to [`ratatui::widgets::Clear`](https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Clear.html).
+
+    ```python
+    import xnano
+    from xnano.operations import Clear, Fill
+
+    with xnano.new(width=8, height=3) as canvas:
+        canvas | Fill('#')
+        canvas.write(Clear(width=4, height=1), x=1, y=1)
+        assert canvas.render().splitlines()[1] == '#    ###'
+    ```
+    """
+
+    Dissolve = _CoreDissolve
+    """
+    An effect that dissolves the glyphs of its target away, cell by cell.
+
+    With ``should_reverse=True`` the glyphs appear instead. A ``seed`` makes the order of the
+    cells repeatable, and a ``key`` lets [`CancelEffect`][xnano.operations.CancelEffect] stop
+    it. It is the class form of ``Effect.dissolve(...)``.
+
+    Maps to [`tachyonfx::fx::dissolve`](https://docs.rs/tachyonfx/0.25.0/tachyonfx/fx/fn.dissolve.html)
+    and [`tachyonfx::fx::coalesce`](https://docs.rs/tachyonfx/0.25.0/tachyonfx/fx/fn.coalesce.html).
+
+    ```python
+    import xnano
+    from xnano.operations import Dissolve
+
+    with xnano.new(width=10, height=1) as canvas:
+        text = canvas.write('hello')
+        text | Dissolve(duration_milliseconds=100, seed=1)
+        canvas.step(delta_seconds=0.05)
+        canvas.step(delta_seconds=0.05)
+        assert canvas.render() != 'hello'
+    ```
+    """
+
+    Effect = _CoreEffect
+    """
+    A composable animation of colors or glyphs, applied like any other operation.
+
+    The method constructors ``Effect.fade_to(...)``, ``Effect.dissolve(...)`` and the other
+    named effects are the operation form of [`effect`][xnano.effects.effect]. The settings of
+    an effect, such as ``foreground`` and ``duration_milliseconds``, can be read and assigned,
+    and effects combine with ``then`` and ``repeat``.
+
+    ```python
+    import xnano
+    from xnano.operations import Effect
+
+    with xnano.new(width=10, height=1) as canvas:
+        text = canvas.write('hello')
+        before = canvas.render(format='ansi')
+        fade = Effect.fade_to('red', duration_milliseconds=100)
+        fade.duration_milliseconds = 200
+        text | fade
+        canvas.step(delta_seconds=0.05)
+        canvas.step(delta_seconds=0.05)
+        assert canvas.render(format='ansi') != before
+    ```
+    """
+
+    Fade = _CoreFade
+    """
+    An effect that fades the colors of its target toward a foreground and a background color.
+
+    Leave a color out to keep it as it is. It is the class form of ``Effect.fade_to(...)``.
+
+    Maps to [`tachyonfx::fx::fade_to`](https://docs.rs/tachyonfx/0.25.0/tachyonfx/fx/fn.fade_to.html).
+
+    ```python
+    import xnano
+    from xnano.operations import Fade
+
+    with xnano.new(width=10, height=1) as canvas:
+        text = canvas.write('hello')
+        before = canvas.render(format='ansi')
+        text | Fade(foreground='red', duration_milliseconds=100)
+        canvas.step(delta_seconds=0.05)
+        canvas.step(delta_seconds=0.05)
+        assert canvas.render(format='ansi') != before
+    ```
+    """
+
+    Fill = _CoreFill
+    """
+    An operation that fills every cell of its target with one character or
+    [`Cell`][xnano.buffers.Cell].
+
+    Use [`DynamicFill`][xnano.operations.DynamicFill] for the form whose cell can be changed
+    after it is applied.
+
+    ```python
+    import xnano
+    from xnano.operations import Fill
+
+    with xnano.new(width=3, height=2) as canvas:
+        canvas | Fill('#')
+        assert canvas.render().splitlines() == ['###', '###']
+    ```
+    """
+
+    Foreground = _CoreForeground
+    """
+    An operation that sets the foreground color of every cell of its target.
+
+    The color is a name, a hex string, a ``(red, green, blue)`` tuple or a
+    [`Color`][xnano.styles.Color].
+
+    ```python
+    import xnano
+    from xnano.operations import Foreground
+    from xnano.styles import Color
+
+    with xnano.new(width=8, height=1) as canvas:
+        text = canvas.write('hi')
+        text | Foreground('red')
+        assert text.core_buffer[0, 0].foreground == Color('red')
+    ```
+    """
+
+    Fuzz = _CoreFuzz
+    """
+    An operation that replaces a percentage of the visible glyphs of its target with noise.
+
+    It changes the cells once, when it is applied, and does not need a running canvas. Blank
+    and wide cells are left alone. A ``seed`` makes the noise repeatable. Use
+    [`DynamicFuzz`][xnano.operations.DynamicFuzz] for the form whose settings can be changed
+    after it is applied.
+
+    ```python
+    import xnano
+    from xnano.operations import Fuzz, Write
+
+    with xnano.new(width=5, height=1) as canvas:
+        canvas | Write('hello') | Fuzz(100, seed=1)
+        assert canvas.render() != 'hello'
+    ```
+    """
+
+    Glitch = _CoreGlitch
+    """
+    An effect that randomly corrupts and displaces glyphs of its target.
+
+    The ``intensity`` is the fraction of cells affected, from ``0.0`` to ``1.0``, and a ``seed``
+    makes the result repeatable. It is the class form of ``Effect.glitch(...)``.
+
+    Maps to [`tachyonfx::fx::Glitch`](https://docs.rs/tachyonfx/0.25.0/tachyonfx/fx/struct.Glitch.html).
+
+    ```python
+    import xnano
+    from xnano.operations import Glitch
+
+    with xnano.new(width=10, height=1) as canvas:
+        text = canvas.write('hello')
+        text | Glitch(intensity=1.0, duration_milliseconds=100, seed=1)
+        canvas.step(delta_seconds=0.05)
+        canvas.step(delta_seconds=0.05)
+        assert canvas.render() != 'hello'
+    ```
+    """
+
+    Layout = _CoreLayout
+    """
+    An operation that arranges the children attached to a buffer in a row, a column or an
+    overlay.
+
+    The ``sizes`` are one [`SizeRule`][xnano.geometry.SizeRule] per child along the main axis,
+    ``spacing`` is the number of cells between children and ``padding`` the number of cells
+    between the edge of the parent and its children. Use
+    [`DynamicLayout`][xnano.operations.DynamicLayout] for the form whose settings can be
+    changed after it is applied.
+
+    Maps to [`ratatui::layout::Layout`](https://docs.rs/ratatui/0.30.0/ratatui/layout/struct.Layout.html)
+    for ``'row'`` and ``'column'``.
+
+    ```python
+    from xnano.buffers import Buffer
+    from xnano.geometry import SizeRule
+    from xnano.operations import Layout
+
+    parent = Buffer(width=12, height=3)
+    left, right = Buffer(), Buffer()
+    parent.attach(left, geometry='inherit')
+    parent.attach(right, geometry='inherit')
+    parent.update(Layout('row', sizes=[SizeRule.cells(4), SizeRule.fill()], spacing=1))
+    assert (left.width, right.x, right.width) == (4, 5, 7)
+    ```
+    """
+
+    Margin = _CoreMargin
+    """
+    Horizontal and vertical inset distances, in cells.
+
+    Reach for it to shrink or grow a [`Rectangle`][xnano.geometry.Rectangle]. To give a
+    placement a margin, set its ``margin`` instead, as in ``canvas.write('hi', margin=1)``.
+
+    ```python
+    from xnano.geometry import Rectangle
+    from xnano.operations import Margin
+
+    area = Rectangle(2, 3, 10, 4)
+    assert area.inner_area(Margin(1, 1)) == Rectangle(3, 4, 8, 2)
+    assert area.outer(Margin(1, 1)) == Rectangle(1, 2, 12, 6)
+    ```
+    """
+
+    Move = _CoreMove
+    """
+    An operation that moves its target relative to its current position in its parent.
+
+    ``x`` moves it right and ``y`` moves it down; negative numbers move it left and up. Use
+    [`Place`][xnano.operations.Place] to move it to an absolute position instead.
+
+    ```python
+    import xnano
+    from xnano.operations import Move
+
+    with xnano.new(width=10, height=3) as canvas:
+        label = canvas.write('hi')
+        label | Move(2, 1)
+        assert (label.x, label.y) == (2, 1)
+        label | Move(x=-1)
+        assert (label.x, label.y) == (1, 1)
+    ```
+    """
+
+    Operation = _CoreOperation
+    """
+    The base every operation shares: an action that changes a buffer, a placement or a canvas.
+
+    Apply an operation with ``|`` or ``update``. Combine operations with ``|`` or ``then`` and
+    they run in order; the combination is an operation as well.
+
+    ```python
+    import xnano
+    from xnano.operations import Fill, Operation, Write
+
+    with xnano.new(width=4, height=1) as canvas:
+        both = Fill('.') | Write('hi', x=1)
+        assert isinstance(both, Operation)
+        canvas | both
+        assert canvas.render() == '.hi.'
+    ```
+    """
+
+    Paste = _CorePaste
+    """
+    An operation that copies the cells of another buffer into its target.
+
+    The source is copied when the operation is created, so applying it again copies the same
+    cells. ``x`` and ``y`` are where the top-left cell of the source lands, and ``mode`` is
+    ``'replace'`` or ``'preserve_background'``.
+
+    ```python
+    import xnano
+    from xnano.buffers import Buffer
+    from xnano.operations import Fill, Paste
+
+    source = Buffer('ab', width=2, height=1)
+    with xnano.new(width=4, height=1) as canvas:
+        canvas | Fill('.') | Paste(source, x=1)
+        assert canvas.render() == '.ab.'
+    ```
+    """
+
+    Place = _CorePlace
+    """
+    An operation that moves its target to an absolute position in its parent.
+
+    Use [`Move`][xnano.operations.Move] to move it relative to where it is instead.
+
+    ```python
+    import xnano
+    from xnano.operations import Place
+
+    with xnano.new(width=10, height=3) as canvas:
+        label = canvas.write('hi')
+        label | Place(5, 2)
+        assert (label.x, label.y) == (5, 2)
+    ```
+    """
+
+    Resize = _CoreResize
+    """
+    An operation that resizes its target to a width and a height in cells.
+
+    Content is kept where it still fits.
+
+    ```python
+    import xnano
+    from xnano.operations import Resize
+
+    with xnano.new(width=10, height=3) as canvas:
+        label = canvas.write('hi')
+        label | Resize(6, 2)
+        assert (label.width, label.height) == (6, 2)
+    ```
+    """
+
+    Write = _CoreWrite
+    """
+    An operation that writes text into its target at a cell position.
+
+    Text is clipped by display columns, and ``mode`` is ``'replace'`` or
+    ``'preserve_background'``. Use [`DynamicWrite`][xnano.operations.DynamicWrite] for the
+    form whose text and position can be changed after it is applied.
+
+    ```python
+    import xnano
+    from xnano.operations import Write
+
+    with xnano.new(width=4, height=2) as canvas:
+        canvas | Write('hi', x=1, y=1)
+        assert canvas.render().splitlines()[1] == ' hi'
+    ```
+    """
+
+_CORE_NAMES: Final[dict[str, str]] = {
+    'ApplyStyle': 'ApplyStyle',
+    'Background': 'Background',
+    'Border': 'Border',
+    'CancelEffect': 'CancelEffect',
+    'Clear': 'Clear',
+    'Dissolve': 'Dissolve',
+    'Effect': 'Effect',
+    'Fade': 'Fade',
+    'Fill': 'Fill',
+    'Foreground': 'Foreground',
+    'Fuzz': 'Fuzz',
+    'Glitch': 'Glitch',
+    'Layout': 'Layout',
+    'Margin': 'Margin',
+    'Move': 'Move',
+    'Operation': 'Operation',
+    'Paste': 'Paste',
+    'Place': 'Place',
+    'Resize': 'Resize',
+    'Write': 'Write',
+}
+"""The name each operations object has in ``xnano_core``, by the name it has here."""
 
 
-class ContextualOperation(Operation, Generic[DepsT, StateT]):
+class ContextualOperation(_core.Operation, Generic[DepsT, StateT]):
     """
     A reusable hook that can be piped onto any canvas or placement.
 
-    Build one with [`hook`][xnano.operations.hook]. Apply it with ``|``, ``|=`` or ``update``,
+    Build one with [`hook`][xnano.hooks.hook]. Apply it with ``|``, ``|=`` or ``update``,
     and it attaches the same hook that ``target.hook(function, ...)`` would.
 
     Attributes:
@@ -131,7 +535,7 @@ class ContextualOperation(Operation, Generic[DepsT, StateT]):
         steps: Sequence[_core.Operation] = (),
     ) -> None:
         """
-        Create a reusable hook. Use [`hook`][xnano.operations.hook] instead of calling this.
+        Create a reusable hook. Use [`hook`][xnano.hooks.hook] instead of calling this.
 
         Args:
             callback: Function called with a [`Context`][xnano.context.Context] when the hook
@@ -218,7 +622,7 @@ class ContextualOperation(Operation, Generic[DepsT, StateT]):
             surface: The buffer or region to modify.
         """
         for step in self._steps:
-            if isinstance(step, (ContextualOperation, Customization)):
+            if isinstance(step, (ContextualOperation, DynamicOperation)):
                 step.apply_to_surface(surface)
             else:
                 surface.update(step)
@@ -239,7 +643,7 @@ class ContextualOperation(Operation, Generic[DepsT, StateT]):
             return
         if self._steps:
             for step in self._steps:
-                if isinstance(step, (ContextualOperation, Customization)):
+                if isinstance(step, (ContextualOperation, DynamicOperation)):
                     step.apply_to(
                         cast('Canvas[object, object] | Placement[object, object]', target)
                     )
@@ -260,119 +664,272 @@ class ContextualOperation(Operation, Generic[DepsT, StateT]):
         )
 
 
-@overload
-def hook(function: Hook[DepsT, StateT], /) -> ContextualOperation[DepsT, StateT]: ...
-@overload
-def hook(
-    *,
-    on: HookKind | None = None,
-    when: When[DepsT, StateT] | None = None,
-    every: float | None = None,
-    after: float | None = None,
-    keys: KeyName | Sequence[KeyName] | None = None,
-    requires_deps: bool = False,
-) -> Callable[
-    [Hook[DepsT, StateT]],
-    ContextualOperation[DepsT, StateT],
-]: ...
-def hook(
-    function: Hook[DepsT, StateT] | None = None,
-    /,
-    *,
-    on: HookKind | None = None,
-    when: When[DepsT, StateT] | None = None,
-    every: float | None = None,
-    after: float | None = None,
-    keys: KeyName | Sequence[KeyName] | None = None,
-    requires_deps: bool = False,
-) -> (
-    ContextualOperation[DepsT, StateT]
-    | Callable[
-        [Hook[DepsT, StateT]],
-        ContextualOperation[DepsT, StateT],
-    ]
-):
+@dataclass
+class DynamicFill(DynamicOperation):
     """
-    Describe a hook once, to attach to any canvas or placement later.
+    An operation that fills every cell of its target with a character or a
+    [`Cell`][xnano_core.Cell].
 
-    It takes the same arguments as ``target.hook(...)`` and returns an operation: pipe it onto
-    a target with ``target | operation``, or pass it to ``update``. Each target gets its own
-    hook. The function may return an operation, a style or an effect, which is applied to the
-    target it runs on.
+    The ``cell`` setting is a plain value. It is read every time the operation is applied, and
+    assigning it on an applied operation applies the operation again with the new value.
 
-    Args:
-        function: The function to wrap when ``@xnano.hook`` is used without parentheses: a
-            function of the [`Context`][xnano.context.Context], or one with no parameters.
-        on: What the hook listens to; see [`HookKind`][xnano.types.HookKind].
-        when: A condition that must hold; see [`When`][xnano.types.When].
-        every: Repeat every this many seconds (``'tick'``) or beats (``'beat'``).
-        after: Run once after this many seconds (``'tick'``) or beats (``'beat'``).
-        keys: The key or keys an ``on='key'`` hook reacts to.
-        requires_deps: Whether the hook needs the dependencies given to ``new(deps=...)``.
-
-    Raises:
-        TypeError: ``function`` cannot be called with a context, ``keys`` is not a key name
-            or a list of them, or ``when`` is not a condition.
-        ValueError: ``on``, ``every``, ``after``, ``keys`` or ``when`` is not valid, or they
-            do not fit together.
+    Attributes:
+        cell: The character or cell used to fill the target.
 
     Examples:
         ```python
         import xnano
+        from xnano.operations import DynamicFill
 
-        readings = []
-
-        @xnano.hook(on='frame')
-        def clock_readout(context: xnano.Context) -> None:
-            readings.append(round(context.time.elapsed, 1))
-
-        with xnano.new(width=12, height=1) as canvas:
-            canvas | clock_readout
-            canvas.step(delta_seconds=0.5)
-        assert readings == [0.5]
+        dots = DynamicFill(cell='.')
+        with xnano.new('hi', width=4, height=1) as canvas:
+            canvas | dots
+            dots.cell = '#'
+            assert '#' in canvas.render()
         ```
     """
-    from xnano._when import compile_when
 
-    _check_hook_arguments(
-        cast('_Hooked[object, object]', object()), on, every, after, keys
-    )
-    compile_when(when)
-    normalized_keys: tuple[str, ...] = (
-        () if keys is None else (keys,) if isinstance(keys, str) else tuple(keys)
-    )
+    customization_kind = 'fill'
 
-    def wrap(
-        callback: Hook[DepsT, StateT],
-    ) -> ContextualOperation[DepsT, StateT]:
-        return ContextualOperation(
-            cast(
-                'Callable[[Context[DepsT, StateT]], object]',
-                _check_hook_function(callback),
-            ),
-            on=on,
-            every=every,
-            after=after,
-            keys=normalized_keys,
-            when=when,
-            requires_deps=requires_deps,
-        )
+    cell: _core.Cell | str = ' '
+    """The character or cell used to fill the target."""
 
-    if function is not None:
-        return wrap(function)
-    return wrap
+
+@dataclass
+class DynamicWrite(DynamicOperation):
+    """
+    An operation that writes text into the cells of its target.
+
+    Its settings are plain values: text, a position, a style and a blending mode. They are read
+    every time the operation is applied, and assigning one on an applied operation applies the
+    operation again with the new value. A position does not follow an expression over time: to
+    make the text move with an expression, give the expression to a placement
+    (``placement.x = ...``) or change ``x`` and ``y`` from a hook.
+
+    Attributes:
+        text: Text or styled text to write.
+        x: Starting column.
+        y: Starting row.
+        style: Optional style applied to the written text.
+        mode: Write blending mode (``'replace'``, ``'preserve_background'``).
+
+    Examples:
+        ```python
+        import xnano
+        from xnano.operations import DynamicWrite
+
+        label = DynamicWrite(text='ab')
+        with xnano.new(width=4, height=1) as canvas:
+            canvas | label
+            label.text = 'cd'
+            assert 'cd' in canvas.render()
+        ```
+    """
+
+    customization_kind = 'write'
+
+    text: _core.TextContent = ''
+    """Text or styled text to write."""
+
+    x: int = 0
+    """Starting column."""
+
+    y: int = 0
+    """Starting row."""
+
+    style: _core.Style | None = None
+    """Optional style applied to the written text."""
+
+    mode: _core.WriteMode = 'replace'
+    """Write blending mode (``'replace'``, ``'preserve_background'``)."""
+
+
+@dataclass
+class DynamicLayout(DynamicOperation):
+    """
+    An operation that arranges the children attached to its target in a row, a column or an
+    overlay.
+
+    Its settings are plain values: the arrangement, the size rules, the spacing and the padding.
+    They are read every time the operation is applied, and assigning one on an applied operation
+    applies the operation again with the new value.
+
+    Attributes:
+        arrangement: ``'row'``, ``'column'`` or ``'overlay'``.
+        sizes: Size rules for each child along the main axis.
+        spacing: Cells between adjacent children.
+        padding: Cells inset from the parent's edges.
+    """
+
+    customization_kind = 'layout'
+
+    arrangement: Literal['row', 'column', 'overlay'] = 'column'
+    """``'row'``, ``'column'`` or ``'overlay'``."""
+
+    sizes: Sequence[_core.SizeRule] = ()
+    """Size rules for each child along the main axis."""
+
+    spacing: int = 0
+    """Cells between adjacent children."""
+
+    padding: int = 0
+    """Cells inset from the parent's edges."""
+
+
+@dataclass
+class DynamicFuzz(DynamicOperation):
+    """
+    An operation that replaces a percentage of the visible glyphs of its target with noise.
+
+    Its settings are plain values: an intensity and an optional seed. They are read every time
+    the operation is applied, and assigning one on an applied operation applies the operation
+    again with the new value.
+
+    Attributes:
+        intensity: Percentage of glyphs to replace (``0`` to ``100``).
+        seed: Optional random seed for repeatable noise.
+    """
+
+    customization_kind = 'fuzz'
+
+    intensity: int = 10
+    """Percentage of glyphs to replace (``0`` to ``100``)."""
+
+    seed: int | None = None
+    """Optional random seed for repeatable noise."""
+
+
+@dataclass
+class DynamicPixels(DynamicOperation):
+    """
+    An operation that colors pixels from a shader function or from an explicit iterable of
+    pixels.
+
+    The shader is called with the column and row of every pixel of the target's pixel grid
+    and returns a color, or ``None`` to leave the pixel as it is. The settings are plain values
+    and functions. They are read every time the operation is applied, and assigning one on an
+    applied operation applies the operation again with the new value.
+
+    Attributes:
+        shader: Optional function ``(x, y) -> color`` evaluated across the target's pixel grid.
+        pixels: Optional explicit iterable of ``(x, y, (red, green, blue))`` pixels.
+        encoding: ``'half_blocks'`` or ``'braille'``.
+        clip: Whether out-of-bounds pixels are clipped instead of raising ``IndexError``.
+        x: Column offset of the explicit pixels, or ``None``.
+        y: Row offset of the explicit pixels, or ``None``.
+    """
+
+    customization_kind = 'pixels'
+
+    shader: Callable[[int, int], ColorValue | None] | None = None
+    """Optional function ``(x, y) -> color`` evaluated across the target's pixel grid."""
+
+    pixels: Iterable[_core.PixelEntry] | None = None
+    """Optional explicit iterable of ``(x, y, (red, green, blue))`` pixels."""
+
+    encoding: PixelEncoding = 'half_blocks'
+    """``'half_blocks'`` or ``'braille'``."""
+
+    clip: bool = True
+    """Whether out-of-bounds pixels are clipped instead of raising ``IndexError``."""
+
+    x: int | None = None
+    """Column offset of the explicit pixels, or ``None``."""
+
+    y: int | None = None
+    """Row offset of the explicit pixels, or ``None``."""
+
+    def apply_to_surface(self, surface: _core.Surface) -> None:
+        """
+        Shade or write the pixels into a core [`Surface`][xnano_core.Surface].
+
+        Args:
+            surface: The buffer or region to modify.
+        """
+        if self.pixels is not None:
+            surface.update(
+                _core.Pixels(
+                    self.pixels,
+                    encoding=self.encoding,
+                    clip=self.clip,
+                    x=self.x,
+                    y=self.y,
+                )
+            )
+        if self.shader is not None:
+            view = surface.pixels(encoding=self.encoding)
+            colored: list[tuple[int, int, RGB]] = []
+            for row in range(view.height):
+                for column in range(view.width):
+                    color = self.shader(column, row)
+                    if color is not None:
+                        colored.append((column, row, to_rgb(color)))
+            view.write(colored)
+
+
+@dataclass
+class DynamicRaster(DynamicOperation):
+    """
+    An operation that draws a row-major RGBA8 buffer as pixels.
+
+    Its settings are plain values: the bytes, the size of the image, its position, the encoding
+    and the mode. They are read every time the operation is applied, and assigning one on an
+    applied operation applies the operation again with the new value.
+
+    Attributes:
+        rgba: ``width * height * 4`` bytes of RGBA8 pixel data.
+        width: Image width in pixels.
+        height: Image height in pixels.
+        x: Top-left pixel column.
+        y: Top-left pixel row.
+        encoding: ``'half_blocks'`` or ``'braille'``.
+        mode: ``'over'`` or ``'replace'``.
+    """
+
+    customization_kind = 'raster'
+
+    rgba: bytes = b''
+    """``width * height * 4`` bytes of RGBA8 pixel data."""
+
+    width: int = 0
+    """Image width in pixels."""
+
+    height: int = 0
+    """Image height in pixels."""
+
+    x: int = 0
+    """Top-left pixel column."""
+
+    y: int = 0
+    """Top-left pixel row."""
+
+    encoding: PixelEncoding = 'half_blocks'
+    """``'half_blocks'`` or ``'braille'``."""
+
+    mode: _core.RasterMode = 'over'
+    """``'over'`` or ``'replace'``."""
 
 
 __all__ = [
     'ApplyStyle',
     'Background',
     'Border',
+    'CancelEffect',
     'Clear',
     'ContextualOperation',
-    'Customization',
-    'CustomizationKind',
+    'Dissolve',
+    'DynamicFill',
+    'DynamicFuzz',
+    'DynamicLayout',
+    'DynamicPixels',
+    'DynamicRaster',
+    'DynamicWrite',
+    'Effect',
+    'Fade',
     'Fill',
     'Foreground',
+    'Fuzz',
+    'Glitch',
     'Layout',
     'Margin',
     'Move',
@@ -382,6 +939,21 @@ __all__ = [
     'Place',
     'Resize',
     'Write',
-    'fx',
-    'hook',
 ]
+
+
+def __getattr__(name: str) -> object:
+    """Import an object from ``xnano_core`` the first time it is read, then keep it."""
+    core_name = _CORE_NAMES.get(name)
+    if core_name is None:
+        raise AttributeError(
+            f'xnano.operations has no name {name!r}. Its names are {", ".join(__all__)}.'
+        )
+    value = getattr(_core, core_name)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    """The public names of the module, including the ones that are imported when first read."""
+    return sorted(__all__)

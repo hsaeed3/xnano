@@ -343,6 +343,264 @@ pub enum EvalError {
     DivisionByZero,
 }
 
+/// How tightly an expression binds when it is written as Python, from loosest to tightest.
+///
+/// Python puts comparisons below `|` and `&`, so a comparison inside a combined condition
+/// is written in parentheses, as Python needs it to be.
+mod binding {
+    pub const COMPARISON: u8 = 4;
+    pub const OR: u8 = 5;
+    pub const AND: u8 = 7;
+    pub const SUM: u8 = 9;
+    pub const PRODUCT: u8 = 10;
+    pub const UNARY: u8 = 11;
+    pub const POWER: u8 = 12;
+    pub const ATOM: u8 = 14;
+}
+
+impl PropertyId {
+    /// The name the property has in Python, as `xnano_core` exports it.
+    pub fn python_name(self) -> &'static str {
+        match self {
+            Self::X => "X",
+            Self::Y => "Y",
+            Self::Width => "Width",
+            Self::Height => "Height",
+            Self::Position => "Position",
+            Self::Size => "Size",
+            Self::Bounds => "Bounds",
+            Self::TimeElapsed => "TimeElapsed",
+            Self::TimeDelta => "TimeDelta",
+            Self::TimeElapsedMilliseconds => "TimeElapsedMilliseconds",
+            Self::TimeDeltaMilliseconds => "TimeDeltaMilliseconds",
+            Self::Frame => "Frame",
+            Self::FramesPerSecond => "FPS",
+            Self::Focused => "Focused",
+            Self::Running => "Running",
+            Self::DeviceWidth => "DeviceWidth",
+            Self::DeviceHeight => "DeviceHeight",
+            Self::ParentSize => "ParentSize",
+            Self::ParentWidth => "ParentWidth",
+            Self::ParentHeight => "ParentHeight",
+            Self::ScreenPosition => "ScreenPosition",
+            Self::ScreenBounds => "ScreenBounds",
+            Self::PointerPosition => "PointerPosition",
+            Self::Layer => "Layer",
+            Self::IsVisible => "IsVisible",
+            Self::KeyboardKey => "KeyboardKey",
+            Self::KeyboardKind => "KeyboardKind",
+            Self::KeyboardChord => "KeyboardChord",
+            Self::MouseButton => "MouseButtonValue",
+            Self::MouseKind => "MouseKind",
+            Self::MousePosition => "MousePosition",
+            Self::MouseIsDown => "MouseIsDown",
+            Self::ScrollX => "ScrollX",
+            Self::ScrollY => "ScrollY",
+            Self::BufferRegion => "BufferRegion",
+        }
+    }
+}
+
+impl fmt::Display for Scalar {
+    /// The value as a Python literal.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Null => formatter.write_str("None"),
+            Self::Bool(true) => formatter.write_str("True"),
+            Self::Bool(false) => formatter.write_str("False"),
+            Self::Integer(value) => write!(formatter, "{value}"),
+            Self::Float(value) if value.is_nan() => formatter.write_str("nan"),
+            Self::Float(value) if value.is_infinite() => {
+                formatter.write_str(if *value > 0.0 { "inf" } else { "-inf" })
+            }
+            Self::Float(value) => write!(formatter, "{value:?}"),
+            Self::Text(text) => {
+                write!(
+                    formatter,
+                    "'{}'",
+                    text.replace('\\', "\\\\").replace('\'', "\\'")
+                )
+            }
+            Self::Point(point) => write!(formatter, "Point({}, {})", point.x, point.y),
+            Self::Size(size) => write!(formatter, "Size({}, {})", size.width, size.height),
+            Self::Rectangle(rectangle) => write!(
+                formatter,
+                "Rectangle({}, {}, {}, {})",
+                rectangle.x, rectangle.y, rectangle.width, rectangle.height
+            ),
+            Self::Json(value) => write!(formatter, "{value}"),
+        }
+    }
+}
+
+impl Expr {
+    /// How tightly this expression binds when it is written as Python.
+    fn binding(&self) -> u8 {
+        match self {
+            Self::Literal(Scalar::Integer(value)) if *value < 0 => binding::UNARY,
+            Self::Literal(Scalar::Float(value)) if *value < 0.0 => binding::UNARY,
+            Self::Literal(_)
+            | Self::Property(_)
+            | Self::State(..)
+            | Self::External(_)
+            | Self::Function(..)
+            | Self::Select(..)
+            | Self::Component(..) => binding::ATOM,
+            Self::Not(_) | Self::Negate(_) => binding::UNARY,
+            Self::Or(..) => binding::OR,
+            Self::And(..) => binding::AND,
+            Self::Compare(..) => binding::COMPARISON,
+            Self::Arithmetic(operation, ..) => match operation {
+                ArithmeticOp::Add | ArithmeticOp::Subtract => binding::SUM,
+                ArithmeticOp::Power => binding::POWER,
+                _ => binding::PRODUCT,
+            },
+        }
+    }
+
+    /// Write `expression`, in parentheses when it binds more loosely than `required`.
+    fn write_operand(
+        formatter: &mut fmt::Formatter<'_>,
+        expression: &Expr,
+        required: u8,
+    ) -> fmt::Result {
+        if expression.binding() < required {
+            write!(formatter, "({expression})")
+        } else {
+            write!(formatter, "{expression}")
+        }
+    }
+
+    /// Write `left symbol right`, where the right side binds tighter unless `is_right_first`.
+    fn write_binary(
+        formatter: &mut fmt::Formatter<'_>,
+        level: u8,
+        symbol: &str,
+        left: &Expr,
+        right: &Expr,
+        is_right_first: bool,
+    ) -> fmt::Result {
+        let (left_required, right_required) = if is_right_first {
+            (level + 1, level)
+        } else {
+            (level, level + 1)
+        };
+        Self::write_operand(formatter, left, left_required)?;
+        write!(formatter, " {symbol} ")?;
+        Self::write_operand(formatter, right, right_required)
+    }
+}
+
+impl fmt::Display for Expr {
+    /// The expression as the Python that builds it, such as `ParentHeight - 1`.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Literal(value) => write!(formatter, "{value}"),
+            Self::Property(property) => formatter.write_str(property.python_name()),
+            Self::State(_, path) => write!(formatter, "state.{}", path.join(".")),
+            Self::External(name) => formatter.write_str(name),
+            Self::Not(inner) => {
+                formatter.write_str("~")?;
+                Self::write_operand(formatter, inner, binding::UNARY)
+            }
+            Self::Negate(inner) => {
+                formatter.write_str("-")?;
+                Self::write_operand(formatter, inner, binding::UNARY)
+            }
+            Self::And(left, right) => {
+                Self::write_binary(formatter, binding::AND, "&", left, right, false)
+            }
+            Self::Or(left, right) => {
+                Self::write_binary(formatter, binding::OR, "|", left, right, false)
+            }
+            Self::Compare(operation, left, right) => {
+                let symbol = match operation {
+                    CompareOp::Equal => "==",
+                    CompareOp::NotEqual => "!=",
+                    CompareOp::Less => "<",
+                    CompareOp::LessEqual => "<=",
+                    CompareOp::Greater => ">",
+                    CompareOp::GreaterEqual => ">=",
+                };
+                Self::write_binary(formatter, binding::COMPARISON, symbol, left, right, false)
+            }
+            Self::Arithmetic(operation, left, right) => {
+                let symbol = match operation {
+                    ArithmeticOp::Add => "+",
+                    ArithmeticOp::Subtract => "-",
+                    ArithmeticOp::Multiply => "*",
+                    ArithmeticOp::Divide => "/",
+                    ArithmeticOp::Modulo => "%",
+                    ArithmeticOp::FloorDivide => "//",
+                    ArithmeticOp::Power => "**",
+                };
+                let is_right_first = *operation == ArithmeticOp::Power;
+                Self::write_binary(
+                    formatter,
+                    self.binding(),
+                    symbol,
+                    left,
+                    right,
+                    is_right_first,
+                )
+            }
+            Self::Function(function, arguments) => {
+                let receiver = arguments.first();
+                let rest = arguments.get(1..).unwrap_or_default();
+                let call = |formatter: &mut fmt::Formatter<'_>, name: &str| -> fmt::Result {
+                    write!(formatter, "{name}(")?;
+                    for (index, argument) in arguments.iter().enumerate() {
+                        if index > 0 {
+                            formatter.write_str(", ")?;
+                        }
+                        write!(formatter, "{argument}")?;
+                    }
+                    formatter.write_str(")")
+                };
+                let method = |formatter: &mut fmt::Formatter<'_>, name: &str| -> fmt::Result {
+                    if let Some(receiver) = receiver {
+                        Self::write_operand(formatter, receiver, binding::ATOM)?;
+                    }
+                    write!(formatter, ".{name}(")?;
+                    for (index, argument) in rest.iter().enumerate() {
+                        if index > 0 {
+                            formatter.write_str(", ")?;
+                        }
+                        write!(formatter, "{argument}")?;
+                    }
+                    formatter.write_str(")")
+                };
+                match function {
+                    Function::Absolute => call(formatter, "abs"),
+                    Function::Floor => call(formatter, "math.floor"),
+                    Function::Ceiling => call(formatter, "math.ceil"),
+                    Function::Round => call(formatter, "round"),
+                    Function::Minimum => method(formatter, "minimum"),
+                    Function::Maximum => method(formatter, "maximum"),
+                    Function::Clamp => method(formatter, "clamp"),
+                    Function::Contains => method(formatter, "contains"),
+                }
+            }
+            Self::Select(condition, when_true, when_false) => {
+                Self::write_operand(formatter, condition, binding::ATOM)?;
+                write!(formatter, ".choose({when_true}, {when_false})")
+            }
+            Self::Component(component, inner) => {
+                Self::write_operand(formatter, inner, binding::ATOM)?;
+                let name = match component {
+                    Component::X => "x",
+                    Component::Y => "y",
+                    Component::Width => "width",
+                    Component::Height => "height",
+                    Component::Right => "right",
+                    Component::Bottom => "bottom",
+                };
+                write!(formatter, ".{name}")
+            }
+        }
+    }
+}
+
 impl fmt::Display for EvalError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -675,6 +933,76 @@ impl Expr {
 
 #[cfg(test)]
 mod tests {
+
+    fn property(property: PropertyId) -> Arc<Expr> {
+        Arc::new(Expr::Property(property))
+    }
+
+    fn number(value: i64) -> Arc<Expr> {
+        Arc::new(Expr::Literal(Scalar::Integer(value)))
+    }
+
+    fn arithmetic(operation: ArithmeticOp, left: Arc<Expr>, right: Arc<Expr>) -> Arc<Expr> {
+        Arc::new(Expr::Arithmetic(operation, left, right))
+    }
+
+    #[test]
+    fn expressions_print_as_the_python_that_builds_them() {
+        let height = arithmetic(
+            ArithmeticOp::Subtract,
+            property(PropertyId::ParentHeight),
+            number(1),
+        );
+        assert_eq!(height.to_string(), "ParentHeight - 1");
+        let region = Expr::Component(Component::Height, property(PropertyId::BufferRegion));
+        assert_eq!(region.to_string(), "BufferRegion.height");
+        let centered = arithmetic(
+            ArithmeticOp::FloorDivide,
+            arithmetic(
+                ArithmeticOp::Subtract,
+                property(PropertyId::ParentWidth),
+                property(PropertyId::Width),
+            ),
+            number(2),
+        );
+        assert_eq!(centered.to_string(), "(ParentWidth - Width) // 2");
+        let grouped = arithmetic(
+            ArithmeticOp::Subtract,
+            number(10),
+            arithmetic(ArithmeticOp::Subtract, number(4), number(1)),
+        );
+        assert_eq!(grouped.to_string(), "10 - (4 - 1)");
+    }
+
+    #[test]
+    fn conditions_keep_the_parentheses_python_needs() {
+        let wide = Arc::new(Expr::Compare(
+            CompareOp::Greater,
+            property(PropertyId::Width),
+            number(4),
+        ));
+        let short = Arc::new(Expr::Compare(
+            CompareOp::Less,
+            property(PropertyId::Height),
+            number(2),
+        ));
+        let both = Expr::And(wide.clone(), short);
+        assert_eq!(both.to_string(), "(Width > 4) & (Height < 2)");
+        assert_eq!(Expr::Not(wide).to_string(), "~(Width > 4)");
+        let chosen = Expr::Select(
+            property(PropertyId::MouseIsDown),
+            Arc::new(Expr::Literal(Scalar::Text("down".into()))),
+            Arc::new(Expr::Literal(Scalar::Float(0.5))),
+        );
+        assert_eq!(chosen.to_string(), "MouseIsDown.choose('down', 0.5)");
+        let limited = Expr::Function(
+            Function::Clamp,
+            vec![property(PropertyId::FramesPerSecond), number(1), number(60)],
+        );
+        assert_eq!(limited.to_string(), "FPS.clamp(1, 60)");
+        let negative = arithmetic(ArithmeticOp::Power, number(-2), number(2));
+        assert_eq!(negative.to_string(), "(-2) ** 2");
+    }
     use super::*;
 
     struct Offline;

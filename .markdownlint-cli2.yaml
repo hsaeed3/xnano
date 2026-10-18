@@ -1,4 +1,17 @@
-# examples/README.md is written by scripts/capture_examples.py and holds terminal screens
-# wider than any line length a hand-written page keeps to.
-ignores:
-  - examples/README.md
+config:
+  # Table rows and code blocks cannot wrap; prose keeps the 80-column limit.
+  MD013:
+    tables: false
+    code_blocks: false
+  # A heading may repeat under a different parent, as the two parts of a
+  # design document do.
+  MD024:
+    siblings_only: true
+  # Pages of the documentation site carry the title in the front matter, which
+  # the site needs, and repeat it as the first heading.
+  MD025:
+    front_matter_title: ""
+  # The README centers its header with a div.
+  MD033:
+    allowed_elements:
+      - div

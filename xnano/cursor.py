@@ -9,8 +9,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 import xnano_core as _core
-from xnano._attributes import _SealedAttributes
-from xnano._axes import LEAST_CELL, MOST_CELL, check_cells, check_count
+from xnano._internal._attributes import _SealedAttributes
+from xnano._internal._axes import LEAST_CELL, MOST_CELL, check_cells, check_count
 
 if TYPE_CHECKING:
     from xnano.canvas import Canvas

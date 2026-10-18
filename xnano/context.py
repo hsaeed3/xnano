@@ -10,18 +10,21 @@ import dataclasses
 from typing import TYPE_CHECKING, Generic, cast, final
 
 import xnano_core as _core
-from xnano._axes import check_point
-from xnano._effect_controller import EffectController
-from xnano._values import DepsT_co, StateT_co
+from xnano._internal._axes import check_point
+from xnano._schema._generics import DepsT_co, StateT_co
+from xnano.effects._controller import EffectController
 from xnano.input import ClipboardInput, KeyboardInput, MouseInput, ScrollInput
 
 if TYPE_CHECKING:
-    from xnano._hooks import HookHandle
-    from xnano.audio import AudioDevice
+    from collections.abc import Callable
+
+    from xnano.audio._player import AudioDevice
     from xnano.canvas import Canvas
     from xnano.cursor import Cursor
+    from xnano.hooks._handles import HookHandle
     from xnano.input import Input
     from xnano.placement import Placement
+    from xnano.region import Region
     from xnano.state import StateNamespace
     from xnano.time import Time
 
@@ -91,11 +94,13 @@ class ReadLog:
 
     A component that read nothing that changes is evaluated once. One that read the time is
     evaluated again on every frame (or every beat for a playable), one that read the size
-    when the screen is resized, and one that read an input when that input arrives.
+    or the region on the screen when the screen is resized, and one that read an input when
+    that input arrives.
 
     Attributes:
         uses_time: Whether it read the clock, the event or the held keys.
-        uses_size: Whether it read the size of the canvas or of a buffer.
+        uses_size: Whether it read the size or the region of the canvas or of a buffer on the
+            screen.
         uses_deps: Whether it read the dependencies.
         input_kinds: The kinds of input it read: ``'key'``, ``'mouse'``, ``'scroll'`` or
             ``'paste'``.
@@ -163,7 +168,10 @@ class Context(Generic[DepsT_co, StateT_co]):
         time: The canvas's [`Time`][xnano.time.Time].
         audio: The canvas's [`AudioDevice`][xnano.audio.AudioDevice].
         cursor: The canvas's cursor.
-        size: The canvas's size in cells.
+        region: The [`Region`][xnano.region.Region] of the hook's buffer: its cells on the
+            screen, or for a hook on a playable the beats and semitones of what it plays.
+        size: The size in cells of ``context.buffer`` on the screen, the shortcut for
+            ``context.region.size``.
         input: The keys and mouse buttons held down right now.
 
     Examples:
@@ -185,7 +193,7 @@ class Context(Generic[DepsT_co, StateT_co]):
         ```
     """
 
-    __slots__ = ('_core', '_event', '_log', '_owner', 'canvas', 'hook')
+    __slots__ = ('_core', '_event', '_log', '_owner', '_timeline', 'canvas', 'hook')
 
     canvas: Canvas[DepsT_co, StateT_co]
     """The root canvas the hook belongs to."""
@@ -200,6 +208,7 @@ class Context(Generic[DepsT_co, StateT_co]):
         event: _core.Event | _core.TerminalStateChange | Frame | Update | None,
         core: _core.CoreContext | None,
         log: ReadLog | None = None,
+        timeline: Callable[[], Region[float]] | None = None,
     ) -> None:
         """
         Create a context. The runtime does this for you; hooks receive one.
@@ -211,6 +220,9 @@ class Context(Generic[DepsT_co, StateT_co]):
             event: The event, or ``None``.
             core: The runtime's context for the event, or ``None``.
             log: Where to record what is read, for a component; ``None`` for a hook.
+            timeline: Returns the region on the timeline of what a playable is playing, for a
+                context of a playable; ``None`` for any other, whose ``region`` is on the
+                screen.
         """
         self.canvas = canvas
         self._owner = owner
@@ -218,6 +230,7 @@ class Context(Generic[DepsT_co, StateT_co]):
         self._event = event
         self._core = core
         self._log = log
+        self._timeline = timeline
 
     @property
     def event(self) -> _core.Event | _core.TerminalStateChange | Frame | Update | None:
@@ -339,10 +352,91 @@ class Context(Generic[DepsT_co, StateT_co]):
         return self.canvas.cursor
 
     @property
-    def size(self) -> _core.Size:
-        """The canvas's size in cells."""
+    def region(self) -> Region[float]:
+        """
+        The region of the hook's buffer.
+
+        For a hook on a canvas or a placement it is the cells of ``context.buffer`` on the
+        screen, the same region as ``context.buffer.region``: ``x`` and ``y`` are its
+        column and row, inside the border and padding, and ``width`` and ``height`` its
+        cells. A component that reads it runs again when the screen is resized.
+
+        For a hook on a playable, or the playable itself, it is on the timeline: a piano roll
+        of the sound the playable played most recently. ``x`` is the beat that sound started
+        on, counted on the canvas's clock at its [`bpm`][xnano.canvas.Canvas.bpm], ``width``
+        the beats it lasts, ``y`` its lowest pitch as a MIDI number and ``height`` the
+        semitones it spans. Until the playable has played, the region is empty and starts at
+        the beat the canvas has reached. Reading the cells of a region on the timeline, or the
+        ``beats`` of a region on the screen, raises a
+        [`TerminalError`][xnano.errors.TerminalError].
+
+        The region is typed ``Region[float]``, because the same property serves a hook on a
+        playable. For whole-number ``x`` and ``width`` on the screen, read
+        ``context.buffer.region``, a ``Region[int]``, or ``context.size``.
+
+        Examples:
+            ```python
+            import xnano
+            from xnano_core import Event
+
+            with xnano.new(width=20, height=6) as canvas:
+                seen = []
+
+                @canvas.hook(on='key')
+                def pressed(context: xnano.Context) -> None:
+                    seen.append(context.region)
+
+                canvas.push(Event.key_press('a'))
+                canvas.deliver_events()
+                assert (seen[0].resolution, seen[0].width, seen[0].height) == ('cells', 20, 6)
+            ```
+
+            A hook on a playable sees the timeline of its sound:
+
+            ```python
+            import xnano
+            from xnano_core import Event
+
+            seen = []
+
+
+            @xnano.playable
+            def chord(context: xnano.Context) -> xnano.Note:
+                return xnano.note(('C4', 'G4'), beats=2)
+
+
+            @chord.hook(on='key')
+            def pressed(
+                context: xnano.Context, component_context: xnano.components.ComponentContext
+            ) -> None:
+                seen.append(context.region)
+
+
+            with xnano.new(width=8, height=1) as canvas:
+                canvas.play(chord)
+                canvas.push(Event.key_press('a'))
+                canvas.deliver_events()
+                assert (seen[0].width, seen[0].y, seen[0].height) == (2.0, 60, 8)
+            ```
+        """
+        timeline = self._timeline
+        if timeline is not None:
+            return timeline()
         self._read_size()
-        return self.canvas.size
+        return self._owner.region
+
+    @property
+    def size(self) -> _core.Size:
+        """
+        The size in cells of ``context.buffer`` on the screen.
+
+        For a hook on a canvas or a placement this is ``context.region.size``: inside the
+        border and padding of a placement. A playable has no region on the screen, so for it
+        this is the size of the canvas it plays on.
+        """
+        self._read_size()
+        width, height = self._owner._region_cell_size()
+        return _core.Size(width, height)
 
     @property
     def input(self) -> Input:

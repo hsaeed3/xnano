@@ -119,6 +119,7 @@ clean:
 	rm -rf *.egg-info
 	rm -f .coverage
 	rm -f .coverage.*
+	find . -type f -name '*.profraw' -delete
 	rm -rf build
 	rm -rf dist
 	find src -name '*.so' -delete

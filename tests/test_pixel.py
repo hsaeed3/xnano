@@ -13,7 +13,8 @@ import pytest
 
 import xnano
 from xnano import Color, Pixel
-from xnano.pixel import _PRESET_CHARACTERS, PixelPreset
+from xnano.art import PixelPreset
+from xnano.art._pixels import _PRESET_CHARACTERS
 
 
 def test_the_preset_literal_and_the_glyph_table_agree():
