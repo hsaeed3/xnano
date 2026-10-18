@@ -1323,7 +1323,7 @@ class _PlayableDriver(_Driver):
         self._handles: list[PlayHandle] = []
         self._beat_hook: HookHandle[object, object] | None = None
         self._component_hooks: list[HookHandle[object, object]] = []
-        self._playing: Region[float] | None = None
+        self._playing: PlayHandle | None = None
 
     @property
     def is_finished(self) -> bool:
@@ -1343,7 +1343,9 @@ class _PlayableDriver(_Driver):
         """
         playing = self._playing
         if playing is not None:
-            return playing
+            region = playing._region
+            if region is not None:
+                return region
         from xnano.region import _timeline_region
 
         canvas = self._canvas
@@ -1389,8 +1391,8 @@ class _PlayableDriver(_Driver):
         self._handles = [handle for handle in self._handles if not handle.is_finished]
         handle = canvas.audio.play(cast('Playable', result), **self._options)
         self._handles.append(handle)
-        if handle._region is not None:
-            self._playing = handle._region
+        if handle._has_region:
+            self._playing = handle
         if (log.uses_time or log.input_kinds or self._followed) and (
             self._beat_hook is None
         ):

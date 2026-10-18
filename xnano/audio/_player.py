@@ -9,6 +9,7 @@ from __future__ import annotations
 import collections
 import collections.abc
 import dataclasses
+import functools
 import math
 import threading
 import time
@@ -807,7 +808,8 @@ class AudioDevice:
         handle = PlayHandle(
             clock=time.monotonic,
             end_seconds=time.monotonic() + sound.duration_milliseconds / 1000.0,
-            region=_planned_region(
+            build_region=functools.partial(
+                _planned_region,
                 planned,
                 start_seconds=(
                     canvas.time.elapsed
@@ -859,7 +861,9 @@ class AudioDevice:
             clock=lambda: canvas.time.elapsed,
             end_seconds=max(recording.end_seconds for recording in recordings),
             cancel=lambda: self._forget(recordings),
-            region=_planned_region(planned, start_seconds=start, bpm=canvas.bpm),
+            build_region=functools.partial(
+                _planned_region, planned, start_seconds=start, bpm=canvas.bpm
+            ),
         )
 
     def _forget(self, recordings: list[_Recording]) -> None:

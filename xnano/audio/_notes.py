@@ -383,7 +383,14 @@ class PlayHandle:
         ```
     """
 
-    __slots__ = ('_cancel', '_clock', '_end_seconds', '_is_removed', '_region')
+    __slots__ = (
+        '_build_region',
+        '_cancel',
+        '_clock',
+        '_end_seconds',
+        '_is_removed',
+        '_region_value',
+    )
 
     def __init__(
         self,
@@ -391,7 +398,7 @@ class PlayHandle:
         clock: Callable[[], float],
         end_seconds: float,
         cancel: Callable[[], None] | None = None,
-        region: Region[float] | None = None,
+        build_region: Callable[[], Region[float]] | None = None,
     ) -> None:
         """
         Make a handle. Use the handle that ``play`` returns instead of calling this.
@@ -400,15 +407,30 @@ class PlayHandle:
             clock: Returns the current time in seconds.
             end_seconds: The time on that clock at which the sound is over.
             cancel: Called once by ``remove()``.
-            region: Where the sound is on the timeline of the canvas it plays on, which is
-                what ``context.region`` of a playable reports; ``None`` when that is not
-                known.
+            build_region: Returns where the sound is on the timeline of the canvas it plays
+                on, which is what ``context.region`` of a playable reports; ``None`` when
+                that is not known. It is called at most once, when the region is first read.
         """
         self._clock = clock
         self._end_seconds = end_seconds
         self._cancel = cancel
         self._is_removed = False
-        self._region = region
+        self._build_region = build_region
+        self._region_value: Region[float] | None = None
+
+    @property
+    def _region(self) -> Region[float] | None:
+        """Where the sound is on the timeline, built on the first read; ``None`` if unknown."""
+        build_region = self._build_region
+        if build_region is not None:
+            self._region_value = build_region()
+            self._build_region = None
+        return self._region_value
+
+    @property
+    def _has_region(self) -> bool:
+        """Whether the region is known, without building it."""
+        return self._build_region is not None or self._region_value is not None
 
     @property
     def is_finished(self) -> bool:
