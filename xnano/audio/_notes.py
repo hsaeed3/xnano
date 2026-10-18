@@ -389,6 +389,7 @@ class PlayHandle:
         '_clock',
         '_end_seconds',
         '_is_removed',
+        '_region_arguments',
         '_region_value',
     )
 
@@ -398,7 +399,8 @@ class PlayHandle:
         clock: Callable[[], float],
         end_seconds: float,
         cancel: Callable[[], None] | None = None,
-        build_region: Callable[[], Region[float]] | None = None,
+        build_region: Callable[..., Region[float]] | None = None,
+        region_arguments: tuple[object, ...] = (),
     ) -> None:
         """
         Make a handle. Use the handle that ``play`` returns instead of calling this.
@@ -409,13 +411,17 @@ class PlayHandle:
             cancel: Called once by ``remove()``.
             build_region: Returns where the sound is on the timeline of the canvas it plays
                 on, which is what ``context.region`` of a playable reports; ``None`` when
-                that is not known. It is called at most once, when the region is first read.
+                that is not known. It is called with ``region_arguments`` at most once, when
+                the region is first read.
+            region_arguments: What ``build_region`` is called with, captured when the sound
+                is played.
         """
         self._clock = clock
         self._end_seconds = end_seconds
         self._cancel = cancel
         self._is_removed = False
         self._build_region = build_region
+        self._region_arguments = region_arguments
         self._region_value: Region[float] | None = None
 
     @property
@@ -423,7 +429,7 @@ class PlayHandle:
         """Where the sound is on the timeline, built on the first read; ``None`` if unknown."""
         build_region = self._build_region
         if build_region is not None:
-            self._region_value = build_region()
+            self._region_value = build_region(*self._region_arguments)
             self._build_region = None
         return self._region_value
 

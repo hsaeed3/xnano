@@ -9,11 +9,10 @@ from __future__ import annotations
 import collections
 import collections.abc
 import dataclasses
-import functools
 import math
 import threading
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import TYPE_CHECKING, Final, cast
 
 from xnano import symbols
@@ -210,8 +209,11 @@ class _Planned:
     synthesize: Callable[[], TerminalSound]
     sounding_seconds: float
     """How long it sounds, without the ``_RELEASE_SECONDS`` tail of an instrument."""
-    pitches: tuple[int, ...]
-    """The MIDI numbers it sounds, or the row of a sound that has no pitch."""
+    read_pitches: Callable[[], Iterable[int]]
+    """
+    Returns the MIDI numbers it sounds, or the row of a sound that has no pitch. Only the
+    region of the play needs them, so nothing is converted until the region is built.
+    """
 
 
 _INSTRUMENTS: Final = frozenset(instrument_names())
@@ -398,7 +400,7 @@ def _plan_into(
                 sound,
                 lambda: sound.with_effects(list(effects)) if effects else sound,
                 length,
-                (SOUND_PITCH_ROW,),
+                _read_sound_pitches,
             )
         )
         return offset + length
@@ -461,6 +463,11 @@ def _check_pitch_text(source: str | int | float) -> None:
             f'separated by spaces, such as "C4 E4 G4:2"; register a sound with '
             f'symbol={source!r} when you create it.'
         ) from None
+
+
+def _read_sound_pitches() -> tuple[int, ...]:
+    """The pitches of a sound that has none: the row that sounds are drawn on."""
+    return (SOUND_PITCH_ROW,)
 
 
 def _midi_number_or_frequency(pitch: object) -> int:
@@ -533,7 +540,7 @@ def _plan_pitches(
             None,
             synthesize,
             length,
-            tuple(_midi_number_or_frequency(pitch) for pitch in pitches),
+            lambda: [_midi_number_or_frequency(pitch) for pitch in pitches],
         )
     )
     return offset + length
@@ -571,14 +578,14 @@ def _plan_melody(
             anchor,
             lambda: melody.render(instrument, effects=list(effects) or None),
             length,
-            tuple(note.pitch for note in melody.notes),
+            lambda: [note.pitch for note in melody.notes],
         )
     )
     return offset + length
 
 
 def _planned_region(
-    planned: list[_Planned], *, start_seconds: float, bpm: float
+    planned: list[_Planned], start_seconds: float, bpm: float
 ) -> Region[float]:
     """
     Where the sounds of one ``play()`` call are on the timeline of the canvas.
@@ -593,7 +600,7 @@ def _planned_region(
         start_beats=start_seconds * beats_per_second,
         length_beats=max(item.offset_seconds + item.sounding_seconds for item in planned)
         * beats_per_second,
-        pitches={pitch for item in planned for pitch in item.pitches},
+        pitches={pitch for item in planned for pitch in item.read_pitches()},
         tempo_changes=((0.0, bpm),),
     )
 
@@ -784,9 +791,10 @@ class AudioDevice:
         """
         canvas = self._canvas
         canvas._require_open()
+        bpm = canvas.bpm
         planned = _plan_call(
             source,
-            bpm=canvas.bpm,
+            bpm=bpm,
             instrument=instrument,
             beats=beats,
             velocity=velocity,
@@ -797,7 +805,7 @@ class AudioDevice:
             extra_effects=_hook_effects(canvas) + self._playable_effects._audio_effects(),
         )
         if self.is_offline:
-            return self._record(planned, volume=volume, at_beat=at_beat)
+            return self._record(planned, bpm=bpm, volume=volume, at_beat=at_beat)
         if not TerminalAudioPlayer.is_available():
             raise TerminalAudioUnavailableError(
                 'AudioDevice.play needs a sound output device, but this computer has none that '
@@ -808,15 +816,11 @@ class AudioDevice:
         handle = PlayHandle(
             clock=time.monotonic,
             end_seconds=time.monotonic() + sound.duration_milliseconds / 1000.0,
-            build_region=functools.partial(
-                _planned_region,
+            build_region=_planned_region,
+            region_arguments=(
                 planned,
-                start_seconds=(
-                    canvas.time.elapsed
-                    if at_beat is None
-                    else at_beat * 60.0 / canvas.bpm
-                ),
-                bpm=canvas.bpm,
+                canvas.time.elapsed if at_beat is None else at_beat * 60.0 / bpm,
+                bpm,
             ),
         )
         canvas._host.post(
@@ -825,7 +829,7 @@ class AudioDevice:
         return handle
 
     def _record(
-        self, planned: list[_Planned], *, volume: float, at_beat: int | None
+        self, planned: list[_Planned], *, bpm: float, volume: float, at_beat: int | None
     ) -> PlayHandle:
         """Remember what was played and when, without synthesizing it."""
         canvas = self._canvas
@@ -861,9 +865,8 @@ class AudioDevice:
             clock=lambda: canvas.time.elapsed,
             end_seconds=max(recording.end_seconds for recording in recordings),
             cancel=lambda: self._forget(recordings),
-            build_region=functools.partial(
-                _planned_region, planned, start_seconds=start, bpm=canvas.bpm
-            ),
+            build_region=_planned_region,
+            region_arguments=(planned, start, bpm),
         )
 
     def _forget(self, recordings: list[_Recording]) -> None:
