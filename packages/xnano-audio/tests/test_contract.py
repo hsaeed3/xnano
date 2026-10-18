@@ -286,3 +286,19 @@ def test_python_exposes_every_instrument_the_synth_defines():
     assert list(instrument_names()) == defined
     for name in defined:
         assert render_note(name, 'C4', duration_milliseconds=50).peak > 0.0, name
+
+
+def test_every_public_class_has_a_readable_repr():
+    import inspect
+
+    import xnano_audio._xnano_audio as audio
+
+    missing = [
+        name
+        for name, value in vars(audio).items()
+        if inspect.isclass(value)
+        and not issubclass(value, BaseException)
+        and not name.startswith('_')
+        and value.__repr__ is object.__repr__
+    ]
+    assert missing == []

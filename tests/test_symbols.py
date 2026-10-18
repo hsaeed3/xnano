@@ -10,7 +10,6 @@ import pytest
 
 import xnano
 from xnano import symbols
-from xnano._media import Audio
 
 
 class TestRegistry:
@@ -21,7 +20,7 @@ class TestRegistry:
         assert symbols.lookup('accent', kind=xnano.Color) is color
         assert 'accent' in symbols.names()
         assert symbols.names(kind=xnano.Color) == ('accent',)
-        assert symbols.names(kind=Audio) == ()
+        assert symbols.names(kind=xnano.Sound) == ()
 
     def test_registering_again_replaces_a_value_of_the_same_kind(self):
         symbols.register('accent', xnano.Color('red'))
@@ -81,12 +80,12 @@ class TestUnknownNames:
 
     def test_a_name_of_another_kind_says_which_kind_it_is(self):
         symbols.register('wall', xnano.Color('gray'))
-        with pytest.raises(ValueError, match='is a Color symbol, not an Audio symbol'):
-            symbols.lookup('wall', kind=Audio)
+        with pytest.raises(ValueError, match='is a Color symbol, not a Sound symbol'):
+            symbols.lookup('wall', kind=xnano.Sound)
 
     def test_an_empty_registry_says_so(self):
         with pytest.raises(ValueError, match='none yet'):
-            symbols.lookup('anything', kind=Audio)
+            symbols.lookup('anything', kind=xnano.Sound)
 
     def test_each_test_starts_with_the_registry_it_had(self):
         assert 'wall' not in symbols.names()
@@ -104,7 +103,7 @@ class TestSymbolKeywords:
         image = xnano.Image(
             TerminalImage.from_rgba(1, 1, bytes([1, 2, 3, 255])), symbol='dot_cell'
         )
-        audio = xnano.Audio(TerminalSound.from_samples([0.0, 0.5]), symbol='blip_cell')
+        audio = xnano.Sound(TerminalSound.from_samples([0.0, 0.5]), symbol='blip_cell')
         assert symbols.lookup('wall_cell') is pixel
         assert symbols.lookup('tone_cell') is note
         assert symbols.lookup('dot_cell') is image
@@ -120,14 +119,14 @@ class TestSymbolKeywords:
         from xnano_audio import TerminalSound
         from xnano_image import TerminalImage
 
-        image = xnano.from_image(
+        image = xnano.load_image(
             TerminalImage.from_rgba(1, 1, bytes(4)), symbol='dot_factory'
         )
-        audio = xnano.from_audio(
+        audio = xnano.load_sound(
             TerminalSound.from_samples([0.0, 0.5]), symbol='blip_factory'
         )
         assert symbols.names(kind=xnano.Image) == ('dot_factory',)
-        assert symbols.names(kind=Audio) == ('blip_factory',)
+        assert symbols.names(kind=xnano.Sound) == ('blip_factory',)
         assert symbols.lookup('dot_factory') is image
         assert symbols.lookup('blip_factory') is audio
 

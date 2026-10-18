@@ -109,6 +109,21 @@ impl PyExpression {
         class_getitem(cls, item)
     }
 
+    /// A value or condition as the Python that builds it, such as ``ParentHeight - 1``; an
+    /// operation as a call, such as ``Resize(width=4, height=2)``.
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        Ok(match &slf.borrow().kind {
+            ExpressionKind::Value(expression) => expression.to_string(),
+            ExpressionKind::Operation(Some(operation)) => crate::operation_reprs::operation_repr(
+                operation,
+                &slf.get_type().name()?.to_string(),
+            ),
+            ExpressionKind::Operation(None) | ExpressionKind::Empty => {
+                format!("{}()", slf.get_type().name()?)
+            }
+        })
+    }
+
     /// Read the value (or apply the operation) against `context`.
     fn evaluate<'py>(
         slf: &Bound<'py, Self>,

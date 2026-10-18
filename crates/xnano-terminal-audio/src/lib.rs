@@ -18,6 +18,7 @@ mod pitch;
 #[cfg(feature = "playback")]
 #[allow(unsafe_code)]
 mod platform;
+mod reprs;
 mod streaming;
 mod synth;
 

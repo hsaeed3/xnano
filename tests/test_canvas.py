@@ -19,9 +19,11 @@ import pytest
 from xnano_image import TerminalImage
 
 import xnano
+import xnano.terminal._screen
 from xnano.canvas import Canvas
 from xnano.context import Frame
 from xnano.errors import TerminalClosedError, TerminalError
+from xnano.terminal._settings import gates_for_screen, parse_open_settings
 from xnano_core import Event, Point, TimeElapsed
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
@@ -92,7 +94,7 @@ class TestNew:
                 'keyboard': False,
                 'paste': False,
             }
-            screen = canvas._gates_for_screen({**canvas._gates, 'scroll': False})
+            screen = gates_for_screen(canvas, {**canvas._gates, 'scroll': False})
             assert screen['mouse'] == 'motion'
             assert screen['scroll'] is False, (
                 'a gate given to open() replaces the stored one'
@@ -107,9 +109,9 @@ class TestNew:
             def click(context: xnano.context.Context) -> None:
                 pass
 
-            assert canvas._gates_for_screen({})['mouse'] is True
+            assert gates_for_screen(canvas, {})['mouse'] is True
             with pytest.raises(TerminalError, match='needs mouse=True'):
-                canvas._gates_for_screen({'mouse': False})
+                gates_for_screen(canvas, {'mouse': False})
 
     def test_a_hook_on_a_canvas_that_runs_by_itself_turns_an_unset_gate_on(self):
         for _ in range(20):
@@ -117,11 +119,11 @@ class TestNew:
                 canvas.hook(
                     lambda context: None, on='mouse', when="mouse.kind == 'press'"
                 )
-                assert canvas._gates_for_screen({})['mouse'] is True
+                assert gates_for_screen(canvas, {})['mouse'] is True
         with xnano.new(realtime=True, width=8, height=1) as canvas:
             canvas.hook(lambda context: None, on='mouse', when="mouse.kind == 'press'")
             with pytest.raises(TerminalError, match='needs mouse=True'):
-                canvas._gates_for_screen({'mouse': False})
+                gates_for_screen(canvas, {'mouse': False})
 
     def test_the_gate_error_names_the_function_the_user_wrote(self):
         def on_press(context: xnano.context.Context) -> None:
@@ -136,21 +138,21 @@ class TestNew:
         with xnano.new() as canvas:
             canvas.write('x').hook(on='mouse')(on_press)
             with pytest.raises(TerminalError, match='hook on_press needs mouse=True'):
-                canvas._gates_for_screen({'mouse': False})
+                gates_for_screen(canvas, {'mouse': False})
         with xnano.new() as canvas:
             canvas.hook(on='drag')(on_drag)
             with pytest.raises(TerminalError, match='hook on_drag needs mouse=True'):
-                canvas._gates_for_screen({'mouse': False})
+                gates_for_screen(canvas, {'mouse': False})
         with xnano.new() as canvas:
             canvas.hook(on_click, on='mouse', when="mouse.kind == 'press'")
             with pytest.raises(TerminalError, match='hook on_click needs mouse=True'):
-                canvas._gates_for_screen({'mouse': False})
+                gates_for_screen(canvas, {'mouse': False})
 
     def test_gates_given_to_new_and_open_are_both_kept(self):
         with xnano.new(width=8, height=1, mouse=True) as canvas:
-            settings = canvas._parse_open_settings({'scroll': True})
+            settings = parse_open_settings(canvas, {'scroll': True})
             gates = {**canvas._gates, **cast('dict[str, object]', settings['gates'])}
-            resolved = canvas._gates_for_screen(gates)
+            resolved = gates_for_screen(canvas, gates)
             assert resolved['mouse'] is True
             assert resolved['scroll'] is True
 
@@ -212,7 +214,7 @@ class TestNew:
     def test_an_effect_list_takes_dictionaries_of_visual_effects(self):
         with xnano.new(width=4, height=1) as canvas:
             with pytest.raises(TypeError, match='effects= takes dictionaries'):
-                canvas.write('x', effects=[xnano.operations.fx('effect.dissolve')])  # type: ignore[list-item]
+                canvas.write('x', effects=[xnano.effect('effect.dissolve')])  # type: ignore[list-item]
             with pytest.raises(TypeError, match='is not a visual effect'):
                 canvas.write('x', effects=[{'kind': 'fill', 'cell': '.'}])
 
@@ -222,7 +224,7 @@ class TestNew:
             text = canvas.render()
             assert text == '\nhi'
             assert str(canvas) == text
-            assert canvas.render(format='ansi') == canvas.output.snapshot().ansi
+            assert canvas.render(format='ansi') == canvas.output.ansi
             assert '\x1b[' in canvas.render(format='ansi')
             with pytest.raises(ValueError, match="'text' or 'ansi'"):
                 canvas.render(format='html')  # type: ignore[arg-type]
@@ -683,6 +685,43 @@ class TestCanvasNew:
             assert outer.render().splitlines()[0] == '┌────┐'
 
 
+class TestChangingTheFrameRate:
+    def test_a_manual_canvas_steps_by_the_new_rate(self):
+        with xnano.new(width=4, height=1, fps=10) as canvas:
+            assert round(canvas.step().delta_seconds, 3) == 0.1
+            canvas.fps = 40
+            assert canvas.fps == 40
+            assert round(canvas.step().delta_seconds, 3) == 0.025
+            frames = list(canvas.iter(count=2))
+            assert round(frames[-1].delta_seconds, 3) == 0.025
+
+    def test_a_hook_can_change_the_rate(self):
+        with xnano.new(width=4, height=1, fps=10) as canvas:
+            canvas.hook(on='key')(lambda context: setattr(context.canvas, 'fps', 50))
+            canvas.push(Event.key_press('a'))
+            canvas.deliver_events()
+            assert canvas.fps == 50
+            assert canvas._runtime.frame_interval_milliseconds == 20
+
+    def test_a_written_canvas_changes_the_rate_of_the_one_it_is_written_into(self):
+        with xnano.new(width=8, height=2, fps=10) as outer:
+            inner = outer.new(width=2, height=1)
+            inner.fps = 25
+            assert outer.fps == 25
+
+    @pytest.mark.parametrize('rate', [0, -5, float('nan')])
+    def test_a_rate_that_is_not_above_zero_is_refused(self, rate):
+        with xnano.new(width=4, height=1, fps=10) as canvas:
+            with pytest.raises(ValueError, match='fps must be a number above zero'):
+                canvas.fps = rate
+            assert canvas.fps == 10
+
+    def test_a_rate_that_is_not_a_number_is_refused(self):
+        with xnano.new(width=4, height=1) as canvas:
+            with pytest.raises(TypeError, match='fps must be a number'):
+                canvas.fps = 'fast'  # type: ignore[assignment]
+
+
 class TestRemovedNames:
     def test_the_removed_names_are_gone(self):
         for name in ('make', 'fx', 'loop'):
@@ -710,7 +749,6 @@ class TestRemovedNames:
         roots = [
             REPOSITORY / 'xnano',
             REPOSITORY / 'tests',
-            REPOSITORY / 'examples',
             REPOSITORY / 'docs' / 'learn',
         ]
         paths = [REPOSITORY / 'README.md']
@@ -889,7 +927,7 @@ class TestOpeningWithoutATerminal:
             for _ in range(2):
                 with pytest.raises(RuntimeError, match='could not be opened'):
                     canvas.open(height=2)
-                assert xnano.terminal._live_terminal_open is False
+                assert xnano.terminal._screen.is_screen_claimed is False
             assert not isinstance(canvas, xnano.Terminal)
             assert not canvas.time.is_realtime
             assert canvas.time.elapsed == pytest.approx(0.5)
@@ -916,14 +954,14 @@ class TestOpeningWithoutATerminal:
             assert len(failures) == 1
             assert isinstance(failures[0], TerminalError)
             assert 'thread that called xnano.new()' in str(failures[0])
-            assert xnano.terminal._live_terminal_open is False
+            assert xnano.terminal._screen.is_screen_claimed is False
             canvas.step()
             assert canvas.render().startswith(label.text)
 
     def test_xnano_open_without_a_terminal_closes_the_canvas_it_made(self):
         with pytest.raises(RuntimeError, match='could not be opened'):
             xnano.open('content', height=2)
-        assert xnano.terminal._live_terminal_open is False
+        assert xnano.terminal._screen.is_screen_claimed is False
         assert xnano.active(is_required=False) is None
 
 
@@ -1096,7 +1134,7 @@ class TestRefusedSettings:
             with pytest.raises(ValueError, match='is not a border kind'):
                 canvas.open(border='nonsense')  # type: ignore[arg-type]
             assert not isinstance(canvas, xnano.Terminal)
-            assert xnano.terminal._live_terminal_open is False
+            assert xnano.terminal._screen.is_screen_claimed is False
             canvas.step()
 
     @pytest.mark.parametrize(
@@ -1119,7 +1157,7 @@ class TestRefusedSettings:
                 canvas.open(**settings)  # type: ignore[arg-type]
             assert type(canvas) is xnano.Canvas
             assert not canvas.is_closed
-            assert xnano.terminal._live_terminal_open is False
+            assert xnano.terminal._screen.is_screen_claimed is False
             canvas.step()
 
     def test_a_bad_effect_is_refused_by_open_before_the_screen_is_claimed(self):
@@ -1129,7 +1167,7 @@ class TestRefusedSettings:
             with pytest.raises(ValueError, match='is not a known visual effect'):
                 canvas.open(effects=[{'kind': 'effect.bogus'}])  # type: ignore[list-item]
             assert not isinstance(canvas, xnano.Terminal)
-            assert xnano.terminal._live_terminal_open is False
+            assert xnano.terminal._screen.is_screen_claimed is False
 
     def test_a_canvas_is_created_with_new_and_the_error_says_so(self):
         with pytest.raises(TypeError, match=r'xnano\.new\(\.\.\.\)'):
@@ -1272,7 +1310,7 @@ class TestPercentageSizes:
         import os
 
         size = os.terminal_size((120, 40))
-        monkeypatch.setattr(xnano.canvas, '_window_size', lambda: size)
+        monkeypatch.setattr(xnano.terminal._screen, 'window_size', lambda: size)
         return size
 
     def test_a_percentage_is_a_share_of_the_window(self, window):

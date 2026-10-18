@@ -37,13 +37,13 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from types import ModuleType
 
+import xnano_image
+
 import xnano
-import xnano.audio
 import xnano.context
-import xnano.effects
 import xnano.events
 import xnano.expressions
-import xnano.image
+import xnano.operations
 import xnano.styles
 import xnano.terminal
 from xnano.buffers import Buffer
@@ -748,7 +748,7 @@ def cases() -> list[Case]:
         def run() -> str:
             counter[0] += 1
             terminal.step(delta_seconds=1 / 60)
-            return terminal.output.snapshot().ansi
+            return terminal.output.ansi
 
         return run
 
@@ -948,12 +948,12 @@ def cases() -> list[Case]:
         for row in range(HEIGHT):
             terminal.write('effects keep running ' * 3, y=row)
         terminal.core_buffer.update(
-            xnano.effects.Effect.fade_to((255, 0, 0), duration_milliseconds=10_000_000)
+            xnano.operations.Effect.fade_to((255, 0, 0), duration_milliseconds=10_000_000)
         )
 
         def run() -> str:
             terminal.step(delta_seconds=1 / 60)
-            return terminal.output.snapshot().ansi
+            return terminal.output.ansi
 
         return run
 
@@ -1009,7 +1009,7 @@ def cases() -> list[Case]:
             counter[0] += 1
             terminal.state.volume = counter[0] % 100
             terminal.step(delta_seconds=1 / 60)
-            return terminal.output.snapshot().ansi
+            return terminal.output.ansi
 
         return run
 
@@ -1021,7 +1021,7 @@ def cases() -> list[Case]:
     )
 
     def image_conversion() -> Callable[[], object]:
-        image = xnano.image.TerminalImage.from_rgba(
+        image = xnano_image.TerminalImage.from_rgba(
             256, 256, bytes([40, 120, 220, 255]) * 65_536
         )
         return lambda: image.to_cell_grid(64, 32)
@@ -1034,7 +1034,7 @@ def cases() -> list[Case]:
     )
 
     def sound_render() -> Callable[[], object]:
-        return lambda: xnano.audio.TerminalSound.__name__ and xnano_render_note()
+        return xnano_render_note
 
     def xnano_render_note() -> str:
         from xnano_audio import render_note

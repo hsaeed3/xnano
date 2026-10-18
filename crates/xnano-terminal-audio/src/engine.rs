@@ -237,6 +237,10 @@ impl PyAudioPlayer {
 
 #[pymethods]
 impl PyAudioPlayer {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["tempo", "beat", "is_clock_running"])
+    }
+
     /// Open the default output device.
     #[new]
     #[pyo3(signature = (*, beats_per_minute = DEFAULT_BEATS_PER_MINUTE))]

@@ -60,6 +60,18 @@ impl PyStateIssue {
 
 #[pymethods]
 impl PyStateIssue {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
     #[getter]
     fn path<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
         tokens_to_py(py, &self.path)
@@ -97,6 +109,10 @@ pub struct PyStateSchema {
 
 #[pymethods]
 impl PyStateSchema {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &[])
+    }
+
     #[classmethod]
     #[pyo3(signature = (schema, *, maximum_depth = 256))]
     fn compile(
@@ -151,6 +167,10 @@ pub struct PyStateSnapshot {
 
 #[pymethods]
 impl PyStateSnapshot {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["revision"])
+    }
+
     #[getter]
     fn revision(&self) -> u64 {
         self.inner.revision
@@ -202,6 +222,22 @@ pub struct PyStateSelection {
 
 #[pymethods]
 impl PyStateSelection {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["revision", "paths"])
+    }
+
     #[getter]
     fn revision(&self) -> u64 {
         self.inner.revision
@@ -250,6 +286,10 @@ pub struct PyStatePatch {
 
 #[pymethods]
 impl PyStatePatch {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &[])
+    }
+
     #[classmethod]
     fn from_json(_cls: &Bound<'_, pyo3::types::PyType>, data: &Bound<'_, PyAny>) -> PyResult<Self> {
         let py = data.py();
@@ -295,6 +335,22 @@ pub struct PyStateChange {
 
 #[pymethods]
 impl PyStateChange {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["revision", "before_revision", "paths"])
+    }
+
     #[getter]
     fn before_revision(&self) -> u64 {
         self.inner.before_revision
@@ -355,6 +411,10 @@ impl PyStateSubscription {
 
 #[pymethods]
 impl PyStateSubscription {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["is_cancelled"])
+    }
+
     #[getter]
     fn is_cancelled(&self) -> bool {
         self.inner.is_cancelled()
@@ -410,6 +470,10 @@ impl PyStateTransaction {
 
 #[pymethods]
 impl PyStateTransaction {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["base_revision"])
+    }
+
     #[getter]
     fn base_revision(&self) -> u64 {
         self.lock().base_revision
@@ -499,6 +563,10 @@ pub struct PyStateObservation {
 
 #[pymethods]
 impl PyStateObservation {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["revision", "read", "write"])
+    }
+
     #[getter]
     fn revision(&self) -> u64 {
         self.inner.revision

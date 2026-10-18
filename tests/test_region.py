@@ -7,13 +7,16 @@ batched shading and images.
 
 from __future__ import annotations
 
+import os
+from dataclasses import dataclass
+
 import pytest
 
 import xnano
 from xnano import Color, Pixel, new
 from xnano.errors import TerminalError
-from xnano.region import Region
-from xnano_core import Event, Point
+from xnano.region import Region, _timeline_region
+from xnano_core import Event, ParentWidth, Point, Size, TimeElapsed
 
 
 @pytest.fixture
@@ -44,24 +47,31 @@ class TestStandalone:
         card.border.left = False
         assert card.render().split('\n') == ['══╗', 'hi│', '──┘']
 
-    def test_box_is_an_empty_bordered_rectangle(self):
-        frame = xnano.box(5, 3)
-        assert frame.render().split('\n') == ['┌───┐', '│   │', '└───┘']
-        plain = xnano.box(4, 2, border=False)
+    def test_a_box_has_no_border_unless_one_is_asked_for(self):
+        plain = xnano.box(5, 3)
         assert plain.render().strip() == ''
+        assert plain.border.kind is None
+        assert xnano.box(4, 2, border=False).render().strip() == ''
+
+    def test_a_border_is_drawn_when_asked_for(self):
+        for border in ('plain', True):
+            frame = xnano.box(5, 3, border=border)
+            assert frame.render().split('\n') == ['┌───┐', '│   │', '└───┘']
         rounded = xnano.box(4, 3, border='rounded', title='x')
         assert rounded.render().split('\n')[0] == '╭x─╮'
 
     def test_a_box_keeps_its_size_and_content_when_the_look_changes(self):
-        frame = xnano.box(6, 4)
+        frame = xnano.box(6, 4, border='plain')
         frame[1:3, 1:2] = 'ab'
         frame.border = 'double'
         assert (frame.width, frame.height) == (6, 4)
         assert frame.render().split('\n')[1] == '║ab  ║'
 
     def test_a_box_needs_a_size(self):
-        with pytest.raises(ValueError, match='at least 1 by 1'):
+        with pytest.raises(TerminalError) as caught:
             xnano.box(0, 3)
+        assert caught.value.details[0].location == ('width',)
+        assert caught.value.details[0].input_value == 0
 
     def test_an_unknown_look_is_named(self):
         with pytest.raises(TypeError, match='no setting called'):
@@ -444,10 +454,10 @@ class TestCoordinates:
         assert region[3, 0:2].height == 2
 
     def test_wrong_arguments_say_what_to_pass(self):
-        with pytest.raises(TypeError, match='whole number of cells'):
-            xnano.box('a', 2)  # type: ignore[arg-type]
-        with pytest.raises(TypeError, match='whole number of cells'):
-            xnano.box(2.5, 2)  # type: ignore[arg-type]
+        for width in ('a', 2.5):
+            with pytest.raises(TerminalError, match='whole number of cells') as caught:
+                xnano.box(width, 2)  # type: ignore[arg-type]
+            assert caught.value.details[0].location == ('width',)
         card = xnano.box(4, 2)
         with pytest.raises(TypeError, match='whole number of cells'):
             card.resize('a', 4)  # type: ignore[arg-type]
@@ -511,3 +521,659 @@ class TestBoxArgumentsTeach:
             xnano.write('a', effects=1)  # type: ignore[call-arg]
         with pytest.raises(TypeError, match=r'lock=True'):
             xnano.write('a', lock=1)  # type: ignore[call-arg]
+
+
+class TestBoxSizes:
+    def test_a_box_without_a_border_shows_its_background(self):
+        region = xnano.box(4, 1, background='green')
+        assert region.render().strip() == ''
+        green = Color('green')
+        assert [region[column, 0].background for column in range(4)] == [green] * 4
+
+    def test_a_background_fills_the_inside_of_a_bordered_box(self):
+        region = xnano.box(4, 3, background='green', border='plain', padding=0)
+        green = Color('green')
+        for row in range(3):
+            assert [region[column, row].background for column in range(4)] == [green] * 4
+        region.color.bg = 'reset'
+        assert region[1, 1].background is None
+        assert region[0, 0].background is None
+
+    def test_a_background_follows_a_resize(self):
+        region = xnano.box(2, 1, background='green')
+        region.resize(5, 2)
+        green = Color('green')
+        assert [
+            region[column, row].background for row in range(2) for column in range(5)
+        ] == [green] * 10
+
+    def test_a_percentage_is_measured_against_the_active_canvas(self):
+        with xnano.new(width=80, height=4):
+            assert xnano.box('50%', 3).width == 40
+            assert xnano.box(' 25% ', '100%').height == 4
+        with xnano.new(width=20, height=2):
+            assert xnano.box(ParentWidth - 4, 1).width == 16
+
+    def test_a_percentage_without_a_canvas_is_measured_against_the_window(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(
+            'xnano.terminal._screen.window_size', lambda: os.terminal_size((60, 20))
+        )
+        region = xnano.box('50%', '50%')
+        assert (region.width, region.height) == (30, 10)
+
+    def test_a_whole_size_never_asks_for_the_window(self, monkeypatch):
+        def refuse() -> os.terminal_size:
+            raise AssertionError('The window was asked for the size of a plain box.')
+
+        monkeypatch.setattr('xnano.terminal._screen.window_size', refuse)
+        assert xnano.box(3, 2).width == 3
+
+    def test_a_copy_keeps_the_relative_size_and_a_resize_makes_it_whole_cells(self):
+        formula = ParentWidth - 30
+        with xnano.new(width=40, height=10):
+            region = xnano.box('50%', formula)
+        assert (region.width, region.height) == (20, 10)
+        kept = region.copy()._box_size
+        assert kept is not None
+        assert isinstance(kept[0], str) and kept[0] == '50%'
+        assert kept[1] is formula
+        region.resize(7, 3)
+        assert (region.width, region.height) == (7, 3)
+        assert region.copy()._box_size == (7, 3)
+
+    def test_a_percentage_or_formula_is_held_to_the_cells_a_region_can_have(self):
+        assert xnano.box('1e9%', 1).width == 65535
+        assert xnano.box(ParentWidth * 0, 1).width == 1
+
+    def test_a_reference_to_the_state_sizes_a_box(self):
+        @dataclass
+        class Sizes:
+            wide: int = 10
+
+        with xnano.new(width=40, height=4, state=Sizes(), fps=10) as canvas:
+            reference = canvas.state_reference(lambda state: state.wide)
+            frame = xnano.box(reference, 2, border='plain')
+            assert (frame.width, frame.height) == (10, 2)
+            placement = canvas.write(frame)
+            assert (placement.width, placement.height) == (10, 2)
+            canvas.state.wide = 20
+            canvas.step()
+            assert placement.width == 20
+            assert canvas.render().splitlines()[0] == '┌' + '─' * 18 + '┐'
+
+    def test_a_reference_to_the_state_is_held_to_the_cells_a_region_can_have(self):
+        @dataclass
+        class Sizes:
+            wide: int = 10**7
+
+        with xnano.new(width=40, height=4, state=Sizes()) as canvas:
+            reference = canvas.state_reference(lambda state: state.wide)
+            assert xnano.box(reference, 1).width == 65535
+
+    def test_a_formula_that_reads_the_clock_is_refused(self):
+        with xnano.new(width=20, height=2):
+            with pytest.raises(TerminalError, match='canvas.write') as caught:
+                xnano.box(TimeElapsed * 3, 1)
+        assert caught.value.code == 'validation.value'
+        assert caught.value.details[0].location == ('width',)
+
+    @pytest.mark.parametrize(
+        'width',
+        ['abc', 'center', '0%', (1, 5), 2.5, True, 0, 10**6],
+        ids=repr,
+    )
+    def test_a_bad_size_is_refused_with_its_location(self, width):
+        with pytest.raises(TerminalError) as caught:
+            xnano.box(width, 3)  # type: ignore[arg-type]
+        detail = caught.value.details[0]
+        assert detail.location == ('width',)
+        assert detail.input_value == width
+        assert 'xnano.box()' in str(caught.value)
+
+    def test_a_bad_height_is_refused_with_its_location(self):
+        with pytest.raises(TerminalError) as caught:
+            xnano.box(3, 'tall')
+        detail = caught.value.details[0]
+        assert detail.location == ('height',)
+        assert detail.input_value == 'tall'
+
+
+class TestWrittenBoxes:
+    @pytest.fixture
+    def wide(self):
+        with new(width=80, height=4, fps=10) as opened:
+            yield opened
+
+    def test_a_half_width_box_is_half_the_canvas(self, wide):
+        placement = wide.write(xnano.box('50%', 3, border='plain'))
+        assert (placement.width, placement.height) == (40, 3)
+        rows = wide.render().splitlines()
+        assert rows[0].rstrip() == '┌' + '─' * 38 + '┐'
+        assert rows[1].rstrip() == '│' + ' ' * 38 + '│'
+        assert rows[2].rstrip() == '└' + '─' * 38 + '┘'
+
+    def test_a_relative_box_refits_after_a_resize(self, wide):
+        placement = wide.write(xnano.box('50%', 3, border='plain'))
+        wide.push(Event.resize(width=40, height=4))
+        wide.step()
+        assert placement.width == 20
+        rows = wide.render().splitlines()
+        assert rows[0].rstrip() == '┌' + '─' * 18 + '┐'
+        assert rows[2].rstrip() == '└' + '─' * 18 + '┘'
+
+    def test_a_formula_sized_box_follows_the_canvas(self, wide):
+        placement = wide.write(xnano.box(ParentWidth - 4, 3, border='plain'))
+        assert placement.width == 76
+        wide.push(Event.resize(width=30, height=4))
+        wide.step()
+        assert placement.width == 26
+        assert wide.render().splitlines()[0] == '┌' + '─' * 24 + '┐'
+
+    def test_a_size_given_to_write_wins_over_the_box(self, wide):
+        narrow = wide.write(xnano.box('50%', 3, border='plain'), width=10)
+        assert (narrow.width, narrow.height) == (10, 3)
+        assert wide.render().splitlines()[0] == '┌' + '─' * 8 + '┐'
+        narrow.remove()
+        wider = wide.write(xnano.box(6, 3, border='plain'), width=12)
+        assert (wider.width, wider.height) == (12, 3)
+        assert wide.render().splitlines()[0] == '┌' + '─' * 10 + '┐'
+
+    def test_a_relative_box_keeps_its_cells_and_background(self, wide):
+        frame = xnano.box('50%', 3, border='plain', background='red')
+        frame[1, 1] = 'x'
+        placement = wide.write(frame)
+        assert placement.region[0, 0].character == 'x'
+        assert placement.region[1, 0].background == Color('red')
+        wide.push(Event.resize(width=40, height=4))
+        wide.step()
+        assert placement.region.width == 18
+        assert placement.region[0, 0].character == 'x'
+        assert placement.region[17, 0].background == Color('red')
+        ring = wide.render(format='ansi').splitlines()[0]
+        assert ring.count('\x1b[0;41m') == 1
+
+    def test_a_background_without_a_border_follows_a_resize(self, wide):
+        placement = wide.write(xnano.box('25%', 1, background='green'))
+        assert placement.width == 20
+        wide.push(Event.resize(width=40, height=4))
+        wide.step()
+        assert placement.width == 10
+        assert all(
+            placement.region[column, 0].background == Color('green')
+            for column in range(10)
+        )
+        wide.push(Event.resize(width=80, height=4))
+        wide.step()
+        assert placement.width == 20
+        assert all(
+            placement.region[column, 0].background == Color('green')
+            for column in range(20)
+        )
+
+    def test_the_look_given_to_write_applies_over_the_look_of_the_box(self, wide):
+        frame = xnano.box('50%', 3, border='plain', foreground='cyan')
+        placement = wide.write(frame, border='double', background='blue', bold=True)
+        assert (placement.width, placement.height) == (40, 3)
+        assert wide.render().splitlines()[0] == '╔' + '═' * 38 + '╗'
+        assert placement.color.fg.value == Color('cyan')
+        assert placement.color.bg.value == Color('blue')
+        assert placement.is_bold
+        assert frame.border.kind == 'plain'
+
+    def test_a_border_of_false_leaves_out_the_border_of_the_box(self, wide):
+        frame = xnano.box('50%', 3, border='plain', title='Menu')
+        frame.border.top = 'double'
+        placement = wide.write(frame, border=False)
+        assert (placement.width, placement.height) == (40, 3)
+        assert wide.render().strip() == ''
+        assert frame.border.kind == 'plain'
+        wide.push(Event.resize(width=40, height=4))
+        wide.step()
+        assert wide.render().strip() == ''
+
+    def test_a_border_of_false_leaves_out_the_border_of_a_whole_cell_box(self, wide):
+        frame = xnano.box(3, 2, border='plain')
+        placement = wide.write(frame, border=False)
+        assert (placement.width, placement.height) == (3, 2)
+        assert wide.render().strip() == ''
+        assert frame.border.kind == 'plain'
+
+    def test_a_border_of_false_leaves_out_the_title_of_a_whole_cell_box(self, wide):
+        frame = xnano.box(8, 3, border='plain', title='Menu')
+        placement = wide.write(frame, border=False)
+        assert (placement.width, placement.height) == (8, 3)
+        assert 'Menu' not in wide.render()
+        assert wide.render().strip() == ''
+        assert frame.border.kind == 'plain'
+        assert frame.render().splitlines()[0] == '┌Menu──┐'
+
+    def test_a_border_given_to_write_replaces_the_border_of_a_whole_cell_box(self, wide):
+        frame = xnano.box(3, 2, border='plain')
+        placement = wide.write(frame, border='double')
+        assert (placement.width, placement.height) == (3, 2)
+        assert wide.render().splitlines()[:2] == ['╔═╗', '╚═╝']
+        assert frame.border.kind == 'plain'
+
+    def test_a_border_given_to_write_replaces_the_border_of_a_box_on_a_placement(
+        self, wide
+    ):
+        holder = wide.write(None, width=20, height=4)
+        placement = holder.write(xnano.box(3, 2, border='plain'), border='double')
+        assert (placement.width, placement.height) == (3, 2)
+        assert wide.render().splitlines()[:2] == ['╔═╗', '╚═╝']
+        placement.remove()
+        removed = holder.write(xnano.box(3, 2, border='plain'), border=False)
+        assert (removed.width, removed.height) == (3, 2)
+        assert wide.render().strip() == ''
+
+    def test_the_look_given_to_write_is_laid_over_the_look_of_a_whole_cell_box(
+        self, wide
+    ):
+        frame = xnano.box(4, 2, foreground='cyan')
+        placement = wide.write(frame, background='blue')
+        assert (placement.width, placement.height) == (4, 2)
+        assert placement.color.fg.value == Color('cyan')
+        assert placement.color.bg.value == Color('blue')
+        assert frame.color.bg.value is None
+
+    def test_a_border_given_to_write_is_inside_the_size_of_a_box_with_no_border(
+        self, wide
+    ):
+        placement = wide.write(xnano.box(3, 2), border='plain')
+        assert (placement.width, placement.height) == (3, 2)
+        assert wide.render().splitlines()[:2] == ['┌─┐', '└─┘']
+
+    def test_a_color_on_a_box_does_not_change_the_size_a_border_gives_it(self, wide):
+        plain = wide.write(xnano.box(6, 3), border='double')
+        colored = wide.write(xnano.box(6, 3, foreground='cyan'), x=10, border='double')
+        assert (plain.width, plain.height) == (colored.width, colored.height) == (6, 3)
+
+    def test_a_margin_given_to_write_surrounds_a_box_that_keeps_its_size(self, wide):
+        placement = wide.write(xnano.box(4, 3, border='plain'), margin=1)
+        assert (placement.width, placement.height) == (6, 5)
+        assert wide.render().splitlines()[1:4] == [' ┌──┐', ' │  │', ' └──┘']
+
+    def test_a_margin_on_some_edges_adds_only_those_edges_to_the_size_of_a_box(
+        self, wide
+    ):
+        placement = wide.write(
+            xnano.box(4, 3, border='plain'), margin={'left': 2, 'top': 1}
+        )
+        assert (placement.width, placement.height) == (6, 4)
+        assert wide.render().splitlines()[1:4] == ['  ┌──┐', '  │  │', '  └──┘']
+
+    def test_a_border_given_with_false_draws_over_the_box(self, wide):
+        frame = xnano.box('50%', 3, border='plain')
+        wide.write(frame, border=False, title='Menu')
+        assert wide.render().splitlines()[0] == '┌Menu' + '─' * 34 + '┐'
+
+    def test_the_border_of_a_relative_box_is_on_its_placement(self, wide):
+        placement = wide.write(xnano.box('50%', 3, border='plain'))
+        assert placement.region.width == 38
+        assert placement.region[0, 0].character == ' '
+
+    def test_the_border_of_a_snapshot_is_in_the_cells_of_its_placement(self, wide):
+        placement = wide.write(xnano.box(6, 3, border='plain'), x=2)
+        assert placement.region.width == 6
+        assert placement.region[0, 0].character == '┌'
+
+    def test_a_relative_box_keeps_the_sides_of_its_border(self, wide):
+        frame = xnano.box('50%', 3, border='plain')
+        frame.border.top = 'double'
+        wide.write(frame)
+        wide.push(Event.resize(width=40, height=4))
+        wide.step()
+        rows = wide.render().splitlines()
+        assert rows[0] == '╔' + '═' * 18 + '╗'
+        assert rows[2] == '└' + '─' * 18 + '┘'
+
+    def test_a_relative_box_is_a_slot_of_a_stacking_canvas(self):
+        with new(width=20, height=8, layout='column', fps=10) as stacked:
+            top = stacked.write(xnano.box('100%', 3, border='plain', title='a'))
+            bottom = stacked.write(xnano.box('50%', '50%', border='rounded'))
+            stacked.step()
+            assert (top.width, top.height) == (20, 3)
+            assert (bottom.width, bottom.height) == (10, 4)
+            rows = stacked.render().splitlines()
+            assert rows[0] == '┌a' + '─' * 17 + '┐'
+            assert rows[3] == '╭' + '─' * 8 + '╮'
+
+    def test_a_relative_box_nests_inside_a_placement(self, wide):
+        outer = wide.write(xnano.box('100%', '100%', border='double'))
+        inner = outer.write(xnano.box('50%', 3, border='plain'), x=1, y=0)
+        assert (inner.width, inner.height) == (39, 3)
+        wide.push(Event.resize(width=40, height=4))
+        wide.step()
+        assert (outer.width, inner.width) == (40, 19)
+        assert wide.render().splitlines()[1].startswith('║ ┌' + '─' * 17 + '┐')
+
+    def test_a_locked_relative_box_keeps_its_size(self, wide):
+        placement = wide.write(xnano.box('50%', 3, border='plain'), lock=True)
+        wide.push(Event.resize(width=40, height=4))
+        wide.step()
+        assert placement.width == 40
+
+    def test_a_box_smaller_than_its_border_still_draws(self, wide):
+        placement = wide.write(
+            xnano.box('50%', 3, border='plain', padding=1, background='blue')
+        )
+        wide.push(Event.resize(width=4, height=4))
+        wide.step()
+        assert (placement.width, placement.height) == (2, 3)
+        assert wide.render().splitlines()[0] == '┌┐'
+
+    def test_a_refused_write_leaves_nothing_behind(self, wide):
+        with pytest.raises(ValueError, match='width'):
+            wide.write(xnano.box('50%', 3, border='plain'), width='sideways')
+        assert wide.render().strip() == ''
+
+    def test_a_whole_cell_box_written_as_it_is_is_still_a_snapshot(self, wide):
+        placement = wide.write(xnano.box(6, 3, border='plain'))
+        assert (placement.width, placement.height) == (6, 3)
+        assert placement.region.width == 6
+        assert placement.region[0, 0].character == '┌'
+
+    def test_a_margin_given_to_write_surrounds_a_box_with_no_look_of_its_own(self, wide):
+        placement = wide.write(xnano.box(6, 3), margin=1)
+        assert (placement.width, placement.height) == (8, 5)
+
+    def test_a_margin_that_is_a_share_is_measured_against_the_box(self):
+        with new(width=30, height=10, fps=10) as tall:
+            placement = tall.write(xnano.box(10, 4, border='plain'), margin='20%')
+            assert (placement.width, placement.height) == (14, 6)
+            rows = tall.render().splitlines()
+            assert rows[1].rstrip() == '  ┌' + '─' * 8 + '┐'
+            assert rows[4].rstrip() == '  └' + '─' * 8 + '┘'
+
+    def test_a_margin_that_is_a_share_stays_a_share_on_an_axis_with_a_size(self, wide):
+        placement = wide.write(
+            xnano.box(10, 3, border='plain'), width='50%', margin='10%'
+        )
+        assert (placement.width, placement.height) == (40, 3)
+        assert wide.render().splitlines()[0].startswith('    ┌')
+        wide.push(Event.resize(width=40, height=4))
+        wide.step()
+        assert placement.width == 20
+        assert wide.render().splitlines()[0].startswith('  ┌')
+
+
+_TEMPO_CHANGE = ((0.0, 120.0), (2.0, 60.0))
+
+
+def _chord_region(**changes):
+    """A region from beat 1 for 2 beats over the chord C4 E4 G4 at a changing tempo."""
+    arguments = {
+        'start_beats': 1.0,
+        'length_beats': 2.0,
+        'pitches': [60, 64, 67],
+        'tempo_changes': _TEMPO_CHANGE,
+    }
+    arguments.update(changes)
+    return _timeline_region(**arguments)
+
+
+class TestTimeline:
+    def test_a_region_on_the_timeline_is_beats_by_semitones(self):
+        region = _chord_region()
+        assert region.resolution == 'beats'
+        assert (region.x, region.width) == (1.0, 2.0)
+        assert (region.y, region.height) == (60, 8)
+
+    def test_ticks_are_sixteenth_notes_four_to_a_beat(self):
+        ticks = _chord_region().ticks
+        assert ticks.resolution == 'ticks'
+        assert (ticks.x, ticks.width) == (4.0, 8.0)
+        assert (ticks.y, ticks.height) == (60, 8)
+
+    def test_milliseconds_follow_the_tempo(self):
+        steady = _chord_region(tempo_changes=((0.0, 120.0),)).milliseconds
+        assert steady.resolution == 'milliseconds'
+        assert (steady.x, steady.width) == (500.0, 1000.0)
+        assert (steady.y, steady.height) == (60, 8)
+
+    def test_milliseconds_integrate_a_tempo_change(self):
+        # Beat 1 is 0.5 s in at 120 bpm; beats 1 to 2 last 0.5 s, then beats 2 to 3 last 1 s at 60.
+        slowing = _chord_region().milliseconds
+        assert (slowing.x, slowing.width) == (500.0, 1500.0)
+        later = _chord_region(start_beats=3.0, length_beats=1.0).milliseconds
+        assert (later.x, later.width) == (2000.0, 1000.0)
+        assert _chord_region().beats.milliseconds.width == 1500.0
+
+    def test_a_chord_spans_every_semitone_between_its_pitches(self):
+        assert (_chord_region(pitches=[67, 60, 64]).y, _chord_region().height) == (60, 8)
+        single = _chord_region(pitches=[72])
+        assert (single.y, single.height) == (72, 1)
+        for view in (single.ticks, single.milliseconds):
+            assert (view.y, view.height) == (72, 1)
+
+    def test_no_pitches_span_no_semitones(self):
+        silent = _chord_region(pitches=[])
+        assert (silent.y, silent.height) == (0, 0)
+        assert (1.5, 0) not in silent
+
+    def test_a_timeline_without_tempo_changes_is_refused(self):
+        with pytest.raises(ValueError, match='tempo_changes is empty'):
+            _chord_region(tempo_changes=())
+
+    def test_the_first_tempo_change_must_be_at_beat_zero(self):
+        with pytest.raises(ValueError, match=r'at beat 1\.0') as caught:
+            _chord_region(tempo_changes=((1.0, 120.0),))
+        assert 'first tempo change' in str(caught.value)
+
+    @pytest.mark.parametrize('tempo', [0.0, -60.0, float('nan')], ids=repr)
+    def test_every_tempo_must_be_above_zero(self, tempo):
+        with pytest.raises(ValueError, match='above 0 beats per minute') as caught:
+            _chord_region(tempo_changes=((0.0, 120.0), (2.0, tempo)))
+        assert 'beat 2.0' in str(caught.value)
+        with pytest.raises(ValueError, match='above 0 beats per minute'):
+            _chord_region(tempo_changes=((0.0, tempo),))
+
+    def test_a_view_carries_the_span(self):
+        region = _chord_region()
+        assert region.beats.ticks.milliseconds.ticks.x == 4.0
+        assert repr(region) == (
+            "Region(timeline, x=1.0, width=2.0, y=60, height=8, resolution='beats')"
+        )
+        assert repr(region.ticks) == (
+            "Region(timeline, x=4.0, width=8.0, y=60, height=8, resolution='ticks')"
+        )
+
+    def test_a_beat_and_a_pitch_are_in_the_region_in_its_own_grid(self):
+        region = _chord_region()
+        assert (1, 60) in region and (1.5, 67) in region and (2.999, 63.5) in region
+        assert (0.999, 60) not in region and (3, 60) not in region
+        assert (1, 59) not in region and (1, 68) not in region
+        assert (4, 60) in region.ticks and (3.9, 60) not in region.ticks
+        assert (500, 64) in region.milliseconds and (2000, 64) not in region.milliseconds
+
+    def test_anything_but_a_pair_of_numbers_is_not_in_the_region(self):
+        region = _chord_region()
+        for point in (
+            'ab',
+            None,
+            (1,),
+            (1, 60, 3),
+            ('1', 60),
+            (1, None),
+            (True, 60),
+            [1, 60],
+            Point(1, 60),
+        ):
+            assert point not in region
+
+    def test_local_is_relative_to_the_start_and_the_lowest_pitch(self):
+        region = _chord_region()
+        assert region.local((1.5, 62)) == (0.5, 2)
+        assert region.ticks.local((6, 60)) == (2, 0)
+        assert region.milliseconds.local((750.0, 64)) == (250.0, 4)
+
+    def test_local_takes_a_pair_on_the_timeline_and_a_point_on_the_screen(self, canvas):
+        for point in (Point(1, 60), 'ab', (1,), (1, 'x')):
+            with pytest.raises(TerminalError, match=r'\(beat, pitch\)') as caught:
+                _chord_region().local(point)
+            assert caught.value.code == 'validation.type'
+        with pytest.raises(TerminalError, match='takes a Point') as caught:
+            canvas.region.local((1, 1))
+        assert caught.value.code == 'validation.type'
+
+    @pytest.mark.parametrize(
+        'read',
+        [
+            pytest.param(lambda region: region.half_blocks, id='half_blocks'),
+            pytest.param(lambda region: region.braille, id='braille'),
+            pytest.param(lambda region: region.cells, id='cells'),
+            pytest.param(lambda region: region.size, id='size'),
+            pytest.param(lambda region: region[0, 0], id='getitem'),
+            pytest.param(lambda region: region[0:1, 0:1], id='getitem-slice'),
+            pytest.param(lambda region: region.color, id='color'),
+            pytest.param(lambda region: region.border, id='border'),
+            pytest.param(lambda region: region.padding, id='padding'),
+            pytest.param(lambda region: region.margin, id='margin'),
+            pytest.param(lambda region: region.render(), id='render'),
+            pytest.param(lambda region: region.copy(), id='copy'),
+            pytest.param(lambda region: region.__xnano_render__(), id='xnano_render'),
+            pytest.param(lambda region: region.cell_for_pixel(0, 0), id='cell_for_pixel'),
+            pytest.param(lambda region: region.pixel_for_cell(0, 0), id='pixel_for_cell'),
+            pytest.param(lambda region: region.resize(2, 2), id='resize'),
+            pytest.param(lambda region: region.shade(lambda x, y: None), id='shade'),
+            pytest.param(
+                lambda region: region.draw_color_bytes(b'\0' * 4, width=1, height=1),
+                id='draw_color_bytes',
+            ),
+            pytest.param(lambda region: region.draw_image(object()), id='draw_image'),
+        ],
+    )
+    def test_a_screen_member_refuses_a_region_on_the_timeline(self, read):
+        with pytest.raises(TerminalError, match='timeline') as caught:
+            read(_chord_region())
+        assert caught.value.code == 'canvas.state'
+        assert 'screen' in str(caught.value)
+        assert 'region.beats' in str(caught.value)
+
+    @pytest.mark.parametrize(
+        'write',
+        [
+            pytest.param(lambda region: region.__setitem__((0, 0), 'x'), id='setitem'),
+            pytest.param(
+                lambda region: region.__setitem__((0, 0), Pixel('block')),
+                id='setitem-pixel',
+            ),
+            pytest.param(
+                lambda region: region.__setitem__((slice(0, 1), slice(0, 1)), 'x'),
+                id='setitem-slice',
+            ),
+            pytest.param(
+                lambda region: setattr(region, 'border', 'plain'), id='set-border'
+            ),
+            pytest.param(lambda region: setattr(region, 'padding', 1), id='set-padding'),
+            pytest.param(lambda region: setattr(region, 'margin', 1), id='set-margin'),
+        ],
+    )
+    def test_writing_to_a_region_on_the_timeline_is_refused(self, write):
+        with pytest.raises(TerminalError, match='timeline') as caught:
+            write(_chord_region())
+        assert caught.value.code == 'canvas.state'
+
+    def test_the_views_of_a_region_on_the_timeline_refuse_the_screen_too(self):
+        for view in (
+            _chord_region().ticks,
+            _chord_region().milliseconds,
+            _chord_region().beats,
+        ):
+            with pytest.raises(TerminalError, match='timeline') as caught:
+                _ = view.half_blocks
+            assert caught.value.code == 'canvas.state'
+
+    def test_the_message_names_the_member_the_medium_and_what_to_use(self):
+        with pytest.raises(TerminalError) as caught:
+            _ = _chord_region().half_blocks
+        message = str(caught.value)
+        assert (
+            'region.half_blocks is a view of a region on the screen, but this region is on '
+            'the timeline: beats by semitones, from a Note, a Melody, a Sound or the '
+            'context of a playable. On the timeline read region.beats, region.ticks or '
+            'region.milliseconds, and x, y, width and height.'
+        ) in message
+        with pytest.raises(
+            TerminalError, match=r'region\.copy\(\) needs a region on the screen'
+        ):
+            _chord_region().copy()
+
+    def test_writing_a_region_on_the_timeline_to_a_canvas_is_refused(self, canvas):
+        with pytest.raises(TerminalError, match='timeline') as caught:
+            canvas.write(_chord_region())
+        assert caught.value.code == 'canvas.state'
+        assert canvas.region[0, 0].character == ' '
+
+    def test_the_refusal_to_write_a_timeline_region_names_the_call_that_was_written(
+        self, canvas
+    ):
+        with pytest.raises(TerminalError) as caught:
+            canvas.write(xnano.note('C4').region)
+        message = str(caught.value)
+        assert 'canvas.write() draws the cells of a region on the screen' in message
+        assert 'region.copy()' not in message
+        assert 'canvas.play()' in message
+        label = canvas.write('x')
+        with pytest.raises(TerminalError) as caught:
+            label.write(_chord_region())
+        assert 'placement.write() draws the cells' in str(caught.value)
+        assert canvas.render().splitlines()[0].startswith('x')
+
+    def test_str_of_a_region_on_the_timeline_is_its_repr(self):
+        region = _chord_region()
+        assert str(region) == repr(region)
+        assert f'{region.ticks}' == repr(region.ticks)
+        assert str(xnano.note('C4').region).startswith(
+            'Region(timeline, x=0.0, width=1.0'
+        )
+
+    def test_str_of_a_region_on_the_screen_is_its_characters(self, canvas):
+        assert str(xnano.write('hi')) == 'hi'
+        assert str(canvas.region) == canvas.region.render()
+
+    @pytest.mark.parametrize('name', ['beats', 'ticks', 'milliseconds'])
+    def test_a_region_on_the_screen_refuses_the_timeline_views(self, canvas, name):
+        for region in (
+            canvas.region,
+            canvas.region.braille,
+            canvas.region[0:3, 0:2],
+            xnano.box(4, 2),
+            xnano.write('hi'),
+        ):
+            with pytest.raises(TerminalError, match='screen') as caught:
+                getattr(region, name)
+            assert caught.value.code == 'canvas.state'
+            assert f'region.{name}' in str(caught.value)
+            assert 'region.cells' in str(caught.value)
+            assert 'timeline' in str(caught.value)
+
+    def test_a_region_on_the_screen_has_cells_and_a_size(self, canvas):
+        assert canvas.region.cells.resolution == 'cells'
+        assert canvas.region.size == Size(12, 5)
+        assert canvas.region.half_blocks.size == Size(12, 10)
+        assert canvas.region.braille.size == Size(24, 20)
+        assert canvas.region.braille.cells.size == Size(12, 5)
+        assert canvas.region[2:5, 1:3].size == Size(3, 2)
+        assert xnano.write('hello\nworld!').size == Size(6, 2)
+
+    def test_a_screen_region_still_has_whole_number_coordinates(self, canvas):
+        label = canvas.write('abcd', x=3, y=2)
+        canvas.step()
+        region = label.region
+        assert (type(region.x), type(region.y)) == (int, int)
+        assert (type(region.width), type(region.height)) == (int, int)
+        assert (region.x, region.y, region.width, region.height) == (3, 2, 4, 1)
+        assert (region.braille.width, region.braille.height) == (8, 4)
+
+    def test_a_resolution_must_match_its_medium(self):
+        placeholder = _chord_region()._buffer
+        with pytest.raises(TerminalError, match='without a timeline') as caught:
+            Region(placeholder, resolution='beats')
+        assert caught.value.code == 'validation.value'
+        span = _chord_region()._timeline
+        with pytest.raises(TerminalError, match='screen resolution') as caught:
+            Region(placeholder, resolution='cells', timeline=span)
+        assert caught.value.code == 'validation.value'

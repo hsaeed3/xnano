@@ -303,3 +303,88 @@ def test_operation_classes_report_the_native_module():
 
     for cls in (Write, Fill, Editor):
         assert cls.__module__ == 'xnano_core._xnano_core'
+
+
+def test_expressions_print_as_the_python_that_builds_them():
+    import math
+
+    from xnano_core import (
+        FPS,
+        BufferRegion,
+        MouseIsDown,
+        ParentHeight,
+        ParentWidth,
+        Width,
+    )
+
+    assert repr(BufferRegion.height) == 'BufferRegion.height'
+    assert str(ParentHeight - 1) == 'ParentHeight - 1'
+    assert repr((ParentWidth - Width) // 2) == '(ParentWidth - Width) // 2'
+    assert repr((Width > 4) & ~MouseIsDown) == '(Width > 4) & ~MouseIsDown'
+    assert repr(MouseIsDown.choose('down', 0.5)) == "MouseIsDown.choose('down', 0.5)"
+    assert repr(math.floor(FPS / 2)) == 'math.floor(FPS / 2)'
+    assert repr(FPS.clamp(1, 60)) == 'FPS.clamp(1, 60)'
+
+
+def test_operations_print_as_the_call_that_builds_them():
+    from xnano_core import (
+        Conditional,
+        Fill,
+        Layout,
+        Move,
+        Resize,
+        SequenceOperation,
+        SizeRule,
+        Style,
+        Width,
+        Write,
+    )
+
+    assert repr(Resize(4, 2)) == 'Resize(width=4, height=2)'
+    assert repr(Fill('x')) == "Fill('x')"
+    assert (
+        repr(Write('hi', x=2, style=Style(foreground='red')))
+        == "Write('hi', x=2, style=Style(foreground='red'))"
+    )
+    assert (
+        repr(Layout('row', sizes=[SizeRule.fill(), SizeRule.cells(3)]))
+        == "Layout('row', sizes=[SizeRule.fill(1), SizeRule.cells(3)])"
+    )
+    assert repr(SequenceOperation(Move(1, 0), Fill('x'))) == (
+        "SequenceOperation(Move(x=1, y=0), Fill('x'))"
+    )
+    assert (
+        repr(Conditional(Width > 4, Move(1, 0)))
+        == 'Conditional(Width > 4, Move(x=1, y=0))'
+    )
+
+
+def test_every_public_class_has_a_readable_repr():
+    import inspect
+
+    import xnano_core._xnano_core as core
+
+    missing = [
+        name
+        for name, value in vars(core).items()
+        if inspect.isclass(value)
+        and not issubclass(value, BaseException)
+        and not name.startswith('_')
+        and value.__repr__ is object.__repr__
+    ]
+    assert missing == []
+
+
+def test_value_records_compare_and_hash_by_value():
+    from xnano_core import DecodeLimits, ErrorDetail, TerminalOptions
+
+    assert DecodeLimits() == DecodeLimits()
+    assert hash(DecodeLimits()) == hash(DecodeLimits())
+    assert DecodeLimits(maximum_frames=3) != DecodeLimits()
+    assert len({TerminalOptions(), TerminalOptions()}) == 1
+    assert DecodeLimits().__eq__(5) is NotImplemented
+    listed = ErrorDetail('validation.type', 'x', input_value=[1, 2])
+    assert listed == ErrorDetail('validation.type', 'x', input_value=[1, 2])
+    assert isinstance(hash(listed), int)
+    with pytest.raises(TypeError):
+        _ = DecodeLimits() < DecodeLimits()  # type: ignore[operator]

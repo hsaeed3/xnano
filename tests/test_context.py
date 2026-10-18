@@ -9,10 +9,12 @@ from __future__ import annotations
 import pytest
 
 import xnano
-from xnano._effect_controller import EffectController
 from xnano.context import Context, Frame, Plugin, Update
+from xnano.effects import EffectController
+from xnano.errors import TerminalError
 from xnano.expressions import Expression
 from xnano.input import Input
+from xnano.region import Region
 from xnano_core import Buffer, Event, Point, Size
 
 
@@ -90,6 +92,95 @@ class TestLiveViews:
         box.hook(lambda context: cells.append(context.local(Point(6, 4))), on='key')
         push(canvas, Event.key_press('a'))
         assert cells == [Point(1, 1)]
+
+
+class TestRegion:
+    def test_the_region_of_a_canvas_hook_is_the_cells_of_the_canvas(self, canvas):
+        seen: list[Context] = []
+        canvas.hook(seen.append, on='key')
+        push(canvas, Event.key_press('a'))
+        region = seen[0].region
+        assert region.resolution == 'cells'
+        assert region.size == Size(20, 6)
+        assert seen[0].size == region.size
+
+    def test_the_region_of_a_placement_hook_is_where_the_placement_is_drawn(self, canvas):
+        box = canvas.write(Buffer(width=4, height=2), x=5, y=3)
+        seen: list[Context] = []
+        box.hook(seen.append, on='key')
+        push(canvas, Event.key_press('a'))
+        region = seen[0].region
+        assert (region.x, region.y) == (5, 3)
+        assert (region.width, region.height) == (4, 2)
+        assert seen[0].size == Size(4, 2), 'the size is the shortcut for region.size'
+
+    def test_inside_a_border_the_region_is_the_area_inside_it(self, canvas):
+        card = canvas.write('hi', x=2, y=1, border='plain')
+        seen: list[Context] = []
+        card.hook(seen.append, on='key')
+        push(canvas, Event.key_press('a'))
+        region = seen[0].region
+        assert (region.x, region.y, region.width, region.height) == (3, 2, 2, 1)
+        assert seen[0].size == Size(2, 1)
+
+    def test_the_size_is_the_size_of_the_region_inside_every_border_and_padding(self):
+        with xnano.new(width=10, height=4, border='plain') as bordered:
+            seen: dict[str, Context] = {}
+            card = bordered.write(
+                Buffer(width=4, height=2), x=2, y=1, border='plain', padding=1
+            )
+            label = bordered.write('hi', x=1, y=1, border='rounded')
+            for name, owner in (('canvas', bordered), ('card', card), ('label', label)):
+                owner.hook(
+                    lambda context, name=name: seen.__setitem__(name, context), on='key'
+                )
+            push(bordered, Event.key_press('a'))
+            assert set(seen) == {'canvas', 'card', 'label'}
+            for context in seen.values():
+                assert context.size == context.region.size
+            assert seen['canvas'].size == Size(8, 2)
+            assert seen['card'].size == Size(4, 2)
+            assert seen['label'].size == Size(2, 1)
+            assert seen['canvas'].canvas.size == Size(10, 4), 'the window is canvas.size'
+
+    def test_reading_the_size_makes_no_region(self, canvas, monkeypatch):
+        sizes: dict[str, Size] = {}
+        box = canvas.write(Buffer(width=4, height=2), x=5, y=3)
+        for name, owner in (('canvas', canvas), ('box', box)):
+            owner.hook(
+                lambda context, name=name: sizes.__setitem__(name, context.size),
+                on='key',
+            )
+
+        def forbidden(*arguments, **keywords):
+            raise AssertionError('context.size made a Region')
+
+        monkeypatch.setattr(Region, '__init__', forbidden)
+        push(canvas, Event.key_press('a'))
+        assert sizes == {'canvas': Size(20, 6), 'box': Size(4, 2)}
+
+    def test_the_region_of_a_hook_is_on_the_screen_and_refuses_the_timeline(self, canvas):
+        seen: list[Context] = []
+        canvas.hook(seen.append, on='key')
+        push(canvas, Event.key_press('a'))
+        with pytest.raises(TerminalError, match='timeline') as raised:
+            _ = seen[0].region.beats
+        assert raised.value.code == 'canvas.state'
+
+    def test_a_generator_hook_reads_the_region_of_each_event(self, canvas):
+        box = canvas.write(Buffer(width=4, height=2), x=5, y=3)
+        widths: list[int] = []
+
+        @box.hook(on='key')
+        def watch(context: Context):
+            while True:
+                widths.append(context.region.width)
+                context = yield
+
+        push(canvas, Event.key_press('a'))
+        box.width = 6
+        push(canvas, Event.key_press('b'))
+        assert widths == [4, 6]
 
 
 class TestMembers:

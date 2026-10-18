@@ -15,8 +15,7 @@ import time
 from benchmark_budgets import check_budget
 
 import xnano
-from xnano.effects import Effect
-from xnano.operations import Border, Write
+from xnano.operations import Border, Effect, Write
 from xnano.widgets import Gauge
 from xnano_core import Event
 
@@ -54,7 +53,7 @@ def test_a_canvas_draws_a_changed_frame(benchmark):
     def draw() -> str:
         canvas.update(Write(next(texts), x=0, y=0))
         canvas.step(delta_seconds=1 / 60)
-        return canvas.output.snapshot().lines()[0]
+        return canvas.output.lines()[0]
 
     try:
         line = benchmark.pedantic(draw, rounds=10, iterations=1)

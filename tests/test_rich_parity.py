@@ -175,7 +175,7 @@ def test_a_terminal_shows_wide_characters_in_two_cells_and_never_splits_them():
     with xnano.new(width=5, height=2) as canvas:
         canvas.write('わさび')
         canvas.output.render()
-        lines = canvas.output.snapshot().lines()
+        lines = canvas.output.lines()
     assert lines[0] == 'わさ'
     assert rich_cells.cell_len(lines[0]) == 4
 
@@ -185,6 +185,6 @@ def test_a_wide_character_that_does_not_fit_is_dropped_not_cut(count):
     with xnano.new(width=count, height=1) as canvas:
         canvas.write('😽😽😽')
         canvas.output.render()
-        line = canvas.output.snapshot().lines()[0]
+        line = canvas.output.lines()[0]
     assert rich_cells.cell_len(line) <= count
     assert line == '😽' * (count // 2)

@@ -30,6 +30,25 @@ impl PyDecodeLimits {
 
 #[pymethods]
 impl PyDecodeLimits {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(
+            slf.as_any(),
+            &["maximum_payload_bytes", "maximum_frames", "maximum_cells"],
+        )
+    }
+
     #[new]
     #[pyo3(signature = (*, maximum_cells = 16_000_000, maximum_frames = 10_000, maximum_payload_bytes = 268_435_456))]
     fn new(maximum_cells: usize, maximum_frames: usize, maximum_payload_bytes: usize) -> Self {
@@ -65,6 +84,25 @@ pub struct PyCellGridInfo {
 
 #[pymethods]
 impl PyCellGridInfo {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(
+            slf.as_any(),
+            &["columns", "rows", "format_version", "required_protocol"],
+        )
+    }
+
     #[getter]
     fn format_version(&self) -> u32 {
         format::FORMAT_VERSION
@@ -98,6 +136,31 @@ pub struct PyCellAnimationInfo {
 
 #[pymethods]
 impl PyCellAnimationInfo {
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        operation: pyo3::basic::CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        crate::reprs::compare_by_properties(slf.as_any(), other, operation)
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<isize> {
+        crate::reprs::hash_by_properties(slf.as_any())
+    }
+
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(
+            slf.as_any(),
+            &[
+                "columns",
+                "rows",
+                "frame_count",
+                "duration_milliseconds",
+                "should_loop",
+            ],
+        )
+    }
+
     #[getter]
     fn format_version(&self) -> u32 {
         format::FORMAT_VERSION

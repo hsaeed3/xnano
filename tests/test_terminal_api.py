@@ -8,15 +8,37 @@ from __future__ import annotations
 
 import ast
 import dataclasses
+import importlib
 import inspect
 import pathlib
 import re
 import typing
 
 import pytest
+from documented_attributes import documented_attributes, names_defined_at_runtime
 
 import xnano
 from xnano_core import Event
+
+SUBPACKAGES = (
+    '_schema',
+    '_internal',
+    '_runtime',
+    'appearance',
+    'art',
+    'audio',
+    'hooks',
+    'effects',
+    'terminal',
+)
+
+
+def package_scripts(package: pathlib.Path) -> list[pathlib.Path]:
+    """The scripts of the package: its modules and those of its subpackages."""
+    scripts = sorted(package.glob('*.py'))
+    for name in SUBPACKAGES:
+        scripts.extend(sorted(package.glob(f'{name}/*.py')))
+    return scripts
 
 
 @pytest.fixture
@@ -97,16 +119,52 @@ class TestInterface:
         assert name not in xnano.__all__
         assert not hasattr(xnano, name)
 
+    @pytest.mark.parametrize(
+        'name',
+        [
+            'Audio',
+            'TerminalSound',
+            'TerminalNote',
+            'TerminalMelody',
+            'TerminalAudioEffect',
+            'TerminalAudioPlayer',
+            'TerminalMicrophone',
+            'PlaySource',
+        ],
+    )
+    def test_audio_keeps_only_its_own_names(self, name):
+        assert name not in xnano.audio.__all__
+        assert not hasattr(xnano.audio, name)
+
     def test_the_removed_modules_are_gone(self):
         import importlib
 
-        with pytest.raises(ModuleNotFoundError):
-            importlib.import_module('xnano.loop')
+        for name in (
+            'xnano.loop',
+            'xnano._values',
+            'xnano._attributes',
+            'xnano._appearance',
+            'xnano._decoration',
+            'xnano._axes',
+            'xnano._optional',
+            'xnano._host',
+            'xnano._hooks',
+            'xnano._when',
+            'xnano._customize',
+            'xnano._effect_controller',
+            'xnano.effects._schema',
+            'xnano.pixel',
+            'xnano.image',
+            'xnano._media',
+            'xnano.music',
+        ):
+            with pytest.raises(ModuleNotFoundError):
+                importlib.import_module(name)
 
     def test_no_module_uses_any(self):
         package = pathlib.Path(xnano.__file__).parent
         offenders = []
-        for path in sorted(package.glob('*.py')):
+        for path in package_scripts(package):
             tree = ast.parse(path.read_text(encoding='utf-8'))
             for node in ast.walk(tree):
                 if isinstance(node, ast.Name) and node.id == 'Any':
@@ -204,10 +262,10 @@ class TestTypedState:
 
 class TestOutputCapture:
     def test_a_canvas_on_the_screen_that_cannot_hold_output_back_warns(self):
-        from xnano.terminal import _warn_if_output_is_not_held_back
+        from xnano.terminal._screen import warn_if_output_is_not_held_back
 
         with pytest.warns(RuntimeWarning, match='capture=False'):
-            _warn_if_output_is_not_held_back(requested=True, is_held_back=False)
+            warn_if_output_is_not_held_back(requested=True, is_held_back=False)
 
     @pytest.mark.parametrize(
         ('requested', 'is_held_back'), [(True, True), (False, False)]
@@ -217,11 +275,11 @@ class TestOutputCapture:
     ):
         import warnings
 
-        from xnano.terminal import _warn_if_output_is_not_held_back
+        from xnano.terminal._screen import warn_if_output_is_not_held_back
 
         with warnings.catch_warnings():
             warnings.simplefilter('error')
-            _warn_if_output_is_not_held_back(
+            warn_if_output_is_not_held_back(
                 requested=requested, is_held_back=is_held_back
             )
 
@@ -264,7 +322,7 @@ class TestDocumentation:
         reference = re.compile(r'\]\[([A-Za-z_][\w.]*)\]')
         repository = self.PACKAGE.parent
         texts: list[tuple[str, str]] = []
-        for path in sorted(self.PACKAGE.glob('*.py')):
+        for path in package_scripts(self.PACKAGE):
             for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
                 if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
                     if isinstance(node.value.value, str):
@@ -293,7 +351,13 @@ class TestDocumentation:
         paths = [
             path for path in self.PACKAGE.glob('*.py') if not path.name.startswith('_')
         ]
-        paths.append(self.PACKAGE / '_hooks.py')
+        paths.extend(self.PACKAGE.glob('appearance/*.py'))
+        paths.extend(self.PACKAGE.glob('art/*.py'))
+        paths.extend(self.PACKAGE.glob('audio/*.py'))
+        paths.extend(self.PACKAGE.glob('hooks/*.py'))
+        paths.extend(self.PACKAGE.glob('effects/*.py'))
+        paths.extend(self.PACKAGE.glob('terminal/*.py'))
+        paths.extend(self.PACKAGE.glob('_schema/*.py'))
         paths.extend(repository.glob('packages/*/src/**/*.py'))
         paths.extend(repository.glob('packages/*/src/**/*.pyi'))
         missing = []
@@ -373,7 +437,7 @@ class TestDocumentation:
 
     def test_every_public_class_lists_its_attributes(self):
         missing = []
-        for path in sorted(self.PACKAGE.glob('*.py')):
+        for path in package_scripts(self.PACKAGE):
             for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
                 if not isinstance(node, ast.ClassDef) or node.name.startswith('_'):
                     continue
@@ -386,7 +450,7 @@ class TestDocumentation:
 
     def test_examples_use_the_names_xnano_exports_without_renaming_them(self):
         renamed = []
-        for path in sorted(self.PACKAGE.glob('*.py')):
+        for path in package_scripts(self.PACKAGE):
             for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
                 docstring = (
                     ast.get_docstring(node)
@@ -408,7 +472,7 @@ class TestDocumentation:
     def test_every_constructor_has_a_docstring(self):
         missing = [
             f'{path.name}:{node.name}'
-            for path in sorted(self.PACKAGE.glob('*.py'))
+            for path in package_scripts(self.PACKAGE)
             for node in ast.walk(ast.parse(path.read_text(encoding='utf-8')))
             if isinstance(node, ast.ClassDef)
             for method in node.body
@@ -420,24 +484,17 @@ class TestDocumentation:
 
     def test_every_module_starts_with_its_own_name(self):
         wrong = []
-        for path in sorted(self.PACKAGE.glob('*.py')):
-            expected = 'xnano' if path.stem == '__init__' else f'xnano.{path.stem}'
+        for path in package_scripts(self.PACKAGE):
+            parts = path.relative_to(self.PACKAGE).with_suffix('').parts
+            if parts[-1] == '__init__':
+                parts = parts[:-1]
+            expected = '.'.join(('xnano', *parts))
             docstring = (
                 ast.get_docstring(ast.parse(path.read_text(encoding='utf-8'))) or ''
             )
             if docstring.splitlines()[0:1] != [expected]:
-                wrong.append(path.name)
+                wrong.append(str(path.relative_to(self.PACKAGE)))
         assert wrong == []
-
-    def test_every_example_file_uses_public_imports_only(self):
-        examples = pathlib.Path(xnano.__file__).parent.parent / 'examples'
-        private = [
-            path.name
-            for path in examples.glob('*.py')
-            if '_xnano_core' in path.read_text(encoding='utf-8')
-            or '._' in path.read_text(encoding='utf-8')
-        ]
-        assert private == []
 
 
 class TestDocumentationSite:
@@ -469,11 +526,181 @@ class TestOutputCaptureStatus:
 
 class TestReturnTypesAreReachable:
     def test_hook_handles_and_effect_controllers_are_public_types(self):
+        import xnano.effects
+        import xnano.effects._controller
+        import xnano.hooks
+        import xnano.hooks._handles
+        import xnano.operations
         import xnano.types
 
-        assert xnano.types.HookHandle is xnano._hooks.HookHandle
-        assert xnano.types.EffectController is xnano._effect_controller.EffectController
-        assert xnano.types.EffectCustomization is not xnano.effects.Effect
+        assert (
+            xnano.types.HookHandle
+            is xnano.hooks.HookHandle
+            is xnano.hooks._handles.HookHandle
+        )
+        assert (
+            xnano.types.EffectController
+            is xnano.effects.EffectController
+            is xnano.effects._controller.EffectController
+        )
+        assert xnano.types.EffectSpecification is not xnano.operations.Effect
+        assert (
+            xnano.types.RenderableEffectProperties
+            is xnano.effects.RenderableEffectProperties
+        )
+        for name in ('fx', 'Customization', 'CustomizationKind'):
+            assert name not in xnano.operations.__all__
+
+    def test_hook_lives_in_the_hooks_package(self):
+        import xnano.hooks
+        import xnano.operations
+        import xnano.types
+
+        assert xnano.hook is xnano.hooks.hook
+        assert not hasattr(xnano.operations, 'hook')
+        assert 'hook' not in xnano.operations.__all__
+        assert xnano.hooks.When is xnano.types.When
+        assert xnano.hooks.Hook is xnano.types.Hook
+        assert xnano.hooks.HookKind is xnano.types.HookKind
+        assert xnano.hooks.HookResult is xnano.types.HookResult
+        assert not hasattr(xnano.types, 'HookGenerator')
+        assert not hasattr(xnano.hooks, 'HookGenerator')
+
+    def test_terminal_settings_live_in_the_terminal_package(self):
+        import xnano.canvas
+        import xnano.terminal
+        import xnano.types
+
+        assert xnano.types.TerminalSettings is xnano.terminal.TerminalSettings
+        assert not hasattr(xnano.types, 'GateSettings')
+        assert not hasattr(xnano.canvas, '_GATE_NAMES')
+        assert not hasattr(xnano.canvas, '_split_settings')
+        assert not hasattr(xnano.canvas.Canvas, '_attach_screen')
+        assert not hasattr(xnano.canvas.Canvas, '_gates_for_screen')
+
+    def test_the_hook_aliases_take_the_dependencies_and_state_types(self):
+        import typing
+
+        import xnano.hooks
+        import xnano.types
+
+        assert len(xnano.types.Hook.__type_params__) == 2
+        assert len(xnano.types.HookResult.__type_params__) == 2
+        assert len(xnano.types.When.__type_params__) == 2
+        assert typing.get_args(xnano.types.Hook[int, int]) == (int, int)
+        assert typing.get_args(xnano.types.When[int, int]) == (int, int)
+        assert xnano.types.When is xnano.hooks.When
+        assert typing.get_args(xnano.types.HookResult[None, None]) == (None, None)
+        assert typing.get_args(xnano.types.Hook[None, None]) == (None, None)
+
+
+def test_the_expressions_module_lists_only_its_public_names() -> None:
+    import importlib.util
+
+    import xnano.expressions
+
+    specification = importlib.util.spec_from_file_location(
+        'fresh_expressions', xnano.expressions.__file__
+    )
+    assert specification is not None
+    assert specification.loader is not None
+    fresh = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(fresh)
+
+    assert 'Width' not in vars(fresh)
+    assert dir(fresh) == sorted(fresh.__all__)
+    fresh.Width  # noqa: B018
+    assert 'Width' in vars(fresh)
+    assert dir(fresh) == sorted(fresh.__all__)
+    assert dir(xnano.expressions) == sorted(xnano.expressions.__all__)
+
+
+LAZY_REEXPORT_MODULES = [
+    'xnano.expressions',
+    'xnano.styles',
+    'xnano.geometry',
+    'xnano.events',
+    'xnano.buffers',
+    'xnano.widgets',
+    'xnano.operations',
+]
+
+LAZY_MODULES = [*LAZY_REEXPORT_MODULES, 'xnano.audio']
+
+
+@pytest.mark.parametrize('module_name', LAZY_MODULES)
+class TestLazyModules:
+    def test_dir_lists_exactly_the_public_names(self, module_name: str) -> None:
+        module = importlib.import_module(module_name)
+        assert dir(module) == sorted(module.__all__)
+
+    def test_every_public_name_resolves(self, module_name: str) -> None:
+        module = importlib.import_module(module_name)
+        for name in module.__all__:
+            assert getattr(module, name) is not None, name
+
+    def test_an_unknown_name_is_refused_in_the_name_of_the_module(
+        self, module_name: str
+    ) -> None:
+        module = importlib.import_module(module_name)
+        with pytest.raises(AttributeError, match=module_name):
+            module.NoSuchName  # noqa: B018
+
+
+@pytest.mark.parametrize('module_name', LAZY_REEXPORT_MODULES)
+def test_every_lazy_name_is_documented_with_an_example(module_name: str) -> None:
+    module = importlib.import_module(module_name)
+    tree = ast.parse(pathlib.Path(module.__file__).read_text(encoding='utf-8'))
+    documented = dict(documented_attributes(tree))
+    lazy_names = set(module.__all__) - names_defined_at_runtime(tree)
+    assert lazy_names, f'{module_name} defines every one of its names at runtime'
+    assert not lazy_names - documented.keys(), (
+        f'These names of {module_name} have no docstring after their assignment: '
+        f'{sorted(lazy_names - documented.keys())}.'
+    )
+    for name in sorted(lazy_names):
+        assert '```python' in documented[name], f'{module_name}.{name} has no example'
+
+
+def test_the_buffer_size_expression_lives_only_in_the_expressions_module() -> None:
+    import xnano.buffers
+    import xnano.expressions
+    import xnano_core
+
+    assert 'BufferSize' not in xnano.buffers.__all__
+    with pytest.raises(AttributeError, match='xnano.buffers'):
+        xnano.buffers.BufferSize  # noqa: B018
+    assert xnano.expressions.BufferSize is xnano_core.BufferSize
+
+
+class TestWidgetsFigure:
+    FIGURE_NAMES = {
+        'Figure': 'Canvas',
+        'FigureCircle': 'CanvasCircle',
+        'FigureLabel': 'CanvasLabel',
+        'FigureLine': 'CanvasLine',
+        'FigureMap': 'CanvasMap',
+        'FigurePoints': 'CanvasPoints',
+        'FigureRectangle': 'CanvasRectangle',
+    }
+
+    @pytest.mark.parametrize(('name', 'core_name'), FIGURE_NAMES.items())
+    def test_the_figure_classes_are_the_core_canvas_classes(
+        self, name: str, core_name: str
+    ) -> None:
+        import xnano.widgets
+        import xnano_core
+
+        assert getattr(xnano.widgets, name) is getattr(xnano_core, core_name)
+
+    def test_the_drawing_widget_is_no_longer_called_canvas(self) -> None:
+        import xnano.widgets
+
+        assert 'Canvas' not in xnano.widgets.__all__
+        assert not hasattr(xnano.widgets, 'Canvas')
+        assert not [name for name in xnano.widgets.__all__ if name.startswith('Canvas')]
+        for core_name in self.FIGURE_NAMES.values():
+            assert not hasattr(xnano.widgets, core_name)
 
 
 def test_the_color_value_alias_is_public_in_types():

@@ -1,34 +1,118 @@
+<!-- markdownlint-disable-next-line MD041 -->
 > [!NOTE]
-> xnano v2 is currently in beta and is subject to breaking changes. For the stable and feature-complete v1, see the
-> [`v1` branch](https://github.com/hsaeed3/xnano/tree/v1); install the latest release,
-> [v1.2.3](https://github.com/hsaeed3/xnano/releases/tag/xnano%2Fv1.2.3), with `pip install "xnano>=1.2.3,<2"`.
+> `xnano` has recently gone through a ground up rewrite that offers much more
+> flexibility and performance within your terminal applications. However, as
+> this is a complete rewrite of the library and it's core extensions, there is
+> no backward compatibility with the previous version. You can find
+> documentation and other information about `xnano`'s latest stable `v1` release
+> in the [`v1` branch](https://github.com/hsaeed3/xnano/tree/v1).
 
 <div align="center">
 
 # **xnano**
 
-**A fun, fast and incredibly flexible terminal UI library for Python, built on [`ratatui`](https://ratatui.rs).**
+**A fun, fast and incredibly flexible terminal UI library for Python, built on
+[`ratatui`](https://ratatui.rs).**
 
 ![License](https://img.shields.io/github/license/hsaeed3/xnano)
 ![Python Versions](https://img.shields.io/pypi/pyversions/xnano)
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/hsaeed3/xnano?utm_source=badge)
 [![Built With Ratatui](https://ratatui.rs/built-with-ratatui/badge.svg)](https://ratatui.rs/)
 
-[Documentation](https://xnano.hammad.app) · [API Reference](https://xnano.hammad.app/api-reference/) · [Contributing](./CONTRIBUTING.md)
+[Documentation](https://xnano.hammad.app) ·
+[API Reference](https://xnano.hammad.app/api-reference/) ·
+[Contributing](./CONTRIBUTING.md)
 
 </div>
 
 ---
 
-## Quick start
+`xnano` is a python library that aims to provide a simple, complete and flexible
+framework for building terminal applications. With `xnano` you can:
 
-Build the pieces first, from the inside out. Each is a value that needs no screen; visual values
-render on their own, and notes need no sound device until they are played:
+- Render textual, audio and visual content in your applications.
+- Add interactive functionality that responds to users at runtime.
+
+## Quick Start
+
+Every example below runs as written, and `q` quits it. The art and sound example
+needs the `audio` extra (`pip install "xnano[audio]"`). The feature demo shows
+most of what `xnano` can do: run it with `python -m xnano` (or `xnano`).
+
+![The xnano feature demo](https://raw.githubusercontent.com/hsaeed3/xnano/main/docs/assets/readme/demo.png)
+
+### Put content on the screen
+
+Write text, widgets and anything else onto a terminal and position it with
+numbers, percentages or words.
+
+```python
+import xnano
+from xnano.widgets import Gauge
+
+with xnano.open(width=40, height=6) as terminal:
+    terminal.write(
+        'Hello, world!', x='center', border='rounded', padding={'horizontal': 2}
+    )
+    terminal.write(Gauge(0.6, label='60%'), y=4, width='100%')
+    terminal.run(quit_on='q')
+```
+
+### Move things with formulas
+
+A position from `xnano.expressions` is a formula that is evaluated again on
+every frame.
+
+```python
+import xnano
+from xnano.expressions import ParentWidth, TimeElapsed, Width
+
+with xnano.open(width=40, height=3) as terminal:
+    ball = terminal.write('●', y=1)
+    ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
+    terminal.run(quit_on='q')
+```
+
+### React with hooks
+
+A hook runs a function when a key, the mouse, the clock or the state changes.
 
 ```python
 import xnano
 
-card = xnano.write('Hello, world!', border='rounded', padding={'horizontal': 2})
+with xnano.open(width=30, height=3) as terminal:
+    label = terminal.write('press space', x='center', y=1)
+
+    @terminal.hook(on='key', keys='space')
+    def pressed(context: xnano.Context) -> None:
+        label.text = f'space at {context.time.elapsed:.1f}s'
+
+    terminal.run(quit_on='q')
+```
+
+### Add effects
+
+`xnano.effect` builds a tachyonfx effect that animates how content looks.
+
+```python
+import xnano
+
+with xnano.open(width=40, height=5) as terminal:
+    title = terminal.write('xnano', x='center', y='center', border='rounded')
+    title.update(
+        xnano.effect('effect.fade_from', foreground='black', duration_milliseconds=1500)
+    )
+    terminal.run(quit_on='q')
+```
+
+### Draw art and play sound
+
+Pixel art is written as text, and notes and melodies play on the canvas. Sound
+needs `pip install "xnano[audio]"`.
+
+```python
+import xnano
+
 heart = xnano.draw(
     """
     .RR.RR.
@@ -39,177 +123,85 @@ heart = xnano.draw(
     """,
     'R=#e03040',
 )
-bell = xnano.note('C5', instrument='bell')  # played with `pip install "xnano[audio]"`
 
-print(card.render())
-```
-
-A canvas is a virtual terminal: a size, a clock, hooks, a cursor, sound and state, with no screen.
-Write the values onto it, move its time yourself, and print what it drew. The same canvas can then be
-put on your screen:
-
-```python
-import xnano
-
-card = xnano.write('Hello, world!', border='rounded', padding={'horizontal': 2})
-
-with xnano.new(width=40, height=6) as canvas:
-    canvas.write(card, x='center')
-    for frame in canvas.iter(count=3):  # three frames of a clock that you move
-        pass
-    print(canvas.render())
-    canvas.open()  # the same canvas, now a xnano.Terminal on your screen
-    canvas.run(quit_on='q')
-```
-
-Everything you write can move, and every position and size can be a number, a word such as
-`'center'`, or a formula of time or of the canvas's size. Hooks react to what happens:
-
-```python
-import xnano
-from xnano.expressions import ParentWidth, TimeElapsed, Width
-
-with xnano.open(width=40, height=5) as terminal:
-    terminal.write('Hello, world!', x='center', border='rounded')
-    ball = terminal.write('●', y=4)
-    ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)  # a formula, evaluated every frame
-
-    @terminal.hook(on='key', keys='space')
-    def toggle(context: xnano.Context) -> None:
-        if context.time.is_stopped:
-            context.canvas.resume()
-        else:
-            context.canvas.stop()
-            ball.fx.fade_to(foreground='red', duration_milliseconds=300)
-
+with xnano.open(width=20, height=5) as terminal:
+    terminal.write(heart, x='center')
+    terminal.write('♪ C4 E4 G4', x='center', y=4)
+    if terminal.audio.is_available:
+        terminal.play('C4 E4 G4:2', instrument='bell')
     terminal.run(quit_on='q')
 ```
 
-`xnano.open()` is `xnano.new()` on your screen. `hook(on='frame' | 'tick' | 'beat' | 'key' |
-'mouse' | 'scroll' | 'drag' | 'paste' | 'focus' | 'resize' | 'state' | 'custom', ...)` takes a
-condition as a string (`when="mouse.position in buffer.region"`), an expression or a function,
-and a generator hook waits for the next event with `context = yield`. Every effect is a method of
-what it changes: `ball.fx.fade_to(...)`, `canvas.fx.dissolve(...)` and `canvas.audio.fx.reverb(...)`.
-`@xnano.renderable` turns a
-function into a component that is drawn again only when it read something that changes, and
-`@xnano.playable` into one that plays a new result when what it read changes. `xnano.draw` makes
-pixel art with a camera and collision, `xnano.play('C4 E4 G4:2')` plays a melody written as text,
-and `canvas.state` keeps values that hooks follow. There are no base classes to subclass and no
-layout tree to declare.
-
-The [`examples/`](./examples) folder has thirty-two runnable programs, from hello world to a
-playable pixel-art world, and `examples/README.md` shows what each one draws.
-
-## See it
-
-Run the demo in your terminal with `python -m xnano` (or the `xnano` command). It opens with an
-animation, then fills the window with live panels that each use a different part of xnano.
-
-![The xnano demo](./docs/assets/readme/demo.png)
-
-Every picture below is a real terminal window running one of the programs in
-[`examples/`](./examples), photographed by `make readme-images`, so each picture and its
-source stay in step.
-
-### A playable world
-
-A pixel-art character, a camera that follows it, collision and a clock you can stop: about
-one screen of code ([`20_world.py`](./examples/20_world.py)).
-
-![A playable pixel-art world](./docs/assets/readme/world.png)
-
-### Pixel art that fits the window
-
-Give an image a percentage and it refits whenever the window is resized, keeping its hard pixel
-edges; give it a number and it is locked. The thumbnail in the corner is locked
-([`24_dusk.py`](./examples/24_dusk.py)). The art is "Mountain at Dusk" by Luis Zuno (ansimuz), CC0.
-
-![Pixel art that refits the window](./docs/assets/readme/dusk.png)
-
-### Pixel art written as text
-
-`xnano.draw` turns a block of characters and a short palette into pixel art
-([`23_sprites.py`](./examples/23_sprites.py)).
-
-![Sprites written as text](./docs/assets/readme/sprites.png)
-
-### Images and animations
-
-Pan and zoom over a large picture with the arrow keys and `+` / `-`
-([`06_images.py`](./examples/06_images.py)).
-
-![An image viewer](./docs/assets/readme/images.png)
-
-### Sound
-
-Every built-in instrument, playable from the keyboard ([`10_audio.py`](./examples/10_audio.py)),
-and a whole song written as text, played on the beat ([`22_song.py`](./examples/22_song.py)).
-
-![Playing every instrument](./docs/assets/readme/instruments.png)
-![A song written as text](./docs/assets/readme/song.png)
-
-### Widgets
-
-Charts, tables and gauges refreshed from a timer ([`14_dashboard.py`](./examples/14_dashboard.py)).
-
-![A dashboard](./docs/assets/readme/dashboard.png)
-
 ## Install
 
-Install `xnano` with pip or uv. Sound and images are extras, so a program that needs neither
-installs neither:
+You can install `xnano` with pip using your favorite package manager.
 
-```bash
-pip install xnano                # the terminal, widgets, effects and events
-pip install "xnano[audio]"       # adds notes, melodies, sounds and the microphone
-pip install "xnano[image]"       # adds images and animations
-pip install "xnano[audio,image]"
-# or
-uv add "xnano[audio,image]"
+```sh
+pip install xnano
 ```
 
-Using sound or images without their extra raises an `ImportError` that names the extra to
-install. On Linux, audio device playback requires ALSA; synthesis and melody scheduling work
-without an audio device.
+`xnano` and its paired `xnano-core` dependency can be installed on Python 3.10+
+on any of the following operating systems:
 
-## Packages
+- **Linux**, x86_64 and aarch64: glibc distributions (`manylinux` wheels) and
+  musl distributions such as Alpine (`musllinux` wheels). Sound playback in
+  `xnano-audio` uses the system ALSA library (`libasound`). The `musllinux`
+  audio wheels synthesize sound but cannot play it on a device.
+- **macOS**: x86_64 (Intel) and arm64 (Apple silicon).
+- **Windows**: x86_64.
+- **WebAssembly** ([Pyodide](https://pyodide.org)): continuous integration
+  builds and tests only the `xnano-core` wheel in Pyodide. The test imports its
+  compiled module `xnano_core._xnano_core` and renders on a runtime without a
+  screen. The `xnano` package itself is not built or tested for Pyodide, and
+  `xnano-audio` and `xnano-image` are not built for WebAssembly.
 
-The repository is a uv workspace with three installable backends and a small `xnano`
-metapackage that holds the terminal API. The backends can also be installed on their own.
+On Linux, macOS and Windows every extension is an abi3 wheel, so one wheel per
+platform covers Python 3.10 and later.
 
-| Distribution | Import | Purpose |
-| --- | --- | --- |
-| [`xnano`](.) | `xnano` | The terminal API: `new`, `open`, placements, hooks, components, input, regions, art and sound. |
-| [`xnano-core`](./packages/xnano-core) | `xnano_core` | The Rust-backed engine: buffers, widgets, layout, state, input, runtime and effects. |
-| [`xnano-audio`](./packages/xnano-audio) | `xnano_audio` | Audio synthesis, playback, capture and beat-based melodies. |
-| [`xnano-image`](./packages/xnano-image) | `xnano_image` | Image and animation decoding, processing and terminal-cell conversion. |
+### Packages
 
-Names live in modules named for what they hold, so the top-level `xnano` stays small:
-`xnano.widgets`, `xnano.expressions`, `xnano.effects`, `xnano.operations`, `xnano.styles`,
-`xnano.events`, `xnano.geometry`, `xnano.buffers`, `xnano.art`, `xnano.region`, `xnano.pixel`,
-`xnano.appearance`, `xnano.components`, `xnano.symbols`, `xnano.types` and `xnano.errors`, plus the
-optional `xnano.audio` and `xnano.image`.
+`xnano` itself is built off of an ecosystem of several rust
+([Pyo3](https://github.com/pyo3/pyo3)) based packages that provide core and
+multi-modal functionality to the library:
 
-## xnano v1
+- [xnano](./xnano/) - The main `xnano` package.
+- [xnano-core](./packages/xnano-core/) - Python bindings for `xnano`s's core
+  [ratatui](https://ratatui.rs) based runtime.
+- [xnano-audio](./packages/xnano-audio/) - Audio playback & input support for
+  `xnano` with the ability to compose audio content directly in python using
+  MIDI patch instruments. (Built using [])
+- [xnano-image](./packages/xnano-image/) - Image & animation loading/rendering
+  support for `xnano` built on
+  [ratatui-image](https://github.com/ratatui/ratatui-image). *(Including native
+  support for Kitty, iTerm2, Sixel and WebP images.)*
 
-xnano v1 (the declarative grid-and-field API) is not part of this branch. It is maintained on
-the [`v1` branch](https://github.com/hsaeed3/xnano/tree/v1), and the latest release is
-[v1.2.3](https://github.com/hsaeed3/xnano/releases/tag/xnano%2Fv1.2.3)
-([PyPI](https://pypi.org/project/xnano/1.2.3/)):
+## Documentation
 
-```bash
-pip install "xnano>=1.2.3,<2"
+Documentation with browser-runnable examples are available @
+[Documentation](https://xnano.hammad.app).
+
+## Contributing
+
+For information on how to contribute to `xnano` or any of its sub-packages
+within this repository, please see [Contributing to `xnano`](./CONTRIBUTING.md).
+
+This repository uses a [UV](https://docs.astral.sh/uv/) &
+[Cargo](https://rust-lang.org/tools/install/) workspace that can all be managed
+through a set of `make` commands.
+
+You can get started contributing to `xnano` by running the following commands:
+
+```sh
+git clone https://github.com/hsaeed3/xnano.git
+cd xnano
+make help
+
+# Optionally install the development workspace.
+# This first compiles all rust [crates](./crates/) and builds all python [packages](./packages/)
+# for xnano's core extensions (xnano-core, xnano-audio, xnano-image).
+# make install
 ```
-
-The v1 guides are kept in [`docs/v1`](./docs/v1/), and their code imports from `xnano`, as v1
-did. A program written for v1 must be rewritten for v2.
-
-## Development
-
-The repository uses a uv workspace and Rust workspace. From the repository root, `uv sync --all-extras`
-installs the development environment and `make help` lists common build, test, lint, type-check,
-docs and release commands. Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a change.
 
 ## License
 
-xnano is released under the [MIT License](./LICENSE).
+`xnano` is released under the [MIT License](./LICENSE).

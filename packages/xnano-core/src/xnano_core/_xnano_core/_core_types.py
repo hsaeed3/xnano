@@ -14,6 +14,10 @@ from collections.abc import Callable, Sequence
 from types import TracebackType
 from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias, TypedDict, TypeVar
 
+# Read when the module runs, not under `TYPE_CHECKING`, so that `ColorValue` is a union that
+# `typing.get_type_hints` can combine with other types.
+from xnano_core._xnano_core import Color
+
 if TYPE_CHECKING:
     from typing_extensions import Unpack
 
@@ -28,7 +32,6 @@ if TYPE_CHECKING:
         CanvasPoints,
         CanvasRectangle,
         Clock,
-        Color,
         Device,
         Event,
         EventStream,
@@ -79,14 +82,6 @@ JSONSchema: TypeAlias = 'dict[str, JSONValue]'
 
 StatePath: TypeAlias = 'tuple[str | int, ...]'
 """A path into a state tree: object keys are ``str`` and array indexes are ``int``."""
-
-ColorValue: TypeAlias = 'Color | ColorName | str | tuple[int, int, int]'
-"""
-A color, an ANSI color name, a ``'#rrggbb'`` string, or a ``(red, green, blue)`` tuple.
-
-A Tailwind name such as ``'slate-400'`` is a [`TailwindColorBinding`][xnano_core._xnano_core._core_types.TailwindColorBinding].
-It is not parsed by [`Color`][xnano_core._xnano_core.Color].
-"""
 
 TextContent: TypeAlias = 'str | StyledText | Sequence[str | StyledText]'
 """Text accepted by writing operations and components."""
@@ -226,6 +221,14 @@ A named ANSI terminal color.
 
 ``gray`` and ``grey`` are the same color, and so are ``light_`` and ``bright_``.
 ``dark_gray`` is the dim gray. ``reset`` restores the terminal default.
+"""
+
+ColorValue: TypeAlias = Color | ColorName | str | tuple[int, int, int]
+"""
+A color, an ANSI color name, a ``'#rrggbb'`` string, or a ``(red, green, blue)`` tuple.
+
+A Tailwind name such as ``'slate-400'`` is a [`TailwindColorBinding`][xnano_core._xnano_core._core_types.TailwindColorBinding].
+It is not parsed by [`Color`][xnano_core._xnano_core.Color].
 """
 
 TailwindColorName: TypeAlias = Literal[

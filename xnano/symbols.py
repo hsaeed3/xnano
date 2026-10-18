@@ -13,11 +13,11 @@ from __future__ import annotations
 import difflib
 import re
 import threading
-from typing import Final, TypeVar, overload
+from typing import Final, overload
+
+from xnano._schema._generics import ValueT
 
 __all__ = ['lookup', 'names', 'register', 'remove']
-
-ValueT = TypeVar('ValueT')
 
 _registry: dict[str, object] = {}
 """Every registered value by its name."""

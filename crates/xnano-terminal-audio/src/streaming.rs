@@ -378,6 +378,10 @@ impl PyPlayback {
 
 #[pymethods]
 impl PyPlayback {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["is_playing", "is_paused", "volume", "pan"])
+    }
+
     #[getter]
     fn is_playing(&self) -> bool {
         let state = lock(&self.voice.state);
@@ -488,6 +492,10 @@ pub struct PyStreamingPlayer {
 
 #[pymethods]
 impl PyStreamingPlayer {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["format", "sample_position", "is_closed"])
+    }
+
     #[new]
     #[pyo3(signature = (*, format = None, lookahead_milliseconds = 300, backend = "default"))]
     fn new(

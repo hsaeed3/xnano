@@ -240,8 +240,15 @@ class TestBorder:
     def test_a_border_works_on_a_region_and_nested_regions(self, canvas):
         frame = xnano.box(6, 3)
         placement = canvas.write(frame, border='double')
-        assert (placement.width, placement.height) == (8, 5)
-        assert lines(canvas)[0] == '╔══════╗'
+        assert (placement.width, placement.height) == (6, 3)
+        assert lines(canvas)[0] == '╔════╗'
+
+    def test_a_border_replaces_the_border_of_a_box_instead_of_surrounding_it(
+        self, canvas
+    ):
+        placement = canvas.write(xnano.box(6, 3, border='plain'), border='double')
+        assert (placement.width, placement.height) == (6, 3)
+        assert lines(canvas)[:3] == ['╔════╗', '║    ║', '╚════╝']
 
     def test_a_nested_canvas_takes_the_look_it_is_written_with(self, canvas):
         inner = new(width=6, height=2)

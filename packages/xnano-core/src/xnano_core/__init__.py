@@ -178,6 +178,12 @@ from xnano_core._xnano_core import (
     EffectManager as EffectManager,
 )
 from xnano_core._xnano_core import (
+    ErrorDetail as ErrorDetail,
+)
+from xnano_core._xnano_core import (
+    ErrorReport as ErrorReport,
+)
+from xnano_core._xnano_core import (
     Event as Event,
 )
 from xnano_core._xnano_core import (
@@ -386,6 +392,9 @@ from xnano_core._xnano_core import (
 )
 from xnano_core._xnano_core import (
     RenderError as RenderError,
+)
+from xnano_core._xnano_core import (
+    ReportedError as ReportedError,
 )
 from xnano_core._xnano_core import (
     Resize as Resize,
@@ -856,6 +865,8 @@ __all__ = [
     'Editor',
     'Effect',
     'EffectManager',
+    'ErrorDetail',
+    'ErrorReport',
     'EvaluationContext',
     'Event',
     'EventContext',
@@ -959,6 +970,7 @@ __all__ = [
     'RenderError',
     'RenderFormat',
     'Rendering',
+    'ReportedError',
     'Resize',
     'RootExpressionScope',
     'RootScope',

@@ -7,10 +7,10 @@ Pixel art written as text, and pixel worlds: children, a camera, collision and r
 from __future__ import annotations
 
 import pytest
+from xnano_image import TerminalImage
 
 import xnano
 from xnano.art import Art, Camera, draw
-from xnano.image import TerminalImage
 
 
 def red() -> Art:
@@ -90,7 +90,7 @@ class TestDraw:
         assert xnano.symbols.lookup('player', kind=Art) is registered
 
     def test_the_name_of_a_registered_image_draws_that_image(self):
-        xnano.from_image(
+        xnano.load_image(
             TerminalImage.from_rgba(2, 1, bytes([255, 0, 0, 255] * 2)), symbol='redsquare'
         )
         try:

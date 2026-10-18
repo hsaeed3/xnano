@@ -8,6 +8,7 @@ mod customization;
 mod drawings;
 mod dynamic_operations;
 mod effects;
+mod error_reports;
 mod errors;
 mod events;
 mod expressions;
@@ -15,8 +16,10 @@ mod geometry;
 mod hooks;
 mod input;
 mod layout;
+mod operation_reprs;
 mod operations;
 mod references;
+mod reprs;
 mod runtime;
 mod scopes;
 mod shared;
@@ -104,6 +107,7 @@ fn _xnano_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     input::register(m)?;
     cursor::register(m)?;
     runtime::register(m)?;
+    error_reports::register(m)?;
     let py = m.py();
     m.add("RenderError", py.get_type::<errors::RenderError>())?;
     m.add(

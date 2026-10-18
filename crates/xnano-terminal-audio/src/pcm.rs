@@ -541,6 +541,10 @@ pub struct PyAudioStream {
 
 #[pymethods]
 impl PyAudioStream {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        crate::reprs::described(slf.as_any(), &["format", "is_closed"])
+    }
+
     #[classmethod]
     #[pyo3(signature = (path, *, format = None))]
     fn open(
