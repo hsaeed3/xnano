@@ -1682,7 +1682,7 @@ wheels = [
 
 [[package]]
 name = "xnano"
-version = "2.0.0b4"
+version = "2.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "xnano-core" },
