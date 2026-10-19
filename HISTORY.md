@@ -6,7 +6,7 @@ Release notes of every xnano package, newest first. This file is generated from 
 
 ### 2.0.0
 
-Not published yet. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.0.0).
+Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.0.0).
 
 #### xnano 2.0.0
 
@@ -952,7 +952,7 @@ Published 2026-07-07. [Release page](https://github.com/hsaeed3/xnano/releases/t
 
 ### 2.0.0
 
-Not published yet. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.0.0).
+Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.0.0).
 
 #### xnano-core 2.0.0
 
@@ -1276,7 +1276,7 @@ Published 2026-07-07. [Release page](https://github.com/hsaeed3/xnano/releases/t
 
 ### 0.4.0
 
-Not published yet. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-audio/v0.4.0).
+Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-audio/v0.4.0).
 
 #### xnano-audio 0.4.0
 
