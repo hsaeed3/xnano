@@ -1313,7 +1313,7 @@ class TerminalAudioPlayer:
     # Rust binding
     def set_tempo(self, beats_per_minute: float) -> None:
         """
-        Change the clock tempo.
+        Change the clock tempo. The clock follows the new tempo at once.
 
         Raises:
             ValueError: If ``beats_per_minute`` is not greater than 0 and at

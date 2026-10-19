@@ -8,7 +8,6 @@ onto and off it.
 from __future__ import annotations
 
 import os
-import shutil
 import sys
 import threading
 import warnings
@@ -57,6 +56,8 @@ def window_size() -> os.terminal_size:
             continue
         if size.columns > 0 and size.lines > 0:
             return size
+    import shutil  # only reached when no standard stream is a terminal
+
     return shutil.get_terminal_size((80, 24))
 
 

@@ -140,6 +140,9 @@ You can install `xnano` with pip using your favorite package manager.
 pip install xnano
 ```
 
+To run untrusted or model-written Python against a canvas with `xnano.monty`,
+add the `monty` extra: `pip install "xnano[monty]"`.
+
 `xnano` and its paired `xnano-core` dependency can be installed on Python 3.10+
 on any of the following operating systems:
 

@@ -284,8 +284,6 @@ class TestState:
         screen = run(
             """
 with xnano.open(height=2) as terminal:
-    label = terminal.write('count: 0')
-
     @terminal.hook(on='key', keys='a')
     def count(context):
         state = context.root.state
@@ -295,6 +293,8 @@ with xnano.open(height=2) as terminal:
     def show(context):
         label.text = f"count: {context.root.state.get('count', default=0)}"
 
+    # Written after the hooks, so a key pressed once it shows is heard by both.
+    label = terminal.write('count: 0')
     terminal.run()
 """
         )
@@ -1334,10 +1334,12 @@ with xnano.open(width=30, height=6) as terminal:
             movable.down()
             terminal.write('MOVED', x=10, y=5)
 
+    # Written last, so the hook is listening once it shows.
+    terminal.write('ready', x=25, y=0)
     terminal.run(quit_on='q')
 """
         )
-        assert screen.wait_for('footer')
+        assert screen.wait_for('ready')
         before = screen.find('arrows')
         assert before is not None
         screen.send('\x1b[B')

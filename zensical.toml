@@ -42,6 +42,7 @@ nav = [
             {"xnano.geometry" = "api-reference/xnano/geometry.md"},
             {"xnano.hooks" = "api-reference/xnano/hooks.md"},
             {"xnano.input" = "api-reference/xnano/input.md"},
+            {"xnano.monty" = "api-reference/xnano/monty.md"},
             {"xnano.operations" = "api-reference/xnano/operations.md"},
             {"xnano.output" = "api-reference/xnano/output.md"},
             {"xnano.placement" = "api-reference/xnano/placement.md"},

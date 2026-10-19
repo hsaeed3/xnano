@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
     from xnano._schema._appearance import AppearanceArguments
     from xnano._schema._axes import Axis
-    from xnano._schema._content import Content
+    from xnano._schema._content import Content, Renderable
     from xnano.art._images import Image
     from xnano.canvas import Canvas
     from xnano.context import Context
@@ -1516,7 +1516,7 @@ def _timeline_region(
 
 
 _PLACEMENT_NAMES: Final = frozenset(
-    {'x', 'y', 'width', 'height', 'layer', 'lock', 'effects'}
+    {'x', 'y', 'width', 'height', 'layer', 'lock', 'edges', 'effects'}
 )
 
 
@@ -1565,44 +1565,239 @@ def _standalone_look(
     return Appearance(text=text, **cast('dict[str, object]', settings))  # type: ignore[arg-type]
 
 
-def write(text: str, /, **appearance: Unpack[AppearanceArguments]) -> Region[int]:
+def write(
+    content: Renderable | None = None,
+    /,
+    *,
+    width: int
+    | Percentage
+    | str
+    | NumericExpression
+    | _core.StateReference[int]
+    | _core.StateReference[float]
+    | None = None,
+    height: int
+    | Percentage
+    | str
+    | NumericExpression
+    | _core.StateReference[int]
+    | _core.StateReference[float]
+    | None = None,
+    **appearance: Unpack[AppearanceArguments],
+) -> Region[int]:
     """
-    Build a standalone region from text (does not draw).
+    Build a standalone region from the content that ``canvas.write`` accepts (does not draw).
 
-    The region is sized to the text and is a value that you write into a canvas. It owns its
-    cells. Write it into a canvas with ``canvas.write(region)``, print it
-    with [`render`][xnano.region.Region.render], or change its look afterwards with
-    ``region.border`` and its siblings.
+    The region is a value that owns its cells. Write it into a canvas with
+    ``canvas.write(region, x=...)``, print it with [`render`][xnano.region.Region.render], or
+    change its look afterwards with ``region.border`` and its siblings. Where the region goes
+    (``x``, ``y``, ``layer``, ``lock`` and ``edges``) and which effects run on it are given to
+    ``canvas.write`` when you write it.
+
+    Text, or a list of lines, makes a region the size of the text, bordered, padded and
+    colored as asked. Everything else is drawn the way a canvas would show it and kept as
+    cells:
+
+    - A widget or [`Buffer`][xnano_core.Buffer], an [`Art`][xnano.art.Art], a
+      [`Pixel`][xnano.Pixel], an [`Image`][xnano.Image] and a renderable component are
+      drawn at the size ``width`` and ``height`` give, or at their own size.
+    - A [`Region`][xnano.region.Region] is copied. It takes no size or look, because it has
+      its own: change those on the copy.
+    - ``None`` makes an empty box of ``width`` by ``height`` cells (1 by 1 when left out), like
+      [`box`][xnano.box].
+
+    A relative ``width`` or ``height`` (a percentage such as ``'50%'``, a formula such as
+    ``ParentWidth - 4`` or a state reference) is measured against the active canvas, or the
+    terminal window when no canvas is active. Content that depends on its surroundings, such
+    as a widget with formulas, an image fitted to a size or a component that reads the time,
+    the state or the size, is drawn as the active canvas sees it at that moment and kept as
+    cells. Only an empty box (``None``) keeps its relative size and is drawn again at
+    the size of its placement when it is written, and whenever the canvas is resized.
 
     Args:
-        text: The text, line by line.
-        appearance: The look of the text: colors, text modifiers, ``border``, ``title``,
-            ``padding`` and ``margin``; see [`AppearanceArguments`][xnano.types.AppearanceArguments].
+        content: Text (or a list of lines), a widget or core buffer, a region, an image, art,
+            a pixel or any [`Renderable`][xnano.types.Renderable]; ``None`` for an empty
+            box.
+        width: The width in cells, border included: a whole number, a percentage, a formula
+            or a state reference. The content's own width when left out.
+        height: The height in cells, in the same forms as ``width``.
+        appearance: The look: colors, text modifiers, ``border``, ``title``, ``padding`` and
+            ``margin``; see [`AppearanceArguments`][xnano.types.AppearanceArguments].
+
+    Returns:
+        A standalone [`Region`][xnano.region.Region] on the screen.
 
     Raises:
-        TypeError: ``text`` is not a string.
+        TypeError: The content is not something a canvas can show, or a keyword is not a
+            size or a look.
+        TerminalError: The content is a canvas, or a region given a size or a look, or a
+            size cannot be measured.
 
     Examples:
         ```python
         import xnano
+        from xnano.widgets import Gauge
 
         card = xnano.write('hello', border='rounded', padding={'horizontal': 1})
         assert card.render().splitlines()[1] == '│ hello │'
         card.border = False
         assert card.render().strip() == 'hello'
+
+        with xnano.new(width=40, height=4) as canvas:
+            gauge = xnano.write(Gauge(0.6, label='60%'), width='50%')
+            assert gauge.width == 20
+            canvas.write(gauge, x=10)
+            assert '60%' in canvas.render()
         ```
     """
-    if not isinstance(text, str):
-        raise TypeError(
-            f'xnano.write() takes text, but got {text!r}. To show other content, create a '
-            f'canvas with xnano.new() and call canvas.write(content).'
+    _check_content(content)
+    if (width is not None or height is not None) and not isinstance(content, Region):
+        space = (0, 0)
+        if _is_relative_size(width) or _is_relative_size(height):
+            space = _measuring_space()
+        if width is not None:
+            _box_cells(width, 'width', space, 'xnano.write()')
+        if height is not None:
+            _box_cells(height, 'height', space, 'xnano.write()')
+        if isinstance(width, str):
+            width = width.strip()
+        if isinstance(height, str):
+            height = height.strip()
+    if isinstance(content, str) or (
+        isinstance(content, (list, tuple))
+        and all(isinstance(line, str) for line in content)
+    ):
+        if width is None and height is None:
+            text = (
+                content
+                if isinstance(content, str)
+                else '\n'.join(cast('list[str]', content))
+            )
+            look = _standalone_look('write', text, cast('dict[str, object]', appearance))
+            region: Region[int] = Region(
+                _core.Buffer(width=1, height=1),
+                is_standalone=True,
+                look=look,
+                is_text=True,
+            )
+            region._redraw_look()
+            return region
+    if content is None:
+        return box(
+            1 if width is None else width,
+            1 if height is None else height,
+            **appearance,
         )
-    look = _standalone_look('write', text, cast('dict[str, object]', appearance))
-    region: Region[int] = Region(
-        _core.Buffer(width=1, height=1), is_standalone=True, look=look, is_text=True
+    if isinstance(content, Region):
+        content._require_drawable('xnano.write()')
+        if width is not None or height is not None or appearance:
+            raise TerminalError(
+                'xnano.write() copies a region as it is, but it was also given a size or a '
+                'look. A region has its own: change the copy with region.border, '
+                'region.padding or region.color, or give the size and the look to '
+                'canvas.write(region, width=..., border=...) where you write it.',
+                code='validation.value',
+                location='content',
+                input_value=content,
+            )
+        return cast('Region[int]', content.copy())
+    _standalone_look('write', '', cast('dict[str, object]', appearance))
+    return _drawn_region(content, width, height, appearance)
+
+
+def _check_content(content: object) -> None:
+    """
+    Refuse content that ``xnano.write()`` cannot keep as cells.
+
+    Raises:
+        TypeError: The content is not something a canvas can show.
+        TerminalError: The content is a canvas.
+    """
+    # Imported here because the canvas imports this module.
+    from xnano.art import Art, Image
+    from xnano.canvas import Canvas
+
+    if isinstance(content, Canvas):
+        raise TerminalError(
+            'xnano.write() builds a region of cells, but a canvas is live: it keeps running '
+            'and changing. Show it inside another canvas with outer.write(canvas), or '
+            'write a snapshot of its cells with xnano.write(canvas.region.copy()).',
+            code='validation.type',
+            location='content',
+            input_value=content,
+        )
+    if (
+        content is None
+        or isinstance(
+            content, (str, list, tuple, Region, Pixel, Art, Image, _core.Buffer)
+        )
+        or (not isinstance(content, type) and hasattr(content, '__xnano_render__'))
+    ):
+        return
+    raise TypeError(
+        f'xnano.write() takes text, a widget or buffer, a region, an image, art, a pixel or '
+        f'a renderable, but got {content!r}. To put other content on a screen, create a '
+        f'canvas with xnano.new() and call canvas.write(content), or load a file with '
+        f'xnano.load_image(path) first.'
     )
-    region._redraw_look()
-    return region
+
+
+def _composed(buffer: _core.Buffer) -> _core.Buffer:
+    """The cells of ``buffer`` with its visible children drawn over them, in layer order."""
+    composed = _snapshot(buffer)
+    for child in sorted(buffer.children, key=lambda child: child.layer):
+        if child.is_visible:
+            composed.update(_core.Paste(_composed(child), x=int(child.x), y=int(child.y)))
+    return composed
+
+
+def _drawn_region(
+    content: Renderable,
+    width: object,
+    height: object,
+    appearance: dict[str, object] | AppearanceArguments,
+) -> Region[int]:
+    """
+    Draw ``content`` on the active canvas, or on one the size of the window, and keep its cells.
+
+    Raises:
+        TypeError: The content or the size is not something ``canvas.write`` accepts.
+        TerminalError: The size cannot be measured.
+    """
+    # Imported here because the canvas imports this module.
+    from xnano.canvas import _create, active
+
+    enclosing = active(is_required=False)
+    if enclosing is None:
+        columns, lines = _measuring_space()
+        scratch = _create(None, width=columns, height=lines)
+    else:
+        # A hidden canvas inside the active one measures, reads time and state like it, and
+        # is never drawn: the active canvas shows nothing of this.
+        scratch = _create(
+            None, width=enclosing.width, height=enclosing.height, enclosing=enclosing
+        )
+        try:
+            hidden = enclosing._canvas._place_on(
+                enclosing._content, scratch, parent_owner=enclosing
+            )
+            hidden.is_visible = False
+        except BaseException:
+            scratch.close(raise_failure=False)
+            raise
+        scratch._is_hidden_until_written = True
+    try:
+        placement = scratch.write(
+            cast('Renderable', content),
+            width=cast('Axis | None', width),
+            height=cast('Axis | None', height),
+            **cast('dict[str, object]', appearance),  # type: ignore[arg-type]
+        )
+        placement._flush_look()
+        cells = _composed(placement._buffer)
+    finally:
+        scratch.close(raise_failure=False)
+    return Region._from_buffer(cells)
 
 
 def _measuring_space() -> tuple[int, int]:
@@ -1638,10 +1833,13 @@ def _is_relative_size(value: object) -> bool:
 
 
 def _box_cells(
-    value: object, axis: Literal['width', 'height'], space: tuple[int, int]
+    value: object,
+    axis: Literal['width', 'height'],
+    space: tuple[int, int],
+    function_name: str = 'xnano.box()',
 ) -> int:
     """
-    Return the cells of one size of ``xnano.box()``, measured against ``space``.
+    Return the cells of one size of ``xnano.box()`` or ``xnano.write()``, measured against ``space``.
 
     Raises:
         TerminalError: The size is a whole number of cells outside 1 to 65535, is not a
@@ -1653,7 +1851,7 @@ def _box_cells(
     if isinstance(value, int) and not isinstance(value, bool):
         if value < 1 or value > MOST_CELLS:
             raise TerminalError(
-                f'xnano.box() takes the {axis} as 1 to {MOST_CELLS} whole cells, but got '
+                f'{function_name} takes the {axis} as 1 to {MOST_CELLS} whole cells, but got '
                 f'{value!r}. Pass a size in that range, a share of the canvas such as '
                 f"'50%', or a formula such as {_box_formula(axis)}.",
                 code='validation.bounds',
@@ -1666,7 +1864,7 @@ def _box_cells(
         share = size_share(value)
         if share is None:
             raise TerminalError(
-                f'xnano.box() takes the {axis} as {_box_forms(axis)}, but got {value!r}. '
+                f'{function_name} takes the {axis} as {_box_forms(axis)}, but got {value!r}. '
                 f'Text that is not a percentage, such as a word that places a box, does not '
                 f'size it; pass one of those forms.',
                 code='validation.value',
@@ -1675,7 +1873,7 @@ def _box_cells(
             )
         if share <= 0:
             raise TerminalError(
-                f'xnano.box() takes the {axis} as a share of the canvas above 0%, but got '
+                f'{function_name} takes the {axis} as a share of the canvas above 0%, but got '
                 f"{value!r}. Pass a share such as '50%', or a number of cells such as 20.",
                 code='validation.bounds',
                 location=axis,
@@ -1683,13 +1881,14 @@ def _box_cells(
             )
     elif not _is_relative_size(value):
         raise TerminalError(
-            f'xnano.box() takes the {axis} as {_box_forms(axis)}, but got {value!r}. A '
+            f'{function_name} takes the {axis} as {_box_forms(axis)}, but got {value!r}. A '
             f'decimal number or a boolean is not a count of cells and a range is a limit, '
             f'not a size, so pass one of those forms.',
             code='validation.type',
             location=axis,
             input_value=value,
         )
+    noun = 'box' if function_name == 'xnano.box()' else 'region'
     converted = axis_expression(cast('Axis', value), axis)
     parent = _core.Buffer(width=space[0], height=space[1])
     child = _core.Buffer(width=1, height=1)
@@ -1698,10 +1897,10 @@ def _box_cells(
         cells = inspect_number(child, cast('NumericExpression', converted))
     except (_core.RuntimeRequiredError, TypeError) as error:
         raise TerminalError(
-            f'xnano.box() cannot size the {axis} with {value!r}, because that formula reads '
+            f'{function_name} cannot size the {axis} with {value!r}, because that formula reads '
             f'the clock or input that has not arrived, so it has no value before '
-            f'the box is written. Pass {_box_forms(axis)}, or write the box with '
-            f'canvas.write(box, {axis}=formula).',
+            f'the {noun} is written. Pass {_box_forms(axis)}, or write the {noun} with '
+            f'canvas.write({noun}, {axis}=formula).',
             code='validation.value',
             location=axis,
             input_value=value,

@@ -10,7 +10,8 @@ use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyTuple, PyType};
 use xnano_terminal_runtime::buffer::{
-    BufferCore, Geometry, absolute_origin, buffers_at, compose, relayout, tree_modified,
+    BufferCore, Geometry, absolute_origin, buffers_at, compose, latest_modification_stamp,
+    listen_for_changes, relayout, tree_modified,
 };
 use xnano_terminal_runtime::clock::{Clock, ClockSource, SimulationClock};
 use xnano_terminal_runtime::device::{DeviceModes, KeyboardInfo, Status, TerminalInfo};
@@ -464,6 +465,11 @@ pub struct PyRuntime {
     last_cursor: Cell<Option<xnano_terminal_runtime::cursor::CursorPlacement>>,
     frame_revision: Cell<u64>,
     last_rendered_stamp: Cell<u64>,
+    /// The global modification stamp read just before the last tree walk that found nothing
+    /// new, or 0 when the mounts changed since. The global counter also moves for unmounted
+    /// buffers and other canvases, so a moved counter only means "maybe": it makes the walk
+    /// run, and the walk decides. An unmoved counter means no buffer anywhere changed.
+    quiet_global_stamp: Cell<u64>,
     last_present_seconds: Cell<f64>,
     last_effect_seconds: Cell<f64>,
     revisions_seen: RefCell<HashMap<u64, u64>>,
@@ -1311,11 +1317,21 @@ impl PyRuntime {
                 return true;
             }
         }
+        // Read before walking: a change made during the walk moves the counter past this
+        // value, so the next check walks again instead of missing it.
+        let global = latest_modification_stamp();
+        if global == self.quiet_global_stamp.get() {
+            return false;
+        }
         let mut stamp = 0;
         for mount in self.mounts.borrow().iter() {
             stamp = stamp.max(tree_modified(&Self::core_of(py, &mount.buffer)));
         }
-        stamp > self.last_rendered_stamp.get()
+        let is_changed = stamp > self.last_rendered_stamp.get();
+        if !is_changed {
+            self.quiet_global_stamp.set(global);
+        }
+        is_changed
     }
 
     /// Seconds until a frame that is wanted falls due, on a real clock.
@@ -1519,6 +1535,7 @@ impl PyRuntime {
             last_cursor: Cell::new(None),
             frame_revision: Cell::new(0),
             last_rendered_stamp: Cell::new(0),
+            quiet_global_stamp: Cell::new(0),
             last_present_seconds: Cell::new(-1.0),
             last_effect_seconds: Cell::new(0.0),
             revisions_seen: RefCell::default(),
@@ -1728,6 +1745,7 @@ impl PyRuntime {
                 "a buffer is already mounted with the key \"{key}\"; choose another key"
             )));
         }
+        runtime.quiet_global_stamp.set(0);
         runtime.mounts.borrow_mut().push(Mount {
             buffer: buffer.clone().unbind(),
             key,
@@ -1775,11 +1793,13 @@ impl PyRuntime {
             }];
             let tree = runtime.tree(py);
             *runtime.mounts.borrow_mut() = saved;
+            runtime.quiet_global_stamp.set(0);
             tree
         };
         for item in &doomed {
             runtime.fire_buffer(slf, item, HookEvent::Unmount, &PyDict::new(py))?;
         }
+        runtime.quiet_global_stamp.set(0);
         runtime.mounts.borrow_mut().remove(position);
         for item in &doomed {
             let id = Self::core_of(py, item).id;
@@ -1983,6 +2003,18 @@ impl PyRuntime {
         // Wait for work when there is none.
         {
             let runtime = slf.borrow();
+            // A buffer changed from another thread (a write right after the screen opens, say)
+            // wakes the wait at once instead of when its slice ends. The listener is in place
+            // before the check below, so a change between the check and the wait is not missed.
+            let is_buffer_changed = Arc::new(AtomicBool::new(false));
+            let _change_listener = (timeout != Some(Duration::ZERO)).then(|| {
+                let changed = Arc::clone(&is_buffer_changed);
+                let shared = Arc::clone(&runtime.shared);
+                listen_for_changes(Arc::new(move || {
+                    changed.store(true, Ordering::SeqCst);
+                    shared.queue.wake_waiters();
+                }))
+            });
             // A frame that is wanted but not yet due is waited for, not spun on.
             let frame_wait = runtime.frame_wait(py);
             let is_idle = !runtime.shared.queue.has_pending()
@@ -2011,9 +2043,12 @@ impl PyRuntime {
                     });
                     py.detach(|| {
                         queue.queue.wait(Some(slice), || {
-                            !is_waiting_for_frame && queue.is_frame_requested.load(Ordering::SeqCst)
+                            !is_waiting_for_frame
+                                && (queue.is_frame_requested.load(Ordering::SeqCst)
+                                    || is_buffer_changed.load(Ordering::SeqCst))
                         });
                     });
+                    is_buffer_changed.store(false, Ordering::SeqCst);
                     py.check_signals()?;
                     if let Some(left) = remaining.as_mut() {
                         *left = left.saturating_sub(slice);
@@ -2274,6 +2309,7 @@ impl PyRuntime {
                 first_error.get_or_insert(error);
             }
         }
+        runtime.quiet_global_stamp.set(0);
         runtime.mounts.borrow_mut().clear();
         for buffer in &doomed {
             let id = Self::core_of(py, buffer).id;
@@ -2686,6 +2722,7 @@ impl PyRuntime {
                     handler.call1(py, (&value,))?;
                 }
                 slf.borrow().last_rendered_stamp.set(u64::MAX);
+                slf.borrow().quiet_global_stamp.set(0);
                 slf.borrow()
                     .shared
                     .is_frame_requested
@@ -2835,15 +2872,32 @@ impl PyRuntime {
             &runtime.shared,
             Size::new(i32::from(columns), i32::from(rows)),
         );
+        // Whether this frame wrote to the terminal; one identical to the last writes nothing.
+        #[cfg_attr(not(feature = "terminal"), allow(unused_mut))]
+        let mut was_written = true;
         #[cfg(feature = "terminal")]
         if let Some(session) = runtime.session.borrow_mut().as_mut() {
-            py.detach(|| session.present(&frame, cursor))
+            was_written = py
+                .detach(|| session.present(&frame, cursor))
                 .map_err(|error| {
                     RenderError::new_err(format!("the frame could not be shown: {error}"))
                 })?;
         }
         runtime.last_rendered_stamp.set(stamp);
-        runtime.last_present_seconds.set(runtime.pace_now());
+        runtime.quiet_global_stamp.set(0);
+        // The first frame is drawn as soon as the runtime starts, usually before the program
+        // has written anything, so it does not count toward pacing: the next frame, which
+        // shows that first write, is drawn at once instead of one frame interval later.
+        // A frame that wrote nothing does not count toward pacing either, so the change that
+        // follows it is shown at once.
+        let interval = runtime.config.frame_interval_milliseconds.get() as f64 / 1000.0;
+        if !runtime.has_rendered.get() {
+            runtime
+                .last_present_seconds
+                .set(runtime.pace_now() - interval);
+        } else if was_written {
+            runtime.last_present_seconds.set(runtime.pace_now());
+        }
         runtime.has_rendered.set(true);
         runtime.frame_revision.set(runtime.frame_revision.get() + 1);
         let frame = Arc::new(frame);

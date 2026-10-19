@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import os
 import sys
-import traceback
 from collections.abc import Sequence
 from types import TracebackType
 from typing import ClassVar, Final, cast
@@ -209,6 +208,8 @@ def _print_uncaught(
     stream = sys.stderr
     if stream is None:
         return
+    import traceback  # only an uncaught error needs it
+
     printed = traceback.TracebackException(
         exception_type, error, error_traceback, compact=True
     )

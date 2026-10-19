@@ -5,7 +5,7 @@
 //! damaged area, which is how a runtime knows when a frame is needed.
 
 use std::fmt;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 
 use ratatui_core::buffer::Cell;
@@ -16,6 +16,60 @@ use crate::layout::{LayoutSpec, solve};
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 static MODIFICATION_STAMP: AtomicU64 = AtomicU64::new(1);
+
+/// Called after any buffer changes, from the thread that changed it.
+pub type ChangeListener = Arc<dyn Fn() + Send + Sync>;
+
+static CHANGE_LISTENERS: Mutex<Vec<(u64, ChangeListener)>> = Mutex::new(Vec::new());
+/// How many listeners are registered, so a change with none to tell costs one atomic read.
+static CHANGE_LISTENER_COUNT: AtomicUsize = AtomicUsize::new(0);
+static NEXT_CHANGE_LISTENER: AtomicU64 = AtomicU64::new(1);
+
+fn change_listeners() -> MutexGuard<'static, Vec<(u64, ChangeListener)>> {
+    CHANGE_LISTENERS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Keeps a change listener registered until it is dropped.
+#[must_use = "the listener is removed as soon as the registration is dropped"]
+pub struct ChangeListenerRegistration {
+    id: u64,
+}
+
+impl Drop for ChangeListenerRegistration {
+    fn drop(&mut self) {
+        let mut listeners = change_listeners();
+        if let Some(index) = listeners.iter().position(|(id, _)| *id == self.id) {
+            listeners.swap_remove(index);
+            CHANGE_LISTENER_COUNT.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
+}
+
+/// Call `listener` after every buffer change until the registration is dropped.
+///
+/// A runtime that is waiting for work listens while it waits, so a change made from
+/// another thread is drawn at once instead of when the wait would have ended.
+pub fn listen_for_changes(listener: ChangeListener) -> ChangeListenerRegistration {
+    let id = NEXT_CHANGE_LISTENER.fetch_add(1, Ordering::SeqCst);
+    change_listeners().push((id, listener));
+    CHANGE_LISTENER_COUNT.fetch_add(1, Ordering::SeqCst);
+    ChangeListenerRegistration { id }
+}
+
+fn announce_change() {
+    if CHANGE_LISTENER_COUNT.load(Ordering::SeqCst) == 0 {
+        return;
+    }
+    let listeners: Vec<ChangeListener> = change_listeners()
+        .iter()
+        .map(|(_, listener)| Arc::clone(listener))
+        .collect();
+    for listener in listeners {
+        listener();
+    }
+}
 
 /// Who decides a child's position and size.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,6 +168,7 @@ impl BufferState {
     pub fn touch(&mut self, area: Option<Rectangle>) {
         self.revision += 1;
         self.modified = MODIFICATION_STAMP.fetch_add(1, Ordering::SeqCst);
+        announce_change();
         let area = area.unwrap_or_else(|| {
             Rectangle::new(
                 0,
@@ -333,14 +388,21 @@ pub fn attach(
         return Err(TreeError::ChildMounted);
     }
     {
-        child.lock().parent = Arc::downgrade(parent);
+        let is_visible = {
+            let mut child_state = child.lock();
+            child_state.parent = Arc::downgrade(parent);
+            child_state.is_visible
+        };
         let mut state = parent.lock();
         state.children.push(Child {
             core: Arc::clone(child),
             geometry,
             mode,
         });
-        state.touch(None);
+        // A hidden child changes nothing that is drawn; it touches its parent when shown.
+        if is_visible {
+            state.touch(None);
+        }
     }
     relayout(parent);
     Ok(())
@@ -455,7 +517,17 @@ pub fn compose(
     }
 }
 
+/// The newest modification stamp handed out to any buffer. A tree whose stamps are all at or
+/// below a value read earlier from this has not changed since.
+pub fn latest_modification_stamp() -> u64 {
+    MODIFICATION_STAMP.load(Ordering::SeqCst)
+}
+
 /// The largest modification stamp in the tree below and including `core`.
+///
+/// Hidden children and everything below them are left out: nothing they hold is drawn, so
+/// changing them needs no frame. Showing or hiding a child touches it and its parent, so
+/// that change itself is seen.
 pub fn tree_modified(core: &Arc<BufferCore>) -> u64 {
     let (own, children): (u64, Vec<Arc<BufferCore>>) = {
         let state = core.lock();
@@ -468,7 +540,11 @@ pub fn tree_modified(core: &Arc<BufferCore>) -> u64 {
                 .collect(),
         )
     };
-    children.iter().map(tree_modified).fold(own, u64::max)
+    children
+        .iter()
+        .filter(|child| child.lock().is_visible)
+        .map(tree_modified)
+        .fold(own, u64::max)
 }
 
 /// Visit `core` and every descendant, parents before children.

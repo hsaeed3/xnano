@@ -102,6 +102,16 @@ impl EventQueue {
         self.notify();
     }
 
+    /// Wake the threads blocked in [`EventQueue::wait`], and nothing else.
+    ///
+    /// Unlike [`EventQueue::nudge`] it calls no registered notifier, so it is safe to call
+    /// from code that holds a buffer lock.
+    pub fn wake_waiters(&self) {
+        if lock(&self.state).waiters > 0 {
+            self.ready.notify_all();
+        }
+    }
+
     pub fn request_wake(&self) {
         lock(&self.state).is_wake_requested = true;
         self.notify();

@@ -1027,8 +1027,10 @@ impl TerminalSession {
         Backend::flush(self.terminal.backend_mut())
     }
 
-    /// Show `frame` in one synchronized update.
-    pub fn present(&mut self, frame: &Grid, cursor: Option<CursorPlacement>) -> io::Result<()> {
+    /// Show `frame` in one synchronized update, and return whether anything was written.
+    ///
+    /// A frame identical to the last one, with the cursor in the same place, writes nothing.
+    pub fn present(&mut self, frame: &Grid, cursor: Option<CursorPlacement>) -> io::Result<bool> {
         let signature = graphics_signature(frame);
         let needs_full_redraw = match (self.last_graphics, signature) {
             (Some(previous), Some(current)) => {
@@ -1046,7 +1048,7 @@ impl TerminalSession {
             .as_ref()
             .is_some_and(|(buffer, placement)| buffer == frame.buffer() && *placement == cursor)
         {
-            return Ok(());
+            return Ok(false);
         }
         self.terminal.backend_mut().queue(BeginSynchronizedUpdate)?;
         if let Some(CursorPlacement {
@@ -1102,7 +1104,7 @@ impl TerminalSession {
         let drawn = result.map(|_| ());
         self.terminal.backend_mut().execute(EndSynchronizedUpdate)?;
         self.last_presented = drawn.is_ok().then(|| (frame.buffer().clone(), cursor));
-        drawn
+        drawn.map(|()| true)
     }
 
     pub fn clear(&mut self) -> io::Result<()> {

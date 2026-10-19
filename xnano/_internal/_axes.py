@@ -7,6 +7,7 @@ Turn axis values (numbers, percentages, ranges, expressions) into core expressio
 from __future__ import annotations
 
 import math
+import re
 from typing import (
     Final,
     cast,
@@ -256,6 +257,54 @@ def axis_limits(
             input_value=value,
         )
     return low, high
+
+
+_STATIC_NAMES = frozenset(
+    {
+        # Sizes and positions change only through events that already ask for a frame.
+        'NumericProperty',
+        'Width',
+        'Height',
+        'X',
+        'Y',
+        'Size',
+        'Position',
+        'ParentWidth',
+        'ParentHeight',
+        'ParentSize',
+        'TerminalWidth',
+        'TerminalHeight',
+        'DeviceWidth',
+        'DeviceHeight',
+        'ScreenBounds',
+        'ScreenPosition',
+        'BufferSize',
+        'x',
+        'y',
+        'width',
+        'height',
+        'size',
+        'right',
+        'bottom',
+        'clamp',
+        'minimum',
+        'maximum',
+    }
+)
+_NAME = re.compile(r'[A-Za-z_]\w*')
+
+
+def is_static_formula(bound: object) -> bool:
+    """
+    Whether a number or expression keeps its value until an event that already asks for a frame.
+
+    Only a formula built from sizes, positions and numbers is known to be static. A formula
+    that reads anything else, such as the clock, a sound, a level or a provided value, may
+    change between frames, so it is not static.
+    """
+    if not isinstance(bound, _core.NumericValue):
+        return True
+    return all(name in _STATIC_NAMES for name in _NAME.findall(repr(bound)))
 
 
 def inspect_number(buffer: _core.Buffer, expression: NumericExpression) -> float:

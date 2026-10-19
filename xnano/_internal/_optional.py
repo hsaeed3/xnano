@@ -1,8 +1,8 @@
 """
 xnano._internal._optional
 
-The parts of `xnano` that need the optional `xnano-audio` and `xnano-image` packages, and the
-message that says how to install them.
+The parts of `xnano` that need the optional `xnano-audio`, `xnano-image` and `pydantic-monty`
+packages, and the message that says how to install them.
 """
 
 from __future__ import annotations
@@ -16,10 +16,15 @@ from xnano._schema._media import Extra
 
 __all__ = ['is_installed', 'is_image', 'require']
 
-_PACKAGES: dict[Extra, str] = {'audio': 'xnano_audio', 'image': 'xnano_image'}
+_PACKAGES: dict[Extra, str] = {
+    'audio': 'xnano_audio',
+    'image': 'xnano_image',
+    'monty': 'pydantic_monty',
+}
 _PURPOSE: dict[Extra, str] = {
     'audio': 'sound, notes and melodies',
     'image': 'images',
+    'monty': 'a sandbox for running untrusted Python',
 }
 
 
@@ -33,7 +38,7 @@ def require(extra: Extra, *, needed_for: str) -> ModuleType:
     Import the package behind an extra, or say how to install it.
 
     Args:
-        extra: ``'audio'`` or ``'image'``.
+        extra: ``'audio'``, ``'image'`` or ``'monty'``.
         needed_for: What was being done, such as ``'Canvas.audio'``, for the message.
 
     Raises:
