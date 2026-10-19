@@ -1832,9 +1832,7 @@ class TestTeachingErrorsOnWrongTypes:
             FileNotFoundError, match='Sound could not load.*Check the path'
         ):
             main.load_sound('nonexistent.wav')
-        with pytest.raises(
-            ValueError, match=r'not a PCM WAV file that xnano can read[^(]'
-        ):
+        with pytest.raises(ValueError, match='xnano accepts WAV, MP3, FLAC'):
             main.load_sound(b'')
 
     def test_a_space_cannot_be_negative(self, canvas):

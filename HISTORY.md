@@ -6,7 +6,7 @@ Release notes of every xnano package, newest first. This file is generated from 
 
 ### 2.0.0
 
-Not published yet. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.0.0).
+Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.0.0).
 
 #### xnano 2.0.0
 
@@ -166,7 +166,7 @@ With the `audio` extra, a canvas plays music on its own clock:
 
 - **`Note(pitch, beats=1.0, instrument='piano', velocity=0.8)`** (or `xnano.note(...)`) is a note, a MIDI number or a chord. Creating notes needs no extra.
 - **`Melody(text)`** reads a score such as `'C4 E4 G4:2 rest C5+E5+G5'`: `:n` sets beats, `+` builds a chord, `rest` or `-` is silence and `|` is a bar line.
-- **`xnano.load_sound(source)`** loads a PCM WAV file as a `Sound`.
+- **`xnano.load_sound(source)`** (or `Sound(source)`) loads a WAV, MP3, FLAC, Ogg Vorbis or MP4/AAC file, from its path or its bytes, as a `Sound`.
 - **`canvas.play(playable, **options)`** (or `xnano.play(...)`) plays any of them, a string, or a sequence, with `instrument`, `velocity`, `effects`, `volume`, `pan`, `at_beat` and `beats`. It returns a `PlayHandle`.
 - **`canvas.audio`** reports `is_available`, follows the `beat`, and gives the `microphone` and its `level`. On an offscreen canvas with a manual clock, everything played is recorded, and `canvas.audio.render_sound()` renders it exactly.
 
@@ -952,7 +952,7 @@ Published 2026-07-07. [Release page](https://github.com/hsaeed3/xnano/releases/t
 
 ### 2.0.0
 
-Not published yet. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.0.0).
+Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.0.0).
 
 #### xnano-core 2.0.0
 
@@ -1276,7 +1276,7 @@ Published 2026-07-07. [Release page](https://github.com/hsaeed3/xnano/releases/t
 
 ### 0.4.0
 
-Not published yet. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-audio/v0.4.0).
+Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-audio/v0.4.0).
 
 #### xnano-audio 0.4.0
 
