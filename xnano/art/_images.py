@@ -299,9 +299,11 @@ def _pixel_plan(
         return max(1, round(value))
 
     natural = (width, height)
-    if columns is None and rows is None:
-        return _PixelPlan(width, math.ceil(height / _PIXELS_PER_CELL_ROW), None, natural)
-    if columns is not None and rows is None:
+    if rows is None:
+        if columns is None:
+            return _PixelPlan(
+                width, math.ceil(height / _PIXELS_PER_CELL_ROW), None, natural
+            )
         scale = 1.0 if fit == 'crop' else columns / width
         scaled = (rounded(width * scale), rounded(height * scale))
         return _PixelPlan(
@@ -310,13 +312,12 @@ def _pixel_plan(
             scaled,
             (columns, scaled[1]),
         )
-    if columns is None and rows is not None:
+    if columns is None:
         scale = 1.0 if fit == 'crop' else rows * _PIXELS_PER_CELL_ROW / height
         scaled = (rounded(width * scale), rounded(height * scale))
         return _PixelPlan(
             scaled[0], rows, scaled, (scaled[0], rows * _PIXELS_PER_CELL_ROW)
         )
-    assert columns is not None and rows is not None
     target_width, target_height = columns, rows * _PIXELS_PER_CELL_ROW
     if fit == 'smart':
         ratio = (width / height) / (target_width / target_height)
