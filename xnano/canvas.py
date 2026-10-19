@@ -3424,7 +3424,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 canvas._failure_text(failure), code='canvas.callback'
             ) from failure
 
-    def wait_for_key(self, *keys: KeyName) -> str:
+    def wait_for_key(self, *keys: KeyName) -> KeyName:
         """
         Wait until a key is pressed, and return its name.
 
@@ -3458,7 +3458,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 assert canvas.wait_for_key('enter') == 'enter'
             ```
         """
-        pressed: list[str] = []
+        pressed: list[KeyName] = []
         done = threading.Event()
 
         @self.hook(on='key', keys=keys or None)

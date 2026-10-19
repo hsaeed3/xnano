@@ -655,20 +655,20 @@ if TYPE_CHECKING:
     ```
     """
 
-    KeyboardChord = _CoreKeyboardChord
+    KeyboardBinding = _CoreKeyboardChord
     """
     The latest key with its modifiers, such as ``'ctrl+c'``.
 
     ```python
     import xnano
-    from xnano.expressions import KeyboardChord
+    from xnano.expressions import KeyboardBinding
 
     with xnano.open(width=60, height=6) as terminal:
         label = terminal.write('press a key')
 
         @terminal.hook(on='key')
         def show(context: xnano.Context) -> None:
-            label.text = f'chord: {context.canvas.inspect(KeyboardChord)}'
+            label.text = f'binding: {context.canvas.inspect(KeyboardBinding)}'
 
         terminal.run(quit_on='q')
     ```
@@ -856,7 +856,7 @@ if TYPE_CHECKING:
 
     Keyboard = _CoreKeyboardScope
     """
-    Expressions for the latest key: ``Keyboard.key``, ``Keyboard.kind`` and ``Keyboard.chord``.
+    Expressions for the latest key: ``Keyboard.key``, ``Keyboard.kind`` and ``Keyboard.chord`` (the key with its modifiers).
 
     ```python
     import xnano
@@ -867,7 +867,7 @@ if TYPE_CHECKING:
 
         @terminal.hook(on='key')
         def show(context: xnano.Context) -> None:
-            label.text = f'chord: {context.canvas.inspect(Keyboard.chord)}'
+            label.text = f'binding: {context.canvas.inspect(Keyboard.chord)}'
 
         terminal.run(quit_on='q')
     ```
@@ -922,7 +922,7 @@ _CORE_NAMES: Final[dict[str, str]] = {
     'Height': 'Height',
     'IsVisible': 'IsVisible',
     'Keyboard': 'KeyboardScope',
-    'KeyboardChord': 'KeyboardChord',
+    'KeyboardBinding': 'KeyboardChord',
     'KeyboardExpressionScope': 'KeyboardExpressionScope',
     'KeyboardKey': 'KeyboardKey',
     'KeyboardKind': 'KeyboardKind',
@@ -973,7 +973,7 @@ __all__ = [
     'Height',
     'IsVisible',
     'Keyboard',
-    'KeyboardChord',
+    'KeyboardBinding',
     'KeyboardExpressionScope',
     'KeyboardKey',
     'KeyboardKind',
@@ -1015,6 +1015,16 @@ __all__ = [
 
 def __getattr__(name: str) -> object:
     """Import an expression from ``xnano_core`` the first time it is read, then keep it."""
+    if name == 'KeyboardChord':
+        import warnings
+
+        warnings.warn(
+            'xnano.expressions.KeyboardChord is deprecated and will be removed in xnano '
+            '2.1.0. Use xnano.expressions.KeyboardBinding instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        name = 'KeyboardBinding'
     core_name = _CORE_NAMES.get(name)
     if core_name is None:
         raise AttributeError(

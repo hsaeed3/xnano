@@ -28,7 +28,7 @@ from xnano._schema._generics import DepsT, StateT
 from xnano._schema._hooks import Hook, HookKind, KeyName, When
 from xnano.context import Context, Frame, Update
 from xnano.errors import TerminalError
-from xnano.hooks._triggers import CompiledWhen, compile_when, normalize_chord
+from xnano.hooks._triggers import CompiledWhen, compile_when, normalize_binding
 from xnano.state import StateNamespace, _dotted, _HookRun, _StateFollower
 
 _EVENT_KINDS: Final[dict[str | None, tuple[str, ...]]] = {
@@ -221,7 +221,7 @@ def _check_hook_arguments(
                 f"keys= takes key names such as 'q' or 'ctrl+s', but one of them is "
                 f'{name!r}. Write each key as text, for example keys=["q", "escape"].'
             )
-    return tuple(normalize_chord(name) for name in names)
+    return tuple(normalize_binding(name) for name in names)
 
 
 class HookHandle(Generic[DepsT, StateT]):

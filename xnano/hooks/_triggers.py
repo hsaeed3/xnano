@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 import difflib
 import functools
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
@@ -26,7 +27,7 @@ from xnano_core import (
 if TYPE_CHECKING:
     from xnano.context import Context
 
-__all__ = ['CompiledWhen', 'compile_when', 'normalize_chord', 'parse_when']
+__all__ = ['CompiledWhen', 'compile_when', 'normalize_binding', 'parse_when']
 
 _KEY_NAMES: Final = (
     *'abcdefghijklmnopqrstuvwxyz0123456789',
@@ -74,7 +75,7 @@ _MODIFIER_TEXT: Final = (
 )
 
 _MEMBERS: Final[dict[str, tuple[str, ...]]] = {
-    'keyboard': ('key', 'kind', 'chord'),
+    'keyboard': ('key', 'kind', 'binding'),
     'mouse': ('position', 'button', 'kind', 'is_down'),
     'scroll': ('x', 'y'),
     'buffer': ('x', 'y', 'position', 'width', 'height', 'size', 'region'),
@@ -140,12 +141,12 @@ NO_CONDITION: Final = CompiledWhen(None, None, frozenset(), False, False)
 
 
 @functools.lru_cache(maxsize=1024)
-def normalize_chord(entry: str) -> str:
+def normalize_binding(entry: str) -> str:
     """
-    Write a key or chord the way the runtime reports it.
+    Write a key or key binding the way the runtime reports it.
 
     Args:
-        entry: A key name or chord such as ``'q'``, ``'Esc'`` or ``'Ctrl+Shift+S'``.
+        entry: A key name or key binding such as ``'q'``, ``'Esc'`` or ``'Ctrl+Shift+S'``.
 
     Returns:
         The canonical text: modifiers in the order ``ctrl``, ``alt``, ``shift``, ``super``, then
@@ -171,19 +172,19 @@ def _unknown_key_message(entry: str) -> str:
     hint = f' Did you mean {" or ".join(repr(name) for name in close)}?' if close else ''
     return (
         f'{entry!r} is not a key name.{hint} Use a name from xnano.types.KeyName such as '
-        f"'q', 'enter' or 'page_up', or a chord such as 'ctrl+s'."
+        f"'q', 'enter' or 'page_up', or a key binding such as 'ctrl+s'."
     )
 
 
 def _key_name(entry: str) -> str:
     """The name of a single key, which has no modifiers, in the runtime's spelling."""
-    chord = normalize_chord(entry)
-    if '+' in chord and chord != '+' and not chord.endswith('++'):
+    binding = normalize_binding(entry)
+    if '+' in binding and binding != '+' and not binding.endswith('++'):
         raise ValueError(
             f'{entry!r} is a key with modifiers, but keyboard.key holds the key alone. '
-            f"Compare keyboard.chord instead: keyboard.chord == '{chord}'."
+            f"Compare keyboard.binding instead: keyboard.binding == '{binding}'."
         )
-    return chord
+    return binding
 
 
 def _fail(text: str, node: ast.AST | None, problem: str) -> ValueError:
@@ -197,7 +198,7 @@ def _fail(text: str, node: ast.AST | None, problem: str) -> ValueError:
 
 def _not_example(shown: str) -> tuple[str, str] | None:
     """A comparison to suggest after ``not``, and the same condition without it."""
-    if shown.endswith(('.key', '.chord')):
+    if shown.endswith(('.key', '.binding')):
         return "== 'q'", "!= 'q'"
     if shown.endswith('.button'):
         return "== 'left'", "!= 'left'"
@@ -206,6 +207,28 @@ def _not_example(shown: str) -> tuple[str, str] | None:
     if shown.endswith(('.position', '.size', '.region')):
         return None
     return '> 2', '<= 2'
+
+
+class _RenameDeprecatedMembers(ast.NodeTransformer):
+    """Read ``keyboard.chord`` in a condition as ``keyboard.binding``, with a warning."""
+
+    def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
+        """Rename the deprecated member of ``keyboard``."""
+        if (
+            node.attr == 'chord'
+            and isinstance(node.value, ast.Name)
+            and node.value.id == 'keyboard'
+        ):
+            warnings.warn(
+                'keyboard.chord in a condition is deprecated and will be removed in xnano '
+                '2.1.0. Use keyboard.binding instead.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return ast.copy_location(
+                ast.Attribute(value=node.value, attr='binding', ctx=node.ctx), node
+            )
+        return self.generic_visit(node)
 
 
 class _Parser:
@@ -227,7 +250,7 @@ class _Parser:
                 f'The condition {self.text!r} is not valid: {error.msg}. Write it like an '
                 f'expression, such as "keyboard.key == \'q\' and not mouse.is_down".'
             ) from error
-        return self._check(tree.body)
+        return self._check(_RenameDeprecatedMembers().visit(tree).body)
 
     # -- checking ------------------------------------------------------------------------
 
@@ -404,8 +427,8 @@ class _Parser:
         try:
             if (scope, name) == ('keyboard', 'key'):
                 word = _key_name(word)
-            elif (scope, name) == ('keyboard', 'chord'):
-                word = normalize_chord(word)
+            elif (scope, name) == ('keyboard', 'binding'):
+                word = normalize_binding(word)
             elif (scope, name) in _CHOICES:
                 choices = _CHOICES[scope, name]
                 if word not in choices:
@@ -507,6 +530,8 @@ class _Parser:
             value = build(node.value)
             if value is None and not is_native:
                 return None
+            if is_native and node.attr == 'binding' and value is KeyboardScope:
+                return KeyboardScope.chord
             return getattr(value, node.attr)
         if isinstance(node, ast.Tuple):
             return tuple(build(item) for item in node.elts)

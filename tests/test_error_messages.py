@@ -559,7 +559,7 @@ def test_operators_a_condition_cannot_use_are_explained(condition, message):
     assert '^' in str(raised.value)
 
 
-@pytest.mark.parametrize('shown', ['keyboard.key', 'keyboard.chord', 'mouse.button'])
+@pytest.mark.parametrize('shown', ['keyboard.key', 'keyboard.binding', 'mouse.button'])
 def test_the_suggestion_after_not_is_the_same_condition(shown):
     with pytest.raises(ValueError, match='or write') as raised:
         parse_when(f'not {shown}').native()

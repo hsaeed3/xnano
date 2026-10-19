@@ -95,13 +95,16 @@ KeyName: TypeAlias = Literal[
     'space', 'enter', 'escape', 'tab', 'backspace', 'delete', 'insert',
     'home', 'end', 'page_up', 'page_down', 'up', 'down', 'left', 'right',
     'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12',
+    'f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19', 'f20', 'f21', 'f22', 'f23', 'f24',
+    'caps_lock', 'scroll_lock', 'num_lock', 'print_screen', 'pause', 'menu',
 ] | str  # fmt: skip
 """
 The name of a key such as ``'q'``, ``'enter'`` or ``'page_up'``.
 
-A key with modifiers is written as a chord joined with ``+``, such as ``'ctrl+s'`` or
-``'shift+tab'``; the trailing ``str`` lets a chord and punctuation keys type-check while editors
-still suggest the names listed here.
+A key with modifiers is written as a key binding joined with ``+``, such as ``'ctrl+s'`` or
+``'shift+tab'``; the trailing ``str`` lets a key binding and punctuation keys type-check while editors
+still suggest the names listed here. A key that types a character, such as ``'é'`` or ``'?'``,
+is named by that character in lowercase.
 """
 
 HeldMouseButtonName: TypeAlias = Literal['mouse_left', 'mouse_right', 'mouse_middle']
@@ -112,7 +115,9 @@ The name of a mouse button in the held-input vocabulary of [`Input`][xnano.input
 event keeps the names ``'left'``, ``'right'`` and ``'middle'``.
 """
 
-KeyNames: TypeAlias = str | Sequence[str]
+KeyNames: TypeAlias = (
+    KeyName | HeldMouseButtonName | Sequence[KeyName | HeldMouseButtonName]
+)
 """
 One key or mouse button name, or several that count the same, such as ``('a', 'left')``.
 

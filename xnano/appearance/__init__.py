@@ -10,6 +10,7 @@ before the next frame.
 
 from __future__ import annotations
 
+import random
 from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar, Final, cast
 
@@ -408,6 +409,34 @@ class BorderSide:
         self._normalize(look)
         self._owner._look_changed()
 
+    def random(self) -> _core.BorderKind:
+        """
+        Draw this side with a random kind of line and return the kind.
+
+        The kind is one of ``'plain'``, ``'rounded'``, ``'double'`` and ``'thick'``; the side
+        is always drawn, and the border's other sides stay as they are. The change is drawn
+        at once. ``random.seed(...)`` repeats the kinds.
+
+        Returns:
+            The [`BorderKind`][xnano.types.BorderKind] the side was set to.
+
+        Examples:
+            ```python
+            import random
+
+            import xnano
+
+            with xnano.new(width=12, height=5) as canvas:
+                card = canvas.write('hi', border='plain')
+                random.seed(2)
+                chosen = card.border.top.random()
+                assert card.border.top.kind == chosen
+            ```
+        """
+        kind = cast('_core.BorderKind', random.choice(_BORDER_KINDS))
+        self.kind = kind
+        return kind
+
     @property
     def color(self) -> _core.Color | None:
         """The color of this side, or ``None`` when it uses the border's own color."""
@@ -504,6 +533,34 @@ class BorderAppearance:
     @kind.setter
     def kind(self, value: _core.BorderKind | bool) -> None:
         self._assign_all(value)
+
+    def random(self) -> _core.BorderKind:
+        """
+        Draw the border on every side with a random kind of line and return the kind.
+
+        The kind is one of ``'plain'``, ``'rounded'``, ``'double'`` and ``'thick'``. It
+        replaces the kind of every side, like assigning to ``kind``, and is drawn at once.
+        ``random.seed(...)`` repeats the kinds.
+
+        Returns:
+            The [`BorderKind`][xnano.types.BorderKind] the border was set to.
+
+        Examples:
+            ```python
+            import random
+
+            import xnano
+
+            with xnano.new(width=12, height=5) as canvas:
+                card = canvas.write('hi')
+                random.seed(1)
+                chosen = card.border.random()
+                assert card.border.kind == chosen
+            ```
+        """
+        kind = cast('_core.BorderKind', random.choice(_BORDER_KINDS))
+        self._assign_all(kind)
+        return kind
 
     def _side(self, name: str) -> BorderSide:
         return BorderSide(self._owner, name)

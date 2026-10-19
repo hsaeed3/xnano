@@ -7,15 +7,19 @@ keys and mouse buttons are held down right now, for programs that poll instead o
 
 from __future__ import annotations
 
+import random
+import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
+from xnano._schema._hooks import HeldMouseButtonName, KeyName
 from xnano._schema._hooks import KeyNames as KeyNames
-from xnano.errors import TerminalClosedError
+from xnano.errors import TerminalClosedError, TerminalError
 
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
+    from xnano.placement import Placement
 
 __all__ = [
     'ClipboardInput',
@@ -45,7 +49,7 @@ def _names(keys: KeyNames) -> tuple[str, ...]:
     """The names in ``keys`` as the runtime spells them, each checked to be one key or button."""
     import difflib
 
-    from xnano.hooks._triggers import _KEY_NAMES, normalize_chord
+    from xnano.hooks._triggers import _KEY_NAMES, normalize_binding
 
     if isinstance(keys, str):
         names: tuple[object, ...] = (keys,)
@@ -65,12 +69,12 @@ def _names(keys: KeyNames) -> tuple[str, ...]:
             continue
         if name.lower() in _MODIFIER_NAMES or (name != '+' and '+' in name):
             raise ValueError(
-                f'{name!r} is a modifier or a chord, but held input is checked one key or '
-                f"mouse button at a time, such as is_down('s'). A chord belongs in "
+                f'{name!r} is a modifier or a key binding, but held input is checked one key or '
+                f"mouse button at a time, such as is_down('s'). A key binding belongs in "
                 f"hook(keys='ctrl+s')."
             )
         try:
-            normalize_chord(name)
+            normalize_binding(name)
         except ValueError:
             close = difflib.get_close_matches(
                 name.lower(), (*_KEY_NAMES, *_MOUSE_BUTTON_NAMES), n=3
@@ -152,9 +156,12 @@ class Input:
         return state
 
     @property
-    def held_keys(self) -> frozenset[str]:
+    def held_keys(self) -> frozenset[KeyName | HeldMouseButtonName]:
         """The names of the keys and mouse buttons held down right now."""
-        return self._state.pressed_keys | self._state.estimated_pressed_keys
+        return cast(
+            'frozenset[KeyName | HeldMouseButtonName]',
+            self._state.pressed_keys | self._state.estimated_pressed_keys,
+        )
 
     def is_down(self, keys: KeyNames) -> bool:
         """
@@ -163,12 +170,12 @@ class Input:
         Args:
             keys: One key name such as ``'space'``, or several such as ``('a', 'left')``. A
                 mouse button is ``'mouse_left'``, ``'mouse_right'`` or ``'mouse_middle'``.
-                A key is spelled as in [`KeyName`][xnano.types.KeyName]; a chord such as
+                A key is spelled as in [`KeyName`][xnano.types.KeyName]; a key binding such as
                 ``'ctrl+s'`` or a modifier alone is not held input.
 
         Raises:
             TypeError: A name is not text.
-            ValueError: A name is not a key or a mouse button, or is a chord or a modifier.
+            ValueError: A name is not a key or a mouse button, or is a key binding or a modifier.
         """
         held = self.held_keys
         return any(name in held for name in _names(keys))
@@ -184,7 +191,7 @@ class Input:
 
         Raises:
             TypeError: A name is not text.
-            ValueError: A name is not a key or a mouse button, or is a chord or a modifier.
+            ValueError: A name is not a key or a mouse button, or is a key binding or a modifier.
         """
         return int(self.is_down(positive)) - int(self.is_down(negative))
 
@@ -209,7 +216,7 @@ class Input:
 
         Raises:
             TypeError: A name is not text.
-            ValueError: A name is not a key or a mouse button, or is a chord or a modifier.
+            ValueError: A name is not a key or a mouse button, or is a key binding or a modifier.
         """
         return self.axis(left, right), self.axis(up, down)
 
@@ -224,7 +231,7 @@ class Input:
         return self._state.pointer_cell
 
 
-def _modifier_text(key: _core.KeyEvent) -> str:
+def _modifier_text(key: _core.KeyEvent) -> _core.KeyBindingText:
     order = (
         ('control', 'ctrl'),
         ('alt', 'alt'),
@@ -238,6 +245,43 @@ def _modifier_text(key: _core.KeyEvent) -> str:
     return '+'.join(parts)
 
 
+def _owner_cells(
+    canvas: Canvas[object, object], owner: object | None
+) -> tuple[int, int, int, int]:
+    """
+    The screen cells ``(left, top, right, bottom)`` that ``owner`` covers, right and bottom
+    exclusive, cut to the screen. ``owner`` is a placement, a canvas, or ``None`` for the canvas.
+    """
+    from xnano.canvas import Canvas as CanvasType
+
+    screen = canvas.size
+    if owner is None or owner is canvas:
+        left, top, right, bottom = 0, 0, screen.width, screen.height
+    else:
+        if isinstance(owner, CanvasType):
+            area = owner._root._absolute_bounds
+        else:
+            area = cast('Placement[object, object]', owner)._buffer._absolute_bounds
+        left, top = area.x, area.y
+        right, bottom = area.x + area.width, area.y + area.height
+    left, top = max(left, 0), max(top, 0)
+    right, bottom = min(right, screen.width), min(bottom, screen.height)
+    if right <= left or bottom <= top:
+        raise TerminalError(
+            'random() needs a cell to push to, but the canvas or placement it belongs to '
+            'covers no cell on the screen. Give it a size and a position on the screen first, '
+            'or push an explicit position with push((x, y)).',
+            code='canvas.state',
+        )
+    return left, top, right, bottom
+
+
+def _random_cell(canvas: Canvas[object, object], owner: object | None) -> tuple[int, int]:
+    """A random screen cell ``(x, y)`` inside the cells ``owner`` covers."""
+    left, top, right, bottom = _owner_cells(canvas, owner)
+    return random.randrange(left, right), random.randrange(top, bottom)
+
+
 class KeyboardInput:
     """
     The key of the current event, as properties of a hook's context.
@@ -247,11 +291,13 @@ class KeyboardInput:
     key for the program.
 
     Attributes:
-        key: The name of the key, such as ``'q'`` or ``'enter'``, or ``None``.
+        key: The [`KeyName`][xnano.types.KeyName] of the key, such as ``'q'`` or ``'enter'``,
+            or ``None``.
         kind: ``'press'``, ``'repeat'`` or ``'release'``, or ``None``.
-        modifiers: The modifier keys held with it.
-        text: The text the key types, or ``None`` for control keys and chords.
-        chord: The key with its modifiers as one text such as ``'ctrl+s'``, or ``None``.
+        modifiers: The modifier keys held with it, from ``'control'``, ``'shift'``, ``'alt'``,
+            ``'super'``, ``'meta'`` and ``'hyper'``.
+        text: The text the key types, or ``None`` for control keys and key bindings.
+        binding: The key with its modifiers as one text such as ``'ctrl+s'``, or ``None``.
 
     Examples:
         ```python
@@ -274,18 +320,26 @@ class KeyboardInput:
         ```
     """
 
-    __slots__ = ('_canvas', '_event')
+    __slots__ = ('_canvas', '_event', '_owner')
 
-    def __init__(self, canvas: Canvas[object, object], event: _core.Event | None) -> None:
+    def __init__(
+        self,
+        canvas: Canvas[object, object],
+        event: _core.Event | None,
+        owner: Placement[object, object] | Canvas[object, object] | None = None,
+    ) -> None:
         """
         Create the key view of an event. Use ``context.keyboard`` instead of calling this.
 
         Args:
             canvas: The canvas the event happened in.
             event: The event being handled, or ``None``.
+            owner: The placement or canvas the hook is attached to, whose cells ``random``
+                stays inside; ``None`` for the whole canvas.
         """
         self._canvas = canvas
         self._event = event
+        self._owner = owner
 
     def get(self) -> _core.KeyEvent | None:
         """The key event being handled, or ``None`` when the event is not a key."""
@@ -293,43 +347,54 @@ class KeyboardInput:
         return event.key if event is not None else None
 
     @property
-    def key(self) -> str | None:
+    def key(self) -> KeyName | None:
         """The name of the key, such as ``'q'`` or ``'enter'``, or ``None``."""
         key = self.get()
         return None if key is None else key.key
 
     @property
-    def kind(self) -> Literal['press', 'repeat', 'release'] | None:
+    def kind(self) -> _core.KeyEventKind | None:
         """``'press'``, ``'repeat'`` or ``'release'``, or ``None`` for any other event."""
         key = self.get()
         return None if key is None else key.kind
 
     @property
-    def modifiers(self) -> frozenset[str]:
+    def modifiers(self) -> frozenset[_core.KeyModifier]:
         """The modifier keys held with the key; empty for any other event."""
         key = self.get()
         return frozenset() if key is None else frozenset(key.modifiers)
 
     @property
     def text(self) -> str | None:
-        """The text the key types, or ``None`` for control keys, chords and other events."""
+        """The text the key types, or ``None`` for control keys, key bindings and other events."""
         key = self.get()
         return None if key is None else key.text
 
     @property
-    def chord(self) -> str | None:
+    def binding(self) -> _core.KeyBindingText | None:
         """The key with its modifiers as one text such as ``'ctrl+s'``, or ``None``."""
         key = self.get()
         return None if key is None else _modifier_text(key)
 
-    def push(self, value: str | _core.KeyEvent) -> None:
+    @property
+    def chord(self) -> _core.KeyBindingText | None:
+        """Deprecated: use ``binding``."""
+        warnings.warn(
+            'context.keyboard.chord is deprecated and will be removed in xnano 2.1.0. '
+            'Use context.keyboard.binding instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.binding
+
+    def push(self, value: _core.KeyBindingText | _core.KeyEvent) -> None:
         """
         Press a key on the canvas, as if it had been typed.
 
         The canvas's hooks hear it at its next step, whatever the terminal settings say.
 
         Args:
-            value: A key name or chord such as ``'q'`` or ``'ctrl+s'``, or a
+            value: A key name or key binding such as ``'q'`` or ``'ctrl+s'``, or a
                 [`KeyEvent`][xnano_core.KeyEvent].
 
         Raises:
@@ -347,10 +412,52 @@ class KeyboardInput:
                     f"keyboard.push takes a key name such as 'q' or 'ctrl+s', or a KeyEvent, "
                     f'but got {value!r}. Pass the key as text: keyboard.push("q").'
                 )
-            from xnano.hooks._triggers import normalize_chord
+            from xnano.hooks._triggers import normalize_binding
 
-            normalize_chord(value)
+            normalize_binding(value)
             self._canvas.push(_core.Event.key_press(value))
+
+    def random(self) -> KeyName:
+        """
+        Press a random key on the canvas and return its name.
+
+        The key is a letter, a digit, ``'space'``, ``'enter'``, ``'escape'``, ``'tab'``,
+        ``'backspace'``, ``'delete'``, ``'insert'``, ``'home'``, ``'end'``, ``'page_up'``,
+        ``'page_down'``, an arrow or ``'f1'`` to ``'f12'``, pressed with no modifiers. It is
+        delivered like ``push(name)``. ``random.seed(...)`` repeats the keys.
+
+        Returns:
+            The [`KeyName`][xnano.types.KeyName] that was pressed.
+
+        Examples:
+            ```python
+            import random
+
+            import xnano
+
+            with xnano.new(width=8, height=1) as canvas:
+                heard = []
+                pressed = []
+
+                @canvas.hook(on='key')
+                def listen(context: xnano.Context) -> None:
+                    heard.append(context.keyboard.key)
+
+                @canvas.hook(on='tick', after=0.1)
+                def press_any_key(context: xnano.Context) -> None:
+                    pressed.append(context.keyboard.random())
+
+                random.seed(7)
+                canvas.step(delta_seconds=0.2)
+                canvas.deliver_events()
+                assert heard == pressed
+            ```
+        """
+        from xnano.hooks._triggers import _KEY_NAMES
+
+        name = cast('KeyName', random.choice(_KEY_NAMES))
+        self.push(name)
+        return name
 
 
 def _cell_pair(
@@ -390,18 +497,26 @@ class MouseInput:
         is_down: Whether any mouse button is held right now.
     """
 
-    __slots__ = ('_canvas', '_event')
+    __slots__ = ('_canvas', '_event', '_owner')
 
-    def __init__(self, canvas: Canvas[object, object], event: _core.Event | None) -> None:
+    def __init__(
+        self,
+        canvas: Canvas[object, object],
+        event: _core.Event | None,
+        owner: Placement[object, object] | Canvas[object, object] | None = None,
+    ) -> None:
         """
         Create the mouse view of an event. Use ``context.mouse`` instead of calling this.
 
         Args:
             canvas: The canvas the event happened in.
             event: The event being handled, or ``None``.
+            owner: The placement or canvas the hook is attached to, whose cells ``random``
+                stays inside; ``None`` for the whole canvas.
         """
         self._canvas = canvas
         self._event = event
+        self._owner = owner
 
     def get(self) -> _core.MouseEvent | None:
         """The mouse event being handled, or ``None`` for any other event and for the wheel."""
@@ -491,6 +606,84 @@ class MouseInput:
             )
         )
 
+    def random(self, kind: Literal['click', 'drag', 'move'] = 'click') -> tuple[int, int]:
+        """
+        Push a random mouse event at a random cell of this hook's canvas or placement.
+
+        Cells are screen cells, as in ``push``, and always inside the cells that
+        ``context.buffer`` covers on the screen: a hook on the canvas picks any cell of the
+        canvas, and a hook on a placement picks a cell of that placement, border included. The
+        left button is used. ``random.seed(...)`` repeats the cells.
+
+        Args:
+            kind: ``'click'`` presses and releases the left button at one cell, ``'drag'``
+                presses at one cell, drags to another and releases there, and ``'move'`` moves
+                the pointer to one cell.
+
+        Returns:
+            The ``(x, y)`` cell where the event ended: the clicked cell, the cell a drag was
+            released at, or the cell the pointer moved to. It can be passed to ``push``.
+
+        Raises:
+            ValueError: ``kind`` is not ``'click'``, ``'drag'`` or ``'move'``.
+            TerminalError: The canvas or placement covers no cell on the screen.
+
+        Examples:
+            ```python
+            import random
+
+            import xnano
+
+            with xnano.new(width=20, height=6) as canvas:
+                button = canvas.write('Go', x=5, y=2, border='plain')
+                clicked = []
+                chosen = []
+
+                @button.hook(on='mouse')
+                def listen(context: xnano.Context) -> None:
+                    if context.mouse.kind == 'press':
+                        clicked.append(tuple(context.mouse.position))
+
+                @button.hook(on='tick', after=0.1)
+                def click_somewhere(context: xnano.Context) -> None:
+                    chosen.append(context.mouse.random())
+
+                random.seed(3)
+                canvas.step(delta_seconds=0.2)
+                canvas.deliver_events()
+                assert clicked == chosen
+                assert 5 <= chosen[0][0] < 5 + button.width
+            ```
+        """
+        if kind not in ('click', 'drag', 'move'):
+            raise ValueError(
+                f"mouse.random takes the kind 'click', 'drag' or 'move', but got {kind!r}. "
+                f"Use mouse.random() for a click, or mouse.random('drag')."
+            )
+        column, row = _random_cell(self._canvas, self._owner)
+        if kind == 'move':
+            self.push((column, row))
+            return column, row
+        start_column, start_row = column, row
+        if kind == 'drag':
+            column, row = _random_cell(self._canvas, self._owner)
+        steps: list[tuple[_core.MouseEventKind, int, int]] = [
+            ('press', start_column, start_row)
+        ]
+        if kind == 'drag':
+            steps.append(('drag', column, row))
+        steps.append(('release', column, row))
+        for event_kind, event_column, event_row in steps:
+            self._canvas.push(
+                _core.Event.mouse_event(
+                    column=event_column,
+                    row=event_row,
+                    kind=event_kind,
+                    button='left',
+                )
+            )
+        return column, row
+
 
 class ScrollInput:
     """
@@ -504,18 +697,26 @@ class ScrollInput:
         y: Vertical steps, positive downward.
     """
 
-    __slots__ = ('_canvas', '_event')
+    __slots__ = ('_canvas', '_event', '_owner')
 
-    def __init__(self, canvas: Canvas[object, object], event: _core.Event | None) -> None:
+    def __init__(
+        self,
+        canvas: Canvas[object, object],
+        event: _core.Event | None,
+        owner: Placement[object, object] | Canvas[object, object] | None = None,
+    ) -> None:
         """
         Create the wheel view of an event. Use ``context.scroll`` instead of calling this.
 
         Args:
             canvas: The canvas the event happened in.
             event: The event being handled, or ``None``.
+            owner: The placement or canvas the hook is attached to, whose cells ``random``
+                stays inside; ``None`` for the whole canvas.
         """
         self._canvas = canvas
         self._event = event
+        self._owner = owner
 
     def get(self) -> _core.MouseEvent | None:
         """The wheel event being handled, or ``None`` for any other event."""
@@ -586,6 +787,57 @@ class ScrollInput:
                 column=column, row=row, kind='scroll', scroll_x=steps_x, scroll_y=steps_y
             )
         )
+
+    def random(self) -> tuple[int, int]:
+        """
+        Turn the mouse wheel a random way at a random cell of this hook's canvas or placement.
+
+        The wheel turns one to three steps up, down, left or right, at a screen cell inside
+        the cells that ``context.buffer`` covers on the screen (the whole canvas for a hook on
+        the canvas). ``random.seed(...)`` repeats the turns.
+
+        Returns:
+            The ``(x, y)`` steps that were pushed, such as ``(0, -2)`` for two steps up. It can
+            be passed to ``push``.
+
+        Raises:
+            TerminalError: The canvas or placement covers no cell on the screen.
+
+        Examples:
+            ```python
+            import random
+
+            import xnano
+
+            with xnano.new(width=20, height=6) as canvas:
+                turned = []
+                pushed = []
+
+                @canvas.hook(on='scroll')
+                def listen(context: xnano.Context) -> None:
+                    turned.append((context.scroll.x, context.scroll.y))
+
+                @canvas.hook(on='tick', after=0.1)
+                def turn_the_wheel(context: xnano.Context) -> None:
+                    pushed.append(context.scroll.random())
+
+                random.seed(5)
+                canvas.step(delta_seconds=0.2)
+                canvas.deliver_events()
+                assert turned == pushed
+            ```
+        """
+        column, row = _random_cell(self._canvas, self._owner)
+        amount = random.randint(1, 3)
+        steps_x, steps_y = random.choice(
+            ((0, -amount), (0, amount), (-amount, 0), (amount, 0))
+        )
+        self._canvas.push(
+            _core.Event.mouse_event(
+                column=column, row=row, kind='scroll', scroll_x=steps_x, scroll_y=steps_y
+            )
+        )
+        return steps_x, steps_y
 
 
 class ClipboardInput:

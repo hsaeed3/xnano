@@ -65,7 +65,7 @@ class TestKeyboard:
         canvas.deliver_events()
         assert [context.keyboard.key for context in contexts] == ['x']
 
-    def test_push_accepts_a_chord_and_a_key_event(self, canvas):
+    def test_push_accepts_a_key_binding_and_a_key_event(self, canvas):
         contexts = record(canvas, on='key')
         keyboard = KeyboardInput(canvas, None)
         keyboard.push('ctrl+shift+q')
@@ -254,12 +254,12 @@ class TestHeldNamesMatchTheHeldKeys:
         assert canvas.input.is_down('Space') is True
         assert canvas.input.is_down('Enter') is False
 
-    def test_a_chord_or_a_modifier_is_explained(self, canvas):
+    def test_a_key_binding_or_a_modifier_is_explained(self, canvas):
         with pytest.raises(
-            ValueError, match=r"'ctrl\+s' is a modifier or a chord.*hook\(keys="
+            ValueError, match=r"'ctrl\+s' is a modifier or a key binding.*hook\(keys="
         ):
             canvas.input.is_down('ctrl+s')
-        with pytest.raises(ValueError, match="'shift' is a modifier or a chord"):
+        with pytest.raises(ValueError, match="'shift' is a modifier or a key binding"):
             canvas.input.axis('shift', 'right')
 
 
