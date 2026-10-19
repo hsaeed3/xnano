@@ -168,6 +168,12 @@ _MOST_RECORDINGS: Final = 10000
 _CACHED_SOUNDS: Final = 32
 """How many synthesized sounds a canvas without a device keeps for the next render."""
 
+_MOST_MIXED_SOUNDS: Final = 64
+"""How many synthesized sounds a canvas with a device keeps for the next play."""
+
+_MOST_MIXED_SAMPLES: Final = 8_000_000
+"""The most samples (about three minutes of sound) the kept sounds hold in all."""
+
 _RELEASE_SECONDS: Final = 1.0
 """How long an instrument may ring on after a note ends, for deciding what a window holds."""
 
@@ -668,6 +674,13 @@ class AudioDevice:
         self._synthesized: collections.OrderedDict[
             tuple[object, ...], tuple[object, TerminalSound]
         ] = collections.OrderedDict()
+        # The sounds made for a canvas with a device, so that playing the same thing again
+        # does not synthesize it again. Each is kept with the objects its key names by
+        # identity, which keeps those alive and so keeps their identities unique.
+        self._mixed: collections.OrderedDict[
+            tuple[object, ...], tuple[tuple[object, ...], TerminalSound, int]
+        ] = collections.OrderedDict()
+        self._mixed_samples = 0
         # The musical clock of a canvas without a device: where it started, at what tempo,
         # and the beat it stood at while it was paused.
         self._clock_origin_seconds: float | None = None
@@ -812,7 +825,7 @@ class AudioDevice:
                 'can be opened. Check canvas.audio.is_available before playing, or play on a '
                 'canvas from xnano.new(), which records the sound for render_sound().'
             )
-        sound = _mix_planned(planned)
+        sound = self._sound_for(planned)
         handle = PlayHandle(
             clock=time.monotonic,
             end_seconds=time.monotonic() + sound.duration_milliseconds / 1000.0,
@@ -823,10 +836,49 @@ class AudioDevice:
                 bpm,
             ),
         )
-        canvas._host.post(
-            lambda: handle._is_removed or self._play_on_loop(sound, volume, pan, at_beat)
-        )
+
+        def start() -> None:
+            if not handle._is_removed:
+                self._play_on_loop(sound, volume, pan, at_beat)
+
+        if canvas._host.is_on_loop():
+            start()
+        else:
+            canvas._host.post(start)
         return handle
+
+    def _sound_for(self, planned: list[_Planned]) -> TerminalSound:
+        """The sound of a ``play()`` call, made once for as long as it stays in the cache."""
+        key = tuple((item.key, item.offset_seconds) for item in planned)
+        try:
+            hash(key)
+        except TypeError:
+            return _mix_planned(planned)
+        anchors = tuple(item.anchor for item in planned)
+        with self._lock:
+            cached = self._mixed.get(key)
+            if cached is not None and all(
+                kept is anchor for kept, anchor in zip(cached[0], anchors, strict=True)
+            ):
+                self._mixed.move_to_end(key)
+                return cached[1]
+        sound = _mix_planned(planned)
+        samples = max(
+            1, round(sound.duration_milliseconds * _STANDARD_SAMPLE_RATE / 1000)
+        )
+        if samples > _MOST_MIXED_SAMPLES:
+            return sound
+        with self._lock:
+            previous = self._mixed.pop(key, None)
+            if previous is not None:
+                self._mixed_samples -= previous[2]
+            self._mixed[key] = (anchors, sound, samples)
+            self._mixed_samples += samples
+            while len(self._mixed) > _MOST_MIXED_SOUNDS or (
+                self._mixed_samples > _MOST_MIXED_SAMPLES and len(self._mixed) > 1
+            ):
+                self._mixed_samples -= self._mixed.popitem(last=False)[1][2]
+        return sound
 
     def _record(
         self, planned: list[_Planned], *, bpm: float, volume: float, at_beat: int | None

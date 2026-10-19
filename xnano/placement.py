@@ -28,6 +28,7 @@ from xnano._internal._axes import (
     check_point,
     check_size,
     inspect_number,
+    is_static_formula,
 )
 from xnano._internal._dynamic_operations import DynamicOperation
 from xnano._schema._appearance import ColorValue, Spacing
@@ -270,9 +271,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         self._require_attached()
         if isinstance(value, tuple):
             low, high = axis_limits(value, axis)
-            is_time_dependent = any(
-                isinstance(bound, _core.NumericValue) for bound in value
-            )
+            is_time_dependent = any(not is_static_formula(bound) for bound in value)
             with self._canvas._lock:
                 previous = self._limits.get(axis)
                 if low is None and high is None:
@@ -297,7 +296,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 self._bindings.pop(axis, None)
             self._assign_within_limits(axis, converted)
             return
-        is_time_dependent = isinstance(value, _core.NumericValue)
+        is_time_dependent = not is_static_formula(value)
         binding = (converted, is_time_dependent)
         with self._canvas._lock:
             previous = self._bindings.get(axis)

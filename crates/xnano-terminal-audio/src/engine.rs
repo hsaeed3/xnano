@@ -34,17 +34,27 @@ fn check_gain(volume: f32, pan: f32) -> PyResult<(f32, f32)> {
     }
     // Balance law: the centre keeps unity gain, panning only attenuates the
     // far channel.
-    let gain = volume.clamp(0.0, 1.0);
-    Ok((gain * (1.0 - pan).min(1.0), gain * (1.0 + pan).min(1.0)))
+    Ok((volume.clamp(0.0, 1.0), pan))
 }
 
 #[cfg(feature = "playback")]
 mod device {
-    use std::sync::Arc;
+    use std::sync::{Arc, Weak};
+    use std::time::Duration;
 
     use kira::clock::{ClockHandle, ClockSpeed, ClockTime};
     use kira::sound::static_sound::{StaticSoundData, StaticSoundSettings};
-    use kira::{AudioManager, AudioManagerSettings, DefaultBackend, Frame, Tween};
+    use kira::{AudioManager, AudioManagerSettings, Decibels, DefaultBackend, Frame, Tween};
+
+    /// How many distinct sounds keep their stereo frames for the next play.
+    const SHARED_FRAMES: usize = 64;
+
+    /// A change that takes effect at once, instead of kira's default ramp of ten milliseconds.
+    const IMMEDIATE: Tween = Tween {
+        start_time: kira::StartTime::Immediate,
+        duration: Duration::ZERO,
+        easing: kira::Easing::Linear,
+    };
     use pyo3::prelude::*;
 
     use crate::{audio_error, unavailable_error};
@@ -53,6 +63,9 @@ mod device {
         manager: AudioManager<DefaultBackend>,
         clock: ClockHandle,
         beats_per_minute: f64,
+        /// Stereo frames of recently played sounds, most recent last. A sound that is
+        /// played again shares them instead of copying its samples once more.
+        shared_frames: Vec<(Weak<[f32]>, Arc<[Frame]>)>,
     }
 
     impl Device {
@@ -73,14 +86,44 @@ mod device {
                 manager,
                 clock,
                 beats_per_minute,
+                shared_frames: Vec::new(),
             })
+        }
+
+        /// The stereo frames of `samples`, built the first time and shared afterwards.
+        fn frames_of(&mut self, samples: &Arc<[f32]>) -> Arc<[Frame]> {
+            let key = Arc::downgrade(samples);
+            self.shared_frames
+                .retain(|(owner, _)| owner.strong_count() > 0);
+            if let Some(position) = self
+                .shared_frames
+                .iter()
+                .position(|(owner, _)| owner.ptr_eq(&key))
+            {
+                let entry = self.shared_frames.remove(position);
+                let frames = Arc::clone(&entry.1);
+                self.shared_frames.push(entry);
+                return frames;
+            }
+            let frames: Arc<[Frame]> = samples
+                .iter()
+                .map(|&sample| Frame {
+                    left: sample,
+                    right: sample,
+                })
+                .collect();
+            if self.shared_frames.len() >= SHARED_FRAMES {
+                self.shared_frames.remove(0);
+            }
+            self.shared_frames.push((key, Arc::clone(&frames)));
+            frames
         }
 
         pub fn play(
             &mut self,
-            samples: &[f32],
+            samples: &Arc<[f32]>,
             sample_rate: u32,
-            (left, right): (f32, f32),
+            (volume, pan): (f32, f32),
             at_beat: Option<u64>,
         ) -> PyResult<()> {
             let mut settings = StaticSoundSettings::default();
@@ -91,13 +134,22 @@ mod device {
                     fraction: 0.0,
                 });
             }
-            let frames: Arc<[Frame]> = samples
-                .iter()
-                .map(|&sample| Frame {
-                    left: sample * left,
-                    right: sample * right,
-                })
-                .collect();
+            let frames = if pan == 0.0 {
+                // Volume is a uniform scale, so kira applies it and the frames are shared.
+                settings = settings.volume(Decibels(20.0 * volume.max(1e-6).log10()));
+                self.frames_of(samples)
+            } else {
+                // Balance law: only the far channel is attenuated.
+                let left = volume * (1.0 - pan).min(1.0);
+                let right = volume * (1.0 + pan).min(1.0);
+                samples
+                    .iter()
+                    .map(|&sample| Frame {
+                        left: sample * left,
+                        right: sample * right,
+                    })
+                    .collect()
+            };
             let sound = StaticSoundData {
                 sample_rate,
                 frames,
@@ -122,10 +174,8 @@ mod device {
 
         pub fn set_tempo(&mut self, beats_per_minute: f64) {
             self.beats_per_minute = beats_per_minute;
-            self.clock.set_speed(
-                ClockSpeed::TicksPerMinute(beats_per_minute),
-                Tween::default(),
-            );
+            self.clock
+                .set_speed(ClockSpeed::TicksPerMinute(beats_per_minute), IMMEDIATE);
         }
 
         pub fn tempo(&self) -> f64 {
@@ -171,7 +221,7 @@ mod device {
 
         pub fn play(
             &mut self,
-            _samples: &[f32],
+            _samples: &std::sync::Arc<[f32]>,
             _sample_rate: u32,
             _gains: (f32, f32),
             _at_beat: Option<u64>,

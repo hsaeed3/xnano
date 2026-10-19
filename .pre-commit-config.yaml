@@ -42,6 +42,8 @@ repos:
         args: [--fix]
       - id: ruff-format
         name: Run Formatter (Ruff)
+        # HISTORY.md is generated from the published release notes and is kept as written.
+        exclude: ^HISTORY\.md$
 
   - repo: local
     hooks:

@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 
     from xnano._schema._effects import PlayableEffectSpecification
 
-Extra: TypeAlias = Literal['audio', 'image']
+Extra: TypeAlias = Literal['audio', 'image', 'monty']
 """
-An optional part of xnano: ``'audio'`` needs the xnano-audio package and ``'image'`` the
-xnano-image package.
+An optional part of xnano: ``'audio'`` needs the xnano-audio package, ``'image'`` the
+xnano-image package and ``'monty'`` the pydantic-monty package.
 """
 
 ImageFit: TypeAlias = Literal['contain', 'cover', 'stretch', 'crop', 'smart']

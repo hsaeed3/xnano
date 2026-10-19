@@ -12,7 +12,6 @@ import io
 import os
 import pathlib
 import sys
-import wave
 from typing import TYPE_CHECKING, Final
 
 from xnano import symbols
@@ -147,6 +146,8 @@ class Sound:
 
 def _decode_wave(module: ModuleType, data: bytes) -> TerminalSound:
     """Decode the bytes of a PCM WAV file into a mono sound."""
+    import wave  # only loading a sound file needs it
+
     try:
         with wave.open(io.BytesIO(data), 'rb') as reader:
             channels = reader.getnchannels()

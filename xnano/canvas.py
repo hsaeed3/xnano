@@ -2502,6 +2502,9 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         elif is_decorated:
             # Content that is not text takes the same look: a border, padding and colors.
             placement._appearance = appearance
+        # The runtime may draw a frame at any moment, so the buffer stays hidden until its
+        # position, size and look are set; it never shows for a frame in the wrong place.
+        buffer.is_visible = False
         parent_buffer.attach(buffer, mode='transparent')
         requested: list[tuple[AxisName, Axis | None]] = [
             ('x', x),
@@ -2526,6 +2529,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         except BaseException:
             placement.remove()
             raise
+        buffer.is_visible = True
         return placement
 
     def _place_box(

@@ -67,12 +67,17 @@ dependencies = [
 
 [project.optional-dependencies]
 audio = [
-    "xnano-audio>=0.3.0,<0.4",
+    "xnano-audio>=0.4.0,<0.5",
 ]
 image = [
     "xnano-image>=0.2.0,<0.3",
 ]
 # [! END AUTO-VERSIONING]
+# extras that are not `xnano-*` packages stay below the generated block, which rewrites only
+# the extras above.
+monty = [
+    "pydantic-monty>=1.2.0",
+]
 
 [project.scripts]
 xnano = 'xnano.__main__:main'

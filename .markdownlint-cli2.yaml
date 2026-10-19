@@ -15,3 +15,7 @@ config:
   MD033:
     allowed_elements:
       - div
+# HISTORY.md is generated from the published GitHub release notes by
+# scripts/history.py, so it keeps their formatting.
+ignores:
+  - HISTORY.md
