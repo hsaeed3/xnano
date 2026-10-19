@@ -1,7 +1,7 @@
 """
 xnano.audio._sounds
 
-Sounds loaded from WAV files or built from samples.
+Sounds loaded from audio files or built from samples.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import io
 import os
 import pathlib
 import sys
+import tempfile
 from typing import TYPE_CHECKING, Final
 
 from xnano import symbols
@@ -36,8 +37,11 @@ class Sound:
     A sound you can play with [`Canvas.play`][xnano.canvas.Canvas.play] or
     [`AudioDevice.play`][xnano.audio.AudioDevice.play].
 
-    Make one from the path of a WAV file, the bytes of one, or a
-    [`TerminalSound`][xnano_audio.TerminalSound].
+    Make one from the path of an audio file, the bytes of one, or a
+    [`TerminalSound`][xnano_audio.TerminalSound]. WAV, MP3, FLAC, Ogg Vorbis and MP4/AAC
+    files are accepted, and the format is recognised from the content of the file. The
+    whole file is decoded into one mono sound, so a long song takes memory in proportion
+    to its length.
 
     Maps to [`xnano_audio.TerminalSound`][xnano_audio.TerminalSound].
 
@@ -76,7 +80,8 @@ class Sound:
         Load a sound.
 
         Args:
-            source: The path of a WAV file, the bytes of one, or a sound.
+            source: The path of an audio file (WAV, MP3, FLAC, Ogg Vorbis or MP4/AAC), the
+                bytes of one, or a sound.
             symbol: A name to register the sound under in [`symbols`][xnano.symbols], so
                 ``play(name)`` plays it.
 
@@ -85,26 +90,27 @@ class Sound:
                 ``pip install "xnano[audio]"``.
             TypeError: ``source`` is not a path, bytes or a sound.
             FileNotFoundError: ``source`` is a path to a file that does not exist.
-            ValueError: The file is not a PCM WAV file that xnano can read, or ``symbol`` cannot
-                be a symbol name, or another kind of value already has it.
+            ValueError: The file is not a WAV, MP3, FLAC, Ogg Vorbis or MP4/AAC file that
+                xnano can read, or ``symbol`` cannot be a symbol name, or another kind of
+                value already has it.
         """
         module = require('audio', needed_for='xnano.Sound')
         if isinstance(source, module.TerminalSound):
             samples = source
         elif isinstance(source, bytes):
-            samples = _decode_wave(module, source)
+            samples = _decode_audio_bytes(module, source)
         elif isinstance(source, (str, os.PathLike)):
             path = pathlib.Path(source)
             if not path.is_file():
                 raise FileNotFoundError(
-                    f'Sound could not load {str(path)!r}, because no WAV file exists '
+                    f'Sound could not load {str(path)!r}, because no audio file exists '
                     f'there. Check the path, or pass the bytes of the sound.'
                 )
-            samples = _decode_wave(module, path.read_bytes())
+            samples = _decode_audio_path(module, path)
         else:
             raise TypeError(
-                f'Sound needs the path of a WAV file, the bytes of one or a sound, but got '
-                f'{type(source).__name__}. Pass xnano.load_sound("sound.wav").'
+                f'Sound needs the path of an audio file, the bytes of one or a sound, but got '
+                f'{type(source).__name__}. Pass xnano.load_sound("sound.mp3").'
             )
         object.__setattr__(self, 'samples', samples)
         object.__setattr__(self, 'symbol', symbol)
@@ -144,8 +150,75 @@ class Sound:
         )
 
 
+_UNREADABLE_AUDIO: Final = (
+    'Sound could not read this audio{where}{detail}. xnano accepts WAV, MP3, FLAC, Ogg '
+    'Vorbis and MP4/AAC files. Convert the sound to one of them, or build a sound with '
+    'xnano_audio.TerminalSound.'
+)
+
+
+def _is_wave(head: bytes) -> bool:
+    """Whether ``head``, the first bytes of a file, starts a RIFF WAVE container."""
+    return head[:4] == b'RIFF' and head[8:12] == b'WAVE'
+
+
+def _decode_audio_path(module: ModuleType, path: pathlib.Path) -> TerminalSound:
+    """Decode the audio file at ``path``, choosing the decoder by its content."""
+    with path.open('rb') as file:
+        head = file.read(12)
+    if _is_wave(head):
+        return _decode_wave(module, path.read_bytes())
+    return _decode_stream(module, path, where=f' file {str(path)!r}')
+
+
+def _decode_audio_bytes(module: ModuleType, data: bytes) -> TerminalSound:
+    """Decode the bytes of an audio file, choosing the decoder by their content."""
+    if _is_wave(data[:12]):
+        return _decode_wave(module, data)
+    if not data:
+        raise ValueError(_UNREADABLE_AUDIO.format(where=' data', detail=' (it is empty)'))
+    # The decoder opens files only, so the bytes go through a temporary one.
+    with tempfile.NamedTemporaryFile(delete=False) as file:
+        file.write(data)
+    path = pathlib.Path(file.name)
+    try:
+        return _decode_stream(module, path, where=' data')
+    finally:
+        path.unlink(missing_ok=True)
+
+
+_STREAM_CHUNK_FRAMES: Final = 1 << 18
+"""Frames decoded per read when a compressed file becomes a sound."""
+
+
+def _decode_stream(
+    module: ModuleType, path: pathlib.Path, *, where: str
+) -> TerminalSound:
+    """Decode an MP3, FLAC, Ogg Vorbis or MP4/AAC file into a mono sound at 44100 Hz."""
+    from xnano.audio._player import _STANDARD_SAMPLE_RATE
+
+    layout = module.TerminalPCMFormat(
+        sample_rate=_STANDARD_SAMPLE_RATE, channels=1, sample_type='f32le'
+    )
+    chunks: list[bytes] = []
+    try:
+        with module.TerminalAudioStream.open(path, format=layout) as stream:
+            while chunk := stream.read(_STREAM_CHUNK_FRAMES):
+                chunks.append(chunk)
+    except module.TerminalAudioError as error:
+        detail = f' ({error})' if str(error) else ''
+        raise ValueError(_UNREADABLE_AUDIO.format(where=where, detail=detail)) from None
+    if not chunks:
+        raise ValueError(
+            f'The audio{where} holds no samples. Pass a recording that is not empty.'
+        )
+    return module.TerminalSound.from_bytes(
+        b''.join(chunks), sample_rate=_STANDARD_SAMPLE_RATE
+    )
+
+
 def _decode_wave(module: ModuleType, data: bytes) -> TerminalSound:
-    """Decode the bytes of a PCM WAV file into a mono sound."""
+    """Decode the bytes of a WAV file into a mono sound."""
     import wave  # only loading a sound file needs it
 
     try:
@@ -156,10 +229,7 @@ def _decode_wave(module: ModuleType, data: bytes) -> TerminalSound:
             frames = reader.readframes(reader.getnframes())
     except (wave.Error, EOFError) as error:
         detail = f' ({error})' if str(error) else ''
-        raise ValueError(
-            f'This is not a PCM WAV file that xnano can read{detail}. Convert the sound '
-            f'to a 16-bit PCM WAV file, or build a sound with xnano_audio.TerminalSound.'
-        ) from None
+        raise ValueError(_UNREADABLE_AUDIO.format(where='', detail=detail)) from None
     if sample_width == 1:
         values = [(byte - 128) / 128.0 for byte in frames]
     elif sample_width == 3:
@@ -195,14 +265,14 @@ def load_sound(
     symbol: str | None = None,
 ) -> Sound:
     """
-    Load a sound from a WAV file path or from bytes.
+    Load a sound from the path or the bytes of an audio file.
 
     This is [`Sound`][xnano.Sound] with the same arguments. Play the result with
     ``canvas.play(sound)``, or give it a ``symbol`` and play it by name.
 
     Args:
-        source: The path of a PCM WAV file, the bytes of one, or a
-            [`TerminalSound`][xnano_audio.TerminalSound].
+        source: The path of an audio file (WAV, MP3, FLAC, Ogg Vorbis or MP4/AAC), the
+            bytes of one, or a [`TerminalSound`][xnano_audio.TerminalSound].
         symbol: A name to register the sound under in [`symbols`][xnano.symbols], so
             ``play(name)`` plays it.
 
@@ -213,7 +283,8 @@ def load_sound(
         ImportError: ``xnano-audio`` is not installed. Install it with
             ``pip install "xnano[audio]"``.
         TypeError: ``source`` is not a path, bytes or a sound.
-        ValueError: The file is not a PCM WAV file that xnano can read.
+        ValueError: The file is not a WAV, MP3, FLAC, Ogg Vorbis or MP4/AAC file that xnano
+            can read.
         FileNotFoundError: The path does not exist.
 
     Examples:

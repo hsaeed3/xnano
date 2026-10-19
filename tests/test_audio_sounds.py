@@ -51,7 +51,7 @@ class TestLoadSound:
     def test_a_file_of_another_kind_says_what_is_accepted(self, tmp_path):
         path = tmp_path / 'notes.txt'
         path.write_text('hello, this is text')
-        with pytest.raises(ValueError, match='not a PCM WAV file'):
+        with pytest.raises(ValueError, match='xnano accepts WAV, MP3, FLAC'):
             xnano.load_sound(path)
 
     def test_a_sound_can_be_played_from_the_canvas(self, canvas):

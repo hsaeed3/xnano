@@ -166,7 +166,7 @@ With the `audio` extra, a canvas plays music on its own clock:
 
 - **`Note(pitch, beats=1.0, instrument='piano', velocity=0.8)`** (or `xnano.note(...)`) is a note, a MIDI number or a chord. Creating notes needs no extra.
 - **`Melody(text)`** reads a score such as `'C4 E4 G4:2 rest C5+E5+G5'`: `:n` sets beats, `+` builds a chord, `rest` or `-` is silence and `|` is a bar line.
-- **`xnano.load_sound(source)`** loads a PCM WAV file as a `Sound`.
+- **`xnano.load_sound(source)`** (or `Sound(source)`) loads a WAV, MP3, FLAC, Ogg Vorbis or MP4/AAC file, from its path or its bytes, as a `Sound`.
 - **`canvas.play(playable, **options)`** (or `xnano.play(...)`) plays any of them, a string, or a sequence, with `instrument`, `velocity`, `effects`, `volume`, `pan`, `at_beat` and `beats`. It returns a `PlayHandle`.
 - **`canvas.audio`** reports `is_available`, follows the `beat`, and gives the `microphone` and its `level`. On an offscreen canvas with a manual clock, everything played is recorded, and `canvas.audio.render_sound()` renders it exactly.
 
