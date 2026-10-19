@@ -35,6 +35,21 @@ __all__ = [
 _PIXELS_PER_CELL_ROW = 2
 
 
+_TRANSPARENT_CELL = _core.Cell(' ', is_transparent=True)
+
+ImageFrame = _core.Buffer | _core.Raster
+"""One frame of a picture: cells to paste, or the pixels to draw over transparent cells."""
+
+
+def show_frame(buffer: _core.Buffer, frame: ImageFrame) -> None:
+    """Make ``buffer`` show ``frame``, keeping the transparency of cells the picture leaves bare."""
+    if isinstance(frame, _core.Raster):
+        buffer.fill(_TRANSPARENT_CELL)
+        buffer.update(frame)
+    else:
+        buffer.update(_core.Paste(frame, mode='replace'))
+
+
 @dataclasses.dataclass(slots=True)
 class ImageAnimation:
     """
@@ -43,7 +58,8 @@ class ImageAnimation:
     Attributes:
         decoded: The animated picture, a [`TerminalImage`][xnano_image.TerminalImage].
         buffer: The buffer the frames are shown in.
-        frames: One buffer per frame.
+        frames: One entry per frame: the cells to paste, or, for a picture with transparent
+            pixels, the pixels to draw over transparent cells.
         started_milliseconds: The clock time the animation started at.
         shown_index: The index of the frame that is showing.
     """
@@ -52,8 +68,8 @@ class ImageAnimation:
     """The animated picture, a [`TerminalImage`][xnano_image.TerminalImage]."""
     buffer: _core.Buffer
     """The buffer the frames are shown in."""
-    frames: list[_core.Buffer]
-    """One buffer per frame."""
+    frames: list[ImageFrame]
+    """One entry per frame: cells to paste, or pixels to draw over transparent cells."""
     started_milliseconds: float
     """The clock time the animation started at."""
     shown_index: int = 0
@@ -66,7 +82,87 @@ class ImageAnimation:
         if index == self.shown_index:
             return
         self.shown_index = index
-        self.buffer.update(_core.Paste(self.frames[index], mode='replace'))
+        show_frame(self.buffer, self.frames[index])
+
+
+@dataclasses.dataclass(slots=True)
+class FittedImage:
+    """
+    An image fitted into a box of cells.
+
+    Attributes:
+        columns: The width in cells.
+        rows: The height in cells.
+        frames: One entry per frame: the cells to paste, or, when the picture has transparent
+            pixels, the pixels to draw over transparent cells.
+    """
+
+    columns: int
+    """The width in cells."""
+    rows: int
+    """The height in cells."""
+    frames: list[ImageFrame]
+    """One entry per frame: cells to paste, or pixels to draw over transparent cells."""
+
+    def new_buffer(self) -> _core.Buffer:
+        """A buffer of the fitted size showing the first frame."""
+        first = self.frames[0]
+        if isinstance(first, _core.Buffer):
+            return _core.Buffer.from_cell_grid(first.to_cell_grid())
+        buffer = _core.Buffer(width=self.columns, height=self.rows)
+        show_frame(buffer, first)
+        return buffer
+
+
+def fit_image(
+    image: TerminalImage,
+    *,
+    columns: int | None = None,
+    rows: int | None = None,
+    limit: _core.Size | None = None,
+    fit: Literal['contain', 'cover', 'stretch', 'crop', 'smart'] | None = None,
+    resampling_filter: Literal['nearest', 'bilinear', 'catmull_rom', 'lanczos3']
+    | None = None,
+    background: tuple[int, int, int] = (0, 0, 0),
+) -> FittedImage:
+    """
+    Fit an image into cells, with the arguments of [`image_buffer`][xnano.art._images.image_buffer].
+
+    An image with no transparent pixel becomes opaque cells, padded with ``background``. An
+    image with transparent pixels is drawn as pixels over transparent cells, so fully
+    transparent pixels and the margins around the picture let what is below show through.
+    """
+    if columns is None and rows is None:
+        columns, rows = _fitted_size(image, limit)
+        chosen_fit = fit or 'stretch'
+    else:
+        chosen_fit = fit or 'contain'
+    chosen_filter = resampling_filter or _resampling_filter(image, columns, rows)
+    if not image.is_opaque:
+        return _fit_transparent(
+            image, columns, rows, chosen_fit, chosen_filter, background
+        )
+    if image.is_animated:
+        grids = image.to_cell_grids(
+            columns,
+            rows,
+            fit=chosen_fit,
+            resampling_filter=chosen_filter,
+            background=background,
+        )
+    else:
+        grids = [
+            image.to_cell_grid(
+                columns,
+                rows,
+                fit=chosen_fit,
+                resampling_filter=chosen_filter,
+                background=background,
+            )
+        ]
+    frames: list[ImageFrame] = [_core.Buffer.from_cell_grid(grid) for grid in grids]
+    first = cast('_core.Buffer', frames[0])
+    return FittedImage(first.width, first.height, frames)
 
 
 def image_buffer(
@@ -94,39 +190,148 @@ def image_buffer(
         fit: How the picture sits in the box; ``None`` stretches an unsized image to its
             own size and contains a sized one.
         resampling_filter: How pixels are blended; ``None`` chooses by whether it is enlarged.
-        background: The color behind transparent pixels and padding.
+        background: The color of the margins around an image with no transparent pixel, and
+            the color partly transparent pixels are blended with. Fully transparent pixels
+            and the margins of an image with transparency show the cells below.
     """
-    if columns is None and rows is None:
-        columns, rows = _fitted_size(image, limit)
-        chosen_fit = fit or 'stretch'
-    else:
-        chosen_fit = fit or 'contain'
-    chosen_filter = resampling_filter or _resampling_filter(image, columns, rows)
-    if not image.is_animated:
-        grid = image.to_cell_grid(
-            columns,
-            rows,
-            fit=chosen_fit,
-            resampling_filter=chosen_filter,
-            background=background,
-        )
-        return _core.Buffer.from_cell_grid(grid), None
-    grids = image.to_cell_grids(
-        columns,
-        rows,
-        fit=chosen_fit,
-        resampling_filter=chosen_filter,
+    fitted = fit_image(
+        image,
+        columns=columns,
+        rows=rows,
+        limit=limit,
+        fit=fit,
+        resampling_filter=resampling_filter,
         background=background,
     )
-    frames = [_core.Buffer.from_cell_grid(grid) for grid in grids]
-    buffer = _core.Buffer.from_cell_grid(grids[0])
+    if not image.is_animated and isinstance(fitted.frames[0], _core.Buffer):
+        return fitted.frames[0], None
+    buffer = fitted.new_buffer()
+    if not image.is_animated:
+        return buffer, None
     animation = ImageAnimation(
         decoded=image,
         buffer=buffer,
-        frames=frames,
+        frames=fitted.frames,
         started_milliseconds=elapsed_seconds * 1000.0,
     )
     return buffer, animation
+
+
+_VISIBILITY = bytes([0] + [255] * 255)
+"""Maps an alpha of 0 to 0 and every other alpha to 255."""
+
+
+def _visible_pixels(flattened: bytes, original: bytes) -> bytes:
+    """
+    RGBA bytes whose colors are blended onto the background and whose alpha is 0 only where
+    the original pixel was fully transparent.
+    """
+    pixels = bytearray(flattened)
+    pixels[3::4] = original[3::4].translate(_VISIBILITY)
+    return bytes(pixels)
+
+
+def _fit_transparent(
+    image: TerminalImage,
+    columns: int | None,
+    rows: int | None,
+    fit: str,
+    resampling_filter: str,
+    background: tuple[int, int, int],
+) -> FittedImage:
+    """
+    Fit an image that has transparent pixels, as pixels to draw over transparent cells.
+
+    The picture is sized and placed exactly as it would be for an opaque image, but it is not
+    flattened onto a background first.
+    """
+    plan = _pixel_plan(image.width, image.height, columns, rows, fit)
+    fitted = image
+    if plan.scaled is not None and plan.scaled != (image.width, image.height):
+        fitted = fitted.resize(*plan.scaled, resampling_filter=resampling_filter)  # type: ignore[arg-type]
+    canvas_width, canvas_height = plan.canvas
+    source_left = max(0, (fitted.width - canvas_width) // 2)
+    source_top = max(0, (fitted.height - canvas_height) // 2)
+    source_top -= source_top % _PIXELS_PER_CELL_ROW
+    copy_width = min(fitted.width, canvas_width)
+    copy_height = min(fitted.height, canvas_height)
+    if (source_left, source_top, copy_width, copy_height) != (
+        0,
+        0,
+        fitted.width,
+        fitted.height,
+    ):
+        fitted = fitted.crop(source_left, source_top, copy_width, copy_height)
+    left = max(0, (canvas_width - fitted.width) // 2)
+    top = max(0, (canvas_height - fitted.height) // 2)
+    top -= top % _PIXELS_PER_CELL_ROW
+    flattened = fitted.flatten(background)
+    frames: list[ImageFrame] = [
+        _core.Raster(
+            _visible_pixels(flattened.to_rgba(frame_index), fitted.to_rgba(frame_index)),
+            width=fitted.width,
+            height=fitted.height,
+            x=left,
+            y=top,
+            mode='over',
+        )
+        for frame_index in range(fitted.frame_count)
+    ]
+    return FittedImage(plan.columns, plan.rows, frames)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _PixelPlan:
+    """Where a picture lands on a grid of half-block pixels."""
+
+    columns: int
+    rows: int
+    scaled: tuple[int, int] | None
+    canvas: tuple[int, int]
+
+
+def _pixel_plan(
+    width: int, height: int, columns: int | None, rows: int | None, fit: str
+) -> _PixelPlan:
+    """The size in cells, the size to resize to and the pixel canvas, for one image."""
+
+    def rounded(value: float) -> int:
+        return max(1, round(value))
+
+    natural = (width, height)
+    if rows is None:
+        if columns is None:
+            return _PixelPlan(
+                width, math.ceil(height / _PIXELS_PER_CELL_ROW), None, natural
+            )
+        scale = 1.0 if fit == 'crop' else columns / width
+        scaled = (rounded(width * scale), rounded(height * scale))
+        return _PixelPlan(
+            columns,
+            math.ceil(scaled[1] / _PIXELS_PER_CELL_ROW),
+            scaled,
+            (columns, scaled[1]),
+        )
+    if columns is None:
+        scale = 1.0 if fit == 'crop' else rows * _PIXELS_PER_CELL_ROW / height
+        scaled = (rounded(width * scale), rounded(height * scale))
+        return _PixelPlan(
+            scaled[0], rows, scaled, (scaled[0], rows * _PIXELS_PER_CELL_ROW)
+        )
+    target_width, target_height = columns, rows * _PIXELS_PER_CELL_ROW
+    if fit == 'smart':
+        ratio = (width / height) / (target_width / target_height)
+        fit = 'cover' if max(ratio, 1 / ratio) <= 1.2 else 'contain'
+    scaled: tuple[int, int] | None
+    if fit == 'crop':
+        scaled = None
+    elif fit == 'stretch':
+        scaled = (target_width, target_height)
+    else:
+        horizontal, vertical = target_width / width, target_height / height
+        scale = max(horizontal, vertical) if fit == 'cover' else min(horizontal, vertical)
+        scaled = (rounded(width * scale), rounded(height * scale))
+    return _PixelPlan(columns, rows, scaled, (target_width, target_height))
 
 
 # Pictures up to this many pixels on a side are treated as pixel art when they are enlarged.
@@ -174,6 +379,11 @@ class Image:
     again whenever the canvas is resized, so it always fits; give it a number, or
     ``lock=True``, and it keeps its size.
 
+    A picture with transparent pixels (a PNG with an alpha channel, for example) lets what is
+    below it on the canvas show through them. Pixels that are only partly transparent blend
+    with ``background``, and a cell with one transparent half and one drawn half shows the terminal's
+    default color in the transparent half.
+
     Maps to [`xnano_image.TerminalImage`][xnano_image.TerminalImage].
 
     Attributes:
@@ -189,7 +399,9 @@ class Image:
         resampling_filter: How pixels are blended when it is resized. By default a small
             picture that is enlarged keeps hard pixel edges (``'nearest'``) and any other is
             smoothed (``'lanczos3'``).
-        background: The color behind transparent pixels and padding.
+        background: The color of the margins around a picture with no transparent pixel, and
+            the color its partly transparent pixels are blended with. Fully transparent
+            pixels let the canvas show through.
         symbol: The name the image is registered under in [`symbols`][xnano.symbols], or
             ``None``.
 
@@ -224,7 +436,7 @@ class Image:
     resampling_filter: ResamplingFilter | None
     """How pixels are blended when it is resized, or ``None`` to choose by scale."""
     background: tuple[int, int, int]
-    """The color behind transparent pixels and padding, as ``(red, green, blue)``."""
+    """The color of margins and partly transparent pixels, as ``(red, green, blue)``."""
     symbol: str | None
     """The name the image is registered under in [`symbols`][xnano.symbols], or ``None``."""
 
@@ -259,8 +471,10 @@ class Image:
             lock: Keep the size the image has when it is added, whatever the canvas does.
             fit: How the picture sits in a box of ``width`` by ``height``.
             resampling_filter: How pixels are blended when it is resized.
-            background: The color behind transparent pixels and padding, as a color name, a
-                hex string, an ``(r, g, b)`` tuple or a [`Color`][xnano_core.Color].
+            background: The color of the margins around a picture with no transparent pixel
+                and the color partly transparent pixels are blended with, as a color name, a
+                hex string, an ``(r, g, b)`` tuple or a [`Color`][xnano_core.Color]. Fully
+                transparent pixels let the canvas show through.
             speed: How fast an animated image plays: ``2.0`` is twice as fast.
             symbol: A name to register the image under in [`symbols`][xnano.symbols].
 
@@ -345,7 +559,8 @@ def load_image(
         lock: Keep the size the image has when it is added, whatever the canvas does.
         fit: How the picture sits in a box of ``width`` by ``height``.
         resampling_filter: How pixels are blended when it is resized.
-        background: The color behind transparent pixels and padding.
+        background: The color of the margins around a picture with no transparent pixel, and
+            the color partly transparent pixels are blended with.
         speed: How fast an animated image plays: ``2.0`` is twice as fast.
         symbol: A name to register the image under in [`symbols`][xnano.symbols].
 
@@ -388,18 +603,13 @@ def load_image(
 
 
 def _convert(
-    picture: Image,
-    width: Axis | None,
-    height: Axis | None,
-    size: _core.Size,
-    elapsed_seconds: float,
-) -> tuple[_core.Buffer, ImageAnimation | None]:
-    return image_buffer(
+    picture: Image, width: Axis | None, height: Axis | None, size: _core.Size
+) -> FittedImage:
+    return fit_image(
         picture.decoded,
         columns=cells(width, size.width),
         rows=cells(height, size.height),
         limit=size,
-        elapsed_seconds=elapsed_seconds,
         fit=picture.fit,
         resampling_filter=picture.resampling_filter,
         background=picture.background,
@@ -462,7 +672,16 @@ class ImageSource:
         elapsed_seconds: float,
     ) -> ImageSource:
         """Convert an image for a canvas of this ``size``."""
-        buffer, animation = _convert(picture, width, height, size, elapsed_seconds)
+        fitted = _convert(picture, width, height, size)
+        buffer = fitted.new_buffer()
+        animation = None
+        if picture.decoded.is_animated:
+            animation = ImageAnimation(
+                decoded=picture.decoded,
+                buffer=buffer,
+                frames=fitted.frames,
+                started_milliseconds=elapsed_seconds * 1000.0,
+            )
         return cls(picture.decoded, width, height, size, buffer, animation, picture)
 
     @property
@@ -486,13 +705,9 @@ class ImageSource:
         self.size = size
         if not self.depends_on_size:
             return
-        buffer, animation = _convert(
-            self.picture, self.width, self.height, size, elapsed_seconds
-        )
-        self.buffer.resize(buffer.width, buffer.height)
-        self.buffer.update(_core.Paste(buffer, mode='replace'))
-        if self.animation is not None and animation is not None:
-            animation.started_milliseconds = self.animation.started_milliseconds
-            animation.buffer = self.buffer
-            self.animation = animation
-            animation.shown_index = -1
+        fitted = _convert(self.picture, self.width, self.height, size)
+        self.buffer.resize(fitted.columns, fitted.rows)
+        show_frame(self.buffer, fitted.frames[0])
+        if self.animation is not None:
+            self.animation.frames = fitted.frames
+            self.animation.shown_index = -1

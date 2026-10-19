@@ -18,7 +18,7 @@ from xnano.hooks._triggers import (
     _MEMBERS,
     _PARTS,
     compile_when,
-    normalize_chord,
+    normalize_binding,
     parse_when,
 )
 from xnano.types import KeyName
@@ -120,9 +120,9 @@ class TestMembers:
         events = [Event.key_press('a'), Event.key_press('a', kind='release')]
         assert hook_heard(canvas, "keyboard.kind == 'release'", *events) == 1
 
-    def test_keyboard_chord(self, canvas):
+    def test_keyboard_binding(self, canvas):
         events = [Event.key_press('s'), Event.key_press('Ctrl+s')]
-        assert hook_heard(canvas, "keyboard.chord == 'ctrl+s'", *events) == 1
+        assert hook_heard(canvas, "keyboard.binding == 'ctrl+s'", *events) == 1
 
     def test_mouse_position_in_the_region_of_the_buffer(self, canvas):
         placement = canvas.write('....', x=5, y=2)
@@ -299,10 +299,10 @@ class TestEveryMember:
                 push(canvas, event)
             canvas.step(delta_seconds=0.2)
 
-    def test_chord_matches_in_both_paths(self, canvas):
+    def test_binding_matches_in_both_paths(self, canvas):
         event = Event.key_press('ctrl+s')
-        assert hook_heard(canvas, "keyboard.chord == 'ctrl+s'", event, on='key') == 1
-        both = "(keyboard.chord == 'ctrl+s') and deps.n == 1"
+        assert hook_heard(canvas, "keyboard.binding == 'ctrl+s'", event, on='key') == 1
+        both = "(keyboard.binding == 'ctrl+s') and deps.n == 1"
 
         class Dependencies:
             n = 1
@@ -380,19 +380,19 @@ class TestKeys:
             push(canvas, Event.key_press(name))
             handle.remove()
             assert heard == [1], name
-            assert isinstance(normalize_chord(name), str)
+            assert isinstance(normalize_binding(name), str)
 
     def test_chords_are_written_in_one_order(self):
-        assert normalize_chord('shift+ctrl+alt+x') == 'ctrl+alt+shift+x'
-        assert normalize_chord('Esc') == 'escape'
-        assert normalize_chord('Q') == 'shift+q'
+        assert normalize_binding('shift+ctrl+alt+x') == 'ctrl+alt+shift+x'
+        assert normalize_binding('Esc') == 'escape'
+        assert normalize_binding('Q') == 'shift+q'
 
     def test_an_unknown_key_names_the_closest(self):
         with pytest.raises(ValueError, match=r"'escpae' is not a key name.*'escape'"):
-            normalize_chord('escpae')
+            normalize_binding('escpae')
 
     def test_a_key_with_modifiers_in_keyboard_key_points_to_the_chord(self):
-        with pytest.raises(ValueError, match=re.escape("keyboard.chord == 'ctrl+s'")):
+        with pytest.raises(ValueError, match=re.escape("keyboard.binding == 'ctrl+s'")):
             parse_when("keyboard.key == 'ctrl+s'")
 
 
@@ -482,10 +482,10 @@ class TestUnseenValues:
         assert python == native
 
     def test_the_hyper_modifier_is_part_of_a_chord(self, canvas):
-        assert normalize_chord('hyper+a') == 'hyper+a'
+        assert normalize_binding('hyper+a') == 'hyper+a'
         heard: list[str] = []
         canvas.hook(
-            lambda context: heard.append(context.keyboard.chord),
+            lambda context: heard.append(context.keyboard.binding),
             on='key',
             keys=['hyper+a'],
         )

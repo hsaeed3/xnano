@@ -4,6 +4,18 @@ Release notes of every xnano package, newest first. This file is generated from 
 
 ## xnano
 
+### 2.0.1
+
+Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.0.1).
+
+#### xnano 2.0.1
+
+- **Transparent images.** Fully transparent pixels of an image (PNG, GIF, WebP) let the canvas show through instead of being filled with `background`, and so does the margin around an image that does not fill its box. Partly transparent pixels still blend with `background`. Opaque images are drawn exactly as before, at the same speed, and images with transparency are drawn faster than before. A cell with one opaque and one transparent half shows the terminal's default background behind the transparent half.
+- **Typed input values.** `context.keyboard.key` is a `KeyName`, `context.keyboard.modifiers` a set of `KeyModifier` values and `context.keyboard.kind` a `KeyEventKind`. Held keys, `Input.is_down`, `Input.axis`, `Input.direction` and `canvas.wait_for_key()` use the same names, so editors complete them and type checkers catch a misspelled key. `KeyName` also names `f13` to `f24`, `caps_lock`, `scroll_lock`, `num_lock`, `print_screen`, `pause` and `menu`.
+- **Key bindings.** A key combination such as `'ctrl+s'` is a binding: `context.keyboard.binding`, `xnano.expressions.KeyboardBinding`, and `keyboard.binding` inside `when=` conditions. The names `keyboard.chord` and `KeyboardChord` still work, raise a `DeprecationWarning`, and will be removed in xnano 2.1.0.
+- **`random()`.** `context.keyboard.random()`, `context.mouse.random(kind='click' | 'drag' | 'move')` and `context.scroll.random()` push a random event inside the placement or canvas the input belongs to. `border.random()` and the `random()` of each border side pick a random border kind. Like `color.fg.random()`, each draws at once, returns what it picked, and `random.seed()` repeats it.
+- xnano 2.0.1 requires `xnano-core>=2.0.1`.
+
 ### 2.0.0
 
 Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.0.0).
@@ -949,6 +961,14 @@ Published 2026-07-07. [Release page](https://github.com/hsaeed3/xnano/releases/t
 * @hsaeed3 made their first contribution in https://github.com/hsaeed3/xnano/pull/3
 
 ## xnano-core
+
+### 2.0.1
+
+Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.0.1).
+
+#### xnano-core 2.0.1
+
+- Released with xnano 2.0.1, which requires it. The package is otherwise unchanged from 2.0.0.
 
 ### 2.0.0
 

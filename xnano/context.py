@@ -273,19 +273,19 @@ class Context(Generic[DepsT_co, StateT_co]):
     def keyboard(self) -> KeyboardInput:
         """The key of the event; ``key`` is ``None`` unless the event is a key."""
         self._read('key')
-        return KeyboardInput(self._root_canvas, self._input_event)
+        return KeyboardInput(self._root_canvas, self._input_event, self._owner)
 
     @property
     def mouse(self) -> MouseInput:
         """The mouse button or movement of the event; ``position`` is ``None`` for any other."""
         self._read('mouse')
-        return MouseInput(self._root_canvas, self._input_event)
+        return MouseInput(self._root_canvas, self._input_event, self._owner)
 
     @property
     def scroll(self) -> ScrollInput:
         """The mouse wheel steps of the event; ``x`` and ``y`` are ``0`` unless it is a wheel."""
         self._read('scroll')
-        return ScrollInput(self._root_canvas, self._input_event)
+        return ScrollInput(self._root_canvas, self._input_event, self._owner)
 
     @property
     def clipboard(self) -> ClipboardInput:
