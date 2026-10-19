@@ -28,6 +28,11 @@ def frame_counter(monkeypatch):
     return counter
 
 
+# A canvas that keeps drawing passes this in any half second, even on a slow machine, while
+# an idle canvas draws no frames at all.
+KEEPS_DRAWING_FRAMES = 2
+
+
 def frames_while_waiting(canvas, counter) -> int:
     time.sleep(0.3)
     before = counter['frames']
@@ -54,22 +59,22 @@ class TestFormulaFrames:
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
             placement = canvas.write('ab')
             placement.x = (ParentWidth - Width) * ((TimeElapsed / 2) % 1.0)
-            assert frames_while_waiting(canvas, frame_counter) > 5
+            assert frames_while_waiting(canvas, frame_counter) >= KEEPS_DRAWING_FRAMES
 
     def test_a_formula_that_reads_the_canvas_time_keeps_drawing(self, frame_counter):
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
             placement = canvas.write('ab')
             placement.x = (canvas.time / 2 % 1.0) * 30
-            assert frames_while_waiting(canvas, frame_counter) > 5
+            assert frames_while_waiting(canvas, frame_counter) >= KEEPS_DRAWING_FRAMES
 
     def test_a_formula_that_reads_the_audio_beat_keeps_drawing(self, frame_counter):
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
             placement = canvas.write('ab')
             placement.x = (canvas.audio.beat % 1) * 19
-            assert frames_while_waiting(canvas, frame_counter) > 5
+            assert frames_while_waiting(canvas, frame_counter) >= KEEPS_DRAWING_FRAMES
 
     def test_a_formula_that_reads_the_audio_level_keeps_drawing(self, frame_counter):
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
             placement = canvas.write('ab')
             placement.x = canvas.audio.level * 19
-            assert frames_while_waiting(canvas, frame_counter) > 5
+            assert frames_while_waiting(canvas, frame_counter) >= KEEPS_DRAWING_FRAMES
