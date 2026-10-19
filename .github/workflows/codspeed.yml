@@ -56,9 +56,10 @@ jobs:
       - uses: CodSpeedHQ/action@c4fd08a3a159bd0cc208da1e0edf32b8c47d75e5 # v5.4.0
         with:
           mode: simulation
+          # Each package's benchmarks run in a process of their own, so what an earlier
+          # package leaves in memory does not change the measurements of the next one.
           run: >-
-            uv run --no-sync pytest --codspeed
-            benchmarks
-            packages/xnano-core/benchmarks
-            packages/xnano-image/benchmarks
-            packages/xnano-audio/benchmarks
+            uv run --no-sync pytest --codspeed benchmarks &&
+            uv run --no-sync pytest --codspeed packages/xnano-core/benchmarks &&
+            uv run --no-sync pytest --codspeed packages/xnano-image/benchmarks &&
+            uv run --no-sync pytest --codspeed packages/xnano-audio/benchmarks
