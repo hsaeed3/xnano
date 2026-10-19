@@ -25,6 +25,19 @@
     overflow: visible;
 }
 
+/* Keep code blocks inside the text column: the theme pulls them out to the screen edges
+   on narrow screens, which leaves them wider than the prose around them. */
+.md-typeset .highlight,
+.md-content__inner > .highlight,
+.md-typeset > .highlight {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+.md-content__inner > .highlight > pre > code,
+.md-typeset > .highlight > pre > code {
+    border-radius: var(--radius-2);
+}
+
 /* Strip default borders/shadows/radius from the child pre tag so they sit perfectly in the wrapper */
 .highlight pre {
     border: none !important;
@@ -36,10 +49,13 @@
 /* Integrated filename header bar */
 .highlight > span.filename {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: var(--size-3);
     margin-top: 0; /* override theme .highlight span.filename { margin-top: 1em } */
-    padding: var(--size-2) 1.1764705882em; /* match .md-typeset pre > code horizontal padding */
+    /* Horizontal padding matches .md-typeset pre > code so the title lines up with the
+       code; equal top and bottom padding centers it in its darker bar. */
+    padding: 0.65em 1.1764705882em;
+    line-height: 1.4;
     font-family: "Geist Pixel", monospace;
     font-variation-settings: "ELSH" 40;
     font-size: 0.78em;
@@ -51,8 +67,8 @@
 .highlight > span.filename .code-lang {
     margin-left: auto;
     flex-shrink: 0;
-    font-size: var(--font-size-0);
-    font-weight: var(--font-weight-7);
+    font-size: 1em;
+    font-weight: 400;
     letter-spacing: var(--font-letterspacing-2);
     text-transform: uppercase;
 }

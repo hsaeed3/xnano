@@ -18,19 +18,26 @@
     font-weight: var(--font-weight-4);
     letter-spacing: var(--font-letterspacing-1);
     text-rendering: geometricPrecision !important;
-    font-size: 16px;
+    font-size: var(--xnano-prose-size);
     /* scaleX expands from center by default, which shifts body text off
        the left edge of headings/code. Anchor to the left so optical
        widening only grows rightward and stays flush with titles. */
-    transform: scaleX(1.03);
+    transform: scaleX(var(--xnano-prose-stretch));
     transform-origin: left center;
+}
+/* The stretch is drawn after layout, so lay the text out narrower by the same factor
+   and it ends at the container's right edge instead of running into its padding. */
+.md-typeset p,
+.md-typeset li,
+.md-typeset dd {
+    max-width: calc(100% / var(--xnano-prose-stretch));
 }
 /* Description elements: closer to headers, serif styling */
 .md-typeset dd,
 .md-typeset description {
     font-family: "Geist Pixel", monospace !important;
     font-variation-settings: "ELSH" 40;
-    font-size: 1.1em !important;
+    font-size: 1em !important;
 }
 .md-typeset h1,
 .md-typeset h2,
@@ -47,21 +54,21 @@
 }
 .md-typeset h1 {
     font-variation-settings: "ELSH" 76.5;
-    font-size: 2em !important;
+    font-size: 1.7em !important;
     font-weight: 400;
 }
 .md-typeset h2 {
-    font-size: 1.85em !important;
+    font-size: 1.45em !important;
     font-weight: 400;
 }
 .md-typeset h3 {
-    font-size: 1.7em !important;
+    font-size: 1.25em !important;
     font-weight: 400;
 }
 .md-typeset h4,
 .md-typeset h5,
 .md-typeset h6 {
-    font-size: 1.5em !important;
+    font-size: 1.1em !important;
     font-weight: 400;
 }
 
@@ -77,6 +84,16 @@
 .highlight > span.filename {
     font-size: var(--xnano-code-size) !important;
 }
+/* Code inside a heading scales with the heading instead of the body code size. */
+.md-typeset h1 code,
+.md-typeset h2 code,
+.md-typeset h3 code,
+.md-typeset h4 code,
+.md-typeset h5 code,
+.md-typeset h6 code {
+    font-size: 0.8em !important;
+    vertical-align: 0.1em;
+}
 .md-nav,
 .md-tabs,
 .md-search {
@@ -91,6 +108,7 @@
     letter-spacing: 0 !important;
     line-height: 1.65 !important;
     transform: none;
+    max-width: none;
 }
 :root[data-xnano-style="serif"] .md-nav,
 :root[data-xnano-style="serif"] .md-tabs,
@@ -108,6 +126,7 @@
     letter-spacing: -0.01em !important;
     line-height: 1.65 !important;
     transform: none;
+    max-width: none;
 }
 :root[data-xnano-style="modern"] .md-nav,
 :root[data-xnano-style="modern"] .md-tabs,
