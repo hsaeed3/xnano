@@ -18,6 +18,7 @@
 .md-typeset p:has(> picture:only-child),
 .md-typeset p:has(> a:only-child > picture:only-child) {
     transform: none;
+    max-width: none;
 }
 /* ── Theme-aware demo GIFs ─────────────────────────────────────────────── */
 .xnano-demo {

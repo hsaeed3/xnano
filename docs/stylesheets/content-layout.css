@@ -1,15 +1,16 @@
 /*
   Collapsible admonitions (???) render as <details>/<summary>, not
   .admonition / .admonition-title. Material stretches the summary bar with
-  margin: 0 -.6rem; keep extra right padding so the title clears the
-  chevron and the box edge. Body content gets matching side insets —
-  paragraphs use scaleX(1.03) and otherwise grow into the right border.
+  margin: 0 -.6rem; both sides get the same inset so body text sits evenly
+  between the box edges, and the summary bar is re-synced to it below.
 */
-.md-typeset details {
+.md-typeset details,
+.md-typeset .admonition {
+    padding-left: var(--size-4) !important;
     padding-right: var(--size-4) !important;
 }
 .md-typeset details > summary {
-    /* Re-sync bar stretch with the larger details padding above. */
+    /* Re-sync bar stretch with the details padding above. */
     margin-left: calc(-1 * var(--size-4)) !important;
     margin-right: calc(-1 * var(--size-4)) !important;
     /* Icon inset (left) + chevron + breathing room (right). */

@@ -42,8 +42,14 @@
 }
 
 .highlight .codelineno,
-.md-typeset .highlight .codelineno {
+.md-typeset .highlight .codelineno,
+.md-typeset .highlight [data-linenos]::before {
     color: var(--xn-code-comment);
+}
+
+.md-typeset .highlight [data-linenos]::before {
+    background-color: var(--xn-code-filename-bg);
+    box-shadow: -0.05rem 0 color-mix(in srgb, var(--xn-code-comment) 35%, transparent) inset;
 }
 
 /* ── Comments ───────────────────────────────────────────────────────────── */

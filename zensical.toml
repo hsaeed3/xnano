@@ -87,6 +87,10 @@ extra_css = [
     "stylesheets/components/site-chrome.css",
 ]
 
+extra_javascript = [
+    "js/code-language.js",
+]
+
 [project.theme]
 language = "en"
 features = [
@@ -200,6 +204,9 @@ generic = true
 
 [project.markdown_extensions.pymdownx.highlight]
 anchor_linenums = true
+linenums = true
+# keeps the title as the header above the code, and line numbers out of copied text
+linenums_style = "pymdownx-inline"
 line_spans = "__span"
 pygments_lang_class = true
 auto_title = false
