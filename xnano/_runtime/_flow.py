@@ -60,8 +60,8 @@ class Flow:
     Attributes:
         canvas: The root canvas the container is on.
         container: The buffer the placements are attached to.
-        first: The first placement written that is still there.
-        last: The last placement written that is still there.
+        first: The first placement in the write order that is still there.
+        last: The last placement in the write order that is still there.
         participants: The placements that follow, and those written just before one, in
             the order they were written.
         link_count: How many placements follow one written before them.
@@ -72,6 +72,7 @@ class Flow:
         '_is_dissolved',
         '_is_settling',
         '_states',
+        '_unlinked',
         'canvas',
         'container',
         'first',
@@ -99,6 +100,10 @@ class Flow:
         self._is_settling = False
         # The line state after each of the first participants, as the last settle left them.
         self._states: list[_LineState] = []
+        # Placements that follow neither axis, written after the last one in the write order,
+        # by ``id``. They join the write order when something that follows is written after
+        # them, which is the only time their place in it counts.
+        self._unlinked: dict[int, Placement[object, object]] = {}
 
     # -- membership ----------------------------------------------------------------------
 
@@ -107,25 +112,20 @@ class Flow:
     ) -> None:
         """Append a placement that was just written, following the flow on the axes given."""
         with self.canvas._lock:
-            previous = self.last
             # Set only what differs from the class defaults a new placement reads.
             placement._flow = self
-            if placement._flow_previous is not previous:
-                placement._flow_previous = previous
-            if placement._flow_next is not None:
-                placement._flow_next = None
             if placement._follows_x is not follows_x:
                 placement._follows_x = follows_x
             if placement._follows_y is not follows_y:
                 placement._follows_y = follows_y
-            if previous is None:
-                self.first = placement
-            else:
-                previous._flow_next = placement
-            self.last = placement
             if not (follows_x or follows_y):
-                # It stays where it was put: the flow only remembers it was written here.
+                # It stays where it was put, and joins the write order only when something
+                # written after it follows the flow.
+                self._unlinked[id(placement)] = placement
                 return
+            self._link_unlinked()
+            previous = self.last
+            self._link(placement)
             if follows_x and not follows_y and previous is not None:
                 self._take_part(previous)
             self._take_part(placement)
@@ -145,6 +145,7 @@ class Flow:
             self._is_dissolved = True
             self.participants.clear()
             self._states.clear()
+            self._unlinked.clear()
             if canvas._flows.get(id(self.container)) is self:
                 del canvas._flows[id(self.container)]
 
@@ -153,6 +154,12 @@ class Flow:
         canvas = self.canvas
         with canvas._lock:
             if placement._flow is not self or self._is_dissolved:
+                return
+            if self._unlinked.pop(id(placement), None) is not None:
+                # Nothing follows a placement outside the write order, so nothing moves.
+                placement._flow = None
+                if self.first is None and not self._unlinked:
+                    canvas._flows.pop(id(self.container), None)
                 return
             previous = placement._flow_previous
             following = placement._flow_next
@@ -186,7 +193,7 @@ class Flow:
                 else:
                     self._release_if_unneeded(previous)
             self._count_links()
-            is_empty = self.first is None
+            is_empty = self.first is None and not self._unlinked
             if is_empty:
                 canvas._flows.pop(id(self.container), None)
         if not is_empty:
@@ -198,6 +205,8 @@ class Flow:
     ) -> None:
         """Start or stop following the flow on one axis of a placement already in it."""
         with self.canvas._lock:
+            # A placement that starts following needs its place in the write order.
+            self._link_unlinked()
             if axis == 'x':
                 placement._follows_x = is_following
             else:
@@ -216,6 +225,27 @@ class Flow:
             # Following or not changes where the lines stand from the placement on.
             self._states.clear()
         self.settle()
+
+    def _link(self, placement: Placement[object, object]) -> None:
+        """Append a placement to the write order, after the last one in it."""
+        previous = self.last
+        if placement._flow_previous is not previous:
+            placement._flow_previous = previous
+        if placement._flow_next is not None:
+            placement._flow_next = None
+        if previous is None:
+            self.first = placement
+        else:
+            previous._flow_next = placement
+        self.last = placement
+
+    def _link_unlinked(self) -> None:
+        """Add the placements outside the write order to it, in the order they were written."""
+        unlinked = self._unlinked
+        if unlinked:
+            for placement in unlinked.values():
+                self._link(placement)
+            unlinked.clear()
 
     def _take_part(
         self,

@@ -283,6 +283,36 @@ class TestParticipants:
         assert sprite._is_flow_participant is False
 
 
+class TestContentGivenBothCoordinates:
+    def test_a_row_continues_after_it(self, canvas):
+        canvas.screen.write('Name: ', x=2, y=4)
+        field = canvas.screen.write('[__]', y=4)
+        assert field.x == 8
+
+    def test_removing_it_moves_the_rest_of_its_row_back(self, canvas):
+        canvas.screen.write('ab', y=4)
+        label = canvas.screen.write('Name: ', x=2, y=4)
+        field = canvas.screen.write('[__]', y=4)
+        assert field.x == 8
+        label.remove()
+        assert field.x == 2
+
+    def test_removing_it_moves_no_line(self, canvas):
+        first = canvas.screen.write('first')
+        sprite = canvas.screen.write('@', x=5, y=5)
+        sprite.remove()
+        second = canvas.screen.write('second')
+        assert (first.y, second.y) == (0, 1)
+
+    def test_it_can_follow_the_flow_later(self, canvas):
+        canvas.screen.write('first')
+        note = canvas.screen.write('note', x=10, y=8)
+        canvas.screen.write('label', x=1, y=9)
+        note.x = 'next'
+        note.y = 'next'
+        assert (note.x, note.y) == (0, 1)
+
+
 def test_a_prompt_appears_on_the_next_line():
     with xnano.new(realtime=True, width=30, height=3) as canvas:
         canvas.screen.write('Welcome')

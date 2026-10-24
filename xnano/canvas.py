@@ -623,6 +623,55 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         ```
     """
 
+    # Defaults kept on the class, so that creating a canvas sets none of them: a canvas is
+    # created as quickly as it can be. Each is set on the canvas when it changes.
+    _is_fitting: bool = False
+    _decorated: Decorated | None = None
+    _frame_demand: int = 0
+    _frame_registration: _Registration | None = None
+    _size_hook: _core.Hook | None = None
+    _parent_placement: Placement[object, object] | None = None
+    _enclosing: weakref.ref[Canvas[object, object]] | None = None
+    _enclosing_size: tuple[int, int] | None = None
+    _is_hidden_until_written: bool = False
+    _is_layout_pending: bool = False
+    _is_closed: bool = False
+    _is_finalized: bool = False
+    _tasks: TaskCount | None = None
+    _failure: BaseException | None = None
+    _is_failure_reported: bool = False
+    _failure_report: str = ''
+    _moved: int = 0
+    _carried: dict[str, object] | None = None
+    _cursor_follow: tuple[_core.Buffer, int, int] | None = None
+    _state_namespace: StateNamespace | None = None
+    _state_store: _core.TerminalStateStore | None = None
+    _state_followers: _StateFollowers | None = None
+    _state_subscription: _core.TerminalStateSubscription | None = None
+    _state_hook: _core.Hook | None = None
+    # How many hook and component runs are in progress on any thread, so that reading a
+    # device outside of one skips the thread-local lookup.
+    _runs_in_progress: int = 0
+    # What the run of a renderable drawing on this canvas's screen wrote, so the next run
+    # starts from an empty screen; None when no renderable is running here.
+    _rendering_writes: list[Placement[object, object]] | None = None
+    # The keys that end the running loop, which a program's own key presses avoid.
+    _quit_keys: tuple[KeyName, ...] = ()
+    # The devices, each made when it is first used.
+    _screen_view: Screen[DepsT, StateT] | None = None
+    _cursor_view: Cursor | None = None
+    _speaker_view: Speaker | None = None
+    _keyboard_view: Keyboard | None = None
+    _mouse_view: Mouse | None = None
+    _estimated_holds_state: _core.InputState | None = None
+    _audio: AudioDevice | None = None
+    # The runtime and what it owns, once the canvas is attached to one.
+    _runtime_object: _core.Runtime | None = None
+    _clock: _core.Clock | None = None
+    _cursor: _core.Cursor | None = None
+    _input_state: _core.InputState | None = None
+    _pushed_pointer: tuple[tuple[int, int], object, int] | None = None
+
     def __new__(cls, *arguments: object, **keywords: object) -> Self:
         """Refuse a direct call: a canvas is created with ``xnano.new``."""
         if arguments or 'is_realtime' not in keywords:
@@ -691,7 +740,6 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         # Canvases written into this one that fit their content, and whether a fit runs now.
         # The placements of canvases written into this one that fit their content.
         self._fitted_placements: list[Placement[object, object]] = []
-        self._is_fitting = False
         self._root.should_fit_width = self._fits_width
         self._root.should_fit_height = self._fits_height
         self._fps = fps
@@ -710,7 +758,6 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             if appearance
             else None
         )
-        self._decorated: Decorated | None = None
         self._dirty_looks: dict[int, _LookState] = {}
         self._placements: list[Placement[DepsT, StateT]] = []
         self._ledger: list[_Registration] = []
@@ -719,22 +766,14 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         ] = []
         self._frame_listeners: dict[int, Callable[[FrameContext], None]] = {}
         self._frame_listener_tokens = itertools.count()
-        self._frame_demand = 0
-        self._frame_registration: _Registration | None = None
-        self._size_hook: _core.Hook | None = None
-        self._parent_placement: Placement[object, object] | None = None
         self._children: list[Canvas[object, object]] = []
-        self._enclosing: weakref.ref[Canvas[object, object]] | None = None
-        self._enclosing_size: tuple[int, int] | None = None
         self._nested_canvases: list[weakref.ref[Canvas[object, object]]] = []
         self._areas: dict[int, Placement[object, object]] = {}
-        self._is_hidden_until_written = False
         self._layout: CanvasLayout = layout
         self._edges: EdgeBehavior = edges
         self._slots: list[
             tuple[Placement[object, object] | None, _core.Buffer, _core.SizeRule]
         ] = []
-        self._is_layout_pending = False
         self._pending_layouts: dict[int, Canvas[object, object]] = {}
         # The flow of every container that something was written into, by its buffer.
         self._flows: dict[int, Flow] = {}
@@ -745,59 +784,24 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 enclosing._nested_canvases.append(
                     weakref.ref(cast('Canvas[object, object]', self))
                 )
-        self._is_closed = False
-        self._is_finalized = False
         self._stop_requested = _AwaitableEvent()
         # The event loop that async def hooks run on: the one this canvas was created in.
         self._event_loop: asyncio.AbstractEventLoop | None = running_loop()
-        self._tasks: TaskCount | None = None
-        self._failure: BaseException | None = None
-        self._is_failure_reported = False
-        self._failure_report = ''
-        self._moved = 0
-        self._carried: dict[str, object] | None = None
-        self._cursor_follow: tuple[_core.Buffer, int, int] | None = None
-        self._state_namespace: StateNamespace | None = None
         self._state_fields: dict[str, object] = {}
-        self._state_store: _core.TerminalStateStore | None = None
         if state is not _UNSET and state is not None:
             self._state_store = _prepare_state(cast('DataclassInstance', state))
             self._state_fields = _state_field_types(cast('DataclassInstance', state))
-        self._state_followers: _StateFollowers | None = None
-        self._state_subscription: _core.TerminalStateSubscription | None = None
-        self._state_hook: _core.Hook | None = None
         self._state_marked: dict[_StateFollower, _core.TerminalStateChange] = {}
         self._internal_revisions: deque[int] = deque(maxlen=16)
         self._namespace_identifiers = itertools.count(1)
         self._active_run_by_thread = threading.local()
-        # How many hook and component runs are in progress on any thread, so that reading a
-        # device outside of one skips the thread-local lookup.
-        self._runs_in_progress = 0
-        # What the run of a renderable drawing on this canvas's screen wrote, so the next run
-        # starts from an empty screen; None when no renderable is running here.
-        self._rendering_writes: list[Placement[object, object]] | None = None
-        # The keys that end the running loop, which a program's own key presses avoid.
-        self._quit_keys: tuple[KeyName, ...] = ()
         self._images: dict[int, ImageSource] = {}
         # Only placements with a formula or a range need looking at before each frame.
         self._dynamic: dict[int, Placement[DepsT, StateT]] = {}
         self._clock_view = Clock(cast('Canvas[object, object]', self))
-        self._cursor_view = Cursor(cast('Canvas[object, object]', self))
         self._output = Output(cast('Canvas[object, object]', self))
-        # What the devices keep: the screen of this canvas, the input state whose held keys
-        # are estimated from repeats, and the mouse buttons the program pressed.
-        self._screen_view: Screen[DepsT, StateT] | None = None
-        self._speaker_view: Speaker | None = None
-        self._keyboard_view: Keyboard | None = None
-        self._mouse_view: Mouse | None = None
-        self._estimated_holds_state: _core.InputState | None = None
+        # The mouse buttons the program pressed and has not released.
         self._program_held_buttons: set[_core.MouseButton] = set()
-        self._audio: AudioDevice | None = None
-        self._runtime_object: _core.Runtime | None = None
-        self._clock: _core.Clock | None = None
-        self._cursor: _core.Cursor | None = None
-        self._input_state: _core.InputState | None = None
-        self._pushed_pointer: tuple[tuple[int, int], object, int] | None = None
         self._size = _core.Size(0, 0)
         self._previous_chain = tuple(
             reference for reference in _active_canvas.get() if reference() is not None
@@ -2145,7 +2149,10 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         self._require_own_presence()
         canvas = self._canvas
         canvas._require_open()
-        return canvas._cursor_view
+        cursor = canvas._cursor_view
+        if cursor is None:
+            cursor = canvas._cursor_view = Cursor(cast('Canvas[object, object]', canvas))
+        return cursor
 
     @property
     def _cursor_source(self) -> _core.Cursor:

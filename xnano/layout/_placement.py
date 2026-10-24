@@ -147,6 +147,22 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     _parent_measured: tuple[AxisName, ...] = ()
     # Whether this is the placement of a canvas written in here that fits its content.
     _is_fitted_canvas: bool = False
+    _removed: bool = False
+    _is_text: bool = False
+    # Whether the placement draws the look of a box from xnano.box(), whose size includes
+    # its border and padding.
+    _is_box: bool = False
+    _edges: EdgeBehavior | None = None
+    # An area that terminal.write uses inside a canvas's block follows that canvas.
+    _edges_owner: Canvas[object, object] | None = None
+    _wrapped_text: str | None = None
+    _wrapped_width: int | None = None
+    _decorated: Decorated | None = None
+    _has_nested: bool = False
+    _state_namespace: StateNamespace | None = None
+    _driver: _ComponentDriver | None = None
+    # The effects started through ``fx``, made when ``fx`` is first read.
+    _writable_effects: WritableEffectProperties | None = None
 
     def __init__(
         self,
@@ -178,24 +194,6 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         )
         self._bindings: dict[AxisName, tuple[NumericExpression, bool]] = {}
         self._limits: dict[AxisName, tuple[Bound | None, Bound | None, bool]] = {}
-        self._removed = False
-        self._is_text = False
-        # Whether the placement draws the look of a box from xnano.box(), whose size
-        # includes its border and padding.
-        self._is_box = False
-        self._edges: EdgeBehavior | None = None
-        # An area that terminal.write uses inside a canvas's block follows that canvas.
-        self._edges_owner: Canvas[object, object] | None = None
-        self._wrapped_text: str | None = None
-        self._wrapped_width: int | None = None
-        self._appearance: Appearance | None = None
-        self._decorated: Decorated | None = None
-        self._has_nested = False
-        self._state_namespace: StateNamespace | None = None
-        self._driver: _ComponentDriver | None = None
-        self._writable_effects = WritableEffectProperties(
-            cast('Placement[object, object]', self)
-        )
         self._seal()
 
     @property
@@ -943,7 +941,12 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 assert len(content.fx.active) == 1
             ```
         """
-        return self._writable_effects
+        effects = self._writable_effects
+        if effects is None:
+            effects = self._writable_effects = WritableEffectProperties(
+                cast('Placement[object, object]', self)
+            )
+        return effects
 
     @property
     def region(self) -> Region[int]:
@@ -1514,13 +1517,16 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             and any(follow[0] is buffer for buffer in (self._buffer, self._content))
         ):
             # A cursor that followed this placement has nowhere to be once it is gone.
-            canvas._cursor_view.position = None
+            canvas._cursor_source.position = None
+            canvas._cursor_follow = None
         driver = self._driver
         if driver is not None:
             self._driver = None
             driver.close()
         self._cancel_hooks()
-        self._writable_effects.clear()
+        effects = self._writable_effects
+        if effects is not None:
+            effects.clear()
         namespace = self._state_namespace
         if namespace is not None:
             self._state_namespace = None
