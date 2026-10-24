@@ -30,7 +30,7 @@ def synthesis_count(monkeypatch) -> list[int]:
 def plan(canvas, source, **keywords):
     return _player._plan_call(
         source,
-        bpm=canvas.bpm,
+        bpm=canvas.clock.bpm,
         instrument=keywords.pop('instrument', None),
         beats=keywords.pop('beats', None),
         velocity=keywords.pop('velocity', None),
@@ -44,7 +44,7 @@ def plan(canvas, source, **keywords):
 class TestSoundCache:
     def test_the_same_note_is_synthesized_once(self, synthesis_count):
         with xnano.new(width=8, height=1) as canvas:
-            audio = canvas.audio
+            audio = canvas._audio_device()
             first = audio._sound_for(plan(canvas, 'C4'))
             for _ in range(20):
                 assert audio._sound_for(plan(canvas, 'C4')) is first
@@ -52,7 +52,7 @@ class TestSoundCache:
 
     def test_anything_that_changes_the_samples_is_a_new_sound(self, synthesis_count):
         with xnano.new(width=8, height=1) as canvas:
-            audio = canvas.audio
+            audio = canvas._audio_device()
             variants = [
                 {},
                 {'instrument': 'bell'},
@@ -63,13 +63,13 @@ class TestSoundCache:
             ]
             sounds = [audio._sound_for(plan(canvas, 'C4', **v)) for v in variants]
             assert len({id(sound) for sound in sounds}) == len(variants)
-            canvas.bpm = 90
+            canvas.clock.bpm = 90
             audio._sound_for(plan(canvas, 'C4'))
             assert synthesis_count[0] == len(variants) + 1
 
     def test_a_melody_text_and_a_chord_are_cached(self, synthesis_count):
         with xnano.new(width=8, height=1) as canvas:
-            audio = canvas.audio
+            audio = canvas._audio_device()
             for source in ('C4 E4 G4:2', 'C4+E4', ['C4', 'E4']):
                 first = audio._sound_for(plan(canvas, source))
                 count = synthesis_count[0]
@@ -78,7 +78,7 @@ class TestSoundCache:
 
     def test_the_cache_is_bounded_by_count(self):
         with xnano.new(width=8, height=1) as canvas:
-            audio = canvas.audio
+            audio = canvas._audio_device()
             for midi in range(_player._MOST_MIXED_SOUNDS + 10):
                 audio._sound_for(plan(canvas, midi % 100 + 10, beats=0.5 + midi * 0.001))
             assert len(audio._mixed) == _player._MOST_MIXED_SOUNDS
@@ -87,7 +87,7 @@ class TestSoundCache:
         import time
 
         with xnano.new(width=8, height=1) as canvas:
-            audio = canvas.audio
+            audio = canvas._audio_device()
             started = time.perf_counter()
             audio._sound_for(plan(canvas, 'C4'))
             first = time.perf_counter() - started
@@ -99,7 +99,7 @@ class TestSoundCache:
 
     def test_a_sound_is_cached_by_identity(self, synthesis_count):
         with xnano.new(width=8, height=1) as canvas:
-            audio = canvas.audio
+            audio = canvas._audio_device()
             one = TerminalSound.from_samples([0.0, 0.5, 0.0], sample_rate=44100)
             other = TerminalSound.from_samples([0.0, 0.5, 0.0], sample_rate=44100)
             assert audio._sound_for(plan(canvas, one)) is one
@@ -109,12 +109,12 @@ class TestSoundCache:
 class TestBeatHooks:
     def test_an_offline_canvas_keeps_its_own_time(self):
         with xnano.new(width=8, height=1) as canvas:
-            canvas.audio.start()
-            canvas.bpm = 120
+            canvas.clock.beats.start()
+            canvas.clock.bpm = 120
             beats = []
             canvas.hook(on='beat', every=1)(
-                lambda context: beats.append(round(context.time.elapsed, 2))
+                lambda context: beats.append(round(context.clock.elapsed_seconds, 2))
             )
             for _ in range(16):
-                canvas.step(delta_seconds=0.1)
+                canvas.clock.step(delta_seconds=0.1)
             assert beats == pytest.approx([0.5, 1.0, 1.5], abs=0.11)

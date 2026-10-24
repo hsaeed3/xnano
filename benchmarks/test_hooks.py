@@ -22,7 +22,7 @@ import time
 from benchmark_budgets import check_budget
 
 import xnano
-from xnano.context import Context
+from xnano.hooks import Context
 from xnano_core import Event
 
 EVENTS = 100

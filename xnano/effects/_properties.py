@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Literal, cast, final, get_args
 
 import xnano_core as _core
 from xnano._internal._dynamic_operations import DynamicOperation
+from xnano._internal._surface import surface_of
 from xnano._schema._appearance import ColorValue
 
 # The schemas are read when the module runs, not under `TYPE_CHECKING`, so that
@@ -39,7 +40,6 @@ from xnano._schema._effects import (
     LowPassAudioEffectParametersSchema,
     PaintEffectParametersSchema,
     PlayableEffectKind,
-    RenderableEffectKind,
     ReverbAudioEffectParametersSchema,
     SaturateEffectParametersSchema,
     SleepEffectParametersSchema,
@@ -49,6 +49,7 @@ from xnano._schema._effects import (
     SweepInEffectParametersSchema,
     SweepOutEffectParametersSchema,
     TremoloAudioEffectParametersSchema,
+    WritableEffectKind,
 )
 from xnano._schema._layout import Interpolation, MotionDirection
 
@@ -65,11 +66,11 @@ if TYPE_CHECKING:
     from xnano._schema._effects import (
         EffectSpecification,
         PlayableEffect,
-        RenderableEffect,
+        WritableEffect,
     )
     from xnano.audio._player import AudioDevice
     from xnano.canvas import Canvas
-    from xnano.placement import Placement
+    from xnano.layout._placement import Placement
 
 
 class EffectParameters(DynamicOperation):
@@ -934,7 +935,7 @@ class TremoloAudioEffectParameters(AudioEffectParameters):
 
 
 _RENDERABLE_NAMES = tuple(
-    sorted(kind.partition('.')[2] for kind in get_args(RenderableEffectKind))
+    sorted(kind.partition('.')[2] for kind in get_args(WritableEffectKind))
 )
 _PLAYABLE_NAMES = tuple(
     sorted(kind.partition('.')[2] for kind in get_args(PlayableEffectKind))
@@ -948,14 +949,14 @@ def _unknown_effect(
     if not has_sound and name in _PLAYABLE_NAMES:
         return AttributeError(
             f'{name} is a sound effect, and {owner} has the visual effects only. Add it to '
-            f'what the canvas plays with canvas.audio.fx.{name}(...), or to what one hook '
+            f'what the canvas plays with canvas.speaker.fx.{name}(...), or to what one hook '
             f'plays with context.fx.{name}(...).'
         )
     if not has_visual and name in _RENDERABLE_NAMES:
         return AttributeError(
             f'{name} is a visual effect, and {owner} has the sound effects only. Start it on '
             f'a placement with placement.fx.{name}(...), on the canvas with '
-            f"canvas.fx.{name}(...), or on a hook's buffer with context.fx.{name}(...)."
+            f"canvas.screen.fx.{name}(...), or on a hook's target with context.fx.{name}(...)."
         )
     names = (_RENDERABLE_NAMES if has_visual else ()) + (
         _PLAYABLE_NAMES if has_sound else ()
@@ -966,7 +967,7 @@ def _unknown_effect(
     )
 
 
-class _RenderableEffectMethods:
+class _WritableEffectMethods:
     """One method for each visual effect, which starts it on a buffer."""
 
     __slots__ = ()
@@ -1524,12 +1525,12 @@ class _PlayableEffectMethods:
 
 
 @final
-class RenderableEffectProperties(_RenderableEffectMethods):
+class WritableEffectProperties(_WritableEffectMethods):
     """
     The visual effects of a placement or a canvas, one method for each effect.
 
-    Get it from [`Placement.fx`][xnano.placement.Placement.fx] or
-    [`Canvas.fx`][xnano.canvas.Canvas.fx]. Each method starts its effect on that placement or
+    Get it from [`Placement.fx`][xnano.layout.Placement.fx] or
+    [`Screen.fx`][xnano.devices.Screen.fx]. Each method starts its effect on that placement or
     canvas at once and returns it while it runs. Starting an effect of a kind that is already
     running replaces the earlier one, ``clear()`` stops them all, and removing the placement
     stops its effects too.
@@ -1542,7 +1543,7 @@ class RenderableEffectProperties(_RenderableEffectMethods):
         import xnano
 
         with xnano.new(width=8, height=1) as canvas:
-            label = canvas.write('hi')
+            label = canvas.screen.write('hi')
             fade = label.fx.fade_to(foreground='red', duration_milliseconds=100)
             assert label.fx.active == (fade,)
             label.fx.clear()
@@ -1570,9 +1571,9 @@ class RenderableEffectProperties(_RenderableEffectMethods):
         self._running: dict[str, EffectParameters] = {}
 
     @property
-    def active(self) -> tuple[RenderableEffect, ...]:
+    def active(self) -> tuple[WritableEffect, ...]:
         """The effects started here and not cleared or replaced."""
-        return cast('tuple[RenderableEffect, ...]', tuple(self._running.values()))
+        return cast('tuple[WritableEffect, ...]', tuple(self._running.values()))
 
     def clear(self) -> None:
         """Stop every effect started here. Does nothing when none was started."""
@@ -1588,7 +1589,7 @@ class RenderableEffectProperties(_RenderableEffectMethods):
         earlier = self._running.get(kind)
         if earlier is not None:
             earlier.cancel()
-        self._target.update(effect)
+        surface_of(self._target).update(effect)
         self._running[kind] = effect
         return cast('EffectSpecification', effect)
 
@@ -1598,7 +1599,7 @@ class PlayableEffectProperties(_PlayableEffectMethods):
     """
     The sound effects of a canvas's audio, one method for each effect.
 
-    Get it from [`AudioDevice.fx`][xnano.audio.AudioDevice.fx]. Each method adds its effect to
+    Get it from [`Speaker.fx`][xnano.devices.Speaker.fx]. Each method adds its effect to
     every sound the canvas plays from then on, after the sound's own effects. A sound that is
     already playing keeps the effects it started with. Adding an effect of a kind that is
     already there replaces the earlier one, and ``clear()`` removes them all.
@@ -1611,11 +1612,11 @@ class PlayableEffectProperties(_PlayableEffectMethods):
         import xnano
 
         with xnano.new(width=8, height=1) as canvas:
-            echo = canvas.audio.fx.delay(time_milliseconds=120.0, feedback=0.4)
-            assert canvas.audio.fx.active == (echo,)
-            canvas.play('C4')
-            canvas.audio.fx.clear()
-            assert canvas.audio.fx.active == ()
+            echo = canvas.speaker.fx.delay(time_milliseconds=120.0, feedback=0.4)
+            assert canvas.speaker.fx.active == (echo,)
+            canvas.speaker.play('C4')
+            canvas.speaker.fx.clear()
+            assert canvas.speaker.fx.active == ()
         ```
     """
 
@@ -1624,11 +1625,11 @@ class PlayableEffectProperties(_PlayableEffectMethods):
     def __getattr__(self, name: str) -> object:
         if name.startswith('_'):
             raise AttributeError(name)
-        raise _unknown_effect('canvas.audio.fx', name, has_visual=False, has_sound=True)
+        raise _unknown_effect('canvas.speaker.fx', name, has_visual=False, has_sound=True)
 
     def __init__(self, device: AudioDevice) -> None:
         """
-        Create the sound effects of a canvas's audio. Use ``canvas.audio.fx`` instead.
+        Create the sound effects of a canvas's audio. Use ``canvas.speaker.fx`` instead.
 
         Args:
             device: The audio the effects are added to.

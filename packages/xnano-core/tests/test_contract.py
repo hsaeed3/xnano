@@ -103,7 +103,7 @@ def test_the_input_scopes_and_their_references_are_public():
         'ScrollScope',
         'KeyboardKey',
         'KeyboardKind',
-        'KeyboardChord',
+        'KeyboardBinding',
         'MouseButtonValue',
         'MouseKind',
         'MousePosition',

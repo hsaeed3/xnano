@@ -25,7 +25,7 @@ from benchmark_budgets import assert_within_budget, budgets_are_checked
 import xnano
 from xnano._schema._generics import DepsT, StateT
 from xnano.canvas import Canvas
-from xnano.context import Context
+from xnano.hooks import Context
 from xnano_core import Event
 
 EVENTS = 100
@@ -80,23 +80,23 @@ def make_push_three(namespace: str) -> tuple[Callable[[Context], None], list[int
     def push_root(context: Context) -> None:
         counter[0] += 1
         state = context.root.state
-        state.push('a', counter[0])
-        state.push('b', counter[0])
-        state.push('c', counter[0])
+        state.set('a', counter[0])
+        state.set('b', counter[0])
+        state.set('c', counter[0])
 
     def push_buffer(context: Context) -> None:
         counter[0] += 1
-        state = context.buffer.state
-        state.push('a', counter[0])
-        state.push('b', counter[0])
-        state.push('c', counter[0])
+        state = context.target.state
+        state.set('a', counter[0])
+        state.set('b', counter[0])
+        state.set('c', counter[0])
 
     def push_plugin(context: Context) -> None:
         counter[0] += 1
         state = context.plugin.state
-        state.push('a', counter[0])
-        state.push('b', counter[0])
-        state.push('c', counter[0])
+        state.set('a', counter[0])
+        state.set('b', counter[0])
+        state.set('c', counter[0])
 
     functions = {'root': push_root, 'buffer': push_buffer, 'plugin': push_plugin}
     return functions[namespace], counter
@@ -117,7 +117,7 @@ def test_three_pushes(benchmark, namespace: str) -> None:
     event = Event.key_press('a')
     push_three, counter = make_push_three(namespace)
     with xnano.new(width=80, height=24) as canvas:
-        label = canvas.write('x')
+        label = canvas.screen.write('x')
         label.hook(push_three, on='key')
         benchmark.pedantic(
             lambda: deliver(canvas, event), rounds=ROUNDS, warmup_rounds=20, iterations=1
@@ -131,7 +131,7 @@ def test_three_pushes(benchmark, namespace: str) -> None:
         )
     if budgets_are_checked():
         with xnano.new(width=80, height=24) as baseline:
-            label = baseline.write('x')
+            label = baseline.screen.write('x')
             label.hook(no_op, on='key')
             empty = minimum_microseconds(lambda: deliver(baseline, event))
         assert_within_budget(
@@ -186,7 +186,7 @@ def test_many_readers(benchmark) -> None:
     def commit(canvas: Canvas) -> None:
         for _ in range(EVENTS):
             counter[0] += 1
-            canvas.state.push('unrelated', counter[0])
+            canvas.state.set('unrelated', counter[0])
             canvas.deliver_events()
 
     def build(readers: int) -> Canvas:
@@ -198,7 +198,7 @@ def test_many_readers(benchmark) -> None:
                 context.root.state.get(path)
 
             canvas.hook(follow, on='state')
-        canvas.state.push('warmup', 1)
+        canvas.state.set('warmup', 1)
         canvas.deliver_events()
         return canvas
 

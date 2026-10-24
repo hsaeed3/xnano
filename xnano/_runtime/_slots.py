@@ -14,7 +14,7 @@ import xnano_core as _core
 if TYPE_CHECKING:
     from xnano._schema._axes import Axis
     from xnano.canvas import Canvas
-    from xnano.placement import Placement
+    from xnano.layout._placement import Placement
 
 from xnano._internal._axes import size_share
 from xnano._schema._generics import WrittenDepsT, WrittenStateT

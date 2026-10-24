@@ -17,7 +17,7 @@ from xnano._schema._appearance import ColorValue
 from xnano._schema._layout import PixelPreset
 
 if TYPE_CHECKING:
-    from xnano.context import Context
+    from xnano.hooks._context import Context
 
 __all__ = ['Pixel']
 
@@ -107,8 +107,8 @@ class Pixel:
         assert Pixel('x').character == 'x'
 
         with xnano.new(width=4, height=1) as canvas:
-            canvas.region[1, 0] = diamond
-            assert canvas.region[1, 0].character == '◆'
+            canvas.screen.region[1, 0] = diamond
+            assert canvas.screen.region[1, 0].character == '◆'
         ```
     """
 
@@ -224,7 +224,7 @@ class Pixel:
         """Return the character of the pixel, so ``print(pixel)`` shows what it draws."""
         return self.character
 
-    def __xnano_render__(self, context: Context | None = None) -> _core.Buffer:
+    def __xnano_write__(self, context: Context | None = None) -> _core.Buffer:
         """Return a buffer of one cell that shows the pixel."""
         buffer = _core.Buffer(width=1, height=1)
         buffer[0, 0] = self.cell()

@@ -40,9 +40,9 @@ from types import ModuleType
 import xnano_image
 
 import xnano
-import xnano.context
 import xnano.events
 import xnano.expressions
+import xnano.hooks
 import xnano.operations
 import xnano.styles
 import xnano.terminal
@@ -172,15 +172,15 @@ def rich_console(
 
 
 def rich_render(
-    renderable: object, width: int = WIDTH, height: int = HEIGHT
+    writable: object, width: int = WIDTH, height: int = HEIGHT
 ) -> Callable[[], str]:
-    """Print a renderable to memory and return what was written."""
+    """Print a writable to memory and return what was written."""
     console, sink = rich_console(width, height)
 
     def run() -> str:
         sink.seek(0)
         sink.truncate()
-        console.print(renderable, end='')
+        console.print(writable, end='')
         return sink.getvalue()
 
     return run
@@ -223,7 +223,7 @@ def xnano_widget(widget: Buffer) -> Callable[[], str]:
 
 def xnano_frame(terminal: xnano.terminal.Terminal) -> Callable[[], str]:
     """Draw a frame of a terminal and return it as ANSI text."""
-    return lambda: terminal.output.render().ansi
+    return lambda: terminal.screen.output.render().ansi
 
 
 # ---------------------------------------------------------------------------------------
@@ -417,13 +417,13 @@ def cases() -> list[Case]:
         terminal = xnano.new(width=WIDTH, height=12)
         panel_width = WIDTH // 3
         for index in range(3):
-            terminal.write(
+            terminal.screen.write(
                 Block(f'panel {index}', border_type='rounded'),
                 x=index * panel_width,
                 width=panel_width,
                 height=12,
             )
-            terminal.write(
+            terminal.screen.write(
                 Paragraph(
                     LOREM[:200], should_wrap=True, width=panel_width - 2, height=10
                 ),
@@ -490,7 +490,7 @@ def cases() -> list[Case]:
     def many_xnano() -> Callable[[], object]:
         terminal = xnano.new(width=WIDTH, height=HEIGHT)
         for index in range(500):
-            terminal.write(f'item {index}', x=index % 60, y=index % HEIGHT)
+            terminal.screen.write(f'item {index}', x=index % 60, y=index % HEIGHT)
         return xnano_frame(terminal)
 
     def scattered_lines() -> list[str]:
@@ -583,14 +583,14 @@ def cases() -> list[Case]:
         def build() -> Callable[[], object]:
             terminal = xnano.new(width=width, height=height)
             for row in range(height):
-                terminal.write(f'line {row:<4}' + 'x' * (width - 9), y=row)
+                terminal.screen.write(f'line {row:<4}' + 'x' * (width - 9), y=row)
             counter = [0]
-            number = terminal.write('0', x=2, y=1, layer=1)
+            number = terminal.screen.write('0', x=2, y=1, layer=1)
 
             def run() -> str:
                 counter[0] += 1
                 number.text = f'{counter[0] % 1000:<6}'
-                return terminal.output.render().ansi
+                return terminal.screen.output.render().ansi
 
             return run
 
@@ -652,7 +652,7 @@ def cases() -> list[Case]:
 
     def frame_all_xnano() -> Callable[[], object]:
         terminal = xnano.new(width=WIDTH, height=HEIGHT)
-        pixels = terminal.region.half_blocks
+        pixels = terminal.screen.region.half_blocks
         tick = [0]
 
         def run() -> str:
@@ -665,7 +665,7 @@ def cases() -> list[Case]:
                     128,
                 )
             )
-            return terminal.output.render().ansi
+            return terminal.screen.output.render().ansi
 
         return run
 
@@ -739,7 +739,7 @@ def cases() -> list[Case]:
     def formula_xnano() -> Callable[[], object]:
         terminal = xnano.new(width=WIDTH, height=HEIGHT)
         for row in range(HEIGHT):
-            ball = terminal.write('●', y=row)
+            ball = terminal.screen.write('●', y=row)
             ball.x = (xnano.expressions.ParentWidth - xnano.expressions.Width) * (
                 (xnano.expressions.TimeElapsed / (1 + row % 5)) % 1.0
             )
@@ -747,8 +747,8 @@ def cases() -> list[Case]:
 
         def run() -> str:
             counter[0] += 1
-            terminal.step(delta_seconds=1 / 60)
-            return terminal.output.ansi
+            terminal.clock.step(delta_seconds=1 / 60)
+            return terminal.screen.output.ansi
 
         return run
 
@@ -773,7 +773,7 @@ def cases() -> list[Case]:
     add(
         'formula_animation',
         'frames',
-        '24 balls moving by a formula of time: the library advances the clock and draws',
+        '24 balls moving by an expression of time: the library advances the clock and draws',
         xnano=formula_xnano,
         rich=formula_rich,
     )
@@ -946,14 +946,14 @@ def cases() -> list[Case]:
     def effect_frame() -> Callable[[], object]:
         terminal = xnano.new(width=WIDTH, height=HEIGHT)
         for row in range(HEIGHT):
-            terminal.write('effects keep running ' * 3, y=row)
-        terminal.core_buffer.update(
+            terminal.screen.write('effects keep running ' * 3, y=row)
+        terminal.screen.core_buffer.update(
             xnano.operations.Effect.fade_to((255, 0, 0), duration_milliseconds=10_000_000)
         )
 
         def run() -> str:
-            terminal.step(delta_seconds=1 / 60)
-            return terminal.output.ansi
+            terminal.clock.step(delta_seconds=1 / 60)
+            return terminal.screen.output.ansi
 
         return run
 
@@ -967,10 +967,10 @@ def cases() -> list[Case]:
     def key_round_trip() -> Callable[[], object]:
         terminal = xnano.new(width=WIDTH, height=HEIGHT)
         seen = [0]
-        digit = terminal.write('0')
+        digit = terminal.screen.write('0')
 
-        @terminal.hook(when=lambda context: context.keyboard.key is not None)
-        def count(context: xnano.context.Context) -> None:
+        @terminal.hook(on='key')
+        def count(context: xnano.hooks.Context) -> None:
             seen[0] += 1
             digit.text = str(seen[0] % 10)
 
@@ -978,7 +978,7 @@ def cases() -> list[Case]:
 
         def run() -> str:
             terminal.push(event)
-            terminal.step(delta_seconds=1 / 60)
+            terminal.clock.step(delta_seconds=1 / 60)
             return str(seen[0])
 
         return run
@@ -1001,15 +1001,15 @@ def cases() -> list[Case]:
             return state.volume
 
         reference = terminal.state_reference(volume)
-        bar = terminal.write(Gauge(reference.number / 100, width=60, height=1))
+        bar = terminal.screen.write(Gauge(reference.number / 100, width=60, height=1))
         assert bar
         counter = [0]
 
         def run() -> str:
             counter[0] += 1
             terminal.state.volume = counter[0] % 100
-            terminal.step(delta_seconds=1 / 60)
-            return terminal.output.ansi
+            terminal.clock.step(delta_seconds=1 / 60)
+            return terminal.screen.output.ansi
 
         return run
 
@@ -1095,8 +1095,8 @@ def _xnano_panel() -> str:
 
 def _open_close_xnano() -> str:
     with xnano.new(width=WIDTH, height=HEIGHT) as terminal:
-        terminal.write('hello')
-        return terminal.output.render().ansi
+        terminal.screen.write('hello')
+        return terminal.screen.output.render().ansi
 
 
 def _open_close_rich() -> str:

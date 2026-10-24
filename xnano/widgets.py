@@ -3,7 +3,7 @@ xnano.widgets
 
 Widgets that draw themselves: text, tables, charts, gauges, figures and lists.
 
-A widget is a description of something to draw. Pass one to [`Canvas.write`][xnano.canvas.Canvas.write]
+A widget is a description of something to draw. Pass one to [`Screen.write`][xnano.devices.Screen.write]
 or draw it into a [`Buffer`][xnano.buffers.Buffer]; every number and text in it can be an
 [`Expression`][xnano.expressions.Expression] that is evaluated again on each frame.
 """
@@ -54,8 +54,8 @@ if TYPE_CHECKING:
 
     chart = BarChart([Bar(3, 'a'), Bar(5, 'b')], bar_width=3, width=8, height=4)
     with xnano.new(width=8, height=4) as canvas:
-        canvas.write(chart)
-        assert 'a' in canvas.render().splitlines()[-1]
+        canvas.screen.write(chart)
+        assert 'a' in canvas.screen.render().splitlines()[-1]
     ```
     """
 
@@ -72,9 +72,9 @@ if TYPE_CHECKING:
     chart = BarChart([Bar(3, 'a'), Bar(5, 'b')], bar_width=3, width=8, height=4)
     chart.maximum = 6
     with xnano.new(width=8, height=4) as canvas:
-        canvas.write(chart)
+        canvas.screen.write(chart)
         assert chart.maximum == 6
-        assert canvas.render().strip()
+        assert canvas.screen.render().strip()
     ```
     """
 
@@ -91,8 +91,8 @@ if TYPE_CHECKING:
 
     group = BarGroup([Bar(3, 'a'), Bar(2, 'b')], 'Q1')
     with xnano.new(width=12, height=5) as canvas:
-        canvas.write(BarChart([group], bar_width=3, width=12, height=5))
-        assert 'Q1' in canvas.render()
+        canvas.screen.write(BarChart([group], bar_width=3, width=12, height=5))
+        assert 'Q1' in canvas.screen.render()
     ```
     """
 
@@ -108,8 +108,8 @@ if TYPE_CHECKING:
     from xnano.widgets import Block
 
     with xnano.new(width=12, height=3) as canvas:
-        canvas.write(Block('Status', width=12, height=3))
-        assert 'Status' in canvas.render()
+        canvas.screen.write(Block('Status', width=12, height=3))
+        assert 'Status' in canvas.screen.render()
     ```
     """
 
@@ -126,8 +126,8 @@ if TYPE_CHECKING:
 
     calendar = Calendar(2026, 10, month_header_style=Style('yellow', bold=True), width=22, height=8)
     with xnano.new(width=22, height=8) as canvas:
-        canvas.write(calendar)
-        assert 'October' in canvas.render()
+        canvas.screen.write(calendar)
+        assert 'October' in canvas.screen.render()
     ```
     """
 
@@ -151,8 +151,8 @@ if TYPE_CHECKING:
         height=8,
     )
     with xnano.new(width=20, height=8) as canvas:
-        canvas.write(chart)
-        assert canvas.render().strip()
+        canvas.screen.write(chart)
+        assert canvas.screen.render().strip()
     ```
     """
 
@@ -169,8 +169,8 @@ if TYPE_CHECKING:
     axis = ChartAxis(title='time', bounds=(0, 10), labels=['0', '10'])
     chart = Chart([ChartDataset(data=[(0, 0), (10, 5)])], x_axis=axis, width=24, height=8)
     with xnano.new(width=24, height=8) as canvas:
-        canvas.write(chart)
-        assert 'time' in canvas.render()
+        canvas.screen.write(chart)
+        assert 'time' in canvas.screen.render()
     ```
     """
 
@@ -188,9 +188,9 @@ if TYPE_CHECKING:
     series = ChartDataset(name='load', data=[(0, 0), (1, 1)], graph_type='line')
     series.data = [(0, 1), (1, 0)]
     with xnano.new(width=20, height=8) as canvas:
-        canvas.write(Chart([series], width=20, height=8))
+        canvas.screen.write(Chart([series], width=20, height=8))
         assert series.data[0] == (0.0, 1.0)
-        assert canvas.render().strip()
+        assert canvas.screen.render().strip()
     ```
     """
 
@@ -213,7 +213,7 @@ if TYPE_CHECKING:
     figure = Figure(x_bounds=(-10, 10), y_bounds=(-10, 10), marker='braille')
     figure.extend_shapes([FigureCircle(0, 0, 5, 'yellow')])
     with xnano.new(figure, width=20, height=10) as canvas:
-        assert canvas.render().strip()
+        assert canvas.screen.render().strip()
     ```
     """
 
@@ -232,8 +232,8 @@ if TYPE_CHECKING:
     circle = FigureCircle(5, 5, 3, 'blue')
     figure = Figure((0, 10), (0, 10), marker='block', shapes=[circle], width=20, height=10)
     with xnano.new(width=20, height=10) as canvas:
-        canvas.write(figure)
-        assert '█' in canvas.render()
+        canvas.screen.write(figure)
+        assert '█' in canvas.screen.render()
     ```
     """
 
@@ -253,8 +253,8 @@ if TYPE_CHECKING:
     label = FigureLabel(1, 5, 'hello')
     figure = Figure((0, 10), (0, 10), shapes=[label], width=10, height=5)
     with xnano.new(width=10, height=5) as canvas:
-        canvas.write(figure)
-        assert 'hello' in canvas.render()
+        canvas.screen.write(figure)
+        assert 'hello' in canvas.screen.render()
     ```
     """
 
@@ -274,8 +274,8 @@ if TYPE_CHECKING:
     line = FigureLine(0, 0, 10, 10, 'green')
     figure = Figure((0, 10), (0, 10), marker='block', shapes=[line], width=10, height=5)
     with xnano.new(width=10, height=5) as canvas:
-        canvas.write(figure)
-        assert '█' in canvas.render()
+        canvas.screen.write(figure)
+        assert '█' in canvas.screen.render()
     ```
     """
 
@@ -293,8 +293,8 @@ if TYPE_CHECKING:
 
     figure = Figure((-180, 180), (-90, 90), shapes=[FigureMap('low', 'white')], width=40, height=12)
     with xnano.new(width=40, height=12) as canvas:
-        canvas.write(figure)
-        assert canvas.render().strip()
+        canvas.screen.write(figure)
+        assert canvas.screen.render().strip()
     ```
     """
 
@@ -313,9 +313,9 @@ if TYPE_CHECKING:
     points = FigurePoints([(1, 1), (5, 5)], 'yellow')
     figure = Figure((0, 10), (0, 10), marker='block', shapes=[points], width=10, height=5)
     with xnano.new(width=10, height=5) as canvas:
-        canvas.write(figure)
+        canvas.screen.write(figure)
         assert len(points) == 2
-        assert '█' in canvas.render()
+        assert '█' in canvas.screen.render()
     ```
     """
 
@@ -335,8 +335,8 @@ if TYPE_CHECKING:
     frame = FigureRectangle(0, 0, 10, 10, 'red')
     figure = Figure((0, 10), (0, 10), marker='block', shapes=[frame], width=10, height=5)
     with xnano.new(width=10, height=5) as canvas:
-        canvas.write(figure)
-        assert '█' in canvas.render()
+        canvas.screen.write(figure)
+        assert '█' in canvas.screen.render()
     ```
     """
 
@@ -352,9 +352,9 @@ if TYPE_CHECKING:
 
     gauge = Gauge(0.5, label='half', width=12, height=1)
     with xnano.new(width=12, height=1) as canvas:
-        canvas.write(gauge)
+        canvas.screen.write(gauge)
         gauge.ratio = 0.75
-        assert 'half' in canvas.render()
+        assert 'half' in canvas.screen.render()
     ```
     """
 
@@ -371,8 +371,8 @@ if TYPE_CHECKING:
 
     items = ItemList(['one', 'two', 'three'], selected=1, highlight_symbol='> ', width=12, height=3)
     with xnano.new(width=12, height=3) as canvas:
-        canvas.write(items)
-        assert '> two' in canvas.render()
+        canvas.screen.write(items)
+        assert '> two' in canvas.screen.render()
     ```
     """
 
@@ -389,8 +389,8 @@ if TYPE_CHECKING:
 
     gauge = LineGauge(0.5, label='half', width=16, height=1)
     with xnano.new(width=16, height=1) as canvas:
-        canvas.write(gauge)
-        assert 'half' in canvas.render()
+        canvas.screen.write(gauge)
+        assert 'half' in canvas.screen.render()
     ```
     """
 
@@ -407,8 +407,8 @@ if TYPE_CHECKING:
 
     items = ItemList([ListItem('urgent', style=Style('red')), 'later'], width=10, height=2)
     with xnano.new(width=10, height=2) as canvas:
-        canvas.write(items)
-        assert canvas.render().splitlines() == ['urgent', 'later']
+        canvas.screen.write(items)
+        assert canvas.screen.render().splitlines() == ['urgent', 'later']
     ```
     """
 
@@ -425,8 +425,8 @@ if TYPE_CHECKING:
 
     paragraph = Paragraph('hello brave new world', should_wrap=True, width=10, height=3)
     with xnano.new(width=10, height=3) as canvas:
-        canvas.write(paragraph)
-        assert canvas.render().splitlines() == ['hello', 'brave new', 'world']
+        canvas.screen.write(paragraph)
+        assert canvas.screen.render().splitlines() == ['hello', 'brave new', 'world']
     ```
     """
 
@@ -442,10 +442,10 @@ if TYPE_CHECKING:
 
     scrollbar = Scrollbar(10, 0, viewport_content_length=3, width=1, height=5)
     with xnano.new(width=1, height=5) as canvas:
-        canvas.write(scrollbar)
+        canvas.screen.write(scrollbar)
         scrollbar.next()
         assert scrollbar.content_position == 1
-        assert canvas.render().strip()
+        assert canvas.screen.render().strip()
     ```
     """
 
@@ -461,10 +461,10 @@ if TYPE_CHECKING:
 
     sparkline = Sparkline([1, 3, 2, 5], width=5, height=1)
     with xnano.new(width=5, height=1) as canvas:
-        canvas.write(sparkline)
+        canvas.screen.write(sparkline)
         sparkline.append(4)
         assert len(sparkline.values) == 5
-        assert canvas.render().strip()
+        assert canvas.screen.render().strip()
     ```
     """
 
@@ -481,8 +481,8 @@ if TYPE_CHECKING:
 
     sparkline = Sparkline([1, SparklineBar(5, Style('red')), 2], width=3, height=1)
     with xnano.new(width=3, height=1) as canvas:
-        canvas.write(sparkline)
-        assert canvas.render().strip()
+        canvas.screen.write(sparkline)
+        assert canvas.screen.render().strip()
     ```
     """
 
@@ -491,7 +491,7 @@ if TYPE_CHECKING:
     Rows and columns of text with an optional header and a selection.
 
     Reach for it for tabular data; a column width is a number of cells or a
-    [`SizeRule`][xnano.geometry.SizeRule].
+    [`SizeRule`][xnano.layout.SizeRule].
 
     ```python
     import xnano
@@ -505,8 +505,8 @@ if TYPE_CHECKING:
         height=3,
     )
     with xnano.new(width=12, height=3) as canvas:
-        canvas.write(table)
-        assert canvas.render().splitlines()[0].split() == ['name', 'age']
+        canvas.screen.write(table)
+        assert canvas.screen.render().splitlines()[0].split() == ['name', 'age']
     ```
     """
 
@@ -525,8 +525,8 @@ if TYPE_CHECKING:
 
     row = TableRow([TableCell('total', style=Style(bold=True)), '77'])
     with xnano.new(width=12, height=1) as canvas:
-        canvas.write(Table([row], widths=[6, 4], width=12, height=1))
-        assert canvas.render().split() == ['total', '77']
+        canvas.screen.write(Table([row], widths=[6, 4], width=12, height=1))
+        assert canvas.screen.render().split() == ['total', '77']
     ```
     """
 
@@ -542,8 +542,8 @@ if TYPE_CHECKING:
 
     row = TableRow(['ada', '36'], height=2)
     with xnano.new(width=12, height=2) as canvas:
-        canvas.write(Table([row], widths=[6, 4], width=12, height=2))
-        assert canvas.render().split() == ['ada', '36']
+        canvas.screen.write(Table([row], widths=[6, 4], width=12, height=2))
+        assert canvas.screen.render().split() == ['ada', '36']
     ```
     """
 
@@ -560,10 +560,10 @@ if TYPE_CHECKING:
 
     tabs = Tabs(['one', 'two'], selected=0, width=20, height=1)
     with xnano.new(width=20, height=1) as canvas:
-        canvas.write(tabs)
+        canvas.screen.write(tabs)
         tabs.select_next()
         assert tabs.selected == 1
-        assert 'two' in canvas.render()
+        assert 'two' in canvas.screen.render()
     ```
     """
 
@@ -581,8 +581,8 @@ if TYPE_CHECKING:
     gauge = Gauge(0.5, label='half', width=12, height=1)
     assert isinstance(gauge, Widget)
     with xnano.new(width=12, height=1) as canvas:
-        canvas.write(gauge)
-        assert 'half' in canvas.render()
+        canvas.screen.write(gauge)
+        assert 'half' in canvas.screen.render()
     ```
     """
 

@@ -57,11 +57,11 @@ class TestReport:
             code='validation.bounds',
             location=('write', 'height'),
             hint='Pass a smaller height.',
-            title='canvas.write()',
+            title='canvas.screen.write()',
             input_value=70000,
         )
         assert str(error).splitlines() == [
-            '1 error in canvas.write()',
+            '1 error in canvas.screen.write()',
             'write.height',
             '  height must be at most 65535 cells. '
             '[code=validation.bounds, input_value=70000, input_type=int]',
@@ -69,7 +69,7 @@ class TestReport:
         ]
         detail = error.details[0]
         assert (detail.location, detail.input_value) == (('write', 'height'), 70000)
-        assert error.report.title == 'canvas.write()'
+        assert error.report.title == 'canvas.screen.write()'
 
     def test_a_long_input_value_is_cut_short(self):
         error = TerminalError('too long', code='validation.value', input_value='x' * 200)
@@ -91,7 +91,7 @@ class TestLabelledRaises:
     def test_a_layer_out_of_range_is_a_bounds_error(self):
         with xnano.new(width=4, height=1) as canvas:
             with pytest.raises(ValueError) as caught:
-                canvas.write('x', layer=2**40)
+                canvas.screen.write('x', layer=2**40)
         error = caught.value
         assert isinstance(error, TerminalError)
         assert error.code == 'validation.bounds'
@@ -101,22 +101,22 @@ class TestLabelledRaises:
     def test_a_modifier_that_is_not_a_boolean_is_a_type_error(self):
         with xnano.new(width=4, height=1) as canvas:
             with pytest.raises(TypeError) as caught:
-                canvas.write('x', bold='yes')  # type: ignore[arg-type]
+                canvas.screen.write('x', bold='yes')  # type: ignore[arg-type]
         assert isinstance(caught.value, TerminalError)
         assert caught.value.code == 'validation.type'
 
     def test_writing_a_canvas_twice_is_a_composition_error(self):
         with xnano.new(width=8, height=2) as outer:
-            inner = outer.new(width=2, height=1)
+            inner = outer.screen.new(width=2, height=1)
             with pytest.raises(TerminalError) as caught:
-                outer.write(inner)
+                outer.screen.write(inner)
         assert caught.value.code == 'canvas.composition'
 
     def test_a_closed_canvas_raises_a_closed_error(self):
         canvas = xnano.new(width=4, height=1)
         canvas.close()
         with pytest.raises(TerminalClosedError) as caught:
-            canvas.write('x')
+            canvas.screen.write('x')
         assert caught.value.code == 'canvas.closed'
 
 

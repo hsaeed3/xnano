@@ -23,8 +23,8 @@ from xnano._schema._axes import (
     RangeBound,
 )
 from xnano._schema._layout import CanvasLayout, EdgeBehavior
-from xnano.appearance._look import MOST_CELLS
 from xnano.errors import TerminalError
+from xnano.styles._look import MOST_CELLS
 
 # The shades of the named colors in the standard xterm palette. A terminal draws a named color
 # in its own theme, but a pixel needs actual channels, so these stand in for them.
@@ -223,7 +223,7 @@ def axis_limits(
     Turn a range into its lowest and highest bound; ``None`` leaves a side open.
 
     Args:
-        value: The range as a pair ``(low, high)``, see [`Axis`][xnano.types.Axis].
+        value: The range as a pair ``(low, high)``, see [`Axis`][xnano.layout.Axis].
         axis: ``'x'``, ``'y'``, ``'width'`` or ``'height'``.
 
     Raises:
@@ -294,11 +294,11 @@ _STATIC_NAMES = frozenset(
 _NAME = re.compile(r'[A-Za-z_]\w*')
 
 
-def is_static_formula(bound: object) -> bool:
+def is_static_expression(bound: object) -> bool:
     """
     Whether a number or expression keeps its value until an event that already asks for a frame.
 
-    Only a formula built from sizes, positions and numbers is known to be static. A formula
+    Only an expression built from sizes, positions and numbers is known to be static. An expression
     that reads anything else, such as the clock, a sound, a level or a provided value, may
     change between frames, so it is not static.
     """
@@ -318,9 +318,9 @@ def inspect_number(buffer: _core.Buffer, expression: NumericExpression) -> float
     result = buffer.inspect(cast('_core.Expression[float]', expression))
     if result is None:
         raise TypeError(
-            'This formula has no value yet because it reads input that has not been seen, '
+            'This expression has no value yet because it reads input that has not been seen, '
             'such as PointerPosition before the pointer has moved. Assign a number now and '
-            'update it from a hook that runs when the input arrives, or use a formula that '
+            'update it from a hook that runs when the input arrives, or use an expression that '
             'does not depend on unseen input.'
         )
     return float(result)
@@ -331,7 +331,7 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
     Turn an axis value into a number or an expression that is evaluated on every frame.
 
     Args:
-        value: The axis value, see [`Axis`][xnano.types.Axis]. A range is not a value;
+        value: The axis value, see [`Axis`][xnano.layout.Axis]. A range is not a value;
             see [`axis_limits`][xnano._internal._axes.axis_limits].
         axis: ``'x'``, ``'y'``, ``'width'`` or ``'height'``.
 
@@ -355,6 +355,15 @@ def axis_expression(value: Axis, axis: AxisName) -> NumericExpression | float:
         )
     if isinstance(value, (int, float)):
         return value
+    if isinstance(value, str) and value == 'next':
+        raise TerminalError(
+            f"'next' places something after what was written before it, so it is a value "
+            f'for x and y, not for {axis}. Give {axis} a number of cells, a percentage such '
+            f"as '50%' or an expression, or leave {axis} out to use the size of the content.",
+            code='validation.value',
+            location=axis,
+            input_value=value,
+        )
     if isinstance(value, str):
         word = _axis_word(value, axis)
         if word is not None:
@@ -416,6 +425,8 @@ def check_axis(value: Axis, axis: AxisName) -> None:
     """
     if isinstance(value, tuple):
         axis_limits(value, axis)
+        return
+    if axis in ('x', 'y') and isinstance(value, str) and value == 'next':
         return
     check_size(axis_expression(value, axis), axis, value)
 

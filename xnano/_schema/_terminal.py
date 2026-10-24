@@ -15,7 +15,7 @@ from xnano._schema._appearance import CanvasAppearanceArguments
 from xnano._schema._layout import CanvasLayout, EdgeBehavior
 
 if TYPE_CHECKING:
-    from xnano._schema._effects import RenderableEffectSpecification
+    from xnano._schema._effects import WritableEffectSpecification
 
 ColorProfile: TypeAlias = _core.ColorProfile
 """
@@ -77,7 +77,7 @@ class TerminalSettings(TypedDict, total=False):
             On by default.
         capture: Whether text printed while the screen is in use is held back and printed
             when the canvas closes. On by default.
-        clear: Whether what was drawn is erased when the canvas closes. On by default.
+        clears_on_close: Whether what was drawn is erased when the canvas closes. On by default.
         alternate_screen: Whether a full-window canvas draws on the alternate screen, so the
             shell's history comes back untouched. On by default.
     """
@@ -96,7 +96,7 @@ class TerminalSettings(TypedDict, total=False):
     """Whether ``Ctrl-C`` ends the loop."""
     capture: bool
     """Whether printed text is held back while the screen is in use."""
-    clear: bool
+    clears_on_close: bool
     """Whether what was drawn is erased when the canvas closes."""
     alternate_screen: bool
     """Whether a full-window canvas draws on the alternate screen."""
@@ -107,19 +107,19 @@ class CanvasSettings(TerminalSettings, CanvasAppearanceArguments, total=False):
     The keyword settings of [`new`][xnano.new]: the terminal settings and the canvas's own look.
 
     Every key is described where it is declared, in
-    [`TerminalSettings`][xnano.types.TerminalSettings] and
-    [`CanvasAppearanceArguments`][xnano.types.CanvasAppearanceArguments].
+    [`TerminalSettings`][xnano.terminal.TerminalSettings] and
+    [`CanvasAppearanceArguments`][xnano.styles.CanvasAppearanceArguments].
 
     Attributes:
-        mouse: See [`TerminalSettings`][xnano.types.TerminalSettings]; the same for ``scroll``,
-            ``keyboard``, ``paste``, ``focus``, ``interrupt``, ``capture``, ``clear`` and
+        mouse: See [`TerminalSettings`][xnano.terminal.TerminalSettings]; the same for ``scroll``,
+            ``keyboard``, ``paste``, ``focus``, ``interrupt``, ``capture``, ``clears_on_close`` and
             ``alternate_screen``.
-        background: See [`CanvasAppearanceArguments`][xnano.types.CanvasAppearanceArguments];
+        background: See [`CanvasAppearanceArguments`][xnano.styles.CanvasAppearanceArguments];
             the same for the other appearance keys.
         layout: How the canvas places what is written on it; see
-            [`CanvasLayout`][xnano.types.CanvasLayout]. ``'overlay'`` when left out.
+            [`CanvasLayout`][xnano.canvas.CanvasLayout]. ``'overlay'`` when left out.
         edges: What content written on the canvas does at the edges of its area, unless it
-            is given its own; see [`EdgeBehavior`][xnano.types.EdgeBehavior]. ``'clip'``
+            is given its own; see [`EdgeBehavior`][xnano.layout.EdgeBehavior]. ``'clip'``
             when left out.
     """
 
@@ -149,7 +149,7 @@ class OpenSettings(CanvasSettings, total=False):
     """The most frames drawn per second."""
     bpm: float
     """Beats per minute."""
-    effects: Sequence[RenderableEffectSpecification]
+    effects: Sequence[WritableEffectSpecification]
     """Effects to apply, as dictionaries with a ``kind`` key."""
     deps: object
     """The dependencies hooks read as ``context.deps``."""

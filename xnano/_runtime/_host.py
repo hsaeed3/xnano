@@ -20,6 +20,7 @@ import xnano_core as _core
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
 
+from xnano._runtime._loops import _AwaitableEvent, mark_canvas_loop_thread
 from xnano.errors import TerminalClosedError, TerminalError, _release_frames
 
 ResultT = TypeVar('ResultT')
@@ -252,6 +253,7 @@ class _ThreadHost(_Host):
         create_runtime: Callable[[], _core.Runtime],
         *,
         defer_bind: bool = False,
+        should_wait: bool = True,
     ) -> None:
         """
         Start the loop's thread and wait until the runtime exists, or failed.
@@ -262,6 +264,8 @@ class _ThreadHost(_Host):
             defer_bind: Whether the loop waits for ``bind_now`` before it binds the canvas
                 and starts running. A canvas that moves onto this loop is bound later, once
                 its previous runtime is closed.
+            should_wait: Whether to wait here for the runtime. ``False`` leaves the waiting to
+                ``wait_until_ready`` or ``wait_until_ready_async``.
 
         Raises:
             BaseException: Whatever the runtime raised while it was being created.
@@ -271,8 +275,8 @@ class _ThreadHost(_Host):
             canvas._host = self
         self._create_runtime = create_runtime
         self._defer_bind = defer_bind
-        self._ready = threading.Event()
-        self._finished = threading.Event()
+        self._ready = _AwaitableEvent()
+        self._finished = _AwaitableEvent()
         self._bind_requested = threading.Event()
         self._bind_done = threading.Event()
         self._startup_error: BaseException | None = None
@@ -284,7 +288,31 @@ class _ThreadHost(_Host):
             target=self._main, name='xnano-terminal', daemon=True
         )
         self._thread.start()
+        if should_wait:
+            self.wait_until_ready()
+
+    def wait_until_ready(self) -> None:
+        """
+        Wait until the runtime exists, or failed.
+
+        Raises:
+            BaseException: Whatever the runtime raised while it was being created.
+        """
         self._ready.wait()
+        self.raise_startup_error()
+
+    async def wait_until_ready_async(self) -> None:
+        """
+        Wait until the runtime exists, or failed, without blocking the calling loop.
+
+        Raises:
+            BaseException: Whatever the runtime raised while it was being created.
+        """
+        await self._ready.wait_async()
+        self.raise_startup_error()
+
+    def raise_startup_error(self) -> None:
+        """Raise what the runtime raised while it was being created, if anything."""
         if self._startup_error is not None:
             error = self._startup_error
             self._startup_error = None
@@ -305,6 +333,7 @@ class _ThreadHost(_Host):
             raise error
 
     def _main(self) -> None:
+        mark_canvas_loop_thread()
         canvas = self._canvas
         runtime: _core.Runtime | None = None
         try:
@@ -412,6 +441,17 @@ class _ThreadHost(_Host):
     def wait(self, timeout: float | None = None) -> bool:
         """Wait for the loop to finish; return whether it has."""
         return self._finished.wait(timeout)
+
+    async def wait_async(self, timeout: float | None = None) -> bool:
+        """Wait for the loop to finish without blocking the calling loop; return whether it has."""
+        return await self._finished.wait_async(timeout)
+
+    async def stop_async(self) -> None:
+        """Ask a running loop to stop, and wait until it has without blocking the calling loop."""
+        if not self._is_bound or self.is_on_loop() or self._finished.is_set():
+            return
+        self.post(lambda: self._canvas._stop_runtime())
+        await self._finished.wait_async(_CALL_TIMEOUT_SECONDS)
 
     def shutdown(self) -> None:
         if not self._is_bound and not self._finished.is_set():

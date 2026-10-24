@@ -2479,7 +2479,7 @@ class InputState:
             key.
         last_key_kind: ``'press'``, ``'repeat'`` or ``'release'`` for the latest key event, or
             ``None``.
-        last_chord: The latest key event with its modifiers as text such as ``'ctrl+s'``, or
+        last_binding: The latest key event with its modifiers as text such as ``'ctrl+s'``, or
             ``None``. Modifiers come in the order ``ctrl``, ``alt``, ``shift``, ``super``,
             ``meta``, ``hyper``.
         last_mouse_button: ``'left'``, ``'right'`` or ``'middle'`` for the latest button or
@@ -2511,7 +2511,7 @@ class InputState:
 
             runtime.inject(Event.key_press('ctrl+s'))
             runtime.step()
-            assert state.last_key == 's' and state.last_chord == 'ctrl+s'
+            assert state.last_key == 's' and state.last_binding == 'ctrl+s'
 
             runtime.inject(Event.mouse_event(column=4, row=1, kind='press', button='left'))
             runtime.step()
@@ -2554,7 +2554,7 @@ class InputState:
         """Whether the latest key event was a press, repeat or release."""
 
     @property
-    def last_chord(self) -> str | None:
+    def last_binding(self) -> str | None:
         """The latest key event with its modifiers, such as ``'ctrl+s'``."""
 
     @property
@@ -7461,6 +7461,10 @@ class Buffer(Surface):
         layer: The stacking order among siblings; higher layers are drawn on top.
         is_visible: Whether the buffer is drawn. Hidden buffers still keep their content.
         is_focusable: Whether the buffer can receive input focus.
+        should_fit_width: Whether the width follows the children it holds.
+        should_fit_height: Whether the height follows the children it holds.
+        fit_padding: The columns and rows a buffer that fits its children adds after them.
+        parent_measured_axes: The parts of the buffer's place that its parent's size decides.
         content: The whole buffer as a region. Assigning text replaces the content.
         cells: The same view as ``content``; there is only one store of cells.
         text: The plain text of the buffer's own cells, without mounted children.
@@ -7576,6 +7580,79 @@ class Buffer(Surface):
 
     @is_focusable.setter
     def is_focusable(self, value: bool) -> None: ...
+    @property
+    def should_fit_width(self) -> bool:
+        """
+        Whether the width follows the children: as wide as the farthest right edge.
+
+        Only visible children attached with explicit geometry count, and a child whose
+        ``parent_measured_axes`` include ``'width'`` (or whose ``x`` is placed by this
+        buffer's size) is placed within the width the others give. The width is fitted
+        before every frame, and at once by
+        [`Runtime.fit_to_content`][xnano_core._xnano_core.Runtime.fit_to_content]. A buffer
+        that fits its children and is mounted on a runtime with ``geometry='inherit'``
+        decides that runtime's width.
+
+        Examples:
+            ```python
+            with Runtime.offscreen(width=1, height=1) as runtime:
+                parent = Buffer(width=1, height=1)
+                parent.should_fit_width = True
+                parent.should_fit_height = True
+                parent.attach(Buffer('hello', x=2, y=1))
+                runtime.mount(parent, geometry='inherit')
+                assert runtime.fit_to_content() == Size(7, 2)
+            ```
+        """
+
+    @should_fit_width.setter
+    def should_fit_width(self, value: bool) -> None: ...
+    @property
+    def should_fit_height(self) -> bool:
+        """
+        Whether the height follows the children: as tall as the lowest bottom edge.
+
+        The rules of ``should_fit_width`` apply along the other axis.
+        """
+
+    @should_fit_height.setter
+    def should_fit_height(self, value: bool) -> None: ...
+    @property
+    def fit_padding(self) -> tuple[int, int]:
+        """
+        The columns after the farthest right edge and the rows below the lowest bottom edge
+        that a buffer which fits its children adds, for a border or padding on those sides.
+        """
+
+    @fit_padding.setter
+    def fit_padding(self, value: tuple[int, int]) -> None: ...
+    @property
+    def parent_measured_axes(self) -> tuple[Literal['x', 'y', 'width', 'height'], ...]:
+        """
+        The parts of the buffer's place that its parent's size decides.
+
+        Set it to the axes that are a percentage, a word such as ``'center'`` or a formula of
+        the parent's size. A parent that fits its children places such a buffer within the
+        size the other children give it: one placed by the parent's size counts with its own
+        size, and one sized by it does not count along that axis.
+
+        Raises:
+            ValueError: A name is not ``'x'``, ``'y'``, ``'width'`` or ``'height'``.
+
+        Examples:
+            ```python
+            parent = Buffer(width=1, height=1)
+            parent.should_fit_width = True
+            centered = Buffer('mid')
+            centered.parent_measured_axes = ('x',)
+            assert centered.parent_measured_axes == ('x',)
+            ```
+        """
+
+    @parent_measured_axes.setter
+    def parent_measured_axes(
+        self, value: Sequence[Literal['x', 'y', 'width', 'height']]
+    ) -> None: ...
     @property
     def content(self) -> Region:
         """The whole buffer as a region. Assigning text replaces the content."""
@@ -8351,13 +8428,45 @@ class Runtime:
 
     def resize(self, *, width: int, height: int) -> None:
         """
-        Resize an offscreen destination and queue a matching resize event.
+        Resize an offscreen destination, or the inline region of a live runtime, and queue a
+        matching resize event.
+
+        An inline region keeps its top row while it fits in the window; when it grows past
+        the bottom of the window, the window's content scrolls up to make room, and rows it
+        no longer covers are erased. Its height is held to the window.
+
+        Raises:
+            ValueError: The size is not one a buffer can have, or the runtime is live and
+                takes the whole window, which it follows instead.
 
         Examples:
             ```python
             with Runtime.offscreen(width=10, height=2) as runtime:
                 runtime.resize(width=20, height=4)
                 assert runtime.device.size == Size(20, 4)
+            ```
+        """
+
+    def fit_to_content(self) -> Size:
+        """
+        Give every buffer that fits its children the size they cover now, and return the
+        size the runtime draws on.
+
+        A mounted buffer that fits its children (see
+        [`Buffer.should_fit_width`][xnano_core._xnano_core.Buffer.should_fit_width]) decides
+        that size along the axes it fits: an offscreen runtime takes it, and so does the
+        inline region of a live runtime, held to the window. Frames do this before they are
+        drawn; call it to read sizes that are current between frames.
+
+        Examples:
+            ```python
+            with Runtime.offscreen(width=1, height=1) as runtime:
+                root = Buffer(width=1, height=1)
+                root.should_fit_height = True
+                root.attach(Buffer('one'))
+                root.attach(Buffer('two', y=1))
+                runtime.mount(root, geometry='inherit')
+                assert runtime.fit_to_content() == Size(1, 2)
             ```
         """
 
@@ -12166,7 +12275,7 @@ class KeyboardExpressionScope(ExpressionScope):
     Attributes:
         key: The key name, such as ``'q'`` or ``'enter'``.
         kind: ``'press'``, ``'repeat'`` or ``'release'``.
-        chord: The key with its modifiers, such as ``'ctrl+s'``.
+        binding: The key with its modifiers, such as ``'ctrl+s'``.
 
     Examples:
         ```python
@@ -12183,7 +12292,7 @@ class KeyboardExpressionScope(ExpressionScope):
                 runtime.inject(Event.key_press(key))
                 runtime.step()
             assert seen == ['quit']
-            assert buffer.inspect(KeyboardScope.chord) == 'q'
+            assert buffer.inspect(KeyboardScope.binding) == 'q'
         ```
     """
 
@@ -12194,7 +12303,7 @@ class KeyboardExpressionScope(ExpressionScope):
     def kind(self) -> Value[Literal['press', 'repeat', 'release'] | None]:
         """Whether the latest key event was a press, repeat or release."""
     @property
-    def chord(self) -> Value[str | None]:
+    def binding(self) -> Value[str | None]:
         """The latest key event with its modifiers, such as ``'ctrl+s'``."""
 
 class MouseExpressionScope(ExpressionScope):
@@ -12289,7 +12398,7 @@ RootScope: RootExpressionScope
 BufferScope: BufferExpressionScope
 """A buffer's own geometry: ``BufferScope.x``, ``BufferScope.width``, ..."""
 KeyboardScope: KeyboardExpressionScope
-"""The latest key event: ``KeyboardScope.key``, ``KeyboardScope.kind``, ``KeyboardScope.chord``."""
+"""The latest key event: ``KeyboardScope.key``, ``KeyboardScope.kind``, ``KeyboardScope.binding``."""
 MouseScope: MouseExpressionScope
 """The latest mouse button or motion report: ``MouseScope.position``, ``MouseScope.is_down``, ..."""
 ScrollScope: ScrollExpressionScope
@@ -12352,7 +12461,7 @@ KeyboardKey: Value[str | None]
 """The key of the latest key event, or ``None`` while the latest input was not a key."""
 KeyboardKind: Value[Literal['press', 'repeat', 'release'] | None]
 """Whether the latest key event was a press, repeat or release, or ``None``."""
-KeyboardChord: Value[str | None]
+KeyboardBinding: Value[str | None]
 """The latest key event with its modifiers, such as ``'ctrl+s'``, or ``None``."""
 MouseButtonValue: Value[MouseButton | None]
 """The button of the latest button or motion report, or ``None``."""

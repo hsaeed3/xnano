@@ -10,12 +10,15 @@ import os
 import sys
 from collections.abc import Sequence
 from types import TracebackType
-from typing import ClassVar, Final, cast
+from typing import TYPE_CHECKING, ClassVar, Final, cast
 
 from xnano._schema._errors import TerminalErrorCode as TerminalErrorCode
 from xnano_core import ErrorDetail as _ErrorDetail
 from xnano_core import ErrorReport as _ErrorReport
 from xnano_core import ReportedError as _ReportedError
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 __all__ = [
     'TerminalAlreadyOpenError',
@@ -51,7 +54,7 @@ class TerminalError(_ReportedError, RuntimeError):
             ``TerminalError``.
         location: Where the value is, such as ``'height'`` or ``('settings', 'height')``.
         hint: What to do next.
-        title: What the report is about, such as ``'canvas.write()'``.
+        title: What the report is about, such as ``'canvas.screen.write()'``.
         input_value: The value the problem is about, when there is one.
 
     Attributes:
@@ -90,7 +93,7 @@ class TerminalError(_ReportedError, RuntimeError):
         *arguments: object,
         code: TerminalErrorCode | None = None,
         **keywords: object,
-    ) -> TerminalError:
+    ) -> Self:
         """Pick the class that is also ``TypeError`` or ``ValueError`` for the code."""
         chosen: type[TerminalError] = cls
         if cls is TerminalError:
@@ -101,7 +104,7 @@ class TerminalError(_ReportedError, RuntimeError):
                 chosen = _TerminalTypeError
             elif first_code in _VALUE_CODES:
                 chosen = _TerminalValueError
-        return cast('TerminalError', _ReportedError.__new__(chosen))
+        return cast('Self', _ReportedError.__new__(chosen))
 
     def __init__(
         self,
@@ -121,7 +124,7 @@ class TerminalError(_ReportedError, RuntimeError):
             code: The label of the problem; the class's ``default_code`` when left out.
             location: Where the value is, such as ``'height'`` or ``('settings', 'height')``.
             hint: What to do next.
-            title: What the report is about, such as ``'canvas.write()'``.
+            title: What the report is about, such as ``'canvas.screen.write()'``.
             input_value: The value the problem is about, given as ``input_value=...``.
         """
         if isinstance(message, _ErrorReport):

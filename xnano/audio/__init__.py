@@ -1,11 +1,11 @@
 """
 xnano.audio
 
-What is heard: [`Note`][xnano.Note], [`Melody`][xnano.audio.Melody] and
-[`Sound`][xnano.Sound], [`play`][xnano.play], the canvas's [`AudioDevice`][xnano.audio.AudioDevice]
-and its [`Microphone`][xnano.audio.Microphone]. Making a Note needs nothing; playing, melodies,
-loading a sound, the player and the microphone need the optional ``audio`` extra:
-``pip install "xnano[audio]"``.
+What is heard: [`Note`][xnano.Note], [`Melody`][xnano.audio.Melody], [`Audio`][xnano.Audio]
+and [`load_audio`][xnano.load_audio], [`play`][xnano.play], and the
+[`Microphone`][xnano.audio.Microphone]. A canvas plays through its
+[`Speaker`][xnano.devices.Speaker]. Making a Note needs nothing; playing, melodies, audio and
+the microphone need the optional ``audio`` extra: ``pip install "xnano[audio]"``.
 """
 
 from __future__ import annotations
@@ -14,12 +14,11 @@ import importlib
 from typing import TYPE_CHECKING, Final
 
 from xnano._internal import _optional
+from xnano.audio._audio import Audio as Audio
+from xnano.audio._audio import load_audio as load_audio
 from xnano.audio._notes import Note as Note
 from xnano.audio._notes import PlayHandle as PlayHandle
-from xnano.audio._notes import note as note
 from xnano.audio._notes import play as play
-from xnano.audio._sounds import Sound as Sound
-from xnano.audio._sounds import load_sound as load_sound
 
 if TYPE_CHECKING:
     from xnano_audio import InstrumentName as _AudioInstrumentName
@@ -33,7 +32,6 @@ if TYPE_CHECKING:
 
     from xnano.audio._melodies import Melody as Melody
     from xnano.audio._microphone import Microphone as Microphone
-    from xnano.audio._player import AudioDevice as AudioDevice
 
     InstrumentName = _AudioInstrumentName
     """
@@ -78,7 +76,7 @@ if TYPE_CHECKING:
     """
 
 __all__ = [
-    'AudioDevice',
+    'Audio',
     'InstrumentName',
     'Melody',
     'Microphone',
@@ -86,17 +84,14 @@ __all__ = [
     'NoteName',
     'Pitch',
     'PlayHandle',
-    'Sound',
     'TerminalAudioError',
     'TerminalAudioUnavailableError',
     'instrument_names',
-    'load_sound',
-    'note',
+    'load_audio',
     'play',
 ]
 
 _LAZY_NAMES: Final[dict[str, str]] = {
-    'AudioDevice': 'xnano.audio._player',
     'InstrumentName': 'xnano_audio',
     'Melody': 'xnano.audio._melodies',
     'Microphone': 'xnano.audio._microphone',

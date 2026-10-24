@@ -45,9 +45,9 @@ from xnano.effects._properties import (
 )
 
 if TYPE_CHECKING:
-    from xnano._schema._effects import RenderableEffectSpecification
+    from xnano._schema._effects import WritableEffectSpecification
     from xnano.canvas import Canvas
-    from xnano.placement import Placement
+    from xnano.layout._placement import Placement
 
 EFFECT_PARAMETERS_BY_KIND: dict[str, type[EffectParameters]] = {
     'effect.fade_to': FadeToEffectParameters,
@@ -129,14 +129,14 @@ def build_effect(kind: str, parameters: Mapping[str, object]) -> EffectParameter
 
 
 def effect_sequence(
-    effects: object, expected: Literal['renderable', 'playable']
+    effects: object, expected: Literal['writable', 'playable']
 ) -> tuple[object, ...]:
     """
     Return the entries of an ``effects=[...]`` argument, refusing a value that is not a list.
 
     Args:
         effects: The value given as ``effects=``.
-        expected: ``'renderable'`` for a list that styles a buffer, ``'playable'`` for a list
+        expected: ``'writable'`` for a list that styles a buffer, ``'playable'`` for a list
             that styles a sound.
 
     Raises:
@@ -146,7 +146,7 @@ def effect_sequence(
     if isinstance(effects, (str, bytes, Mapping, AbstractSet)) or not isinstance(
         effects, Iterable
     ):
-        sample = 'effect.fade_to' if expected == 'renderable' else 'audio.reverb'
+        sample = 'effect.fade_to' if expected == 'writable' else 'audio.reverb'
         raise TypeError(
             f"effects= takes a list of dictionaries such as [{{'kind': {sample!r}, ...}}], "
             f'but got {effects!r}. Pass a list, even for one effect.'
@@ -155,7 +155,7 @@ def effect_sequence(
 
 
 def normalize_effect(
-    specification: object, expected: Literal['renderable', 'playable']
+    specification: object, expected: Literal['writable', 'playable']
 ) -> EffectParameters:
     """
     Turn one entry of an ``effects=[...]`` list into the effect it describes.
@@ -163,7 +163,7 @@ def normalize_effect(
     Args:
         specification: A dictionary with a ``kind`` key and that effect's keywords, such as
             ``{'kind': 'effect.fade_to', 'foreground': 'red'}``.
-        expected: ``'renderable'`` for a list that styles a buffer, ``'playable'`` for a list
+        expected: ``'writable'`` for a list that styles a buffer, ``'playable'`` for a list
             that styles a sound.
 
     Returns:
@@ -174,14 +174,14 @@ def normalize_effect(
             list or is not an effect.
         ValueError: The ``kind`` looks like an effect but is not a known one.
     """
-    is_renderable = expected == 'renderable'
-    prefix = 'effect.' if is_renderable else 'audio.'
-    sample = 'effect.fade_to' if is_renderable else 'audio.reverb'
+    is_writable = expected == 'writable'
+    prefix = 'effect.' if is_writable else 'audio.'
+    sample = 'effect.fade_to' if is_writable else 'audio.reverb'
     example = f"{{'kind': {sample!r}, ...}}"
     if not isinstance(specification, Mapping) or 'kind' not in specification:
         if not isinstance(specification, EffectParameters):
             hint = "Write each effect as a dictionary with a 'kind' key."
-        elif is_renderable:
+        elif is_writable:
             hint = (
                 'An effect(...) object is applied with placement | effect(...) or '
                 'placement.update(effect(...)).'
@@ -205,15 +205,15 @@ def normalize_effect(
                 )
             )
             raise ValueError(
-                f'{kind!r} is not a known {"visual" if is_renderable else "sound"} effect. '
+                f'{kind!r} is not a known {"visual" if is_writable else "sound"} effect. '
                 f'Use one of: {known}.'
             )
         return build_effect(kind, parameters)
     if kind.startswith(('effect.', 'audio.')):
-        if is_renderable:
+        if is_writable:
             raise TypeError(
                 f'{kind!r} is a sound effect; pass it to play(effects=...) or '
-                f'note(effects=...), not to a visual list such as write(effects=...). '
+                f'Note(effects=...), not to a visual list such as write(effects=...). '
                 f"Visual effects have kinds that start with 'effect.', such as "
                 f"'effect.fade_to'."
             )
@@ -222,7 +222,7 @@ def normalize_effect(
             f'draw(effects=...), not to a sound. Sound effects have kinds that start with '
             f"'audio.', such as 'audio.reverb'."
         )
-    noun = 'a visual effect' if is_renderable else 'a sound effect'
+    noun = 'a visual effect' if is_writable else 'a sound effect'
     raise TypeError(
         f'{kind!r} is not {noun}, so it cannot be in effects=. Use a kind that starts with '
         f"'{prefix}', such as {sample!r}."
@@ -231,7 +231,7 @@ def normalize_effect(
 
 def apply_effects(
     target: Canvas[object, object] | Placement[object, object],
-    effects: Sequence[RenderableEffectSpecification],
+    effects: Sequence[WritableEffectSpecification],
 ) -> list[EffectParameters]:
     """
     Start each effect of an ``effects=[...]`` list on ``target`` and return the live handles.
@@ -249,8 +249,8 @@ def apply_effects(
             visual effect.
     """
     applied: list[EffectParameters] = []
-    for specification in effect_sequence(effects, 'renderable'):
-        effect = normalize_effect(specification, 'renderable')
+    for specification in effect_sequence(effects, 'writable'):
+        effect = normalize_effect(specification, 'writable')
         effect.apply_to(target)
         applied.append(effect)
     return applied

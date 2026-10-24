@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Final, cast
 from xnano import symbols
 from xnano._internal import _optional
 
-_optional.require('audio', needed_for='xnano.audio.AudioDevice')
+_optional.require('audio', needed_for='xnano.devices.Speaker')
 
 from xnano_audio import (  # noqa: E402
     InstrumentName,
@@ -38,10 +38,10 @@ from xnano_audio import (  # noqa: E402
 import xnano_core as _core  # noqa: E402
 from xnano._schema._axes import NumericExpression  # noqa: E402
 from xnano._schema._content import PlaySource  # noqa: E402
+from xnano.audio._audio import AUDIO_PITCH_ROW, Audio  # noqa: E402
 from xnano.audio._melodies import Melody, is_melody_text, parse_melody_text  # noqa: E402
 from xnano.audio._microphone import _LEVEL_NAME, Microphone  # noqa: E402
 from xnano.audio._notes import Note, PlayHandle, _midi_number  # noqa: E402
-from xnano.audio._sounds import SOUND_PITCH_ROW, Sound  # noqa: E402
 from xnano.effects._properties import PlayableEffectProperties  # noqa: E402
 from xnano.effects._registry import effect_sequence, normalize_effect  # noqa: E402
 
@@ -49,10 +49,10 @@ from xnano.effects._registry import effect_sequence, normalize_effect  # noqa: E
 from xnano_core._xnano_core import _external  # noqa: E402
 
 if TYPE_CHECKING:
+    from xnano._schema._effects import PlayableEffectSpecification
     from xnano.canvas import Canvas
     from xnano.effects._properties import AudioEffectParameters
-    from xnano.region import Region
-    from xnano.types import PlayableEffectSpecification
+    from xnano.layout._region import Region
 
 __all__ = ['AudioDevice']
 
@@ -160,7 +160,7 @@ def _check_hertz(hertz: float) -> None:
 _BEAT_NAME = 'audio.beat'
 
 _RETENTION_SECONDS: Final = 60.0
-"""How long after a recorded sound ends it is kept for a ``render_sound()`` that is late."""
+"""How long after a recorded sound ends it is kept for a ``speaker.render()`` that is late."""
 
 _MOST_RECORDINGS: Final = 10000
 """The most recorded sounds kept at once; the oldest go first."""
@@ -321,7 +321,7 @@ def _known_sound_names() -> str:
     names = sorted(
         name
         for name, value in symbols._registry.items()
-        if isinstance(value, (Note, Sound, Melody))
+        if isinstance(value, (Note, Audio, Melody))
     )
     return ', '.join(repr(name) for name in names) if names else 'none yet'
 
@@ -371,10 +371,10 @@ def _plan_into(
     if isinstance(source, str):
         registered = symbols._registry.get(source)
         if registered is not None:
-            if not isinstance(registered, (Note, Sound, Melody)):
+            if not isinstance(registered, (Note, Audio, Melody)):
                 raise TypeError(
                     f'{source!r} is a {type(registered).__name__} symbol, and play() makes '
-                    f'sound from a Note, a Melody or a Sound. Known sound symbols: '
+                    f'sound from a Note, a Melody or an Audio. Known sound symbols: '
                     f'{_known_sound_names()}.'
                 )
             return _plan_into(planned, registered, options, bpm, offset)
@@ -392,8 +392,8 @@ def _plan_into(
         )
     if isinstance(source, Melody):
         return _plan_melody(planned, source.score, source, options, bpm, offset, source)
-    if isinstance(source, Sound):
-        return _plan_into(planned, source.samples, options, bpm, offset)
+    if isinstance(source, Audio):
+        return _plan_into(planned, source.terminal_sound, options, bpm, offset)
     if isinstance(source, TerminalSound):
         sound = source
         effects = (options.effects or ()) + options.extra_effects
@@ -430,7 +430,7 @@ def _plan_into(
         if len(source) == 0:
             raise ValueError(
                 'play() was given an empty sequence, so there is nothing to play. Pass '
-                'notes such as [note("C4"), note("E4")].'
+                'notes such as [Note("C4"), Note("E4")].'
             )
         for element in source:
             offset = _plan_into(planned, element, options, bpm, offset)
@@ -439,17 +439,23 @@ def _plan_into(
         raise TypeError(
             f'Cannot play a {type(source).__name__} here. It has an __xnano_play__ method, '
             f'which needs a canvas to run in, and this call has none. Play it with '
-            f'canvas.play(component), or call xnano.play(component) while a canvas is '
+            f'canvas.speaker.play(component), or call xnano.play(component) while a canvas is '
             f'running.'
         )
-    missing = (
-        ' It has an __xnano_render__ method but no __xnano_play__ method, so it can be '
-        'written with canvas.write() but not played.'
-        if hasattr(source, '__xnano_render__')
-        else ' It has no __xnano_play__ method.'
-    )
+    if hasattr(source, '__xnano_render__'):
+        missing = (
+            ' It is a renderable: write it with canvas.screen.write(), and it plays through '
+            'context.speaker as it runs.'
+        )
+    elif hasattr(source, '__xnano_write__'):
+        missing = (
+            ' It has an __xnano_write__ method but no __xnano_play__ method, so it can be '
+            'written with canvas.screen.write() but not played.'
+        )
+    else:
+        missing = ' It has no __xnano_play__ method.'
     raise TypeError(
-        f'Cannot play a {type(source).__name__}.{missing} Play a Note, a Melody, a Sound, an object '
+        f'Cannot play a {type(source).__name__}.{missing} Play a Note, a Melody, an Audio, an object '
         f'with __xnano_play__, a symbol name, a note name such as "C4", melody text such as '
         f'"C4 E4 G4:2", a MIDI number, a frequency, or a sequence of those.'
     )
@@ -473,7 +479,7 @@ def _check_pitch_text(source: str | int | float) -> None:
 
 def _read_sound_pitches() -> tuple[int, ...]:
     """The pitches of a sound that has none: the row that sounds are drawn on."""
-    return (SOUND_PITCH_ROW,)
+    return (AUDIO_PITCH_ROW,)
 
 
 def _midi_number_or_frequency(pitch: object) -> int:
@@ -599,7 +605,7 @@ def _planned_region(
     The region starts at the beat of ``start_seconds`` and lasts until the last sound stops
     sounding, counted in beats at ``bpm``. It spans every pitch the sounds make.
     """
-    from xnano.region import _timeline_region
+    from xnano.layout._region import _timeline_region
 
     beats_per_second = bpm / 60.0
     return _timeline_region(
@@ -616,15 +622,15 @@ class AudioDevice:
     The canvas's sound: notes, melodies and sounds to play, a musical clock, and the
     microphone.
 
-    Get it from [`Canvas.audio`][xnano.canvas.Canvas.audio]. Playing never waits. Pitches are
+    Get it from [`Canvas.speaker`][xnano.canvas.Canvas.speaker]. Playing never waits. Pitches are
     MIDI note numbers or names everywhere, and the length of a beat follows the canvas's
-    [`bpm`][xnano.canvas.Canvas.bpm].
+    [`bpm`][xnano.devices.Clock.bpm].
 
     Where the sound goes depends on the canvas. A canvas that runs by itself (on the screen,
     or created with ``realtime=True``) plays on this computer's sound output: the sound is
     rendered on your thread and handed to the canvas's own loop, which owns the device. A
     canvas from ``new()`` has no device and a clock you move, so it records what is played
-    instead, and [`render_sound`][xnano.audio.AudioDevice.render_sound] turns the recording
+    instead, and [`render_sound`][xnano.devices.Speaker.render] turns the recording
     into a sound, step by step, the same on every run.
 
     The microphone level and the musical beat are expressions, so they drive anything an
@@ -645,17 +651,17 @@ class AudioDevice:
         import xnano
 
         with xnano.new(width=20, height=3) as canvas:
-            meter = canvas.write('#', y=1)
-            meter.x = canvas.audio.level * 19
-            level = canvas.inspect(canvas.audio.level)
+            meter = canvas.screen.write('#', y=1)
+            meter.x = canvas.microphone.level * 19
+            level = canvas.evaluate(canvas.microphone.level)
             assert 0.0 <= level <= 1.0
-            assert canvas.audio.is_offline
+            assert canvas.speaker.is_offline
         ```
     """
 
     def __init__(self, canvas: Canvas[object, object]) -> None:
         """
-        Create the canvas's audio. Use ``canvas.audio`` instead of calling this.
+        Create the canvas's audio. Use ``canvas.speaker`` instead of calling this.
 
         Args:
             canvas: The canvas the audio belongs to.
@@ -669,8 +675,8 @@ class AudioDevice:
         self._is_held = False
         self._beat = _external(_BEAT_NAME, True)
         self._recordings: list[_Recording] = []
-        self._pruned_at = canvas.time.elapsed
-        self._rendered_until = canvas.time.elapsed
+        self._pruned_at = canvas._clock_view.elapsed_seconds
+        self._rendered_until = canvas._clock_view.elapsed_seconds
         self._synthesized: collections.OrderedDict[
             tuple[object, ...], tuple[object, TerminalSound]
         ] = collections.OrderedDict()
@@ -684,7 +690,7 @@ class AudioDevice:
         # The musical clock of a canvas without a device: where it started, at what tempo,
         # and the beat it stood at while it was paused.
         self._clock_origin_seconds: float | None = None
-        self._clock_bpm = canvas.bpm
+        self._clock_bpm = canvas._clock_view.bpm
         self._paused_beat = 0.0
 
     # -- availability -------------------------------------------------------------------
@@ -694,7 +700,7 @@ class AudioDevice:
         """
         Whether this canvas records sound instead of playing it on a device.
 
-        It is the opposite of [`Time.is_realtime`][xnano.time.Time.is_realtime]: a canvas that
+        It is the opposite of [`Clock.is_realtime`][xnano.devices.Clock.is_realtime]: a canvas that
         runs on the wall clock plays on a device, and one whose clock you move records.
         """
         return not self._canvas._is_realtime
@@ -711,8 +717,8 @@ class AudioDevice:
         """
         The sound effects of everything this canvas plays, one method for each effect.
 
-        ``canvas.audio.fx.reverb(mix=0.4)`` adds a reverb to every sound played after it, from
-        any hook or from your own code, and ``canvas.audio.fx.clear()`` removes what was added
+        ``canvas.speaker.fx.reverb(mix=0.4)`` adds a reverb to every sound played after it, from
+        any hook or from your own code, and ``canvas.speaker.fx.clear()`` removes what was added
         here. A sound that is already playing keeps the effects it started with. See
         [`PlayableEffectProperties`][xnano.effects.PlayableEffectProperties].
 
@@ -721,10 +727,10 @@ class AudioDevice:
             import xnano
 
             with xnano.new(width=8, height=1) as canvas:
-                canvas.audio.fx.reverb(room=0.8, mix=0.5)
-                canvas.play('C4')
-                canvas.step(delta_seconds=0.5)
-                assert canvas.audio.render_sound().peak > 0.0
+                canvas.speaker.fx.reverb(room=0.8, mix=0.5)
+                canvas.speaker.play('C4')
+                canvas._clock_view.step(delta_seconds=0.5)
+                assert canvas.speaker.render().peak > 0.0
             ```
         """
         self._canvas._require_open()
@@ -746,17 +752,17 @@ class AudioDevice:
         Play something that makes sound, and return at once.
 
         ``source`` is a [`Note`][xnano.Note], a [`Melody`][xnano.audio.Melody], a
-        [`Sound`][xnano.Sound], the name of a registered symbol, a note name such as
+        [`Audio`][xnano.Audio], the name of a registered symbol, a note name such as
         ``'C#4'``, a MIDI number such as ``60``, a frequency in hertz, melody text, or a
         sequence of those that plays one after another.
         A ``str`` is a symbol name first; if no symbol has that name it is a note name, a
         frequency such as ``'440hz'`` or melody text. Melody text has spaces, ``:2`` holds a
         note for two beats, ``rest`` is a silence, ``+`` joins a chord and ``|`` marks a bar:
         ``'C4 E4 G4:2 rest C5+E5+G5'``. An option you pass here replaces the same value on a
-        ``Note``, so ``play(note('C4'), instrument='violin')`` plays the violin.
+        ``Note``, so ``play(Note('C4'), instrument='violin')`` plays the violin.
 
         On a canvas without a device the sound is recorded at the canvas's current time and
-        nothing is synthesized until [`render_sound`][xnano.audio.AudioDevice.render_sound]
+        nothing is synthesized until [`render_sound`][xnano.devices.Speaker.render]
         asks for it; the arguments are still checked here.
 
         Args:
@@ -794,17 +800,17 @@ class AudioDevice:
             import xnano
 
             with xnano.new(width=8, height=1) as canvas:
-                canvas.audio.play('C4')
-                canvas.audio.play(64, instrument='bell')
-                canvas.audio.play(xnano.note('G4', beats=0.5))
-                canvas.audio.play('C4 E4 G4:2 rest C5+E5+G5')
-                canvas.step(delta_seconds=0.5)
-                assert canvas.audio.render_sound().duration_milliseconds == 500.0
+                canvas.speaker.play('C4')
+                canvas.speaker.play(64, instrument='bell')
+                canvas.speaker.play(xnano.Note('G4', beats=0.5))
+                canvas.speaker.play('C4 E4 G4:2 rest C5+E5+G5')
+                canvas._clock_view.step(delta_seconds=0.5)
+                assert canvas.speaker.render().duration_milliseconds == 500.0
             ```
         """
         canvas = self._canvas
         canvas._require_open()
-        bpm = canvas.bpm
+        bpm = canvas._clock_view.bpm
         planned = _plan_call(
             source,
             bpm=bpm,
@@ -821,9 +827,10 @@ class AudioDevice:
             return self._record(planned, bpm=bpm, volume=volume, at_beat=at_beat)
         if not TerminalAudioPlayer.is_available():
             raise TerminalAudioUnavailableError(
-                'AudioDevice.play needs a sound output device, but this computer has none that '
-                'can be opened. Check canvas.audio.is_available before playing, or play on a '
-                'canvas from xnano.new(), which records the sound for render_sound().'
+                'canvas.speaker.play needs a sound output device, but this computer has none '
+                'that can be opened. Check canvas.speaker.is_available before playing, or play '
+                'on a canvas from xnano.new(), which records the sound for '
+                'canvas.speaker.render().'
             )
         sound = self._sound_for(planned)
         handle = PlayHandle(
@@ -832,7 +839,9 @@ class AudioDevice:
             build_region=_planned_region,
             region_arguments=(
                 planned,
-                canvas.time.elapsed if at_beat is None else at_beat * 60.0 / bpm,
+                canvas._clock_view.elapsed_seconds
+                if at_beat is None
+                else at_beat * 60.0 / bpm,
                 bpm,
             ),
         )
@@ -885,7 +894,7 @@ class AudioDevice:
     ) -> PlayHandle:
         """Remember what was played and when, without synthesizing it."""
         canvas = self._canvas
-        now = canvas.time.elapsed
+        now = canvas._clock_view.elapsed_seconds
         start = now
         if at_beat is not None:
             if self._clock_origin_seconds is None:
@@ -914,7 +923,7 @@ class AudioDevice:
             if len(self._recordings) > _MOST_RECORDINGS:
                 del self._recordings[: len(self._recordings) - _MOST_RECORDINGS]
         return PlayHandle(
-            clock=lambda: canvas.time.elapsed,
+            clock=lambda: canvas._clock_view.elapsed_seconds,
             end_seconds=max(recording.end_seconds for recording in recordings),
             cancel=lambda: self._forget(recordings),
             build_region=_planned_region,
@@ -935,7 +944,7 @@ class AudioDevice:
 
         The sound covers the canvas time from the previous ``render_sound()`` (or from when
         the audio was first used) up to now, so calling it after every
-        [`step`][xnano.canvas.Canvas.step] gives the sound of each step. Everything played in
+        [`step`][xnano.devices.Clock.step] gives the sound of each step. Everything played in
         that time is synthesized and mixed (limited to -1.0 to 1.0, mono); a note that rings
         on past the end continues in the next call. A second call at the same time returns
         an empty instant of silence, because the first one took the sound. Sounds that
@@ -953,9 +962,9 @@ class AudioDevice:
             import xnano
 
             with xnano.new(width=8, height=1, fps=10) as canvas:
-                canvas.audio.play('C4', instrument='bell')
-                canvas.step()
-                sound = canvas.audio.render_sound()
+                canvas.speaker.play('C4', instrument='bell')
+                canvas._clock_view.step()
+                sound = canvas.speaker.render()
                 assert sound.duration_milliseconds == 100.0
                 assert max(abs(sample) for sample in sound.samples()) > 0.0
             ```
@@ -967,10 +976,10 @@ class AudioDevice:
         if not self.is_offline:
             raise TerminalError(
                 'This canvas plays sound on a device, so there is no recording to render. '
-                'render_sound() reads the sound of a canvas from xnano.new(), whose clock you '
-                'move.'
+                'canvas.speaker.render() reads the sound of a canvas from xnano.new(), whose '
+                'clock you move.'
             )
-        now = canvas.time.elapsed
+        now = canvas._clock_view.elapsed_seconds
         with self._lock:
             start = max(self._rendered_until, now - _RETENTION_SECONDS)
             self._rendered_until = now
@@ -1017,10 +1026,10 @@ class AudioDevice:
 
     def _apply_tempo(self) -> None:
         """Follow a change of the canvas's bpm. Runs on the canvas's loop."""
-        bpm = self._canvas.bpm
+        bpm = self._canvas._clock_view.bpm
         origin = self._clock_origin_seconds
         if origin is not None:
-            now = self._canvas.time.elapsed
+            now = self._canvas._clock_view.elapsed_seconds
             beat = (now - origin) * self._clock_bpm / 60.0
             self._clock_origin_seconds = now - beat * 60.0 / bpm
         self._clock_bpm = bpm
@@ -1034,24 +1043,24 @@ class AudioDevice:
         The musical clock's position in beats, as an expression.
 
         It stays at ``0`` until the clock is started with
-        [`start`][xnano.audio.AudioDevice.start] or a sound is played with ``at_beat``.
+        [`start`][xnano.devices.Beats.start] or a sound is played with ``at_beat``.
 
         Examples:
             ```python
             import xnano
 
             with xnano.new(width=20, height=2) as canvas:
-                ball = canvas.write('o')
-                ball.x = (canvas.audio.beat % 1) * 19
-                canvas.audio.start()
-                canvas.step(delta_seconds=0.25)
-                assert canvas.inspect(canvas.audio.beat) == 0.5
+                ball = canvas.screen.write('o')
+                ball.x = (canvas._clock_view.beats.position % 1) * 19
+                canvas._clock_view.beats.start()
+                canvas._clock_view.step(delta_seconds=0.25)
+                assert canvas.evaluate(canvas._clock_view.beats.position) == 0.5
             ```
         """
         return self._beat
 
     def _start_offline_clock(self, now: float) -> None:
-        self._clock_bpm = self._canvas.bpm
+        self._clock_bpm = self._canvas._clock_view.bpm
         self._clock_origin_seconds = now - self._paused_beat * 60.0 / self._clock_bpm
 
     def start(self) -> None:
@@ -1060,7 +1069,7 @@ class AudioDevice:
         canvas._require_open()
         if self.is_offline:
             if self._clock_origin_seconds is None:
-                self._start_offline_clock(canvas.time.elapsed)
+                self._start_offline_clock(canvas._clock_view.elapsed_seconds)
                 if canvas._time_source.is_stopped:
                     self._hold()
             return
@@ -1074,7 +1083,7 @@ class AudioDevice:
                 self._hold()
 
     def resume(self) -> None:
-        """Let the musical clock run on from where [`pause`][xnano.audio.AudioDevice.pause] left it."""
+        """Let the musical clock run on from where [`pause`][xnano.devices.Beats.pause] left it."""
         self.start()
 
     def _hold(self) -> None:
@@ -1090,10 +1099,10 @@ class AudioDevice:
             player.pause_clock()
 
     def _release(self) -> None:
-        """Run the musical clock again if [`_hold`][xnano.audio.AudioDevice._hold] paused it."""
+        """Run the musical clock again if ``_hold`` paused it."""
         if self._is_held:
             if self.is_offline:
-                self._start_offline_clock(self._canvas.time.elapsed)
+                self._start_offline_clock(self._canvas._clock_view.elapsed_seconds)
             elif self._player is not None:
                 self._player.start_clock()
         self._is_held = False
@@ -1101,7 +1110,7 @@ class AudioDevice:
     def _pause_offline_clock(self) -> None:
         origin = self._clock_origin_seconds
         if origin is not None:
-            now = self._canvas.time.elapsed
+            now = self._canvas._clock_view.elapsed_seconds
             self._paused_beat = (now - origin) * self._clock_bpm / 60.0
             self._clock_origin_seconds = None
 
@@ -1119,8 +1128,8 @@ class AudioDevice:
         Stop the musical clock and return it to the first beat.
 
         This rewinds only the musical clock. To freeze the whole canvas, including this
-        clock, use [`Canvas.stop`][xnano.canvas.Canvas.stop]; it resumes from where it stood
-        with [`Canvas.resume`][xnano.canvas.Canvas.resume].
+        clock, use [`Clock.pause`][xnano.devices.Clock.pause]; it resumes from where it stood
+        with [`Clock.resume`][xnano.devices.Clock.resume].
         """
         canvas = self._canvas
         canvas._require_open()
@@ -1144,7 +1153,7 @@ class AudioDevice:
             import xnano
 
             with xnano.new(width=20, height=1) as canvas:
-                assert canvas.inspect(canvas.audio.microphone.level) == 0.0
+                assert canvas.evaluate(canvas.microphone.level) == 0.0
             ```
         """
         self._canvas._require_open()
@@ -1177,7 +1186,9 @@ class AudioDevice:
     def _open_player(self) -> TerminalAudioPlayer | None:
         if self._player is None and 'player' not in self._unavailable:
             try:
-                self._player = TerminalAudioPlayer(beats_per_minute=self._canvas.bpm)
+                self._player = TerminalAudioPlayer(
+                    beats_per_minute=self._canvas._clock_view.bpm
+                )
             except TerminalAudioError:
                 self._unavailable.add('player')
         return self._player
@@ -1192,7 +1203,11 @@ class AudioDevice:
             origin = self._clock_origin_seconds
             if origin is None:
                 return self._paused_beat
-            return (self._canvas.time.elapsed - origin) * self._clock_bpm / 60.0
+            return (
+                (self._canvas._clock_view.elapsed_seconds - origin)
+                * self._clock_bpm
+                / 60.0
+            )
         player = self._player
         return 0.0 if player is None else player.beat
 

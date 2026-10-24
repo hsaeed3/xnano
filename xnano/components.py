@@ -28,37 +28,59 @@ from typing import (
 
 import xnano_core as _core
 from xnano._internal._content import check_context_method
+from xnano._schema._content import Content as Content
+from xnano._schema._content import Playable as Playable
+from xnano._schema._content import PlaySource as PlaySource
+from xnano._schema._content import SupportsPlay as SupportsPlay
+from xnano._schema._content import SupportsRender as SupportsRender
+from xnano._schema._content import SupportsWrite as SupportsWrite
+from xnano._schema._content import Writable as Writable
 from xnano._schema._generics import DepsT, ParametersT, StateT
 from xnano.audio._notes import Note, PlayHandle
-from xnano.context import Context, ReadLog
 from xnano.errors import TerminalError
+from xnano.hooks._context import Context, ReadLog
 from xnano.state import StatePath, _HookRun
 
 if TYPE_CHECKING:
-    from xnano._schema._content import Content, Playable, Renderable, SupportsPlay
-    from xnano._schema._hooks import KeyName
+    from xnano._schema._hooks import HookTrigger, KeyName
     from xnano._schema._media import PlayOptions
     from xnano.canvas import Canvas
-    from xnano.context import Frame
+    from xnano.devices._screen import Screen
     from xnano.effects._controller import EffectState
+    from xnano.hooks._context import Frame
     from xnano.hooks._handles import HookHandle, _Hooked
-    from xnano.placement import Placement
-    from xnano.region import Region
+    from xnano.layout._placement import Placement
+    from xnano.layout._region import Region
     from xnano.state import StateNamespace, _StateFollower
-    from xnano.types import HookKind, When
 
 __all__ = [
     'ComponentContext',
     'ComponentHook',
+    'Content',
+    'PlaySource',
+    'Playable',
     'PlayableComponent',
     'PlayableFunction',
     'RenderableComponent',
     'RenderableFunction',
+    'SupportsPlay',
+    'SupportsRender',
+    'SupportsWrite',
+    'Writable',
+    'WritableComponent',
+    'WritableFunction',
     'playable',
     'renderable',
+    'writable',
 ]
 
 _INPUT_EVENTS = {'key': 'key', 'mouse': 'mouse', 'scroll': 'scroll', 'paste': 'paste'}
+_EXAMPLE_NAMES = {'writable': 'gauge', 'renderable': 'meter', 'playable': 'chime'}
+_PROTOCOL_METHODS = {
+    'writable': '__xnano_write__',
+    'renderable': '__xnano_render__',
+    'playable': '__xnano_play__',
+}
 _warned_classes: set[type] = set()
 _warned_lock = threading.Lock()
 
@@ -82,7 +104,7 @@ class ComponentContext(Generic[DepsT, StateT]):
         ```python
         import xnano
 
-        @xnano.renderable
+        @xnano.writable
         def gauge(context: xnano.Context, ratio: float = 0.0) -> str:
             return '#' * round(ratio * 10)
 
@@ -94,13 +116,13 @@ class ComponentContext(Generic[DepsT, StateT]):
                 ),
                 on='tick',
             )
-            canvas.write(gauge(ratio=0.5))
-            canvas.step(delta_seconds=0.1)
+            canvas.screen.write(gauge(ratio=0.5))
+            canvas.clock.step(delta_seconds=0.1)
             assert seen == [0.5]
         ```
     """
 
-    component: RenderableComponent[DepsT, StateT] | PlayableComponent[DepsT, StateT]
+    component: WritableComponent[DepsT, StateT] | PlayableComponent[DepsT, StateT]
     """The component the hook belongs to."""
     placement: Placement[DepsT, StateT] | None
     """The placement the component is drawn in, or ``None`` for a playable component."""
@@ -112,8 +134,7 @@ class ComponentContext(Generic[DepsT, StateT]):
 class _HookSettings:
     """The keywords of ``hook`` that a component hook passes on to each placement."""
 
-    on: HookKind | None
-    when: When[object, object] | None
+    on: HookTrigger[object, object] | None
     every: float | None
     after: float | None
     keys: KeyName | Sequence[KeyName] | None
@@ -190,9 +211,9 @@ class ComponentHook:
     def _install(
         self,
         target: Placement[object, object] | Canvas[object, object],
-        component: RenderableComponent[object, object]
+        component: WritableComponent[object, object]
         | PlayableComponent[object, object]
-        | RenderableFunction[..., object, object]
+        | WritableFunction[..., object, object]
         | PlayableFunction[..., object, object],
         *,
         timeline: Callable[[], Region[float]] | None = None,
@@ -207,7 +228,7 @@ class ComponentHook:
             return
         placement = target if hasattr(target, 'refresh') else None
         context = ComponentContext(
-            cast('RenderableComponent[object, object]', component),
+            cast('WritableComponent[object, object]', component),
             cast('Placement[object, object] | None', placement),
             component.arguments,
         )
@@ -242,7 +263,6 @@ class ComponentHook:
         handle = target.hook(
             wrapped,
             on=settings.on,
-            when=settings.when,
             every=settings.every,
             after=settings.after,
             keys=settings.keys,
@@ -303,8 +323,7 @@ class _HookSource:
         function: Callable[..., object],
         /,
         *,
-        on: HookKind | None = None,
-        when: When[object, object] | None = None,
+        on: HookTrigger[object, object] | None = None,
         every: float | None = None,
         after: float | None = None,
         keys: KeyName | Sequence[KeyName] | None = None,
@@ -315,8 +334,7 @@ class _HookSource:
         self,
         /,
         *,
-        on: HookKind | None = None,
-        when: When[object, object] | None = None,
+        on: HookTrigger[object, object] | None = None,
         every: float | None = None,
         after: float | None = None,
         keys: KeyName | Sequence[KeyName] | None = None,
@@ -327,8 +345,7 @@ class _HookSource:
         function: Callable[..., object] | None = None,
         /,
         *,
-        on: HookKind | None = None,
-        when: When[object, object] | None = None,
+        on: HookTrigger[object, object] | None = None,
         every: float | None = None,
         after: float | None = None,
         keys: KeyName | Sequence[KeyName] | None = None,
@@ -337,7 +354,7 @@ class _HookSource:
         """
         Call a function when something happens to a placement of this component.
 
-        The function receives the hook's [`Context`][xnano.context.Context] and a
+        The function receives the hook's [`Context`][xnano.hooks.Context] and a
         [`ComponentContext`][xnano.components.ComponentContext]. The arguments are those of
         ``hook`` on a placement, and a mouse, scroll or drag hook hears only the pointer
         inside the placement. Keys are not consumed: while nothing has focus, every key hook
@@ -348,8 +365,8 @@ class _HookSource:
 
         Args:
             function: The function to call, or ``None`` to use this as a decorator.
-            on: What to listen to; see [`HookKind`][xnano.hooks.HookKind].
-            when: A condition that must hold; see [`When`][xnano.hooks.When].
+            on: When the hook runs: a kind of event, the name of a custom event, or a
+                condition; see [`HookTrigger`][xnano.hooks.HookTrigger].
             every: Repeat every this many seconds (``'tick'``) or beats (``'beat'``).
             after: Run once after this many seconds or beats.
             keys: The key or keys an ``on='key'`` hook reacts to.
@@ -371,7 +388,7 @@ class _HookSource:
             import xnano
             from xnano_core import Event
 
-            @xnano.renderable
+            @xnano.writable
             def label(context: xnano.Context, text: str = 'x') -> str:
                 return text
 
@@ -385,20 +402,25 @@ class _HookSource:
                 ) -> None:
                     pressed.append(component_context.arguments['text'])
 
-                canvas.write(label(text='hi'))
+                canvas.screen.write(label(text='hi'))
                 canvas.push(Event.key_press('a'))
                 canvas.deliver_events()
                 assert pressed == ['hi']
             ```
         """
-        from xnano.hooks._handles import _check_hook_arguments, _check_hook_function
+        from xnano.hooks._handles import (
+            _check_hook_arguments,
+            _check_hook_function,
+            resolve_trigger,
+        )
         from xnano.hooks._triggers import compile_when
 
+        kind, condition = resolve_trigger(on, every=every, after=after, keys=keys)
         _check_hook_arguments(
-            cast('_Hooked[object, object]', _PlacementLike()), on, every, after, keys
+            cast('_Hooked[object, object]', _PlacementLike()), kind, every, after, keys
         )
-        compile_when(when)
-        settings = _HookSettings(on, when, every, after, keys, requires_deps)
+        compile_when(condition)
+        settings = _HookSettings(on, every, after, keys, requires_deps)
 
         def attach(callback: Callable[..., object]) -> ComponentHook:
             component_hook = ComponentHook(
@@ -421,7 +443,7 @@ class _HookSource:
         for target, component, timeline in list(self._targets):
             component_hook._install(
                 cast('Placement[object, object]', target),
-                cast('RenderableComponent[object, object]', component),
+                cast('WritableComponent[object, object]', component),
                 timeline=timeline,
             )
 
@@ -442,7 +464,7 @@ class _HookSource:
             for component_hook in list(owner._hooks):
                 component_hook._install(
                     cast('Placement[object, object]', target),
-                    cast('RenderableComponent[object, object]', component),
+                    cast('WritableComponent[object, object]', component),
                     timeline=timeline,
                 )
             owner._targets.append((target, component, timeline))
@@ -471,14 +493,21 @@ def _own_signature(
     if inspect.isclass(function) or not callable(function):
         raise TypeError(
             f'@xnano.{decorator} decorates a function, such as @xnano.{decorator} '
-            f'def {"gauge" if decorator == "renderable" else "chime"}(context): ..., but got '
-            f'{function!r}. A class is a component when it '
-            f'has a method __xnano_{"render" if decorator == "renderable" else "play"}__'
+            f'def {_EXAMPLE_NAMES[decorator]}(context): ..., but got {function!r}. A class '
+            f'is a component when it has a method {_PROTOCOL_METHODS[decorator]}'
             f'(self, context).'
         )
     signature = inspect.signature(function)
     parameters = list(signature.parameters.values())
     if not parameters:
+        if decorator == 'renderable':
+            name = getattr(function, '__name__', 'the function')
+            raise TypeError(
+                f'@xnano.renderable needs a function that takes the context, because it '
+                f'draws on context.screen and plays on context.speaker, but {name} takes no '
+                f'parameters. Write def {name}(context: xnano.Context) -> None:, or use '
+                f'@xnano.writable for a function that returns content to write.'
+            )
         return signature, False
     if parameters[0].kind not in (
         inspect.Parameter.POSITIONAL_ONLY,
@@ -489,22 +518,22 @@ def _own_signature(
             f'@xnano.{decorator} needs a function whose first parameter is the context, '
             f'or one with no parameters, but {name} starts with {parameters[0]}. Write '
             f'def {name}(context: xnano.Context, ...): and give the rest of the parameters '
-            f'when you write it: canvas.write({name}(...)).'
+            f'when you write it: canvas.screen.write({name}(...)).'
         )
     return signature.replace(parameters=parameters[1:]), True
 
 
 class _ComponentFunction(_HookSource, Generic[ParametersT, DepsT, StateT]):
-    """A function turned into a component: what ``@renderable`` and ``@playable`` return."""
+    """A function turned into a component: what ``@writable``, ``@renderable`` and ``@playable`` return."""
 
-    _decorator = 'renderable'
+    _decorator = 'writable'
     _component_class: type
 
     def __init__(
         self,
         function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], object],
     ) -> None:
-        """Keep the function. Use ``@xnano.renderable`` or ``@xnano.playable`` instead."""
+        """Keep the function. Use ``@xnano.writable``, ``@xnano.renderable`` or ``@xnano.playable``."""
         super().__init__()
         self._function = function
         self._signature, self._takes_context = _own_signature(function, self._decorator)
@@ -534,7 +563,7 @@ class _ComponentFunction(_HookSource, Generic[ParametersT, DepsT, StateT]):
         except TypeError:
             raise TypeError(
                 f'{name}{self._signature} needs arguments, so it cannot be used without '
-                f'them. Give them when you use it: canvas.write({name}(...)).'
+                f'them. Give them when you use it: canvas.screen.write({name}(...)).'
             ) from None
         if not self._takes_context:
             return self._function()  # type: ignore[call-arg]
@@ -577,27 +606,27 @@ class _BoundComponent(_HookSource):
         return f'{name}({arguments})'
 
 
-class RenderableComponent(_BoundComponent, Generic[DepsT, StateT]):
+class WritableComponent(_BoundComponent, Generic[DepsT, StateT]):
     """
-    A renderable function with its own parameters given: ``gauge(ratio=0.7)``.
+    A writable function with its own parameters given: ``gauge(ratio=0.7)``.
 
-    Write it with ``canvas.write(component)``. It is evaluated once, and again only when it
-    read something that changes. See [`renderable`][xnano.renderable].
+    Write it with ``canvas.screen.write(component)``. It is evaluated once, and again only when it
+    read something that changes. See [`writable`][xnano.writable].
 
     Attributes:
         arguments: The component's own parameters, by name.
     """
 
-    def __xnano_render__(self, context: Context[DepsT, StateT]) -> Renderable:
+    def __xnano_write__(self, context: Context[DepsT, StateT]) -> Writable:
         """Draw the component with the parameters it was given."""
-        return cast('Renderable', self._call(context))
+        return cast('Writable', self._call(context))
 
 
 class PlayableComponent(_BoundComponent, Generic[DepsT, StateT]):
     """
     A playable function with its own parameters given: ``arpeggio(root='C4')``.
 
-    Play it with ``canvas.play(component)``. See [`playable`][xnano.playable].
+    Play it with ``canvas.speaker.play(component)``. See [`playable`][xnano.playable].
 
     Attributes:
         arguments: The component's own parameters, by name.
@@ -608,41 +637,41 @@ class PlayableComponent(_BoundComponent, Generic[DepsT, StateT]):
         return cast('Playable', self._call(context))
 
 
-class RenderableFunction(_ComponentFunction[ParametersT, DepsT, StateT]):
+class WritableFunction(_ComponentFunction[ParametersT, DepsT, StateT]):
     """
-    A function that draws itself: what [`renderable`][xnano.renderable] returns.
+    A function that draws itself: what [`writable`][xnano.writable] returns.
 
-    The function is the component. ``canvas.write(function)`` draws it with its default
-    parameters, and ``canvas.write(function(ratio=0.7))`` gives it its own parameters
+    The function is the component. ``canvas.screen.write(function)`` draws it with its default
+    parameters, and ``canvas.screen.write(function(ratio=0.7))`` gives it its own parameters
     first. Calling it does not run it; it makes a
-    [`RenderableComponent`][xnano.components.RenderableComponent].
+    [`WritableComponent`][xnano.components.WritableComponent].
 
     Attributes:
         arguments: The parameters it is written with, none: the defaults apply.
     """
 
-    _decorator = 'renderable'
-    _component_class = RenderableComponent
+    _decorator = 'writable'
+    _component_class = WritableComponent
 
     def __call__(
         self, *arguments: ParametersT.args, **keywords: ParametersT.kwargs
-    ) -> RenderableComponent[DepsT, StateT]:
+    ) -> WritableComponent[DepsT, StateT]:
         """Give the component its own parameters; the context is passed for you."""
         return cast(
-            'RenderableComponent[DepsT, StateT]', self._bind(*arguments, **keywords)
+            'WritableComponent[DepsT, StateT]', self._bind(*arguments, **keywords)
         )
 
-    def __xnano_render__(self, context: Context[DepsT, StateT]) -> Renderable:
+    def __xnano_write__(self, context: Context[DepsT, StateT]) -> Writable:
         """Draw the component with its default parameters."""
-        return cast('Renderable', self._call_with_defaults(context))
+        return cast('Writable', self._call_with_defaults(context))
 
 
 class PlayableFunction(_ComponentFunction[ParametersT, DepsT, StateT]):
     """
     A function that plays itself: what [`playable`][xnano.playable] returns.
 
-    ``canvas.play(function)`` plays it with its default parameters, and
-    ``canvas.play(function(root='C4'))`` gives it its own parameters first.
+    ``canvas.speaker.play(function)`` plays it with its default parameters, and
+    ``canvas.speaker.play(function(root='C4'))`` gives it its own parameters first.
 
     Attributes:
         arguments: The parameters it is played with, none: the defaults apply.
@@ -664,26 +693,68 @@ class PlayableFunction(_ComponentFunction[ParametersT, DepsT, StateT]):
         return cast('Playable', self._call_with_defaults(context))
 
 
+class RenderableComponent(_BoundComponent, Generic[DepsT, StateT]):
+    """
+    A renderable function with its own parameters given: ``meter(limit=0.9)``.
+
+    Write it with ``canvas.screen.write(component)``. See [`renderable`][xnano.renderable].
+
+    Attributes:
+        arguments: The component's own parameters, by name.
+    """
+
+    def __xnano_render__(self, context: Context[DepsT, StateT]) -> None:
+        """Draw on ``context.screen`` and play on ``context.speaker``, with the parameters given."""
+        return cast('None', self._call(context))
+
+
+class RenderableFunction(_ComponentFunction[ParametersT, DepsT, StateT]):
+    """
+    A function with a screen of its own: what [`renderable`][xnano.renderable] returns.
+
+    The function is the component. ``canvas.screen.write(function)`` runs it with its default
+    parameters, and ``canvas.screen.write(function(limit=0.9))`` gives it its own parameters
+    first. Calling it does not run it; it makes a
+    [`RenderableComponent`][xnano.components.RenderableComponent].
+
+    Attributes:
+        arguments: The parameters it is written with, none: the defaults apply.
+    """
+
+    _decorator = 'renderable'
+    _component_class = RenderableComponent
+
+    def __call__(
+        self, *arguments: ParametersT.args, **keywords: ParametersT.kwargs
+    ) -> RenderableComponent[DepsT, StateT]:
+        """Give the component its own parameters; the context is passed for you."""
+        return cast(
+            'RenderableComponent[DepsT, StateT]', self._bind(*arguments, **keywords)
+        )
+
+    def __xnano_render__(self, context: Context[DepsT, StateT]) -> None:
+        """Draw on ``context.screen`` and play on ``context.speaker``, with the defaults."""
+        return cast('None', self._call_with_defaults(context))
+
+
 @overload
-def renderable(
-    function: Callable[[], Renderable], /
-) -> RenderableFunction[[], None, None]: ...
+def writable(function: Callable[[], Writable], /) -> WritableFunction[[], None, None]: ...
 @overload
-def renderable(  # pyright: ignore[reportGeneralTypeIssues]
-    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Renderable], /
-) -> RenderableFunction[ParametersT, DepsT, StateT]: ...
-def renderable(  # pyright: ignore[reportGeneralTypeIssues]
-    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Renderable]
-    | Callable[[], Renderable],
+def writable(  # pyright: ignore[reportGeneralTypeIssues]
+    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Writable], /
+) -> WritableFunction[ParametersT, DepsT, StateT]: ...
+def writable(  # pyright: ignore[reportGeneralTypeIssues]
+    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], Writable]
+    | Callable[[], Writable],
     /,
-) -> RenderableFunction[ParametersT, DepsT, StateT] | RenderableFunction[[], None, None]:
+) -> WritableFunction[ParametersT, DepsT, StateT] | WritableFunction[[], None, None]:
     """
     Turn a function into a component that draws itself.
 
-    The function takes the [`Context`][xnano.context.Context] first, then its own parameters,
-    and returns anything ``canvas.write`` accepts; a function with no parameters at all is
+    The function takes the [`Context`][xnano.hooks.Context] first, then its own parameters,
+    and returns anything ``canvas.screen.write`` accepts; a function with no parameters at all is
     called without the context. The decorated object is the component:
-    ``canvas.write(gauge)`` draws it with its defaults, ``canvas.write(gauge(ratio=0.7))`` gives
+    ``canvas.screen.write(gauge)`` draws it with its defaults, ``canvas.screen.write(gauge(ratio=0.7))`` gives
     it parameters, and ``gauge.hook(...)`` adds behavior to its placements.
 
     A component is evaluated once, and again only when it read something that changes: the
@@ -691,7 +762,7 @@ def renderable(  # pyright: ignore[reportGeneralTypeIssues]
     the screen is resized), a state path (when it changes), or an input such as
     ``context.keyboard`` (when it arrives). What it reads is recorded as it runs. Reads of
     ``context.deps`` and of mutable fields on ``self`` are not tracked: when they change, call
-    [`placement.refresh()`][xnano.placement.Placement.refresh].
+    [`placement.refresh()`][xnano.layout.Placement.refresh].
 
     Args:
         function: The function ``(context, **own_parameters) -> content``.
@@ -704,21 +775,66 @@ def renderable(  # pyright: ignore[reportGeneralTypeIssues]
         ```python
         import xnano
 
-        @xnano.renderable
+        @xnano.writable
         def gauge(context: xnano.Context, ratio: float = 0.5) -> str:
             return '#' * round(ratio * 10)
 
         with xnano.new(width=12, height=1) as canvas:
-            canvas.write(gauge(ratio=0.3))
-            assert canvas.render().strip() == '###'
+            canvas.screen.write(gauge(ratio=0.3))
+            assert canvas.screen.render().strip() == '###'
         ```
     """
-    return RenderableFunction(
+    return WritableFunction(
         cast(
-            'Callable[Concatenate[Context[DepsT, StateT], ParametersT], Renderable]',
+            'Callable[Concatenate[Context[DepsT, StateT], ParametersT], Writable]',
             function,
         )
     )
+
+
+def renderable(  # pyright: ignore[reportGeneralTypeIssues]
+    function: Callable[Concatenate[Context[DepsT, StateT], ParametersT], None], /
+) -> RenderableFunction[ParametersT, DepsT, StateT]:
+    """
+    Turn a function into a component with a screen of its own, which draws and plays.
+
+    The function takes the [`Context`][xnano.hooks.Context] first, then its own parameters,
+    and returns nothing. Its ``context.screen`` is its own: a screen where the component is
+    written, as large as what the function writes on it unless the component was written
+    with a ``width`` or a ``height``. Its ``context.speaker``, ``context.clock``,
+    ``context.keyboard`` and ``context.mouse`` are the canvas's. Write it with
+    ``canvas.screen.write(meter)``, or ``canvas.screen.write(meter(limit=0.9))`` to give it
+    parameters; ``meter.hook(...)`` adds behavior to where it is written.
+
+    The function runs once, and again only when it read something that changes, as a
+    [`writable`][xnano.writable] does. Each run starts from an empty screen: what the run
+    before wrote is removed first, so the screen shows what the latest run wrote. What a run
+    plays starts when that run plays it.
+
+    Args:
+        function: The function ``(context, **own_parameters) -> None``.
+
+    Raises:
+        TypeError: The decorated object is a class or is not callable, or the function takes
+            no parameters or its first parameter is keyword-only or variadic, so it cannot
+            take the context.
+
+    Examples:
+        ```python
+        import xnano
+
+        @xnano.renderable
+        def meter(context: xnano.Context, level: float = 0.5) -> None:
+            context.screen.write('level')
+            context.screen.write('#' * round(level * 10))
+
+        with xnano.new(width=12, height=3) as canvas:
+            placement = canvas.screen.write(meter(level=0.3), y=1)
+            assert canvas.screen.render().splitlines()[1:] == ['level', '###']
+            assert (placement.width, placement.height) == (5, 2)
+        ```
+    """
+    return RenderableFunction(function)
 
 
 @overload
@@ -735,7 +851,7 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
     """
     Turn a function into a component that plays itself.
 
-    The function takes the [`Context`][xnano.context.Context] first, then its own parameters,
+    The function takes the [`Context`][xnano.hooks.Context] first, then its own parameters,
     and returns anything ``canvas.play`` accepts; a function with no parameters at all is
     called without the context. It is evaluated once when played, and again
     on a beat only when it read something that changes (the time or the beat, a state path or
@@ -755,12 +871,12 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
 
         @xnano.playable
         def chord(context: xnano.Context, root: str = 'C4') -> xnano.Note:
-            return xnano.note(root, beats=0.5)
+            return xnano.Note(root, beats=0.5)
 
         with xnano.new(width=8, height=1) as canvas:
-            canvas.play(chord(root='E4'))
-            canvas.step(delta_seconds=0.5)
-            assert canvas.audio.render_sound().peak > 0.0
+            canvas.speaker.play(chord(root='E4'))
+            canvas.clock.step(delta_seconds=0.5)
+            assert canvas.speaker.render().peak > 0.0
         ```
     """
     return PlayableFunction(
@@ -775,8 +891,8 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
 
 
 def _is_component(content: object) -> bool:
-    """Whether ``content`` is an object that draws itself with ``__xnano_render__``."""
-    return not isinstance(content, type) and hasattr(content, '__xnano_render__')
+    """Whether ``content`` is an object that draws itself with ``__xnano_write__``."""
+    return not isinstance(content, type) and hasattr(content, '__xnano_write__')
 
 
 class _Stack:
@@ -786,15 +902,15 @@ class _Stack:
         """Keep the items to draw one below the other."""
         self.items = items
 
-    def __xnano_render__(self, context: Context[object, object]) -> Renderable:
-        return cast('Renderable', list(self.items))
+    def __xnano_write__(self, context: Context[object, object]) -> Writable:
+        return cast('Writable', list(self.items))
 
 
 def _as_component(content: object) -> object | None:
     """
     Return the component to run for ``content``, or ``None`` when it is not one.
 
-    Anything with ``__xnano_render__`` is its own component; a sequence that holds one is
+    Anything with ``__xnano_write__`` is its own component; a sequence that holds one is
     wrapped so that it is evaluated with a context.
     """
     if isinstance(content, (str, bytes, bytearray)):
@@ -874,6 +990,7 @@ class _Driver:
         owner: Placement[object, object] | Canvas[object, object],
         event: object,
         log: ReadLog,
+        screen: Screen[object, object] | None = None,
     ) -> Context[object, object]:
         return Context(
             self._canvas,
@@ -883,27 +1000,30 @@ class _Driver:
             None,
             log=log,
             timeline=self._timeline(),
+            screen=screen,
         )
 
     def _run(self, call: Callable[[], object]) -> tuple[object, ReadLog, _HookRun]:
-        """Call ``call`` while recording the state it reads and the values it pushes."""
+        """Call ``call`` while recording the state it reads and the values it sets."""
         canvas = self._canvas
         run = _HookRun(track=True)
         run.handle = cast('HookHandle[object, object]', self)
         previous = canvas._active_run
         run.begin()
         canvas._active_run = run
+        canvas._runs_in_progress += 1
         try:
             result = call()
         except BaseException:
             run.discard()
             raise
         finally:
+            canvas._runs_in_progress -= 1
             canvas._active_run = previous
         return result, self.log, run
 
     def _finish(self, run: _HookRun) -> None:
-        """Save what the run pushed in one transaction and follow what it read."""
+        """Save what the run set in one transaction and follow what it read."""
         canvas = self._canvas
         run.is_active = False
         run.snapshot = None
@@ -1016,7 +1136,7 @@ class _ComponentDriver(_Driver):
 
     Attributes:
         placement: The placement the component is drawn in.
-        component: The object whose ``__xnano_render__`` method is run.
+        component: The object whose ``__xnano_write__`` method is run.
         log: What the last run read.
     """
 
@@ -1029,11 +1149,11 @@ class _ComponentDriver(_Driver):
         is_height_given: bool,
     ) -> None:
         """
-        Create the driver. Use ``canvas.write(component)`` instead of calling this.
+        Create the driver. Use ``canvas.screen.write(component)`` instead of calling this.
 
         Args:
             placement: The placement the component is drawn in.
-            component: An object with ``__xnano_render__``.
+            component: An object with ``__xnano_write__``.
             is_width_given: Whether the caller fixed the width of the placement.
             is_height_given: Whether the caller fixed the height.
         """
@@ -1086,7 +1206,7 @@ class _ComponentDriver(_Driver):
                 return
             _warned_classes.add(kind)
         warnings.warn(
-            f'{kind.__name__} is drawn once because its render method read nothing that '
+            f'{kind.__name__} is drawn once because its __xnano_write__ method read nothing that '
             f'changes. If you change its attributes later, call placement.refresh() to draw '
             f'it again, or make the class a frozen dataclass if it never changes.',
             UserWarning,
@@ -1105,14 +1225,14 @@ class _ComponentDriver(_Driver):
             from xnano._internal._content import content_buffer
 
             buffer, _ = content_buffer(
-                cast('Content', self.component), limit=canvas.size, context=context
+                cast('Content', self.component), limit=canvas.screen.size, context=context
             )
             return buffer
 
         buffer, _, run = self._run(call)
         self._show(cast('_core.Buffer', buffer))
         self._finish(run)
-        self._last_elapsed = canvas.time.elapsed
+        self._last_elapsed = canvas._clock_view.elapsed_seconds
         self._follow_log()
 
     def _show(self, buffer: _core.Buffer) -> None:
@@ -1259,6 +1379,105 @@ def _attach_component(
     driver.start()
 
 
+class _RenderingDriver(_ComponentDriver):
+    """
+    Runs a renderable on a screen of its own, and again when something it read changes.
+
+    Each run starts from an empty screen: what the run before wrote is removed first.
+
+    Attributes:
+        placement: The placement that shows the component's screen.
+        area: The canvas whose screen the component draws on.
+        component: The object whose ``__xnano_render__`` method is run.
+        log: What the last run read.
+    """
+
+    def __init__(
+        self,
+        placement: Placement[object, object],
+        component: object,
+        area: Canvas[object, object],
+    ) -> None:
+        """
+        Create the driver. Use ``canvas.screen.write(component)`` instead of calling this.
+
+        Args:
+            placement: The placement that shows the component's screen.
+            component: An object with ``__xnano_render__``.
+            area: The canvas written in the placement, whose screen the component draws on.
+        """
+        super().__init__(placement, component, is_width_given=True, is_height_given=True)
+        self.area = area
+        self._written: list[Placement[object, object]] = []
+
+    def evaluate(self, event: object) -> None:
+        """Clear the component's screen, then run the component on it."""
+        if self._is_closed or self.placement._removed:
+            return
+        area = self.area
+        for written in self._written:
+            if not written._removed:
+                written.remove()
+        self._written = run_writes = []
+        area._content.update(_core.Fill(' '))
+        self.log = log = ReadLog()
+        context = self._context(self.placement, event, log, screen=area.screen)
+        component = self.component
+
+        def call() -> None:
+            area._rendering_writes = run_writes
+            try:
+                result = cast(
+                    'SupportsRender[object, object]', component
+                ).__xnano_render__(context)
+            finally:
+                area._rendering_writes = None
+            if result is not None:
+                raise _returned_content_error(component, result)
+
+        _, _, run = self._run(call)
+        self._finish(run)
+        self._last_elapsed = self._canvas._clock_view.elapsed_seconds
+        self._follow_log()
+        self._canvas._request_frame()
+
+
+def _returned_content_error(component: object, result: object) -> TypeError:
+    """The error for an ``__xnano_render__`` that returned content instead of drawing it."""
+    if isinstance(component, (RenderableFunction, RenderableComponent)):
+        function = (
+            component._function if isinstance(component, RenderableFunction) else None
+        )
+        function = function or getattr(component, 'function', None)
+        name = getattr(getattr(function, '_function', function), '__name__', 'it')
+        return TypeError(
+            f'{name} returned {type(result).__name__}, but a renderable draws on '
+            f'context.screen and returns nothing. Write it with context.screen.write(...), '
+            f'or decorate {name} with @xnano.writable to return content to write.'
+        )
+    kind = type(component).__name__
+    return TypeError(
+        f'{kind}.__xnano_render__ returned {type(result).__name__}, but it draws on '
+        f'context.screen and returns nothing. Write it with context.screen.write(...), or '
+        f'name the method __xnano_write__ to return content to write.'
+    )
+
+
+def _attach_rendering(
+    placement: Placement[object, object],
+    component: object,
+    area: Canvas[object, object],
+) -> None:
+    """Run the renderable ``component`` on ``area``, install its hooks and keep it up to date."""
+    check_context_method(component, '__xnano_render__')
+    driver = _RenderingDriver(placement, component, area)
+    placement._driver = driver
+    placed = getattr(component, '_placed', None)
+    if placed is not None:
+        placed(placement, component)
+    driver.start()
+
+
 # -- playing -------------------------------------------------------------------------------
 
 
@@ -1269,7 +1488,7 @@ def _resolve_playable(
     if depth > 8:
         raise TerminalError(
             f'{type(item).__name__}.__xnano_play__ keeps returning something that plays '
-            f'again. Return a Note, a Sound, text or a list of those.'
+            f'again. Return a Note, a Melody, an xnano.Audio, text or a list of those.'
         )
     if isinstance(item, (str, bytes, bytearray)):
         return item
@@ -1311,7 +1530,7 @@ class _PlayableDriver(_Driver):
         options: PlayOptions,
     ) -> None:
         """
-        Create the driver. Use ``canvas.play(component)`` instead of calling this.
+        Create the driver. Use ``canvas.speaker.play(component)`` instead of calling this.
 
         Args:
             canvas: The root canvas that plays.
@@ -1346,19 +1565,19 @@ class _PlayableDriver(_Driver):
             region = playing._region
             if region is not None:
                 return region
-        from xnano.region import _timeline_region
+        from xnano.layout._region import _timeline_region
 
         canvas = self._canvas
         at_beat = self._options.get('at_beat')
         return _timeline_region(
             start_beats=(
-                canvas.time.elapsed * canvas.bpm / 60.0
+                canvas._clock_view.elapsed_seconds * canvas._clock_view.bpm / 60.0
                 if at_beat is None
                 else float(at_beat)
             ),
             length_beats=0.0,
             pitches=(),
-            tempo_changes=((0.0, canvas.bpm),),
+            tempo_changes=((0.0, canvas._clock_view.bpm),),
         )
 
     def _timeline(self) -> Callable[[], Region[float]] | None:
@@ -1389,7 +1608,7 @@ class _PlayableDriver(_Driver):
         if self._is_closed:
             return
         self._handles = [handle for handle in self._handles if not handle.is_finished]
-        handle = canvas.audio.play(cast('Playable', result), **self._options)
+        handle = canvas._audio_device().play(cast('Playable', result), **self._options)
         self._handles.append(handle)
         if handle._has_region:
             self._playing = handle

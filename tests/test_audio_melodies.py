@@ -99,48 +99,48 @@ def manual():
 
 def played(canvas) -> list:
     """What reached the device, once the canvas's loop handled everything handed to it."""
-    canvas.output.render()
+    canvas.screen.output.render()
     return FakePlayer.instances[-1].played if FakePlayer.instances else []
 
 
 class TestPlay:
     def test_a_note_name_is_played_with_the_default_instrument(self, canvas):
-        canvas.audio.play('C4')
+        canvas.speaker.play('C4')
         sound = played(canvas)[0][0]
         assert sound == render_note('piano', 'C4')
 
     def test_a_midi_number_is_a_pitch(self, canvas):
-        canvas.audio.play(60, instrument='bell')
+        canvas.speaker.play(60, instrument='bell')
         assert played(canvas)[0][0] == render_note('bell', 60)
 
     def test_a_frequency_in_hertz_is_a_pitch(self, canvas):
-        canvas.audio.play('440hz')
+        canvas.speaker.play('440hz')
         assert played(canvas)[0][0] == render_note('piano', '440hz')
 
     def test_a_note_object_lasts_for_its_beats_at_the_tempo(self, canvas):
-        canvas.bpm = 60
-        canvas.audio.play(TerminalNote('A4', duration_beats=2.0))
+        canvas.clock.bpm = 60
+        canvas.speaker.play(TerminalNote('A4', duration_beats=2.0))
         sound = played(canvas)[0][0]
         assert sound.duration_milliseconds >= 2000
 
     def test_a_melody_is_rendered_and_played_once(self, canvas):
         melody = TerminalMelody([TerminalNote('C4'), TerminalNote('E4', start_beats=1)])
-        canvas.audio.play(melody, instrument='piano')
+        canvas.speaker.play(melody, instrument='piano')
         assert played(canvas)[0][0] == melody.render('piano')
 
     def test_a_sound_is_played_as_it_is_with_volume_and_pan(self, canvas):
         sound = render_note('bell', 'C6')
-        canvas.audio.play(sound, volume=0.5, pan=-1.0)
+        canvas.speaker.play(sound, volume=0.5, pan=-1.0)
         assert played(canvas)[0] == (sound, 0.5, -1.0, None)
 
     def test_effects_are_applied_to_a_sound(self, canvas):
         sound = render_note('bell', 'C6')
         effects = [TerminalAudioEffect.reverb()]
-        canvas.audio.play(sound, effects=effects)
+        canvas.speaker.play(sound, effects=effects)
         assert played(canvas)[0][0] == sound.with_effects(effects)
 
     def test_scheduling_on_a_beat_starts_the_clock(self, canvas):
-        canvas.audio.play('C4', at_beat=4)
+        canvas.speaker.play('C4', at_beat=4)
         played(canvas)
         player = FakePlayer.instances[-1]
         assert player.is_clock_running
@@ -148,68 +148,68 @@ class TestPlay:
 
     def test_playing_without_a_device_says_what_to_do(self, canvas):
         FakePlayer.available = False
-        assert not canvas.audio.is_available
+        assert not canvas.speaker.is_available
         with pytest.raises(TerminalAudioUnavailableError, match='is_available'):
-            canvas.audio.play('C4')
+            canvas.speaker.play('C4')
 
     def test_it_can_be_played_from_another_thread_on_a_running_canvas(self, canvas):
         import threading
 
-        thread = threading.Thread(target=lambda: canvas.audio.play('C4'))
+        thread = threading.Thread(target=lambda: canvas.speaker.play('C4'))
         thread.start()
         thread.join()
         assert len(played(canvas)) == 1
 
     def test_the_devices_are_released_when_the_canvas_closes(self):
         with xnano.new(realtime=True, width=8, height=1) as canvas:
-            canvas.audio.play('C4')
+            canvas.speaker.play('C4')
             played(canvas)
         assert FakePlayer.instances[-1].closed
 
 
 class TestClock:
     def test_the_tempo_is_kept_and_applied(self, canvas):
-        canvas.audio.play('C4')
+        canvas.speaker.play('C4')
         played(canvas)
-        canvas.bpm = 90
-        assert canvas.bpm == 90
+        canvas.clock.bpm = 90
+        assert canvas.clock.bpm == 90
         played(canvas)
         assert FakePlayer.instances[-1].tempo == 90
 
     @pytest.mark.parametrize('tempo', [0, -5, 600001])
     def test_a_tempo_out_of_range_is_refused(self, canvas, tempo):
         with pytest.raises(ValueError, match='out of range'):
-            canvas.bpm = tempo
+            canvas.clock.bpm = tempo
 
     def test_the_clock_starts_pauses_and_stops(self, canvas):
-        canvas.audio.start()
+        canvas.clock.beats.start()
         played(canvas)
         player = FakePlayer.instances[-1]
         assert player.is_clock_running
-        canvas.audio.pause()
+        canvas.clock.beats.pause()
         played(canvas)
         assert not player.is_clock_running
 
     def test_stopping_time_holds_the_musical_clock(self, canvas):
-        canvas.audio.start()
+        canvas.clock.beats.start()
         played(canvas)
         player = FakePlayer.instances[-1]
-        canvas.stop()
+        canvas.clock.pause()
         played(canvas)
         assert not player.is_clock_running
-        canvas.resume()
+        canvas.clock.resume()
         played(canvas)
         assert player.is_clock_running
 
 
 class TestExpressions:
     def test_the_microphone_level_is_an_expression(self, canvas):
-        assert canvas.inspect(canvas.audio.level) == 0.25
+        assert canvas.evaluate(canvas.microphone.level) == 0.25
 
     def test_the_level_drives_a_position(self, canvas):
-        meter = canvas.write('#', y=1)
-        meter.x = canvas.audio.level * 16
-        assert canvas.output.render() is not None
+        meter = canvas.screen.write('#', y=1)
+        meter.x = canvas.microphone.level * 16
+        assert canvas.screen.output.render() is not None
         import time
 
         deadline = time.monotonic() + 3
@@ -218,17 +218,17 @@ class TestExpressions:
         assert meter.x == 4
 
     def test_the_level_combines_with_the_rest_of_the_language(self, canvas):
-        assert canvas.inspect(canvas.audio.level * Width) == 5.0
+        assert canvas.evaluate(canvas.microphone.level * Width) == 5.0
 
     def test_the_beat_follows_the_player(self, canvas):
-        assert canvas.inspect(canvas.audio.beat) == 0.0
-        canvas.audio.start()
+        assert canvas.evaluate(canvas.clock.beats.position) == 0.0
+        canvas.clock.beats.start()
         played(canvas)
         FakePlayer.instances[-1].beat = 2.5
-        assert canvas.inspect(canvas.audio.beat % 1) == 0.5
+        assert canvas.evaluate(canvas.clock.beats.position % 1) == 0.5
 
     def test_the_level_history_is_read_from_the_microphone(self, canvas):
-        assert canvas.audio.level_history(3) == [0.1, 0.1, 0.1]
+        assert canvas.microphone.level_history(3) == [0.1, 0.1, 0.1]
 
     def test_a_missing_microphone_reads_as_silence(self, monkeypatch, canvas):
         class Broken:
@@ -236,15 +236,15 @@ class TestExpressions:
                 raise microphone_module.TerminalAudioError('no input device')
 
         monkeypatch.setattr(microphone_module, 'TerminalMicrophone', Broken)
-        assert canvas.inspect(canvas.audio.level) == 0.0
-        assert canvas.audio.level_history(2) == []
+        assert canvas.evaluate(canvas.microphone.level) == 0.0
+        assert canvas.microphone.level_history(2) == []
 
 
 class TestInHooks:
     def test_a_hook_plays_a_note_on_a_key(self, canvas):
-        @canvas.hook(when=lambda context: context.keyboard.key is not None)
-        def press(context: xnano.context.Context) -> None:
-            context.audio.play(context.keyboard.key)
+        @canvas.hook(on=lambda context: context.keyboard.key is not None)
+        def press(context: xnano.hooks.Context) -> None:
+            context.speaker.play(context.keyboard.key)
 
         canvas.push(Event.key_press('c'))
         import time
@@ -259,11 +259,11 @@ class TestRecording:
     """A canvas whose clock you move has no device: what is played is recorded."""
 
     def test_a_canvas_without_a_device_records_and_renders_each_step(self, manual):
-        assert manual.audio.is_offline
-        assert manual.audio.is_available
-        manual.audio.play('C4', instrument='bell')
-        manual.step()
-        sound = manual.audio.render_sound()
+        assert manual.speaker.is_offline
+        assert manual.speaker.is_available
+        manual.speaker.play('C4', instrument='bell')
+        manual.clock.step()
+        sound = manual.speaker.render()
         assert sound.duration_milliseconds == pytest.approx(100.0, abs=1.0)
         assert max(abs(sample) for sample in sound.samples()) > 0.0
         assert FakePlayer.instances == [], 'no device is opened'
@@ -277,54 +277,54 @@ class TestRecording:
             return real(*arguments, **keywords)
 
         monkeypatch.setattr(player_module, 'render_note', counting)
-        manual.audio.play('C4')
-        manual.audio.play('E4')
+        manual.speaker.play('C4')
+        manual.speaker.play('E4')
         assert calls == []
-        manual.step()
-        manual.audio.render_sound()
+        manual.clock.step()
+        manual.speaker.render()
         assert len(calls) == 2
 
     def test_a_note_rings_on_into_the_next_window(self, manual):
-        manual.audio.play('C4', beats=0.6)
-        manual.step()
-        first = manual.audio.render_sound()
-        manual.step()
-        second = manual.audio.render_sound()
+        manual.speaker.play('C4', beats=0.6)
+        manual.clock.step()
+        first = manual.speaker.render()
+        manual.clock.step()
+        second = manual.speaker.render()
         assert max(abs(sample) for sample in first.samples()) > 0.0
         assert max(abs(sample) for sample in second.samples()) > 0.0
 
     def test_a_second_render_at_the_same_time_is_silent(self, manual):
-        manual.audio.play('C4')
-        manual.step()
-        manual.audio.render_sound()
-        again = manual.audio.render_sound()
+        manual.speaker.play('C4')
+        manual.clock.step()
+        manual.speaker.render()
+        again = manual.speaker.render()
         assert again.samples() == [0.0]
 
     def test_a_note_played_later_starts_later(self, manual):
-        manual.step()
-        manual.audio.render_sound()
-        manual.step(delta_seconds=0.05)
-        manual.audio.play('C4')
-        manual.step(delta_seconds=0.05)
-        sound = manual.audio.render_sound()
+        manual.clock.step()
+        manual.speaker.render()
+        manual.clock.step(delta_seconds=0.05)
+        manual.speaker.play('C4')
+        manual.clock.step(delta_seconds=0.05)
+        sound = manual.speaker.render()
         samples = sound.samples()
         half = len(samples) // 2
         assert max(abs(sample) for sample in samples[: half - 50]) == 0.0
         assert max(abs(sample) for sample in samples[half:]) > 0.0
 
     def test_old_recordings_are_not_kept_for_ever(self, manual):
-        manual.audio.play('C4')
-        manual.step(delta_seconds=120.0)
-        manual.audio.play('E4')
-        assert len(manual.audio._recordings) == 1
+        manual.speaker.play('C4')
+        manual.clock.step(delta_seconds=120.0)
+        manual.speaker.play('E4')
+        assert len(manual._audio_device()._recordings) == 1
 
     def test_arguments_are_checked_when_playing(self, manual):
         with pytest.raises(ValueError, match='not an instrument'):
-            manual.audio.play('C4', instrument='kazoo')  # type: ignore[arg-type]
+            manual.speaker.play('C4', instrument='kazoo')  # type: ignore[arg-type]
         with pytest.raises(ValueError, match='is not a known sound symbol, a note name'):
-            manual.audio.play('X9')
+            manual.speaker.play('X9')
         with pytest.raises(ValueError, match='velocity'):
-            manual.audio.play('C4', velocity=2.0)
+            manual.speaker.play('C4', velocity=2.0)
 
     @pytest.mark.parametrize(
         ('arguments', 'error', 'message'),
@@ -357,78 +357,78 @@ class TestRecording:
         self, manual, arguments, error, message
     ):
         with pytest.raises(error, match=message):
-            manual.audio.play(arguments.pop('source'), **arguments)
-        manual.step(delta_seconds=1.0)
-        assert (
-            max(abs(sample) for sample in manual.audio.render_sound().samples()) == 0.0
-        ), 'a rejected call records nothing'
+            manual.speaker.play(arguments.pop('source'), **arguments)
+        manual.clock.step(delta_seconds=1.0)
+        assert max(abs(sample) for sample in manual.speaker.render().samples()) == 0.0, (
+            'a rejected call records nothing'
+        )
 
     def test_good_frequencies_are_recorded(self, manual):
-        manual.audio.play(60)
-        manual.audio.play(440.0)
-        manual.audio.play('440hz')
-        manual.step(delta_seconds=0.5)
-        assert max(abs(sample) for sample in manual.audio.render_sound().samples()) > 0.0
+        manual.speaker.play(60)
+        manual.speaker.play(440.0)
+        manual.speaker.play('440hz')
+        manual.clock.step(delta_seconds=0.5)
+        assert max(abs(sample) for sample in manual.speaker.render().samples()) > 0.0
 
     def test_a_canvas_on_a_device_does_not_record(self, canvas):
-        with pytest.raises(xnano.errors.TerminalError, match='render_sound'):
-            canvas.audio.render_sound()
+        with pytest.raises(xnano.errors.TerminalError, match=r'speaker\.render'):
+            canvas.speaker.render()
 
     def test_the_beat_moves_with_the_manual_clock_and_the_tempo(self, manual):
-        manual.bpm = 120
-        assert manual.inspect(manual.audio.beat) == 0.0
-        manual.audio.start()
-        manual.step(delta_seconds=1.0)
-        assert manual.inspect(manual.audio.beat) == pytest.approx(2.0)
-        manual.bpm = 60
-        assert manual.inspect(manual.audio.beat) == pytest.approx(2.0), (
+        manual.clock.bpm = 120
+        assert manual.evaluate(manual.clock.beats.position) == 0.0
+        manual.clock.beats.start()
+        manual.clock.step(delta_seconds=1.0)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(2.0)
+        manual.clock.bpm = 60
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(2.0), (
             'a change of tempo changes the rate, not the position'
         )
-        manual.step(delta_seconds=1.0)
-        assert manual.inspect(manual.audio.beat) == pytest.approx(3.0)
+        manual.clock.step(delta_seconds=1.0)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(3.0)
 
     def test_stopping_a_stopped_canvas_still_resumes_the_beat(self, manual):
-        manual.audio.start()
-        manual.step(delta_seconds=0.5)
-        manual.stop()
-        manual.stop()
-        manual.step(delta_seconds=0.5)
-        manual.resume()
-        manual.step(delta_seconds=0.5)
-        assert manual.inspect(manual.audio.beat) == pytest.approx(2.0)
+        manual.clock.beats.start()
+        manual.clock.step(delta_seconds=0.5)
+        manual.clock.pause()
+        manual.clock.pause()
+        manual.clock.step(delta_seconds=0.5)
+        manual.clock.resume()
+        manual.clock.step(delta_seconds=0.5)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(2.0)
 
     def test_a_formula_that_reads_the_beat_still_draws_in_the_outer_canvas(self):
         child = xnano.new(width=10, height=2)
-        child.audio.start()
-        dot = child.write('o')
-        dot.x = child.audio.beat * 4
-        child.step(delta_seconds=0.5)
+        child.clock.beats.start()
+        dot = child.screen.write('o')
+        dot.x = child.clock.beats.position * 4
+        child.clock.step(delta_seconds=0.5)
         with xnano.new(width=20, height=4) as outer:
-            outer.write(child)
-            outer.step(delta_seconds=0.5)
+            outer.screen.write(child)
+            outer.clock.step(delta_seconds=0.5)
             assert dot.x == 0
 
     def test_stopping_time_and_the_audio_verbs_hold_the_beat(self, manual):
-        manual.audio.start()
-        manual.step(delta_seconds=0.5)
-        manual.audio.pause()
-        manual.step(delta_seconds=0.5)
-        assert manual.inspect(manual.audio.beat) == pytest.approx(1.0)
-        manual.audio.resume()
-        manual.step(delta_seconds=0.5)
-        assert manual.inspect(manual.audio.beat) == pytest.approx(2.0)
-        manual.audio.stop()
-        assert manual.inspect(manual.audio.beat) == 0.0
+        manual.clock.beats.start()
+        manual.clock.step(delta_seconds=0.5)
+        manual.clock.beats.pause()
+        manual.clock.step(delta_seconds=0.5)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(1.0)
+        manual.clock.beats.resume()
+        manual.clock.step(delta_seconds=0.5)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(2.0)
+        manual.clock.beats.stop()
+        assert manual.evaluate(manual.clock.beats.position) == 0.0
 
     def test_starting_the_clock_on_a_stopped_canvas_starts_it_held(self, manual):
-        manual.stop()
-        manual.audio.start()
-        manual.step(delta_seconds=0.5)
-        manual.step(delta_seconds=0.5)
-        assert manual.inspect(manual.audio.beat) == pytest.approx(0.0)
-        manual.resume()
-        manual.step(delta_seconds=0.5)
-        assert manual.inspect(manual.audio.beat) == pytest.approx(1.0)
+        manual.clock.pause()
+        manual.clock.beats.start()
+        manual.clock.step(delta_seconds=0.5)
+        manual.clock.step(delta_seconds=0.5)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(0.0)
+        manual.clock.resume()
+        manual.clock.step(delta_seconds=0.5)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(1.0)
 
     def test_a_new_note_object_is_never_heard_as_an_earlier_one(self, manual):
         def crossings(sound: TerminalSound) -> int:
@@ -442,25 +442,25 @@ class TestRecording:
         counts: dict[str, list[int]] = {'C4': [], 'C6': []}
         for index in range(200):
             pitch = 'C4' if index % 2 == 0 else 'C6'
-            manual.audio.play(TerminalNote(pitch, duration_beats=0.2))
-            manual.step(delta_seconds=2.0)
-            counts[pitch].append(crossings(manual.audio.render_sound()))
+            manual.speaker.play(TerminalNote(pitch, duration_beats=0.2))
+            manual.clock.step(delta_seconds=2.0)
+            counts[pitch].append(crossings(manual.speaker.render()))
         assert max(counts['C4']) < min(counts['C6']), (
             'every render has the pitch of the note that was played'
         )
 
     def test_the_same_melody_text_is_synthesized_once(self, manual):
-        manual.audio.play('C4 E4')
-        manual.step(delta_seconds=2.0)
-        manual.audio.render_sound()
-        manual.audio.play('C4 E4')
-        manual.step(delta_seconds=2.0)
-        manual.audio.render_sound()
-        assert len(manual.audio._synthesized) == 1
+        manual.speaker.play('C4 E4')
+        manual.clock.step(delta_seconds=2.0)
+        manual.speaker.render()
+        manual.speaker.play('C4 E4')
+        manual.clock.step(delta_seconds=2.0)
+        manual.speaker.render()
+        assert len(manual._audio_device()._synthesized) == 1
 
     def test_a_beat_in_the_future_starts_on_that_beat(self, manual):
-        manual.audio.play('C4', at_beat=1)
-        recording = manual.audio._recordings[-1]
+        manual.speaker.play('C4', at_beat=1)
+        recording = manual._audio_device()._recordings[-1]
         assert recording.start_seconds == pytest.approx(0.5)
 
 
@@ -484,22 +484,22 @@ class TestTerminalSoundShortcuts:
 
     def test_the_canvas_keeps_the_tempo_that_audio_uses(self):
         with xnano.new(width=8, height=1, bpm=90) as canvas:
-            assert canvas.bpm == 90
-            canvas.bpm = 100
-            assert canvas.bpm == 100
-            assert not hasattr(canvas.audio, 'tempo')
+            assert canvas.clock.bpm == 90
+            canvas.clock.bpm = 100
+            assert canvas.clock.bpm == 100
+            assert not hasattr(canvas.speaker, 'tempo')
 
     def test_every_beat_follows_the_tempo(self):
         with xnano.new(width=8, height=1) as canvas:
-            canvas.bpm = 120  # a beat is half a second
+            canvas.clock.bpm = 120  # a beat is half a second
             beats = []
 
             @canvas.hook(on='beat', every=1)
             def count(context):
-                beats.append(round(context.time.elapsed, 2))
+                beats.append(round(context.clock.elapsed_seconds, 2))
 
             for _ in range(16):
-                canvas.step(delta_seconds=0.1)
+                canvas.clock.step(delta_seconds=0.1)
             assert beats[:3] == pytest.approx([0.5, 1.0, 1.5], abs=0.11)
             assert len(beats) == 3
 
@@ -514,10 +514,10 @@ class TestTerminalSoundShortcuts:
 
     def test_play_records_melody_text_on_a_canvas_without_a_device(self):
         with xnano.new(width=8, height=1) as canvas:
-            canvas.play('C4 E4 G4:2')
-            canvas.play(TerminalNote('C5', duration_beats=0.5), instrument='bell')
-            canvas.step(delta_seconds=0.5)
-            assert canvas.audio.render_sound().duration_milliseconds == 500.0
+            canvas.speaker.play('C4 E4 G4:2')
+            canvas.speaker.play(TerminalNote('C5', duration_beats=0.5), instrument='bell')
+            canvas.clock.step(delta_seconds=0.5)
+            assert canvas.speaker.render().duration_milliseconds == 500.0
             assert not hasattr(canvas, 'note')
 
 
@@ -544,29 +544,29 @@ class TestMelody:
 
     def test_playing_a_melody_records_one_sound(self, manual):
         melody = xnano.audio.Melody('C4 E4 G4:2', bpm=120)
-        manual.play(melody)
-        assert len(manual.audio._recordings) == 1
-        manual.step(delta_seconds=1.0)
-        assert manual.audio.render_sound().peak > 0.0
+        manual.speaker.play(melody)
+        assert len(manual._audio_device()._recordings) == 1
+        manual.clock.step(delta_seconds=1.0)
+        assert manual.speaker.render().peak > 0.0
 
     def test_it_plays_at_its_own_tempo_whatever_the_canvas_tempo(self, manual):
         melody = xnano.audio.Melody('C4 C4', bpm=60)
-        manual.bpm = 240
-        manual.play(melody)
-        recording = manual.audio._recordings[-1]
+        manual.clock.bpm = 240
+        manual.speaker.play(melody)
+        recording = manual._audio_device()._recordings[-1]
         assert recording.end_seconds - recording.start_seconds >= 2.0
 
     def test_a_melody_is_not_synthesized_again_for_the_same_object(self, manual):
         melody = xnano.audio.Melody('C4 E4')
         for _ in range(2):
-            manual.play(melody)
-            manual.step(delta_seconds=2.0)
-            manual.audio.render_sound()
-        assert len(manual.audio._synthesized) == 1
+            manual.speaker.play(melody)
+            manual.clock.step(delta_seconds=2.0)
+            manual.speaker.render()
+        assert len(manual._audio_device()._synthesized) == 1
 
     def test_it_is_played_by_the_device_of_a_running_canvas(self, canvas):
         melody = xnano.audio.Melody('C4 E4')
-        canvas.play(melody)
+        canvas.speaker.play(melody)
         assert played(canvas)[0][0] == melody.score.render('piano')
 
     def test_a_symbol_names_a_melody_to_play(self, manual):
@@ -575,15 +575,15 @@ class TestMelody:
             assert (
                 xnano.symbols.lookup('melody_symbol', kind=xnano.audio.Melody) is melody
             )
-            manual.play('melody_symbol')
-            assert len(manual.audio._recordings) == 1
+            manual.speaker.play('melody_symbol')
+            assert len(manual._audio_device()._recordings) == 1
         finally:
             xnano.symbols.remove('melody_symbol')
 
     def test_a_melody_in_a_sequence_plays_after_the_note_before_it(self, manual):
         melody = xnano.audio.Melody('C4 E4', bpm=120)
-        manual.play([xnano.note('C4'), melody])
-        starts = sorted(item.start_seconds for item in manual.audio._recordings)
+        manual.speaker.play([xnano.Note('C4'), melody])
+        starts = sorted(item.start_seconds for item in manual._audio_device()._recordings)
         assert starts == pytest.approx([0.0, 0.5])
 
     def test_it_is_a_value_that_cannot_change(self):
@@ -651,9 +651,9 @@ class TestMelodyRegion:
         assert (one_beat.width, one_beat.milliseconds.width) == (1.0, 1000.0)
 
     def test_the_ticks_are_sixteenth_notes(self):
-        ticks = xnano.audio.Melody('C4 E4 G4:2', bpm=90).region.ticks
-        assert (ticks.x, ticks.width) == (0.0, 16.0)
-        assert (ticks.y, ticks.height) == (60, 8)
+        sixteenths = xnano.audio.Melody('C4 E4 G4:2', bpm=90).region.sixteenths
+        assert (sixteenths.x, sixteenths.width) == (0.0, 16.0)
+        assert (sixteenths.y, sixteenths.height) == (60, 8)
 
     def test_a_tempo_change_in_the_score_is_followed(self):
         # The melody text has no way to write a tempo change, so the score is given one.
@@ -669,37 +669,37 @@ class TestPlayedRegion:
     """The handle of a played sound knows where the sound is on the timeline of the canvas."""
 
     def test_a_note_is_a_row_for_its_beats_without_the_ring_after_it(self, manual):
-        region = manual.audio.play(xnano.note('E4', beats=2))._region
+        region = manual.speaker.play(xnano.Note('E4', beats=2))._region
         assert region is not None
         assert region.resolution == 'beats'
         assert (region.x, region.width) == (0.0, 2.0)
         assert (region.y, region.height) == (64, 1)
 
     def test_it_starts_on_the_beat_the_canvas_has_reached(self, manual):
-        manual.step(delta_seconds=1.0)
-        region = manual.audio.play(xnano.note('E4', beats=2))._region
+        manual.clock.step(delta_seconds=1.0)
+        region = manual.speaker.play(xnano.Note('E4', beats=2))._region
         assert region is not None
         assert (region.x, region.width) == (2.0, 2.0), 'one second is two beats at 120'
         assert region.milliseconds.x == 1000.0
 
     def test_it_follows_the_tempo_of_the_canvas(self, manual):
-        manual.bpm = 60
-        manual.step(delta_seconds=1.0)
-        region = manual.audio.play(xnano.note('E4', beats=2))._region
+        manual.clock.bpm = 60
+        manual.clock.step(delta_seconds=1.0)
+        region = manual.speaker.play(xnano.Note('E4', beats=2))._region
         assert region is not None
         assert (region.x, region.width) == (1.0, 2.0)
         assert region.milliseconds.width == 2000.0
 
     def test_a_beat_to_start_on_is_where_the_region_starts(self, manual):
-        region = manual.audio.play('C4', at_beat=4)._region
+        region = manual.speaker.play('C4', at_beat=4)._region
         assert region is not None
         assert region.x == 4.0
 
     def test_a_sequence_lasts_until_its_last_note_stops_and_spans_every_pitch(
         self, manual
     ):
-        region = manual.audio.play(
-            [xnano.note('C4'), xnano.note(('G4', 'B4'), beats=2)]
+        region = manual.speaker.play(
+            [xnano.Note('C4'), xnano.Note(('G4', 'B4'), beats=2)]
         )._region
         assert region is not None
         assert (region.x, region.width) == (0.0, 3.0)
@@ -707,25 +707,25 @@ class TestPlayedRegion:
 
     def test_a_frequency_is_the_nearest_note(self, manual):
         for source, pitch in (('440hz', 69), ('261.63Hz', 60), (261.63, 60)):
-            region = manual.audio.play(source)._region
+            region = manual.speaker.play(source)._region
             assert region is not None
             assert (region.y, region.height) == (pitch, 1), source
 
     def test_a_frequency_out_of_the_midi_range_is_the_edge_of_it(self, manual):
-        low = manual.audio.play('8hz')._region
-        high = manual.audio.play('20000hz')._region
+        low = manual.speaker.play('8hz')._region
+        high = manual.speaker.play('20000hz')._region
         assert low is not None
         assert high is not None
         assert (low.y, high.y) == (0, 127)
 
     def test_a_note_name_and_a_number_are_pitches(self, manual):
-        region = manual.audio.play([60, 'E4'])._region
+        region = manual.speaker.play([60, 'E4'])._region
         assert region is not None
         assert (region.y, region.height) == (60, 5)
 
     def test_a_melody_is_measured_in_beats_of_the_canvas(self, manual):
         melody = xnano.audio.Melody('C4 rest E4:2', bpm=60)
-        region = manual.audio.play(melody)._region
+        region = manual.speaker.play(melody)._region
         assert region is not None
         assert (region.x, region.width) == (0.0, 8.0), (
             'four seconds are eight beats at 120'
@@ -733,45 +733,45 @@ class TestPlayedRegion:
         assert (region.y, region.height) == (60, 5)
 
     def test_a_sound_has_one_row_and_lasts_its_duration(self, manual):
-        sound = xnano.Sound(TerminalSound.from_samples([0.0] * 44100))
-        region = manual.audio.play(sound)._region
+        sound = xnano.Audio.from_samples([0.0] * 44100)
+        region = manual.speaker.play(sound)._region
         assert region is not None
         assert (region.x, region.width) == (0.0, 2.0)
         assert (region.y, region.height) == (60, 1)
 
     def test_a_canvas_with_a_device_reports_the_same_region(self, canvas):
-        region = canvas.audio.play(xnano.note('E4', beats=2), at_beat=4)._region
+        region = canvas.speaker.play(xnano.Note('E4', beats=2), at_beat=4)._region
         assert region is not None
         assert (region.x, region.width) == (4.0, 2.0)
         assert (region.y, region.height) == (64, 1)
 
     def test_a_device_region_starts_on_the_clock_of_the_canvas(self, canvas):
-        region = canvas.audio.play(xnano.note('E4'))._region
+        region = canvas.speaker.play(xnano.Note('E4'))._region
         assert region is not None
-        assert region.x == pytest.approx(canvas.time.elapsed * 2.0, abs=0.5)
+        assert region.x == pytest.approx(canvas.clock.elapsed_seconds * 2.0, abs=0.5)
 
 
 class TestMicrophone:
     def test_the_level_is_an_expression_on_the_microphone(self, canvas):
-        assert canvas.inspect(canvas.audio.microphone.level) == 0.25
+        assert canvas.evaluate(canvas.microphone.level) == 0.25
 
     def test_the_level_shortcut_is_the_same_expression(self, canvas):
-        assert canvas.audio.level is canvas.audio.microphone.level
-        assert canvas.inspect(canvas.audio.level) == canvas.inspect(
-            canvas.audio.microphone.level
+        assert canvas.microphone.level is canvas.microphone.level
+        assert canvas.evaluate(canvas.microphone.level) == canvas.evaluate(
+            canvas.microphone.level
         )
 
     def test_the_level_history_is_read_from_the_input_device(self, canvas):
-        assert canvas.audio.microphone.level_history(2) == [0.1, 0.1]
-        assert canvas.audio.level_history(2) == canvas.audio.microphone.level_history(2)
+        assert canvas.microphone.level_history(2) == [0.1, 0.1]
+        assert canvas.microphone.level_history(2) == canvas.microphone.level_history(2)
 
     def test_the_device_sample_rate_and_channels_are_read(self, canvas):
-        microphone = canvas.audio.microphone
+        microphone = canvas.microphone
         assert microphone.sample_rate == 48000
         assert microphone.channels == 1
 
     def test_it_is_open_only_after_something_opened_it(self, canvas):
-        microphone = canvas.audio.microphone
+        microphone = canvas.microphone
         assert not microphone.is_open
         assert not microphone.is_open, 'asking does not open the device'
         assert microphone.sample_rate == 48000
@@ -779,14 +779,14 @@ class TestMicrophone:
 
     def test_it_is_closed_with_the_canvas(self):
         with xnano.new(realtime=True, width=8, height=1) as canvas:
-            assert canvas.audio.microphone.sample_rate == 48000
-            device = canvas.audio.microphone._device
+            assert canvas.microphone.sample_rate == 48000
+            device = canvas.microphone._device
         assert device is not None
         assert device.closed
 
     def test_a_canvas_without_a_device_has_a_silent_closed_microphone(self, manual):
-        microphone = manual.audio.microphone
-        assert manual.inspect(microphone.level) == 0.0
+        microphone = manual.microphone
+        assert manual.evaluate(microphone.level) == 0.0
         assert microphone.level_history(3) == []
         assert not microphone.is_open
         assert microphone.sample_rate is None
@@ -798,7 +798,7 @@ class TestMicrophone:
                 raise microphone_module.TerminalAudioError('no input device')
 
         monkeypatch.setattr(microphone_module, 'TerminalMicrophone', Broken)
-        microphone = canvas.audio.microphone
+        microphone = canvas.microphone
         assert microphone.sample_rate is None
         assert microphone.channels is None
         assert not microphone.is_open
@@ -806,15 +806,15 @@ class TestMicrophone:
 
 class TestRenderingAfterALongGap:
     def test_a_canvas_not_asked_for_a_minute_returns_the_last_minute(self, manual):
-        manual.audio.play('C4')
-        manual.step(delta_seconds=200)
-        assert manual.audio.render_sound().duration_milliseconds == pytest.approx(60000.0)
+        manual.speaker.play('C4')
+        manual.clock.step(delta_seconds=200)
+        assert manual.speaker.render().duration_milliseconds == pytest.approx(60000.0)
 
     def test_a_gap_beyond_the_longest_sound_still_renders(self, manual):
-        assert manual.audio.is_offline
-        manual.step(delta_seconds=5000)
-        sound = manual.audio.render_sound()
+        assert manual.speaker.is_offline
+        manual.clock.step(delta_seconds=5000)
+        sound = manual.speaker.render()
         assert sound.duration_milliseconds == pytest.approx(60000.0)
-        manual.audio.play('C4')
-        manual.step()
-        assert max(abs(sample) for sample in manual.audio.render_sound().samples()) > 0.0
+        manual.speaker.play('C4')
+        manual.clock.step()
+        assert max(abs(sample) for sample in manual.speaker.render().samples()) > 0.0

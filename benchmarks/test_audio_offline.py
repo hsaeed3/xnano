@@ -45,32 +45,32 @@ def minimum_microseconds(function, *, number: int, repeat: int = 7) -> float:
 
 
 def test_playing_a_note_records_it_without_synthesizing(benchmark):
-    note = xnano.note('C4', beats=0.5)
+    note = xnano.Note('C4', beats=0.5)
     with xnano.new(width=8, height=1) as canvas:
 
         def play() -> int:
-            canvas.play(note)
-            return len(canvas.audio._recordings)
+            canvas.speaker.play(note)
+            return len(canvas._audio_device()._recordings)
 
         assert benchmark.pedantic(play, rounds=200, iterations=10) > 0
-        canvas.audio._recordings.clear()
+        canvas._audio_device()._recordings.clear()
         check_budget(
             lambda: minimum_microseconds(play, number=500),
             PLAY_BUDGET_MICROSECONDS,
-            'canvas.play(note) without a device',
+            'canvas.speaker.play(note) without a device',
         )
 
 
 def test_rendering_a_second_of_four_cached_notes(benchmark):
-    notes = [xnano.note(pitch, beats=2.0) for pitch in NOTES]
+    notes = [xnano.Note(pitch, beats=2.0) for pitch in NOTES]
     with xnano.new(width=8, height=1, fps=1) as canvas:
 
         def render() -> float:
-            canvas.play(notes[:1])
+            canvas.speaker.play(notes[:1])
             for note in notes[1:]:
-                canvas.play(note)
-            canvas.step()
-            return canvas.audio.render_sound().duration_milliseconds
+                canvas.speaker.play(note)
+            canvas.clock.step()
+            return canvas.speaker.render().duration_milliseconds
 
         render()
         assert benchmark.pedantic(render, rounds=30, iterations=1) == 1000.0

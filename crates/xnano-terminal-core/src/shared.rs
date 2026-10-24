@@ -198,8 +198,8 @@ pub struct InputData {
     /// The key of the latest key event, until an event of another kind replaces it.
     pub last_key: Option<String>,
     pub last_key_kind: Option<&'static str>,
-    /// The latest key event as a canonical chord such as `ctrl+s`.
-    pub last_chord: Option<String>,
+    /// The latest key event as a canonical binding such as `ctrl+s`.
+    pub last_binding: Option<String>,
     /// The button of the latest button or motion report (`left`, `right`, `middle`).
     pub last_mouse_button: Option<&'static str>,
     /// `press`, `release`, `drag` or `move`; empty for a wheel report.
@@ -223,7 +223,7 @@ impl InputData {
     fn forget_key(&mut self) {
         self.last_key = None;
         self.last_key_kind = None;
-        self.last_chord = None;
+        self.last_binding = None;
     }
 
     fn forget_mouse(&mut self) {
@@ -238,7 +238,7 @@ impl InputData {
         self.forget_mouse();
         self.scroll = (0, 0);
         self.last_paste = None;
-        let mut chord = String::new();
+        let mut binding = String::new();
         for (name, flag) in [
             ("ctrl", KeyModifiers::CONTROL),
             ("alt", KeyModifiers::ALT),
@@ -248,14 +248,14 @@ impl InputData {
             ("hyper", KeyModifiers::HYPER),
         ] {
             if key.modifiers.contains(flag) {
-                chord.push_str(name);
-                chord.push('+');
+                binding.push_str(name);
+                binding.push('+');
             }
         }
-        chord.push_str(&key.key);
+        binding.push_str(&key.key);
         self.last_key = Some(key.key.clone());
         self.last_key_kind = Some(key.kind.name());
-        self.last_chord = Some(chord);
+        self.last_binding = Some(binding);
     }
 
     /// Remember a mouse event and the buttons it leaves held; the scalars of the other kinds
