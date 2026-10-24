@@ -165,13 +165,21 @@ class Flow:
             else:
                 following._flow_previous = previous
             placement._flow = None
-            placement._flow_previous = None
-            placement._flow_next = None
+            if previous is not None:
+                placement._flow_previous = None
+            if following is not None:
+                placement._flow_next = None
             if placement._is_flow_participant:
                 placement._is_flow_participant = False
-                index = self.participants.index(placement)
+                participants = self.participants
+                # The placement written last is the one most often removed.
+                if participants[-1] is placement:
+                    index = len(participants) - 1
+                    participants.pop()
+                else:
+                    index = participants.index(placement)
+                    del participants[index]
                 self._forget_states_from(index)
-                del self.participants[index]
             if previous is not None:
                 if following is not None and _continues_row(following):
                     self._take_part(previous, before=following)

@@ -10,7 +10,6 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Literal, cast
 
 import xnano_core as _core
-from xnano._internal._surface import surface_of
 from xnano_core import EvaluationContext
 
 if TYPE_CHECKING:
@@ -746,7 +745,8 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         if self._edges is not None:
             return self._edges
         owner = self._edges_owner or self._parent_owner
-        return surface_of(owner).edges
+        # A canvas keeps the edges of its screen; a placement may take its parent's in turn.
+        return owner.edges if isinstance(owner, Placement) else owner._edges
 
     @edges.setter
     def edges(self, value: EdgeBehavior | None) -> None:
