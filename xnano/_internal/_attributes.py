@@ -29,7 +29,7 @@ class _SealedAttributes:
     """
     Refuse an assignment to a public name the object does not declare.
 
-    Without this a typo such as ``canvas.cursor.is_visble = False`` would create a new
+    Without this a typo such as ``canvas.screen.cursor.is_visble = False`` would create a new
     attribute and silently change nothing. The object is sealed at the end of its
     ``__init__`` by calling ``_seal()``.
     """

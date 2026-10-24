@@ -15,8 +15,8 @@ from xnano.effects._properties import (
     AudioEffectParameters,
     EffectParameters,
     _PlayableEffectMethods,
-    _RenderableEffectMethods,
     _unknown_effect,
+    _WritableEffectMethods,
 )
 from xnano.effects._registry import build_effect
 
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
     from xnano_audio import TerminalAudioEffect
 
-    from xnano.context import Context
+    from xnano.hooks._context import Context
 
 
 class EffectState:
@@ -59,7 +59,7 @@ class EffectState:
 
 
 @final
-class EffectController(_RenderableEffectMethods, _PlayableEffectMethods):
+class EffectController(_WritableEffectMethods, _PlayableEffectMethods):
     """
     The effects of the hook that is running, one method for each effect.
 
@@ -78,7 +78,7 @@ class EffectController(_RenderableEffectMethods, _PlayableEffectMethods):
         import xnano
 
         with xnano.new(width=8, height=1) as canvas:
-            label = canvas.write('hi')
+            label = canvas.screen.write('hi')
             counts = []
 
             @label.hook(on='frame')
@@ -87,7 +87,7 @@ class EffectController(_RenderableEffectMethods, _PlayableEffectMethods):
                     context.fx.fade_to(foreground='red', duration_milliseconds=100)
                 counts.append(len(context.fx.active))
 
-            canvas.step(delta_seconds=0.05)
+            canvas.clock.step(delta_seconds=0.05)
             assert counts and set(counts) == {1}
         ```
     """

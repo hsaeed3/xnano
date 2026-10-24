@@ -150,8 +150,9 @@ struct Config {
     backend: Backend,
     // A Cell so the frame rate can change while the runtime runs; only its thread reads it.
     frame_interval_milliseconds: Cell<u64>,
-    inline_height: Option<u16>,
-    inline_width: Option<u16>,
+    // Cells so an inline region can be resized before its session opens.
+    inline_height: Cell<Option<u16>>,
+    inline_width: Cell<Option<u16>>,
     should_handle_exit_signals: bool,
     options: Option<PyTerminalOptions>,
 }
@@ -1505,8 +1506,8 @@ impl PyRuntime {
             config: Config {
                 backend,
                 frame_interval_milliseconds: Cell::new(frame_interval),
-                inline_height,
-                inline_width,
+                inline_height: Cell::new(inline_height),
+                inline_width: Cell::new(inline_width),
                 should_handle_exit_signals,
                 options,
             },
@@ -2155,19 +2156,31 @@ impl PyRuntime {
     #[pyo3(signature = (*, width, height))]
     fn resize(&self, width: i32, height: i32) -> PyResult<()> {
         self.check_open("resize")?;
-        if self.config.backend != Backend::Offscreen {
+        xnano_terminal_runtime::buffer::check_size(width, height).map_err(PyValueError::new_err)?;
+        if self.config.backend != Backend::Offscreen && self.config.inline_height.get().is_none() {
             return Err(PyValueError::new_err(
-                "only an offscreen runtime can be resized; a live runtime follows its terminal window",
+                "only an offscreen runtime or an inline region can be resized; a live runtime \
+                 that takes the whole window follows the window",
             ));
         }
-        xnano_terminal_runtime::buffer::check_size(width, height).map_err(PyValueError::new_err)?;
-        lock(&self.shared.device).size = Size::new(width, height);
-        self.shared.queue.push_event(Event::new(
-            EventKind::Resize,
-            EventPayload::Size(Size::new(width, height)),
-        ));
-        self.shared.request_frame();
+        self.resize_destination(Size::new(width, height), true)?;
         Ok(())
+    }
+
+    /// Give every buffer that fits its children the size they cover now, instead of at the
+    /// next frame, and return the size of what the runtime draws on.
+    ///
+    /// A mounted buffer that fits its children decides that size along the axes it fits: an
+    /// offscreen runtime takes it, and so does the region of a live runtime that draws inline,
+    /// held to the window. Frames do this by themselves before they are drawn; call it to
+    /// read sizes that are current between frames.
+    fn fit_to_content(slf: &Bound<'_, Self>) -> PyResult<crate::geometry::PySize> {
+        let runtime = slf.borrow();
+        runtime.check_open("fit_to_content")?;
+        runtime.fit_mounted(slf.py())?;
+        Ok(crate::geometry::PySize {
+            inner: runtime.shared.device_size(),
+        })
     }
 
     fn render(slf: &Bound<'_, Self>) -> PyResult<PyFrameSnapshot> {
@@ -2623,8 +2636,8 @@ impl PyRuntime {
                 raw_mode: options.raw_mode,
                 drain_reports_on_exit: options.drain_reports_on_exit,
                 drain_timeout: Duration::from_millis(options.drain_timeout_milliseconds),
-                inline_height: self.config.inline_height,
-                inline_width: self.config.inline_width,
+                inline_height: self.config.inline_height.get(),
+                inline_width: self.config.inline_width.get(),
                 should_handle_exit_signals: self.config.should_handle_exit_signals,
                 should_clear_on_close: options.should_clear_on_close,
                 should_capture_output: options.should_capture_output,
@@ -2732,6 +2745,80 @@ impl PyRuntime {
         }
     }
 
+    /// Size what the runtime draws on: an offscreen destination takes `size`, and an inline
+    /// region of a live terminal takes it as far as the window allows (`inline_width` follows
+    /// it only when `is_width_given`). Queues a resize event with the size it got. Returns it.
+    fn resize_destination(&self, size: Size, is_width_given: bool) -> PyResult<Size> {
+        #[allow(unused_mut)]
+        let mut resized = size;
+        if self.config.backend != Backend::Offscreen {
+            // check_size has held both to the cells a buffer can have.
+            let rows = size.height.clamp(1, i32::from(u16::MAX)) as u16;
+            let columns = is_width_given.then(|| size.width.clamp(1, i32::from(u16::MAX)) as u16);
+            self.config.inline_width.set(columns);
+            self.config.inline_height.set(Some(rows));
+            #[cfg(feature = "terminal")]
+            if let Some(session) = self.session.borrow_mut().as_mut() {
+                session.resize_inline(columns, rows).map_err(|error| {
+                    PyRuntimeError::new_err(format!(
+                        "the inline region could not be resized: {error}. Check that the \
+                         terminal is still open"
+                    ))
+                })?;
+                resized = session
+                    .viewport()
+                    .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+            }
+        }
+        lock(&self.shared.device).size = resized;
+        self.shared
+            .queue
+            .push_event(Event::new(EventKind::Resize, EventPayload::Size(resized)));
+        self.shared.request_frame();
+        Ok(resized)
+    }
+
+    /// Fit every mounted tree to its content, and give the runtime the size of a mounted
+    /// buffer that fits its children. Returns whether the runtime's size changed.
+    fn fit_mounted(&self, py: Python<'_>) -> PyResult<bool> {
+        let roots: Vec<(Py<PyBuffer>, Geometry)> = self
+            .mounts
+            .borrow()
+            .iter()
+            .map(|mount| (mount.buffer.clone_ref(py), mount.geometry))
+            .collect();
+        let size = self.shared.device_size();
+        for (root, geometry) in &roots {
+            let core = Self::core_of(py, root);
+            xnano_terminal_runtime::buffer::fit_tree(&core);
+            if *geometry != Geometry::Inherit {
+                continue;
+            }
+            let (fit, width, height) = {
+                let state = core.lock();
+                (state.fit, state.width(), state.height())
+            };
+            let Some(fit) = fit else {
+                continue;
+            };
+            let is_inline = self.config.inline_height.get().is_some();
+            if self.config.backend != Backend::Offscreen && !is_inline {
+                // A live runtime that takes the whole window follows the window.
+                continue;
+            }
+            let wanted = Size::new(
+                if fit.width { width } else { size.width },
+                if fit.height { height } else { size.height },
+            );
+            if wanted == size {
+                return Ok(false);
+            }
+            let resized = self.resize_destination(wanted, fit.width)?;
+            return Ok(resized != size);
+        }
+        Ok(false)
+    }
+
     fn build_frame(slf: &Bound<'_, Self>) -> PyResult<PyFrameSnapshot> {
         let py = slf.py();
         let runtime = slf.borrow();
@@ -2750,10 +2837,13 @@ impl PyRuntime {
                 .map_err(|error| RenderError::new_err(error.to_string()))?;
             lock(&runtime.shared.device).size = size;
         }
+        // Content that fits its children decides the size before anything is measured.
+        runtime.fit_mounted(py)?;
         let size = runtime.shared.device_size();
-        let (columns, rows) = xnano_terminal_runtime::buffer::check_size(size.width, size.height)
-            .map_err(RenderError::new_err)?;
-        let area = Rectangle::new(0, 0, i32::from(columns), i32::from(rows));
+        let (mut columns, mut rows) =
+            xnano_terminal_runtime::buffer::check_size(size.width, size.height)
+                .map_err(RenderError::new_err)?;
+        let mut area = Rectangle::new(0, 0, i32::from(columns), i32::from(rows));
         // Geometry and layout.
         let roots: Vec<(Py<PyBuffer>, Geometry)> = runtime
             .mounts
@@ -2825,6 +2915,23 @@ impl PyRuntime {
             )?;
         }
         let runtime = slf.borrow();
+        // The frame callbacks may have moved or resized what fits its children (a line of
+        // text that follows the one before it), so the size is fitted once more before drawing.
+        if runtime.fit_mounted(py)? {
+            let size = runtime.shared.device_size();
+            (columns, rows) = xnano_terminal_runtime::buffer::check_size(size.width, size.height)
+                .map_err(RenderError::new_err)?;
+            area = Rectangle::new(0, 0, i32::from(columns), i32::from(rows));
+            for mount in runtime.mounts.borrow().iter() {
+                if mount.geometry == Geometry::Inherit {
+                    let core = Self::core_of(py, &mount.buffer);
+                    core.move_to(0, 0);
+                    core.resize(size.width, size.height)
+                        .map_err(RenderError::new_err)?;
+                    relayout(&core);
+                }
+            }
+        }
         // Animations draw into their targets; effects process over the composed frame.
         runtime.update_animations(py);
         let roots: Vec<(Py<PyBuffer>, Geometry)> = runtime

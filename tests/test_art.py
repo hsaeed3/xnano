@@ -30,8 +30,8 @@ def canvas():
 def world_on(canvas, width=8, height=8, background=None, **keywords):
     """A world written over the whole canvas, drawn on the next step, and its placement."""
     world = draw(None, width=width, height=height, background=background)
-    view = canvas.write(world, width='100%', height='100%', **keywords)
-    canvas.step()
+    view = canvas.screen.write(world, width='100%', height='100%', **keywords)
+    canvas.clock.step()
     return world, view
 
 
@@ -68,7 +68,7 @@ class TestDraw:
         assert by_mapping.render(format='ansi') == by_text.render(format='ansi')
 
     def test_a_character_the_palette_does_not_name_is_transparent(self, canvas):
-        view = canvas.write(draw(['.R'], {'R': '#ff0000'}))
+        view = canvas.screen.write(draw(['.R'], {'R': '#ff0000'}))
         assert pixel(view, 0, 0) is None
         assert pixel(view, 1, 0) == (255, 0, 0)
 
@@ -167,10 +167,10 @@ class TestDraw:
             effects=[{'kind': 'effect.fade_to', 'duration_milliseconds': 500}],
         )
         assert len(canvas._effects) == 0
-        first = canvas.write(art)
+        first = canvas.screen.write(art)
         assert first.width == 2
         assert len(canvas._effects) == 1
-        canvas.write(art)
+        canvas.screen.write(art)
         assert len(canvas._effects) == 2
 
 
@@ -179,7 +179,7 @@ class TestDrawing:
         world, view = world_on(canvas, background='black')
         world.add(green(), x=0, y=0)
         world.add(red(), x=3, y=2)
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 3, 2) == (255, 0, 0)
         assert pixel(view, 0, 0) == (0, 255, 0)
         assert pixel(view, 7, 7) == (0, 0, 0), (
@@ -189,7 +189,7 @@ class TestDrawing:
     def test_the_anchor_is_the_pixel_that_sits_at_the_position(self, canvas):
         world, view = world_on(canvas)
         world.add(red(), x=3, y=3, anchor=(0, 1))
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 3, 3) == (255, 0, 0)
         assert pixel(view, 3, 2) == (255, 0, 0)
 
@@ -197,51 +197,51 @@ class TestDrawing:
         world, view = world_on(canvas)
         world.add(red(), x=1, y=1, layer=1)
         world.add(green(), x=1, y=1, layer=0)
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 1, 1) == (255, 0, 0)
 
     def test_children_can_hold_children(self, canvas):
         world, view = world_on(canvas)
         body = world.add(green(), x=2, y=2)
         body.add(red(), x=1, y=0)
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 3, 2) == (255, 0, 0)
 
     def test_a_child_that_changes_is_drawn_again(self, canvas):
         world, view = world_on(canvas)
         child = world.add(red(), x=1, y=1)
-        canvas.step()
+        canvas.clock.step()
         child.x = 5
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 1, 1) != (255, 0, 0)
         assert pixel(view, 5, 1) == (255, 0, 0)
         child.is_visible = False
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 5, 1) != (255, 0, 0)
         child.is_visible = True
         child.remove()
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 5, 1) != (255, 0, 0)
 
     def test_replace_swaps_the_pixels_and_keeps_the_place(self, canvas):
         world, view = world_on(canvas)
         child = world.add(draw(['R'], {'R': 'red'}), x=2, y=2, layer=3)
-        canvas.step()
+        canvas.clock.step()
         child.replace(['B'], {'B': (0, 0, 255)})
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 2, 2) == (0, 0, 255)
         assert (child.x, child.y, child.layer) == (2, 2, 3)
 
     def test_a_world_that_did_not_change_is_not_drawn_again(self, canvas, mocker):
         world, view = world_on(canvas)
         world.add(red(), x=1, y=1)
-        canvas.step()
-        render = mocker.spy(Art, '__xnano_render__')
-        canvas.step()
-        canvas.step()
+        canvas.clock.step()
+        render = mocker.spy(Art, '__xnano_write__')
+        canvas.clock.step()
+        canvas.clock.step()
         assert render.call_count == 0
         world.add(red(), x=4, y=4)
-        canvas.step()
+        canvas.clock.step()
         assert render.call_count == 1
 
     def test_a_composed_world_is_cached_until_it_changes(self, canvas):
@@ -254,7 +254,7 @@ class TestDrawing:
     def test_setting_an_attribute_to_its_current_value_changes_nothing(self, canvas):
         world, view = world_on(canvas)
         child = world.add(red(), x=1, y=1, layer=1, anchor=(0, 1))
-        canvas.step()
+        canvas.clock.step()
         version = world._version
         child.x, child.y, child.layer = 1, 1, 1
         child.anchor, child.is_visible = (0, 1), True
@@ -263,13 +263,13 @@ class TestDrawing:
         assert world._version == version + 1
 
     def test_art_is_written_without_a_size_at_its_own_size(self, canvas):
-        placement = canvas.write(
+        placement = canvas.screen.write(
             draw(['AB', 'CD', 'EF'], 'A=red B=green C=blue D=white E=gray F=magenta')
         )
         assert (placement.width, placement.height) == (2, 2)
 
     def test_art_in_a_border_fits_inside_it(self, canvas):
-        placement = canvas.write(draw(['AB'], 'A=red B=blue'), border='rounded')
+        placement = canvas.screen.write(draw(['AB'], 'A=red B=blue'), border='rounded')
         assert (placement.width, placement.height) == (4, 3)
 
     def test_art_draws_on_its_own(self):
@@ -279,22 +279,22 @@ class TestDrawing:
         assert heart.render(width=4, height=2).count('\n') == 1
 
     def test_art_can_live_on_a_placement(self, canvas):
-        view = canvas.write(' ', width=4, height=2)
+        view = canvas.screen.write(' ', width=4, height=2)
         world = draw(None, width=4, height=4)
         inner = view.write(world, width='100%', height='100%')
         world.add(red(), x=1, y=1)
-        canvas.step()
+        canvas.clock.step()
         assert pixel(inner, 1, 1) == (255, 0, 0)
         assert (inner.width, inner.height) == (4, 2)
 
     def test_art_follows_a_resize_of_its_placement(self):
         with xnano.new(width=8, height=4) as canvas:
             world = draw(None, width=40, height=40, background='black')
-            placement = canvas.write(world, width=8, height=4)
-            canvas.step()
+            placement = canvas.screen.write(world, width=8, height=4)
+            canvas.clock.step()
             assert world._view_size() == (8, 8)
             placement.width = 4
-            canvas.step()
+            canvas.clock.step()
             assert world._view_size() == (4, 8)
 
 
@@ -331,7 +331,7 @@ class TestCamera:
         world, view = world_on(canvas, width=40, height=40)
         hero = world.add(red(), x=20, y=20)
         world.camera.follow(hero)
-        canvas.step()
+        canvas.clock.step()
         assert world.world_for_cell(0, 0) == (16, 17)
         assert world.world_for_cell(4, 2) == (20, 21)
 
@@ -417,10 +417,10 @@ class TestMovement:
         world, view = world_on(canvas)
         hero = world.add(red(), x=0, y=0)
         hero.move(0.4, 0)
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 0, 0) == (255, 0, 0)
         hero.move(0.4, 0)
-        canvas.step()
+        canvas.clock.step()
         assert pixel(view, 1, 0) == (255, 0, 0)
 
     def test_the_solid_map_needs_one_byte_per_pixel(self):
@@ -470,3 +470,78 @@ class TestComposition:
         copy = draw('arena')
         assert copy.render() == world.render()
         assert copy is not world
+
+
+class TestReadingPixels:
+    def test_the_pixels_of_drawn_art_are_its_rgba_bytes(self):
+        dot = draw(['R.'], {'R': '#ff0000'})
+        assert dot.pixels == bytes([255, 0, 0, 255, 0, 0, 0, 0])
+
+    def test_a_world_has_no_pixels_of_its_own(self):
+        world = draw(None, width=4, height=4)
+        assert world.pixels is None
+        assert world.pixel(0, 0) is None
+
+    def test_one_pixel_reads_its_color_and_alpha(self):
+        art = draw(['RG', '.B'], {'R': '#ff0000', 'G': '#00ff00', 'B': '#0000ff'})
+        assert art.pixel(1, 0) == (0, 255, 0, 255)
+        assert art.pixel(1, 1) == (0, 0, 255, 255)
+        assert art.pixel(0, 1)[3] == 0
+
+    def test_a_pixel_outside_the_art_says_where_it_may_be(self):
+        with pytest.raises(IndexError, match='x from 0 to 0 and y from 0 to 1'):
+            red().pixel(1, 0)
+
+    def test_the_pixels_round_trip_through_replace(self):
+        art = draw(['RG'], {'R': '#ff0000', 'G': '#00ff00'})
+        copy = draw(None, width=1, height=1)
+        copy.replace(art.pixels, width=art.width, height=art.height)
+        assert copy.pixels == art.pixels
+
+    def test_children_are_listed_in_the_order_they_were_added(self):
+        world = draw(None, width=10, height=10)
+        first = world.add(red(), x=1, y=1)
+        second = world.add(green(), x=4, y=4)
+        assert world.children == (first, second)
+        first.remove()
+        assert world.children == (second,)
+
+
+class TestLooks:
+    def test_braille_packs_two_by_four_pixels_into_a_cell(self):
+        rows = ['yy..', 'yy..', 'yy..', 'yy..', '..yy', '..yy', '..yy', '..yy']
+        dots = xnano.draw(rows, {'y': '#ffcd75'}, encoding='braille')
+        assert dots.encoding == 'braille'
+        lines = dots.render().split('\n')
+        assert len(lines) == 2
+        assert lines[0][0] == '⣿' and lines[1][1] == '⣿'
+        assert dots.world_for_cell(1, 1) == (2, 7)
+
+    def test_borders_trace_the_edge_in_box_drawing_characters(self):
+        rows = ['.yyyy.', 'yyyyyy', 'yyyyyy', 'yyyyyy', 'yyyyyy', '.yyyy.']
+        block = xnano.draw(rows, {'y': '#ffcd75'}, borders=True)
+        assert block.borders is True
+        assert block.render().split('\n') == [
+            ' ┌──┐',
+            '┌┘  └┐',
+            '│    │',
+            '│    │',
+            '└┐  ┌┘',
+            ' └──┘',
+        ]
+        ansi = block.render(format='ansi')
+        assert '38;2;255;205;117m┌' in ansi  # the edge in the pixel's own colour
+        assert '48;2;255;205;117m ' in ansi  # the inside filled with it
+
+    def test_a_copy_keeps_the_look(self):
+        rows = ['yy', 'yy', 'yy', 'yy']
+        xnano.draw(rows, {'y': 'red'}, encoding='braille', symbol='look_dots')
+        assert xnano.draw('look_dots').encoding == 'braille'
+        xnano.draw(rows, {'y': 'red'}, borders=True, symbol='look_block')
+        assert xnano.draw('look_block').borders is True
+
+    def test_an_unknown_encoding_is_refused(self):
+        with pytest.raises(
+            ValueError, match="encoding must be 'half_blocks' or 'braille'"
+        ):
+            xnano.draw(['y'], {'y': 'red'}, encoding='quadrants')  # type: ignore[arg-type]

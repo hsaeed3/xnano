@@ -3,7 +3,7 @@ xnano.events
 
 The events a canvas delivers to its hooks: keys, the mouse and everything else.
 
-A hook receives them as ``context.event``; see [`Context`][xnano.context.Context]. Build one
+A hook receives them as ``context.event``; see [`Context`][xnano.hooks.Context]. Build one
 with the class methods of [`Event`][xnano.events.Event] and deliver it with
 [`Canvas.push`][xnano.canvas.Canvas.push] to try a hook without a terminal.
 """
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
             pressed.append(context.event.key.key)
 
         canvas.push(Event.key_press('a'))
-        canvas.step(delta_seconds=0.1)
+        canvas.clock.step(delta_seconds=0.1)
         assert pressed == ['a']
     ```
     """
@@ -61,7 +61,7 @@ if TYPE_CHECKING:
             heard.append(context.event.key)
 
         canvas.push(Event.key_press('ctrl+s'))
-        canvas.step(delta_seconds=0.1)
+        canvas.clock.step(delta_seconds=0.1)
         assert heard[0].key == 's'
         assert heard[0].matches('ctrl+s')
     ```
@@ -86,7 +86,7 @@ if TYPE_CHECKING:
             heard.append(context.event.mouse)
 
         canvas.push(Event.mouse_event(column=4, row=2, kind='press', button='left'))
-        canvas.step(delta_seconds=0.1)
+        canvas.clock.step(delta_seconds=0.1)
         assert (heard[0].column, heard[0].row) == (4, 2)
         assert heard[0].button == 'left'
     ```

@@ -20,9 +20,9 @@ else:
     from typing_extensions import TypeAliasType
 
 if TYPE_CHECKING:
-    # `Context` is written as a string in the aliases below: `xnano.context` imports this module,
+    # `Context` is written as a string in the aliases below: `xnano.hooks` imports this module,
     # so it cannot be imported here while the module runs.
-    from xnano.context import Context
+    from xnano.hooks._context import Context
 
 HookKind: TypeAlias = Literal[
     'frame',
@@ -67,6 +67,41 @@ A value the event did not carry, such as ``keyboard.key`` while a mouse event ar
 neither equal to nor different from anything, so every comparison with it is false.
 """
 
+HookTrigger = TypeAliasType(
+    'HookTrigger',
+    'HookKind | str | When[DepsT, StateT]',
+    type_params=(DepsT, StateT),
+)
+"""
+When a hook runs, given as its ``on``: a kind of event, the name of a custom event, or a
+condition.
+
+* A kind from [`HookKind`][xnano.hooks.HookKind], such as ``'key'``, ``'tick'`` or
+  ``'resize'``.
+* The name of an event pushed with ``Event.custom(name)``, such as ``'volume_changed'`` or
+  ``'game.over'``: any name that is not a kind and does not start with a name a condition
+  reads (``keyboard``, ``mouse``, ``scroll``, ``buffer``, ``parent``, ``root``, ``time`` or
+  ``deps``).
+* A condition, see [`When`][xnano.hooks.When]: a string such as
+  ``"mouse.kind == 'press'"``, an expression such as ``Keyboard.key == 'q'``, or a function of
+  the context. A string that reads one input hears only that input, so
+  ``on="mouse.kind == 'press'"`` is a mouse hook and hears the pointer inside a placement; a
+  string that reads no input is checked on every tick. An expression or a function hears every
+  input event. With ``every=`` or ``after=`` a condition is checked on those ticks, and with
+  ``keys=`` on those keys.
+"""
+
+IfRunning: TypeAlias = Literal['replace', 'ignore', 'queue', 'overlap']
+"""
+What an ``async def`` hook does when it is called again while its previous run has not
+finished.
+
+``'replace'`` cancels the earlier run and starts the new one, so the latest input wins.
+``'ignore'`` keeps the earlier run and drops the new call. ``'queue'`` starts the new run when
+the earlier one has finished, so the runs happen one at a time in order. ``'overlap'`` starts
+the new run at once, next to the earlier one.
+"""
+
 HookResult = TypeAliasType(
     'HookResult',
     Generator[None, 'Context[DepsT, StateT]', None],
@@ -85,7 +120,7 @@ Hook = TypeAliasType(
 )
 """
 What a canvas or placement calls when an event counts: a function of the
-[`Context`][xnano.context.Context], or a function with no parameters when it needs none.
+[`Context`][xnano.hooks.Context], or a function with no parameters when it needs none.
 """
 
 KeyName: TypeAlias = Literal[
@@ -107,20 +142,5 @@ still suggest the names listed here. A key that types a character, such as ``'é
 is named by that character in lowercase.
 """
 
-HeldMouseButtonName: TypeAlias = Literal['mouse_left', 'mouse_right', 'mouse_middle']
-"""
-The name of a mouse button in the held-input vocabulary of [`Input`][xnano.input.Input].
-
-``Input.is_down('mouse_left')`` asks whether the left button is held. The button of a mouse
-event keeps the names ``'left'``, ``'right'`` and ``'middle'``.
-"""
-
-KeyNames: TypeAlias = (
-    KeyName | HeldMouseButtonName | Sequence[KeyName | HeldMouseButtonName]
-)
-"""
-One key or mouse button name, or several that count the same, such as ``('a', 'left')``.
-
-The mouse buttons are called ``'mouse_left'``, ``'mouse_right'`` and ``'mouse_middle'``; see
-[`HeldMouseButtonName`][xnano.types.HeldMouseButtonName].
-"""
+KeyNames: TypeAlias = KeyName | Sequence[KeyName]
+"""One key name, or several that count the same, such as ``('a', 'left')``."""

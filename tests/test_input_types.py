@@ -17,8 +17,8 @@ from typing_extensions import assert_type
 import xnano
 import xnano.expressions
 import xnano_core
+from xnano.devices import KeyName
 from xnano.events import Event
-from xnano.types import HeldMouseButtonName, KeyName
 
 
 def test_the_keyboard_reports_typed_names():
@@ -60,38 +60,14 @@ def test_the_mouse_reports_typed_buttons():
 
 def test_held_input_takes_and_reports_typed_names():
     with xnano.new(width=8, height=1) as canvas:
-        held = canvas.input
-        assert_type(held.held_keys, frozenset[KeyName | HeldMouseButtonName])
-        assert_type(held.is_down('space'), bool)
-        assert_type(held.is_down(('a', 'mouse_left')), bool)
-        assert_type(held.direction(), tuple[int, int])
-        assert held.is_down('space') is False
-
-
-def test_the_deprecated_chord_property_warns_and_returns_the_binding():
-    import warnings
-
-    import pytest
-
-    seen: list[object] = []
-
-    with xnano.new(width=8, height=1) as canvas:
-
-        @canvas.hook(on='key')
-        def listen(context: xnano.Context) -> None:
-            with pytest.warns(
-                DeprecationWarning, match='removed in xnano 2.1.0.*binding'
-            ):
-                seen.append(context.keyboard.chord)
-            seen.append(context.keyboard.binding)
-
-        canvas.push(Event.key_press('ctrl+s'))
-        canvas.deliver_events()
-
-    assert seen == ['ctrl+s', 'ctrl+s']
-    with warnings.catch_warnings():
-        warnings.simplefilter('error')
-        assert xnano.expressions.KeyboardBinding is not None
+        keyboard = canvas.keyboard
+        assert_type(keyboard.held_keys, frozenset[KeyName])
+        assert_type(keyboard.is_down('space'), bool)
+        assert_type(keyboard.is_down(('a', 'left')), bool)
+        assert_type(keyboard.direction(), tuple[int, int])
+        assert keyboard.is_down('space') is False
+        assert_type(canvas.mouse.held_buttons, frozenset[xnano_core.MouseButton])
+        assert canvas.mouse.held_buttons == frozenset()
 
 
 def test_the_deprecated_chord_names_in_conditions_and_expressions_still_work():
@@ -100,10 +76,10 @@ def test_the_deprecated_chord_names_in_conditions_and_expressions_still_work():
     heard: list[str] = []
     with xnano.new(width=8, height=1) as canvas:
         with pytest.warns(DeprecationWarning, match='keyboard.binding'):
-            canvas.hook(on='key', when="keyboard.chord == 'ctrl+s'")(
+            canvas.hook(on="keyboard.chord == 'ctrl+s'")(
                 lambda context: heard.append('old')
             )
-        canvas.hook(on='key', when="keyboard.binding == 'ctrl+s'")(
+        canvas.hook(on="keyboard.binding == 'ctrl+s'")(
             lambda context: heard.append('new')
         )
         canvas.push(Event.key_press('ctrl+s'))

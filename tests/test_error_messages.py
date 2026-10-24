@@ -48,13 +48,13 @@ def a_gate_that_is_off():
         gates_for_screen(canvas, {'scroll': False})
 
 
-@xnano.renderable
+@xnano.writable
 def label_with_text(context, text):
     return text
 
 
 class _OnlyRenders:
-    def __xnano_render__(self, context):
+    def __xnano_write__(self, context):
         return 'x'
 
 
@@ -64,78 +64,78 @@ class _OnlyPlays:
 
 
 class _ReturnsANumber:
-    def __xnano_render__(self, context):
+    def __xnano_write__(self, context):
         return 1
 
 
 class _RendersItself:
-    def __xnano_render__(self, context):
+    def __xnano_write__(self, context):
         return self
 
 
 def writes_a_component_that_needs_arguments():
     with xnano.new(width=8, height=1) as canvas:
-        canvas.write(label_with_text)
+        canvas.screen.write(label_with_text)
 
 
 def declares_a_component_without_a_context():
-    @xnano.renderable
+    @xnano.writable
     def nothing(*, context):  # type: ignore[misc]
         return ''
 
 
 def writes_something_that_only_plays():
     with xnano.new(width=8, height=1) as canvas:
-        canvas.write(_OnlyPlays())
+        canvas.screen.write(_OnlyPlays())
 
 
 def plays_something_that_only_renders():
     with xnano.new(width=8, height=1) as canvas:
-        canvas.play(_OnlyRenders())
+        canvas.speaker.play(_OnlyRenders())
 
 
 def writes_a_component_that_returns_a_number():
     with xnano.new(width=8, height=1) as canvas:
-        canvas.write(_ReturnsANumber())
+        canvas.screen.write(_ReturnsANumber())
 
 
 def writes_a_component_that_renders_itself():
     with xnano.new(width=8, height=1) as canvas:
-        canvas.write(_RendersItself())
+        canvas.screen.write(_RendersItself())
 
 
 def writes_a_component_that_returns_a_canvas():
     child = xnano.new(width=4, height=1)
 
     class Holder:
-        def __xnano_render__(self, context):
+        def __xnano_write__(self, context):
             return child
 
     try:
         with xnano.new(width=8, height=1) as canvas:
-            canvas.write(Holder())
+            canvas.screen.write(Holder())
     finally:
         child.close()
 
 
 def a_component_gate_that_is_off():
-    @xnano.renderable
+    @xnano.writable
     def wheel(context):
-        return str(context.scroll.y)
+        return str(context.mouse.scroll.y)
 
     with xnano.new(width=8, height=1) as canvas:
-        canvas.write(wheel)
+        canvas.screen.write(wheel)
         gates_for_screen(canvas, {'scroll': False})
 
 
 def a_component_hook_that_needs_dependencies():
-    @xnano.renderable
+    @xnano.writable
     def label(context):
         return 'x'
 
     label.hook(lambda context, component: None, on='key', requires_deps=True)
     with xnano.new(width=8, height=1) as canvas:
-        canvas.write(label)
+        canvas.screen.write(label)
 
 
 def draws_rows_of_different_lengths():
@@ -149,25 +149,25 @@ def draws_an_unknown_symbol():
 def plays_an_unknown_name():
     xnano.note('C2', symbol='kick_drum')
     with xnano.new(width=8, height=1) as canvas:
-        canvas.play('kik_drum')
+        canvas.speaker.play('kik_drum')
 
 
 def plays_a_pixel_name():
     xnano.Pixel('#', symbol='wall_cell')
     with xnano.new(width=8, height=1) as canvas:
-        canvas.play('wall_cell')
+        canvas.speaker.play('wall_cell')
 
 
 def writes_bytes():
     with xnano.new(width=8, height=1) as canvas:
-        canvas.write(b'abc')  # type: ignore[arg-type]
+        canvas.screen.write(b'abc')  # type: ignore[arg-type]
 
 
 def writes_a_path():
     import pathlib
 
     with xnano.new(width=8, height=1) as canvas:
-        canvas.write(pathlib.Path('picture.png'))  # type: ignore[arg-type]
+        canvas.screen.write(pathlib.Path('picture.png'))  # type: ignore[arg-type]
 
 
 def reads_the_reserved_key():
@@ -193,7 +193,7 @@ def pushes_a_wrong_type():
 
 def pushes_to_a_removed_placement():
     with xnano.new(width=8, height=1) as canvas:
-        placement = canvas.write('a')
+        placement = canvas.screen.write('a')
         namespace = placement.state
         placement.remove()
         namespace.push('x', 1)
@@ -259,16 +259,20 @@ def hooks_that_feed_each_other():
             ["on='click'", "mouse.kind == 'press'"],
         ),
         (
-            lambda: hook_with(when=False),
+            lambda: hook_with(on=False),
             TypeError,
-            ['when= received False', 'Keyboard.key == "q"'],
+            ['on= received False', 'Keyboard.key == "q"'],
         ),
         (
-            lambda: hook_with(when='banana'),
+            lambda: hook_with(on='banana > 3'),
             ValueError,
-            ["'banana'", 'column 0', 'The names are'],
+            ['banana is not a name', 'column 0', 'The names are'],
         ),
-        (lambda: hook_with(when='root.time > 3'), ValueError, ['no on=', 'on="tick"']),
+        (
+            lambda: hook_with(on='keys'),
+            ValueError,
+            ["on='keys'", "Did you mean 'key'", "on='app.keys'"],
+        ),
         (
             lambda: hook_with(requires_deps=True),
             TerminalError,
@@ -279,7 +283,7 @@ def hooks_that_feed_each_other():
             TerminalError,
             ['must yield nothing', 'context = yield', "on='tick'"],
         ),
-        (returns_content, TerminalError, ['cannot return content', '@xnano.renderable']),
+        (returns_content, TerminalError, ['cannot return content', '@xnano.writable']),
         (
             plays_an_unknown_name,
             ValueError,
@@ -290,7 +294,7 @@ def hooks_that_feed_each_other():
                 "symbol='kik_drum'",
             ],
         ),
-        (plays_a_pixel_name, TypeError, ['a Pixel symbol', 'Melody or a Sound']),
+        (plays_a_pixel_name, TypeError, ['a Pixel symbol', 'Melody or an Audio']),
         (
             lambda: xnano.note('H9'),
             ValueError,
@@ -310,7 +314,7 @@ def hooks_that_feed_each_other():
         (
             writes_a_component_that_needs_arguments,
             TypeError,
-            ['needs arguments', 'canvas.write(label_with_text(...))'],
+            ['needs arguments', 'canvas.screen.write(label_with_text(...))'],
         ),
         (
             declares_a_component_without_a_context,
@@ -320,21 +324,21 @@ def hooks_that_feed_each_other():
         (
             writes_something_that_only_plays,
             TypeError,
-            ['no __xnano_render__ method', 'canvas.play()', 'Use a string'],
+            ['no __xnano_write__ method', 'canvas.speaker.play()', 'Use a string'],
         ),
         (
             plays_something_that_only_renders,
             TypeError,
             [
                 'no __xnano_play__ method',
-                'canvas.write()',
+                'canvas.screen.write()',
                 'an object with __xnano_play__',
             ],
         ),
         (
             writes_a_component_that_returns_a_number,
             TypeError,
-            ['_ReturnsANumber.__xnano_render__ returned int', 'must return something'],
+            ['_ReturnsANumber.__xnano_write__ returned int', 'must return something'],
         ),
         (
             writes_a_component_that_renders_itself,
@@ -344,7 +348,7 @@ def hooks_that_feed_each_other():
         (
             writes_a_component_that_returns_a_canvas,
             TypeError,
-            ['canvas.write(child) directly'],
+            ['canvas.screen.write(child) directly'],
         ),
         (
             a_component_gate_that_is_off,
@@ -441,31 +445,45 @@ def test_the_error_teaches_the_recovery(raiser, error, parts):
             ['from 1 to 65535'],
         ),
         (lambda canvas: xnano.box(10**20, 3), TerminalError, ['65535']),
-        (lambda canvas: canvas.write('a', layer=10**20), ValueError, ['layer must be']),
-        (lambda canvas: canvas.write('a', padding=10**20), ValueError, ['at most 65535']),
-        (lambda canvas: canvas.write('a', margin=10**20), ValueError, ['at most 65535']),
+        (
+            lambda canvas: canvas.screen.write('a', layer=10**20),
+            ValueError,
+            ['layer must be'],
+        ),
+        (
+            lambda canvas: canvas.screen.write('a', padding=10**20),
+            ValueError,
+            ['at most 65535'],
+        ),
+        (
+            lambda canvas: canvas.screen.write('a', margin=10**20),
+            ValueError,
+            ['at most 65535'],
+        ),
         (
             lambda canvas: xnano.draw(['ab'], palette=5),
             TypeError,
             ['mapping', "'#=white"],
         ),
         (
-            lambda canvas: canvas.cursor.follow(canvas.write('a'), x=1.5),
+            lambda canvas: canvas.screen.cursor.follow(canvas.screen.write('a'), x=1.5),
             TypeError,
             ['whole'],
         ),
         (
-            lambda canvas: canvas.cursor.follow(canvas.write('a'), x=10**20),
+            lambda canvas: canvas.screen.cursor.follow(
+                canvas.screen.write('a'), x=10**20
+            ),
             ValueError,
             ['2147483647'],
         ),
         (
-            lambda canvas: setattr(canvas.cursor, 'position', (10**12, 2)),
+            lambda canvas: setattr(canvas.screen.cursor, 'position', (10**12, 2)),
             ValueError,
             ['whole numbers from'],
         ),
         (
-            lambda canvas: setattr(canvas.write('a'), 'layer', 10**20),
+            lambda canvas: setattr(canvas.screen.write('a'), 'layer', 10**20),
             ValueError,
             ['layer must be a whole number from'],
         ),
@@ -480,7 +498,7 @@ def test_a_number_out_of_range_says_what_to_pass(raiser, error, parts):
 
 def test_a_placement_size_above_the_most_cells_says_what_to_pass():
     with xnano.new(width=10, height=3) as canvas:
-        placement = canvas.write('a')
+        placement = canvas.screen.write('a')
         for value in (70000, 10**20):
             with pytest.raises(
                 ValueError, match='width must be a whole number of cells from 0 to 65535'
@@ -489,11 +507,11 @@ def test_a_placement_size_above_the_most_cells_says_what_to_pass():
             with pytest.raises(
                 ValueError, match='height must be a whole number of cells from 0 to 65535'
             ):
-                canvas.write('a', height=value)
+                canvas.screen.write('a', height=value)
         with pytest.raises(
             ValueError, match='write\\(\\) shows content of at most 65535'
         ):
-            canvas.write('a' * 10**6)
+            canvas.screen.write('a' * 10**6)
 
 
 def test_draw_refuses_a_row_longer_than_a_buffer_holds():
@@ -507,7 +525,7 @@ def _draw_with_effects(value):
 
 def _write_with_effects(value):
     with xnano.new(width=4, height=1) as canvas:
-        canvas.write('a', effects=value)
+        canvas.screen.write('a', effects=value)
 
 
 def _new_with_effects(value):
@@ -537,8 +555,8 @@ def test_a_percentage_that_is_not_a_size_says_what_to_pass(width):
         with pytest.raises(
             ValueError, match='width must be a whole number of cells from 0 to 65535'
         ):
-            canvas.write('a', width=width)
-        placement = canvas.write('a')
+            canvas.screen.write('a', width=width)
+        placement = canvas.screen.write('a')
         with pytest.raises(ValueError, match="share such as width='50%'"):
             placement.width = width
 
@@ -580,13 +598,14 @@ def test_pushing_a_key_is_taught_with_names_that_exist():
             canvas.push(5)
         assert 'canvas.input.keyboard' not in str(raised.value)
         assert hasattr(Event, 'key_press')
-        assert not hasattr(canvas.input, 'keyboard')
 
 
 @pytest.mark.parametrize('value', [5, ['key', 5], ('key', 'mouse')])
 def test_a_hook_kind_that_is_not_one_name_is_explained(value):
     with xnano.new(width=8, height=1) as canvas:
-        with pytest.raises(TypeError, match='takes one kind of hook as text'):
+        with pytest.raises(
+            TypeError, match='on= takes a kind of hook.*one hook for each'
+        ):
             canvas.hook(lambda context: None, on=value)
 
 
@@ -602,30 +621,30 @@ def test_resizing_a_slice_of_a_region_does_not_talk_about_a_canvas():
         box[0:2, 0:2].resize(1, 1)
     with xnano.new(width=4, height=2) as canvas:
         with pytest.raises(TerminalError, match='size of a canvas follows'):
-            canvas.region.resize(5, 5)
+            canvas.screen.region.resize(5, 5)
 
 
 def test_an_unknown_attribute_cannot_be_assigned():
     with xnano.new(width=8, height=2) as canvas:
-        placement = canvas.write('a')
+        placement = canvas.screen.write('a')
         for target, name in (
-            (canvas.cursor, 'is_visble'),
+            (canvas.screen.cursor, 'is_visble'),
             (canvas, 'titel'),
             (placement, 'is_bld'),
             (xnano.box(3, 3), 'border_colour'),
         ):
             with pytest.raises(AttributeError, match=f'no attribute called {name!r}'):
                 setattr(target, name, True)
-        canvas.cursor.is_visible = True
+        canvas.screen.cursor.is_visible = True
         placement.is_bold = True
-        canvas.title = 'ok'
+        canvas.screen.title = 'ok'
 
 
 def test_an_unknown_keyword_of_write_lists_the_settings():
     with xnano.new(width=8, height=2) as canvas:
-        with pytest.raises(TypeError, match='Canvas.write\\(\\) has no setting called'):
-            canvas.write('a', anchor='middle')
+        with pytest.raises(TypeError, match='Screen.write\\(\\) has no setting called'):
+            canvas.screen.write('a', anchor='middle')
         with pytest.raises(
             TypeError, match='Placement.write\\(\\) has no setting called'
         ):
-            canvas.write('a').write('b', bogus=1)
+            canvas.screen.write('a').write('b', bogus=1)

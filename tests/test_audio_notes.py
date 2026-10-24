@@ -25,7 +25,6 @@ from xnano_audio import (
 import xnano
 import xnano.audio._notes as notes_module
 import xnano.audio._player as player_module
-import xnano.types
 from xnano import symbols
 from xnano_core import Event
 
@@ -38,8 +37,8 @@ def canvas():
 
 
 def peak_after(canvas, seconds: float) -> float:
-    canvas.step(delta_seconds=seconds)
-    return max(abs(sample) for sample in canvas.audio.render_sound().samples())
+    canvas.clock.step(delta_seconds=seconds)
+    return max(abs(sample) for sample in canvas.speaker.render().samples())
 
 
 def crossings(sound: TerminalSound) -> int:
@@ -100,7 +99,7 @@ class TestNote:
     def test_every_instrument_can_be_a_note(self, canvas):
         assert instrument_names()
         for name in instrument_names():
-            canvas.play(xnano.note('C3', instrument=name, beats=0.2))
+            canvas.speaker.play(xnano.note('C3', instrument=name, beats=0.2))
             assert peak_after(canvas, 0.5) > 0.0, name
 
     def test_a_note_works_without_the_audio_package(self):
@@ -130,44 +129,48 @@ class TestNote:
 class TestPlaying:
     def test_a_note_lasts_for_its_beats_at_the_tempo(self):
         with xnano.new(width=8, height=1, bpm=60) as canvas:
-            canvas.play(xnano.note('A4', beats=2.0))
-            canvas.step(delta_seconds=1.0)
-            first = canvas.audio.render_sound()
-            canvas.step(delta_seconds=1.5)
-            second = canvas.audio.render_sound()
+            canvas.speaker.play(xnano.note('A4', beats=2.0))
+            canvas.clock.step(delta_seconds=1.0)
+            first = canvas.speaker.render()
+            canvas.clock.step(delta_seconds=1.5)
+            second = canvas.speaker.render()
             assert max(first.samples()) > 0.1
             assert max(second.samples()) > 0.1, 'still held after one beat at 60 bpm'
 
     def test_a_chord_sounds_all_its_pitches(self, canvas):
-        canvas.play(xnano.note('C4', instrument='sine', beats=0.4))
+        canvas.speaker.play(xnano.note('C4', instrument='sine', beats=0.4))
         single = crossings_of(canvas)
-        canvas.play(xnano.note(('C4', 'G5'), instrument='sine', beats=0.4))
+        canvas.speaker.play(xnano.note(('C4', 'G5'), instrument='sine', beats=0.4))
         chord = crossings_of(canvas)
         assert chord > single * 2
 
     def test_a_sequence_plays_one_note_after_another(self, canvas):
-        canvas.play(
+        canvas.speaker.play(
             [
                 xnano.note('C4', instrument='sine', beats=0.5),
                 xnano.note('C6', instrument='sine', beats=0.5),
             ]
         )
-        canvas.step(delta_seconds=0.25)
-        first = crossings(canvas.audio.render_sound())
-        canvas.step(delta_seconds=0.25)
-        second = crossings(canvas.audio.render_sound())
+        canvas.clock.step(delta_seconds=0.25)
+        first = crossings(canvas.speaker.render())
+        canvas.clock.step(delta_seconds=0.25)
+        second = crossings(canvas.speaker.render())
         assert second > first * 2, 'the second half is the higher note'
 
     def test_the_recording_of_a_sequence_starts_each_note_after_the_previous(
         self, canvas
     ):
-        canvas.play([xnano.note('C4', beats=1.0), xnano.note('E4', beats=2.0), 'G4'])
-        starts = [recording.start_seconds for recording in canvas.audio._recordings]
+        canvas.speaker.play(
+            [xnano.note('C4', beats=1.0), xnano.note('E4', beats=2.0), 'G4']
+        )
+        starts = [
+            recording.start_seconds for recording in canvas._audio_device()._recordings
+        ]
         assert starts == pytest.approx([0.0, 0.5, 1.5])
 
     def test_an_empty_sequence_is_refused(self, canvas):
         with pytest.raises(ValueError, match='empty sequence'):
-            canvas.play([])
+            canvas.speaker.play([])
 
     def test_an_option_replaces_the_value_on_a_note(self, canvas):
         calls: list[tuple[str, float, int]] = []
@@ -185,69 +188,71 @@ class TestPlaying:
 
         player_module.render_note = spy
         try:
-            canvas.play(xnano.note('C4', instrument='bell', velocity=0.3, beats=1.0))
-            canvas.play(
+            canvas.speaker.play(
+                xnano.note('C4', instrument='bell', velocity=0.3, beats=1.0)
+            )
+            canvas.speaker.play(
                 xnano.note('E4', instrument='bell', velocity=0.3, beats=1.0),
                 instrument='marimba',
                 velocity=0.9,
                 beats=0.5,
             )
-            canvas.step(delta_seconds=1.0)
-            canvas.audio.render_sound()
+            canvas.clock.step(delta_seconds=1.0)
+            canvas.speaker.render()
         finally:
             player_module.render_note = real
         assert sorted(calls) == [('bell', 0.3, 500), ('marimba', 0.9, 250)]
 
     def test_beats_set_the_length_of_a_note_name_and_of_melody_text(self, canvas):
-        canvas.play('C4 E4', beats=0.5)
-        canvas.play(60, beats=2.0)
+        canvas.speaker.play('C4 E4', beats=0.5)
+        canvas.speaker.play(60, beats=2.0)
         lengths = sorted(
             round(recording.end_seconds - recording.start_seconds - 1.0, 3)
-            for recording in canvas.audio._recordings
+            for recording in canvas._audio_device()._recordings
         )
         assert lengths == [0.5, 1.0]
 
     def test_effects_of_a_note_change_the_sound(self, canvas):
         plain = render_note('bell', 'C5')
         reverb = render_note('bell', 'C5', effects=[TerminalAudioEffect.reverb()])
-        canvas.play(
+        canvas.speaker.play(
             xnano.note('C5', instrument='bell', effects=[{'kind': 'audio.reverb'}])
         )
-        canvas.step(delta_seconds=1.0)
-        heard = canvas.audio.render_sound().samples()
+        canvas.clock.step(delta_seconds=1.0)
+        heard = canvas.speaker.render().samples()
         assert heard[:1000] != plain.samples()[:1000]
         assert heard[:1000] == pytest.approx(reverb.samples()[:1000], abs=1e-6)
 
     def test_a_visual_effect_in_a_sound_is_refused(self, canvas):
         with pytest.raises(TypeError, match='visual effect; pass it to write'):
-            canvas.play('C4', effects=[{'kind': 'effect.fade_to'}])
+            canvas.speaker.play('C4', effects=[{'kind': 'effect.fade_to'}])
 
     def test_a_handle_tells_when_the_sound_is_over(self, canvas):
-        handle = canvas.play(xnano.note('C4', beats=0.2))
+        handle = canvas.speaker.play(xnano.note('C4', beats=0.2))
         assert not handle.is_finished
-        canvas.step(delta_seconds=3.0)
+        canvas.clock.step(delta_seconds=3.0)
         assert handle.is_finished
 
     def test_removing_a_handle_silences_what_was_not_heard_yet(self, canvas):
-        handle = canvas.play(xnano.note('C4', beats=1.0))
+        handle = canvas.speaker.play(xnano.note('C4', beats=1.0))
         handle.remove()
         handle.remove()
         assert handle.is_finished
         assert peak_after(canvas, 1.0) == 0.0
 
     def test_play_returns_a_handle_everywhere(self, canvas):
-        assert isinstance(canvas.play('C4'), xnano.audio.PlayHandle)
-        assert isinstance(canvas.audio.play('C4'), xnano.audio.PlayHandle)
+        assert isinstance(canvas.speaker.play('C4'), xnano.audio.PlayHandle)
+        assert isinstance(canvas.speaker.play('C4'), xnano.audio.PlayHandle)
         assert isinstance(xnano.play('C4'), xnano.audio.PlayHandle)
 
     def test_a_thing_that_cannot_be_played_says_what_can(self, canvas):
         with pytest.raises(TypeError, match='Cannot play a object.*Note'):
-            canvas.play(object())  # type: ignore[arg-type]
+            canvas.speaker.play(object())  # type: ignore[arg-type]
 
 
 def crossings_of(canvas) -> int:
-    canvas.step(delta_seconds=0.5)
-    return crossings(canvas.audio.render_sound())
+    canvas.clock.step(delta_seconds=0.5)
+    return crossings(canvas.speaker.render())
 
 
 class TestPlayOnTheActiveCanvas:
@@ -261,8 +266,8 @@ class TestPlayOnTheActiveCanvas:
         outer = xnano.new(width=4, height=1)
         with xnano.new(width=4, height=1) as inner:
             xnano.play('C4')
-            assert len(inner.audio._recordings) == 1
-            assert outer.audio._recordings == []
+            assert len(inner._audio_device()._recordings) == 1
+            assert outer._audio_device()._recordings == []
         outer.close()
 
 
@@ -350,31 +355,33 @@ class TestSymbols:
     def test_a_registered_note_plays_by_name(self, canvas):
         xnano.note('C2', instrument='kick', symbol='kick_drum')
         assert symbols.lookup('kick_drum', kind=xnano.Note).instrument == 'kick'
-        canvas.play('kick_drum')
+        canvas.speaker.play('kick_drum')
         assert peak_after(canvas, 0.5) > 0.0
 
-    def test_a_registered_sound_plays_by_name(self, canvas):
+    def test_registered_audio_plays_by_name(self, canvas):
         sound = TerminalSound.from_samples([0.0, 0.5, -0.5, 0.0] * 100, sample_rate=44100)
-        xnano.load_sound(sound, symbol='blip')
-        canvas.play('blip')
+        xnano.Audio(sound, symbol='blip')
+        canvas.speaker.play('blip')
         assert peak_after(canvas, 0.1) > 0.4
 
     def test_a_symbol_is_found_inside_a_sequence_and_takes_options(self, canvas):
         xnano.note('C4', beats=1.0, symbol='low_tone')
-        canvas.play(['low_tone', 'low_tone'], beats=0.25)
-        starts = [recording.start_seconds for recording in canvas.audio._recordings]
+        canvas.speaker.play(['low_tone', 'low_tone'], beats=0.25)
+        starts = [
+            recording.start_seconds for recording in canvas._audio_device()._recordings
+        ]
         assert starts == pytest.approx([0.0, 0.125])
 
     def test_a_symbol_of_another_kind_is_not_a_sound(self, canvas):
         xnano.Pixel('#', symbol='wall_pixel')
         with pytest.raises(TypeError, match="'wall_pixel' is a Pixel symbol"):
-            canvas.play('wall_pixel')
+            canvas.speaker.play('wall_pixel')
 
     def test_an_unknown_name_lists_the_symbols_and_the_grammar(self, canvas):
         xnano.note('C2', symbol='kick_drum')
         xnano.note('C3', symbol='snare_drum')
         with pytest.raises(ValueError) as caught:
-            canvas.play('kik_drum')
+            canvas.speaker.play('kik_drum')
         message = str(caught.value)
         assert (
             "'kik_drum' is not a known sound symbol, a note name or melody text"
@@ -405,21 +412,21 @@ class TestRawForms:
     def test_a_terminal_note_melody_and_sound_play(self, canvas):
         from xnano_audio import TerminalMelody
 
-        canvas.play(TerminalNote('C4', duration_beats=0.5))
-        canvas.play(TerminalMelody([TerminalNote('E4')]))
-        canvas.play(render_note('bell', 'C6'))
-        assert len(canvas.audio._recordings) == 3
+        canvas.speaker.play(TerminalNote('C4', duration_beats=0.5))
+        canvas.speaker.play(TerminalMelody([TerminalNote('E4')]))
+        canvas.speaker.play(render_note('bell', 'C6'))
+        assert len(canvas._audio_device()._recordings) == 3
 
     def test_a_midi_number_and_a_frequency_play(self, canvas):
-        canvas.play(60)
-        canvas.play(440.0)
-        canvas.play('440hz')
+        canvas.speaker.play(60)
+        canvas.speaker.play(440.0)
+        canvas.speaker.play('440hz')
         assert peak_after(canvas, 1.0) > 0.0
 
     def test_a_sound_of_another_sample_rate_is_mixed_at_the_standard_rate(self, canvas):
         slow = TerminalSound.from_samples([0.5, -0.5] * 400, sample_rate=8000)
-        canvas.play(slow)
-        canvas.play('C4')
+        canvas.speaker.play(slow)
+        canvas.speaker.play('C4')
         assert peak_after(canvas, 0.2) > 0.0
 
 
@@ -444,13 +451,13 @@ class TestSoundEffectLists:
     def test_an_effect_object_is_not_a_sound_effect_entry(self, canvas):
         reverb = xnano.effect('audio.reverb')
         with pytest.raises(TypeError, match='write the effect as a dictionary'):
-            canvas.play('C4', effects=[reverb])  # type: ignore[list-item]
+            canvas.speaker.play('C4', effects=[reverb])  # type: ignore[list-item]
         with pytest.raises(TypeError, match='write the effect as a dictionary'):
             xnano.note('C4', effects=[reverb])  # type: ignore[list-item]
 
     def test_every_sound_kind_plays(self, canvas):
-        for kind in typing.get_args(xnano.types.PlayableEffectKind):
-            canvas.play(xnano.note('C4', beats=0.2, effects=[{'kind': kind}]))
+        for kind in typing.get_args(xnano.effects.PlayableEffectKind):
+            canvas.speaker.play(xnano.note('C4', beats=0.2, effects=[{'kind': kind}]))
         assert peak_after(canvas, 1.0) > 0.0
 
 
@@ -460,14 +467,14 @@ class TestHookSoundEffects:
         for key in press_keys:
             canvas.push(Event.key_press(key))
             canvas.deliver_events()
-        canvas.step(delta_seconds=1.0)
-        return canvas.audio.render_sound().samples()
+        canvas.clock.step(delta_seconds=1.0)
+        return canvas.speaker.render().samples()
 
     def test_a_sound_effect_of_a_hook_is_added_to_what_the_hook_plays(self, canvas):
         @canvas.hook(on='key')
         def ring(context):
             context.fx.reverb()
-            context.audio.play(xnano.note('C5', instrument='bell'))
+            context.speaker.play(xnano.note('C5', instrument='bell'))
 
         heard = self.hear(canvas)
         reverb = render_note('bell', 'C5', effects=[TerminalAudioEffect.reverb()])
@@ -479,13 +486,13 @@ class TestHookSoundEffects:
         @canvas.hook(on='key')
         def ring(context):
             context.fx.distortion()
-            context.canvas.play('C4')
-            context.audio.play('C4 E4')
-            context.canvas.play(render_note('bell', 'C6'))
+            context.canvas.speaker.play('C4')
+            context.speaker.play('C4 E4')
+            context.canvas.speaker.play(render_note('bell', 'C6'))
 
         canvas.push(Event.key_press('a'))
         canvas.deliver_events()
-        recordings = canvas.audio._recordings
+        recordings = canvas._audio_device()._recordings
         assert len(recordings) == 3
         for recording in recordings:
             assert 'distortion' in repr(recording.key).lower()
@@ -494,7 +501,7 @@ class TestHookSoundEffects:
         @canvas.hook(on='key')
         def ring(context):
             context.fx.tremolo()
-            context.audio.play(
+            context.speaker.play(
                 xnano.note('C5', instrument='bell', effects=[{'kind': 'audio.reverb'}])
             )
 
@@ -513,9 +520,9 @@ class TestHookSoundEffects:
 
         canvas.push(Event.key_press('a'))
         canvas.deliver_events()
-        canvas.play(xnano.note('C5', instrument='bell'))
-        canvas.step(delta_seconds=1.0)
-        heard = canvas.audio.render_sound().samples()
+        canvas.speaker.play(xnano.note('C5', instrument='bell'))
+        canvas.clock.step(delta_seconds=1.0)
+        heard = canvas.speaker.render().samples()
         plain = render_note('bell', 'C5')
         assert heard[:1000] == pytest.approx(plain.samples()[:1000], abs=1e-6)
 
@@ -525,7 +532,7 @@ class TestHookSoundEffects:
             if context.keyboard.key == 'a':
                 context.fx.reverb()
             else:
-                context.audio.play(xnano.note('C5', instrument='bell'))
+                context.speaker.play(xnano.note('C5', instrument='bell'))
 
         heard = self.hear(canvas, press_keys=('a', 'b'))
         reverb = render_note('bell', 'C5', effects=[TerminalAudioEffect.reverb()])
@@ -536,7 +543,7 @@ class TestHookSoundEffects:
         def ring(context):
             context.fx.reverb()
             context.fx.clear()
-            context.audio.play(xnano.note('C5', instrument='bell'))
+            context.speaker.play(xnano.note('C5', instrument='bell'))
 
         heard = self.hear(canvas)
         plain = render_note('bell', 'C5')
@@ -544,7 +551,7 @@ class TestHookSoundEffects:
 
     def test_removing_the_hook_stops_adding_the_effect(self, canvas):
         @canvas.hook(on='key')
-        def ring(context: xnano.context.Context) -> None:
+        def ring(context: xnano.hooks.Context) -> None:
             context.fx.reverb()
 
         canvas.push(Event.key_press('a'))
@@ -562,7 +569,7 @@ class TestHookSoundEffects:
 
         @canvas.hook(on='key', keys='b')
         def second(context):
-            context.audio.play(xnano.note('C5', instrument='bell'))
+            context.speaker.play(xnano.note('C5', instrument='bell'))
 
         heard = self.hear(canvas, press_keys=('a', 'b'))
         plain = render_note('bell', 'C5')
@@ -591,7 +598,7 @@ class TestHookSoundEffects:
         @canvas.hook(on='key')
         def ring(context):
             context.fx.fade_to(foreground='red', duration_milliseconds=100)
-            context.audio.play('C4')
+            context.speaker.play('C4')
             assert player_module._hook_effects(canvas) == ()
 
         canvas.push(Event.key_press('a'))

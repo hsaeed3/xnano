@@ -43,7 +43,7 @@ def actual_terminal(request: pytest.FixtureRequest) -> Iterator[ActualTerminal]:
     [
         """
 with xnano.open(title='xnano native title') as terminal:
-    terminal.write('NATIVE READY', x=3, y=2)
+    terminal.screen.write('NATIVE READY', x=3, y=2)
     terminal.run()
 print('RESTORED', flush=True)
 """
@@ -66,7 +66,7 @@ def test_title_drawing_input_and_alternate_screen_restoration(actual_terminal):
         """
 print('shell prompt', flush=True)
 with xnano.open(width=20, height=2) as terminal:
-    terminal.write('INLINE READY')
+    terminal.screen.write('INLINE READY')
     terminal.run()
 print('REGION CLEARED', flush=True)
 """
@@ -90,7 +90,7 @@ def test_inline_region_stays_below_existing_output_and_clears(actual_terminal):
         """
 import xnano.styles
 with xnano.open() as terminal:
-    terminal.write('COLOR READY', style=xnano.styles.Style(foreground=(255, 0, 0)))
+    terminal.screen.write('COLOR READY', style=xnano.styles.Style(foreground=(255, 0, 0)))
     print('CAPTURED OUTPUT', flush=True)
     terminal.run()
 """
@@ -118,9 +118,9 @@ def test_true_color_and_print_capture_reach_the_native_terminal(actual_terminal)
 with xnano.open() as terminal:
     @terminal.hook(on='resize')
     def observe(context):
-        terminal.clear()
-        terminal.write(f'RESIZED {context.size.width}x{context.size.height}')
-    terminal.write('RESIZE READY')
+        terminal.screen.clear()
+        terminal.screen.write(f'RESIZED {context.size.width}x{context.size.height}')
+    terminal.screen.write('RESIZE READY')
     terminal.run()
 """
     ],
@@ -141,11 +141,11 @@ def test_native_window_resize_reaches_xnano(actual_terminal):
 with xnano.open() as terminal:
     @terminal.hook
     def observe(context):
-        if context.clipboard.text is not None:
-            terminal.write(f'PASTED {context.clipboard.text}', y=1)
+        if context.keyboard.pasted is not None:
+            terminal.screen.write(f'PASTED {context.keyboard.pasted}', y=1)
         if context.keyboard.key is not None and context.keyboard.key == 'a':
-            terminal.write('KEY RECEIVED', y=2)
-    terminal.write('INPUT READY')
+            terminal.screen.write('KEY RECEIVED', y=2)
+    terminal.screen.write('INPUT READY')
     terminal.run()
 """
     ],

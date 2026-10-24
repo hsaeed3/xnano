@@ -10,8 +10,9 @@ import difflib
 import functools
 import inspect
 import math
+import re
 from collections import deque
-from collections.abc import Callable, Generator, Sequence
+from collections.abc import Awaitable, Callable, Generator, Sequence
 from typing import TYPE_CHECKING, Final, Generic, cast, overload
 
 import xnano_core as _core
@@ -21,13 +22,14 @@ if TYPE_CHECKING:
     from xnano._runtime._host import _Registration
     from xnano.canvas import Canvas
     from xnano.effects._controller import EffectState
-    from xnano.placement import Placement
+    from xnano.layout._placement import Placement
 
 from xnano._internal._dynamic_operations import DynamicOperation
 from xnano._schema._generics import DepsT, StateT
-from xnano._schema._hooks import Hook, HookKind, KeyName, When
-from xnano.context import Context, Frame, Update
+from xnano._schema._hooks import Hook, HookKind, HookTrigger, IfRunning, KeyName
 from xnano.errors import TerminalError
+from xnano.hooks._context import Context, Frame, Update
+from xnano.hooks._coroutines import CoroutineRuns
 from xnano.hooks._triggers import CompiledWhen, compile_when, normalize_binding
 from xnano.state import StateNamespace, _dotted, _HookRun, _StateFollower
 
@@ -47,12 +49,14 @@ _EVENT_KINDS: Final[dict[str | None, tuple[str, ...]]] = {
 
 _TIMED: Final = frozenset({'frame', 'tick', 'beat'})
 _LEGACY_ON: Final[dict[str, str]] = {
-    'click': "on='mouse', when=\"mouse.kind == 'press'\"",
+    'click': 'on="mouse.kind == \'press\'"',
     'immediate': "on='tick', after=0.0",
     'state_change': "on='state'",
     'update': "on='tick'",
 }
 _MAXIMUM_CATCH_UP: Final = 100_000
+_HELD_BUTTON_REPEAT_DELAY_SECONDS: Final = 0.15
+"""How long a mouse button is held after its press before a hook without ``on`` runs on frames."""
 
 
 def _is_finite(value: float) -> bool:
@@ -79,11 +83,11 @@ def _check_hook_function(
             f'hook() takes a function, such as hook(lambda context: ...) or a def with no '
             f'parameters, but got {function!r}. Pass the function itself, without calling it.'
         )
-    if inspect.iscoroutinefunction(function) or inspect.isasyncgenfunction(function):
+    if inspect.isasyncgenfunction(function):
         raise TypeError(
-            f'{name} is an async function, but a hook is a plain function or a generator '
-            f'function, which the canvas calls and which never waits. Write it with def, '
-            f'and hand slow work to another thread.'
+            f'{name} is an async generator, but a hook is a plain function, a generator '
+            f'function or an async def function. Write it with async def and await what it '
+            f'waits for, or write a generator with def and context = yield.'
         )
     try:
         signature = inspect.signature(function, follow_wrapped=False)
@@ -118,6 +122,16 @@ def _taking_leading_arguments(
     function: Callable[..., object], count: int
 ) -> Callable[..., object]:
     """Wrap ``function`` so that it is called with only the first ``count`` arguments."""
+    if inspect.iscoroutinefunction(function):
+
+        @functools.wraps(function)
+        async def coroutine_hook(*received: object) -> object:
+            return await cast('Callable[..., Awaitable[object]]', function)(
+                *received[:count]
+            )
+
+        return coroutine_hook
+
     if inspect.isgeneratorfunction(function):
 
         @functools.wraps(function)
@@ -131,6 +145,122 @@ def _taking_leading_arguments(
         return function(*received[:count])
 
     return plain_hook
+
+
+_CONDITION_SCOPES: Final = frozenset(
+    {'keyboard', 'mouse', 'scroll', 'buffer', 'parent', 'root', 'time', 'deps'}
+)
+"""The names a condition string reads; a custom event's name starts with none of them."""
+
+_EVENT_NAME: Final = re.compile(r'[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)*')
+
+_INPUT_KINDS: Final[dict[str, str]] = {
+    'keyboard': 'key',
+    'mouse': 'mouse',
+    'scroll': 'scroll',
+}
+"""The kind of hook that hears the one input a condition string reads."""
+
+
+def _is_one_edit_away(text: str, word: str) -> bool:
+    """Whether ``text`` is ``word`` with one letter added, dropped, changed or swapped."""
+    if abs(len(text) - len(word)) > 1 or text == word:
+        return False
+    if len(text) == len(word):
+        differences = [
+            index for index, (a, b) in enumerate(zip(text, word, strict=True)) if a != b
+        ]
+        return len(differences) == 1 or (
+            len(differences) == 2
+            and differences[1] == differences[0] + 1
+            and text[differences[0]] == word[differences[1]]
+            and text[differences[1]] == word[differences[0]]
+        )
+    shorter, longer = sorted((text, word), key=len)
+    return any(
+        longer[:index] + longer[index + 1 :] == shorter for index in range(len(longer))
+    )
+
+
+def resolve_trigger(
+    on: object,
+    *,
+    every: float | None,
+    after: float | None,
+    keys: object,
+) -> tuple[HookKind | None, object]:
+    """
+    Read the ``on`` of a hook as the kind of event it hears and the condition it checks.
+
+    Returns:
+        The kind (``None`` for every input event) and the condition (``None`` for none), in
+        the forms the hook machinery takes.
+
+    Raises:
+        TypeError: ``on`` is a ``bool`` or not a kind, a name or a condition.
+        ValueError: ``on`` is a kind that no longer exists, or one letter away from a kind.
+    """
+    kinds = ', '.join(repr(kind) for kind in (*_EVENT_KINDS, *_TIMED) if kind)
+    if on is None:
+        return None, None
+    if isinstance(on, bool):
+        raise TypeError(
+            f'on= received {on}. That is what `is` and `and` give on an expression. Build the '
+            f'condition with ==, & and |, for example on=Keyboard.key == "q", or write it as a '
+            f'string, on="keyboard.key == \'q\'".'
+        )
+    if isinstance(on, str):
+        if on in _EVENT_KINDS or on in _TIMED:
+            return cast('HookKind', on), None
+        legacy = _LEGACY_ON.get(on)
+        if legacy is not None:
+            raise ValueError(
+                f'on={on!r} is not a kind of hook. Use hook({legacy}) instead. The kinds '
+                f'are {kinds}.'
+            )
+        if _EVENT_NAME.fullmatch(on) and on.split('.', 1)[0] not in _CONDITION_SCOPES:
+            close = [
+                kind
+                for kind in (*_EVENT_KINDS, *_TIMED)
+                if kind and '.' not in on and _is_one_edit_away(on, kind)
+            ]
+            if close:
+                raise ValueError(
+                    f'on={on!r} is not a kind of hook. Did you mean {close[0]!r}? To hear a '
+                    f'custom event of that name, give it a name with a dot, such as '
+                    f"Event.custom('app.{on}') heard with on='app.{on}'. The kinds are {kinds}."
+                )
+            return 'custom', _custom_event_named(on)
+    elif not (isinstance(on, _core.Expression) or callable(on)):
+        raise TypeError(
+            f"on= takes a kind of hook such as on='key', the name of a custom event such as "
+            f"on='volume_changed', or a condition (a string, an expression or a function of "
+            f'the context), but got {on!r} of type {type(on).__name__}. To listen to several '
+            f'kinds, register one hook for each.'
+        )
+    # A condition: the kind follows what it is checked on, or the one input it reads.
+    if keys is not None:
+        return 'key', on
+    if every is not None or after is not None:
+        return 'tick', on
+    if isinstance(on, str):
+        inputs = compile_when(on).reads & set(_INPUT_KINDS)
+        if len(inputs) == 1:
+            return cast('HookKind', _INPUT_KINDS[next(iter(inputs))]), on
+        if not inputs:
+            return 'tick', on
+    return None, on
+
+
+def _custom_event_named(name: str) -> Callable[[Context[object, object]], bool]:
+    """The condition that holds for a custom event of one name."""
+
+    def is_named(context: Context[object, object]) -> bool:
+        event = context.event
+        return getattr(event, 'custom_name', None) == name
+
+    is_named.__name__ = f'is_custom_event_{name}'
+    return is_named
 
 
 def _check_hook_arguments(
@@ -204,7 +334,7 @@ def _check_hook_arguments(
     if on == 'resize' and hasattr(owner, '_parent_owner'):
         raise ValueError(
             'resize events are reported to the canvas; register this hook on the canvas '
-            "with canvas.hook(on='resize') and read context.canvas.size for the window, or "
+            "with canvas.hook(on='resize') and read context.canvas.screen.size for the window, or "
             'context.region for the cells inside its border and padding.'
         )
     if keys is None:
@@ -251,18 +381,21 @@ class HookHandle(Generic[DepsT, StateT]):
         every: float | None,
         after: float | None,
         keys: tuple[str, ...],
+        if_running: IfRunning = 'replace',
     ) -> None:
         """
         Attach a function to a canvas or placement. Use ``hook`` instead of calling this.
 
         Args:
             owner: The canvas or placement the hook listens on.
-            function: The function to call with a [`Context`][xnano.context.Context].
+            function: The function to call with a [`Context`][xnano.hooks.Context].
             on: When the hook runs.
             when: The compiled condition.
             every: Seconds (``'tick'``) or beats (``'beat'``) between runs.
             after: Seconds or beats before the one run.
             keys: The normalized keys of an ``on='key'`` hook.
+            if_running: What an ``async def`` hook does when it is called again while its
+                previous run has not finished.
         """
         self._owner = owner
         self.function = function
@@ -273,10 +406,19 @@ class HookHandle(Generic[DepsT, StateT]):
         self._keys = keys
         self._removed = False
         self._is_generator_function = inspect.isgeneratorfunction(function)
+        # The runs of an async def hook, which happen on an event loop.
+        self._coroutine_runs: CoroutineRuns | None = (
+            CoroutineRuns(if_running) if inspect.iscoroutinefunction(function) else None
+        )
         self._generator: Generator[None, Context[DepsT, StateT], None] | None = None
         self._core_hook: _core.Hook | None = None
         self._registration: _Registration | None = None
         self._stop_frames: Callable[[], None] | None = None
+        # A hook without on= also runs on every frame while a mouse button it heard is held,
+        # once the button has been held for a short delay after its press.
+        self._stop_held_button_frames: Callable[[], None] | None = None
+        self._has_heard_input_since_frame = False
+        self._held_button_pressed_at_seconds = 0.0
         self._due: float | None = None
         self._is_captured = False
         self._own_revisions: deque[int] = deque(maxlen=4)
@@ -305,6 +447,9 @@ class HookHandle(Generic[DepsT, StateT]):
             inspect.GEN_RUNNING
         ):
             generator.close()
+        coroutine_runs = self._coroutine_runs
+        if coroutine_runs is not None:
+            coroutine_runs.cancel()
         registrations = self._owner._registrations
         if self in registrations:
             registrations.remove(self)
@@ -325,6 +470,7 @@ class HookHandle(Generic[DepsT, StateT]):
         self._stop_frames = None
         if stop_frames is not None:
             stop_frames()
+        self._stop_following_held_button()
         canvas = self._owner._canvas
         canvas._unfollow_state(self)
         plugin_state = self._plugin_state
@@ -450,7 +596,9 @@ class HookHandle(Generic[DepsT, StateT]):
 
     def _beat_seconds(self) -> float:
         beats = self._after if self._after is not None else self._every
-        return (1.0 if beats is None else beats) * 60.0 / self._owner._canvas.bpm
+        return (
+            (1.0 if beats is None else beats) * 60.0 / self._owner._canvas._clock_view.bpm
+        )
 
     def _arm(self, seconds: Callable[[], float]) -> None:
         """Call this hook once the seconds ``seconds()`` gives have passed on the canvas clock."""
@@ -573,8 +721,66 @@ class HookHandle(Generic[DepsT, StateT]):
                 if not should_run:
                     return
             self._run(context, is_predicate_checked=is_predicate_checked)
+            if kind is None:
+                self._follow_held_button(event)
         except Exception as error:
             self._fail(event, error)
+
+    def _follow_held_button(
+        self, event: _core.Event | _core.TerminalStateChange | None
+    ) -> None:
+        """
+        After a pointer event, run this hook on every frame while a mouse button is held.
+
+        The frames during a short delay after a press stay quiet, so a quick click runs the
+        hook only for the press and the release.
+        """
+        self._has_heard_input_since_frame = True
+        if self._removed:
+            return
+        mouse = event.mouse if isinstance(event, _core.Event) else None
+        if mouse is None or mouse.kind == 'scroll':
+            return
+        is_following = self._stop_held_button_frames is not None
+        if is_following and mouse.kind != 'press':
+            return
+        canvas = self._owner._canvas
+        self._held_button_pressed_at_seconds = canvas._time_source.elapsed_seconds
+        if is_following:
+            return
+        state = canvas._input_state
+        if state is None or not state.is_mouse_down:
+            return
+        self._stop_held_button_frames = canvas._on_frame(self._on_held_button_frame)
+
+    def _on_held_button_frame(self, frame: Frame) -> None:
+        """Run once on a frame that brought this hook no input, while a button is held."""
+        if self._removed:
+            return
+        state = self._owner._canvas._input_state
+        if state is None or not state.is_mouse_down:
+            self._stop_following_held_button()
+            return
+        if self._has_heard_input_since_frame:
+            # The input this hook heard during the frame was its run for the frame.
+            self._has_heard_input_since_frame = False
+            return
+        held_seconds = frame.elapsed_seconds - self._held_button_pressed_at_seconds
+        if held_seconds < _HELD_BUTTON_REPEAT_DELAY_SECONDS:
+            return
+        try:
+            if self._passes_expression():
+                self._run(self._context(None, frame))
+        except Exception as error:
+            self._fail(frame, error)
+
+    def _stop_following_held_button(self) -> None:
+        """Stop the runs on every frame that a held mouse button started."""
+        stop = self._stop_held_button_frames
+        self._stop_held_button_frames = None
+        self._has_heard_input_since_frame = False
+        if stop is not None:
+            stop()
 
     def _handle_pointer(
         self,
@@ -625,10 +831,17 @@ class HookHandle(Generic[DepsT, StateT]):
         run.begin()
         run.handle = cast('HookHandle[object, object]', self)
         canvas._active_run = run
+        canvas._runs_in_progress += 1
         try:
             predicate = self._when.predicate
             if predicate is None or is_predicate_checked or predicate(context):
-                if self._is_generator_function:
+                coroutine_runs = self._coroutine_runs
+                if coroutine_runs is not None:
+                    coroutine_runs.start(
+                        cast('HookHandle[object, object]', self),
+                        cast('Context[object, object]', context),
+                    )
+                elif self._is_generator_function:
                     self._advance(context)
                 else:
                     result = self.function(context)
@@ -638,6 +851,7 @@ class HookHandle(Generic[DepsT, StateT]):
             run.discard()
             raise
         finally:
+            canvas._runs_in_progress -= 1
             canvas._active_run = previous
         self._finish_run(canvas, run)
 
@@ -746,12 +960,12 @@ class HookHandle(Generic[DepsT, StateT]):
         if isinstance(result, (_core.Operation, _core.Style)):
             owner.update(result)  # type: ignore[attr-defined]
             return
-        if isinstance(result, (str, _core.Buffer)) or hasattr(result, '__xnano_render__'):
+        if isinstance(result, (str, _core.Buffer)) or hasattr(result, '__xnano_write__'):
             name = getattr(self.function, '__name__', 'hook')
             raise TerminalError(
                 f'The hook {name} returned content to draw, but a hook cannot return '
-                f'content. Use @xnano.renderable for content that changes, or write it '
-                f'with canvas.write(...).'
+                f'content. Use @xnano.writable for content that changes, or write it '
+                f'with canvas.screen.write(...).'
             )
 
     def _fail(self, event: object, error: BaseException) -> None:
@@ -777,7 +991,7 @@ class _Hooked(Generic[DepsT, StateT]):
     def __init__(self) -> None:
         """
         Prepare the list of hooks. Used by [`Canvas`][xnano.canvas.Canvas] and
-        [`Placement`][xnano.placement.Placement].
+        [`Placement`][xnano.layout.Placement].
         """
         self._registrations: list[HookHandle[DepsT, StateT]] = []
 
@@ -791,36 +1005,36 @@ class _Hooked(Generic[DepsT, StateT]):
         function: Hook[DepsT, StateT],
         /,
         *,
-        on: HookKind | None = None,
-        when: When[DepsT, StateT] | None = None,
+        on: HookTrigger[DepsT, StateT] | None = None,
         every: float | None = None,
         after: float | None = None,
         keys: KeyName | Sequence[KeyName] | None = None,
         requires_deps: bool = False,
+        if_running: IfRunning = 'replace',
     ) -> HookHandle[DepsT, StateT]: ...
     @overload
     def hook(
         self,
         /,
         *,
-        on: HookKind | None = None,
-        when: When[DepsT, StateT] | None = None,
+        on: HookTrigger[DepsT, StateT] | None = None,
         every: float | None = None,
         after: float | None = None,
         keys: KeyName | Sequence[KeyName] | None = None,
         requires_deps: bool = False,
+        if_running: IfRunning = 'replace',
     ) -> Callable[[Hook[DepsT, StateT]], HookHandle[DepsT, StateT]]: ...
     def hook(
         self,
         function: Hook[DepsT, StateT] | None = None,
         /,
         *,
-        on: HookKind | None = None,
-        when: When[DepsT, StateT] | None = None,
+        on: HookTrigger[DepsT, StateT] | None = None,
         every: float | None = None,
         after: float | None = None,
         keys: KeyName | Sequence[KeyName] | None = None,
         requires_deps: bool = False,
+        if_running: IfRunning = 'replace',
     ) -> (
         HookHandle[DepsT, StateT]
         | Callable[[Hook[DepsT, StateT]], HookHandle[DepsT, StateT]]
@@ -828,16 +1042,39 @@ class _Hooked(Generic[DepsT, StateT]):
         """
         Call a function when something happens on this canvas or placement.
 
-        ``on`` says what to listen to. A hook without ``on`` hears every input event. A mouse,
+        ``on`` says when the hook runs: a kind of event such as ``'key'`` or ``'tick'``, the
+        name of an event pushed with ``Event.custom(name)``, or a condition such as
+        ``"mouse.kind == 'press'"`` (see [`HookTrigger`][xnano.hooks.HookTrigger]). A hook
+        without ``on`` hears every input event. A mouse,
         scroll or drag hook on a placement hears only the pointer inside the placement, and a
         press inside holds the pointer for the hook until the button is released. A pointer hook
         that matches an event stops it from reaching the parent; a hook that does not match lets
         it through. Keys are not consumed: while nothing has focus, every key hook hears a key.
 
+        A hook hears only the input the screen reports. A hook added to a canvas that is
+        already on the screen turns no terminal setting on, so one that needs input the screen
+        does not report, such as ``on='mouse'`` on a canvas opened without ``mouse=True``, is
+        attached and never runs.
+
         ``hook(function, ...)`` attaches one function, and ``@target.hook(...)`` decorates the
         function that follows. A hook function may be a generator that receives a new context
         at each bare ``yield``: write ``context = yield``. A drag is a loop that runs while
         ``context.mouse.is_down``.
+
+        A hook without ``on`` hears every input event. While a mouse button it heard is held,
+        it also runs on every frame once the button has been held for 0.15 seconds, so a
+        quick click runs it only for the press and the release. A release names its button
+        in ``context.mouse.button``; test ``context.mouse.is_down`` to leave the release out.
+
+        A hook function may also be written with ``async def``. Each time the hook runs, its
+        coroutine starts on the event loop the canvas was created or opened in, and on
+        xnano's own background loop when there is none, and the canvas goes on drawing while
+        it awaits. ``if_running`` says what happens when the hook runs again before the
+        previous run has finished. A canvas with a manual clock (from ``new()``) needs an event
+        loop of its own for that: create it in a coroutine or use ``async with`` on it.
+        [`wait_for_tasks_async`][xnano.canvas.Canvas.wait_for_tasks_async] waits until every
+        run has finished. A run that raises ends the canvas like a plain hook that raises; a
+        cancelled run is not a failure.
 
         ``every`` and ``after`` are seconds for ``on='tick'`` and beats for ``on='beat'``:
         ``every=2`` means 2 seconds for a tick hook and 2 beats for a beat hook. On a canvas
@@ -847,27 +1084,29 @@ class _Hooked(Generic[DepsT, StateT]):
         style or an effect, which is applied to this target.
 
         Args:
-            function: The function to call with a [`Context`][xnano.context.Context], or a
+            function: The function to call with a [`Context`][xnano.hooks.Context], or a
                 function with no parameters, which is called without it.
-            on: What to listen to: ``'frame'``, ``'tick'``, ``'beat'``, ``'key'``, ``'mouse'``,
-                ``'scroll'``, ``'drag'``, ``'paste'``, ``'focus'``, ``'resize'``, ``'state'``
-                or ``'custom'``. See [`HookKind`][xnano.hooks.HookKind].
-            when: A condition that must hold: an expression, a function of the context, or a
-                string. See [`When`][xnano.hooks.When]. A string tells xnano which input
-                the hook needs, so ``mouse`` and ``scroll`` are turned on when the canvas
-                opens (with ``paste``, those are the only settings that turn on by
-                themselves). A string that reads key releases needs
-                ``keyboard='release_events'`` given to ``new()`` or ``open()``; opening the
-                canvas without it raises a [`TerminalError`][xnano.errors.TerminalError] that
-                names the setting. An expression or a function does not tell xnano what it
-                reads, so a condition that reads ``Mouse``, ``Scroll`` or key releases needs
-                that terminal setting given to ``new()`` or ``open()`` yourself:
-                ``mouse=True``, ``scroll=True`` or ``keyboard='release_events'``. A
-                comparison with an input the event does not carry, such as ``keyboard.key``
-                on a paste, does not hold; ``!=`` is one of them, so
-                ``keyboard.key != 'q'`` hears only key events. ``not`` and ``not in``
-                negate the whole comparison, so ``not keyboard.key == 'q'`` and
-                ``keyboard.key not in ['q']`` also hold for events that have no key.
+            on: When the hook runs. A kind: ``'frame'``, ``'tick'``, ``'beat'``, ``'key'``,
+                ``'mouse'``, ``'scroll'``, ``'drag'``, ``'paste'``, ``'focus'``, ``'resize'``,
+                ``'state'`` or ``'custom'`` (every custom event); see
+                [`HookKind`][xnano.hooks.HookKind]. The name of a custom event, such as
+                ``'volume_changed'``. Or a condition: a string, an expression or a function of
+                the context; see [`When`][xnano.hooks.When]. A string that reads one input
+                hears only that input (``"mouse.kind == 'press'"`` is a mouse hook, and hears
+                the pointer inside a placement), a string that reads no input is checked on
+                every tick, and a string tells xnano which terminal settings the hook needs,
+                so ``mouse`` and ``scroll`` turn on when the canvas opens. A string that reads
+                key releases needs ``keyboard='release_events'`` given to ``new()`` or
+                ``open()``. An expression or a function hears every input event and does not
+                tell xnano what it reads, so one that reads ``Mouse``, ``Scroll`` or key
+                releases needs ``mouse=True``, ``scroll=True`` or
+                ``keyboard='release_events'`` given to ``new()`` or ``open()`` yourself. With
+                ``every``, ``after`` or ``keys`` a condition is checked on those ticks or keys.
+                A comparison with an input the event does not carry, such as ``keyboard.key``
+                on a paste, does not hold; ``!=`` is one of them, so ``keyboard.key != 'q'``
+                hears only key events. ``not`` and ``not in`` negate the whole comparison, so
+                ``not keyboard.key == 'q'`` and ``keyboard.key not in ['q']`` also hold for
+                events that have no key.
             every: Repeat every this many seconds (``'tick'``) or beats (``'beat'``).
             after: Run once after this many seconds (``'tick'``) or beats (``'beat'``).
             keys: The key or keys an ``on='key'`` hook reacts to, such as ``'q'`` or
@@ -875,19 +1114,25 @@ class _Hooked(Generic[DepsT, StateT]):
                 test ``keyboard.kind`` to hear releases.
             requires_deps: Whether the hook needs the dependencies given to
                 ``new(deps=...)``.
+            if_running: For an ``async def`` hook, what happens when it runs again while
+                its previous run has not finished: ``'replace'`` cancels that run (the
+                latest wins), ``'ignore'`` drops the new one, ``'queue'`` runs them one after
+                the other and ``'overlap'`` runs them together. See
+                [`IfRunning`][xnano.hooks.IfRunning].
 
         Returns:
-            The hook, whose ``remove`` stops it; or, without a function, the decorator.
+            The hook, whose ``remove`` stops it; removing it cancels the unfinished runs of
+            an ``async def`` hook. Without a function, the decorator.
 
         Raises:
             ValueError: The combination of arguments does not make sense, a key name is
-                unknown, or a ``when`` string is not a condition. The message says what to
-                write instead.
-            TypeError: ``on`` is not text, ``when`` is a plain ``bool``, or the function is not callable with a
-                context, or is an ``async`` function.
+                unknown, a condition string is not a condition, ``on`` is one letter away
+                from a kind, or ``if_running`` is given to a function that is not
+                ``async def``. The message says what to write instead.
+            TypeError: ``on`` is a plain ``bool`` or not a kind, a name or a condition, or the
+                function is not callable with a context, or is an async generator.
             TerminalError: ``requires_deps`` is true and the canvas was created without
-                ``deps``, or the canvas is on a screen with a terminal setting this hook
-                needs turned off.
+                ``deps``, or an ``async def`` hook has no event loop to run on.
 
         Examples:
             ```python
@@ -906,23 +1151,16 @@ class _Hooked(Generic[DepsT, StateT]):
                     heard.append('tick')
 
                 canvas.push(Event.key_press('q'))
-                canvas.step(delta_seconds=1.0)
+                canvas.clock.step(delta_seconds=1.0)
                 assert heard == ['q', 'tick', 'tick']
             ```
         """
         canvas = self._canvas
         self._require_attached()
         owner = cast('_Hooked[object, object]', self)
-        normalized_keys = _check_hook_arguments(owner, on, every, after, keys)
-        compiled = compile_when(when)
-        if on is None and not compiled.is_opaque and compiled.reads:
-            if not compiled.reads & {'keyboard', 'mouse', 'scroll'}:
-                raise ValueError(
-                    'when reads time, the size of the parent or deps, but a hook with no on= is '
-                    'only checked when an input event arrives. Add on="tick" or '
-                    'on="frame" so it is checked as time passes, or read an input in the '
-                    'condition.'
-                )
+        kind, condition = resolve_trigger(on, every=every, after=after, keys=keys)
+        normalized_keys = _check_hook_arguments(owner, kind, every, after, keys)
+        compiled = compile_when(condition)
         if requires_deps and not canvas._deps_given:
             raise TerminalError(
                 'This hook needs dependencies (requires_deps=True), but the canvas has none '
@@ -931,19 +1169,21 @@ class _Hooked(Generic[DepsT, StateT]):
                 'canvas.open(deps=your_dependencies) before you register this hook.'
             )
 
+        _check_if_running(if_running)
+
         def attach(
             callback: Hook[DepsT, StateT],
         ) -> HookHandle[DepsT, StateT]:
+            checked = _check_hook_function(callback)
+            _check_coroutine_hook(owner, checked, kind, if_running)
             return self._attach_hook(
-                cast(
-                    'Callable[[Context[DepsT, StateT]], object]',
-                    _check_hook_function(callback),
-                ),
-                on=on,
+                cast('Callable[[Context[DepsT, StateT]], object]', checked),
+                on=kind,
                 when=compiled,
                 every=every,
                 after=after,
                 keys=normalized_keys,
+                if_running=if_running,
             )
 
         if function is None:
@@ -959,14 +1199,19 @@ class _Hooked(Generic[DepsT, StateT]):
         every: float | None,
         after: float | None,
         keys: tuple[str, ...],
+        if_running: IfRunning = 'replace',
     ) -> HookHandle[DepsT, StateT]:
-        from xnano.terminal._settings import check_gates
-
         self._require_attached()
         handle: HookHandle[DepsT, StateT] = HookHandle(
-            self, function, on=on, when=when, every=every, after=after, keys=keys
+            self,
+            function,
+            on=on,
+            when=when,
+            every=every,
+            after=after,
+            keys=keys,
+            if_running=if_running,
         )
-        check_gates(self._canvas, handle)
         if on == 'state':
             # A state change pushed right after this call must reach the hook, so it
             # subscribes before the call returns.
@@ -1009,6 +1254,64 @@ class _Hooked(Generic[DepsT, StateT]):
 
 def _hook_name(function: Callable[..., object]) -> str:
     return getattr(function, '__name__', 'hook')
+
+
+_IF_RUNNING: Final = ('replace', 'ignore', 'queue', 'overlap')
+
+
+def _check_if_running(if_running: object) -> None:
+    """Refuse an ``if_running`` that is not one of its words."""
+    if if_running not in _IF_RUNNING:
+        close = difflib.get_close_matches(str(if_running), _IF_RUNNING, n=1)
+        hint = f' Did you mean {close[0]!r}?' if close else ''
+        raise ValueError(
+            f'if_running must be one of {", ".join(repr(word) for word in _IF_RUNNING)}, '
+            f'but was {if_running!r}.{hint}'
+        )
+
+
+def _check_if_running_fits(
+    function: Callable[..., object], if_running: IfRunning
+) -> None:
+    """Refuse an ``if_running`` other than the default for a function that is not async."""
+    if if_running != 'replace' and not inspect.iscoroutinefunction(function):
+        name = _hook_name(function)
+        raise ValueError(
+            f'if_running={if_running!r} says what an async def hook does while its '
+            f'previous run has not finished, but {name} is a plain function, which always '
+            f'finishes before it runs again. Remove if_running, or write {name} with '
+            f'async def.'
+        )
+
+
+def _check_coroutine_hook(
+    owner: _Hooked[object, object],
+    function: Callable[..., object],
+    kind: HookKind | None,
+    if_running: IfRunning,
+) -> None:
+    """Refuse an ``async def`` hook that could not run, and ``if_running`` on a plain one."""
+    name = _hook_name(function)
+    if not inspect.iscoroutinefunction(function):
+        _check_if_running_fits(function, if_running)
+        return
+    if kind == 'state':
+        raise ValueError(
+            f"{name} is an async def hook, which cannot follow state with on='state': the "
+            f'state it reads after an await is not known when the hook is registered. '
+            f'Follow the state with a plain function and start the async work from it, or '
+            f'read the state in an async def hook that runs on another kind of event.'
+        )
+    root = owner._canvas._canvas
+    if not root._host.is_autonomous and root._event_loop is None:
+        raise TerminalError(
+            f'{name} is an async def hook, but this canvas has a manual clock and no event '
+            f'loop to run it on, because it was created outside a coroutine. Create the '
+            f'canvas inside a coroutine (such as async def main() run with '
+            f'asyncio.run(main())), enter it with async with, or create it with '
+            f'realtime=True, whose async def hooks run on a background event loop.',
+            code='canvas.loop',
+        )
 
 
 def _event_of(core_context: CoreContext) -> _core.Event | None:

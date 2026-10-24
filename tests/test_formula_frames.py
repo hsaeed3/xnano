@@ -43,7 +43,7 @@ def frames_while_waiting(canvas, counter) -> int:
 class TestFormulaFrames:
     def test_a_static_formula_leaves_the_canvas_idle(self, frame_counter):
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
-            placement = canvas.write('ab')
+            placement = canvas.screen.write('ab')
             placement.x = ParentWidth - Width
             placement.width = Width + 0
             assert frames_while_waiting(canvas, frame_counter) == 0
@@ -51,30 +51,30 @@ class TestFormulaFrames:
 
     def test_a_static_range_leaves_the_canvas_idle(self, frame_counter):
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
-            placement = canvas.write('ab')
+            placement = canvas.screen.write('ab')
             placement.x = (0, ParentWidth - Width)
             assert frames_while_waiting(canvas, frame_counter) == 0
 
     def test_a_formula_that_reads_the_clock_keeps_drawing(self, frame_counter):
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
-            placement = canvas.write('ab')
+            placement = canvas.screen.write('ab')
             placement.x = (ParentWidth - Width) * ((TimeElapsed / 2) % 1.0)
             assert frames_while_waiting(canvas, frame_counter) >= KEEPS_DRAWING_FRAMES
 
     def test_a_formula_that_reads_the_canvas_time_keeps_drawing(self, frame_counter):
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
-            placement = canvas.write('ab')
-            placement.x = (canvas.time / 2 % 1.0) * 30
+            placement = canvas.screen.write('ab')
+            placement.x = (canvas.clock / 2 % 1.0) * 30
             assert frames_while_waiting(canvas, frame_counter) >= KEEPS_DRAWING_FRAMES
 
     def test_a_formula_that_reads_the_audio_beat_keeps_drawing(self, frame_counter):
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
-            placement = canvas.write('ab')
-            placement.x = (canvas.audio.beat % 1) * 19
+            placement = canvas.screen.write('ab')
+            placement.x = (canvas.clock.beats.position % 1) * 19
             assert frames_while_waiting(canvas, frame_counter) >= KEEPS_DRAWING_FRAMES
 
     def test_a_formula_that_reads_the_audio_level_keeps_drawing(self, frame_counter):
         with xnano.new(width=40, height=5, realtime=True, fps=30) as canvas:
-            placement = canvas.write('ab')
-            placement.x = canvas.audio.level * 19
+            placement = canvas.screen.write('ab')
+            placement.x = canvas.microphone.level * 19
             assert frames_while_waiting(canvas, frame_counter) >= KEEPS_DRAWING_FRAMES

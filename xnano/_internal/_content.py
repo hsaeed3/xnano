@@ -19,12 +19,12 @@ from xnano.art._images import Image, ImageAnimation, image_buffer
 from xnano.errors import TerminalError
 
 if TYPE_CHECKING:
-    from xnano.context import Context
+    from xnano.hooks._context import Context
 
 __all__ = ['check_context_method', 'content_buffer']
 
 
-class _NotRenderable(TypeError):
+class _NotWritable(TypeError):
     """Raised for content that cannot be shown; remembers the offending object."""
 
     def __init__(self, message: str, content: object) -> None:
@@ -51,16 +51,16 @@ def content_buffer(
 
     Args:
         content: A buffer or widget, text, a region, art, a pixel, an image, an object with an
-            ``__xnano_render__`` method, or a sequence of those.
+            ``__xnano_write__`` method, or a sequence of those.
         columns: The width in cells of an image.
         rows: The height in cells of an image.
         limit: The largest area an image may take when neither size is given.
         elapsed_seconds: The clock time at which an animated image starts.
-        context: What ``__xnano_render__`` methods are called with.
+        context: What ``__xnano_write__`` methods are called with.
 
     Raises:
         TypeError: The content is not something that can be shown.
-        TerminalError: A render method returns itself again and again.
+        TerminalError: An ``__xnano_write__`` method returns itself again and again.
     """
     try:
         return _content_buffer(
@@ -72,7 +72,7 @@ def content_buffer(
             context=context,
             _chain=(),
         )
-    except _NotRenderable as error:
+    except _NotWritable as error:
         raise TypeError(str(error)) from None
 
 
@@ -82,7 +82,8 @@ _CHECKED_METHODS: weakref.WeakSet[object] = weakref.WeakSet()
 
 def check_context_method(content: object, name: str) -> None:
     """
-    Refuse an ``__xnano_render__`` or ``__xnano_play__`` method that cannot take the context.
+    Refuse an ``__xnano_write__``, ``__xnano_render__`` or ``__xnano_play__`` method that cannot
+    take the context.
 
     A method that passes is remembered, so a component drawn every frame is inspected once.
 
@@ -97,14 +98,13 @@ def check_context_method(content: object, name: str) -> None:
         inspect.signature(method).bind(None)
     except TypeError:
         kind = type(content).__name__
-        produces = (
-            'what it plays, such as a Note or melody text'
-            if name == '__xnano_play__'
-            else 'the content'
-        )
+        produces = {
+            '__xnano_play__': 'return what it plays, such as a Note or melody text',
+            '__xnano_render__': 'draw on context.screen',
+        }.get(name, 'return the content')
         raise TypeError(
             f'{kind}.{name} must take the context, but it cannot be called with one. '
-            f'Write def {name}(self, context): ... and return {produces}.'
+            f'Write def {name}(self, context): ... and {produces}.'
         ) from None
     except ValueError:
         return
@@ -133,7 +133,7 @@ def _content_buffer(
     if isinstance(content, (bytes, bytearray)):
         raise TypeError(
             'write() does not accept raw bytes. Write the cell buffer instead: '
-            'canvas.write(Buffer.from_cell_grid(data)), or for picture bytes use '
+            'canvas.screen.write(Buffer.from_cell_grid(data)), or for picture bytes use '
             'xnano.load_image(data) or xnano.draw(data, width=..., height=...).'
         )
     if isinstance(content, os.PathLike):
@@ -155,26 +155,26 @@ def _content_buffer(
     if is_image(content):
         raise TypeError(
             'write() does not accept a TerminalImage directly. Wrap it: '
-            'canvas.write(Image(terminal_image)), or load a file with xnano.load_image(path).'
+            'canvas.screen.write(Image(terminal_image)), or load a file with xnano.load_image(path).'
         )
     from xnano.canvas import Canvas
 
     if isinstance(content, Canvas):
         raise TypeError(
-            'A canvas is written with canvas.write(child) directly; a component or a '
+            'A canvas is written with canvas.screen.write(child) directly; a component or a '
             'sequence cannot contain one.'
         )
-    if not isinstance(content, type) and hasattr(content, '__xnano_render__'):
+    if not isinstance(content, type) and hasattr(content, '__xnano_write__'):
         kind = type(content)
         if len(_chain) >= _MAXIMUM_RENDER_DEPTH:
             names = ' -> '.join(item.__name__ for item in (*_chain, kind))
             raise TerminalError(
-                f'{kind.__name__}.__xnano_render__ keeps returning something that renders '
+                f'{kind.__name__}.__xnano_write__ keeps returning something that renders '
                 f'again ({names}). Return text, a Region, an Art, a Buffer or another '
                 f'finished value instead of an object that renders itself.'
             )
-        check_context_method(content, '__xnano_render__')
-        result = content.__xnano_render__(context)  # type: ignore[arg-type]
+        check_context_method(content, '__xnano_write__')
+        result = content.__xnano_write__(context)  # type: ignore[arg-type]
         try:
             return _content_buffer(
                 result,
@@ -185,13 +185,13 @@ def _content_buffer(
                 context=context,
                 _chain=(*_chain, kind),
             )
-        except _NotRenderable as error:
+        except _NotWritable as error:
             if error.content is not result:
                 raise
             raise TypeError(
-                f'{kind.__name__}.__xnano_render__ returned {type(result).__name__}, but it '
+                f'{kind.__name__}.__xnano_write__ returned {type(result).__name__}, but it '
                 f'must return something write() accepts: text, a Region, an Art, a Pixel, an '
-                f'Image, a Buffer, an object with __xnano_render__, or a sequence of those.'
+                f'Image, a Buffer, an object with __xnano_write__, or a sequence of those.'
             ) from None
     if isinstance(content, Sequence):
         return _stack(
@@ -203,16 +203,22 @@ def _content_buffer(
             context=context,
             chain=_chain,
         ), None
-    missing = (
-        ' It has an __xnano_play__ method but no __xnano_render__ method, so it can be '
-        'played with canvas.play() but not written.'
-        if hasattr(content, '__xnano_play__')
-        else ' It has no __xnano_render__ method.'
-    )
-    raise _NotRenderable(
+    if hasattr(content, '__xnano_render__'):
+        missing = (
+            ' It is a renderable, which has a screen of its own, so it is written on its '
+            'own with canvas.screen.write(), not as part of other content such as a list.'
+        )
+    elif hasattr(content, '__xnano_play__'):
+        missing = (
+            ' It has an __xnano_play__ method but no __xnano_write__ method, so it can be '
+            'played with canvas.speaker.play() but not written.'
+        )
+    else:
+        missing = ' It has no __xnano_write__ method.'
+    raise _NotWritable(
         f'Cannot show a {type(content).__name__}.{missing} Use a string, a Region, an Art, '
         f'a Pixel, an xnano.Image (made with xnano.load_image(path)), a Buffer or widget, '
-        f'an object with an __xnano_render__ method, or a sequence of those.',
+        f'an object with an __xnano_write__ method, or a sequence of those.',
         content,
     )
 
@@ -243,8 +249,8 @@ def _stack(
     if any(animation is not None for _, animation in results):
         raise TypeError(
             'An animated image cannot be shown inside a sequence, because only its first '
-            'frame would be drawn. Write it on its own with canvas.write(image), or return '
-            'it by itself from __xnano_render__ instead of in a list.'
+            'frame would be drawn. Write it on its own with canvas.screen.write(image), or return '
+            'it by itself from __xnano_write__ instead of in a list.'
         )
     buffers = [buffer for buffer, _ in results]
     stacked = _core.Buffer(

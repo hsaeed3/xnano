@@ -19,8 +19,13 @@ TerminalErrorCode: TypeAlias = Literal[
     'canvas.thread',
     'canvas.timeout',
     'canvas.callback',
+    'canvas.loop',
     'screen.already_open',
     'screen.unavailable',
+    'ai.model',
+    'ai.generation',
+    'ai.event_loop',
+    'ai.asset',
 ]
 """
 The label of a [`TerminalError`][xnano.errors.TerminalError]: what kind of problem it is.
@@ -36,6 +41,14 @@ The label of a [`TerminalError`][xnano.errors.TerminalError]: what kind of probl
 - ``'canvas.thread'``: the canvas was used from a thread it does not belong to.
 - ``'canvas.timeout'``: the canvas's loop did not answer in time.
 - ``'canvas.callback'``: a hook or another callback raised on the canvas's loop.
+- ``'canvas.loop'``: an ``async def`` hook has no event loop to run on.
 - ``'screen.already_open'``: another canvas is already on the screen.
 - ``'screen.unavailable'``: there is no terminal to draw on.
+- ``'ai.model'``: a language or decision model could not be reached or did not answer.
+- ``'ai.generation'``: a model answered, but its answer could not be made into what was
+  asked for, even after the retries.
+- ``'ai.event_loop'``: a blocking model call was made where waiting would freeze an event
+  loop or the screen.
+- ``'ai.asset'``: a library of examples is not installed, or could not be downloaded or
+  installed.
 """

@@ -9,17 +9,14 @@ from __future__ import annotations
 
 import difflib
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
 from xnano._internal._axes import check_edges
 from xnano._schema._generics import DepsT, StateT
-from xnano.appearance._look import APPEARANCE_NAMES, check_border_kind
 from xnano.canvas import Canvas, _check_appearance, _check_bpm, _check_fps
 from xnano.effects._registry import effect_sequence, normalize_effect
 from xnano.errors import TerminalError
-
-if TYPE_CHECKING:
-    from xnano.hooks._handles import HookHandle
+from xnano.styles._look import APPEARANCE_NAMES, check_border_kind
 
 GATE_NAMES: Final = frozenset(
     {
@@ -170,7 +167,7 @@ def appearance_with_content_error(
     first = sorted(appearance)[0]
     return TypeError(
         f'These keywords style the canvas itself, not its content: {names}. Pass them to '
-        f'canvas.write(content, {first}=...) to style the content, or call {function_name}() '
+        f'canvas.screen.write(content, {first}=...) to style the content, or call {function_name}() '
         f'without content to style the canvas.'
     )
 
@@ -243,8 +240,8 @@ def parse_open_settings(
         parsed['edges'] = check_edges(parsed['edges'])
     if 'effects' in parsed:
         parsed['effects'] = [
-            normalize_effect(specification, 'renderable')
-            for specification in effect_sequence(parsed['effects'], 'renderable')
+            normalize_effect(specification, 'writable')
+            for specification in effect_sequence(parsed['effects'], 'writable')
         ]
     if appearance:
         # A bad value is reported here, before the screen is claimed.
@@ -272,20 +269,3 @@ def gates_for_screen(
         elif gate in INFERRED_GATES:
             resolved[gate] = True
     return resolved
-
-
-def check_gates(canvas: Canvas[DepsT, StateT], handle: HookHandle[DepsT, StateT]) -> None:
-    """Refuse a hook that a canvas on the screen could never deliver events to."""
-    canvas = canvas._canvas
-    if not canvas._is_live:
-        return
-    for gate in handle._needed_gates():
-        if not is_gate_on(gate, canvas._resolved_gates):
-            raise TerminalError(
-                gate_message(
-                    hook_label(handle.function),
-                    gate,
-                    'this canvas, which is already on the screen,',
-                    canvas._resolved_gates,
-                )
-            )

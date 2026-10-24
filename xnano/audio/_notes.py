@@ -30,10 +30,10 @@ if TYPE_CHECKING:
     from xnano_audio import InstrumentName, Pitch, TerminalAudioPlayer
 
     from xnano._schema._content import PlaySource
+    from xnano._schema._effects import PlayableEffectSpecification
     from xnano._schema._media import PlayOptions
-    from xnano.context import Context
-    from xnano.region import Region
-    from xnano.types import PlayableEffectSpecification
+    from xnano.hooks._context import Context
+    from xnano.layout._region import Region
 
 __all__ = ['Note', 'PlayHandle', 'note', 'play']
 
@@ -142,7 +142,7 @@ class Note:
 
     A note is a plain value. It needs no sound device, no canvas and not even the ``audio``
     extra to be created, so a song can be defined at the top of a module and played later
-    with [`play`][xnano.play] or [`Canvas.play`][xnano.canvas.Canvas.play]. A sequence of
+    with [`play`][xnano.play] or [`Speaker.play`][xnano.devices.Speaker.play]. A sequence of
     notes plays one after another. ``symbol`` registers the note under a name, so
     ``play('kick')`` finds it.
 
@@ -159,7 +159,7 @@ class Note:
         symbol: The name the note is registered under in [`symbols`][xnano.symbols], or
             ``None``.
         region: The note on the timeline as a piano roll: a
-            [`Region`][xnano.region.Region] that starts at beat 0, lasts ``beats`` and spans
+            [`Region`][xnano.layout.Region] that starts at beat 0, lasts ``beats`` and spans
             the semitones from the lowest to the highest pitch.
 
     Raises:
@@ -180,9 +180,9 @@ class Note:
         assert chord.region.ticks.width == 8.0
         assert chord.region.milliseconds.width == 1000.0
         with xnano.new(width=8, height=1) as canvas:
-            canvas.play([chord, xnano.note('C5')])
-            canvas.step(delta_seconds=1.0)
-            assert canvas.audio.render_sound().duration_milliseconds == 1000.0
+            canvas.speaker.play([chord, xnano.note('C5')])
+            canvas.clock.step(delta_seconds=1.0)
+            assert canvas.speaker.render().duration_milliseconds == 1000.0
         ```
     """
 
@@ -288,7 +288,7 @@ class Note:
             assert (region.y, region.height) == (69, 1)
             ```
         """
-        from xnano.region import _timeline_region
+        from xnano.layout._region import _timeline_region
 
         pitches = self.pitch if isinstance(self.pitch, tuple) else (self.pitch,)
         return _timeline_region(
@@ -316,7 +316,7 @@ def note(
     Make a [`Note`][xnano.Note]: a pitch, or several for a chord, with its length and sound.
 
     Nothing is played and no sound device is needed. Play it with [`play`][xnano.play] or
-    [`Canvas.play`][xnano.canvas.Canvas.play]. ``symbol='kick'`` registers the note, and then
+    [`Speaker.play`][xnano.devices.Speaker.play]. ``symbol='kick'`` registers the note, and then
     ``play('kick')`` plays it.
 
     Args:
@@ -342,9 +342,9 @@ def note(
 
         kick = xnano.note('C2', instrument='kick', symbol='kick_drum')
         with xnano.new(width=8, height=1) as canvas:
-            canvas.play('kick_drum')
-            canvas.step(delta_seconds=0.5)
-            assert canvas.audio.render_sound().peak > 0.0
+            canvas.speaker.play('kick_drum')
+            canvas.clock.step(delta_seconds=0.5)
+            assert canvas.speaker.render().peak > 0.0
         ```
     """
     chord = (
@@ -376,7 +376,7 @@ class PlayHandle:
         import xnano
 
         with xnano.new(width=8, height=1) as canvas:
-            handle = canvas.play(xnano.note('C4', beats=1.0))
+            handle = canvas.speaker.play(xnano.note('C4', beats=1.0))
             assert not handle.is_finished
             handle.remove()
             assert handle.is_finished
@@ -448,7 +448,7 @@ class PlayHandle:
         Stop the sound from playing any further, as far as it has not been heard yet.
 
         On a canvas from [`new`][xnano.new] the part that has not been rendered by
-        [`render_sound`][xnano.audio.AudioDevice.render_sound] is dropped. On a device a sound
+        [`render_sound`][xnano.devices.Speaker.render] is dropped. On a device a sound
         that was already handed to the output plays to its end, and one still waiting for its
         beat never starts. Removing twice does nothing.
         """
@@ -466,7 +466,7 @@ def play(playable: PlaySource, /, **options: Unpack[PlayOptions]) -> PlayHandle:
     The sound goes to the running canvas (see [`active`][xnano.active]); with no canvas
     running it goes to this computer's sound output. On a canvas from [`new`][xnano.new],
     which has a clock you move, the sound is recorded and makes no noise: read it with
-    ``canvas.audio.render_sound()``.
+    ``canvas.speaker.render()``.
 
     A ``str`` is a symbol name first, so ``play('kick')`` plays the note or sound registered
     with ``symbol='kick'``. Any other ``str`` is a note name such as ``'C#4'``, a frequency such
@@ -478,7 +478,7 @@ def play(playable: PlaySource, /, **options: Unpack[PlayOptions]) -> PlayHandle:
 
     Args:
         playable: What to play.
-        **options: See [`PlayOptions`][xnano.types.PlayOptions]: ``instrument``, ``velocity``,
+        **options: See [`PlayOptions`][xnano.devices.PlayOptions]: ``instrument``, ``velocity``,
             ``effects``, ``volume``, ``pan``, ``at_beat`` and ``beats``, the length in beats
             of a note name, a number or a ``Note``.
 
@@ -499,15 +499,15 @@ def play(playable: PlaySource, /, **options: Unpack[PlayOptions]) -> PlayHandle:
 
         with xnano.new(width=8, height=1) as canvas:
             xnano.play([xnano.note('C4'), xnano.note('E4'), xnano.note('G4')])
-            canvas.step(delta_seconds=1.5)
-            assert canvas.audio.render_sound().peak > 0.0
+            canvas.clock.step(delta_seconds=1.5)
+            assert canvas.speaker.render().peak > 0.0
         ```
     """
     from xnano.canvas import active
 
     canvas = active(is_required=False)
     if canvas is not None:
-        return canvas.play(playable, **options)
+        return canvas.speaker.play(playable, **options)
     return _default_player().play(playable, **options)
 
 
@@ -561,7 +561,7 @@ class _DefaultPlayer:
                 raise _player.TerminalAudioUnavailableError(
                     'xnano.play needs a sound output device, but this computer has none that '
                     'can be opened. Play on a canvas from xnano.new(), which records the '
-                    'sound for canvas.audio.render_sound().'
+                    'sound for canvas.speaker.render().'
                 ) from None
             atexit.register(self.close)
         return self._player

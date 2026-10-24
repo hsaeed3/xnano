@@ -1,7 +1,7 @@
 """
 tests.test_standalone_write
 
-``xnano.write()`` takes what ``canvas.write()`` takes and measures it where it is created.
+``xnano.write()`` takes what ``canvas.screen.write()`` takes and measures it where it is created.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from xnano_image import TerminalImage
 
 import xnano
 from xnano.errors import TerminalError
-from xnano.region import Region
+from xnano.layout import Region
 from xnano.widgets import Gauge
 from xnano_core import Buffer, ParentWidth, TimeElapsed
 
@@ -42,13 +42,13 @@ class TestText:
 
     def test_placement_keywords_stay_on_the_later_write(self):
         for name in ('x', 'y', 'layer', 'lock', 'edges', 'effects'):
-            with pytest.raises(TypeError, match=r'canvas\.write\(region'):
+            with pytest.raises(TypeError, match=r'canvas\.screen\.write\(region'):
                 xnano.write(Gauge(0.5), **{name: 1})  # type: ignore[arg-type]
 
     def test_unsupported_content_says_what_to_pass(self):
         with pytest.raises(TypeError, match=r'xnano\.write\(\) takes text'):
             xnano.write(5)  # type: ignore[arg-type]
-        with pytest.raises(TypeError, match='canvas.write'):
+        with pytest.raises(TypeError, match='canvas.screen.write'):
             xnano.write({'a': 1})  # type: ignore[arg-type]
 
 
@@ -81,9 +81,9 @@ class TestContent:
         assert region.render(format='ansi').count('\x1b') > 0
 
     def test_a_component_reads_the_canvas_it_is_made_in(self):
-        @xnano.renderable
+        @xnano.writable
         def label(context: xnano.Context) -> str:
-            return f'{context.canvas.width} wide'
+            return f'{context.canvas.screen.width} wide'
 
         with xnano.new(width=33, height=3):
             assert xnano.write(label).render().strip() == '33 wide'
@@ -97,7 +97,7 @@ class TestContent:
 
     def test_a_region_given_a_size_or_look_is_refused(self):
         original = xnano.write('abc')
-        with pytest.raises(TerminalError, match=r'canvas\.write\(region, width='):
+        with pytest.raises(TerminalError, match=r'canvas\.screen\.write\(region, width='):
             xnano.write(original, width=9)
         with pytest.raises(TerminalError, match='its own'):
             xnano.write(original, border='plain')
@@ -109,7 +109,7 @@ class TestContent:
 
     def test_a_canvas_is_refused(self):
         with xnano.new(width=4, height=2) as canvas:
-            with pytest.raises(TerminalError, match=r'outer\.write\(canvas\)'):
+            with pytest.raises(TerminalError, match=r'outer\.screen\.write\(canvas\)'):
                 xnano.write(canvas)  # type: ignore[arg-type]
 
     @pytest.mark.parametrize(
@@ -122,7 +122,9 @@ class TestContent:
         assert 'xnano.write()' in str(caught.value)
 
     def test_a_formula_that_reads_the_clock_is_refused(self):
-        with pytest.raises(TerminalError, match=r'canvas\.write\(region, height='):
+        with pytest.raises(
+            TerminalError, match=r'canvas\.screen\.write\(region, height='
+        ):
             xnano.write(Gauge(0.5), height=TimeElapsed * 3)
 
 
@@ -152,35 +154,35 @@ class TestContext:
     def test_nothing_is_left_on_the_active_canvas(self):
         with xnano.new(width=20, height=3) as canvas:
             xnano.write(Gauge(0.5), width='50%')
-            assert canvas.render().strip() == ''
+            assert canvas.screen.render().strip() == ''
 
     def test_a_widget_region_is_written_into_a_canvas(self):
         with xnano.new(width=40, height=4) as canvas:
             region = xnano.write(Gauge(0.6, label='60%'), width='50%')
-            placement = canvas.write(region, x=10)
+            placement = canvas.screen.write(region, x=10)
             assert (placement.x, placement.width) == (10, 20)
-            assert '60%' in canvas.render().splitlines()[0]
+            assert '60%' in canvas.screen.render().splitlines()[0]
 
     def test_an_empty_relative_box_is_measured_again_where_it_is_written(self):
         region = xnano.write(None, width='50%', height=1, border='plain')
         with xnano.new(width=40, height=4) as small:
-            assert small.write(region).width == 20
+            assert small.screen.write(region).width == 20
         with xnano.new(width=80, height=4) as large:
-            placement = large.write(region)
+            placement = large.screen.write(region)
             assert placement.width == 40
             large._runtime.resize(width=60, height=4)
             large.deliver_events()
-            large.output.render()
+            large.screen.output.render()
             assert placement.width == 30
 
 
 class TestActiveCanvasIsUntouched:
     def test_a_column_canvas_keeps_its_placements_and_children(self):
         with xnano.new(width=20, height=6, layout='column') as canvas:
-            first = canvas.write('top')
-            second = canvas.write('bottom')
+            first = canvas.screen.write('top')
+            second = canvas.screen.write('bottom')
             before = (first.y, second.y, first.height, second.height)
-            text = canvas.render()
+            text = canvas.screen.render()
             placements = len(canvas._placements)
             children = len(canvas._children)
             region = xnano.write(Gauge(0.5, label='half'), width='50%')
@@ -188,15 +190,15 @@ class TestActiveCanvasIsUntouched:
             assert (first.y, second.y, first.height, second.height) == before
             assert len(canvas._placements) == placements
             assert len(canvas._children) == children
-            assert canvas.render() == text
+            assert canvas.screen.render() == text
 
     def test_a_formula_reads_the_clock_of_the_active_canvas(self):
-        @xnano.renderable
+        @xnano.writable
         def seconds(context: xnano.Context) -> str:
-            return f'{context.time.elapsed:.0f}s'
+            return f'{context.clock.elapsed:.0f}s'
 
         with xnano.new(width=20, height=3, fps=10) as canvas:
-            canvas.step(delta_seconds=2)
+            canvas.clock.step(delta_seconds=2)
             assert xnano.write(seconds).render().strip() == '2s'
 
     def test_a_state_reference_reads_the_state_of_the_active_canvas(self):
@@ -206,6 +208,6 @@ class TestActiveCanvasIsUntouched:
 
         with xnano.new(width=30, height=3, state=Sizes(), fps=10) as canvas:
             canvas.state.wide = 9
-            canvas.step()
+            canvas.clock.step()
             reference = canvas.state_reference(lambda state: state.wide)
             assert xnano.write(Gauge(0.5), width=reference).width == 9
