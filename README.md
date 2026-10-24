@@ -51,16 +51,16 @@ import xnano
 from xnano.widgets import Gauge
 
 with xnano.open(width=40, height=6) as terminal:
-    terminal.write(
+    terminal.screen.write(
         'Hello, world!', x='center', border='rounded', padding={'horizontal': 2}
     )
-    terminal.write(Gauge(0.6, label='60%'), y=4, width='100%')
-    terminal.run(quit_on='q')
+    terminal.screen.write(Gauge(0.6, label='60%'), y=4, width='100%')
+    terminal.run(stop_on='q')
 ```
 
-### Move things with formulas
+### Move things with expressions
 
-A position from `xnano.expressions` is a formula that is evaluated again on
+A position from `xnano.expressions` is an expression that is evaluated again on
 every frame.
 
 ```python
@@ -68,9 +68,9 @@ import xnano
 from xnano.expressions import ParentWidth, TimeElapsed, Width
 
 with xnano.open(width=40, height=3) as terminal:
-    ball = terminal.write('●', y=1)
+    ball = terminal.screen.write('●', y=1)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 ```
 
 ### React with hooks
@@ -81,13 +81,13 @@ A hook runs a function when a key, the mouse, the clock or the state changes.
 import xnano
 
 with xnano.open(width=30, height=3) as terminal:
-    label = terminal.write('press space', x='center', y=1)
+    label = terminal.screen.write('press space', x='center', y=1)
 
     @terminal.hook(on='key', keys='space')
     def pressed(context: xnano.Context) -> None:
-        label.text = f'space at {context.time.elapsed:.1f}s'
+        label.text = f'space at {context.clock.elapsed_seconds:.1f}s'
 
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 ```
 
 ### Add effects
@@ -98,11 +98,11 @@ with xnano.open(width=30, height=3) as terminal:
 import xnano
 
 with xnano.open(width=40, height=5) as terminal:
-    title = terminal.write('xnano', x='center', y='center', border='rounded')
+    title = terminal.screen.write('xnano', x='center', y='center', border='rounded')
     title.update(
         xnano.effect('effect.fade_from', foreground='black', duration_milliseconds=1500)
     )
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 ```
 
 ### Draw art and play sound
@@ -113,7 +113,7 @@ needs `pip install "xnano[audio]"`.
 ```python
 import xnano
 
-heart = xnano.draw(
+heart = xnano.pixel_art(
     """
     .RR.RR.
     RRRRRRR
@@ -125,11 +125,11 @@ heart = xnano.draw(
 )
 
 with xnano.open(width=20, height=5) as terminal:
-    terminal.write(heart, x='center')
-    terminal.write('♪ C4 E4 G4', x='center', y=4)
-    if terminal.audio.is_available:
-        terminal.play('C4 E4 G4:2', instrument='bell')
-    terminal.run(quit_on='q')
+    terminal.screen.write(heart, x='center')
+    terminal.screen.write('♪ C4 E4 G4', x='center', y=4)
+    if terminal.speaker.is_available:
+        terminal.speaker.play('C4 E4 G4:2', instrument='bell')
+    terminal.run(stop_on='q')
 ```
 
 ## Install
@@ -140,7 +140,7 @@ You can install `xnano` with pip using your favorite package manager.
 pip install xnano
 ```
 
-To run untrusted or model-written Python against a canvas with `xnano.monty`,
+To run untrusted or model-written Python against a canvas with `xnano.sandbox`,
 add the `monty` extra: `pip install "xnano[monty]"`.
 
 `xnano` and its paired `xnano-core` dependency can be installed on Python 3.10+

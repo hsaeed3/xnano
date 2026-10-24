@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 
     card = Buffer('hello', width=8, height=2)
     with xnano.new(width=12, height=3) as canvas:
-        canvas.write(card, x=2, y=1)
-        assert canvas.render().splitlines()[1] == '  hello'
+        canvas.screen.write(card, x=2, y=1)
+        assert canvas.screen.render().splitlines()[1] == '  hello'
     ```
     """
 
@@ -46,9 +46,9 @@ if TYPE_CHECKING:
     buffer = Buffer(width=3, height=1)
     buffer[1, 0] = Cell('x', foreground='red')
     with xnano.new(width=3, height=1) as canvas:
-        canvas.write(buffer)
+        canvas.screen.write(buffer)
         assert buffer[1, 0].symbol == 'x'
-        assert canvas.render() == ' x'
+        assert canvas.screen.render() == ' x'
     ```
     """
 

@@ -9,8 +9,8 @@ with ``'effect.'``, such as ``'effect.fade_to'``) or a sound effect (a kind that
 hook that returns it, or an ``effects=[...]`` list, and assigning one of its fields changes
 the effect while it runs.
 
-The ``.fx`` properties of placements, canvases, ``canvas.audio`` and ``context`` start an effect
-by name instead: ``placement.fx.fade_to(...)``, ``canvas.audio.fx.reverb(...)`` and
+The ``.fx`` properties of placements, canvases, ``canvas.speaker`` and ``context`` start an effect
+by name instead: ``placement.fx.fade_to(...)``, ``canvas.speaker.fx.reverb(...)`` and
 ``context.fx.fade_to(...)``. An ``effects=[...]`` list takes each effect as a dictionary with
 its ``kind``, such as ``{'kind': 'effect.fade_to', 'foreground': 'red'}``.
 
@@ -22,9 +22,174 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal, overload
 
+from xnano._schema._effects import (
+    BitCrushAudioEffectParametersSchema as BitCrushAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    BitCrushAudioEffectSpecification as BitCrushAudioEffectSpecification,
+)
+from xnano._schema._effects import (
+    CoalesceEffectParametersSchema as CoalesceEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    CoalesceEffectSpecification as CoalesceEffectSpecification,
+)
+from xnano._schema._effects import (
+    DarkenEffectParametersSchema as DarkenEffectParametersSchema,
+)
+from xnano._schema._effects import DarkenEffectSpecification as DarkenEffectSpecification
+from xnano._schema._effects import (
+    DelayAudioEffectParametersSchema as DelayAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    DelayAudioEffectSpecification as DelayAudioEffectSpecification,
+)
+from xnano._schema._effects import (
+    DissolveEffectParametersSchema as DissolveEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    DissolveEffectSpecification as DissolveEffectSpecification,
+)
+from xnano._schema._effects import (
+    DistortionAudioEffectParametersSchema as DistortionAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    DistortionAudioEffectSpecification as DistortionAudioEffectSpecification,
+)
 from xnano._schema._effects import EffectKind as EffectKind
+from xnano._schema._effects import EffectSpecification as EffectSpecification
+from xnano._schema._effects import (
+    EvolveEffectParametersSchema as EvolveEffectParametersSchema,
+)
+from xnano._schema._effects import EvolveEffectSpecification as EvolveEffectSpecification
+from xnano._schema._effects import (
+    EvolveFromEffectParametersSchema as EvolveFromEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    EvolveFromEffectSpecification as EvolveFromEffectSpecification,
+)
+from xnano._schema._effects import (
+    EvolveIntoEffectParametersSchema as EvolveIntoEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    EvolveIntoEffectSpecification as EvolveIntoEffectSpecification,
+)
+from xnano._schema._effects import (
+    ExpandEffectParametersSchema as ExpandEffectParametersSchema,
+)
+from xnano._schema._effects import ExpandEffectSpecification as ExpandEffectSpecification
+from xnano._schema._effects import (
+    ExplodeEffectParametersSchema as ExplodeEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    ExplodeEffectSpecification as ExplodeEffectSpecification,
+)
+from xnano._schema._effects import (
+    FadeFromEffectParametersSchema as FadeFromEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    FadeFromEffectSpecification as FadeFromEffectSpecification,
+)
+from xnano._schema._effects import (
+    FadeToEffectParametersSchema as FadeToEffectParametersSchema,
+)
+from xnano._schema._effects import FadeToEffectSpecification as FadeToEffectSpecification
+from xnano._schema._effects import (
+    GlitchEffectParametersSchema as GlitchEffectParametersSchema,
+)
+from xnano._schema._effects import GlitchEffectSpecification as GlitchEffectSpecification
+from xnano._schema._effects import (
+    HighPassAudioEffectParametersSchema as HighPassAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    HighPassAudioEffectSpecification as HighPassAudioEffectSpecification,
+)
+from xnano._schema._effects import (
+    HslShiftEffectParametersSchema as HslShiftEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    HslShiftEffectSpecification as HslShiftEffectSpecification,
+)
+from xnano._schema._effects import (
+    LightenEffectParametersSchema as LightenEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    LightenEffectSpecification as LightenEffectSpecification,
+)
+from xnano._schema._effects import (
+    LowPassAudioEffectParametersSchema as LowPassAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    LowPassAudioEffectSpecification as LowPassAudioEffectSpecification,
+)
+from xnano._schema._effects import (
+    PaintEffectParametersSchema as PaintEffectParametersSchema,
+)
+from xnano._schema._effects import PaintEffectSpecification as PaintEffectSpecification
+from xnano._schema._effects import PlayableEffect as PlayableEffect
 from xnano._schema._effects import PlayableEffectKind as PlayableEffectKind
-from xnano._schema._effects import RenderableEffectKind as RenderableEffectKind
+from xnano._schema._effects import (
+    PlayableEffectSpecification as PlayableEffectSpecification,
+)
+from xnano._schema._effects import (
+    ReverbAudioEffectParametersSchema as ReverbAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    ReverbAudioEffectSpecification as ReverbAudioEffectSpecification,
+)
+from xnano._schema._effects import (
+    SaturateEffectParametersSchema as SaturateEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SaturateEffectSpecification as SaturateEffectSpecification,
+)
+from xnano._schema._effects import (
+    SleepEffectParametersSchema as SleepEffectParametersSchema,
+)
+from xnano._schema._effects import SleepEffectSpecification as SleepEffectSpecification
+from xnano._schema._effects import (
+    SlideInEffectParametersSchema as SlideInEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SlideInEffectSpecification as SlideInEffectSpecification,
+)
+from xnano._schema._effects import (
+    SlideOutEffectParametersSchema as SlideOutEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SlideOutEffectSpecification as SlideOutEffectSpecification,
+)
+from xnano._schema._effects import (
+    StretchEffectParametersSchema as StretchEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    StretchEffectSpecification as StretchEffectSpecification,
+)
+from xnano._schema._effects import (
+    SweepInEffectParametersSchema as SweepInEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SweepInEffectSpecification as SweepInEffectSpecification,
+)
+from xnano._schema._effects import (
+    SweepOutEffectParametersSchema as SweepOutEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    SweepOutEffectSpecification as SweepOutEffectSpecification,
+)
+from xnano._schema._effects import (
+    TremoloAudioEffectParametersSchema as TremoloAudioEffectParametersSchema,
+)
+from xnano._schema._effects import (
+    TremoloAudioEffectSpecification as TremoloAudioEffectSpecification,
+)
+from xnano._schema._effects import WritableEffect as WritableEffect
+from xnano._schema._effects import WritableEffectKind as WritableEffectKind
+from xnano._schema._effects import (
+    WritableEffectSpecification as WritableEffectSpecification,
+)
+from xnano._schema._layout import Interpolation as Interpolation
+from xnano._schema._layout import MotionDirection as MotionDirection
 from xnano.effects._controller import EffectController as EffectController
 from xnano.effects._properties import AudioEffectParameters as AudioEffectParameters
 from xnano.effects._properties import (
@@ -65,9 +230,6 @@ from xnano.effects._properties import (
     PlayableEffectProperties as PlayableEffectProperties,
 )
 from xnano.effects._properties import (
-    RenderableEffectProperties as RenderableEffectProperties,
-)
-from xnano.effects._properties import (
     ReverbAudioEffectParameters as ReverbAudioEffectParameters,
 )
 from xnano.effects._properties import SaturateEffectParameters as SaturateEffectParameters
@@ -80,46 +242,19 @@ from xnano.effects._properties import SweepOutEffectParameters as SweepOutEffect
 from xnano.effects._properties import (
     TremoloAudioEffectParameters as TremoloAudioEffectParameters,
 )
+from xnano.effects._properties import (
+    WritableEffectProperties as WritableEffectProperties,
+)
 from xnano.effects._registry import build_effect
 
 if TYPE_CHECKING:
     from typing_extensions import Unpack
 
-    from xnano._schema._effects import (
-        BitCrushAudioEffectParametersSchema,
-        CoalesceEffectParametersSchema,
-        DarkenEffectParametersSchema,
-        DelayAudioEffectParametersSchema,
-        DissolveEffectParametersSchema,
-        DistortionAudioEffectParametersSchema,
-        EvolveEffectParametersSchema,
-        EvolveFromEffectParametersSchema,
-        EvolveIntoEffectParametersSchema,
-        ExpandEffectParametersSchema,
-        ExplodeEffectParametersSchema,
-        FadeFromEffectParametersSchema,
-        FadeToEffectParametersSchema,
-        GlitchEffectParametersSchema,
-        HighPassAudioEffectParametersSchema,
-        HslShiftEffectParametersSchema,
-        LightenEffectParametersSchema,
-        LowPassAudioEffectParametersSchema,
-        PaintEffectParametersSchema,
-        ReverbAudioEffectParametersSchema,
-        SaturateEffectParametersSchema,
-        SleepEffectParametersSchema,
-        SlideInEffectParametersSchema,
-        SlideOutEffectParametersSchema,
-        StretchEffectParametersSchema,
-        SweepInEffectParametersSchema,
-        SweepOutEffectParametersSchema,
-        TremoloAudioEffectParametersSchema,
-    )
 
 __all__ = [
     'effect',
     'EffectKind',
-    'RenderableEffectKind',
+    'WritableEffectKind',
     'PlayableEffectKind',
     'EffectParameters',
     'AudioEffectParameters',
@@ -151,9 +286,72 @@ __all__ = [
     'DelayAudioEffectParameters',
     'ReverbAudioEffectParameters',
     'TremoloAudioEffectParameters',
-    'RenderableEffectProperties',
+    'WritableEffectProperties',
     'PlayableEffectProperties',
     'EffectController',
+    'BitCrushAudioEffectParametersSchema',
+    'BitCrushAudioEffectSpecification',
+    'CoalesceEffectParametersSchema',
+    'CoalesceEffectSpecification',
+    'DarkenEffectParametersSchema',
+    'DarkenEffectSpecification',
+    'DelayAudioEffectParametersSchema',
+    'DelayAudioEffectSpecification',
+    'DissolveEffectParametersSchema',
+    'DissolveEffectSpecification',
+    'DistortionAudioEffectParametersSchema',
+    'DistortionAudioEffectSpecification',
+    'EvolveEffectParametersSchema',
+    'EvolveEffectSpecification',
+    'EvolveFromEffectParametersSchema',
+    'EvolveFromEffectSpecification',
+    'EvolveIntoEffectParametersSchema',
+    'EvolveIntoEffectSpecification',
+    'ExpandEffectParametersSchema',
+    'ExpandEffectSpecification',
+    'ExplodeEffectParametersSchema',
+    'ExplodeEffectSpecification',
+    'FadeFromEffectParametersSchema',
+    'FadeFromEffectSpecification',
+    'FadeToEffectParametersSchema',
+    'FadeToEffectSpecification',
+    'GlitchEffectParametersSchema',
+    'GlitchEffectSpecification',
+    'HighPassAudioEffectParametersSchema',
+    'HighPassAudioEffectSpecification',
+    'HslShiftEffectParametersSchema',
+    'HslShiftEffectSpecification',
+    'EffectSpecification',
+    'PlayableEffect',
+    'WritableEffect',
+    'Interpolation',
+    'LightenEffectParametersSchema',
+    'LightenEffectSpecification',
+    'LowPassAudioEffectParametersSchema',
+    'LowPassAudioEffectSpecification',
+    'MotionDirection',
+    'PaintEffectParametersSchema',
+    'PaintEffectSpecification',
+    'PlayableEffectSpecification',
+    'ReverbAudioEffectParametersSchema',
+    'ReverbAudioEffectSpecification',
+    'SaturateEffectParametersSchema',
+    'SaturateEffectSpecification',
+    'SleepEffectParametersSchema',
+    'SleepEffectSpecification',
+    'SlideInEffectParametersSchema',
+    'SlideInEffectSpecification',
+    'SlideOutEffectParametersSchema',
+    'SlideOutEffectSpecification',
+    'StretchEffectParametersSchema',
+    'StretchEffectSpecification',
+    'SweepInEffectParametersSchema',
+    'SweepInEffectSpecification',
+    'SweepOutEffectParametersSchema',
+    'SweepOutEffectSpecification',
+    'TremoloAudioEffectParametersSchema',
+    'TremoloAudioEffectSpecification',
+    'WritableEffectSpecification',
 ]
 
 
@@ -342,7 +540,7 @@ def effect(kind: EffectKind, /, **parameters: object) -> EffectParameters:
         fade = xnano.effect('effect.fade_to', foreground='red', duration_milliseconds=200)
         assert fade.duration_milliseconds == 200
         with xnano.new('hi', width=4, height=1) as canvas:
-            canvas | fade
+            canvas.screen | fade
         ```
     """
     return build_effect(kind, parameters)

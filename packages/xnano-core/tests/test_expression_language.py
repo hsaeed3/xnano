@@ -15,7 +15,7 @@ from xnano_core._xnano_core import (
     Expression,
     Height,
     IsVisible,
-    KeyboardChord,
+    KeyboardBinding,
     KeyboardKey,
     KeyboardKind,
     KeyboardScope,
@@ -257,7 +257,7 @@ def test_input_references_are_null_until_the_input_was_seen(runtime):
     buffer = mounted_buffer(runtime, width=4, height=2)
     assert buffer.inspect(KeyboardKey) is None
     assert buffer.inspect(KeyboardKind) is None
-    assert buffer.inspect(KeyboardChord) is None
+    assert buffer.inspect(KeyboardBinding) is None
     assert buffer.inspect(MouseButtonValue) is None
     assert buffer.inspect(MouseKind) is None
     assert buffer.inspect(MousePosition) is None
@@ -271,7 +271,7 @@ def test_input_references_read_the_latest_event(runtime):
     send(runtime, Event.key_press('ctrl+s'))
     assert buffer.inspect(KeyboardKey) == 's'
     assert buffer.inspect(KeyboardKind) == 'press'
-    assert buffer.inspect(KeyboardChord) == 'ctrl+s'
+    assert buffer.inspect(KeyboardBinding) == 'ctrl+s'
     send(runtime, Event.mouse_event(column=7, row=2, kind='press', button='right'))
     assert buffer.inspect(KeyboardKey) is None
     assert buffer.inspect(MouseButtonValue) == 'right'
@@ -449,13 +449,13 @@ def test_a_hook_condition_can_combine_the_held_button_with_the_region(runtime):
 def test_scopes_provide_the_new_references():
     assert KeyboardScope.key is KeyboardKey
     assert KeyboardScope.kind is KeyboardKind
-    assert KeyboardScope.chord is KeyboardChord
+    assert KeyboardScope.binding is KeyboardBinding
     assert MouseScope.position is MousePosition
     assert MouseScope.button is MouseButtonValue
     assert MouseScope.kind is MouseKind
     assert MouseScope.is_down is MouseIsDown
     assert ScrollScope.x is ScrollX and ScrollScope.y is ScrollY
-    with pytest.raises(AttributeError, match='chord'):
+    with pytest.raises(AttributeError, match='binding'):
         KeyboardScope.letter  # noqa: B018
     with pytest.raises(AttributeError, match='is_down'):
         MouseScope.held  # noqa: B018

@@ -173,9 +173,9 @@ def test_text_that_does_not_wrap_is_cut_at_the_width_like_rich_crop(text, width)
 
 def test_a_terminal_shows_wide_characters_in_two_cells_and_never_splits_them():
     with xnano.new(width=5, height=2) as canvas:
-        canvas.write('わさび')
-        canvas.output.render()
-        lines = canvas.output.lines()
+        canvas.screen.write('わさび')
+        canvas.screen.output.render()
+        lines = canvas.screen.output.lines()
     assert lines[0] == 'わさ'
     assert rich_cells.cell_len(lines[0]) == 4
 
@@ -183,8 +183,8 @@ def test_a_terminal_shows_wide_characters_in_two_cells_and_never_splits_them():
 @pytest.mark.parametrize('count', [1, 2, 3, 4])
 def test_a_wide_character_that_does_not_fit_is_dropped_not_cut(count):
     with xnano.new(width=count, height=1) as canvas:
-        canvas.write('😽😽😽')
-        canvas.output.render()
-        line = canvas.output.lines()[0]
+        canvas.screen.write('😽😽😽')
+        canvas.screen.output.render()
+        line = canvas.screen.output.lines()[0]
     assert rich_cells.cell_len(line) <= count
     assert line == '😽' * (count // 2)

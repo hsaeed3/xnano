@@ -60,9 +60,9 @@ classifiers = [
 # [pyproject.toml](https://github.com/pydantic/monty/blob/main/packages/pydantic-monty/pyproject.toml),
 #
 # [! AUTO-VERSIONING - DO NOT EDIT THIS BY HAND]
-version = '2.0.1'
+version = '2.1.0'
 dependencies = [
-    "xnano-core>=2.0.1",
+    "xnano-core>=2.1.0",
 ]
 
 [project.optional-dependencies]
@@ -76,6 +76,11 @@ image = [
 # extras that are not `xnano-*` packages stay below the generated block, which rewrites only
 # the extras above.
 monty = [
+    "pydantic-monty>=1.2.0",
+]
+# language models, decision models and agents (`xnano.ai`); pydantic-ai needs Python 3.11.
+ai = [
+    "pydantic-ai-slim[openrouter,typesafe]>=2.55; python_version >= '3.11'",
     "pydantic-monty>=1.2.0",
 ]
 
@@ -99,6 +104,8 @@ dev = [
     "psutil>=5.9.0",
     # a terminal emulator, so tests can read the screen of a live terminal
     "pyte>=0.8.2",
+    # runs the `_async` tests on an event loop
+    "pytest-asyncio>=1.2.0",
 ]
 codspeed = [
     'pytest-codspeed; python_version == "3.13" and implementation_name == "cpython"',

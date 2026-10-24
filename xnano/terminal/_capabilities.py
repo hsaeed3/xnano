@@ -39,13 +39,13 @@ class KeyboardCapabilities:
     """
     Whether keys such as ``escape`` and ``alt+key`` are told apart.
 
-    This is what [`keyboard='disambiguated'`][xnano.types.TerminalSettings] asks for.
+    This is what [`keyboard='disambiguated'`][xnano.terminal.TerminalSettings] asks for.
     """
     can_report_release_events: bool
     """
     Whether key repeats and releases are reported.
 
-    This is what [`keyboard='release_events'`][xnano.types.TerminalSettings] asks for.
+    This is what [`keyboard='release_events'`][xnano.terminal.TerminalSettings] asks for.
     """
     can_report_modifier_keys: bool
     """Whether modifier keys such as ``shift`` and ``ctrl`` are reported on their own."""

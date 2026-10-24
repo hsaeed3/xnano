@@ -626,7 +626,7 @@ pub fn property_id(name: &str) -> Option<PropertyId> {
         "IsVisible" => PropertyId::IsVisible,
         "KeyboardKey" => PropertyId::KeyboardKey,
         "KeyboardKind" => PropertyId::KeyboardKind,
-        "KeyboardChord" => PropertyId::KeyboardChord,
+        "KeyboardBinding" => PropertyId::KeyboardBinding,
         "MouseButtonValue" => PropertyId::MouseButton,
         "MouseKind" => PropertyId::MouseKind,
         "MousePosition" => PropertyId::MousePosition,

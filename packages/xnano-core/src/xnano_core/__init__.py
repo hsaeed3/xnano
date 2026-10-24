@@ -259,10 +259,10 @@ from xnano_core._xnano_core import (
     KeyBinding as KeyBinding,
 )
 from xnano_core._xnano_core import (
-    KeyboardCapabilities as KeyboardCapabilities,
+    KeyboardBinding as KeyboardBinding,
 )
 from xnano_core._xnano_core import (
-    KeyboardChord as KeyboardChord,
+    KeyboardCapabilities as KeyboardCapabilities,
 )
 from xnano_core._xnano_core import (
     KeyboardExpressionScope as KeyboardExpressionScope,
@@ -913,8 +913,8 @@ __all__ = [
     'KeyEventKind',
     'KeyModifier',
     'KeyName',
+    'KeyboardBinding',
     'KeyboardCapabilities',
-    'KeyboardChord',
     'KeyboardExpressionScope',
     'KeyboardKey',
     'KeyboardKind',

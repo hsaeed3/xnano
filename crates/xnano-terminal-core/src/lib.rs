@@ -150,7 +150,7 @@ fn _xnano_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
         ("IsVisible", "property"),
         ("KeyboardKey", "value"),
         ("KeyboardKind", "value"),
-        ("KeyboardChord", "value"),
+        ("KeyboardBinding", "value"),
         ("MouseButtonValue", "value"),
         ("MouseKind", "value"),
         ("MousePosition", "value"),

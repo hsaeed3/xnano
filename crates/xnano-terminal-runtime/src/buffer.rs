@@ -16,6 +16,38 @@ use crate::layout::{LayoutSpec, solve};
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 static MODIFICATION_STAMP: AtomicU64 = AtomicU64::new(1);
+/// How many buffers take the size of their children, so the fitting pass is skipped while
+/// there are none.
+static FITTED_BUFFERS: AtomicUsize = AtomicUsize::new(0);
+
+/// Whether any buffer fits its content, so that what decides a size has to be followed.
+pub fn is_fitting_anywhere() -> bool {
+    FITTED_BUFFERS.load(Ordering::Relaxed) > 0
+}
+
+/// A buffer that takes the size of the children it holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Fit {
+    /// Whether the width follows the children: as wide as the farthest right edge.
+    pub width: bool,
+    /// Whether the height follows the children: as tall as the lowest bottom edge.
+    pub height: bool,
+    /// Columns after the farthest right edge, for a border or padding on that side.
+    pub trailing_columns: u16,
+    /// Rows below the lowest bottom edge, for a border or padding on that side.
+    pub trailing_rows: u16,
+}
+
+/// The parts of a child's place that its parent's size decides: a percentage, a word such as
+/// `center` or a formula of the parent's size. A parent that fits its children places such
+/// a child within the size the others give it instead of growing to it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ParentMeasured {
+    pub x: bool,
+    pub y: bool,
+    pub width: bool,
+    pub height: bool,
+}
 
 /// Called after any buffer changes, from the thread that changed it.
 pub type ChangeListener = Arc<dyn Fn() + Send + Sync>;
@@ -161,6 +193,10 @@ pub struct BufferState {
     pub painter: Option<Arc<dyn crate::painter::Painter>>,
     /// The fingerprint of the inputs the cells were last painted from.
     pub painted: Option<u64>,
+    /// How the size follows the children; `None` keeps the size the buffer is given.
+    pub fit: Option<Fit>,
+    /// The parts of the buffer's place that its parent's size decides.
+    pub parent_measured: ParentMeasured,
 }
 
 impl BufferState {
@@ -206,6 +242,18 @@ impl BufferState {
 pub struct BufferCore {
     pub id: u64,
     state: Mutex<BufferState>,
+}
+
+impl Drop for BufferCore {
+    fn drop(&mut self) {
+        let state = self
+            .state
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if state.fit.is_some() {
+            FITTED_BUFFERS.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
 }
 
 impl fmt::Debug for BufferCore {
@@ -261,8 +309,26 @@ impl BufferCore {
                 extension: None,
                 painter: None,
                 painted: None,
+                fit: None,
+                parent_measured: ParentMeasured::default(),
             }),
         })
+    }
+
+    /// Make the buffer take the size of its children, or keep the size it is given (`None`).
+    pub fn set_fit(&self, fit: Option<Fit>) {
+        let mut state = self.lock();
+        match (state.fit.is_some(), fit.is_some()) {
+            (false, true) => {
+                FITTED_BUFFERS.fetch_add(1, Ordering::SeqCst);
+            }
+            (true, false) => {
+                FITTED_BUFFERS.fetch_sub(1, Ordering::SeqCst);
+            }
+            _ => {}
+        }
+        state.fit = fit;
+        state.touch(None);
     }
 
     pub fn lock(&self) -> MutexGuard<'_, BufferState> {
@@ -354,6 +420,93 @@ pub fn relayout(core: &Arc<BufferCore>) {
             relayout(&child);
         }
     }
+}
+
+/// The cells a buffer's children cover from its top-left corner: the farthest right edge and
+/// the lowest bottom edge among its visible children with explicit geometry.
+///
+/// A child the parent's size places or sizes (see [`ParentMeasured`]) is placed within the
+/// size the other children give: one placed by its parent's size counts with its own size,
+/// and one sized by it does not count along that axis.
+pub fn content_extent(core: &Arc<BufferCore>) -> Size {
+    let state = core.lock();
+    let mut right = 0;
+    let mut bottom = 0;
+    for child in &state.children {
+        if child.geometry != Geometry::Explicit {
+            continue;
+        }
+        let child_state = child.core.lock();
+        if !child_state.is_visible {
+            continue;
+        }
+        let measured = child_state.parent_measured;
+        let (width, height) = (child_state.width(), child_state.height());
+        let child_right = if measured.width {
+            0
+        } else if measured.x {
+            width
+        } else {
+            child_state.x + width
+        };
+        let child_bottom = if measured.height {
+            0
+        } else if measured.y {
+            height
+        } else {
+            child_state.y + height
+        };
+        right = right.max(child_right);
+        bottom = bottom.max(child_bottom);
+    }
+    Size::new(right.max(0), bottom.max(0))
+}
+
+/// Give every buffer under `core` (and `core` itself) that fits its children the size they
+/// cover, deepest first, so a fitted buffer inside another is sized before its parent.
+/// Returns whether a size changed. Does nothing while no buffer fits its children.
+pub fn fit_tree(core: &Arc<BufferCore>) -> bool {
+    if FITTED_BUFFERS.load(Ordering::SeqCst) == 0 {
+        return false;
+    }
+    fit_subtree(core)
+}
+
+fn fit_subtree(core: &Arc<BufferCore>) -> bool {
+    let children: Vec<Arc<BufferCore>> = core
+        .lock()
+        .children
+        .iter()
+        .map(|child| Arc::clone(&child.core))
+        .collect();
+    let mut is_changed = false;
+    for child in &children {
+        is_changed |= fit_subtree(child);
+    }
+    let (fit, width, height) = {
+        let state = core.lock();
+        (state.fit, state.width(), state.height())
+    };
+    let Some(fit) = fit else {
+        return is_changed;
+    };
+    let extent = content_extent(core);
+    let fitted_width = if fit.width {
+        (extent.width + i32::from(fit.trailing_columns)).max(1)
+    } else {
+        width
+    };
+    let fitted_height = if fit.height {
+        (extent.height + i32::from(fit.trailing_rows)).max(1)
+    } else {
+        height
+    };
+    if (fitted_width, fitted_height) != (width, height)
+        && core.resize(fitted_width, fitted_height).is_ok()
+    {
+        is_changed = true;
+    }
+    is_changed
 }
 
 /// Whether `ancestor` is `core` or one of its ancestors.

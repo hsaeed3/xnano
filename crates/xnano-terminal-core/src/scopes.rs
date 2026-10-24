@@ -112,11 +112,11 @@ scope!(
 scope!(
     PyKeyboardScope,
     "KeyboardExpressionScope",
-    &["key", "kind", "chord"],
+    &["key", "kind", "binding"],
     {
         key => "KeyboardKey",
         kind => "KeyboardKind",
-        chord => "KeyboardChord",
+        binding => "KeyboardBinding",
     }
 );
 

@@ -70,15 +70,15 @@ def fastest(function, *, rounds: int = 15) -> float:
 def test_half_block_shade_with_its_frame(benchmark):
     phases = itertools.count()
     with xnano.new(width=WIDTH, height=HEIGHT) as canvas:
-        pixels = canvas.region.half_blocks
+        pixels = canvas.screen.region.half_blocks
 
         def shade_and_draw() -> None:
             phase = next(phases) % 200
             pixels.shade(lambda x, y: (x + phase, y + phase, 80))
-            canvas.step()
+            canvas.clock.step()
 
         benchmark.pedantic(shade_and_draw, rounds=10, iterations=1)
-        assert canvas.region.half_blocks[3, 3].foreground is not None
+        assert canvas.screen.region.half_blocks[3, 3].foreground is not None
         check_budget(
             lambda: fastest(shade_and_draw) * 1e3,
             HALF_BLOCK_SHADE_BUDGET_MILLISECONDS,
@@ -90,12 +90,12 @@ def test_half_block_shade_with_its_frame(benchmark):
 def test_cell_shade_with_its_frame(benchmark):
     phases = itertools.count()
     with xnano.new(width=WIDTH, height=HEIGHT) as canvas:
-        region = canvas.region
+        region = canvas.screen.region
 
         def shade_and_draw() -> None:
             phase = next(phases) % 200
             region.shade(lambda x, y: (x + phase, y + phase, 80))
-            canvas.step()
+            canvas.clock.step()
 
         benchmark.pedantic(shade_and_draw, rounds=10, iterations=1)
         assert region[5, 5].background is not None
@@ -117,17 +117,17 @@ def test_cell_shade_with_its_frame(benchmark):
 def test_foreground_shade_with_its_frame(benchmark, width, height, budget):
     phases = itertools.count()
     with xnano.new(width=width, height=height) as canvas:
-        canvas.region[0:4, 0:1] = 'abcd'
-        slot = canvas.color.fg
+        canvas.screen.region[0:4, 0:1] = 'abcd'
+        slot = canvas.screen.color.fg
 
         def shade_and_draw() -> None:
             phase = next(phases) % 200
             slot.shade(lambda x, y: (x + phase, y + phase, 80))
-            canvas.step()
+            canvas.clock.step()
 
         benchmark.pedantic(shade_and_draw, rounds=10, iterations=1)
-        assert canvas.region[1, 0].character == 'b'
-        assert canvas.region[1, 0].foreground is not None
+        assert canvas.screen.region[1, 0].character == 'b'
+        assert canvas.screen.region[1, 0].foreground is not None
         check_budget(
             lambda: fastest(shade_and_draw) * 1e3,
             budget,
@@ -140,14 +140,14 @@ def test_a_cell_written_from_a_warm_pixel(benchmark):
     pixel = Pixel('star', foreground='red')
     pixel.cell()
     with xnano.new(width=WIDTH, height=HEIGHT) as canvas:
-        region = canvas.region
+        region = canvas.screen.region
 
         def write_many() -> None:
             for _ in range(REPEATS):
                 region[3, 3] = pixel
 
         benchmark.pedantic(write_many, rounds=20, iterations=1)
-        canvas.step()
+        canvas.clock.step()
         assert region[3, 3].character == '★'
         check_budget(
             lambda: fastest(write_many) / REPEATS * 1e6,
@@ -158,14 +158,14 @@ def test_a_cell_written_from_a_warm_pixel(benchmark):
 
 def test_a_cell_written_from_a_new_pixel(benchmark):
     with xnano.new(width=WIDTH, height=HEIGHT) as canvas:
-        region = canvas.region
+        region = canvas.screen.region
 
         def write_many() -> None:
             for index in range(REPEATS):
                 region[3, 3] = Pixel('dot', foreground=(index % 256, 0, 0))
 
         benchmark.pedantic(write_many, rounds=20, iterations=1)
-        canvas.step()
+        canvas.clock.step()
         assert region[3, 3].character == '•'
         check_budget(
             lambda: fastest(write_many) / REPEATS * 1e6,
@@ -176,7 +176,7 @@ def test_a_cell_written_from_a_new_pixel(benchmark):
 
 def test_a_cell_read_as_a_pixel(benchmark):
     with xnano.new(width=WIDTH, height=HEIGHT) as canvas:
-        region = canvas.region
+        region = canvas.screen.region
         region[3, 3] = Pixel('star', foreground='red')
 
         def read_many() -> Pixel:

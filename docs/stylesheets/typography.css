@@ -1,6 +1,9 @@
 @import url("https://iosevka-webfonts.github.io/iosevka/Iosevka.css");
 @import url("https://fonts.googleapis.com/css2?family=Geist+Pixel:ELSH@0..100&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Bree+Serif&family=Manrope:wght@400..700&family=Source+Serif+4:opsz,wght@8..60,400..700&family=Space+Grotesk:wght@400..700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Hedvig+Letters+Serif&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap");
+
 
 .geist-pixel {
     font-family: "Geist Pixel", sans-serif;
@@ -13,10 +16,8 @@
 .md-typeset li,
 .md-typeset dd,
 .md-typeset td {
-    font-family: "Iosevka Web", monospace !important;
+    font-family: "Geist", monospace !important;
     line-height: var(--font-lineheight-3) !important;
-    font-weight: var(--font-weight-4);
-    letter-spacing: var(--font-letterspacing-1);
     text-rendering: geometricPrecision !important;
     font-size: var(--xnano-prose-size);
     /* scaleX expands from center by default, which shifts body text off
@@ -27,11 +28,11 @@
 }
 /* The stretch is drawn after layout, so lay the text out narrower by the same factor
    and it ends at the container's right edge instead of running into its padding. */
-.md-typeset p,
+/*.md-typeset p,
 .md-typeset li,
 .md-typeset dd {
     max-width: calc(100% / var(--xnano-prose-stretch));
-}
+}*/
 /* Description elements: closer to headers, serif styling */
 .md-typeset dd,
 .md-typeset description {
@@ -45,7 +46,8 @@
 .md-typeset h4,
 .md-typeset h5,
 .md-typeset h6 {
-    font-family: "Geist Pixel" !important;
+    font-family: "Hedvig Letters Serif" !important;
+    letter-spacing: -1px !important;
     font-variation-settings: "ELSH" 40;
     margin-bottom: 0.35em !important;
     border-bottom: var(--border-size-1) dashed;
@@ -104,7 +106,7 @@
 :root[data-xnano-style="serif"] .md-typeset dd,
 :root[data-xnano-style="serif"] .md-typeset td,
 :root[data-xnano-style="serif"] .md-typeset th {
-    font-family: "Source Serif 4", Georgia, serif !important;
+    font-family: "Geist", ui-sans-serif !important;
     letter-spacing: 0 !important;
     line-height: 1.65 !important;
     transform: none;
@@ -115,14 +117,14 @@
 :root[data-xnano-style="serif"] .md-search,
 :root[data-xnano-style="serif"] .md-footer,
 :root[data-xnano-style="serif"] .md-banner {
-    font-family: "Source Serif 4", Georgia, serif;
+    font-family: "Geist", ui-sans-serif !important;
 }
 :root[data-xnano-style="modern"] .md-typeset p,
 :root[data-xnano-style="modern"] .md-typeset li,
 :root[data-xnano-style="modern"] .md-typeset dd,
 :root[data-xnano-style="modern"] .md-typeset td,
 :root[data-xnano-style="modern"] .md-typeset th {
-    font-family: "Manrope", sans-serif !important;
+    font-family: "Geist", ui-sans-serif !important;
     letter-spacing: -0.01em !important;
     line-height: 1.65 !important;
     transform: none;
@@ -133,7 +135,7 @@
 :root[data-xnano-style="modern"] .md-search,
 :root[data-xnano-style="modern"] .md-footer,
 :root[data-xnano-style="modern"] .md-banner {
-    font-family: "Manrope", sans-serif;
+    font-family: "Geist", ui-sans-serif;
 }
 
 .md-typeset {

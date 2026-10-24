@@ -20,7 +20,7 @@ class TestRegistry:
         assert symbols.lookup('accent', kind=xnano.Color) is color
         assert 'accent' in symbols.names()
         assert symbols.names(kind=xnano.Color) == ('accent',)
-        assert symbols.names(kind=xnano.Sound) == ()
+        assert symbols.names(kind=xnano.Audio) == ()
 
     def test_registering_again_replaces_a_value_of_the_same_kind(self):
         symbols.register('accent', xnano.Color('red'))
@@ -80,12 +80,12 @@ class TestUnknownNames:
 
     def test_a_name_of_another_kind_says_which_kind_it_is(self):
         symbols.register('wall', xnano.Color('gray'))
-        with pytest.raises(ValueError, match='is a Color symbol, not a Sound symbol'):
-            symbols.lookup('wall', kind=xnano.Sound)
+        with pytest.raises(ValueError, match='is a Color symbol, not an Audio symbol'):
+            symbols.lookup('wall', kind=xnano.Audio)
 
     def test_an_empty_registry_says_so(self):
         with pytest.raises(ValueError, match='none yet'):
-            symbols.lookup('anything', kind=xnano.Sound)
+            symbols.lookup('anything', kind=xnano.Audio)
 
     def test_each_test_starts_with_the_registry_it_had(self):
         assert 'wall' not in symbols.names()
@@ -99,11 +99,11 @@ class TestSymbolKeywords:
         from xnano_image import TerminalImage
 
         pixel = xnano.Pixel('#', symbol='wall_cell')
-        note = xnano.note('C4', symbol='tone_cell')
+        note = xnano.Note('C4', symbol='tone_cell')
         image = xnano.Image(
             TerminalImage.from_rgba(1, 1, bytes([1, 2, 3, 255])), symbol='dot_cell'
         )
-        audio = xnano.Sound(TerminalSound.from_samples([0.0, 0.5]), symbol='blip_cell')
+        audio = xnano.Audio(TerminalSound.from_samples([0.0, 0.5]), symbol='blip_cell')
         assert symbols.lookup('wall_cell') is pixel
         assert symbols.lookup('tone_cell') is note
         assert symbols.lookup('dot_cell') is image
@@ -116,33 +116,30 @@ class TestSymbolKeywords:
         )
 
     def test_the_factories_take_the_same_keyword(self):
-        from xnano_audio import TerminalSound
         from xnano_image import TerminalImage
 
         image = xnano.load_image(
             TerminalImage.from_rgba(1, 1, bytes(4)), symbol='dot_factory'
         )
-        audio = xnano.load_sound(
-            TerminalSound.from_samples([0.0, 0.5]), symbol='blip_factory'
-        )
+        audio = xnano.Audio.from_samples([0.0, 0.5], symbol='blip_factory')
         assert symbols.names(kind=xnano.Image) == ('dot_factory',)
-        assert symbols.names(kind=xnano.Sound) == ('blip_factory',)
+        assert symbols.names(kind=xnano.Audio) == ('blip_factory',)
         assert symbols.lookup('dot_factory') is image
         assert symbols.lookup('blip_factory') is audio
 
     def test_a_value_without_the_keyword_registers_nothing(self):
-        xnano.note('C4')
+        xnano.Note('C4')
         xnano.Pixel('#')
         assert symbols.names() == ()
 
     def test_building_the_same_symbol_twice_keeps_the_newer_one(self):
-        first = xnano.note('C4', symbol='tone_twice')
-        second = xnano.note('D4', symbol='tone_twice')
+        first = xnano.Note('C4', symbol='tone_twice')
+        second = xnano.Note('D4', symbol='tone_twice')
         assert symbols.lookup('tone_twice') is second
         assert symbols.lookup('tone_twice') is not first
 
     def test_a_name_cannot_belong_to_two_kinds(self):
-        xnano.note('C4', symbol='shared_name')
+        xnano.Note('C4', symbol='shared_name')
         with pytest.raises(
             ValueError, match="already a Note.*symbols.remove\\('shared_name'\\)"
         ):
@@ -159,4 +156,4 @@ class TestSymbolKeywords:
         with pytest.raises(ValueError, match='reads as a note'):
             xnano.Pixel('#', symbol='A4')
         with pytest.raises(ValueError, match='reads as a note'):
-            xnano.note('C4', symbol='rest')
+            xnano.Note('C4', symbol='rest')

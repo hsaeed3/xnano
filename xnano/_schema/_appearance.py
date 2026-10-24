@@ -49,7 +49,7 @@ class SpacingDictionary(TypedDict, total=False):
 
 Spacing: TypeAlias = int | float | Percentage | str | SpacingDictionary
 """
-Space around text: one value for every edge or a [`SpacingDictionary`][xnano.types.SpacingDictionary].
+Space around text: one value for every edge or a [`SpacingDictionary`][xnano.styles.SpacingDictionary].
 
 A whole number is a count of cells. A float (``0.1``) or a percentage string (``'10%'``) is
 a share of the text's width for the left and right edges and of its height for the top and

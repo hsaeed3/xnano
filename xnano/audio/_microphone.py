@@ -31,8 +31,8 @@ class Microphone:
     """
     The canvas's microphone: how loud the sound at the default input device is.
 
-    Get it from [`AudioDevice.microphone`][xnano.audio.AudioDevice.microphone], which is
-    ``canvas.audio.microphone``. The input device is opened the first time something reads
+    Get it from [`AudioDevice.microphone`][xnano.audio.Microphone], which is
+    ``canvas.microphone``. The input device is opened the first time something reads
     the level, the level history, the sample rate or the channel count. On a computer without
     an input device, without permission to record, or on a canvas from ``new()``, which has no
     device, the level is ``0`` and the history is empty.
@@ -54,8 +54,8 @@ class Microphone:
         import xnano
 
         with xnano.new(width=20, height=1) as canvas:
-            microphone = canvas.audio.microphone
-            assert canvas.inspect(microphone.level) == 0.0
+            microphone = canvas.microphone
+            assert canvas.evaluate(microphone.level) == 0.0
             assert not microphone.is_open
             assert microphone.sample_rate is None
         ```
@@ -63,7 +63,7 @@ class Microphone:
 
     def __init__(self, canvas: Canvas[object, object]) -> None:
         """
-        Create the microphone of a canvas. Use ``canvas.audio.microphone`` instead of calling this.
+        Create the microphone of a canvas. Use ``canvas.microphone`` instead of calling this.
 
         Args:
             canvas: The canvas the microphone belongs to.
@@ -87,9 +87,9 @@ class Microphone:
             import xnano
 
             with xnano.new(width=20, height=2) as canvas:
-                meter = canvas.write('#')
-                meter.x = canvas.audio.microphone.level * 19
-                assert canvas.inspect(canvas.audio.microphone.level) == 0.0
+                meter = canvas.screen.write('#')
+                meter.x = canvas.microphone.level * 19
+                assert canvas.evaluate(canvas.microphone.level) == 0.0
             ```
         """
         self._canvas._require_open()

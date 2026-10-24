@@ -34,9 +34,9 @@ def test_xnano_imports_and_draws_without_the_optional_packages():
     result = run(
         """
         with xnano.new(width=8, height=1) as canvas:
-            canvas.write('ok')
-            canvas.output.render()
-            print(canvas.output.lines()[0])
+            canvas.screen.write('ok')
+            canvas.screen.output.render()
+            print(canvas.screen.output.lines()[0])
         """
     )
     assert result.returncode == 0, result.stderr
@@ -46,7 +46,7 @@ def test_xnano_imports_and_draws_without_the_optional_packages():
 @pytest.mark.parametrize(
     ('statement', 'extra'),
     [
-        ('from xnano.audio import AudioDevice', 'audio'),
+        ('from xnano.audio import Microphone', 'audio'),
         ('xnano.audio.instrument_names()', 'audio'),
     ],
 )
@@ -72,7 +72,7 @@ def test_the_audio_package_imports_without_the_audio_package():
     result = run(
         """
         import xnano.audio
-        print(xnano.audio.note('C4').pitch)
+        print(xnano.audio.Note('C4').pitch)
         """
     )
     assert result.returncode == 0, result.stderr
@@ -82,7 +82,7 @@ def test_the_audio_package_imports_without_the_audio_package():
 def test_a_note_can_be_defined_without_the_audio_package():
     result = run(
         """
-        note = xnano.note(['C4', 'E4'], beats=2.0, symbol='tone_extra')
+        note = xnano.Note(['C4', 'E4'], beats=2.0, symbol='tone_extra')
         print(note.pitch, xnano.symbols.lookup('tone_extra') is note)
         """
     )
@@ -93,21 +93,21 @@ def test_a_note_can_be_defined_without_the_audio_package():
 def test_playing_without_the_audio_package_says_how_to_install_it():
     result = run(
         """
-        xnano.play(xnano.note('C4'))
+        xnano.play(xnano.Note('C4'))
         """
     )
     assert result.returncode != 0
     assert 'pip install "xnano[audio]"' in result.stderr
 
 
-def test_the_sound_value_says_how_to_install_it_and_load_image_too():
+def test_load_audio_says_how_to_install_it_and_load_image_too():
     result = run(
         """
-        xnano.load_sound(b'RIFF')
+        xnano.load_audio(b'RIFF')
         """
     )
     assert result.returncode != 0
-    assert 'xnano.load_sound needs' in result.stderr
+    assert 'xnano.load_audio needs' in result.stderr
     assert 'pip install "xnano[audio]"' in result.stderr
     result = run(
         """
@@ -123,7 +123,7 @@ def test_the_sound_value_says_how_to_install_it_and_load_image_too():
 def test_the_region_of_a_note_works_without_the_audio_package():
     result = run(
         """
-        region = xnano.note(('C4', 'E4')).region
+        region = xnano.Note(('C4', 'E4')).region
         print(region.height, region.milliseconds.width)
         """
     )
@@ -135,11 +135,14 @@ def test_the_audio_of_a_canvas_says_how_to_install_it():
     result = run(
         """
         with xnano.new(width=8, height=1) as canvas:
-            canvas.audio
+            canvas.speaker.play('C4')
         """
     )
     assert result.returncode != 0
-    assert 'Canvas.audio needs sound, notes and melodies' in result.stderr
+    assert (
+        'The sound of a canvas (its speaker, microphone and beats) needs sound'
+        in result.stderr
+    )
     assert 'pip install "xnano[audio]"' in result.stderr
 
 

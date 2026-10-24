@@ -9,7 +9,6 @@ from __future__ import annotations
 import ast
 import difflib
 import functools
-import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
@@ -25,7 +24,7 @@ from xnano_core import (
 )
 
 if TYPE_CHECKING:
-    from xnano.context import Context
+    from xnano.hooks._context import Context
 
 __all__ = ['CompiledWhen', 'compile_when', 'normalize_binding', 'parse_when']
 
@@ -48,7 +47,7 @@ _KEY_NAMES: Final = (
     'right',
     *(f'f{number}' for number in range(1, 13)),
 )
-"""The key names that [`KeyName`][xnano.types.KeyName] lists."""
+"""The key names that [`KeyName`][xnano.devices.KeyName] lists."""
 
 _NAMED_KEYS: Final = frozenset(
     {
@@ -78,7 +77,7 @@ _MEMBERS: Final[dict[str, tuple[str, ...]]] = {
     'keyboard': ('key', 'kind', 'binding'),
     'mouse': ('position', 'button', 'kind', 'is_down'),
     'scroll': ('x', 'y'),
-    'buffer': ('x', 'y', 'position', 'width', 'height', 'size', 'region'),
+    'target': ('x', 'y', 'position', 'width', 'height', 'size', 'region'),
     'parent': ('width', 'height', 'size'),
     'root': ('width', 'height', 'time', 'delta', 'fps'),
 }
@@ -104,7 +103,7 @@ _NATIVE_SCOPES: Final[dict[str, object]] = {
     'keyboard': KeyboardScope,
     'mouse': MouseScope,
     'scroll': ScrollScope,
-    'buffer': BufferScope,
+    'target': BufferScope,
     'parent': ParentScope,
     'root': RootScope,
     'time': RootScope.time,
@@ -171,7 +170,7 @@ def _unknown_key_message(entry: str) -> str:
     close = difflib.get_close_matches(entry.lower(), _KEY_NAMES, n=3)
     hint = f' Did you mean {" or ".join(repr(name) for name in close)}?' if close else ''
     return (
-        f'{entry!r} is not a key name.{hint} Use a name from xnano.types.KeyName such as '
+        f'{entry!r} is not a key name.{hint} Use a name from xnano.devices.KeyName such as '
         f"'q', 'enter' or 'page_up', or a key binding such as 'ctrl+s'."
     )
 
@@ -209,28 +208,6 @@ def _not_example(shown: str) -> tuple[str, str] | None:
     return '> 2', '<= 2'
 
 
-class _RenameDeprecatedMembers(ast.NodeTransformer):
-    """Read ``keyboard.chord`` in a condition as ``keyboard.binding``, with a warning."""
-
-    def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
-        """Rename the deprecated member of ``keyboard``."""
-        if (
-            node.attr == 'chord'
-            and isinstance(node.value, ast.Name)
-            and node.value.id == 'keyboard'
-        ):
-            warnings.warn(
-                'keyboard.chord in a condition is deprecated and will be removed in xnano '
-                '2.1.0. Use keyboard.binding instead.',
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return ast.copy_location(
-                ast.Attribute(value=node.value, attr='binding', ctx=node.ctx), node
-            )
-        return self.generic_visit(node)
-
-
 class _Parser:
     """Check a condition string and turn it into an expression, or a function of the context."""
 
@@ -250,7 +227,7 @@ class _Parser:
                 f'The condition {self.text!r} is not valid: {error.msg}. Write it like an '
                 f'expression, such as "keyboard.key == \'q\' and not mouse.is_down".'
             ) from error
-        return self._check(_RenameDeprecatedMembers().visit(tree).body)
+        return self._check(tree.body)
 
     # -- checking ------------------------------------------------------------------------
 
@@ -486,7 +463,7 @@ class _Parser:
                 f'{word} joins comparisons, but {ast.unparse(node.values[index])} '
                 f'and {ast.unparse(node.values[index + 1])} are not both '
                 f'comparisons. Compare each side first, as in '
-                f"keyboard.key == 'q' {word} buffer.width > 10.",
+                f"keyboard.key == 'q' {word} target.width > 10.",
             ) from None
 
     def _compare_pair(
@@ -508,7 +485,7 @@ class _Parser:
                 node,
                 f'{symbol} cannot compare {ast.unparse(pair[0])} with '
                 f'{ast.unparse(pair[1])}, because one of them is not a number. '
-                f'Ordering works on numbers such as buffer.width; key names and '
+                f'Ordering works on numbers such as target.width; key names and '
                 f"text have no order, so use == or != or in, as in keyboard.key == 'q'.",
             ) from None
 
@@ -530,8 +507,6 @@ class _Parser:
             value = build(node.value)
             if value is None and not is_native:
                 return None
-            if is_native and node.attr == 'binding' and value is KeyboardScope:
-                return KeyboardScope.chord
             return getattr(value, node.attr)
         if isinstance(node, ast.Tuple):
             return tuple(build(item) for item in node.elts)
@@ -564,7 +539,7 @@ class _Parser:
                     self.text,
                     node,
                     f'- cannot be applied to {ast.unparse(node.operand)}, because it is not a '
-                    f'number. Only numbers such as buffer.width can be negated; key names '
+                    f'number. Only numbers such as target.width can be negated; key names '
                     f'and text cannot, so compare them with == or != instead.',
                 ) from None
         if isinstance(node, ast.BinOp):
@@ -588,8 +563,8 @@ class _Parser:
                     node,
                     f'{symbol} cannot be applied to {ast.unparse(node.left)} and '
                     f'{ast.unparse(node.right)}, because one of them is not a number. '
-                    f'Arithmetic works on numbers such as buffer.width or time, as in '
-                    f'buffer.width + 2 > 10.',
+                    f'Arithmetic works on numbers such as target.width or time, as in '
+                    f'target.width + 2 > 10.',
                 ) from None
         if isinstance(node, ast.BoolOp):
             values = [build(value) for value in node.values]
@@ -677,7 +652,7 @@ def _compare(
     return left >= right  # type: ignore[operator]
 
 
-class _BufferView:
+class _TargetView:
     """What ``buffer`` means inside a condition that is evaluated in Python."""
 
     __slots__ = ('_context',)
@@ -753,34 +728,34 @@ class _RootView:
 
     @property
     def width(self) -> int:
-        return self._context.canvas.width
+        return self._context.canvas.screen.width
 
     @property
     def height(self) -> int:
-        return self._context.canvas.height
+        return self._context.canvas.screen.height
 
     @property
     def time(self) -> float:
-        return self._context.time.elapsed
+        return self._context.clock.elapsed_seconds
 
     @property
     def delta(self) -> float:
-        return self._context.time.delta
+        return self._context.clock.delta_seconds
 
     @property
     def fps(self) -> float:
-        return self._context.time.fps
+        return self._context.clock.measured_fps
 
 
 def _live_names(context: Context[object, object]) -> dict[str, object]:
     return {
         'keyboard': context.keyboard,
         'mouse': context.mouse,
-        'scroll': context.scroll,
-        'buffer': _BufferView(context),
+        'scroll': context.mouse.scroll,
+        'target': _TargetView(context),
         'parent': _ParentView(context),
         'root': _RootView(context),
-        'time': context.time.elapsed,
+        'time': context.clock.elapsed_seconds,
         'deps': context.deps,
     }
 
@@ -824,9 +799,9 @@ def compile_when(when: object) -> CompiledWhen:
         return NO_CONDITION
     if isinstance(when, bool):
         raise TypeError(
-            f'when= received {when}. That is what `is` and `and` give on an expression. '
+            f'on= received {when}. That is what `is` and `and` give on an expression. '
             f'Build the condition with ==, & and |, for example '
-            f'Keyboard.key == "q", or write it as a string, "keyboard.key == \'q\'".'
+            f'keyboard.key == "q", or write it as a string, "keyboard.key == \'q\'".'
         )
     if isinstance(when, _core.Expression):
         return CompiledWhen(
@@ -843,7 +818,7 @@ def compile_when(when: object) -> CompiledWhen:
             False,
         )
     raise TypeError(
-        f'when= takes a condition expression, a function of the context or a string, but '
+        f'on= takes a condition expression, a function of the context or a string, but '
         f'received {when!r} of type {type(when).__name__}. For example '
-        f'when="keyboard.key == \'q\'" or when=lambda context: context.mouse.is_down.'
+        f'on="keyboard.key == \'q\'" or on=lambda context: context.mouse.is_down.'
     )

@@ -862,6 +862,9 @@ pub struct TerminalSession {
     last_area: Rect,
     origin: Origin,
     capture: Option<OutputCapture>,
+    /// The window size last seen by an inline region whose size the program sets, which is
+    /// drawn in a fixed area the session moves itself; `None` while ratatui places the region.
+    resized_window: Option<ratatui_core::layout::Size>,
     _panic_guard: PanicGuard,
 }
 
@@ -975,6 +978,7 @@ impl TerminalSession {
             last_area: Rect::default(),
             origin,
             capture,
+            resized_window: None,
             _panic_guard: panic_guard,
         })
     }
@@ -1002,9 +1006,85 @@ impl TerminalSession {
         self.options.inline_height.is_some()
     }
 
+    /// Give an inline region a new size, in place below what the terminal printed before it.
+    ///
+    /// The region keeps its top row while it fits in the window. When it grows past the
+    /// bottom of the window, the window's content scrolls up to make room, as printing would.
+    /// Rows the region no longer covers are erased. `width` limits how wide frames are drawn;
+    /// `None` draws as wide as the window. From the first call on, the session places the
+    /// region itself, in a fixed area that follows window resizes.
+    pub fn resize_inline(&mut self, width: Option<u16>, height: u16) -> io::Result<()> {
+        if !self.is_inline() {
+            return Err(io::Error::other(
+                "only an inline region can be resized; a session that takes the whole window \
+                 follows the window",
+            ));
+        }
+        let window = self.terminal.size()?;
+        let area = self.terminal.get_frame().area();
+        let height = height.clamp(1, window.height.max(1));
+        let mut top = area.y;
+        let old_bottom = area.bottom().min(window.height);
+        let backend = self.terminal.backend_mut();
+        if top.saturating_add(height) > window.height {
+            // Like printing at the bottom of the window: the lines above scroll up.
+            let scroll = top.saturating_add(height) - window.height;
+            backend.set_cursor_position(Position::new(0, window.height.saturating_sub(1)))?;
+            backend.append_lines(scroll)?;
+            top = top.saturating_sub(scroll);
+        }
+        let new_bottom = top.saturating_add(height);
+        for row in new_bottom..old_bottom {
+            backend.set_cursor_position(Position::new(0, row))?;
+            backend.clear_region(ClearType::CurrentLine)?;
+        }
+        Backend::flush(backend)?;
+        let next_area = Rect::new(0, top, window.width, height);
+        if self.resized_window.is_none() {
+            // A fixed viewport is placed where it is told, without asking the terminal where
+            // its cursor is, which input that is being read would otherwise swallow.
+            self.terminal = Terminal::with_options(
+                SessionBackend::new(),
+                RatatuiOptions {
+                    viewport: Viewport::Fixed(next_area),
+                },
+            )?;
+        } else {
+            self.terminal.resize(next_area)?;
+        }
+        self.resized_window = Some(window);
+        self.options.inline_height = Some(height);
+        self.options.inline_width = width;
+        self.last_presented = None;
+        self.last_graphics = None;
+        self.last_area = next_area;
+        self.origin.store(pack_origin(next_area), Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// Follow a window resize for an inline region the session places itself.
+    fn follow_window(&mut self) -> io::Result<()> {
+        let Some(previous) = self.resized_window else {
+            return self.terminal.autoresize();
+        };
+        let window = self.terminal.size()?;
+        if window == previous {
+            return Ok(());
+        }
+        let area = self.terminal.get_frame().area();
+        let height = area.height.clamp(1, window.height.max(1));
+        // A window that gets shorter than the region pushes its top up, as terminals scroll
+        // the lines that no longer fit.
+        let top = area.y.min(window.height.saturating_sub(height));
+        self.terminal
+            .resize(Rect::new(0, top, window.width, height))?;
+        self.resized_window = Some(window);
+        Ok(())
+    }
+
     /// The size of the area frames are drawn into, following any terminal resize.
     pub fn viewport(&mut self) -> io::Result<Size> {
-        self.terminal.autoresize()?;
+        self.follow_window()?;
         let area = self.terminal.get_frame().area();
         self.last_area = area;
         self.origin.store(pack_origin(area), Ordering::Relaxed);

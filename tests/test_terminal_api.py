@@ -8,16 +8,22 @@ from __future__ import annotations
 
 import ast
 import dataclasses
-import importlib
+import importlib.util
 import inspect
 import pathlib
 import re
 import typing
 
 import pytest
-from documented_attributes import documented_attributes, names_defined_at_runtime
+from documented_attributes import (
+    documented_attributes,
+    imported_names,
+    is_documented_in,
+    names_defined_at_runtime,
+)
 
 import xnano
+import xnano.devices
 from xnano_core import Event
 
 SUBPACKAGES = (
@@ -49,38 +55,41 @@ def canvas():
 
 class TestAutomaticSizing:
     def test_everything_left_out_is_taken_from_the_content(self, canvas):
-        placement = canvas.write('hello')
+        placement = canvas.screen.write('hello')
         assert (placement.x, placement.y) == (0, 0)
         assert (placement.width, placement.height) == (5, 1)
 
     def test_several_lines_set_the_height(self, canvas):
-        placement = canvas.write('one\ntwo\nthree')
+        placement = canvas.screen.write('one\ntwo\nthree')
         assert (placement.width, placement.height) == (5, 3)
 
     def test_a_given_number_wins_over_the_content(self, canvas):
-        placement = canvas.write('hello', x=3, width=8)
+        placement = canvas.screen.write('hello', x=3, width=8)
         assert (placement.x, placement.width, placement.height) == (3, 8, 1)
 
     def test_a_cell_buffer_is_sized_by_the_buffer(self, canvas):
         from xnano_core import Buffer
 
         grid = Buffer.with_text('abcd').to_cell_grid()
-        assert canvas.write(Buffer.from_cell_grid(grid)).width == 4
+        assert canvas.screen.write(Buffer.from_cell_grid(grid)).width == 4
 
     def test_each_axis_can_be_left_out_on_its_own(self, canvas):
-        placement = canvas.write('hello', y=2)
+        placement = canvas.screen.write('hello', y=2)
         assert (placement.x, placement.y, placement.width) == (0, 2, 5)
 
 
 class TestInterface:
     def test_the_canvas_groups_what_is_not_declaring(self, canvas):
-        assert isinstance(canvas.output, xnano.output.Output)
-        assert isinstance(canvas.audio, xnano.audio.AudioDevice)
-        assert isinstance(canvas.time, xnano.time.Time)
+        assert isinstance(canvas.screen.output, xnano.devices.Output)
+        assert isinstance(canvas.speaker, xnano.devices.Speaker)
+        assert isinstance(canvas.clock, xnano.devices.Clock)
 
     def test_the_time_controls_are_part_of_the_interface(self, canvas):
-        for name in ('step', 'iter', 'stop', 'resume', 'quit', 'render', 'open', 'push'):
+        for name in ('iter', 'run', 'stop', 'open', 'push'):
             assert callable(getattr(canvas, name)), name
+        for name in ('step', 'pause', 'resume', 'sleep'):
+            assert callable(getattr(canvas.clock, name)), name
+        assert callable(canvas.screen.render)
 
     def test_machinery_is_not_part_of_the_interface(self, canvas):
         for name in (
@@ -122,7 +131,9 @@ class TestInterface:
     @pytest.mark.parametrize(
         'name',
         [
-            'Audio',
+            'Sound',
+            'load_sound',
+            'AudioDevice',
             'TerminalSound',
             'TerminalNote',
             'TerminalMelody',
@@ -187,24 +198,24 @@ class TestInjectedEvents:
         heard: list[str] = []
 
         @canvas.hook
-        def listen(context: xnano.context.Context) -> None:
+        def listen(context: xnano.hooks.Context) -> None:
             assert context.event is not None
             heard.append(context.event.kind)
 
         for event in events.values():
             canvas.push(event)
-        canvas.step(delta_seconds=0.05)
+        canvas.clock.step(delta_seconds=0.05)
         assert sorted(heard) == sorted(events)
 
     def test_a_custom_event_carries_a_name_and_data(self, canvas):
         seen: list[tuple[str | None, str | None]] = []
 
-        @canvas.hook(when=lambda context: context.event.kind == 'custom')
-        def volume(context: xnano.context.Context) -> None:
+        @canvas.hook(on=lambda context: context.event.kind == 'custom')
+        def volume(context: xnano.hooks.Context) -> None:
             seen.append((context.event.custom_name, context.event.custom_data))
 
         canvas.push(Event.custom('volume_changed', data='7'))
-        canvas.step(delta_seconds=0.05)
+        canvas.clock.step(delta_seconds=0.05)
         assert seen == [('volume_changed', '7')]
 
     def test_pushing_into_a_closed_canvas_says_so(self):
@@ -234,27 +245,27 @@ class TestTypedState:
 
     def test_a_reference_drives_an_axis(self):
         with xnano.new(width=30, height=2, state=Settings()) as canvas:
-            thumb = canvas.write('#')
+            thumb = canvas.screen.write('#')
             thumb.x = canvas.state_reference(lambda state: state.volume)
             canvas.state.volume = 12
-            canvas.step(delta_seconds=0.05)
+            canvas.clock.step(delta_seconds=0.05)
             assert thumb.x == 12
 
     def test_a_canvas_without_a_dataclass_still_has_a_state(self, canvas):
-        canvas.state.push('volume', 3)
+        canvas.state.set('volume', 3)
         assert canvas.state.get('volume') == 3
 
     def test_the_context_carries_the_same_state(self):
         with xnano.new(width=8, height=1, state=Settings()) as canvas:
             seen: list[int] = []
 
-            @canvas.hook(when=lambda context: context.keyboard.key is not None)
-            def press(context: xnano.context.Context[None, Settings]) -> None:
+            @canvas.hook(on=lambda context: context.keyboard.key is not None)
+            def press(context: xnano.hooks.Context[None, Settings]) -> None:
                 context.root.state.volume += 5
                 seen.append(context.root.state.volume)
 
             canvas.push(Event.key_press('up'))
-            canvas.step(delta_seconds=0.05)
+            canvas.clock.step(delta_seconds=0.05)
             assert seen == [45]
             assert canvas.state.volume == 45
             assert typing.get_type_hints(Settings)['volume'] is int
@@ -298,6 +309,13 @@ class TestDocumentation:
     PENDING_REMOVAL: frozenset[str] = frozenset()
     """Modules a later part of this release removes, whose references may still be stale."""
 
+    NOT_INSTALLED: frozenset[str] = (
+        frozenset()
+        if importlib.util.find_spec('pydantic_ai')
+        else frozenset({'xnano.ai'})
+    )
+    """Modules whose extra is not installed, such as ``xnano.ai`` before Python 3.11."""
+
     @staticmethod
     def _resolves(dotted: str) -> bool:
         import importlib
@@ -340,7 +358,7 @@ class TestDocumentation:
                 if not self._resolves(dotted)
                 and not any(
                     dotted == module or dotted.startswith(f'{module}.')
-                    for module in self.PENDING_REMOVAL
+                    for module in self.PENDING_REMOVAL | self.NOT_INSTALLED
                 )
             }
         )
@@ -521,7 +539,7 @@ class TestDocumentationSite:
 class TestOutputCaptureStatus:
     def test_a_canvas_off_the_screen_holds_nothing_back(self):
         with xnano.new(width=4, height=1) as canvas:
-            assert canvas.output.is_captured is False
+            assert canvas.screen.output.is_captured is False
 
 
 class TestReturnTypesAreReachable:
@@ -531,48 +549,47 @@ class TestReturnTypesAreReachable:
         import xnano.hooks
         import xnano.hooks._handles
         import xnano.operations
-        import xnano.types
 
         assert (
-            xnano.types.HookHandle
+            xnano.hooks.HookHandle
             is xnano.hooks.HookHandle
             is xnano.hooks._handles.HookHandle
         )
         assert (
-            xnano.types.EffectController
+            xnano.effects.EffectController
             is xnano.effects.EffectController
             is xnano.effects._controller.EffectController
         )
-        assert xnano.types.EffectSpecification is not xnano.operations.Effect
+        assert xnano.effects.EffectSpecification is not xnano.operations.Effect
         assert (
-            xnano.types.RenderableEffectProperties
-            is xnano.effects.RenderableEffectProperties
+            xnano.effects.WritableEffectProperties
+            is xnano.effects.WritableEffectProperties
         )
         for name in ('fx', 'Customization', 'CustomizationKind'):
             assert name not in xnano.operations.__all__
 
     def test_hook_lives_in_the_hooks_package(self):
+        import xnano
         import xnano.hooks
         import xnano.operations
-        import xnano.types
 
         assert xnano.hook is xnano.hooks.hook
         assert not hasattr(xnano.operations, 'hook')
         assert 'hook' not in xnano.operations.__all__
-        assert xnano.hooks.When is xnano.types.When
-        assert xnano.hooks.Hook is xnano.types.Hook
-        assert xnano.hooks.HookKind is xnano.types.HookKind
-        assert xnano.hooks.HookResult is xnano.types.HookResult
-        assert not hasattr(xnano.types, 'HookGenerator')
+        assert xnano.hooks.When is xnano.hooks.When
+        assert xnano.hooks.Hook is xnano.hooks.Hook
+        assert xnano.hooks.HookKind is xnano.hooks.HookKind
+        assert xnano.hooks.HookResult is xnano.hooks.HookResult
+        assert not hasattr(xnano, 'HookGenerator')
         assert not hasattr(xnano.hooks, 'HookGenerator')
 
     def test_terminal_settings_live_in_the_terminal_package(self):
+        import xnano
         import xnano.canvas
         import xnano.terminal
-        import xnano.types
 
-        assert xnano.types.TerminalSettings is xnano.terminal.TerminalSettings
-        assert not hasattr(xnano.types, 'GateSettings')
+        assert xnano.terminal.TerminalSettings is xnano.terminal.TerminalSettings
+        assert not hasattr(xnano, 'GateSettings')
         assert not hasattr(xnano.canvas, '_GATE_NAMES')
         assert not hasattr(xnano.canvas, '_split_settings')
         assert not hasattr(xnano.canvas.Canvas, '_attach_screen')
@@ -582,16 +599,15 @@ class TestReturnTypesAreReachable:
         import typing
 
         import xnano.hooks
-        import xnano.types
 
-        assert len(xnano.types.Hook.__type_params__) == 2
-        assert len(xnano.types.HookResult.__type_params__) == 2
-        assert len(xnano.types.When.__type_params__) == 2
-        assert typing.get_args(xnano.types.Hook[int, int]) == (int, int)
-        assert typing.get_args(xnano.types.When[int, int]) == (int, int)
-        assert xnano.types.When is xnano.hooks.When
-        assert typing.get_args(xnano.types.HookResult[None, None]) == (None, None)
-        assert typing.get_args(xnano.types.Hook[None, None]) == (None, None)
+        assert len(xnano.hooks.Hook.__type_params__) == 2
+        assert len(xnano.hooks.HookResult.__type_params__) == 2
+        assert len(xnano.hooks.When.__type_params__) == 2
+        assert typing.get_args(xnano.hooks.Hook[int, int]) == (int, int)
+        assert typing.get_args(xnano.hooks.When[int, int]) == (int, int)
+        assert xnano.hooks.When is xnano.hooks.When
+        assert typing.get_args(xnano.hooks.HookResult[None, None]) == (None, None)
+        assert typing.get_args(xnano.hooks.Hook[None, None]) == (None, None)
 
 
 def test_the_expressions_module_lists_only_its_public_names() -> None:
@@ -618,7 +634,7 @@ def test_the_expressions_module_lists_only_its_public_names() -> None:
 LAZY_REEXPORT_MODULES = [
     'xnano.expressions',
     'xnano.styles',
-    'xnano.geometry',
+    'xnano.layout',
     'xnano.events',
     'xnano.buffers',
     'xnano.widgets',
@@ -652,25 +668,32 @@ def test_every_lazy_name_is_documented_with_an_example(module_name: str) -> None
     module = importlib.import_module(module_name)
     tree = ast.parse(pathlib.Path(module.__file__).read_text(encoding='utf-8'))
     documented = dict(documented_attributes(tree))
+    imported = imported_names(tree)
     lazy_names = set(module.__all__) - names_defined_at_runtime(tree)
     assert lazy_names, f'{module_name} defines every one of its names at runtime'
-    assert not lazy_names - documented.keys(), (
-        f'These names of {module_name} have no docstring after their assignment: '
-        f'{sorted(lazy_names - documented.keys())}.'
+    undocumented = sorted(
+        name
+        for name in lazy_names - documented.keys()
+        if name not in imported or not is_documented_in(imported[name], name)
     )
-    for name in sorted(lazy_names):
+    assert not undocumented, (
+        f'These names of {module_name} have no docstring where they are defined: '
+        f'{undocumented}.'
+    )
+    # A name imported from where it is defined keeps its example there.
+    for name in sorted(lazy_names & documented.keys()):
         assert '```python' in documented[name], f'{module_name}.{name} has no example'
 
 
-def test_the_buffer_size_expression_lives_only_in_the_expressions_module() -> None:
+def test_the_target_size_expression_lives_only_in_the_expressions_module() -> None:
     import xnano.buffers
     import xnano.expressions
     import xnano_core
 
-    assert 'BufferSize' not in xnano.buffers.__all__
+    assert 'TargetSize' not in xnano.buffers.__all__
     with pytest.raises(AttributeError, match='xnano.buffers'):
-        xnano.buffers.BufferSize  # noqa: B018
-    assert xnano.expressions.BufferSize is xnano_core.BufferSize
+        xnano.buffers.TargetSize  # noqa: B018
+    assert xnano.expressions.TargetSize is xnano_core.BufferSize
 
 
 class TestWidgetsFigure:
@@ -703,7 +726,7 @@ class TestWidgetsFigure:
             assert not hasattr(xnano.widgets, core_name)
 
 
-def test_the_color_value_alias_is_public_in_types():
-    import xnano.types
+def test_the_color_value_alias_is_public_in_styles():
+    import xnano.styles
 
-    assert 'ColorValue' in xnano.types.__all__
+    assert 'ColorValue' in xnano.styles.__all__

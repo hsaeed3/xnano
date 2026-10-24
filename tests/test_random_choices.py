@@ -14,8 +14,8 @@ import pytest
 from typing_extensions import assert_type
 
 import xnano
+from xnano.devices import KeyName
 from xnano.hooks._triggers import _KEY_NAMES
-from xnano.types import KeyName
 
 BORDER_KINDS = {'plain', 'rounded', 'double', 'thick'}
 
@@ -27,7 +27,7 @@ def _run_on_tick(canvas, owner, action, results):
     def act(context: xnano.Context) -> None:
         results.append(action(context))
 
-    canvas.step(delta_seconds=0.1)
+    canvas.clock.step(delta_seconds=0.1)
     canvas.deliver_events()
 
 
@@ -43,7 +43,7 @@ def test_keyboard_random_presses_a_closed_key_and_returns_it():
 
         random.seed(11)
         for _ in range(60):
-            canvas.step(delta_seconds=0.01)
+            canvas.clock.step(delta_seconds=0.01)
             _run_on_tick(canvas, canvas, lambda c: c.keyboard.random(), pressed)
     assert heard == pressed
     assert set(pressed) <= set(_KEY_NAMES)
@@ -81,7 +81,7 @@ def _mouse_cells(canvas, owner, kind, count=40):
         returned.append(context.mouse.random(kind))
 
     for _ in range(count):
-        canvas.step(delta_seconds=0.02)
+        canvas.clock.step(delta_seconds=0.02)
     canvas.deliver_events()
     return kinds, returned
 
@@ -98,7 +98,7 @@ def test_mouse_random_clicks_inside_the_canvas():
 
 def test_mouse_random_stays_inside_a_placement():
     with xnano.new(width=30, height=12) as canvas:
-        card = canvas.write('hello', x=10, y=4, border='plain')
+        card = canvas.screen.write('hello', x=10, y=4, border='plain')
         random.seed(2)
         kinds, returned = _mouse_cells(canvas, card, 'click')
         left, top = card.x, card.y
@@ -110,7 +110,7 @@ def test_mouse_random_stays_inside_a_placement():
 
 def test_mouse_random_stays_inside_a_nested_placement():
     with xnano.new(width=40, height=16) as canvas:
-        outer = canvas.write(xnano.box(20, 8), x=6, y=3)
+        outer = canvas.screen.write(xnano.box(20, 8), x=6, y=3)
         inner = outer.write('hi', x=4, y=2, border='plain')
         bounds = inner._buffer._absolute_bounds
         left, top = bounds.x, bounds.y
@@ -124,7 +124,7 @@ def test_mouse_random_stays_inside_a_nested_placement():
 
 def test_mouse_random_drag_presses_drags_and_releases_inside_the_bounds():
     with xnano.new(width=30, height=12) as canvas:
-        card = canvas.write(xnano.box(10, 4), x=7, y=5)
+        card = canvas.screen.write(xnano.box(10, 4), x=7, y=5)
         random.seed(4)
         kinds, returned = _mouse_cells(canvas, card, 'drag', count=1)
         left, top = card.x, card.y
@@ -152,21 +152,23 @@ def test_scroll_random_turns_the_wheel_inside_the_bounds():
     turned: list[tuple[int, int, int, int]] = []
     pushed: list[tuple[int, int]] = []
     with xnano.new(width=30, height=12) as canvas:
-        card = canvas.write(xnano.box(10, 4), x=7, y=5)
+        card = canvas.screen.write(xnano.box(10, 4), x=7, y=5)
 
         @canvas.hook(on='scroll')
         def listen(context: xnano.Context) -> None:
-            event = context.scroll.get()
+            event = context.mouse.scroll.event
             assert event is not None
-            turned.append((event.column, event.row, context.scroll.x, context.scroll.y))
+            turned.append(
+                (event.column, event.row, context.mouse.scroll.x, context.mouse.scroll.y)
+            )
 
         @card.hook(on='tick', every=0.01)
         def act(context: xnano.Context) -> None:
-            pushed.append(context.scroll.random())
+            pushed.append(context.mouse.scroll.random())
 
         random.seed(6)
         for _ in range(40):
-            canvas.step(delta_seconds=0.02)
+            canvas.clock.step(delta_seconds=0.02)
         canvas.deliver_events()
         left, top = card.x, card.y
         right, bottom = left + card.width, top + card.height
@@ -181,13 +183,13 @@ def test_random_is_repeatable_with_a_seed():
     def play() -> list[object]:
         outcomes: list[object] = []
         with xnano.new(width=30, height=12) as canvas:
-            card = canvas.write('x', x=3, y=3, border='plain')
+            card = canvas.screen.write('x', x=3, y=3, border='plain')
 
             def action(context: xnano.Context) -> object:
                 return (
                     context.keyboard.random(),
                     context.mouse.random(),
-                    context.scroll.random(),
+                    context.mouse.scroll.random(),
                     card.border.random(),
                     card.border.left.random(),
                 )
@@ -201,7 +203,7 @@ def test_random_is_repeatable_with_a_seed():
 
 def test_random_needs_a_cell_on_the_screen():
     with xnano.new(width=10, height=4) as canvas:
-        away = canvas.write('x', x=50, y=50)
+        away = canvas.screen.write('x', x=50, y=50)
         results: list[object] = []
         with pytest.raises(Exception, match='covers no cell on the screen'):
             _run_on_tick(canvas, away, lambda c: c.mouse.random(), results)
@@ -209,7 +211,7 @@ def test_random_needs_a_cell_on_the_screen():
 
 def test_border_random_sets_a_valid_kind_on_every_side():
     with xnano.new(width=12, height=5) as canvas:
-        card = canvas.write('hi')
+        card = canvas.screen.write('hi')
         seen = set()
         for seed in range(40):
             random.seed(seed)
@@ -219,21 +221,21 @@ def test_border_random_sets_a_valid_kind_on_every_side():
             assert {card.border.top.kind, card.border.left.kind} == {kind}
             seen.add(kind)
         assert seen == BORDER_KINDS
-        assert 'hi' in canvas.render()
+        assert 'hi' in canvas.screen.render()
 
 
 def test_border_random_draws_immediately():
     with xnano.new(width=12, height=5) as canvas:
-        card = canvas.write('hi')
+        card = canvas.screen.write('hi')
         random.seed(0)
         kind = card.border.random()
         glyph = {'plain': '┌', 'rounded': '╭', 'double': '╔', 'thick': '┏'}[kind]
-        assert glyph in canvas.render()
+        assert glyph in canvas.screen.render()
 
 
 def test_border_side_random_changes_only_that_side():
     with xnano.new(width=12, height=5) as canvas:
-        card = canvas.write('hi', border='plain')
+        card = canvas.screen.write('hi', border='plain')
         seen = set()
         for seed in range(40):
             random.seed(seed)
@@ -246,7 +248,7 @@ def test_border_side_random_changes_only_that_side():
 
 def test_border_side_random_draws_a_side_that_was_off():
     with xnano.new(width=12, height=5) as canvas:
-        card = canvas.write('hi', border='plain')
+        card = canvas.screen.write('hi', border='plain')
         card.border.left = False
         assert card.border.left.kind is None
         assert card.border.left.random() in BORDER_KINDS

@@ -35,38 +35,42 @@ def left_half_red(width: int = 4, height: int = 4) -> TerminalImage:
 
 def blue_canvas(width: int = 8, height: int = 4):
     canvas = xnano.new(width=width, height=height)
-    canvas.write([' ' * width] * height, background='#0000ff')
+    canvas.screen.write([' ' * width] * height, background='#0000ff', x=0, y=0)
     return canvas
 
 
 def cell_at(canvas, column, row):
-    return Buffer.from_cell_grid(canvas.output.render().to_cell_grid())[column, row]
+    return Buffer.from_cell_grid(canvas.screen.output.render().to_cell_grid())[
+        column, row
+    ]
 
 
 class TestTransparentPixels:
     def test_transparent_pixels_show_the_canvas(self):
         with blue_canvas() as canvas:
-            canvas.write(xnano.Image(left_half_red()))
+            canvas.screen.write(xnano.Image(left_half_red()), x=0, y=0)
             assert cell_at(canvas, 0, 0).background.to_rgb() == RED
             assert cell_at(canvas, 3, 0).background.to_rgb() == BLUE
             assert cell_at(canvas, 3, 1).background.to_rgb() == BLUE
 
     def test_the_image_is_not_painted_black(self):
         with blue_canvas() as canvas:
-            canvas.write(xnano.Image(left_half_red()))
-            ansi = canvas.render(format='ansi')
+            canvas.screen.write(xnano.Image(left_half_red()), x=0, y=0)
+            ansi = canvas.screen.render(format='ansi')
         assert '48;2;0;0;0' not in ansi
         assert '38;2;0;0;0' not in ansi
 
     def test_a_background_does_not_fill_transparent_pixels(self):
         with blue_canvas() as canvas:
-            canvas.write(xnano.Image(left_half_red(), background=(0, 255, 0)))
+            canvas.screen.write(
+                xnano.Image(left_half_red(), background=(0, 255, 0)), x=0, y=0
+            )
             assert cell_at(canvas, 3, 0).background.to_rgb() == BLUE
 
     def test_the_margins_of_a_contained_picture_show_the_canvas(self):
         wide = picture(8, 2, lambda _c, _r: (*RED, 255) if _c < 4 else (0, 0, 0, 0))
         with blue_canvas(8, 6) as canvas:
-            canvas.write(xnano.Image(wide, width=8, height=6))
+            canvas.screen.write(xnano.Image(wide, width=8, height=6), x=0, y=0)
             assert cell_at(canvas, 0, 0).background.to_rgb() == BLUE
             assert cell_at(canvas, 0, 5).background.to_rgb() == BLUE
             middle = [cell_at(canvas, 0, row) for row in range(6)]
@@ -75,15 +79,17 @@ class TestTransparentPixels:
     def test_a_partly_transparent_pixel_blends_with_the_background(self):
         half = picture(2, 2, lambda _c, _r: (255, 255, 255, 128))
         with blue_canvas(4, 2) as canvas:
-            canvas.write(xnano.Image(half))
+            canvas.screen.write(xnano.Image(half), x=0, y=0)
             assert cell_at(canvas, 0, 0).background.to_rgb() == (128, 128, 128)
         with blue_canvas(4, 2) as canvas:
-            canvas.write(xnano.Image(half, background=(255, 255, 255)))
+            canvas.screen.write(xnano.Image(half, background=(255, 255, 255)), x=0, y=0)
             assert cell_at(canvas, 0, 0).background.to_rgb() == (255, 255, 255)
 
     def test_a_fully_transparent_pixel_stays_transparent_with_a_background(self):
         with blue_canvas() as canvas:
-            canvas.write(xnano.Image(left_half_red(), background=(255, 255, 255)))
+            canvas.screen.write(
+                xnano.Image(left_half_red(), background=(255, 255, 255)), x=0, y=0
+            )
             assert cell_at(canvas, 3, 0).background.to_rgb() == BLUE
 
     def test_a_cell_with_one_transparent_half_shows_the_default_color(self):
@@ -91,7 +97,7 @@ class TestTransparentPixels:
             2, 2, lambda _c, row: (*RED, 255) if row == 0 else (0, 0, 0, 0)
         )
         with blue_canvas(4, 2) as canvas:
-            canvas.write(xnano.Image(top_only))
+            canvas.screen.write(xnano.Image(top_only), x=0, y=0)
             cell = cell_at(canvas, 0, 0)
         assert cell.symbol == '▀'
         assert cell.foreground.to_rgb() == RED
@@ -99,7 +105,9 @@ class TestTransparentPixels:
 
     def test_an_opaque_picture_is_drawn_in_every_cell(self):
         with blue_canvas() as canvas:
-            canvas.write(xnano.Image(picture(4, 4, lambda _c, _r: (*RED, 255))))
+            canvas.screen.write(
+                xnano.Image(picture(4, 4, lambda _c, _r: (*RED, 255))), x=0, y=0
+            )
             assert cell_at(canvas, 3, 1).foreground.to_rgb() == RED
 
 
@@ -165,13 +173,13 @@ class TestAnimatedTransparentPictures:
 
     def test_every_frame_keeps_the_canvas_visible(self, animation):
         with blue_canvas() as canvas:
-            canvas.write(xnano.Image(animation))
+            canvas.screen.write(xnano.Image(animation), x=0, y=0)
             first = cell_at(canvas, 0, 0).background.to_rgb()
             assert cell_at(canvas, 3, 0).background.to_rgb() == BLUE
-            canvas.step(delta_seconds=0.15)
+            canvas.clock.step(delta_seconds=0.15)
             second = cell_at(canvas, 0, 0).background.to_rgb()
             assert cell_at(canvas, 3, 0).background.to_rgb() == BLUE
-            canvas.step(delta_seconds=0.1)
+            canvas.clock.step(delta_seconds=0.1)
             looped = cell_at(canvas, 0, 0).background.to_rgb()
         assert first == RED
         assert second == (0, 255, 0)
@@ -181,11 +189,13 @@ class TestAnimatedTransparentPictures:
 class TestResizingTransparentPictures:
     def test_the_picture_is_fitted_again_and_stays_transparent(self):
         with xnano.new(width=8, height=4) as canvas:
-            canvas.write([' ' * 8] * 4, background='#0000ff')
-            placement = canvas.write(xnano.Image(left_half_red(8, 8)), width='50%')
+            canvas.screen.write([' ' * 8] * 4, background='#0000ff', x=0, y=0)
+            placement = canvas.screen.write(
+                xnano.Image(left_half_red(8, 8)), x=0, y=0, width='50%'
+            )
             assert placement.width == 4
             canvas._runtime.resize(width=16, height=4)
-            canvas.step(delta_seconds=0.05)
+            canvas.clock.step(delta_seconds=0.05)
             assert placement.width == 8
             assert cell_at(canvas, 0, 0).background.to_rgb() == RED
             assert cell_at(canvas, 7, 0).background.to_rgb() != RED

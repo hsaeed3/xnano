@@ -84,16 +84,16 @@ pixel.
 """
 
 Resolution: TypeAlias = Literal[
-    'cells', 'half_blocks', 'braille', 'beats', 'ticks', 'milliseconds'
+    'cells', 'half_blocks', 'braille', 'beats', 'sixteenths', 'milliseconds'
 ]
 """
-The grid a [`Region`][xnano.region.Region] is measured in.
+The grid a [`Region`][xnano.layout.Region] is measured in.
 
 The first three are grids on the screen: ``'cells'`` measures a region in terminal cells,
 ``'half_blocks'`` in pixels, one by two per cell, and ``'braille'`` in dots, two by four per
 cell.
 
-The last three are grids on the timeline: ``'beats'`` measures it in beats, ``'ticks'`` in
+The last three are grids on the timeline: ``'beats'`` measures it in beats, ``'sixteenths'`` in
 sixteenth notes (4 per beat) and ``'milliseconds'`` in thousandths of a second, which follows
 the tempo. In every timeline grid ``y`` is the lowest pitch of the region as a MIDI number and
 ``height`` is how many semitones it spans.
@@ -101,7 +101,7 @@ the tempo. In every timeline grid ``y`` is the lowest pitch of the region as a M
 
 PixelAnchor: TypeAlias = Literal['top_left', 'center', 'bottom_right']
 """
-Which pixel of a cell [`Region.pixel_for_cell`][xnano.region.Region.pixel_for_cell] returns.
+Which pixel of a cell [`Region.pixel_for_cell`][xnano.layout.Region.pixel_for_cell] returns.
 
 ``'top_left'`` is the top left pixel of the cell, ``'center'`` the pixel in its middle and
 ``'bottom_right'`` the bottom right pixel.
