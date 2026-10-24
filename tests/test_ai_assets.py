@@ -242,7 +242,8 @@ class TestCommandLine:
         )
         assert 'Installed melodies' in capsys.readouterr().out
         assert assets._main(['path', 'melodies']) == 0
-        assert capsys.readouterr().out.strip().endswith('melodies/1.0.0')
+        installed = Path(capsys.readouterr().out.strip())
+        assert installed.parts[-2:] == ('melodies', '1.0.0')
 
     def test_a_problem_is_reported_without_a_trace(self, capsys):
         assert assets._main(['path', 'melodies']) == 1

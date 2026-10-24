@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import ast
 import dataclasses
-import importlib
+import importlib.util
 import inspect
 import pathlib
 import re
@@ -309,6 +309,13 @@ class TestDocumentation:
     PENDING_REMOVAL: frozenset[str] = frozenset()
     """Modules a later part of this release removes, whose references may still be stale."""
 
+    NOT_INSTALLED: frozenset[str] = (
+        frozenset()
+        if importlib.util.find_spec('pydantic_ai')
+        else frozenset({'xnano.ai'})
+    )
+    """Modules whose extra is not installed, such as ``xnano.ai`` before Python 3.11."""
+
     @staticmethod
     def _resolves(dotted: str) -> bool:
         import importlib
@@ -351,7 +358,7 @@ class TestDocumentation:
                 if not self._resolves(dotted)
                 and not any(
                     dotted == module or dotted.startswith(f'{module}.')
-                    for module in self.PENDING_REMOVAL
+                    for module in self.PENDING_REMOVAL | self.NOT_INSTALLED
                 )
             }
         )

@@ -533,7 +533,8 @@ def public_annotated_members(name: str) -> dict[str, object]:
             member = member.fget
         elif isinstance(member, (staticmethod, classmethod)):
             member = member.__func__
-        if callable(member):
+        # Methods a schema inherits from ``dict``, such as ``fromkeys``, have no annotations.
+        if inspect.isfunction(member) or inspect.isclass(member):
             members[f'{name}.{attribute}'] = member
     return members
 

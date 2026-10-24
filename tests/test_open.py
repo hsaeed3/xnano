@@ -7,6 +7,7 @@ The canvas you draw into: creating and opening it, placing things on it, time an
 from __future__ import annotations
 
 import ast
+import importlib.util
 import pathlib
 import sys
 import textwrap
@@ -957,6 +958,11 @@ LAZY_REEXPORT_MODULES = (
 )
 """The modules whose names are documented inside their ``if TYPE_CHECKING:`` block."""
 
+NEEDS_PYDANTIC_AI = pytest.mark.skipif(
+    importlib.util.find_spec('pydantic_ai') is None,
+    reason='xnano.ai needs the ai extra, which installs pydantic-ai on Python 3.11 or newer',
+)
+
 
 def python_blocks(docstring: str) -> list[str]:
     """The source of every ``python`` fence in a docstring."""
@@ -985,13 +991,15 @@ def python_examples():
     paths.extend(sorted(root.glob('audio/*.py')))
     paths.extend(sorted(root.glob('ai/*.py')))
     for path in paths:
+        marks = NEEDS_PYDANTIC_AI if path.parent.name == 'ai' else ()
         tree = ast.parse(path.read_text(encoding='utf-8'))
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 docstring = ast.get_docstring(node)
                 if docstring:
                     examples.extend(
-                        (node.name, block) for block in python_blocks(docstring)
+                        pytest.param(node.name, block, marks=marks)
+                        for block in python_blocks(docstring)
                     )
         if path.name in LAZY_REEXPORT_MODULES:
             for name, docstring in documented_attributes(tree):
