@@ -9,7 +9,8 @@ with its instructions and settings, and lives in a module named for what it make
 [`state`][xnano.ai.models.state] (``StateModel``), [`text`][xnano.ai.models.text]
 (``TextModel``), [`art`][xnano.ai.models.art] (``ArtModel``),
 [`components`][xnano.ai.models.components] (``ComponentModel``) and
-[`music`][xnano.ai.models.music] (``MusicModel``).
+[`music`][xnano.ai.models.music] (``MusicModel``). Each task model is exported here too, so
+``from xnano.ai.models import ArtModel`` works.
 """
 
 from __future__ import annotations
@@ -43,7 +44,18 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings, ThinkingLevel
     from pydantic_ai.usage import UsageLimits
 
-__all__ = ['TaskModel', 'is_decision_model', 'run_to_completion']
+__all__ = [
+    'ArtModel',
+    'ChoiceModel',
+    'ComponentModel',
+    'JudgeModel',
+    'MusicModel',
+    'StateModel',
+    'TaskModel',
+    'TextModel',
+    'is_decision_model',
+    'run_to_completion',
+]
 
 ResultT = TypeVar('ResultT')
 
@@ -409,3 +421,13 @@ class TaskModel:
             raise self._model_error(error, operation) from error
         self.last_result = result
         return result
+
+
+# Each task model is built on TaskModel, so the modules that define them are imported once it
+# exists.
+from xnano.ai.models.art import ArtModel  # noqa: E402
+from xnano.ai.models.components import ComponentModel  # noqa: E402
+from xnano.ai.models.decisions import ChoiceModel, JudgeModel  # noqa: E402
+from xnano.ai.models.music import MusicModel  # noqa: E402
+from xnano.ai.models.state import StateModel  # noqa: E402
+from xnano.ai.models.text import TextModel  # noqa: E402
