@@ -506,32 +506,48 @@ mod tests {
         let _serial = SERIAL
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // The test harness prints its progress (such as the `.` of a passing test) to
+        // descriptor 1 from its own thread, so that text is captured too and can land right
+        // before or after these writes, on the same line. Each write is one write of fewer
+        // than `PIPE_BUF` bytes to a pipe, so it arrives whole, and is looked for as text
+        // rather than as a line of its own.
+        let (first, second, third) = (
+            "output capture test: first\n",
+            "output capture test: second\n",
+            "output capture test: third\n",
+        );
         let capture = OutputCapture::start(None).expect("capture starts");
         // Writes straight to descriptors 1 and 2, as a native library would.
         {
             use std::os::fd::AsFd;
-            let _ = rustix::io::write(rustix::stdio::stdout().as_fd(), b"first\n");
-            let _ = rustix::io::write(rustix::stdio::stderr().as_fd(), b"second\n");
-            let _ = rustix::io::write(rustix::stdio::stdout().as_fd(), b"third\n");
+            let _ = rustix::io::write(rustix::stdio::stdout().as_fd(), first.as_bytes());
+            let _ = rustix::io::write(rustix::stdio::stderr().as_fd(), second.as_bytes());
+            let _ = rustix::io::write(rustix::stdio::stdout().as_fd(), third.as_bytes());
         }
         let mut text = String::new();
         for _ in 0..100 {
             text.push_str(&capture.take());
-            if ["first", "second", "third"]
+            if [first, second, third]
                 .iter()
-                .all(|word| text.lines().any(|line| line == *word))
+                .all(|written| text.contains(written))
             {
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
         capture.finish();
-        // The test harness prints from other threads too, so only these lines are checked.
-        let position = |word: &str| text.lines().position(|line| line == word);
-        assert!(position("second").is_some());
+        for written in [first, second, third] {
+            assert_eq!(
+                text.matches(written).count(),
+                1,
+                "{written:?} is captured once, in {text:?}"
+            );
+        }
         // Within one stream the order is the order written.
-        assert!(position("first") < position("third"));
-        assert!(position("first").is_some());
+        assert!(
+            text.find(first) < text.find(third),
+            "standard output keeps its order, in {text:?}"
+        );
     }
 
     #[test]
