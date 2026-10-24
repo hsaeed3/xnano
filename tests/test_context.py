@@ -9,12 +9,12 @@ from __future__ import annotations
 import pytest
 
 import xnano
-from xnano.context import Context, Frame, Plugin, Update
+from xnano.devices import Keyboard, Mouse
 from xnano.effects import EffectController
 from xnano.errors import TerminalError
 from xnano.expressions import Expression
-from xnano.input import Input
-from xnano.region import Region
+from xnano.hooks import Context, Frame, Plugin, Update
+from xnano.layout import Region
 from xnano_core import Buffer, Event, Point, Size
 
 
@@ -31,7 +31,7 @@ def push(canvas, *events: Event) -> None:
 
 
 class TestLiveViews:
-    def test_in_a_canvas_hook_the_buffer_the_parent_and_the_root_are_the_canvas(
+    def test_in_a_canvas_hook_the_buffer_and_the_root_are_the_canvas_and_the_parent_its_screen(
         self, canvas
     ):
         seen: list[Context] = []
@@ -40,12 +40,12 @@ class TestLiveViews:
         context = seen[0]
         assert context.canvas is canvas
         assert context.buffer is canvas
-        assert context.parent is canvas
+        assert context.parent is canvas.screen
         assert context.root is canvas
-        assert (context.buffer.x, context.buffer.y) == (0, 0)
+        assert (context.buffer.screen.x, context.buffer.screen.y) == (0, 0)
 
     def test_in_a_placement_hook_the_views_have_concrete_values(self, canvas):
-        box = canvas.write(Buffer(width=4, height=2), x=5, y=3)
+        box = canvas.screen.write(Buffer(width=4, height=2), x=5, y=3)
         values: dict[str, object] = {}
 
         @box.hook(on='key')
@@ -54,17 +54,17 @@ class TestLiveViews:
             values['parent'] = context.parent
             values['x'] = context.buffer.x
             values['parent_width'] = context.parent.width
-            values['root_height'] = context.root.height
+            values['root_height'] = context.root.screen.height
 
         push(canvas, Event.key_press('a'))
         assert values['buffer'] is box
-        assert values['parent'] is canvas
+        assert values['parent'] is canvas.screen
         assert values['x'] == 5
         assert values['parent_width'] == 20
         assert values['root_height'] == 6
 
     def test_the_parent_of_a_nested_placement_is_its_placement(self, canvas):
-        track = canvas.write(Buffer(width=10, height=1), y=2)
+        track = canvas.screen.write(Buffer(width=10, height=1), y=2)
         thumb = track.write(Buffer(width=1, height=1), x=3)
         parents = []
         thumb.hook(lambda context: parents.append(context.parent), on='key')
@@ -72,7 +72,7 @@ class TestLiveViews:
         assert parents == [track]
 
     def test_buffer_has_the_verbs_of_a_placement(self, canvas):
-        box = canvas.write(Buffer(width=2, height=1), x=1)
+        box = canvas.screen.write(Buffer(width=2, height=1), x=1)
 
         @box.hook(on='key')
         def step_right(context: Context) -> None:
@@ -82,12 +82,12 @@ class TestLiveViews:
         assert box.x == 3
 
     def test_on_the_objects_themselves_parent_and_root_stay_formulas(self, canvas):
-        box = canvas.write('x')
+        box = canvas.screen.write('x')
         assert isinstance(box.parent.width, Expression)
         assert isinstance(box.root.time, Expression)
 
     def test_local_turns_a_screen_cell_into_a_cell_of_the_buffer(self, canvas):
-        box = canvas.write(Buffer(width=4, height=2), x=5, y=3)
+        box = canvas.screen.write(Buffer(width=4, height=2), x=5, y=3)
         cells: list[Point] = []
         box.hook(lambda context: cells.append(context.local(Point(6, 4))), on='key')
         push(canvas, Event.key_press('a'))
@@ -105,7 +105,7 @@ class TestRegion:
         assert seen[0].size == region.size
 
     def test_the_region_of_a_placement_hook_is_where_the_placement_is_drawn(self, canvas):
-        box = canvas.write(Buffer(width=4, height=2), x=5, y=3)
+        box = canvas.screen.write(Buffer(width=4, height=2), x=5, y=3)
         seen: list[Context] = []
         box.hook(seen.append, on='key')
         push(canvas, Event.key_press('a'))
@@ -115,7 +115,7 @@ class TestRegion:
         assert seen[0].size == Size(4, 2), 'the size is the shortcut for region.size'
 
     def test_inside_a_border_the_region_is_the_area_inside_it(self, canvas):
-        card = canvas.write('hi', x=2, y=1, border='plain')
+        card = canvas.screen.write('hi', x=2, y=1, border='plain')
         seen: list[Context] = []
         card.hook(seen.append, on='key')
         push(canvas, Event.key_press('a'))
@@ -126,10 +126,10 @@ class TestRegion:
     def test_the_size_is_the_size_of_the_region_inside_every_border_and_padding(self):
         with xnano.new(width=10, height=4, border='plain') as bordered:
             seen: dict[str, Context] = {}
-            card = bordered.write(
+            card = bordered.screen.write(
                 Buffer(width=4, height=2), x=2, y=1, border='plain', padding=1
             )
-            label = bordered.write('hi', x=1, y=1, border='rounded')
+            label = bordered.screen.write('hi', x=1, y=1, border='rounded')
             for name, owner in (('canvas', bordered), ('card', card), ('label', label)):
                 owner.hook(
                     lambda context, name=name: seen.__setitem__(name, context), on='key'
@@ -141,11 +141,13 @@ class TestRegion:
             assert seen['canvas'].size == Size(8, 2)
             assert seen['card'].size == Size(4, 2)
             assert seen['label'].size == Size(2, 1)
-            assert seen['canvas'].canvas.size == Size(10, 4), 'the window is canvas.size'
+            assert seen['canvas'].canvas.screen.size == Size(10, 4), (
+                'the window is canvas.screen.size'
+            )
 
     def test_reading_the_size_makes_no_region(self, canvas, monkeypatch):
         sizes: dict[str, Size] = {}
-        box = canvas.write(Buffer(width=4, height=2), x=5, y=3)
+        box = canvas.screen.write(Buffer(width=4, height=2), x=5, y=3)
         for name, owner in (('canvas', canvas), ('box', box)):
             owner.hook(
                 lambda context, name=name: sizes.__setitem__(name, context.size),
@@ -168,7 +170,7 @@ class TestRegion:
         assert raised.value.code == 'canvas.state'
 
     def test_a_generator_hook_reads_the_region_of_each_event(self, canvas):
-        box = canvas.write(Buffer(width=4, height=2), x=5, y=3)
+        box = canvas.screen.write(Buffer(width=4, height=2), x=5, y=3)
         widths: list[int] = []
 
         @box.hook(on='key')
@@ -189,22 +191,24 @@ class TestMembers:
         canvas.hook(seen.append, on='key')
         push(canvas, Event.key_press('a'))
         context = seen[0]
-        assert context.time is canvas.time
-        assert context.cursor is canvas.cursor
+        assert context.clock is canvas.clock
+        assert context.screen.cursor is canvas.screen.cursor
         assert context.size == Size(20, 6)
-        assert isinstance(context.input, Input)
+        assert isinstance(context.keyboard, Keyboard)
+        assert isinstance(context.mouse, Mouse)
         assert context.deps is None
         assert isinstance(context.fx, EffectController)
         assert isinstance(context.plugin, Plugin)
         assert context.plugin.hook is context.hook
         assert context.event.kind == 'key'
 
-    def test_audio_is_the_canvas_audio(self, canvas):
+    def test_the_speaker_plays_on_the_canvas(self, canvas):
         pytest.importorskip('xnano_audio')
         seen: list[Context] = []
         canvas.hook(seen.append, on='key')
         push(canvas, Event.key_press('a'))
-        assert seen[0].audio is canvas.audio
+        seen[0].speaker.play('C4')
+        assert len(canvas._audio_device()._recordings) == 1
 
     def test_the_state_is_read_from_the_root(self):
         import dataclasses
@@ -223,7 +227,7 @@ class TestMembers:
         events = []
         canvas.hook(lambda context: events.append(context.event), on='frame')
         canvas.hook(lambda context: events.append(context.event), on='tick')
-        canvas.step(delta_seconds=0.1)
+        canvas.clock.step(delta_seconds=0.1)
         assert any(isinstance(event, Frame) for event in events)
         assert any(isinstance(event, Update) for event in events)
 

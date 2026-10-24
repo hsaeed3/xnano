@@ -118,8 +118,8 @@ def test_an_empty_or_wrong_first_argument_is_explained():
 
 def test_a_pixel_draws_into_a_region_and_reads_back():
     with xnano.new(width=5, height=2) as canvas:
-        canvas.region[1, 0] = Pixel('diamond', foreground='red', background='blue')
-        found = canvas.region[1, 0]
+        canvas.screen.region[1, 0] = Pixel('diamond', foreground='red', background='blue')
+        found = canvas.screen.region[1, 0]
         assert found.character == '◆'
         assert found.foreground == Color('red')
         assert found.background == Color('blue')
@@ -127,8 +127,8 @@ def test_a_pixel_draws_into_a_region_and_reads_back():
 
 def test_a_pixel_can_be_written_as_content():
     with xnano.new(width=5, height=2) as canvas:
-        canvas.write(Pixel('star'), x=2)
-        assert canvas.render().split('\n')[0] == '  ★'
+        canvas.screen.write(Pixel('star'), x=2)
+        assert canvas.screen.render().split('\n')[0] == '  ★'
 
 
 def test_a_pixel_prints_as_its_character():

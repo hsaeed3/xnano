@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     from xnano.canvas import Canvas
     from xnano.effects._properties import EffectParameters
-    from xnano.placement import Placement
+    from xnano.layout._placement import Placement
 
 
 class DynamicOperation(_core.Customization):
@@ -61,7 +61,7 @@ class DynamicOperation(_core.Customization):
             target: The target to apply the operation to.
         """
         from xnano.canvas import Canvas
-        from xnano.placement import Placement
+        from xnano.layout._placement import Placement
 
         self._attach(target)
         if isinstance(target, (Placement, Canvas)):

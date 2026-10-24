@@ -22,8 +22,8 @@ card = xnano.write('Hello, world!', border='rounded', padding={'horizontal': 2})
 print(card.render())  # a value renders on its own, with no screen
 
 with xnano.open(width=40, height=6) as terminal:
-    terminal.write(card, x='center')
-    ball = terminal.write('●', y=5)
+    terminal.screen.write(card, x='center')
+    ball = terminal.screen.write('●', y=5)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
     terminal.run(quit_on='q')
 ```

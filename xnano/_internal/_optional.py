@@ -1,8 +1,8 @@
 """
 xnano._internal._optional
 
-The parts of `xnano` that need the optional `xnano-audio`, `xnano-image` and `pydantic-monty`
-packages, and the message that says how to install them.
+The parts of `xnano` that need the optional `xnano-audio`, `xnano-image`, `pydantic-monty` and
+`pydantic-ai-slim` packages, and the message that says how to install them.
 """
 
 from __future__ import annotations
@@ -20,11 +20,13 @@ _PACKAGES: dict[Extra, str] = {
     'audio': 'xnano_audio',
     'image': 'xnano_image',
     'monty': 'pydantic_monty',
+    'ai': 'pydantic_ai',
 }
 _PURPOSE: dict[Extra, str] = {
     'audio': 'sound, notes and melodies',
     'image': 'images',
     'monty': 'a sandbox for running untrusted Python',
+    'ai': 'language models, decision models and agents',
 }
 
 
@@ -38,7 +40,7 @@ def require(extra: Extra, *, needed_for: str) -> ModuleType:
     Import the package behind an extra, or say how to install it.
 
     Args:
-        extra: ``'audio'``, ``'image'`` or ``'monty'``.
+        extra: ``'audio'``, ``'image'``, ``'monty'`` or ``'ai'``.
         needed_for: What was being done, such as ``'Canvas.audio'``, for the message.
 
     Raises:
@@ -49,7 +51,9 @@ def require(extra: Extra, *, needed_for: str) -> ModuleType:
     except ModuleNotFoundError as error:
         if error.name != _PACKAGES[extra]:
             raise
-        package = _PACKAGES[extra].replace('_', '-')
+        package = (
+            'pydantic-ai-slim' if extra == 'ai' else _PACKAGES[extra].replace('_', '-')
+        )
         raise ImportError(
             f'{needed_for} needs {_PURPOSE[extra]}, which is provided by the optional '
             f'package {package}. Install it with: pip install "xnano[{extra}]"'

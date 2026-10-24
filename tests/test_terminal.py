@@ -14,7 +14,6 @@ import pytest
 import xnano
 import xnano.errors
 import xnano.terminal
-import xnano.types
 import xnano_core
 
 COLOR_PROFILES = ('no_terminal', 'no_color', 'ansi16', 'ansi256', 'truecolor')
@@ -100,22 +99,31 @@ class TestCapabilities:
 
     def test_only_an_open_terminal_has_the_properties_of_a_terminal(self):
         with xnano.new(width=4, height=1) as canvas:
-            for name in ('capabilities', 'window', 'settings'):
+            for name in ('capabilities', 'settings'):
                 assert not hasattr(canvas, name), name
-        for name in ('capabilities', 'window', 'settings'):
+            assert canvas.screen.window == canvas.screen.size
+        for name in ('capabilities', 'settings'):
             assert isinstance(getattr(xnano.Terminal, name), property), name
 
 
 class TestNames:
     def test_the_package_exports_what_it_documents(self):
         assert xnano.terminal.__all__ == [
+            'CapabilityStatus',
+            'ColorProfile',
             'GraphicsCapabilities',
+            'GraphicsProtocol',
             'KeyboardCapabilities',
+            'OpenSettings',
+            'OpeningTerminal',
             'Terminal',
             'TerminalCapabilities',
             'TerminalSettings',
             'capabilities',
+            'iter',
+            'iter_async',
             'open',
+            'open_async',
         ]
         assert all(hasattr(xnano.terminal, name) for name in xnano.terminal.__all__)
 
@@ -142,15 +150,15 @@ class TestNames:
         ],
     )
     def test_the_names_of_the_answers_are_public_types(self, name, values):
-        assert name in xnano.types.__all__
-        assert typing.get_args(getattr(xnano.types, name)) == values
+        assert name in xnano.terminal.__all__
+        assert typing.get_args(getattr(xnano.terminal, name)) == values
         assert set(typing.get_args(getattr(xnano_core, name))) == set(values)
 
     @pytest.mark.parametrize(
         'name', ['ColorProfile', 'GraphicsProtocol', 'CapabilityStatus']
     )
     def test_the_names_of_the_answers_are_the_names_of_the_core(self, name):
-        assert getattr(xnano.types, name) is getattr(xnano_core, name)
+        assert getattr(xnano.terminal, name) is getattr(xnano_core, name)
 
 
 class TestTerminalExpressions:

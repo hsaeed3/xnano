@@ -6,11 +6,8 @@ The state of a canvas, a placement and a hook, stored in the core state store.
 
 from __future__ import annotations
 
-import ast
 import dataclasses
 import functools
-import inspect
-import textwrap
 import threading
 import types
 from collections import deque
@@ -913,27 +910,43 @@ def _json_type(annotation: object, field_name: str) -> JSONSchema:
 
 
 def _attribute_path(reader: Callable[..., object]) -> tuple[str, ...]:
-    try:
-        source = inspect.getsource(reader)
-        tree = ast.parse(textwrap.dedent(source))
-    except (OSError, SyntaxError) as error:
+    """Read the field path ``('player', 'x')`` from ``lambda state: state.player.x``."""
+    # The instructions of the function, not its source: the source of a lambda written inside
+    # a call is a fragment of a line, and there is none in an interactive session.
+    import dis
+
+    code = getattr(reader, '__code__', None)
+    if code is None or code.co_argcount < 1:
         raise TypeError(
             'state_reference() needs a function or lambda that reads fields, such as '
             'lambda state: state.volume.'
-        ) from error
-    lambdas = [node for node in ast.walk(tree) if isinstance(node, ast.Lambda)]
-    node = lambdas[-1].body if lambdas else None
-    if node is None:
-        functions = [item for item in ast.walk(tree) if isinstance(item, ast.FunctionDef)]
-        if functions and isinstance(functions[-1].body[-1], ast.Return):
-            node = functions[-1].body[-1].value
-    names: list[str] = []
-    while isinstance(node, ast.Attribute):
-        names.append(node.attr)
-        node = node.value
-    if not isinstance(node, ast.Name) or not names:
-        raise TypeError(
-            'state_reference() could not read a field path from that function. Write '
-            'lambda state: state.volume, or lambda state: state.player.x.'
         )
-    return tuple(reversed(names))
+    argument = code.co_varnames[0]
+    names: list[str] = []
+    is_reading = False
+    for instruction in dis.get_instructions(code):
+        name = instruction.opname
+        if name in _SETUP_INSTRUCTIONS:
+            continue
+        if (
+            not is_reading
+            and name.startswith('LOAD_FAST')
+            and instruction.argval == argument
+        ):
+            is_reading = True
+        elif is_reading and name == 'LOAD_ATTR':
+            names.append(instruction.argval)
+        elif is_reading and name == 'RETURN_VALUE' and names:
+            return tuple(names)
+        else:
+            break
+    raise TypeError(
+        'state_reference() could not read a field path from that function. Write '
+        'lambda state: state.volume, or lambda state: state.player.x.'
+    )
+
+
+_SETUP_INSTRUCTIONS: Final = frozenset(
+    {'RESUME', 'NOP', 'CACHE', 'COPY_FREE_VARS', 'MAKE_CELL', 'EXTENDED_ARG'}
+)
+"""Instructions a function starts with before it reads anything."""

@@ -33,14 +33,20 @@ from xnano._internal._axes import to_rgb
 from xnano._internal._dynamic_operations import DynamicOperation
 from xnano._schema._appearance import RGB, ColorValue
 from xnano._schema._generics import DepsT, StateT, TargetT
-from xnano._schema._hooks import HookKind, When
+from xnano._schema._hooks import HookTrigger, IfRunning
 from xnano._schema._layout import PixelEncoding
+from xnano._schema._operations import DynamicFillSchema as DynamicFillSchema
+from xnano._schema._operations import DynamicFuzzSchema as DynamicFuzzSchema
+from xnano._schema._operations import DynamicLayoutSchema as DynamicLayoutSchema
+from xnano._schema._operations import DynamicPixelsSchema as DynamicPixelsSchema
+from xnano._schema._operations import DynamicRasterSchema as DynamicRasterSchema
+from xnano._schema._operations import DynamicWriteSchema as DynamicWriteSchema
 from xnano._schema._operations import OperationResult as OperationResult
-from xnano.context import Context
+from xnano.hooks._context import Context
 
 if TYPE_CHECKING:
     from xnano.canvas import Canvas
-    from xnano.placement import Placement
+    from xnano.layout._placement import Placement
     from xnano_core import ApplyStyle as _CoreApplyStyle
     from xnano_core import Background as _CoreBackground
     from xnano_core import Border as _CoreBorder
@@ -75,7 +81,7 @@ if TYPE_CHECKING:
     from xnano.styles import Style
 
     with xnano.new(width=8, height=1) as canvas:
-        text = canvas.write('hi')
+        text = canvas.screen.write('hi')
         text | ApplyStyle(Style('green', bold=True))
         assert 'bold' in text.core_buffer[0, 0].style.modifiers
     ```
@@ -93,7 +99,7 @@ if TYPE_CHECKING:
     from xnano.operations import Background
 
     with xnano.new(width=8, height=1) as canvas:
-        text = canvas.write('hi')
+        text = canvas.screen.write('hi')
         text | Background((0, 0, 255))
         assert text.core_buffer[0, 0].background.to_rgb() == (0, 0, 255)
     ```
@@ -114,8 +120,8 @@ if TYPE_CHECKING:
     from xnano.operations import Border
 
     with xnano.new(width=6, height=3) as canvas:
-        canvas | Border('rounded')
-        assert canvas.render().splitlines()[0] == '╭────╮'
+        canvas.screen | Border('rounded')
+        assert canvas.screen.render().splitlines()[0] == '╭────╮'
     ```
     """
 
@@ -131,12 +137,12 @@ if TYPE_CHECKING:
     from xnano.operations import CancelEffect, Dissolve
 
     with xnano.new(width=10, height=1) as canvas:
-        text = canvas.write('hello')
+        text = canvas.screen.write('hello')
         text | Dissolve(duration_milliseconds=100, seed=1, key='fade-out')
         text | CancelEffect('fade-out')
-        canvas.step(delta_seconds=0.05)
-        canvas.step(delta_seconds=0.05)
-        assert canvas.render() == 'hello'
+        canvas.clock.step(delta_seconds=0.05)
+        canvas.clock.step(delta_seconds=0.05)
+        assert canvas.screen.render() == 'hello'
     ```
     """
 
@@ -154,9 +160,9 @@ if TYPE_CHECKING:
     from xnano.operations import Clear, Fill
 
     with xnano.new(width=8, height=3) as canvas:
-        canvas | Fill('#')
-        canvas.write(Clear(width=4, height=1), x=1, y=1)
-        assert canvas.render().splitlines()[1] == '#    ###'
+        canvas.screen | Fill('#')
+        canvas.screen.write(Clear(width=4, height=1), x=1, y=1)
+        assert canvas.screen.render().splitlines()[1] == '#    ###'
     ```
     """
 
@@ -176,11 +182,11 @@ if TYPE_CHECKING:
     from xnano.operations import Dissolve
 
     with xnano.new(width=10, height=1) as canvas:
-        text = canvas.write('hello')
+        text = canvas.screen.write('hello')
         text | Dissolve(duration_milliseconds=100, seed=1)
-        canvas.step(delta_seconds=0.05)
-        canvas.step(delta_seconds=0.05)
-        assert canvas.render() != 'hello'
+        canvas.clock.step(delta_seconds=0.05)
+        canvas.clock.step(delta_seconds=0.05)
+        assert canvas.screen.render() != 'hello'
     ```
     """
 
@@ -198,14 +204,14 @@ if TYPE_CHECKING:
     from xnano.operations import Effect
 
     with xnano.new(width=10, height=1) as canvas:
-        text = canvas.write('hello')
-        before = canvas.render(format='ansi')
+        text = canvas.screen.write('hello')
+        before = canvas.screen.render(format='ansi')
         fade = Effect.fade_to('red', duration_milliseconds=100)
         fade.duration_milliseconds = 200
         text | fade
-        canvas.step(delta_seconds=0.05)
-        canvas.step(delta_seconds=0.05)
-        assert canvas.render(format='ansi') != before
+        canvas.clock.step(delta_seconds=0.05)
+        canvas.clock.step(delta_seconds=0.05)
+        assert canvas.screen.render(format='ansi') != before
     ```
     """
 
@@ -222,12 +228,12 @@ if TYPE_CHECKING:
     from xnano.operations import Fade
 
     with xnano.new(width=10, height=1) as canvas:
-        text = canvas.write('hello')
-        before = canvas.render(format='ansi')
+        text = canvas.screen.write('hello')
+        before = canvas.screen.render(format='ansi')
         text | Fade(foreground='red', duration_milliseconds=100)
-        canvas.step(delta_seconds=0.05)
-        canvas.step(delta_seconds=0.05)
-        assert canvas.render(format='ansi') != before
+        canvas.clock.step(delta_seconds=0.05)
+        canvas.clock.step(delta_seconds=0.05)
+        assert canvas.screen.render(format='ansi') != before
     ```
     """
 
@@ -244,8 +250,8 @@ if TYPE_CHECKING:
     from xnano.operations import Fill
 
     with xnano.new(width=3, height=2) as canvas:
-        canvas | Fill('#')
-        assert canvas.render().splitlines() == ['###', '###']
+        canvas.screen | Fill('#')
+        assert canvas.screen.render().splitlines() == ['###', '###']
     ```
     """
 
@@ -262,7 +268,7 @@ if TYPE_CHECKING:
     from xnano.styles import Color
 
     with xnano.new(width=8, height=1) as canvas:
-        text = canvas.write('hi')
+        text = canvas.screen.write('hi')
         text | Foreground('red')
         assert text.core_buffer[0, 0].foreground == Color('red')
     ```
@@ -282,8 +288,8 @@ if TYPE_CHECKING:
     from xnano.operations import Fuzz, Write
 
     with xnano.new(width=5, height=1) as canvas:
-        canvas | Write('hello') | Fuzz(100, seed=1)
-        assert canvas.render() != 'hello'
+        canvas.screen | Write('hello') | Fuzz(100, seed=1)
+        assert canvas.screen.render() != 'hello'
     ```
     """
 
@@ -301,11 +307,11 @@ if TYPE_CHECKING:
     from xnano.operations import Glitch
 
     with xnano.new(width=10, height=1) as canvas:
-        text = canvas.write('hello')
+        text = canvas.screen.write('hello')
         text | Glitch(intensity=1.0, duration_milliseconds=100, seed=1)
-        canvas.step(delta_seconds=0.05)
-        canvas.step(delta_seconds=0.05)
-        assert canvas.render() != 'hello'
+        canvas.clock.step(delta_seconds=0.05)
+        canvas.clock.step(delta_seconds=0.05)
+        assert canvas.screen.render() != 'hello'
     ```
     """
 
@@ -314,7 +320,7 @@ if TYPE_CHECKING:
     An operation that arranges the children attached to a buffer in a row, a column or an
     overlay.
 
-    The ``sizes`` are one [`SizeRule`][xnano.geometry.SizeRule] per child along the main axis,
+    The ``sizes`` are one [`SizeRule`][xnano.layout.SizeRule] per child along the main axis,
     ``spacing`` is the number of cells between children and ``padding`` the number of cells
     between the edge of the parent and its children. Use
     [`DynamicLayout`][xnano.operations.DynamicLayout] for the form whose settings can be
@@ -325,7 +331,7 @@ if TYPE_CHECKING:
 
     ```python
     from xnano.buffers import Buffer
-    from xnano.geometry import SizeRule
+    from xnano.layout import SizeRule
     from xnano.operations import Layout
 
     parent = Buffer(width=12, height=3)
@@ -341,11 +347,11 @@ if TYPE_CHECKING:
     """
     Horizontal and vertical inset distances, in cells.
 
-    Reach for it to shrink or grow a [`Rectangle`][xnano.geometry.Rectangle]. To give a
-    placement a margin, set its ``margin`` instead, as in ``canvas.write('hi', margin=1)``.
+    Reach for it to shrink or grow a [`Rectangle`][xnano.layout.Rectangle]. To give a
+    placement a margin, set its ``margin`` instead, as in ``canvas.screen.write('hi', margin=1)``.
 
     ```python
-    from xnano.geometry import Rectangle
+    from xnano.layout import Rectangle
     from xnano.operations import Margin
 
     area = Rectangle(2, 3, 10, 4)
@@ -366,7 +372,7 @@ if TYPE_CHECKING:
     from xnano.operations import Move
 
     with xnano.new(width=10, height=3) as canvas:
-        label = canvas.write('hi')
+        label = canvas.screen.write('hi')
         label | Move(2, 1)
         assert (label.x, label.y) == (2, 1)
         label | Move(x=-1)
@@ -388,8 +394,8 @@ if TYPE_CHECKING:
     with xnano.new(width=4, height=1) as canvas:
         both = Fill('.') | Write('hi', x=1)
         assert isinstance(both, Operation)
-        canvas | both
-        assert canvas.render() == '.hi.'
+        canvas.screen | both
+        assert canvas.screen.render() == '.hi.'
     ```
     """
 
@@ -408,8 +414,8 @@ if TYPE_CHECKING:
 
     source = Buffer('ab', width=2, height=1)
     with xnano.new(width=4, height=1) as canvas:
-        canvas | Fill('.') | Paste(source, x=1)
-        assert canvas.render() == '.ab.'
+        canvas.screen | Fill('.') | Paste(source, x=1)
+        assert canvas.screen.render() == '.ab.'
     ```
     """
 
@@ -424,7 +430,7 @@ if TYPE_CHECKING:
     from xnano.operations import Place
 
     with xnano.new(width=10, height=3) as canvas:
-        label = canvas.write('hi')
+        label = canvas.screen.write('hi')
         label | Place(5, 2)
         assert (label.x, label.y) == (5, 2)
     ```
@@ -441,7 +447,7 @@ if TYPE_CHECKING:
     from xnano.operations import Resize
 
     with xnano.new(width=10, height=3) as canvas:
-        label = canvas.write('hi')
+        label = canvas.screen.write('hi')
         label | Resize(6, 2)
         assert (label.width, label.height) == (6, 2)
     ```
@@ -460,8 +466,8 @@ if TYPE_CHECKING:
     from xnano.operations import Write
 
     with xnano.new(width=4, height=2) as canvas:
-        canvas | Write('hi', x=1, y=1)
-        assert canvas.render().splitlines()[1] == ' hi'
+        canvas.screen | Write('hi', x=1, y=1)
+        assert canvas.screen.render().splitlines()[1] == ' hi'
     ```
     """
 
@@ -511,11 +517,11 @@ class ContextualOperation(_core.Operation, Generic[DepsT, StateT]):
 
         @xnano.hook(on='tick', every=0.5)
         def count(context: xnano.Context) -> None:
-            counted.append(context.time.elapsed)
+            counted.append(context.clock.elapsed)
 
         with xnano.new(width=16, height=1) as canvas:
-            canvas | count
-            canvas.step(delta_seconds=1.0)
+            canvas.screen | count
+            canvas.clock.step(delta_seconds=1.0)
         assert len(counted) == 2
         ```
     """
@@ -526,26 +532,28 @@ class ContextualOperation(_core.Operation, Generic[DepsT, StateT]):
         self,
         callback: Callable[[Context[DepsT, StateT]], object] | None = None,
         *,
-        on: HookKind | None = None,
+        on: HookTrigger[DepsT, StateT] | None = None,
         every: float | None = None,
         after: float | None = None,
         keys: tuple[str, ...] = (),
-        when: When[DepsT, StateT] | None = None,
         requires_deps: bool = False,
+        if_running: IfRunning = 'replace',
         steps: Sequence[_core.Operation] = (),
     ) -> None:
         """
         Create a reusable hook. Use [`hook`][xnano.hooks.hook] instead of calling this.
 
         Args:
-            callback: Function called with a [`Context`][xnano.context.Context] when the hook
+            callback: Function called with a [`Context`][xnano.hooks.Context] when the hook
                 runs.
-            on: What the hook listens to.
+            on: When the hook runs: a kind of event, the name of a custom event, or a
+                condition.
             every: Interval between runs.
             after: Delay before the one run.
             keys: Key names to react to when ``on='key'``.
-            when: A condition that must hold.
             requires_deps: Whether the hook needs the canvas's dependencies.
+            if_running: What an ``async def`` hook does when it runs again before its
+                previous run has finished.
             steps: Chained operations to apply in sequence.
         """
         super().__init__()
@@ -554,14 +562,14 @@ class ContextualOperation(_core.Operation, Generic[DepsT, StateT]):
         self._every = every
         self._after = after
         self._keys = tuple(keys)
-        self._when = when
         self._requires_deps = requires_deps
+        self._if_running: IfRunning = if_running
         self._steps: tuple[_core.Operation, ...] = tuple(steps)
 
     @property
-    def on(self) -> HookKind | None:
-        """What the hook listens to, or ``None`` for every input event."""
-        return cast('HookKind | None', self._hook_on)
+    def on(self) -> HookTrigger[DepsT, StateT] | None:
+        """When the hook runs, as it was given, or ``None`` for every input event."""
+        return self._hook_on
 
     @property
     def every(self) -> float | None:
@@ -636,31 +644,35 @@ class ContextualOperation(_core.Operation, Generic[DepsT, StateT]):
 
         Args:
             target: A [`Canvas`][xnano.canvas.Canvas], a
-                [`Placement`][xnano.placement.Placement] or a [`Surface`][xnano_core.Surface].
+                [`Placement`][xnano.layout.Placement] or a [`Surface`][xnano_core.Surface].
         """
         if isinstance(target, _core.Surface):
             self.apply_to_surface(target)
             return
         if self._steps:
+            from xnano.canvas import Canvas
+
+            # What draws goes on a canvas's screen; what listens attaches to the canvas.
+            surface = target.screen if isinstance(target, Canvas) else target
             for step in self._steps:
                 if isinstance(step, (ContextualOperation, DynamicOperation)):
                     step.apply_to(
                         cast('Canvas[object, object] | Placement[object, object]', target)
                     )
                 else:
-                    target.update(step)
+                    surface.update(step)
             return
         callback = self._callback
         if callback is None:
             return
         target.hook(
             callback,
-            on=cast('HookKind | None', self._hook_on),
-            when=self._when,
+            on=self._hook_on,
             every=self._every,
             after=self._after,
             keys=self._keys or None,
             requires_deps=self._requires_deps,
+            if_running=self._if_running,
         )
 
 
@@ -683,9 +695,9 @@ class DynamicFill(DynamicOperation):
 
         dots = DynamicFill(cell='.')
         with xnano.new('hi', width=4, height=1) as canvas:
-            canvas | dots
+            canvas.screen | dots
             dots.cell = '#'
-            assert '#' in canvas.render()
+            assert '#' in canvas.screen.render()
         ```
     """
 
@@ -720,9 +732,9 @@ class DynamicWrite(DynamicOperation):
 
         label = DynamicWrite(text='ab')
         with xnano.new(width=4, height=1) as canvas:
-            canvas | label
+            canvas.screen | label
             label.text = 'cd'
-            assert 'cd' in canvas.render()
+            assert 'cd' in canvas.screen.render()
         ```
     """
 
@@ -919,11 +931,17 @@ __all__ = [
     'ContextualOperation',
     'Dissolve',
     'DynamicFill',
+    'DynamicFillSchema',
     'DynamicFuzz',
+    'DynamicFuzzSchema',
     'DynamicLayout',
+    'DynamicLayoutSchema',
     'DynamicPixels',
+    'DynamicPixelsSchema',
     'DynamicRaster',
+    'DynamicRasterSchema',
     'DynamicWrite',
+    'DynamicWriteSchema',
     'Effect',
     'Fade',
     'Fill',

@@ -10,7 +10,8 @@ use pyo3::{PyTraverseError, PyVisit};
 use ratatui_core::buffer::Cell;
 use unicode_segmentation::UnicodeSegmentation;
 use xnano_terminal_runtime::buffer::{
-    BufferCore, Geometry, absolute_origin, attach, check_size, compose, detach, relayout,
+    BufferCore, Fit, Geometry, ParentMeasured, absolute_origin, attach, check_size, compose,
+    detach, is_fitting_anywhere, relayout,
 };
 use xnano_terminal_runtime::expression::{Environment, EvalError, PropertyId, Scalar};
 use xnano_terminal_runtime::geometry::{Point, Rectangle, Size};
@@ -393,6 +394,14 @@ impl PyPixelView {
 }
 
 /// Tell the runtime a buffer changed, if it is mounted on one.
+/// Change how a buffer fits its children, dropping the rule when it fits neither axis.
+fn update_fit(core: &Arc<BufferCore>, change: impl FnOnce(&mut Fit)) {
+    let mut fit = core.lock().fit.unwrap_or_default();
+    change(&mut fit);
+    core.set_fit((fit.width || fit.height).then_some(fit));
+    nudge(core);
+}
+
 pub fn nudge(core: &Arc<BufferCore>) {
     if let Some(shared) = ext_of(core).and_then(|ext| ext.shared()) {
         shared.request_frame();
@@ -1587,6 +1596,112 @@ impl PyBuffer {
     #[setter]
     fn set_is_focusable(slf: &Bound<'_, Self>, value: bool) {
         slf.as_super().borrow().core.lock().is_focusable = value;
+    }
+
+    /// Whether the width follows the children: as wide as the farthest right edge among the
+    /// visible children placed with explicit geometry, plus ``fit_padding``'s columns.
+    #[getter]
+    fn should_fit_width(slf: &Bound<'_, Self>) -> bool {
+        slf.as_super()
+            .borrow()
+            .core
+            .lock()
+            .fit
+            .is_some_and(|fit| fit.width)
+    }
+
+    #[setter]
+    fn set_should_fit_width(slf: &Bound<'_, Self>, value: bool) {
+        update_fit(&slf.as_super().borrow().core, |fit| fit.width = value);
+    }
+
+    /// Whether the height follows the children: as tall as the lowest bottom edge among the
+    /// visible children placed with explicit geometry, plus ``fit_padding``'s rows.
+    #[getter]
+    fn should_fit_height(slf: &Bound<'_, Self>) -> bool {
+        slf.as_super()
+            .borrow()
+            .core
+            .lock()
+            .fit
+            .is_some_and(|fit| fit.height)
+    }
+
+    #[setter]
+    fn set_should_fit_height(slf: &Bound<'_, Self>, value: bool) {
+        update_fit(&slf.as_super().borrow().core, |fit| fit.height = value);
+    }
+
+    /// The columns after the farthest right edge and the rows below the lowest bottom edge
+    /// that a buffer which fits its children adds, for a border or padding.
+    #[getter]
+    fn fit_padding(slf: &Bound<'_, Self>) -> (u16, u16) {
+        slf.as_super()
+            .borrow()
+            .core
+            .lock()
+            .fit
+            .map_or((0, 0), |fit| (fit.trailing_columns, fit.trailing_rows))
+    }
+
+    #[setter]
+    fn set_fit_padding(slf: &Bound<'_, Self>, value: (u16, u16)) {
+        update_fit(&slf.as_super().borrow().core, |fit| {
+            fit.trailing_columns = value.0;
+            fit.trailing_rows = value.1;
+        });
+    }
+
+    /// The parts of the buffer's place that its parent's size decides: ``'x'``, ``'y'``,
+    /// ``'width'`` and ``'height'``. A parent that fits its children places such a buffer
+    /// within the size the others give it instead of growing to it.
+    #[getter]
+    fn parent_measured_axes<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyTuple>> {
+        let measured = slf.as_super().borrow().core.lock().parent_measured;
+        let names: Vec<&str> = [
+            (measured.x, "x"),
+            (measured.y, "y"),
+            (measured.width, "width"),
+            (measured.height, "height"),
+        ]
+        .into_iter()
+        .filter_map(|(is_measured, name)| is_measured.then_some(name))
+        .collect();
+        PyTuple::new(slf.py(), names)
+    }
+
+    #[setter]
+    fn set_parent_measured_axes(slf: &Bound<'_, Self>, value: Vec<String>) -> PyResult<()> {
+        let mut measured = ParentMeasured::default();
+        for name in &value {
+            match name.as_str() {
+                "x" => measured.x = true,
+                "y" => measured.y = true,
+                "width" => measured.width = true,
+                "height" => measured.height = true,
+                other => {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "parent_measured_axes takes 'x', 'y', 'width' and 'height', but got \
+                         {other:?}. Pass the parts the parent's size decides, such as ('x',)"
+                    )));
+                }
+            }
+        }
+        let core = Arc::clone(&slf.as_super().borrow().core);
+        let is_changed = {
+            let mut state = core.lock();
+            let is_changed = state.parent_measured != measured;
+            state.parent_measured = measured;
+            is_changed
+        };
+        // Only a buffer that fits its content reads this, so nothing is redrawn without one.
+        if is_changed && is_fitting_anywhere() {
+            if let Some(parent) = core.parent() {
+                parent.lock().touch(None);
+            }
+            nudge(&core);
+        }
+        Ok(())
     }
 
     #[getter]

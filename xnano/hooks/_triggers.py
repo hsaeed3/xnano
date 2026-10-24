@@ -25,7 +25,7 @@ from xnano_core import (
 )
 
 if TYPE_CHECKING:
-    from xnano.context import Context
+    from xnano.hooks._context import Context
 
 __all__ = ['CompiledWhen', 'compile_when', 'normalize_binding', 'parse_when']
 
@@ -48,7 +48,7 @@ _KEY_NAMES: Final = (
     'right',
     *(f'f{number}' for number in range(1, 13)),
 )
-"""The key names that [`KeyName`][xnano.types.KeyName] lists."""
+"""The key names that [`KeyName`][xnano.devices.KeyName] lists."""
 
 _NAMED_KEYS: Final = frozenset(
     {
@@ -171,7 +171,7 @@ def _unknown_key_message(entry: str) -> str:
     close = difflib.get_close_matches(entry.lower(), _KEY_NAMES, n=3)
     hint = f' Did you mean {" or ".join(repr(name) for name in close)}?' if close else ''
     return (
-        f'{entry!r} is not a key name.{hint} Use a name from xnano.types.KeyName such as '
+        f'{entry!r} is not a key name.{hint} Use a name from xnano.devices.KeyName such as '
         f"'q', 'enter' or 'page_up', or a key binding such as 'ctrl+s'."
     )
 
@@ -753,34 +753,34 @@ class _RootView:
 
     @property
     def width(self) -> int:
-        return self._context.canvas.width
+        return self._context.canvas.screen.width
 
     @property
     def height(self) -> int:
-        return self._context.canvas.height
+        return self._context.canvas.screen.height
 
     @property
     def time(self) -> float:
-        return self._context.time.elapsed
+        return self._context.clock.elapsed
 
     @property
     def delta(self) -> float:
-        return self._context.time.delta
+        return self._context.clock.delta
 
     @property
     def fps(self) -> float:
-        return self._context.time.fps
+        return self._context.clock.measured_fps
 
 
 def _live_names(context: Context[object, object]) -> dict[str, object]:
     return {
         'keyboard': context.keyboard,
         'mouse': context.mouse,
-        'scroll': context.scroll,
+        'scroll': context.mouse.scroll,
         'buffer': _BufferView(context),
         'parent': _ParentView(context),
         'root': _RootView(context),
-        'time': context.time.elapsed,
+        'time': context.clock.elapsed,
         'deps': context.deps,
     }
 
@@ -824,7 +824,7 @@ def compile_when(when: object) -> CompiledWhen:
         return NO_CONDITION
     if isinstance(when, bool):
         raise TypeError(
-            f'when= received {when}. That is what `is` and `and` give on an expression. '
+            f'on= received {when}. That is what `is` and `and` give on an expression. '
             f'Build the condition with ==, & and |, for example '
             f'Keyboard.key == "q", or write it as a string, "keyboard.key == \'q\'".'
         )
@@ -843,7 +843,7 @@ def compile_when(when: object) -> CompiledWhen:
             False,
         )
     raise TypeError(
-        f'when= takes a condition expression, a function of the context or a string, but '
+        f'on= takes a condition expression, a function of the context or a string, but '
         f'received {when!r} of type {type(when).__name__}. For example '
-        f'when="keyboard.key == \'q\'" or when=lambda context: context.mouse.is_down.'
+        f'on="keyboard.key == \'q\'" or on=lambda context: context.mouse.is_down.'
     )

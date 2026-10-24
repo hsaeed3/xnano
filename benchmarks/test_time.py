@@ -52,13 +52,13 @@ def minimum_microseconds(function, *, number: int = 1000, repeat: int = 7) -> fl
 @pytest.mark.parametrize(('width', 'height'), [(80, 24), (200, 50)])
 def test_a_step_of_a_static_canvas(benchmark, width, height):
     with xnano.new(width=width, height=height) as canvas:
-        canvas.write('static')
-        canvas.step()
-        frame = benchmark.pedantic(canvas.step, rounds=200, iterations=10)
+        canvas.screen.write('static')
+        canvas.clock.step()
+        frame = benchmark.pedantic(canvas.clock.step, rounds=200, iterations=10)
         assert frame.elapsed_seconds > 0
         assert canvas._frame_demand == 0
         check_budget(
-            lambda: minimum_microseconds(canvas.step),
+            lambda: minimum_microseconds(canvas.clock.step),
             STEP_BUDGET_MICROSECONDS,
             f'step() of a static {width} by {height} canvas',
         )
@@ -69,9 +69,9 @@ def test_the_cost_of_a_step_does_not_grow_with_the_canvas():
     costs = []
     for width, height in ((80, 24), (200, 50)):
         with xnano.new(width=width, height=height) as canvas:
-            canvas.write('static')
-            canvas.step()
-            costs.append(minimum_microseconds(canvas.step))
+            canvas.screen.write('static')
+            canvas.clock.step()
+            costs.append(minimum_microseconds(canvas.clock.step))
     check_budget(lambda: costs[1], costs[0] * 1.1, 'step() of a static 200 by 50 canvas')
 
 
@@ -97,14 +97,14 @@ def test_writing_and_removing_text(benchmark):
     with xnano.new() as canvas:
 
         def write_and_remove() -> int:
-            placement = canvas.write(next(texts))
+            placement = canvas.screen.write(next(texts))
             width = placement.width
             placement.remove()
             return width
 
         assert benchmark.pedantic(write_and_remove, rounds=200, iterations=1) == 2
         check_budget(
-            lambda: minimum_microseconds(lambda: canvas.write('hi').remove()),
+            lambda: minimum_microseconds(lambda: canvas.screen.write('hi').remove()),
             WRITE_BUDGET_MICROSECONDS,
             "write('hi') then remove()",
         )

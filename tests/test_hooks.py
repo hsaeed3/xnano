@@ -11,9 +11,8 @@ from dataclasses import dataclass
 import pytest
 
 import xnano
-from xnano.context import Context
 from xnano.errors import TerminalError
-from xnano.hooks import HookHandle
+from xnano.hooks import Context, Frame, HookHandle
 from xnano.terminal._settings import gates_for_screen
 from xnano_core import Buffer, Event, Style
 
@@ -185,8 +184,7 @@ class TestKeys:
         heard: list[str] = []
         canvas.hook(
             lambda context: heard.append(context.keyboard.key),
-            on='key',
-            when="keyboard.kind == 'release'",
+            on="keyboard.kind == 'release'",
         )
         push(canvas, Event.key_press('a'), Event.key_press('b', kind='release'))
         assert heard == ['b']
@@ -199,9 +197,8 @@ class TestKeys:
         heard: list[str] = []
         canvas.hook(
             lambda context: heard.append(context.keyboard.key),
-            on='key',
             keys=['a', 'b'],
-            when=lambda context: context.keyboard.key == 'b',
+            on=lambda context: context.keyboard.key == 'b',
         )
         push(canvas, Event.key_press('a'), Event.key_press('b'))
         assert heard == ['b']
@@ -222,7 +219,7 @@ class TestArguments:
             ({'on': 'tick', 'keys': 'a'}, r"keys= is for on='key'"),
             ({'on': 'tick', 'every': 0}, 'must be a finite number above 0'),
             ({'on': 'tick', 'after': -1}, 'must be a finite number 0 or more'),
-            ({'on': 'click'}, r"""on='mouse', when="mouse.kind == 'press'\""""),
+            ({'on': 'click'}, r"""hook\(on="mouse.kind == 'press'"\)"""),
             ({'on': 'immediate'}, r"on='tick', after=0.0"),
             ({'on': 'state_change'}, r"on='state'"),
             ({'on': 'kye'}, r"Did you mean 'key'"),
@@ -242,18 +239,23 @@ class TestArguments:
     def test_a_tiny_timer_catches_up_a_bounded_number_of_times_per_step(self, canvas):
         runs: list[int] = []
         canvas.hook(lambda context: runs.append(1), on='tick', every=1e-9)
-        canvas.step(delta_seconds=1.0)
+        canvas.clock.step(delta_seconds=1.0)
         assert len(runs) == 100_000
 
     def test_a_hook_must_be_a_function_that_takes_the_context(self, canvas):
         async def asynchronous(context):
             pass
 
+        async def streaming(context):
+            yield
+
         with pytest.raises(TypeError, match='takes a function, such as'):
             canvas.hook(5, on='tick')
         with pytest.raises(TypeError, match='takes a function, such as'):
             canvas.hook('abc', on='tick')
-        with pytest.raises(TypeError, match='asynchronous is an async function'):
+        with pytest.raises(TypeError, match='streaming is an async generator'):
+            canvas.hook(streaming, on='key')
+        with pytest.raises(TerminalError, match='no event loop to run it on'):
             canvas.hook(asynchronous, on='key')
         with pytest.raises(TypeError, match=r'cannot take the arguments a hook receives'):
             canvas.hook(lambda first, second: None, on='tick')
@@ -264,17 +266,17 @@ class TestArguments:
         assert 'def <lambda>' not in str(caught.value)
         with pytest.raises(TypeError, match='takes a function, such as'):
             xnano.hook(5)
-        with pytest.raises(TypeError, match='async function'):
-            canvas.hook(on='key')(asynchronous)
+        with pytest.raises(TypeError, match='async generator'):
+            canvas.hook(on='key')(streaming)
 
     @pytest.mark.parametrize(
         'arguments',
         [
-            {'on': 'bogus'},
+            {'on': 'keys'},
             {'on': 'key', 'keys': 'entr'},
             {'on': 'key', 'every': 1},
             {'on': 'tick', 'every': -1},
-            {'on': 'tick', 'when': True},
+            {'on': True},
         ],
     )
     def test_an_operation_hook_refuses_bad_arguments_where_it_is_written(self, arguments):
@@ -288,13 +290,13 @@ class TestArguments:
     def test_a_hook_without_an_event_is_reported_without_one(self, canvas):
         canvas.hook(lambda context: 1 / 0, on='tick', after=0.0)
         with pytest.raises(TerminalError) as caught:
-            canvas.step()
-            canvas.step()
+            canvas.clock.step()
+            canvas.clock.step()
         assert 'while handling None' not in str(caught.value)
         assert 'ZeroDivisionError' in str(caught.value)
 
     def test_resize_on_a_placement_says_to_use_the_canvas(self, canvas):
-        placement = canvas.write('x')
+        placement = canvas.screen.write('x')
         with pytest.raises(ValueError, match='register this hook on the canvas'):
             placement.hook(lambda context: None, on='resize')
 
@@ -324,7 +326,7 @@ class TestTime:
             on='tick',
             every=0.1,
         )
-        canvas.step(delta_seconds=2.0)
+        canvas.clock.step(delta_seconds=2.0)
         assert len(ticks) == 20
         assert all(ticks)
 
@@ -332,20 +334,20 @@ class TestTime:
         ticks = []
         canvas.hook(lambda context: ticks.append(context.event.delta_seconds), on='tick')
         for _ in range(3):
-            canvas.step(delta_seconds=0.1)
+            canvas.clock.step(delta_seconds=0.1)
         assert len(ticks) == 3
 
     def test_tick_after_runs_once_with_no_event(self, canvas):
         seen = []
         canvas.hook(lambda context: seen.append(context.event), on='tick', after=0.25)
         for _ in range(5):
-            canvas.step(delta_seconds=0.1)
+            canvas.clock.step(delta_seconds=0.1)
         assert seen == [None]
 
     def test_frame_hooks_see_a_frame(self, canvas):
         frames = []
         canvas.hook(lambda context: frames.append(context.event.index), on='frame')
-        for _ in canvas.iter(count=3):
+        for _ in canvas.iter(frames=3):
             pass
         assert len(frames) >= 3
         assert frames == sorted(frames)
@@ -354,14 +356,14 @@ class TestTime:
         with xnano.new(width=8, height=1, bpm=120) as canvas:
             beats = []
             canvas.hook(
-                lambda context: beats.append(round(context.time.elapsed, 2)), on='beat'
+                lambda context: beats.append(round(context.clock.elapsed, 2)), on='beat'
             )
-            canvas.step(delta_seconds=0.5)
-            canvas.step(delta_seconds=0.5)
+            canvas.clock.step(delta_seconds=0.5)
+            canvas.clock.step(delta_seconds=0.5)
             assert beats == [0.5, 1.0]
-            canvas.bpm = 60
+            canvas.clock.bpm = 60
             for _ in range(4):
-                canvas.step(delta_seconds=0.5)
+                canvas.clock.step(delta_seconds=0.5)
             assert beats == [0.5, 1.0, 1.5, 2.5]
 
     def test_beat_every_n_and_after_n(self):
@@ -371,7 +373,7 @@ class TestTime:
             canvas.hook(lambda context: every.append(1), on='beat', every=2)
             canvas.hook(lambda context: after.append(1), on='beat', after=1)
             for _ in range(8):
-                canvas.step(delta_seconds=0.5)
+                canvas.clock.step(delta_seconds=0.5)
             assert len(every) == 4
             assert after == [1]
 
@@ -379,43 +381,41 @@ class TestTime:
         with xnano.new(width=8, height=1, bpm=120) as canvas:
             beats = []
             canvas.hook(lambda context: beats.append(1), on='beat')
-            canvas.step(delta_seconds=3.0)
+            canvas.clock.step(delta_seconds=3.0)
             assert len(beats) == 6
 
     def test_the_ledger_stays_small_over_many_beats(self):
         with xnano.new(width=8, height=1, bpm=600) as canvas:
             canvas.hook(lambda context: None, on='beat')
-            canvas.step(delta_seconds=1.0)
+            canvas.clock.step(delta_seconds=1.0)
             size = len(canvas._ledger)
             for _ in range(100):
-                canvas.step(delta_seconds=1.0)
+                canvas.clock.step(delta_seconds=1.0)
             assert len(canvas._ledger) == size
 
     def test_a_timer_does_not_run_after_removal(self, canvas):
         ticks = []
         handle = canvas.hook(lambda context: ticks.append(1), on='beat', after=1)
         handle.remove()
-        canvas.step(delta_seconds=5.0)
+        canvas.clock.step(delta_seconds=5.0)
         assert ticks == []
 
     def test_stopping_time_stops_timers(self, canvas):
         ticks = []
         canvas.hook(lambda context: ticks.append(1), on='tick', every=0.1)
-        canvas.stop()
+        canvas.clock.stop()
         canvas.deliver_events()
         assert ticks == []
-        canvas.resume()
-        canvas.step(delta_seconds=0.25)
+        canvas.clock.resume()
+        canvas.clock.step(delta_seconds=0.25)
         assert len(ticks) == 2
 
     def test_a_condition_gates_a_timed_hook(self, canvas):
         ticks = []
-        canvas.hook(
-            lambda context: ticks.append(1), on='tick', every=0.1, when='root.time > 0.5'
-        )
-        canvas.step(delta_seconds=0.4)
+        canvas.hook(lambda context: ticks.append(1), every=0.1, on='root.time > 0.5')
+        canvas.clock.step(delta_seconds=0.4)
         assert ticks == []
-        canvas.step(delta_seconds=0.4)
+        canvas.clock.step(delta_seconds=0.4)
         assert len(ticks) == 4
 
 
@@ -460,9 +460,16 @@ class TestGenerators:
         assert ').. ' not in str(error.value)
         assert 'open()..' not in str(error.value)
 
-    def test_a_condition_that_reads_only_deps_needs_an_event_kind(self, canvas):
-        with pytest.raises(ValueError, match='no on='):
-            canvas.hook(lambda context: None, when='deps.x == 1')
+    def test_a_condition_that_reads_only_deps_is_checked_at_each_step(self):
+        class Dependencies:
+            is_ready = True
+
+        with xnano.new(width=8, height=1, deps=Dependencies()) as canvas:
+            ticks: list[int] = []
+            canvas.hook(lambda context: ticks.append(1), on='deps.is_ready')
+            canvas.clock.step()
+            canvas.clock.step()
+        assert ticks == [1, 1]
 
     def test_removing_closes_the_generator(self, canvas):
         closed: list[bool] = []
@@ -480,7 +487,7 @@ class TestGenerators:
         assert closed == [True]
 
     def test_a_drag_loop_ends_with_the_release(self, canvas):
-        track = canvas.write(' ' * 10, y=1)
+        track = canvas.screen.write(' ' * 10, y=1)
         thumb = track.write('#', x=(0, 9))
         finished: list[int] = []
 
@@ -498,7 +505,7 @@ class TestGenerators:
         assert finished == [6]
 
     def test_a_press_alone_runs_nothing_on_a_drag_hook(self, canvas):
-        placement = canvas.write('#')
+        placement = canvas.screen.write('#')
         heard = []
         placement.hook(lambda context: heard.append(context.mouse.kind), on='drag')
         push(canvas, press(0, 0), press(0, 0, 'release'))
@@ -507,9 +514,74 @@ class TestGenerators:
         assert heard == ['drag']
 
 
+class TestHeldButtons:
+    @staticmethod
+    def listen(canvas) -> list[tuple[str, float]]:
+        """Record each run of a bare hook that reads the left button, in seconds held."""
+        runs: list[tuple[str, float]] = []
+        first_press_seconds: list[float] = []
+        content = canvas.screen.write('x')
+
+        @content.hook
+        def change_on_click(context: Context) -> None:
+            if context.mouse.button == 'left':
+                event = context.event
+                if isinstance(event, Frame):
+                    kind, seconds = 'frame', event.elapsed_seconds
+                else:
+                    kind, seconds = str(context.mouse.kind), context.clock.elapsed
+                if not first_press_seconds:
+                    first_press_seconds.append(seconds)
+                runs.append((kind, round(seconds - first_press_seconds[0], 2)))
+
+        return runs
+
+    @staticmethod
+    def hold(canvas, steps: int) -> None:
+        """Press the left button, hold it for ``steps`` steps of 0.04 seconds, release it."""
+        button = canvas.mouse.press('left', x=0, y=0)
+        for _ in range(steps):
+            canvas.clock.step(delta_seconds=0.04)
+        button.release()
+
+    def test_a_held_button_runs_a_bare_hook_on_every_frame_after_a_short_delay(
+        self, canvas
+    ):
+        runs = self.listen(canvas)
+        self.hold(canvas, steps=6)
+        canvas.clock.step(delta_seconds=0.04)
+        canvas.clock.step(delta_seconds=0.04)
+        assert runs == [
+            ('press', 0.0),
+            ('frame', 0.16),
+            ('frame', 0.2),
+            ('release', 0.24),
+        ]
+
+    def test_a_quick_click_runs_a_bare_hook_on_its_press_and_release_only(self, canvas):
+        runs = self.listen(canvas)
+        self.hold(canvas, steps=3)
+        for _ in range(5):
+            canvas.clock.step(delta_seconds=0.04)
+        assert [kind for kind, _ in runs] == ['press', 'release']
+
+    def test_a_second_press_starts_its_own_delay(self, canvas):
+        runs = self.listen(canvas)
+        self.hold(canvas, steps=5)
+        self.hold(canvas, steps=3)
+        canvas.clock.step(delta_seconds=0.04)
+        assert [kind for kind, _ in runs] == [
+            'press',
+            'frame',
+            'release',
+            'press',
+            'release',
+        ]
+
+
 class TestRegions:
     def test_a_mouse_hook_hears_only_the_pointer_inside_its_placement(self, canvas):
-        box = canvas.write(Buffer(width=4, height=2), x=5, y=2)
+        box = canvas.screen.write(Buffer(width=4, height=2), x=5, y=2)
         heard = []
         box.hook(lambda context: heard.append(context.mouse.position.x), on='mouse')
         push(
@@ -521,9 +593,9 @@ class TestRegions:
         assert heard == [6]
 
     def test_a_scroll_hook_hears_only_the_wheel_inside_its_placement(self, canvas):
-        box = canvas.write(Buffer(width=4, height=2), x=5, y=2)
+        box = canvas.screen.write(Buffer(width=4, height=2), x=5, y=2)
         heard = []
-        box.hook(lambda context: heard.append(context.scroll.y), on='scroll')
+        box.hook(lambda context: heard.append(context.mouse.scroll.y), on='scroll')
         push(
             canvas,
             Event.mouse_event(column=1, row=0, kind='scroll', scroll_y=-1),
@@ -541,7 +613,7 @@ class TestRegions:
         assert kinds == ['scroll', 'mouse']
 
     def test_a_press_captures_the_pointer_until_the_release(self, canvas):
-        box = canvas.write(Buffer(width=3, height=1), x=2, y=2)
+        box = canvas.screen.write(Buffer(width=3, height=1), x=2, y=2)
         heard = []
         box.hook(lambda context: heard.append(context.mouse.kind), on='mouse')
         push(
@@ -554,7 +626,7 @@ class TestRegions:
         assert heard == ['press', 'drag', 'release']
 
     def test_a_matching_hook_consumes_the_event_for_ancestors(self, canvas):
-        box = canvas.write(Buffer(width=4, height=2), x=0, y=0)
+        box = canvas.screen.write(Buffer(width=4, height=2), x=0, y=0)
         heard = []
         canvas.hook(lambda context: heard.append('canvas'), on='mouse')
         box.hook(lambda context: heard.append('box'), on='mouse')
@@ -562,18 +634,16 @@ class TestRegions:
         assert heard == ['box']
 
     def test_a_hook_that_does_not_match_lets_the_event_through(self, canvas):
-        box = canvas.write(Buffer(width=4, height=2), x=0, y=0)
+        box = canvas.screen.write(Buffer(width=4, height=2), x=0, y=0)
         heard = []
         canvas.hook(lambda context: heard.append('canvas'), on='mouse')
-        box.hook(
-            lambda context: heard.append('box'), on='mouse', when="mouse.kind == 'press'"
-        )
+        box.hook(lambda context: heard.append('box'), on="mouse.kind == 'press'")
         push(canvas, Event.mouse_event(column=1, row=1, kind='move'))
         assert heard == ['canvas']
 
     def test_a_key_reaches_every_buffer_while_nothing_has_focus(self, canvas):
-        first = canvas.write('x')
-        second = canvas.write('y', y=1)
+        first = canvas.screen.write('x')
+        second = canvas.screen.write('y', y=1)
         heard = []
         first.hook(lambda context: heard.append('first'), on='key')
         second.hook(lambda context: heard.append('second'), on='key')
@@ -591,7 +661,7 @@ class TestRegions:
 
 class TestResults:
     def test_a_returned_style_is_applied_to_the_target(self, canvas):
-        label = canvas.write('hi')
+        label = canvas.screen.write('hi')
 
         @label.hook(on='key')
         def tint(context: Context):
@@ -600,8 +670,8 @@ class TestResults:
         push(canvas, Event.key_press('a'))
         assert str(label.core_buffer[0, 0].foreground) == "Color('red')"
 
-    def test_returning_a_buffer_or_text_teaches_the_renderable_decorator(self):
-        with pytest.raises(TerminalError, match=r'@xnano.renderable'):
+    def test_returning_a_buffer_or_text_teaches_the_writable_decorator(self):
+        with pytest.raises(TerminalError, match=r'@xnano.writable'):
             with xnano.new(width=8, height=1) as canvas:
                 canvas.hook(lambda context: 'text', on='key')
                 push(canvas, Event.key_press('a'))
@@ -638,7 +708,7 @@ class TestGates:
 
     def test_a_bare_hook_that_reads_the_mouse_turns_it_on(self):
         with xnano.new(width=8, height=1) as canvas:
-            canvas.hook(lambda context: None, when='mouse.is_down')
+            canvas.hook(lambda context: None, on='mouse.is_down')
             assert gates_for_screen(canvas, {})['mouse'] is True
 
     @pytest.mark.parametrize(
@@ -669,7 +739,7 @@ class TestGates:
 
     def test_a_release_test_needs_the_release_gate(self):
         with xnano.new(width=8, height=1) as canvas:
-            canvas.hook(lambda context: None, on='key', when="keyboard.kind == 'release'")
+            canvas.hook(lambda context: None, on="keyboard.kind == 'release'")
             with pytest.raises(TerminalError, match="needs keyboard='release_events'"):
                 gates_for_screen(canvas, {})
             assert gates_for_screen(canvas, {'keyboard': 'release_events'})[
@@ -678,7 +748,7 @@ class TestGates:
 
     def test_not_equal_to_release_does_not_need_the_gate(self):
         with xnano.new(width=8, height=1) as canvas:
-            canvas.hook(lambda context: None, on='key', when="keyboard.kind != 'release'")
+            canvas.hook(lambda context: None, on="keyboard.kind != 'release'")
             assert gates_for_screen(canvas, {})['keyboard'] is True
 
     def test_the_error_says_how_to_turn_the_gate_on(self):
@@ -706,10 +776,10 @@ class TestQuitting:
             heard.append('second')
 
         canvas.hook(lambda context: heard.append('key'), on='key')
-        canvas.step(delta_seconds=1.0)
+        canvas.clock.step(delta_seconds=1.0)
         assert heard == ['first']
         push(canvas, Event.key_press('a'))
-        canvas.step(delta_seconds=1.0)
+        canvas.clock.step(delta_seconds=1.0)
         assert heard == ['first'], 'a canvas that quit runs no hook again'
 
     def test_an_event_queued_before_quit_is_dropped(self, canvas):
@@ -750,7 +820,7 @@ class TestQuitting:
 class TestHooksWithoutParameters:
     def test_a_hook_without_parameters_runs(self) -> None:
         with xnano.new(width=8, height=1) as canvas:
-            label = canvas.write('hi')
+            label = canvas.screen.write('hi')
             seen: list[str] = []
 
             @canvas.hook(on='key')
@@ -789,7 +859,7 @@ class TestHooksWithoutParameters:
             seen.append('key')
 
         with xnano.new(width=8, height=1) as canvas:
-            canvas.write('hi') | counted
+            canvas.screen.write('hi') | counted
             canvas.push(Event.key_press('a'))
             canvas.deliver_events()
             assert seen == ['key']

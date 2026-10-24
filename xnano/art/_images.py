@@ -369,7 +369,7 @@ def _fitted_size(image: TerminalImage, limit: _core.Size | None) -> tuple[int, i
 @dataclasses.dataclass(frozen=True, slots=True, init=False)
 class Image:
     """
-    An image and how it is shown: what [`Canvas.write`][xnano.canvas.Canvas.write] takes
+    An image and how it is shown: what [`Screen.write`][xnano.devices.Screen.write] takes
     to put a picture on the canvas.
 
     Make one from the path of an image file, its bytes, or a
@@ -412,7 +412,7 @@ class Image:
 
         picture = xnano.Image(TerminalImage.from_rgba(2, 2, bytes([255, 0, 0, 255]) * 4), width=8)
         with xnano.new(width=20, height=6) as canvas:
-            canvas.write(picture, x='center')
+            canvas.screen.write(picture, x='center')
         # xnano.Image('photo.png', width='100%') loads a file, and refits when the window resizes.
         ```
     """
@@ -463,7 +463,7 @@ class Image:
             source: The path of an image file (PNG, JPEG, GIF, WebP or XNI), the bytes of one,
                 or an image. An animated file plays on the canvas's clock.
             x: The column of the left edge: cells, a percentage, a word such as ``'center'``, an
-                expression or a range. See [`Axis`][xnano.types.Axis].
+                expression or a range. See [`Axis`][xnano.layout.Axis].
             y: The row of the top edge, in the same forms.
             width: The width, in the same forms; the picture's own when ``None``.
             height: The height, in the same forms.
@@ -546,7 +546,7 @@ def load_image(
 
     This is [`Image`][xnano.Image] with the same arguments: PNG, JPEG, GIF, WebP and XNI files
     are read, and an animated one plays on the canvas's clock. Write the result with
-    ``canvas.write(picture)``.
+    ``canvas.screen.write(picture)``.
 
     Args:
         source: The path of an image file, the bytes of one, or a
@@ -638,7 +638,7 @@ class ImageSource:
 
     Attributes:
         decoded: The decoded picture, a [`TerminalImage`][xnano_image.TerminalImage].
-        width: The requested width, as an [`Axis`][xnano.types.Axis], or ``None``.
+        width: The requested width, as an [`Axis`][xnano.layout.Axis], or ``None``.
         height: The requested height, or ``None``.
         size: The canvas size the buffer was converted for.
         buffer: The buffer that shows the image.
@@ -649,7 +649,7 @@ class ImageSource:
     decoded: TerminalImage
     """The decoded picture, a [`TerminalImage`][xnano_image.TerminalImage]."""
     width: Axis | None
-    """The requested width, as an [`Axis`][xnano.types.Axis], or ``None``."""
+    """The requested width, as an [`Axis`][xnano.layout.Axis], or ``None``."""
     height: Axis | None
     """The requested height, or ``None``."""
     size: _core.Size

@@ -6,6 +6,7 @@ The canvas: a virtual terminal of cells with a clock, hooks, sound, a cursor and
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import dataclasses
 import itertools
@@ -15,7 +16,14 @@ import threading
 import time as wall_clock
 import weakref
 from collections import deque
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import (
+    AsyncIterator,
+    Callable,
+    Generator,
+    Iterator,
+    Mapping,
+    Sequence,
+)
 from typing import (
     TYPE_CHECKING,
     Final,
@@ -29,19 +37,22 @@ import xnano_core as _core
 from xnano_core import CoreContext, FrameContext, JSONValue, UpdateContext
 
 if TYPE_CHECKING:
+    import asyncio
+
     from _typeshed import DataclassInstance
     from typing_extensions import Self, TypeIs, Unpack
 
     from xnano._schema._content import PlaySource
+    from xnano._schema._effects import WritableEffectSpecification
     from xnano._schema._media import PlayOptions
     from xnano._schema._terminal import CanvasSettings, OpenSettings
+    from xnano.audio._microphone import Microphone
     from xnano.audio._notes import PlayHandle
     from xnano.audio._player import AudioDevice
-    from xnano.context import Context
+    from xnano.hooks._context import Context
     from xnano.terminal import Terminal
-    from xnano.types import RenderableEffectSpecification
+    from xnano.terminal._opening import OpeningTerminal
 
-from xnano._internal._attributes import refuse_unknown_keywords
 from xnano._internal._axes import (
     check_axis,
     check_edges,
@@ -53,11 +64,12 @@ from xnano._internal._axes import (
 from xnano._internal._content import content_buffer
 from xnano._internal._dynamic_operations import DynamicOperation
 from xnano._internal._optional import require
+from xnano._runtime._flow import Flow, flow_of, is_flow_position
 from xnano._runtime._host import _Host, _InlineHost, _Registration, _ThreadHost
+from xnano._runtime._loops import _AwaitableEvent, running_loop
 from xnano._runtime._slots import (
     apply_pending_layouts,
     close_slot,
-    open_slot,
     slot_of,
 )
 from xnano._schema._appearance import RGB, ColorValue, Spacing
@@ -72,20 +84,23 @@ from xnano._schema._generics import (
 )
 from xnano._schema._hooks import KeyName
 from xnano._schema._layout import CanvasLayout, EdgeBehavior
-from xnano.appearance._decoration import Decorated, insets_for, paint_decoration
-from xnano.appearance._look import (
-    MOST_CELLS,
-    Appearance,
-    appearance_fields,
-    resolve_spacing,
-)
-from xnano.appearance._owners import _Looked, _TextModifiers
+from xnano._schema._terminal import CanvasSettings as CanvasSettings
 from xnano.art._images import Image, ImageSource
 from xnano.art._pixels import Pixel
-from xnano.components import _as_component, _attach_component, _play_component
-from xnano.context import Frame, ReadLog, Update
-from xnano.cursor import Cursor
-from xnano.effects._properties import EffectParameters, RenderableEffectProperties
+from xnano.components import (
+    _as_component,
+    _attach_component,
+    _attach_rendering,
+    _play_component,
+)
+from xnano.devices._clock import Clock
+from xnano.devices._cursor import Cursor
+from xnano.devices._keyboard import Keyboard
+from xnano.devices._mouse import Mouse
+from xnano.devices._output import Output
+from xnano.devices._screen import Screen
+from xnano.devices._speaker import Speaker
+from xnano.effects._properties import EffectParameters, WritableEffectProperties
 from xnano.effects._registry import apply_effects
 from xnano.errors import (
     TerminalClosedError,
@@ -98,14 +113,14 @@ from xnano.expressions import (
     Root,
     RootExpressionScope,
 )
+from xnano.hooks._context import Frame, ReadLog, Update
+from xnano.hooks._coroutines import TaskCount
 from xnano.hooks._handles import HookHandle, _Hooked
-from xnano.input import _ESTIMATED_HOLD_SECONDS, Input
+from xnano.layout._placement import Placement
+from xnano.layout._region import Region
 from xnano.operations import (
     ContextualOperation,
 )
-from xnano.output import Output
-from xnano.placement import Placement
-from xnano.region import Region
 from xnano.state import (
     StateNamespace,
     _commit_pending,
@@ -119,9 +134,17 @@ from xnano.state import (
     _StateFollower,
     _StateFollowers,
 )
-from xnano.time import Time
+from xnano.styles._decoration import Decorated, insets_for, paint_decoration
+from xnano.styles._look import MOST_CELLS, Appearance, appearance_fields, resolve_spacing
+from xnano.styles._owners import _LookState
 
-__all__ = ['Canvas', 'active', 'iter', 'new']
+__all__ = [
+    'Canvas',
+    'CanvasLayout',
+    'CanvasSettings',
+    'active',
+    'new',
+]
 
 _active_canvas: contextvars.ContextVar[
     tuple[weakref.ref[Canvas[object, object]], ...]
@@ -300,14 +323,16 @@ def _check_size(name: str, value: object) -> int | str | None:
     """
     if value is None:
         return None
+    if isinstance(value, str) and value.strip().lower() == 'fit':
+        return 'fit'
     if isinstance(value, str):
         stripped = value.strip()
         share = size_share(stripped)
         if share is None or not 0.0 < share <= 1.0:
             raise ValueError(
-                f'{name} must be a whole number of cells or a percentage of the window from '
-                f"above 0% to 100%, but was {value!r}. Pass {name}=40 or {name}='50%', or "
-                f'leave it out.'
+                f"{name} must be a whole number of cells, 'fit' for the size of the content, "
+                f'or a percentage of the window from above 0% to 100%, but was {value!r}. '
+                f"Pass {name}=40, {name}='fit' or {name}='50%', or leave it out."
             )
         return stripped
     if (
@@ -374,19 +399,187 @@ def _canvas_size(
 _MOST_STEP_SECONDS: Final = 1_000_000_000
 """The most seconds one step may move a clock by."""
 
+_FRAME_EVENT_KINDS: Final = (
+    'key',
+    'mouse',
+    'paste',
+    'resize',
+    'focus_gained',
+    'focus_lost',
+    'custom',
+)
+"""The kinds of the events a frame of ``iter()`` carries."""
 
-class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
+
+def _quit_keys(quit_on: KeyName | Sequence[KeyName] | None) -> tuple[KeyName, ...]:
+    """The keys of a ``quit_on`` keyword, as a tuple."""
+    if quit_on is None:
+        return ()
+    return (quit_on,) if isinstance(quit_on, str) else tuple(quit_on)
+
+
+class _FramePacing:
     """
-    A workspace of text, pixels and sound on a clock, with or without a screen.
+    The frames ``iter`` and ``iter_async`` yield, and how long to wait between two of them.
 
-    A canvas is a virtual terminal. Create one with [`new`][xnano.new]: it has a size, a clock,
-    hooks, a cursor, sound and state, and no screen, so it draws into memory and its time moves
-    only when you move it with [`step`][xnano.canvas.Canvas.step] or
-    [`iter`][xnano.canvas.Canvas.iter], which makes every run the same. ``new(realtime=True)``
-    runs it on the wall clock instead, on a thread of its own. [`open`][xnano.canvas.Canvas.open]
-    puts the same object on your screen, where it becomes a [`Terminal`][xnano.Terminal]
-    and its time continues from where it was. It is not the drawing widget
-    [`xnano.widgets.Figure`][xnano.widgets.Figure].
+    Both iterations share it, so they yield the same frames and end for the same reasons. While
+    it runs it hears every event that reaches the canvas, for the ``events`` of each frame, and
+    the keys that end the loop.
+    """
+
+    __slots__ = (
+        '_canvas',
+        '_clock',
+        '_deadline',
+        '_event_hook',
+        '_events',
+        '_events_lock',
+        '_frames',
+        '_previous',
+        '_previous_quit_keys',
+        '_quit_hook',
+        '_seconds',
+        '_start',
+        '_yielded',
+    )
+
+    def __init__(
+        self,
+        canvas: Canvas[object, object],
+        frames: int | None,
+        seconds: float | None,
+        quit_on: tuple[KeyName, ...],
+    ) -> None:
+        """
+        Start pacing the frames of ``canvas``, hearing its events and its quit keys.
+
+        Raises:
+            TerminalError: A hook raised on a canvas whose clock you move.
+        """
+        canvas._raise_failure()
+        self._canvas = canvas
+        self._frames = frames
+        self._seconds = seconds
+        self._clock = canvas._time_source
+        self._start = self._clock.elapsed_seconds
+        self._previous = self._start
+        self._yielded = 0
+        self._deadline = wall_clock.monotonic()
+        self._events: list[_core.Event] = []
+        self._events_lock = threading.Lock()
+        root = canvas._root
+        self._event_hook: _core.Hook = canvas._host.call(
+            lambda: root.add_hook(self._hear, events=list(_FRAME_EVENT_KINDS))
+        )
+        self._previous_quit_keys = canvas._quit_keys
+        self._quit_hook = canvas._listen_for_quit(quit_on)
+
+    def _hear(self, core_context: _core.CoreContext) -> None:
+        """Keep an event that reached the canvas for the next frame. Runs on its loop."""
+        event = core_context.event
+        if event is not None:
+            with self._events_lock:
+                self._events.append(event)
+
+    def close(self) -> None:
+        """Stop hearing events and quit keys: the iteration ended."""
+        self._event_hook.cancel()
+        hook = self._quit_hook
+        if hook is not None:
+            hook.remove()
+            self._canvas._quit_keys = self._previous_quit_keys
+
+    def quitting_host(self) -> _ThreadHost | None:
+        """
+        The loop of a canvas that runs by itself and was asked to quit, which may still be ending.
+
+        As after ``run()``, the iteration waits for it, so the screen is given back before the
+        program goes on, even when the canvas already counts as closed.
+        """
+        canvas = self._canvas
+        host = canvas._host
+        if canvas.is_running or not isinstance(host, _ThreadHost):
+            return None
+        return host
+
+    def next_frame(self) -> Frame | None:
+        """The frame to yield now, or ``None`` when the iteration has ended."""
+        canvas = self._canvas
+        if not canvas.is_running:
+            return None
+        frames, seconds = self._frames, self._seconds
+        if frames is not None and self._yielded >= frames:
+            return None
+        elapsed = self._clock.elapsed_seconds
+        if seconds is not None and elapsed - self._start >= seconds - 1e-9:
+            return None
+        if seconds is not None and frames is None:
+            canvas._refuse_endless_seconds(seconds)
+        size = canvas.screen.size
+        with self._events_lock:
+            events, self._events = tuple(self._events), []
+        frame = Frame(
+            canvas=canvas,
+            index=self._clock.frame,
+            elapsed_seconds=elapsed,
+            delta_seconds=elapsed - self._previous,
+            area=_core.Rectangle(0, 0, size.width, size.height),
+            events=events,
+        )
+        self._previous = elapsed
+        self._yielded += 1
+        return frame
+
+    def advance(self) -> float | None:
+        """
+        Move on after a frame was yielded.
+
+        Returns:
+            The seconds to wait before the next frame (``0`` for a manual clock, which moved
+            at once), or ``None`` when the canvas ended.
+        """
+        canvas = self._canvas
+        if not canvas.is_running:
+            return None
+        if canvas._host.is_autonomous:
+            interval = 1.0 / canvas._fps
+            now = wall_clock.monotonic()
+            self._deadline += interval
+            if self._deadline < now - interval:
+                self._deadline = now
+            return max(0.0, self._deadline - now)
+        runtime = canvas._runtime
+        if not self._clock.is_stopped:
+            runtime.clock.step(canvas._default_milliseconds())
+            canvas._moved += 1
+        if canvas._frame_demand:
+            runtime.request_frame()
+        runtime.step()
+        canvas._pushed_pointer = None
+        canvas._raise_failure()
+        return 0.0
+
+
+class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
+    """
+    A terminal made of devices: a screen, a speaker, a microphone, a keyboard, a mouse and a
+    clock, with or without a real screen.
+
+    A canvas is a virtual terminal. Create one with [`new`][xnano.new]: its screen draws into
+    memory, its speaker records instead of playing, its keyboard and mouse are driven by your
+    program, and its clock moves only when you move it with
+    [`clock.step`][xnano.devices.Clock.step] or [`iter`][xnano.canvas.Canvas.iter], which makes
+    every run the same. ``new(realtime=True)`` runs it on the wall clock instead, on a thread
+    of its own. [`open`][xnano.canvas.Canvas.open] puts the same object on your screen, where
+    it becomes a [`Terminal`][xnano.Terminal] and its clock continues from where it was. It is
+    not the drawing widget [`xnano.widgets.Figure`][xnano.widgets.Figure].
+
+    Each device has the members that belong to it: ``canvas.screen.write(...)`` puts content
+    on the [`Screen`][xnano.devices.Screen], ``canvas.speaker.play(...)`` plays on the
+    [`Speaker`][xnano.devices.Speaker], ``canvas.clock.sleep(...)`` waits on the
+    [`Clock`][xnano.devices.Clock], and ``canvas.keyboard`` and ``canvas.mouse`` read and
+    press keys and buttons. The canvas itself holds what spans them: hooks, events, state,
+    dependencies, and running and closing.
 
     How a canvas ends depends on who moves its clock. On a canvas from ``new()``,
     [`quit`][xnano.canvas.Canvas.quit] only ends a running ``iter()``: the canvas stays open
@@ -398,57 +591,37 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
     | State | Read it from | Meaning |
     | --- | --- | --- |
     | running | ``is_running`` | open, and its loop has not been asked to end |
-    | time stopped | ``time.is_stopped`` | frozen by ``stop()``; it still draws and hears input |
+    | time stopped | ``clock.is_stopped`` | frozen by ``clock.stop()``; it still draws and hears input |
     | closed | ``is_closed`` | torn down; it cannot draw or listen |
-
-    What you put on the canvas is declared on the canvas itself:
-    [`write`][xnano.canvas.Canvas.write], [`hook`][xnano.canvas.Canvas.hook] and indexing.
-    Everything else is grouped by what it is: ``canvas.time`` is the
-    [`Time`][xnano.time.Time], ``canvas.cursor`` the one [`Cursor`][xnano.cursor.Cursor],
-    ``canvas.output`` the [`Output`][xnano.output.Output] of drawn frames and
-    ``canvas.audio`` the [`AudioDevice`][xnano.audio.AudioDevice].
 
     Any thread may write, remove, draw and play. Hooks run on the canvas's loop, so keep them
     short.
 
     Attributes:
+        screen: The [`Screen`][xnano.devices.Screen]: what is written and drawn, and its look.
+        speaker: The [`Speaker`][xnano.devices.Speaker]: notes, melodies and sounds.
+        microphone: The [`Microphone`][xnano.audio.Microphone]: the level of the sound around.
+        keyboard: The [`Keyboard`][xnano.devices.Keyboard]: keys held, and the program's own
+            key presses, pastes and prompts.
+        mouse: The [`Mouse`][xnano.devices.Mouse]: the pointer, the buttons, the wheel.
+        clock: The [`Clock`][xnano.devices.Clock] everything on the canvas runs on.
         is_closed: Whether the canvas has been torn down.
         is_running: Whether the canvas is open and its loop has not been asked to end.
-        core_buffer: The core buffer everything is added to, as large as the canvas.
-        parent: Symbolic expressions for the parent container's ``width``, ``height`` and ``size``.
-        root: Symbolic expressions for the root canvas's geometry and clock.
-        size: The size of the canvas in cells.
-        width: The width of the canvas in cells.
-        height: The height of the canvas in cells.
-        x: The column of the canvas, which is ``0`` for a canvas that is not written into another.
-        y: The row of the canvas, which is ``0`` for a canvas that is not written into another.
-        title: The window title; ``None`` clears it.
-        fps: The most frames drawn per second.
-        bpm: Beats per minute for beat timers, notes and melodies.
         deps: The dependencies given to ``new(deps=...)``, which hooks read.
-        time: The [`Time`][xnano.time.Time] everything on the canvas runs on.
-        cursor: The canvas's one cursor.
         state: The dataclass given to ``new(state=...)``.
-        output: The [`Output`][xnano.output.Output]: what was drawn, and held-back text.
-        audio: The [`AudioDevice`][xnano.audio.AudioDevice]: notes, melodies, sounds and the
-            microphone.
-        input: The keys held down right now, for programs that poll instead of listening.
 
     Examples:
         ```python
         import xnano
 
         with xnano.new(width=12, height=2, fps=10) as canvas:
-            greeting = canvas.write('hello', x=1, y=1)
-            for frame in canvas.iter(count=3):
+            greeting = canvas.screen.write('hello', x=1, y=1)
+            for frame in canvas.iter(frames=3):
                 greeting.text = f'frame {frame.index}'
-            assert canvas.render().splitlines()[1] == ' frame 2'
-            assert round(canvas.time.elapsed, 3) == 0.3
+            assert canvas.screen.render().splitlines()[1] == ' frame 2'
+            assert round(canvas.clock.elapsed, 3) == 0.3
         ```
     """
-
-    output: Output
-    """The canvas's drawn frames and captured text."""
 
     def __new__(cls, *arguments: object, **keywords: object) -> Self:
         """Refuse a direct call: a canvas is created with ``xnano.new``."""
@@ -472,7 +645,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         title: str | None,
         gates: Mapping[str, object],
         appearance: Mapping[str, object],
-        effects: Sequence[RenderableEffectSpecification],
+        effects: Sequence[WritableEffectSpecification],
         enclosing: Canvas[object, object] | None = None,
         layout: CanvasLayout = 'overlay',
         edges: EdgeBehavior = 'clip',
@@ -481,8 +654,10 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         Create a canvas. Use [`new`][xnano.new] instead of calling this.
 
         Args:
-            width: The width in cells or as a percentage of the window, or ``None`` for 80.
-            height: The height in cells or as a percentage of the window, or ``None`` for 24.
+            width: The width in cells, as a percentage of the window, ``'fit'`` for the
+                width of the content, or ``None`` for 80.
+            height: The height in cells, as a percentage of the window, ``'fit'`` for the
+                height of the content, or ``None`` for 24.
             fps: The most frames drawn per second.
             bpm: Beats per minute.
             is_realtime: Whether the canvas runs on the wall clock, on a thread of its own.
@@ -503,6 +678,22 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         self._lock = threading.RLock()
         self._root = _core.Buffer()
         self._buffer = self._root
+        # 'fit' takes the size of the content; a stacking canvas shares its size among its
+        # slots, so it cannot fit them.
+        if layout != 'overlay' and 'fit' in (width, height):
+            raise ValueError(
+                f'A {layout} canvas shares its size among the pieces written on it, so it '
+                f'cannot take the size of them. Give it a size such as height=12, or use '
+                f"layout='overlay' with width='fit' and height='fit'."
+            )
+        self._fits_width = width == 'fit'
+        self._fits_height = height == 'fit'
+        # Canvases written into this one that fit their content, and whether a fit runs now.
+        # The placements of canvases written into this one that fit their content.
+        self._fitted_placements: list[Placement[object, object]] = []
+        self._is_fitting = False
+        self._root.should_fit_width = self._fits_width
+        self._root.should_fit_height = self._fits_height
         self._fps = fps
         self._bpm = bpm
         self._is_realtime = is_realtime
@@ -520,7 +711,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             else None
         )
         self._decorated: Decorated | None = None
-        self._dirty_looks: dict[int, _Looked] = {}
+        self._dirty_looks: dict[int, _LookState] = {}
         self._placements: list[Placement[DepsT, StateT]] = []
         self._ledger: list[_Registration] = []
         self._effects: list[
@@ -545,16 +736,21 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         ] = []
         self._is_layout_pending = False
         self._pending_layouts: dict[int, Canvas[object, object]] = {}
+        # The flow of every container that something was written into, by its buffer.
+        self._flows: dict[int, Flow] = {}
         if enclosing is not None:
             self._enclosing = weakref.ref(enclosing)
-            self._enclosing_size = (enclosing.width, enclosing.height)
+            self._enclosing_size = (enclosing.screen.width, enclosing.screen.height)
             with enclosing._lock:
                 enclosing._nested_canvases.append(
                     weakref.ref(cast('Canvas[object, object]', self))
                 )
         self._is_closed = False
         self._is_finalized = False
-        self._stop_requested = threading.Event()
+        self._stop_requested = _AwaitableEvent()
+        # The event loop that async def hooks run on: the one this canvas was created in.
+        self._event_loop: asyncio.AbstractEventLoop | None = running_loop()
+        self._tasks: TaskCount | None = None
         self._failure: BaseException | None = None
         self._is_failure_reported = False
         self._failure_report = ''
@@ -574,14 +770,29 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         self._internal_revisions: deque[int] = deque(maxlen=16)
         self._namespace_identifiers = itertools.count(1)
         self._active_run_by_thread = threading.local()
+        # How many hook and component runs are in progress on any thread, so that reading a
+        # device outside of one skips the thread-local lookup.
+        self._runs_in_progress = 0
+        # What the run of a renderable drawing on this canvas's screen wrote, so the next run
+        # starts from an empty screen; None when no renderable is running here.
+        self._rendering_writes: list[Placement[object, object]] | None = None
+        # The keys that end the running loop, which a program's own key presses avoid.
+        self._quit_keys: tuple[KeyName, ...] = ()
         self._images: dict[int, ImageSource] = {}
         # Only placements with a formula or a range need looking at before each frame.
         self._dynamic: dict[int, Placement[DepsT, StateT]] = {}
-        self._time = Time(cast('Canvas[object, object]', self))
+        self._clock_view = Clock(cast('Canvas[object, object]', self))
         self._cursor_view = Cursor(cast('Canvas[object, object]', self))
-        self.output = Output(cast('Canvas[object, object]', self))
+        self._output = Output(cast('Canvas[object, object]', self))
+        # What the devices keep: the screen of this canvas, the input state whose held keys
+        # are estimated from repeats, and the mouse buttons the program pressed.
+        self._screen_view: Screen[DepsT, StateT] | None = None
+        self._speaker_view: Speaker | None = None
+        self._keyboard_view: Keyboard | None = None
+        self._mouse_view: Mouse | None = None
+        self._estimated_holds_state: _core.InputState | None = None
+        self._program_held_buttons: set[_core.MouseButton] = set()
         self._audio: AudioDevice | None = None
-        self._input: Input | None = None
         self._runtime_object: _core.Runtime | None = None
         self._clock: _core.Clock | None = None
         self._cursor: _core.Cursor | None = None
@@ -595,7 +806,15 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             (weakref.ref(cast('Canvas[object, object]', self)), *self._previous_chain)
         )
         self._host: _Host
-        columns, rows = _canvas_size(width, height, self._enclosing_size)
+        columns, rows = _canvas_size(
+            None if self._fits_width else width,
+            None if self._fits_height else height,
+            self._enclosing_size,
+        )
+        if self._fits_width:
+            columns = 1
+        if self._fits_height:
+            rows = 1
         interval_milliseconds = max(1, round(1000.0 / fps))
 
         def create_runtime() -> _core.Runtime:
@@ -624,7 +843,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         except BaseException:
             self.close(raise_failure=False)
             raise
-        self._renderable_effects = RenderableEffectProperties(
+        self._writable_effects = WritableEffectProperties(
             cast('Canvas[object, object]', self)
         )
         self._seal()
@@ -636,10 +855,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         self._runtime_object = runtime
         self._clock = runtime.clock
         self._cursor = runtime.cursor
-        input_state = runtime.input
-        if self._input is not None:
-            input_state.estimate_holds(timeout_seconds=_ESTIMATED_HOLD_SECONDS)
-        self._input_state = input_state
+        self._input_state = runtime.input
         if self._is_live:
             from xnano.terminal._screen import warn_if_output_is_not_held_back
 
@@ -709,6 +925,99 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
     def _active_run(self, run: _HookRun | None) -> None:
         self._active_run_by_thread.run = run
 
+    # -- the devices -----------------------------------------------------------------------
+
+    @property
+    def screen(self) -> Screen[DepsT, StateT]:
+        """
+        The [`Screen`][xnano.devices.Screen]: what is written and drawn on the canvas, and how
+        it looks.
+
+        A canvas written into another one has a screen of its own, its area of the outer
+        canvas.
+        """
+        if self._is_closed and self._canvas is not self:
+            self._require_open()
+        screen = self._screen_view
+        if screen is None:
+            screen = self._screen_view = Screen(self)
+        return screen
+
+    @property
+    def speaker(self) -> Speaker:
+        """
+        The [`Speaker`][xnano.devices.Speaker]: notes, melodies, sounds and playable components.
+
+        It needs the optional `xnano-audio` package, which is imported the first time it plays.
+        """
+        if self._is_closed and self._canvas is not self:
+            self._require_open()
+        canvas = self._canvas
+        speaker = canvas._speaker_view
+        if speaker is None:
+            speaker = canvas._speaker_view = Speaker(
+                cast('Canvas[object, object]', canvas)
+            )
+        return speaker
+
+    @property
+    def microphone(self) -> Microphone:
+        """
+        The [`Microphone`][xnano.audio.Microphone]: the level of the sound around, and its
+        history.
+
+        Raises:
+            ImportError: `xnano-audio` is not installed. Install it with
+                ``pip install "xnano[audio]"``.
+        """
+        self._require_own_presence()
+        # The level changes all the time, so a component that reads it runs every frame.
+        self._note_dynamic_read()
+        return self._canvas._audio_device().microphone
+
+    @property
+    def keyboard(self) -> Keyboard:
+        """
+        The [`Keyboard`][xnano.devices.Keyboard]: the keys held down, and the program's own key
+        presses, pastes, waits and prompts.
+        """
+        if self._is_closed and self._canvas is not self:
+            self._require_open()
+        canvas = self._canvas
+        keyboard = canvas._keyboard_view
+        if keyboard is None:
+            keyboard = canvas._keyboard_view = Keyboard(
+                cast('Canvas[object, object]', canvas)
+            )
+        return keyboard
+
+    @property
+    def mouse(self) -> Mouse:
+        """
+        The [`Mouse`][xnano.devices.Mouse]: the pointer, the buttons held, the wheel, and the
+        program's own clicks and drags.
+        """
+        if self._is_closed and self._canvas is not self:
+            self._require_open()
+        canvas = self._canvas
+        mouse = canvas._mouse_view
+        if mouse is None:
+            mouse = canvas._mouse_view = Mouse(cast('Canvas[object, object]', canvas))
+        return mouse
+
+    @property
+    def clock(self) -> Clock:
+        """
+        The [`Clock`][xnano.devices.Clock]: how long the canvas has run, stopping, stepping,
+        sleeping, its frame rate, its tempo and its beats.
+        """
+        if self._is_closed and self._canvas is not self:
+            self._require_open()
+        canvas = self._canvas
+        if canvas._runs_in_progress:
+            self._note_dynamic_read()
+        return canvas._clock_view
+
     def _note_dynamic_read(self) -> None:
         """Record that the component running on this thread read the time, input or audio."""
         run = self._canvas._active_run
@@ -725,6 +1034,9 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         """Release everything the canvas registered. Runs on the canvas's loop."""
         self._finalize()
         self._cancel_hooks()
+        if self._tasks is not None:
+            # The runs of async def hooks were cancelled with the hooks.
+            self._tasks.forget()
         if self._audio is not None:
             self._audio._close()
         self._images.clear()
@@ -746,6 +1058,10 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         self._state_marked.clear()
         with self._lock:
             placements = list(self._placements)
+            flows = list(self._flows.values())
+        # Everything goes at once, so no flow moves what is still there after each removal.
+        for flow in flows:
+            flow.dissolve()
         for placement in placements:
             placement.remove()
 
@@ -842,6 +1158,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             root.height = self._size.height
             if self._appearance is not None:
                 self._redraw_look()
+            # The room left on each line changed with the width of the canvas.
+            self._settle_flows()
 
     # -- frames --------------------------------------------------------------------------
 
@@ -876,11 +1194,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         runtime = self._runtime
         size = runtime.device.size
         self._size = size
-        if self._dirty_looks:
-            with self._lock:
-                owners = list(self._dirty_looks.values())
-            for owner in owners:
-                owner._flush_look()
+        self._flush_dirty_looks()
         if self._pending_layouts:
             apply_pending_layouts(cast('Canvas[object, object]', self))
         with self._lock:
@@ -917,9 +1231,25 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         is_time_dependent |= bool(listeners)
         for listener in listeners:
             listener(core_context)
+        # A component drawn again by a listener, or a frame hook that changed a color, has
+        # a look to draw again; this frame shows it.
+        self._flush_dirty_looks()
+        if self._flows:
+            # Sizes that changed on this frame without Python (an image that follows the
+            # canvas) move what follows them before the frame is drawn.
+            self._settle_flows()
         if is_time_dependent:
             # Something that follows time needs the next frame too.
             runtime.request_frame()
+
+    def _flush_dirty_looks(self) -> None:
+        """Draw every look that changed since it was last drawn."""
+        if not self._dirty_looks:
+            return
+        with self._lock:
+            owners = list(self._dirty_looks.values())
+        for owner in owners:
+            owner._flush_look()
 
     def _follow_effects(self, runtime: _core.Runtime) -> bool:
         """Forget effects that finished; return whether one finished on this frame."""
@@ -958,7 +1288,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
 
     def _on_frame(self, callback: Callable[[Frame], object]) -> Callable[[], None]:
         """
-        Call ``callback`` with a [`Frame`][xnano.context.Frame] before every frame.
+        Call ``callback`` with a [`Frame`][xnano.hooks.Frame] before every frame.
 
         Returns:
             A function that stops the calls.
@@ -1002,7 +1332,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         fixed_step_seconds: float | None = None,
     ) -> _Registration:
         """
-        Call ``callback`` with an [`Update`][xnano.context.Update] for simulation updates.
+        Call ``callback`` with an [`Update`][xnano.hooks.Update] for simulation updates.
 
         On a manual clock the fixed steps that a jump of the clock crossed are run, at most
         100000 in one step and the rest in the steps that follow; on the wall clock a stalled
@@ -1206,7 +1536,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             height: The height of the region to draw in: cells, or a percentage of the window.
             settings: Terminal settings, appearance keywords, ``fps``, ``bpm``, ``effects``,
                 and ``deps`` and ``state`` for a canvas that was created without them; see
-                [`OpenSettings`][xnano.types.OpenSettings].
+                [`OpenSettings`][xnano.terminal.OpenSettings].
 
         Returns:
             This canvas, now attached to the screen.
@@ -1224,8 +1554,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         Examples:
             ```text
             with xnano.new(width=40, height=5) as canvas:
-                canvas.write('hello', border='rounded')
-                canvas.step()
+                canvas.screen.write('hello', border='rounded')
+                canvas.clock.step()
                 canvas.open(mouse=True)        # now a xnano.Terminal, 40 by 5 below the prompt
                 canvas.run(quit_on='q')
             ```
@@ -1237,6 +1567,57 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
 
         assert isinstance(self, Terminal)
         return self
+
+    def open_async(
+        self,
+        *,
+        title: str | None = None,
+        width: int | Percentage | str | None = None,
+        height: int | Percentage | str | None = None,
+        **settings: Unpack[OpenSettings],
+    ) -> OpeningTerminal[DepsT, StateT]:
+        """
+        Put this canvas on your screen like [`open`][xnano.canvas.Canvas.open], from a coroutine.
+
+        The terminal is asked what it can do while your event loop goes on running other
+        tasks. Await the result for the [`Terminal`][xnano.Terminal], or enter it with
+        ``async with``, which closes it when the block ends. The keywords are the ones
+        ``open()`` takes, and so are the errors, which are raised when it is awaited.
+
+        Args:
+            title: The window title; ``None`` keeps the canvas's title.
+            width: The width of the region to draw in: cells, or a percentage of the window.
+            height: The height of the region to draw in: cells, or a percentage of the window.
+            settings: Terminal settings, appearance keywords, ``fps``, ``bpm``, ``effects``,
+                and ``deps`` and ``state`` for a canvas that was created without them; see
+                [`OpenSettings`][xnano.terminal.OpenSettings].
+
+        Returns:
+            The opening terminal: await it, or use it in ``async with``.
+
+        Examples:
+            ```text
+            async def main() -> None:
+                async with xnano.new(width=40, height=5) as canvas:
+                    canvas.screen.write('hello', border='rounded')
+                    terminal = await canvas.open_async(mouse=True)
+                    await terminal.run_async(quit_on='q')
+            ```
+        """
+        from xnano.terminal import Terminal
+        from xnano.terminal._opening import OpeningTerminal
+        from xnano.terminal._screen import attach_screen_async
+
+        async def open_terminal() -> Terminal[DepsT, StateT]:
+            await attach_screen_async(
+                self, title=title, width=width, height=height, settings=settings
+            )
+            assert isinstance(self, Terminal)
+            # async def hooks run on the loop the terminal was opened in.
+            self._event_loop = running_loop()
+            return self
+
+        return OpeningTerminal(open_terminal)
 
     def _tell_followers(self, change: _core.TerminalStateChange) -> None:
         """Run what follows state that a new store changed. Runs on the canvas's loop."""
@@ -1260,6 +1641,22 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         return self
 
     def __exit__(self, exception_type: object, *rest: object) -> None:
+        if self._leave_block():
+            self.close(raise_failure=exception_type is None)
+
+    async def __aenter__(self) -> Self:
+        root = self._canvas
+        if root._event_loop is None or root._event_loop.is_closed():
+            # async def hooks run on the loop of the block.
+            root._event_loop = running_loop()
+        return self.__enter__()
+
+    async def __aexit__(self, exception_type: object, *rest: object) -> None:
+        if self._leave_block():
+            await self.close_async(raise_failure=exception_type is None)
+
+    def _leave_block(self) -> bool:
+        """Leave this canvas's ``with`` block, and return whether leaving it closes the canvas."""
         _enclosing_canvases.set(
             tuple(
                 reference
@@ -1271,8 +1668,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             # It stays usable, and ends with the canvas it is part of or was created in.
             if _current_canvas() is self:
                 _active_canvas.set(self._previous_chain)
-            return
-        self.close(raise_failure=exception_type is None)
+            return False
+        return True
 
     def _enclosing_canvas_is_running(self) -> bool:
         """Whether the canvas this one was created in is still running."""
@@ -1423,6 +1820,101 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 self._failure_text(failure), code='canvas.callback'
             ) from failure
 
+    async def close_async(self, *, raise_failure: bool = True) -> None:
+        """
+        Close the canvas like [`close`][xnano.canvas.Canvas.close], awaiting its loop's end.
+
+        A canvas that runs by itself (on the screen, or ``realtime=True``) stops its loop while
+        your event loop goes on running other tasks; a canvas with a manual clock closes at
+        once. Leaving an ``async with`` block calls this.
+
+        Args:
+            raise_failure: Whether to raise the error a callback raised on the loop, which
+                stopped the canvas. An ``async with`` block passes ``False`` while another
+                error is already propagating.
+
+        Raises:
+            TerminalError: A callback raised on the canvas's loop, or the loop would not stop.
+
+        Examples:
+            ```python
+            import asyncio
+
+            import xnano
+
+
+            async def main() -> None:
+                canvas = xnano.new(realtime=True, width=8, height=1)
+                canvas.screen.write('hello')
+                await canvas.close_async()
+                assert canvas.is_closed
+
+
+            asyncio.run(main())
+            ```
+        """
+        host = getattr(self, '_host', None)
+        if self._canvas is self and not self._is_closed and isinstance(host, _ThreadHost):
+            await host.stop_async()
+        self.close(raise_failure=raise_failure)
+
+    def _task_count(self) -> TaskCount:
+        """The count of the unfinished runs of this canvas's async def hooks."""
+        root = self._canvas
+        tasks = root._tasks
+        if tasks is None:
+            with root._lock:
+                tasks = root._tasks
+                if tasks is None:
+                    tasks = root._tasks = TaskCount()
+        return tasks
+
+    async def wait_for_tasks_async(self) -> None:
+        """
+        Wait until every run of the canvas's ``async def`` hooks has finished.
+
+        Runs that start while this waits are waited for too. Use it in an async program
+        before reading what the hooks changed, and in tests instead of sleeping.
+
+        Raises:
+            TerminalError: A run raised, which ends the canvas the way a failing plain hook
+                does.
+
+        Examples:
+            ```python
+            import asyncio
+
+            import xnano
+            from xnano.events import Event
+
+
+            async def main() -> None:
+                async with xnano.new(width=20, height=1) as canvas:
+                    label = canvas.screen.write('...')
+
+                    @canvas.hook(on='key', keys='enter')
+                    async def answer(context: xnano.Context) -> None:
+                        await asyncio.sleep(0.01)
+                        label.text = 'done'
+
+                    canvas.push(Event.key_press('enter'))
+                    canvas.clock.step()
+                    await canvas.wait_for_tasks_async()
+                    assert canvas.screen.render() == 'done'
+
+
+            asyncio.run(main())
+            ```
+        """
+        canvas = self._canvas
+        tasks = canvas._tasks
+        if tasks is not None:
+            await tasks.idle.wait_async()
+        if canvas._host.is_autonomous:
+            canvas._raise_run_failure()
+        else:
+            canvas._raise_failure()
+
     def _record_failure(self, error: BaseException) -> None:
         """Keep an error raised on the loop, as text plus the error without its frames."""
         self._failure_report = _release_frames(error)
@@ -1451,7 +1943,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
     # -- geometry ------------------------------------------------------------------------
 
     @property
-    def core_buffer(self) -> _core.Buffer:
+    def _screen_core_buffer(self) -> _core.Buffer:
         """
         The core buffer the canvas draws, as large as the canvas.
 
@@ -1463,61 +1955,56 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         return self._content
 
     @property
-    def parent(self) -> ParentExpressionScope:
+    def _screen_parent(self) -> ParentExpressionScope:
         """Symbolic expressions for the parent container's ``width``, ``height`` and ``size``."""
         return Parent
 
     @property
-    def root(self) -> RootExpressionScope:
+    def _screen_root(self) -> RootExpressionScope:
         """Symbolic expressions for the root canvas's ``width``, ``height``, ``size`` and ``time``."""
         return Root
 
     @property
-    def size(self) -> _core.Size:
-        """The size of the canvas in cells."""
+    def _screen_size(self) -> _core.Size:
+        """
+        The size of the canvas in cells.
+
+        An axis given no size when the canvas was created follows the content: the canvas is
+        as wide as the farthest right edge of what is written on it and as tall as its lowest
+        bottom edge.
+        """
         canvas = self._canvas
+        if self._fits_width or self._fits_height:
+            canvas._fit_now()
         if canvas is not self:
-            return _core.Size(self._root.width, self._root.height)
+            content = self._content
+            return _core.Size(content.width, content.height)
         if canvas._host.is_autonomous or canvas._runtime_object is None:
             return canvas._size
         return canvas._runtime.device.size
 
     @property
-    def width(self) -> int:
+    def _screen_width(self) -> int:
         """The width of the canvas in cells."""
-        return self.size.width
+        return self.screen.size.width
 
     @property
-    def height(self) -> int:
+    def _screen_height(self) -> int:
         """The height of the canvas in cells."""
-        return self.size.height
+        return self.screen.size.height
 
     @property
-    def x(self) -> int:
+    def _screen_x(self) -> int:
         """The column of the canvas: ``0``, unless it was written into another canvas."""
         return 0 if self._canvas is self else self._root.x
 
     @property
-    def y(self) -> int:
+    def _screen_y(self) -> int:
         """The row of the canvas: ``0``, unless it was written into another canvas."""
         return 0 if self._canvas is self else self._root.y
 
-    def local(self, point: _core.Point) -> _core.Point:
-        """
-        Convert a cell of the screen into a cell of this canvas.
-
-        Args:
-            point: A cell in screen coordinates, such as ``context.mouse.position``.
-
-        Examples:
-            ```python
-            import xnano
-            from xnano_core import Point
-
-            with xnano.new(width=10, height=3) as canvas:
-                assert canvas.local(Point(4, 1)) == Point(4, 1)
-            ```
-        """
+    def _local(self, point: _core.Point) -> _core.Point:
+        """Convert a cell of the screen into a cell of this canvas: ``screen.local``."""
         point = check_point(point)
         if self._canvas is self:
             return _core.Point(point.x, point.y)
@@ -1531,49 +2018,21 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             raise TerminalError(
                 'This canvas is not written into another canvas, so it sits at the origin and '
                 'cannot be moved. Move a placement instead: placement.move(...), or '
-                'canvas.write(..., x=, y=). To move a canvas, create it inside the "with" block '
-                'of another canvas, or write it into one with outer.write(canvas).',
+                'canvas.screen.write(..., x=, y=). To move a canvas, create it inside the "with" block '
+                'of another canvas, or write it into one with outer.screen.write(canvas).',
                 code='canvas.composition',
             )
         self._require_open()
         return placement
 
-    def move(self, x: int = 0, y: int = 0) -> Self:
-        """
-        Move a canvas that is written into another one by a number of cells along each axis.
-
-        This moves the placement the canvas is drawn in; see
-        [`Placement.move`][xnano.placement.Placement.move].
-
-        Args:
-            x: Columns to move right; a negative number moves left.
-            y: Rows to move down; a negative number moves up.
-
-        Returns:
-            The canvas, so calls can chain.
-
-        Raises:
-            TerminalError: The canvas is not written into another canvas, so it sits at the
-                origin and cannot move.
-            TypeError: An amount is not a whole number.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=20, height=3) as outer:
-                inner = outer.new('box', width=4, height=1)
-                inner.move(x=2, y=1)
-                assert (inner.x, inner.y) == (2, 1)
-                assert outer.render().splitlines()[1] == '  box'
-            ```
-        """
+    def _move(self, x: int = 0, y: int = 0) -> Self:
+        """Move a canvas written into another one by cells along each axis: ``screen.move``."""
         self._written_placement().move(x=x, y=y)
         return self
 
-    def up(self, count: int = 1) -> Self:
+    def _up(self, count: int = 1) -> Self:
         """
-        Move a written canvas up by ``count`` rows; see [`move`][xnano.canvas.Canvas.move].
+        Move a written canvas up by ``count`` rows; see [`move`][xnano.devices.Screen.move].
 
         Args:
             count: How many rows to move.
@@ -1586,9 +2045,9 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         self._written_placement().up(count)
         return self
 
-    def down(self, count: int = 1) -> Self:
+    def _down(self, count: int = 1) -> Self:
         """
-        Move a written canvas down by ``count`` rows; see [`move`][xnano.canvas.Canvas.move].
+        Move a written canvas down by ``count`` rows; see [`move`][xnano.devices.Screen.move].
 
         Args:
             count: How many rows to move.
@@ -1601,9 +2060,9 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         self._written_placement().down(count)
         return self
 
-    def left(self, count: int = 1) -> Self:
+    def _left(self, count: int = 1) -> Self:
         """
-        Move a written canvas left by ``count`` columns; see [`move`][xnano.canvas.Canvas.move].
+        Move a written canvas left by ``count`` columns; see [`move`][xnano.devices.Screen.move].
 
         Args:
             count: How many columns to move.
@@ -1616,9 +2075,9 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         self._written_placement().left(count)
         return self
 
-    def right(self, count: int = 1) -> Self:
+    def _right(self, count: int = 1) -> Self:
         """
-        Move a written canvas right by ``count`` columns; see [`move`][xnano.canvas.Canvas.move].
+        Move a written canvas right by ``count`` columns; see [`move`][xnano.devices.Screen.move].
 
         Args:
             count: How many columns to move.
@@ -1633,35 +2092,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
 
     # -- settings ------------------------------------------------------------------------
 
-    @property
-    def fps(self) -> float:
-        """
-        The most frames drawn per second, and the rate [`iter`][xnano.canvas.Canvas.iter] aims for.
-
-        Assign a new rate at any time, from a hook as well: the next frame follows it, and a
-        canvas from ``new()`` steps by the new length from its next step on. A canvas written
-        into another one runs on that canvas's frames, so assigning to it changes the rate of
-        the canvas it is written into.
-
-        Raises:
-            TypeError: The rate is not a number.
-            ValueError: The rate is not above 0.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=8, height=1, fps=10) as canvas:
-                canvas.step()
-                canvas.fps = 20
-                frame = canvas.step()
-                assert round(frame.delta_seconds, 3) == 0.05
-            ```
-        """
-        return self._canvas._fps
-
-    @fps.setter
-    def fps(self, value: float) -> None:
+    def _set_fps(self, value: float) -> None:
+        """Set the frame rate of the canvas; the clock calls this."""
         canvas = self._canvas
         canvas._require_open()
         fps = _check_fps(value)
@@ -1673,21 +2105,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         )
         canvas._fps = fps
 
-    @property
-    def bpm(self) -> float:
-        """
-        Beats per minute: the length of a beat for beat timers, notes and melodies.
-
-        It is 120 unless ``new(bpm=...)`` said otherwise, and it can change while things
-        are playing; the change applies from the next beat.
-
-        Raises:
-            ValueError: The tempo is not above 0 and at most 600000.
-        """
-        return self._canvas._bpm
-
-    @bpm.setter
-    def bpm(self, value: float) -> None:
+    def _set_bpm(self, value: float) -> None:
+        """Set the tempo of the canvas; the clock calls this."""
         canvas = self._canvas
         canvas._bpm = _check_bpm(value)
         audio = canvas._audio
@@ -1700,7 +2119,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         return cast('DepsT', self._canvas._deps)
 
     @property
-    def title(self) -> str | None:
+    def _screen_title(self) -> str | None:
         """
         The window title last set on this canvas.
 
@@ -1712,8 +2131,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         canvas._require_open()
         return canvas._host.call(lambda: canvas._runtime.title)
 
-    @title.setter
-    def title(self, value: str | None) -> None:
+    @_screen_title.setter
+    def _screen_title(self, value: str | None) -> None:
         canvas = self._canvas
         canvas._require_open()
         _check_title(value)
@@ -1721,33 +2140,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         canvas._title = value
 
     @property
-    def time(self) -> Time:
-        """The canvas's [`Time`][xnano.time.Time]: how long it has run, stopping, and formulas."""
-        self._require_own_presence()
-        self._note_dynamic_read()
-        return self._canvas._time
-
-    @property
-    def cursor(self) -> Cursor:
-        """
-        The canvas's [`Cursor`][xnano.cursor.Cursor].
-
-        A canvas has exactly one cursor. Set its ``position`` (a cell, or ``None`` to hide
-        it), ``shape``, ``is_blinking`` and ``is_visible``, move it with ``up``, ``down``,
-        ``left``, ``right`` and ``move``, or ``follow`` a placement. It can be changed from
-        any thread, and on the screen the cursor you had before is restored when the canvas
-        closes.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=10, height=2) as canvas:
-                canvas.cursor.position = (3, 0)
-                canvas.cursor.shape = 'bar'
-                assert canvas.cursor.position.x == 3
-            ```
-        """
+    def _screen_cursor(self) -> Cursor:
+        """The canvas's [`Cursor`][xnano.devices.Cursor]: ``screen.cursor``."""
         self._require_own_presence()
         canvas = self._canvas
         canvas._require_open()
@@ -1771,25 +2165,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         return clock
 
     @property
-    def region(self) -> Region[int]:
-        """
-        The cells of the canvas as a [`Region`][xnano.region.Region]: read and write
-        ``canvas.region[x, y]``.
-
-        The default resolution is one cell. ``canvas.region.half_blocks`` addresses two
-        pixels per cell and ``canvas.region.braille`` eight dots.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=4, height=2) as canvas:
-                canvas.region[0, 0] = xnano.Pixel('diamond')
-                canvas.region.half_blocks[1, 0] = (255, 0, 0)
-                assert canvas.region[0, 0].character == '◆'
-                assert canvas.region.half_blocks.height == 4
-            ```
-        """
+    def _screen_region(self) -> Region[int]:
+        """The cells of the canvas as a [`Region`][xnano.layout.Region]: ``screen.region``."""
         return Region(self._region_buffer(), owner=cast('Canvas[object, object]', self))
 
     def _region_buffer(self) -> _core.Buffer:
@@ -1810,7 +2187,16 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
     def _content(self) -> _core.Buffer:
         """The buffer that everything written on the canvas is a child of."""
         decorated = self._decorated
-        return self._root if decorated is None else decorated.inner
+        if decorated is not None:
+            return decorated.inner
+        # A canvas written with a border or padding draws inside the decoration of its
+        # placement.
+        placement = self._parent_placement
+        if placement is not None:
+            written = placement._decorated
+            if written is not None:
+                return written.inner
+        return self._root
 
     def _look_canvas(self) -> Canvas[object, object] | None:
         return None if self._is_closed else cast('Canvas[object, object]', self._canvas)
@@ -1822,7 +2208,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         self._require_open()
         return super()._ensure_look()
 
-    def _look_is_dirty_for(self, owner: _Looked) -> None:
+    def _look_is_dirty_for(self, owner: _LookState) -> None:
         """An owner's look changed: draw it before the next frame."""
         canvas = self._canvas
         with canvas._lock:
@@ -1832,7 +2218,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             canvas._demand_frames()
         canvas._request_frame()
 
-    def _look_was_drawn(self, owner: _Looked) -> None:
+    def _look_was_drawn(self, owner: _LookState) -> None:
         """An owner's look was drawn: stop asking for frames on its behalf."""
         canvas = self._canvas
         with canvas._lock:
@@ -1869,352 +2255,59 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
 
     # -- writing -------------------------------------------------------------------------
 
-    def new(
+    def _new(
         self,
         content: Content | None = None,
         /,
         *,
         width: int | Percentage | str | None = None,
         height: int | Percentage | str | None = None,
-        effects: Sequence[RenderableEffectSpecification] = (),
+        effects: Sequence[WritableEffectSpecification] = (),
         **settings: Unpack[CanvasSettings],
     ) -> Canvas[DepsT, StateT]:
-        """
-        Create a canvas inside this one and draw it here at once, at the top-left corner.
-
-        This is [`new`][xnano.new] followed by ``canvas.write(child)``: the child's size is
-        measured in this canvas (``'50%'`` is half of it, and no size fills it), it runs on
-        this canvas's time and hears its input, and it closes with this canvas. Move it with
-        [`move`][xnano.canvas.Canvas.move] and its relatives, or create it with
-        [`new`][xnano.new] and write it with ``x`` and ``y`` to place it elsewhere.
-
-        Args:
-            content: Something to write into the new canvas at once, such as text.
-            width: The width in cells, or a percentage of this canvas such as ``'50%'``.
-            height: The height in cells, or a percentage of this canvas.
-            effects: Effects to apply to the new canvas, as dictionaries with a ``kind`` key.
-            settings: The terminal settings and the new canvas's own look; see
-                [`CanvasSettings`][xnano.types.CanvasSettings].
-
-        Returns:
-            The new [`Canvas`][xnano.canvas.Canvas], already drawn in this one.
-
-        Raises:
-            TypeError: An appearance keyword was given with content, or a keyword is unknown.
-            ValueError: A size, terminal setting or border kind is out of range.
-            TerminalError: This canvas is closed, or a hook of the new canvas needs a
-                terminal setting this canvas turned off.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=12, height=4) as outer:
-                panel = outer.new(height='50%', border='plain')
-                assert (panel.width, panel.height) == (12, 2)
-                assert outer.render().splitlines()[0] == '┌──────────┐'
-            ```
-        """
+        """Create a canvas inside this one and draw it here at once: ``screen.new``."""
         self._require_open()
         canvas: Canvas[DepsT, StateT] = _create(
             content,
             width=width,
             height=height,
-            fps=self.fps,
-            bpm=self.bpm,
+            fps=self._canvas._clock_view.fps,
+            bpm=self._canvas._clock_view.bpm,
             effects=effects,
             enclosing=cast('Canvas[object, object]', self),
             **settings,
         )
         try:
-            self.write(cast('Canvas[object, object]', canvas))
+            self.screen.write(cast('Canvas[object, object]', canvas))
         except BaseException:
             canvas.close(raise_failure=False)
             raise
         return canvas
 
-    @refuse_unknown_keywords
-    def write(
-        self,
-        content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
-        /,
-        *,
-        x: Axis | None = None,
-        y: Axis | None = None,
-        width: Axis | None = None,
-        height: Axis | None = None,
-        layer: int = 0,
-        lock: bool = False,
-        edges: EdgeBehavior | None = None,
-        effects: Sequence[RenderableEffectSpecification] = (),
-        style: _core.Style | None = None,
-        foreground: ColorValue | None = None,
-        background: ColorValue | None = None,
-        bold: bool = False,
-        dim: bool = False,
-        italic: bool = False,
-        underline: bool = False,
-        blink: bool = False,
-        reverse: bool = False,
-        hidden: bool = False,
-        crossed_out: bool = False,
-        title: str | None = None,
-        border: _core.BorderKind | bool | None = None,
-        border_style: _core.Style | None = None,
-        padding: Spacing | None = None,
-        margin: Spacing | None = None,
-    ) -> Placement[DepsT, StateT]:
-        """
-        Put something on the canvas: text, a widget, a buffer, another canvas or an image.
-
-        On a canvas that runs by itself it appears at once: this only declares it, and the
-        canvas's own loop draws it. Anything you leave out is taken from the content: ``x``
-        and ``y`` default to the top-left corner, and ``width`` and ``height`` to the size of
-        the content, so ``canvas.write('hello')`` shows five cells of text where it is.
-        Change the text later by assigning the placement's
-        [`text`][xnano.placement.Placement.text].
-
-        Inside the ``with`` block of a canvas created in this one's block, what is written here
-        is placed and clipped within that canvas's area of this one: where it is written, or
-        the top-left corner while it is not. Positions such as ``y='center'`` are measured in
-        that area, and that canvas's ``edges`` applies there.
-
-        A canvas from [`new`][xnano.new] that is written here becomes part of this one: it
-        draws inside the placement, its own clock is set aside and it runs on this canvas's
-        time. It may not have been given ``state`` or ``deps``, which belong to the outermost
-        canvas. Its audio is not carried over: a musical clock it started and a note it was
-        playing stop, and a formula that reads its ``audio.beat`` follows the outer canvas's
-        musical clock, which starts at the first beat.
-
-        An image is added as an [`Image`][xnano.Image] (never a file path or a bare
-        [`TerminalImage`][xnano_image.TerminalImage]; load one with
-        [`load_image`][xnano.load_image]). With neither ``width`` nor ``height`` it keeps
-        its own proportions at its own size, shrunk to fit the canvas. With one of them the
-        other follows the image's proportions, and with both the image fits inside that box. An
-        image sized by a percentage, or by the canvas because you gave no size, is converted
-        again when the canvas is resized, unless it is locked. An animated image plays on the
-        canvas's clock.
-
-        A box from [`box`][xnano.box] with a relative size (a percentage, a formula or a state
-        reference), written with a ``width`` or a ``height``, or written with a look, is drawn
-        at the size of its placement, and its look becomes the placement's look, so it is
-        drawn again when the canvas is resized. The size given to ``write`` wins over the
-        box's own. The look keywords given to ``write`` win over the box's look and the rest
-        of the box's look stays, and ``border=False`` leaves out the box's own border, title,
-        border style and sides. A box written with a look and no size keeps its own size,
-        border included, so the look of the write replaces the look of the box instead of
-        surrounding it, and a ``margin`` given to ``write`` surrounds it outside that size,
-        a percentage margin being a share of the box. The border of such a box is part of its
-        placement, so ``placement.region`` starts inside it. A box written as it is, with no
-        size and no look, and any other region, is written as a snapshot of its cells. The
-        look given to ``write`` surrounds a region that is not a box, and ``placement.region``
-        of a snapshot includes the cells of its border.
-
-        Args:
-            content: Text (or a list of lines), a [`Buffer`][xnano_core.Buffer] or widget, a
-                canvas from ``new()``, an image, or any
-                [`Renderable`][xnano.types.Renderable]; ``None`` for an empty placement.
-            x: The column of the left edge: a number of cells, a percentage string, a word
-                (``'left'``, ``'center'`` or ``'right'``), an expression, or a range
-                (``(0, 20)``) that limits how far it may travel. See
-                [`Axis`][xnano.types.Axis].
-            y: The row of the top edge, in the same forms (``'top'``, ``'center'``,
-                ``'bottom'``).
-            width: The width, in the same forms; the content's own width when ``None``.
-            height: The height, in the same forms; the content's own height when ``None``.
-            layer: Content with a higher layer is drawn over content with a lower one.
-            lock: Keep the position and size the content has now, whatever the canvas's
-                size does afterwards: percentages, words and formulas are read once.
-            edges: What the content does at the edges of its area: ``'clip'``, ``'stop'`` or
-                ``'wrap'``; see [`Placement.edges`][xnano.placement.Placement.edges]. Left
-                out, it follows what it is written on.
-            effects: Effects to start on the placement, as dictionaries with a ``kind``
-                key, such as ``[{'kind': 'effect.fade_to', 'foreground': 'red'}]``.
-            style: A ready-made [`Style`][xnano.styles.Style] for text. The parameters below
-                are applied over it.
-            foreground: The text color.
-            background: The color behind the text.
-            bold: Whether the text is bold.
-            dim: Whether the text is dimmed.
-            italic: Whether the text is italic.
-            underline: Whether the text is underlined.
-            blink: Whether the text blinks.
-            reverse: Whether foreground and background are swapped.
-            hidden: Whether the text is hidden.
-            crossed_out: Whether the text is struck through.
-            title: A title on the border of a box around the text.
-            border: The kind of border for a box around the content, a
-                [`BorderKind`][xnano.types.BorderKind] such as ``'plain'``, ``'rounded'``,
-                ``'double'`` or ``'thick'``; ``True`` for ``'plain'`` and ``False`` for none.
-                Giving a ``title`` alone draws a plain one.
-            border_style: The style of the box's border.
-            padding: Space between the border and the text: a number of cells, a float or a
-                percentage of the text's size, or a dictionary with ``top``, ``right``,
-                ``bottom``, ``left``, ``vertical`` and ``horizontal``. Giving it draws the
-                text in a box without a border unless ``border`` or ``title`` is also given.
-            margin: Space outside the box, in the same forms.
-
-        Returns:
-            A [`Placement`][xnano.placement.Placement] to move, resize, listen on or remove.
-
-        Raises:
-            TypeError: The content is a file path, raw bytes, or an operation, style or effect
-                (apply those with ``canvas.update(...)`` instead).
-            TerminalError: The content is a canvas that cannot be written here.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=20, height=4) as canvas:
-                box = canvas.write('hello', x='50%', y=1)
-                assert box.x == 10
-                assert (box.width, box.height) == (5, 1)
-                canvas.write(
-                    'Ready',
-                    x='center',
-                    y='bottom',
-                    foreground='green',
-                    bold=True,
-                    border='rounded',
-                    title='Status',
-                )
-            ```
-        """
-        self._require_open()
-        if isinstance(content, Region):
-            content._require_drawable('canvas.write()')
-            width, height = content._written_size(width, height)
-        if edges is not None:
-            edges = check_edges(edges)
-        area = self._area_for_write(content)
-        if area is not None:
-            return area.write(  # type: ignore[return-value]
-                content,
-                x=x,
-                y=y,
-                width=width,
-                height=height,
-                layer=layer,
-                lock=lock,
-                edges=edges,
-                effects=effects,
-                style=style,
-                foreground=foreground,
-                background=background,
-                bold=bold,
-                dim=dim,
-                italic=italic,
-                underline=underline,
-                blink=blink,
-                reverse=reverse,
-                hidden=hidden,
-                crossed_out=crossed_out,
-                title=title,
-                border=border,
-                border_style=border_style,
-                padding=padding,
-                margin=margin,
-            )
-        parent_buffer = self._content
-        slot: _core.Buffer | None = None
-        if self._layout != 'overlay':
-            slot, width, height = open_slot(
-                cast('Canvas[object, object]', self),
-                content if isinstance(content, Canvas) else None,
-                width,
-                height,
-            )
-            parent_buffer = slot
-        try:
-            placement = self._canvas._place_on(
-                parent_buffer,
-                content,
-                parent_owner=cast('Canvas[object, object]', self),
-                x=x,
-                y=y,
-                width=width,
-                height=height,
-                layer=layer,
-                lock=lock,
-                style=style,
-                foreground=foreground,
-                background=background,
-                bold=bold,
-                dim=dim,
-                italic=italic,
-                underline=underline,
-                blink=blink,
-                reverse=reverse,
-                hidden=hidden,
-                crossed_out=crossed_out,
-                title=title,
-                border=border,
-                border_style=border_style,
-                padding=padding,
-                margin=margin,
-            )
-        except BaseException:
-            if slot is not None:
-                close_slot(cast('Canvas[object, object]', self), slot)
-            raise
-        if slot is not None:
-            self._slots[-1] = (
-                cast('Placement[object, object]', placement),
-                *self._slots[-1][1:],
-            )
-        if effects:
-            apply_effects(cast('Placement[object, object]', placement), effects)
-        placement._take_edges(edges, content)
-        return placement
-
     # -- the layout ----------------------------------------------------------------------
 
     @property
-    def layout(self) -> CanvasLayout:
-        """
-        How the canvas places what is written on it, chosen when the canvas is created.
-
-        ``'overlay'`` places every piece on its own over the whole canvas. ``'column'``
-        stacks the pieces from top to bottom in the order they are written, and ``'row'``
-        from left to right. Each piece then takes a slot: one with a size on the stacking
-        axis (``height`` in a column, ``width`` in a row, in cells or as a percentage) gets
-        exactly that, and the others share what is left equally. Inside its slot a piece is
-        positioned as on any canvas, so ``y='center'`` and ``y='50%'`` are measured in the
-        slot. Removing a piece gives its slot back. A canvas created inside the ``with``
-        block of a stacking canvas takes a slot only once it is written.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=20, height=10, layout='column') as terminal:
-                terminal.write('top half', y='center')
-                panel = terminal.new(height='50%')
-                panel.write('bottom half')
-                rows = terminal.render().splitlines()
-                assert (rows[2], rows[5]) == ('top half', 'bottom half')
-            ```
-        """
+    def _screen_layout(self) -> CanvasLayout:
+        """How the canvas places what is written on it: ``screen.layout``."""
         return self._layout
 
     @property
-    def edges(self) -> EdgeBehavior:
+    def _screen_edges(self) -> EdgeBehavior:
         """
         What content written on the canvas does at the edges of its area, unless given its own.
 
         ``'clip'`` lets it move past the edge, where it is not drawn; ``'stop'`` holds it
         inside its area when it moves; ``'wrap'`` continues text on the next rows of its
         area. A piece written with ``edges=...`` keeps its own; see
-        [`Placement.edges`][xnano.placement.Placement.edges].
+        [`Placement.edges`][xnano.layout.Placement.edges].
 
         Raises:
             ValueError: The value is not ``'clip'``, ``'stop'`` or ``'wrap'``.
         """
         return self._edges
 
-    @edges.setter
-    def edges(self, value: EdgeBehavior) -> None:
+    @_screen_edges.setter
+    def _screen_edges(self, value: EdgeBehavior) -> None:
         self._require_open()
         self._edges = check_edges(value)
         root = self._canvas
@@ -2253,7 +2346,14 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         slot = None if placement is None else slot_of(outer, placement)
         if slot is not None:
             area = outer._canvas._place_on(
-                slot, None, parent_owner=outer, x=0, y=0, width='100%', height='100%'
+                slot,
+                None,
+                parent_owner=outer,
+                x=0,
+                y=0,
+                width='100%',
+                height='100%',
+                is_in_flow=False,
             )
             area._edges_owner = cast('Canvas[object, object]', self)
             self._areas[id(outer)] = cast('Placement[object, object]', area)
@@ -2268,15 +2368,16 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 '100%' if self._requested_height is None else self._requested_height
             )
         else:
-            width, height = self.width, self.height
+            width, height = self._screen_width, self._screen_height
         area = outer._canvas._place_on(
             outer._content,
             None,
             parent_owner=outer,
-            x=self.x if is_written_here else 0,
-            y=self.y if is_written_here else 0,
+            x=self.screen.x if is_written_here else 0,
+            y=self.screen.y if is_written_here else 0,
             width=width,
             height=height,
+            is_in_flow=False,
         )
         area._edges_owner = cast('Canvas[object, object]', self)
         self._areas[id(outer)] = cast('Placement[object, object]', area)
@@ -2310,6 +2411,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         border_style: _core.Style | None = None,
         padding: Spacing | None = None,
         margin: Spacing | None = None,
+        is_in_flow: bool = True,
     ) -> Placement[DepsT, StateT]:
         check_layer(layer)
         removes_border = border is False
@@ -2344,7 +2446,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             raise TypeError(
                 f'write() takes content to show, and a {type(content).__name__} changes '
                 f'something that is already shown instead. Apply it with '
-                f'canvas.update(...) or canvas | operation, or with placement.update(...) '
+                f'canvas.screen.update(...) or canvas.screen | operation, or with placement.update(...) '
                 f'to change one placement.'
             )
         if isinstance(content, Canvas):
@@ -2359,6 +2461,21 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 layer=layer,
                 look=appearance if is_decorated else None,
                 lock=lock,
+                is_in_flow=is_in_flow,
+            )
+        if not isinstance(content, type) and hasattr(content, '__xnano_render__'):
+            return self._place_rendering(
+                parent_buffer,
+                content,
+                parent_owner=parent_owner,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                layer=layer,
+                look=appearance if is_decorated else None,
+                lock=lock,
+                is_in_flow=is_in_flow,
             )
         if (
             isinstance(content, Region)
@@ -2379,6 +2496,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 height=height,
                 layer=layer,
                 lock=lock,
+                is_in_flow=is_in_flow,
             )
         component = (
             None
@@ -2413,6 +2531,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 border_style=border_style,
                 padding=padding,
                 margin=margin,
+                is_in_flow=is_in_flow,
             )
             try:
                 _attach_component(
@@ -2440,8 +2559,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             )
         )
         if picture is not None:
-            x = picture.x if x is None else x
-            y = picture.y if y is None else y
+            x = picture.x if is_flow_position(x) and picture.x is not None else x
+            y = picture.y if is_flow_position(y) and picture.y is not None else y
             width = picture.width if width is None else width
             height = picture.height if height is None else height
             layer = picture.layer if layer == 0 else layer
@@ -2497,6 +2616,11 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         if needs_frames:
             self._demand_frames()
         placement._is_text = is_text
+        if is_text and text_appearance is None and isinstance(content, str):
+            placement._text_value = content
+        if isinstance(content, Region) and decorated is None:
+            # A snapshot of cells: in a box larger than it is, it sits where its x and y say.
+            placement._snapshot_cells = content_buffer.copy()
         if text_appearance is not None:
             placement._appearance = text_appearance
         elif is_decorated:
@@ -2506,23 +2630,49 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         # position, size and look are set; it never shows for a frame in the wrong place.
         buffer.is_visible = False
         parent_buffer.attach(buffer, mode='transparent')
+        # Sizes before positions: 'center' and 'right' place the content by its size.
         requested: list[tuple[AxisName, Axis | None]] = [
-            ('x', x),
-            ('y', y),
             ('width', width),
             ('height', height),
+            ('x', x),
+            ('y', y),
         ]
+        x_is_next = is_flow_position(x)
+        y_is_next = is_flow_position(y)
+        follows_x = is_in_flow and x_is_next
+        follows_y = is_in_flow and y_is_next
         try:
-            for axis, value in requested:
-                if value is not None:
-                    placement._set_axis(axis, value)
-                elif axis in ('x', 'y'):
-                    placement._set_axis(axis, 0)
+            # With a size given, the content is drawn once, in the box all the axes give it.
+            is_placing = width is not None or height is not None
+            if is_placing:
+                placement._is_placing = True
+            try:
+                for axis, value in requested:
+                    if axis == 'x' and x_is_next:
+                        if not follows_x:
+                            placement._set_axis(axis, 0)
+                    elif axis == 'y' and y_is_next:
+                        if not follows_y:
+                            placement._set_axis(axis, 0)
+                    elif value is not None:
+                        placement._set_axis(axis, value)
+            finally:
+                if is_placing:
+                    placement._is_placing = False
+            if placement._parent_measured:
+                buffer.parent_measured_axes = placement._parent_measured
+            if is_placing:
+                # Drawn once, in the box every axis gave it.
+                placement._draw_content()
             if source is not None and source.animation is not None:
                 self._request_frame()
             if placement._appearance is not None and not is_text:
                 placement._look_is_dirty = True
                 placement._flush_look()
+            if is_in_flow:
+                self._join_flow(
+                    placement, parent_buffer, follows_x=follows_x, follows_y=follows_y
+                )
             if lock:
                 for axis_name in ('x', 'y', 'width', 'height'):
                     placement._set_axis(axis_name, int(getattr(placement, axis_name)))
@@ -2530,6 +2680,9 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             placement.remove()
             raise
         buffer.is_visible = True
+        if self._fitted_placements:
+            # A canvas written into this one may have grown with what was written in it.
+            self._fit_now()
         return placement
 
     def _place_box(
@@ -2546,6 +2699,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         height: Axis | None,
         layer: int,
         lock: bool,
+        is_in_flow: bool = True,
     ) -> Placement[DepsT, StateT]:
         """
         Place a box at the size it is written with, drawing its look again when that changes.
@@ -2603,6 +2757,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             width=width,
             height=height,
             layer=layer,
+            is_in_flow=is_in_flow,
         )
         try:
             placement._is_box = True
@@ -2615,6 +2770,53 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             if lock:
                 for axis_name in ('x', 'y', 'width', 'height'):
                     placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+        except BaseException:
+            placement.remove()
+            raise
+        return placement
+
+    def _place_rendering(
+        self,
+        parent_buffer: _core.Buffer,
+        component: object,
+        *,
+        parent_owner: Canvas[object, object] | Placement[object, object],
+        x: Axis | None,
+        y: Axis | None,
+        width: Axis | None,
+        height: Axis | None,
+        layer: int,
+        look: Appearance | None,
+        lock: bool,
+        is_in_flow: bool,
+    ) -> Placement[DepsT, StateT]:
+        """Write a renderable: a canvas of its own where it is written, which it draws on."""
+        # The area fits what the component writes on each axis the caller left open, and
+        # takes the size of its placement on the others.
+        area: Canvas[object, object] = _create(
+            None,
+            width='fit' if width is None else None,
+            height='fit' if height is None else None,
+            enclosing=cast('Canvas[object, object]', self),
+        )
+        area._is_hidden_until_written = True
+        placement = self._adopt(
+            parent_buffer,
+            area,
+            parent_owner=parent_owner,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            layer=layer,
+            look=look,
+            lock=lock,
+            is_in_flow=is_in_flow,
+        )
+        try:
+            _attach_rendering(
+                cast('Placement[object, object]', placement), component, area
+            )
         except BaseException:
             placement.remove()
             raise
@@ -2633,6 +2835,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         layer: int,
         look: Appearance | None = None,
         lock: bool = False,
+        is_in_flow: bool = True,
     ) -> Placement[DepsT, StateT]:
         """Make a canvas from ``new()`` part of this one, drawn inside a placement."""
         if child._is_live:
@@ -2712,14 +2915,10 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 look=look,
                 lock=lock,
             )
-        from xnano.terminal._settings import check_gates
-
         handles = child._host.call(child._hook_handles)
-        for handle in handles:
-            check_gates(self, cast('HookHandle[DepsT, StateT]', handle))
         if child._audio is not None:
             # Formulas that read the beat or the level read the outer canvas's audio device.
-            self._canvas.audio  # noqa: B018
+            self._canvas._audio_device()
         child._host.call(child._unbind_runtime)
         child._host.retire()
         child._forget_runtime()
@@ -2767,14 +2966,16 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             for inner in inner_children:
                 inner._canvas = cast('Canvas[object, object]', root)
                 inner._root_canvas = cast('Canvas[object, object]', root)
-                inner.output = root.output
+                inner._output = root._output
             root._children.append(child)
             root._children.extend(inner_children)
             child._children.clear()
+            root._fitted_placements.extend(child._fitted_placements)
+            child._fitted_placements.clear()
         child._canvas = cast('Canvas[object, object]', root)
         child._root_canvas = cast('Canvas[object, object]', root)
         child._parent_placement = cast('Placement[object, object]', placement)
-        child.output = root.output
+        child._output = root._output
         if _current_canvas() is child:
             _active_canvas.set(child._previous_chain)
         parent_buffer.attach(child_buffer, mode='transparent')
@@ -2809,6 +3010,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 height=height,
                 look=look,
                 lock=lock,
+                is_in_flow=is_in_flow,
             )
         except BaseException:
             # As with any other content, a write that fails leaves nothing behind.
@@ -2872,36 +3074,128 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         height: Axis | None,
         look: Appearance | None,
         lock: bool,
+        is_in_flow: bool = True,
     ) -> None:
         """Give the placement of a written canvas its position, size and look."""
         requested_width = child._requested_width
         requested_height = child._requested_height
-        placement._set_axis('x', 0 if x is None else x)
-        placement._set_axis('y', 0 if y is None else y)
-        placement._set_axis(
-            'width',
-            width
-            if width is not None
-            else '100%'
-            if requested_width is None
-            else requested_width,
-        )
-        placement._set_axis(
-            'height',
-            height
-            if height is not None
-            else '100%'
-            if requested_height is None
-            else requested_height,
-        )
+        follows_x = is_in_flow and is_flow_position(x)
+        follows_y = is_in_flow and is_flow_position(y)
+        if not follows_x:
+            placement._set_axis('x', 0 if is_flow_position(x) else cast('Axis', x))
+        if not follows_y:
+            placement._set_axis('y', 0 if is_flow_position(y) else cast('Axis', y))
+        # A canvas that fits its content keeps that size here, unless a size is given.
+        if width is not None or not child._fits_width:
+            placement._set_axis(
+                'width',
+                width
+                if width is not None
+                else '100%'
+                if requested_width is None
+                else requested_width,
+            )
+        if height is not None or not child._fits_height:
+            placement._set_axis(
+                'height',
+                height
+                if height is not None
+                else '100%'
+                if requested_height is None
+                else requested_height,
+            )
         if look is not None:
             # The colors, border, padding and margin given with the canvas decorate it.
             placement._appearance = look
             placement._look_is_dirty = True
             placement._flush_look()
+        if is_in_flow:
+            self._join_flow(
+                placement,
+                placement._parent_buffer,
+                follows_x=follows_x,
+                follows_y=follows_y,
+            )
+        if (child._fits_width or child._fits_height) and not placement._is_fitted_canvas:
+            placement._is_fitted_canvas = True
+            self._canvas._fitted_placements.append(
+                cast('Placement[object, object]', placement)
+            )
+            self._canvas._fit_now()
         if lock:
             for axis_name in ('x', 'y', 'width', 'height'):
                 placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+
+    def _has_fit(self) -> bool:
+        """Whether something on this canvas takes the size of its content."""
+        canvas = self._canvas
+        return (
+            canvas._fits_width or canvas._fits_height or bool(canvas._fitted_placements)
+        )
+
+    def _fit_now(self) -> None:
+        """
+        Give what fits its content the size of it now, and follow the new sizes.
+
+        Formulas that read a size (``'center'``, ``'50%'``) are worked out again, and the lines
+        after a canvas written into this one that changed size move.
+        """
+        canvas = self._canvas
+        if canvas._is_closed or canvas._runtime_object is None or canvas._is_fitting:
+            return
+        canvas._is_fitting = True
+        try:
+
+            def fit() -> _core.Size:
+                runtime = canvas._runtime
+                size = runtime.fit_to_content()
+                for fitted in canvas._fitted_placements:
+                    # The engine resized the canvas to its content; its border follows.
+                    decorated = fitted._decorated
+                    if decorated is not None and decorated.painted_size != (
+                        fitted._buffer.width,
+                        fitted._buffer.height,
+                    ):
+                        fitted._refit_decoration(decorated)
+                with canvas._lock:
+                    placements = list(canvas._dynamic.values())
+                for placement in placements:
+                    placement._apply_bindings(runtime)
+                return size
+
+            size = canvas._host.call(fit)
+            if canvas._host.is_autonomous:
+                canvas._size = size
+            canvas._settle_flows()
+        finally:
+            canvas._is_fitting = False
+
+    def _join_flow(
+        self,
+        placement: Placement[DepsT, StateT],
+        container: _core.Buffer,
+        *,
+        follows_x: bool,
+        follows_y: bool,
+    ) -> None:
+        """Add a placement to the flow of the container it was written into."""
+        current = placement._flow
+        if current is not None:
+            current.remove(cast('Placement[object, object]', placement))
+        flow_of(cast('Canvas[object, object]', self), container).add(
+            cast('Placement[object, object]', placement),
+            follows_x=follows_x,
+            follows_y=follows_y,
+        )
+
+    def _settle_flows(self) -> None:
+        """Move every placement that follows the flow to where it belongs now."""
+        with self._lock:
+            if not self._flows:
+                return
+            flows = [flow for flow in self._flows.values() if flow.participants]
+        for flow in flows:
+            flow.settle()
 
     def _flush_moved_looks(
         self,
@@ -2924,8 +3218,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 content,
                 width=width,
                 height=height,
-                size=self.size,
-                elapsed_seconds=self.time.elapsed,
+                size=self.screen.size,
+                elapsed_seconds=self._canvas._clock_view.elapsed,
             )
             return source.buffer, source
         try:
@@ -2969,38 +3263,14 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         except ValueError:
             pass
 
-    def clear(self) -> None:
+    def _clear(self) -> None:
         """Erase everything written or drawn directly on the canvas's cells."""
         self._require_open()
         self._flush_look()
         self._content.update(_core.Fill(' '))
 
-    def update(self, *operations: _core.Operation | _core.Style) -> Self:
-        """
-        Change the canvas's own cells with operations, styles or effects.
-
-        ``canvas | operation`` does the same. To put content on the canvas, use
-        [`write`][xnano.canvas.Canvas.write] instead.
-
-        Args:
-            operations: What to apply, in order: a core operation such as ``Fill`` or
-                ``Write``, a style, or an xnano effect or dynamic operation.
-
-        Returns:
-            The canvas, so calls chain.
-
-        Examples:
-            ```python
-            import xnano
-            from xnano_core import Fill
-
-            with xnano.new(width=4, height=1) as canvas:
-                canvas.update(Fill('.'))
-                assert canvas.render() == '....'
-                canvas | Fill('#')
-                assert canvas.render() == '####'
-            ```
-        """
+    def _update(self, *operations: _core.Operation | _core.Style) -> Self:
+        """Change the canvas's own cells with operations, styles or effects: ``screen.update``."""
         self._require_open()
         for item in operations:
             if isinstance(item, ContextualOperation):
@@ -3013,22 +3283,25 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 self._content.update(item)
         return self
 
-    def __or__(
-        self,
-        other: _core.Operation | _core.Style | Sequence[_core.Operation],
-    ) -> Self:
-        """Apply an operation, effect or style with ``canvas | operation``."""
-        if isinstance(other, (_core.Operation, _core.Style)):
-            self.update(other)
-        else:
-            self.update(*other)
+    def __or__(self, other: ContextualOperation[DepsT, StateT]) -> Self:
+        """
+        Attach a hook operation, such as one from ``xnano.hook()``, with ``canvas | operation``.
+
+        Raises:
+            TypeError: ``other`` draws instead of listening: draw it on the screen, with
+                ``canvas.screen | operation``.
+        """
+        if not isinstance(other, ContextualOperation):
+            raise TypeError(
+                f'canvas | ... attaches hooks, such as canvas | xnano.hook(...), but '
+                f'{type(other).__name__} draws on the cells. Draw it on the screen: '
+                f'canvas.screen | operation.'
+            )
+        cast('ContextualOperation[DepsT, StateT]', other).apply_to(self)
         return self
 
-    def __ior__(
-        self,
-        other: _core.Operation | _core.Style | Sequence[_core.Operation],
-    ) -> Self:
-        """Apply an operation, effect or style in place with ``canvas |= operation``."""
+    def __ior__(self, other: ContextualOperation[DepsT, StateT]) -> Self:
+        """Attach a hook operation in place with ``canvas |= operation``."""
         return self.__or__(other)
 
     def inspect(self, expression: _core.Expression[ValueT]) -> ValueT:
@@ -3037,7 +3310,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
 
         Args:
             expression: Any expression, such as ``Width``, ``TimeElapsed % 1`` or
-                ``canvas.audio.level``.
+                ``canvas.microphone.level``.
 
         Examples:
             ```python
@@ -3061,7 +3334,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
 
     def _frame_now(self, delta_seconds: float) -> Frame:
         clock = self._time_source
-        size = self.size
+        size = self.screen.size
         return Frame(
             canvas=cast('Canvas[object, object]', self),
             index=clock.frame,
@@ -3071,54 +3344,117 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         )
 
     def iter(
-        self, *, count: int | None = None, seconds: float | None = None
+        self,
+        *,
+        frames: int | None = None,
+        seconds: float | None = None,
+        quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
     ) -> Iterator[Frame]:
         """
-        Iterate over the canvas's frames, drawing between them; pass ``count=`` or ``seconds=``,
-        or break out of the loop.
+        Run the canvas one frame at a time: iterate over its frames, drawing between them.
 
-        Each iteration yields a [`Frame`][xnano.context.Frame], and whatever you change
-        before asking for the next one is drawn. On a canvas from ``new()`` each iteration
-        moves the clock by one frame of its ``fps``, so the same loop produces the same
-        frames every run; without ``count`` or ``seconds`` it runs as fast as your code. A
-        canvas that runs by itself draws as you declare, so there this only paces your code
-        at its ``fps``: if you are slow, frames are skipped rather than queued.
+        Each iteration yields a [`Frame`][xnano.hooks.Frame] with the events that reached
+        the canvas since the previous one in ``frame.events``, and whatever you change before
+        asking for the next frame is drawn. On a canvas from ``new()`` each iteration moves
+        the clock by one frame of its ``fps``, so the same loop produces the same frames every
+        run, as fast as your code; a canvas that runs by itself (on the screen, or
+        ``realtime=True``) draws as you declare, so there this paces your code at its ``fps``:
+        if you are slow, frames are skipped rather than queued.
 
-        [`stop`][xnano.canvas.Canvas.stop] freezes the time ``iter()`` follows: the
-        iterations go on drawing and hooks still run, but the clock stands still until
-        [`resume`][xnano.canvas.Canvas.resume]. To move a stopped canvas one frame, call
-        [`step`][xnano.canvas.Canvas.step].
-
-        The iteration ends when ``count`` frames have been yielded, when the canvas's time has
-        run for ``seconds`` (whichever comes first), when the canvas is asked to
-        [`quit`][xnano.canvas.Canvas.quit] or closed, or when you break out of the loop.
+        Without ``frames`` or ``seconds`` it runs the way [`run`][xnano.canvas.Canvas.run]
+        does: until a key of ``quit_on`` is pressed, the canvas is asked to
+        [`quit`][xnano.canvas.Canvas.quit] or closes, or you break out of the loop. With
+        them, it also ends after that many frames, or when the canvas's time has run that
+        long, whichever comes first. [`stop`][xnano.devices.Clock.stop] freezes the time it
+        follows: the iterations go on drawing and hooks still run, but the clock stands still
+        until [`resume`][xnano.devices.Clock.resume].
 
         Args:
-            count: The most frames to yield.
+            frames: The most frames to yield.
             seconds: The most seconds of the canvas's time to run for.
+            quit_on: The key, or keys, that end the loop and quit the canvas, such as
+                ``'q'``; ``None`` for none.
 
         Raises:
-            TerminalError: ``seconds`` without ``count`` on a stopped canvas, which would
+            TerminalError: ``seconds`` without ``frames`` on a stopped canvas, which would
                 never reach the end.
             TerminalClosedError: The canvas is closed.
 
         Examples:
             ```python
             import xnano
+            from xnano.events import Event
 
             with xnano.new(width=8, height=1, fps=10) as canvas:
-                frames = list(canvas.iter(count=3))
-            assert [frame.elapsed_seconds for frame in frames] == [0.0, 0.1, 0.2]
+                pressed = []
+                for frame in canvas.iter(frames=3):
+                    pressed.extend(event.key.key for event in frame.events)
+                    if frame.index == 0:
+                        canvas.push(Event.key_press('a'))
+                assert [frame.index for frame in canvas.iter(frames=2)] == [3, 4]
+            assert pressed == ['a']
             ```
         """
+        canvas = self._check_iteration(frames, seconds)
+        return canvas._frames(frames, seconds, _quit_keys(quit_on))
+
+    def iter_async(
+        self,
+        *,
+        frames: int | None = None,
+        seconds: float | None = None,
+        quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+    ) -> AsyncIterator[Frame]:
+        """
+        Run the canvas one frame at a time with ``async for``, like [`iter`][xnano.canvas.Canvas.iter].
+
+        The frames, the keywords and the ways the iteration ends are the ones ``iter()``
+        has. Between frames, a canvas that runs by itself waits for the next one with
+        ``await``, so the rest of your event loop runs meanwhile; a canvas from ``new()``
+        moves its clock at once and lets other tasks run before the next frame.
+
+        Args:
+            frames: The most frames to yield.
+            seconds: The most seconds of the canvas's time to run for.
+            quit_on: The key, or keys, that end the loop and quit the canvas; ``None`` for
+                none.
+
+        Raises:
+            TerminalError: ``seconds`` without ``frames`` on a stopped canvas, which would
+                never reach the end.
+            TerminalClosedError: The canvas is closed.
+
+        Examples:
+            ```python
+            import asyncio
+
+            import xnano
+
+
+            async def main() -> None:
+                async with xnano.new(width=8, height=1, fps=10) as canvas:
+                    frames = [frame async for frame in canvas.iter_async(frames=3)]
+                assert [frame.elapsed_seconds for frame in frames] == [0.0, 0.1, 0.2]
+
+
+            asyncio.run(main())
+            ```
+        """
+        canvas = self._check_iteration(frames, seconds)
+        return canvas._frames_async(frames, seconds, _quit_keys(quit_on))
+
+    def _check_iteration(
+        self, frames: int | None, seconds: float | None
+    ) -> Canvas[DepsT, StateT]:
+        """Check the keywords of ``iter`` and ``iter_async``; return the canvas that iterates."""
         self._require_own_presence()
         canvas = self._canvas
         canvas._require_open()
-        if count is not None and (
-            isinstance(count, bool) or not isinstance(count, int) or count < 0
+        if frames is not None and (
+            isinstance(frames, bool) or not isinstance(frames, int) or frames < 0
         ):
             raise ValueError(
-                f'count must be a whole number of frames, 0 or more, but was {count!r}.'
+                f'frames must be a whole number of frames, 0 or more, but was {frames!r}.'
             )
         if seconds is not None and (
             isinstance(seconds, bool)
@@ -3126,105 +3462,64 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             or not seconds > 0
         ):
             raise ValueError(
-                f'seconds must be a number above zero, but was {seconds!r}. Pass count= to '
+                f'seconds must be a number above zero, but was {seconds!r}. Pass frames= to '
                 f'stop after a number of frames instead.'
             )
-        if seconds is not None and count is None:
+        if seconds is not None and frames is None:
             canvas._refuse_endless_seconds(seconds)
-        return canvas._frames(count, seconds)
+        return canvas
 
     def _refuse_endless_seconds(self, seconds: float) -> None:
         if self._time_source.is_stopped:
             raise TerminalError(
                 f'A stopped canvas never reaches seconds={seconds:g}, because its time stands '
-                f'still. Give count= as well, or call canvas.resume() first.'
+                f'still. Give frames= as well, or call canvas.clock.resume() first.'
             )
 
-    def _frames(self, count: int | None, seconds: float | None) -> Iterator[Frame]:
-        self._raise_failure()
-        clock = self._time_source
-        start = clock.elapsed_seconds
-        previous = start
-        yielded = 0
-        is_autonomous = self._host.is_autonomous
-        interval = 1.0 / self._fps
-        deadline = wall_clock.monotonic()
-        while self.is_running:
-            if count is not None and yielded >= count:
-                return
-            elapsed = clock.elapsed_seconds
-            if seconds is not None and elapsed - start >= seconds - 1e-9:
-                return
-            if seconds is not None and count is None:
-                self._refuse_endless_seconds(seconds)
-            size = self.size
-            yield Frame(
-                canvas=cast('Canvas[object, object]', self),
-                index=clock.frame,
-                elapsed_seconds=elapsed,
-                delta_seconds=elapsed - previous,
-                area=_core.Rectangle(0, 0, size.width, size.height),
-            )
-            previous = elapsed
-            yielded += 1
-            if not self.is_running:
-                return
-            if is_autonomous:
-                now = wall_clock.monotonic()
-                deadline += interval
-                if deadline < now - interval:
-                    deadline = now
-                self._stop_requested.wait(max(0.0, deadline - now))
-            else:
-                runtime = self._runtime
-                if not clock.is_stopped:
-                    runtime.clock.step(self._default_milliseconds())
-                    self._moved += 1
-                if self._frame_demand:
-                    runtime.request_frame()
-                runtime.step()
-                self._pushed_pointer = None
-                self._raise_failure()
+    def _frames(
+        self, frames: int | None, seconds: float | None, quit_on: tuple[KeyName, ...]
+    ) -> Iterator[Frame]:
+        pacing = _FramePacing(
+            cast('Canvas[object, object]', self), frames, seconds, quit_on
+        )
+        try:
+            while (frame := pacing.next_frame()) is not None:
+                yield frame
+                delay = pacing.advance()
+                if delay is None:
+                    break
+                if delay > 0:
+                    self._stop_requested.wait(delay)
+            host = pacing.quitting_host()
+            if host is not None:
+                while not host.wait(0.1):
+                    pass
+        finally:
+            pacing.close()
 
-    def step(self, *, delta_seconds: float | None = None) -> Frame:
-        """
-        Move time by ``delta_seconds``, one frame by default, and draw exactly one frame.
+    async def _frames_async(
+        self, frames: int | None, seconds: float | None, quit_on: tuple[KeyName, ...]
+    ) -> AsyncIterator[Frame]:
+        import asyncio
 
-        On a canvas from ``new()`` this always works, and it moves time even while the
-        canvas is stopped, which leaves it stopped: it is how a stopped canvas is walked one
-        frame at a time. A canvas that runs by itself can be stepped only while it is
-        stopped. One frame is ``1 / fps`` seconds; default steps and the frames of
-        [`iter`][xnano.canvas.Canvas.iter] share one count, so sixty of them at ``fps=60``
-        are exactly one second. A large ``delta_seconds`` is one jump: timers that it crossed
-        all run, and so do fixed-step ``every`` hooks, at most 100000 of their steps in one
-        step; the steps that remain run in the steps that follow.
-
-        Args:
-            delta_seconds: How far to move, in seconds, above zero; one frame when ``None``.
-
-        Returns:
-            The [`Frame`][xnano.context.Frame] that was drawn.
-
-        Raises:
-            ValueError: ``delta_seconds`` is not above zero.
-            TerminalError: The canvas runs by itself and is not stopped.
-            TerminalClosedError: The canvas was closed.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=8, height=1, fps=10) as canvas:
-                frame = canvas.step()
-                assert frame.elapsed_seconds == 0.1
-                canvas.stop()
-                canvas.step(delta_seconds=0.5)
-                assert canvas.time.elapsed == 0.6
-                assert canvas.time.is_stopped
-            ```
-        """
-        self._require_own_presence()
-        return self._canvas._step(delta_seconds)
+        pacing = _FramePacing(
+            cast('Canvas[object, object]', self), frames, seconds, quit_on
+        )
+        try:
+            while (frame := pacing.next_frame()) is not None:
+                yield frame
+                delay = pacing.advance()
+                if delay is None:
+                    break
+                if delay > 0:
+                    await self._stop_requested.wait_async(delay)
+                else:
+                    await asyncio.sleep(0)
+            host = pacing.quitting_host()
+            if host is not None:
+                await host.wait_async()
+        finally:
+            pacing.close()
 
     def _step(self, delta_seconds: float | None) -> Frame:
         self._require_open()
@@ -3268,7 +3563,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         if not self._time_source.is_stopped:
             raise TerminalError(
                 'This canvas runs by itself on the wall clock, so it cannot be stepped by '
-                'hand. Call canvas.stop() first, then step() moves it one frame at a time; or '
+                'hand. Call canvas.clock.stop() first, then step() moves it one frame at a time; or '
                 'use canvas.iter() to follow it.'
             )
         if delta_seconds is None:
@@ -3327,7 +3622,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 canvas.push(Event.custom('ping'))
                 canvas.deliver_events()
                 assert heard == ['custom']
-                assert canvas.time.elapsed == 0.0
+                assert canvas.clock.elapsed == 0.0
             ```
         """
         self._require_own_presence()
@@ -3341,29 +3636,12 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         canvas._pushed_pointer = None
         canvas._raise_failure()
 
-    def stop(self) -> None:
-        """
-        Freeze time: the same as [`Time.stop`][xnano.time.Time.stop].
-
-        The canvas keeps drawing and hooks still hear input, but animations, effects,
-        formulas, timers and the beat stand still until [`resume`][xnano.canvas.Canvas.resume].
-        [`step`][xnano.canvas.Canvas.step] moves a stopped canvas one frame at a time. To end a
-        loop, call [`quit`][xnano.canvas.Canvas.quit].
-        """
-        self._require_own_presence()
-        self._canvas._time.stop()
-
-    def resume(self) -> None:
-        """Let time run on from where [`stop`][xnano.canvas.Canvas.stop] froze it."""
-        self._require_own_presence()
-        self._canvas._time.resume()
-
     def quit(self) -> None:
         """
         Ask the canvas's loop to end.
 
         Safe from any thread, including from a hook. A running ``iter()``, ``run()``,
-        ``wait_for_key()`` or ``prompt()`` ends. On a canvas from ``new()`` the canvas stays
+        ``keyboard.wait()`` or ``keyboard.prompt()`` ends. On a canvas from ``new()`` the canvas stays
         open for writing and rendering; on a canvas that runs by itself (``realtime=True``, or
         on the screen) the loop ends and the canvas closes.
         """
@@ -3392,74 +3670,131 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 that only moves when you move it, so waiting would never end.
         """
         canvas = self._canvas
-        canvas._require_open()
-        host = canvas._host
-        if not isinstance(host, _ThreadHost):
-            raise TerminalError(
-                'A canvas with a manual clock never moves by itself, so run() would wait '
-                'forever. Drive it with canvas.iter() or canvas.step(), open it on the screen '
-                'with canvas.open(), or create it with realtime=True.'
-            )
-        if quit_on is not None:
-            keys = (quit_on,) if isinstance(quit_on, str) else tuple(quit_on)
-            if canvas._is_live and canvas._resolved_gates.get('keyboard') is False:
-                # With the keyboard off, only the interrupt setting can end the loop on Ctrl-C.
-                keys = tuple(key for key in keys if key != 'ctrl+c')
-            if keys:
-
-                @canvas.hook(on='key', keys=keys)
-                def quit_key(context: Context[DepsT, StateT]) -> None:
-                    context.canvas.quit()
-
+        host = canvas._prepare_run(quit_on, 'run()')
         try:
             while not host.wait(0.1):
                 pass
         except KeyboardInterrupt:
             canvas.quit()
             raise
-        failure = canvas._failure
-        if failure is not None:
-            canvas._failure = None
-            raise TerminalError(
-                canvas._failure_text(failure), code='canvas.callback'
-            ) from failure
+        canvas._raise_run_failure()
 
-    def wait_for_key(self, *keys: KeyName) -> KeyName:
+    async def run_async(
+        self, *, quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c'
+    ) -> None:
         """
-        Wait until a key is pressed, and return its name.
+        Wait until the canvas's loop ends, like [`run`][xnano.canvas.Canvas.run], with ``await``.
 
-        Your program waits here while the canvas goes on drawing and animating. It reads
-        like ``input()``: nothing else runs on your thread until the key arrives.
+        Your event loop goes on running other tasks meanwhile. Cancelling the waiting task
+        asks the canvas to [`quit`][xnano.canvas.Canvas.quit].
 
         Args:
-            keys: The keys to wait for, such as ``'enter'`` or ``'q'``. Give none to take any key.
-
-        Returns:
-            The name of the key that was pressed.
+            quit_on: The key, or keys, that end the loop, such as ``'q'`` or
+                ``('q', 'escape')``. ``'ctrl+c'`` by default; give ``None`` to leave ending
+                to your own code.
 
         Raises:
-            TerminalError: The canvas ended, or has a manual clock, so no key could arrive.
+            TerminalError: A callback raised on the canvas's loop, or the canvas has a clock
+                that only moves when you move it, so waiting would never end.
 
         Examples:
-            In a program: ``canvas.wait_for_key()`` after adding "Press any key to start".
-            Here a timer plays the part of the person pressing the key:
-
             ```python
+            import asyncio
+
             import xnano
-            from xnano.events import Event
 
-            with xnano.new(realtime=True, width=30, height=2) as canvas:
-                canvas.write('Press enter to start')
 
-                @canvas.hook(on='tick', after=0.05)
-                def press(context: xnano.Context) -> None:
-                    canvas.push(Event.key_press('enter'))
+            async def main() -> None:
+                async with xnano.new(realtime=True, width=20, height=1) as canvas:
+                    canvas.screen.write('working...')
 
-                assert canvas.wait_for_key('enter') == 'enter'
+                    @canvas.hook(on='tick', after=0.05)
+                    def finish(context: xnano.Context) -> None:
+                        context.canvas.quit()
+
+                    await canvas.run_async()
+
+
+            asyncio.run(main())
             ```
         """
+        import asyncio
+
+        canvas = self._canvas
+        host = canvas._prepare_run(quit_on, 'run_async()')
+        try:
+            await host.wait_async()
+        except asyncio.CancelledError:
+            canvas.quit()
+            raise
+        canvas._raise_run_failure()
+
+    def _prepare_run(
+        self, quit_on: KeyName | Sequence[KeyName] | None, operation: str
+    ) -> _ThreadHost:
+        """Check that the canvas can run, and add the hook of its quit keys."""
+        canvas = self
+        canvas._require_open()
+        host = canvas._host
+        if not isinstance(host, _ThreadHost):
+            raise TerminalError(
+                f'A canvas with a manual clock never moves by itself, so {operation} would wait '
+                f'forever. Drive it with canvas.iter() or canvas.clock.step(), open it on the screen '
+                f'with canvas.open(), or create it with realtime=True.'
+            )
+        canvas._listen_for_quit(_quit_keys(quit_on))
+        return host
+
+    def _listen_for_quit(
+        self, keys: tuple[KeyName, ...]
+    ) -> HookHandle[DepsT, StateT] | None:
+        """Quit the canvas when one of ``keys`` is pressed; return the hook that hears them."""
+        canvas = self._canvas
+        if canvas._is_live and canvas._resolved_gates.get('keyboard') is False:
+            # With the keyboard off, only the interrupt setting can end the loop on Ctrl-C.
+            keys = tuple(key for key in keys if key != 'ctrl+c')
+        canvas._quit_keys = keys
+        if not keys:
+            return None
+
+        def quit_key(context: Context[DepsT, StateT]) -> None:
+            context.canvas.quit()
+
+        return canvas.hook(quit_key, on='key', keys=keys)
+
+    def _raise_run_failure(self) -> None:
+        """Raise the error a callback raised on the loop that just ended, if one did."""
+        failure = self._failure
+        if failure is not None:
+            self._failure = None
+            raise TerminalError(
+                self._failure_text(failure), code='canvas.callback'
+            ) from failure
+
+    def _wait_for_key(self, keys: tuple[KeyName, ...]) -> KeyName:
+        """Block until one of ``keys`` (any key when empty) is pressed: ``keyboard.wait``."""
+        pressed, done, hearing = self._listen_for_key(keys)
+        try:
+            self._wait_until(done, 'a key')
+        finally:
+            hearing.remove()
+        return pressed[0]
+
+    async def _wait_for_key_async(self, keys: tuple[KeyName, ...]) -> KeyName:
+        """Await one of ``keys`` (any key when empty): ``keyboard.wait_async``."""
+        pressed, done, hearing = self._listen_for_key(keys)
+        try:
+            await self._wait_until_async(done, 'a key')
+        finally:
+            hearing.remove()
+        return pressed[0]
+
+    def _listen_for_key(
+        self, keys: tuple[KeyName, ...]
+    ) -> tuple[list[KeyName], _AwaitableEvent, HookHandle[DepsT, StateT]]:
+        """Add the hook that hears the key a wait is for: what it heard, when, and the hook."""
         pressed: list[KeyName] = []
-        done = threading.Event()
+        done = _AwaitableEvent()
 
         @self.hook(on='key', keys=keys or None)
         def hear(context: Context[DepsT, StateT]) -> None:
@@ -3469,66 +3804,49 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             context.hook.remove()
             done.set()
 
-        self._wait_until(done, 'a key')
-        return pressed[0]
+        return pressed, done, hear
 
-    def prompt(self, text: str, *, x: int = 0, y: int = 0, default: str = '') -> str:
+    def _prompt(self, text: str, *, x: Axis, y: Axis, default: str) -> str:
+        """Block until a line typed after ``text`` is submitted: ``keyboard.prompt``."""
+        with self._prompting(text, x=x, y=y, default=default) as (answer, done):
+            self._wait_until(done, 'an answer')
+        return answer[0]
+
+    async def _prompt_async(self, text: str, *, x: Axis, y: Axis, default: str) -> str:
+        """Await a line typed after ``text``: ``keyboard.prompt_async``."""
+        with self._prompting(text, x=x, y=y, default=default) as (answer, done):
+            await self._wait_until_async(done, 'an answer')
+        return answer[0]
+
+    @contextlib.contextmanager
+    def _prompting(
+        self, text: str, *, x: Axis, y: Axis, default: str
+    ) -> Generator[tuple[list[str], _AwaitableEvent], None, None]:
         """
-        Prompt for a line of text, and return what was typed.
+        Show a prompt and edit its answer while the block runs; restore the cursor after.
 
-        The prompt and the answer appear on the canvas while your program waits, like
-        ``input()``. ``Enter`` submits and ``Backspace`` deletes.
-
-        Args:
-            text: What to ask, such as ``'Your name: '``.
-            x: The column of the prompt.
-            y: The row of the prompt.
-            default: Text already in the answer, which the user can edit.
-
-        Returns:
-            What was typed, without the prompt.
-
-        Raises:
-            TerminalError: The canvas ended, or has a manual clock, so no answer could arrive.
-
-        Examples:
-            In a program: ``name = canvas.prompt('Your name: ')``. Here a timer plays the part
-            of the person typing:
-
-            ```python
-            import xnano
-            from xnano.events import Event
-
-            with xnano.new(realtime=True, width=30, height=2) as canvas:
-
-                @canvas.hook(on='tick', after=0.05)
-                def type_answer(context: xnano.Context) -> None:
-                    for letter in 'Ada':
-                        canvas.push(Event.key_press(letter))
-                    canvas.push(Event.key_press('enter'))
-
-                assert canvas.prompt('Your name: ') == 'Ada'
-            ```
+        Yields the answer (one string in a list, edited as keys arrive) and the event that is
+        set when ``Enter`` submits it.
         """
         answer = [default]
-        done = threading.Event()
+        done = _AwaitableEvent()
 
-        shown = self.write(text + default + ' ', x=x, y=y)
+        shown = self.screen.write(text + default + ' ', x=x, y=y)
 
         def show() -> None:
             line = text + answer[0]
             shown.text = line + ' '
-            self.cursor.position = (x + _core.display_width(line), y)
+            self.screen.cursor.position = (shown.x + _core.display_width(line), shown.y)
 
-        cursor = self.cursor
+        cursor = self.screen.cursor
         previous = (cursor.shape, cursor.is_blinking, cursor.is_visible, cursor.position)
         following = cursor._canvas._cursor_follow
-        self.cursor.shape = 'bar'
-        self.cursor.is_blinking = True
-        self.cursor.is_visible = True
+        self.screen.cursor.shape = 'bar'
+        self.screen.cursor.is_blinking = True
+        self.screen.cursor.is_visible = True
         show()
 
-        @self.hook(on='key', when="keyboard.kind != 'release'")
+        @self.hook(on="keyboard.kind != 'release'")
         def edit(context: Context[DepsT, StateT]) -> None:
             key = context.keyboard
             if key.key is None:
@@ -3543,7 +3861,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             show()
 
         try:
-            self._wait_until(done, 'an answer')
+            yield answer, done
         finally:
             edit.remove()
             cursor.is_visible = False
@@ -3555,51 +3873,42 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 cursor.follow(following[0], x=following[1], y=following[2])
             cursor.is_visible = previous[2]
             shown.remove()
-        return answer[0]
 
     def _wait_until(self, done: threading.Event, what: str) -> None:
         """Block the calling thread until ``done`` is set, or say why that cannot happen."""
+        self._require_waitable(what)
+        while not done.wait(0.1):
+            self._require_still_running(what)
+
+    async def _wait_until_async(self, done: _AwaitableEvent, what: str) -> None:
+        """Await ``done`` without blocking the calling loop, or say why it cannot be set."""
+        self._require_waitable(what)
+        while not await done.wait_async(0.1):
+            self._require_still_running(what)
+
+    def _require_waitable(self, what: str) -> None:
+        """Raise when nothing could ever arrive on this canvas while a caller waits for it."""
         self._require_open()
         if not isinstance(self._canvas._host, _ThreadHost):
             raise TerminalError(
                 f'This canvas never moves by itself, so waiting for {what} would last '
                 f'forever. Open it on the screen with canvas.open(), or create it with '
-                f'realtime=True, or drive it with canvas.step() and read the result from a '
+                f'realtime=True, or drive it with canvas.clock.step() and read the result from a '
                 f'hook instead.'
             )
-        while not done.wait(0.1):
-            if not self.is_running:
-                raise TerminalError(
-                    f'The canvas ended while waiting for {what}. Wait before calling '
-                    f'canvas.quit() or closing the canvas.'
-                )
+
+    def _require_still_running(self, what: str) -> None:
+        """Raise when the canvas ended while a caller was waiting for ``what``."""
+        if not self.is_running:
+            raise TerminalError(
+                f'The canvas ended while waiting for {what}. Wait before calling '
+                f'canvas.quit() or closing the canvas.'
+            )
 
     # -- input, output, sound and state --------------------------------------------------
 
-    def render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
-        """
-        Draw the current frame and return it, without a screen.
-
-        A canvas that was written into another one returns its own cells alone, at its own
-        size, as they stand in the outer canvas's current frame.
-
-        Args:
-            format: ``'text'`` for the characters alone, ``'ansi'`` for the characters with
-                their colors and styles as escape codes.
-
-        Raises:
-            ValueError: ``format`` is neither ``'text'`` nor ``'ansi'``.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=6, height=2) as canvas:
-                canvas.write('hello', y=1)
-                assert canvas.render().splitlines() == ['', 'hello']
-                assert 'hello' in canvas.render(format='ansi')
-            ```
-        """
+    def _render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
+        """Draw the current frame and return it, without a screen: ``screen.render``."""
         if format not in ('text', 'ansi'):
             raise ValueError(
                 f"format must be 'text' or 'ansi', but was {format!r}. 'text' gives the "
@@ -3644,7 +3953,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
                 heard = []
                 canvas.hook(
                     lambda context: heard.append(context.event.custom_name),
-                    when=lambda context: context.event.kind == 'custom',
+                    on='volume_changed',
                 )
                 canvas.push(Event.custom('volume_changed'))
                 canvas.deliver_events()
@@ -3655,17 +3964,16 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             raise TypeError(
                 f'push() takes an Event such as xnano_core.Event.custom("ping"), but got '
                 f'{event!r}. To press a key, push xnano_core.Event.key_press("q"), or call '
-                f'context.keyboard.push("q") inside a hook.'
+                f'context.keyboard.press("q") inside a hook.'
             )
         self._require_own_presence()
         canvas = self._canvas
         canvas._require_open()
         canvas._host.post(lambda: canvas._runtime.inject(event))
 
-    @property
-    def audio(self) -> AudioDevice:
+    def _audio_device(self) -> AudioDevice:
         """
-        The canvas's [`AudioDevice`][xnano.audio.AudioDevice]: notes, melodies, sounds and the microphone.
+        The audio device behind the speaker, the microphone and the beats of the canvas.
 
         It needs the optional `xnano-audio` package, which is imported the first time this
         is read.
@@ -3677,9 +3985,11 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         self._require_own_presence()
         canvas = self._canvas
         canvas._require_open()
-        self._note_dynamic_read()
         if canvas._audio is None:
-            require('audio', needed_for='Canvas.audio')
+            require(
+                'audio',
+                needed_for='The sound of a canvas (its speaker, microphone and beats)',
+            )
             from xnano.audio._player import AudioDevice
 
             with canvas._lock:
@@ -3690,71 +4000,13 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         return canvas._audio
 
     @property
-    def fx(self) -> RenderableEffectProperties:
-        """
-        The visual effects of the canvas itself, one method for each effect.
-
-        ``canvas.fx.fade_to(background='navy')`` starts a fade over the whole canvas at once,
-        and ``canvas.fx.clear()`` stops what was started here. A placement has its own
-        [`fx`][xnano.placement.Placement.fx], and the sound effects of what the canvas plays are
-        [`canvas.audio.fx`][xnano.audio.AudioDevice.fx]. See
-        [`RenderableEffectProperties`][xnano.effects.RenderableEffectProperties].
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new('hello', width=8, height=1) as canvas:
-                canvas.fx.dissolve(duration_milliseconds=300)
-                assert len(canvas.fx.active) == 1
-            ```
-        """
+    def _screen_fx(self) -> WritableEffectProperties:
+        """The visual effects of the canvas itself, one method for each effect: ``screen.fx``."""
         self._require_open()
-        return self._renderable_effects
+        return self._writable_effects
 
-    @property
-    def input(self) -> Input:
-        """
-        The keys held down right now, for programs that poll instead of listening.
-
-        Read it anywhere, from any thread. A canvas opened with
-        ``keyboard='release_events'`` knows exactly when a key is let go.
-        """
-        self._require_own_presence()
-        canvas = self._canvas
-        canvas._require_open()
-        self._note_dynamic_read()
-        if canvas._input is None:
-            canvas._input = Input(cast('Canvas[object, object]', canvas))
-        return canvas._input
-
-    def play(self, playable: PlaySource, /, **options: Unpack[PlayOptions]) -> PlayHandle:
-        """
-        Play a note, a sound, a symbol name, a melody or a sequence of those, and return at once.
-
-        This is [`audio.play`][xnano.audio.AudioDevice.play]; see it for what ``playable`` may
-        be and for every option. On a canvas from ``new()`` the sound is recorded instead of
-        played; read it with [`audio.render_sound`][xnano.audio.AudioDevice.render_sound].
-
-        Args:
-            playable: What to play: a note, a sound, a symbol name, melody text such as
-                ``'C4 E4 G4:2'``, a MIDI number, a frequency, or a sequence of those.
-            options: The settings of [`PlayOptions`][xnano.types.PlayOptions], such as
-                ``instrument``, ``volume``, ``pan``, ``beats`` and ``at_beat``.
-
-        Returns:
-            A [`PlayHandle`][xnano.audio.PlayHandle] that tells when the sound is over.
-
-        Examples:
-            ```python
-            import xnano
-
-            with xnano.new(width=8, height=1, bpm=100) as canvas:
-                canvas.play('C4 E4 G4:2 rest C5+E5+G5', instrument='bell')
-                canvas.step(delta_seconds=1.0)
-                assert canvas.audio.render_sound().duration_milliseconds == 1000.0
-            ```
-        """
+    def _play(self, playable: PlaySource, options: PlayOptions) -> PlayHandle:
+        """Play anything the speaker plays, and return at once: ``speaker.play``."""
         self._require_own_presence()
         if hasattr(playable, '__xnano_play__') or not isinstance(playable, str):
             handle = _play_component(
@@ -3762,7 +4014,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
             )
             if handle is not None:
                 return handle
-        return self.audio.play(playable, **options)
+        return self._audio_device().play(playable, **options)
 
     state = _StateAccessor()
     """
@@ -3813,7 +4065,7 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         if self.is_closed:
             return ''
         try:
-            return self.render()
+            return self.screen.render()
         except TerminalError:
             return ''
 
@@ -3821,8 +4073,8 @@ class Canvas(_Hooked[DepsT, StateT], _TextModifiers, Generic[DepsT, StateT]):
         name = type(self).__name__
         if self.is_closed:
             return f'{name}(closed)'
-        size = self._size if self._canvas._host.is_autonomous else self.size
-        return f'{name}(width={size.width}, height={size.height}, fps={self.fps:g})'
+        size = self._size if self._canvas._host.is_autonomous else self.screen.size
+        return f'{name}(width={size.width}, height={size.height}, fps={self._canvas._clock_view.fps:g})'
 
 
 @overload
@@ -3836,7 +4088,7 @@ def new(
     bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[RenderableEffectSpecification] = (),
+    effects: Sequence[WritableEffectSpecification] = (),
     **settings: Unpack[CanvasSettings],
 ) -> Canvas[None, None]: ...
 @overload
@@ -3850,7 +4102,7 @@ def new(
     bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[RenderableEffectSpecification] = (),
+    effects: Sequence[WritableEffectSpecification] = (),
     state: StateT,
     **settings: Unpack[CanvasSettings],
 ) -> Canvas[None, StateT]: ...
@@ -3865,7 +4117,7 @@ def new(
     bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[RenderableEffectSpecification] = (),
+    effects: Sequence[WritableEffectSpecification] = (),
     deps: DepsT,
     **settings: Unpack[CanvasSettings],
 ) -> Canvas[DepsT, None]: ...
@@ -3880,7 +4132,7 @@ def new(
     bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[RenderableEffectSpecification] = (),
+    effects: Sequence[WritableEffectSpecification] = (),
     deps: DepsT,
     state: StateT,
     **settings: Unpack[CanvasSettings],
@@ -3895,7 +4147,7 @@ def new(
     bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[RenderableEffectSpecification] = (),
+    effects: Sequence[WritableEffectSpecification] = (),
     deps: object = _UNSET,
     state: object = _UNSET,
     **settings: object,
@@ -3904,7 +4156,7 @@ def new(
     Create a canvas: a virtual terminal with a clock, hooks, sound, a cursor and state.
 
     It has no screen and draws into memory. Its clock moves only when you move it, with
-    [`step`][xnano.canvas.Canvas.step] or [`iter`][xnano.canvas.Canvas.iter], so every run is
+    [`step`][xnano.devices.Clock.step] or [`iter`][xnano.canvas.Canvas.iter], so every run is
     the same; ``realtime=True`` runs it on the wall clock on a thread of its own instead.
     [`Canvas.open`][xnano.canvas.Canvas.open] (or [`open`][xnano.open]) puts it on the screen.
     A ``with`` block closes it.
@@ -3914,7 +4166,7 @@ def new(
     that several threads use, or that is closed after its thread has ended, is created with
     ``realtime=True``.
 
-    ``content``, when given, is written at the top-left corner, as ``canvas.write(content)``
+    ``content``, when given, is written at the top-left corner, as ``canvas.screen.write(content)``
     would. The appearance keywords (colors, text modifiers, ``border``, ``border_style``)
     style the canvas itself, not its content, so they are accepted only without content:
     ``new(border='rounded')`` borders the canvas, and ``new().write('hello', border='rounded')``
@@ -3925,11 +4177,11 @@ def new(
     Created inside the ``with`` block of another canvas, the new canvas belongs to that one
     from the start but is hidden in it: its size is measured in that canvas (``'50%'`` is
     half of it, and no size fills it), it runs on that canvas's time and its hooks hear that
-    canvas's input. ``outer.write(canvas, x=..., y=...)`` shows it, once, where it is
+    canvas's input. ``outer.screen.write(canvas, x=..., y=...)`` shows it, once, where it is
     written. Leaving its own ``with`` block keeps it; it closes with the canvas it belongs
-    to. Inside its ``with`` block, ``outer.write(...)`` places content within the new
+    to. Inside its ``with`` block, ``outer.screen.write(...)`` places content within the new
     canvas's area of ``outer``. It takes that canvas's ``edges`` unless given its own.
-    [`Canvas.new`][xnano.canvas.Canvas.new] creates a canvas that is shown at once. A canvas
+    [`Screen.new`][xnano.devices.Screen.new] creates a canvas that is shown at once. A canvas
     given ``state`` or ``deps`` stays on its own, because those belong to the outermost
     canvas: it is measured in the canvas around it, takes its ``fps``, ``bpm`` and ``edges``
     unless given its own, and closes with it.
@@ -3937,16 +4189,18 @@ def new(
     The terminal settings (``mouse``, ``scroll``, ``keyboard``, ``paste``, ``focus``,
     ``interrupt``, ``capture``, ``clear``, ``alternate_screen``) are stored and take effect
     when the canvas is opened on the screen; see
-    [`TerminalSettings`][xnano.types.TerminalSettings].
+    [`TerminalSettings`][xnano.terminal.TerminalSettings].
 
     Args:
         content: Something to write into the canvas at once, such as text or a widget.
         width: The width in cells, or a percentage of the window such as ``'50%'``, read
-            when the canvas is created; 80 when ``None``. On the screen it is the width of
-            the region the canvas draws in, read again when it is opened.
+            when the canvas is created; 80 when ``None``. ``'fit'`` makes the canvas as
+            wide as what is written on it, following it as it changes. On the screen it is
+            the width of the region the canvas draws in, read again when it is opened.
         height: The height in cells, or a percentage of the window such as ``'50%'``; 24
-            when ``None``. On the screen it is the height of the region the canvas draws
-            in, and ``'100%'`` for both sizes fills the whole window.
+            when ``None``. ``'fit'`` makes the canvas as tall as what is written on it. On
+            the screen it is the height of the region the canvas draws in, and ``'100%'``
+            for both sizes fills the whole window.
         fps: The most frames drawn per second, and the length of one step of ``iter()``;
             the enclosing canvas's, else 60, when ``None``.
         bpm: Beats per minute for beat timers, notes and melodies; the enclosing canvas's,
@@ -3957,7 +4211,7 @@ def new(
         deps: Dependencies that hooks read as ``context.deps``; the canvas never reads them.
         state: A dataclass instance the canvas keeps and validates. Hooks read and write it.
         settings: The terminal settings and the canvas's own look; see
-            [`CanvasSettings`][xnano.types.CanvasSettings].
+            [`CanvasSettings`][xnano.canvas.CanvasSettings].
 
     Returns:
         The [`Canvas`][xnano.canvas.Canvas], which is also the one module-level functions such
@@ -3973,20 +4227,20 @@ def new(
         import xnano
 
         with xnano.new(width=16, height=3) as canvas:
-            assert (canvas.width, canvas.height) == (16, 3)
+            assert (canvas.screen.width, canvas.screen.height) == (16, 3)
             assert xnano.active() is canvas
-            assert not canvas.time.is_realtime
+            assert not canvas.clock.is_realtime
 
         with xnano.new('hello', width=8, height=1) as greeting:
-            assert greeting.render() == 'hello'
+            assert greeting.screen.render() == 'hello'
 
         with xnano.new(width=12, height=4) as outer:
             with xnano.new(height='50%') as inner:
-                inner.write('inside')
-            assert (inner.width, inner.height) == (12, 2)
-            assert outer.render().strip() == ''
-            outer.write(inner, y=2)
-            assert outer.render().splitlines()[2] == 'inside'
+                inner.screen.write('inside')
+            assert (inner.screen.width, inner.screen.height) == (12, 2)
+            assert outer.screen.render().strip() == ''
+            outer.screen.write(inner, y=2)
+            assert outer.screen.render().splitlines()[2] == 'inside'
             assert xnano.active() is outer
         ```
     """
@@ -4011,6 +4265,7 @@ def new(
                 enclosing._content,
                 cast('Canvas[object, object]', canvas),
                 parent_owner=enclosing,
+                is_in_flow=False,
             )
             placement.is_visible = False
         except BaseException:
@@ -4030,7 +4285,7 @@ def _create(
     bpm: float | None = None,
     realtime: bool = False,
     title: str | None = None,
-    effects: Sequence[RenderableEffectSpecification] = (),
+    effects: Sequence[WritableEffectSpecification] = (),
     deps: object = _UNSET,
     state: object = _UNSET,
     enclosing: Canvas[object, object] | None = None,
@@ -4042,15 +4297,15 @@ def _create(
     settings = dict(settings)
     layout = check_layout(settings.pop('layout', 'overlay'))
     edges = check_edges(
-        settings.pop('edges', 'clip' if enclosing is None else enclosing.edges)
+        settings.pop('edges', 'clip' if enclosing is None else enclosing.screen.edges)
     )
     gates, appearance = split_settings('new', settings)
     if content is not None and appearance:
         raise appearance_with_content_error('new', appearance)
     if fps is None:
-        fps = 60.0 if enclosing is None else enclosing.fps
+        fps = 60.0 if enclosing is None else enclosing._canvas._clock_view.fps
     if bpm is None:
-        bpm = 120.0 if enclosing is None else enclosing.bpm
+        bpm = 120.0 if enclosing is None else enclosing._canvas._clock_view.bpm
     canvas: Canvas[DepsT, StateT] = Canvas(
         width=_check_size('width', width),
         height=_check_size('height', height),
@@ -4069,7 +4324,7 @@ def _create(
     )
     if content is not None:
         try:
-            canvas.write(content)
+            canvas.screen.write(content)
         except BaseException:
             canvas.close(raise_failure=False)
             raise
@@ -4134,31 +4389,3 @@ def active(*, is_required: bool = True) -> Canvas[object, object] | None:
             '"with xnano.open() as terminal:", and call this inside the block.'
         )
     return canvas
-
-
-def iter(*, count: int | None = None, seconds: float | None = None) -> Iterator[Frame]:
-    """
-    Iterate over the frames of the active canvas, drawing between them.
-
-    This is [`Canvas.iter`][xnano.canvas.Canvas.iter] for the innermost running canvas, so a
-    loop does not need the canvas in hand.
-
-    Args:
-        count: The most frames to yield.
-        seconds: The most seconds of the canvas's time to run for.
-
-    Raises:
-        TerminalClosedError: No canvas is running.
-
-    Examples:
-        ```python
-        import xnano
-
-        with xnano.new(width=8, height=1) as canvas:
-            ball = canvas.write('o')
-            for frame in xnano.iter(count=3):
-                ball.x = frame.index
-            assert ball.x == 2
-        ```
-    """
-    return active().iter(count=count, seconds=seconds)

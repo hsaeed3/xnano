@@ -37,27 +37,27 @@ def wait_until(
 
 def test_a_note_plays_on_the_real_device_and_the_clock_runs():
     with xnano.new(realtime=True, width=8, height=1) as canvas:
-        canvas.bpm = 240
-        canvas.audio.play('C4', volume=0.0)
-        canvas.audio.start()
-        assert wait_until(lambda: canvas.inspect(canvas.audio.beat) > 0.5), (
-            f'the clock stayed at beat {canvas.inspect(canvas.audio.beat)}'
+        canvas.clock.bpm = 240
+        canvas.speaker.play('C4', volume=0.0)
+        canvas.clock.beats.start()
+        assert wait_until(lambda: canvas.inspect(canvas.clock.beats.position) > 0.5), (
+            f'the clock stayed at beat {canvas.inspect(canvas.clock.beats.position)}'
         )
 
 
 def test_a_melody_is_scheduled_on_a_beat_of_the_real_clock():
     melody = TerminalMelody([TerminalNote('C4'), TerminalNote('E4', start_beats=1)])
     with xnano.new(realtime=True, width=8, height=1) as canvas:
-        canvas.audio.play(melody, volume=0.0, at_beat=1)
+        canvas.speaker.play(melody, volume=0.0, at_beat=1)
         # Playing on a beat starts the clock.
-        assert wait_until(lambda: canvas.inspect(canvas.audio.beat) > 0), (
-            f'the clock stayed at beat {canvas.inspect(canvas.audio.beat)}'
+        assert wait_until(lambda: canvas.inspect(canvas.clock.beats.position) > 0), (
+            f'the clock stayed at beat {canvas.inspect(canvas.clock.beats.position)}'
         )
 
 
 def test_a_note_played_on_the_real_device_has_its_region_on_the_timeline():
     with xnano.new(realtime=True, width=8, height=1) as canvas:
-        region = canvas.audio.play(
+        region = canvas.speaker.play(
             xnano.note('E4', beats=2), volume=0.0, at_beat=4
         )._region
         assert region is not None
@@ -72,5 +72,5 @@ def test_a_note_played_on_the_real_device_has_its_region_on_the_timeline():
 def test_the_microphone_level_is_a_number_between_zero_and_one():
     with xnano.new(realtime=True, width=8, height=1) as canvas:
         time.sleep(0.3)
-        level = canvas.inspect(canvas.audio.level)
+        level = canvas.inspect(canvas.microphone.level)
         assert 0.0 <= level <= 1.0

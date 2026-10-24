@@ -17,23 +17,46 @@ import xnano_core as _core
 from xnano import symbols
 from xnano._internal._axes import to_rgb
 from xnano._internal._optional import is_image
+from xnano._internal._surface import surface_of
 from xnano._schema._appearance import ColorValue
-from xnano._schema._layout import Anchor
-from xnano.appearance._look import MOST_CELLS
+from xnano._schema._layout import Anchor, PixelEncoding
 from xnano.art._images import Image
 from xnano.effects._registry import apply_effects, effect_sequence, normalize_effect
+from xnano.styles._look import MOST_CELLS
 
 if TYPE_CHECKING:
     from xnano_image import TerminalImage
 
-    from xnano.context import Context
-    from xnano.placement import Placement
-    from xnano.types import RenderableEffectSpecification
+    from xnano._schema._effects import WritableEffectSpecification
+    from xnano.hooks._context import Context
+    from xnano.layout._placement import Placement
 
 __all__ = ['Art', 'Camera', 'draw']
 
 _RGBA = 4
 _PIXELS_PER_CELL_ROW = 2
+_CELL_PIXELS: dict[str, tuple[int, int]] = {'half_blocks': (1, 2), 'braille': (2, 4)}
+"""How many pixel columns and rows one cell holds, by encoding."""
+_BOX_GLYPHS: dict[tuple[bool, bool, bool, bool], str] = {
+    # (up, down, left, right): which neighbouring cells are also on the border
+    (False, False, True, True): '─',
+    (True, True, False, False): '│',
+    (False, True, False, True): '┌',
+    (False, True, True, False): '┐',
+    (True, False, False, True): '└',
+    (True, False, True, False): '┘',
+    (True, True, False, True): '├',
+    (True, True, True, False): '┤',
+    (False, True, True, True): '┬',
+    (True, False, True, True): '┴',
+    (True, True, True, True): '┼',
+    (False, False, True, False): '╴',
+    (False, False, False, True): '╶',
+    (True, False, False, False): '╵',
+    (False, True, False, False): '╷',
+    (False, False, False, False): '·',
+}
+"""The box-drawing character of a border cell, by which of its four neighbours are border too."""
 
 
 class Camera:
@@ -110,7 +133,7 @@ class Art:
     Pixel art, and a world that holds other art.
 
     Make one with [`draw`][xnano.draw]. A pixel is half a cell tall, so art that is ``8`` pixels
-    tall takes ``4`` rows of a canvas. Write it with ``canvas.write(art)``, or print it on its
+    tall takes ``4`` rows of a canvas. Write it with ``canvas.screen.write(art)``, or print it on its
     own with [`render`][xnano.art.Art.render].
 
     An art can hold other art: [`add`][xnano.art.Art.add] puts a child at a position in the
@@ -132,6 +155,8 @@ class Art:
         anchor: The ``(x, y)`` pixel inside the art that sits at ``(x, y)``.
         background: The color behind the art and its children, or ``None`` for none.
         solid_map: Which pixels of the art's world cannot be walked on, or ``None``.
+        pixels: The art's own pixels as red, green, blue and alpha bytes, or ``None``.
+        children: The art added to this one, in the order it was added.
         camera: What part of the world is on screen.
         symbol: The name the art is registered under in [`symbols`][xnano.symbols], or ``None``.
 
@@ -145,8 +170,8 @@ class Art:
         assert hero.x == 12
 
         with xnano.new(width=20, height=5) as canvas:
-            canvas.write(world, width='100%', height='100%')
-            canvas.step()
+            canvas.screen.write(world, width='100%', height='100%')
+            canvas.clock.step()
         ```
     """
 
@@ -173,6 +198,8 @@ class Art:
         '_x',
         '_y',
         'camera',
+        '_encoding',
+        '_borders',
     )
 
     def __init__(
@@ -183,7 +210,9 @@ class Art:
         *,
         background: ColorValue | None = None,
         symbol: str | None = None,
-        effects: Sequence[RenderableEffectSpecification] = (),
+        effects: Sequence[WritableEffectSpecification] = (),
+        encoding: PixelEncoding = 'half_blocks',
+        borders: bool = False,
     ) -> None:
         """
         Create art from pixels. Use [`draw`][xnano.draw] instead of calling this.
@@ -196,7 +225,17 @@ class Art:
             background: The color behind the art.
             symbol: The name to register the art under.
             effects: Effects to start on the placement when the art is written.
+            encoding: How the pixels are packed into cells: ``'half_blocks'``, one column and
+                two rows of pixels per cell, or ``'braille'``, two by four, in one colour per
+                cell.
+            borders: Whether to show one pixel per cell, with the edges between colours and
+                against the background traced in box-drawing characters and the inside of
+                each colour filled with it.
         """
+        if encoding not in _CELL_PIXELS:
+            raise ValueError(
+                f"encoding must be 'half_blocks' or 'braille', but was {encoding!r}."
+            )
         if width < 1 or height < 1:
             raise ValueError(
                 f'Art needs at least 1 by 1 pixels, but got {width} by {height}. Give '
@@ -210,6 +249,8 @@ class Art:
         self._rgba: bytes | None = None if rgba is None else bytes(rgba)
         self._width = width
         self._height = height
+        self._encoding: PixelEncoding = encoding
+        self._borders = bool(borders)
         self._x = 0.0
         self._y = 0.0
         self._layer = 0
@@ -224,12 +265,12 @@ class Art:
         self._parent: Art | None = None
         self._symbol: str | None = None
         effects = cast(
-            'tuple[RenderableEffectSpecification, ...]',
-            effect_sequence(effects, 'renderable'),
+            'tuple[WritableEffectSpecification, ...]',
+            effect_sequence(effects, 'writable'),
         )
         for effect in effects:
-            normalize_effect(effect, 'renderable')
-        self._effects: tuple[RenderableEffectSpecification, ...] = effects
+            normalize_effect(effect, 'writable')
+        self._effects: tuple[WritableEffectSpecification, ...] = effects
         self._version = 0
         self._cache_key: tuple[int, ...] | None = None
         self._cache_buffer: _core.Buffer | None = None
@@ -314,6 +355,16 @@ class Art:
             self._changed()
 
     @property
+    def encoding(self) -> PixelEncoding:
+        """How the pixels are packed into cells: ``'half_blocks'`` or ``'braille'``."""
+        return self._encoding
+
+    @property
+    def borders(self) -> bool:
+        """Whether the art shows one pixel per cell, its edge in box-drawing characters."""
+        return self._borders
+
+    @property
     def background(self) -> _core.Color | None:
         """The color behind the art and its children, or ``None`` for none."""
         return None if self._background is None else _core.Color(self._background)
@@ -344,6 +395,79 @@ class Art:
             )
         self._solid_map = value
         self._changed()
+
+    @property
+    def pixels(self) -> bytes | None:
+        """
+        The art's own pixels as red, green, blue and alpha bytes, or ``None`` for a world.
+
+        The bytes run row after row from the top-left pixel, four bytes a pixel
+        (``width * height * 4`` in all), and a pixel with an alpha of ``0`` is transparent.
+        Children added with [`add`][xnano.art.Art.add] are not part of them. The bytes are
+        a copy: change the art with [`replace`][xnano.art.Art.replace].
+
+        Examples:
+            ```python
+            import xnano
+
+            dot = xnano.draw(['R.'], {'R': '#ff0000'})
+            assert dot.pixels == bytes([255, 0, 0, 255, 0, 0, 0, 0])
+            assert xnano.draw(None, width=4, height=4).pixels is None
+            ```
+        """
+        return self._rgba
+
+    def pixel(self, x: int, y: int) -> tuple[int, int, int, int] | None:
+        """
+        The red, green, blue and alpha of one of the art's own pixels.
+
+        Args:
+            x: The pixel column, from ``0`` at the left.
+            y: The pixel row, from ``0`` at the top.
+
+        Returns:
+            The four values from ``0`` to ``255``; an alpha of ``0`` is a transparent pixel.
+            ``None`` for a world, which has no pixels of its own.
+
+        Raises:
+            IndexError: The pixel is outside the art.
+
+        Examples:
+            ```python
+            import xnano
+
+            dot = xnano.draw(['R.'], {'R': '#ff0000'})
+            assert dot.pixel(0, 0) == (255, 0, 0, 255)
+            assert dot.pixel(1, 0)[3] == 0
+            ```
+        """
+        if not (0 <= x < self._width and 0 <= y < self._height):
+            raise IndexError(
+                f'Art.pixel({x}, {y}) is outside the art, which is {self._width} by '
+                f'{self._height} pixels. Pass x from 0 to {self._width - 1} and y from 0 to '
+                f'{self._height - 1}.'
+            )
+        rgba = self._rgba
+        if rgba is None:
+            return None
+        start = (y * self._width + x) * _RGBA
+        return (rgba[start], rgba[start + 1], rgba[start + 2], rgba[start + 3])
+
+    @property
+    def children(self) -> tuple[Art, ...]:
+        """
+        The art added to this one with [`add`][xnano.art.Art.add], in the order it was added.
+
+        Examples:
+            ```python
+            import xnano
+
+            world = xnano.draw(None, width=10, height=10)
+            hero = world.add(xnano.draw(['H'], {'H': 'red'}), x=2, y=3)
+            assert world.children == (hero,)
+            ```
+        """
+        return tuple(self._children)
 
     # -- building the world --------------------------------------------------------------
 
@@ -515,7 +639,7 @@ class Art:
         """
         Move up by ``count`` pixels, sliding along solid ground, and say how far it got.
 
-        Unlike [`Placement.up`][xnano.placement.Placement.up], which returns the placement
+        Unlike [`Placement.up`][xnano.layout.Placement.up], which returns the placement
         so calls chain, this returns the distance moved, so a game can tell when the art was
         blocked.
 
@@ -532,7 +656,7 @@ class Art:
         """
         Move down by ``count`` pixels, sliding along solid ground, and say how far it got.
 
-        Unlike [`Placement.down`][xnano.placement.Placement.down], which returns the placement
+        Unlike [`Placement.down`][xnano.layout.Placement.down], which returns the placement
         so calls chain, this returns the distance moved, so a game can tell when the art was
         blocked.
 
@@ -549,7 +673,7 @@ class Art:
         """
         Move left by ``count`` pixels, sliding along solid ground, and say how far it got.
 
-        Unlike [`Placement.left`][xnano.placement.Placement.left], which returns the placement
+        Unlike [`Placement.left`][xnano.layout.Placement.left], which returns the placement
         so calls chain, this returns the distance moved, so a game can tell when the art was
         blocked.
 
@@ -566,7 +690,7 @@ class Art:
         """
         Move right by ``count`` pixels, sliding along solid ground, and say how far it got.
 
-        Unlike [`Placement.right`][xnano.placement.Placement.right], which returns the placement
+        Unlike [`Placement.right`][xnano.layout.Placement.right], which returns the placement
         so calls chain, this returns the distance moved, so a game can tell when the art was
         blocked.
 
@@ -654,8 +778,9 @@ class Art:
         """
         The world pixel under a cell of the screen, such as the one the pointer is over.
 
-        The cell must be one of the cells the art was last drawn in; a cell is two pixels
-        tall, and the pixel returned is the lower one.
+        The cell must be one of the cells the art was last drawn in; a cell holds one column
+        and two rows of pixels (two by four with the ``'braille'`` encoding, one pixel with
+        ``borders``), and the pixel returned is the lowest one in its left column.
 
         Args:
             x: The cell's column in the placement of the art.
@@ -668,13 +793,18 @@ class Art:
             world = xnano.draw(None, width=40, height=40)
             world.camera.x, world.camera.y = 16, 16
             with xnano.new(width=8, height=4) as canvas:
-                canvas.write(world, width='100%', height='100%')
-                canvas.step()
+                canvas.screen.write(world, width='100%', height='100%')
+                canvas.clock.step()
             assert world.world_for_cell(0, 0) == (16, 17)
             ```
         """
         left, top = self._origin()
-        return left + x, top + _PIXELS_PER_CELL_ROW * y + 1
+        columns_per_cell, rows_per_cell = self._cell_pixels()
+        return left + columns_per_cell * x, top + rows_per_cell * y + rows_per_cell - 1
+
+    def _cell_pixels(self) -> tuple[int, int]:
+        """How many pixel columns and rows one cell of this art holds."""
+        return (1, 1) if self._borders else _CELL_PIXELS[self._encoding]
 
     def _view_size(self) -> tuple[int, int]:
         """The ``(width, height)`` in pixels that the art was last drawn in."""
@@ -718,14 +848,20 @@ class Art:
 
     def _compose(self, columns: int, rows: int) -> _core.Buffer:
         """The cells that show the world, ``columns`` by ``rows``, drawn again only if needed."""
-        view = (columns, rows * _PIXELS_PER_CELL_ROW)
+        columns_per_cell, rows_per_cell = self._cell_pixels()
+        view = (columns * columns_per_cell, rows * rows_per_cell)
         self._last_view = view
         left, top = self._origin(view)
         key = (self._version, columns, rows, left, top)
         if key == self._cache_key and self._cache_buffer is not None:
             return self._cache_buffer
+        if self._borders:
+            buffer = self._bordered(columns, rows, left, top)
+            self._cache_key = key
+            self._cache_buffer = buffer
+            return buffer
         buffer = _core.Buffer(width=columns, height=rows)
-        pixels = buffer.pixels(encoding='half_blocks')
+        pixels = buffer.pixels(encoding=self._encoding)
         if self._background is not None:
             red, green, blue = self._background
             pixels.draw_rgba(
@@ -738,6 +874,120 @@ class Art:
         self._cache_key = key
         self._cache_buffer = buffer
         return buffer
+
+    def _bordered(self, columns: int, rows: int, left: int, top: int) -> _core.Buffer:
+        """
+        The cells of the art with one pixel per cell: a box-drawing edge, colour inside.
+
+        A drawn pixel on an edge becomes the box-drawing character that joins it to the edge
+        pixels beside it, in its own colour; a drawn pixel inside its colour becomes a cell
+        filled with it. A pixel is on an edge when one of its eight neighbours is not drawn,
+        or is a colour that covers more of the art than its own: a boundary between two
+        colours belongs to the smaller region, the one in front.
+        """
+        rgba = bytearray(columns * rows * _RGBA)
+        if self._background is not None:
+            rgba[:] = bytes((*self._background, 255)) * (columns * rows)
+        self._blend_onto(rgba, columns, rows, -left, -top)
+        colors: list[list[tuple[int, int, int] | None]] = [
+            [
+                None
+                if rgba[(y * columns + x) * _RGBA + 3] < 128
+                else (
+                    rgba[(y * columns + x) * _RGBA],
+                    rgba[(y * columns + x) * _RGBA + 1],
+                    rgba[(y * columns + x) * _RGBA + 2],
+                )
+                for x in range(columns)
+            ]
+            for y in range(rows)
+        ]
+
+        counts: dict[tuple[int, int, int], int] = {}
+        for line in colors:
+            for color in line:
+                if color is not None:
+                    counts[color] = counts.get(color, 0) + 1
+
+        def is_behind(x: int, y: int, color: tuple[int, int, int]) -> bool:
+            """Whether the neighbour is empty, or a colour covering more than ``color``."""
+            if not (0 <= x < columns and 0 <= y < rows):
+                return True  # the edge of the art is an edge of the shape
+            other = colors[y][x]
+            if other is None:
+                return True
+            return other != color and (counts[other], other) > (counts[color], color)
+
+        edge = {
+            (x, y)
+            for y in range(rows)
+            for x in range(columns)
+            if colors[y][x] is not None
+            and any(
+                is_behind(x + step_x, y + step_y, colors[y][x])  # type: ignore[arg-type]
+                for step_x in (-1, 0, 1)
+                for step_y in (-1, 0, 1)
+            )
+        }
+        cells: list[_core.Cell] = []
+        for y in range(rows):
+            for x in range(columns):
+                color = colors[y][x]
+                if color is None:
+                    cells.append(_core.Cell(' ', is_transparent=True))
+                elif (x, y) in edge:
+                    glyph = _BOX_GLYPHS[
+                        (
+                            (x, y - 1) in edge,
+                            (x, y + 1) in edge,
+                            (x - 1, y) in edge,
+                            (x + 1, y) in edge,
+                        )
+                    ]
+                    cells.append(_core.Cell(glyph, foreground=color))
+                else:
+                    cells.append(_core.Cell(' ', background=color))
+        return _core.Buffer.with_cells(cells, width=columns, height=rows)
+
+    def _blend_onto(
+        self, rgba: bytearray, columns: int, rows: int, left: int, top: int
+    ) -> None:
+        """Paint this art's pixels and its children's over ``rgba``, the way the cells are drawn."""
+        if self._rgba is not None:
+            for y in range(self._height):
+                target_y = top + y
+                if not 0 <= target_y < rows:
+                    continue
+                for x in range(self._width):
+                    target_x = left + x
+                    if not 0 <= target_x < columns:
+                        continue
+                    source = (y * self._width + x) * _RGBA
+                    alpha = self._rgba[source + 3]
+                    if alpha == 0:
+                        continue
+                    target = (target_y * columns + target_x) * _RGBA
+                    if alpha == 255:
+                        rgba[target : target + _RGBA] = self._rgba[
+                            source : source + _RGBA
+                        ]
+                        continue
+                    weight = alpha / 255
+                    for channel in range(3):
+                        rgba[target + channel] = round(
+                            self._rgba[source + channel] * weight
+                            + rgba[target + channel] * (1 - weight)
+                        )
+                    rgba[target + 3] = max(rgba[target + 3], alpha)
+        for child in sorted(self._children, key=lambda item: item._layer):
+            if child._is_visible:
+                child._blend_onto(
+                    rgba,
+                    columns,
+                    rows,
+                    left + round(child._x) - child._anchor[0],
+                    top + round(child._y) - child._anchor[1],
+                )
 
     def _draw_onto(self, pixels: _core.PixelView, left: int, top: int) -> None:
         if self._rgba is not None:
@@ -780,21 +1030,21 @@ class Art:
             assert heart.render() == ' ▄'
             ```
         """
-        columns = self._width if width is None else width
-        rows = (
-            math.ceil(self._height / _PIXELS_PER_CELL_ROW) if height is None else height
-        )
+        columns_per_cell, rows_per_cell = self._cell_pixels()
+        columns = math.ceil(self._width / columns_per_cell) if width is None else width
+        rows = math.ceil(self._height / rows_per_cell) if height is None else height
         return self._compose(columns, rows).render(format=format)
 
-    def __xnano_render__(self, context: Context) -> _core.Buffer:
+    def __xnano_write__(self, context: Context) -> _core.Buffer:
         """Return the cells that show the art, as large as the area it is written in."""
         owner = context.buffer
-        area = owner.region
+        area = surface_of(owner).region
         if hasattr(owner, 'refresh'):
             self._observers.add(cast('Placement[object, object]', owner))
         area_columns, area_rows = area._grid_size()
-        columns = area_columns or self._width
-        rows = area_rows or math.ceil(self._height / _PIXELS_PER_CELL_ROW)
+        columns_per_cell, rows_per_cell = self._cell_pixels()
+        columns = area_columns or math.ceil(self._width / columns_per_cell)
+        rows = area_rows or math.ceil(self._height / rows_per_cell)
         return self._compose(columns, rows)
 
     def _placed(self, target: object, component: object) -> None:
@@ -809,6 +1059,8 @@ class Art:
             self._width,
             self._height,
             effects=self._effects,
+            encoding=self._encoding,
+            borders=self._borders,
         )
         copy._background = self._background
         copy._solid_map = self._solid_map
@@ -841,7 +1093,9 @@ def draw(
     height: int | None = None,
     background: ColorValue | None = None,
     symbol: str | None = None,
-    effects: Sequence[RenderableEffectSpecification] = (),
+    effects: Sequence[WritableEffectSpecification] = (),
+    encoding: PixelEncoding = 'half_blocks',
+    borders: bool = False,
 ) -> Art:
     """
     Build pixel art from text, a picture, bytes or nothing (does not draw).
@@ -875,11 +1129,17 @@ def draw(
         symbol: A name to register the art under, so ``draw('name')`` returns a copy of it.
         effects: Effects to start on the placement when the art is written, as dictionaries
             with a ``kind`` key.
+        encoding: How the pixels are packed into cells: ``'half_blocks'`` (one column and two
+            rows of pixels per cell) or ``'braille'`` (two by four, one colour per cell, for a
+            finer, drawing-like look).
+        borders: Whether to show one pixel per cell, with the edges between colours and
+            against the background traced in box-drawing characters and the inside of each
+            colour filled with it.
 
     Raises:
         ValueError: The rows are empty or differ in length, the palette or a color in it is
-            not valid, a text without a newline is not a known symbol, or the sizes do not
-            match the bytes.
+            not valid, a text without a newline is not a known symbol, the sizes do not match
+            the bytes, or ``encoding`` is not one of the two.
         TypeError: ``source`` is not one of the kinds above.
 
     Examples:
@@ -919,12 +1179,12 @@ def draw(
         if background is not None:
             art.background = background
         effects = cast(
-            'tuple[RenderableEffectSpecification, ...]',
-            effect_sequence(effects, 'renderable'),
+            'tuple[WritableEffectSpecification, ...]',
+            effect_sequence(effects, 'writable'),
         )
         if effects:
             for effect in effects:
-                normalize_effect(effect, 'renderable')
+                normalize_effect(effect, 'writable')
             art._effects = effects
         if symbol is not None:
             symbols.register(symbol, art)
@@ -938,6 +1198,8 @@ def draw(
         background=background,
         symbol=symbol,
         effects=effects,
+        encoding=encoding,
+        borders=borders,
     )
 
 

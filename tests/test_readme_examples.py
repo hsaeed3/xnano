@@ -3,8 +3,8 @@ tests.test_readme_examples
 
 Every Python block of the README and of the pages under ``docs/`` that teach the API runs.
 
-The blocks open the screen and wait for a key, so the test swaps those two calls for a canvas
-without a screen that moves five frames, and runs the rest as written.
+The blocks open the screen and wait for a key, so the test swaps those calls (and ``xnano.iter``)
+for a canvas without a screen that moves five frames, and runs the rest as written.
 """
 
 from __future__ import annotations
@@ -62,10 +62,21 @@ def test_a_block_runs(name, number, source, monkeypatch, capsys):
         return self
 
     def move_five_frames(self: Canvas, *, quit_on: object = None) -> None:
-        for _ in self.iter(count=5):
+        for _ in self.iter(frames=5):
             pass
 
+    def five_screenless_frames(
+        *arguments: object,
+        frames: object = None,
+        seconds: object = None,
+        quit_on: object = None,
+        **keywords: object,
+    ) -> object:
+        with xnano.new(*arguments, **keywords) as canvas:  # type: ignore[arg-type]
+            yield from canvas.iter(frames=5)
+
     monkeypatch.setattr(xnano, 'open', screenless)
+    monkeypatch.setattr(xnano, 'iter', five_screenless_frames)
     monkeypatch.setattr(Canvas, 'open', stay_on_the_canvas)
     monkeypatch.setattr(Canvas, 'run', move_five_frames)
     exec(compile(source, f'{name} block {number}', 'exec'), {'__name__': '__docs__'})  # noqa: S102

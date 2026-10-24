@@ -13,18 +13,23 @@ from __future__ import annotations
 
 import functools
 import operator
+import sys
 from typing import TYPE_CHECKING, Final, Literal, TypeAlias, TypedDict
 
 import xnano_core as _core
 from xnano._schema._appearance import ColorValue
 from xnano._schema._layout import Interpolation, MotionDirection
 
+# Read when the module runs, so that `typing.get_type_hints` resolves the specifications.
+if sys.version_info >= (3, 11):
+    from typing import Required
+else:
+    from typing_extensions import Required
+
 if TYPE_CHECKING:
     # `xnano.effects._properties` imports this module, so it cannot be imported here while the
     # module runs: type checkers see the unions of its classes below, and `__getattr__` builds
     # them the first time they are read.
-    from typing_extensions import Required
-
     from xnano.effects._properties import (
         BitCrushAudioEffectParameters,
         CoalesceEffectParameters,
@@ -787,7 +792,7 @@ class TremoloAudioEffectParametersSchema(TypedDict, total=False):
     """Modulation depth (``0.0`` to ``1.0``)."""
 
 
-RenderableEffectKind: TypeAlias = Literal[
+WritableEffectKind: TypeAlias = Literal[
     'effect.fade_to',
     'effect.fade_from',
     'effect.paint',
@@ -831,7 +836,7 @@ The kinds of effect that change how a sound plays.
 They are the kinds of ``effect`` that start with ``'audio.'``, such as ``'audio.reverb'``.
 """
 
-EffectKind: TypeAlias = Literal[RenderableEffectKind, PlayableEffectKind]
+EffectKind: TypeAlias = Literal[WritableEffectKind, PlayableEffectKind]
 """Every kind of effect that ``effect(kind, ...)`` accepts: the visual kinds and the sound kinds."""
 
 
@@ -1171,7 +1176,7 @@ class TremoloAudioEffectSpecification(TremoloAudioEffectParametersSchema):
     """Always ``'audio.tremolo'``."""
 
 
-RenderableEffectSpecification: TypeAlias = (
+WritableEffectSpecification: TypeAlias = (
     FadeToEffectSpecification
     | FadeFromEffectSpecification
     | PaintEffectSpecification
@@ -1208,7 +1213,7 @@ PlayableEffectSpecification: TypeAlias = (
 """One sound effect as a dictionary for ``effects=[...]``: its ``kind`` and its keywords."""
 
 if TYPE_CHECKING:
-    RenderableEffect: TypeAlias = (
+    WritableEffect: TypeAlias = (
         FadeToEffectParameters
         | FadeFromEffectParameters
         | PaintEffectParameters
@@ -1242,9 +1247,9 @@ if TYPE_CHECKING:
         | ReverbAudioEffectParameters
         | TremoloAudioEffectParameters
     )
-    """A sound effect as ``effect(...)`` and the methods of ``canvas.audio.fx`` and ``context.fx`` return it."""
+    """A sound effect as ``effect(...)`` and the methods of ``canvas.speaker.fx`` and ``context.fx`` return it."""
 
-    EffectSpecification: TypeAlias = RenderableEffect | PlayableEffect
+    EffectSpecification: TypeAlias = WritableEffect | PlayableEffect
     """
     Any visual or sound effect, as [`effect`][xnano.effects.effect] returns it.
 
@@ -1252,7 +1257,7 @@ if TYPE_CHECKING:
     for ``update``, and it is not the dictionary form that ``effects=[...]`` takes.
     """
 
-_LAZY_UNION_NAMES: Final = ('EffectSpecification', 'PlayableEffect', 'RenderableEffect')
+_LAZY_UNION_NAMES: Final = ('EffectSpecification', 'PlayableEffect', 'WritableEffect')
 """
 The unions of the parameters classes.
 
@@ -1267,7 +1272,7 @@ def __getattr__(name: str) -> object:
         raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
     from xnano.effects._registry import EFFECT_PARAMETERS_BY_KIND
 
-    renderable_classes = [
+    writable_classes = [
         parameters_class
         for kind, parameters_class in EFFECT_PARAMETERS_BY_KIND.items()
         if kind.startswith('effect.')
@@ -1278,10 +1283,10 @@ def __getattr__(name: str) -> object:
         if kind.startswith('audio.')
     ]
     globals().update(
-        RenderableEffect=functools.reduce(operator.or_, renderable_classes),
+        WritableEffect=functools.reduce(operator.or_, writable_classes),
         PlayableEffect=functools.reduce(operator.or_, playable_classes),
         EffectSpecification=functools.reduce(
-            operator.or_, [*renderable_classes, *playable_classes]
+            operator.or_, [*writable_classes, *playable_classes]
         ),
     )
     return globals()[name]

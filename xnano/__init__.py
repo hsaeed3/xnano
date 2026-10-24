@@ -9,24 +9,24 @@ from xnano._internal._annotation_names import (
     bind_annotation_names as _bind_annotation_names,
 )
 from xnano.art import Image, Pixel, draw, load_image
-from xnano.audio import Note, Sound, load_sound, note, play
-from xnano.canvas import Canvas, active, iter, new
-from xnano.components import playable, renderable
-from xnano.context import Context
+from xnano.audio import Audio, Note, load_audio, note, play
+from xnano.canvas import Canvas, active, new
+from xnano.components import playable, renderable, writable
 from xnano.effects import effect
 from xnano.hooks import hook
-from xnano.region import box, write
-from xnano.terminal import Terminal, open
+from xnano.hooks._context import Context
+from xnano.layout._region import box, write
+from xnano.terminal import Terminal, iter, iter_async, open, open_async
 from xnano_core import Color
 
 __all__ = [
+    'Audio',
     'Canvas',
     'Color',
     'Context',
     'Image',
     'Note',
     'Pixel',
-    'Sound',
     'Terminal',
     'active',
     'box',
@@ -34,14 +34,17 @@ __all__ = [
     'effect',
     'hook',
     'iter',
+    'iter_async',
+    'load_audio',
     'load_image',
-    'load_sound',
     'new',
     'note',
     'open',
+    'open_async',
     'play',
     'playable',
     'renderable',
+    'writable',
     'write',
 ]
 

@@ -18,7 +18,7 @@ _optional.require('audio', needed_for='xnano.audio.Melody')
 from xnano_audio import Pitch, TerminalMelody, TerminalTempoMap  # noqa: E402
 
 if TYPE_CHECKING:
-    from xnano.region import Region
+    from xnano.layout._region import Region
 
 __all__ = ['Melody', 'is_melody_text', 'parse_melody_text']
 
@@ -63,7 +63,7 @@ class Melody:
         length_beats: The length of the melody in beats.
         duration_seconds: The length of the melody in seconds, at its tempo.
         region: The melody on the timeline as a piano roll: a
-            [`Region`][xnano.region.Region] that starts at beat 0, lasts ``length_beats``
+            [`Region`][xnano.layout.Region] that starts at beat 0, lasts ``length_beats``
             and spans the semitones from its lowest to its highest pitch. Its
             ``milliseconds`` view follows the tempo of the melody.
 
@@ -76,9 +76,9 @@ class Melody:
         assert melody.region.width == 4.0
         assert melody.region.height == 8
         with xnano.new(width=8, height=1) as canvas:
-            canvas.play(melody)
-            canvas.step(delta_seconds=1.0)
-            assert canvas.audio.render_sound().peak > 0.0
+            canvas.speaker.play(melody)
+            canvas.clock.step(delta_seconds=1.0)
+            assert canvas.speaker.render().peak > 0.0
         ```
     """
 
@@ -172,7 +172,7 @@ class Melody:
             assert region.milliseconds.width == 4000.0
             ```
         """
-        from xnano.region import _timeline_region
+        from xnano.layout._region import _timeline_region
 
         tempo_map = self.score.tempo_map
         return _timeline_region(

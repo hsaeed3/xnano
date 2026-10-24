@@ -11,8 +11,8 @@ import pytest
 from typing_extensions import assert_type
 
 import xnano as main
-from xnano.context import Context
 from xnano.errors import TerminalError
+from xnano.hooks import Context
 from xnano.state import StateNamespace, parse_path
 from xnano_core import Event, JSONValue, ParentWidth
 
@@ -45,7 +45,9 @@ def test_a_state_write_is_validated_and_wakes_a_hook():
 
 def test_a_reference_can_be_an_axis():
     with main.new(width=20, height=2, state=Settings(volume=4)) as canvas:
-        thumb = canvas.write('#', x=canvas.state_reference(lambda state: state.volume))
+        thumb = canvas.screen.write(
+            '#', x=canvas.state_reference(lambda state: state.volume)
+        )
         canvas.deliver_events()
         assert thumb.x == 4
         canvas.state.volume = 7
@@ -70,7 +72,7 @@ def test_open_without_state_has_no_reference():
 
 def test_an_expression_still_places_a_buffer():
     with main.new(width=10, height=1) as canvas:
-        placed = canvas.write('#', x=ParentWidth // 2)
+        placed = canvas.screen.write('#', x=ParentWidth // 2)
         canvas.deliver_events()
         assert placed.x == 5
 
@@ -140,7 +142,7 @@ class TestRootNamespace:
             assert duplicate.get('score') == 3
             duplicate.push('score', 4)
             assert canvas.state.get('score') == 4
-            placement_state = copy.copy(canvas.write('a').state)
+            placement_state = copy.copy(canvas.screen.write('a').state)
             assert repr(placement_state).startswith('StateNamespace(')
 
     def test_pushing_a_deep_path_creates_the_objects_on_the_way(self):
@@ -339,8 +341,8 @@ class TestHookRuns:
 
     def test_two_namespaces_of_the_same_name_do_not_meet(self):
         with main.new(width=20, height=2) as canvas:
-            first = canvas.write('a')
-            second = canvas.write('b', y=1)
+            first = canvas.screen.write('a')
+            second = canvas.screen.write('b', y=1)
             for placement in (first, second):
 
                 @placement.hook(on='key')
@@ -377,7 +379,7 @@ class TestHookRuns:
 
     def test_removing_a_placement_or_hook_deletes_its_branch(self):
         with main.new(width=8, height=1) as canvas:
-            placement = canvas.write('a')
+            placement = canvas.screen.write('a')
             placement.state.push('x', 1)
 
             @placement.hook(on='key')
@@ -399,7 +401,7 @@ class TestHookRuns:
 
     def test_a_large_namespace_is_still_saved(self):
         with main.new(width=8, height=1) as canvas:
-            placement = canvas.write('a')
+            placement = canvas.screen.write('a')
             for index in range(70):
                 placement.state.push(f'key{index}', index)
 
@@ -598,7 +600,7 @@ class TestFollowingPaths:
     def test_a_state_hook_on_a_placement_follows_the_state_it_read(self):
         runs: list[object] = []
         with main.new(width=8, height=1) as canvas:
-            label = canvas.write('a')
+            label = canvas.screen.write('a')
 
             @label.hook(on='state')
             def follow(context: Context) -> None:
@@ -638,7 +640,7 @@ class TestFollowerIndex:
 class TestStateAcrossOpen:
     def test_the_state_of_the_placements_survives_a_replaced_store(self):
         with main.new(width=8, height=1) as canvas:
-            placement = canvas.write('hi')
+            placement = canvas.screen.write('hi')
             placement.state.push('clicks', 3)
             canvas.state.push('free', 1)
             replacement = main.state._prepare_state(
@@ -649,7 +651,7 @@ class TestStateAcrossOpen:
 
     def test_a_non_root_namespace_says_it_has_no_declared_fields(self):
         with main.new(width=8, height=1, state=Settings()) as canvas:
-            placement = canvas.write('hi')
+            placement = canvas.screen.write('hi')
             with pytest.raises(AttributeError, match='only the canvas.s own state does'):
                 placement.state.volume  # noqa: B018
             with pytest.raises(TerminalError, match='no declared fields'):

@@ -12,8 +12,9 @@ import typing
 import pytest
 
 import xnano
-from xnano.context import Context
+from xnano.devices import KeyName
 from xnano.expressions import Keyboard, Mouse, Parent, Root, Scroll
+from xnano.hooks import Context
 from xnano.hooks._triggers import (
     _MEMBERS,
     _PARTS,
@@ -21,7 +22,6 @@ from xnano.hooks._triggers import (
     normalize_binding,
     parse_when,
 )
-from xnano.types import KeyName
 from xnano_core import Event, Expression
 
 
@@ -36,11 +36,17 @@ def push(canvas, event: Event) -> None:
     canvas.deliver_events()
 
 
-def hook_heard(canvas, when, *events: Event, placement=None, on=None) -> int:
+# A condition that mentions an input hears only that input: these make a condition a key hook.
+_HEARS = {'key': "keyboard.kind != 'release' and "}
+
+
+def hook_heard(canvas, condition, *events: Event, placement=None, kind=None) -> int:
     """How many of the events made a hook with this condition run."""
     count = []
     target = canvas if placement is None else placement
-    handle = target.hook(lambda context: count.append(1), on=on, when=when)
+    if kind is not None:
+        condition = f'{_HEARS[kind]}({condition})'
+    handle = target.hook(lambda context: count.append(1), on=condition)
     for event in events:
         push(canvas, event)
     handle.remove()
@@ -95,7 +101,7 @@ class TestForms:
         assert parse_when.cache_info().hits == info.hits + 1
 
     def test_a_plain_bool_is_refused_with_the_fix(self):
-        with pytest.raises(TypeError, match=r'when= received False.*Keyboard.key == "q"'):
+        with pytest.raises(TypeError, match=r'on= received False.*Keyboard.key == "q"'):
             compile_when(False)
 
     def test_anything_else_is_refused(self):
@@ -125,7 +131,7 @@ class TestMembers:
         assert hook_heard(canvas, "keyboard.binding == 'ctrl+s'", *events) == 1
 
     def test_mouse_position_in_the_region_of_the_buffer(self, canvas):
-        placement = canvas.write('....', x=5, y=2)
+        placement = canvas.screen.write('....', x=5, y=2)
         events = [
             Event.mouse_event(column=6, row=2, kind='move'),
             Event.mouse_event(column=1, row=1, kind='move'),
@@ -153,18 +159,18 @@ class TestMembers:
             Event.mouse_event(column=2, row=1, kind='drag', button='left'),
             Event.mouse_event(column=2, row=1, kind='release', button='left'),
         ]
-        assert hook_heard(canvas, 'mouse.is_down', *events, on='mouse') == 2
+        assert hook_heard(canvas, 'mouse.is_down', *events) == 2
 
     def test_scroll_x_and_y(self, canvas):
         events = [
             Event.mouse_event(column=1, row=1, kind='scroll', scroll_y=-1),
             Event.mouse_event(column=1, row=1, kind='scroll', scroll_x=2),
         ]
-        assert hook_heard(canvas, 'scroll.y < 0', *events, on='scroll') == 1
-        assert hook_heard(canvas, 'scroll.x > 0', *events, on='scroll') == 1
+        assert hook_heard(canvas, 'scroll.y < 0', *events) == 1
+        assert hook_heard(canvas, 'scroll.x > 0', *events) == 1
 
     def test_buffer_geometry(self, canvas):
-        placement = canvas.write('abc', x=4, y=1)
+        placement = canvas.screen.write('abc', x=4, y=1)
         events = [Event.key_press('a')]
         for text in (
             'buffer.x == 4',
@@ -173,19 +179,19 @@ class TestMembers:
             'buffer.height == 1',
         ):
             assert (
-                hook_heard(canvas, text, *events, placement=placement, on='key') == 1
+                hook_heard(canvas, text, *events, placement=placement, kind='key') == 1
             ), text
         assert (
             hook_heard(
-                canvas, 'buffer.width == 9', *events, placement=placement, on='key'
+                canvas, 'buffer.width == 9', *events, placement=placement, kind='key'
             )
             == 0
         )
 
     def test_the_parts_of_a_position_a_size_and_a_region(self, canvas):
-        placement = canvas.write('abc', x=4, y=1)
+        placement = canvas.screen.write('abc', x=4, y=1)
         events = [Event.key_press('a')]
-        kwargs = {'placement': placement, 'on': 'key'}
+        kwargs = {'placement': placement, 'kind': 'key'}
         for text in (
             'buffer.position.x == 4',
             'buffer.size.width == 3',
@@ -196,11 +202,11 @@ class TestMembers:
     def test_only_the_parts_that_exist_are_allowed(self, canvas):
         with pytest.raises(ValueError, match='not a member'):
             hook_heard(
-                canvas, 'buffer.position.width == 4', Event.key_press('a'), on='key'
+                canvas, 'buffer.position.width == 4', Event.key_press('a'), kind='key'
             )
 
     def test_parent_and_root_geometry(self, canvas):
-        placement = canvas.write('abc')
+        placement = canvas.screen.write('abc')
         events = [Event.key_press('a')]
         for text in (
             'parent.width == 20',
@@ -209,17 +215,17 @@ class TestMembers:
             'root.height == 6',
         ):
             assert (
-                hook_heard(canvas, text, *events, placement=placement, on='key') == 1
+                hook_heard(canvas, text, *events, placement=placement, kind='key') == 1
             ), text
 
     def test_root_time_delta_and_fps(self, canvas):
         ticks = []
-        canvas.hook(lambda context: ticks.append(1), on='tick', when='root.time > 0.25')
-        canvas.hook(lambda context: ticks.append(2), on='tick', when='time > 0.25')
-        canvas.hook(lambda context: ticks.append(3), on='tick', when='root.delta > 0.0')
-        canvas.hook(lambda context: ticks.append(4), on='tick', when='root.fps >= 0')
+        canvas.hook(lambda context: ticks.append(1), on='root.time > 0.25')
+        canvas.hook(lambda context: ticks.append(2), on='time > 0.25')
+        canvas.hook(lambda context: ticks.append(3), on='root.delta > 0.0')
+        canvas.hook(lambda context: ticks.append(4), on='root.fps >= 0')
         for _ in range(4):
-            canvas.step(delta_seconds=0.1)
+            canvas.clock.step(delta_seconds=0.1)
         assert ticks.count(1) == 2
         assert ticks.count(2) == 2
         assert ticks.count(3) == 4
@@ -233,13 +239,11 @@ class TestMembers:
             heard = []
             canvas.hook(
                 lambda context: heard.append(context.keyboard.key),
-                on='key',
-                when="keyboard.key == 'a' and deps.limit == 2",
+                on="keyboard.key == 'a' and deps.limit == 2",
             )
             canvas.hook(
                 lambda context: heard.append('never'),
-                on='key',
-                when='deps.limit > 5',
+                on='deps.limit > 5',
             )
             for name in 'ab':
                 push(canvas, Event.key_press(name))
@@ -250,12 +254,11 @@ class TestMembers:
             name = 'x'
 
         with xnano.new(width=20, height=4, deps=Dependencies()) as canvas:
-            placement = canvas.write('abcd', x=2, y=1)
+            placement = canvas.screen.write('abcd', x=2, y=1)
             heard = []
             placement.hook(
                 lambda context: heard.append('inside'),
-                on='mouse',
-                when="mouse.position in buffer.region and deps.name == 'x'",
+                on="mouse.position in buffer.region and deps.name == 'x'",
             )
             push(canvas, Event.mouse_event(column=3, row=1, kind='move'))
             assert heard == ['inside']
@@ -281,14 +284,14 @@ class TestEveryMember:
             n = 1
 
         with xnano.new(width=20, height=4, deps=Dependencies()) as canvas:
-            placement = canvas.write('abcd', x=2, y=1)
+            placement = canvas.screen.write('abcd', x=2, y=1)
             count = []
-            for kind in ('key', 'mouse', 'scroll', 'tick'):
+            # The condition's own kind, a tick and a key hook each read the member.
+            for timing in ({}, {'every': 0.1}, {'keys': 'ctrl+s'}):
                 placement.hook(
                     lambda context: count.append(1),
-                    on=kind,
-                    every=0.1 if kind == 'tick' else None,
-                    when=f'({member} == {member}){suffix}',
+                    on=f'({member} == {member}){suffix}',
+                    **timing,
                 )
             events = [
                 Event.key_press('ctrl+s'),
@@ -297,18 +300,18 @@ class TestEveryMember:
             ]
             for event in events:
                 push(canvas, event)
-            canvas.step(delta_seconds=0.2)
+            canvas.clock.step(delta_seconds=0.2)
 
     def test_binding_matches_in_both_paths(self, canvas):
         event = Event.key_press('ctrl+s')
-        assert hook_heard(canvas, "keyboard.binding == 'ctrl+s'", event, on='key') == 1
+        assert hook_heard(canvas, "keyboard.binding == 'ctrl+s'", event) == 1
         both = "(keyboard.binding == 'ctrl+s') and deps.n == 1"
 
         class Dependencies:
             n = 1
 
         with xnano.new(width=8, height=1, deps=Dependencies()) as other:
-            assert hook_heard(other, both, event, on=None) == 1
+            assert hook_heard(other, both, event) == 1
 
     def test_a_part_of_a_missing_value_compares_false_with_deps(self):
         class Dependencies:
@@ -317,9 +320,9 @@ class TestEveryMember:
         with xnano.new(width=8, height=1, deps=Dependencies()) as canvas:
             events = [Event.key_press('a')]
             text = '(mouse.position.x == 0) and deps.n == 1'
-            assert hook_heard(canvas, text, *events, on='key') == 0
+            assert hook_heard(canvas, text, *events, kind='key') == 0
             text = '(mouse.position.x + 1 > 0) and deps.n == 1'
-            assert hook_heard(canvas, text, *events, on='key') == 0
+            assert hook_heard(canvas, text, *events, kind='key') == 0
 
 
 class TestOperators:
@@ -330,22 +333,28 @@ class TestOperators:
 
     def test_negation_holds_for_an_event_without_the_input(self, canvas):
         events = [Event.key_press('q'), Event.paste('x')]
-        assert hook_heard(canvas, "keyboard.key != 'q'", *events) == 0
-        assert hook_heard(canvas, "not keyboard.key == 'q'", *events) == 1
-        assert hook_heard(canvas, "keyboard.key not in ('q',)", *events) == 1
+        both = ' and not mouse.is_down'
+        assert hook_heard(canvas, "keyboard.key != 'q'" + both, *events) == 0
+        assert hook_heard(canvas, "not keyboard.key == 'q'" + both, *events) == 1
+        assert hook_heard(canvas, "keyboard.key not in ('q',)" + both, *events) == 1
+        assert hook_heard(canvas, ~(Keyboard.key == 'q'), *events) == 1
+
+    def test_a_string_that_reads_one_input_hears_only_that_input(self, canvas):
+        events = [Event.key_press('q'), Event.paste('x')]
+        assert hook_heard(canvas, "not keyboard.key == 'q'", *events) == 0
 
     def test_arithmetic_and_negation(self, canvas):
-        placement = canvas.write('abc')
+        placement = canvas.screen.write('abc')
         events = [Event.key_press('a')]
-        kwargs = {'placement': placement, 'on': 'key'}
+        kwargs = {'placement': placement, 'kind': 'key'}
         assert hook_heard(canvas, 'parent.width / 2 + 1 == 11', *events, **kwargs) == 1
         assert hook_heard(canvas, 'not parent.width - 20 == 0', *events, **kwargs) == 0
         assert hook_heard(canvas, '-parent.width < 0', *events, **kwargs) == 1
 
     def test_chained_comparison(self, canvas):
-        placement = canvas.write('abc')
+        placement = canvas.screen.write('abc')
         events = [Event.key_press('a')]
-        kwargs = {'placement': placement, 'on': 'key'}
+        kwargs = {'placement': placement, 'kind': 'key'}
         assert hook_heard(canvas, '10 < parent.width < 30', *events, **kwargs) == 1
         assert hook_heard(canvas, '10 < parent.width < 15', *events, **kwargs) == 0
 
@@ -447,19 +456,28 @@ class TestErrors:
 
 
 class TestInputlessConditions:
-    def test_a_hook_without_on_cannot_wait_for_time_in_a_string(self, canvas):
-        with pytest.raises(ValueError, match='Add on="tick" or on="frame"'):
-            canvas.hook(lambda context: None, when='root.time > 2')
+    def test_a_string_that_reads_no_input_is_checked_at_each_step(self, canvas):
+        ticks = []
+        canvas.hook(lambda context: ticks.append(1), on='root.time > 0.15')
+        for _ in range(4):
+            canvas.clock.step(delta_seconds=0.1)
+        assert ticks == [1, 1, 1]
 
-    def test_an_expression_and_a_function_are_not_refused(self, canvas):
-        canvas.hook(lambda context: None, when=Root.time > 2)
-        canvas.hook(lambda context: None, when=lambda context: True)
+    def test_every_and_after_make_a_condition_a_timed_hook(self, canvas):
+        ticks = []
+        canvas.hook(lambda context: ticks.append(1), on=Root.time > 0.15, every=0.1)
+        for _ in range(4):
+            canvas.clock.step(delta_seconds=0.1)
+        assert ticks
 
-    def test_reading_an_input_is_allowed(self, canvas):
-        canvas.hook(lambda context: None, when='keyboard.key == a and root.time > 2')
+    def test_an_expression_and_a_function_hear_every_input_event(self, canvas):
+        events = [Event.key_press('a'), Event.paste('x')]
+        assert hook_heard(canvas, Root.time >= 0, *events) == 2
+        assert hook_heard(canvas, lambda context: True, *events) == 2
 
-    def test_a_timed_hook_may_read_time(self, canvas):
-        canvas.hook(lambda context: None, on='tick', when='root.time > 2')
+    def test_reading_an_input_and_time_hears_that_input(self, canvas):
+        events = [Event.key_press('a'), Event.paste('x')]
+        assert hook_heard(canvas, "keyboard.key == 'a' and root.time >= 0", *events) == 1
 
 
 class TestUnseenValues:
@@ -469,11 +487,11 @@ class TestUnseenValues:
         with xnano.new(width=8, height=1, deps=1) as canvas:
             canvas.hook(
                 lambda context: native.append(context.event.kind),
-                when="keyboard.key != 'q'",
+                on="keyboard.key != 'q'",
             )
             canvas.hook(
                 lambda context: python.append(context.event.kind),
-                when="keyboard.key != 'q' and deps",
+                on="keyboard.key != 'q' and deps",
             )
             canvas.push(Event.mouse_event(column=1, row=1, kind='move'))
             canvas.push(Event.key_press('r'))
@@ -501,4 +519,4 @@ class TestArithmeticErrors:
             with pytest.raises(
                 ValueError, match=r'\+ cannot be applied to keyboard\.key and 1'
             ):
-                canvas.hook(lambda context: None, when='keyboard.key + 1')
+                canvas.hook(lambda context: None, on='keyboard.key + 1')

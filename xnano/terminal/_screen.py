@@ -11,7 +11,7 @@ import os
 import sys
 import threading
 import warnings
-from collections.abc import Mapping, Sequence
+from collections.abc import Generator, Mapping, Sequence
 from typing import TYPE_CHECKING, Final, cast
 
 import xnano_core as _core
@@ -146,6 +146,54 @@ def attach_screen(
     settings: Mapping[str, object],
 ) -> None:
     """Move the canvas onto a live runtime that draws on the screen."""
+    steps = _attach_screen_steps(
+        canvas, title=title, width=width, height=height, settings=settings
+    )
+    host = next(steps)
+    try:
+        host.wait_until_ready()
+    except BaseException as error:
+        steps.throw(error)
+        raise
+    next(steps, None)
+
+
+async def attach_screen_async(
+    canvas: Canvas[DepsT, StateT],
+    *,
+    title: str | None,
+    width: int | str | None,
+    height: int | str | None,
+    settings: Mapping[str, object],
+) -> None:
+    """Move the canvas onto the screen, awaiting the terminal instead of blocking the loop."""
+    steps = _attach_screen_steps(
+        canvas, title=title, width=width, height=height, settings=settings
+    )
+    host = next(steps)
+    try:
+        await host.wait_until_ready_async()
+    except BaseException as error:
+        steps.throw(error)
+        raise
+    next(steps, None)
+
+
+def _attach_screen_steps(
+    canvas: Canvas[DepsT, StateT],
+    *,
+    title: str | None,
+    width: int | str | None,
+    height: int | str | None,
+    settings: Mapping[str, object],
+) -> Generator[_ThreadHost, None, None]:
+    """
+    The steps of putting a canvas on the screen, paused once while the terminal answers.
+
+    The generator yields the new loop while its thread creates the live runtime; the caller
+    waits for it (``wait_until_ready`` or ``wait_until_ready_async``) and resumes the
+    generator, or throws the error that interrupted the waiting into it.
+    """
     from xnano.terminal import Terminal
 
     canvas._require_open()
@@ -169,22 +217,47 @@ def attach_screen(
     checked_height = _check_size('height', height)
     if checked_width is None and checked_height is None:
         checked_width, checked_height = canvas._requested_width, canvas._requested_height
-    if _is_whole_window(checked_width) and _is_whole_window(checked_height):
+    fits_width = checked_width == 'fit'
+    fits_height = checked_height == 'fit'
+    if (fits_width or fits_height) and canvas._layout != 'overlay':
+        raise ValueError(
+            f'A {canvas._layout} canvas shares its size among the pieces written on it, so '
+            f'it cannot take the size of them. Give it a size such as height=12 instead of '
+            f"'fit'."
+        )
+    if (
+        not fits_width
+        and not fits_height
+        and (_is_whole_window(checked_width) and _is_whole_window(checked_height))
+    ):
         # Neither size, or '100%' for both: the whole window, following its size.
         width = height = None
     else:
         if checked_height is None:
             raise ValueError(
                 'A canvas on the screen with a width needs a height too, because it draws '
-                'in a region of that size. Add height=... (cells, or a percentage such as '
-                "'50%'), or remove width."
+                'in a region of that size. Add height=... (cells, a percentage such as '
+                "'50%', or 'fit' for the height of the content), or remove width."
             )
-        width = (
-            None
-            if _is_whole_window(checked_width)
-            else _size_in_cells(checked_width, 'columns')
-        )
-        height = _size_in_cells(checked_height, 'lines')
+        canvas._fits_width = fits_width
+        canvas._fits_height = fits_height
+        canvas._root.should_fit_width = fits_width
+        canvas._root.should_fit_height = fits_height
+        content = canvas.screen.size if fits_width or fits_height else None
+        if fits_width:
+            assert content is not None
+            width = max(1, content.width)
+        else:
+            width = (
+                None
+                if _is_whole_window(checked_width)
+                else _size_in_cells(checked_width, 'columns')
+            )
+        if fits_height:
+            assert content is not None
+            height = max(1, content.height)
+        else:
+            height = _size_in_cells(checked_height, 'lines')
     gates = {**canvas._gates, **cast('dict[str, object]', parsed['gates'])}
     resolved = gates_for_screen(canvas, gates)
     replacement: _core.TerminalStateStore | None = None
@@ -236,8 +309,19 @@ def attach_screen(
 
     try:
         new_host = _ThreadHost(
-            cast('Canvas[object, object]', canvas), create_live, defer_bind=True
+            cast('Canvas[object, object]', canvas),
+            create_live,
+            defer_bind=True,
+            should_wait=False,
         )
+        try:
+            yield new_host
+        except BaseException:
+            # The waiting was interrupted while the loop's thread may still be creating its
+            # runtime, so that thread is stopped before the screen is given back.
+            new_host.shutdown()
+            raise
+        new_host.raise_startup_error()
     except TerminalError:
         release_screen()
         raise
@@ -247,7 +331,7 @@ def attach_screen(
         raise TerminalError(
             f'The canvas could not be put on the screen: {detail}. Run the program in a '
             f'terminal, or draw into a canvas from xnano.new() and read it with '
-            f'canvas.render().',
+            f'canvas.screen.render().',
             code='screen.unavailable',
         ) from error
     except BaseException:

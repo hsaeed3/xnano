@@ -9,7 +9,7 @@ context, such as the width of the parent, the elapsed time or the pointer positi
 
 You can use expressions along with all of Python's standard arithmetic operators, and give
 them to anything that takes a number: a position, a size or a range. Comparing one builds a
-condition, which hooks take as ``when=``. Read the current value of one with
+condition, which a hook takes as its ``on=``. Read the current value of one with
 [`Canvas.inspect`][xnano.canvas.Canvas.inspect].
 
 ```python
@@ -18,10 +18,10 @@ from xnano.expressions import ParentWidth, TimeElapsed, Width
 
 with xnano.open(width=40, height=3) as terminal:
     # A formula keeps the text centered, whatever the width of the window.
-    terminal.write('centered', x=(ParentWidth - Width) // 2)
+    terminal.screen.write('centered', x=(ParentWidth - Width) // 2)
 
     # A formula that reads the time moves the ball on every frame.
-    ball = terminal.write('o', y=2)
+    ball = terminal.screen.write('o', y=2)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
 
     terminal.run(quit_on='q')
@@ -92,7 +92,7 @@ if TYPE_CHECKING:
     centered = (ParentWidth - Width) // 2
     assert isinstance(centered, Expression)
     with xnano.new(width=20, height=2) as canvas:
-        text = canvas.write('centered', x=centered)
+        text = canvas.screen.write('centered', x=centered)
         assert text.x == 6
     ```
     """
@@ -104,7 +104,7 @@ if TYPE_CHECKING:
     ```python
     import xnano
     from xnano.expressions import BufferSize, Value
-    from xnano.geometry import Size
+    from xnano.layout import Size
 
     assert isinstance(BufferSize, Value)
     with xnano.new(width=20, height=2) as canvas:
@@ -154,7 +154,7 @@ if TYPE_CHECKING:
     assert isinstance(Keyboard, KeyboardExpressionScope)
     with xnano.new(width=20, height=2) as canvas:
         canvas.push(Event.key_press('a'))
-        canvas.step(delta_seconds=0.1)
+        canvas.clock.step(delta_seconds=0.1)
         assert canvas.inspect(Keyboard.key) == 'a'
     ```
     """
@@ -167,12 +167,12 @@ if TYPE_CHECKING:
     import xnano
     from xnano.events import Event
     from xnano.expressions import Mouse, MouseExpressionScope
-    from xnano.geometry import Point
+    from xnano.layout import Point
 
     assert isinstance(Mouse, MouseExpressionScope)
     with xnano.new(width=20, height=2) as canvas:
         canvas.push(Event.mouse_event(column=4, row=1, kind='press', button='left'))
-        canvas.step(delta_seconds=0.1)
+        canvas.clock.step(delta_seconds=0.1)
         assert canvas.inspect(Mouse.position) == Point(4, 1)
     ```
     """
@@ -187,7 +187,7 @@ if TYPE_CHECKING:
 
     assert isinstance(Parent, ParentExpressionScope)
     with xnano.new(width=20, height=2) as canvas:
-        text = canvas.write('right', x=Parent.width - 5)
+        text = canvas.screen.write('right', x=Parent.width - 5)
         assert text.x == 15
     ```
     """
@@ -218,7 +218,7 @@ if TYPE_CHECKING:
     assert isinstance(Scroll, ScrollExpressionScope)
     with xnano.new(width=20, height=2) as canvas:
         canvas.push(Event.mouse_event(column=0, row=0, kind='scroll', scroll_y=3))
-        canvas.step(delta_seconds=0.1)
+        canvas.clock.step(delta_seconds=0.1)
         assert canvas.inspect(Scroll.y) == 3
     ```
     """
@@ -232,7 +232,7 @@ if TYPE_CHECKING:
     from xnano.expressions import X
 
     with xnano.open(width=60, height=6) as terminal:
-        terminal.write('placed by a formula', y=X % 3)
+        terminal.screen.write('placed by a formula', y=X % 3)
         terminal.run(quit_on='q')
     ```
     """
@@ -246,7 +246,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Y
 
     with xnano.open(width=60, height=6) as terminal:
-        terminal.write('placed by a formula', x=Y * 2)
+        terminal.screen.write('placed by a formula', x=Y * 2)
         terminal.run(quit_on='q')
     ```
     """
@@ -260,7 +260,7 @@ if TYPE_CHECKING:
     from xnano.expressions import ParentWidth, Width
 
     with xnano.open(width=60, height=6) as terminal:
-        terminal.write('placed by a formula', x=(ParentWidth - Width) // 2)
+        terminal.screen.write('placed by a formula', x=(ParentWidth - Width) // 2)
         terminal.run(quit_on='q')
     ```
     """
@@ -274,7 +274,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Height, ParentHeight
 
     with xnano.open(width=60, height=6) as terminal:
-        terminal.write('placed by a formula', y=ParentHeight - Height)
+        terminal.screen.write('placed by a formula', y=ParentHeight - Height)
         terminal.run(quit_on='q')
     ```
     """
@@ -288,7 +288,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Position
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -307,7 +307,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Size
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -326,7 +326,7 @@ if TYPE_CHECKING:
     from xnano.expressions import IsVisible
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -345,7 +345,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Focused
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -364,7 +364,7 @@ if TYPE_CHECKING:
     from xnano.expressions import ParentWidth, Width
 
     with xnano.open(width=60, height=6) as terminal:
-        terminal.write('placed by a formula', x=ParentWidth - Width)
+        terminal.screen.write('placed by a formula', x=ParentWidth - Width)
         terminal.run(quit_on='q')
     ```
     """
@@ -378,7 +378,7 @@ if TYPE_CHECKING:
     from xnano.expressions import ParentHeight
 
     with xnano.open(width=60, height=6) as terminal:
-        terminal.write('placed by a formula', y=ParentHeight - 1)
+        terminal.screen.write('placed by a formula', y=ParentHeight - 1)
         terminal.run(quit_on='q')
     ```
     """
@@ -392,7 +392,7 @@ if TYPE_CHECKING:
     from xnano.expressions import ParentSize
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -408,7 +408,7 @@ if TYPE_CHECKING:
 
     It is the whole window for a canvas that takes the whole window, the region below the
     prompt for a canvas opened with a ``height``, and the size of the canvas itself when the
-    canvas is not on the screen. [`Terminal.window`][xnano.terminal.Terminal.window] is the
+    canvas is not on the screen. [`Screen.window`][xnano.devices.Screen.window] is the
     size of the whole window, whatever the canvas takes of it.
 
     Maps to [`xnano_core.DeviceWidth`][xnano_core.DeviceWidth].
@@ -418,7 +418,7 @@ if TYPE_CHECKING:
     from xnano.expressions import TerminalWidth
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -434,7 +434,7 @@ if TYPE_CHECKING:
 
     It is the whole window for a canvas that takes the whole window, the region below the
     prompt for a canvas opened with a ``height``, and the size of the canvas itself when the
-    canvas is not on the screen. [`Terminal.window`][xnano.terminal.Terminal.window] is the
+    canvas is not on the screen. [`Screen.window`][xnano.devices.Screen.window] is the
     size of the whole window, whatever the canvas takes of it.
 
     Maps to [`xnano_core.DeviceHeight`][xnano_core.DeviceHeight].
@@ -444,7 +444,7 @@ if TYPE_CHECKING:
     from xnano.expressions import TerminalHeight
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -463,7 +463,7 @@ if TYPE_CHECKING:
     from xnano.expressions import BufferRegion
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -475,14 +475,14 @@ if TYPE_CHECKING:
 
     BufferSize = _CoreBufferSize
     """
-    The width and height of the canvas or renderable area at runtime, as a ``Size``.
+    The width and height of the canvas or placement at runtime, as a ``Size``.
 
     ```python
     import xnano
     from xnano.expressions import BufferSize
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -501,7 +501,7 @@ if TYPE_CHECKING:
     from xnano.expressions import ScreenPosition
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -520,7 +520,7 @@ if TYPE_CHECKING:
     from xnano.expressions import ScreenBounds
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -539,7 +539,7 @@ if TYPE_CHECKING:
     from xnano.expressions import ParentWidth, TimeElapsed, Width
 
     with xnano.open(width=60, height=6) as terminal:
-        ball = terminal.write('o', y=2)
+        ball = terminal.screen.write('o', y=2)
         ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
         terminal.run(quit_on='q')
     ```
@@ -554,7 +554,7 @@ if TYPE_CHECKING:
     from xnano.expressions import TimeElapsedMilliseconds
 
     with xnano.open(width=60, height=6) as terminal:
-        ball = terminal.write('o', y=2)
+        ball = terminal.screen.write('o', y=2)
         ball.x = TimeElapsedMilliseconds // 100 % 40
         terminal.run(quit_on='q')
     ```
@@ -569,7 +569,7 @@ if TYPE_CHECKING:
     from xnano.expressions import TimeDelta
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -588,7 +588,7 @@ if TYPE_CHECKING:
     from xnano.expressions import TimeDeltaMilliseconds
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -607,7 +607,7 @@ if TYPE_CHECKING:
     from xnano.expressions import FPS
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -626,7 +626,7 @@ if TYPE_CHECKING:
     from xnano.expressions import KeyboardKey
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('press a key')
+        label = terminal.screen.write('press a key')
 
         @terminal.hook(on='key')
         def show(context: xnano.Context) -> None:
@@ -645,7 +645,7 @@ if TYPE_CHECKING:
     from xnano.expressions import KeyboardKind
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('press a key')
+        label = terminal.screen.write('press a key')
 
         @terminal.hook(on='key')
         def show(context: xnano.Context) -> None:
@@ -664,7 +664,7 @@ if TYPE_CHECKING:
     from xnano.expressions import KeyboardBinding
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('press a key')
+        label = terminal.screen.write('press a key')
 
         @terminal.hook(on='key')
         def show(context: xnano.Context) -> None:
@@ -683,7 +683,7 @@ if TYPE_CHECKING:
     from xnano.expressions import MousePosition
 
     with xnano.open(width=60, height=6, mouse='motion') as terminal:
-        label = terminal.write('move or click the mouse')
+        label = terminal.screen.write('move or click the mouse')
 
         @terminal.hook(on='mouse')
         def show(context: xnano.Context) -> None:
@@ -702,7 +702,7 @@ if TYPE_CHECKING:
     from xnano.expressions import MouseButtonValue
 
     with xnano.open(width=60, height=6, mouse='motion') as terminal:
-        label = terminal.write('move or click the mouse')
+        label = terminal.screen.write('move or click the mouse')
 
         @terminal.hook(on='mouse')
         def show(context: xnano.Context) -> None:
@@ -721,7 +721,7 @@ if TYPE_CHECKING:
     from xnano.expressions import MouseKind
 
     with xnano.open(width=60, height=6, mouse='motion') as terminal:
-        label = terminal.write('move or click the mouse')
+        label = terminal.screen.write('move or click the mouse')
 
         @terminal.hook(on='mouse')
         def show(context: xnano.Context) -> None:
@@ -740,9 +740,9 @@ if TYPE_CHECKING:
     from xnano.expressions import MouseIsDown
 
     with xnano.open(width=60, height=6, mouse=True) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
-        @terminal.hook(on='mouse', when=MouseIsDown)
+        @terminal.hook(on=MouseIsDown)
         def react(context: xnano.Context) -> None:
             label.text = 'a button is down'
 
@@ -759,7 +759,7 @@ if TYPE_CHECKING:
     from xnano.expressions import PointerPosition
 
     with xnano.open(width=60, height=6, mouse='motion') as terminal:
-        label = terminal.write('move or click the mouse')
+        label = terminal.screen.write('move or click the mouse')
 
         @terminal.hook(on='mouse')
         def show(context: xnano.Context) -> None:
@@ -778,7 +778,7 @@ if TYPE_CHECKING:
     from xnano.expressions import ScrollX
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -797,7 +797,7 @@ if TYPE_CHECKING:
     from xnano.expressions import ScrollY
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -816,7 +816,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Parent, Width
 
     with xnano.open(width=60, height=6) as terminal:
-        terminal.write('placed by a formula', x=Parent.width - Width)
+        terminal.screen.write('placed by a formula', x=Parent.width - Width)
         terminal.run(quit_on='q')
     ```
     """
@@ -830,7 +830,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Root
 
     with xnano.open(width=60, height=6) as terminal:
-        terminal.write('placed by a formula', x=Root.width // 2)
+        terminal.screen.write('placed by a formula', x=Root.width // 2)
         terminal.run(quit_on='q')
     ```
     """
@@ -844,7 +844,7 @@ if TYPE_CHECKING:
     from xnano.expressions import BufferExpressions
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
@@ -863,7 +863,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Keyboard
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('press a key')
+        label = terminal.screen.write('press a key')
 
         @terminal.hook(on='key')
         def show(context: xnano.Context) -> None:
@@ -882,7 +882,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Mouse
 
     with xnano.open(width=60, height=6, mouse='motion') as terminal:
-        label = terminal.write('move or click the mouse')
+        label = terminal.screen.write('move or click the mouse')
 
         @terminal.hook(on='mouse')
         def show(context: xnano.Context) -> None:
@@ -901,7 +901,7 @@ if TYPE_CHECKING:
     from xnano.expressions import Scroll
 
     with xnano.open(width=60, height=6) as terminal:
-        label = terminal.write('')
+        label = terminal.screen.write('')
 
         @terminal.hook(on='tick', every=0.5)
         def show(context: xnano.Context) -> None:
