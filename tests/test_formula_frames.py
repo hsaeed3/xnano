@@ -1,7 +1,7 @@
 """
 tests.test_formula_frames
 
-A canvas whose formulas do not read the clock goes idle, and one that does keeps drawing.
+A canvas whose expressions do not read the clock goes idle, and one that does keeps drawing.
 """
 
 from __future__ import annotations

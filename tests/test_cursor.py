@@ -132,10 +132,10 @@ class TestCursor:
         ):
             canvas.screen.cursor.follow(region)
 
-    def test_moving_stops_following_and_unfollow_leaves_the_cursor_in_place(self, canvas):
+    def test_moving_or_stop_following_leaves_the_cursor_in_place(self, canvas):
         field = canvas.screen.write('name', x=5, y=1)
         canvas.screen.cursor.follow(field)
-        canvas.screen.cursor.unfollow()
+        canvas.screen.cursor.stop_following()
         field.x = 9
         assert canvas.screen.cursor.position == Point(5, 1)
         canvas.screen.cursor.follow(field)

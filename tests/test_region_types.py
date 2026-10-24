@@ -51,20 +51,20 @@ def test_every_view_and_maker_of_a_region_on_the_screen_keeps_it_whole():
         assert_type(region[0:2, 0:1], Region[int])
         assert_type(region.copy(), Region[int])
         assert len(range(region.braille.width)) == 16
-    assert_type(xnano.write('a'), Region[int])
+    assert_type(xnano.region('a'), Region[int])
     assert_type(xnano.box(3, 3), Region[int])
     assert len(range(xnano.box(3, 3).width)) == 3
 
 
 def test_a_region_on_the_timeline_has_fractional_coordinates():
-    region = xnano.note('C4', beats=1.5).region
+    region = xnano.Note('C4', beats=1.5).region
     assert_type(region, Region[float])
     assert_type(region.x, float)
     assert_type(region.width, float)
     assert_type(region.y, int)
     assert_type(region.height, int)
     assert_type(region.beats, Region[float])
-    assert_type(region.ticks, Region[float])
+    assert_type(region.sixteenths, Region[float])
     assert_type(region.milliseconds, Region[float])
 
     assert region.width == 1.5
@@ -78,13 +78,13 @@ def test_a_region_without_a_type_parameter_accepts_either_medium():
 
     with xnano.new(width=8, height=3) as canvas:
         assert far_edge(canvas.screen.region) == 8
-    assert far_edge(xnano.note('C4', beats=2).region) == 2.0
+    assert far_edge(xnano.Note('C4', beats=2).region) == 2.0
 
 
 def test_the_region_of_a_context_is_either_medium_and_its_buffer_is_on_the_screen():
     def read(context: xnano.Context) -> None:
         assert_type(context.region, Region[float])
-        assert_type(context.buffer.region, Region[int])
+        assert_type(context.target.region, Region[int])
         assert_type(context.size.width, int)
 
     assert callable(read)

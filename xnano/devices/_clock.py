@@ -1,8 +1,8 @@
 """
 xnano.devices._clock
 
-The clock of a terminal: how long it has run, whether it is stopped, the rate it draws at, its
-tempo and musical beats, and the formulas that follow it.
+The clock of a terminal: how long it has run, whether it is paused, the rate it draws at, its
+tempo and musical beats, and the expressions that follow it.
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
 __all__ = ['Beats', 'Clock']
 
-_STOPPED_POLL: Final = 0.05
-"""How often, in seconds, a wait on a stopped clock looks whether time runs again."""
+_PAUSED_POLL: Final = 0.05
+"""How often, in seconds, a wait on a paused clock looks whether time runs again."""
 
 
 class Clock:
@@ -27,35 +27,32 @@ class Clock:
     The clock of a terminal: the time everything that moves follows.
 
     Get it from [`Canvas.clock`][xnano.canvas.Canvas.clock], or from ``context.clock`` inside
-    a hook. Animations, effects, formulas, [`hook`][xnano.canvas.Canvas.hook] timers (``every``
+    a hook. Animations, effects, expressions, [`hook`][xnano.canvas.Canvas.hook] timers (``every``
     and ``after``), fixed-step updates, the frame rate and the musical beat all follow it. Any
-    thread may read it. Used in arithmetic it is the formula for
-    [`seconds`][xnano.devices.Clock.seconds], so ``canvas.clock / 2`` is a value that follows
-    the clock. [`stop`][xnano.devices.Clock.stop] freezes all of them while input keeps
-    arriving, [`step`][xnano.devices.Clock.step] moves a clock one frame at a time, and
+    thread may read it. Used in arithmetic it is the expression
+    [`TimeElapsed`][xnano.expressions.TimeElapsed], so ``canvas.clock / 2`` is a value that
+    follows the clock. [`pause`][xnano.devices.Clock.pause] freezes all of them while input
+    keeps arriving, [`step`][xnano.devices.Clock.step] moves a clock one frame at a time, and
     [`sleep`][xnano.devices.Clock.sleep] waits until some of its time has passed.
 
-    ``elapsed``, ``delta`` and ``measured_fps`` are numbers you read now; ``seconds`` and
-    ``milliseconds`` are formulas that a placement keeps following. A
-    [`Frame`][xnano.hooks.Frame] carries the same numbers as ``elapsed_seconds`` and
-    ``delta_seconds``. ``fps`` is the most frames the canvas draws per second, and
+    ``elapsed_seconds``, ``delta_seconds`` and ``measured_fps`` are numbers you read now; the
+    expressions a placement keeps following, such as ``TimeElapsed``, are in
+    [`xnano.expressions`][xnano.expressions]. A [`Frame`][xnano.hooks.Frame] carries the same
+    numbers. ``fps`` is the most frames the canvas draws per second, and
     ``measured_fps`` the rate it reached over recent frames.
 
     Attributes:
-        elapsed: Seconds since the canvas started, not counting time spent stopped.
+        elapsed_seconds: Seconds since the canvas started, not counting time spent paused.
         elapsed_milliseconds: The same, in milliseconds.
-        delta: Seconds between the two most recent frames.
+        delta_seconds: Seconds between the two most recent frames.
         frame: The number of steps the clock has counted.
         fps: The most frames drawn per second, and the rate ``iter`` aims for.
         measured_fps: The frame rate measured over recent frames.
         bpm: Beats per minute: the length of a beat for beat timers, notes and melodies.
         beats: The musical clock: its position in beats, started and stopped on its own.
-        is_stopped: Whether time is frozen.
+        is_paused: Whether time is frozen.
         is_realtime: Whether time follows the wall clock. A canvas from ``xnano.new()``
             without ``realtime=True`` moves only when you move it.
-        seconds: A formula for [`elapsed`][xnano.devices.Clock.elapsed], recomputed every frame.
-        milliseconds: A formula for
-            [`elapsed_milliseconds`][xnano.devices.Clock.elapsed_milliseconds].
 
     Examples:
         ```python
@@ -63,13 +60,13 @@ class Clock:
 
         with xnano.new(width=20, height=1) as canvas:
             ball = canvas.screen.write('o')
-            ball.x = (canvas.screen.width - 1) * ((canvas.clock.seconds / 2) % 1.0)
+            ball.x = (canvas.screen.width - 1) * ((canvas.clock / 2) % 1.0)
             canvas.clock.step(delta_seconds=1.0)
-            assert canvas.clock.elapsed == 1.0
-            canvas.clock.stop()
-            assert canvas.clock.is_stopped
+            assert canvas.clock.elapsed_seconds == 1.0
+            canvas.clock.pause()
+            assert canvas.clock.is_paused
             canvas.clock.step(delta_seconds=0.5)
-            assert canvas.clock.elapsed == 1.5
+            assert canvas.clock.elapsed_seconds == 1.5
         ```
     """
 
@@ -83,17 +80,17 @@ class Clock:
         self._canvas = canvas
 
     @property
-    def elapsed(self) -> float:
-        """Seconds since the canvas started, not counting time spent stopped."""
+    def elapsed_seconds(self) -> float:
+        """Seconds since the canvas started, not counting time spent paused."""
         return self._canvas._time_source.elapsed_seconds
 
     @property
     def elapsed_milliseconds(self) -> float:
-        """Milliseconds since the canvas started, not counting time spent stopped."""
+        """Milliseconds since the canvas started, not counting time spent paused."""
         return self._canvas._time_source.elapsed_milliseconds
 
     @property
-    def delta(self) -> float:
+    def delta_seconds(self) -> float:
         """Seconds between the two most recent frames."""
         return self._canvas._time_source.delta_seconds
 
@@ -159,8 +156,8 @@ class Clock:
         return Beats(self._canvas)
 
     @property
-    def is_stopped(self) -> bool:
-        """Whether time is frozen by [`stop`][xnano.devices.Clock.stop]."""
+    def is_paused(self) -> bool:
+        """Whether time is frozen by [`pause`][xnano.devices.Clock.pause]."""
         return self._canvas._time_source.is_stopped
 
     @property
@@ -168,24 +165,14 @@ class Clock:
         """Whether time follows the wall clock instead of moving only when you move it."""
         return self._canvas._time_source.source == 'monotonic'
 
-    @property
-    def seconds(self) -> _core.NumericValue:
-        """A formula for the elapsed seconds, recomputed every frame."""
-        return _core.TimeElapsed
-
-    @property
-    def milliseconds(self) -> _core.NumericValue:
-        """A formula for the elapsed milliseconds, recomputed every frame."""
-        return _core.TimeElapsedMilliseconds
-
-    def stop(self) -> None:
+    def pause(self) -> None:
         """
         Freeze time.
 
-        Animations, effects, formulas, timers, fixed-step updates and the musical beat stand
+        Animations, effects, expressions, timers, fixed-step updates and the musical beat stand
         still. The canvas still draws and input still arrives, so a key can
         [`resume`][xnano.devices.Clock.resume] it, and [`step`][xnano.devices.Clock.step] moves it one
-        frame at a time. Stopping a stopped canvas does nothing.
+        frame at a time. Pausing a paused canvas does nothing.
 
         Raises:
             TerminalClosedError: The canvas is closed.
@@ -201,9 +188,9 @@ class Clock:
 
     def resume(self) -> None:
         """
-        Let time run on from where [`stop`][xnano.devices.Clock.stop] froze it.
+        Let time run on from where [`pause`][xnano.devices.Clock.pause] froze it.
 
-        Resuming a canvas that is not stopped does nothing.
+        Resuming a canvas that is not paused does nothing.
 
         Raises:
             TerminalClosedError: The canvas is closed.
@@ -235,8 +222,8 @@ class Clock:
         Wait until ``seconds`` of the canvas's time have passed, while it goes on drawing.
 
         On a canvas that runs by itself (on the screen, or ``realtime=True``) your program waits
-        here, like ``time.sleep``, while animations, hooks and input go on. Time spent stopped
-        does not count, so on a stopped canvas the wait goes on until it is resumed. On a canvas
+        here, like ``time.sleep``, while animations, hooks and input go on. Time spent paused
+        does not count, so on a paused canvas the wait goes on until it is resumed. On a canvas
         from ``new()`` the clock moves ``seconds`` at once, one frame of its ``fps`` at a time,
         so the hooks, timers and animations due in that time run as they would have.
 
@@ -249,7 +236,7 @@ class Clock:
             ValueError: ``seconds`` is negative or not a finite number.
             TerminalError: It was called from a hook of a canvas that runs by itself, where
                 waiting would freeze the screen; or the canvas has a manual clock that is
-                stopped, so the time would never pass.
+                paused, so the time would never pass.
             TerminalClosedError: The canvas is closed.
 
         Examples:
@@ -260,7 +247,7 @@ class Clock:
                 ticks = []
                 canvas.hook(lambda: ticks.append(1), on='tick', every=0.5)
                 canvas.clock.sleep(2)
-                assert round(canvas.clock.elapsed, 6) == 2.0 and len(ticks) == 4
+                assert round(canvas.clock.elapsed_seconds, 6) == 2.0 and len(ticks) == 4
             ```
         """
         canvas = self._check_sleep(seconds)
@@ -272,7 +259,7 @@ class Clock:
                 if remaining <= 0:
                     return
                 canvas._stop_requested.wait(
-                    _STOPPED_POLL if clock.is_stopped else remaining
+                    _PAUSED_POLL if clock.is_stopped else remaining
                 )
             return
         for delta in self._manual_steps(canvas, seconds):
@@ -294,9 +281,9 @@ class Clock:
 
             async def main() -> float:
                 async with xnano.new(realtime=True, width=8, height=1) as canvas:
-                    start = canvas.clock.elapsed
+                    start = canvas.clock.elapsed_seconds
                     await canvas.clock.sleep_async(0.05)
-                    return canvas.clock.elapsed - start
+                    return canvas.clock.elapsed_seconds - start
 
 
             assert asyncio.run(main()) >= 0.05
@@ -313,7 +300,7 @@ class Clock:
                 if remaining <= 0:
                     return
                 await canvas._stop_requested.wait_async(
-                    _STOPPED_POLL if clock.is_stopped else remaining
+                    _PAUSED_POLL if clock.is_stopped else remaining
                 )
             return
         for delta in self._manual_steps(canvas, seconds):
@@ -347,7 +334,7 @@ class Clock:
         if not canvas._host.is_autonomous and canvas._time_source.is_stopped and seconds:
             raise TerminalError(
                 f'sleep({seconds:g}) would never end: this canvas has a manual clock, and its '
-                f'time is stopped. Call canvas.clock.resume() first, or move the stopped clock '
+                f'time is paused. Call canvas.clock.resume() first, or move the paused clock '
                 f'with canvas.clock.step().'
             )
         return canvas
@@ -379,52 +366,52 @@ class Clock:
         return steps
 
     def __add__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__add__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__add__(other)  # type: ignore[operator]
 
     def __radd__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__radd__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__radd__(other)  # type: ignore[operator]
 
     def __sub__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__sub__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__sub__(other)  # type: ignore[operator]
 
     def __rsub__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__rsub__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__rsub__(other)  # type: ignore[operator]
 
     def __mul__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__mul__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__mul__(other)  # type: ignore[operator]
 
     def __rmul__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__rmul__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__rmul__(other)  # type: ignore[operator]
 
     def __truediv__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__truediv__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__truediv__(other)  # type: ignore[operator]
 
     def __rtruediv__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__rtruediv__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__rtruediv__(other)  # type: ignore[operator]
 
     def __floordiv__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__floordiv__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__floordiv__(other)  # type: ignore[operator]
 
     def __rfloordiv__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__rfloordiv__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__rfloordiv__(other)  # type: ignore[operator]
 
     def __mod__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__mod__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__mod__(other)  # type: ignore[operator]
 
     def __rmod__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__rmod__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__rmod__(other)  # type: ignore[operator]
 
     def __pow__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__pow__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__pow__(other)  # type: ignore[operator]
 
     def __rpow__(self, other: object) -> _core.NumericValue:
-        return self.seconds.__rpow__(other)  # type: ignore[operator]
+        return _core.TimeElapsed.__rpow__(other)  # type: ignore[operator]
 
     def __neg__(self) -> _core.NumericValue:
-        return -self.seconds
+        return -_core.TimeElapsed
 
     def __repr__(self) -> str:
-        return f'Clock(elapsed={self.elapsed:.3f}, is_stopped={self.is_stopped})'
+        return f'Clock(elapsed_seconds={self.elapsed_seconds:.3f}, is_paused={self.is_paused})'
 
 
 class Beats:
@@ -432,7 +419,7 @@ class Beats:
     The musical clock of a terminal: where the music is, in beats.
 
     Get it from ``clock.beats``. It counts beats at the clock's ``bpm`` from when it is
-    started, and stands still while it is paused or the whole clock is stopped. Notes and
+    started, and stands still while it is paused or the whole clock is paused. Notes and
     melodies played with ``at_beat`` wait for it.
 
     Attributes:
@@ -447,7 +434,7 @@ class Beats:
             ball.x = (canvas.clock.beats.position % 1) * 19
             canvas.clock.beats.start()
             canvas.clock.step(delta_seconds=0.25)
-            assert canvas.inspect(canvas.clock.beats.position) == 0.5
+            assert canvas.evaluate(canvas.clock.beats.position) == 0.5
         ```
     """
 
@@ -484,6 +471,6 @@ class Beats:
         Stop the musical clock and return it to the first beat.
 
         This rewinds only the musical clock. To freeze the whole canvas, this clock included,
-        use [`Clock.stop`][xnano.devices.Clock.stop].
+        use [`Clock.pause`][xnano.devices.Clock.pause].
         """
         self._canvas._audio_device().stop()

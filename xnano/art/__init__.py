@@ -22,7 +22,7 @@ from xnano.art._images import load_image as load_image
 from xnano.art._pixels import Pixel as Pixel
 from xnano.art._worlds import Art as Art
 from xnano.art._worlds import Camera as Camera
-from xnano.art._worlds import draw as draw
+from xnano.art._worlds import pixel_art as pixel_art
 
 __all__ = [
     'Art',
@@ -33,6 +33,6 @@ __all__ = [
     'PixelEncoding',
     'PixelPreset',
     'ResamplingFilter',
-    'draw',
+    'pixel_art',
     'load_image',
 ]

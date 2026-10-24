@@ -78,7 +78,7 @@ class TestArtText:
         assert ArtText.from_art(text.to_art()) is text
 
     def test_other_art_is_read_from_its_pixels(self):
-        art = xnano.draw(['#.', '##'], {'#': '#102030'})
+        art = xnano.pixel_art(['#.', '##'], {'#': '#102030'})
         read = ArtText.from_art(art)
         assert read.rows == ('a.', 'aa')
         assert read.palette['a'] == PaletteColor('outline', '#102030')

@@ -28,13 +28,13 @@ def canvas():
 
 class TestStandalone:
     def test_write_makes_a_region_the_size_of_its_text(self):
-        region = xnano.write('hello\nworld!')
+        region = xnano.region('hello\nworld!')
         assert isinstance(region, Region)
         assert (region.width, region.height) == (6, 2)
         assert region.render().split('\n') == ['hello', 'world!']
 
     def test_write_takes_the_look_of_text(self):
-        card = xnano.write('hi', border='rounded', padding={'horizontal': 1})
+        card = xnano.region('hi', border='rounded', padding={'horizontal': 1})
         assert (card.width, card.height) == (6, 3)
         assert card.render().split('\n') == ['╭────╮', '│ hi │', '╰────╯']
         card.border.title = 'T'
@@ -43,7 +43,7 @@ class TestStandalone:
         assert card.render().strip() == 'hi'
 
     def test_a_per_side_border_on_a_standalone_region(self):
-        card = xnano.write('hi', border='plain')
+        card = xnano.region('hi', border='plain')
         card.border.top = 'double'
         card.border.left = False
         assert card.render().split('\n') == ['══╗', 'hi│', '──┘']
@@ -76,10 +76,10 @@ class TestStandalone:
 
     def test_an_unknown_look_is_named(self):
         with pytest.raises(TypeError, match='no setting called'):
-            xnano.write('x', bordr='plain')  # type: ignore[call-arg]
+            xnano.region('x', bordr='plain')  # type: ignore[call-arg]
 
     def test_a_standalone_region_has_its_screen_origin_at_zero(self):
-        region = xnano.write('abc')
+        region = xnano.region('abc')
         assert (region.x, region.y) == (0, 0)
         assert (0, 0) in region and (2, 0) in region
         assert (3, 0) not in region and (0, 1) not in region
@@ -94,14 +94,14 @@ class TestStandalone:
             region.resize(0, 1)
 
     def test_a_text_region_is_sized_by_its_text(self):
-        region = xnano.write('hi', border='rounded')
+        region = xnano.region('hi', border='rounded')
         with pytest.raises(TerminalError, match='sized by its text'):
             region.resize(10, 5)
         region.border.color = 'red'
         assert (region.width, region.height) == (4, 3)
 
     def test_a_region_written_into_a_canvas_is_a_snapshot(self, canvas):
-        region = xnano.write('abc')
+        region = xnano.region('abc')
         placement = canvas.screen.write(region)
         region[0, 0] = 'Z'
         canvas.clock.step()
@@ -113,7 +113,7 @@ class TestStandalone:
         second.remove()
 
     def test_changing_a_written_region_leaves_the_placement_look_alone(self, canvas):
-        region = xnano.write('abc')
+        region = xnano.region('abc')
         placement = canvas.screen.write(region)
         region.border = 'double'
         placement.border = 'plain'
@@ -130,7 +130,7 @@ class TestStandalone:
         assert box[0, 0].character == '╔'
 
     def test_copy_is_independent(self):
-        region = xnano.write('abc', border='plain')
+        region = xnano.region('abc', border='plain')
         copy = region.copy()
         region[1, 1] = 'Z'
         assert copy[1, 1].character == 'a'
@@ -138,11 +138,11 @@ class TestStandalone:
         assert region.border.kind == 'plain'
 
     def test_a_region_can_be_printed(self):
-        text = xnano.write('hi', foreground='red').render(format='ansi')
+        text = xnano.region('hi', foreground='red').render(format='ansi')
         assert '\x1b[' in text and 'hi' in text
 
     def test_a_region_prints_as_its_text(self, capsys):
-        card = xnano.write('hi', border='rounded')
+        card = xnano.region('hi', border='rounded')
         assert str(card) == card.render()
         print(card)  # noqa: T201
         assert capsys.readouterr().out.splitlines() == ['╭──╮', '│hi│', '╰──╯']
@@ -331,11 +331,11 @@ class TestIndexing:
         assert canvas.screen.render().split('\n')[:2] == ['░░░', '░░░']
 
     def test_content_covers_a_slice_and_a_cell_refuses_it(self, canvas):
-        canvas.screen.region[2:6, 1:3] = xnano.write('xy')
+        canvas.screen.region[2:6, 1:3] = xnano.region('xy')
         canvas.clock.step()
         assert canvas.screen.render().split('\n')[1].startswith('  xy')
         with pytest.raises(TypeError, match='two slices'):
-            canvas.screen.region[0, 0] = xnano.write('x')
+            canvas.screen.region[0, 0] = xnano.region('x')
 
     def test_the_original_cells_are_read_as_pixels(self, canvas):
         found = canvas.screen.region[0, 0]
@@ -467,21 +467,21 @@ class TestCoordinates:
         with pytest.raises(TypeError, match='takes a Point'):
             card.local((1, 1))  # type: ignore[arg-type]
         with pytest.raises(TypeError, match=r'canvas\.screen\.write\(region, x=1\)'):
-            xnano.write('a', x=1)  # type: ignore[call-arg]
+            xnano.region('a', x=1)  # type: ignore[call-arg]
         with pytest.raises(TypeError, match=r'canvas\.screen\.write\(region, width=1\)'):
             xnano.box(2, 2, width=1)  # type: ignore[call-arg]
 
     def test_write_and_box_say_what_they_take(self):
-        with pytest.raises(TypeError, match=r'xnano\.write\(\) takes text'):
-            xnano.write(5)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match=r'xnano\.region\(\) takes text'):
+            xnano.region(5)  # type: ignore[arg-type]
         with pytest.raises(TypeError, match='canvas.screen.write'):
-            xnano.write({'a': 1})  # type: ignore[arg-type]
+            xnano.region({'a': 1})  # type: ignore[arg-type]
 
     def test_a_standalone_region_is_shaded_through_its_colors(self):
         card = xnano.box(6, 3)
         card.color.bg.shade(lambda x, y: (x * 40, y * 40, 0))
         assert card[5, 2].background.to_rgb() == (200, 80, 0)
-        label = xnano.write('hi', foreground='red')
+        label = xnano.region('hi', foreground='red')
         label.color.fg.shade(lambda x, y: (x * 40, y * 40, 0))
         assert label[1, 0].foreground.to_rgb() == (40, 0, 0)
 
@@ -507,7 +507,7 @@ class TestBoxArgumentsTeach:
         with pytest.raises(ValueError, match='is not a border kind'):
             xnano.box(4, 2, border='single')  # type: ignore[arg-type]
         with pytest.raises(ValueError, match='is not a border kind'):
-            xnano.write('a', border='single')  # type: ignore[arg-type]
+            xnano.region('a', border='single')  # type: ignore[arg-type]
 
     def test_a_color_modifier_or_title_of_the_wrong_type_is_refused(self):
         with pytest.raises((TypeError, ValueError), match='foreground must be a color'):
@@ -519,9 +519,9 @@ class TestBoxArgumentsTeach:
 
     def test_a_placement_keyword_hint_gives_a_working_example(self):
         with pytest.raises(TypeError, match=r"effects=\[\{'kind': 'effect.fade_to'"):
-            xnano.write('a', effects=1)  # type: ignore[call-arg]
+            xnano.region('a', effects=1)  # type: ignore[call-arg]
         with pytest.raises(TypeError, match=r'lock=True'):
-            xnano.write('a', lock=1)  # type: ignore[call-arg]
+            xnano.region('a', lock=1)  # type: ignore[call-arg]
 
 
 class TestBoxSizes:
@@ -572,14 +572,14 @@ class TestBoxSizes:
         assert xnano.box(3, 2).width == 3
 
     def test_a_copy_keeps_the_relative_size_and_a_resize_makes_it_whole_cells(self):
-        formula = ParentWidth - 30
+        expression = ParentWidth - 30
         with xnano.new(width=40, height=10):
-            region = xnano.box('50%', formula)
+            region = xnano.box('50%', expression)
         assert (region.width, region.height) == (20, 10)
         kept = region.copy()._box_size
         assert kept is not None
         assert isinstance(kept[0], str) and kept[0] == '50%'
-        assert kept[1] is formula
+        assert kept[1] is expression
         region.resize(7, 3)
         assert (region.width, region.height) == (7, 3)
         assert region.copy()._box_size == (7, 3)
@@ -926,11 +926,11 @@ class TestTimeline:
         assert (region.x, region.width) == (1.0, 2.0)
         assert (region.y, region.height) == (60, 8)
 
-    def test_ticks_are_sixteenth_notes_four_to_a_beat(self):
-        ticks = _chord_region().ticks
-        assert ticks.resolution == 'ticks'
-        assert (ticks.x, ticks.width) == (4.0, 8.0)
-        assert (ticks.y, ticks.height) == (60, 8)
+    def test_sixteenths_are_four_to_a_beat(self):
+        sixteenths = _chord_region().sixteenths
+        assert sixteenths.resolution == 'sixteenths'
+        assert (sixteenths.x, sixteenths.width) == (4.0, 8.0)
+        assert (sixteenths.y, sixteenths.height) == (60, 8)
 
     def test_milliseconds_follow_the_tempo(self):
         steady = _chord_region(tempo_changes=((0.0, 120.0),)).milliseconds
@@ -950,7 +950,7 @@ class TestTimeline:
         assert (_chord_region(pitches=[67, 60, 64]).y, _chord_region().height) == (60, 8)
         single = _chord_region(pitches=[72])
         assert (single.y, single.height) == (72, 1)
-        for view in (single.ticks, single.milliseconds):
+        for view in (single.sixteenths, single.milliseconds):
             assert (view.y, view.height) == (72, 1)
 
     def test_no_pitches_span_no_semitones(self):
@@ -977,12 +977,12 @@ class TestTimeline:
 
     def test_a_view_carries_the_span(self):
         region = _chord_region()
-        assert region.beats.ticks.milliseconds.ticks.x == 4.0
+        assert region.beats.sixteenths.milliseconds.sixteenths.x == 4.0
         assert repr(region) == (
             "Region(timeline, x=1.0, width=2.0, y=60, height=8, resolution='beats')"
         )
-        assert repr(region.ticks) == (
-            "Region(timeline, x=4.0, width=8.0, y=60, height=8, resolution='ticks')"
+        assert repr(region.sixteenths) == (
+            "Region(timeline, x=4.0, width=8.0, y=60, height=8, resolution='sixteenths')"
         )
 
     def test_a_beat_and_a_pitch_are_in_the_region_in_its_own_grid(self):
@@ -990,7 +990,7 @@ class TestTimeline:
         assert (1, 60) in region and (1.5, 67) in region and (2.999, 63.5) in region
         assert (0.999, 60) not in region and (3, 60) not in region
         assert (1, 59) not in region and (1, 68) not in region
-        assert (4, 60) in region.ticks and (3.9, 60) not in region.ticks
+        assert (4, 60) in region.sixteenths and (3.9, 60) not in region.sixteenths
         assert (500, 64) in region.milliseconds and (2000, 64) not in region.milliseconds
 
     def test_anything_but_a_pair_of_numbers_is_not_in_the_region(self):
@@ -1011,7 +1011,7 @@ class TestTimeline:
     def test_local_is_relative_to_the_start_and_the_lowest_pitch(self):
         region = _chord_region()
         assert region.local((1.5, 62)) == (0.5, 2)
-        assert region.ticks.local((6, 60)) == (2, 0)
+        assert region.sixteenths.local((6, 60)) == (2, 0)
         assert region.milliseconds.local((750.0, 64)) == (250.0, 4)
 
     def test_local_takes_a_pair_on_the_timeline_and_a_point_on_the_screen(self, canvas):
@@ -1083,7 +1083,7 @@ class TestTimeline:
 
     def test_the_views_of_a_region_on_the_timeline_refuse_the_screen_too(self):
         for view in (
-            _chord_region().ticks,
+            _chord_region().sixteenths,
             _chord_region().milliseconds,
             _chord_region().beats,
         ):
@@ -1098,7 +1098,7 @@ class TestTimeline:
         assert (
             'region.half_blocks is a view of a region on the screen, but this region is on '
             'the timeline: beats by semitones, from a Note, a Melody, audio or the '
-            'context of a playable. On the timeline read region.beats, region.ticks or '
+            'context of a playable. On the timeline read region.beats, region.sixteenths or '
             'region.milliseconds, and x, y, width and height.'
         ) in message
         with pytest.raises(
@@ -1116,7 +1116,7 @@ class TestTimeline:
         self, canvas
     ):
         with pytest.raises(TerminalError) as caught:
-            canvas.screen.write(xnano.note('C4').region)
+            canvas.screen.write(xnano.Note('C4').region)
         message = str(caught.value)
         assert (
             'canvas.screen.write() draws the cells of a region on the screen' in message
@@ -1132,23 +1132,23 @@ class TestTimeline:
     def test_str_of_a_region_on_the_timeline_is_its_repr(self):
         region = _chord_region()
         assert str(region) == repr(region)
-        assert f'{region.ticks}' == repr(region.ticks)
-        assert str(xnano.note('C4').region).startswith(
+        assert f'{region.sixteenths}' == repr(region.sixteenths)
+        assert str(xnano.Note('C4').region).startswith(
             'Region(timeline, x=0.0, width=1.0'
         )
 
     def test_str_of_a_region_on_the_screen_is_its_characters(self, canvas):
-        assert str(xnano.write('hi')) == 'hi'
+        assert str(xnano.region('hi')) == 'hi'
         assert str(canvas.screen.region) == canvas.screen.region.render()
 
-    @pytest.mark.parametrize('name', ['beats', 'ticks', 'milliseconds'])
+    @pytest.mark.parametrize('name', ['beats', 'sixteenths', 'milliseconds'])
     def test_a_region_on_the_screen_refuses_the_timeline_views(self, canvas, name):
         for region in (
             canvas.screen.region,
             canvas.screen.region.braille,
             canvas.screen.region[0:3, 0:2],
             xnano.box(4, 2),
-            xnano.write('hi'),
+            xnano.region('hi'),
         ):
             with pytest.raises(TerminalError, match='screen') as caught:
                 getattr(region, name)
@@ -1164,7 +1164,7 @@ class TestTimeline:
         assert canvas.screen.region.braille.size == Size(24, 20)
         assert canvas.screen.region.braille.cells.size == Size(12, 5)
         assert canvas.screen.region[2:5, 1:3].size == Size(3, 2)
-        assert xnano.write('hello\nworld!').size == Size(6, 2)
+        assert xnano.region('hello\nworld!').size == Size(6, 2)
 
     def test_a_screen_region_still_has_whole_number_coordinates(self, canvas):
         label = canvas.screen.write('abcd', x=3, y=2)

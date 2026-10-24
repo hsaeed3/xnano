@@ -77,7 +77,7 @@ class TerminalSettings(TypedDict, total=False):
             On by default.
         capture: Whether text printed while the screen is in use is held back and printed
             when the canvas closes. On by default.
-        clear: Whether what was drawn is erased when the canvas closes. On by default.
+        clears_on_close: Whether what was drawn is erased when the canvas closes. On by default.
         alternate_screen: Whether a full-window canvas draws on the alternate screen, so the
             shell's history comes back untouched. On by default.
     """
@@ -96,7 +96,7 @@ class TerminalSettings(TypedDict, total=False):
     """Whether ``Ctrl-C`` ends the loop."""
     capture: bool
     """Whether printed text is held back while the screen is in use."""
-    clear: bool
+    clears_on_close: bool
     """Whether what was drawn is erased when the canvas closes."""
     alternate_screen: bool
     """Whether a full-window canvas draws on the alternate screen."""
@@ -112,7 +112,7 @@ class CanvasSettings(TerminalSettings, CanvasAppearanceArguments, total=False):
 
     Attributes:
         mouse: See [`TerminalSettings`][xnano.terminal.TerminalSettings]; the same for ``scroll``,
-            ``keyboard``, ``paste``, ``focus``, ``interrupt``, ``capture``, ``clear`` and
+            ``keyboard``, ``paste``, ``focus``, ``interrupt``, ``capture``, ``clears_on_close`` and
             ``alternate_screen``.
         background: See [`CanvasAppearanceArguments`][xnano.styles.CanvasAppearanceArguments];
             the same for the other appearance keys.

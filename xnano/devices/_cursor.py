@@ -325,7 +325,7 @@ class Cursor(_SealedAttributes):
         self._canvas._cursor_follow = (buffer, x, y)
         return self
 
-    def unfollow(self) -> Cursor:
+    def stop_following(self) -> Cursor:
         """Stop following a placement or buffer, leaving the cursor where it is."""
         source = self._source
         current = source.position

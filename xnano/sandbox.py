@@ -6,8 +6,8 @@ Run untrusted Python, such as code written by a language model, against a canvas
 The code runs in [Monty](https://github.com/pydantic/monty), a sandboxed Python
 interpreter, which cannot reach the files, the network or this program. Inside it, the code
 imports a small ``xnano`` module that draws on the canvas you give it, through its devices:
-``canvas.screen.write``, ``canvas.speaker.play``, ``canvas.clock.step`` and ``draw``, with
-``canvas`` and ``draw`` already defined.
+``canvas.screen.write``, ``canvas.speaker.play``, ``canvas.clock.step`` and ``pixel_art``, with
+``canvas`` and ``pixel_art`` already defined.
 [`SANDBOX_STUBS`][xnano.sandbox.SANDBOX_STUBS] is that module's whole interface, and every
 program is type-checked against it before it runs.
 
@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Final, Literal, cast, get_args
 
 import xnano_core as _core
 from xnano._internal._optional import require
-from xnano.art._worlds import Art, draw
+from xnano.art._worlds import Art, pixel_art
 from xnano.canvas import Canvas
 from xnano.layout._placement import Placement
 
@@ -68,7 +68,7 @@ class Clock:
     """The canvas's clock."""
 
     @property
-    def elapsed(self) -> float:
+    def elapsed_seconds(self) -> float:
         """Seconds since the canvas started."""
 
     @property
@@ -84,7 +84,7 @@ class Clock:
 
 
 class Art:
-    """Pixel art made with draw(). Show it with canvas.screen.write(art)."""
+    """Pixel art made with pixel_art(). Show it with canvas.screen.write(art)."""
 
     @property
     def width(self) -> int:
@@ -211,7 +211,7 @@ canvas: Canvas
 """The canvas this code draws on."""
 
 
-def draw(
+def pixel_art(
     rows: str | list[str],
     palette: str | dict[str, Color],
     *,
@@ -232,8 +232,8 @@ Every program is type-checked against it before it runs. Give it to whoever writ
 code, such as a language model, so that it knows what it can call.
 """
 
-_PRELUDE = 'from xnano import canvas, draw'
-_WRITTEN_CONTENT = 'text, a list of lines, or pixel art from draw()'
+_PRELUDE = 'from xnano import canvas, pixel_art'
+_WRITTEN_CONTENT = 'text, a list of lines, or pixel art from pixel_art()'
 
 
 class _SandboxPlacement:
@@ -361,7 +361,7 @@ class _SandboxScreen(_SandboxDevice):
             raise TypeError(
                 f'canvas.screen.write() takes {_WRITTEN_CONTENT}, but got '
                 f'{type(content).__name__}. Pass a string such as "hello", or build pixel '
-                f'art with draw(rows, palette) and write that.'
+                f'art with pixel_art(rows, palette) and write that.'
             )
         if repairs is not None:
             screen = self.canvas.screen
@@ -429,8 +429,8 @@ class _SandboxClock(_SandboxDevice):
     """What sandboxed code holds for the clock."""
 
     @property
-    def elapsed(self) -> float:
-        return self.canvas.clock.elapsed
+    def elapsed_seconds(self) -> float:
+        return self.canvas.clock.elapsed_seconds
 
     @property
     def frame(self) -> int:
@@ -467,7 +467,7 @@ class _SandboxCanvas(_SandboxDevice):
     def clock(self) -> object:
         return self._monty.ClassInstance(
             _SandboxClock(self.canvas, self._monty),
-            lazy_attrs={'elapsed', 'frame'},
+            lazy_attrs={'elapsed_seconds', 'frame'},
             allowed_methods={'step'},
         )
 
@@ -581,7 +581,7 @@ def _sandbox_module(
 ) -> object:
     """The ``xnano`` module that sandboxed code imports; ``repairs`` makes it repair."""
 
-    def draw_art(
+    def make_pixel_art(
         rows: str | list[str],
         palette: str | Mapping[str, ColorValue],
         *,
@@ -590,14 +590,14 @@ def _sandbox_module(
         if isinstance(rows, str) and '\n' not in rows:
             # A single row is a picture, never the name of art registered by this program.
             rows = [rows]
-        art = draw(rows, palette, background=background)
+        art = pixel_art(rows, palette, background=background)
         return monty.ClassInstance(art, lazy_attrs={'width', 'height'})
 
     sandbox_canvas = monty.ClassInstance(
         _SandboxCanvas(canvas, monty, repairs), lazy_attrs={'screen', 'speaker', 'clock'}
     )
     return monty.ExternalModule(
-        {'canvas': sandbox_canvas, 'draw': draw_art}, stubs=SANDBOX_STUBS
+        {'canvas': sandbox_canvas, 'pixel_art': make_pixel_art}, stubs=SANDBOX_STUBS
     )
 
 
@@ -729,7 +729,7 @@ class Sandbox:
         """
         Type-check and run a program in the sandbox, and return its last expression.
 
-        ``canvas`` and ``draw`` are defined, and ``import xnano`` gives the same module; see
+        ``canvas`` and ``pixel_art`` are defined, and ``import xnano`` gives the same module; see
         [`SANDBOX_STUBS`][xnano.sandbox.SANDBOX_STUBS]. What the program prints goes where
         this program's prints go, which a canvas on the screen holds back. A placement the
         program returns comes back as the [`Placement`][xnano.layout.Placement] itself.
@@ -780,7 +780,7 @@ def run(
     see [`Sandbox`][xnano.sandbox.Sandbox] to run several programs in one session.
 
     Args:
-        code: The Python source to run. ``canvas`` and ``draw`` are defined in it.
+        code: The Python source to run. ``canvas`` and ``pixel_art`` are defined in it.
         canvas: The canvas the code draws on.
         limits: Monty's ``ResourceLimits``, over [`DEFAULT_LIMITS`][xnano.sandbox.DEFAULT_LIMITS].
 

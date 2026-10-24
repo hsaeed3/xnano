@@ -231,7 +231,7 @@ class TestObserve:
             assert observe(canvas).state == {'points': 3}
 
     def test_art_is_letters_with_their_colours(self):
-        art = xnano.draw(['RB', '.R'], {'R': '#ff0000', 'B': '#0000ff'})
+        art = xnano.pixel_art(['RB', '.R'], {'R': '#ff0000', 'B': '#0000ff'})
         observation = observe(art)
         assert observation.text.splitlines()[:2] == ['AB', '.A']
         assert 'A = #ff0000' in observation.text and 'B = #0000ff' in observation.text

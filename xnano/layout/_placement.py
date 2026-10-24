@@ -1,7 +1,7 @@
 """
 xnano.layout._placement
 
-A buffer placed on a canvas, with a position and size that are formulas.
+A buffer placed on a canvas, with a position and size that are expressions.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from xnano._internal._axes import (
     check_point,
     check_size,
     inspect_number,
-    is_static_formula,
+    is_static_expression,
 )
 from xnano._internal._dynamic_operations import DynamicOperation
 from xnano._runtime._flow import FLOW_POSITION
@@ -41,12 +41,6 @@ from xnano._schema._layout import EdgeBehavior
 from xnano.effects._properties import WritableEffectProperties
 from xnano.effects._registry import apply_effects
 from xnano.errors import TerminalClosedError
-from xnano.expressions import (
-    Parent,
-    ParentExpressionScope,
-    Root,
-    RootExpressionScope,
-)
 from xnano.hooks._handles import _Hooked
 from xnano.layout._region import Region
 from xnano.operations import (
@@ -69,7 +63,7 @@ __all__ = ['Placement']
 
 class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     """
-    A buffer placed on a canvas, with a position and size that are formulas.
+    A buffer placed on a canvas, with a position and size that are expressions.
 
     Assign any of ``x``, ``y``, ``width`` and ``height`` an [`Axis`][xnano.layout.Axis]:
     a number, a percentage of the parent, or an expression. Numbers apply at once;
@@ -110,10 +104,11 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     Examples:
         ```python
         import xnano
+        from xnano.expressions import parent
 
         with xnano.new(width=20, height=3) as canvas:
             label = canvas.screen.write('hi')
-            label.x = (label.parent.width - label.width) // 2
+            label.x = (parent.width - label.width) // 2
             assert label.x == 9
 
             thumb = canvas.screen.write('#', x=(2, 10))
@@ -243,7 +238,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     @property
     def state(self) -> StateNamespace:
         """
-        State that belongs to this placement, read with ``get`` and written with ``push``.
+        State that belongs to this placement, read with ``get`` and written with ``set``.
 
         It is the state of one placement, separate from the canvas's own
         ([`Canvas.state`][xnano.canvas.Canvas.state]) and from that of other placements, and
@@ -259,7 +254,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             with xnano.new(width=8, height=1) as canvas:
                 first = canvas.screen.write('a')
                 second = canvas.screen.write('b')
-                first.state.push('clicks', 2)
+                first.state.set('clicks', 2)
                 assert first.state.get('clicks') == 2
                 assert second.state.get('clicks', default=0) == 0
             ```
@@ -275,21 +270,6 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 'buffers'
             )
         return namespace
-
-    @property
-    def parent(self) -> ParentExpressionScope:
-        """Symbolic expressions for the parent container's ``width``, ``height`` and ``size``."""
-        return Parent
-
-    @property
-    def root(self) -> RootExpressionScope:
-        """Symbolic expressions for the root canvas's ``width``, ``height``, ``size`` and ``time``."""
-        return Root
-
-    @property
-    def time(self) -> _core.NumericValue:
-        """Symbolic expression for elapsed seconds on the canvas clock."""
-        return _core.TimeElapsed
 
     def _require_attached(self) -> None:
         """Raise when the canvas is closed or this placement was removed from it."""
@@ -309,7 +289,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         elif axis in ('x', 'y') and (
             isinstance(value, str) or self._alignment is not TOP_LEFT
         ):
-            # A number or a formula puts text at the start; only a word changes that.
+            # A number or an expression puts text at the start; only a word changes that.
             self._align_content(axis, value)
         if axis in ('x', 'y'):
             is_following = self._follows_x if axis == 'x' else self._follows_y
@@ -337,7 +317,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                     )
         if isinstance(value, tuple):
             low, high = axis_limits(value, axis)
-            is_time_dependent = any(not is_static_formula(bound) for bound in value)
+            is_time_dependent = any(not is_static_expression(bound) for bound in value)
             with self._canvas._lock:
                 previous = self._limits.get(axis)
                 if low is None and high is None:
@@ -365,10 +345,10 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 self._measure_by_parent(axis, is_measured=False)
             self._assign_within_limits(axis, converted)
             return
-        # A word, a percentage or a formula is measured in the parent, so a parent that fits
+        # A word, a percentage or an expression is measured in the parent, so a parent that fits
         # its content places this within the size the rest gives it.
         self._measure_by_parent(axis, is_measured=True)
-        is_time_dependent = not is_static_formula(value)
+        is_time_dependent = not is_static_expression(value)
         binding = (converted, is_time_dependent)
         with self._canvas._lock:
             previous = self._bindings.get(axis)
@@ -385,11 +365,11 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             # The parent takes the size of its content, so that size is made current first.
             root._fit_now()
         try:
-            # The first value is worked out now, on the canvas's loop, so that a formula that
+            # The first value is worked out now, on the canvas's loop, so that an expression that
             # cannot be evaluated is reported to the caller instead of stopping the canvas.
             self._canvas._host.call(evaluate)
         except BaseException:
-            # A formula that cannot be evaluated is not kept.
+            # An expression that cannot be evaluated is not kept.
             with self._canvas._lock:
                 if self._bindings.get(axis) is binding:
                     if previous is None:
@@ -527,7 +507,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         )
 
     def _follow_own_size(self) -> None:
-        """Work out again the position formulas that read this placement's own size now."""
+        """Work out again the position expressions that read this placement's own size now."""
         with self._canvas._lock:
             positions = [axis for axis in ('x', 'y') if axis in self._bindings]
         if not positions or self._canvas._is_closed:
@@ -594,7 +574,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             return bound
         if not self._canvas._host.is_on_loop():
             raise _core.RuntimeRequiredError(
-                'a bound that is a formula is evaluated by the canvas on its next frame'
+                'a bound that is an expression is evaluated by the canvas on its next frame'
             )
         return inspect_number(self._buffer, bound)
 
@@ -611,7 +591,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         self._assign_within_limits(axis, getattr(self._buffer, axis))
 
     def _apply_bindings(self, runtime: _core.Runtime) -> bool:
-        """Evaluate every formula on the canvas's loop; return whether any follows time."""
+        """Evaluate every expression on the canvas's loop; return whether any follows time."""
         with self._canvas._lock:
             bindings = dict(self._bindings)
             limits = dict(self._limits)
@@ -634,8 +614,8 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                     EvaluationContext(buffer=self._buffer, runtime=runtime)
                 )
                 if value is None:
-                    # Input or state the formula reads has no value at this moment, so the
-                    # axis keeps what it had until the formula has one again.
+                    # Input or state the expression reads has no value at this moment, so the
+                    # axis keeps what it had until the expression has one again.
                     continue
             else:
                 value = getattr(self._buffer, axis)
@@ -774,7 +754,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             self._canvas._bindings_changed(self)
 
     def _needs_frames(self) -> bool:
-        """Whether a formula, a range or the edges setting is looked at before each frame."""
+        """Whether an expression, a range or the edges setting is looked at before each frame."""
         return bool(self._bindings or self._limits) or self.edges in ('stop', 'wrap')
 
     def _edge_range(self, axis: AxisName) -> tuple[int, int] | None:
@@ -815,7 +795,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 
         The move is held inside a range on the axis
         (``x=(0, 39)``), so a slider's thumb stops at the ends of its track. A position that
-        is a formula keeps its formula and shifts it. Piping ``xnano.operations.Move`` onto
+        is an expression keeps its expression and shifts it. Piping ``xnano.operations.Move`` onto
         the placement is also held inside its ranges.
 
         Args:
@@ -852,7 +832,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             if binding is None:
                 self._set_axis(axis, getattr(self._buffer, axis) + step)
                 continue
-            # A formula moves only as far as its range or edges let it, so moves past an
+            # An expression moves only as far as its range or edges let it, so moves past an
             # edge do not pile up and have to be undone before the opposite move shows.
             current = getattr(self._buffer, axis)
             try:
@@ -1357,7 +1337,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         placement, as [`Screen.write`][xnano.devices.Screen.write] puts them on a canvas. To change this placement with an operation, a style or an effect, use
         [`update`][xnano.layout.Placement.update].
 
-        A box from [`box`][xnano.box] with a percentage, formula or state reference size is
+        A box from [`box`][xnano.box] with a percentage, expression or state reference size is
         measured against this placement and drawn again when it changes size; see
         [`Screen.write`][xnano.devices.Screen.write] for how the look given here applies over
         the look of the box.

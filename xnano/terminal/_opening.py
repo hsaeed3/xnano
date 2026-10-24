@@ -32,7 +32,7 @@ class OpeningTerminal(Generic[DepsT, StateT]):
         ```text
         async with xnano.open_async(height=3) as terminal:
             terminal.screen.write('hello')
-            await terminal.run_async(quit_on='q')
+            await terminal.run_async(stop_on='q')
 
         terminal = await xnano.open_async(height=3)
         ```

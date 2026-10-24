@@ -80,23 +80,23 @@ def make_push_three(namespace: str) -> tuple[Callable[[Context], None], list[int
     def push_root(context: Context) -> None:
         counter[0] += 1
         state = context.root.state
-        state.push('a', counter[0])
-        state.push('b', counter[0])
-        state.push('c', counter[0])
+        state.set('a', counter[0])
+        state.set('b', counter[0])
+        state.set('c', counter[0])
 
     def push_buffer(context: Context) -> None:
         counter[0] += 1
-        state = context.buffer.state
-        state.push('a', counter[0])
-        state.push('b', counter[0])
-        state.push('c', counter[0])
+        state = context.target.state
+        state.set('a', counter[0])
+        state.set('b', counter[0])
+        state.set('c', counter[0])
 
     def push_plugin(context: Context) -> None:
         counter[0] += 1
         state = context.plugin.state
-        state.push('a', counter[0])
-        state.push('b', counter[0])
-        state.push('c', counter[0])
+        state.set('a', counter[0])
+        state.set('b', counter[0])
+        state.set('c', counter[0])
 
     functions = {'root': push_root, 'buffer': push_buffer, 'plugin': push_plugin}
     return functions[namespace], counter
@@ -186,7 +186,7 @@ def test_many_readers(benchmark) -> None:
     def commit(canvas: Canvas) -> None:
         for _ in range(EVENTS):
             counter[0] += 1
-            canvas.state.push('unrelated', counter[0])
+            canvas.state.set('unrelated', counter[0])
             canvas.deliver_events()
 
     def build(readers: int) -> Canvas:
@@ -198,7 +198,7 @@ def test_many_readers(benchmark) -> None:
                 context.root.state.get(path)
 
             canvas.hook(follow, on='state')
-        canvas.state.push('warmup', 1)
+        canvas.state.set('warmup', 1)
         canvas.deliver_events()
         return canvas
 

@@ -13,7 +13,7 @@ from xnano.devices import Keyboard, Mouse
 from xnano.effects import EffectController
 from xnano.errors import TerminalError
 from xnano.expressions import Expression
-from xnano.hooks import Context, Frame, Plugin, Update
+from xnano.hooks import Context, Frame, Plugin, Tick
 from xnano.layout import Region
 from xnano_core import Buffer, Event, Point, Size
 
@@ -39,10 +39,10 @@ class TestLiveViews:
         push(canvas, Event.key_press('a'))
         context = seen[0]
         assert context.canvas is canvas
-        assert context.buffer is canvas
+        assert context.target is canvas
         assert context.parent is canvas.screen
         assert context.root is canvas
-        assert (context.buffer.screen.x, context.buffer.screen.y) == (0, 0)
+        assert (context.target.screen.x, context.target.screen.y) == (0, 0)
 
     def test_in_a_placement_hook_the_views_have_concrete_values(self, canvas):
         box = canvas.screen.write(Buffer(width=4, height=2), x=5, y=3)
@@ -50,14 +50,14 @@ class TestLiveViews:
 
         @box.hook(on='key')
         def look(context: Context) -> None:
-            values['buffer'] = context.buffer
+            values['target'] = context.target
             values['parent'] = context.parent
-            values['x'] = context.buffer.x
+            values['x'] = context.target.x
             values['parent_width'] = context.parent.width
             values['root_height'] = context.root.screen.height
 
         push(canvas, Event.key_press('a'))
-        assert values['buffer'] is box
+        assert values['target'] is box
         assert values['parent'] is canvas.screen
         assert values['x'] == 5
         assert values['parent_width'] == 20
@@ -76,15 +76,21 @@ class TestLiveViews:
 
         @box.hook(on='key')
         def step_right(context: Context) -> None:
-            context.buffer.right(2)
+            context.target.right(2)
 
         push(canvas, Event.key_press('a'))
         assert box.x == 3
 
-    def test_on_the_objects_themselves_parent_and_root_stay_formulas(self, canvas):
+    def test_the_expressions_of_parent_and_root_are_in_the_expressions_module(
+        self, canvas
+    ):
+        from xnano.expressions import parent, root
+
         box = canvas.screen.write('x')
-        assert isinstance(box.parent.width, Expression)
-        assert isinstance(box.root.time, Expression)
+        assert not any(hasattr(box, name) for name in ('parent', 'root', 'time'))
+        assert not any(hasattr(canvas.screen, name) for name in ('parent', 'root'))
+        assert isinstance(parent.width, Expression)
+        assert isinstance(root.time, Expression)
 
     def test_local_turns_a_screen_cell_into_a_cell_of_the_buffer(self, canvas):
         box = canvas.screen.write(Buffer(width=4, height=2), x=5, y=3)
@@ -229,13 +235,13 @@ class TestMembers:
         canvas.hook(lambda context: events.append(context.event), on='tick')
         canvas.clock.step(delta_seconds=0.1)
         assert any(isinstance(event, Frame) for event in events)
-        assert any(isinstance(event, Update) for event in events)
+        assert any(isinstance(event, Tick) for event in events)
 
     @pytest.mark.parametrize(
         'name',
         [
             'terminal',
-            'target',
+            'buffer',
             'pasted',
             'size_changed',
             'focus_gained',

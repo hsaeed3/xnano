@@ -78,7 +78,7 @@ _MEMBERS: Final[dict[str, tuple[str, ...]]] = {
     'keyboard': ('key', 'kind', 'binding'),
     'mouse': ('position', 'button', 'kind', 'is_down'),
     'scroll': ('x', 'y'),
-    'buffer': ('x', 'y', 'position', 'width', 'height', 'size', 'region'),
+    'target': ('x', 'y', 'position', 'width', 'height', 'size', 'region'),
     'parent': ('width', 'height', 'size'),
     'root': ('width', 'height', 'time', 'delta', 'fps'),
 }
@@ -104,7 +104,7 @@ _NATIVE_SCOPES: Final[dict[str, object]] = {
     'keyboard': KeyboardScope,
     'mouse': MouseScope,
     'scroll': ScrollScope,
-    'buffer': BufferScope,
+    'target': BufferScope,
     'parent': ParentScope,
     'root': RootScope,
     'time': RootScope.time,
@@ -486,7 +486,7 @@ class _Parser:
                 f'{word} joins comparisons, but {ast.unparse(node.values[index])} '
                 f'and {ast.unparse(node.values[index + 1])} are not both '
                 f'comparisons. Compare each side first, as in '
-                f"keyboard.key == 'q' {word} buffer.width > 10.",
+                f"keyboard.key == 'q' {word} target.width > 10.",
             ) from None
 
     def _compare_pair(
@@ -508,7 +508,7 @@ class _Parser:
                 node,
                 f'{symbol} cannot compare {ast.unparse(pair[0])} with '
                 f'{ast.unparse(pair[1])}, because one of them is not a number. '
-                f'Ordering works on numbers such as buffer.width; key names and '
+                f'Ordering works on numbers such as target.width; key names and '
                 f"text have no order, so use == or != or in, as in keyboard.key == 'q'.",
             ) from None
 
@@ -564,7 +564,7 @@ class _Parser:
                     self.text,
                     node,
                     f'- cannot be applied to {ast.unparse(node.operand)}, because it is not a '
-                    f'number. Only numbers such as buffer.width can be negated; key names '
+                    f'number. Only numbers such as target.width can be negated; key names '
                     f'and text cannot, so compare them with == or != instead.',
                 ) from None
         if isinstance(node, ast.BinOp):
@@ -588,8 +588,8 @@ class _Parser:
                     node,
                     f'{symbol} cannot be applied to {ast.unparse(node.left)} and '
                     f'{ast.unparse(node.right)}, because one of them is not a number. '
-                    f'Arithmetic works on numbers such as buffer.width or time, as in '
-                    f'buffer.width + 2 > 10.',
+                    f'Arithmetic works on numbers such as target.width or time, as in '
+                    f'target.width + 2 > 10.',
                 ) from None
         if isinstance(node, ast.BoolOp):
             values = [build(value) for value in node.values]
@@ -677,7 +677,7 @@ def _compare(
     return left >= right  # type: ignore[operator]
 
 
-class _BufferView:
+class _TargetView:
     """What ``buffer`` means inside a condition that is evaluated in Python."""
 
     __slots__ = ('_context',)
@@ -761,11 +761,11 @@ class _RootView:
 
     @property
     def time(self) -> float:
-        return self._context.clock.elapsed
+        return self._context.clock.elapsed_seconds
 
     @property
     def delta(self) -> float:
-        return self._context.clock.delta
+        return self._context.clock.delta_seconds
 
     @property
     def fps(self) -> float:
@@ -777,10 +777,10 @@ def _live_names(context: Context[object, object]) -> dict[str, object]:
         'keyboard': context.keyboard,
         'mouse': context.mouse,
         'scroll': context.mouse.scroll,
-        'buffer': _BufferView(context),
+        'target': _TargetView(context),
         'parent': _ParentView(context),
         'root': _RootView(context),
-        'time': context.clock.elapsed,
+        'time': context.clock.elapsed_seconds,
         'deps': context.deps,
     }
 
@@ -826,7 +826,7 @@ def compile_when(when: object) -> CompiledWhen:
         raise TypeError(
             f'on= received {when}. That is what `is` and `and` give on an expression. '
             f'Build the condition with ==, & and |, for example '
-            f'Keyboard.key == "q", or write it as a string, "keyboard.key == \'q\'".'
+            f'keyboard.key == "q", or write it as a string, "keyboard.key == \'q\'".'
         )
     if isinstance(when, _core.Expression):
         return CompiledWhen(

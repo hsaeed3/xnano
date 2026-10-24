@@ -1,7 +1,7 @@
 """
 xnano.audio._notes
 
-Notes and sound: [`note`][xnano.note] makes a [`Note`][xnano.Note] you can define anywhere, and
+Notes and sound: [`Note`][xnano.Note] makes a [`Note`][xnano.Note] you can define anywhere, and
 [`play`][xnano.play] plays notes, sounds and melodies on the running canvas or on this
 computer's sound output. Playing needs the optional ``audio`` extra:
 ``pip install "xnano[audio]"``.
@@ -16,7 +16,7 @@ import math
 import re
 import threading
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Final
 
 from xnano import symbols
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from xnano.hooks._context import Context
     from xnano.layout._region import Region
 
-__all__ = ['Note', 'PlayHandle', 'note', 'play']
+__all__ = ['Note', 'PlayHandle', 'play']
 
 _MOST_MIDI_NUMBER: Final = 127
 
@@ -57,7 +57,7 @@ _DEFAULT_OCTAVE: Final = 4
 def _installed_audio() -> ModuleType | None:
     """The ``xnano_audio`` module when it is installed, otherwise ``None``."""
     try:
-        return _optional.require('audio', needed_for='xnano.note')
+        return _optional.require('audio', needed_for='xnano.Note')
     except ImportError:
         return None
 
@@ -107,7 +107,7 @@ def _check_pitch(pitch: object) -> None:
     if isinstance(pitch, bool) or not isinstance(pitch, (int, str)):
         raise TypeError(
             f'A pitch is a note name such as "C4" or a MIDI number such as 60, but got '
-            f'{pitch!r}. Pass note("C4") or note(60); use a tuple such as ("C4", "E4", "G4") '
+            f'{pitch!r}. Pass Note("C4") or Note(60); use a tuple such as ("C4", "E4", "G4") '
             f'for a chord.'
         )
     if isinstance(pitch, int):
@@ -177,10 +177,10 @@ class Note:
         assert chord.region.y == 60
         assert chord.region.height == 8
         assert chord.region.width == 2.0
-        assert chord.region.ticks.width == 8.0
+        assert chord.region.sixteenths.width == 8.0
         assert chord.region.milliseconds.width == 1000.0
         with xnano.new(width=8, height=1) as canvas:
-            canvas.speaker.play([chord, xnano.note('C5')])
+            canvas.speaker.play([chord, xnano.Note('C5')])
             canvas.clock.step(delta_seconds=1.0)
             assert canvas.speaker.render().duration_milliseconds == 1000.0
         ```
@@ -188,6 +188,7 @@ class Note:
 
     pitch: Pitch | tuple[Pitch, ...]
     """A note name, a MIDI number, or a tuple of them for a chord."""
+    _: dataclasses.KW_ONLY
     beats: float = 1.0
     """How long the note is held, in beats."""
     instrument: InstrumentName = 'piano'
@@ -206,7 +207,7 @@ class Note:
             if not pitch:
                 raise ValueError(
                     'A chord needs at least one pitch, but got an empty one. Pass '
-                    'note(("C4", "E4", "G4")) for a chord or note("C4") for one note.'
+                    'Note(("C4", "E4", "G4")) for a chord or Note("C4") for one note.'
                 )
             pitch = tuple(pitch)
             for each in pitch:
@@ -283,7 +284,7 @@ class Note:
             ```python
             import xnano
 
-            region = xnano.note('A4', beats=0.5).region
+            region = xnano.Note('A4', beats=0.5).region
             assert (region.x, region.width) == (0.0, 0.5)
             assert (region.y, region.height) == (69, 1)
             ```
@@ -303,65 +304,6 @@ class Note:
         return self
 
 
-def note(
-    pitch: Pitch | Sequence[Pitch],
-    *,
-    beats: float = 1.0,
-    instrument: InstrumentName = 'piano',
-    velocity: float = 0.8,
-    effects: Sequence[PlayableEffectSpecification] = (),
-    symbol: str | None = None,
-) -> Note:
-    """
-    Make a [`Note`][xnano.Note]: a pitch, or several for a chord, with its length and sound.
-
-    Nothing is played and no sound device is needed. Play it with [`play`][xnano.play] or
-    [`Speaker.play`][xnano.devices.Speaker.play]. ``symbol='kick'`` registers the note, and then
-    ``play('kick')`` plays it.
-
-    Args:
-        pitch: A note name such as ``'C#4'``, a MIDI number from 0 to 127, or a sequence of
-            them for a chord.
-        beats: How long the note is held, in beats.
-        instrument: A built-in instrument, from
-            [`instrument_names`][xnano.audio.instrument_names].
-        velocity: How hard the note is played, from 0.0 to 1.0.
-        effects: Sound effects as dictionaries with a ``kind`` key, such as
-            ``{'kind': 'audio.reverb'}``.
-        symbol: A name to register the note under in [`symbols`][xnano.symbols]. A ``str``
-            given to [`play`][xnano.play] is looked up as a symbol name before it is read as a
-            note name, so the name must not look like a note.
-
-    Raises:
-        TypeError: The pitch is not a note name or a number.
-        ValueError: A value is out of range or the instrument is unknown.
-
-    Examples:
-        ```python
-        import xnano
-
-        kick = xnano.note('C2', instrument='kick', symbol='kick_drum')
-        with xnano.new(width=8, height=1) as canvas:
-            canvas.speaker.play('kick_drum')
-            canvas.clock.step(delta_seconds=0.5)
-            assert canvas.speaker.render().peak > 0.0
-        ```
-    """
-    chord = (
-        tuple(pitch)
-        if isinstance(pitch, Sequence) and not isinstance(pitch, str)
-        else pitch
-    )
-    return Note(
-        chord,  # type: ignore[arg-type]
-        beats=beats,
-        instrument=instrument,
-        velocity=velocity,
-        effects=effect_sequence(effects, 'playable'),  # type: ignore[arg-type]
-        symbol=symbol,
-    )
-
-
 class PlayHandle:
     """
     What [`play`][xnano.play] returns: tells whether the sound is over and can cut it short.
@@ -376,7 +318,7 @@ class PlayHandle:
         import xnano
 
         with xnano.new(width=8, height=1) as canvas:
-            handle = canvas.speaker.play(xnano.note('C4', beats=1.0))
+            handle = canvas.speaker.play(xnano.Note('C4', beats=1.0))
             assert not handle.is_finished
             handle.remove()
             assert handle.is_finished
@@ -473,7 +415,7 @@ def play(playable: PlaySource, /, **options: Unpack[PlayOptions]) -> PlayHandle:
     as ``'440hz'`` or melody text: notes separated by spaces, ``:2`` holds a note for two
     beats, ``rest`` is a silence, ``+`` joins a chord and ``|`` marks a bar, as in
     ``'C4 E4 G4:2 rest C5+E5+G5'``. A sequence plays one after another. An option replaces
-    the same value on a [`Note`][xnano.Note], so ``play(note('C4'), instrument='violin')``
+    the same value on a [`Note`][xnano.Note], so ``play(Note('C4'), instrument='violin')``
     plays the violin.
 
     Args:
@@ -498,7 +440,7 @@ def play(playable: PlaySource, /, **options: Unpack[PlayOptions]) -> PlayHandle:
         import xnano
 
         with xnano.new(width=8, height=1) as canvas:
-            xnano.play([xnano.note('C4'), xnano.note('E4'), xnano.note('G4')])
+            xnano.play([xnano.Note('C4'), xnano.Note('E4'), xnano.Note('G4')])
             canvas.clock.step(delta_seconds=1.5)
             assert canvas.speaker.render().peak > 0.0
         ```

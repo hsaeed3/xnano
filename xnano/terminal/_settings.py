@@ -27,7 +27,7 @@ GATE_NAMES: Final = frozenset(
         'focus',
         'interrupt',
         'capture',
-        'clear',
+        'clears_on_close',
         'alternate_screen',
     }
 )
@@ -41,7 +41,7 @@ GATE_DEFAULTS: Final[Mapping[str, object]] = {
     'focus': True,
     'interrupt': True,
     'capture': True,
-    'clear': True,
+    'clears_on_close': True,
     'alternate_screen': True,
 }
 """The value of every terminal setting that is left out."""

@@ -109,7 +109,7 @@ class TestAudioRegion:
     def test_the_ticks_follow_the_duration_at_120_beats_per_minute(self):
         audio = xnano.Audio.from_samples([0.0] * 44100, sample_rate=44100)
         assert audio.region.width == pytest.approx(2.0)
-        assert audio.region.ticks.width == pytest.approx(8.0)
+        assert audio.region.sixteenths.width == pytest.approx(8.0)
 
     def test_audio_loaded_from_a_file_has_a_region_of_its_duration(self):
         audio = xnano.load_audio(wave_bytes([0] * 8000, rate=8000))
@@ -119,7 +119,7 @@ class TestAudioRegion:
     def test_the_row_of_audio_is_middle_c(self):
         from xnano.audio._audio import AUDIO_PITCH_ROW
 
-        assert AUDIO_PITCH_ROW == xnano.note('C4').region.y
+        assert AUDIO_PITCH_ROW == xnano.Note('C4').region.y
 
 
 class TestAudioValue:

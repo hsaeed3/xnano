@@ -15,7 +15,6 @@ from __future__ import annotations
 from typing_extensions import assert_type
 
 import xnano
-import xnano.expressions
 import xnano_core
 from xnano.devices import KeyName
 from xnano.events import Event
@@ -85,7 +84,3 @@ def test_the_deprecated_chord_names_in_conditions_and_expressions_still_work():
         canvas.push(Event.key_press('ctrl+s'))
         canvas.deliver_events()
     assert sorted(heard) == ['new', 'old']
-
-    with pytest.warns(DeprecationWarning, match='KeyboardBinding'):
-        old = xnano.expressions.KeyboardChord
-    assert old is xnano.expressions.KeyboardBinding

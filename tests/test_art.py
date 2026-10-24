@@ -10,15 +10,15 @@ import pytest
 from xnano_image import TerminalImage
 
 import xnano
-from xnano.art import Art, Camera, draw
+from xnano.art import Art, Camera, pixel_art
 
 
 def red() -> Art:
-    return draw(['R', 'R'], {'R': '#ff0000'})
+    return pixel_art(['R', 'R'], {'R': '#ff0000'})
 
 
 def green() -> Art:
-    return draw(['GGGG', 'GGGG'], {'G': '#00ff00'})
+    return pixel_art(['GGGG', 'GGGG'], {'G': '#00ff00'})
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def canvas():
 
 def world_on(canvas, width=8, height=8, background=None, **keywords):
     """A world written over the whole canvas, drawn on the next step, and its placement."""
-    world = draw(None, width=width, height=height, background=background)
+    world = pixel_art(None, width=width, height=height, background=background)
     view = canvas.screen.write(world, width='100%', height='100%', **keywords)
     canvas.clock.step()
     return world, view
@@ -50,7 +50,7 @@ def pixel(view, column, row):
 
 class TestDraw:
     def test_text_rows_are_painted_with_a_palette(self):
-        heart = draw(
+        heart = pixel_art(
             """
             .RR.RR.
             RRRRRRR
@@ -63,27 +63,27 @@ class TestDraw:
         assert (heart.width, heart.height) == (7, 5)
 
     def test_a_palette_is_a_mapping_or_a_string(self):
-        by_mapping = draw(['AB'], {'A': 'red', 'B': (0, 0, 255)})
-        by_text = draw(['AB'], 'A=red B=#0000ff')
+        by_mapping = pixel_art(['AB'], {'A': 'red', 'B': (0, 0, 255)})
+        by_text = pixel_art(['AB'], 'A=red B=#0000ff')
         assert by_mapping.render(format='ansi') == by_text.render(format='ansi')
 
     def test_a_character_the_palette_does_not_name_is_transparent(self, canvas):
-        view = canvas.screen.write(draw(['.R'], {'R': '#ff0000'}))
+        view = canvas.screen.write(pixel_art(['.R'], {'R': '#ff0000'}))
         assert pixel(view, 0, 0) is None
         assert pixel(view, 1, 0) == (255, 0, 0)
 
     def test_a_list_is_rows_and_a_one_row_picture_is_a_list(self):
         assert (
-            draw(['GG'], {'G': 'green'}).width,
-            draw(['GG'], {'G': 'green'}).height,
+            pixel_art(['GG'], {'G': 'green'}).width,
+            pixel_art(['GG'], {'G': 'green'}).height,
         ) == (
             2,
             1,
         )
 
     def test_a_name_without_a_newline_is_a_symbol(self):
-        registered = draw(['PP', 'PP'], {'P': 'blue'}, symbol='player')
-        found = draw('player')
+        registered = pixel_art(['PP', 'PP'], {'P': 'blue'}, symbol='player')
+        found = pixel_art('player')
         assert (found.width, found.height) == (2, 2)
         assert found is not registered, 'a lookup returns a copy that can be moved alone'
         assert registered.symbol == 'player'
@@ -94,58 +94,58 @@ class TestDraw:
             TerminalImage.from_rgba(2, 1, bytes([255, 0, 0, 255] * 2)), symbol='redsquare'
         )
         try:
-            art = draw('redsquare')
+            art = pixel_art('redsquare')
             assert (art.width, art.height) == (2, 1)
             assert art.symbol is None
         finally:
             xnano.symbols.remove('redsquare')
 
     def test_an_unknown_symbol_lists_the_known_ones_and_says_how_to_draw_one_row(self):
-        draw(['W'], {'W': 'white'}, symbol='wall')
+        pixel_art(['W'], {'W': 'white'}, symbol='wall')
         with pytest.raises(ValueError, match="'GG' is not a known Art symbol") as caught:
-            draw('GG')
+            pixel_art('GG')
         message = str(caught.value)
         assert "'wall'" in message
-        assert "draw(['GG'], palette)" in message
+        assert "pixel_art(['GG'], palette)" in message
 
     def test_a_symbol_may_also_be_registered_by_a_lookup(self):
-        draw(['W'], {'W': 'white'}, symbol='stone')
-        again = draw('stone', symbol='boulder')
+        pixel_art(['W'], {'W': 'white'}, symbol='stone')
+        again = pixel_art('stone', symbol='boulder')
         assert xnano.symbols.lookup('boulder', kind=Art) is again
 
     def test_a_picture_is_copied(self):
         picture = TerminalImage.from_rgba(2, 1, bytes((255, 0, 0, 255, 0, 0, 255, 255)))
-        art = draw(picture)
+        art = pixel_art(picture)
         assert (art.width, art.height) == (2, 1)
         image = xnano.Image(picture)
-        assert draw(image).width == 2
+        assert pixel_art(image).width == 2
 
     def test_bytes_need_a_size_that_matches(self):
         data = bytes((255, 0, 0, 255)) * 4
-        assert draw(data, width=2, height=2).height == 2
+        assert pixel_art(data, width=2, height=2).height == 2
         with pytest.raises(ValueError, match='need the size of the picture'):
-            draw(data)
+            pixel_art(data)
         with pytest.raises(ValueError, match='need 16 bytes'):
-            draw(data[:8], width=2, height=2)
+            pixel_art(data[:8], width=2, height=2)
 
     def test_nothing_is_a_blank_world(self):
-        world = draw(None, width=10, height=6, background='#336699')
+        world = pixel_art(None, width=10, height=6, background='#336699')
         assert (world.width, world.height) == (10, 6)
         assert world.background == xnano.Color('#336699')
         with pytest.raises(ValueError, match='needs a size in pixels'):
-            draw(None)
+            pixel_art(None)
 
     def test_rows_must_match_and_a_palette_is_needed(self):
         with pytest.raises(ValueError, match='every row the same length'):
-            draw(['AB', 'A'], {'A': 'red'})
+            pixel_art(['AB', 'A'], {'A': 'red'})
         with pytest.raises(ValueError, match='need a palette'):
-            draw(['AB'])
+            pixel_art(['AB'])
         with pytest.raises(ValueError, match='not a palette entry'):
-            draw(['A'], 'A:red')
+            pixel_art(['A'], 'A:red')
 
     def test_other_sources_are_explained(self):
         with pytest.raises(TypeError, match='cannot make art from a int'):
-            draw(5)  # type: ignore[arg-type]
+            pixel_art(5)  # type: ignore[arg-type]
 
     def test_art_has_a_size(self):
         with pytest.raises(ValueError, match='at least 1 by 1'):
@@ -153,15 +153,15 @@ class TestDraw:
 
     def test_effects_given_as_a_one_shot_iterable_are_kept(self):
         specification = {'kind': 'effect.dissolve'}
-        art = draw(['G'], {'G': 'red'}, effects=(item for item in [specification]))
+        art = pixel_art(['G'], {'G': 'red'}, effects=(item for item in [specification]))
         assert art._effects == (specification,)
-        registered = draw(['G'], {'G': 'red'}, symbol='one_shot_effects')
-        again = draw('one_shot_effects', effects=(item for item in [specification]))
+        registered = pixel_art(['G'], {'G': 'red'}, symbol='one_shot_effects')
+        again = pixel_art('one_shot_effects', effects=(item for item in [specification]))
         assert again._effects == (specification,)
         assert registered._effects == ()
 
     def test_effects_run_on_every_placement_that_shows_the_art(self, canvas):
-        art = draw(
+        art = pixel_art(
             ['RR', 'RR'],
             {'R': 'red'},
             effects=[{'kind': 'effect.fade_to', 'duration_milliseconds': 500}],
@@ -225,7 +225,7 @@ class TestDrawing:
 
     def test_replace_swaps_the_pixels_and_keeps_the_place(self, canvas):
         world, view = world_on(canvas)
-        child = world.add(draw(['R'], {'R': 'red'}), x=2, y=2, layer=3)
+        child = world.add(pixel_art(['R'], {'R': 'red'}), x=2, y=2, layer=3)
         canvas.clock.step()
         child.replace(['B'], {'B': (0, 0, 255)})
         canvas.clock.step()
@@ -264,23 +264,25 @@ class TestDrawing:
 
     def test_art_is_written_without_a_size_at_its_own_size(self, canvas):
         placement = canvas.screen.write(
-            draw(['AB', 'CD', 'EF'], 'A=red B=green C=blue D=white E=gray F=magenta')
+            pixel_art(['AB', 'CD', 'EF'], 'A=red B=green C=blue D=white E=gray F=magenta')
         )
         assert (placement.width, placement.height) == (2, 2)
 
     def test_art_in_a_border_fits_inside_it(self, canvas):
-        placement = canvas.screen.write(draw(['AB'], 'A=red B=blue'), border='rounded')
+        placement = canvas.screen.write(
+            pixel_art(['AB'], 'A=red B=blue'), border='rounded'
+        )
         assert (placement.width, placement.height) == (4, 3)
 
     def test_art_draws_on_its_own(self):
-        heart = draw(['R.R', 'RRR'], {'R': 'red'})
+        heart = pixel_art(['R.R', 'RRR'], {'R': 'red'})
         assert heart.render() == ' ▄'
         assert '\x1b[' in heart.render(format='ansi')
         assert heart.render(width=4, height=2).count('\n') == 1
 
     def test_art_can_live_on_a_placement(self, canvas):
         view = canvas.screen.write(' ', width=4, height=2)
-        world = draw(None, width=4, height=4)
+        world = pixel_art(None, width=4, height=4)
         inner = view.write(world, width='100%', height='100%')
         world.add(red(), x=1, y=1)
         canvas.clock.step()
@@ -289,7 +291,7 @@ class TestDrawing:
 
     def test_art_follows_a_resize_of_its_placement(self):
         with xnano.new(width=8, height=4) as canvas:
-            world = draw(None, width=40, height=40, background='black')
+            world = pixel_art(None, width=40, height=40, background='black')
             placement = canvas.screen.write(world, width=8, height=4)
             canvas.clock.step()
             assert world._view_size() == (8, 8)
@@ -325,7 +327,7 @@ class TestCamera:
         assert world._origin() == (-2, -2)
 
     def test_the_camera_object_is_per_art(self):
-        assert isinstance(draw(None, width=2, height=2).camera, Camera)
+        assert isinstance(pixel_art(None, width=2, height=2).camera, Camera)
 
     def test_a_cell_of_the_screen_is_a_world_pixel(self, canvas):
         world, view = world_on(canvas, width=40, height=40)
@@ -338,7 +340,7 @@ class TestCamera:
 
 class TestMovement:
     def solid_world(self):
-        world = draw(None, width=8, height=8)
+        world = pixel_art(None, width=8, height=8)
         solid = bytearray(64)
         for row in range(8):
             solid[row * 8 + 5] = 1  # a wall at column 5
@@ -365,7 +367,7 @@ class TestMovement:
         assert not world.is_solid(2, 0), 'a new size clears the walls'
 
     def test_the_four_verbs_move_and_say_how_far(self):
-        world = draw(None, width=10, height=10)
+        world = pixel_art(None, width=10, height=10)
         hero = world.add(red(), x=5, y=5)
         assert hero.right(2) == 2
         assert hero.down(3) == 3
@@ -384,7 +386,7 @@ class TestMovement:
         assert (art.x, art.y) == (3, -2)
 
     def test_a_very_long_walk_ends_at_the_edge_of_the_world(self):
-        world = draw(None, width=10, height=4)
+        world = pixel_art(None, width=10, height=4)
         hero = world.add(red(), x=3, y=1)
         assert hero.right(10**17) == 6
         assert hero.x == 9
@@ -400,16 +402,16 @@ class TestMovement:
             art.left(-1)
 
     def test_a_solid_child_blocks_other_children_but_not_itself(self):
-        world = draw(None, width=10, height=4)
-        wall = world.add(draw(['W', 'W'], {'W': 'white'}), x=5, y=1, is_solid=True)
+        world = pixel_art(None, width=10, height=4)
+        wall = world.add(pixel_art(['W', 'W'], {'W': 'white'}), x=5, y=1, is_solid=True)
         hero = world.add(red(), x=3, y=1)
         assert world.is_solid(5, 1)
         assert hero.right(5) == 1, 'it stops in front of the wall'
         assert wall.right(1) == 1, 'the wall is not blocked by itself'
 
     def test_a_transparent_pixel_of_a_solid_child_does_not_block(self):
-        world = draw(None, width=10, height=4)
-        world.add(draw(['.W'], {'W': 'white'}), x=5, y=1, is_solid=True)
+        world = pixel_art(None, width=10, height=4)
+        world.add(pixel_art(['.W'], {'W': 'white'}), x=5, y=1, is_solid=True)
         assert not world.is_solid(5, 1)
         assert world.is_solid(6, 1)
 
@@ -424,21 +426,21 @@ class TestMovement:
         assert pixel(view, 1, 0) == (255, 0, 0)
 
     def test_the_solid_map_needs_one_byte_per_pixel(self):
-        world = draw(None, width=4, height=4)
+        world = pixel_art(None, width=4, height=4)
         with pytest.raises(ValueError, match='one byte for each of the 16 pixels'):
             world.solid_map = b'\x00' * 3
 
 
 class TestComposition:
     def test_an_art_belongs_to_one_art(self):
-        first = draw(None, width=4, height=4)
-        second = draw(None, width=4, height=4)
+        first = pixel_art(None, width=4, height=4)
+        second = pixel_art(None, width=4, height=4)
         child = first.add(red())
         with pytest.raises(ValueError, match='already belongs to another art'):
             second.add(child)
 
     def test_an_art_cannot_hold_itself(self):
-        world = draw(None, width=4, height=4)
+        world = pixel_art(None, width=4, height=4)
         child = world.add(red())
         with pytest.raises(ValueError, match='cannot be added to itself'):
             world.add(world)
@@ -447,10 +449,10 @@ class TestComposition:
 
     def test_only_art_can_be_added(self):
         with pytest.raises(TypeError, match='add\\(\\) takes an Art'):
-            draw(None, width=4, height=4).add('x')  # type: ignore[arg-type]
+            pixel_art(None, width=4, height=4).add('x')  # type: ignore[arg-type]
 
     def test_removing_stops_the_camera_following(self):
-        world = draw(None, width=40, height=40)
+        world = pixel_art(None, width=40, height=40)
         hero = world.add(red())
         world.camera.follow(hero)
         hero.remove()
@@ -458,32 +460,32 @@ class TestComposition:
         assert world.camera.target is None
 
     def test_a_removed_art_can_be_added_elsewhere(self):
-        first = draw(None, width=4, height=4)
-        second = draw(None, width=4, height=4)
+        first = pixel_art(None, width=4, height=4)
+        second = pixel_art(None, width=4, height=4)
         child = first.add(red())
         child.remove()
         assert second.add(child) is child
 
     def test_a_copy_from_a_symbol_keeps_the_children(self):
-        world = draw(None, width=6, height=6, background='black', symbol='arena')
+        world = pixel_art(None, width=6, height=6, background='black', symbol='arena')
         world.add(red(), x=2, y=2)
-        copy = draw('arena')
+        copy = pixel_art('arena')
         assert copy.render() == world.render()
         assert copy is not world
 
 
 class TestReadingPixels:
     def test_the_pixels_of_drawn_art_are_its_rgba_bytes(self):
-        dot = draw(['R.'], {'R': '#ff0000'})
+        dot = pixel_art(['R.'], {'R': '#ff0000'})
         assert dot.pixels == bytes([255, 0, 0, 255, 0, 0, 0, 0])
 
     def test_a_world_has_no_pixels_of_its_own(self):
-        world = draw(None, width=4, height=4)
+        world = pixel_art(None, width=4, height=4)
         assert world.pixels is None
         assert world.pixel(0, 0) is None
 
     def test_one_pixel_reads_its_color_and_alpha(self):
-        art = draw(['RG', '.B'], {'R': '#ff0000', 'G': '#00ff00', 'B': '#0000ff'})
+        art = pixel_art(['RG', '.B'], {'R': '#ff0000', 'G': '#00ff00', 'B': '#0000ff'})
         assert art.pixel(1, 0) == (0, 255, 0, 255)
         assert art.pixel(1, 1) == (0, 0, 255, 255)
         assert art.pixel(0, 1)[3] == 0
@@ -493,13 +495,13 @@ class TestReadingPixels:
             red().pixel(1, 0)
 
     def test_the_pixels_round_trip_through_replace(self):
-        art = draw(['RG'], {'R': '#ff0000', 'G': '#00ff00'})
-        copy = draw(None, width=1, height=1)
+        art = pixel_art(['RG'], {'R': '#ff0000', 'G': '#00ff00'})
+        copy = pixel_art(None, width=1, height=1)
         copy.replace(art.pixels, width=art.width, height=art.height)
         assert copy.pixels == art.pixels
 
     def test_children_are_listed_in_the_order_they_were_added(self):
-        world = draw(None, width=10, height=10)
+        world = pixel_art(None, width=10, height=10)
         first = world.add(red(), x=1, y=1)
         second = world.add(green(), x=4, y=4)
         assert world.children == (first, second)
@@ -510,7 +512,7 @@ class TestReadingPixels:
 class TestLooks:
     def test_braille_packs_two_by_four_pixels_into_a_cell(self):
         rows = ['yy..', 'yy..', 'yy..', 'yy..', '..yy', '..yy', '..yy', '..yy']
-        dots = xnano.draw(rows, {'y': '#ffcd75'}, encoding='braille')
+        dots = xnano.pixel_art(rows, {'y': '#ffcd75'}, encoding='braille')
         assert dots.encoding == 'braille'
         lines = dots.render().split('\n')
         assert len(lines) == 2
@@ -519,7 +521,7 @@ class TestLooks:
 
     def test_borders_trace_the_edge_in_box_drawing_characters(self):
         rows = ['.yyyy.', 'yyyyyy', 'yyyyyy', 'yyyyyy', 'yyyyyy', '.yyyy.']
-        block = xnano.draw(rows, {'y': '#ffcd75'}, borders=True)
+        block = xnano.pixel_art(rows, {'y': '#ffcd75'}, borders=True)
         assert block.borders is True
         assert block.render().split('\n') == [
             ' ┌──┐',
@@ -535,13 +537,13 @@ class TestLooks:
 
     def test_a_copy_keeps_the_look(self):
         rows = ['yy', 'yy', 'yy', 'yy']
-        xnano.draw(rows, {'y': 'red'}, encoding='braille', symbol='look_dots')
-        assert xnano.draw('look_dots').encoding == 'braille'
-        xnano.draw(rows, {'y': 'red'}, borders=True, symbol='look_block')
-        assert xnano.draw('look_block').borders is True
+        xnano.pixel_art(rows, {'y': 'red'}, encoding='braille', symbol='look_dots')
+        assert xnano.pixel_art('look_dots').encoding == 'braille'
+        xnano.pixel_art(rows, {'y': 'red'}, borders=True, symbol='look_block')
+        assert xnano.pixel_art('look_block').borders is True
 
     def test_an_unknown_encoding_is_refused(self):
         with pytest.raises(
             ValueError, match="encoding must be 'half_blocks' or 'braille'"
         ):
-            xnano.draw(['y'], {'y': 'red'}, encoding='quadrants')  # type: ignore[arg-type]
+            xnano.pixel_art(['y'], {'y': 'red'}, encoding='quadrants')  # type: ignore[arg-type]

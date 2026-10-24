@@ -58,7 +58,7 @@ NOTES = dict(
 )
 INSTRUMENTS = ('piano', 'bell', 'marimba', 'synth', 'pluck', 'organ', 'strings', 'kick')
 FEATURES = (
-    ('formulas for positions', 'live'),
+    ('expressions for positions', 'live'),
     ('typed state', 'ready'),
     ('tachyonfx effects', 'live'),
     ('pixels and art', 'live'),
@@ -69,12 +69,12 @@ FEATURES = (
 
 
 def edge(fraction: float) -> NumericValue[int | float]:
-    """A column of the window, as a formula of its width."""
+    """A column of the window, as an expression of its width."""
     return (ParentWidth * fraction) // 1
 
 
 def row(fraction: float) -> NumericValue[int | float]:
-    """A row below the title, as a formula of the window's height."""
+    """A row below the title, as an expression of the window's height."""
     return 1 + ((ParentHeight - 2) * fraction) // 1
 
 
@@ -146,7 +146,7 @@ class _Demo:
         terminal = self.terminal
         terminal.screen.write(' xnano 2 ', x=1, y=0, style=Style('black', INK, bold=True))
         terminal.screen.write(
-            'tab: instrument   a-k: notes   e: effect   space: stop time   m: mute   q: quit',
+            'tab: instrument   a-k: notes   e: effect   space: pause time   m: mute   q: quit',
             x='right',
             y=0,
             style=Style(MUTED),
@@ -171,7 +171,7 @@ class _Demo:
         self.build_events()
 
     def build_expressions(self) -> None:
-        """Gauges and a ball whose positions are formulas of time: no loop moves them."""
+        """Gauges and a ball whose positions are expressions of time: no loop moves them."""
         terminal = self.terminal
         inner = edge(0.27) - 4
         sweep = LineGauge(
@@ -234,7 +234,7 @@ class _Demo:
         art = self.terminal.screen.write(
             xnano.Image(ASSETS / 'dusk.png', y=row(0.0) + 1, width='43%', layer=1)
         )
-        # Centered in its panel by formulas of its own size, so a resize needs no code.
+        # Centered in its panel by expressions of its own size, so a resize needs no code.
         art.x = edge(0.27) + (edge(0.73) - edge(0.27) - Width) // 2
         art.y = row(0.0) + (row(0.6) - row(0.0) - Height) // 2
         self.art = art
@@ -258,7 +258,7 @@ class _Demo:
 
         @terminal.hook(on='frame')
         def draw(context: Context) -> None:
-            time = context.clock.elapsed
+            time = context.clock.elapsed_seconds
             self.figure.clear_shapes()
             self.figure.extend_shapes(
                 [
@@ -325,7 +325,7 @@ class _Demo:
 
         @terminal.hook(on='tick', every=0.12)
         def refresh(context: Context) -> None:
-            elapsed = context.clock.elapsed
+            elapsed = context.clock.elapsed_seconds
             self.wave.ratio = 0.5 + 0.45 * math.sin(elapsed * 2)
             self.load.ratio = 0.55 + 0.3 * math.sin(elapsed * 0.7 + 1) * math.cos(
                 elapsed * 1.9
@@ -355,7 +355,7 @@ class _Demo:
             self.remember(f'note {note} on {INSTRUMENTS[self.instrument]}')
             if not self.is_muted and terminal.speaker.is_available:
                 terminal.speaker.play(
-                    xnano.note(note, beats=0.5),
+                    xnano.Note(note, beats=0.5),
                     instrument=INSTRUMENTS[self.instrument],
                 )
 
@@ -371,12 +371,12 @@ class _Demo:
 
         @terminal.hook(on='key', keys='space')
         def toggle_time(context: Context) -> None:
-            if terminal.clock.is_stopped:
+            if terminal.clock.is_paused:
                 terminal.clock.resume()
             else:
-                terminal.clock.stop()
+                terminal.clock.pause()
             self.remember(
-                'time: ' + ('stopped' if terminal.clock.is_stopped else 'running')
+                'time: ' + ('stopped' if terminal.clock.is_paused else 'running')
             )
 
         @terminal.hook(on="mouse.kind == 'press'")
@@ -409,4 +409,4 @@ def main() -> None:
     """Run the demo in the whole window."""
     with xnano.open(mouse=True, title='xnano', state=None) as terminal:
         _Demo(terminal).start()
-        terminal.run(quit_on=('q', 'ctrl+c'))
+        terminal.run(stop_on=('q', 'ctrl+c'))

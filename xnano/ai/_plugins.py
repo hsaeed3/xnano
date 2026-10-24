@@ -236,7 +236,7 @@ def decide(
             'margin': decision.margin,
             'probabilities': cast('JSONValue', decision.probabilities),
         }
-        context.buffer.state.push('decision', kept)
+        context.target.state.set('decision', kept)
         if decision.choice == NO_CHANGE:
             return None
         value = _resolve_blocking(offered[decision.choice][1], decision.choice, 'decide')
@@ -330,7 +330,7 @@ def watch(
             'answer': verdict.answer,
             'probability': verdict.probability,
         }
-        context.buffer.state.push('verdict', kept)
+        context.target.state.set('verdict', kept)
         value = yes if verdict.answer else no
         if value is None:
             return None

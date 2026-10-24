@@ -8,14 +8,14 @@ from xnano import symbols as symbols
 from xnano._internal._annotation_names import (
     bind_annotation_names as _bind_annotation_names,
 )
-from xnano.art import Image, Pixel, draw, load_image
-from xnano.audio import Audio, Note, load_audio, note, play
+from xnano.art import Image, Pixel, load_image, pixel_art
+from xnano.audio import Audio, Note, load_audio, play
 from xnano.canvas import Canvas, active, new
 from xnano.components import playable, renderable, writable
 from xnano.effects import effect
 from xnano.hooks import hook
 from xnano.hooks._context import Context
-from xnano.layout._region import box, write
+from xnano.layout._region import box, region
 from xnano.terminal import Terminal, iter, iter_async, open, open_async
 from xnano_core import Color
 
@@ -30,7 +30,6 @@ __all__ = [
     'Terminal',
     'active',
     'box',
-    'draw',
     'effect',
     'hook',
     'iter',
@@ -38,14 +37,14 @@ __all__ = [
     'load_audio',
     'load_image',
     'new',
-    'note',
     'open',
     'open_async',
+    'pixel_art',
     'play',
     'playable',
+    'region',
     'renderable',
     'writable',
-    'write',
 ]
 
 # Every module has loaded by now, so the names that effect annotations need can be added.

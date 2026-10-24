@@ -107,13 +107,7 @@ from xnano.errors import (
     TerminalError,
     _release_frames,
 )
-from xnano.expressions import (
-    Parent,
-    ParentExpressionScope,
-    Root,
-    RootExpressionScope,
-)
-from xnano.hooks._context import Frame, ReadLog, Update
+from xnano.hooks._context import Frame, ReadLog, Tick
 from xnano.hooks._coroutines import TaskCount
 from xnano.hooks._handles import HookHandle, _Hooked
 from xnano.layout._placement import Placement
@@ -411,11 +405,11 @@ _FRAME_EVENT_KINDS: Final = (
 """The kinds of the events a frame of ``iter()`` carries."""
 
 
-def _quit_keys(quit_on: KeyName | Sequence[KeyName] | None) -> tuple[KeyName, ...]:
-    """The keys of a ``quit_on`` keyword, as a tuple."""
-    if quit_on is None:
+def _parse_stop_keys(stop_on: KeyName | Sequence[KeyName] | None) -> tuple[KeyName, ...]:
+    """The keys of a ``stop_on`` keyword, as a tuple."""
+    if stop_on is None:
         return ()
-    return (quit_on,) if isinstance(quit_on, str) else tuple(quit_on)
+    return (stop_on,) if isinstance(stop_on, str) else tuple(stop_on)
 
 
 class _FramePacing:
@@ -436,8 +430,8 @@ class _FramePacing:
         '_events_lock',
         '_frames',
         '_previous',
-        '_previous_quit_keys',
-        '_quit_hook',
+        '_previous_stop_keys',
+        '_stop_hook',
         '_seconds',
         '_start',
         '_yielded',
@@ -448,10 +442,10 @@ class _FramePacing:
         canvas: Canvas[object, object],
         frames: int | None,
         seconds: float | None,
-        quit_on: tuple[KeyName, ...],
+        stop_on: tuple[KeyName, ...],
     ) -> None:
         """
-        Start pacing the frames of ``canvas``, hearing its events and its quit keys.
+        Start pacing the frames of ``canvas``, hearing its events and its stop keys.
 
         Raises:
             TerminalError: A hook raised on a canvas whose clock you move.
@@ -471,8 +465,8 @@ class _FramePacing:
         self._event_hook: _core.Hook = canvas._host.call(
             lambda: root.add_hook(self._hear, events=list(_FRAME_EVENT_KINDS))
         )
-        self._previous_quit_keys = canvas._quit_keys
-        self._quit_hook = canvas._listen_for_quit(quit_on)
+        self._previous_stop_keys = canvas._stop_keys
+        self._stop_hook = canvas._listen_for_stop(stop_on)
 
     def _hear(self, core_context: _core.CoreContext) -> None:
         """Keep an event that reached the canvas for the next frame. Runs on its loop."""
@@ -482,16 +476,16 @@ class _FramePacing:
                 self._events.append(event)
 
     def close(self) -> None:
-        """Stop hearing events and quit keys: the iteration ended."""
+        """Stop hearing events and stop keys: the iteration ended."""
         self._event_hook.cancel()
-        hook = self._quit_hook
+        hook = self._stop_hook
         if hook is not None:
             hook.remove()
-            self._canvas._quit_keys = self._previous_quit_keys
+            self._canvas._stop_keys = self._previous_stop_keys
 
-    def quitting_host(self) -> _ThreadHost | None:
+    def stopping_host(self) -> _ThreadHost | None:
         """
-        The loop of a canvas that runs by itself and was asked to quit, which may still be ending.
+        The loop of a canvas that runs by itself and was asked to stop, which may still be ending.
 
         As after ``run()``, the iteration waits for it, so the screen is given back before the
         program goes on, even when the canvas already counts as closed.
@@ -582,16 +576,16 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     dependencies, and running and closing.
 
     How a canvas ends depends on who moves its clock. On a canvas from ``new()``,
-    [`quit`][xnano.canvas.Canvas.quit] only ends a running ``iter()``: the canvas stays open
+    [`stop`][xnano.canvas.Canvas.stop] only ends a running ``iter()``: the canvas stays open
     for writing and rendering. On a canvas that runs by itself (``realtime=True``, or opened
-    on the screen) its loop ends with ``quit()``, ``Ctrl-C`` or a quit key of
+    on the screen) its loop ends with ``stop()``, ``Ctrl-C`` or a stop key of
     [`run`][xnano.canvas.Canvas.run], and that closes the canvas. [`close`][xnano.canvas.Canvas.close]
     (or leaving the ``with`` block) always closes it. The three states are:
 
     | State | Read it from | Meaning |
     | --- | --- | --- |
     | running | ``is_running`` | open, and its loop has not been asked to end |
-    | time stopped | ``clock.is_stopped`` | frozen by ``clock.stop()``; it still draws and hears input |
+    | time paused | ``clock.is_paused`` | frozen by ``clock.pause()``; it still draws and hears input |
     | closed | ``is_closed`` | torn down; it cannot draw or listen |
 
     Any thread may write, remove, draw and play. Hooks run on the canvas's loop, so keep them
@@ -619,7 +613,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             for frame in canvas.iter(frames=3):
                 greeting.text = f'frame {frame.index}'
             assert canvas.screen.render().splitlines()[1] == ' frame 2'
-            assert round(canvas.clock.elapsed, 3) == 0.3
+            assert round(canvas.clock.elapsed_seconds, 3) == 0.3
         ```
     """
 
@@ -656,7 +650,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     # starts from an empty screen; None when no renderable is running here.
     _rendering_writes: list[Placement[object, object]] | None = None
     # The keys that end the running loop, which a program's own key presses avoid.
-    _quit_keys: tuple[KeyName, ...] = ()
+    _stop_keys: tuple[KeyName, ...] = ()
     # The devices, each made when it is first used.
     _screen_view: Screen[DepsT, StateT] | None = None
     _cursor_view: Cursor | None = None
@@ -796,7 +790,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         self._namespace_identifiers = itertools.count(1)
         self._active_run_by_thread = threading.local()
         self._images: dict[int, ImageSource] = {}
-        # Only placements with a formula or a range need looking at before each frame.
+        # Only placements with an expression or a range need looking at before each frame.
         self._dynamic: dict[int, Placement[DepsT, StateT]] = {}
         self._clock_view = Clock(cast('Canvas[object, object]', self))
         self._output = Output(cast('Canvas[object, object]', self))
@@ -1191,7 +1185,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             canvas._unregister(registration)
 
     def _on_loop_frame(self, core_context: FrameContext) -> None:
-        """Before a frame: follow the size, images and formulas, then the frame functions."""
+        """Before a frame: follow the size, images and expressions, then the frame functions."""
         if self._host.is_autonomous and self._stop_requested.is_set():
             # The loop was asked to end: nothing is evaluated for the frames that remain.
             return
@@ -1227,7 +1221,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 self._release_frames()
         if self._effects:
             is_time_dependent |= self._follow_effects(runtime)
-        # Taken after the formulas ran: a component whose placement they resized asks for a
+        # Taken after the expressions ran: a component whose placement they resized asks for a
         # listener, which must run before this frame is drawn. A function that runs before
         # every frame needs a frame to run before.
         with self._lock:
@@ -1329,14 +1323,14 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
 
         return cancel
 
-    def _on_update(
+    def _on_tick(
         self,
-        callback: Callable[[Update], object],
+        callback: Callable[[Tick], object],
         *,
         fixed_step_seconds: float | None = None,
     ) -> _Registration:
         """
-        Call ``callback`` with an [`Update`][xnano.hooks.Update] for simulation updates.
+        Call ``callback`` with a [`Tick`][xnano.hooks.Tick] for each step of the simulation.
 
         On a manual clock the fixed steps that a jump of the clock crossed are run, at most
         100000 in one step and the rest in the steps that follow; on the wall clock a stalled
@@ -1347,7 +1341,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
 
         def hook(core_context: UpdateContext) -> None:
             callback(
-                Update(
+                Tick(
                     canvas=cast('Canvas[object, object]', canvas),
                     elapsed_seconds=core_context.elapsed_seconds,
                     delta_seconds=core_context.delta_seconds,
@@ -1422,7 +1416,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     def _commit_state(
         self, pending: dict[tuple[str | int, ...], JSONValue]
     ) -> _core.TerminalStateChange | None:
-        """Save pushed values in one transaction and make sure a frame follows."""
+        """Save the values that were set in one transaction and make sure a frame follows."""
         canvas = self._canvas
         canvas._host.require_usable()
         store = canvas._ensure_store()
@@ -1494,7 +1488,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             store.drain_notifications()
 
     def _bindings_changed(self, placement: Placement[DepsT, StateT]) -> None:
-        """A formula or range was set: look at the placement before each frame."""
+        """An expression or range was set: look at the placement before each frame."""
         canvas = self._canvas
         with canvas._lock:
             is_new = id(placement) not in canvas._dynamic
@@ -1561,7 +1555,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 canvas.screen.write('hello', border='rounded')
                 canvas.clock.step()
                 canvas.open(mouse=True)        # now a xnano.Terminal, 40 by 5 below the prompt
-                canvas.run(quit_on='q')
+                canvas.run(stop_on='q')
             ```
         """
         from xnano.terminal import Terminal
@@ -1605,7 +1599,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 async with xnano.new(width=40, height=5) as canvas:
                     canvas.screen.write('hello', border='rounded')
                     terminal = await canvas.open_async(mouse=True)
-                    await terminal.run_async(quit_on='q')
+                    await terminal.run_async(stop_on='q')
             ```
         """
         from xnano.terminal import Terminal
@@ -1957,16 +1951,6 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         """
         self._flush_look()
         return self._content
-
-    @property
-    def _screen_parent(self) -> ParentExpressionScope:
-        """Symbolic expressions for the parent container's ``width``, ``height`` and ``size``."""
-        return Parent
-
-    @property
-    def _screen_root(self) -> RootExpressionScope:
-        """Symbolic expressions for the root canvas's ``width``, ``height``, ``size`` and ``time``."""
-        return Root
 
     @property
     def _screen_size(self) -> _core.Size:
@@ -2924,7 +2908,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             )
         handles = child._host.call(child._hook_handles)
         if child._audio is not None:
-            # Formulas that read the beat or the level read the outer canvas's audio device.
+            # Expressions that read the beat or the level read the outer canvas's audio device.
             self._canvas._audio_device()
         child._host.call(child._unbind_runtime)
         child._host.retire()
@@ -3144,7 +3128,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         """
         Give what fits its content the size of it now, and follow the new sizes.
 
-        Formulas that read a size (``'center'``, ``'50%'``) are worked out again, and the lines
+        Expressions that read a size (``'center'``, ``'50%'``) are worked out again, and the lines
         after a canvas written into this one that changed size move.
         """
         canvas = self._canvas
@@ -3226,7 +3210,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 width=width,
                 height=height,
                 size=self.screen.size,
-                elapsed_seconds=self._canvas._clock_view.elapsed,
+                elapsed_seconds=self._canvas._clock_view.elapsed_seconds,
             )
             return source.buffer, source
         try:
@@ -3311,7 +3295,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         """Attach a hook operation in place with ``canvas |= operation``."""
         return self.__or__(other)
 
-    def inspect(self, expression: _core.Expression[ValueT]) -> ValueT:
+    def evaluate(self, expression: _core.Expression[ValueT]) -> ValueT:
         """
         Evaluate an expression against the canvas and return its value.
 
@@ -3325,7 +3309,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             from xnano_core import Width
 
             with xnano.new(width=12, height=2) as canvas:
-                assert canvas.inspect(Width) == 12
+                assert canvas.evaluate(Width) == 12
             ```
         """
         self._require_open()
@@ -3355,7 +3339,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         *,
         frames: int | None = None,
         seconds: float | None = None,
-        quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+        stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
     ) -> Iterator[Frame]:
         """
         Run the canvas one frame at a time: iterate over its frames, drawing between them.
@@ -3369,17 +3353,17 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         if you are slow, frames are skipped rather than queued.
 
         Without ``frames`` or ``seconds`` it runs the way [`run`][xnano.canvas.Canvas.run]
-        does: until a key of ``quit_on`` is pressed, the canvas is asked to
-        [`quit`][xnano.canvas.Canvas.quit] or closes, or you break out of the loop. With
+        does: until a key of ``stop_on`` is pressed, the canvas is asked to
+        [`stop`][xnano.canvas.Canvas.stop] or closes, or you break out of the loop. With
         them, it also ends after that many frames, or when the canvas's time has run that
-        long, whichever comes first. [`stop`][xnano.devices.Clock.stop] freezes the time it
+        long, whichever comes first. [`pause`][xnano.devices.Clock.pause] freezes the time it
         follows: the iterations go on drawing and hooks still run, but the clock stands still
         until [`resume`][xnano.devices.Clock.resume].
 
         Args:
             frames: The most frames to yield.
             seconds: The most seconds of the canvas's time to run for.
-            quit_on: The key, or keys, that end the loop and quit the canvas, such as
+            stop_on: The key, or keys, that end the loop and stop the canvas, such as
                 ``'q'``; ``None`` for none.
 
         Raises:
@@ -3403,14 +3387,14 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             ```
         """
         canvas = self._check_iteration(frames, seconds)
-        return canvas._frames(frames, seconds, _quit_keys(quit_on))
+        return canvas._frames(frames, seconds, _parse_stop_keys(stop_on))
 
     def iter_async(
         self,
         *,
         frames: int | None = None,
         seconds: float | None = None,
-        quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+        stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
     ) -> AsyncIterator[Frame]:
         """
         Run the canvas one frame at a time with ``async for``, like [`iter`][xnano.canvas.Canvas.iter].
@@ -3423,7 +3407,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         Args:
             frames: The most frames to yield.
             seconds: The most seconds of the canvas's time to run for.
-            quit_on: The key, or keys, that end the loop and quit the canvas; ``None`` for
+            stop_on: The key, or keys, that end the loop and stop the canvas; ``None`` for
                 none.
 
         Raises:
@@ -3448,7 +3432,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             ```
         """
         canvas = self._check_iteration(frames, seconds)
-        return canvas._frames_async(frames, seconds, _quit_keys(quit_on))
+        return canvas._frames_async(frames, seconds, _parse_stop_keys(stop_on))
 
     def _check_iteration(
         self, frames: int | None, seconds: float | None
@@ -3484,10 +3468,10 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             )
 
     def _frames(
-        self, frames: int | None, seconds: float | None, quit_on: tuple[KeyName, ...]
+        self, frames: int | None, seconds: float | None, stop_on: tuple[KeyName, ...]
     ) -> Iterator[Frame]:
         pacing = _FramePacing(
-            cast('Canvas[object, object]', self), frames, seconds, quit_on
+            cast('Canvas[object, object]', self), frames, seconds, stop_on
         )
         try:
             while (frame := pacing.next_frame()) is not None:
@@ -3497,7 +3481,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                     break
                 if delay > 0:
                     self._stop_requested.wait(delay)
-            host = pacing.quitting_host()
+            host = pacing.stopping_host()
             if host is not None:
                 while not host.wait(0.1):
                     pass
@@ -3505,12 +3489,12 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             pacing.close()
 
     async def _frames_async(
-        self, frames: int | None, seconds: float | None, quit_on: tuple[KeyName, ...]
+        self, frames: int | None, seconds: float | None, stop_on: tuple[KeyName, ...]
     ) -> AsyncIterator[Frame]:
         import asyncio
 
         pacing = _FramePacing(
-            cast('Canvas[object, object]', self), frames, seconds, quit_on
+            cast('Canvas[object, object]', self), frames, seconds, stop_on
         )
         try:
             while (frame := pacing.next_frame()) is not None:
@@ -3522,7 +3506,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                     await self._stop_requested.wait_async(delay)
                 else:
                     await asyncio.sleep(0)
-            host = pacing.quitting_host()
+            host = pacing.stopping_host()
             if host is not None:
                 await host.wait_async()
         finally:
@@ -3570,7 +3554,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         if not self._time_source.is_stopped:
             raise TerminalError(
                 'This canvas runs by itself on the wall clock, so it cannot be stepped by '
-                'hand. Call canvas.clock.stop() first, then step() moves it one frame at a time; or '
+                'hand. Call canvas.clock.pause() first, then step() moves it one frame at a time; or '
                 'use canvas.iter() to follow it.'
             )
         if delta_seconds is None:
@@ -3629,7 +3613,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 canvas.push(Event.custom('ping'))
                 canvas.deliver_events()
                 assert heard == ['custom']
-                assert canvas.clock.elapsed == 0.0
+                assert canvas.clock.elapsed_seconds == 0.0
             ```
         """
         self._require_own_presence()
@@ -3643,7 +3627,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         canvas._pushed_pointer = None
         canvas._raise_failure()
 
-    def quit(self) -> None:
+    def stop(self) -> None:
         """
         Ask the canvas's loop to end.
 
@@ -3658,17 +3642,17 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         if not canvas._is_closed and canvas._host.is_autonomous:
             canvas._host.post(lambda: canvas._stop_runtime())
 
-    def run(self, *, quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c') -> None:
+    def run(self, *, stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c') -> None:
         """
         Wait until the canvas's loop ends.
 
         A canvas that runs by itself draws and listens on its own, so this only keeps your
-        program alive until a quit key is pressed, or something calls
-        [`quit`][xnano.canvas.Canvas.quit] (a hook, another thread). Declare what you want
+        program alive until a stop key is pressed, or something calls
+        [`stop`][xnano.canvas.Canvas.stop] (a hook, another thread). Declare what you want
         before calling it.
 
         Args:
-            quit_on: The key, or keys, that end the loop, such as ``'q'`` or
+            stop_on: The key, or keys, that end the loop, such as ``'q'`` or
                 ``('q', 'escape')``. ``'ctrl+c'`` by default; give ``None`` to leave ending
                 to your own code.
 
@@ -3677,26 +3661,26 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 that only moves when you move it, so waiting would never end.
         """
         canvas = self._canvas
-        host = canvas._prepare_run(quit_on, 'run()')
+        host = canvas._prepare_run(stop_on, 'run()')
         try:
             while not host.wait(0.1):
                 pass
         except KeyboardInterrupt:
-            canvas.quit()
+            canvas.stop()
             raise
         canvas._raise_run_failure()
 
     async def run_async(
-        self, *, quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c'
+        self, *, stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c'
     ) -> None:
         """
         Wait until the canvas's loop ends, like [`run`][xnano.canvas.Canvas.run], with ``await``.
 
         Your event loop goes on running other tasks meanwhile. Cancelling the waiting task
-        asks the canvas to [`quit`][xnano.canvas.Canvas.quit].
+        asks the canvas to [`stop`][xnano.canvas.Canvas.stop].
 
         Args:
-            quit_on: The key, or keys, that end the loop, such as ``'q'`` or
+            stop_on: The key, or keys, that end the loop, such as ``'q'`` or
                 ``('q', 'escape')``. ``'ctrl+c'`` by default; give ``None`` to leave ending
                 to your own code.
 
@@ -3717,7 +3701,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
 
                     @canvas.hook(on='tick', after=0.05)
                     def finish(context: xnano.Context) -> None:
-                        context.canvas.quit()
+                        context.canvas.stop()
 
                     await canvas.run_async()
 
@@ -3728,18 +3712,18 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         import asyncio
 
         canvas = self._canvas
-        host = canvas._prepare_run(quit_on, 'run_async()')
+        host = canvas._prepare_run(stop_on, 'run_async()')
         try:
             await host.wait_async()
         except asyncio.CancelledError:
-            canvas.quit()
+            canvas.stop()
             raise
         canvas._raise_run_failure()
 
     def _prepare_run(
-        self, quit_on: KeyName | Sequence[KeyName] | None, operation: str
+        self, stop_on: KeyName | Sequence[KeyName] | None, operation: str
     ) -> _ThreadHost:
-        """Check that the canvas can run, and add the hook of its quit keys."""
+        """Check that the canvas can run, and add the hook of its stop keys."""
         canvas = self
         canvas._require_open()
         host = canvas._host
@@ -3749,25 +3733,25 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 f'forever. Drive it with canvas.iter() or canvas.clock.step(), open it on the screen '
                 f'with canvas.open(), or create it with realtime=True.'
             )
-        canvas._listen_for_quit(_quit_keys(quit_on))
+        canvas._listen_for_stop(_parse_stop_keys(stop_on))
         return host
 
-    def _listen_for_quit(
+    def _listen_for_stop(
         self, keys: tuple[KeyName, ...]
     ) -> HookHandle[DepsT, StateT] | None:
-        """Quit the canvas when one of ``keys`` is pressed; return the hook that hears them."""
+        """Stop the canvas when one of ``keys`` is pressed; return the hook that hears them."""
         canvas = self._canvas
         if canvas._is_live and canvas._resolved_gates.get('keyboard') is False:
             # With the keyboard off, only the interrupt setting can end the loop on Ctrl-C.
             keys = tuple(key for key in keys if key != 'ctrl+c')
-        canvas._quit_keys = keys
+        canvas._stop_keys = keys
         if not keys:
             return None
 
-        def quit_key(context: Context[DepsT, StateT]) -> None:
-            context.canvas.quit()
+        def stop_key(context: Context[DepsT, StateT]) -> None:
+            context.canvas.stop()
 
-        return canvas.hook(quit_key, on='key', keys=keys)
+        return canvas.hook(stop_key, on='key', keys=keys)
 
     def _raise_run_failure(self) -> None:
         """Raise the error a callback raised on the loop that just ended, if one did."""
@@ -3909,7 +3893,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         if not self.is_running:
             raise TerminalError(
                 f'The canvas ended while waiting for {what}. Wait before calling '
-                f'canvas.quit() or closing the canvas.'
+                f'canvas.stop() or closing the canvas.'
             )
 
     # -- input, output, sound and state --------------------------------------------------
@@ -4027,12 +4011,12 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     """
     The canvas's state: values that hooks and your code share, read and written by path.
 
-    ``canvas.state.get('player.score')`` reads a value and ``canvas.state.push('player.score',
+    ``canvas.state.get('player.score')`` reads a value and ``canvas.state.set('player.score',
     3)`` writes one; see [`StateNamespace`][xnano.state.StateNamespace] for the path rules. A
     canvas created with ``new(state=Settings())`` also gives the fields of the dataclass as
     attributes with their declared types, so ``canvas.state.volume`` is an ``int`` for a field
     declared ``volume: int``; a write is checked against the field's type. A type checker
-    sees ``get`` and ``push`` only on a canvas without a state dataclass, but both exist on
+    sees ``get`` and ``set`` only on a canvas without a state dataclass, but both exist on
     every canvas.
 
     The state can be used from any thread. A write updates every expression that reads the
@@ -4194,7 +4178,7 @@ def new(
     unless given its own, and closes with it.
 
     The terminal settings (``mouse``, ``scroll``, ``keyboard``, ``paste``, ``focus``,
-    ``interrupt``, ``capture``, ``clear``, ``alternate_screen``) are stored and take effect
+    ``interrupt``, ``capture``, ``clears_on_close``, ``alternate_screen``) are stored and take effect
     when the canvas is opened on the screen; see
     [`TerminalSettings`][xnano.terminal.TerminalSettings].
 
@@ -4359,7 +4343,7 @@ def active(*, is_required: bool = True) -> Canvas[object, object] | None:
     Return the innermost canvas that is running in this thread or task.
 
     A canvas is active from the moment it is created until it ends: the most recently created
-    one wins, and a canvas that was asked to [`quit`][xnano.canvas.Canvas.quit] gives way to the
+    one wins, and a canvas that was asked to [`stop`][xnano.canvas.Canvas.stop] gives way to the
     one created before it. A canvas created inside the ``with`` block of another one belongs
     to that canvas, so the outer canvas stays active. Hooks run on a canvas's loop see that
     canvas.

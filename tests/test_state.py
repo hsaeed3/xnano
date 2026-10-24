@@ -125,7 +125,7 @@ class TestRootNamespace:
             assert isinstance(canvas.state, StateNamespace)
             assert canvas.state.get('score') is None
             assert canvas.state.get('score', default=0) == 0
-            canvas.state.push('score', 3)
+            canvas.state.set('score', 3)
             assert canvas.state.get('score') == 3
 
     def test_a_namespace_that_is_not_filled_in_yet_has_no_attributes(self):
@@ -137,38 +137,38 @@ class TestRootNamespace:
         import copy
 
         with main.new(width=8, height=1) as canvas:
-            canvas.state.push('score', 3)
+            canvas.state.set('score', 3)
             duplicate = copy.copy(canvas.state)
             assert duplicate.get('score') == 3
-            duplicate.push('score', 4)
+            duplicate.set('score', 4)
             assert canvas.state.get('score') == 4
             placement_state = copy.copy(canvas.screen.write('a').state)
             assert repr(placement_state).startswith('StateNamespace(')
 
     def test_pushing_a_deep_path_creates_the_objects_on_the_way(self):
         with main.new(width=8, height=1) as canvas:
-            canvas.state.push('player.stats.score', 3)
+            canvas.state.set('player.stats.score', 3)
             assert canvas.state.get('player') == {'stats': {'score': 3}}
-            canvas.state.push('player.stats.level', 2)
+            canvas.state.set('player.stats.level', 2)
             assert canvas.state.get('player.stats') == {'score': 3, 'level': 2}
 
     def test_a_list_is_addressed_by_index(self):
         with main.new(width=8, height=1) as canvas:
-            canvas.state.push('items', [{'name': 'a'}, {'name': 'b'}])
-            canvas.state.push('items.1.name', 'z')
+            canvas.state.set('items', [{'name': 'a'}, {'name': 'b'}])
+            canvas.state.set('items.1.name', 'z')
             assert canvas.state.get('items.1.name') == 'z'
             assert canvas.state.get('items.5.name', default='none') == 'none'
 
     def test_the_root_hides_the_reserved_branch(self):
         with main.new(width=8, height=1) as canvas:
-            canvas.state.push('score', 1)
+            canvas.state.set('score', 1)
             assert canvas.state.get('') == {'score': 1}
             with pytest.raises(ValueError, match="starts with 'xnano'"):
-                canvas.state.push('xnano.buffers', 1)
+                canvas.state.set('xnano.buffers', 1)
             with pytest.raises(ValueError, match="starts with 'xnano'"):
                 canvas.state.get('xnano')
             with pytest.raises(ValueError, match='whole root state'):
-                canvas.state.push('', {'score': 2})
+                canvas.state.set('', {'score': 2})
 
     def test_a_typed_root_has_get_push_and_its_attributes_at_run_time(self):
         with main.new(width=8, height=1, state=Typed()) as canvas:
@@ -176,24 +176,24 @@ class TestRootNamespace:
             canvas.state.volume = 0.75
             namespace: StateNamespace = canvas.state  # type: ignore[assignment]
             assert namespace.get('volume') == 0.75
-            namespace.push('volume', 0.25)
-            namespace.push('extra.count', 1)
+            namespace.set('volume', 0.25)
+            namespace.set('extra.count', 1)
             assert canvas.state.volume == 0.25
             assert namespace.get('extra.count') == 1
 
     def test_a_nested_dataclass_field_is_read_as_its_declared_type(self):
         with main.new(width=8, height=1, state=NestedSettings()) as canvas:
             assert canvas.state.inner == Inner(depth=1.0)
-            canvas.state.push('inner.depth', 4)
+            canvas.state.set('inner.depth', 4)
             assert canvas.state.inner.depth == 4.0
             canvas.state.inner = Inner(depth=7)
             assert canvas.state.inner == Inner(depth=7.0)
-            canvas.state.push('inner', {'depth': 9})
+            canvas.state.set('inner', {'depth': 9})
             assert canvas.state.inner == Inner(depth=9.0)
 
     def test_a_whole_number_written_to_a_float_field_is_a_float(self):
         with main.new(width=8, height=1, state=NestedSettings()) as canvas:
-            canvas.state.push('volume', 2)
+            canvas.state.set('volume', 2)
             assert isinstance(canvas.state.volume, float)
             canvas.state.volume = 3  # type: ignore[assignment]
             assert canvas.state.volume == 3.0
@@ -209,10 +209,10 @@ class TestRootNamespace:
         with main.new(width=8, height=1, state=Typed()) as canvas:
             with pytest.raises(AttributeError, match=r"get\('loudness'\)"):
                 _ = canvas.state.loudness  # type: ignore[attr-defined]
-            with pytest.raises(TerminalError, match=r"push\('loudness', value\)"):
+            with pytest.raises(TerminalError, match=r"set\('loudness', value\)"):
                 canvas.state.loudness = 1  # type: ignore[attr-defined]
 
-    @pytest.mark.parametrize('name', ['get', 'push', 'xnano'])
+    @pytest.mark.parametrize('name', ['get', 'set', 'xnano'])
     def test_a_field_that_shadows_a_member_is_refused(self, name):
         Broken = dataclass(type('Broken', (), {'__annotations__': {name: int}, name: 1}))
         with pytest.raises(
@@ -225,12 +225,12 @@ class TestRootNamespace:
             with pytest.raises(
                 TerminalError, match=r"set 'volume' to 'loud'.*the field declares"
             ):
-                canvas.state.push('volume', 'loud')  # type: ignore[attr-defined]
+                canvas.state.set('volume', 'loud')  # type: ignore[attr-defined]
             assert canvas.state.volume == 0.5
 
     def test_a_write_from_another_thread_is_saved_at_once(self):
         with main.new(width=8, height=1, realtime=True) as canvas:
-            worker = threading.Thread(target=lambda: canvas.state.push('x', 9))
+            worker = threading.Thread(target=lambda: canvas.state.set('x', 9))
             worker.start()
             worker.join()
             assert canvas.state.get('x') == 9
@@ -252,14 +252,14 @@ class TestHookRuns:
             @canvas.hook(on='key')
             def count(context: Context) -> None:
                 state = context.root.state
-                state.push('count', 1)
-                state.push('count', number(state.get('count')) + 1)
-                state.push('nested', {'a': 1})
-                state.push('nested.b', 2)
+                state.set('count', 1)
+                state.set('count', number(state.get('count')) + 1)
+                state.set('nested', {'a': 1})
+                state.set('nested.b', 2)
                 seen.append(
                     (state.get('count'), state.get('nested'), state.get('nested.b'))
                 )
-                state.push('nested', {'c': 3})
+                state.set('nested', {'c': 3})
                 seen.append(state.get('nested'))
 
             press(canvas)
@@ -284,9 +284,9 @@ class TestHookRuns:
             @canvas.hook(on='key')
             def push_three(context: Context) -> None:
                 state = context.root.state
-                state.push('a', 1)
-                state.push('b', 2)
-                state.push('c', 3)
+                state.set('a', 1)
+                state.set('b', 2)
+                state.set('c', 3)
 
             store = canvas._ensure_store()
             before = store.revision
@@ -299,7 +299,7 @@ class TestHookRuns:
 
         @canvas.hook(on='key')
         def fail(context: Context) -> None:
-            context.root.state.push('a', 1)
+            context.root.state.set('a', 1)
             raise RuntimeError('boom')
 
         canvas.push(Event.key_press('a'))
@@ -326,11 +326,11 @@ class TestHookRuns:
             @canvas.hook(on='key')
             def steps(context: Context):
                 state = context.root.state
-                state.push('step', 1)
+                state.set('step', 1)
                 context = yield
-                state.push('step', number(state.get('step')) + 1)
+                state.set('step', number(state.get('step')) + 1)
                 context = yield
-                state.push('step', number(state.get('step')) + 1)
+                state.set('step', number(state.get('step')) + 1)
 
             press(canvas)
             assert canvas.state.get('step') == 1
@@ -347,10 +347,10 @@ class TestHookRuns:
 
                 @placement.hook(on='key')
                 def count(context: Context) -> None:
-                    state = context.buffer.state
-                    state.push('count', number(state.get('count', default=0)) + 1)
+                    state = context.target.state
+                    state.set('count', number(state.get('count', default=0)) + 1)
 
-            first.state.push('own', 'first')
+            first.state.set('own', 'first')
             press(canvas)
             press(canvas)
             assert first.state.get('count') == 2
@@ -366,8 +366,8 @@ class TestHookRuns:
                 @canvas.hook(on='key')
                 def keep(context: Context) -> None:
                     state = context.plugin.state
-                    state.push('presses', number(state.get('presses', default=0)) + 1)
-                    context.root.state.push(name, state.get('presses'))
+                    state.set('presses', number(state.get('presses', default=0)) + 1)
+                    context.root.state.set(name, state.get('presses'))
 
             make('first')
             make('second')
@@ -380,11 +380,11 @@ class TestHookRuns:
     def test_removing_a_placement_or_hook_deletes_its_branch(self):
         with main.new(width=8, height=1) as canvas:
             placement = canvas.screen.write('a')
-            placement.state.push('x', 1)
+            placement.state.set('x', 1)
 
             @placement.hook(on='key')
             def keep(context: Context) -> None:
-                context.plugin.state.push('y', 1)
+                context.plugin.state.set('y', 1)
 
             press(canvas)
             store = canvas._ensure_store()
@@ -396,19 +396,19 @@ class TestHookRuns:
             tree = store.snapshot().to_value()['xnano']
             assert tree == {'buffers': {}, 'plugins': {}}
             with pytest.raises(TerminalError, match='was removed'):
-                namespace.push('x', 2)
+                namespace.set('x', 2)
             assert namespace.get('x', default='gone') == 'gone'
 
     def test_a_large_namespace_is_still_saved(self):
         with main.new(width=8, height=1) as canvas:
             placement = canvas.screen.write('a')
             for index in range(70):
-                placement.state.push(f'key{index}', index)
+                placement.state.set(f'key{index}', index)
 
             @placement.hook(on='key')
             def push_more(context: Context) -> None:
-                context.buffer.state.push('key3', 'changed')
-                context.buffer.state.push('extra', 1)
+                context.target.state.set('key3', 'changed')
+                context.target.state.set('extra', 1)
 
             press(canvas)
             assert placement.state.get('key3') == 'changed'
@@ -430,38 +430,38 @@ class TestFollowingPaths:
             def follow(context: Context) -> None:
                 runs.append(context.root.state.get('watched'))
 
-            canvas.state.push('other', 1)
+            canvas.state.set('other', 1)
             canvas.deliver_events()
             assert runs == [None]
-            canvas.state.push('other', 2)
+            canvas.state.set('other', 2)
             canvas.deliver_events()
             assert runs == [None]
-            canvas.state.push('watched', 5)
+            canvas.state.set('watched', 5)
             canvas.deliver_events()
             assert runs == [None, 5]
-            canvas.state.push('watched', 6)
+            canvas.state.set('watched', 6)
             canvas.deliver_events()
             assert runs == [None, 5, 6]
 
     def test_a_state_hook_follows_a_path_below_and_above_what_it_read(self):
         runs: list[object] = []
         with main.new(width=8, height=1) as canvas:
-            canvas.state.push('player', {'score': 0, 'name': 'Ada'})
+            canvas.state.set('player', {'score': 0, 'name': 'Ada'})
 
             @canvas.hook(on='state')
             def follow(context: Context) -> None:
                 runs.append(context.root.state.get('player.score'))
 
-            canvas.state.push('player.name', 'Bo')
+            canvas.state.set('player.name', 'Bo')
             canvas.deliver_events()
             assert runs == [0]
-            canvas.state.push('player.name', 'Cy')
+            canvas.state.set('player.name', 'Cy')
             canvas.deliver_events()
             assert runs == [0]
-            canvas.state.push('player.score', 4)
+            canvas.state.set('player.score', 4)
             canvas.deliver_events()
             assert runs == [0, 4]
-            canvas.state.push('player', {'score': 9, 'name': 'Di'})
+            canvas.state.set('player', {'score': 9, 'name': 'Di'})
             canvas.deliver_events()
             assert runs == [0, 4, 9]
 
@@ -473,9 +473,9 @@ class TestFollowingPaths:
             def follow(context: Context) -> None:
                 heard.append(len(context.event.paths))  # type: ignore[union-attr]
 
-            canvas.state.push('a', 1)
+            canvas.state.set('a', 1)
             canvas.deliver_events()
-            canvas.state.push('b', 1)
+            canvas.state.set('b', 1)
             canvas.deliver_events()
             assert heard == [1, 1]
 
@@ -483,7 +483,7 @@ class TestFollowingPaths:
         events: list[object] = []
         with main.new(width=8, height=1) as canvas:
             canvas.hook(lambda context: events.append(context.event), on='state')
-            canvas.state.push('a', 1)
+            canvas.state.set('a', 1)
             canvas.deliver_events()
             assert [type(event).__name__ for event in events] == ['TerminalStateChange']
 
@@ -508,9 +508,9 @@ class TestFollowingPaths:
                 state = context.root.state
                 value = number(state.get('count', default=0))
                 runs.append(value)
-                state.push('count', value + 1)
+                state.set('count', value + 1)
 
-            canvas.state.push('count', 10)
+            canvas.state.set('count', 10)
             canvas.deliver_events()
             assert runs == [10]
             assert canvas.state.get('count') == 11
@@ -521,14 +521,14 @@ class TestFollowingPaths:
             @canvas.hook(on='state')
             def first(context: Context) -> None:
                 state = context.root.state
-                state.push('b', number(state.get('a', default=0)) + 1)
+                state.set('b', number(state.get('a', default=0)) + 1)
 
             @canvas.hook(on='state')
             def second(context: Context) -> None:
                 state = context.root.state
-                state.push('c', number(state.get('b', default=0)) + 1)
+                state.set('c', number(state.get('b', default=0)) + 1)
 
-            canvas.state.push('a', 1)
+            canvas.state.set('a', 1)
             canvas.deliver_events()
             assert (canvas.state.get('b'), canvas.state.get('c')) == (2, 3)
 
@@ -538,14 +538,14 @@ class TestFollowingPaths:
         @canvas.hook(on='state')
         def ping(context: Context) -> None:
             state = context.root.state
-            state.push('ping', number(state.get('pong', default=0)) + 1)
+            state.set('ping', number(state.get('pong', default=0)) + 1)
 
         @canvas.hook(on='state')
         def pong(context: Context) -> None:
             state = context.root.state
-            state.push('pong', number(state.get('ping', default=0)) + 1)
+            state.set('pong', number(state.get('ping', default=0)) + 1)
 
-        canvas.state.push('ping', 1)
+        canvas.state.set('ping', 1)
         with pytest.raises(TerminalError, match=r"hooks 'ping' and 'pong' keep changing"):
             canvas.deliver_events()
             canvas.close()
@@ -558,11 +558,11 @@ class TestFollowingPaths:
             def count(context: Context) -> None:
                 state = context.root.state
                 runs.append(state.get('count', default=0))
-                state.push('count', number(state.get('count', default=0)) + 1)
+                state.set('count', number(state.get('count', default=0)) + 1)
 
             @canvas.hook(on='custom')
             def reset(context: Context) -> None:
-                context.root.state.push('count', 0)
+                context.root.state.set('count', 0)
 
             press(canvas)
             assert runs == [0]
@@ -576,7 +576,7 @@ class TestFollowingPaths:
 
             def increment(context: Context) -> None:
                 state = context.root.state
-                state.push('count', number(state.get('count', default=0)) + 1)
+                state.set('count', number(state.get('count', default=0)) + 1)
 
             canvas.hook(increment, on='key')
             canvas.hook(increment, on='key')
@@ -587,11 +587,11 @@ class TestFollowingPaths:
         runs: list[int] = []
         with main.new(width=8, height=1) as canvas:
             handle = canvas.hook(lambda context: runs.append(1), on='state')
-            canvas.state.push('a', 1)
+            canvas.state.set('a', 1)
             canvas.deliver_events()
             handle.remove()
             canvas.deliver_events()
-            canvas.state.push('a', 2)
+            canvas.state.set('a', 2)
             canvas.deliver_events()
             assert runs == [1]
             assert canvas._state_followers is not None
@@ -604,13 +604,13 @@ class TestFollowingPaths:
 
             @label.hook(on='state')
             def follow(context: Context) -> None:
-                runs.append(context.buffer.state.get('level'))
+                runs.append(context.target.state.get('level'))
 
-            label.state.push('level', 1)
+            label.state.set('level', 1)
             canvas.deliver_events()
-            label.state.push('level', 2)
+            label.state.set('level', 2)
             canvas.deliver_events()
-            canvas.state.push('level', 99)
+            canvas.state.set('level', 99)
             canvas.deliver_events()
             assert runs == [1, 2]
 
@@ -641,8 +641,8 @@ class TestStateAcrossOpen:
     def test_the_state_of_the_placements_survives_a_replaced_store(self):
         with main.new(width=8, height=1) as canvas:
             placement = canvas.screen.write('hi')
-            placement.state.push('clicks', 3)
-            canvas.state.push('free', 1)
+            placement.state.set('clicks', 3)
+            canvas.state.set('free', 1)
             replacement = main.state._prepare_state(
                 Settings(), canvas._state_store.snapshot().to_value()
             )
@@ -669,7 +669,7 @@ class TestStateAcrossOpen:
             def watch(context: Context) -> None:
                 heard.append(context.root.state.get('x'))
 
-            canvas.state.push('x', 1)
+            canvas.state.set('x', 1)
             deadline = time.monotonic() + 3
             while time.monotonic() < deadline and 1 not in heard:
                 time.sleep(0.01)

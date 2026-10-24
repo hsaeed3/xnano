@@ -61,20 +61,20 @@ if TYPE_CHECKING:
     from xnano.hooks._context import Context
     from xnano.layout._placement import Placement
 
-__all__ = ['PixelAnchor', 'Region', 'Resolution', 'box', 'write']
+__all__ = ['PixelAnchor', 'Region', 'Resolution', 'box', 'region']
 
 _BRAILLE_BITS: Final = ((0x01, 0x08), (0x02, 0x10), (0x04, 0x20), (0x40, 0x80))
 _BLANK: Final = _core.Cell(' ')
 
-_TICKS_PER_BEAT: Final = 4
-"""A tick is a sixteenth note, so a beat (a quarter note) is four ticks."""
+_SIXTEENTHS_PER_BEAT: Final = 4
+"""A beat (a quarter note) is four sixteenth notes."""
 
-_TIMELINE_RESOLUTIONS: Final = frozenset({'beats', 'ticks', 'milliseconds'})
+_TIMELINE_RESOLUTIONS: Final = frozenset({'beats', 'sixteenths', 'milliseconds'})
 _SCREEN_VIEWS: Final = frozenset({'cells', 'half_blocks', 'braille'})
 
 _VIEW_APPEARANCE_MESSAGE: Final = (
     'Set canvas.{name} (or placement.{name}) instead of region.{name}: a view of a canvas '
-    'or a placement has no appearance of its own. Only a region from xnano.write() or '
+    'or a placement has no appearance of its own. Only a region from xnano.region() or '
     'xnano.box() does.'
 )
 
@@ -147,7 +147,7 @@ class Region(_Looked, Generic[NumberT_co]):
     A rectangle in the grid of a medium: cells on the screen, or beats by semitones on the timeline.
 
     A region **on the screen** is a rectangle of cells that you can read and write, one cell
-    or dot at a time. It is either *standalone*, made by [`write`][xnano.write] or
+    or dot at a time. It is either *standalone*, made by [`region`][xnano.region] or
     [`box`][xnano.box], which owns its cells and can be written into a canvas, or a *live
     view* of the cells of a canvas or a placement, from ``canvas.screen.region`` and
     ``placement.region``. Coordinates are region coordinates, ``(0, 0)`` being the top-left
@@ -173,39 +173,39 @@ class Region(_Looked, Generic[NumberT_co]):
 
     A region **on the timeline** is a piano roll: ``x`` is the beat it starts on and ``width``
     how many beats it lasts, ``y`` is its lowest pitch as a MIDI number and ``height`` how
-    many semitones it spans. It has no cells, so ``region.beats``, ``region.ticks`` (sixteenth
-    notes, 4 per beat) and ``region.milliseconds`` (through the tempo) are the views that
+    many semitones it spans. It has no cells, so ``region.beats``, ``region.sixteenths``
+    (sixteenth notes, 4 per beat) and ``region.milliseconds`` (through the tempo) are the views that
     measure it, and reading ``cells``, ``half_blocks``, ``braille``, ``size`` or a cell raises
     a [`TerminalError`][xnano.errors.TerminalError]. The same holds the other way around: a
-    region on the screen refuses ``beats``, ``ticks`` and ``milliseconds``.
+    region on the screen refuses ``beats``, ``sixteenths`` and ``milliseconds``.
     ``(beat, pitch) in region`` and ``region.local((beat, pitch))`` use the grid of the region.
 
     The type parameter says which medium a region is in. A region on the screen is a
     ``Region[int]``: its ``x`` and ``width`` are whole numbers, so ``range(region.width)``
     type-checks. A region on the timeline is a ``Region[float]``: its ``x`` and ``width`` are
-    beats, ticks or milliseconds and can be fractions. ``canvas.screen.region``, ``placement.region``,
-    [`write`][xnano.write] and [`box`][xnano.box] give a ``Region[int]``; the ``region`` of a
+    beats, sixteenths or milliseconds and can be fractions. ``canvas.screen.region``, ``placement.region``,
+    [`region`][xnano.region] and [`box`][xnano.box] give a ``Region[int]``; the ``region`` of a
     note, a melody or a sound gives a ``Region[float]``, and so does ``context.region``, which
     is on the screen or on the timeline depending on what the hook is attached to. Annotate
     a parameter as ``Region`` to accept either.
 
     Attributes:
         width: The width in cells, or in pixels or dots at the other screen resolutions; on
-            the timeline, how many beats, ticks or milliseconds it lasts.
+            the timeline, how many beats, sixteenths or milliseconds it lasts.
         height: The height in cells, or in pixels or dots at the other screen resolutions; on
             the timeline, how many semitones it spans.
         x: The screen column of the left edge; on the timeline, the beat, tick or millisecond
             it starts at.
         y: The screen row of the top edge; on the timeline, the lowest pitch as a MIDI number.
         resolution: The grid the region is measured in: ``'cells'``, ``'half_blocks'`` or
-            ``'braille'`` on the screen, ``'beats'``, ``'ticks'`` or ``'milliseconds'`` on
+            ``'braille'`` on the screen, ``'beats'``, ``'sixteenths'`` or ``'milliseconds'`` on
             the timeline.
         size: The width and height of a region on the screen, at its resolution.
         cells: The same region as whole cells.
         braille: The same cells as braille dots.
         half_blocks: The same cells as half-block pixels.
         beats: The same region on the timeline, measured in beats.
-        ticks: The same region on the timeline, measured in sixteenth notes.
+        sixteenths: The same region on the timeline, measured in sixteenth notes.
         milliseconds: The same region on the timeline, measured in milliseconds.
         color: The colors of a standalone region.
         border: The border of a standalone region.
@@ -216,7 +216,7 @@ class Region(_Looked, Generic[NumberT_co]):
         ```python
         import xnano
 
-        card = xnano.write('hello', border='rounded')
+        card = xnano.region('hello', border='rounded')
         assert card.render().splitlines()[0] == '╭─────╮'
 
         with xnano.new(width=8, height=2) as canvas:
@@ -240,9 +240,9 @@ class Region(_Looked, Generic[NumberT_co]):
         import xnano
         from xnano.errors import TerminalError
 
-        region = xnano.note(('C4', 'G4'), beats=2).region
+        region = xnano.Note(('C4', 'G4'), beats=2).region
         assert (region.x, region.width, region.y, region.height) == (0.0, 2.0, 60, 8)
-        assert region.ticks.width == 8.0
+        assert region.sixteenths.width == 8.0
         with pytest.raises(TerminalError):
             region.half_blocks
         ```
@@ -268,7 +268,7 @@ class Region(_Looked, Generic[NumberT_co]):
             owner: The canvas or placement a live view belongs to.
             inset: Cells left out on the left, top, right and bottom of the buffer.
             resolution: The grid of the region: ``'cells'``, ``'half_blocks'`` or
-                ``'braille'`` on the screen, ``'beats'``, ``'ticks'`` or ``'milliseconds'``
+                ``'braille'`` on the screen, ``'beats'``, ``'sixteenths'`` or ``'milliseconds'``
                 on the timeline.
             is_standalone: Whether the region owns its buffer and its look.
             look: The look of a standalone region.
@@ -294,7 +294,7 @@ class Region(_Looked, Generic[NumberT_co]):
             raise TerminalError(
                 f'Region() got a timeline with the screen resolution {resolution!r}, but '
                 f'a region on the timeline is measured in beats. Pass resolution='
-                f"'beats', 'ticks' or 'milliseconds'.",
+                f"'beats', 'sixteenths' or 'milliseconds'.",
                 code='validation.value',
                 location='resolution',
                 input_value=resolution,
@@ -346,7 +346,7 @@ class Region(_Looked, Generic[NumberT_co]):
         raise TerminalError(
             f'{subject}, but this region is on the timeline: beats by semitones, from a '
             f'Note, a Melody, audio or the context of a playable. On the timeline read '
-            f'region.beats, region.ticks or region.milliseconds, and x, y, width and height.'
+            f'region.beats, region.sixteenths or region.milliseconds, and x, y, width and height.'
         )
 
     def _require_drawable(self, name: str) -> None:
@@ -357,7 +357,7 @@ class Region(_Looked, Generic[NumberT_co]):
             f'{name} draws the cells of a region on the screen, but this region is on the '
             f'timeline: beats by semitones, from a Note, a Melody, audio or the context '
             f'of a playable, and it has no cells. Draw the region of a canvas or a '
-            f'placement, or one made by xnano.write() or xnano.box(), or play the note, '
+            f'placement, or one made by xnano.region() or xnano.box(), or play the note, '
             f'melody or sound with canvas.speaker.play().'
         )
 
@@ -367,7 +367,7 @@ class Region(_Looked, Generic[NumberT_co]):
             return
         raise TerminalError(
             f'{name} is a view of a region on the timeline, but this region is on the '
-            f'screen: cells of a canvas, a placement, xnano.write() or xnano.box(). On the '
+            f'screen: cells of a canvas, a placement, xnano.region() or xnano.box(). On the '
             f'screen read region.cells, region.half_blocks or region.braille, and x, y, '
             f'width and height.'
         )
@@ -553,10 +553,10 @@ class Region(_Looked, Generic[NumberT_co]):
 
     def _timeline_extent(self, span: _TimelineSpan) -> tuple[float, float]:
         """Where a region on the timeline starts and how long it lasts, in its resolution."""
-        if self._resolution == 'ticks':
+        if self._resolution == 'sixteenths':
             return (
-                span.start_beats * _TICKS_PER_BEAT,
-                span.length_beats * _TICKS_PER_BEAT,
+                span.start_beats * _SIXTEENTHS_PER_BEAT,
+                span.length_beats * _SIXTEENTHS_PER_BEAT,
             )
         if self._resolution == 'milliseconds':
             start = span.seconds_at(span.start_beats)
@@ -571,7 +571,7 @@ class Region(_Looked, Generic[NumberT_co]):
 
         On the screen it is counted in cells, or in pixels or dots at the other resolutions,
         and is a whole number (``int``). On the timeline it is how long the region lasts, in
-        beats, ticks or milliseconds (``float``).
+        beats, sixteenths or milliseconds (``float``).
         """
         span = self._timeline
         if span is not None:
@@ -598,7 +598,7 @@ class Region(_Looked, Generic[NumberT_co]):
         The grid the region is measured in.
 
         On the screen it is ``'cells'``, ``'half_blocks'`` (1 by 2 per cell) or ``'braille'``
-        (2 by 4). On the timeline it is ``'beats'``, ``'ticks'`` (sixteenth notes, 4 per beat)
+        (2 by 4). On the timeline it is ``'beats'``, ``'sixteenths'`` (sixteenth notes, 4 per beat)
         or ``'milliseconds'``.
         """
         return self._resolution
@@ -735,7 +735,7 @@ class Region(_Looked, Generic[NumberT_co]):
         On a view of a placement this resizes the placement. A standalone region made by
         [`box`][xnano.box] keeps its cells where they fit, and a box with a relative size
         takes the whole-cell size given here and keeps it. A region made by
-        [`write`][xnano.write] is sized by its text, border, padding and margin, so it
+        [`region`][xnano.region] is sized by its text, border, padding and margin, so it
         cannot be resized.
 
         Args:
@@ -758,7 +758,7 @@ class Region(_Looked, Generic[NumberT_co]):
         owner = self._owner
         if self._is_standalone and self._is_text:
             raise TerminalError(
-                'A region made by write() is sized by its text, border, padding and margin, '
+                'A region made by xnano.region() is sized by its text, border, padding and margin, '
                 'so resize() cannot change it. Make a region of a size you choose with '
                 'xnano.box(width, height), or change the text or the padding.'
             )
@@ -847,7 +847,7 @@ class Region(_Looked, Generic[NumberT_co]):
 
         Raises:
             TerminalError: The region is on the timeline, which has no cells. Read
-                ``beats``, ``ticks`` or ``milliseconds`` instead.
+                ``beats``, ``sixteenths`` or ``milliseconds`` instead.
         """
         self._require_screen('region.cells')
         return cast('Region[int]', self._view('cells'))
@@ -861,7 +861,7 @@ class Region(_Looked, Generic[NumberT_co]):
 
         Raises:
             TerminalError: The region is on the timeline, which has no cells. Read
-                ``beats``, ``ticks`` or ``milliseconds`` instead.
+                ``beats``, ``sixteenths`` or ``milliseconds`` instead.
 
         Examples:
             ```python
@@ -884,7 +884,7 @@ class Region(_Looked, Generic[NumberT_co]):
 
         Raises:
             TerminalError: The region is on the timeline, which has no cells. Read
-                ``beats``, ``ticks`` or ``milliseconds`` instead.
+                ``beats``, ``sixteenths`` or ``milliseconds`` instead.
         """
         self._require_screen('region.half_blocks')
         return cast('Region[int]', self._view('half_blocks'))
@@ -902,16 +902,16 @@ class Region(_Looked, Generic[NumberT_co]):
         return cast('Region[float]', self._view('beats'))
 
     @property
-    def ticks(self) -> Region[float]:
+    def sixteenths(self) -> Region[float]:
         """
-        The same region on the timeline, measured in ticks: sixteenth notes, 4 to a beat.
+        The same region on the timeline, measured in sixteenth notes, 4 to a beat.
 
         Raises:
             TerminalError: The region is on the screen, which has no beats. Read ``cells``,
                 ``half_blocks`` or ``braille`` instead.
         """
-        self._require_timeline('region.ticks')
-        return cast('Region[float]', self._view('ticks'))
+        self._require_timeline('region.sixteenths')
+        return cast('Region[float]', self._view('sixteenths'))
 
     @property
     def milliseconds(self) -> Region[float]:
@@ -1429,7 +1429,7 @@ class Region(_Looked, Generic[NumberT_co]):
             ```python
             import xnano
 
-            assert xnano.write('hi', padding=1).render().splitlines() == ['', ' hi']
+            assert xnano.region('hi', padding=1).render().splitlines() == ['', ' hi']
             ```
         """
         self._require_screen('region.render()')
@@ -1566,7 +1566,7 @@ def _standalone_look(
     return Appearance(text=text, **cast('dict[str, object]', settings))  # type: ignore[arg-type]
 
 
-def write(
+def region(
     content: Writable | None = None,
     /,
     *,
@@ -1607,10 +1607,10 @@ def write(
     - ``None`` makes an empty box of ``width`` by ``height`` cells (1 by 1 when left out), like
       [`box`][xnano.box].
 
-    A relative ``width`` or ``height`` (a percentage such as ``'50%'``, a formula such as
+    A relative ``width`` or ``height`` (a percentage such as ``'50%'``, an expression such as
     ``ParentWidth - 4`` or a state reference) is measured against the active canvas, or the
     terminal window when no canvas is active. Content that depends on its surroundings, such
-    as a widget with formulas, an image fitted to a size or a component that reads the time,
+    as a widget with expressions, an image fitted to a size or a component that reads the time,
     the state or the size, is drawn as the active canvas sees it at that moment and kept as
     cells. Only an empty box (``None``) keeps its relative size and is drawn again at
     the size of its placement when it is written, and whenever the canvas is resized.
@@ -1619,7 +1619,7 @@ def write(
         content: Text (or a list of lines), a widget or core buffer, a region, an image, art,
             a pixel or any [`Writable`][xnano.components.Writable]; ``None`` for an empty
             box.
-        width: The width in cells, border included: a whole number, a percentage, a formula
+        width: The width in cells, border included: a whole number, a percentage, an expression
             or a state reference. The content's own width when left out.
         height: The height in cells, in the same forms as ``width``.
         appearance: The look: colors, text modifiers, ``border``, ``title``, ``padding`` and
@@ -1639,13 +1639,13 @@ def write(
         import xnano
         from xnano.widgets import Gauge
 
-        card = xnano.write('hello', border='rounded', padding={'horizontal': 1})
+        card = xnano.region('hello', border='rounded', padding={'horizontal': 1})
         assert card.render().splitlines()[1] == '│ hello │'
         card.border = False
         assert card.render().strip() == 'hello'
 
         with xnano.new(width=40, height=4) as canvas:
-            gauge = xnano.write(Gauge(0.6, label='60%'), width='50%')
+            gauge = xnano.region(Gauge(0.6, label='60%'), width='50%')
             assert gauge.width == 20
             canvas.screen.write(gauge, x=10)
             assert '60%' in canvas.screen.render()
@@ -1657,9 +1657,9 @@ def write(
         if _is_relative_size(width) or _is_relative_size(height):
             space = _measuring_space()
         if width is not None:
-            _box_cells(width, 'width', space, 'xnano.write()')
+            _box_cells(width, 'width', space, 'xnano.region()')
         if height is not None:
-            _box_cells(height, 'height', space, 'xnano.write()')
+            _box_cells(height, 'height', space, 'xnano.region()')
         if isinstance(width, str):
             width = width.strip()
         if isinstance(height, str):
@@ -1674,7 +1674,7 @@ def write(
                 if isinstance(content, str)
                 else '\n'.join(cast('list[str]', content))
             )
-            look = _standalone_look('write', text, cast('dict[str, object]', appearance))
+            look = _standalone_look('region', text, cast('dict[str, object]', appearance))
             region: Region[int] = Region(
                 _core.Buffer(width=1, height=1),
                 is_standalone=True,
@@ -1690,10 +1690,10 @@ def write(
             **appearance,
         )
     if isinstance(content, Region):
-        content._require_drawable('xnano.write()')
+        content._require_drawable('xnano.region()')
         if width is not None or height is not None or appearance:
             raise TerminalError(
-                'xnano.write() copies a region as it is, but it was also given a size or a '
+                'xnano.region() copies a region as it is, but it was also given a size or a '
                 'look. A region has its own: change the copy with region.border, '
                 'region.padding or region.color, or give the size and the look to '
                 'canvas.screen.write(region, width=..., border=...) where you write it.',
@@ -1702,13 +1702,13 @@ def write(
                 input_value=content,
             )
         return cast('Region[int]', content.copy())
-    _standalone_look('write', '', cast('dict[str, object]', appearance))
+    _standalone_look('region', '', cast('dict[str, object]', appearance))
     return _drawn_region(content, width, height, appearance)
 
 
 def _check_content(content: object) -> None:
     """
-    Refuse content that ``xnano.write()`` cannot keep as cells.
+    Refuse content that ``xnano.region()`` cannot keep as cells.
 
     Raises:
         TypeError: The content is not something a canvas can show.
@@ -1720,9 +1720,9 @@ def _check_content(content: object) -> None:
 
     if isinstance(content, Canvas):
         raise TerminalError(
-            'xnano.write() builds a region of cells, but a canvas is live: it keeps running '
+            'xnano.region() builds a region of cells, but a canvas is live: it keeps running '
             'and changing. Show it inside another canvas with outer.screen.write(canvas), or '
-            'write a snapshot of its cells with xnano.write(canvas.screen.region.copy()).',
+            'write a snapshot of its cells with xnano.region(canvas.screen.region.copy()).',
             code='validation.type',
             location='content',
             input_value=content,
@@ -1742,7 +1742,7 @@ def _check_content(content: object) -> None:
     ):
         return
     raise TypeError(
-        f'xnano.write() takes text, a widget or buffer, a region, an image, art, a pixel, '
+        f'xnano.region() takes text, a widget or buffer, a region, an image, art, a pixel, '
         f'a writable or a renderable, but got {content!r}. To put other content on a screen, create a '
         f'canvas with xnano.new() and call canvas.screen.write(content), or load a file with '
         f'xnano.load_image(path) first.'
@@ -1823,8 +1823,8 @@ def _measuring_space() -> tuple[int, int]:
     return (window.columns, window.lines)
 
 
-def _box_formula(axis: Literal['width', 'height']) -> str:
-    """A formula of the canvas that sizes ``axis``, for the messages that refuse a size."""
+def _box_expression(axis: Literal['width', 'height']) -> str:
+    """An expression of the canvas that sizes ``axis``, for the messages that refuse a size."""
     return 'ParentWidth - 4' if axis == 'width' else 'ParentHeight - 4'
 
 
@@ -1832,7 +1832,7 @@ def _box_forms(axis: Literal['width', 'height']) -> str:
     """The ways to give one size of a box, for the messages that refuse a size."""
     return (
         f"a whole number of cells such as 20, a share of the canvas such as '50%', a "
-        f'formula such as {_box_formula(axis)}, or a reference to the canvas state from '
+        f'expression such as {_box_expression(axis)}, or a reference to the canvas state from '
         f'canvas.state_reference()'
     )
 
@@ -1849,12 +1849,12 @@ def _box_cells(
     function_name: str = 'xnano.box()',
 ) -> int:
     """
-    Return the cells of one size of ``xnano.box()`` or ``xnano.write()``, measured against ``space``.
+    Return the cells of one size of ``xnano.box()`` or ``xnano.region()``, measured against ``space``.
 
     Raises:
         TerminalError: The size is a whole number of cells outside 1 to 65535, is not a
-            whole number of cells, a share of the space such as ``'50%'``, a formula or a
-            state reference, is a share of 0% or less, or is a formula that reads the clock
+            whole number of cells, a share of the space such as ``'50%'``, an expression or a
+            state reference, is a share of 0% or less, or is an expression that reads the clock
             or input that has not arrived. A relative size that measures outside 1 to 65535
             cells is held to that range instead of refused.
     """
@@ -1863,7 +1863,7 @@ def _box_cells(
             raise TerminalError(
                 f'{function_name} takes the {axis} as 1 to {MOST_CELLS} whole cells, but got '
                 f'{value!r}. Pass a size in that range, a share of the canvas such as '
-                f"'50%', or a formula such as {_box_formula(axis)}.",
+                f"'50%', or an expression such as {_box_expression(axis)}.",
                 code='validation.bounds',
                 location=axis,
                 input_value=value,
@@ -1907,10 +1907,10 @@ def _box_cells(
         cells = inspect_number(child, cast('NumericExpression', converted))
     except (_core.RuntimeRequiredError, TypeError) as error:
         raise TerminalError(
-            f'{function_name} cannot size the {axis} with {value!r}, because that formula reads '
+            f'{function_name} cannot size the {axis} with {value!r}, because that expression reads '
             f'the clock or input that has not arrived, so it has no value before '
             f'the {noun} is written. Pass {_box_forms(axis)}, or write the {noun} with '
-            f'canvas.screen.write({noun}, {axis}=formula).',
+            f'canvas.screen.write({noun}, {axis}=expression).',
             code='validation.value',
             location=axis,
             input_value=value,
@@ -1951,7 +1951,7 @@ def box(
 
     Args:
         width: The width in cells, border included: a whole number, a percentage such as
-            ``'50%'``, a formula such as ``ParentWidth - 4`` or a reference to the canvas
+            ``'50%'``, an expression such as ``ParentWidth - 4`` or a reference to the canvas
             state from ``canvas.state_reference()``. A relative size (every form but a whole
             number) is measured where the box is written, like
             ``canvas.screen.write(..., width='50%')``, and until then against the active canvas or,
@@ -1967,9 +1967,9 @@ def box(
             border is part of its cells, so ``placement.region`` includes the border.
 
     Raises:
-        TerminalError: A size is not a whole number of cells, a percentage, a formula or a
+        TerminalError: A size is not a whole number of cells, a percentage, an expression or a
             state reference; a whole number is outside 1 to 65535; a share is 0% or less; or a
-            formula reads the clock or input that has not arrived. A relative size that
+            expression reads the clock or input that has not arrived. A relative size that
             measures outside 1 to 65535 cells is held to that range, not refused.
 
     Examples:

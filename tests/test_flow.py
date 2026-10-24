@@ -124,7 +124,7 @@ class TestFollowing:
         items = canvas.screen.write(listing)
         footer = canvas.screen.write('footer')
         assert footer.y == 1
-        canvas.state.push('count', 3)
+        canvas.state.set('count', 3)
         canvas.deliver_events()
         assert items.height == 3
         assert footer.y == 3
@@ -198,7 +198,7 @@ class TestSameRow:
 
     def test_a_full_width_world_does_not_push_an_overlay_off_the_screen(self, canvas):
         canvas.screen.write(
-            xnano.draw(None, width=24, height=20), width='100%', height='100%'
+            xnano.pixel_art(None, width=24, height=20), width='100%', height='100%'
         )
         overlay = canvas.screen.write('HP 10', y=0)
         assert overlay.x == 0
@@ -258,7 +258,7 @@ class TestContainers:
         assert placed.y == 1
 
     def test_measuring_a_standalone_write_inside_a_canvas_takes_no_line(self, canvas):
-        xnano.write('measured', border='rounded')
+        xnano.region('measured', border='rounded')
         first = canvas.screen.write('first')
         assert first.y == 0
 

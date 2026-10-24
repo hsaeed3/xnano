@@ -871,7 +871,7 @@ def playable(  # pyright: ignore[reportGeneralTypeIssues]
 
         @xnano.playable
         def chord(context: xnano.Context, root: str = 'C4') -> xnano.Note:
-            return xnano.note(root, beats=0.5)
+            return xnano.Note(root, beats=0.5)
 
         with xnano.new(width=8, height=1) as canvas:
             canvas.speaker.play(chord(root='E4'))
@@ -1004,7 +1004,7 @@ class _Driver:
         )
 
     def _run(self, call: Callable[[], object]) -> tuple[object, ReadLog, _HookRun]:
-        """Call ``call`` while recording the state it reads and the values it pushes."""
+        """Call ``call`` while recording the state it reads and the values it sets."""
         canvas = self._canvas
         run = _HookRun(track=True)
         run.handle = cast('HookHandle[object, object]', self)
@@ -1023,7 +1023,7 @@ class _Driver:
         return result, self.log, run
 
     def _finish(self, run: _HookRun) -> None:
-        """Save what the run pushed in one transaction and follow what it read."""
+        """Save what the run set in one transaction and follow what it read."""
         canvas = self._canvas
         run.is_active = False
         run.snapshot = None
@@ -1232,7 +1232,7 @@ class _ComponentDriver(_Driver):
         buffer, _, run = self._run(call)
         self._show(cast('_core.Buffer', buffer))
         self._finish(run)
-        self._last_elapsed = canvas._clock_view.elapsed
+        self._last_elapsed = canvas._clock_view.elapsed_seconds
         self._follow_log()
 
     def _show(self, buffer: _core.Buffer) -> None:
@@ -1437,7 +1437,7 @@ class _RenderingDriver(_ComponentDriver):
 
         _, _, run = self._run(call)
         self._finish(run)
-        self._last_elapsed = self._canvas._clock_view.elapsed
+        self._last_elapsed = self._canvas._clock_view.elapsed_seconds
         self._follow_log()
         self._canvas._request_frame()
 
@@ -1571,7 +1571,7 @@ class _PlayableDriver(_Driver):
         at_beat = self._options.get('at_beat')
         return _timeline_region(
             start_beats=(
-                canvas._clock_view.elapsed * canvas._clock_view.bpm / 60.0
+                canvas._clock_view.elapsed_seconds * canvas._clock_view.bpm / 60.0
                 if at_beat is None
                 else float(at_beat)
             ),

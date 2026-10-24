@@ -17,7 +17,7 @@ import xnano_core as _core
 from xnano.art._worlds import Art
 from xnano.canvas import Canvas
 from xnano.errors import TerminalError
-from xnano.hooks._context import Context, Frame, Update
+from xnano.hooks._context import Context, Frame, Tick
 from xnano.layout._placement import Placement
 
 if TYPE_CHECKING:
@@ -315,7 +315,7 @@ def _event_value(context: Context[object, object]) -> dict[str, JSONValue] | Non
         return None
     if isinstance(event, Frame):
         return {'kind': 'frame'}
-    if isinstance(event, Update):
+    if isinstance(event, Tick):
         return {'kind': 'tick'}
     if isinstance(event, _core.TerminalStateChange):
         return {

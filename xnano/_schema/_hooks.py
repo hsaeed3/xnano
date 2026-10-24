@@ -56,7 +56,7 @@ When = TypeAliasType(
 The condition of a hook: an expression, a function of the context, or a string.
 
 * An expression built from the scopes in [`xnano.expressions`][xnano.expressions], such as
-  ``Keyboard.key == 'q'``, is checked by the runtime before Python is called.
+  ``keyboard.key == 'q'``, is checked by the runtime before Python is called.
 * A function takes the context and returns ``True`` when the hook should run.
 * A string such as ``"keyboard.key == 'q' and not mouse.is_down"`` is parsed once. It uses the
   names ``keyboard``, ``mouse``, ``scroll``, ``buffer``, ``parent``, ``root``, ``time`` and
@@ -83,7 +83,7 @@ condition.
   reads (``keyboard``, ``mouse``, ``scroll``, ``buffer``, ``parent``, ``root``, ``time`` or
   ``deps``).
 * A condition, see [`When`][xnano.hooks.When]: a string such as
-  ``"mouse.kind == 'press'"``, an expression such as ``Keyboard.key == 'q'``, or a function of
+  ``"mouse.kind == 'press'"``, an expression such as ``keyboard.key == 'q'``, or a function of
   the context. A string that reads one input hears only that input, so
   ``on="mouse.kind == 'press'"`` is a mouse hook and hears the pointer inside a placement; a
   string that reads no input is checked on every tick. An expression or a function hears every

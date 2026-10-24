@@ -242,10 +242,12 @@ class TestNew:
                 canvas.screen.move(x=1)
             assert not hasattr(canvas, 'is_stopped')
 
-    def test_the_root_and_parent_are_formula_scopes(self):
+    def test_the_root_expressions_read_the_canvas(self):
+        from xnano.expressions import root
+
         with xnano.new(width=6, height=2) as canvas:
-            assert canvas.screen.root.time is TimeElapsed
-            assert canvas.inspect(canvas.screen.root.width) == 6
+            assert root.time is TimeElapsed
+            assert canvas.evaluate(root.width) == 6
 
     def test_closing_twice_is_harmless(self):
         canvas = xnano.new(width=4, height=1)
@@ -259,7 +261,7 @@ class TestNew:
 class TestEnding:
     def test_quit_leaves_a_canvas_from_new_open(self):
         with xnano.new(width=12, height=1) as canvas:
-            canvas.quit()
+            canvas.stop()
             assert not canvas.is_running
             assert not canvas.is_closed
             canvas.screen.write('still here')
@@ -269,7 +271,7 @@ class TestEnding:
     def test_quit_ends_and_closes_a_canvas_that_runs_by_itself(self):
         canvas = xnano.new(realtime=True, width=8, height=1)
         try:
-            canvas.quit()
+            canvas.stop()
             deadline = threading.Event()
             for _ in range(200):
                 if canvas.is_closed:
@@ -295,7 +297,7 @@ class TestActive:
         assert xnano.active() is outer
         with xnano.new(width=4, height=1) as inner:
             assert xnano.active() is inner
-            inner.quit()
+            inner.stop()
             assert xnano.active() is outer, 'a canvas that quit gives way'
         assert xnano.active() is outer
         outer.close()
@@ -318,7 +320,7 @@ class TestTimeControls:
                 0.2,
             ]
             assert all(isinstance(frame, Frame) for frame in frames)
-            assert round(canvas.clock.elapsed, 3) == 0.3
+            assert round(canvas.clock.elapsed_seconds, 3) == 0.3
 
     def test_iter_ends_on_seconds_of_canvas_time(self):
         with xnano.new(width=4, height=1, fps=10) as canvas:
@@ -342,7 +344,7 @@ class TestTimeControls:
     def test_without_frames_or_seconds_it_runs_until_a_quit_key(self):
         with xnano.new(width=4, height=1, fps=10) as canvas:
             yielded = 0
-            for frame in canvas.iter(quit_on=('q', 'escape')):
+            for frame in canvas.iter(stop_on=('q', 'escape')):
                 yielded += 1
                 if frame.index == 6:
                     canvas.push(Event.key_press('escape'))
@@ -352,11 +354,11 @@ class TestTimeControls:
     def test_the_quit_keys_last_as_long_as_the_iteration(self):
         with xnano.new(width=4, height=1, fps=10) as canvas:
             before = len(canvas._hook_handles())
-            for _ in canvas.iter(frames=2, quit_on='q'):
-                assert canvas._quit_keys == ('q',)
-            assert canvas._quit_keys == ()
+            for _ in canvas.iter(frames=2, stop_on='q'):
+                assert canvas._stop_keys == ('q',)
+            assert canvas._stop_keys == ()
             assert len(canvas._hook_handles()) == before
-            for _ in canvas.iter(frames=2, quit_on=None):
+            for _ in canvas.iter(frames=2, stop_on=None):
                 canvas.push(Event.key_press('ctrl+c'))
             assert canvas.is_running
 
@@ -370,7 +372,7 @@ class TestTimeControls:
             for _ in canvas.iter():
                 seen += 1
                 if seen == 3:
-                    canvas.quit()
+                    canvas.stop()
             assert seen == 3
 
     def test_next_yields_the_current_frame_and_two_iterators_share_the_clock(self):
@@ -380,7 +382,7 @@ class TestTimeControls:
             second = canvas.iter()
             next(second)
             next(second)
-            assert round(canvas.clock.elapsed, 3) == 0.1
+            assert round(canvas.clock.elapsed_seconds, 3) == 0.1
 
     def test_a_step_moves_one_frame_and_returns_it(self):
         with xnano.new(width=4, height=1, fps=10) as canvas:
@@ -395,12 +397,12 @@ class TestTimeControls:
         try:
             with pytest.raises(TerminalError, match='cannot be stepped by hand'):
                 canvas.clock.step()
-            canvas.clock.stop()
-            before = canvas.clock.elapsed
+            canvas.clock.pause()
+            before = canvas.clock.elapsed_seconds
             frame = canvas.clock.step()
             assert isinstance(frame, Frame)
-            assert canvas.clock.elapsed == pytest.approx(before + 0.1, abs=1e-6)
-            assert canvas.clock.is_stopped
+            assert canvas.clock.elapsed_seconds == pytest.approx(before + 0.1, abs=1e-6)
+            assert canvas.clock.is_paused
         finally:
             canvas.close()
 
@@ -408,20 +410,20 @@ class TestTimeControls:
         with xnano.new(width=4, height=1, fps=60) as canvas:
             for _ in range(60):
                 canvas.clock.step()
-            assert canvas.clock.elapsed == pytest.approx(1.0, abs=1e-9)
+            assert canvas.clock.elapsed_seconds == pytest.approx(1.0, abs=1e-9)
         with xnano.new(width=4, height=1, fps=60) as canvas:
             list(canvas.iter(frames=60))
-            assert canvas.clock.elapsed == pytest.approx(1.0, abs=1e-9)
+            assert canvas.clock.elapsed_seconds == pytest.approx(1.0, abs=1e-9)
         with xnano.new(width=4, height=1, fps=60) as canvas:
             for _ in range(30):
                 canvas.clock.step()
             list(canvas.iter(frames=30))
-            assert canvas.clock.elapsed == pytest.approx(1.0, abs=1e-9)
+            assert canvas.clock.elapsed_seconds == pytest.approx(1.0, abs=1e-9)
 
     def test_a_step_takes_a_positive_delta_and_deliver_events_does_not_move_time(self):
         with xnano.new(width=4, height=1) as canvas:
             canvas.clock.step(delta_seconds=0.25)
-            assert canvas.clock.elapsed == pytest.approx(0.25)
+            assert canvas.clock.elapsed_seconds == pytest.approx(0.25)
             with pytest.raises(ValueError, match='deliver_events'):
                 canvas.clock.step(delta_seconds=0)
             with pytest.raises(ValueError, match='above zero'):
@@ -431,13 +433,13 @@ class TestTimeControls:
             canvas.push(Event.custom('ping'))
             canvas.deliver_events()
             assert heard == ['custom']
-            assert canvas.clock.elapsed == pytest.approx(0.25)
+            assert canvas.clock.elapsed_seconds == pytest.approx(0.25)
 
     def test_stop_freezes_iter_while_step_moves_one_frame(self):
         with xnano.new(width=8, height=1, fps=10) as canvas:
             label = canvas.screen.write('-')
-            canvas.clock.stop()
-            assert canvas.clock.is_stopped
+            canvas.clock.pause()
+            assert canvas.clock.is_paused
             texts = []
             for frame in canvas.iter(frames=3):
                 label.text = str(frame.index)
@@ -445,19 +447,19 @@ class TestTimeControls:
             assert texts == [0.0, 0.0, 0.0], 'a stopped canvas draws without moving time'
             assert '2' in canvas.screen.render()
             canvas.clock.step()
-            assert canvas.clock.elapsed == pytest.approx(0.1)
-            assert canvas.clock.is_stopped, 'a step leaves the canvas stopped'
+            assert canvas.clock.elapsed_seconds == pytest.approx(0.1)
+            assert canvas.clock.is_paused, 'a step leaves the canvas stopped'
             canvas.clock.resume()
-            assert not canvas.clock.is_stopped
+            assert not canvas.clock.is_paused
 
     def test_time_is_continuous_across_stop_and_resume(self):
         with xnano.new(width=4, height=1, fps=10) as canvas:
             list(canvas.iter(frames=2))
-            canvas.clock.stop()
+            canvas.clock.pause()
             list(canvas.iter(frames=5))
             canvas.clock.resume()
             list(canvas.iter(frames=2))
-            assert canvas.clock.elapsed == pytest.approx(0.4)
+            assert canvas.clock.elapsed_seconds == pytest.approx(0.4)
 
     def test_stopped_time_holds_formulas_and_timers_while_input_still_arrives(self):
         with xnano.new(width=20, height=1, fps=10) as canvas:
@@ -465,13 +467,13 @@ class TestTimeControls:
             ball.x = TimeElapsed * 10
             ticks: list[float] = []
             canvas.hook(on='tick', every=0.1)(
-                lambda context: ticks.append(context.clock.elapsed)
+                lambda context: ticks.append(context.clock.elapsed_seconds)
             )
             pressed: list[str] = []
             canvas.hook(on='key')(lambda context: pressed.append(context.keyboard.key))
             canvas.clock.step(delta_seconds=0.5)
             before = (ball.x, len(ticks))
-            canvas.clock.stop()
+            canvas.clock.pause()
             for _ in canvas.iter(frames=3):
                 pass
             canvas.push(Event.key_press('a'))
@@ -481,7 +483,7 @@ class TestTimeControls:
 
     def test_seconds_on_a_stopped_canvas_is_refused(self):
         with xnano.new(width=4, height=1) as canvas:
-            canvas.clock.stop()
+            canvas.clock.pause()
             with pytest.raises(TerminalError, match='never reaches seconds=1'):
                 canvas.iter(seconds=1)
             assert len(list(canvas.iter(frames=2, seconds=1))) == 2
@@ -491,24 +493,24 @@ class TestTimeControls:
             with pytest.raises(TerminalError, match=r'canvas\.clock\.resume'):
                 for frame in canvas.iter(seconds=1):
                     if frame.index == 1:
-                        canvas.clock.stop()
+                        canvas.clock.pause()
             canvas.clock.resume()
             seen = 0
             for _ in canvas.iter(frames=3, seconds=10):
                 seen += 1
-                canvas.clock.stop()
+                canvas.clock.pause()
             assert seen == 3
 
     def test_the_canvas_verbs_are_the_time_verbs(self):
         with xnano.new(width=4, height=1, fps=10) as canvas:
-            canvas.clock.stop()
-            assert canvas.clock.is_stopped
+            canvas.clock.pause()
+            assert canvas.clock.is_paused
             canvas.clock.resume()
-            assert not canvas.clock.is_stopped
-            canvas.clock.stop()
+            assert not canvas.clock.is_paused
+            canvas.clock.pause()
             frame = canvas.clock.step()
             assert frame.elapsed_seconds == pytest.approx(0.1)
-            assert repr(canvas.clock) == 'Clock(elapsed=0.100, is_stopped=True)'
+            assert repr(canvas.clock) == 'Clock(elapsed_seconds=0.100, is_paused=True)'
 
 
 class TestChildCanvases:
@@ -521,7 +523,7 @@ class TestChildCanvases:
             assert outer.screen.render().split('\n')[1] == '  inside'
             outer.clock.step(delta_seconds=0.5)
             assert inner.clock is outer.clock
-            assert inner.clock.elapsed == pytest.approx(0.5)
+            assert inner.clock.elapsed_seconds == pytest.approx(0.5)
             assert xnano.active() is outer
             inner.screen.write('!', x=5, y=0)
             assert outer.screen.render().split('\n')[1] == '  insid!'
@@ -599,7 +601,7 @@ class TestChildCanvases:
             ball.x = TimeElapsed * 10
             ticks: list[float] = []
             inner.hook(on='tick', every=0.1)(
-                lambda context: ticks.append(context.clock.elapsed)
+                lambda context: ticks.append(context.clock.elapsed_seconds)
             )
             outer.screen.write(inner)
             outer.clock.step(delta_seconds=0.5)
@@ -920,7 +922,7 @@ class TestFrameDemand:
         with xnano.new(width=8, height=1) as canvas:
             ticks: list[float] = []
             canvas.hook(on='beat', every=1)(
-                lambda context: ticks.append(context.clock.elapsed)
+                lambda context: ticks.append(context.clock.elapsed_seconds)
             )
             for _ in range(20):
                 canvas.clock.step(delta_seconds=0.1)
@@ -978,7 +980,7 @@ class TestOpeningWithoutATerminal:
                 assert xnano.terminal._screen.is_screen_claimed is False
             assert not isinstance(canvas, xnano.Terminal)
             assert not canvas.clock.is_realtime
-            assert canvas.clock.elapsed == pytest.approx(0.5)
+            assert canvas.clock.elapsed_seconds == pytest.approx(0.5)
             label.text = 'still kept'
             canvas.push(Event.key_press('z'))
             canvas.clock.step(delta_seconds=0.5)
@@ -1019,7 +1021,7 @@ def test_the_timers_of_what_a_child_holds_move_to_the_outer_canvas():
         label = inner.screen.write('-')
         ticks: list[float] = []
         label.hook(on='tick', every=0.1)(
-            lambda context: ticks.append(context.clock.elapsed)
+            lambda context: ticks.append(context.clock.elapsed_seconds)
         )
         inner.clock.step(delta_seconds=0.05)
         outer.screen.write(inner)
@@ -1072,14 +1074,14 @@ class TestClosingAWrittenCanvas:
         for call in (
             lambda: inner.clock.step(),
             inner.deliver_events,
-            lambda: inner.clock.stop(),
+            lambda: inner.clock.pause(),
             lambda: inner.clock.resume(),
-            inner.quit,
+            inner.stop,
         ):
             with pytest.raises(TerminalClosedError):
                 call()
         assert outer.clock.frame == frame
-        assert not outer.clock.is_stopped
+        assert not outer.clock.is_paused
         assert outer.is_running
         outer.close()
 
@@ -1164,7 +1166,7 @@ class TestClosingAWrittenCanvas:
             innermost = xnano.new(width=3, height=1)
             middle.screen.write(innermost)
             root.screen.write(middle)
-            innermost.quit()
+            innermost.stop()
             assert not root.is_running
 
     def test_pushing_something_that_is_not_an_event_leaves_a_realtime_canvas_running(

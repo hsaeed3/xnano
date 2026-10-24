@@ -85,7 +85,7 @@ def test_written_text_takes_its_look(canvas):
 
 def test_pixel_art_is_drawn_and_written(canvas, sandbox):
     size = sandbox.run(
-        "heart = draw(['R.R', 'RRR'], 'R=red')\n"
+        "heart = pixel_art(['R.R', 'RRR'], 'R=red')\n"
         'placement = canvas.screen.write(heart, y=1)\n'
         '(heart.width, heart.height, placement.width, placement.height)'
     )
@@ -95,13 +95,13 @@ def test_pixel_art_is_drawn_and_written(canvas, sandbox):
 
 
 def test_a_single_row_of_art_is_a_picture_not_a_symbol_name(canvas):
-    assert run("draw('RR', {'R': 'red'}).width", canvas) == 2
+    assert run("pixel_art('RR', {'R': 'red'}).width", canvas) == 2
 
 
 def test_step_moves_the_clock_of_a_canvas_from_new(canvas, sandbox):
     sandbox.run('canvas.clock.step(0.5)\ncanvas.clock.step(0.25)')
-    assert sandbox.run('canvas.clock.elapsed') == 0.75
-    assert canvas.clock.elapsed == 0.75
+    assert sandbox.run('canvas.clock.elapsed_seconds') == 0.75
+    assert canvas.clock.elapsed_seconds == 0.75
 
 
 def test_print_goes_to_this_programs_output(canvas, capsys):
@@ -151,7 +151,7 @@ def test_writing_something_that_is_not_text_or_art_is_explained(canvas):
             "label = canvas.screen.write('a')\ncanvas.screen.write(label)  # type: ignore",
             canvas,
         )
-    assert 'text, a list of lines, or pixel art from draw()' in raised.value.display(
+    assert 'text, a list of lines, or pixel art from pixel_art()' in raised.value.display(
         'msg'
     )
 
@@ -190,7 +190,15 @@ def test_the_sandbox_stubs_are_valid_python():
         for node in tree.body
         if isinstance(node, (ast.ClassDef, ast.FunctionDef))
     }
-    assert {'Canvas', 'Screen', 'Speaker', 'Clock', 'Placement', 'Art', 'draw'} <= names
+    assert {
+        'Canvas',
+        'Screen',
+        'Speaker',
+        'Clock',
+        'Placement',
+        'Art',
+        'pixel_art',
+    } <= names
 
 
 def _run_without_monty(body: str) -> subprocess.CompletedProcess[str]:

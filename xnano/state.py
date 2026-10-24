@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 __all__ = ['StateNamespace', 'StatePath', 'parse_path']
 
 _RESERVED_ROOT_KEY: Final = 'xnano'
-_RESERVED_FIELD_NAMES: Final = frozenset({_RESERVED_ROOT_KEY, 'get', 'push'})
+_RESERVED_FIELD_NAMES: Final = frozenset({_RESERVED_ROOT_KEY, 'get', 'set'})
 _NAMESPACE_KEY_LIMIT: Final = 64
 _MISSING: Final = object()
 
@@ -75,16 +75,16 @@ def parse_path(path: str) -> StatePath:
 
 
 def _dotted(path: StatePath) -> str:
-    """Write a state path the way ``get`` and ``push`` take it."""
+    """Write a state path the way ``get`` and ``set`` take it."""
     return '.'.join(str(part) for part in path)
 
 
 class StateNamespace:
     """
-    A branch of a canvas's state that hooks and your code read with ``get`` and write with ``push``.
+    A branch of a canvas's state that hooks and your code read with ``get`` and write with ``set``.
 
     A canvas has one state tree. ``canvas.state`` (and ``context.root.state``) is its root,
-    ``placement.state`` (and ``context.buffer.state``) is a branch that belongs to one placement,
+    ``placement.state`` (and ``context.target.state``) is a branch that belongs to one placement,
     and ``context.plugin.state`` is a branch that belongs to one hook. Each is an independent
     namespace, so two hooks can both keep a ``'count'`` without meeting.
 
@@ -94,13 +94,13 @@ class StateNamespace:
     for per-cell data.
 
     Inside a hook, a read sees the state as it was when the hook started plus whatever the hook
-    pushed, and every push is saved together when the hook returns. A hook declared with
+    set, and every value set is saved together when the hook returns. A hook declared with
     ``on='state'`` runs again when a path it read changes; other hooks do not.
 
     On the root of a canvas created with ``new(state=Settings())``, the fields of the dataclass
     are also attributes with their declared types, and a write is checked against the field's
     type. A field that holds a nested dataclass reads as a new instance of that dataclass, so
-    changing it changes nothing: assign the field or push a path to save a change. A whole
+    changing it changes nothing: assign the field or set a path to save a change. A whole
     number written to a ``float`` field is stored and read as a ``float``.
 
     Attributes:
@@ -111,15 +111,15 @@ class StateNamespace:
         import xnano
 
         with xnano.new(width=8, height=1) as canvas:
-            canvas.state.push('player', {'name': 'Ada'})
-            canvas.state.push('player.score', 3)
+            canvas.state.set('player', {'name': 'Ada'})
+            canvas.state.set('player.score', 3)
             assert canvas.state.get('player.score') == 3
             assert canvas.state.get('player.lives', default=0) == 0
 
             @canvas.hook(on='key')
             def count(context: xnano.Context) -> None:
                 state = context.root.state
-                state.push('player.score', state.get('player.score') + 1)
+                state.set('player.score', state.get('player.score') + 1)
         ```
     """
 
@@ -167,7 +167,7 @@ class StateNamespace:
             import xnano
 
             with xnano.new(width=8, height=1) as canvas:
-                canvas.state.push('level', 4)
+                canvas.state.set('level', 4)
                 assert canvas.state.get('level') == 4
                 assert canvas.state.get('player', default='nobody') == 'nobody'
             ```
@@ -189,7 +189,7 @@ class StateNamespace:
                 return value
         return _read_state(self._canvas, absolute, default)
 
-    def push(self, path: str, value: JSONValue) -> None:
+    def set(self, path: str, value: JSONValue) -> None:
         """
         Write ``value`` at ``path``, creating the objects on the way.
 
@@ -215,11 +215,11 @@ class StateNamespace:
             import xnano
 
             with xnano.new(width=8, height=1) as canvas:
-                canvas.state.push('score', 1)
-                canvas.state.push('score', 2)
+                canvas.state.set('score', 1)
+                canvas.state.set('score', 2)
                 assert canvas.state.get('score') == 2
-                canvas.state.push('player', {'name': 'Ada'})
-                canvas.state.push('player.score', 5)
+                canvas.state.set('player', {'name': 'Ada'})
+                canvas.state.set('player.score', 5)
                 assert canvas.state.get('player') == {'name': 'Ada', 'score': 5}
             ```
         """
@@ -230,18 +230,18 @@ class StateNamespace:
                 raise ValueError(_reserved_message(path))
             if not parsed:
                 raise ValueError(
-                    "push('') would replace the whole root state. Push one path at a "
-                    "time, such as push('score', 1)."
+                    "set('') would replace the whole root state. Set one path at a "
+                    "time, such as set('score', 1)."
                 )
         elif not parsed and not isinstance(value, dict):
             raise ValueError(
-                f"push('') replaces the whole namespace and needs an object, but was given "
-                f'{value!r}. Push a dictionary, or push one path such as push("score", 1).'
+                f"set('') replaces the whole namespace and needs an object, but was given "
+                f'{value!r}. Pass a dictionary, or set one path such as set("score", 1).'
             )
         if self._is_removed:
             raise TerminalError(
-                f'Could not push {path!r}: this state belongs to a placement or hook that '
-                f'was removed. Push to the state of one that is still on the canvas.'
+                f'Could not set {path!r}: this state belongs to a placement or hook that '
+                f'was removed. Set a path in the state of one that is still on the canvas.'
             )
         _write_state(self._canvas, base + parsed, self._declared_form(parsed, value))
 
@@ -273,12 +273,12 @@ class StateNamespace:
             return (
                 f"{name} is not a field of this canvas's state. {verb} a field declared on "
                 f'the dataclass passed to xnano.new(state=...), or use {method}({name!r}'
-                f'{", value" if method == "push" else ""}) for a path.'
+                f'{", value" if method == "set" else ""}) for a path.'
             )
         return (
             f'{name} is not an attribute of this state, which has no declared fields: only '
             f"the canvas's own state does. Use {method}({name!r}"
-            f'{", value" if method == "push" else ""}) with a path instead.'
+            f'{", value" if method == "set" else ""}) with a path instead.'
         )
 
     def __setattr__(self, name: str, value: JSONValue) -> None:
@@ -286,14 +286,14 @@ class StateNamespace:
             object.__setattr__(self, name, value)
             return
         if name not in self._fields:
-            raise TerminalError(self._unknown_field_message(name, 'Assign', 'push'))
+            raise TerminalError(self._unknown_field_message(name, 'Assign', 'set'))
         _write_state(self._canvas, (name,), self._declared_form((name,), value))
 
     def __repr__(self) -> str:
         return f'StateNamespace(path={_dotted(self._base)!r})'
 
     def _remove(self) -> None:
-        """Delete this namespace's branch of the store; later pushes raise."""
+        """Delete this namespace's branch of the store; later writes raise."""
         object.__setattr__(self, '_is_removed', True)
         self._canvas._remove_state_branch(self._base)
 
@@ -327,9 +327,9 @@ class _StateAccessor:
 
 class _HookRun:
     """
-    One call of a hook, as far as state is concerned: what it read and what it pushed.
+    One call of a hook, as far as state is concerned: what it read and what it wrote.
 
-    A hook reads from a snapshot taken at its first read, sees its own pushes, and its pushes
+    A hook reads from a snapshot taken at its first read, sees its own writes, and its writes
     are committed in one transaction when it returns.
     """
 
@@ -367,7 +367,7 @@ class _HookRun:
     def read(
         self, canvas: Canvas[object, object], path: StatePath, default: JSONValue
     ) -> JSONValue:
-        """Read ``path`` as the hook sees it: the snapshot plus the hook's own pushes."""
+        """Read ``path`` as the hook sees it: the snapshot plus the hook's own writes."""
         if self.track:
             self.reads.add(path)
         pending = self.pending
@@ -508,7 +508,7 @@ class _StateFollower(Protocol):
 def _read_state(
     canvas: Canvas[object, object], path: StatePath, default: JSONValue
 ) -> JSONValue:
-    """Read ``path`` inside a running hook (with its pushes) or straight from the store."""
+    """Read ``path`` inside a running hook (with its writes) or straight from the store."""
     run = canvas._active_run
     if run is not None and run.thread == threading.get_ident():
         return run.read(canvas, path, default)
@@ -535,9 +535,9 @@ def _commit_pending(
     store: _core.TerminalStateStore, pending: dict[StatePath, JSONValue]
 ) -> _core.TerminalStateChange | None:
     """
-    Save pushed values in one transaction.
+    Save the values that were set, in one transaction.
 
-    Values pushed into a placement's or hook's namespace are merged into that namespace's
+    Values set in a placement's or hook's namespace are merged into that namespace's
     object and set once, so the cost of a commit does not grow with the depth of the path.
     """
     transaction = store.transaction()
@@ -555,7 +555,7 @@ def _commit_pending(
                 _stage_namespace(store, transaction, base, entries)
         return transaction.commit()
     except _core.TerminalStateValidationError as error:
-        raise _push_error(pending, error) from error
+        raise _set_error(pending, error) from error
 
 
 def _create_branch(store: _core.TerminalStateStore, base: StatePath) -> int | None:
@@ -625,8 +625,8 @@ def _with_value(container: object, rest: StatePath, value: JSONValue) -> JSONVal
     if isinstance(head, int):
         if not isinstance(container, list) or head >= len(container):
             raise TerminalError(
-                f'Could not push to index {head}: the list there is {container!r}. Push '
-                f'inside a list that has that index, or push the whole list.'
+                f'Could not set index {head}: the list there is {container!r}. Set a path '
+                f'inside a list that has that index, or set the whole list.'
             )
         copied_list = list(container)
         copied_list[head] = _with_value(container[head], rest[1:], value)
@@ -635,8 +635,8 @@ def _with_value(container: object, rest: StatePath, value: JSONValue) -> JSONVal
         container = {}
     if not isinstance(container, dict):
         raise TerminalError(
-            f'Could not push inside {head!r}: the value there is {container!r}, which has '
-            f'no keys. Push the whole value, or push to a path whose parents are objects.'
+            f'Could not set a path inside {head!r}: the value there is {container!r}, which has '
+            f'no keys. Set the whole value, or set a path whose parents are objects.'
         )
     copied = dict(container)
     copied[head] = _with_value(copied.get(head), rest[1:], value)
@@ -663,7 +663,7 @@ def _reserved_message(path: str) -> str:
     )
 
 
-def _push_error(
+def _set_error(
     pending: dict[StatePath, JSONValue], error: BaseException
 ) -> TerminalError:
     if len(pending) == 1:
@@ -674,7 +674,7 @@ def _push_error(
         )
     names = ', '.join(repr(_dotted(path)) for path in pending)
     return TerminalError(
-        f'Could not save the values pushed to {names}: {error}. Nothing was saved. Use '
+        f'Could not save the values set in {names}: {error}. Nothing was saved. Use '
         f'values the fields accept.'
     )
 

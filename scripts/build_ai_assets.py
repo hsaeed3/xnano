@@ -12,7 +12,7 @@ the catalog stay valid until a source changes. Publish them as the files of the 
 `ai-assets-<version>`, the address the catalog downloads from.
 
 - Art: every row has the declared width, every letter is in the palette, every palette letter
-  is used, the roles and colours are valid, and `xnano.draw` builds it.
+  is used, the roles and colours are valid, and `xnano.pixel_art` builds it.
 - Melodies: `xnano.audio.Melody` parses the text, and each bar holds the beats of the meter.
 - Components: the program runs as `ComponentModel` runs one, on a canvas of the declared size,
   drawing something and nothing past the edges; what it draws is saved beside it as `output`.
@@ -86,7 +86,7 @@ def check_art(entry: dict[str, object], line: int) -> dict[str, object]:
         )
     if sum(1 for color in palette.values() if color["role"] == "outline") > 1:
         raise EntryError(f"line {line}: more than one outline colour")
-    xnano.draw(rows, {letter: color["color"] for letter, color in palette.items()})
+    xnano.pixel_art(rows, {letter: color["color"] for letter, color in palette.items()})
     return entry
 
 

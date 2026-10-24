@@ -55,7 +55,7 @@ class Microphone:
 
         with xnano.new(width=20, height=1) as canvas:
             microphone = canvas.microphone
-            assert canvas.inspect(microphone.level) == 0.0
+            assert canvas.evaluate(microphone.level) == 0.0
             assert not microphone.is_open
             assert microphone.sample_rate is None
         ```
@@ -89,7 +89,7 @@ class Microphone:
             with xnano.new(width=20, height=2) as canvas:
                 meter = canvas.screen.write('#')
                 meter.x = canvas.microphone.level * 19
-                assert canvas.inspect(canvas.microphone.level) == 0.0
+                assert canvas.evaluate(canvas.microphone.level) == 0.0
             ```
         """
         self._canvas._require_open()

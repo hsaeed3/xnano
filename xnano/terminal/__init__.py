@@ -98,7 +98,7 @@ class Terminal(Canvas[DepsT, StateT]):
         with xnano.open(width=20, height=2) as terminal:
             terminal.screen.write('hello')
             assert isinstance(terminal, xnano.Terminal)
-            terminal.run(quit_on='q')
+            terminal.run(stop_on='q')
         ```
     """
 
@@ -206,7 +206,7 @@ def open(
     shell's history comes back untouched; ``width='100%', height='100%'`` asks for the same.
     Give ``height`` (and optionally ``width``) to draw in a region of that size below the cursor
     instead, in cells or as a percentage of the window such as ``'50%'``; that region is erased
-    when the canvas closes, unless you pass ``clear=False``. ``title`` is the window title.
+    when the canvas closes, unless you pass ``clears_on_close=False``. ``title`` is the window title.
 
     The terminal settings say what the screen reports: ``mouse`` for buttons and drags,
     ``scroll`` for the wheel, ``keyboard``, ``paste``, ``focus`` and ``interrupt``
@@ -241,7 +241,7 @@ def open(
         ```text
         with xnano.open(height=3, mouse=True) as terminal:
             terminal.screen.write('hello')
-            terminal.run(quit_on='q')
+            terminal.run(stop_on='q')
         ```
     """
     if isinstance(canvas_or_content, Canvas):
@@ -374,7 +374,7 @@ def open_async(
         async def main() -> None:
             async with xnano.open_async(height=3, mouse=True) as terminal:
                 terminal.screen.write('hello')
-                await terminal.run_async(quit_on='q')
+                await terminal.run_async(stop_on='q')
 
         asyncio.run(main())
         ```
@@ -412,7 +412,7 @@ def iter(
     *,
     frames: int | None = None,
     seconds: float | None = None,
-    quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+    stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
     title: str | None = None,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
@@ -425,7 +425,7 @@ def iter(
     *,
     frames: int | None = None,
     seconds: float | None = None,
-    quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+    stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
     title: str | None = None,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
@@ -442,7 +442,7 @@ def iter(
     *,
     frames: int | None = None,
     seconds: float | None = None,
-    quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+    stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
     title: str | None = None,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
@@ -458,8 +458,8 @@ def iter(
     ``frame.events``; anything you change before the next frame is drawn.
 
     Without ``frames`` or ``seconds`` it runs the way [`run`][xnano.canvas.Canvas.run] does:
-    until a key of ``quit_on`` is pressed, the terminal is asked to
-    [`quit`][xnano.canvas.Canvas.quit], or you break out of the loop. With them, it also ends
+    until a key of ``stop_on`` is pressed, the terminal is asked to
+    [`stop`][xnano.canvas.Canvas.stop], or you break out of the loop. With them, it also ends
     after that many frames, or when the terminal has run that long. To run a canvas you have
     one frame at a time, use [`Canvas.iter`][xnano.canvas.Canvas.iter].
 
@@ -468,7 +468,7 @@ def iter(
             one.
         frames: The most frames to yield.
         seconds: The most seconds to run for.
-        quit_on: The key, or keys, that end the loop and close the terminal; ``None`` for
+        stop_on: The key, or keys, that end the loop and close the terminal; ``None`` for
             none.
         title: The window title.
         width: The width of the region to draw in, as for ``open()``.
@@ -486,7 +486,7 @@ def iter(
     Examples:
         ```text
         ball = None
-        for frame in xnano.iter(height=3, fps=30, quit_on='q'):
+        for frame in xnano.iter(height=3, fps=30, stop_on='q'):
             if ball is None:
                 ball = frame.canvas.screen.write('o')
             for event in frame.events:
@@ -500,7 +500,7 @@ def iter(
     with opening(
         canvas_or_content, title=title, width=width, height=height, **settings
     ) as terminal:
-        yield from terminal.iter(frames=frames, seconds=seconds, quit_on=quit_on)
+        yield from terminal.iter(frames=frames, seconds=seconds, stop_on=stop_on)
 
 
 @overload
@@ -510,7 +510,7 @@ def iter_async(
     *,
     frames: int | None = None,
     seconds: float | None = None,
-    quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+    stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
     title: str | None = None,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
@@ -523,7 +523,7 @@ def iter_async(
     *,
     frames: int | None = None,
     seconds: float | None = None,
-    quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+    stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
     title: str | None = None,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
@@ -540,7 +540,7 @@ async def iter_async(
     *,
     frames: int | None = None,
     seconds: float | None = None,
-    quit_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+    stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
     title: str | None = None,
     width: int | Percentage | str | None = None,
     height: int | Percentage | str | None = None,
@@ -567,7 +567,7 @@ async def iter_async(
         canvas_or_content, title=title, width=width, height=height, **settings
     ) as terminal:
         async for frame in terminal.iter_async(
-            frames=frames, seconds=seconds, quit_on=quit_on
+            frames=frames, seconds=seconds, stop_on=stop_on
         ):
             yield frame
 

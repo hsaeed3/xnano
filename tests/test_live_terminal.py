@@ -88,7 +88,7 @@ with xnano.open(height=3) as terminal:
     def test_a_persistent_region_stays_after_exit(self, run):
         screen = run(
             """
-with xnano.open(height=2, clear=False) as terminal:
+with xnano.open(height=2, clears_on_close=False) as terminal:
     terminal.screen.write('stays')
     time.sleep(0.5)
 print('after')
@@ -163,7 +163,7 @@ with xnano.open(height=2) as terminal:
 
     @terminal.hook(on=lambda context: context.keyboard.key is not None and context.keyboard.key == 'q')
     def quit(context):
-        context.canvas.quit()
+        context.canvas.stop()
 
     terminal.run()
 print('LEFT')
@@ -219,7 +219,7 @@ with xnano.open(height=3, mouse=True) as terminal:
             f"""
 @xnano.writable
 def main(context: xnano.Context) -> str:
-    return str(context.clock.elapsed)
+    return str(context.clock.elapsed_seconds)
 
 with xnano.open(height=1, mouse=True) as terminal:
     content = terminal.screen.write(main)
@@ -229,7 +229,7 @@ with xnano.open(height=1, mouse=True) as terminal:
         if context.mouse.button == 'left':
             content.color.fg = content.color.fg.random()
 
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 """
         )
         assert screen.wait_until(lambda: screen.cell(0, 0).data.isdigit())
@@ -254,7 +254,7 @@ is_released = False
 
 @xnano.writable
 def main(context: xnano.Context) -> str:
-    return str(context.clock.elapsed)
+    return str(context.clock.elapsed_seconds)
 
 with xnano.open(height=2, mouse=True) as terminal:
     content = terminal.screen.write(main)
@@ -264,7 +264,7 @@ with xnano.open(height=2, mouse=True) as terminal:
     def change_while_held(context: xnano.Context):
         global is_released
         if context.mouse.kind == 'press':
-            pressed_seconds.append(context.clock.elapsed)
+            pressed_seconds.append(context.clock.elapsed_seconds)
         elif context.mouse.kind == 'release':
             is_released = True
         elif isinstance(context.event, Frame) and context.mouse.button == 'left':
@@ -274,7 +274,7 @@ with xnano.open(height=2, mouse=True) as terminal:
             content.color.fg = content.color.fg.random()
         log.text = f'HELD {len(held_frames)} RELEASED {is_released}'
 
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 first = held_frames[0]
 print('EVERY FRAME', held_frames == list(range(first, first + len(held_frames))))
 print('DELAYED', held_seconds[0] - pressed_seconds[0] >= 0.15)
@@ -319,7 +319,7 @@ runs = []
 
 @xnano.writable
 def main(context: xnano.Context) -> str:
-    return str(context.clock.elapsed)
+    return str(context.clock.elapsed_seconds)
 
 with xnano.open(height=2, mouse=True) as terminal:
     content = terminal.screen.write(main)
@@ -331,7 +331,7 @@ with xnano.open(height=2, mouse=True) as terminal:
             runs.append('frame' if isinstance(context.event, Frame) else context.mouse.kind)
             log.text = f'RUNS {len(runs)}'
 
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 print('KINDS', runs)
 """
         )
@@ -421,7 +421,7 @@ with xnano.open(height=2) as terminal:
     @terminal.hook(on='key', keys='a')
     def count(context):
         state = context.root.state
-        state.push('count', state.get('count', default=0) + 1)
+        state.set('count', state.get('count', default=0) + 1)
 
     @terminal.hook(on='state')
     def show(context):
@@ -522,7 +522,7 @@ with xnano.open(width=10, height=1) as terminal:
         screen = run(
             """
 from xnano.widgets import Gauge
-art = xnano.draw(['RR', 'RR'], {'R': '#ff0000'})
+art = xnano.pixel_art(['RR', 'RR'], {'R': '#ff0000'})
 with xnano.open(width=14, height=6) as terminal:
     terminal.screen.write(art, border='rounded')
     terminal.screen.write(Gauge(ratio=0.5, width=6, height=1), x=6, border='plain')
@@ -554,7 +554,7 @@ time.sleep(1.5)
             """
 @xnano.writable
 def clock(context):
-    return str(int(context.clock.elapsed))
+    return str(int(context.clock.elapsed_seconds))
 
 with xnano.open(width=6, height=1) as terminal:
     terminal.screen.write(clock)
@@ -752,7 +752,7 @@ with xnano.open(height=2, mouse=True) as terminal:
 from xnano.expressions import TerminalHeight, TerminalWidth
 with xnano.open(height=3) as terminal:
     terminal.screen.write(
-        f'T{terminal.inspect(TerminalWidth)}x{terminal.inspect(TerminalHeight)} '
+        f'T{terminal.evaluate(TerminalWidth)}x{terminal.evaluate(TerminalHeight)} '
         f'W{terminal.screen.window.width}x{terminal.screen.window.height}'
     )
     time.sleep(1)
@@ -770,7 +770,7 @@ with xnano.open(height=3) as terminal:
 from xnano.expressions import TerminalHeight, TerminalWidth
 with xnano.open() as terminal:
     terminal.screen.write(
-        f'T{terminal.inspect(TerminalWidth)}x{terminal.inspect(TerminalHeight)} '
+        f'T{terminal.evaluate(TerminalWidth)}x{terminal.evaluate(TerminalHeight)} '
         f'W{terminal.screen.window.width}x{terminal.screen.window.height}'
     )
     time.sleep(1)
@@ -1118,7 +1118,7 @@ with xnano.new(width=30, height=3) as canvas:
     terminal = canvas.open()
     assert terminal is canvas and isinstance(canvas, xnano.Terminal)
     canvas.screen.write('OPENED', y=2)
-    canvas.run(quit_on='q')
+    canvas.run(stop_on='q')
 print('ENDED')
 """
         )
@@ -1136,11 +1136,11 @@ print('ENDED')
 with xnano.new(width=40, height=3, fps=10) as canvas:
     @canvas.hook(on='tick', after=5.4)
     def later(context):
-        canvas.screen.write(f'FIRED AT {context.clock.elapsed:.1f}', y=1)
+        canvas.screen.write(f'FIRED AT {context.clock.elapsed_seconds:.1f}', y=1)
 
     canvas.clock.step(delta_seconds=5.0)
     canvas.open()
-    canvas.screen.write(f'OPENED AT {canvas.clock.elapsed:.1f}')
+    canvas.screen.write(f'OPENED AT {canvas.clock.elapsed_seconds:.1f}')
     time.sleep(3)
 """
         )
@@ -1156,12 +1156,12 @@ with xnano.new(width=40, height=3, fps=10) as canvas:
             """
 with xnano.new(width=40, height=3) as canvas:
     canvas.clock.step(delta_seconds=2.0)
-    canvas.clock.stop()
+    canvas.clock.pause()
     canvas.open()
     time.sleep(0.5)
-    canvas.screen.write(f'STOPPED {canvas.clock.is_stopped} AT {canvas.clock.elapsed:.2f}')
+    canvas.screen.write(f'STOPPED {canvas.clock.is_paused} AT {canvas.clock.elapsed_seconds:.2f}')
     canvas.clock.step()
-    canvas.screen.write(f'STEPPED TO {canvas.clock.elapsed:.3f}', y=1)
+    canvas.screen.write(f'STEPPED TO {canvas.clock.elapsed_seconds:.3f}', y=1)
     time.sleep(1)
 """
         )
@@ -1361,10 +1361,10 @@ with xnano.new(width=40, height=3) as canvas:
         seen.append(context.root.state.get('volume'))
 
     placement = canvas.screen.write('hi')
-    placement.state.push('clicks', 3)
+    placement.state.set('clicks', 3)
     canvas.clock.step()
     canvas.open(state=Settings())
-    canvas.state.push('volume', 5)
+    canvas.state.set('volume', 5)
     time.sleep(0.5)
     canvas.screen.write(f'SEEN {seen[-1]} CLICKS {placement.state.get("clicks")}', y=1)
     time.sleep(1)
@@ -1377,7 +1377,7 @@ with xnano.new(width=40, height=3) as canvas:
             """
 with xnano.new(width=40, height=2) as canvas:
     canvas.screen.write('hi')
-    canvas.quit()
+    canvas.stop()
     canvas.open()
     time.sleep(0.3)
     found = xnano.active(is_required=False) is canvas
@@ -1397,7 +1397,7 @@ with xnano.open(width=40, height=2) as terminal:
     def watch(context):
         seen.append(context.root.state.get('x'))
 
-    terminal.state.push('x', 1)
+    terminal.state.set('x', 1)
     time.sleep(0.5)
     terminal.screen.write(f'SEEN {seen}', y=1)
     time.sleep(1)
@@ -1416,7 +1416,7 @@ child.hook(on='mouse')(lambda context: heard.append(context.mouse.kind))
 child.screen.write('WRITTEN')
 with xnano.open(width=30, height=3, mouse=False) as terminal:
     terminal.screen.write(child)
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 print('HEARD', heard)
 """
         )
@@ -1444,7 +1444,7 @@ with xnano.open(width=30, height=4) as terminal:
             canvas.screen.down()
             terminal.screen.write('MOVED', x=10, y=3)
 
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 """
         )
         assert screen.wait_for('NOT YET')
@@ -1475,7 +1475,7 @@ with xnano.open(width=30, height=6) as terminal:
 
     # Written last, so the hook is listening once it shows.
     terminal.screen.write('ready', x=25, y=0)
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 """
         )
         assert screen.wait_for('ready')
@@ -1500,7 +1500,7 @@ with xnano.open(width=30, height=2, fps=60) as terminal:
         context.canvas.clock.fps = 5
         label.text = f'fps {context.canvas.clock.fps:g}'
 
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 """
         )
         assert screen.wait_for('fps 60')
@@ -1627,7 +1627,7 @@ heard = []
 with xnano.open(width=60, height=3, scroll=False) as terminal:
     terminal.hook(lambda context: heard.append('scroll'), on='scroll')
     terminal.screen.write('ATTACHED')
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 print('HEARD', heard)
 """
         )
@@ -1677,7 +1677,7 @@ with xnano.new(width=10, height=1) as other, xnano.open(width=40, height=3) as t
         screen = run(
             """
 label = None
-for frame in xnano.iter(height=2, fps=30, quit_on='q'):
+for frame in xnano.iter(height=2, fps=30, stop_on='q'):
     if label is None:
         label = frame.canvas.screen.write('READY')
     for event in frame.events:
@@ -1701,9 +1701,9 @@ with xnano.new(width=30, height=2) as canvas:
 
     @canvas.hook(on='tick', after=0.3)
     def finish(context):
-        canvas.quit()
+        canvas.stop()
 
-    canvas.run(quit_on=None)
+    canvas.run(stop_on=None)
     print('CLOSED', canvas.is_closed)
 """
         )
@@ -1754,19 +1754,19 @@ with xnano.open(width=40, height=2, fps=10) as canvas:
 
     @canvas.hook(on='key', keys='s')
     def stop(context):
-        canvas.clock.stop()
-        shown.text = f'STOPPED AT {round(canvas.clock.elapsed * 10)}'
+        canvas.clock.pause()
+        shown.text = f'STOPPED AT {round(canvas.clock.elapsed_seconds * 10)}'
 
     @canvas.hook(on='key', keys='n')
     def step(context):
-        before = round(canvas.clock.elapsed * 10)
+        before = round(canvas.clock.elapsed_seconds * 10)
         canvas.clock.step()
-        shown.text = f'STEPPED {round(canvas.clock.elapsed * 10) - before}'
+        shown.text = f'STEPPED {round(canvas.clock.elapsed_seconds * 10) - before}'
 
     @canvas.hook(on='key', keys='r')
     def resume(context):
         canvas.clock.resume()
-        shown.text = f'RESUMED {canvas.clock.is_stopped}'
+        shown.text = f'RESUMED {canvas.clock.is_paused}'
 
     canvas.run()
 """
@@ -1934,7 +1934,7 @@ async def main():
         counter = asyncio.ensure_future(count())
         key = await terminal.keyboard.wait_async('g')
         label.text = f'GOT {key} {ticks[0] > 0}'
-        await terminal.run_async(quit_on='q')
+        await terminal.run_async(stop_on='q')
         counter.cancel()
     print('CLOSED', terminal.is_closed)
 
@@ -1969,7 +1969,7 @@ async def main():
             await asyncio.sleep(0.05)
             label.text = 'ANSWERED'
 
-        await terminal.run_async(quit_on='q')
+        await terminal.run_async(stop_on='q')
 
 
 asyncio.run(main())
@@ -1992,7 +1992,7 @@ with xnano.open() as terminal:
     terminal.screen.write('hello', x='center', y='center')
     terminal.screen.write('world')
     time.sleep(0.5)
-    terminal.clock.stop()
+    terminal.clock.pause()
     terminal.screen.write('STOPPED', y=2)
     time.sleep(0.5)
     terminal.clock.resume()

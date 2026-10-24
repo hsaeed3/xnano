@@ -28,7 +28,7 @@ from xnano._internal._dynamic_operations import DynamicOperation
 from xnano._schema._generics import DepsT, StateT
 from xnano._schema._hooks import Hook, HookKind, HookTrigger, IfRunning, KeyName
 from xnano.errors import TerminalError
-from xnano.hooks._context import Context, Frame, Update
+from xnano.hooks._context import Context, Frame, Tick
 from xnano.hooks._coroutines import CoroutineRuns
 from xnano.hooks._triggers import CompiledWhen, compile_when, normalize_binding
 from xnano.state import StateNamespace, _dotted, _HookRun, _StateFollower
@@ -148,7 +148,7 @@ def _taking_leading_arguments(
 
 
 _CONDITION_SCOPES: Final = frozenset(
-    {'keyboard', 'mouse', 'scroll', 'buffer', 'parent', 'root', 'time', 'deps'}
+    {'keyboard', 'mouse', 'scroll', 'target', 'parent', 'root', 'time', 'deps'}
 )
 """The names a condition string reads; a custom event's name starts with none of them."""
 
@@ -206,7 +206,7 @@ def resolve_trigger(
     if isinstance(on, bool):
         raise TypeError(
             f'on= received {on}. That is what `is` and `and` give on an expression. Build the '
-            f'condition with ==, & and |, for example on=Keyboard.key == "q", or write it as a '
+            f'condition with ==, & and |, for example on=keyboard.key == "q", or write it as a '
             f'string, on="keyboard.key == \'q\'".'
         )
     if isinstance(on, str):
@@ -507,8 +507,8 @@ class HookHandle(Generic[DepsT, StateT]):
             if self._after is not None:
                 self._arm(lambda: self._after or 0.0)
             else:
-                self._registration = canvas._on_update(
-                    self._on_update, fixed_step_seconds=self._every
+                self._registration = canvas._on_tick(
+                    self._on_tick, fixed_step_seconds=self._every
                 )
         elif kind == 'beat':
             self._arm(self._beat_seconds)
@@ -666,7 +666,7 @@ class HookHandle(Generic[DepsT, StateT]):
     def _context(
         self,
         core_context: CoreContext | None,
-        event: _core.Event | _core.TerminalStateChange | Frame | Update | None,
+        event: _core.Event | _core.TerminalStateChange | Frame | Tick | None,
     ) -> Context[DepsT, StateT]:
         canvas = self._owner._canvas
         return cast(
@@ -696,14 +696,14 @@ class HookHandle(Generic[DepsT, StateT]):
         except Exception as error:
             self._fail(frame, error)
 
-    def _on_update(self, update: Update) -> None:
+    def _on_tick(self, tick: Tick) -> None:
         if self._removed:
             return
         try:
             if self._passes_expression():
-                self._run(self._context(None, update))
+                self._run(self._context(None, tick))
         except Exception as error:
-            self._fail(update, error)
+            self._fail(tick, error)
 
     def _on_core(self, core_context: CoreContext) -> None:
         """Hear an event the runtime reported and its native condition accepted."""
@@ -856,7 +856,7 @@ class HookHandle(Generic[DepsT, StateT]):
         self._finish_run(canvas, run)
 
     def _finish_run(self, canvas: Canvas[DepsT, StateT], run: _HookRun) -> None:
-        """Save what the run pushed in one transaction and note what it read."""
+        """Save what the run set in one transaction and note what it read."""
         run.is_active = False
         run.snapshot = None
         pending = run.pending
@@ -950,7 +950,7 @@ class HookHandle(Generic[DepsT, StateT]):
             )
 
     def _apply_result(self, result: object) -> None:
-        """Apply a returned operation, style or effect to the hook's buffer."""
+        """Apply a returned operation, style or effect to the hook's target."""
         from xnano.operations import ContextualOperation
 
         owner = self._owner
@@ -1098,7 +1098,7 @@ class _Hooked(Generic[DepsT, StateT]):
                 so ``mouse`` and ``scroll`` turn on when the canvas opens. A string that reads
                 key releases needs ``keyboard='release_events'`` given to ``new()`` or
                 ``open()``. An expression or a function hears every input event and does not
-                tell xnano what it reads, so one that reads ``Mouse``, ``Scroll`` or key
+                tell xnano what it reads, so one that reads ``mouse``, ``scroll`` or key
                 releases needs ``mouse=True``, ``scroll=True`` or
                 ``keyboard='release_events'`` given to ``new()`` or ``open()`` yourself. With
                 ``every``, ``after`` or ``keys`` a condition is checked on those ticks or keys.
@@ -1213,7 +1213,7 @@ class _Hooked(Generic[DepsT, StateT]):
             if_running=if_running,
         )
         if on == 'state':
-            # A state change pushed right after this call must reach the hook, so it
+            # A state change made right after this call must reach the hook, so it
             # subscribes before the call returns.
             self._canvas._host.call(handle._register)
         else:
@@ -1229,7 +1229,7 @@ class _Hooked(Generic[DepsT, StateT]):
         name = getattr(function, '__name__', 'hook')
         if isinstance(event, _core.Event):
             handling = f' while handling {event!r}'
-        elif isinstance(event, Update):
+        elif isinstance(event, Tick):
             handling = ' while running its timer'
         elif isinstance(event, Frame):
             handling = ' while drawing a frame'

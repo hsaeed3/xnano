@@ -517,7 +517,7 @@ class ContextualOperation(_core.Operation, Generic[DepsT, StateT]):
 
         @xnano.hook(on='tick', every=0.5)
         def count(context: xnano.Context) -> None:
-            counted.append(context.clock.elapsed)
+            counted.append(context.clock.elapsed_seconds)
 
         with xnano.new(width=16, height=1) as canvas:
             canvas.screen | count

@@ -294,11 +294,11 @@ _STATIC_NAMES = frozenset(
 _NAME = re.compile(r'[A-Za-z_]\w*')
 
 
-def is_static_formula(bound: object) -> bool:
+def is_static_expression(bound: object) -> bool:
     """
     Whether a number or expression keeps its value until an event that already asks for a frame.
 
-    Only a formula built from sizes, positions and numbers is known to be static. A formula
+    Only an expression built from sizes, positions and numbers is known to be static. An expression
     that reads anything else, such as the clock, a sound, a level or a provided value, may
     change between frames, so it is not static.
     """
@@ -318,9 +318,9 @@ def inspect_number(buffer: _core.Buffer, expression: NumericExpression) -> float
     result = buffer.inspect(cast('_core.Expression[float]', expression))
     if result is None:
         raise TypeError(
-            'This formula has no value yet because it reads input that has not been seen, '
+            'This expression has no value yet because it reads input that has not been seen, '
             'such as PointerPosition before the pointer has moved. Assign a number now and '
-            'update it from a hook that runs when the input arrives, or use a formula that '
+            'update it from a hook that runs when the input arrives, or use an expression that '
             'does not depend on unseen input.'
         )
     return float(result)

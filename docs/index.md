@@ -9,8 +9,8 @@ xnano is a terminal for Python, built on the [ratatui](https://ratatui.rs) and
 [tachyonfx](https://github.com/ratatui/tachyonfx) Rust crates. It gives you a
 surface of cells to put things on: text, widgets, images, pixels and sound.
 There is no framework to learn first. You build small values from the inside out
-(`xnano.write`, `xnano.draw`, `xnano.note`), put them on a canvas, and the
-canvas can be put on your screen. Every position and size can be a formula of
+(`xnano.region`, `xnano.pixel_art`, `xnano.Note`), put them on a canvas, and the
+canvas can be put on your screen. Every position and size can be an expression of
 time, of the canvas's size or of anything else on screen, so a layout is a line
 of Python that is evaluated again on every frame.
 
@@ -18,14 +18,14 @@ of Python that is evaluated again on every frame.
 import xnano
 from xnano.expressions import ParentWidth, TimeElapsed, Width
 
-card = xnano.write('Hello, world!', border='rounded', padding={'horizontal': 2})
+card = xnano.region('Hello, world!', border='rounded', padding={'horizontal': 2})
 print(card.render())  # a value renders on its own, with no screen
 
 with xnano.open(width=40, height=6) as terminal:
     terminal.screen.write(card, x='center')
     ball = terminal.screen.write('●', y=5)
     ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
-    terminal.run(quit_on='q')
+    terminal.run(stop_on='q')
 ```
 
 The `xnano` distribution installs the terminal and its Rust engine, and two

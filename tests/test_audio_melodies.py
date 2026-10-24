@@ -194,7 +194,7 @@ class TestClock:
         canvas.clock.beats.start()
         played(canvas)
         player = FakePlayer.instances[-1]
-        canvas.clock.stop()
+        canvas.clock.pause()
         played(canvas)
         assert not player.is_clock_running
         canvas.clock.resume()
@@ -204,7 +204,7 @@ class TestClock:
 
 class TestExpressions:
     def test_the_microphone_level_is_an_expression(self, canvas):
-        assert canvas.inspect(canvas.microphone.level) == 0.25
+        assert canvas.evaluate(canvas.microphone.level) == 0.25
 
     def test_the_level_drives_a_position(self, canvas):
         meter = canvas.screen.write('#', y=1)
@@ -218,14 +218,14 @@ class TestExpressions:
         assert meter.x == 4
 
     def test_the_level_combines_with_the_rest_of_the_language(self, canvas):
-        assert canvas.inspect(canvas.microphone.level * Width) == 5.0
+        assert canvas.evaluate(canvas.microphone.level * Width) == 5.0
 
     def test_the_beat_follows_the_player(self, canvas):
-        assert canvas.inspect(canvas.clock.beats.position) == 0.0
+        assert canvas.evaluate(canvas.clock.beats.position) == 0.0
         canvas.clock.beats.start()
         played(canvas)
         FakePlayer.instances[-1].beat = 2.5
-        assert canvas.inspect(canvas.clock.beats.position % 1) == 0.5
+        assert canvas.evaluate(canvas.clock.beats.position % 1) == 0.5
 
     def test_the_level_history_is_read_from_the_microphone(self, canvas):
         assert canvas.microphone.level_history(3) == [0.1, 0.1, 0.1]
@@ -236,7 +236,7 @@ class TestExpressions:
                 raise microphone_module.TerminalAudioError('no input device')
 
         monkeypatch.setattr(microphone_module, 'TerminalMicrophone', Broken)
-        assert canvas.inspect(canvas.microphone.level) == 0.0
+        assert canvas.evaluate(canvas.microphone.level) == 0.0
         assert canvas.microphone.level_history(2) == []
 
 
@@ -376,26 +376,26 @@ class TestRecording:
 
     def test_the_beat_moves_with_the_manual_clock_and_the_tempo(self, manual):
         manual.clock.bpm = 120
-        assert manual.inspect(manual.clock.beats.position) == 0.0
+        assert manual.evaluate(manual.clock.beats.position) == 0.0
         manual.clock.beats.start()
         manual.clock.step(delta_seconds=1.0)
-        assert manual.inspect(manual.clock.beats.position) == pytest.approx(2.0)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(2.0)
         manual.clock.bpm = 60
-        assert manual.inspect(manual.clock.beats.position) == pytest.approx(2.0), (
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(2.0), (
             'a change of tempo changes the rate, not the position'
         )
         manual.clock.step(delta_seconds=1.0)
-        assert manual.inspect(manual.clock.beats.position) == pytest.approx(3.0)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(3.0)
 
     def test_stopping_a_stopped_canvas_still_resumes_the_beat(self, manual):
         manual.clock.beats.start()
         manual.clock.step(delta_seconds=0.5)
-        manual.clock.stop()
-        manual.clock.stop()
+        manual.clock.pause()
+        manual.clock.pause()
         manual.clock.step(delta_seconds=0.5)
         manual.clock.resume()
         manual.clock.step(delta_seconds=0.5)
-        assert manual.inspect(manual.clock.beats.position) == pytest.approx(2.0)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(2.0)
 
     def test_a_formula_that_reads_the_beat_still_draws_in_the_outer_canvas(self):
         child = xnano.new(width=10, height=2)
@@ -413,22 +413,22 @@ class TestRecording:
         manual.clock.step(delta_seconds=0.5)
         manual.clock.beats.pause()
         manual.clock.step(delta_seconds=0.5)
-        assert manual.inspect(manual.clock.beats.position) == pytest.approx(1.0)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(1.0)
         manual.clock.beats.resume()
         manual.clock.step(delta_seconds=0.5)
-        assert manual.inspect(manual.clock.beats.position) == pytest.approx(2.0)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(2.0)
         manual.clock.beats.stop()
-        assert manual.inspect(manual.clock.beats.position) == 0.0
+        assert manual.evaluate(manual.clock.beats.position) == 0.0
 
     def test_starting_the_clock_on_a_stopped_canvas_starts_it_held(self, manual):
-        manual.clock.stop()
+        manual.clock.pause()
         manual.clock.beats.start()
         manual.clock.step(delta_seconds=0.5)
         manual.clock.step(delta_seconds=0.5)
-        assert manual.inspect(manual.clock.beats.position) == pytest.approx(0.0)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(0.0)
         manual.clock.resume()
         manual.clock.step(delta_seconds=0.5)
-        assert manual.inspect(manual.clock.beats.position) == pytest.approx(1.0)
+        assert manual.evaluate(manual.clock.beats.position) == pytest.approx(1.0)
 
     def test_a_new_note_object_is_never_heard_as_an_earlier_one(self, manual):
         def crossings(sound: TerminalSound) -> int:
@@ -496,7 +496,7 @@ class TestTerminalSoundShortcuts:
 
             @canvas.hook(on='beat', every=1)
             def count(context):
-                beats.append(round(context.clock.elapsed, 2))
+                beats.append(round(context.clock.elapsed_seconds, 2))
 
             for _ in range(16):
                 canvas.clock.step(delta_seconds=0.1)
@@ -582,7 +582,7 @@ class TestMelody:
 
     def test_a_melody_in_a_sequence_plays_after_the_note_before_it(self, manual):
         melody = xnano.audio.Melody('C4 E4', bpm=120)
-        manual.speaker.play([xnano.note('C4'), melody])
+        manual.speaker.play([xnano.Note('C4'), melody])
         starts = sorted(item.start_seconds for item in manual._audio_device()._recordings)
         assert starts == pytest.approx([0.0, 0.5])
 
@@ -651,9 +651,9 @@ class TestMelodyRegion:
         assert (one_beat.width, one_beat.milliseconds.width) == (1.0, 1000.0)
 
     def test_the_ticks_are_sixteenth_notes(self):
-        ticks = xnano.audio.Melody('C4 E4 G4:2', bpm=90).region.ticks
-        assert (ticks.x, ticks.width) == (0.0, 16.0)
-        assert (ticks.y, ticks.height) == (60, 8)
+        sixteenths = xnano.audio.Melody('C4 E4 G4:2', bpm=90).region.sixteenths
+        assert (sixteenths.x, sixteenths.width) == (0.0, 16.0)
+        assert (sixteenths.y, sixteenths.height) == (60, 8)
 
     def test_a_tempo_change_in_the_score_is_followed(self):
         # The melody text has no way to write a tempo change, so the score is given one.
@@ -669,7 +669,7 @@ class TestPlayedRegion:
     """The handle of a played sound knows where the sound is on the timeline of the canvas."""
 
     def test_a_note_is_a_row_for_its_beats_without_the_ring_after_it(self, manual):
-        region = manual.speaker.play(xnano.note('E4', beats=2))._region
+        region = manual.speaker.play(xnano.Note('E4', beats=2))._region
         assert region is not None
         assert region.resolution == 'beats'
         assert (region.x, region.width) == (0.0, 2.0)
@@ -677,7 +677,7 @@ class TestPlayedRegion:
 
     def test_it_starts_on_the_beat_the_canvas_has_reached(self, manual):
         manual.clock.step(delta_seconds=1.0)
-        region = manual.speaker.play(xnano.note('E4', beats=2))._region
+        region = manual.speaker.play(xnano.Note('E4', beats=2))._region
         assert region is not None
         assert (region.x, region.width) == (2.0, 2.0), 'one second is two beats at 120'
         assert region.milliseconds.x == 1000.0
@@ -685,7 +685,7 @@ class TestPlayedRegion:
     def test_it_follows_the_tempo_of_the_canvas(self, manual):
         manual.clock.bpm = 60
         manual.clock.step(delta_seconds=1.0)
-        region = manual.speaker.play(xnano.note('E4', beats=2))._region
+        region = manual.speaker.play(xnano.Note('E4', beats=2))._region
         assert region is not None
         assert (region.x, region.width) == (1.0, 2.0)
         assert region.milliseconds.width == 2000.0
@@ -699,7 +699,7 @@ class TestPlayedRegion:
         self, manual
     ):
         region = manual.speaker.play(
-            [xnano.note('C4'), xnano.note(('G4', 'B4'), beats=2)]
+            [xnano.Note('C4'), xnano.Note(('G4', 'B4'), beats=2)]
         )._region
         assert region is not None
         assert (region.x, region.width) == (0.0, 3.0)
@@ -740,24 +740,24 @@ class TestPlayedRegion:
         assert (region.y, region.height) == (60, 1)
 
     def test_a_canvas_with_a_device_reports_the_same_region(self, canvas):
-        region = canvas.speaker.play(xnano.note('E4', beats=2), at_beat=4)._region
+        region = canvas.speaker.play(xnano.Note('E4', beats=2), at_beat=4)._region
         assert region is not None
         assert (region.x, region.width) == (4.0, 2.0)
         assert (region.y, region.height) == (64, 1)
 
     def test_a_device_region_starts_on_the_clock_of_the_canvas(self, canvas):
-        region = canvas.speaker.play(xnano.note('E4'))._region
+        region = canvas.speaker.play(xnano.Note('E4'))._region
         assert region is not None
-        assert region.x == pytest.approx(canvas.clock.elapsed * 2.0, abs=0.5)
+        assert region.x == pytest.approx(canvas.clock.elapsed_seconds * 2.0, abs=0.5)
 
 
 class TestMicrophone:
     def test_the_level_is_an_expression_on_the_microphone(self, canvas):
-        assert canvas.inspect(canvas.microphone.level) == 0.25
+        assert canvas.evaluate(canvas.microphone.level) == 0.25
 
     def test_the_level_shortcut_is_the_same_expression(self, canvas):
         assert canvas.microphone.level is canvas.microphone.level
-        assert canvas.inspect(canvas.microphone.level) == canvas.inspect(
+        assert canvas.evaluate(canvas.microphone.level) == canvas.evaluate(
             canvas.microphone.level
         )
 
@@ -786,7 +786,7 @@ class TestMicrophone:
 
     def test_a_canvas_without_a_device_has_a_silent_closed_microphone(self, manual):
         microphone = manual.microphone
-        assert manual.inspect(microphone.level) == 0.0
+        assert manual.evaluate(microphone.level) == 0.0
         assert microphone.level_history(3) == []
         assert not microphone.is_open
         assert microphone.sample_rate is None

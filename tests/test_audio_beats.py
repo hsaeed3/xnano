@@ -113,7 +113,7 @@ class TestBeatHooks:
             canvas.clock.bpm = 120
             beats = []
             canvas.hook(on='beat', every=1)(
-                lambda context: beats.append(round(context.clock.elapsed, 2))
+                lambda context: beats.append(round(context.clock.elapsed_seconds, 2))
             )
             for _ in range(16):
                 canvas.clock.step(delta_seconds=0.1)

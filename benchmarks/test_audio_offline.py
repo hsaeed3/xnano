@@ -45,7 +45,7 @@ def minimum_microseconds(function, *, number: int, repeat: int = 7) -> float:
 
 
 def test_playing_a_note_records_it_without_synthesizing(benchmark):
-    note = xnano.note('C4', beats=0.5)
+    note = xnano.Note('C4', beats=0.5)
     with xnano.new(width=8, height=1) as canvas:
 
         def play() -> int:
@@ -62,7 +62,7 @@ def test_playing_a_note_records_it_without_synthesizing(benchmark):
 
 
 def test_rendering_a_second_of_four_cached_notes(benchmark):
-    notes = [xnano.note(pitch, beats=2.0) for pitch in NOTES]
+    notes = [xnano.Note(pitch, beats=2.0) for pitch in NOTES]
     with xnano.new(width=8, height=1, fps=1) as canvas:
 
         def render() -> float:

@@ -182,5 +182,5 @@ class TestTerminalExpressions:
         from xnano.expressions import TerminalHeight, TerminalWidth
 
         with xnano.new(width=12, height=3) as canvas:
-            assert canvas.inspect(TerminalWidth) == 12
-            assert canvas.inspect(TerminalHeight) == 3
+            assert canvas.evaluate(TerminalWidth) == 12
+            assert canvas.evaluate(TerminalHeight) == 3

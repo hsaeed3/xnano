@@ -15,6 +15,7 @@ import pytest
 
 import xnano
 from xnano.errors import TerminalError
+from xnano.expressions import TimeElapsed
 
 
 class TestManualClock:
@@ -22,34 +23,36 @@ class TestManualClock:
         with xnano.new(width=8, height=1, fps=10) as canvas:
             ticks: list[float] = []
             canvas.hook(
-                lambda context: ticks.append(context.clock.elapsed), on='tick', every=0.5
+                lambda context: ticks.append(context.clock.elapsed_seconds),
+                on='tick',
+                every=0.5,
             )
             canvas.clock.sleep(2)
-            assert round(canvas.clock.elapsed, 6) == 2.0
+            assert round(canvas.clock.elapsed_seconds, 6) == 2.0
             assert canvas.clock.frame == 20
             assert [round(tick, 6) for tick in ticks] == [0.5, 1.0, 1.5, 2.0]
 
     def test_a_time_between_frames_moves_by_the_rest_at_the_end(self):
         with xnano.new(width=8, height=1, fps=10) as canvas:
             canvas.clock.sleep(0.25)
-            assert round(canvas.clock.elapsed, 6) == 0.25
+            assert round(canvas.clock.elapsed_seconds, 6) == 0.25
             assert canvas.clock.frame == 3
 
     def test_an_animation_moves_while_it_sleeps(self):
         with xnano.new(width=20, height=1, fps=10) as canvas:
             ball = canvas.screen.write('o', y=0)
-            ball.x = canvas.clock.seconds * 4
+            ball.x = TimeElapsed * 4
             canvas.clock.sleep(1)
             assert ball.x == 4
 
     def test_zero_seconds_is_no_wait(self):
         with xnano.new(width=8, height=1) as canvas:
             canvas.clock.sleep(0)
-            assert canvas.clock.elapsed == 0.0
+            assert canvas.clock.elapsed_seconds == 0.0
 
     def test_a_stopped_manual_clock_would_never_move(self):
         with xnano.new(width=8, height=1) as canvas:
-            canvas.clock.stop()
+            canvas.clock.pause()
             with pytest.raises(TerminalError, match='would never end'):
                 canvas.clock.sleep(1)
 
@@ -63,7 +66,7 @@ class TestManualClock:
         async def main() -> float:
             async with xnano.new(width=8, height=1, fps=10) as canvas:
                 await canvas.clock.sleep_async(1)
-                return round(canvas.clock.elapsed, 6)
+                return round(canvas.clock.elapsed_seconds, 6)
 
         assert asyncio.run(main()) == 1.0
 
@@ -72,14 +75,14 @@ class TestRealtime:
     def test_it_waits_for_the_canvas_time_to_pass(self):
         with xnano.new(realtime=True, width=8, height=1) as canvas:
             start = time.monotonic()
-            before = canvas.clock.elapsed
+            before = canvas.clock.elapsed_seconds
             canvas.clock.sleep(0.1)
             assert time.monotonic() - start >= 0.1
-            assert canvas.clock.elapsed - before >= 0.1
+            assert canvas.clock.elapsed_seconds - before >= 0.1
 
     def test_stopped_time_does_not_count(self):
         with xnano.new(realtime=True, width=8, height=1) as canvas:
-            canvas.clock.stop()
+            canvas.clock.pause()
             resumed = threading.Timer(0.15, canvas.clock.resume)
             resumed.start()
             start = time.monotonic()
@@ -89,7 +92,7 @@ class TestRealtime:
 
     def test_quitting_ends_the_wait(self):
         with xnano.new(realtime=True, width=8, height=1) as canvas:
-            threading.Timer(0.05, canvas.quit).start()
+            threading.Timer(0.05, canvas.stop).start()
             start = time.monotonic()
             canvas.clock.sleep(10)
             assert time.monotonic() - start < 5

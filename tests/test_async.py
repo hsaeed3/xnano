@@ -180,7 +180,7 @@ class TestIterAsync:
                 async for _ in canvas.iter_async():
                     count += 1
                     if count == 4:
-                        canvas.quit()
+                        canvas.stop()
                 return count
 
         assert run(main()) == 4
@@ -193,7 +193,7 @@ class TestRunAsync:
 
                 @canvas.hook(on='tick', after=0.05)
                 def finish(context: xnano.Context) -> None:
-                    context.canvas.quit()
+                    context.canvas.stop()
 
                 _, ticks = await count_while(canvas.run_async())
                 return ticks
@@ -208,7 +208,7 @@ class TestRunAsync:
                 def press(context: xnano.Context) -> None:
                     canvas.push(Event.key_press('q'))
 
-                await asyncio.wait_for(canvas.run_async(quit_on='q'), timeout=5)
+                await asyncio.wait_for(canvas.run_async(stop_on='q'), timeout=5)
 
         run(main())
 
@@ -278,7 +278,7 @@ class TestWaitingForInput:
 
                 @canvas.hook(on='tick', after=0.05)
                 def finish(context: xnano.Context) -> None:
-                    context.canvas.quit()
+                    context.canvas.stop()
 
                 await canvas.keyboard.wait_async()
 

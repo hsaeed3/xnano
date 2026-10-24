@@ -6,9 +6,9 @@ Where things are written and how much room they take.
 A [`Placement`][xnano.layout.Placement] is something written on a screen, with its position
 and size, which follow the lines written before it unless you say where it goes. A
 [`Region`][xnano.layout.Region] is a rectangle of cells: of a screen, of a placement, or one
-built with [`write`][xnano.layout.write] or [`box`][xnano.layout.box]. Positions and sizes take
+built with [`region`][xnano.layout.region] or [`box`][xnano.layout.box]. Positions and sizes take
 a number of cells, a share such as ``'50%'``, a word such as ``'center'`` or ``'next'``, or a
-formula of [`xnano.expressions`][xnano.expressions]; [`Point`][xnano.layout.Point],
+expression of [`xnano.expressions`][xnano.expressions]; [`Point`][xnano.layout.Point],
 [`Size`][xnano.layout.Size] and [`Rectangle`][xnano.layout.Rectangle] are plain values measured
 in cells.
 """
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from xnano.layout._region import Region as Region
     from xnano.layout._region import Resolution as Resolution
     from xnano.layout._region import box as box
-    from xnano.layout._region import write as write
+    from xnano.layout._region import region as region
 
 _MODULES: Final[dict[str, str]] = {
     'Anchor': 'xnano._schema._layout',
@@ -56,7 +56,7 @@ _MODULES: Final[dict[str, str]] = {
     'SizeRule': 'xnano.layout._geometry',
     'VerticalPosition': 'xnano._schema._axes',
     'box': 'xnano.layout._region',
-    'write': 'xnano.layout._region',
+    'region': 'xnano.layout._region',
 }
 """The module each name comes from, imported the first time the name is read."""
 
@@ -78,7 +78,7 @@ __all__ = [
     'SizeRule',
     'VerticalPosition',
     'box',
-    'write',
+    'region',
 ]
 
 

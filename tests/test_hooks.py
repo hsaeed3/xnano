@@ -356,7 +356,8 @@ class TestTime:
         with xnano.new(width=8, height=1, bpm=120) as canvas:
             beats = []
             canvas.hook(
-                lambda context: beats.append(round(context.clock.elapsed, 2)), on='beat'
+                lambda context: beats.append(round(context.clock.elapsed_seconds, 2)),
+                on='beat',
             )
             canvas.clock.step(delta_seconds=0.5)
             canvas.clock.step(delta_seconds=0.5)
@@ -403,7 +404,7 @@ class TestTime:
     def test_stopping_time_stops_timers(self, canvas):
         ticks = []
         canvas.hook(lambda context: ticks.append(1), on='tick', every=0.1)
-        canvas.clock.stop()
+        canvas.clock.pause()
         canvas.deliver_events()
         assert ticks == []
         canvas.clock.resume()
@@ -529,7 +530,7 @@ class TestHeldButtons:
                 if isinstance(event, Frame):
                     kind, seconds = 'frame', event.elapsed_seconds
                 else:
-                    kind, seconds = str(context.mouse.kind), context.clock.elapsed
+                    kind, seconds = str(context.mouse.kind), context.clock.elapsed_seconds
                 if not first_press_seconds:
                     first_press_seconds.append(seconds)
                 runs.append((kind, round(seconds - first_press_seconds[0], 2)))
@@ -769,7 +770,7 @@ class TestQuitting:
         @canvas.hook(on='tick', every=0.1)
         def first(context: Context) -> None:
             heard.append('first')
-            context.canvas.quit()
+            context.canvas.stop()
 
         @canvas.hook(on='tick', every=0.1)
         def second(context: Context) -> None:
@@ -788,7 +789,7 @@ class TestQuitting:
         @canvas.hook(on='key')
         def quit_key(context: Context) -> None:
             heard.append('quit')
-            context.canvas.quit()
+            context.canvas.stop()
 
         canvas.hook(lambda context: heard.append('late'), on='key')
         push(canvas, Event.key_press('a'), Event.key_press('b'))
@@ -806,15 +807,15 @@ class TestQuitting:
                 counter['done'] += 1
                 if counter['done'] == steps:
                     has_quit['value'] = True
-                    context.canvas.quit()
+                    context.canvas.stop()
 
             @running.hook(on='tick', every=0.01)
             def watch(context: Context) -> None:
                 counter['late'] += int(has_quit['value'])
 
-            running.run(quit_on=None)
+            running.run(stop_on=None)
         assert counter['done'] == steps
-        assert counter['late'] == 0, 'a second timer ran after quit()'
+        assert counter['late'] == 0, 'a second timer ran after stop()'
 
 
 class TestHooksWithoutParameters:

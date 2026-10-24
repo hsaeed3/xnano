@@ -269,7 +269,7 @@ class TestNamedEffects:
                         time_milliseconds=300.0, feedback=0.6, mix=0.8
                     )
                     assert canvas.speaker.fx.active == (echo,)
-                canvas.speaker.play(xnano.note('C4', beats=0.25))
+                canvas.speaker.play(xnano.Note('C4', beats=0.25))
                 canvas.clock.step(delta_seconds=1.5)
                 samples = list(canvas.speaker.render().samples())
                 return max(abs(value) for value in samples[len(samples) // 2 :])
@@ -301,10 +301,12 @@ def test_nested_placement_follows_a_drag_hook() -> None:
         assert thumb.x == 5
 
 
-def test_expression_scopes_on_placements() -> None:
+def test_expression_scopes_move_a_placement() -> None:
+    from xnano.expressions import parent, root
+
     with xnano.new(width=20, height=3) as canvas:
         ball = canvas.screen.write('o')
-        ball.x = (ball.parent.width - ball.width) * ((ball.root.time / 2.0) % 1.0)
+        ball.x = (parent.width - ball.width) * ((root.time / 2.0) % 1.0)
         ball.x = (canvas.screen.width - ball.width) * ((canvas.clock / 2.0) % 1.0)
 
 
@@ -419,7 +421,7 @@ def test_customization_errors_say_how_to_recover() -> None:
     with pytest.raises(TypeError, match='Its parameters are'):
         xnano_core.Customization('style', bogus=1).build()
     with pytest.raises(AttributeError, match='provides: width, height, size'):
-        xnano.expressions.Parent.depth  # noqa: B018
+        xnano.expressions.parent.depth  # noqa: B018
 
 
 def test_mixed_operations_chain_in_order() -> None:
@@ -444,9 +446,9 @@ def test_triggers_decide_events_natively() -> None:
 
 
 def test_scopes_are_native_expressions() -> None:
-    assert xnano.expressions.Parent.width is xnano_core.ParentWidth
-    assert xnano.expressions.Root.time is xnano_core.TimeElapsed
-    assert xnano.expressions.BufferExpressions.size is xnano_core.BufferSize
+    assert xnano.expressions.parent.width is xnano_core.ParentWidth
+    assert xnano.expressions.root.time is xnano_core.TimeElapsed
+    assert xnano.expressions.target.size is xnano_core.BufferSize
 
 
 def test_a_sound_effect_chains_onto_sounds() -> None:
@@ -463,7 +465,7 @@ def test_xnano_hook_makes_a_reusable_operation() -> None:
 
     @xnano.hook(on='tick', every=0.1)
     def tick(context: Context) -> None:
-        ticks.append(round(context.clock.elapsed, 1))
+        ticks.append(round(context.clock.elapsed_seconds, 1))
 
     assert isinstance(tick, xnano.operations.ContextualOperation)
     assert (tick.on, tick.every) == ('tick', 0.1)
@@ -1046,9 +1048,9 @@ class TestEffectSettings:
 
     def test_draw_checks_its_effects_at_the_call(self) -> None:
         with pytest.raises(ValueError, match='is not a known visual effect'):
-            xnano.draw(['G'], {'G': 'red'}, effects=[{'kind': 'effect.nope'}])  # type: ignore[list-item]
+            xnano.pixel_art(['G'], {'G': 'red'}, effects=[{'kind': 'effect.nope'}])  # type: ignore[list-item]
         with pytest.raises(TypeError, match='sound effect'):
-            xnano.draw(['G'], {'G': 'red'}, effects=[{'kind': 'audio.reverb'}])  # type: ignore[list-item]
+            xnano.pixel_art(['G'], {'G': 'red'}, effects=[{'kind': 'audio.reverb'}])  # type: ignore[list-item]
 
 
 class TestSuggestedValues:

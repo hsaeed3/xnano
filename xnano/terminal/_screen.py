@@ -123,7 +123,8 @@ def create_live_runtime(
         ),
         alternate_screen=uses_alternate_screen,
         should_capture_output=bool(gates['capture']),
-        should_clear_on_close=bool(gates['clear']) and not uses_alternate_screen,
+        should_clear_on_close=bool(gates['clears_on_close'])
+        and not uses_alternate_screen,
     )
     runtime = _core.Runtime.live(
         frame_interval_milliseconds=max(1, round(1000.0 / fps)),

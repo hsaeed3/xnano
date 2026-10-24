@@ -134,7 +134,7 @@ def _content_buffer(
         raise TypeError(
             'write() does not accept raw bytes. Write the cell buffer instead: '
             'canvas.screen.write(Buffer.from_cell_grid(data)), or for picture bytes use '
-            'xnano.load_image(data) or xnano.draw(data, width=..., height=...).'
+            'xnano.load_image(data) or xnano.pixel_art(data, width=..., height=...).'
         )
     if isinstance(content, os.PathLike):
         raise TypeError(

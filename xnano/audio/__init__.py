@@ -18,7 +18,6 @@ from xnano.audio._audio import Audio as Audio
 from xnano.audio._audio import load_audio as load_audio
 from xnano.audio._notes import Note as Note
 from xnano.audio._notes import PlayHandle as PlayHandle
-from xnano.audio._notes import note as note
 from xnano.audio._notes import play as play
 
 if TYPE_CHECKING:
@@ -89,7 +88,6 @@ __all__ = [
     'TerminalAudioUnavailableError',
     'instrument_names',
     'load_audio',
-    'note',
     'play',
 ]
 

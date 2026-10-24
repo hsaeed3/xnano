@@ -90,7 +90,7 @@ class TestDecorators:
     def test_a_playable_without_parameters_plays(self, canvas):
         @xnano.playable
         def chime():
-            return xnano.note('C5', beats=0.5)
+            return xnano.Note('C5', beats=0.5)
 
         canvas.speaker.play(chime)
         canvas.clock.step(delta_seconds=0.5)
@@ -135,7 +135,7 @@ class TestDecorators:
     def test_playable_functions_mirror_writable_ones(self, canvas):
         @xnano.playable
         def tune(context: Context, root: str = 'C4') -> xnano.Note:
-            return xnano.note(root, beats=0.5)
+            return xnano.Note(root, beats=0.5)
 
         assert isinstance(tune, PlayableFunction)
         assert isinstance(tune(root='E4'), PlayableComponent)
@@ -195,7 +195,7 @@ class TestProtocols:
                 return 'show'
 
             def __xnano_play__(self, context: Context) -> xnano.Note:
-                return xnano.note('C4', beats=0.5)
+                return xnano.Note('C4', beats=0.5)
 
         both = Both()
         with warnings.catch_warnings():
@@ -235,7 +235,7 @@ class TestProtocols:
     def test_writing_something_that_only_plays_says_it_has_no_render_method(self, canvas):
         class OnlyPlay:
             def __xnano_play__(self, context: Context) -> xnano.Note:
-                return xnano.note('C4')
+                return xnano.Note('C4')
 
         with pytest.raises(TypeError, match='no __xnano_write__ method') as caught:
             canvas.screen.write(OnlyPlay())  # type: ignore[arg-type]
@@ -267,13 +267,13 @@ class TestProtocols:
         def rule(context: Context) -> str:
             return '--'
 
-        placement = canvas.screen.write(['one', rule, xnano.write('end')])  # type: ignore[list-item]
+        placement = canvas.screen.write(['one', rule, xnano.region('end')])  # type: ignore[list-item]
         assert (placement.width, placement.height) == (3, 3)
         assert text_of(placement).splitlines() == ['one', '--', 'end']
 
     def test_a_pixel_and_a_region_still_write_directly(self, canvas):
         assert canvas.screen.write(xnano.Pixel('star')).width == 1
-        assert canvas.screen.write(xnano.write('ab')).width == 2
+        assert canvas.screen.write(xnano.region('ab')).width == 2
 
 
 class TestWhenItRunsAgain:
@@ -296,7 +296,7 @@ class TestWhenItRunsAgain:
         assert len(calls) == 1
 
     def test_reading_the_time_runs_it_every_frame_until_removed(self, canvas):
-        counter, calls = self.counting(lambda context: context.clock.elapsed)
+        counter, calls = self.counting(lambda context: context.clock.elapsed_seconds)
         placement = canvas.screen.write(counter)
         canvas.clock.step(delta_seconds=0.1)
         canvas.clock.step(delta_seconds=0.1)
@@ -312,7 +312,7 @@ class TestWhenItRunsAgain:
         self, canvas, spelling
     ):
         counter, calls = self.counting(
-            lambda context: getattr(context, spelling).clock.elapsed
+            lambda context: getattr(context, spelling).clock.elapsed_seconds
         )
         placement = canvas.screen.write(counter)
         canvas.clock.step(delta_seconds=0.1)
@@ -326,16 +326,16 @@ class TestWhenItRunsAgain:
 
     def test_a_buffer_changed_in_place_shows_when_the_component_runs_again(self, canvas):
         shared = Buffer.with_text('aaaa')
-        standalone = xnano.write('bbbb')
+        standalone = xnano.region('bbbb')
 
         @xnano.writable
         def first(context: Context) -> Buffer:
-            _ = context.clock.elapsed
+            _ = context.clock.elapsed_seconds
             return shared
 
         @xnano.writable
         def second(context: Context) -> xnano.Region:
-            _ = context.clock.elapsed
+            _ = context.clock.elapsed_seconds
             return standalone
 
         canvas.screen.write(first)
@@ -350,7 +350,7 @@ class TestWhenItRunsAgain:
         assert 'Qbbb' in rendered
 
     def test_a_frame_without_time_passing_does_not_run_it(self, canvas):
-        counter, calls = self.counting(lambda context: context.clock.elapsed)
+        counter, calls = self.counting(lambda context: context.clock.elapsed_seconds)
         canvas.screen.write(counter)
         canvas.deliver_events()
         canvas.deliver_events()
@@ -361,10 +361,10 @@ class TestWhenItRunsAgain:
             lambda context: context.root.state.get('score', default=0)
         )
         placement = canvas.screen.write(counter)
-        canvas.state.push('other', 1)
+        canvas.state.set('other', 1)
         canvas.deliver_events()
         assert len(calls) == 1, 'an unrelated path does not run it'
-        canvas.state.push('score', 3)
+        canvas.state.set('score', 3)
         canvas.deliver_events()
         assert len(calls) == 2
         assert text_of(placement) == '2'
@@ -376,7 +376,7 @@ class TestWhenItRunsAgain:
         def tally(context: Context) -> str:
             calls.append(1)
             state = context.root.state
-            state.push('seen', int(state.get('seen', default=0) or 0) + 1)
+            state.set('seen', int(state.get('seen', default=0) or 0) + 1)
             return str(state.get('seen'))
 
         placement = canvas.screen.write(tally)
@@ -420,7 +420,7 @@ class TestWhenItRunsAgain:
 
         @xnano.writable
         def sized(context: Context) -> str:
-            sizes.append(context.buffer.width)
+            sizes.append(context.target.width)
             return 'x'
 
         placement = canvas.screen.write(sized, width=5)
@@ -439,7 +439,7 @@ class TestWhenItRunsAgain:
     ):
         @xnano.writable
         def ruler(context: Context) -> str:
-            return '#' * context.buffer.width
+            return '#' * context.target.width
 
         parent = canvas.screen.write('', width=10, height=1)
         child = parent.write(ruler, width='100%')
@@ -484,7 +484,7 @@ class TestWhenItRunsAgain:
 
         @xnano.writable
         def word(context: Context) -> str:
-            return words[int(context.clock.elapsed)]
+            return words[int(context.clock.elapsed_seconds)]
 
         placement = canvas.screen.write(word)
         assert placement.width == 1
@@ -494,7 +494,7 @@ class TestWhenItRunsAgain:
     def test_a_given_size_is_kept(self, canvas):
         @xnano.writable
         def word(context: Context) -> str:
-            return 'abcdefgh' if context.clock.elapsed else 'a'
+            return 'abcdefgh' if context.clock.elapsed_seconds else 'a'
 
         placement = canvas.screen.write(word, width=4)
         canvas.clock.step(delta_seconds=1.0)
@@ -513,7 +513,7 @@ class TestWhenItRunsAgain:
     def test_a_failing_later_run_stops_the_canvas_with_a_teaching_error(self):
         @xnano.writable
         def fragile(context: Context) -> str:
-            if context.clock.elapsed > 0.5:
+            if context.clock.elapsed_seconds > 0.5:
                 raise ValueError('too late')
             return 'ok'
 
@@ -535,7 +535,7 @@ class TestWhenItRunsAgain:
         @xnano.writable
         def tally(context: Context) -> str:
             state = context.plugin.state
-            state.push('runs', int(state.get('runs', default=0) or 0) + 1)
+            state.set('runs', int(state.get('runs', default=0) or 0) + 1)
             return str(state.get('runs'))
 
         first = canvas.screen.write(tally)
@@ -761,7 +761,7 @@ class TestPlayables:
     def test_a_component_cannot_play_without_a_canvas_and_the_error_says_so(self, canvas):
         @xnano.playable
         def tune(context: Context) -> xnano.Note:
-            return xnano.note('C4')
+            return xnano.Note('C4')
 
         for play in (xnano.audio._player._plan_call, None):
             with pytest.raises(TypeError, match=r'needs a canvas to run in') as raised:
@@ -788,7 +788,7 @@ class TestPlayables:
         @xnano.playable
         def tune(context: Context) -> xnano.Note:
             calls.append(1)
-            return xnano.note('C4', beats=0.5)
+            return xnano.Note('C4', beats=0.5)
 
         handle = canvas.speaker.play(tune)
         canvas.clock.step(delta_seconds=2.0)
@@ -804,7 +804,7 @@ class TestPlayables:
         @xnano.playable
         def follow(context: Context) -> xnano.Note:
             calls.append(context.keyboard.key)
-            return xnano.note('C4', beats=0.5)
+            return xnano.Note('C4', beats=0.5)
 
         canvas.speaker.play(follow)
         assert calls == [None]
@@ -820,8 +820,8 @@ class TestPlayables:
 
         @xnano.playable
         def pulse(context: Context) -> xnano.Note:
-            calls.append(context.clock.elapsed)
-            return xnano.note('C4', beats=0.25)
+            calls.append(context.clock.elapsed_seconds)
+            return xnano.Note('C4', beats=0.25)
 
         handle = canvas.speaker.play(pulse)
         canvas.clock.step(delta_seconds=1.0)
@@ -838,9 +838,9 @@ class TestPlayables:
 
         @xnano.playable
         def pulse(context: Context) -> xnano.Note:
-            _ = context.clock.elapsed
+            _ = context.clock.elapsed_seconds
             regions.append(context.region)
-            return xnano.note(('C4', 'G4'), beats=0.25)
+            return xnano.Note(('C4', 'G4'), beats=0.25)
 
         canvas.speaker.play(pulse)
         canvas.clock.step(delta_seconds=0.5)
@@ -867,7 +867,7 @@ class TestPlayables:
         @xnano.playable
         def tune(context: Context) -> xnano.Note:
             regions.append(context.region)
-            return xnano.note('C4')
+            return xnano.Note('C4')
 
         canvas.speaker.play(tune, at_beat=8)
         assert (regions[0].x, regions[0].width, regions[0].height) == (8.0, 0.0, 0)
@@ -881,7 +881,7 @@ class TestPlayables:
         @xnano.playable
         def tune(context: Context) -> xnano.Note:
             sizes.append(context.size)
-            return xnano.note('C4')
+            return xnano.Note('C4')
 
         canvas.speaker.play(tune)
         assert sizes == [canvas.screen.size]
@@ -889,7 +889,7 @@ class TestPlayables:
     def test_a_playable_hook_sees_the_timeline_of_the_sound(self, canvas):
         @xnano.playable
         def chord(context: Context) -> xnano.Note:
-            return xnano.note(('E4', 'B4'), beats=2)
+            return xnano.Note(('E4', 'B4'), beats=2)
 
         seen = []
         chord.hook(
@@ -908,7 +908,7 @@ class TestPlayables:
 
         @xnano.playable
         def blip(context: Context) -> xnano.Note:
-            return xnano.note('A4', beats=0.5)
+            return xnano.Note('A4', beats=0.5)
 
         @blip.hook(on='key')
         def watch(context: Context, component: ComponentContext):
@@ -936,7 +936,7 @@ class TestPlayables:
     def test_a_playable_makes_the_sound_the_function_returns(self, canvas):
         @xnano.playable
         def chord(context: Context, root: str = 'C4') -> list[xnano.Note]:
-            return [xnano.note(root, beats=0.5), xnano.note('G4', beats=0.5)]
+            return [xnano.Note(root, beats=0.5), xnano.Note('G4', beats=0.5)]
 
         canvas.speaker.play(chord(root='E4'))
         canvas.clock.step(delta_seconds=1.0)
@@ -945,7 +945,7 @@ class TestPlayables:
     def test_a_sequence_holding_components_is_resolved(self, canvas):
         @xnano.playable
         def blip(context: Context) -> xnano.Note:
-            return xnano.note('A4', beats=0.5)
+            return xnano.Note('A4', beats=0.5)
 
         handle = canvas.speaker.play([blip, 'C4'])
         canvas.clock.step(delta_seconds=1.0)
@@ -955,7 +955,7 @@ class TestPlayables:
     def test_a_playable_hook_is_installed_on_the_canvas(self, canvas):
         @xnano.playable
         def blip(context: Context, name: str = 'a') -> xnano.Note:
-            return xnano.note('A4', beats=0.5)
+            return xnano.Note('A4', beats=0.5)
 
         heard = []
         hook = blip.hook(
@@ -981,7 +981,7 @@ class TestPlayables:
             canvas.speaker.play(broken)  # type: ignore[arg-type]
 
     def test_a_note_is_not_a_component(self, canvas):
-        assert canvas.speaker.play(xnano.note('C4')) is not None
+        assert canvas.speaker.play(xnano.Note('C4')) is not None
 
 
 class TestNestedCanvases:
@@ -990,7 +990,7 @@ class TestNestedCanvases:
 
         @xnano.writable
         def ticker(context: Context) -> str:
-            calls.append(context.clock.elapsed)
+            calls.append(context.clock.elapsed_seconds)
             return str(len(calls))
 
         with xnano.new(width=20, height=4) as outer:
@@ -1243,7 +1243,7 @@ class TestRenderables:
             context.screen.write('title')
             context.screen.write('body')
 
-        assert xnano.write(card, border='plain').render().splitlines() == [
+        assert xnano.region(card, border='plain').render().splitlines() == [
             '┌─────┐',
             '│title│',
             '│body │',

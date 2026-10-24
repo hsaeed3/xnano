@@ -207,7 +207,7 @@ class TestEnding:
                 def press_a(context: xnano.Context) -> None:
                     canvas.push(Event.key_press('a'))
 
-                await asyncio.wait_for(canvas.run_async(quit_on=None), timeout=5)
+                await asyncio.wait_for(canvas.run_async(stop_on=None), timeout=5)
 
         with pytest.raises(TerminalError, match=r'The hook broken failed.*boom'):
             run(main())
@@ -328,13 +328,13 @@ class TestLoops:
                 @canvas.hook(on='key', keys='q')
                 async def leave(context: xnano.Context) -> None:
                     await asyncio.sleep(0.01)
-                    context.canvas.quit()
+                    context.canvas.stop()
 
                 @canvas.hook(on='tick', after=0.05)
                 def press_q(context: xnano.Context) -> None:
                     canvas.push(Event.key_press('q'))
 
-                await asyncio.wait_for(canvas.run_async(quit_on=None), timeout=5)
+                await asyncio.wait_for(canvas.run_async(stop_on=None), timeout=5)
 
         run(main())
 

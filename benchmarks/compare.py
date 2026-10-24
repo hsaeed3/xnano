@@ -773,7 +773,7 @@ def cases() -> list[Case]:
     add(
         'formula_animation',
         'frames',
-        '24 balls moving by a formula of time: the library advances the clock and draws',
+        '24 balls moving by an expression of time: the library advances the clock and draws',
         xnano=formula_xnano,
         rich=formula_rich,
     )

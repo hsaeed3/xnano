@@ -133,7 +133,7 @@ class TestChanges:
 
 class TestOtherContent:
     def test_a_region_in_a_full_width_box_is_centered(self, canvas):
-        card = xnano.write('card', border='rounded')
+        card = xnano.region('card', border='rounded')
         canvas.screen.write(card, width='100%', x='center', y=0)
         rows = canvas.screen.render().splitlines()
         assert rows[0] == ' ' * 7 + '╭────╮'
@@ -141,12 +141,12 @@ class TestOtherContent:
 
     def test_a_region_moved_to_a_number_goes_back_to_the_left(self, canvas):
         placement = canvas.screen.write(
-            xnano.write('card'), width='100%', x='center', y=0
+            xnano.region('card'), width='100%', x='center', y=0
         )
         placement.x = 0
         assert row(canvas, 0) == 'card'
 
     def test_centered_art_is_placed_before_the_first_frame(self, canvas):
-        art = xnano.draw(['RR', 'RR'], {'R': 'red'})
+        art = xnano.pixel_art(['RR', 'RR'], {'R': 'red'})
         placement = canvas.screen.write(art, x='center')
         assert placement.x == (20 - 2) // 2

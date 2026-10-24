@@ -61,7 +61,7 @@ def test_a_block_runs(name, number, source, monkeypatch, capsys):
     def stay_on_the_canvas(self: Canvas, **settings: object) -> Canvas:
         return self
 
-    def move_five_frames(self: Canvas, *, quit_on: object = None) -> None:
+    def move_five_frames(self: Canvas, *, stop_on: object = None) -> None:
         for _ in self.iter(frames=5):
             pass
 
@@ -69,7 +69,7 @@ def test_a_block_runs(name, number, source, monkeypatch, capsys):
         *arguments: object,
         frames: object = None,
         seconds: object = None,
-        quit_on: object = None,
+        stop_on: object = None,
         **keywords: object,
     ) -> object:
         with xnano.new(*arguments, **keywords) as canvas:  # type: ignore[arg-type]

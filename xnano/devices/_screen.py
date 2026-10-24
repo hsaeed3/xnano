@@ -35,7 +35,6 @@ if TYPE_CHECKING:
     from xnano.devices._cursor import Cursor
     from xnano.devices._output import Output
     from xnano.effects._properties import WritableEffectProperties
-    from xnano.expressions import ParentExpressionScope, RootExpressionScope
     from xnano.layout._placement import Placement
     from xnano.styles._look import Appearance
 
@@ -202,7 +201,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
         draws inside the placement, its own clock is set aside and it runs on this canvas's
         time. It may not have been given ``state`` or ``deps``, which belong to the outermost
         canvas. Its audio is not carried over: a musical clock it started and a note it was
-        playing stop, and a formula that reads its ``audio.beat`` follows the outer canvas's
+        playing stop, and an expression that reads its ``audio.beat`` follows the outer canvas's
         musical clock, which starts at the first beat.
 
         An image is added as an [`Image`][xnano.Image] (never a file path or a bare
@@ -214,7 +213,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
         again when the canvas is resized, unless it is locked. An animated image plays on the
         canvas's clock.
 
-        A box from [`box`][xnano.box] with a relative size (a percentage, a formula or a state
+        A box from [`box`][xnano.box] with a relative size (a percentage, an expression or a state
         reference), written with a ``width`` or a ``height``, or written with a look, is drawn
         at the size of its placement, and its look becomes the placement's look, so it is
         drawn again when the canvas is resized. The size given to ``write`` wins over the
@@ -244,7 +243,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
             height: The height, in the same forms; the content's own height when ``None``.
             layer: Content with a higher layer is drawn over content with a lower one.
             lock: Keep the position and size the content has now, whatever the canvas's
-                size does afterwards: percentages, words and formulas are read once.
+                size does afterwards: percentages, words and expressions are read once.
             edges: What the content does at the edges of its area: ``'clip'``, ``'stop'`` or
                 ``'wrap'``; see [`Placement.edges`][xnano.layout.Placement.edges]. Left
                 out, it follows what it is written on.
@@ -797,16 +796,6 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
     @edges.setter
     def edges(self, value: EdgeBehavior) -> None:
         self._canvas._screen_edges = value
-
-    @property
-    def parent(self) -> ParentExpressionScope:
-        """Symbolic expressions for the parent container's ``width``, ``height`` and ``size``."""
-        return self._canvas._screen_parent
-
-    @property
-    def root(self) -> RootExpressionScope:
-        """Symbolic expressions for the root canvas's ``width``, ``height``, ``size`` and ``time``."""
-        return self._canvas._screen_root
 
     @property
     def output(self) -> Output:

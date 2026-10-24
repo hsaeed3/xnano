@@ -1,7 +1,7 @@
 """
 xnano.hooks._context
 
-What a hook is called with, and one frame or update of the clock.
+What a hook is called with, and one frame or tick of the clock.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from xnano.layout._region import Region
     from xnano.state import StateNamespace
 
-__all__ = ['Context', 'Frame', 'Plugin', 'ReadLog', 'Update']
+__all__ = ['Context', 'Frame', 'Plugin', 'ReadLog', 'Tick']
 
 
 @final
@@ -44,7 +44,7 @@ class Plugin:
     Attributes:
         hook: The hook this attachment belongs to.
         state: State that belongs to this attachment alone, read with ``get`` and written
-            with ``push``; see [`StateNamespace`][xnano.state.StateNamespace].
+            with ``set``; see [`StateNamespace`][xnano.state.StateNamespace].
     """
 
     __slots__ = ('hook',)
@@ -77,8 +77,8 @@ class Plugin:
                 @canvas.hook(on='key')
                 def count(context: xnano.Context) -> None:
                     state = context.plugin.state
-                    state.push('presses', state.get('presses', default=0) + 1)
-                    context.root.state.push('latest', state.get('presses'))
+                    state.set('presses', state.get('presses', default=0) + 1)
+                    context.root.state.set('latest', state.get('presses'))
 
                 canvas.push(Event.key_press('a'))
                 canvas.push(Event.key_press('b'))
@@ -139,13 +139,13 @@ class Context(Generic[DepsT_co, StateT_co]):
     receives a new context each time it resumes, so ``context.mouse.position`` is always the
     newest event's.
 
-    ``buffer``, ``parent`` and ``root`` are live objects with concrete values. ``buffer`` is
+    ``target``, ``parent`` and ``root`` are live objects with concrete values. ``target`` is
     what the hook is attached to, a placement or the canvas, with its ``hook``, ``state`` and
-    ``fx``. ``parent`` is where that buffer is drawn: the placement it is nested in, or the
+    ``fx``. ``parent`` is where the target is drawn: the placement it is nested in, or the
     canvas's screen. Either one has the same members, so ``context.parent.width`` is an ``int``
     and ``context.parent.local(context.mouse.position)`` turns a pointer into its cells at any
-    depth. On a placement or canvas themselves, ``parent`` and ``root`` are formula scopes
-    whose members are expressions, such as ``placement.parent.width``.
+    depth. The expressions of the same names, such as ``parent.width``, are in
+    [`xnano.expressions`][xnano.expressions].
 
     The context has the canvas's devices: ``screen``, ``speaker``, ``microphone``,
     ``keyboard``, ``mouse`` and ``clock``. Its ``keyboard`` and ``mouse`` read the event being
@@ -155,7 +155,7 @@ class Context(Generic[DepsT_co, StateT_co]):
     Attributes:
         canvas: The root canvas the hook belongs to.
         event: The event, a [`Frame`][xnano.hooks.Frame] for ``hook(on='frame')``, an
-            [`Update`][xnano.hooks.Update] for ``hook(on='tick')``, a
+            [`Tick`][xnano.hooks.Tick] for ``hook(on='tick')``, a
             [`TerminalStateChange`][xnano_core.TerminalStateChange] for ``hook(on='state')``,
             or ``None`` when no event caused the call.
         hook: The registration, so the hook can call ``hook.remove()``.
@@ -174,10 +174,10 @@ class Context(Generic[DepsT_co, StateT_co]):
         root: The root canvas.
         plugin: The attachment of the hook that is running.
         deps: The dependencies given to ``new(deps=...)``.
-        fx: Applies effects to the hook's buffer while the hook is active.
-        region: The [`Region`][xnano.layout.Region] of the hook's buffer: its cells on the
+        fx: Applies effects to the hook's target while the hook is active.
+        region: The [`Region`][xnano.layout.Region] of the hook's target: its cells on the
             screen, or for a hook on a playable the beats and semitones of what it plays.
-        size: The size in cells of ``context.buffer`` on the screen, the shortcut for
+        size: The size in cells of ``context.target`` on the screen, the shortcut for
             ``context.region.size``.
 
     Examples:
@@ -191,7 +191,7 @@ class Context(Generic[DepsT_co, StateT_co]):
 
             @label.hook(on="mouse.kind == 'press'")
             def pressed(context: xnano.Context) -> None:
-                heard.append((context.mouse.position.x, context.buffer.x))
+                heard.append((context.mouse.position.x, context.target.x))
 
             canvas.push(Event.mouse_event(column=3, row=0, kind='press', button='left'))
             canvas.deliver_events()
@@ -220,7 +220,7 @@ class Context(Generic[DepsT_co, StateT_co]):
         canvas: Canvas[DepsT_co, StateT_co],
         owner: Canvas[object, object] | Placement[object, object],
         hook: HookHandle[object, object],
-        event: _core.Event | _core.TerminalStateChange | Frame | Update | None,
+        event: _core.Event | _core.TerminalStateChange | Frame | Tick | None,
         core: _core.CoreContext | None,
         log: ReadLog | None = None,
         timeline: Callable[[], Region[float]] | None = None,
@@ -251,10 +251,10 @@ class Context(Generic[DepsT_co, StateT_co]):
         self._screen = screen
 
     @property
-    def event(self) -> _core.Event | _core.TerminalStateChange | Frame | Update | None:
+    def event(self) -> _core.Event | _core.TerminalStateChange | Frame | Tick | None:
         """
         The event: a core event for input, a [`Frame`][xnano.hooks.Frame] for
-        ``hook(on='frame')``, an [`Update`][xnano.hooks.Update] for ``hook(on='tick')``, a
+        ``hook(on='frame')``, a [`Tick`][xnano.hooks.Tick] for ``hook(on='tick')``, a
         state change for ``hook(on='state')``, or ``None`` when no event caused the call.
         """
         log = self._log
@@ -348,7 +348,7 @@ class Context(Generic[DepsT_co, StateT_co]):
         return self._root_canvas._clock_view
 
     @property
-    def buffer(self) -> Placement[object, object] | Canvas[object, object]:
+    def target(self) -> Placement[object, object] | Canvas[object, object]:
         """The placement the hook is attached to, or the canvas for a hook on the canvas."""
         self._read_size()
         return self._owner
@@ -356,7 +356,7 @@ class Context(Generic[DepsT_co, StateT_co]):
     @property
     def parent(self) -> Placement[object, object] | Screen[object, object]:
         """
-        Where the hook's buffer is drawn: the placement it is nested in, or the canvas's
+        Where the hook's target is drawn: the placement it is nested in, or the canvas's
         [`Screen`][xnano.devices.Screen] (for a hook on the canvas too).
         """
         self._read_size()
@@ -388,16 +388,16 @@ class Context(Generic[DepsT_co, StateT_co]):
 
     @property
     def fx(self) -> EffectController:
-        """Applies effects to the hook's buffer while the hook is active."""
+        """Applies effects to the hook's target while the hook is active."""
         return EffectController(cast('Context[object, object]', self))
 
     @property
     def region(self) -> Region[float]:
         """
-        The region of the hook's buffer.
+        The region of the hook's target.
 
-        For a hook on a canvas or a placement it is the cells of ``context.buffer`` on the
-        screen, the same region as ``context.buffer.region``: ``x`` and ``y`` are its
+        For a hook on a canvas or a placement it is the cells of ``context.target`` on the
+        screen, the same region as ``context.target.region``: ``x`` and ``y`` are its
         column and row, inside the border and padding, and ``width`` and ``height`` its
         cells. A component that reads it runs again when the screen is resized.
 
@@ -412,7 +412,7 @@ class Context(Generic[DepsT_co, StateT_co]):
 
         The region is typed ``Region[float]``, because the same property serves a hook on a
         playable. For whole-number ``x`` and ``width`` on the screen, read
-        ``context.buffer.region``, a ``Region[int]``, or ``context.size``.
+        ``context.target.region``, a ``Region[int]``, or ``context.size``.
 
         Examples:
             ```python
@@ -442,7 +442,7 @@ class Context(Generic[DepsT_co, StateT_co]):
 
             @xnano.playable
             def chord(context: xnano.Context) -> xnano.Note:
-                return xnano.note(('C4', 'G4'), beats=2)
+                return xnano.Note(('C4', 'G4'), beats=2)
 
 
             @chord.hook(on='key')
@@ -468,7 +468,7 @@ class Context(Generic[DepsT_co, StateT_co]):
     @property
     def size(self) -> _core.Size:
         """
-        The size in cells of ``context.buffer`` on the screen.
+        The size in cells of ``context.target`` on the screen.
 
         For a hook on a canvas or a placement this is ``context.region.size``: inside the
         border and padding of a placement. A playable has no region on the screen, so for it
@@ -480,7 +480,7 @@ class Context(Generic[DepsT_co, StateT_co]):
 
     def local(self, point: _core.Point) -> _core.Point:
         """
-        Convert a cell of the screen into a cell of the hook's buffer.
+        Convert a cell of the screen into a cell of the hook's target.
 
         Args:
             point: A cell in screen coordinates, such as ``context.mouse.position``.
@@ -543,22 +543,22 @@ class Frame:
 
 @final
 @dataclasses.dataclass(frozen=True, slots=True)
-class Update:
+class Tick:
     """
     One step of a simulation, which runs separately from drawing.
 
     Attributes:
-        canvas: The canvas the update belongs to.
-        elapsed_seconds: Seconds on the update's clock.
-        delta_seconds: Seconds this update advances.
-        is_fixed_step: Whether the update runs at a fixed rate.
+        canvas: The canvas the tick belongs to.
+        elapsed_seconds: Seconds on the tick's clock.
+        delta_seconds: Seconds this tick advances.
+        is_fixed_step: Whether the tick runs at a fixed rate.
     """
 
     canvas: Canvas[object, object]
-    """The canvas the update belongs to."""
+    """The canvas the tick belongs to."""
     elapsed_seconds: float
-    """Seconds on the update's clock."""
+    """Seconds on the tick's clock."""
     delta_seconds: float
-    """Seconds this update advances."""
+    """Seconds this tick advances."""
     is_fixed_step: bool
-    """Whether the update runs at a fixed rate."""
+    """Whether the tick runs at a fixed rate."""

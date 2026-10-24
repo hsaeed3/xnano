@@ -84,7 +84,7 @@ class Speaker:
         text. Melody text has spaces, ``:2`` holds a note for two beats, ``rest`` is a silence,
         ``+`` joins a chord and ``|`` marks a bar: ``'C4 E4 G4:2 rest C5+E5+G5'``. An option you
         pass here replaces the same value on a ``Note``, so
-        ``play(note('C4'), instrument='violin')`` plays the violin.
+        ``play(Note('C4'), instrument='violin')`` plays the violin.
 
         Args:
             playable: What to play.

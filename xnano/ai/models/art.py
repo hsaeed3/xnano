@@ -36,7 +36,7 @@ from xnano.ai.models._art_finish import finish
 from xnano.ai.models._art_pixelize import pixelize
 from xnano.ai.models._art_references import REFERENCES
 from xnano.ai.models._image_models import image_generation_model
-from xnano.art import Art, draw
+from xnano.art import Art, pixel_art
 from xnano.errors import TerminalError
 
 if TYPE_CHECKING:
@@ -80,7 +80,7 @@ EditMode = Literal['auto', 'patch', 'redraw']
 ArtSize: TypeAlias = 'int | Percentage | str | tuple[int | None, int | None] | None'
 """
 The size of art in pixels: a number such as ``16``, a share of the active canvas such as
-``'50%'`` (a cell is one pixel wide and two tall), a formula such as ``ParentWidth - 4``, a
+``'50%'`` (a cell is one pixel wide and two tall), an expression such as ``ParentWidth - 4``, a
 ``(low, high)`` range the model picks within, or ``None`` for any size up to 32.
 """
 
@@ -270,11 +270,11 @@ class ArtText:
 
         Args:
             symbol: A name to register the art under in [`symbols`][xnano.symbols].
-            encoding: How the pixels are packed into cells, as for [`draw`][xnano.draw].
+            encoding: How the pixels are packed into cells, as for [`pixel_art`][xnano.pixel_art].
             borders: Whether the art shows its edge in box-drawing characters, as for
-                [`draw`][xnano.draw].
+                [`pixel_art`][xnano.pixel_art].
         """
-        art = draw(
+        art = pixel_art(
             list(self.rows),
             {letter: color.color for letter, color in self.palette.items()},
             symbol=symbol,
@@ -2543,7 +2543,7 @@ def _pixel_range(size: object, axis: str) -> tuple[int, int]:
         return (pixels, pixels)
     import xnano
 
-    # A share of the canvas or a formula is measured like a box: a cell is one pixel wide and
+    # A share of the canvas or an expression is measured like a box: a cell is one pixel wide and
     # two pixels tall.
     measured = xnano.box(size, 1) if axis == 'width' else xnano.box(1, size)  # type: ignore[arg-type]
     cells = int(measured.width if axis == 'width' else measured.height)
@@ -2951,7 +2951,7 @@ class Animation:
         from xnano.ai.models.art import Animation
 
         blink = Animation(
-            frames=(xnano.draw(['#'], {'#': 'white'}), xnano.draw(['.'], {})),
+            frames=(xnano.pixel_art(['#'], {'#': 'white'}), xnano.pixel_art(['.'], {})),
             fps=2,
         )
         with xnano.new(width=2, height=1) as canvas:
@@ -2977,4 +2977,4 @@ class Animation:
 
     def __xnano_write__(self, context: Context[object, object]) -> Art:
         """The frame the canvas's clock is on."""
-        return self.frame_at(context.clock.elapsed)
+        return self.frame_at(context.clock.elapsed_seconds)

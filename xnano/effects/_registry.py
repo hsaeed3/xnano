@@ -213,7 +213,7 @@ def normalize_effect(
         if is_writable:
             raise TypeError(
                 f'{kind!r} is a sound effect; pass it to play(effects=...) or '
-                f'note(effects=...), not to a visual list such as write(effects=...). '
+                f'Note(effects=...), not to a visual list such as write(effects=...). '
                 f"Visual effects have kinds that start with 'effect.', such as "
                 f"'effect.fade_to'."
             )

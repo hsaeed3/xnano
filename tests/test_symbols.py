@@ -99,7 +99,7 @@ class TestSymbolKeywords:
         from xnano_image import TerminalImage
 
         pixel = xnano.Pixel('#', symbol='wall_cell')
-        note = xnano.note('C4', symbol='tone_cell')
+        note = xnano.Note('C4', symbol='tone_cell')
         image = xnano.Image(
             TerminalImage.from_rgba(1, 1, bytes([1, 2, 3, 255])), symbol='dot_cell'
         )
@@ -128,18 +128,18 @@ class TestSymbolKeywords:
         assert symbols.lookup('blip_factory') is audio
 
     def test_a_value_without_the_keyword_registers_nothing(self):
-        xnano.note('C4')
+        xnano.Note('C4')
         xnano.Pixel('#')
         assert symbols.names() == ()
 
     def test_building_the_same_symbol_twice_keeps_the_newer_one(self):
-        first = xnano.note('C4', symbol='tone_twice')
-        second = xnano.note('D4', symbol='tone_twice')
+        first = xnano.Note('C4', symbol='tone_twice')
+        second = xnano.Note('D4', symbol='tone_twice')
         assert symbols.lookup('tone_twice') is second
         assert symbols.lookup('tone_twice') is not first
 
     def test_a_name_cannot_belong_to_two_kinds(self):
-        xnano.note('C4', symbol='shared_name')
+        xnano.Note('C4', symbol='shared_name')
         with pytest.raises(
             ValueError, match="already a Note.*symbols.remove\\('shared_name'\\)"
         ):
@@ -156,4 +156,4 @@ class TestSymbolKeywords:
         with pytest.raises(ValueError, match='reads as a note'):
             xnano.Pixel('#', symbol='A4')
         with pytest.raises(ValueError, match='reads as a note'):
-            xnano.note('C4', symbol='rest')
+            xnano.Note('C4', symbol='rest')

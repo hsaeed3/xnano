@@ -64,7 +64,7 @@ class EffectController(_WritableEffectMethods, _PlayableEffectMethods):
     The effects of the hook that is running, one method for each effect.
 
     Get it from ``context.fx``. A visual effect (``context.fx.fade_to(...)``) starts on the
-    hook's buffer, and a sound effect (``context.fx.reverb(...)``) is added to every sound the
+    hook's target, and a sound effect (``context.fx.reverb(...)``) is added to every sound the
     hook plays. The effects last while the hook does; ``clear()`` ends them sooner, and
     removing the hook or its placement ends them too. Starting an effect of a kind that is
     already set replaces the earlier one.
@@ -144,7 +144,7 @@ class EffectController(_WritableEffectMethods, _PlayableEffectMethods):
             earlier = state.visual.pop(kind, None)
             if earlier is not None:
                 earlier.cancel()
-            effect.apply_to(self._context.buffer)
+            effect.apply_to(self._context.target)
             state.visual[kind] = effect
         else:
             state.audio[kind] = cast('AudioEffectParameters', effect)

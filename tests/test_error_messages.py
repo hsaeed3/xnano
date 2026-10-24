@@ -60,7 +60,7 @@ class _OnlyRenders:
 
 class _OnlyPlays:
     def __xnano_play__(self, context):
-        return xnano.note('C4')
+        return xnano.Note('C4')
 
 
 class _ReturnsANumber:
@@ -139,15 +139,15 @@ def a_component_hook_that_needs_dependencies():
 
 
 def draws_rows_of_different_lengths():
-    xnano.draw(['A', 'BB'], {'A': 'red', 'B': 'blue'})
+    xnano.pixel_art(['A', 'BB'], {'A': 'red', 'B': 'blue'})
 
 
 def draws_an_unknown_symbol():
-    xnano.draw('unknown_art_symbol')
+    xnano.pixel_art('unknown_art_symbol')
 
 
 def plays_an_unknown_name():
-    xnano.note('C2', symbol='kick_drum')
+    xnano.Note('C2', symbol='kick_drum')
     with xnano.new(width=8, height=1) as canvas:
         canvas.speaker.play('kik_drum')
 
@@ -177,7 +177,7 @@ def reads_the_reserved_key():
 
 def pushes_the_whole_root():
     with xnano.new(width=8, height=1) as canvas:
-        canvas.state.push('', {'a': 1})
+        canvas.state.set('', {'a': 1})
 
 
 def pushes_a_wrong_type():
@@ -188,15 +188,15 @@ def pushes_a_wrong_type():
         volume: int = 1
 
     with xnano.new(width=8, height=1, state=Settings()) as canvas:
-        canvas.state.push('volume', 'loud')
+        canvas.state.set('volume', 'loud')
 
 
-def pushes_to_a_removed_placement():
+def sets_a_path_in_a_removed_placement():
     with xnano.new(width=8, height=1) as canvas:
         placement = canvas.screen.write('a')
         namespace = placement.state
         placement.remove()
-        namespace.push('x', 1)
+        namespace.set('x', 1)
 
 
 def reads_an_attribute_that_is_not_a_field():
@@ -227,14 +227,14 @@ def hooks_that_feed_each_other():
     @canvas.hook(on='state')
     def ping(context):
         state = context.root.state
-        state.push('ping', state.get('pong', default=0) + 1)
+        state.set('ping', state.get('pong', default=0) + 1)
 
     @canvas.hook(on='state')
     def pong(context):
         state = context.root.state
-        state.push('pong', state.get('ping', default=0) + 1)
+        state.set('pong', state.get('ping', default=0) + 1)
 
-    canvas.state.push('ping', 1)
+    canvas.state.set('ping', 1)
     canvas.deliver_events()
     canvas.close()
 
@@ -261,7 +261,7 @@ def hooks_that_feed_each_other():
         (
             lambda: hook_with(on=False),
             TypeError,
-            ['on= received False', 'Keyboard.key == "q"'],
+            ['on= received False', 'keyboard.key == "q"'],
         ),
         (
             lambda: hook_with(on='banana > 3'),
@@ -296,18 +296,18 @@ def hooks_that_feed_each_other():
         ),
         (plays_a_pixel_name, TypeError, ['a Pixel symbol', 'Melody or an Audio']),
         (
-            lambda: xnano.note('H9'),
+            lambda: xnano.Note('H9'),
             ValueError,
             ["'H9' is not a note name", 'optional # or b'],
         ),
-        (lambda: xnano.note('C4', beats=0), ValueError, ['beats must be', 'half a beat']),
+        (lambda: xnano.Note('C4', beats=0), ValueError, ['beats must be', 'half a beat']),
         (
-            lambda: xnano.note('C4', instrument='kazoo'),
+            lambda: xnano.Note('C4', instrument='kazoo'),
             ValueError,
             ["'kazoo' is not an instrument", 'Use one of'],
         ),
         (
-            lambda: xnano.note('C4', symbol='C4'),
+            lambda: xnano.Note('C4', symbol='C4'),
             ValueError,
             ["'C4' reads as a note", 'Pick another name'],
         ),
@@ -390,7 +390,7 @@ def hooks_that_feed_each_other():
         (
             pushes_the_whole_root,
             ValueError,
-            ['whole root state', "push('score', 1)"],
+            ['whole root state', "set('score', 1)"],
         ),
         (
             pushes_a_wrong_type,
@@ -398,9 +398,9 @@ def hooks_that_feed_each_other():
             ["set 'volume' to 'loud'", 'the type the field declares'],
         ),
         (
-            pushes_to_a_removed_placement,
+            sets_a_path_in_a_removed_placement,
             TerminalError,
-            ["Could not push 'x'", 'was removed', 'still on the canvas'],
+            ["Could not set 'x'", 'was removed', 'still on the canvas'],
         ),
         (
             reads_an_attribute_that_is_not_a_field,
@@ -461,7 +461,7 @@ def test_the_error_teaches_the_recovery(raiser, error, parts):
             ['at most 65535'],
         ),
         (
-            lambda canvas: xnano.draw(['ab'], palette=5),
+            lambda canvas: xnano.pixel_art(['ab'], palette=5),
             TypeError,
             ['mapping', "'#=white"],
         ),
@@ -516,11 +516,11 @@ def test_a_placement_size_above_the_most_cells_says_what_to_pass():
 
 def test_draw_refuses_a_row_longer_than_a_buffer_holds():
     with pytest.raises(ValueError, match='rows of at most 65535 characters'):
-        xnano.draw(['a' * 70000], {'a': 'red'})
+        xnano.pixel_art(['a' * 70000], {'a': 'red'})
 
 
 def _draw_with_effects(value):
-    xnano.draw(['a'], {'a': 'red'}, effects=value)
+    xnano.pixel_art(['a'], {'a': 'red'}, effects=value)
 
 
 def _write_with_effects(value):
@@ -533,7 +533,7 @@ def _new_with_effects(value):
 
 
 def _note_with_effects(value):
-    xnano.note('C4', effects=value)
+    xnano.Note('C4', effects=value)
 
 
 @pytest.mark.parametrize('value', ['fade', {'kind': 'effect.fade_to'}, 5])

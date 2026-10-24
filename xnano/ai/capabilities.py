@@ -86,7 +86,7 @@ class CanvasCapability(AbstractCapability[Any]):
     ``keyboard=True`` it also has ``press_key``, ``type_text`` and ``paste``; with
     ``mouse=True``, ``click``, ``drag`` and ``scroll`` at cell coordinates. Every action lets
     the canvas draw what changed and returns what the canvas then shows. The agent cannot
-    press ``ctrl+c`` or a key that ``run(quit_on=...)`` ends the program with.
+    press ``ctrl+c`` or a key that ``run(stop_on=...)`` ends the program with.
 
     Args:
         canvas: The canvas the agent sees and changes.
@@ -281,7 +281,7 @@ class CanvasCapability(AbstractCapability[Any]):
             key: The key, or the key binding.
         """
         normalized = key.strip().lower()
-        if normalized == 'ctrl+c' or normalized in self.canvas._quit_keys:
+        if normalized == 'ctrl+c' or normalized in self.canvas._stop_keys:
             raise ModelRetry(
                 f'{key!r} ends the program, so it cannot be pressed from here. Press another '
                 f'key.'

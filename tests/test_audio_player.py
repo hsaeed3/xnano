@@ -40,8 +40,8 @@ def test_a_note_plays_on_the_real_device_and_the_clock_runs():
         canvas.clock.bpm = 240
         canvas.speaker.play('C4', volume=0.0)
         canvas.clock.beats.start()
-        assert wait_until(lambda: canvas.inspect(canvas.clock.beats.position) > 0.5), (
-            f'the clock stayed at beat {canvas.inspect(canvas.clock.beats.position)}'
+        assert wait_until(lambda: canvas.evaluate(canvas.clock.beats.position) > 0.5), (
+            f'the clock stayed at beat {canvas.evaluate(canvas.clock.beats.position)}'
         )
 
 
@@ -50,15 +50,15 @@ def test_a_melody_is_scheduled_on_a_beat_of_the_real_clock():
     with xnano.new(realtime=True, width=8, height=1) as canvas:
         canvas.speaker.play(melody, volume=0.0, at_beat=1)
         # Playing on a beat starts the clock.
-        assert wait_until(lambda: canvas.inspect(canvas.clock.beats.position) > 0), (
-            f'the clock stayed at beat {canvas.inspect(canvas.clock.beats.position)}'
+        assert wait_until(lambda: canvas.evaluate(canvas.clock.beats.position) > 0), (
+            f'the clock stayed at beat {canvas.evaluate(canvas.clock.beats.position)}'
         )
 
 
 def test_a_note_played_on_the_real_device_has_its_region_on_the_timeline():
     with xnano.new(realtime=True, width=8, height=1) as canvas:
         region = canvas.speaker.play(
-            xnano.note('E4', beats=2), volume=0.0, at_beat=4
+            xnano.Note('E4', beats=2), volume=0.0, at_beat=4
         )._region
         assert region is not None
         assert (region.x, region.width) == (4.0, 2.0)
@@ -72,5 +72,5 @@ def test_a_note_played_on_the_real_device_has_its_region_on_the_timeline():
 def test_the_microphone_level_is_a_number_between_zero_and_one():
     with xnano.new(realtime=True, width=8, height=1) as canvas:
         time.sleep(0.3)
-        level = canvas.inspect(canvas.microphone.level)
+        level = canvas.evaluate(canvas.microphone.level)
         assert 0.0 <= level <= 1.0

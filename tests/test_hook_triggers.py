@@ -13,7 +13,7 @@ import pytest
 
 import xnano
 from xnano.devices import KeyName
-from xnano.expressions import Keyboard, Mouse, Parent, Root, Scroll
+from xnano.expressions import keyboard, mouse, parent, root, scroll
 from xnano.hooks import Context
 from xnano.hooks._triggers import (
     _MEMBERS,
@@ -58,7 +58,7 @@ class TestForms:
         assert (
             hook_heard(
                 canvas,
-                Keyboard.key == 'q',
+                keyboard.key == 'q',
                 Event.key_press('a'),
                 Event.key_press('q'),
             )
@@ -66,8 +66,8 @@ class TestForms:
         )
 
     def test_expressions_combine_with_and_or_not(self, canvas):
-        condition = (Keyboard.key == 'a') | (
-            (Keyboard.key == 'b') & ~(Keyboard.kind == 'repeat')
+        condition = (keyboard.key == 'a') | (
+            (keyboard.key == 'b') & ~(keyboard.kind == 'repeat')
         )
         events = [Event.key_press(name) for name in 'abc']
         events.append(Event.key_press('b', kind='repeat'))
@@ -101,7 +101,7 @@ class TestForms:
         assert parse_when.cache_info().hits == info.hits + 1
 
     def test_a_plain_bool_is_refused_with_the_fix(self):
-        with pytest.raises(TypeError, match=r'on= received False.*Keyboard.key == "q"'):
+        with pytest.raises(TypeError, match=r'on= received False.*keyboard.key == "q"'):
             compile_when(False)
 
     def test_anything_else_is_refused(self):
@@ -109,8 +109,8 @@ class TestForms:
             compile_when(3)
 
     def test_expressions_build_with_equality(self):
-        assert isinstance(Keyboard.key == 'q', Expression)
-        assert hash(Keyboard.key) == hash(Keyboard.key)
+        assert isinstance(keyboard.key == 'q', Expression)
+        assert hash(keyboard.key) == hash(keyboard.key)
 
 
 class TestMembers:
@@ -136,7 +136,7 @@ class TestMembers:
             Event.mouse_event(column=6, row=2, kind='move'),
             Event.mouse_event(column=1, row=1, kind='move'),
         ]
-        condition = 'mouse.position in buffer.region'
+        condition = 'mouse.position in target.region'
         assert hook_heard(canvas, condition, *events, placement=placement) == 1
 
     def test_mouse_button(self, canvas):
@@ -173,17 +173,17 @@ class TestMembers:
         placement = canvas.screen.write('abc', x=4, y=1)
         events = [Event.key_press('a')]
         for text in (
-            'buffer.x == 4',
-            'buffer.y == 1',
-            'buffer.width == 3',
-            'buffer.height == 1',
+            'target.x == 4',
+            'target.y == 1',
+            'target.width == 3',
+            'target.height == 1',
         ):
             assert (
                 hook_heard(canvas, text, *events, placement=placement, kind='key') == 1
             ), text
         assert (
             hook_heard(
-                canvas, 'buffer.width == 9', *events, placement=placement, kind='key'
+                canvas, 'target.width == 9', *events, placement=placement, kind='key'
             )
             == 0
         )
@@ -193,16 +193,16 @@ class TestMembers:
         events = [Event.key_press('a')]
         kwargs = {'placement': placement, 'kind': 'key'}
         for text in (
-            'buffer.position.x == 4',
-            'buffer.size.width == 3',
-            'buffer.region.right >= 7',
+            'target.position.x == 4',
+            'target.size.width == 3',
+            'target.region.right >= 7',
         ):
             assert hook_heard(canvas, text, *events, **kwargs) == 1, text
 
     def test_only_the_parts_that_exist_are_allowed(self, canvas):
         with pytest.raises(ValueError, match='not a member'):
             hook_heard(
-                canvas, 'buffer.position.width == 4', Event.key_press('a'), kind='key'
+                canvas, 'target.position.width == 4', Event.key_press('a'), kind='key'
             )
 
     def test_parent_and_root_geometry(self, canvas):
@@ -258,7 +258,7 @@ class TestMembers:
             heard = []
             placement.hook(
                 lambda context: heard.append('inside'),
-                on="mouse.position in buffer.region and deps.name == 'x'",
+                on="mouse.position in target.region and deps.name == 'x'",
             )
             push(canvas, Event.mouse_event(column=3, row=1, kind='move'))
             assert heard == ['inside']
@@ -337,7 +337,7 @@ class TestOperators:
         assert hook_heard(canvas, "keyboard.key != 'q'" + both, *events) == 0
         assert hook_heard(canvas, "not keyboard.key == 'q'" + both, *events) == 1
         assert hook_heard(canvas, "keyboard.key not in ('q',)" + both, *events) == 1
-        assert hook_heard(canvas, ~(Keyboard.key == 'q'), *events) == 1
+        assert hook_heard(canvas, ~(keyboard.key == 'q'), *events) == 1
 
     def test_a_string_that_reads_one_input_hears_only_that_input(self, canvas):
         events = [Event.key_press('q'), Event.paste('x')]
@@ -362,10 +362,10 @@ class TestOperators:
         assert hook_heard(canvas, "mouse.button == 'left'", Event.key_press('a')) == 0
 
     def test_the_scopes_are_exported_from_the_expressions_module(self):
-        assert isinstance(Parent.width > 1, Expression)
-        assert isinstance(Root.time > 1, Expression)
-        assert isinstance(Mouse.button == 'left', Expression)
-        assert isinstance(Scroll.y < 0, Expression)
+        assert isinstance(parent.width > 1, Expression)
+        assert isinstance(root.time > 1, Expression)
+        assert isinstance(mouse.button == 'left', Expression)
+        assert isinstance(scroll.y < 0, Expression)
 
 
 class TestKeys:
@@ -465,14 +465,14 @@ class TestInputlessConditions:
 
     def test_every_and_after_make_a_condition_a_timed_hook(self, canvas):
         ticks = []
-        canvas.hook(lambda context: ticks.append(1), on=Root.time > 0.15, every=0.1)
+        canvas.hook(lambda context: ticks.append(1), on=root.time > 0.15, every=0.1)
         for _ in range(4):
             canvas.clock.step(delta_seconds=0.1)
         assert ticks
 
     def test_an_expression_and_a_function_hear_every_input_event(self, canvas):
         events = [Event.key_press('a'), Event.paste('x')]
-        assert hook_heard(canvas, Root.time >= 0, *events) == 2
+        assert hook_heard(canvas, root.time >= 0, *events) == 2
         assert hook_heard(canvas, lambda context: True, *events) == 2
 
     def test_reading_an_input_and_time_hears_that_input(self, canvas):

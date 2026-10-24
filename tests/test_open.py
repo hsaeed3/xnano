@@ -156,14 +156,14 @@ class TestFrames:
     def test_the_rate_does_not_drift(self):
         with new(width=4, height=1, fps=60) as sixty:
             list(sixty.iter(frames=60))
-            assert sixty.clock.elapsed == pytest.approx(1.0, abs=0.001)
+            assert sixty.clock.elapsed_seconds == pytest.approx(1.0, abs=0.001)
 
     def test_stopping_ends_the_iteration(self, canvas):
         seen = 0
         for frame in canvas.iter():
             seen += 1
             if frame.index == 2:
-                canvas.quit()
+                canvas.stop()
         assert seen == 3
 
     def test_a_loop_draws_what_it_changes(self, canvas):
@@ -174,7 +174,7 @@ class TestFrames:
 
     def test_a_step_moves_the_clock_and_draws(self, canvas):
         canvas.clock.step(delta_seconds=0.25)
-        assert canvas.clock.elapsed == 0.25
+        assert canvas.clock.elapsed_seconds == 0.25
 
     def test_run_would_wait_forever_on_a_manual_clock(self, canvas):
         with pytest.raises(TerminalError, match='wait forever'):
@@ -467,7 +467,7 @@ class TestPlacements:
         assert canvas._placements == [keeper]
         assert inner._removed and deeper._removed
         with pytest.raises(TerminalError, match='was removed'):
-            parent.state.push('a', 1)
+            parent.state.set('a', 1)
 
     def test_bad_axes_are_explained(self, canvas):
         placement = canvas.screen.write('x')
@@ -576,7 +576,7 @@ class TestRegions:
 
     def test_update_and_inspect(self, canvas):
         canvas.screen.update(Write('abc', x=1, y=1))
-        assert canvas.inspect(Width) == 20
+        assert canvas.evaluate(Width) == 20
         assert canvas.screen.region[1, 1].character == 'a'
 
 
@@ -676,7 +676,7 @@ class TestHooks:
 
         def remember(context: Context) -> None:
             if context.keyboard.key is not None:
-                heard.append(type(context.buffer).__name__)
+                heard.append(type(context.target).__name__)
 
         canvas.hook(remember)
         placement.hook(remember)
@@ -701,11 +701,11 @@ class TestHooks:
         @canvas.hook
         def quit(context: Context) -> None:
             if context.keyboard.key is not None and context.keyboard.key == 'q':
-                context.canvas.quit()
+                context.canvas.stop()
 
         dispatch(canvas, Event.key_press('q'))
         assert not canvas.is_running
-        assert not canvas.is_closed, 'a canvas from new() stays open after quit()'
+        assert not canvas.is_closed, 'a canvas from new() stays open after stop()'
         canvas.screen.write('still writable')
 
     def test_mouse_reaches_the_placement_under_the_pointer(self, canvas):
@@ -765,11 +765,11 @@ class TestHooks:
 
         @canvas.hook(on='tick', every=0.1)
         def tick(context: Context) -> None:
-            ticks.append(round(context.clock.elapsed, 2))
+            ticks.append(round(context.clock.elapsed_seconds, 2))
 
         @canvas.hook(on='tick', after=0.25)
         def later(context: Context) -> None:
-            once.append(context.clock.elapsed)
+            once.append(context.clock.elapsed_seconds)
             context.hook.remove()
 
         canvas.clock.step(delta_seconds=0.5)
@@ -895,11 +895,11 @@ class TestTime:
 
         @canvas.hook(on='tick', every=0.1)
         def tick(context: Context) -> None:
-            ticks.append(round(context.clock.elapsed, 2))
+            ticks.append(round(context.clock.elapsed_seconds, 2))
 
         @canvas.hook(on='tick', after=0.25)
         def later(context: Context) -> None:
-            once.append(context.clock.elapsed)
+            once.append(context.clock.elapsed_seconds)
             context.hook.remove()
 
         @canvas.hook(on='frame')
@@ -915,7 +915,7 @@ class TestTime:
 
         @canvas.hook(on='tick', every=0.05)
         def update(context: Context) -> None:
-            assert isinstance(context.event, main.hooks.Update)
+            assert isinstance(context.event, main.hooks.Tick)
             assert context.event.is_fixed_step
             steps.append(round(context.event.delta_seconds, 2))
 
@@ -1107,7 +1107,7 @@ class TestAutonomous:
         @autonomous.hook
         def quit(context: Context) -> None:
             if context.keyboard.key is not None and context.keyboard.key == 'q':
-                context.canvas.quit()
+                context.canvas.stop()
 
         threading.Timer(0.05, lambda: autonomous.push(Event.key_press('q'))).start()
         autonomous.run()
@@ -1149,16 +1149,16 @@ class TestAutonomous:
     def test_a_running_autonomous_canvas_cannot_be_stepped(self, autonomous):
         with pytest.raises(TerminalError, match='runs by itself'):
             autonomous.clock.step(delta_seconds=0.1)
-        with pytest.raises(TerminalError, match=r'canvas\.clock\.stop'):
+        with pytest.raises(TerminalError, match=r'canvas\.clock\.pause'):
             autonomous.clock.step()
         autonomous.deliver_events()
 
     def test_a_stopped_autonomous_canvas_steps_one_frame(self, autonomous):
-        autonomous.clock.stop()
-        before = autonomous.clock.elapsed
+        autonomous.clock.pause()
+        before = autonomous.clock.elapsed_seconds
         frame = autonomous.clock.step(delta_seconds=0.25)
         assert frame.elapsed_seconds == pytest.approx(before + 0.25, abs=0.002)
-        assert autonomous.clock.is_stopped
+        assert autonomous.clock.is_paused
         with pytest.raises(TerminalError, match='stopped canvas never reaches'):
             autonomous.iter(seconds=1.0)
 
@@ -1171,8 +1171,8 @@ class TestAutonomous:
 
     def test_size_and_clock_are_readable_from_any_thread(self, autonomous):
         assert (autonomous.screen.width, autonomous.screen.height) == (20, 4)
-        first = autonomous.clock.elapsed
-        assert wait_for(lambda: autonomous.clock.elapsed > first)
+        first = autonomous.clock.elapsed_seconds
+        assert wait_for(lambda: autonomous.clock.elapsed_seconds > first)
         autonomous._host.post(lambda: autonomous._runtime.resize(width=30, height=5))
         assert wait_for(lambda: autonomous.screen.width == 30)
 
@@ -1290,7 +1290,7 @@ class TestKeyDecorators:
 
         @canvas.hook(on='tick', after=0.1)
         def later(context):
-            seen.append(context.clock.elapsed)
+            seen.append(context.clock.elapsed_seconds)
 
         canvas.clock.step(delta_seconds=0.5)
         assert len(seen) == 1
@@ -1363,7 +1363,7 @@ class TestRunQuitKeys:
             assert not finished.wait(timeout=0.3), 'an ordinary key does not stop run()'
             canvas.push(Event.key_press(name))
             stopped = finished.wait(timeout=3)
-            canvas.quit()
+            canvas.stop()
             thread.join(timeout=3)
             return stopped
 
@@ -1371,10 +1371,10 @@ class TestRunQuitKeys:
         assert self.run_until_key('ctrl+c')
 
     def test_a_chosen_key_stops(self):
-        assert self.run_until_key('q', quit_on='q')
+        assert self.run_until_key('q', stop_on='q')
 
     def test_any_of_several_keys_stops(self):
-        assert self.run_until_key('escape', quit_on=('q', 'escape'))
+        assert self.run_until_key('escape', stop_on=('q', 'escape'))
 
     def test_a_plain_key_does_not_stop_when_only_control_c_does(self):
         assert not self.run_until_key('q')
@@ -1389,38 +1389,38 @@ class TestPausingTime:
 
             @canvas.hook(on='tick', every=0.05)
             def tick(context):
-                ticks.append(context.clock.elapsed)
+                ticks.append(context.clock.elapsed_seconds)
 
             time.sleep(0.3)
             assert ticks
-            canvas.clock.stop()
-            assert canvas.clock.is_stopped
+            canvas.clock.pause()
+            assert canvas.clock.is_paused
             time.sleep(0.1)  # a timer that was already firing may still land
-            frozen = canvas.clock.elapsed
+            frozen = canvas.clock.elapsed_seconds
             count = len(ticks)
             time.sleep(0.3)
-            assert canvas.clock.elapsed == frozen
+            assert canvas.clock.elapsed_seconds == frozen
             assert len(ticks) == count, 'timers wait while time is stopped'
             canvas.clock.resume()
-            assert not canvas.clock.is_stopped
+            assert not canvas.clock.is_paused
             time.sleep(0.3)
             assert len(ticks) > count, 'and carry on after it resumes'
-            assert canvas.clock.elapsed - frozen < 0.5, 'the pause is not counted'
+            assert canvas.clock.elapsed_seconds - frozen < 0.5, 'the pause is not counted'
 
     def test_a_key_can_resume_a_stopped_terminal(self):
         with new(width=12, height=1) as canvas:
 
             @canvas.hook(on='key', keys='space')
             def toggle(context):
-                if canvas.clock.is_stopped:
+                if canvas.clock.is_paused:
                     canvas.clock.resume()
                 else:
-                    canvas.clock.stop()
+                    canvas.clock.pause()
 
             dispatch(canvas, Event.key_press('space'))
-            assert canvas.clock.is_stopped
+            assert canvas.clock.is_paused
             dispatch(canvas, Event.key_press('space'))
-            assert not canvas.clock.is_stopped
+            assert not canvas.clock.is_paused
 
     def test_a_stopped_terminal_still_draws_what_a_hook_changes(self):
         import time
@@ -1431,7 +1431,7 @@ class TestPausingTime:
             def draw(context):
                 canvas.screen.write('drawn')
 
-            canvas.clock.stop()
+            canvas.clock.pause()
             canvas.push(Event.key_press('x'))
             deadline = time.monotonic() + 3
             while time.monotonic() < deadline:
@@ -1630,25 +1630,25 @@ class TestRemovingBeforeTheNextFrame:
             placement.color.fg = 'red'
             placement.remove()
             running.screen.write('still here')
-            running.clock.stop()
+            running.clock.pause()
             running.clock.step()
             assert 'still here' in running.screen.render()
 
 
 class TestFormulasThatLoseTheirValue:
     def test_an_axis_follows_the_pointer_until_the_pointer_is_forgotten(self, canvas):
-        from xnano.expressions import Mouse
+        from xnano.expressions import mouse
 
         canvas.push(Event.mouse_event(column=7, row=1, kind='move'))
         canvas.clock.step()
         placement = canvas.screen.write('a')
-        placement.x = Mouse.position.x
+        placement.x = mouse.position.x
         assert placement.x == 7
         canvas.push(Event.key_press('a'))
         canvas.clock.step()
         canvas.clock.step()
         assert placement.x == 7, (
-            'the axis keeps its last value while the formula has none'
+            'the axis keeps its last value while the expression has none'
         )
 
     def test_an_axis_bound_to_a_state_field_that_becomes_none_keeps_its_value(self):
@@ -1663,11 +1663,11 @@ class TestFormulasThatLoseTheirValue:
             placement.x = stated.state_reference(lambda fields: fields.maybe)
             stated.clock.step()
             assert placement.x == 3
-            stated.state.push('maybe', None)
+            stated.state.set('maybe', None)
             stated.clock.step()
             stated.clock.step()
             assert placement.x == 3
-            stated.state.push('maybe', 5)
+            stated.state.set('maybe', 5)
             stated.clock.step()
             assert placement.x == 5
 
@@ -1725,7 +1725,7 @@ class TestSteppingWhileClosing:
         import time
 
         running = new(width=10, height=2, realtime=True)
-        running.clock.stop()
+        running.clock.pause()
         closer = threading.Timer(0.05, running.close)
         closer.start()
         started = time.monotonic()
@@ -1892,7 +1892,7 @@ class TestThreadErrorsNameTheOperation:
     @pytest.mark.parametrize(
         ('call', 'name'),
         [
-            (lambda canvas, placement: canvas.state.push('a', 1), 'push'),
+            (lambda canvas, placement: canvas.state.set('a', 1), 'set'),
             (
                 lambda canvas, placement: placement.hook(lambda context: None, on='tick'),
                 'hook',
@@ -1947,7 +1947,7 @@ class TestThreadErrorsNameTheOperation:
 
         def other() -> None:
             try:
-                canvas.state.push('refused', 2)
+                canvas.state.set('refused', 2)
             except BaseException as error:
                 caught.append(error)
 

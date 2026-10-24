@@ -85,9 +85,9 @@ class TestInterface:
         assert isinstance(canvas.clock, xnano.devices.Clock)
 
     def test_the_time_controls_are_part_of_the_interface(self, canvas):
-        for name in ('iter', 'run', 'quit', 'open', 'push'):
+        for name in ('iter', 'run', 'stop', 'open', 'push'):
             assert callable(getattr(canvas, name)), name
-        for name in ('step', 'stop', 'resume', 'sleep'):
+        for name in ('step', 'pause', 'resume', 'sleep'):
             assert callable(getattr(canvas.clock, name)), name
         assert callable(canvas.screen.render)
 
@@ -252,7 +252,7 @@ class TestTypedState:
             assert thumb.x == 12
 
     def test_a_canvas_without_a_dataclass_still_has_a_state(self, canvas):
-        canvas.state.push('volume', 3)
+        canvas.state.set('volume', 3)
         assert canvas.state.get('volume') == 3
 
     def test_the_context_carries_the_same_state(self):
@@ -685,15 +685,15 @@ def test_every_lazy_name_is_documented_with_an_example(module_name: str) -> None
         assert '```python' in documented[name], f'{module_name}.{name} has no example'
 
 
-def test_the_buffer_size_expression_lives_only_in_the_expressions_module() -> None:
+def test_the_target_size_expression_lives_only_in_the_expressions_module() -> None:
     import xnano.buffers
     import xnano.expressions
     import xnano_core
 
-    assert 'BufferSize' not in xnano.buffers.__all__
+    assert 'TargetSize' not in xnano.buffers.__all__
     with pytest.raises(AttributeError, match='xnano.buffers'):
-        xnano.buffers.BufferSize  # noqa: B018
-    assert xnano.expressions.BufferSize is xnano_core.BufferSize
+        xnano.buffers.TargetSize  # noqa: B018
+    assert xnano.expressions.TargetSize is xnano_core.BufferSize
 
 
 class TestWidgetsFigure:

@@ -44,7 +44,7 @@ from xnano.hooks._context import Context as Context
 from xnano.hooks._context import Frame as Frame
 from xnano.hooks._context import Plugin as Plugin
 from xnano.hooks._context import ReadLog as ReadLog
-from xnano.hooks._context import Update as Update
+from xnano.hooks._context import Tick as Tick
 from xnano.hooks._handles import (
     HookHandle as HookHandle,
 )
@@ -72,7 +72,7 @@ __all__ = [
     'IfRunning',
     'Plugin',
     'ReadLog',
-    'Update',
+    'Tick',
     'When',
     'hook',
 ]
@@ -144,7 +144,7 @@ def hook(
 
         @xnano.hook(on='frame')
         def clock_readout(context: xnano.Context) -> None:
-            readings.append(round(context.clock.elapsed, 1))
+            readings.append(round(context.clock.elapsed_seconds, 1))
 
         with xnano.new(width=12, height=1) as canvas:
             canvas.screen | clock_readout

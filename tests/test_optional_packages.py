@@ -72,7 +72,7 @@ def test_the_audio_package_imports_without_the_audio_package():
     result = run(
         """
         import xnano.audio
-        print(xnano.audio.note('C4').pitch)
+        print(xnano.audio.Note('C4').pitch)
         """
     )
     assert result.returncode == 0, result.stderr
@@ -82,7 +82,7 @@ def test_the_audio_package_imports_without_the_audio_package():
 def test_a_note_can_be_defined_without_the_audio_package():
     result = run(
         """
-        note = xnano.note(['C4', 'E4'], beats=2.0, symbol='tone_extra')
+        note = xnano.Note(['C4', 'E4'], beats=2.0, symbol='tone_extra')
         print(note.pitch, xnano.symbols.lookup('tone_extra') is note)
         """
     )
@@ -93,7 +93,7 @@ def test_a_note_can_be_defined_without_the_audio_package():
 def test_playing_without_the_audio_package_says_how_to_install_it():
     result = run(
         """
-        xnano.play(xnano.note('C4'))
+        xnano.play(xnano.Note('C4'))
         """
     )
     assert result.returncode != 0
@@ -123,7 +123,7 @@ def test_load_audio_says_how_to_install_it_and_load_image_too():
 def test_the_region_of_a_note_works_without_the_audio_package():
     result = run(
         """
-        region = xnano.note(('C4', 'E4')).region
+        region = xnano.Note(('C4', 'E4')).region
         print(region.height, region.milliseconds.width)
         """
     )

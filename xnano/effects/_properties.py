@@ -956,7 +956,7 @@ def _unknown_effect(
         return AttributeError(
             f'{name} is a visual effect, and {owner} has the sound effects only. Start it on '
             f'a placement with placement.fx.{name}(...), on the canvas with '
-            f"canvas.screen.fx.{name}(...), or on a hook's buffer with context.fx.{name}(...)."
+            f"canvas.screen.fx.{name}(...), or on a hook's target with context.fx.{name}(...)."
         )
     names = (_RENDERABLE_NAMES if has_visual else ()) + (
         _PLAYABLE_NAMES if has_sound else ()

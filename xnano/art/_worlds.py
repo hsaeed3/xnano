@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from xnano.hooks._context import Context
     from xnano.layout._placement import Placement
 
-__all__ = ['Art', 'Camera', 'draw']
+__all__ = ['Art', 'Camera', 'pixel_art']
 
 _RGBA = 4
 _PIXELS_PER_CELL_ROW = 2
@@ -76,8 +76,8 @@ class Camera:
         ```python
         import xnano
 
-        world = xnano.draw(None, width=100, height=60, background='black')
-        hero = world.add(xnano.draw(['H', 'H'], {'H': 'red'}), x=50, y=30)
+        world = xnano.pixel_art(None, width=100, height=60, background='black')
+        hero = world.add(xnano.pixel_art(['H', 'H'], {'H': 'red'}), x=50, y=30)
         world.camera.follow(hero)
         assert world.camera.target is hero
         ```
@@ -132,7 +132,7 @@ class Art:
     """
     Pixel art, and a world that holds other art.
 
-    Make one with [`draw`][xnano.draw]. A pixel is half a cell tall, so art that is ``8`` pixels
+    Make one with [`pixel_art`][xnano.pixel_art]. A pixel is half a cell tall, so art that is ``8`` pixels
     tall takes ``4`` rows of a canvas. Write it with ``canvas.screen.write(art)``, or print it on its
     own with [`render`][xnano.art.Art.render].
 
@@ -164,8 +164,8 @@ class Art:
         ```python
         import xnano
 
-        world = xnano.draw(None, width=40, height=20, background='black')
-        hero = world.add(xnano.draw(['HH', 'HH'], {'H': 'red'}), x=10, y=10, anchor=(1, 1))
+        world = xnano.pixel_art(None, width=40, height=20, background='black')
+        hero = world.add(xnano.pixel_art(['HH', 'HH'], {'H': 'red'}), x=10, y=10, anchor=(1, 1))
         hero.move(2, 0)
         assert hero.x == 12
 
@@ -215,7 +215,7 @@ class Art:
         borders: bool = False,
     ) -> None:
         """
-        Create art from pixels. Use [`draw`][xnano.draw] instead of calling this.
+        Create art from pixels. Use [`pixel_art`][xnano.pixel_art] instead of calling this.
 
         Args:
             rgba: ``width * height * 4`` bytes of red, green, blue and alpha, or ``None`` for
@@ -239,7 +239,7 @@ class Art:
         if width < 1 or height < 1:
             raise ValueError(
                 f'Art needs at least 1 by 1 pixels, but got {width} by {height}. Give '
-                f'draw(...) rows of text, or width= and height= in pixels.'
+                f'pixel_art(...) rows of text, or width= and height= in pixels.'
             )
         if rgba is not None and len(rgba) != width * height * _RGBA:
             raise ValueError(
@@ -410,9 +410,9 @@ class Art:
             ```python
             import xnano
 
-            dot = xnano.draw(['R.'], {'R': '#ff0000'})
+            dot = xnano.pixel_art(['R.'], {'R': '#ff0000'})
             assert dot.pixels == bytes([255, 0, 0, 255, 0, 0, 0, 0])
-            assert xnano.draw(None, width=4, height=4).pixels is None
+            assert xnano.pixel_art(None, width=4, height=4).pixels is None
             ```
         """
         return self._rgba
@@ -436,7 +436,7 @@ class Art:
             ```python
             import xnano
 
-            dot = xnano.draw(['R.'], {'R': '#ff0000'})
+            dot = xnano.pixel_art(['R.'], {'R': '#ff0000'})
             assert dot.pixel(0, 0) == (255, 0, 0, 255)
             assert dot.pixel(1, 0)[3] == 0
             ```
@@ -462,8 +462,8 @@ class Art:
             ```python
             import xnano
 
-            world = xnano.draw(None, width=10, height=10)
-            hero = world.add(xnano.draw(['H'], {'H': 'red'}), x=2, y=3)
+            world = xnano.pixel_art(None, width=10, height=10)
+            hero = world.add(xnano.pixel_art(['H'], {'H': 'red'}), x=2, y=3)
             assert world.children == (hero,)
             ```
         """
@@ -505,15 +505,15 @@ class Art:
             ```python
             import xnano
 
-            world = xnano.draw(None, width=8, height=8)
-            hero = world.add(xnano.draw(['R', 'R'], {'R': 'red'}), x=3, y=2, anchor=(0, 1))
+            world = xnano.pixel_art(None, width=8, height=8)
+            hero = world.add(xnano.pixel_art(['R', 'R'], {'R': 'red'}), x=3, y=2, anchor=(0, 1))
             assert (hero.x, hero.y) == (3, 2)
             ```
         """
         if not isinstance(art, Art):
             raise TypeError(
-                f'add() takes an Art made with xnano.draw(...), but got '
-                f'{type(art).__name__}. Wrap a picture with xnano.draw(image) first.'
+                f'add() takes an Art made with xnano.pixel_art(...), but got '
+                f'{type(art).__name__}. Wrap a picture with xnano.pixel_art(image) first.'
             )
         ancestor: Art | None = self
         while ancestor is not None:
@@ -554,7 +554,7 @@ class Art:
 
         This is how a walk cycle or a zoom is made: draw every frame once, and replace the
         pixels of the art that is on screen. The sources are the ones
-        [`draw`][xnano.draw] takes, except a symbol name.
+        [`pixel_art`][xnano.pixel_art] takes, except a symbol name.
 
         Args:
             source: Text rows, an image, RGBA bytes or ``None``.
@@ -567,7 +567,7 @@ class Art:
             import xnano
 
             frame_one = ['AB']
-            hero = xnano.draw(frame_one, {'A': 'red', 'B': 'blue'})
+            hero = xnano.pixel_art(frame_one, {'A': 'red', 'B': 'blue'})
             hero.replace(['BA'], {'A': 'red', 'B': 'blue'})
             assert hero.width == 2
             ```
@@ -618,12 +618,12 @@ class Art:
             ```python
             import xnano
 
-            world = xnano.draw(None, width=8, height=8)
+            world = xnano.pixel_art(None, width=8, height=8)
             solid = bytearray(64)
             for row in range(8):
                 solid[row * 8 + 5] = 1
             world.solid_map = solid
-            hero = world.add(xnano.draw(['R'], {'R': 'red'}), x=4, y=2)
+            hero = world.add(xnano.pixel_art(['R'], {'R': 'red'}), x=4, y=2)
             assert hero.move(2, 1) == (0.0, 1.0)
             assert (hero.x, hero.y) == (4, 3)
             ```
@@ -742,7 +742,7 @@ class Art:
             ```python
             import xnano
 
-            world = xnano.draw(None, width=4, height=4)
+            world = xnano.pixel_art(None, width=4, height=4)
             assert world.is_solid(-1, 0)
             assert not world.is_solid(2, 2)
             ```
@@ -790,7 +790,7 @@ class Art:
             ```python
             import xnano
 
-            world = xnano.draw(None, width=40, height=40)
+            world = xnano.pixel_art(None, width=40, height=40)
             world.camera.x, world.camera.y = 16, 16
             with xnano.new(width=8, height=4) as canvas:
                 canvas.screen.write(world, width='100%', height='100%')
@@ -1026,7 +1026,7 @@ class Art:
             ```python
             import xnano
 
-            heart = xnano.draw(['R.R', 'RRR'], {'R': 'red'})
+            heart = xnano.pixel_art(['R.R', 'RRR'], {'R': 'red'})
             assert heart.render() == ' ▄'
             ```
         """
@@ -1037,7 +1037,7 @@ class Art:
 
     def __xnano_write__(self, context: Context) -> _core.Buffer:
         """Return the cells that show the art, as large as the area it is written in."""
-        owner = context.buffer
+        owner = context.target
         area = surface_of(owner).region
         if hasattr(owner, 'refresh'):
             self._observers.add(cast('Placement[object, object]', owner))
@@ -1048,7 +1048,7 @@ class Art:
         return self._compose(columns, rows)
 
     def _placed(self, target: object, component: object) -> None:
-        """Start the effects of ``draw(effects=...)`` on a placement that shows this art."""
+        """Start the effects of ``pixel_art(effects=...)`` on a placement that shows this art."""
         if self._effects:
             apply_effects(cast('Placement[object, object]', target), self._effects)
 
@@ -1085,7 +1085,7 @@ class Art:
         )
 
 
-def draw(
+def pixel_art(
     source: str | Sequence[str] | Image | TerminalImage | bytes | bytearray | None = None,
     palette: Mapping[str, ColorValue] | str | None = None,
     *,
@@ -1111,7 +1111,7 @@ def draw(
     * Text with a newline, or a list of rows: pixel art painted with ``palette``.
     * Text without a newline: the name of a registered art or image (see
       [`symbols`][xnano.symbols]); you get a copy of the art, or the pixels of the image.
-      A one-row picture is a list, ``draw(['GG'], palette)``, so that a call never changes
+      A one-row picture is a list, ``pixel_art(['GG'], palette)``, so that a call never changes
       meaning because a symbol was registered later.
     * An [`Image`][xnano.Image] or a ``TerminalImage`` from ``xnano_image``: its pixels are copied
       (the first frame of an animation).
@@ -1126,7 +1126,7 @@ def draw(
         width: The width in pixels of ``bytes`` or of a blank world.
         height: The height in pixels.
         background: The color behind the art. Transparent pixels show it.
-        symbol: A name to register the art under, so ``draw('name')`` returns a copy of it.
+        symbol: A name to register the art under, so ``pixel_art('name')`` returns a copy of it.
         effects: Effects to start on the placement when the art is written, as dictionaries
             with a ``kind`` key.
         encoding: How the pixels are packed into cells: ``'half_blocks'`` (one column and two
@@ -1146,7 +1146,7 @@ def draw(
         ```python
         import xnano
 
-        heart = xnano.draw(
+        heart = xnano.pixel_art(
             '''
             .RR.RR.
             RRRRRRR
@@ -1159,8 +1159,8 @@ def draw(
         assert (heart.width, heart.height) == (7, 5)
         print(heart.render())
 
-        xnano.draw(['G'], {'G': 'green'}, symbol='grass')
-        assert xnano.draw('grass').width == 1
+        xnano.pixel_art(['G'], {'G': 'green'}, symbol='grass')
+        assert xnano.pixel_art('grass').width == 1
         ```
     """
     if isinstance(source, str) and '\n' not in source:
@@ -1172,7 +1172,7 @@ def draw(
             registered = symbols.lookup(source, kind=Art)
         except ValueError as error:
             raise ValueError(
-                f'{error} To draw a one-row picture, pass a list: draw([{source!r}], '
+                f'{error} To draw a one-row picture, pass a list: pixel_art([{source!r}], '
                 f'palette).'
             ) from None
         art = registered._copy()
@@ -1209,7 +1209,7 @@ def _pixels_of(
     width: int | None,
     height: int | None,
 ) -> tuple[bytes | None, int, int]:
-    """The RGBA bytes, width and height that a source of ``draw`` stands for."""
+    """The RGBA bytes, width and height that a source of ``pixel_art`` stands for."""
     if isinstance(source, str):
         if '\n' not in source:
             raise ValueError(
@@ -1222,13 +1222,13 @@ def _pixels_of(
     if source is None:
         if width is None or height is None:
             raise ValueError(
-                'A blank world needs a size in pixels: draw(None, width=40, height=20).'
+                'A blank world needs a size in pixels: pixel_art(None, width=40, height=20).'
             )
         return None, width, height
     if isinstance(source, (bytes, bytearray)):
         if width is None or height is None:
             raise ValueError(
-                'Pixel bytes need the size of the picture: draw(data, width=..., height=...).'
+                'Pixel bytes need the size of the picture: pixel_art(data, width=..., height=...).'
             )
         if len(source) != width * height * _RGBA:
             raise ValueError(
@@ -1244,7 +1244,7 @@ def _pixels_of(
             picture.height,  # type: ignore[attr-defined]
         )
     raise TypeError(
-        f'draw() cannot make art from a {type(source).__name__}. Pass text rows with a '
+        f'pixel_art() cannot make art from a {type(source).__name__}. Pass text rows with a '
         f'palette, an Image, bytes with width= and height=, a symbol name, or None with a '
         f'size.'
     )
@@ -1255,20 +1255,20 @@ def _rows_to_pixels(
 ) -> tuple[bytes, int, int]:
     if palette is None:
         raise ValueError(
-            'Text rows need a palette that says what each character means: draw(rows, '
-            "{'#': 'white'}), or draw(rows, '#=white .=black'). A character the palette "
+            'Text rows need a palette that says what each character means: pixel_art(rows, '
+            "{'#': 'white'}), or pixel_art(rows, '#=white .=black'). A character the palette "
             'does not name is transparent.'
         )
     rows = _art_rows(art)
     colors = _palette_colors(palette)
     if not rows or any(len(row) != len(rows[0]) for row in rows):
         raise ValueError(
-            'draw needs at least one row, and every row the same length, but got '
+            'pixel_art needs at least one row, and every row the same length, but got '
             f'row lengths {[len(row) for row in rows]}. Pad the short rows with ".".'
         )
     if len(rows[0]) > MOST_CELLS:
         raise ValueError(
-            f'draw() takes rows of at most {MOST_CELLS} characters, but the rows have '
+            f'pixel_art() takes rows of at most {MOST_CELLS} characters, but the rows have '
             f'{len(rows[0])}. Pass shorter rows, or split the picture in several.'
         )
     channels = {character: (*to_rgb(color), 255) for character, color in colors.items()}
