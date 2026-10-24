@@ -102,8 +102,8 @@ pub enum PropertyId {
     KeyboardKey,
     /// `press`, `repeat` or `release`, or `None` while the current event is not a key.
     KeyboardKind,
-    /// The current key event as a chord such as `ctrl+s`, or `None`.
-    KeyboardChord,
+    /// The current key event as a binding such as `ctrl+s`, or `None`.
+    KeyboardBinding,
     /// `left`, `right` or `middle` for the current button or motion report, or `None`.
     MouseButton,
     /// `press`, `release`, `drag` or `move` for the current button or motion report, or `None`.
@@ -150,7 +150,7 @@ impl PropertyId {
             Self::IsVisible => "IsVisible",
             Self::KeyboardKey => "KeyboardKey",
             Self::KeyboardKind => "KeyboardKind",
-            Self::KeyboardChord => "KeyboardChord",
+            Self::KeyboardBinding => "KeyboardBinding",
             Self::MouseButton => "MouseButtonValue",
             Self::MouseKind => "MouseKind",
             Self::MousePosition => "MousePosition",
@@ -389,7 +389,7 @@ impl PropertyId {
             Self::IsVisible => "IsVisible",
             Self::KeyboardKey => "KeyboardKey",
             Self::KeyboardKind => "KeyboardKind",
-            Self::KeyboardChord => "KeyboardChord",
+            Self::KeyboardBinding => "KeyboardBinding",
             Self::MouseButton => "MouseButtonValue",
             Self::MouseKind => "MouseKind",
             Self::MousePosition => "MousePosition",

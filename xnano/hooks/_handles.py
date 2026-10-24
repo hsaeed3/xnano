@@ -544,9 +544,9 @@ class HookHandle(Generic[DepsT, StateT]):
         kind = self.on
         parts: list[_core.Predicate] = []
         if kind == 'key' and self._keys:
-            matched = KeyboardScope.chord == self._keys[0]
+            matched = KeyboardScope.binding == self._keys[0]
             for key in self._keys[1:]:
-                matched = matched | (KeyboardScope.chord == key)
+                matched = matched | (KeyboardScope.binding == key)
             parts.append(matched & (KeyboardScope.kind != 'release'))
         elif kind == 'mouse':
             parts.append((ScrollScope.x == 0) & (ScrollScope.y == 0))

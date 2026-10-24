@@ -9,7 +9,6 @@ from __future__ import annotations
 import ast
 import difflib
 import functools
-import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
@@ -209,28 +208,6 @@ def _not_example(shown: str) -> tuple[str, str] | None:
     return '> 2', '<= 2'
 
 
-class _RenameDeprecatedMembers(ast.NodeTransformer):
-    """Read ``keyboard.chord`` in a condition as ``keyboard.binding``, with a warning."""
-
-    def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
-        """Rename the deprecated member of ``keyboard``."""
-        if (
-            node.attr == 'chord'
-            and isinstance(node.value, ast.Name)
-            and node.value.id == 'keyboard'
-        ):
-            warnings.warn(
-                'keyboard.chord in a condition is deprecated and will be removed in xnano '
-                '2.1.0. Use keyboard.binding instead.',
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return ast.copy_location(
-                ast.Attribute(value=node.value, attr='binding', ctx=node.ctx), node
-            )
-        return self.generic_visit(node)
-
-
 class _Parser:
     """Check a condition string and turn it into an expression, or a function of the context."""
 
@@ -250,7 +227,7 @@ class _Parser:
                 f'The condition {self.text!r} is not valid: {error.msg}. Write it like an '
                 f'expression, such as "keyboard.key == \'q\' and not mouse.is_down".'
             ) from error
-        return self._check(_RenameDeprecatedMembers().visit(tree).body)
+        return self._check(tree.body)
 
     # -- checking ------------------------------------------------------------------------
 
@@ -530,8 +507,6 @@ class _Parser:
             value = build(node.value)
             if value is None and not is_native:
                 return None
-            if is_native and node.attr == 'binding' and value is KeyboardScope:
-                return KeyboardScope.chord
             return getattr(value, node.attr)
         if isinstance(node, ast.Tuple):
             return tuple(build(item) for item in node.elts)

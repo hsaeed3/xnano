@@ -2479,7 +2479,7 @@ class InputState:
             key.
         last_key_kind: ``'press'``, ``'repeat'`` or ``'release'`` for the latest key event, or
             ``None``.
-        last_chord: The latest key event with its modifiers as text such as ``'ctrl+s'``, or
+        last_binding: The latest key event with its modifiers as text such as ``'ctrl+s'``, or
             ``None``. Modifiers come in the order ``ctrl``, ``alt``, ``shift``, ``super``,
             ``meta``, ``hyper``.
         last_mouse_button: ``'left'``, ``'right'`` or ``'middle'`` for the latest button or
@@ -2511,7 +2511,7 @@ class InputState:
 
             runtime.inject(Event.key_press('ctrl+s'))
             runtime.step()
-            assert state.last_key == 's' and state.last_chord == 'ctrl+s'
+            assert state.last_key == 's' and state.last_binding == 'ctrl+s'
 
             runtime.inject(Event.mouse_event(column=4, row=1, kind='press', button='left'))
             runtime.step()
@@ -2554,7 +2554,7 @@ class InputState:
         """Whether the latest key event was a press, repeat or release."""
 
     @property
-    def last_chord(self) -> str | None:
+    def last_binding(self) -> str | None:
         """The latest key event with its modifiers, such as ``'ctrl+s'``."""
 
     @property
@@ -12275,7 +12275,7 @@ class KeyboardExpressionScope(ExpressionScope):
     Attributes:
         key: The key name, such as ``'q'`` or ``'enter'``.
         kind: ``'press'``, ``'repeat'`` or ``'release'``.
-        chord: The key with its modifiers, such as ``'ctrl+s'``.
+        binding: The key with its modifiers, such as ``'ctrl+s'``.
 
     Examples:
         ```python
@@ -12292,7 +12292,7 @@ class KeyboardExpressionScope(ExpressionScope):
                 runtime.inject(Event.key_press(key))
                 runtime.step()
             assert seen == ['quit']
-            assert buffer.inspect(KeyboardScope.chord) == 'q'
+            assert buffer.inspect(KeyboardScope.binding) == 'q'
         ```
     """
 
@@ -12303,7 +12303,7 @@ class KeyboardExpressionScope(ExpressionScope):
     def kind(self) -> Value[Literal['press', 'repeat', 'release'] | None]:
         """Whether the latest key event was a press, repeat or release."""
     @property
-    def chord(self) -> Value[str | None]:
+    def binding(self) -> Value[str | None]:
         """The latest key event with its modifiers, such as ``'ctrl+s'``."""
 
 class MouseExpressionScope(ExpressionScope):
@@ -12398,7 +12398,7 @@ RootScope: RootExpressionScope
 BufferScope: BufferExpressionScope
 """A buffer's own geometry: ``BufferScope.x``, ``BufferScope.width``, ..."""
 KeyboardScope: KeyboardExpressionScope
-"""The latest key event: ``KeyboardScope.key``, ``KeyboardScope.kind``, ``KeyboardScope.chord``."""
+"""The latest key event: ``KeyboardScope.key``, ``KeyboardScope.kind``, ``KeyboardScope.binding``."""
 MouseScope: MouseExpressionScope
 """The latest mouse button or motion report: ``MouseScope.position``, ``MouseScope.is_down``, ..."""
 ScrollScope: ScrollExpressionScope
@@ -12461,7 +12461,7 @@ KeyboardKey: Value[str | None]
 """The key of the latest key event, or ``None`` while the latest input was not a key."""
 KeyboardKind: Value[Literal['press', 'repeat', 'release'] | None]
 """Whether the latest key event was a press, repeat or release, or ``None``."""
-KeyboardChord: Value[str | None]
+KeyboardBinding: Value[str | None]
 """The latest key event with its modifiers, such as ``'ctrl+s'``, or ``None``."""
 MouseButtonValue: Value[MouseButton | None]
 """The button of the latest button or motion report, or ``None``."""

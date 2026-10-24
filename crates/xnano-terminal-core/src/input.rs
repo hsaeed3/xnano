@@ -519,8 +519,8 @@ impl PyInputState {
     }
 
     #[getter]
-    fn last_chord(&self) -> Option<String> {
-        lock(&self.shared.input).last_chord.clone()
+    fn last_binding(&self) -> Option<String> {
+        lock(&self.shared.input).last_binding.clone()
     }
 
     #[getter]

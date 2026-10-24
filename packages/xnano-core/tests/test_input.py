@@ -363,25 +363,25 @@ def test_a_live_runtime_accepts_the_new_gates_without_opening_the_terminal():
     runtime.close()
 
 
-def test_the_latest_key_is_remembered_with_its_canonical_chord(runtime):
+def test_the_latest_key_is_remembered_with_its_canonical_binding(runtime):
     runtime.mount(Buffer())
     state = runtime.input
-    assert state.last_key is None and state.last_chord is None
-    for binding, key, chord in (
+    assert state.last_key is None and state.last_binding is None
+    for typed, key, binding in (
         ('q', 'q', 'q'),
         ('ctrl+s', 's', 'ctrl+s'),
         ('shift+ctrl+a', 'a', 'ctrl+shift+a'),
         ('alt+shift+ctrl+left', 'left', 'ctrl+alt+shift+left'),
         ('A', 'a', 'shift+a'),
     ):
-        runtime.inject(Event.key_press(binding))
+        runtime.inject(Event.key_press(typed))
         runtime.step()
-        assert (state.last_key, state.last_chord) == (key, chord), binding
+        assert (state.last_key, state.last_binding) == (key, binding), typed
         assert state.last_key_kind == 'press'
     runtime.inject(Event.key_press('left', kind='release'))
     runtime.step()
     assert state.last_key_kind == 'release'
-    assert KeyBinding.parse(state.last_chord).matches(Event.key_press('left'))
+    assert KeyBinding.parse(state.last_binding).matches(Event.key_press('left'))
 
 
 def test_mouse_buttons_are_held_from_press_to_release(runtime):
@@ -462,7 +462,7 @@ def test_pasted_text_is_remembered_until_other_input_arrives(runtime):
     runtime.inject(Event.paste('hello'))
     runtime.step()
     assert state.last_pasted_text == 'hello'
-    assert state.last_key is None and state.last_chord is None
+    assert state.last_key is None and state.last_binding is None
     runtime.inject(Event.key_press('y'))
     runtime.step()
     assert state.last_pasted_text is None and state.last_key == 'y'
@@ -478,7 +478,7 @@ def test_each_kind_of_input_clears_the_latest_values_of_the_others(runtime):
     assert (
         state.last_key is None
         and state.last_key_kind is None
-        and state.last_chord is None
+        and state.last_binding is None
     )
     assert state.last_mouse_position == (1, 1)
     runtime.inject(Event.key_press('w'))

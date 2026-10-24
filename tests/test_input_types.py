@@ -69,18 +69,23 @@ def test_held_input_takes_and_reports_typed_names():
         assert canvas.mouse.held_buttons == frozenset()
 
 
-def test_the_deprecated_chord_names_in_conditions_and_expressions_still_work():
+def test_a_binding_reads_the_same_as_a_string_and_as_an_expression():
     import pytest
+
+    from xnano.expressions import keyboard
 
     heard: list[str] = []
     with xnano.new(width=8, height=1) as canvas:
-        with pytest.warns(DeprecationWarning, match='keyboard.binding'):
-            canvas.hook(on="keyboard.chord == 'ctrl+s'")(
-                lambda context: heard.append('old')
-            )
         canvas.hook(on="keyboard.binding == 'ctrl+s'")(
-            lambda context: heard.append('new')
+            lambda context: heard.append('string')
+        )
+        canvas.hook(on=keyboard.binding == 'ctrl+s')(
+            lambda context: heard.append('expression')
         )
         canvas.push(Event.key_press('ctrl+s'))
         canvas.deliver_events()
-    assert sorted(heard) == ['new', 'old']
+        with pytest.raises(
+            ValueError, match='members of keyboard are key, kind, binding'
+        ):
+            canvas.hook(on="keyboard.chord == 'ctrl+s'")
+    assert sorted(heard) == ['expression', 'string']

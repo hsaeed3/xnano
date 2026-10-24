@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from xnano_core import Focused as _CoreFocused
     from xnano_core import Height as _CoreHeight
     from xnano_core import IsVisible as _CoreIsVisible
-    from xnano_core import KeyboardChord as _CoreKeyboardChord
+    from xnano_core import KeyboardBinding as _CoreKeyboardBinding
     from xnano_core import KeyboardExpressionScope as _CoreKeyboardExpressionScope
     from xnano_core import KeyboardKey as _CoreKeyboardKey
     from xnano_core import KeyboardKind as _CoreKeyboardKind
@@ -655,7 +655,7 @@ if TYPE_CHECKING:
     ```
     """
 
-    KeyboardBinding = _CoreKeyboardChord
+    KeyboardBinding = _CoreKeyboardBinding
     """
     The latest key with its modifiers, such as ``'ctrl+c'``.
 
@@ -856,7 +856,7 @@ if TYPE_CHECKING:
 
     keyboard = _CoreKeyboardScope
     """
-    Expressions for the latest key: ``keyboard.key``, ``keyboard.kind`` and ``keyboard.chord`` (the key with its modifiers).
+    Expressions for the latest key: ``keyboard.key``, ``keyboard.kind`` and ``keyboard.binding`` (the key with its modifiers).
 
     ```python
     import xnano
@@ -867,7 +867,7 @@ if TYPE_CHECKING:
 
         @terminal.hook(on='key')
         def show(context: xnano.Context) -> None:
-            label.text = f'binding: {context.canvas.evaluate(keyboard.chord)}'
+            label.text = f'binding: {context.canvas.evaluate(keyboard.binding)}'
 
         terminal.run(stop_on='q')
     ```
@@ -922,7 +922,7 @@ _CORE_NAMES: Final[dict[str, str]] = {
     'Height': 'Height',
     'IsVisible': 'IsVisible',
     'keyboard': 'KeyboardScope',
-    'KeyboardBinding': 'KeyboardChord',
+    'KeyboardBinding': 'KeyboardBinding',
     'KeyboardExpressionScope': 'KeyboardExpressionScope',
     'KeyboardKey': 'KeyboardKey',
     'KeyboardKind': 'KeyboardKind',

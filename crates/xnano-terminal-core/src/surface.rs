@@ -703,8 +703,8 @@ impl Environment for SurfaceEnv {
                     .last_key_kind
                     .map(str::to_owned),
             ),
-            PropertyId::KeyboardChord => {
-                text_or_null(lock(&self.runtime(id)?.input).last_chord.clone())
+            PropertyId::KeyboardBinding => {
+                text_or_null(lock(&self.runtime(id)?.input).last_binding.clone())
             }
             PropertyId::MouseButton => text_or_null(
                 lock(&self.runtime(id)?.input)
