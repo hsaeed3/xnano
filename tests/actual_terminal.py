@@ -160,8 +160,10 @@ class ActualTerminal:
             stderr=subprocess.STDOUT,
         )
         try:
-            self.wait_until(lambda: self._socket.exists(), timeout=15)
-            self.wait_until(lambda: bool(self.command('ls')), timeout=15)
+            # A first start on a fresh machine (a CI runner under Xvfb) can take well over ten
+            # seconds while Kitty builds its font caches.
+            self.wait_until(lambda: self._socket.exists(), timeout=30)
+            self.wait_until(lambda: bool(self.command('ls')), timeout=30)
         except BaseException:
             self.close()
             raise
