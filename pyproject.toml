@@ -67,7 +67,7 @@ dependencies = [
 
 [project.optional-dependencies]
 audio = [
-    "xnano-audio>=0.4.0,<0.5",
+    "xnano-audio>=0.4.1,<0.5",
 ]
 image = [
     "xnano-image>=0.2.0,<0.3",
