@@ -39,7 +39,7 @@ class Clock:
     expressions a placement keeps following, such as ``TimeElapsed``, are in
     [`xnano.expressions`][xnano.expressions]. A [`Frame`][xnano.hooks.Frame] carries the same
     numbers. ``fps`` is the most frames the canvas draws per second, and
-    ``measured_fps`` the rate it reached over recent frames.
+    ``measured_fps`` the rate at which it drew its recent frames.
 
     Attributes:
         elapsed_seconds: Seconds since the canvas started, not counting time spent paused.
@@ -47,7 +47,8 @@ class Clock:
         delta_seconds: Seconds between the two most recent frames.
         frame: The number of steps the clock has counted.
         fps: The most frames drawn per second, and the rate ``iter`` aims for.
-        measured_fps: The frame rate measured over recent frames.
+        measured_fps: The rate at which the canvas drew its recent frames, in frames per
+            second.
         bpm: Beats per minute: the length of a beat for beat timers, notes and melodies.
         beats: The musical clock: its position in beats, started and stopped on its own.
         is_paused: Whether time is frozen.
@@ -101,7 +102,28 @@ class Clock:
 
     @property
     def measured_fps(self) -> float:
-        """The frame rate measured over recent frames."""
+        """
+        The rate at which the canvas drew its recent frames, in frames per second.
+
+        A canvas draws a frame when something on it changes, at most ``fps`` times a second,
+        so a screen that changes less often reads below ``fps``. A canvas that runs by itself
+        (on the screen, or ``realtime=True``) measures the rate on the wall clock, time spent
+        paused included. A canvas from ``new()`` measures it on its own clock, so steps of one
+        frame that each change something read ``fps``. It is ``0.0`` until the canvas has
+        drawn a few frames.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=8, height=1, fps=20) as canvas:
+                label = canvas.screen.write('')
+                for index in range(10):
+                    label.text = str(index)
+                    canvas.clock.step()
+                assert round(canvas.clock.measured_fps) == 20
+            ```
+        """
         return self._canvas._time_source.frames_per_second
 
     @property

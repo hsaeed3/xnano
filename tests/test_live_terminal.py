@@ -564,6 +564,47 @@ with xnano.open(width=6, height=1) as terminal:
         assert screen.wait_for('0')
         assert screen.wait_until(lambda: '2' in screen.text, timeout=6)
 
+    def test_the_measured_frame_rate_stays_within_fps_while_input_arrives(self, run):
+        screen = run(
+            """
+@xnano.writable
+def elapsed(context):
+    return f'{context.clock.elapsed_seconds:.3f}'
+
+readings = []
+with xnano.open(width=30, height=2, fps=30, mouse=True) as terminal:
+    terminal.screen.write(elapsed)
+    keys = terminal.screen.write('keys 0', y=1)
+    pressed = []
+
+    @terminal.hook(on='key')
+    def count(context):
+        pressed.append(context.keyboard.key)
+        keys.text = f'keys {len(pressed)}'
+
+    @terminal.hook(on='tick', every=0.1)
+    def measure(context):
+        readings.append(context.clock.measured_fps)
+
+    terminal.run(stop_on='q')
+print('MOST', round(max(readings), 1))
+print('LATEST', round(readings[-1], 1))
+"""
+        )
+        assert screen.wait_until(lambda: screen.cell(0, 0).data.isdigit())
+        for index in range(60):
+            screen.press('x')
+            screen.send(f'\x1b[<35;{index % 30 + 1};1M')
+            screen.settle(0.02)
+        assert screen.wait_for('keys 60')
+        screen.settle(0.5)
+        screen.press('q')
+        assert screen.finish() == 0
+        most = float(re.search(r'MOST ([\d.]+)', screen.text).group(1))
+        latest = float(re.search(r'LATEST ([\d.]+)', screen.text).group(1))
+        assert most <= 30 * 1.05, f'measured {most} frames per second at fps=30'
+        assert latest >= 15, f'a screen redrawn every frame measured only {latest}'
+
     def test_a_component_wakes_on_a_key(self, run):
         screen = run(
             """

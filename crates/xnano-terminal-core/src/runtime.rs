@@ -2996,7 +2996,8 @@ impl PyRuntime {
         // has written anything, so it does not count toward pacing: the next frame, which
         // shows that first write, is drawn at once instead of one frame interval later.
         // A frame that wrote nothing does not count toward pacing either, so the change that
-        // follows it is shown at once.
+        // follows it is shown at once. The measured frame rate counts the same frames as
+        // pacing does, so it never reads above the rate the frame interval allows.
         let interval = runtime.config.frame_interval_milliseconds.get() as f64 / 1000.0;
         if !runtime.has_rendered.get() {
             runtime
@@ -3004,6 +3005,7 @@ impl PyRuntime {
                 .set(runtime.pace_now() - interval);
         } else if was_written {
             runtime.last_present_seconds.set(runtime.pace_now());
+            runtime.shared.clock.record_drawn_frame();
         }
         runtime.has_rendered.set(true);
         runtime.frame_revision.set(runtime.frame_revision.get() + 1);

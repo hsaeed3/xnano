@@ -32,6 +32,8 @@ struct ClockState {
     last_elapsed: f64,
     delta: f64,
     frame: u64,
+    /// When the previous drawn frame was recorded, on the time the frame rate is measured in.
+    last_drawn_seconds: Option<f64>,
     frames_per_second: f64,
 }
 
@@ -72,6 +74,7 @@ impl Clock {
                 last_elapsed: elapsed_seconds,
                 delta: 0.0,
                 frame,
+                last_drawn_seconds: None,
                 frames_per_second: 0.0,
             }),
         })
@@ -88,6 +91,7 @@ impl Clock {
                 last_elapsed: elapsed_seconds,
                 delta: 0.0,
                 frame: 0,
+                last_drawn_seconds: None,
                 frames_per_second: 0.0,
             }),
         })
@@ -137,21 +141,42 @@ impl Clock {
         lock(&self.state).paused_since.is_some()
     }
 
-    /// Start a new frame: the delta is the time since the previous call.
+    /// Start a new step: the delta is the time since the previous call, and the frame count
+    /// grows by one. A runtime steps far more often than it draws, so the frame rate is
+    /// measured by `record_drawn_frame` instead.
     pub fn tick(&self) {
         let mut state = lock(&self.state);
         let elapsed = self.elapsed_locked(&state);
         state.delta = (elapsed - state.last_elapsed).max(0.0);
         state.last_elapsed = elapsed;
         state.frame += 1;
-        if state.delta > 0.0 {
-            let instant = 1.0 / state.delta;
-            state.frames_per_second = if state.frames_per_second == 0.0 {
-                instant
-            } else {
-                state.frames_per_second * 0.9 + instant * 0.1
-            };
+    }
+
+    /// Record that a frame was drawn: the frame rate follows the time between drawn frames.
+    ///
+    /// A monotonic clock measures that time in real seconds, which keep passing while the
+    /// clock is paused, so it is the rate frames reach the screen. A manual clock measures it
+    /// in its own seconds, so it is the rate its steps imply. Frames drawn without time
+    /// passing leave the rate as it was.
+    pub fn record_drawn_frame(&self) {
+        let mut state = lock(&self.state);
+        let now = match self.source {
+            ClockSource::Monotonic => self.raw_seconds(&state),
+            ClockSource::Manual => self.elapsed_locked(&state),
+        };
+        let Some(previous) = state.last_drawn_seconds.replace(now) else {
+            return;
+        };
+        let delta = now - previous;
+        if delta <= 0.0 {
+            return;
         }
+        let instant = 1.0 / delta;
+        state.frames_per_second = if state.frames_per_second == 0.0 {
+            instant
+        } else {
+            state.frames_per_second * 0.9 + instant * 0.1
+        };
     }
 
     pub fn pause(&self) {
@@ -334,6 +359,55 @@ mod tests {
         clock.tick();
         assert!((clock.delta_seconds() - 0.04).abs() < 1e-9);
         assert_eq!(clock.frame(), 2);
+    }
+
+    #[test]
+    fn steps_without_drawn_frames_leave_the_frame_rate_alone() {
+        let clock = Clock::manual(0.0);
+        for _ in 0..100 {
+            clock.step(1);
+            clock.tick();
+        }
+        assert_eq!(clock.frame(), 100);
+        assert_eq!(clock.frames_per_second(), 0.0);
+    }
+
+    #[test]
+    fn the_frame_rate_follows_drawn_frames_and_not_steps() {
+        let clock = Clock::manual(0.0);
+        clock.record_drawn_frame();
+        for _ in 0..20 {
+            // Four steps for every frame drawn, as input and queued calls make.
+            for _ in 0..4 {
+                clock.step(5);
+                clock.tick();
+            }
+            clock.record_drawn_frame();
+        }
+        assert!((clock.frames_per_second() - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn frames_drawn_without_time_passing_leave_the_frame_rate_alone() {
+        let clock = Clock::manual(0.0);
+        clock.record_drawn_frame();
+        clock.step(100);
+        clock.record_drawn_frame();
+        assert!((clock.frames_per_second() - 10.0).abs() < 1e-9);
+        clock.record_drawn_frame();
+        clock.record_drawn_frame();
+        assert!((clock.frames_per_second() - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_monotonic_clock_measures_drawn_frames_in_real_time_while_paused() {
+        let clock = Clock::monotonic();
+        clock.pause();
+        clock.record_drawn_frame();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        clock.record_drawn_frame();
+        let frames_per_second = clock.frames_per_second();
+        assert!(frames_per_second > 0.0 && frames_per_second <= 50.0);
     }
 
     #[test]

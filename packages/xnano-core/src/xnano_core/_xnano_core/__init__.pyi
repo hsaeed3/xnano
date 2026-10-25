@@ -925,7 +925,7 @@ class Clock:
         delta_seconds: Seconds between the two most recent frames.
         delta_milliseconds: Milliseconds between the two most recent frames.
         frame: The number of frames the clock has counted.
-        frames_per_second: The frame rate measured over recent frames.
+        frames_per_second: The rate at which the runtime drew its recent frames.
         is_stopped: Whether the clock is stopped.
 
     Examples:
@@ -1008,7 +1008,14 @@ class Clock:
 
     @property
     def frames_per_second(self) -> float:
-        """The frame rate measured over recent frames."""
+        """
+        The rate at which the runtime drew its recent frames, in frames per second.
+
+        Only frames the runtime draws count, and it draws when something changed, at most once
+        per frame interval. A monotonic clock measures the rate in real time, time spent
+        stopped included; a manual clock measures it in its own time, so it is the rate its
+        steps imply. It is ``0.0`` until a few frames have been drawn.
+        """
 
     @property
     def is_stopped(self) -> bool:
