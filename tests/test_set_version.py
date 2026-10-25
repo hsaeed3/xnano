@@ -75,6 +75,33 @@ def test_the_prerelease_spelling_follows_python(script):
     assert script.pin_specifier('0.3.0') == '>=0.3.0,<0.4'
 
 
+def test_a_core_fix_does_not_bump_xnano(script, tmp_path, monkeypatch):
+    repository = SCRIPT.parent.parent
+    manifests = {}
+    for name, manifest in script.CRATES.items():
+        copy = tmp_path / manifest.relative_to(repository)
+        copy.parent.mkdir(parents=True)
+        copy.write_text(manifest.read_text(encoding='utf-8'), encoding='utf-8')
+        manifests[name] = copy
+    for name in ('Cargo.toml', 'pyproject.toml'):
+        (tmp_path / name).write_text(
+            (repository / name).read_text(encoding='utf-8'), encoding='utf-8'
+        )
+    monkeypatch.setattr(script, 'ROOT', tmp_path)
+    monkeypatch.setattr(script, 'WORKSPACE_MANIFEST', tmp_path / 'Cargo.toml')
+    monkeypatch.setattr(script, 'ROOT_PYPROJECT', tmp_path / 'pyproject.toml')
+    monkeypatch.setattr(script, 'CRATES', manifests)
+    xnano_version = script.read_version(tmp_path / 'Cargo.toml', 'xnano')
+
+    script.bump('xnano-core', '9.9.9', update_locks=False)
+
+    assert script.read_version(manifests['xnano-core'], 'xnano-core') == '9.9.9'
+    assert script.read_version(tmp_path / 'Cargo.toml', 'xnano') == xnano_version
+    pyproject = (tmp_path / 'pyproject.toml').read_text(encoding='utf-8')
+    assert f"version = '{script.pep440(xnano_version)}'" in pyproject
+    assert '"xnano-core>=9.9.9",' in pyproject
+
+
 def test_the_repository_versions_are_synchronized():
     result = subprocess.run(
         [sys.executable, str(SCRIPT), '--check'],

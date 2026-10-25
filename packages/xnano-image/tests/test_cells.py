@@ -43,7 +43,8 @@ def test_ansi_output_is_well_formed(fit, pixels):
     image = gradient(13, 9)
     text = image.to_ansi(7, 4, fit=fit, horizontal_pixels_per_cell=pixels)
     assert ansi_problems(text) == []
-    assert text.endswith('\x1b[0m\n')
+    assert text.endswith('\x1b[0m')
+    assert len(text.split('\n')) == 4
 
 
 def test_ansi_has_one_line_per_row_and_text_has_exact_columns():
@@ -53,7 +54,7 @@ def test_ansi_has_one_line_per_row_and_text_has_exact_columns():
         text = cell_grid_to_text(grid)
         assert len(text) == rows
         assert all(len(line) == columns for line in text), text
-        assert cell_grid_to_ansi(grid).count('\n') == rows
+        assert len(cell_grid_to_ansi(grid).split('\n')) == rows
 
 
 def test_every_cell_is_a_half_block_glyph():
@@ -120,7 +121,7 @@ def test_contain_letterboxes_with_the_background():
         10, 6, fit='contain', background=(0, 0, 255)
     )
     lines = cell_grid_to_ansi(grid).split('\n')
-    assert '48;2;0;0;255' in lines[0] and '48;2;0;0;255' in lines[-2]
+    assert '48;2;0;0;255' in lines[0] and '48;2;0;0;255' in lines[-1]
     middle = len(lines) // 2
     assert '255;0;0' in lines[middle - 1] or '255;0;0' in lines[middle]
 

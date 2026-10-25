@@ -339,6 +339,15 @@ def test_render_formats():
     assert str(buffer()).startswith('\x1b[')
 
 
+def test_the_ansi_render_has_the_rows_of_the_text_render():
+    for buffer in (Buffer('hi'), Buffer.with_size(3, 2)):
+        ansi = buffer.render(format='ansi')
+        text = buffer.render(format='text')
+        assert not ansi.endswith('\n')
+        assert ansi.endswith('\x1b[0m')
+        assert len(ansi.split('\n')) == len(text.split('\n')) == buffer.height
+
+
 def test_constructors():
     assert Buffer.with_size(3, 2).height == 2
     assert Buffer.with_text('x').width == 1

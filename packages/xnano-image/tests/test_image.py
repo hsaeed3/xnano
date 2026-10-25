@@ -468,7 +468,7 @@ def test_bad_conversion_options_raise(options):
 
 def test_to_ansi_prints_one_line_per_row():
     text = solid(6, 4, RED).to_ansi(6, 2)
-    assert text.count('\n') == 2 and '\x1b[0m' in text and '▀' in text
+    assert len(text.split('\n')) == 2 and '\x1b[0m' in text and '▀' in text
 
 
 # ------------------------------------------------------------- protocols

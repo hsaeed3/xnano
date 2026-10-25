@@ -30,8 +30,8 @@ default-members = [
 
 [workspace.package]
 edition = "2024"
-# The `xnano` and `xnano-core` distributions share this version. The runtime build script
-# writes it, and the audio/image pins, into the root `pyproject.toml`.
+# The `xnano` metapackage version. The runtime build script writes it, and the core, audio
+# and image pins, into the root `pyproject.toml`.
 version = "2.1.0"
 rust-version = "1.88"
 license = "MIT"

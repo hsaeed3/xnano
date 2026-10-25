@@ -7893,14 +7893,16 @@ class Buffer(Surface):
         No terminal or device is opened.
 
         Args:
-            format: ``'text'`` for plain rows or ``'ansi'`` for text with styling
-                escape sequences.
+            format: ``'text'`` for plain rows or ``'ansi'`` for the same rows with
+                styling escape sequences. Both join the rows with newlines and add
+                none after the last row, so ``print`` shows exactly the buffer.
 
         Examples:
             ```python
             buffer = Buffer.with_text('hi', style=Style(foreground='red'))
             assert buffer.render(format='text') == 'hi'
             assert '\\x1b[' in buffer.render(format='ansi')
+            assert not buffer.render(format='ansi').endswith('\\n')
             ```
         """
 
@@ -8699,7 +8701,7 @@ class FrameSnapshot:
 
     @property
     def ansi(self) -> str:
-        """The frame as text with styling escape sequences."""
+        """The frame's rows as text with styling escape sequences, joined by newlines."""
 
     def lines(self) -> list[str]:
         """
@@ -9172,6 +9174,8 @@ def cell_grid_to_text(cell_grid: bytes) -> list[str]:
 def cell_grid_to_ansi(cell_grid: bytes) -> str:
     """
     Return a packed cell grid as text with styling escape sequences.
+
+    The rows are joined by newlines, with no newline after the last row.
 
     Examples:
         ```python
