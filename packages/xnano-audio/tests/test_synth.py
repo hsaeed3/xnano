@@ -41,6 +41,22 @@ def cents(actual: float, expected: float) -> float:
     return 1200 * math.log2(actual / expected)
 
 
+def power_at(samples: list[float], hertz: float, sample_rate: int) -> float:
+    """Spectral power of ``samples`` at ``hertz``, by the Goertzel algorithm."""
+    angle = 2 * math.pi * hertz / sample_rate
+    coefficient, previous, before_previous = 2 * math.cos(angle), 0.0, 0.0
+    for value in samples:
+        previous, before_previous = (
+            value + coefficient * previous - before_previous,
+            previous,
+        )
+    return (
+        previous * previous
+        + before_previous * before_previous
+        - coefficient * previous * before_previous
+    )
+
+
 # ----------------------------------------------------------------- catalog
 
 
@@ -147,20 +163,33 @@ def test_pitched_instruments_are_in_tune(instrument, note):
 
 
 def test_bell_fundamental_is_the_note():
-    # the bell is inharmonic, so look for its strongest low component instead
     note, rate = 'A3', 44100
     expected = note_to_hertz(note)
     data = render_note('bell', note, duration_milliseconds=400).samples()[2000:10000]
-
-    def power(hz):
-        w = 2 * math.pi * hz / rate
-        coeff, s1, s2 = 2 * math.cos(w), 0.0, 0.0
-        for v in data:
-            s1, s2 = v + coeff * s1 - s2, s1
-        return s2 * s2 + s1 * s1 - coeff * s1 * s2
-
-    strongest = max((expected * (0.9 + 0.01 * i) for i in range(21)), key=power)
+    strongest = max(
+        (expected * (0.9 + 0.01 * index) for index in range(21)),
+        key=lambda hertz: power_at(data, hertz, rate),
+    )
     assert strongest == pytest.approx(expected, rel=0.005)
+
+
+@pytest.mark.parametrize('note', ['C4', 'E4', 'G4'])
+def test_bell_partials_are_whole_multiples_of_the_note(note):
+    # partials between the harmonics clash with the other notes of a chord
+    rate, fundamental = 44100, note_to_hertz(note)
+    data = render_note('bell', note, duration_milliseconds=1000).samples()[2205:10397]
+    windowed = [
+        value * (0.5 - 0.5 * math.cos(2 * math.pi * index / len(data)))
+        for index, value in enumerate(data)
+    ]
+    harmonic = max(
+        power_at(windowed, fundamental * multiple, rate) for multiple in range(1, 16)
+    )
+    between = max(
+        power_at(windowed, fundamental * (multiple + 0.5), rate)
+        for multiple in range(1, 16)
+    )
+    assert between < harmonic * 1e-4
 
 
 # --------------------------------------------------------------- behaviour

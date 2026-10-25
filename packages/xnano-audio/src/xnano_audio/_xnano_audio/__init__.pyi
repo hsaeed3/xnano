@@ -27,7 +27,7 @@ Built-in instruments:
 | ``piano`` | additive, stiff-string inharmonic partials |
 | ``electric_piano`` | FM (Rhodes-style tine) |
 | ``organ`` | additive drawbars |
-| ``bell`` | FM with an inharmonic ratio; rings after release |
+| ``bell`` | FM with harmonic partials, so chords stay in tune; bright strike, rings after release |
 | ``marimba`` | sine body plus a fast overtone |
 | ``guitar`` | Karplus-Strong string with a body low-pass |
 | ``electric_guitar`` | Karplus-Strong through soft-clip drive |

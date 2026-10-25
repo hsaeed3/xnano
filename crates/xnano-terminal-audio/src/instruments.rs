@@ -3,7 +3,7 @@
 //! | Family        | Technique                                              |
 //! |---------------|--------------------------------------------------------|
 //! | piano, organ  | additive partials (piano is slightly inharmonic)       |
-//! | e-piano, bell | FM synthesis                                           |
+//! | e-piano, bell | FM synthesis (bell: 4:1 ratio, odd harmonics only)     |
 //! | marimba       | sine plus a fast-decaying overtone                     |
 //! | guitars       | Karplus-Strong plucked-string physical model           |
 //! | synths, bass  | detuned band-limited saws through a swept low-pass     |
@@ -232,19 +232,33 @@ fn organ(n: &Note) -> Vec<f32> {
     })
 }
 
-/// Bell: FM with an inharmonic 3.5:1 ratio whose index decays, ringing on
-/// after the key is released.
+/// Bell: FM with a 4:1 modulator, so every partial is an odd harmonic and
+/// chords stay in tune. A 30 ms burst of modulation gives the bright strike,
+/// then the index settles and the note rings on after the key is released.
 fn bell(n: &Note) -> Vec<f32> {
     let sr = n.sample_rate;
-    let index0 = 5.0 * (0.6 + 0.4 * n.velocity);
+    let bright = 0.6 + 0.4 * n.velocity;
+    // Keeps the strong sidebands below Nyquist, where they would alias into
+    // inharmonic partials on the highest notes.
+    let index_limit = ((sr * 0.45 / n.freq - 1.0) / 4.0 - 1.0).max(0.0);
+    let (strike_decay, body_decay, ring_decay) = (
+        decay_per_sample(0.03, sr),
+        decay_per_sample(0.4, sr),
+        decay_per_sample(1.4, sr),
+    );
+    let (mut strike, mut body, mut ring) = (4.0 * bright, bright, 1.0_f32);
     let (mut carrier, mut modulator) = (0.0_f32, 0.0_f32);
     render_with(n, 1.6, |t| {
-        let index = index0 * (-t / 0.7).exp() + 0.2;
+        let index = (strike + body + 0.25).min(index_limit);
         let m = modulator.sin();
-        advance(&mut modulator, n.freq * 3.51, sr);
+        advance(&mut modulator, n.freq * 4.0, sr);
         let c = (carrier + index * m).sin();
         advance(&mut carrier, n.freq, sr);
-        c * (-t / 1.4).exp() * gate_release(t, n.gate, 1.4) * 0.6 * n.velocity
+        let value = c * ring * gate_release(t, n.gate, 1.4) * 0.6 * n.velocity;
+        strike *= strike_decay;
+        body *= body_decay;
+        ring *= ring_decay;
+        value
     })
 }
 
