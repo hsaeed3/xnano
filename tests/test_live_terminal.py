@@ -567,8 +567,11 @@ with xnano.open(width=6, height=1) as terminal:
     def test_the_measured_frame_rate_stays_within_fps_while_input_arrives(self, run):
         screen = run(
             """
+drawn = []
+
 @xnano.writable
 def elapsed(context):
+    drawn.append(time.monotonic())
     return f'{context.clock.elapsed_seconds:.3f}'
 
 readings = []
@@ -587,6 +590,9 @@ with xnano.open(width=30, height=2, fps=30, mouse=True) as terminal:
         readings.append(context.clock.measured_fps)
 
     terminal.run(stop_on='q')
+# The frames the writable drew in the last second, counted independently of the clock.
+recent = [moment for moment in drawn if moment >= drawn[-1] - 1.0]
+print('DRAWN', round((len(recent) - 1) / (recent[-1] - recent[0]), 1))
 print('MOST', round(max(readings), 1))
 print('LATEST', round(readings[-1], 1))
 """
@@ -597,13 +603,18 @@ print('LATEST', round(readings[-1], 1))
             screen.send(f'\x1b[<35;{index % 30 + 1};1M')
             screen.settle(0.02)
         assert screen.wait_for('keys 60')
-        screen.settle(0.5)
+        screen.settle(1.0)
         screen.press('q')
         assert screen.finish() == 0
+        drawn = float(re.search(r'DRAWN ([\d.]+)', screen.text).group(1))
         most = float(re.search(r'MOST ([\d.]+)', screen.text).group(1))
         latest = float(re.search(r'LATEST ([\d.]+)', screen.text).group(1))
         assert most <= 30 * 1.05, f'measured {most} frames per second at fps=30'
-        assert latest >= 15, f'a screen redrawn every frame measured only {latest}'
+        # A slow machine draws fewer frames, so the rate is checked against the frames that
+        # were actually drawn rather than against a fixed floor.
+        assert abs(latest - drawn) <= max(3.0, drawn * 0.2), (
+            f'measured {latest} frames per second while {drawn} were drawn'
+        )
 
     def test_a_component_wakes_on_a_key(self, run):
         screen = run(
