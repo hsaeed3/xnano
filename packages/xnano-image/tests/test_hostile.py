@@ -338,7 +338,7 @@ def test_mutated_grids_that_decode_still_produce_well_formed_output():
             checked += 1
             # the symbol bytes may now be arbitrary text, but escapes we
             # generate (colors) must stay well formed
-            assert text.count('\n') == 3
+            assert len(text.split('\n')) == 3
     assert checked > 0
 
 

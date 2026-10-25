@@ -2,9 +2,9 @@
 """
 Bump a workspace package and synchronize generated version pins.
 
-The Rust workspace manifests are authoritative. ``xnano`` and ``xnano-core`` share the
-workspace version; audio and image use their binding-crate versions. This script updates
-the root metapackage metadata in the same way as the runtime build script.
+The Rust workspace manifests are authoritative. ``xnano`` uses the workspace version;
+core, audio and image use their binding-crate versions. This script updates the root
+metapackage metadata in the same way as the runtime build script.
 """
 
 from __future__ import annotations
@@ -155,12 +155,7 @@ def build_pyproject(xnano_version: str, versions: dict[str, str]) -> str:
 def expected_pyproject() -> str:
     """Return the root pyproject with generated versions from Cargo manifests."""
     versions = {name: read_version(path, name) for name, path in CRATES.items()}
-    xnano_version = read_version(WORKSPACE_MANIFEST, "xnano")
-    if versions["xnano-core"] != xnano_version:
-        raise VersionError(
-            "xnano and xnano-core must share a version; update both Cargo manifests."
-        )
-    return build_pyproject(xnano_version, versions)
+    return build_pyproject(read_version(WORKSPACE_MANIFEST, "xnano"), versions)
 
 
 def markdown_pin_paths() -> list[Path]:
@@ -207,17 +202,11 @@ def bump(package: str, version: str, *, update_locks: bool) -> None:
         raise VersionError(
             "Use a Cargo version like 1.2.3, 1.2.3-beta.1 or 1.2.3-rc.1."
         )
-    if package in {"xnano", "xnano-core"}:
-        for shared_package in ("xnano", "xnano-core"):
-            manifest = package_manifests()[shared_package]
-            content = replace_version(manifest, shared_package, version)
-            manifest.write_text(content, encoding="utf-8")
-    else:
-        manifest = package_manifests()[package]
-        content = replace_version(manifest, package, version)
-        manifest.write_text(content, encoding="utf-8")
+    manifest = package_manifests()[package]
+    content = replace_version(manifest, package, version)
+    manifest.write_text(content, encoding="utf-8")
     ROOT_PYPROJECT.write_text(expected_pyproject(), encoding="utf-8")
-    if package in {"xnano", "xnano-core"}:
+    if package == "xnano":
         synchronize_markdown_pins(version, check=False)
     if update_locks:
         subprocess.run(["cargo", "update", "--workspace"], cwd=ROOT, check=True)

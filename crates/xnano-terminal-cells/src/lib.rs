@@ -537,12 +537,18 @@ fn covered_after_head(cell: &Cell) -> usize {
     }
 }
 
-/// Render `buffer` as ANSI text (one line per row), for printing to a terminal.
+/// Render `buffer` as ANSI text, for printing to a terminal.
+///
+/// Rows are separated by newlines, like [`text`], with no newline after the last row,
+/// and every row ends by resetting the style.
 pub fn ansi(buffer: &Buffer) -> String {
     let width = usize::from(buffer.area.width).max(1);
     // Every cell prints one symbol; style changes add a few bytes more.
     let mut output = String::with_capacity(buffer.content.len() + buffer.content.len() / 4 + 64);
-    for row in buffer.content.chunks(width) {
+    for (index, row) in buffer.content.chunks(width).enumerate() {
+        if index > 0 {
+            output.push('\n');
+        }
         let mut last: Option<(Color, Color, Modifier)> = None;
         // A wide glyph fills its own cell; the cells it covers are not printed.
         let mut covered = 0_usize;
@@ -579,7 +585,7 @@ pub fn ansi(buffer: &Buffer) -> String {
             }
             output.push_str(cell.symbol());
         }
-        output.push_str("\x1b[0m\n");
+        output.push_str("\x1b[0m");
     }
     output
 }
@@ -716,6 +722,21 @@ mod tests {
         buffer[(2, 0)].set_symbol("x");
         assert!(has_graphics_protocol_cells(&buffer));
         assert_eq!(text(&buffer), vec!["  x".to_string()]);
+    }
+
+    #[test]
+    fn ansi_rows_match_the_text_rows() {
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 2, 3));
+        buffer.set_string(0, 0, "ab", Style::default().fg(Color::Red));
+        buffer.set_string(0, 2, "cd", Style::default());
+        let output = ansi(&buffer);
+        assert!(!output.ends_with('\n'));
+        assert!(output.ends_with("\x1b[0m"));
+        assert_eq!(output.split('\n').count(), text(&buffer).len());
+        assert_eq!(
+            output,
+            "\x1b[0;31mab\x1b[0m\n\x1b[0m  \x1b[0m\n\x1b[0mcd\x1b[0m"
+        );
     }
 }
 

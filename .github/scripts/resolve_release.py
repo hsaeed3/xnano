@@ -154,13 +154,6 @@ def resolve_plan(
     ref: str, event_name: str, has_full_build_label: bool
 ) -> dict[str, str]:
     """Select build and release jobs for a GitHub ref and event."""
-    xnano_version = read_declared_version("xnano")
-    core_version = read_declared_version("xnano-core")
-    if xnano_version != core_version:
-        raise ReleasePlanError(
-            "xnano and xnano-core must share a version; found "
-            f"xnano {xnano_version} and xnano-core {core_version}."
-        )
     tag = TAG_PATTERN.match(ref)
     is_main_push = event_name == "push" and ref == "refs/heads/main"
 

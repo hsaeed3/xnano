@@ -1,7 +1,7 @@
 //! Keeps the root `pyproject.toml` (the `xnano` metapackage) in step with the Cargo workspace.
 //!
-//! The workspace version is the single source of truth for the `xnano` and `xnano-core`
-//! versions; each other binding crate's own version sets its distribution pin. Like pydantic's `monty`,
+//! The workspace version is the `xnano` version; each binding crate's own version sets its
+//! distribution pin, so a core, audio or image fix ships without a new `xnano`. Like pydantic's `monty`,
 //! the metapackage has no Cargo package of its own, so the build script of the always-built
 //! engine crate maintains it. `xnano-core` is the metapackage's only dependency; `xnano-audio`
 //! and `xnano-image` are its `audio` and `image` extras. A source distribution legitimately has no metapackage and is left
@@ -46,12 +46,6 @@ fn main() {
             );
             return;
         };
-        assert!(
-            distribution != "xnano-core" || crate_version == version,
-            "xnano and xnano-core must share a version: workspace is {version}, \
-             but {} declares {crate_version}",
-            manifest.display()
-        );
         pins.push((
             distribution,
             format!("    \"{distribution}{}\",", pin_specifier(&crate_version)),
