@@ -17,7 +17,7 @@ import tempfile
 import textwrap
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import cast
 
 JSONValue = str | int | float | bool | None | list['JSONValue'] | dict[str, 'JSONValue']
@@ -57,7 +57,14 @@ class ActualTerminal:
     Each instance owns its socket and process; user terminals are never selected.
     """
 
-    def __init__(self, body: str, *, columns: int = 80, rows: int = 24) -> None:
+    def __init__(
+        self,
+        body: str,
+        *,
+        columns: int = 80,
+        rows: int = 24,
+        overrides: Sequence[str] = (),
+    ) -> None:
         executable = kitty_executable()
         if executable is None:
             raise RuntimeError(
@@ -136,6 +143,12 @@ class ActualTerminal:
                 'font_size=12',
                 '--override',
                 'shell_integration=disabled',
+                # Extra Kitty options, such as 'dim_opacity=0.6', each passed as an --override.
+                *[
+                    argument
+                    for override in overrides
+                    for argument in ('--override', override)
+                ],
                 sys.executable,
                 str(wrapper),
                 str(source),
