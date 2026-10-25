@@ -564,6 +564,65 @@ with xnano.open(width=6, height=1) as terminal:
         assert screen.wait_for('0')
         assert screen.wait_until(lambda: '2' in screen.text, timeout=6)
 
+    def test_the_measured_frame_rate_stays_within_fps_while_input_arrives(self, run):
+        screen = run(
+            """
+drawn = []
+
+@xnano.writable
+def elapsed(context):
+    drawn.append(time.monotonic())
+    return f'{context.clock.elapsed_seconds:.3f}'
+
+readings = []
+ratios = []
+with xnano.open(width=30, height=2, fps=30, mouse=True) as terminal:
+    terminal.screen.write(elapsed)
+    keys = terminal.screen.write('keys 0', y=1)
+    pressed = []
+
+    @terminal.hook(on='key')
+    def count(context):
+        pressed.append(context.keyboard.key)
+        keys.text = f'keys {len(pressed)}'
+
+    @terminal.hook(on='tick', every=0.1)
+    def measure(context):
+        measured = context.clock.measured_fps
+        readings.append(measured)
+        # The frames drawn in the second before now, counted independently of the clock.
+        now = time.monotonic()
+        if now - drawn[0] > 1.0:
+            counted = sum(1 for moment in drawn if moment > now - 1.0)
+            ratios.append(measured / max(counted, 1))
+
+    terminal.run(stop_on='q')
+ratios.sort()
+print('MOST', round(max(readings), 1))
+print('RATIO', round(ratios[len(ratios) // 2], 2))
+"""
+        )
+        assert screen.wait_until(lambda: screen.cell(0, 0).data.isdigit())
+        for index in range(60):
+            screen.press('x')
+            screen.send(f'\x1b[<35;{index % 30 + 1};1M')
+            screen.settle(0.02)
+        assert screen.wait_for('keys 60')
+        screen.settle(1.0)
+        screen.press('q')
+        assert screen.finish() == 0
+        most = float(re.search(r'MOST ([\d.]+)', screen.text).group(1))
+        ratio = float(re.search(r'RATIO ([\d.]+)', screen.text).group(1))
+        assert most <= 30 * 1.05, f'measured {most} frames per second at fps=30'
+        # A slow machine draws fewer frames, so the rate is compared with the frames that were
+        # actually drawn rather than with a fixed floor. Stalls on a busy machine make a rate
+        # smoothed over recent frames and a count over the last second disagree, so the median
+        # of many readings only has to be the right size: a rate taken from runtime steps
+        # reads hundreds of times too high.
+        assert 1 / 3 <= ratio <= 3, (
+            f'measured rates were typically {ratio} times the frames drawn each second'
+        )
+
     def test_a_component_wakes_on_a_key(self, run):
         screen = run(
             """

@@ -32,7 +32,10 @@ struct ClockState {
     last_elapsed: f64,
     delta: f64,
     frame: u64,
-    frames_per_second: f64,
+    /// When the previous drawn frame was recorded, on the time the frame rate is measured in.
+    last_drawn_seconds: Option<f64>,
+    /// The smoothed time between drawn frames, or `0.0` before two frames were drawn.
+    frame_seconds: f64,
 }
 
 /// The time source a runtime schedules against.
@@ -72,7 +75,8 @@ impl Clock {
                 last_elapsed: elapsed_seconds,
                 delta: 0.0,
                 frame,
-                frames_per_second: 0.0,
+                last_drawn_seconds: None,
+                frame_seconds: 0.0,
             }),
         })
     }
@@ -88,7 +92,8 @@ impl Clock {
                 last_elapsed: elapsed_seconds,
                 delta: 0.0,
                 frame: 0,
-                frames_per_second: 0.0,
+                last_drawn_seconds: None,
+                frame_seconds: 0.0,
             }),
         })
     }
@@ -130,28 +135,56 @@ impl Clock {
     }
 
     pub fn frames_per_second(&self) -> f64 {
-        lock(&self.state).frames_per_second
+        let frame_seconds = lock(&self.state).frame_seconds;
+        if frame_seconds > 0.0 {
+            1.0 / frame_seconds
+        } else {
+            0.0
+        }
     }
 
     pub fn is_paused(&self) -> bool {
         lock(&self.state).paused_since.is_some()
     }
 
-    /// Start a new frame: the delta is the time since the previous call.
+    /// Start a new step: the delta is the time since the previous call, and the frame count
+    /// grows by one. A runtime steps far more often than it draws, so the frame rate is
+    /// measured by `record_drawn_frame` instead.
     pub fn tick(&self) {
         let mut state = lock(&self.state);
         let elapsed = self.elapsed_locked(&state);
         state.delta = (elapsed - state.last_elapsed).max(0.0);
         state.last_elapsed = elapsed;
         state.frame += 1;
-        if state.delta > 0.0 {
-            let instant = 1.0 / state.delta;
-            state.frames_per_second = if state.frames_per_second == 0.0 {
-                instant
-            } else {
-                state.frames_per_second * 0.9 + instant * 0.1
-            };
+    }
+
+    /// Record that a frame was drawn: the frame rate follows the time between drawn frames.
+    ///
+    /// A monotonic clock measures that time in real seconds, which keep passing while the
+    /// clock is paused, so it is the rate frames reach the screen. A manual clock measures it
+    /// in its own seconds, so it is the rate its steps imply. Frames drawn without time
+    /// passing leave the rate as it was.
+    pub fn record_drawn_frame(&self) {
+        let mut state = lock(&self.state);
+        let now = match self.source {
+            ClockSource::Monotonic => self.raw_seconds(&state),
+            ClockSource::Manual => self.elapsed_locked(&state),
+        };
+        let Some(previous) = state.last_drawn_seconds.replace(now) else {
+            return;
+        };
+        let delta = now - previous;
+        if delta <= 0.0 {
+            return;
         }
+        // The time between frames is smoothed and the rate is its inverse: smoothing the rates
+        // themselves reads far above the frames drawn each second whenever frames arrive
+        // unevenly, as they do on a busy machine.
+        state.frame_seconds = if state.frame_seconds == 0.0 {
+            delta
+        } else {
+            state.frame_seconds * 0.9 + delta * 0.1
+        };
     }
 
     pub fn pause(&self) {
@@ -334,6 +367,75 @@ mod tests {
         clock.tick();
         assert!((clock.delta_seconds() - 0.04).abs() < 1e-9);
         assert_eq!(clock.frame(), 2);
+    }
+
+    #[test]
+    fn steps_without_drawn_frames_leave_the_frame_rate_alone() {
+        let clock = Clock::manual(0.0);
+        for _ in 0..100 {
+            clock.step(1);
+            clock.tick();
+        }
+        assert_eq!(clock.frame(), 100);
+        assert_eq!(clock.frames_per_second(), 0.0);
+    }
+
+    #[test]
+    fn the_frame_rate_follows_drawn_frames_and_not_steps() {
+        let clock = Clock::manual(0.0);
+        clock.record_drawn_frame();
+        for _ in 0..20 {
+            // Four steps for every frame drawn, as input and queued calls make.
+            for _ in 0..4 {
+                clock.step(5);
+                clock.tick();
+            }
+            clock.record_drawn_frame();
+        }
+        assert!((clock.frames_per_second() - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn unevenly_drawn_frames_measure_the_frames_drawn_each_second() {
+        let clock = Clock::manual(0.0);
+        clock.record_drawn_frame();
+        // Ten frames every second, drawn as nine quick ones and a stall, as on a busy machine.
+        for _ in 0..30 {
+            for _ in 0..9 {
+                clock.step(10);
+                clock.record_drawn_frame();
+            }
+            clock.step(910);
+            clock.record_drawn_frame();
+        }
+        let frames_per_second = clock.frames_per_second();
+        assert!(
+            (5.0..20.0).contains(&frames_per_second),
+            "ten frames each second measured {frames_per_second} frames per second"
+        );
+    }
+
+    #[test]
+    fn frames_drawn_without_time_passing_leave_the_frame_rate_alone() {
+        let clock = Clock::manual(0.0);
+        clock.record_drawn_frame();
+        clock.step(100);
+        clock.record_drawn_frame();
+        assert!((clock.frames_per_second() - 10.0).abs() < 1e-9);
+        clock.record_drawn_frame();
+        clock.record_drawn_frame();
+        assert!((clock.frames_per_second() - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_monotonic_clock_measures_drawn_frames_in_real_time_while_paused() {
+        let clock = Clock::monotonic();
+        clock.pause();
+        clock.record_drawn_frame();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        clock.record_drawn_frame();
+        let frames_per_second = clock.frames_per_second();
+        assert!(frames_per_second > 0.0 && frames_per_second <= 50.0);
     }
 
     #[test]

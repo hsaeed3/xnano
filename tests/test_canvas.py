@@ -392,6 +392,23 @@ class TestTimeControls:
             assert frame.delta_seconds == pytest.approx(0.1)
             assert frame.index == canvas.clock.frame
 
+    def test_the_measured_frame_rate_is_the_rate_frames_are_drawn_at(self):
+        with xnano.new(width=4, height=1, fps=20) as canvas:
+            label = canvas.screen.write('')
+            for index in range(10):
+                label.text = str(index)
+                canvas.clock.step()
+            assert canvas.clock.measured_fps == pytest.approx(20)
+            for _ in range(5):
+                canvas.deliver_events()
+            assert canvas.clock.measured_fps == pytest.approx(20)
+        with xnano.new(width=4, height=1, fps=20) as canvas:
+            label = canvas.screen.write('')
+            for index in range(10):
+                label.text = str(index)
+                canvas.clock.step(delta_seconds=0.1)
+            assert canvas.clock.measured_fps == pytest.approx(10)
+
     def test_a_canvas_that_runs_by_itself_is_stepped_only_while_stopped(self):
         canvas = xnano.new(realtime=True, width=4, height=1, fps=10)
         try:
