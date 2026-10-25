@@ -575,6 +575,7 @@ def elapsed(context):
     return f'{context.clock.elapsed_seconds:.3f}'
 
 readings = []
+ratios = []
 with xnano.open(width=30, height=2, fps=30, mouse=True) as terminal:
     terminal.screen.write(elapsed)
     keys = terminal.screen.write('keys 0', y=1)
@@ -587,14 +588,18 @@ with xnano.open(width=30, height=2, fps=30, mouse=True) as terminal:
 
     @terminal.hook(on='tick', every=0.1)
     def measure(context):
-        readings.append(context.clock.measured_fps)
+        measured = context.clock.measured_fps
+        readings.append(measured)
+        # The frames drawn in the second before now, counted independently of the clock.
+        now = time.monotonic()
+        if now - drawn[0] > 1.0:
+            counted = sum(1 for moment in drawn if moment > now - 1.0)
+            ratios.append(measured / max(counted, 1))
 
     terminal.run(stop_on='q')
-# The frames the writable drew in the last second, counted independently of the clock.
-recent = [moment for moment in drawn if moment >= drawn[-1] - 1.0]
-print('DRAWN', round((len(recent) - 1) / (recent[-1] - recent[0]), 1))
+ratios.sort()
 print('MOST', round(max(readings), 1))
-print('LATEST', round(readings[-1], 1))
+print('RATIO', round(ratios[len(ratios) // 2], 2))
 """
         )
         assert screen.wait_until(lambda: screen.cell(0, 0).data.isdigit())
@@ -606,14 +611,16 @@ print('LATEST', round(readings[-1], 1))
         screen.settle(1.0)
         screen.press('q')
         assert screen.finish() == 0
-        drawn = float(re.search(r'DRAWN ([\d.]+)', screen.text).group(1))
         most = float(re.search(r'MOST ([\d.]+)', screen.text).group(1))
-        latest = float(re.search(r'LATEST ([\d.]+)', screen.text).group(1))
+        ratio = float(re.search(r'RATIO ([\d.]+)', screen.text).group(1))
         assert most <= 30 * 1.05, f'measured {most} frames per second at fps=30'
-        # A slow machine draws fewer frames, so the rate is checked against the frames that
-        # were actually drawn rather than against a fixed floor.
-        assert abs(latest - drawn) <= max(3.0, drawn * 0.2), (
-            f'measured {latest} frames per second while {drawn} were drawn'
+        # A slow machine draws fewer frames, so the rate is compared with the frames that were
+        # actually drawn rather than with a fixed floor. Stalls on a busy machine make a rate
+        # smoothed over recent frames and a count over the last second disagree, so the median
+        # of many readings only has to be the right size: a rate taken from runtime steps
+        # reads hundreds of times too high.
+        assert 1 / 3 <= ratio <= 3, (
+            f'measured rates were typically {ratio} times the frames drawn each second'
         )
 
     def test_a_component_wakes_on_a_key(self, run):

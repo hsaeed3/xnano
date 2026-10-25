@@ -34,7 +34,8 @@ struct ClockState {
     frame: u64,
     /// When the previous drawn frame was recorded, on the time the frame rate is measured in.
     last_drawn_seconds: Option<f64>,
-    frames_per_second: f64,
+    /// The smoothed time between drawn frames, or `0.0` before two frames were drawn.
+    frame_seconds: f64,
 }
 
 /// The time source a runtime schedules against.
@@ -75,7 +76,7 @@ impl Clock {
                 delta: 0.0,
                 frame,
                 last_drawn_seconds: None,
-                frames_per_second: 0.0,
+                frame_seconds: 0.0,
             }),
         })
     }
@@ -92,7 +93,7 @@ impl Clock {
                 delta: 0.0,
                 frame: 0,
                 last_drawn_seconds: None,
-                frames_per_second: 0.0,
+                frame_seconds: 0.0,
             }),
         })
     }
@@ -134,7 +135,12 @@ impl Clock {
     }
 
     pub fn frames_per_second(&self) -> f64 {
-        lock(&self.state).frames_per_second
+        let frame_seconds = lock(&self.state).frame_seconds;
+        if frame_seconds > 0.0 {
+            1.0 / frame_seconds
+        } else {
+            0.0
+        }
     }
 
     pub fn is_paused(&self) -> bool {
@@ -171,11 +177,13 @@ impl Clock {
         if delta <= 0.0 {
             return;
         }
-        let instant = 1.0 / delta;
-        state.frames_per_second = if state.frames_per_second == 0.0 {
-            instant
+        // The time between frames is smoothed and the rate is its inverse: smoothing the rates
+        // themselves reads far above the frames drawn each second whenever frames arrive
+        // unevenly, as they do on a busy machine.
+        state.frame_seconds = if state.frame_seconds == 0.0 {
+            delta
         } else {
-            state.frames_per_second * 0.9 + instant * 0.1
+            state.frame_seconds * 0.9 + delta * 0.1
         };
     }
 
@@ -385,6 +393,26 @@ mod tests {
             clock.record_drawn_frame();
         }
         assert!((clock.frames_per_second() - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn unevenly_drawn_frames_measure_the_frames_drawn_each_second() {
+        let clock = Clock::manual(0.0);
+        clock.record_drawn_frame();
+        // Ten frames every second, drawn as nine quick ones and a stall, as on a busy machine.
+        for _ in 0..30 {
+            for _ in 0..9 {
+                clock.step(10);
+                clock.record_drawn_frame();
+            }
+            clock.step(910);
+            clock.record_drawn_frame();
+        }
+        let frames_per_second = clock.frames_per_second();
+        assert!(
+            (5.0..20.0).contains(&frames_per_second),
+            "ten frames each second measured {frames_per_second} frames per second"
+        );
     }
 
     #[test]
