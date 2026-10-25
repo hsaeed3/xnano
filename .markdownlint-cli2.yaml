@@ -11,10 +11,19 @@ config:
   # the site needs, and repeat it as the first heading.
   MD025:
     front_matter_title: ""
-  # The README centers its header with a div.
+  # The README centers its header with a div, folds its examples into details
+  # blocks and shows each rendered example as a picture that follows GitHub's
+  # light or dark theme.
   MD033:
     allowed_elements:
+      - details
       - div
+      - img
+      - picture
+      - small
+      - source
+      - strong
+      - summary
 # HISTORY.md is generated from the published GitHub release notes by
 # scripts/history.py, so it keeps their formatting.
 ignores:

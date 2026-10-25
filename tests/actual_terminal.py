@@ -17,7 +17,7 @@ import tempfile
 import textwrap
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import cast
 
 JSONValue = str | int | float | bool | None | list['JSONValue'] | dict[str, 'JSONValue']
@@ -57,7 +57,14 @@ class ActualTerminal:
     Each instance owns its socket and process; user terminals are never selected.
     """
 
-    def __init__(self, body: str, *, columns: int = 80, rows: int = 24) -> None:
+    def __init__(
+        self,
+        body: str,
+        *,
+        columns: int = 80,
+        rows: int = 24,
+        overrides: Sequence[str] = (),
+    ) -> None:
         executable = kitty_executable()
         if executable is None:
             raise RuntimeError(
@@ -136,6 +143,12 @@ class ActualTerminal:
                 'font_size=12',
                 '--override',
                 'shell_integration=disabled',
+                # Extra Kitty options, such as 'dim_opacity=0.6', each passed as an --override.
+                *[
+                    argument
+                    for override in overrides
+                    for argument in ('--override', override)
+                ],
                 sys.executable,
                 str(wrapper),
                 str(source),
@@ -147,8 +160,10 @@ class ActualTerminal:
             stderr=subprocess.STDOUT,
         )
         try:
-            self.wait_until(lambda: self._socket.exists(), timeout=15)
-            self.wait_until(lambda: bool(self.command('ls')), timeout=15)
+            # A first start on a fresh machine (a CI runner under Xvfb) can take well over ten
+            # seconds while Kitty builds its font caches.
+            self.wait_until(lambda: self._socket.exists(), timeout=30)
+            self.wait_until(lambda: bool(self.command('ls')), timeout=30)
         except BaseException:
             self.close()
             raise

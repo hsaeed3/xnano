@@ -64,9 +64,9 @@ install-terminal:
 		sudo apt-get update && sudo apt-get install -y kitty xvfb xauth libgl1-mesa-dri fonts-dejavu-core; \
 	else echo 'Install Kitty and, on headless Linux, Xvfb with your system package manager.' >&2; exit 1; fi
 
-.PHONY: readme-images ## Photograph the demo and the README Quick Start examples in a real Kitty window (needs make install-terminal)
-readme-images: .uv
-	$(uv-run-no-sync) python scripts/readme_images.py
+.PHONY: readme-assets ## Render the README's annotated code blocks (@code-block) as images and gifs in a real Kitty window (ARGS names blocks; needs make install-terminal)
+readme-assets: .uv
+	$(uv-run-no-sync) python scripts/readme_assets.py $(ARGS)
 
 .PHONY: test-terminal ## Run tests in an actual terminal application (ARGS passes pytest options)
 test-terminal: .uv
