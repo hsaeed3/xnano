@@ -9,6 +9,7 @@ for a canvas without a screen that moves five frames, and runs the rest as writt
 
 from __future__ import annotations
 
+import contextvars
 import pathlib
 import re
 
@@ -79,5 +80,11 @@ def test_a_block_runs(name, number, source, monkeypatch, capsys):
     monkeypatch.setattr(xnano, 'iter', five_screenless_frames)
     monkeypatch.setattr(Canvas, 'open', stay_on_the_canvas)
     monkeypatch.setattr(Canvas, 'run', move_five_frames)
-    exec(compile(source, f'{name} block {number}', 'exec'), {'__name__': '__docs__'})  # noqa: S102
+    # `xnano.new()` makes its canvas the active one until it is closed, so each block runs in a
+    # context of its own: a canvas a block leaves open never reaches the tests after it.
+    contextvars.copy_context().run(
+        exec,
+        compile(source, f'{name} block {number}', 'exec'),
+        {'__name__': '__docs__'},
+    )
     capsys.readouterr()
