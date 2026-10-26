@@ -269,6 +269,18 @@ def test_estimated_holds_are_separate_and_opt_in(runtime):
     assert runtime.input.estimated_pressed_keys == frozenset()
 
 
+def test_a_different_key_ends_the_estimate_of_the_key_before(runtime):
+    runtime.mount(Buffer())
+    runtime.input.estimate_holds(timeout_seconds=0.5)
+    runtime.inject(Event.key_press('left'))
+    runtime.inject(Event.key_press('left', kind='repeat'))
+    runtime.step()
+    assert runtime.input.estimated_pressed_keys == {'left'}
+    runtime.inject(Event.key_press('right'))
+    runtime.step()
+    assert runtime.input.estimated_pressed_keys == {'right'}
+
+
 def test_focus_loss_clears_estimates(runtime):
     runtime.mount(Buffer())
     runtime.input.estimate_holds(timeout_seconds=5)

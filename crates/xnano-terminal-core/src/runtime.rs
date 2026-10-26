@@ -981,6 +981,9 @@ impl PyRuntime {
                         if input.held_keys_available {
                             input.pressed.insert(key.key.clone());
                         } else if let Some(timeout) = input.estimate_timeout {
+                            // Only the newest key held repeats, so a different key ends the
+                            // estimate of the key before it.
+                            input.estimated.clear();
                             input.estimated.insert(key.key.clone(), now + timeout);
                         }
                     }

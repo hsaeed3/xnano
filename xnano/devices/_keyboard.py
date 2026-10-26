@@ -13,12 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import xnano_core as _core
 from xnano._schema._hooks import KeyName, KeyNames
-from xnano.devices._input import (
-    _ESTIMATED_HOLD_SECONDS,
-    _MOUSE_BUTTON_NAMES,
-    _modifier_text,
-    _names,
-)
+from xnano.devices._input import _MOUSE_BUTTON_NAMES, _modifier_text, _names
 from xnano.errors import TerminalClosedError
 
 if TYPE_CHECKING:
@@ -43,8 +38,8 @@ class Keyboard:
 
     A terminal that reports key releases (kitty, ghostty and wezterm, when the canvas is
     opened with ``keyboard='release_events'``) tells exactly when a key is let go. Any other
-    terminal only sends repeats while a key is held, so a key counts as held for a short time
-    after its last repeat.
+    terminal only repeats the newest key held, so that key counts as held for a short time
+    after its last press or repeat, and pressing a different key takes its place.
 
     Attributes:
         key: The [`KeyName`][xnano.devices.KeyName] of the key being handled, such as ``'q'`` or
@@ -163,11 +158,6 @@ class Keyboard:
             raise TerminalClosedError(
                 'The canvas has no input yet, because it is not attached to a running loop.'
             )
-        canvas = self._canvas
-        if canvas._estimated_holds_state is not state:
-            # Held keys are estimated from repeats once a program asks for them.
-            state.estimate_holds(timeout_seconds=_ESTIMATED_HOLD_SECONDS)
-            canvas._estimated_holds_state = state
         return state
 
     @property
