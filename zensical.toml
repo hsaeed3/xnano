@@ -218,35 +218,35 @@ custom_fences = [
     { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
 ]
 
-# [project.plugins.mkdocstrings.handlers.python]
-# # the API reference is read from source, so building the docs needs neither the packages
-# # installed nor the Rust extensions compiled
-# paths = [".", "packages/xnano-core/src", "packages/xnano-audio/src", "packages/xnano-image/src"]
-# inventories = ["https://docs.python.org/3/objects.inv"]
-#
-# [project.plugins.mkdocstrings.handlers.python.options]
-# docstring_style = "google"
-# inherited_members = true          # false
-# merge_init_into_class = true
-# parameter_headings = false
-# members_order = "source"
-# filters = ["!^_", "^__"]
-# heading_level = 2
-# separate_signature = true
-# docstring_section_style = "list"
-# backlinks = "tree"
-# show_root_heading = true
-# show_root_full_path = true
-# show_signature_annotations = true
-# show_source = true
-# show_symbol_type_heading = true
-# show_symbol_type_toc = true
-# show_root_toc_entry = false
-# signature_crossrefs = true
-# summary = true
-# unwrap_annotated = true
-#
-# extensions = ["griffe_typingdoc"]
+[project.plugins.mkdocstrings.handlers.python]
+# the API reference is read from source, so building the docs needs neither the packages
+# installed nor the Rust extensions compiled
+paths = [".", "packages/xnano-core/src", "packages/xnano-audio/src", "packages/xnano-image/src"]
+inventories = ["https://docs.python.org/3/objects.inv"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+inherited_members = true          # false
+merge_init_into_class = true
+parameter_headings = false
+members_order = "source"
+filters = ["!^_", "^__"]
+heading_level = 2
+separate_signature = true
+docstring_section_style = "list"
+backlinks = "tree"
+show_root_heading = true
+show_root_full_path = true
+show_signature_annotations = true
+show_source = true
+show_symbol_type_heading = true
+show_symbol_type_toc = true
+show_root_toc_entry = false
+signature_crossrefs = true
+summary = true
+unwrap_annotated = true
+
+extensions = ["griffe_typingdoc"]
 
 [project.plugins]
 

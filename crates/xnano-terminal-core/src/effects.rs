@@ -1563,6 +1563,7 @@ impl PyEffectManager {
             is_cancelled: false,
             completed: Vec::new(),
             error: None,
+            started_seconds: self.shared.clock.elapsed_seconds(),
         });
         Ok(PyRunningEffect { inner })
     }

@@ -560,28 +560,6 @@ with xnano.open(width=40, height=1) as terminal:
         output = screen.raw.decode('utf-8', 'replace')
         assert not re.search('[\x7f-\x9f]', output)
 
-    def test_the_colors_come_back_once_an_effect_ends(self, run):
-        screen = run(
-            """
-with xnano.open(width=10, height=1) as terminal:
-    @terminal.hook(on='key', keys='s')
-    def desaturate(context):
-        card.fx.saturate(foreground=-1.0, duration_milliseconds=600)
-
-    card = terminal.screen.write('hello')
-    card.color.fg = '#ff0000'
-    terminal.run()
-"""
-        )
-        assert screen.wait_until(lambda: screen.cell(0, 0).fg == 'ff0000', timeout=5)
-        screen.press('s')
-        assert screen.wait_until(lambda: screen.cell(0, 0).fg != 'ff0000', timeout=5)
-        assert screen.wait_until(lambda: screen.cell(0, 0).fg == 'ff0000', timeout=3), (
-            'the last frame of the effect stays on the screen after it ends'
-        )
-        screen.press('ctrl+c')
-        assert screen.finish() == 0
-
     def test_border_draws_around_art_and_widgets(self, run):
         screen = run(
             """

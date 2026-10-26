@@ -858,6 +858,7 @@ fn run_deferred(environment: &SurfaceEnv, target: &Target, deferred: Deferred) -
                 is_cancelled: false,
                 completed: Vec::new(),
                 error: None,
+                started_seconds: shared.clock.elapsed_seconds(),
             });
         }
         Deferred::CancelEffect(key) => shared.cancel_effect(&key),

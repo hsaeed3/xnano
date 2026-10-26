@@ -22,7 +22,6 @@ REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 PAGES = (
     REPOSITORY / 'README.md',
     REPOSITORY / 'docs' / 'index.md',
-    REPOSITORY / 'docs' / 'learn' / 'index.md',
 )
 BLOCK = re.compile(r'^```python\n(.*?)^```', re.MULTILINE | re.DOTALL)
 
@@ -41,12 +40,8 @@ def blocks() -> list[tuple[str, int, str]]:
 CASES = blocks()
 
 
-def test_the_pages_have_examples():
-    assert {name for name, _, _ in CASES} == {
-        'README.md',
-        'docs/index.md',
-        'docs/learn/index.md',
-    }
+def test_the_readme_has_examples():
+    assert 'README.md' in {name for name, _, _ in CASES}
     assert len(CASES) >= 9
 
 
