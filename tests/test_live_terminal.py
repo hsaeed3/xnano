@@ -578,8 +578,18 @@ with xnano.open(width=10, height=1) as terminal:
         # Nothing is drawn for longer than the effect lasts before it starts, so its first
         # step must count only the time since it started.
         time.sleep(1)
+        start = len(screen.raw)
         screen.press('s')
-        assert screen.wait_until(lambda: screen.cell(0, 0).fg != 'ff0000', timeout=5), (
+
+        # A look at the screen now and then can miss a short effect entirely, so the colors
+        # are read from everything the program wrote. An effect that jumps to its end draws
+        # one color; one that runs draws a color for each step.
+        def colors_drawn() -> set[bytes]:
+            return set(re.findall(rb'38;2;(\d+;\d+;\d+)', screen.raw[start:])) - {
+                b'255;0;0'
+            }
+
+        assert screen.wait_until(lambda: len(colors_drawn()) >= 3, timeout=5), (
             'an effect started after a still moment ran to its end in its first frame'
         )
         assert screen.wait_until(lambda: screen.cell(0, 0).fg == 'ff0000', timeout=3), (
