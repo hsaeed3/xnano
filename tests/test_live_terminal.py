@@ -412,6 +412,33 @@ with xnano.open(height=2) as terminal:
         screen.paste('two words')
         assert screen.wait_for('GOT:two words')
 
+    def test_a_key_hook_reads_its_own_key_as_the_direction(self, run):
+        screen = run(
+            """
+heard = []
+with xnano.open(width=20, height=2) as terminal:
+    count = terminal.screen.write('keys 0')
+
+    @terminal.hook(on='key')
+    def walk(context):
+        if context.keyboard.key in ('left', 'right'):
+            heard.append((context.keyboard.key, context.keyboard.direction()))
+            count.text = f'keys {len(heard)}'
+
+    terminal.run(stop_on='q')
+print('HEARD', heard)
+"""
+        )
+        assert screen.wait_for('keys 0')
+        # A held key repeats, and the terminal sends no release when it is let go.
+        for key in ('left', 'left', 'right'):
+            screen.press(key)
+        assert screen.wait_for('keys 3')
+        screen.press('q')
+        assert screen.finish() == 0
+        heard = re.search(r'HEARD (.*)', screen.text).group(1)
+        assert heard == "[('left', (-1, 0)), ('left', (-1, 0)), ('right', (1, 0))]"
+
 
 class TestState:
     def test_a_state_hook_draws_what_a_key_hook_pushed(self, run):
