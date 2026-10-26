@@ -32,7 +32,7 @@ default-members = [
 edition = "2024"
 # The `xnano` metapackage version. The runtime build script writes it, and the core, audio
 # and image pins, into the root `pyproject.toml`.
-version = "2.1.0"
+version = "2.1.1"
 rust-version = "1.88"
 license = "MIT"
 authors = ["Hammad Saeed <hammad@supportvectors.com>"]
