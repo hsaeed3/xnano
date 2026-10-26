@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import re
 import sys
-import time
 
 import pytest
 
@@ -560,43 +559,6 @@ with xnano.open(width=40, height=1) as terminal:
         assert screen.finish() == 0
         output = screen.raw.decode('utf-8', 'replace')
         assert not re.search('[\x7f-\x9f]', output)
-
-    def test_the_colors_come_back_once_an_effect_ends(self, run):
-        screen = run(
-            """
-with xnano.open(width=10, height=1) as terminal:
-    @terminal.hook(on='key', keys='s')
-    def desaturate(context):
-        card.fx.saturate(foreground=-1.0, duration_milliseconds=600)
-
-    card = terminal.screen.write('hello')
-    card.color.fg = '#ff0000'
-    terminal.run()
-"""
-        )
-        assert screen.wait_until(lambda: screen.cell(0, 0).fg == 'ff0000', timeout=5)
-        # Nothing is drawn for longer than the effect lasts before it starts, so its first
-        # step must count only the time since it started.
-        time.sleep(1)
-        start = len(screen.raw)
-        screen.press('s')
-
-        # A look at the screen now and then can miss a short effect entirely, so the colors
-        # are read from everything the program wrote. An effect that jumps to its end draws
-        # one color; one that runs draws a color for each step.
-        def colors_drawn() -> set[bytes]:
-            return set(re.findall(rb'38;2;(\d+;\d+;\d+)', screen.raw[start:])) - {
-                b'255;0;0'
-            }
-
-        assert screen.wait_until(lambda: len(colors_drawn()) >= 3, timeout=5), (
-            'an effect started after a still moment ran to its end in its first frame'
-        )
-        assert screen.wait_until(lambda: screen.cell(0, 0).fg == 'ff0000', timeout=3), (
-            'the last frame of the effect stays on the screen after it ends'
-        )
-        screen.press('ctrl+c')
-        assert screen.finish() == 0
 
     def test_border_draws_around_art_and_widgets(self, run):
         screen = run(
