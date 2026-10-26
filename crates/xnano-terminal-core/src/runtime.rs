@@ -2962,7 +2962,7 @@ impl PyRuntime {
             stamp = stamp.max(tree_modified(core));
             compose(core, &mut frame, (0, 0), area, PasteMode::Transparent);
         }
-        let (completed, effect_errors) = runtime.apply_effects(&mut frame, delta);
+        let (completed, effect_errors) = runtime.apply_effects(&mut frame, elapsed, delta);
         drop(runtime);
         for callback in completed {
             callback.bind(py).call0()?;
@@ -3073,9 +3073,15 @@ impl PyRuntime {
     }
 
     /// Advance and apply the running effects; returns the completion callbacks to call.
-    fn apply_effects(&self, frame: &mut Grid, delta: f64) -> (Vec<Py<PyAny>>, Vec<String>) {
+    /// Advance every running effect by `delta`, the seconds since the previous frame, and draw
+    /// it into `frame`; `elapsed` is the clock's time now.
+    fn apply_effects(
+        &self,
+        frame: &mut Grid,
+        elapsed: f64,
+        delta: f64,
+    ) -> (Vec<Py<PyAny>>, Vec<String>) {
         let running: Vec<_> = lock(&self.shared.motion).effects.clone();
-        let elapsed_ms = (delta * 1000.0).round() as u32;
         let mut callbacks = Vec::new();
         let mut errors = Vec::new();
         let mut has_effect_ended = false;
@@ -3109,7 +3115,15 @@ impl PyRuntime {
             };
             let environment = crate::widgets::environment_of(&running.target);
             let placement = running.placement.clone();
-            let step = if running.is_paused { 0 } else { elapsed_ms };
+            // An effect started since the previous frame has run only since it started. The
+            // whole time since that frame would carry an effect started after a still moment
+            // to its end at once, so it would never be seen.
+            let seconds = delta.min((elapsed - running.started_seconds).max(0.0));
+            let step = if running.is_paused {
+                0
+            } else {
+                (seconds * 1000.0).round() as u32
+            };
             let result = running.run.advance(
                 environment.as_ref(),
                 step,

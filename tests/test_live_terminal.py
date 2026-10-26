@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 import sys
+import time
 
 import pytest
 
@@ -574,8 +575,13 @@ with xnano.open(width=10, height=1) as terminal:
 """
         )
         assert screen.wait_until(lambda: screen.cell(0, 0).fg == 'ff0000', timeout=5)
+        # Nothing is drawn for longer than the effect lasts before it starts, so its first
+        # step must count only the time since it started.
+        time.sleep(1)
         screen.press('s')
-        assert screen.wait_until(lambda: screen.cell(0, 0).fg != 'ff0000', timeout=5)
+        assert screen.wait_until(lambda: screen.cell(0, 0).fg != 'ff0000', timeout=5), (
+            'an effect started after a still moment ran to its end in its first frame'
+        )
         assert screen.wait_until(lambda: screen.cell(0, 0).fg == 'ff0000', timeout=3), (
             'the last frame of the effect stays on the screen after it ends'
         )

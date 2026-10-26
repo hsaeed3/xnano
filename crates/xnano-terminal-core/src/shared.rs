@@ -342,6 +342,9 @@ pub struct RunningEffect {
     pub is_cancelled: bool,
     pub completed: Vec<Py<PyAny>>,
     pub error: Option<String>,
+    /// The clock's time when the effect started. Its first step counts only the time since
+    /// then, not the whole time since the frame before it.
+    pub started_seconds: f64,
 }
 
 /// A running effect shared between the runtime and the handles that control it.
