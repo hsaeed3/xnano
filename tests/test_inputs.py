@@ -330,10 +330,21 @@ class TestHeldKeys:
     def test_an_alias_or_a_capital_matches_the_key_that_is_held(self, canvas):
         assert canvas.keyboard.held_keys == frozenset()
         push(canvas, Event.key_press('escape'))
-        push(canvas, Event.key_press('space'))
         assert canvas.keyboard.is_down('Esc') is True
+        push(canvas, Event.key_press('space'))
         assert canvas.keyboard.is_down('Space') is True
         assert canvas.keyboard.is_down('Enter') is False
+
+    def test_a_key_hook_counts_its_own_key_and_not_the_one_before(self, canvas):
+        directions = []
+        canvas.hook(
+            lambda context: directions.append(context.keyboard.direction()), on='key'
+        )
+        for key in ('left', 'left', 'right'):
+            push(canvas, Event.key_press(key))
+        # Without release reports, only the newest key held repeats.
+        assert directions == [(-1, 0), (-1, 0), (1, 0)]
+        assert canvas.keyboard.held_keys == {'right'}
 
     def test_a_key_binding_or_a_modifier_is_explained(self, canvas):
         with pytest.raises(
