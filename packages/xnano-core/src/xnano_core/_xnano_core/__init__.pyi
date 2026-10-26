@@ -2596,6 +2596,9 @@ class InputState:
         """
         Guess held keys from key repeats when releases are not reported.
 
+        A terminal repeats only the newest key held, so a press of a different key ends the
+        estimate of the key before it, and at most one key is estimated at a time.
+
         Args:
             timeout_seconds: How long after the last repeat a key counts as held. Positive.
                 ``None`` turns estimates off. The timeout cannot account for the operating
@@ -2604,7 +2607,12 @@ class InputState:
         Examples:
             ```python
             with Runtime.offscreen(width=10, height=3) as runtime:
+                runtime.mount(Buffer())
                 runtime.input.estimate_holds(timeout_seconds=0.5)
+                runtime.inject(Event.key_press('left'))
+                runtime.inject(Event.key_press('right'))
+                runtime.step()
+                assert runtime.input.estimated_pressed_keys == {'right'}
                 runtime.input.estimate_holds(timeout_seconds=None)
             ```
         """

@@ -1446,11 +1446,14 @@ class TestPolledInput:
         with new(width=12, height=1) as canvas:
             assert canvas.keyboard.direction() == (0, 0)
             dispatch(canvas, Event.key_press('d'))
-            dispatch(canvas, Event.key_press('up'))
             assert canvas.keyboard.is_down('d')
-            assert canvas.keyboard.direction() == (1, -1)
-            dispatch(canvas, Event.key_press('d', kind='release'))
+            assert canvas.keyboard.direction() == (1, 0)
+            # Without release reports, only the newest key held repeats, so it takes the place
+            # of the key before it.
+            dispatch(canvas, Event.key_press('up'))
             assert canvas.keyboard.direction() == (0, -1)
+            dispatch(canvas, Event.key_press('up', kind='release'))
+            assert canvas.keyboard.direction() == (0, 0)
             assert canvas.keyboard.axis('q', 'e') == 0
 
 

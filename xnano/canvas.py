@@ -95,6 +95,7 @@ from xnano.components import (
 )
 from xnano.devices._clock import Clock
 from xnano.devices._cursor import Cursor
+from xnano.devices._input import _ESTIMATED_HOLD_SECONDS
 from xnano.devices._keyboard import Keyboard
 from xnano.devices._mouse import Mouse
 from xnano.devices._output import Output
@@ -657,7 +658,6 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     _speaker_view: Speaker | None = None
     _keyboard_view: Keyboard | None = None
     _mouse_view: Mouse | None = None
-    _estimated_holds_state: _core.InputState | None = None
     _audio: AudioDevice | None = None
     # The runtime and what it owns, once the canvas is attached to one.
     _runtime_object: _core.Runtime | None = None
@@ -854,6 +854,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         self._clock = runtime.clock
         self._cursor = runtime.cursor
         self._input_state = runtime.input
+        # From the first key, so a hook reading the held keys counts the key it is handling.
+        runtime.input.estimate_holds(timeout_seconds=_ESTIMATED_HOLD_SECONDS)
         if self._is_live:
             from xnano.terminal._screen import warn_if_output_is_not_held_back
 
