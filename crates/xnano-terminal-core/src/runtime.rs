@@ -3075,6 +3075,7 @@ impl PyRuntime {
         let elapsed_ms = (delta * 1000.0).round() as u32;
         let mut callbacks = Vec::new();
         let mut errors = Vec::new();
+        let mut has_effect_ended = false;
         for entry in &running {
             let mut running = lock(entry);
             if running.is_cancelled {
@@ -3126,11 +3127,18 @@ impl PyRuntime {
             if running.run.is_done() {
                 callbacks.append(&mut running.completed);
             }
+            // An effect that finished or failed drew into this frame for the last time.
+            has_effect_ended |= running.run.is_done() || running.is_cancelled;
         }
         lock(&self.shared.motion).effects.retain(|entry| {
             let entry = lock(entry);
             !entry.is_cancelled && !entry.run.is_done()
         });
+        // Nothing else may change after an effect ends, so the frame that shows the content
+        // without it is asked for here instead of waiting for an unrelated change.
+        if has_effect_ended {
+            self.shared.request_frame();
+        }
         (callbacks, errors)
     }
 }
