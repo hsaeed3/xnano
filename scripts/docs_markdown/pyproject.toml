@@ -1,0 +1,13 @@
+[project]
+name = "xnano-docs-markdown"
+version = "0.1.0"
+description = "The Markdown extension behind code block comments in the xnano documentation."
+requires-python = ">=3.10"
+dependencies = ["markdown>=3.5"]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["xnano_docs_markdown"]

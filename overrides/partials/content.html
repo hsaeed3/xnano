@@ -1,0 +1,38 @@
+{#-
+  A documentation page as a publication spread: a masthead carrying the page title, then the
+  reading body. The homepage composes itself from its partials and the features in index.md.
+-#}
+{% include "partials/actions.html" %}
+{% if page.is_homepage or (nav.homepage and page.url == nav.homepage.url) %}
+  <div class="xn-home">
+    {% include "partials/home.html" %}
+    {#- The examples are the <features> block of docs/index.md, laid out by the markdown
+        extension in scripts/docs_markdown. The rest of that page (its title) is kept for the
+        page's outline. #}
+    {%- if "<xn-features>" in page.content %}
+    <div class="xn-home__text">
+      {{ page.content
+         | replace("<xn-features>", '</div><section class="xn-spreads"><div class="xn-rule"><span class="xn-label">02</span><span class="xn-label">Features</span></div><xn-features>')
+         | replace("</xn-features>", '</xn-features></section><div class="xn-home__text">')
+         | safe }}
+    </div>
+    {%- else %}
+    <div class="xn-home__text">{{ page.content }}</div>
+    {%- endif %}
+    {% include "partials/home-explore.html" %}
+  </div>
+{% else %}
+  <header class="xn-masthead">
+  {% if "<h1" not in page.content %}
+    <h1>{{ page.title | d(config.site_name, true) }}</h1>
+  </header>
+  <div class="xn-body">{{ page.content }}</div>
+  {% else %}
+    {{ page.content | replace("</h1>", "</h1></header><div class=\"xn-body\">") | safe }}
+  </div>
+  {% endif %}
+{% endif %}
+{% include "partials/tags.html" %}
+{% include "partials/source-file.html" %}
+{% include "partials/feedback.html" %}
+{% include "partials/comments.html" %}

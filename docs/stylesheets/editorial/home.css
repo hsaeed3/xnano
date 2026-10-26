@@ -1,0 +1,612 @@
+/*
+  xnano editorial theme: home.
+
+  The homepage is a sequence of spreads laid straight on the drafting table: a constructed
+  wordmark, an asymmetric statement beside a terminal exhibit, an index of the manual and
+  three spreads on what the framework draws, plays and hears.
+*/
+
+/* The homepage is not printed on a sheet: its compositions sit on the table itself. */
+.md-main__inner:has(.xn-home) {
+    min-height: 0;
+    margin-top: 0;
+    padding-top: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.md-main__inner:has(.xn-home)::before,
+.md-main__inner:has(.xn-home)::after,
+.md-main__inner:has(.xn-home) > .md-sidebar--secondary {
+    display: none;
+}
+
+@media (min-width: 76.25em) {
+    .md-main__inner:has(.xn-home) > .md-sidebar--primary {
+        display: none;
+    }
+}
+
+.md-content__inner:has(.xn-home) {
+    padding: 0 1.2rem;
+}
+
+.xn-home {
+    --xn-box: 3.2rem;
+    padding-top: 2.6rem;
+}
+
+/* Every spread opens with a running rule: its number on the left, its subject on the right. */
+.xn-home .xn-rule {
+    border-bottom-color: var(--xn-rule-strong);
+}
+
+/* ── 01: the constructed wordmark ──────────────────────────────────────────────────── */
+.xn-hero__kicker {
+    margin: 2.4rem 0 0.4rem calc(var(--xn-box) + 0.8rem);
+    color: var(--xn-ink);
+}
+
+.xn-construct {
+    display: block;
+}
+
+.xn-construct__frame {
+    position: relative;
+    width: fit-content;
+    padding: var(--xn-box) calc(var(--xn-box) + 0.8rem);
+}
+
+.xn-construct__word {
+    position: relative;
+    display: block;
+    width: fit-content;
+    padding: 0 0.03em;
+    /* Trim the line box to the letters: a lowercase word runs from x-height to baseline. */
+    text-box: trim-both ex alphabetic;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-display);
+    font-size: var(--xn-size-wordmark);
+    font-weight: 600;
+    letter-spacing: -0.055em;
+    line-height: 0.8;
+}
+
+/* The word's bounding box, in the accent like a drafting annotation. */
+.xn-construct__word::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: var(--xn-rule) solid var(--xn-accent);
+}
+
+.xn-construct__guide {
+    position: absolute;
+    background: var(--xn-accent);
+    opacity: 0.45;
+}
+
+.xn-construct__guide--top,
+.xn-construct__guide--bottom {
+    left: 0;
+    right: 0;
+    height: var(--xn-rule);
+}
+
+.xn-construct__guide--top {
+    top: var(--xn-box);
+}
+
+.xn-construct__guide--bottom {
+    bottom: var(--xn-box);
+}
+
+.xn-construct__guide--left,
+.xn-construct__guide--right {
+    top: 0;
+    bottom: 0;
+    width: var(--xn-rule);
+}
+
+.xn-construct__guide--left {
+    left: calc(var(--xn-box) + 0.8rem);
+}
+
+.xn-construct__guide--right {
+    right: calc(var(--xn-box) + 0.8rem);
+}
+
+/* Registration boxes at the four corners of the drawing. */
+.xn-construct__corner {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--xn-box);
+    height: var(--xn-box);
+    border: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: var(--xn-sheet);
+}
+
+.xn-construct__corner::after {
+    content: "\00d7";
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: 0.62rem;
+}
+
+.xn-construct__corner--top-left { top: 0; left: 0; }
+.xn-construct__corner--top-right { top: 0; right: 0; }
+.xn-construct__corner--bottom-left { bottom: 0; left: 0; }
+.xn-construct__corner--bottom-right { bottom: 0; right: 0; }
+
+/* The word's real measurements, filled in by js/construction.js. */
+.xn-construct__height,
+.xn-construct__width {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.06em;
+}
+
+.xn-construct__height {
+    top: 50%;
+    left: 0;
+    width: calc(var(--xn-box) + 0.8rem);
+    justify-content: flex-end;
+    gap: 0.35rem;
+    transform: translateY(-50%);
+}
+
+.xn-construct__height::after {
+    content: "";
+    width: 0.5rem;
+    height: var(--xn-rule);
+    background: var(--xn-accent);
+}
+
+.xn-construct__width {
+    left: calc(var(--xn-box) + 0.8rem);
+    right: calc(var(--xn-box) + 0.8rem);
+    bottom: calc(var(--xn-box) / 2 - 0.35rem);
+    gap: 0.5rem;
+}
+
+.xn-construct__width::before,
+.xn-construct__width::after {
+    content: "";
+    flex: 1;
+    height: 0.4rem;
+    background:
+        linear-gradient(var(--xn-accent), var(--xn-accent)) center / 100% var(--xn-rule) no-repeat;
+}
+
+.xn-construct__width::before {
+    box-shadow: inset var(--xn-rule) 0 0 var(--xn-accent);
+}
+
+.xn-construct__width::after {
+    box-shadow: inset calc(-1 * var(--xn-rule)) 0 0 var(--xn-accent);
+}
+
+/* ── The statement and the terminal exhibit ────────────────────────────────────────── */
+.xn-split {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 3.2rem;
+    align-items: start;
+    margin-top: 3.6rem;
+    padding-top: 2.4rem;
+    border-top: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.xn-split__mark {
+    position: absolute;
+    top: 48%;
+}
+
+.xn-split__mark--left {
+    left: -2.4rem;
+}
+
+.xn-split__mark--right {
+    right: -2.4rem;
+}
+
+.xn-statement {
+    max-width: 23em;
+    margin: 0.2rem 0 0;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-mono);
+    font-size: 0.88rem;
+    line-height: 1.62;
+}
+
+.xn-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin: 2rem 0 2.6rem;
+}
+
+.xn-meta span {
+    margin: 0 0.7em;
+    color: var(--xn-rule-strong);
+}
+
+.md-typeset .xn-terminal,
+.md-typeset .xn-spread__figure {
+    text-align: left;
+}
+
+.xn-terminal .md-clipboard,
+.xn-terminal .md-code__nav {
+    display: none;
+}
+
+/* The hero's example: its code, then what it draws, in the page's own colors. */
+.xn-terminal {
+    --xn-crop-color: var(--xn-rule-strong);
+    position: relative;
+    margin: 0;
+    border: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: var(--xn-code-bg);
+    color: var(--xn-ink);
+}
+
+.md-typeset .xn-terminal__code {
+    margin: 0;
+    padding: 1.1rem 1.2rem 1rem;
+    background: transparent;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-mono);
+    font-size: 0.6rem;
+    line-height: 1.75;
+    overflow-x: auto;
+}
+
+.md-typeset .xn-terminal__code code {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: inherit;
+}
+
+.xn-terminal .xn-k { color: var(--xn-syntax-keyword); }
+.xn-terminal .xn-f { color: var(--xn-syntax-function); }
+.xn-terminal .xn-s { color: var(--xn-syntax-string); }
+
+.xn-terminal__screen {
+    border-top: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+/* The render keeps a blank terminal row under the picture; the frame crops it away. */
+.xn-terminal__screen img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 25 / 16;
+    object-fit: cover;
+    object-position: 50% 0;
+}
+
+/* ── 02: the index of the manual ───────────────────────────────────────────────────── */
+.xn-index {
+    margin-top: 5.2rem;
+}
+
+.md-typeset ol.xn-index__list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.md-typeset .xn-index__list > li {
+    margin: 0;
+    padding: 0;
+}
+
+.xn-index__list > li + li {
+    border-left: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.md-typeset a.xn-index__entry {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    height: 100%;
+    padding: 1.1rem 1.3rem 1.6rem;
+    color: var(--xn-ink);
+    text-decoration: none;
+}
+
+.xn-index__title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.7rem;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+    font-family: var(--xn-font-text);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.xn-index__title .xn-arrow {
+    color: var(--xn-accent);
+}
+
+.xn-index__figure {
+    width: 100%;
+    height: auto;
+    margin: 0.3rem 0;
+    fill: none;
+    stroke: var(--xn-ink-3);
+    stroke-width: 1;
+    transition: stroke var(--xn-speed) var(--xn-ease);
+}
+
+.xn-index__figure .xn-fill {
+    fill: var(--xn-page);
+}
+
+.xn-index__figure .xn-pixels rect {
+    fill: var(--xn-ink-3);
+    stroke: none;
+    transition: fill var(--xn-speed) var(--xn-ease);
+}
+
+.xn-index__figure .xn-dot {
+    fill: var(--xn-ink-3);
+    stroke: none;
+}
+
+.xn-index__figure .xn-dots {
+    stroke: none;
+}
+
+.xn-index__entry:hover .xn-index__figure {
+    stroke: var(--xn-ink);
+}
+
+.xn-index__entry:hover .xn-pixels rect {
+    fill: var(--xn-ink);
+}
+
+.xn-index__text {
+    color: var(--xn-ink-2);
+    font-size: 0.66rem;
+    line-height: 1.55;
+}
+
+/* ── 03: spreads ───────────────────────────────────────────────────────────────────── */
+.xn-spreads {
+    margin-top: 5.2rem;
+}
+
+.xn-spread {
+    display: grid;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    grid-template-areas:
+        "word figure"
+        "text figure";
+    column-gap: 3.2rem;
+    row-gap: 1.2rem;
+    padding: 3rem 0 3.2rem;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.xn-spread--reverse {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    grid-template-areas:
+        "figure word"
+        "figure text";
+}
+
+.md-typeset .xn-spread__word {
+    grid-area: word;
+    align-self: end;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-display);
+    font-size: var(--xn-size-editorial);
+    font-weight: 400;
+    letter-spacing: -0.045em;
+    line-height: 0.9;
+}
+
+.md-typeset .xn-spread__word::before,
+.md-typeset .xn-spread__word::after {
+    display: none;
+}
+
+.xn-spread__text {
+    grid-area: text;
+    align-self: start;
+    max-width: 25rem;
+    margin: 0;
+    color: var(--xn-ink-2);
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
+.md-typeset .xn-spread__figure {
+    grid-area: figure;
+    align-self: center;
+    margin: 0;
+}
+
+/* The animations are drawn on the table's own color, so they sit on it without a frame. */
+.xn-spread__figure img {
+    display: block;
+    width: 100%;
+}
+
+/* The examples' wrapper, and the page's own text around it: only the title, which the
+   homepage keeps for its outline but does not show. */
+xn-features {
+    display: block;
+}
+
+.xn-home__text {
+    max-width: var(--xn-reading);
+}
+
+.md-typeset .xn-spread__text > p {
+    margin: 0;
+}
+
+.md-typeset .xn-spread__text > p + p {
+    margin-top: 0.7em;
+}
+
+.xn-home__text > h1:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+/* ── Narrower screens: the compositions re-stack ───────────────────────────────────── */
+@media (max-width: 59.9375em) {
+    .xn-home {
+        --xn-box: 2.2rem;
+    }
+
+    .xn-construct {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+    }
+
+    .xn-split {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2.4rem;
+    }
+
+    .xn-split__mark {
+        display: none;
+    }
+
+    .md-typeset ol.xn-index__list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .xn-index__list > li:nth-child(3) {
+        border-left: 0;
+    }
+
+    .xn-index__list > li:nth-child(n + 3) {
+        border-top: var(--xn-rule) solid var(--xn-rule-subtle);
+    }
+
+    .xn-spread,
+    .xn-spread--reverse {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "word"
+            "text"
+            "figure";
+    }
+}
+
+@media (max-width: 44.9375em) {
+    .xn-home {
+        --xn-box: 1.4rem;
+        padding-top: 1.6rem;
+    }
+
+    .xn-hero__kicker {
+        margin-left: 0;
+    }
+
+    .xn-construct__frame {
+        width: 100%;
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+    }
+
+    .xn-construct__word {
+        font-size: 22vw;
+    }
+
+    .xn-construct__corner,
+    .xn-construct__height {
+        display: none;
+    }
+
+    .xn-construct__guide--left {
+        left: 0.6rem;
+    }
+
+    .xn-construct__guide--right {
+        right: 0.6rem;
+    }
+
+    .xn-construct__width {
+        left: 0.6rem;
+        right: 0.6rem;
+    }
+
+    .md-typeset ol.xn-index__list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .xn-index__list > li + li {
+        border-left: 0;
+        border-top: var(--xn-rule) solid var(--xn-rule-subtle);
+    }
+
+    /* Each entry becomes a compact row: a small schematic beside its title and text. */
+    .md-typeset a.xn-index__entry {
+        display: grid;
+        grid-template-columns: 5.4rem minmax(0, 1fr);
+        grid-template-areas:
+            "figure label"
+            "figure title"
+            "figure text";
+        column-gap: 1.1rem;
+        row-gap: 0.35rem;
+        padding: 1.1rem 0 1.2rem;
+    }
+
+    .xn-index__entry > .xn-label {
+        grid-area: label;
+    }
+
+    .xn-index__title {
+        grid-area: title;
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+
+    .xn-index__figure {
+        grid-area: figure;
+        align-self: center;
+        margin: 0;
+    }
+
+    .xn-index__text {
+        grid-area: text;
+    }
+}
+
+/* The theme indents every list for prose; these lists are layouts, not prose. */
+.md-typeset .xn-index__list,
+.md-typeset .xn-index__list > li {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.xn-statement em {
+    font-family: var(--xn-font-display);
+    font-style: italic;
+}

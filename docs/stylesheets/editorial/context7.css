@@ -1,0 +1,268 @@
+/*
+  xnano editorial theme: the Context7 chat widget.
+
+  Added to the widget's shadow root by js/context7.js, not to the page. The site's tokens
+  (--xn-*) inherit into the shadow root, so the widget follows the light and dark schemes
+  with the rest of the page. The widget's own styles are set inline, hence !important.
+*/
+:host {
+    font-family: var(--xn-font-text) !important;
+}
+
+/* The launcher: a square in the accent, in the corner of the table. */
+.c7-bubble {
+    right: 20px !important;
+    bottom: 20px !important;
+    width: 2.6rem !important;
+    height: 2.6rem !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--xn-accent) !important;
+    box-shadow: none !important;
+    color: var(--xn-on-accent) !important;
+    transition: background-color var(--xn-speed) var(--xn-ease) !important;
+}
+
+.c7-bubble:hover {
+    background: var(--xn-accent-ink) !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.c7-bubble svg {
+    width: 1.05rem !important;
+    height: 1.05rem !important;
+}
+
+/* The panel: a small sheet with hairlines, never rounded or shadowed. */
+.c7-panel {
+    right: 20px !important;
+    bottom: calc(20px + 2.6rem + 12px) !important;
+    width: min(440px, calc(100vw - 40px)) !important;
+    height: min(620px, calc(100vh - 160px)) !important;
+    border: var(--xn-rule) solid var(--xn-rule-strong) !important;
+    border-radius: 0 !important;
+    background: var(--xn-sheet) !important;
+    box-shadow: none !important;
+    color: var(--xn-ink) !important;
+    transition:
+        opacity var(--xn-speed) var(--xn-ease),
+        transform var(--xn-speed) var(--xn-ease),
+        visibility var(--xn-speed) !important;
+}
+
+.c7-header,
+.c7-input-area,
+.c7-footer {
+    border-color: var(--xn-rule-subtle) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+}
+
+.c7-header {
+    padding: 0.7rem 1rem !important;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle) !important;
+}
+
+.c7-header-title {
+    color: var(--xn-ink) !important;
+    font-family: var(--xn-font-mono) !important;
+    font-size: 0.54rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+}
+
+.c7-close,
+.c7-powered {
+    color: var(--xn-ink-3) !important;
+    transition: color var(--xn-speed) var(--xn-ease) !important;
+}
+
+.c7-close:hover,
+.c7-powered:hover {
+    color: var(--xn-ink) !important;
+}
+
+.c7-messages {
+    background: transparent !important;
+}
+
+/* Messages: answers hang off a margin rule; questions sit in an outlined box. */
+.c7-msg,
+.c7-tool-call,
+.c7-typing {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-family: var(--xn-font-text) !important;
+    font-size: 0.66rem !important;
+    line-height: 1.6 !important;
+}
+
+.c7-msg.assistant,
+.c7-tool-call,
+.c7-typing {
+    padding: 0.1rem 0 0.1rem 0.8rem !important;
+    border: 0 !important;
+    border-left: var(--xn-rule) solid var(--xn-rule-strong) !important;
+    background: transparent !important;
+    color: var(--xn-ink) !important;
+}
+
+.c7-msg.user {
+    border: var(--xn-rule) solid var(--xn-rule-strong) !important;
+    background: var(--xn-code-bg) !important;
+    color: var(--xn-ink) !important;
+}
+
+.c7-msg.assistant a,
+.c7-tool-toggle {
+    color: var(--xn-ink) !important;
+    text-decoration: underline !important;
+    text-decoration-color: var(--xn-accent) !important;
+    text-underline-offset: 0.22em !important;
+}
+
+.c7-tool-header {
+    color: var(--xn-ink-3) !important;
+    font-family: var(--xn-font-mono) !important;
+    font-size: 0.52rem !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+}
+
+.c7-msg.assistant code {
+    padding: 0.05em 0.3em !important;
+    border: var(--xn-rule) solid var(--xn-rule-subtle) !important;
+    border-radius: 0 !important;
+    background: var(--xn-code-bg) !important;
+    color: var(--xn-ink) !important;
+    font-family: var(--xn-font-mono) !important;
+    font-size: 0.86em !important;
+}
+
+.c7-msg.assistant pre,
+.c7-tool-content pre {
+    border: var(--xn-rule) solid var(--xn-rule-subtle) !important;
+    border-radius: 0 !important;
+    background: var(--xn-code-bg) !important;
+    color: var(--xn-ink) !important;
+    font-family: var(--xn-font-mono) !important;
+    font-size: 0.6rem !important;
+}
+
+.c7-msg.assistant pre code {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+
+/* The question field and its send control. */
+.c7-input-area {
+    border-top: var(--xn-rule) solid var(--xn-rule-subtle) !important;
+}
+
+.c7-input {
+    border: var(--xn-rule) solid var(--xn-rule-subtle) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--xn-ink) !important;
+    font-family: var(--xn-font-text) !important;
+    font-size: 0.7rem !important;
+    transition: border-color var(--xn-speed) var(--xn-ease) !important;
+}
+
+.c7-input:focus {
+    border-color: var(--xn-accent) !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.c7-input::placeholder {
+    color: var(--xn-ink-3) !important;
+}
+
+.c7-send {
+    border: var(--xn-rule) solid var(--xn-accent) !important;
+    border-radius: 0 !important;
+    background: var(--xn-accent) !important;
+    box-shadow: none !important;
+    color: var(--xn-on-accent) !important;
+    font-family: var(--xn-font-mono) !important;
+    font-size: 0.6rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.04em !important;
+    transition: background-color var(--xn-speed) var(--xn-ease) !important;
+}
+
+.c7-send:hover {
+    background: var(--xn-accent-ink) !important;
+    border-color: var(--xn-accent-ink) !important;
+}
+
+.c7-footer {
+    border-top: var(--xn-rule) solid var(--xn-rule-subtle) !important;
+}
+
+.c7-powered {
+    font-family: var(--xn-font-mono) !important;
+    font-size: 0.5rem !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+}
+
+.c7-logo {
+    border-radius: 0 !important;
+}
+
+/* Tables in answers, set like the documentation's own. */
+.c7-table-wrapper {
+    max-width: 100%;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+}
+
+.c7-table-wrapper table {
+    width: 100%;
+    border-collapse: collapse;
+    border-top: var(--xn-rule) solid var(--xn-ink);
+    border-bottom: var(--xn-rule) solid var(--xn-rule-strong);
+    font-size: 0.62rem;
+    line-height: 1.45;
+}
+
+.c7-table-wrapper th,
+.c7-table-wrapper td {
+    padding: 0.4rem 0.8rem 0.4rem 0;
+    border: 0;
+    border-top: var(--xn-rule) solid var(--xn-rule-subtle);
+    text-align: left;
+    vertical-align: top;
+}
+
+.c7-table-wrapper th {
+    border-top: 0;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-strong);
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-mono);
+    font-size: 0.5rem;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+    .c7-panel {
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 85% !important;
+        border-width: var(--xn-rule) 0 0 !important;
+    }
+
+    .c7-bubble {
+        right: 16px !important;
+        bottom: 16px !important;
+    }
+}

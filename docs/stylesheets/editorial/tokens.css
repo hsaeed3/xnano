@@ -1,0 +1,163 @@
+/*
+  xnano editorial theme: tokens.
+
+  Every color, font, measurement and motion the theme uses is declared here: once for the
+  light publication (the "default" scheme) and once for the dark drafting surface (the
+  "slate" scheme). The page is a cool table; each document is a sheet laid on it.
+*/
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Geist+Pixel:ELSH@1..80&display=swap");
+
+:root {
+    /* Typography: an editorial serif, a functional sans and a technical mono. */
+    --xn-font-display: "IBM Plex Serif", "Iowan Old Style", Georgia, serif;
+    --xn-font-text: var(--md-text-font, "Geist"), "Helvetica Neue", Arial, sans-serif;
+    --xn-font-mono: var(--md-code-font, "Geist Mono"), "SFMono-Regular", Menlo, monospace;
+    --xn-font-index: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --xn-font-pixel: "Geist Pixel", var(--xn-font-mono);
+    /* Geist Pixel draws its pixels in the shape its ELSH axis names: 1 square, 20 circle,
+       40 grid, 60 triangle, 80 line. */
+    --xn-pixel-shape: 1;
+
+    /* Scale: oversized display type against small technical labels. */
+    --xn-size-wordmark: clamp(5rem, 16vw, 12.5rem);
+    --xn-size-editorial: clamp(2.8rem, 6.4vw, 5.6rem);
+    --xn-size-numeral: clamp(4.2rem, 8vw, 7.4rem);
+    --xn-size-title: clamp(2.4rem, 4.4vw, 4.2rem);
+    --xn-size-section: clamp(1.4rem, 2.1vw, 1.8rem);
+    --xn-size-body: 0.84rem;
+    --xn-size-label: 0.54rem;
+
+    /* The publication grid: a reading measure and a wider exhibit measure. */
+    --xn-reading: 34rem;
+    --xn-exhibit: 40rem;
+    --xn-gutter: 1.5rem;
+
+    /* Construction. */
+    --xn-grid: 24px;
+    --xn-dot: 1px;
+    --xn-rule: 1px;
+    --xn-tick: 8px;
+
+    /* Motion: one curve and one duration for every interaction. */
+    --xn-speed: 220ms;
+    --xn-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Light: a technical publication on cool paper, laid on a gray drafting table. */
+[data-md-color-scheme="default"] {
+    --xn-page: #e6e8eb;
+    --xn-sheet: #f3f4f6;
+    --xn-ink: #15171c;
+    --xn-ink-2: #4b505a;
+    --xn-ink-3: #7b808a;
+    --xn-rule-strong: #9a9fa8;
+    --xn-rule-subtle: #d8dbe0;
+    --xn-grid-dot: #c7cbd1;
+    --xn-grid-dot-sheet: #dde0e5;
+    --xn-accent: #2d5be3;
+    --xn-accent-ink: #2450d0;
+    --xn-accent-wash: #2d5be312;
+    --xn-on-accent: #ffffff;
+    --xn-code-bg: #eaecef;
+    --xn-selection: #2d5be326;
+
+    /* Named colors for code comments: color="blue" and the rest. */
+    --xn-color-blue: #2d5be3;
+    --xn-color-pink: #c2477f;
+    --xn-color-purple: #7a4fd6;
+    --xn-color-amber: #a8701a;
+    --xn-color-green: #2f8a57;
+    --xn-color-red: #c8463d;
+
+    --xn-syntax-keyword: #2450d0;
+    --xn-syntax-function: #15171c;
+    --xn-syntax-string: #3d6b4f;
+    --xn-syntax-number: #8a4a6b;
+    --xn-syntax-comment: #8a8f98;
+    --xn-syntax-operator: #4b505a;
+    --xn-syntax-variable: #15171c;
+}
+
+/* Dark: the same sheet on a drafting surface at night. */
+[data-md-color-scheme="slate"] {
+    --xn-page: #0e0f12;
+    --xn-sheet: #131417;
+    --xn-ink: #e4e5e9;
+    --xn-ink-2: #a3a7b0;
+    --xn-ink-3: #6e727b;
+    --xn-rule-strong: #4a4e57;
+    --xn-rule-subtle: #25272d;
+    --xn-grid-dot: #262930;
+    --xn-grid-dot-sheet: #1d1f24;
+    --xn-accent: #5a85ff;
+    --xn-accent-ink: #8faeff;
+    --xn-accent-wash: #5a85ff1c;
+    --xn-on-accent: #ffffff;
+    --xn-code-bg: #0f1013;
+    --xn-selection: #5a85ff33;
+
+    --xn-color-blue: #5a85ff;
+    --xn-color-pink: #e48ab4;
+    --xn-color-purple: #a98bf5;
+    --xn-color-amber: #e0a84a;
+    --xn-color-green: #6cc08b;
+    --xn-color-red: #ef7b72;
+
+    --xn-syntax-keyword: #8faeff;
+    --xn-syntax-function: #e4e5e9;
+    --xn-syntax-string: #a6cfa9;
+    --xn-syntax-number: #e0a6c4;
+    --xn-syntax-comment: #6e727b;
+    --xn-syntax-operator: #a3a7b0;
+    --xn-syntax-variable: #e4e5e9;
+}
+
+/* The theme's own variables, mapped onto the tokens so its components follow them. */
+[data-md-color-scheme="default"],
+[data-md-color-scheme="slate"] {
+    --md-default-bg-color: var(--xn-sheet);
+    --md-default-bg-color--light: var(--xn-sheet);
+    --md-default-bg-color--lighter: var(--xn-sheet);
+    --md-default-bg-color--lightest: var(--xn-sheet);
+    --md-default-fg-color: var(--xn-ink);
+    --md-default-fg-color--light: var(--xn-ink-2);
+    --md-default-fg-color--lighter: var(--xn-ink-3);
+    --md-default-fg-color--lightest: var(--xn-rule-subtle);
+    --md-primary-fg-color: var(--xn-page);
+    --md-primary-fg-color--light: var(--xn-page);
+    --md-primary-fg-color--dark: var(--xn-page);
+    --md-primary-bg-color: var(--xn-ink);
+    --md-primary-bg-color--light: var(--xn-ink-2);
+    --md-accent-fg-color: var(--xn-accent);
+    --md-accent-fg-color--transparent: transparent;
+    --md-accent-bg-color: var(--xn-sheet);
+    --md-accent-bg-color--light: var(--xn-sheet);
+    --md-typeset-color: var(--xn-ink);
+    --md-typeset-a-color: var(--xn-ink);
+    --md-typeset-table-color: var(--xn-rule-subtle);
+    --md-typeset-table-color--light: var(--xn-accent-wash);
+    --md-code-bg-color: var(--xn-code-bg);
+    --md-code-fg-color: var(--xn-ink);
+    --md-code-hl-color: var(--xn-accent);
+    --md-code-hl-color--light: var(--xn-accent-wash);
+    --md-code-hl-keyword-color: var(--xn-syntax-keyword);
+    --md-code-hl-function-color: var(--xn-syntax-function);
+    --md-code-hl-string-color: var(--xn-syntax-string);
+    --md-code-hl-number-color: var(--xn-syntax-number);
+    --md-code-hl-constant-color: var(--xn-syntax-number);
+    --md-code-hl-special-color: var(--xn-syntax-keyword);
+    --md-code-hl-name-color: var(--xn-syntax-variable);
+    --md-code-hl-variable-color: var(--xn-syntax-variable);
+    --md-code-hl-comment-color: var(--xn-syntax-comment);
+    --md-code-hl-generic-color: var(--xn-syntax-comment);
+    --md-code-hl-operator-color: var(--xn-syntax-operator);
+    --md-code-hl-punctuation-color: var(--xn-syntax-operator);
+    --md-footer-bg-color: var(--xn-page);
+    --md-footer-bg-color--dark: var(--xn-page);
+    --md-footer-fg-color: var(--xn-ink);
+    --md-footer-fg-color--light: var(--xn-ink-2);
+    --md-footer-fg-color--lighter: var(--xn-ink-3);
+    --md-shadow-z1: none;
+    --md-shadow-z2: none;
+    --md-shadow-z3: none;
+}

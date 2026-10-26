@@ -25,6 +25,7 @@ members = ['packages/*']
 xnano-core = { workspace = true }
 xnano-audio = { workspace = true }
 xnano-image = { workspace = true }
+xnano-docs-markdown = { path = "scripts/docs_markdown", editable = true }
 
 [project]
 name = 'xnano'
@@ -118,6 +119,8 @@ docs = [
     "mkdocs-click",
     "mkdocstrings-python",
     "markdown-exec[ansi]",
+    # reads `<comments>` after code blocks (scripts/docs_markdown)
+    "xnano-docs-markdown",
 ]
 compare = [
     "prompt-toolkit>=3.0.53",

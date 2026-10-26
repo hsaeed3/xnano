@@ -2220,6 +2220,7 @@ docs = [
     { name = "mkdocs-material" },
     { name = "mkdocstrings-python" },
     { name = "termynal" },
+    { name = "xnano-docs-markdown" },
     { name = "zensical", version = "0.0.67", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "zensical", version = "0.0.69", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
@@ -2264,6 +2265,7 @@ docs = [
     { name = "mkdocs-material" },
     { name = "mkdocstrings-python" },
     { name = "termynal", specifier = ">=0.14.0" },
+    { name = "xnano-docs-markdown", editable = "scripts/docs_markdown" },
     { name = "zensical", specifier = ">=0.0.50" },
 ]
 
@@ -2380,6 +2382,18 @@ dev = [
     { name = "pytest-mock", specifier = ">=3.16.0" },
     { name = "ruff", specifier = ">=0.16.10" },
 ]
+
+[[package]]
+name = "xnano-docs-markdown"
+version = "0.1.0"
+source = { editable = "scripts/docs_markdown" }
+dependencies = [
+    { name = "markdown", version = "3.10.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "markdown", version = "3.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "markdown", specifier = ">=3.5" }]
 
 [[package]]
 name = "xnano-image"

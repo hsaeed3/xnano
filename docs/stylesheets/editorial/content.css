@@ -1,0 +1,929 @@
+/*
+  xnano editorial theme: content.
+
+  A page is a spread on the open grid: its title, then a reading body with a hanging margin
+  for section numerals, a reading measure for prose and a wider measure for exhibits: code,
+  tables and figures.
+*/
+.md-content {
+    max-width: none;
+}
+
+.md-content__inner {
+    margin: 0;
+    padding: 0;
+}
+
+.md-content__inner::before {
+    display: none;
+}
+
+.md-typeset {
+    color: var(--xn-ink);
+    font-family: var(--xn-font-text);
+    font-size: var(--xn-size-body);
+    line-height: 1.7;
+}
+
+/* ── Masthead ───────────────────────────────────────────────────────────────────────── */
+.xn-masthead {
+    position: relative;
+    padding: 2rem var(--xn-gutter) 1.1rem;
+}
+
+/* The title sits in a hairline box drawn like the header's Get Started action. The box
+   follows the title's lines (see docs/js/heading-box.js), so a short last line gets a short box.
+   The padding is the space on every side between the box and the letters: the title's block is
+   trimmed to the top of its capitals and its last baseline, so the box is its border edge. The
+   box hangs into the margin by its padding and by its first letter's side bearing (measured by
+   the same script), so that letter's ink starts on the text's left edge. */
+.md-typeset .xn-masthead h1 {
+    --xn-title-padding: 1rem;
+    position: relative;
+    box-sizing: content-box;
+    max-width: 20ch;
+    margin: 0 0 0 calc(-1 * var(--xn-title-padding) - var(--xn-title-bearing, 0px));
+    padding: var(--xn-title-padding);
+    border: 0;
+    text-box: trim-both cap alphabetic;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-display);
+    font-size: var(--xn-size-title);
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+}
+
+.xn-heading-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+    fill: none;
+    stroke: var(--xn-rule-strong);
+    stroke-width: var(--xn-rule);
+}
+
+/* A permalink to the top of the page has nothing to point at, and would sit on the box. */
+.md-typeset .xn-masthead h1 .headerlink {
+    display: none;
+}
+
+/* ── Body: margin, measure and exhibits ─────────────────────────────────────────────── */
+.xn-body {
+    position: relative;
+    padding: 0.4rem var(--xn-gutter) 3.4rem;
+    counter-reset: xn-heading;
+}
+
+.xn-body > * {
+    max-width: var(--xn-reading);
+}
+
+.xn-body > :is(.highlight, .md-typeset__scrollwrap, .md-typeset__table, figure, .tabbed-set, .doc) {
+    max-width: var(--xn-exhibit);
+}
+
+/* ── Headings: numbered sections under a rule ─────────────────────────────────────── */
+.md-typeset h2,
+.md-typeset h3 {
+    color: var(--xn-ink);
+}
+
+.md-typeset h2 {
+    position: relative;
+    margin: 3.6rem 0 1rem;
+    padding-top: 1.1rem;
+    font-family: var(--xn-font-pixel);
+    font-size: var(--xn-size-section);
+    font-variation-settings: "ELSH" var(--xn-pixel-shape);
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.15;
+}
+
+.xn-body > h2:first-child {
+    margin-top: 0.4rem;
+}
+
+/* A rule runs above every section, across its number and its title. */
+.xn-body > h2::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--xn-exhibit);
+    max-width: 100%;
+    height: var(--xn-rule);
+    background: var(--xn-rule-subtle);
+}
+
+/* Under the rule, the section's number sits in a hairline box like the header's Get Started
+   action, and the title below it is underlined along its own text. The number is taken out of
+   the flow so the underline stays off it; the title's top padding makes its room. */
+.xn-body > h2:not(.doc-heading) {
+    padding-top: 3.4rem;
+    counter-increment: xn-heading;
+    text-decoration-line: underline;
+    text-decoration-color: var(--xn-rule-strong);
+    text-decoration-thickness: var(--xn-rule);
+    text-underline-offset: 0.3em;
+}
+
+.xn-body > h2:not(.doc-heading)::before {
+    content: counter(xn-heading, decimal-leading-zero);
+    position: absolute;
+    top: 1.1rem;
+    left: 0;
+    padding: 0.3rem 0.45rem;
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-pixel);
+    font-size: 0.9rem;
+    font-variation-settings: "ELSH" var(--xn-pixel-shape);
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1;
+}
+
+/* The section's permalink shows beside its number. */
+.xn-body > h2:not(.doc-heading) .headerlink {
+    position: absolute;
+    top: 1.4rem;
+    left: 2.6rem;
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
+/* Section headings, h2 down, are set in Geist Pixel, stepping down in size. */
+.md-typeset h3 {
+    margin: 1.8rem 0 0.5rem;
+    font-family: var(--xn-font-pixel);
+    font-size: 1.1rem;
+    font-variation-settings: "ELSH" var(--xn-pixel-shape);
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.25;
+}
+
+.md-typeset h4,
+.md-typeset h5,
+.md-typeset h6 {
+    margin: 1.8rem 0 0.5rem;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-pixel);
+    font-variation-settings: "ELSH" var(--xn-pixel-shape);
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.3;
+    text-transform: none;
+}
+
+.md-typeset h4 {
+    font-size: 0.9rem;
+}
+
+.md-typeset h5 {
+    color: var(--xn-ink-2);
+    font-size: 0.8rem;
+}
+
+.md-typeset h6 {
+    color: var(--xn-ink-2);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.md-typeset .headerlink {
+    margin-left: 0.35em;
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-weight: 400;
+    opacity: 0;
+    transition:
+        opacity var(--xn-speed) var(--xn-ease),
+        color var(--xn-speed) var(--xn-ease);
+}
+
+.md-typeset :is(h1, h2, h3, h4, h5, h6):hover .headerlink,
+.md-typeset .headerlink:focus-visible {
+    opacity: 1;
+}
+
+.md-typeset .headerlink:hover {
+    color: var(--xn-accent);
+}
+
+.md-typeset :target {
+    --md-scroll-margin: 4.4rem;
+}
+
+/* ── Prose ──────────────────────────────────────────────────────────────────────────── */
+.md-typeset strong {
+    font-weight: 600;
+}
+
+.md-typeset ul li::marker,
+.md-typeset ol li::marker {
+    color: var(--xn-ink-3);
+}
+
+.md-typeset ol li::marker {
+    font-family: var(--xn-font-mono);
+    font-size: 0.85em;
+}
+
+.md-typeset hr {
+    margin: 2.8rem 0;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.md-typeset blockquote {
+    margin-left: 0;
+    padding: 0.1rem 0 0.1rem 1.1rem;
+    border-left: var(--xn-rule) solid var(--xn-ink);
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-display);
+    font-size: 1.06rem;
+    font-style: italic;
+    line-height: 1.5;
+}
+
+.md-typeset img,
+.md-typeset video,
+.md-typeset picture {
+    max-width: 100%;
+    height: auto;
+}
+
+.md-typeset figure figcaption {
+    margin-top: 0.6rem;
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: var(--xn-size-label);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.md-typeset kbd {
+    background: var(--xn-sheet);
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+    box-shadow: none;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-mono);
+    font-size: 0.78em;
+}
+
+/* ── Code ───────────────────────────────────────────────────────────────────────────── */
+.md-typeset code,
+.md-typeset pre,
+.md-typeset kbd {
+    font-family: var(--xn-font-mono);
+    font-feature-settings: "calt" 0;
+}
+
+.md-typeset :not(pre) > code {
+    padding: 0.06em 0.3em;
+    border: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: var(--xn-code-bg);
+    color: var(--xn-ink);
+    font-size: 0.82em;
+    word-break: normal;
+}
+
+.md-typeset a > code {
+    color: inherit;
+}
+
+/* A code block: a solid panel that hides the grid. */
+.md-typeset .highlight {
+    position: relative;
+    margin: 1.4em 0 1.6em;
+    border: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: var(--xn-code-bg);
+    box-shadow: none;
+    overflow: visible;
+}
+
+.md-typeset .highlight pre {
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+}
+
+.md-typeset pre > code {
+    padding: 1em 1.2em;
+    background: transparent;
+    font-size: 0.66rem;
+    line-height: 1.75;
+    scrollbar-color: var(--xn-rule-subtle) transparent;
+}
+
+/* A title the author gives a block (title="..."), set as a plain caption above the code. */
+.md-typeset .highlight > span.filename {
+    display: block;
+    margin: 0;
+    padding: 0.55rem 1.2rem 0.5rem;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: transparent;
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-text);
+    font-size: 0.62rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+/* Line numbers: a solid column that the code scrolls beneath. */
+.md-typeset .highlight [data-linenos]::before {
+    position: sticky;
+    left: -1.2em;
+    z-index: 1;
+    margin-right: 1.2em;
+    padding-right: 0.9em;
+    background: var(--xn-code-bg);
+    box-shadow: inset calc(-1 * var(--xn-rule)) 0 0 var(--xn-rule-subtle);
+    color: var(--xn-ink-3);
+}
+
+.md-typeset .highlight .hll {
+    background: var(--xn-accent-wash);
+    box-shadow: inset 2px 0 0 var(--xn-accent);
+}
+
+/* Copy and select sit in the header row, small and square. */
+.md-typeset .md-code__nav {
+    top: 0.22rem;
+    right: 0.35rem;
+    background: none;
+    box-shadow: none;
+}
+
+.md-typeset .md-code__button,
+.md-clipboard {
+    color: var(--xn-ink-3);
+    transition: color var(--xn-speed) var(--xn-ease);
+}
+
+.md-typeset .md-code__button:hover,
+.md-clipboard:hover,
+.md-clipboard:focus {
+    color: var(--xn-ink);
+}
+
+/* ── Tables: technical specifications ──────────────────────────────────────────────── */
+.md-typeset__scrollwrap {
+    margin: 2em 0;
+}
+
+.md-typeset__table {
+    width: 100%;
+}
+
+.md-typeset table:not([class]) {
+    display: table;
+    width: 100%;
+    border: 0;
+    border-top: var(--xn-rule) solid var(--xn-ink);
+    border-bottom: var(--xn-rule) solid var(--xn-rule-strong);
+    background: transparent;
+    font-size: 0.7rem;
+}
+
+.md-typeset table:not([class]) th {
+    padding: 0.65rem 1rem 0.55rem 0;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-strong);
+    background: transparent;
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-mono);
+    font-size: 0.5rem;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    vertical-align: bottom;
+}
+
+.md-typeset table:not([class]) td {
+    padding: 0.7rem 1rem 0.7rem 0;
+    border-top: var(--xn-rule) solid var(--xn-rule-subtle);
+    vertical-align: top;
+}
+
+.md-typeset table:not([class]) tbody tr:first-child td {
+    border-top: 0;
+}
+
+.md-typeset table:not([class]) tbody tr {
+    transition: background-color var(--xn-speed) var(--xn-ease);
+}
+
+.md-typeset table:not([class]) tbody tr:hover {
+    background: var(--xn-accent-wash);
+    box-shadow: none;
+}
+
+.md-typeset table:not([class]) td:first-child > code:only-child {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.95em;
+}
+
+/* ── Admonitions: a faint tint and a hairline in the color of their kind ───────────── */
+/* Each kind sets one color; the box takes a faint wash of it, its border a stronger one,
+   and its title a small square of it. The theme's own fills, icons and colored title bars
+   give way, hence the !important on what the theme sets per kind. */
+.md-typeset .admonition,
+.md-typeset details {
+    --xn-admonition-color: var(--xn-ink-3);
+    margin: 1.6em 0;
+    padding: 0 1.1rem;
+    border: var(--xn-rule) solid color-mix(in srgb, var(--xn-admonition-color) 40%, transparent) !important;
+    background-color: color-mix(in srgb, var(--xn-admonition-color) 7%, transparent) !important;
+    box-shadow: none;
+    color: var(--xn-ink);
+    font-size: 0.78rem;
+}
+
+.md-typeset :is(.admonition, details):is(.note, .info, .todo) {
+    --xn-admonition-color: var(--xn-color-blue);
+}
+
+.md-typeset :is(.admonition, details):is(.abstract, .summary, .tldr, .question, .help, .faq, .example) {
+    --xn-admonition-color: var(--xn-color-purple);
+}
+
+.md-typeset :is(.admonition, details):is(.tip, .hint, .important, .success, .check, .done) {
+    --xn-admonition-color: var(--xn-color-green);
+}
+
+.md-typeset :is(.admonition, details):is(.warning, .caution, .attention) {
+    --xn-admonition-color: var(--xn-color-amber);
+}
+
+.md-typeset :is(.admonition, details):is(.failure, .fail, .missing, .danger, .error) {
+    --xn-admonition-color: var(--xn-color-red);
+}
+
+.md-typeset :is(.admonition, details):is(.bug) {
+    --xn-admonition-color: var(--xn-color-pink);
+}
+
+.md-typeset :is(.admonition, details):is(.quote, .cite) {
+    --xn-admonition-color: var(--xn-ink-3);
+}
+
+/* The title: plain text, set a little heavier, after a small square of the kind's color. */
+.md-typeset .admonition-title,
+.md-typeset summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 -1.1rem;
+    padding: 0.75rem 1.1rem 0.2rem;
+    border: 0;
+    background-color: transparent !important;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-text);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.4;
+    text-transform: none;
+}
+
+/* Closed, the title is centered in its box: the same space above and below it. */
+.md-typeset details:not([open]) > summary {
+    margin-bottom: 0;
+    padding-bottom: 0.75rem;
+}
+
+/* The theme indents titles for its icon; here they start on the body's left edge. */
+[dir] .md-typeset .admonition-title,
+[dir] .md-typeset summary {
+    padding-right: 1.1rem;
+    padding-left: 1.1rem;
+}
+
+.md-typeset .admonition-title::before,
+.md-typeset summary::before {
+    position: static;
+    flex: none;
+    width: 0.32rem !important;
+    height: 0.32rem !important;
+    background-color: var(--xn-admonition-color) !important;
+    -webkit-mask: none !important;
+    mask: none !important;
+    transform: none;
+}
+
+/* A collapsible one opens and closes with a plus and a minus, like the index, set at the
+   end of its title row. */
+.md-typeset summary {
+    cursor: pointer;
+}
+
+.md-typeset details > summary::after {
+    content: "+";
+    position: static;
+    width: auto;
+    height: auto;
+    margin-left: auto;
+    background: none !important;
+    -webkit-mask: none !important;
+    mask: none !important;
+    color: var(--xn-ink-3) !important;
+    font-family: var(--xn-font-mono);
+    font-size: 0.7rem;
+    line-height: 1;
+    transform: none !important;
+}
+
+.md-typeset details[open] > summary::after {
+    content: "\2212";
+}
+
+.md-typeset details[open] > summary {
+    padding-bottom: 0.2rem;
+}
+
+.md-typeset :is(.admonition, details) > :not(.admonition-title, summary):first-of-type {
+    margin-top: 0.5rem;
+}
+
+.md-typeset .admonition > :last-child,
+.md-typeset details > :last-child {
+    margin-bottom: 0.9rem;
+}
+
+/* ── Content tabs ──────────────────────────────────────────────────────────────────── */
+.md-typeset .tabbed-labels {
+    box-shadow: inset 0 calc(-1 * var(--xn-rule)) 0 var(--xn-rule-subtle);
+}
+
+.md-typeset .tabbed-labels > label {
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-mono);
+    font-size: 0.58rem;
+    font-weight: 400;
+    transition: color var(--xn-speed) var(--xn-ease);
+}
+
+.md-typeset .tabbed-labels > label:hover,
+.md-typeset .tabbed-set > input:checked + label {
+    color: var(--xn-ink);
+}
+
+.js .md-typeset .tabbed-labels::before {
+    height: var(--xn-rule);
+    background: var(--xn-accent);
+}
+
+/* ── API reference ──────────────────────────────────────────────────────────────────── */
+.md-typeset .doc-heading {
+    font-family: var(--xn-font-mono);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.md-typeset h2.doc-heading {
+    font-size: 1rem;
+}
+
+.md-typeset .doc-heading code {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: inherit;
+}
+
+.md-typeset .doc-symbol {
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+    background: transparent !important;
+    color: var(--xn-ink-2) !important;
+    font-family: var(--xn-font-mono);
+    font-size: 0.48rem;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.md-typeset .doc-symbol-heading {
+    margin-right: 0.6em;
+    vertical-align: 0.2em;
+}
+
+.md-typeset .doc-labels .doc-label code {
+    font-family: var(--xn-font-mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.md-typeset div.doc-contents:not(.first) {
+    padding-left: 1.2rem;
+    border-left: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.md-typeset .doc-section-title {
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-mono);
+    font-size: var(--xn-size-label);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.md-typeset a.external::after,
+.md-typeset a.autorefs-external::after {
+    content: "\2197";
+    margin-left: 0.15em;
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: 0.8em;
+    transition: color var(--xn-speed) var(--xn-ease);
+}
+
+.md-typeset a.external:hover::after,
+.md-typeset a.autorefs-external:hover::after {
+    color: var(--xn-accent);
+}
+
+.doc-backlink-list {
+    display: grid;
+    list-style: none !important;
+}
+
+.doc-backlink-list li {
+    position: relative;
+    margin-left: 0 !important;
+    padding-inline-start: 1rem;
+    border-left: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.doc-backlink-list li:last-child {
+    border-color: transparent;
+}
+
+.doc-backlink-list li::before {
+    content: "";
+    position: absolute;
+    top: -0.5rem;
+    left: calc(-1 * var(--xn-rule));
+    width: 0.9rem;
+    height: 1rem;
+    border-left: var(--xn-rule) solid var(--xn-rule-subtle);
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+/* ── Narrow screens: the margin folds into the measure ────────────────────────────── */
+@media (max-width: 59.9375em) {
+    :root {
+        --xn-gutter: 1.2rem;
+    }
+
+    .xn-masthead {
+        padding-top: 1.8rem;
+        padding-bottom: 1.6rem;
+    }
+
+    .md-typeset .xn-masthead h1 {
+        --xn-title-padding: 0.7rem;
+    }
+
+}
+
+/* ── Code comments (js/code-notes.js) ──────────────────────────────────────────────── */
+/* Before the script runs, or without it, a <comments> element still reads as plain notes. */
+.md-typeset comments {
+    display: block;
+    margin: 0 0 1.2rem;
+    color: var(--xn-ink-2);
+    font-size: 0.66rem;
+}
+
+.md-typeset comments :is(tag, definition) {
+    display: block;
+    margin: 0.4rem 0;
+}
+
+.md-typeset comments definition::before {
+    content: attr(term) " ";
+    font-family: var(--xn-font-mono);
+}
+
+.xn-noted pre > code {
+    position: relative;
+    z-index: 1;
+}
+
+.xn-noted [data-xn-note]:focus,
+.xn-noted .xn-term:focus {
+    outline: none;
+}
+
+.xn-noted [data-xn-note]:focus-visible,
+.xn-noted .xn-term:focus-visible {
+    outline: var(--xn-rule) solid var(--xn-ink-3);
+    outline-offset: 2px;
+}
+
+.xn-notes {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+/* A marked line: a hairline in the margin, and while its note is open a faint wash behind
+   its code, never across the whole line. Both stay neutral unless the tag sets a color. */
+.xn-note__rule,
+.xn-note__wash {
+    --xn-note-color: var(--xn-ink);
+    position: absolute;
+    z-index: 2;
+}
+
+.xn-note__rule {
+    left: 0;
+    width: var(--xn-rule);
+    background: color-mix(in srgb, var(--xn-note-color) 35%, transparent);
+    transition: background-color var(--xn-speed) var(--xn-ease);
+}
+
+.xn-note__rule.is-active {
+    background: var(--xn-note-color);
+}
+
+.xn-note__wash {
+    transition: background-color var(--xn-speed) var(--xn-ease);
+}
+
+.xn-note__wash.is-active {
+    background: color-mix(in srgb, var(--xn-note-color) 7%, transparent);
+}
+
+/* The tooltip: a plain sheet with one border, set like a marginal note. */
+.xn-tooltip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 8;
+    width: max-content;
+    min-width: min(13rem, calc(100% - 1.5rem));
+    padding: 0.8rem 1rem 0.85rem;
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+    background: var(--xn-sheet);
+    color: var(--xn-ink);
+    font-family: var(--xn-font-text);
+    font-size: 0.64rem;
+    line-height: 1.65;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition:
+        opacity 120ms var(--xn-ease),
+        visibility 120ms;
+}
+
+.xn-tooltip.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.xn-tooltip > * + *,
+.xn-tooltip__note > :not(.xn-definitions) ~ .xn-definitions {
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.md-typeset .xn-tooltip p,
+.md-typeset .xn-tooltip ul,
+.md-typeset .xn-tooltip ol {
+    margin: 0 0 0.5em;
+}
+
+.md-typeset .xn-tooltip :is(p, ul, ol, dd > *):last-child {
+    margin-bottom: 0;
+}
+
+.md-typeset .xn-definitions {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+}
+
+.md-typeset .xn-definition dt,
+.md-typeset .xn-definition dd {
+    margin: 0;
+    padding: 0;
+}
+
+.md-typeset .xn-definition dt code {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--xn-ink);
+    font-size: 0.6rem;
+}
+
+.xn-definition__kind {
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-display);
+    font-size: 0.64rem;
+    font-style: italic;
+}
+
+.md-typeset .xn-definition dd {
+    margin-top: 0.1rem;
+    color: var(--xn-ink-2);
+}
+
+/* A defined term: a quiet rule under it, drawn per kind, in ink unless it sets a color. It
+   darkens while its line's note is open, and under the term being read it carries a faint
+   tint, as does every place the term appears. */
+.xn-term {
+    --xn-term-color: var(--xn-ink-3);
+    --xn-term-line: color-mix(in srgb, var(--xn-term-color) 55%, transparent);
+    background-image: linear-gradient(var(--xn-term-line), var(--xn-term-line));
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 100% var(--xn-rule);
+    transition: background-color var(--xn-speed) var(--xn-ease);
+}
+
+.xn-note-open .xn-term,
+.xn-term.is-active {
+    --xn-term-line: var(--xn-term-color);
+}
+
+.xn-term.is-active {
+    --xn-term-color: var(--xn-ink);
+    background-color: color-mix(in srgb, var(--xn-ink) 7%, transparent);
+}
+
+/* Classes, types and exceptions: a double rule. */
+.xn-term:is([data-kind="class"], [data-kind="type"], [data-kind="exception"]) {
+    background-image:
+        linear-gradient(var(--xn-term-line), var(--xn-term-line)),
+        linear-gradient(var(--xn-term-line), var(--xn-term-line));
+    background-position:
+        0 100%,
+        0 calc(100% - 3px);
+    background-size:
+        100% var(--xn-rule),
+        100% var(--xn-rule);
+}
+
+/* Modules and packages: a dotted rule. */
+.xn-term:is([data-kind="module"], [data-kind="package"]) {
+    background-image: radial-gradient(circle, var(--xn-term-line) 0.7px, transparent 0.9px);
+    background-repeat: repeat-x;
+    background-size: 3px 2px;
+}
+
+/* Parameters, attributes, properties and variables: a dashed rule. */
+.xn-term:is([data-kind="parameter"], [data-kind="attribute"], [data-kind="property"], [data-kind="variable"]) {
+    background-image: linear-gradient(90deg, var(--xn-term-line) 55%, transparent 0);
+    background-repeat: repeat-x;
+    background-size: 5px var(--xn-rule);
+}
+
+/* A term named in a note, and its definition, underlined while that term is being read. */
+.md-typeset .xn-mention.is-active,
+.md-typeset .xn-definition.is-active dt code {
+    text-decoration: underline;
+    text-decoration-color: var(--xn-term-color, var(--xn-ink));
+    text-decoration-thickness: var(--xn-rule);
+    text-underline-offset: 0.22em;
+}
+
+/* zensical's own code annotations and tooltips, in the same voice. */
+.md-typeset .md-annotation__index {
+    color: var(--xn-accent-ink);
+    font-family: var(--xn-font-mono);
+}
+
+.md-typeset .md-annotation__index::after {
+    border: var(--xn-rule) solid var(--xn-accent);
+    background-color: var(--xn-sheet) !important;
+}
+
+.md-typeset .md-annotation:hover .md-annotation__index::after,
+.md-typeset :focus-within > .md-annotation__index::after {
+    background-color: var(--xn-accent) !important;
+}
+
+.md-tooltip,
+.md-tooltip2__inner {
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+    background: var(--xn-sheet) !important;
+    box-shadow: none !important;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-text);
+}

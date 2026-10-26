@@ -1,0 +1,63 @@
+{#-
+  The top of the homepage: the constructed wordmark, then the statement beside its example.
+-#}
+  <section class="xn-hero" aria-label="xnano">
+    <div class="xn-rule">
+      <span class="xn-label">01</span>
+      <span class="xn-label">Introduction</span>
+    </div>
+    <p class="xn-label xn-hero__kicker">A really fun terminal experience</p>
+    <div class="xn-construct">
+      <div class="xn-construct__frame" aria-hidden="true">
+        <span class="xn-construct__corner xn-construct__corner--top-left"></span>
+        <span class="xn-construct__corner xn-construct__corner--top-right"></span>
+        <span class="xn-construct__corner xn-construct__corner--bottom-left"></span>
+        <span class="xn-construct__corner xn-construct__corner--bottom-right"></span>
+        <span class="xn-construct__guide xn-construct__guide--top"></span>
+        <span class="xn-construct__guide xn-construct__guide--bottom"></span>
+        <span class="xn-construct__guide xn-construct__guide--left"></span>
+        <span class="xn-construct__guide xn-construct__guide--right"></span>
+        <span class="xn-construct__height"><span data-xn-measure="height">&nbsp;</span></span>
+        <span class="xn-construct__width"><span data-xn-measure="width">&nbsp;</span></span>
+        <span class="xn-construct__word">xnano</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="xn-split">
+    <span class="xn-registration xn-split__mark xn-split__mark--left" aria-hidden="true"><span></span></span>
+    <div class="xn-split__statement">
+      <p class="xn-statement">An <em>extremely nano</em> terminal experience for Python, built on <a class="xn-plain xn-underline" href="https://ratatui.rs/">ratatui</a>.</p>
+      <div class="xn-actions">
+        <a class="xn-button xn-button--primary" href="{{ 'learn/' | url }}">Get Started <span class="xn-arrow" aria-hidden="true">&nearr;</span></a>
+        <a class="xn-button" href="{{ config.repo_url }}#core-features--examples">View Examples</a>
+      </div>
+      <p class="xn-label xn-meta">Python <span>/</span> Open source <span>/</span> Cross platform</p>
+    </div>
+    <figure class="xn-terminal xn-crop" data-xn-code>
+<pre class="xn-terminal__code no-select"><code><span id="__span-hero-1"><span class="xn-k">import</span> xnano
+</span><span id="__span-hero-2">
+</span><span id="__span-hero-3">picture = xnano.<span class="xn-f">load_image</span>(<span class="xn-s">'dusk.png'</span>, width=<span class="xn-s">'100%'</span>)  <span class="c1"># &gt;&gt; [image]</span>
+</span><span id="__span-hero-4">
+</span><span id="__span-hero-5"><span class="xn-k">with</span> xnano.<span class="xn-f">open</span>() <span class="xn-k">as</span> terminal:  <span class="c1"># &gt;&gt; [terminal]</span>
+</span><span id="__span-hero-6">    terminal.screen.<span class="xn-f">write</span>(picture)  <span class="c1"># &gt;&gt; [terminal]</span>
+</span><span id="__span-hero-7">    terminal.speaker.<span class="xn-f">play</span>(<span class="xn-s">'C4 E4 G4:2'</span>, instrument=<span class="xn-s">'bell'</span>)  <span class="c1"># &gt;&gt; [speaker]</span>
+</span><span id="__span-hero-8">    terminal.<span class="xn-f">run</span>(stop_on=<span class="xn-s">'q'</span>)  <span class="c1"># &gt;&gt; [run]</span>
+</span></code></pre>
+<comments>
+  <definition term="load_image" kind="function"><p>Reads PNG, JPEG, GIF, WebP and XNI files.</p></definition>
+  <definition term="width" kind="parameter"><p>Cells, or a percentage of the screen.</p></definition>
+  <tag name="image"><p>Loads <code>dusk.png</code> at the full width of the screen.</p></tag>
+  <tag name="terminal"><p>Starts a live terminal and draws the picture on its screen.</p>
+    <definition term="write" kind="method"><p>Places the picture and returns a placement you can move.</p></definition>
+  </tag>
+  <tag name="speaker"><p>Plays three notes as a melody on a bell.</p></tag>
+  <tag name="run"><p>Keeps drawing until <code>q</code> is pressed.</p></tag>
+</comments>
+      <div class="xn-terminal__screen">
+        <img class="xn-only-light" src="{{ 'assets/readme/images-light.png' | url }}" alt="A pixel art dusk over mountains, drawn in terminal cells by xnano" loading="lazy">
+        <img class="xn-only-dark" src="{{ 'assets/readme/images-dark.png' | url }}" alt="A pixel art dusk over mountains, drawn in terminal cells by xnano" loading="lazy">
+      </div>
+    </figure>
+    <span class="xn-registration xn-split__mark xn-split__mark--right" aria-hidden="true"><span></span></span>
+  </section>

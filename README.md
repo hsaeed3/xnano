@@ -21,7 +21,7 @@ An _extremely nano_ terminal experience for Python, built on [`ratatui`](https:/
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/hsaeed3/xnano?utm_source=badge)
 [![Built With Ratatui](https://ratatui.rs/built-with-ratatui/badge.svg)](https://ratatui.rs/)
 
-[Documentation (_Coming Soon_)](https://xnano.hammad.app) ·
+[Documentation](https://xnano.hammad.app) ·
 [API Reference](https://xnano.hammad.app/api-reference/) ·
 [Contribution Guide](./CONTRIBUTING.md)
 

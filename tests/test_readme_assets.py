@@ -108,7 +108,7 @@ def test_mouse_reports_are_one_based_sgr() -> None:
     assert drag[1] == '\x1b[<32;2;2M'
     assert drag[-2] == '\x1b[<32;9;9M'
     assert drag[-1] == '\x1b[<0;9;9m'
-    assert len(drag) == assets.DRAG_STEPS + 2
+    assert len(drag) == 8 + 2  # one motion report per cell crossed
 
 
 README = """# Title
@@ -260,3 +260,85 @@ def test_regions_are_inserted_replaced_and_removed() -> None:
     assert 'name="one"' not in removed
     assert removed.count('<!-- @code-block-asset') == 1
     assert removed.startswith('# Title\n\n```python\nprint(1)\n```\n\nText.')
+
+
+COMMENTED = """# Page
+
+<!-- @code-block name="framed" -->
+``` python title="framed.py"
+print(1)  # >> [first]
+```
+
+<comments>
+<tag name="first">
+Prints one.
+</tag>
+</comments>
+
+After.
+"""
+
+
+def page(name: str = 'guide.md') -> assets.Document:
+    return assets.Document(
+        assets.PAGES / 'learn' / name, assets.PAGE_OUTPUT, assets.PAGE_THEMES
+    )
+
+
+def test_regions_go_after_the_comments_of_their_block() -> None:
+    for document in (assets.README_DOCUMENT, page()):
+        once = assets.update_regions(COMMENTED, document)
+        assert '</comments>\n\n<!-- @code-block-asset name="framed" -->' in once
+        assert '```\n\n<comments>' in once  # the comments stay right below their code
+        assert assets.update_regions(once, document) == once  # idempotent
+        moved = once.replace('<comments>', '<!-- -->\n<comments>', 1)
+        assert '<!-- -->\n<comments>' in assets.update_regions(moved, document)
+
+
+def test_page_regions_show_images_by_the_site_color_scheme() -> None:
+    assert assets.asset_region(assets.Options(name='demo'), page()) == (
+        '<!-- @code-block-asset name="demo" -->\n\n'
+        '![demo](../assets/examples/demo-light.png#only-light)\n'
+        '![demo](../assets/examples/demo-dark.png#only-dark)\n\n'
+        '<!-- /@code-block-asset -->\n'
+    )
+
+
+def test_page_errors_name_the_page() -> None:
+    unclosed = COMMENTED.replace('</comments>\n', '')
+    with pytest.raises(
+        assets.ReadmeAssetError, match='docs/learn/guide.md line 8: the <comments>'
+    ):
+        assets.update_regions(unclosed, page())
+
+
+def test_page_names_are_unique_across_pages() -> None:
+    blocks = assets.parse_blocks(COMMENTED)
+    with pytest.raises(
+        assets.ReadmeAssetError, match='already used in docs/learn/one.md line 3'
+    ):
+        assets.check_page_names([(page('one.md'), blocks), (page('two.md'), blocks)])
+    assets.check_page_names([(assets.README_DOCUMENT, blocks), (page('one.md'), blocks)])
+
+
+class ChangingWindow:
+    """A stand-in window whose screen changes on each read until it has drawn every frame."""
+
+    def __init__(self, frames: int) -> None:
+        self.reads = 0
+        self.frames = frames
+
+    def text(self, *, ansi: bool = False) -> str:
+        self.reads += 1
+        return str(min(self.reads, self.frames))
+
+
+def test_images_wait_for_a_still_window() -> None:
+    window = ChangingWindow(frames=4)
+    assert assets.wait_until_still(window, still_seconds=0.1, timeout=2)  # pyright: ignore[reportArgumentType]
+    assert window.reads > 4  # it kept reading until the drawing stopped
+
+
+def test_a_window_that_never_stops_is_taken_after_the_timeout() -> None:
+    window = ChangingWindow(frames=10**9)
+    assert not assets.wait_until_still(window, still_seconds=0.1, timeout=0.3)  # pyright: ignore[reportArgumentType]

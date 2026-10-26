@@ -1,5 +1,5 @@
 [project]
-site_name = " "
+site_name = "xnano"
 site_url = "https://xnano.hammad.app"
 site_description = "A Python terminal UI framework built on the ``ratatui`` and ``tachyonfx`` Rust crates."
 site_author = "Hammad Saeed"
@@ -13,14 +13,6 @@ Copyright &copy; 2026 Hammad Saeed
 
 nav = [
     {"Introduction" = "index.md"},
-    {"Learn" = [
-        {"Getting Started" = "learn/index.md"},
-    ]},
-    {"Legacy v1" = [
-        {"Overview" = "v1/index.md"},
-        {"Getting Started" = "v1/getting-started.md"},
-        {"Concepts" = "v1/core-concepts/overview.md"},
-    ]},
     {"API Reference" = [
         {"API Reference" = "api-reference/index.md"},
         # API_REFERENCE_START
@@ -71,31 +63,31 @@ nav = [
         ]},
         # API_REFERENCE_END
     ]},
+    {"Legacy v1" = [
+        {"Overview" = "v1/index.md"},
+        {"Getting Started" = "v1/getting-started.md"},
+        {"Concepts" = "v1/core-concepts/overview.md"},
+    ]},
 ]
 
 extra_css = [
-    "stylesheets/code-theme.css",
-    "stylesheets/content-layout.css",
-    "stylesheets/content-media.css",
-    "stylesheets/context7.css",
-    "stylesheets/mkdocstrings.css",
-    "stylesheets/open-props.css",
-    "stylesheets/style-variants.css",
-    "stylesheets/theme.css",
-    "stylesheets/typography.css",
-    "stylesheets/components/appearance-controls.css",
-    "stylesheets/components/code-blocks.css",
-    "stylesheets/components/nav.css",
-    "stylesheets/components/components.css",
-    "stylesheets/components/site-chrome.css",
+    "stylesheets/editorial/tokens.css",
+    "stylesheets/editorial/base.css",
+    "stylesheets/editorial/chrome.css",
+    "stylesheets/editorial/content.css",
+    "stylesheets/editorial/home.css",
 ]
 
 extra_javascript = [
-    "js/code-language.js",
+    "js/construction.js",
+    "js/context7.js",
+    "js/code-notes.js",
+    "js/heading-box.js",
 ]
 
 [project.theme]
 language = "en"
+custom_dir = "overrides"
 features = [
     "announce.dismiss",
     "content.code.annotate",
@@ -104,12 +96,10 @@ features = [
     "content.footnote.tooltips",
     "content.tabs.link",
     "content.tooltips",
-    "header.autohide",
     "navigation.footer",
     "navigation.instant",
     "navigation.instant.prefetch",
     "navigation.instant.progress",
-    "navigation.path",
     # "navigation.prune",
     # "navigation.tabs",
     "navigation.top",
@@ -122,11 +112,6 @@ features = [
 [project.theme.icon]
 logo = "fontawesome/solid/x"
 repo = "fontawesome/brands/github"
-
-[[project.theme.palette]]
-media = "(prefers-color-scheme)"
-toggle.icon = "lucide/sun-moon"
-toggle.name = "Switch to light mode"
 
 [[project.theme.palette]]
 media = "(prefers-color-scheme: light)"
@@ -145,8 +130,8 @@ toggle.icon = "lucide/moon"
 toggle.name = "Switch to light mode"
 
 [project.theme.font]
-text = "Geist Pixel"
-code = "Google Sans Code"
+text = "Geist"
+code = "Geist Mono"
 
 [[project.home.buttons]]
 name = "API Reference"
@@ -194,6 +179,8 @@ admonition = {}
 attr_list = {}
 footnotes = {}
 md_in_html = {}
+# reads `<comments>` after code blocks, see docs/js/code-notes.js
+xnano_docs_markdown = {}
 "mkdocs-click" = {}
 
 [project.markdown_extensions.pymdownx]
@@ -231,35 +218,35 @@ custom_fences = [
     { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
 ]
 
-[project.plugins.mkdocstrings.handlers.python]
-# the API reference is read from source, so building the docs needs neither the packages
-# installed nor the Rust extensions compiled
-paths = [".", "packages/xnano-core/src", "packages/xnano-audio/src", "packages/xnano-image/src"]
-inventories = ["https://docs.python.org/3/objects.inv"]
-
-[project.plugins.mkdocstrings.handlers.python.options]
-docstring_style = "google"
-inherited_members = true          # false
-merge_init_into_class = true
-parameter_headings = false
-members_order = "source"
-filters = ["!^_", "^__"]
-heading_level = 2
-separate_signature = true
-docstring_section_style = "list"
-backlinks = "tree"
-show_root_heading = true
-show_root_full_path = true
-show_signature_annotations = true
-show_source = true
-show_symbol_type_heading = true
-show_symbol_type_toc = true
-show_root_toc_entry = false
-signature_crossrefs = true
-summary = true
-unwrap_annotated = true
-
-extensions = ["griffe_typingdoc"]
+# [project.plugins.mkdocstrings.handlers.python]
+# # the API reference is read from source, so building the docs needs neither the packages
+# # installed nor the Rust extensions compiled
+# paths = [".", "packages/xnano-core/src", "packages/xnano-audio/src", "packages/xnano-image/src"]
+# inventories = ["https://docs.python.org/3/objects.inv"]
+#
+# [project.plugins.mkdocstrings.handlers.python.options]
+# docstring_style = "google"
+# inherited_members = true          # false
+# merge_init_into_class = true
+# parameter_headings = false
+# members_order = "source"
+# filters = ["!^_", "^__"]
+# heading_level = 2
+# separate_signature = true
+# docstring_section_style = "list"
+# backlinks = "tree"
+# show_root_heading = true
+# show_root_full_path = true
+# show_signature_annotations = true
+# show_source = true
+# show_symbol_type_heading = true
+# show_symbol_type_toc = true
+# show_root_toc_entry = false
+# signature_crossrefs = true
+# summary = true
+# unwrap_annotated = true
+#
+# extensions = ["griffe_typingdoc"]
 
 [project.plugins]
 
