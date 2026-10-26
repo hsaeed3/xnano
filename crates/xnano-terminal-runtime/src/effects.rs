@@ -42,7 +42,8 @@ use ratatui_core::layout::{Margin, Rect};
 use ratatui_core::style::Color;
 use tachyonfx::fx::{self, RepeatMode};
 use tachyonfx::{
-    CellFilter, ColorSpace, Duration, Effect, EffectTimer, Interpolation, IntoEffect, SimpleRng,
+    CellFilter, ColorSpace, Duration, Effect, EffectTimer, Interpolation, IntoEffect, Shader,
+    SimpleRng,
 };
 
 use crate::dynamic::Dynamic;
@@ -1345,7 +1346,11 @@ impl PlanKind {
                     .build();
                 fx::with_duration(
                     Duration::from_millis(*duration_milliseconds),
-                    glitch.into_effect(),
+                    PrintableGlitch {
+                        glitch,
+                        largest_cell_count: 0,
+                    }
+                    .into_effect(),
                 )
             }
             #[allow(deprecated)]
@@ -1441,6 +1446,102 @@ impl PlanKind {
             Self::NeverComplete(plan) => fx::never_complete(child(plan)),
             Self::ConsumeTick => fx::consume_tick(),
         }
+    }
+}
+
+/// A tachyonfx glitch that leaves only printable symbols in its cells.
+///
+/// The glitch moves a character's byte value by up to nine and clamps the result to
+/// 32..=255, so a character near `~` becomes DEL or a C1 control character. A terminal acts
+/// on those instead of drawing them, and ratatui panics on them in debug builds. After each
+/// frame of the glitch, every control character it can have written becomes the nearest
+/// printable ASCII character. Every other method forwards to the glitch.
+#[derive(Clone, Debug)]
+struct PrintableGlitch {
+    glitch: fx::Glitch,
+    /// The most cells the glitch's area has held, which bounds how far below the area its
+    /// cells can land.
+    largest_cell_count: usize,
+}
+
+impl Shader for PrintableGlitch {
+    fn name(&self) -> &'static str {
+        self.glitch.name()
+    }
+
+    fn process(&mut self, duration: Duration, buffer: &mut Buffer, area: Rect) -> Option<Duration> {
+        let overflow = self.glitch.process(duration, buffer, area);
+        // The glitch keeps the cells it chose before its area shrank. They land below the
+        // area in the same columns, within the rows the larger area's cells fill at the
+        // current width.
+        let width = usize::from(area.width);
+        self.largest_cell_count = self
+            .largest_cell_count
+            .max(width * usize::from(area.height));
+        let rows = self.largest_cell_count.div_ceil(width.max(1));
+        let written = Rect {
+            height: u16::try_from(rows).unwrap_or(u16::MAX),
+            ..area
+        }
+        .intersection(buffer.area);
+        let row_length = usize::from(written.width);
+        for y in written.top()..written.bottom() {
+            let row_start = buffer.index_of(written.x, y);
+            for cell in &mut buffer.content[row_start..row_start + row_length] {
+                if let Some(replacement) = printable_replacement(cell.symbol()) {
+                    cell.set_char(replacement);
+                }
+            }
+        }
+        overflow
+    }
+
+    fn done(&self) -> bool {
+        self.glitch.done()
+    }
+
+    fn clone_box(&self) -> Box<dyn Shader> {
+        Box::new(self.clone())
+    }
+
+    fn area(&self) -> Option<Rect> {
+        self.glitch.area()
+    }
+
+    fn set_area(&mut self, area: Rect) {
+        self.glitch.set_area(area);
+    }
+
+    fn filter(&mut self, filter: CellFilter) {
+        self.glitch.filter(filter);
+    }
+
+    fn timer_mut(&mut self) -> Option<&mut EffectTimer> {
+        self.glitch.timer_mut()
+    }
+
+    fn cell_filter(&self) -> Option<&CellFilter> {
+        self.glitch.cell_filter()
+    }
+
+    fn reset(&mut self) {
+        self.glitch.reset();
+        self.largest_cell_count = 0;
+    }
+
+    fn set_rng(&mut self, rng: SimpleRng) {
+        self.glitch.set_rng(rng);
+    }
+}
+
+/// The printable ASCII character nearest to `symbol` when it is a control character:
+/// a space for C0 control characters, `~` for DEL and the C1 control characters.
+fn printable_replacement(symbol: &str) -> Option<char> {
+    match symbol.as_bytes() {
+        // DEL, and U+0080..=U+009F in UTF-8.
+        [0x7F] | [0xC2, 0x80..=0x9F] => Some('~'),
+        [byte] if byte.is_ascii_control() => Some(' '),
+        _ => None,
     }
 }
 
@@ -1744,6 +1845,49 @@ mod tests {
             )
             .unwrap_err();
         assert!(error.to_string().contains("foreground"));
+    }
+
+    #[test]
+    fn a_glitch_writes_only_printable_symbols() {
+        // A glitch that moves `~` up by any amount passes the end of printable ASCII.
+        let node = EffectNode::shared(Kind::Glitch {
+            cell_ratio: Dynamic::Fixed(1.0),
+            start_delay_milliseconds: [Dynamic::Fixed(0), Dynamic::Fixed(1)],
+            action_milliseconds: [Dynamic::Fixed(40), Dynamic::Fixed(250)],
+            duration_milliseconds: Dynamic::Fixed(1000),
+        });
+        let mut run = EffectRun::new(node);
+        let mut tilde = ratatui_core::buffer::Cell::EMPTY;
+        tilde.set_char('~');
+        let mut changed_cells = 0;
+        // The top row, then a shorter one: cells chosen for the long row land below it.
+        for (step, width) in [(0, 40), (20, 40), (20, 40), (20, 10), (20, 10)] {
+            let mut grid = Grid::filled(40, 4, &tilde);
+            let bounds = Bounds {
+                left: 0,
+                top: 0,
+                right: width,
+                bottom: 1,
+            };
+            run.advance(
+                &Offline,
+                step,
+                &mut grid,
+                bounds,
+                (0, 0),
+                &Placement::default(),
+            )
+            .unwrap();
+            for cell in &grid.buffer().content {
+                let symbol = cell.symbol();
+                assert!(
+                    !symbol.chars().any(char::is_control),
+                    "the glitch wrote {symbol:?}"
+                );
+                changed_cells += usize::from(symbol != "~");
+            }
+        }
+        assert!(changed_cells > 0);
     }
 
     #[test]

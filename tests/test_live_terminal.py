@@ -518,6 +518,21 @@ with xnano.open(width=10, height=1) as terminal:
         assert screen.wait_for('hello')
         assert screen.wait_until(lambda: screen.cell(0, 0).fg == 'ff0000', timeout=5)
 
+    def test_a_glitch_draws_only_printable_characters(self, run):
+        # A glitch that moves `~` up by any amount passes the end of printable ASCII.
+        screen = run(
+            """
+with xnano.open(width=40, height=1) as terminal:
+    placement = terminal.screen.write('~' * 40)
+    placement.fx.glitch(ratio=1.0, duration_milliseconds=1500)
+    time.sleep(2)
+"""
+        )
+        assert screen.wait_until(lambda: re.search('[!-}]', screen.lines()[0]), timeout=5)
+        assert screen.finish() == 0
+        output = screen.raw.decode('utf-8', 'replace')
+        assert not re.search('[\x7f-\x9f]', output)
+
     def test_border_draws_around_art_and_widgets(self, run):
         screen = run(
             """
