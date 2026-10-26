@@ -1,0 +1,54 @@
+{#-
+  The xnano header: an editorial wordmark, text navigation and one outlined action, on top
+  of the theme's own drawer, palette, search and repository controls.
+-#}
+{% set class = "md-header xn-header" %}
+{% if "navigation.tabs.sticky" in features %}
+  {% set class = class ~ " md-header--lifted" %}
+{% endif %}
+<header class="{{ class }}" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="{{ lang.t('header') }}">
+    <label class="md-header__button md-icon xn-header__drawer" for="__drawer" aria-label="{{ lang.t('nav') }}">
+      {% set icon = config.theme.icon.menu or "material/menu" %}
+      {% include ".icons/" ~ icon ~ ".svg" %}
+    </label>
+    <a href="{{ config.extra.homepage | d(nav.homepage.url, true) | url }}" title="{{ config.site_name | e }}" class="xn-wordmark" aria-label="{{ config.site_name }}">xnano</a>
+    <ul class="xn-header__links">
+      <li><a class="xn-header__link" href="{{ 'learn/' | url }}" data-xn-section="learn/">Learn</a></li>
+      <li><a class="xn-header__link" href="{{ 'api-reference/' | url }}" data-xn-section="api-reference/">API</a></li>
+      <li><a class="xn-header__link" href="{{ 'v1/' | url }}" data-xn-section="v1/">Legacy v1</a></li>
+      {% if config.repo_url %}
+        <li><a class="xn-header__link" href="{{ config.repo_url }}" rel="noopener">GitHub</a></li>
+      {% endif %}
+    </ul>
+    <div class="xn-header__tools">
+      {% if config.theme.palette %}
+        {% if not config.theme.palette is mapping %}
+          {% include "partials/palette.html" %}
+        {% endif %}
+      {% endif %}
+      {% if not config.theme.palette is mapping %}
+        {% include "partials/javascripts/palette.html" %}
+      {% endif %}
+      {% if config.extra.alternate %}
+        {% include "partials/alternate.html" %}
+      {% endif %}
+      {% if "search" in config.plugins %}
+        {% set search = config.plugins["search"] | attr("config") %}
+        {% if search.enabled %}
+          <label class="md-header__button md-icon" for="__search" aria-label="{{ lang.t('search') }}">
+            {% set icon = config.theme.icon.search or "material/magnify" %}
+            {% include ".icons/" ~ icon ~ ".svg" %}
+          </label>
+          {% include "partials/search.html" %}
+        {% endif %}
+      {% endif %}
+    </div>
+    <a class="xn-header__action xn-corners" href="{{ 'learn/' | url }}">Get Started <span class="xn-arrow" aria-hidden="true">↗</span></a>
+  </nav>
+  {% if "navigation.tabs.sticky" in features %}
+    {% if "navigation.tabs" in features %}
+      {% include "partials/tabs.html" %}
+    {% endif %}
+  {% endif %}
+</header>

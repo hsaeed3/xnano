@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    // Context7 renders its chat widget in a closed shadow root. Keep the reference that
+    // attachShadow returns, so js/context7.js can style the widget after widget.js builds it.
+    (() => {
+      const context7Shadow = Symbol.for("xnano.context7Shadow");
+      const attachShadow = Element.prototype.attachShadow;
+      Element.prototype.attachShadow = function (options) {
+        const shadowRoot = attachShadow.call(this, options);
+        if (this.id === "context7-widget") {
+          window[context7Shadow] = shadowRoot;
+        }
+        return shadowRoot;
+      };
+    })();
+  </script>
+  <script src="https://context7.com/widget.js" data-library="/hsaeed3/xnano" data-color="#2d5be3"></script>
+{% endblock %}

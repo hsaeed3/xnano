@@ -1,0 +1,261 @@
+/*
+  xnano editorial theme: base.
+
+  The drafting table and the sheet laid on it, the type defaults, one underline interaction
+  shared by every link, and the construction marks the layouts reuse.
+*/
+
+/* Strictly rectangular: nothing the theme draws is rounded, except the true circles that
+   opt back in with `.xn-circle`. */
+*,
+*::before,
+*::after {
+    border-radius: 0 !important;
+}
+
+.xn-circle,
+.xn-registration > span {
+    border-radius: 50% !important;
+}
+
+/* The table: a cool surface with a faint drafting grid, seen through the open space. */
+html,
+body {
+    background-color: var(--xn-page);
+}
+
+body {
+    background-image: radial-gradient(
+        circle at var(--xn-dot) var(--xn-dot),
+        var(--xn-grid-dot) var(--xn-dot),
+        transparent calc(var(--xn-dot) + 0.35px)
+    );
+    background-size: var(--xn-grid) var(--xn-grid);
+    color: var(--xn-ink);
+    font-family: var(--xn-font-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+.md-container,
+.md-main,
+.md-content {
+    background: transparent;
+}
+
+::selection {
+    background: var(--xn-selection);
+    color: inherit;
+}
+
+:focus-visible {
+    outline: var(--xn-rule) solid var(--xn-accent);
+    outline-offset: 3px;
+}
+
+/* A drafting zone: the grid drawn on the sheet itself, used sparingly. */
+.xn-drafting {
+    background-image: radial-gradient(
+        circle at var(--xn-dot) var(--xn-dot),
+        var(--xn-grid-dot-sheet) var(--xn-dot),
+        transparent calc(var(--xn-dot) + 0.35px)
+    );
+    background-size: var(--xn-grid) var(--xn-grid);
+}
+
+/* ── The underline: drawn like a construction line, never jumping ─────────────────────── */
+.xn-underline,
+.md-nav__link .md-ellipsis,
+.xn-header__link {
+    background-image: linear-gradient(var(--xn-underline-color, currentColor), var(--xn-underline-color, currentColor));
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    background-size: 0 var(--xn-rule);
+    padding-bottom: 0.12em;
+    text-decoration: none;
+    transition:
+        background-size var(--xn-speed) var(--xn-ease),
+        color var(--xn-speed) var(--xn-ease);
+}
+
+:is(a, label):hover > .xn-underline,
+a.xn-underline:hover,
+.md-nav__link:hover .md-ellipsis,
+.xn-header__link:hover,
+.xn-header__link:focus-visible {
+    background-size: 100% var(--xn-rule);
+}
+
+/* Prose links keep a resting underline so they read as links without color. */
+.md-typeset a {
+    color: var(--xn-ink);
+    text-decoration: underline;
+    text-decoration-thickness: var(--xn-rule);
+    text-underline-offset: 0.24em;
+    text-decoration-color: var(--xn-rule-strong);
+    transition:
+        text-decoration-color var(--xn-speed) var(--xn-ease),
+        color var(--xn-speed) var(--xn-ease);
+}
+
+.md-typeset a:hover,
+.md-typeset a:focus-visible {
+    color: var(--xn-ink);
+    text-decoration-color: var(--xn-accent);
+}
+
+.md-typeset .headerlink,
+.md-typeset a.xn-button,
+.md-typeset a.xn-plain {
+    text-decoration: none;
+}
+
+/* ── Micro-labels: the technical monospace voice ────────────────────────────────────── */
+.xn-label {
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-mono);
+    font-size: var(--xn-size-label);
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
+    text-transform: uppercase;
+}
+
+.xn-label--accent {
+    color: var(--xn-accent-ink);
+}
+
+/* ── Construction marks ─────────────────────────────────────────────────────────────── */
+
+/* Crop marks: four short ticks just outside an element's corners. */
+.xn-crop {
+    position: relative;
+}
+
+.xn-crop::after {
+    --xn-crop-color: var(--xn-rule-strong);
+    content: "";
+    position: absolute;
+    inset: -6px;
+    pointer-events: none;
+    background:
+        linear-gradient(var(--xn-crop-color), var(--xn-crop-color)) top left / var(--xn-tick) var(--xn-rule) no-repeat,
+        linear-gradient(var(--xn-crop-color), var(--xn-crop-color)) top left / var(--xn-rule) var(--xn-tick) no-repeat,
+        linear-gradient(var(--xn-crop-color), var(--xn-crop-color)) top right / var(--xn-tick) var(--xn-rule) no-repeat,
+        linear-gradient(var(--xn-crop-color), var(--xn-crop-color)) top right / var(--xn-rule) var(--xn-tick) no-repeat,
+        linear-gradient(var(--xn-crop-color), var(--xn-crop-color)) bottom left / var(--xn-tick) var(--xn-rule) no-repeat,
+        linear-gradient(var(--xn-crop-color), var(--xn-crop-color)) bottom left / var(--xn-rule) var(--xn-tick) no-repeat,
+        linear-gradient(var(--xn-crop-color), var(--xn-crop-color)) bottom right / var(--xn-tick) var(--xn-rule) no-repeat,
+        linear-gradient(var(--xn-crop-color), var(--xn-crop-color)) bottom right / var(--xn-rule) var(--xn-tick) no-repeat;
+}
+
+/* Registration cross: a ring with crosshairs at the edges of a composition. */
+.xn-registration {
+    position: relative;
+    display: inline-block;
+    width: 17px;
+    height: 17px;
+    color: var(--xn-rule-strong);
+    pointer-events: none;
+}
+
+.xn-registration::before,
+.xn-registration::after {
+    content: "";
+    position: absolute;
+    background: currentColor;
+}
+
+.xn-registration::before {
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: var(--xn-rule);
+}
+
+.xn-registration::after {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: var(--xn-rule);
+}
+
+.xn-registration > span {
+    position: absolute;
+    inset: 4px;
+    border: var(--xn-rule) solid currentColor;
+}
+
+/* A rule with labels on its two ends: the running heads of every section. */
+.xn-rule {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0;
+    padding-bottom: 0.45rem;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-strong);
+}
+
+/* ── Controls: square, outlined, quiet ─────────────────────────────────────────────── */
+.xn-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.6rem 1.05rem;
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+    background: transparent;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    transition:
+        background-color var(--xn-speed) var(--xn-ease),
+        border-color var(--xn-speed) var(--xn-ease),
+        color var(--xn-speed) var(--xn-ease);
+}
+
+.xn-button:hover,
+.xn-button:focus-visible {
+    border-color: var(--xn-ink);
+    color: var(--xn-ink);
+}
+
+.xn-button--primary {
+    background: var(--xn-accent);
+    border-color: var(--xn-accent);
+    color: var(--xn-on-accent);
+}
+
+.xn-button--primary:hover,
+.xn-button--primary:focus-visible {
+    background: var(--xn-accent-ink);
+    border-color: var(--xn-accent-ink);
+    color: var(--xn-on-accent);
+}
+
+.xn-arrow {
+    font-family: var(--xn-font-mono);
+}
+
+/* Images captured in a light and a dark version follow the site's own toggle. */
+[data-md-color-scheme="default"] .xn-only-dark,
+[data-md-color-scheme="slate"] .xn-only-light {
+    display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
+
+@media (max-width: 44.9375em) {
+    :root {
+        --xn-grid: 20px;
+    }
+}

@@ -1,0 +1,869 @@
+/*
+  xnano editorial theme: chrome.
+
+  The header, the sheet each page is printed on, the index in its left margin, the contents
+  in its right margin and the colophon. Hairlines divide the columns; nothing is boxed.
+*/
+/* The header and the page run the window's full width, so the logo and the index keep to the
+   left gutter however wide the window is. */
+.md-grid {
+    max-width: none;
+}
+
+/* ── Header: the masthead of the whole site ─────────────────────────────────────────── */
+.md-header.xn-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    height: auto;
+    background-color: var(--xn-page);
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+    box-shadow: none;
+    color: var(--xn-ink);
+}
+
+.xn-header .md-header__inner {
+    display: flex;
+    align-items: center;
+    gap: 1.8rem;
+    height: 3.2rem;
+    padding: 0 1.2rem;
+}
+
+.xn-wordmark {
+    display: flex;
+    align-items: center;
+    height: 2rem;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-display);
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.xn-header__links {
+    display: flex;
+    align-items: center;
+    gap: 1.7rem;
+    margin: 0 0 0 auto;
+    padding: 0;
+    list-style: none;
+}
+
+.xn-header__link {
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.04em;
+    line-height: 1;
+}
+
+.xn-header__link:hover,
+.xn-header__link:focus-visible {
+    color: var(--xn-ink);
+}
+
+.xn-header__link[aria-current="page"] {
+    --xn-underline-color: var(--xn-accent);
+    background-size: 100% var(--xn-rule);
+    color: var(--xn-ink);
+}
+
+/* Palette and search: square icon buttons sharing the wordmark's center line. */
+.xn-header__tools,
+.xn-header__tools .md-header__option {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+.xn-header .md-header__button,
+.xn-header .md-option:checked + .md-header__button:not([hidden]) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    margin: 0;
+    padding: 0;
+    color: var(--xn-ink-2);
+    transition: color var(--xn-speed) var(--xn-ease);
+}
+
+.xn-header .md-header__button:hover {
+    color: var(--xn-ink);
+    opacity: 1;
+}
+
+.xn-header .md-header__button svg {
+    width: 0.9rem;
+    height: 0.9rem;
+}
+
+.xn-header .md-header__button[hidden] {
+    display: none;
+}
+
+.xn-header .md-search__button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 1.2rem;
+    height: 1.7rem;
+    margin: 0 0 0 0.35rem;
+    padding: 0 0.6rem 0 1.75rem;
+    border: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: transparent;
+    box-shadow: none;
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.04em;
+    transition:
+        border-color var(--xn-speed) var(--xn-ease),
+        color var(--xn-speed) var(--xn-ease);
+}
+
+.xn-header .md-search__button:hover {
+    border-color: var(--xn-rule-strong);
+    background: transparent;
+    color: var(--xn-ink);
+}
+
+.xn-header .md-search__button::before {
+    position: absolute;
+    top: 50%;
+    left: 0.6rem;
+    width: 0.72rem;
+    height: 0.72rem;
+    transform: translateY(-50%);
+}
+
+.xn-header .md-search__button::after {
+    border: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: transparent;
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: 0.5rem;
+}
+
+@media (min-width: 60em) {
+    .xn-header__tools > label.md-header__button[for="__search"] {
+        display: none;
+    }
+}
+
+.xn-header__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    height: 1.7rem;
+    padding: 0 0.75rem;
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+    color: var(--xn-ink);
+    font-family: var(--xn-font-mono);
+    font-size: 0.58rem;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: border-color var(--xn-speed) var(--xn-ease);
+}
+
+.xn-header__action:hover,
+.xn-header__action:focus-visible {
+    border-color: var(--xn-ink);
+    color: var(--xn-ink);
+}
+
+.xn-header__drawer {
+    display: none !important;
+}
+
+/* Search: a plain rectangle in the technical voice. */
+.md-search__form {
+    background: var(--xn-sheet);
+    box-shadow: none;
+    border: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.md-search__input {
+    font-family: var(--xn-font-mono);
+    font-size: 0.64rem;
+}
+
+.md-search__output,
+.md-search__scrollwrap,
+.md-dialog {
+    background: var(--xn-sheet);
+    box-shadow: none;
+}
+
+.md-search-result__meta {
+    background: transparent;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-mono);
+    font-size: var(--xn-size-label);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.md-search-result mark {
+    background: none;
+    color: var(--xn-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--xn-accent);
+}
+
+/* ── The page: one open grid on the dotted ground, its columns divided by fine rules ── */
+.md-main__inner {
+    position: relative;
+    min-height: calc(100vh - 3.25rem);
+    margin-top: 0;
+    padding-top: 0.4rem;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* The margins end with the article: the sticky index and contents never reach the footer. */
+.md-main__inner:not(:has(.xn-home)) {
+    overflow: visible clip;
+}
+
+/* ── The index and the contents: the page's two margins ────────────────────────────── */
+.md-sidebar {
+    top: 3.25rem;
+    width: 11.5rem;
+}
+
+.md-sidebar--secondary {
+    width: 14rem;
+}
+
+.md-sidebar--primary .md-sidebar__scrollwrap {
+    margin: 0;
+    box-shadow: inset calc(-1 * var(--xn-rule)) 0 0 var(--xn-rule-subtle);
+}
+
+.md-sidebar--secondary .md-sidebar__scrollwrap {
+    margin: 0;
+    box-shadow: inset var(--xn-rule) 0 0 var(--xn-rule-subtle);
+}
+
+.md-sidebar__inner {
+    padding: 1.3rem 1rem 2rem;
+}
+
+.md-nav {
+    font-family: var(--xn-font-index);
+    font-size: 0.62rem;
+    line-height: 1.4;
+}
+
+.md-nav__source {
+    display: none !important;
+}
+
+/* Page icons and emoji stay, small and quiet, hanging in the gutter before their titles
+   so every title starts on the same line. */
+.md-nav__link {
+    position: relative;
+}
+
+.md-nav__link > svg:first-child,
+.md-nav__link > .twemoji {
+    position: absolute;
+    top: 50%;
+    left: -1.05rem;
+    transform: translateY(-50%);
+    flex: none;
+    width: 0.68rem;
+    height: 0.68rem;
+    color: var(--xn-ink-3);
+    fill: currentColor;
+}
+
+.md-nav__link--active > svg:first-child {
+    color: var(--xn-ink);
+}
+
+.md-nav__list {
+    margin: 0;
+    padding: 0;
+}
+
+.md-nav__item {
+    padding: 0;
+}
+
+.md-nav__link,
+.md-nav__container > .md-nav__link {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin: 0.32rem 0 0;
+    padding: 0;
+    border: 0;
+    background: none !important;
+    color: var(--xn-ink-2);
+    transition: color var(--xn-speed) var(--xn-ease);
+}
+
+.md-nav__link:hover,
+.md-nav__link:focus-visible,
+.md-nav__item .md-nav__link--active:hover {
+    background: none !important;
+    color: var(--xn-ink);
+}
+
+.md-nav__link .md-ellipsis {
+    flex: 0 1 auto;
+    white-space: normal;
+}
+
+/* The page being read: ink, and a thin accent underline. */
+.md-sidebar .md-nav__item .md-nav__link--active,
+.md-sidebar .md-nav__item .md-nav__link--active code {
+    background: none !important;
+    color: var(--xn-ink) !important;
+    font-weight: 500;
+}
+
+.md-nav__link--active .md-ellipsis {
+    --xn-underline-color: var(--xn-accent);
+    background-size: 100% var(--xn-rule);
+}
+
+/* ── The index: chapters as boxes that hold their pages ─────────────────────────────────
+   Each chapter is a hairline box whose title spans its width; while the chapter is open its
+   pages sit in the same box, under a rule, so they read as its contents. Every entry is a
+   rectangle with its icon inside at the left. An entry under the pointer, and an open chapter
+   or group, takes a light tint of the sheet, a pressed entry a deeper one, and the page being
+   read is inverted. Every change fades. */
+.md-sidebar--primary {
+    --xn-entry-tint: color-mix(in srgb, var(--xn-ink) 6%, var(--xn-sheet));
+    --xn-entry-pressed: color-mix(in srgb, var(--xn-ink) 12%, var(--xn-sheet));
+}
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item {
+    margin-top: 0.75rem;
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+}
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item:first-child {
+    margin-top: 0;
+}
+
+.md-sidebar--primary .md-nav__link {
+    margin: 1px 0 0;
+    padding: 0.28rem 0.5rem 0.28rem 1.55rem;
+    transition:
+        background-color var(--xn-speed) var(--xn-ease),
+        color var(--xn-speed) var(--xn-ease);
+}
+
+.md-sidebar--primary .md-nav__link > :is(svg, .twemoji):first-child {
+    left: 0.5rem;
+}
+
+/* An entry with no icon, and no plus or minus, keeps no room for one. */
+.md-sidebar--primary .md-nav__link:not(:has(> :is(svg, .twemoji):first-child, > .md-nav__icon)) {
+    padding-left: 0.5rem;
+}
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__link {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 0;
+    padding: 0.42rem 0.55rem;
+    color: var(--xn-ink);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+/* Chapters are named by their title alone; a page's icon shows only on its own row. */
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__link > :is(svg, .twemoji):first-child {
+    display: none;
+}
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item > .md-nav > .md-nav__list {
+    margin: 0;
+    padding: 0.25rem;
+    border-top: var(--xn-rule) solid var(--xn-rule-strong);
+}
+
+/* Every chapter folds from its title, at every width. js/construction.js decides which
+   chapters start open. */
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link {
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link .md-nav__icon {
+    display: inline-block !important;
+}
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link .md-nav__icon::after {
+    content: "+" !important;
+    display: inline-block !important;
+}
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__toggle:checked ~ .md-nav__link .md-nav__icon::after {
+    content: "\2212" !important;
+}
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__toggle:not(:checked) ~ .md-nav {
+    display: none;
+}
+
+/* Expandable entries: a quiet plus that becomes a minus when open. */
+.md-nav__icon {
+    flex: none;
+    width: auto;
+    height: auto;
+    margin-left: auto;
+}
+
+.md-nav__icon::after,
+.md-nav__item--nested .md-nav__icon::after {
+    content: "+";
+    display: inline-block;
+    width: auto;
+    height: auto;
+    background: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: 0.62rem;
+    font-weight: 400;
+    line-height: 1;
+    transform: none !important;
+    transition: color var(--xn-speed) var(--xn-ease);
+}
+
+.md-nav__link:hover .md-nav__icon::after {
+    color: var(--xn-ink);
+}
+
+.md-nav__toggle:checked ~ .md-nav__link .md-nav__icon::after,
+.md-nav__toggle:checked ~ .md-nav__container .md-nav__icon::after {
+    content: "\2212";
+}
+
+/* Toggles are clicked, often twice in a row; that never selects their text. */
+label.md-nav__link {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* A group inside a chapter: an entry like its pages, with its plus or minus where a page's
+   icon sits. Its own pages hang under it, a hairline from its plus marking the depth. */
+.md-sidebar--primary .md-nav__item--nested:not(.md-nav__item--section) > .md-nav__link {
+    color: var(--xn-ink);
+    cursor: pointer;
+}
+
+.md-sidebar--primary .md-nav__item--nested:not(.md-nav__item--section) > .md-nav__link .md-nav__icon {
+    position: absolute;
+    top: 50%;
+    left: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 0.68rem;
+    height: 0.68rem;
+    margin: 0;
+    line-height: 1;
+    transform: translateY(-50%);
+}
+
+.md-sidebar--primary .md-nav__item--nested:not(.md-nav__item--section) > .md-nav__link .md-nav__icon::after {
+    display: block;
+}
+
+.md-sidebar--primary .md-nav[data-md-level="2"] > .md-nav__list,
+.md-sidebar--primary .md-nav[data-md-level="3"] > .md-nav__list,
+.md-sidebar--primary .md-nav[data-md-level="4"] > .md-nav__list {
+    margin: 1px 0 0.15rem 0.84rem;
+    padding: 0 0 0 0.25rem;
+    border-left: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+/* The states, from lightest to strongest. */
+.md-sidebar--primary .md-nav__link:is(:hover, :focus-visible),
+.md-sidebar--primary .md-nav__toggle:checked ~ .md-nav__link {
+    background-color: var(--xn-entry-tint) !important;
+    color: var(--xn-ink);
+}
+
+.md-sidebar--primary .md-nav__link:is(:hover, :focus-visible) > :is(svg, .twemoji) {
+    color: var(--xn-ink);
+}
+
+.md-sidebar--primary .md-nav__link:active {
+    background-color: var(--xn-entry-pressed) !important;
+}
+
+.md-sidebar--primary .md-nav__item .md-nav__link--active {
+    background-color: var(--xn-ink) !important;
+    color: var(--xn-sheet) !important;
+    font-weight: 400;
+}
+
+.md-sidebar--primary .md-nav__link--active > :is(svg, .twemoji) {
+    color: inherit;
+}
+
+.md-sidebar--primary .md-nav__link--active .md-ellipsis {
+    --xn-underline-color: currentColor;
+}
+
+/* The entries of both margins (chapters, groups and pages in the index, sections in the
+   contents) are set in Geist Pixel; the contents' title stays in IBM Plex Sans. */
+.md-sidebar .md-nav__link {
+    font-family: var(--xn-font-pixel);
+    font-variation-settings: "ELSH" var(--xn-pixel-shape);
+}
+
+.md-nav__title {
+    background: none;
+    box-shadow: none;
+    color: var(--xn-ink-2);
+    font-family: var(--xn-font-index);
+    font-size: 0.5rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+/* ── Contents: the right margin, numbered like the sections it lists ───────────────── */
+.md-sidebar--secondary .md-nav__title {
+    margin: 0 0 0.3rem;
+    padding: 0 0 0.38rem;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.md-sidebar--secondary .md-nav--secondary > .md-nav__list {
+    counter-reset: xn-contents;
+}
+
+.md-sidebar--secondary .md-nav--secondary > .md-nav__list > .md-nav__item {
+    counter-increment: xn-contents;
+}
+
+.md-sidebar--secondary .md-nav--secondary > .md-nav__list > .md-nav__item > .md-nav__link::before {
+    content: counter(xn-contents, decimal-leading-zero);
+    flex: none;
+    width: 1.3rem;
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: 0.5rem;
+}
+
+.md-sidebar--secondary .md-nav .md-nav {
+    padding-left: 1.3rem;
+}
+
+/* Where the contents fold into a button, their dividing rule goes with them. */
+@media (max-width: 59.9375em) {
+    .md-sidebar--secondary .md-sidebar__scrollwrap {
+        box-shadow: none;
+    }
+}
+
+/* The contents' title sits on the page itself, not on a strip of its own. */
+.md-sidebar--secondary .md-nav--secondary > .md-nav__title {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* The contents use their whole column, so entries rarely wrap. */
+.md-sidebar--secondary .md-sidebar__inner {
+    padding-right: 1rem;
+}
+
+/* The theme takes the index's right padding away (`[dir=ltr] .md-sidebar__inner`), so long
+   titles ran into the margin's rule; they wrap before it instead. The drawer below resets it. */
+.md-sidebar--primary .md-sidebar__inner {
+    padding-right: 1rem;
+}
+
+.md-sidebar--secondary .md-nav .md-nav__list {
+    margin-left: 0;
+}
+
+.md-sidebar--secondary .md-nav__link {
+    padding-right: 0;
+    padding-left: 0;
+}
+
+/* The contents stay compact: small entries, close together, nested ones a step smaller. */
+.md-sidebar--secondary .md-nav__link {
+    margin-top: 0.3rem;
+    font-size: 0.6rem;
+    line-height: 1.45;
+}
+
+.md-sidebar--secondary .md-nav .md-nav .md-nav__link {
+    margin-top: 0.2rem;
+    color: var(--xn-ink-2);
+    font-size: 0.56rem;
+}
+
+/* ── Colophon: the previous and next pages, a running foot set on the table ────────── */
+.md-footer {
+    padding-top: 1.6rem;
+    border-top: 0;
+    background: transparent;
+    color: var(--xn-ink);
+}
+
+.md-footer__inner {
+    display: flex;
+    padding: 0;
+    border-top: var(--xn-rule) solid var(--xn-ink);
+    border-bottom: var(--xn-rule) solid var(--xn-rule-strong);
+    background: transparent;
+    box-shadow: none;
+}
+
+.md-footer__link--prev .md-footer__direction::before {
+    content: "\2190\00a0\00a0";
+}
+
+.md-footer__link--next .md-footer__direction::after {
+    content: "\00a0\00a0\2192";
+}
+
+.md-footer__link {
+    flex: 1 1 0;
+    max-width: none;
+    margin: 0;
+    padding: 0.9rem 1rem 1rem;
+    opacity: 1;
+    transition: color var(--xn-speed) var(--xn-ease);
+}
+
+.md-footer__link--next {
+    justify-content: flex-end;
+    border-left: var(--xn-rule) solid var(--xn-rule-subtle);
+    text-align: right;
+}
+
+.md-footer__link--prev:only-child {
+    flex: 0 1 50%;
+    border-right: var(--xn-rule) solid var(--xn-rule-subtle);
+}
+
+.md-footer__link--next:only-child {
+    margin-left: auto;
+    flex: 0 1 50%;
+}
+
+.md-footer__link:hover {
+    opacity: 1;
+    color: var(--xn-accent-ink);
+}
+
+.md-footer__button {
+    display: none;
+}
+
+.md-footer__direction {
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: var(--xn-size-label);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 1;
+}
+
+.md-footer__title {
+    max-width: 100%;
+}
+
+.md-footer__title .md-ellipsis {
+    font-family: var(--xn-font-display);
+    font-size: 1.2rem;
+    letter-spacing: -0.02em;
+}
+
+.md-footer-meta {
+    background: transparent;
+}
+
+.md-footer-meta__inner {
+    padding: 0.6rem 1rem 1.4rem;
+}
+
+.md-copyright,
+.md-copyright__highlight {
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: var(--xn-size-label);
+    letter-spacing: 0.08em;
+}
+
+.md-social__link svg {
+    fill: var(--xn-ink-3);
+    transition: fill var(--xn-speed) var(--xn-ease);
+}
+
+.md-social__link:hover svg {
+    fill: var(--xn-ink);
+}
+
+.md-top {
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+    background: var(--xn-sheet);
+    box-shadow: none;
+    color: var(--xn-ink);
+    font-family: var(--xn-font-mono);
+    font-size: var(--xn-size-label);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.md-top:hover {
+    border-color: var(--xn-ink);
+    background: var(--xn-sheet);
+    color: var(--xn-ink);
+}
+
+/* ── Wide screens: the index's own title is the header's job ──────────────────────── */
+@media (min-width: 76.25em) {
+    .md-sidebar--primary .md-nav--primary > .md-nav__title {
+        display: none;
+    }
+
+    .md-sidebar--primary .md-nav[data-md-level="1"] > .md-nav__title {
+        display: none;
+    }
+}
+
+/* ── Narrow screens: the index becomes a drawer ───────────────────────────────────── */
+@media (max-width: 76.1875em) {
+    .xn-header__drawer {
+        display: inline-flex !important;
+    }
+
+    .xn-header__links {
+        display: none;
+    }
+
+    .xn-header__tools {
+        margin-left: auto;
+    }
+
+    .md-main__inner {
+        margin-top: 0;
+        box-shadow: none;
+    }
+
+    .md-sidebar--primary {
+        top: 0;
+        background: var(--xn-sheet);
+        box-shadow: none;
+        border-right: var(--xn-rule) solid var(--xn-rule-strong);
+    }
+
+    .md-sidebar--primary .md-sidebar__scrollwrap {
+        box-shadow: none;
+    }
+
+    .md-sidebar--primary .md-sidebar__inner {
+        padding: 0;
+    }
+
+    /* The drawer's title: one small wordmark, nothing else. */
+    .md-nav--primary > .md-nav__title {
+        display: flex;
+        align-items: center;
+        height: 3.2rem;
+        padding: 0 1rem;
+        border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+        background: var(--xn-sheet);
+        color: var(--xn-ink);
+        font-family: var(--xn-font-display);
+        font-size: 1.1rem;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        text-transform: none;
+    }
+
+    .md-nav--primary > .md-nav__title .md-logo {
+        display: none;
+    }
+
+    /* A nested level's title is the way back. */
+    .md-nav--primary .md-nav[data-md-level] > .md-nav__title {
+        height: auto;
+        padding: 0.9rem 1rem 0.6rem;
+        border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+        background: var(--xn-sheet);
+    }
+
+    .md-nav--primary .md-nav__list {
+        padding: 0.4rem 1rem 1rem;
+    }
+
+    .md-nav--primary .md-nav__item {
+        border: 0;
+    }
+
+    .md-nav--primary .md-nav__link {
+        margin: 0;
+        padding-top: 0.42rem;
+        padding-bottom: 0.42rem;
+        font-size: 0.66rem;
+    }
+
+    .md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item {
+        margin-top: 0.6rem;
+    }
+
+    .md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__link {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.72rem;
+    }
+}
+
+@media (max-width: 44.9375em) {
+    .xn-header .md-header__inner {
+        gap: 0.8rem;
+        padding: 0 0.6rem;
+    }
+
+    .xn-header__action {
+        display: none;
+    }
+
+
+    /* Both halves of the running foot keep their titles, set smaller. */
+    .md-footer__link--prev {
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .md-footer__link {
+        padding: 0.8rem 0.5rem 0.9rem;
+    }
+
+    .md-footer__link--prev .md-footer__title {
+        display: block;
+    }
+
+    .md-footer__title {
+        padding: 0 0.5rem;
+    }
+
+    .md-footer__title .md-ellipsis {
+        font-size: 0.9rem;
+    }
+}

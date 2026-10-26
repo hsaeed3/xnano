@@ -13,17 +13,24 @@ config:
     front_matter_title: ""
   # The README centers its header with a div, folds its examples into details
   # blocks and shows each rendered example as a picture that follows GitHub's
-  # light or dark theme.
+  # light or dark theme. The documentation site's markdown extension
+  # (scripts/docs_markdown) adds the homepage's features and the comments on
+  # code blocks.
   MD033:
     allowed_elements:
+      - comments
+      - definition
       - details
       - div
+      - feature
+      - features
       - img
       - picture
       - small
       - source
       - strong
       - summary
+      - tag
 # HISTORY.md is generated from the published GitHub release notes by
 # scripts/history.py, so it keeps their formatting.
 ignores:

@@ -33,7 +33,7 @@ Actions (coordinates are 0-based terminal cells, the column first, like xnano's 
 - ``type TEXT``: the rest of the line, typed as text.
 - ``paste TEXT``: the rest of the line, as a bracketed paste.
 - ``click COLUMN ROW [left|right|middle]``
-- ``drag COLUMN ROW COLUMN ROW``: left button down, moved in steps, released.
+- ``drag COLUMN ROW COLUMN ROW``: left button down, moved one cell at a time, released.
 - ``scroll up|down COLUMN ROW [COUNT]``
 
 Mouse actions send xterm SGR mouse reports. A program only receives them when it has turned
@@ -41,7 +41,10 @@ mouse reporting on, so a block that uses them must open its terminal with ``mous
 (and ``scroll=True`` for the wheel).
 
 The block's code runs as written in a real Kitty window, so the assets show what a user
-sees, fonts included. Every block is rendered twice, once for each GitHub theme, in a window
+sees, fonts included. An image is taken once the window has stopped changing (before and
+after its actions), so it never shows a half-drawn first frame. The windows use IBM Plex Mono when it is installed (found with
+``fc-list`` when it exists, otherwise in the system's font folders) and Kitty's configured
+font otherwise; the script says which at the start. Every block is rendered twice, once for each GitHub theme, in a window
 colored like GitHub's own page so the picture blends into it: ``THEMES`` holds the dark
 theme (background ``#0d1117``, text ``#e6edf3``) and the light theme (background ``#ffffff``,
 text ``#1f2328``), and the cursor is hidden in both. Each theme also sets the 16 ANSI colors
@@ -53,7 +56,15 @@ legible on its page. The files are ``<name>-dark`` and
 After rendering, a region with a ``<picture>`` element is written directly below each
 annotated block: GitHub shows the dark file to readers using its dark theme and the light
 file to everyone else. The region is replaced on every run and removed when the block loses
-its annotation. On macOS the Kitty windows are shown on screen while they render (a
+its annotation.
+
+The documentation pages (``docs/**/*.md``) are read the same way, with the same comment
+above a code block. Their blocks are drawn against the site's light and dark page colors
+(``PAGE_THEMES``) into ``docs/assets/examples/``, where names must be unique across all
+pages, and their region holds two Markdown images that the site shows by its color scheme
+(``#only-light`` and ``#only-dark``). In the README and in the pages alike, when a
+``<comments>`` element follows a code block to explain it, the region goes after
+``</comments>``, so the comments stay directly below their code. On macOS the Kitty windows are shown on screen while they render (a
 minimized window is not drawn) and are closed afterwards. On Linux without a ``DISPLAY`` the
 script runs itself again under ``xvfb-run``, so it works headlessly. Install Kitty and
 ``xvfb-run`` with ``make install-terminal``.
@@ -61,6 +72,8 @@ script runs itself again under ``xvfb-run``, so it works headlessly. Install Kit
 
 from __future__ import annotations
 
+import contextvars
+import functools
 import os
 import pathlib
 import re
@@ -83,6 +96,12 @@ README = ROOT / "README.md"
 OUTPUT = ROOT / "docs" / "assets" / "readme"
 ASSET_PATH = OUTPUT.relative_to(README.parent).as_posix()
 """Where the README links its assets from, relative to the README, as GitHub resolves it."""
+PAGES = ROOT / "docs"
+"""The documentation pages, whose annotated blocks are rendered too."""
+PAGE_OUTPUT = PAGES / "assets" / "examples"
+"""Where the assets of every documentation page go, so their names are unique across pages."""
+PAGE_KITTY_OPTIONS = ("window_padding_width=10",)
+"""A margin in the page's color around the cells, so text never touches the image's edge."""
 
 COLUMNS = 100
 """The width of every window in terminal columns."""
@@ -91,13 +110,31 @@ MINIMUM_HEIGHT = 3
 MAXIMUM_HEIGHT = 60
 FRAMES_PER_SECOND = 12
 """Gif capture rate: a Kitty screenshot takes about 40 ms, so this leaves room to spare."""
-DRAG_STEPS = 8
 STARTUP_TIMEOUT = 20
+STILL_SECONDS = 0.5
+"""How long a window must stay unchanged before an image is taken of it."""
+STILL_TIMEOUT = 5
+"""The longest an image waits for a still window; content that never stops is taken then."""
+PREFERRED_FONT = "IBM Plex Mono"
+"""The font the windows use when it is installed; Kitty's configured font otherwise."""
+FONT_DIRECTORIES = (
+    pathlib.Path.home() / "Library" / "Fonts",
+    pathlib.Path("/Library/Fonts"),
+    pathlib.Path("/System/Library/Fonts"),
+    pathlib.Path.home() / ".local" / "share" / "fonts",
+    pathlib.Path.home() / ".fonts",
+    pathlib.Path("/usr/local/share/fonts"),
+    pathlib.Path("/usr/share/fonts"),
+)
+"""Where macOS and Linux keep installed fonts, searched when ``fc-list`` is not available."""
+FONT_SUFFIXES = {".otf", ".ttc", ".ttf"}
 
 NAME_PATTERN = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 OPTION_PATTERN = re.compile(r'\s*(\w+)=("[^"]*"|\S+)')
 MOUSE_BUTTONS = {"left": 0, "middle": 1, "right": 2}
 SCROLL_BUTTONS = {"up": 64, "down": 65}
+PYTHON_FENCE = re.compile(r"```\s*(?:python|py)(?:\s.*)?")
+"""The opening fence of a Python block, with or without options such as ``title="..."``."""
 REGION_PATTERN = re.compile(
     r'\n<!-- @code-block-asset name="[^"]*" -->\n.*?<!-- /@code-block-asset -->\n',
     re.DOTALL,
@@ -166,18 +203,75 @@ LIGHT_THEME = Theme(
     dim_opacity=0.6,
 )
 THEMES = (DARK_THEME, LIGHT_THEME)
-"""The themes every block is rendered in."""
+"""The themes every block of the README is rendered in."""
+PAGE_LIGHT_THEME = Theme(
+    "light",
+    background="#e6e8eb",
+    foreground="#15171c",
+    palette=LIGHT_THEME.palette,
+    dim_opacity=0.6,
+)
+PAGE_DARK_THEME = Theme(
+    "dark",
+    background="#0e0f12",
+    foreground="#e4e5e9",
+    palette=DARK_THEME.palette,
+    dim_opacity=0.5,
+)
+PAGE_THEMES = (PAGE_LIGHT_THEME, PAGE_DARK_THEME)
+"""The site's light and dark page colors, which the blocks of its pages are drawn against."""
 
 
 class ReadmeAssetError(Exception):
     """A problem a person can fix, told in plain sentences."""
 
 
+CURRENT_FILE: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "CURRENT_FILE", default="README.md"
+)
+"""The file being read, which every error names."""
+
+
 def fail(line: int, problem: str, expected: str, fix: str) -> ReadmeAssetError:
-    """Build the error for a README line: what is wrong, what was expected, how to fix it."""
+    """Build the error for a line: what is wrong, what was expected, how to fix it."""
     return ReadmeAssetError(
-        f"README.md line {line}: {problem}. Expected {expected}. {fix}"
+        f"{CURRENT_FILE.get()} line {line}: {problem}. Expected {expected}. {fix}"
     )
+
+
+@dataclass(frozen=True)
+class Document:
+    """A Markdown file with annotated blocks: where their assets go and how it shows them."""
+
+    path: pathlib.Path
+    output: pathlib.Path
+    themes: tuple[Theme, ...]
+    is_readme: bool = False
+    kitty_options: tuple[str, ...] = ()
+    """Extra Kitty options for the file's windows, such as a padding around the cells."""
+
+    @property
+    def label(self) -> str:
+        """The file's path from the repository root, as errors name it."""
+        return self.path.relative_to(ROOT).as_posix()
+
+    def asset_link(self, filename: str) -> str:
+        """Return the link to one of the file's assets, relative to the file."""
+        return pathlib.Path(
+            os.path.relpath(self.output / filename, self.path.parent)
+        ).as_posix()
+
+
+README_DOCUMENT = Document(README, OUTPUT, THEMES, is_readme=True)
+
+
+def page_documents() -> list[Document]:
+    """Return the documentation pages that hold at least one ``@code-block`` comment."""
+    return [
+        Document(path, PAGE_OUTPUT, PAGE_THEMES, kitty_options=PAGE_KITTY_OPTIONS)
+        for path in sorted(PAGES.rglob("*.md"))
+        if "<!-- @code-block " in path.read_text(encoding="utf-8")
+    ]
 
 
 @dataclass(frozen=True)
@@ -496,7 +590,7 @@ def parse_blocks(text: str) -> list[Block]:
     lines = text.split("\n")
     blocks: list[Block] = []
     for index, line in enumerate(lines):
-        if line != "```python" or index == 0:
+        if not PYTHON_FENCE.fullmatch(line.rstrip()) or index == 0:
             continue
         above = lines[index - 1].strip()
         if not above.endswith("-->"):
@@ -538,15 +632,21 @@ def parse_blocks(text: str) -> list[Block]:
             for offset, action in enumerate(action_lines)
             if action.strip()
         )
-        try:
-            closing = lines.index("```", index + 1)
-        except ValueError:
+        closing = next(
+            (
+                number
+                for number in range(index + 1, len(lines))
+                if lines[number].rstrip() == "```"
+            ),
+            None,
+        )
+        if closing is None:
             raise fail(
                 index + 1,
                 "the code block is never closed",
                 "a closing ``` line",
                 "Close the block.",
-            ) from None
+            )
         block = Block(
             number,
             options,
@@ -570,7 +670,7 @@ def parse_blocks(text: str) -> list[Block]:
             raise fail(
                 block.line,
                 f'the name "{name}" is already used on line {seen[name]}',
-                "a name that is unique in the README",
+                "a name that is unique in the file",
                 "Rename one of the blocks.",
             )
         seen[name] = block.line
@@ -594,12 +694,18 @@ def mouse_reports(action: Click | Drag | Scroll) -> list[str]:
         ]
     if isinstance(action, Drag):
         reports = [mouse_report(0, action.start_column, action.start_row)]
-        for step in range(1, DRAG_STEPS + 1):
+        # One motion report per cell crossed, so nothing the pointer passes is skipped.
+        steps = max(
+            abs(action.end_column - action.start_column),
+            abs(action.end_row - action.start_row),
+            1,
+        )
+        for step in range(1, steps + 1):
             column = action.start_column + round(
-                (action.end_column - action.start_column) * step / DRAG_STEPS
+                (action.end_column - action.start_column) * step / steps
             )
             row = action.start_row + round(
-                (action.end_row - action.start_row) * step / DRAG_STEPS
+                (action.end_row - action.start_row) * step / steps
             )
             reports.append(mouse_report(32, column, row))  # 32 marks motion
         reports.append(
@@ -769,16 +875,119 @@ def apply_theme(window: ActualTerminal, theme: Theme) -> None:
         ) from error
 
 
-def render_theme(block: Block, theme: Theme) -> pathlib.Path:
+@functools.cache
+def is_font_installed(family: str) -> bool:
+    """
+    Whether a font family is installed on this system.
+
+    Asks fontconfig's ``fc-list`` when it exists. Otherwise looks for the family's font
+    files, named like ``IBMPlexMono-Regular.ttf``, in ``FONT_DIRECTORIES``.
+    """
+    if shutil.which("fc-list"):
+        listed = subprocess.run(
+            ["fc-list", f":family={family}", "family"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return bool(listed.stdout.strip())
+    prefix = family.replace(" ", "").lower()
+    return any(
+        path.suffix.lower() in FONT_SUFFIXES
+        and path.name.replace(" ", "").replace("-", "").lower().startswith(prefix)
+        for directory in FONT_DIRECTORIES
+        if directory.is_dir()
+        for path in directory.rglob("*")
+    )
+
+
+def font_overrides() -> tuple[str, ...]:
+    """The Kitty option that draws a window in ``PREFERRED_FONT``, when it is installed."""
+    if is_font_installed(PREFERRED_FONT):
+        return (f"font_family={PREFERRED_FONT}",)
+    return ()
+
+
+def font_notice() -> str:
+    """One line saying which font the windows are drawn in."""
+    if font_overrides():
+        return f"Drawing in {PREFERRED_FONT}."
+    return f"{PREFERRED_FONT} is not installed, so Kitty draws in its configured font."
+
+
+def read_blocks(document: Document) -> list[Block]:
+    """Read a file's annotated blocks, naming the file in any error."""
+    token = CURRENT_FILE.set(document.label)
+    try:
+        return parse_blocks(document.path.read_text(encoding="utf-8"))
+    finally:
+        CURRENT_FILE.reset(token)
+
+
+def check_page_names(found: list[tuple[Document, list[Block]]]) -> None:
+    """Fail when two documentation pages use one name, since their assets share a folder."""
+    seen: dict[str, tuple[str, int]] = {}
+    for document, blocks in found:
+        if document.is_readme:
+            continue
+        for block in blocks:
+            name = block.options.name
+            if name in seen:
+                other, line = seen[name]
+                raise ReadmeAssetError(
+                    f'{document.label} line {block.line}: the name "{name}" is already '
+                    f"used in {other} line {line}. Expected a name that is unique across "
+                    "the documentation pages, whose assets share "
+                    f"{PAGE_OUTPUT.relative_to(ROOT)}. Rename one of the blocks."
+                )
+            seen[name] = (document.label, block.line)
+
+
+def wait_until_still(
+    window: ActualTerminal,
+    *,
+    still_seconds: float = STILL_SECONDS,
+    timeout: float = STILL_TIMEOUT,
+) -> bool:
+    """
+    Wait until the window's screen, styles included, stops changing.
+
+    An image is taken of a finished frame, not of one the program is still drawing: a
+    first frame before every position is known, or a large picture filling in row by row.
+
+    Returns:
+        Whether the screen stayed unchanged for ``still_seconds``; ``False`` when it was
+        still changing after ``timeout`` seconds, as an animation does.
+    """
+    deadline = time.monotonic() + timeout
+    last = window.text(ansi=True)
+    unchanged_since = time.monotonic()
+    while time.monotonic() < deadline:
+        time.sleep(0.05)
+        current = window.text(ansi=True)
+        if current != last:
+            last, unchanged_since = current, time.monotonic()
+        elif time.monotonic() - unchanged_since >= still_seconds:
+            return True
+    return False
+
+
+def render_theme(
+    block: Block, theme: Theme, document: Document = README_DOCUMENT
+) -> pathlib.Path:
     """Run the block in Kitty with a theme's colors and save its image or gif."""
     options = block.options
-    target = OUTPUT / options.filename(theme)
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    target = document.output / options.filename(theme)
+    document.output.mkdir(parents=True, exist_ok=True)
     window = ActualTerminal(
         block.code,
         columns=COLUMNS,
         rows=options.height,
-        overrides=(f"dim_opacity={theme.dim_opacity}",),
+        overrides=(
+            f"dim_opacity={theme.dim_opacity}",
+            *font_overrides(),
+            *document.kitty_options,
+        ),
     )
     try:
         apply_theme(window, theme)
@@ -788,13 +997,16 @@ def render_theme(block: Block, theme: Theme) -> pathlib.Path:
             )
         except (AssertionError, RuntimeError) as error:
             raise ReadmeAssetError(
-                f"The code block of '{options.name}' (README line {block.line}) drew "
+                f"The code block of '{options.name}' ({document.label} line "
+                f"{block.line}) drew "
                 f"nothing within {STARTUP_TIMEOUT} seconds: {error}. Run the code on "
                 "its own and fix what it reports."
             ) from error
         if options.kind == "image":
+            wait_until_still(window)
             for action in block.actions:
                 run_action(window, action)
+            wait_until_still(window)
             window.screenshot(target)
         else:
             with tempfile.TemporaryDirectory(prefix="xnano-frames-") as frames:
@@ -814,9 +1026,11 @@ def render_theme(block: Block, theme: Theme) -> pathlib.Path:
     return target
 
 
-def render(block: Block) -> tuple[pathlib.Path, ...]:
-    """Render the block once for every theme, one window after the other."""
-    return tuple(render_theme(block, theme) for theme in THEMES)
+def render(
+    block: Block, document: Document = README_DOCUMENT
+) -> tuple[pathlib.Path, ...]:
+    """Render the block once for every theme of its file, one window after the other."""
+    return tuple(render_theme(block, theme, document) for theme in document.themes)
 
 
 def image_width(path: pathlib.Path) -> int:
@@ -829,13 +1043,13 @@ def image_width(path: pathlib.Path) -> int:
     raise ReadmeAssetError(f"{path.name} is neither a PNG nor a gif. Render it again.")
 
 
-def check_widths(blocks: list[Block]) -> None:
-    """Fail when the assets of the README are not all the same number of pixels wide."""
+def check_widths(blocks: list[Block], document: Document = README_DOCUMENT) -> None:
+    """Fail when the assets of a file are not all the same number of pixels wide."""
     widths = {
-        filename: image_width(OUTPUT / filename)
+        filename: image_width(document.output / filename)
         for block in blocks
-        for filename in (block.options.filename(theme) for theme in THEMES)
-        if (OUTPUT / filename).exists()
+        for filename in (block.options.filename(theme) for theme in document.themes)
+        if (document.output / filename).exists()
     }
     if len(set(widths.values())) > 1:
         listing = ", ".join(
@@ -847,29 +1061,78 @@ def check_widths(blocks: list[Block]) -> None:
         )
 
 
-def asset_region(options: Options) -> str:
-    """Return the generated region holding the ``<picture>`` of an asset's two themes."""
-    dark = f"{ASSET_PATH}/{options.filename(DARK_THEME)}"
-    light = f"{ASSET_PATH}/{options.filename(LIGHT_THEME)}"
+def asset_region(options: Options, document: Document = README_DOCUMENT) -> str:
+    """
+    Return the generated region that shows an asset in the theme of the reader's page.
+
+    The README gets a ``<picture>`` that GitHub resolves by its theme; a documentation page
+    gets two Markdown images that the site shows by its color scheme.
+    """
+    links = {
+        theme.name: document.asset_link(options.filename(theme))
+        for theme in document.themes
+    }
+    if document.is_readme:
+        return (
+            f'<!-- @code-block-asset name="{options.name}" -->\n'
+            "<picture>\n"
+            f'  <source media="(prefers-color-scheme: dark)" srcset="{links["dark"]}">\n'
+            f'  <img alt="{options.name}" src="{links["light"]}">\n'
+            "</picture>\n"
+            "<!-- /@code-block-asset -->\n"
+        )
     return (
         f'<!-- @code-block-asset name="{options.name}" -->\n'
-        "<picture>\n"
-        f'  <source media="(prefers-color-scheme: dark)" srcset="{dark}">\n'
-        f'  <img alt="{options.name}" src="{light}">\n'
-        "</picture>\n"
+        "\n"
+        f"![{options.name}]({links['light']}#only-light)\n"
+        f"![{options.name}]({links['dark']}#only-dark)\n"
+        "\n"
         "<!-- /@code-block-asset -->\n"
     )
 
 
-def update_regions(text: str) -> str:
-    """Return the README text with a fresh asset region below every annotated block."""
-    text = REGION_PATTERN.sub("", text)
-    blocks = parse_blocks(text)
-    lines = text.split("\n")
-    for block in reversed(blocks):
-        region = ["", *asset_region(block.options).rstrip("\n").split("\n")]
-        lines[block.closing_line + 1 : block.closing_line + 1] = region
-    return "\n".join(lines)
+def region_line(lines: list[str], block: Block) -> int:
+    """
+    Return the line a block's region is inserted at.
+
+    That is right after the block, or after the ``<comments>`` element that explains it
+    when one follows (blank lines between them are allowed), so the comments stay directly
+    below their code.
+    """
+    after = block.closing_line + 1
+    following = after
+    while following < len(lines) and not lines[following].strip():
+        following += 1
+    if following == len(lines) or not lines[following].lstrip().startswith("<comments"):
+        return after
+    for number in range(following, len(lines)):
+        if "</comments>" in lines[number]:
+            return number + 1
+    raise fail(
+        following + 1,
+        "the <comments> element after the code block is never closed",
+        "a </comments> line after its tags and definitions",
+        "Close the element.",
+    )
+
+
+def update_regions(text: str, document: Document = README_DOCUMENT) -> str:
+    """Return a file's text with a fresh asset region below every annotated block."""
+    token = CURRENT_FILE.set(document.label)
+    try:
+        text = REGION_PATTERN.sub("", text)
+        blocks = parse_blocks(text)
+        lines = text.split("\n")
+        for block in reversed(blocks):
+            region = [
+                "",
+                *asset_region(block.options, document).rstrip("\n").split("\n"),
+            ]
+            at = region_line(lines, block)
+            lines[at:at] = region
+        return "\n".join(lines)
+    finally:
+        CURRENT_FILE.reset(token)
 
 
 def main() -> int:
@@ -878,7 +1141,7 @@ def main() -> int:
         display_runner = shutil.which("xvfb-run")
         if display_runner is None:
             sys.stderr.write(
-                "Cannot render the README assets without a display. Install the development "
+                "Cannot render the assets without a display. Install the development "
                 "tools with make install-terminal, or set DISPLAY to an existing X display.\n"
             )
             return 1
@@ -894,31 +1157,43 @@ def main() -> int:
             check=False,
         ).returncode
     wanted = sys.argv[1:]
+    sys.stdout.write(f"{font_notice()}\n")
     try:
-        text = README.read_text(encoding="utf-8")
-        blocks = parse_blocks(text)
-        names = [block.options.name for block in blocks]
+        found = [
+            (document, read_blocks(document))
+            for document in (README_DOCUMENT, *page_documents())
+        ]
+        check_page_names(found)
+        names = [block.options.name for _, blocks in found for block in blocks]
         unknown = [name for name in wanted if name not in names]
         if unknown:
             raise ReadmeAssetError(
-                f"README.md has no annotated block named '{unknown[0]}'. Choose from: "
+                f"Neither README.md nor a documentation page has an annotated block named "
+                f"'{unknown[0]}'. Choose from: "
                 f"{', '.join(names) or 'no blocks are annotated'}."
             )
-        for block in blocks:
-            if wanted and block.options.name not in wanted:
-                if not all(
-                    (OUTPUT / block.options.filename(theme)).exists()
-                    for theme in THEMES
-                ):
-                    raise ReadmeAssetError(
-                        f"'{block.options.name}' has no dark and light assets yet. Run the "
-                        "script without names to render every block."
+        for document, blocks in found:
+            for block in blocks:
+                if wanted and block.options.name not in wanted:
+                    if not all(
+                        (document.output / block.options.filename(theme)).exists()
+                        for theme in document.themes
+                    ):
+                        raise ReadmeAssetError(
+                            f"'{block.options.name}' ({document.label} line {block.line}) "
+                            "has no dark and light assets yet. Run the script without "
+                            "names to render every block."
+                        )
+                    continue
+                for path in render(block, document):
+                    sys.stdout.write(
+                        f"{block.options.name}: {path.relative_to(ROOT)}\n"
                     )
-                continue
-            for path in render(block):
-                sys.stdout.write(f"{block.options.name}: {path.relative_to(ROOT)}\n")
-        check_widths(blocks)
-        README.write_text(update_regions(text), encoding="utf-8")
+            check_widths(blocks, document)
+            text = document.path.read_text(encoding="utf-8")
+            updated = update_regions(text, document)
+            if updated != text:
+                document.path.write_text(updated, encoding="utf-8")
     except ReadmeAssetError as error:
         sys.stderr.write(f"{error}\n")
         return 1

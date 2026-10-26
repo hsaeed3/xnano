@@ -5,52 +5,29 @@ icon: "fontawesome/solid/x"
 
 # xnano
 
-xnano is a terminal for Python, built on the [ratatui](https://ratatui.rs) and
-[tachyonfx](https://github.com/ratatui/tachyonfx) Rust crates. It gives you a
-surface of cells to put things on: text, widgets, images, pixels and sound.
-There is no framework to learn first. You build small values from the inside out
-(`xnano.region`, `xnano.pixel_art`, `xnano.Note`), put them on a canvas, and the
-canvas can be put on your screen. Every position and size can be an expression of
-time, of the canvas's size or of anything else on screen, so a layout is a line
-of Python that is evaluated again on every frame.
+<!-- The homepage's examples, in the order they appear. Each one's text is
+     markdown; figure="left" or "right" puts its animation on that side, and
+     light and dark name the files shown in each color scheme. -->
+<!-- markdownlint-disable MD013 -->
+<features>
+<feature title="Composable" figure="right" light="assets/home/widgets-light.gif" dark="assets/home/widgets-dark.gif" alt="A git client with a commit graph, branch tree and menus, drawn with xnano widgets">
+    xnano is built on [`ratatui`'s](https://ratatui.rs/) layout and widget system, and provides an expressive API for composing the content displayed to the terminal.
+</feature>
 
-```python
-import xnano
-from xnano.expressions import ParentWidth, TimeElapsed, Width
+<feature title="Reactive" figure="left" light="assets/home/input-light.gif" dark="assets/home/input-dark.gif" alt="A small farming game running in the terminal with xnano">
+    Create reactive components that respond to user input, time, and other factors at the speed you can think of them.
+</feature>
 
-card = xnano.region('Hello, world!', border='rounded', padding={'horizontal': 2})
-print(card.render())  # a value renders on its own, with no screen
+<feature title="Audio Support" figure="right" light="assets/home/sound-light.gif" dark="assets/home/sound-dark.gif" alt="Pixel piano keys pressed as xnano plays their notes">
+    xnano treats audio content as a first-class citizen, with the ability to synthesize music with MIDI patterns, play back audio files, and capture microphone input. It can even generate sound effects in real time.
+</feature>
 
-with xnano.open(width=40, height=6) as terminal:
-    terminal.screen.write(card, x='center')
-    ball = terminal.screen.write('●', y=5)
-    ball.x = (ParentWidth - Width) * (TimeElapsed % 2 / 2)
-    terminal.run(stop_on='q')
-```
+<feature title="Effects" figure="left" light="assets/home/effects-light.gif" dark="assets/home/effects-dark.gif" alt="Eight gradient cards in a grid, each playing in turn the tachyonfx effects named under it: dissolve and coalesce, sweeps, a hue shift, evolving symbols, slides, fades, paint and lighten">
+    Anything on screen can dissolve, sweep, slide, fade or shift its colors with [`tachyonfx`](https://github.com/ratatui/tachyonfx)'s effects, each started by name with `placement.fx`. Sounds take [effects](api-reference/xnano/effects.md) such as reverb and delay the same way.
+</feature>
 
-The `xnano` distribution installs the terminal and its Rust engine, and two
-optional extras:
-
-| Distribution | Import | What it provides |
-| --- | --- | --- |
-| `xnano` | `xnano` | The terminal API: `new`, `open`, placements, hooks, effects, components, input, regions, art, images and sound. |
-| `xnano-core` | `xnano_core` | The compiled engine: buffers, widgets, operations, effects and the expression language. |
-| `xnano-audio` | `xnano_audio` | Synthesis, melodies, playback and capture. Install with `pip install "xnano[audio]"`. |
-| `xnano-image` | `xnano_image` | Image and animation loading and conversion to terminal cells. Install with `pip install "xnano[image]"`. |
-
-Start with the [getting started guide](learn/index.md), then read the
-[API reference](api-reference/index.md). For a larger example, run
-`python -m xnano` (or the `xnano` command) to see the features working together.
-Its source is `xnano/demo.py`.
-
-<!-- markdownlint-disable MD046 -->
-
-!!! note "Looking for xnano v1?"
-
-    Everything here is xnano v2. The previous grid-and-field API is on the
-    [`v1` branch](https://github.com/hsaeed3/xnano/tree/v1); install the latest
-    v1 release, [1.2.3](https://github.com/hsaeed3/xnano/releases/tag/xnano%2Fv1.2.3),
-    with `pip install "xnano>=1.2.3,<2"`. Its guides are kept under
-    [Legacy v1](v1/index.md).
-
-<!-- markdownlint-enable MD046 -->
+<feature title="AI Native" figure="right" light="assets/home/ai-light.gif" dark="assets/home/ai-dark.gif" alt="A request for a now playing card typed into an xnano program, the program a model wrote for it shown beside the card it draws in the sandbox, then a second request that turns the card pink">
+    [`xnano.ai`](api-reference/xnano/ai.md) lets models read the canvas and answer in xnano values: choices, verdicts, text, pixel art, widgets and melodies, and gives any pydantic-ai agent tools to see and change it. Code a model writes runs in a [sandbox](api-reference/xnano/sandbox.md) that can draw on the canvas but cannot reach files, the network or the rest of your program.
+</feature>
+</features>
+<!-- markdownlint-enable MD013 -->
