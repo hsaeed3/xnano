@@ -83,10 +83,11 @@ wait 4.0
 -->
 ```python
 import xnano
+from xnano.expressions import ParentWidth
 
 with xnano.open(height=3) as terminal:
     ball = terminal.screen.write('●', y=1, foreground='cyan')
-    ball.x = (terminal.clock * 12) % terminal.screen.width  # >> [expression]
+    ball.x = (terminal.clock * 12) % ParentWidth  # >> [expression]
     terminal.screen.write('q quit', y='bottom', dim=True)
     terminal.run(stop_on='q')
 ```
@@ -94,7 +95,8 @@ with xnano.open(height=3) as terminal:
 <comments>
 <tag name="expression" color="amber">
 Twelve cells a second, wrapping around at the right edge. `terminal.clock` reads
-as the elapsed seconds.
+as the elapsed seconds, and `ParentWidth` is the width of the screen the ball is
+on, so the wrap follows the window when it's resized.
 </tag>
 </comments>
 

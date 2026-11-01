@@ -7,10 +7,11 @@ icon: lucide/book-open
 
 These guides teach xnano from the first line to a finished program. Start with
 [Installation](installation.md) and [Your First Program](first-program.md),
-which builds a small focus timer and touches every part of the library once. The
-guides after it take one part at a time and go deeper.
+which builds a small focus timer from xnano's core ideas: a canvas, placements,
+hooks on keys and time, a widget and a sound. The guides after it take one part
+at a time and go deeper.
 
-All you need is Python 3.10 or newer and a terminal. Everything else is
+All you need is Python 3.10 to 3.14 and a terminal. Everything else is
 explained as it comes up.
 
 ## The guides

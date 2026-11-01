@@ -6,8 +6,9 @@ icon: lucide/music
 # Sound
 
 A canvas has a **speaker** that plays notes, chords, melodies and audio files,
-and a **microphone** that hears how loud the room is. Everything is synthesized
-as it plays, so a program makes music without a single sound file.
+and a **microphone** that hears how loud the room is. Notes, chords and melodies
+are synthesized as they play, so a program makes music without a single sound
+file.
 
 Sound needs the `audio` extra from
 [Installation](installation.md#optional-extras). On a computer with no sound

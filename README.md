@@ -346,13 +346,15 @@ wait 4.5
 -->
 ```python
 import xnano
+from xnano.expressions import ParentWidth
 
 with xnano.open(height=3) as terminal:
     label = terminal.screen.write('')
     ball = terminal.screen.write('●', y=1)
 
-    # math with the clock makes an expression, which moves the ball on every frame
-    ball.x = (terminal.clock * 10) % terminal.screen.width
+    # math with the clock makes an expression, which moves the ball on every frame;
+    # `ParentWidth` is the screen's width, read again when the window is resized
+    ball.x = (terminal.clock * 10) % ParentWidth
 
     # tick hooks run on a timer, measured in seconds of the clock
     @terminal.hook(on='tick', every=1.0)

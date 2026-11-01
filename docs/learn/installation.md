@@ -5,8 +5,8 @@ icon: lucide/download
 
 # Installation
 
-xnano runs on Python 3.10 and newer, on Linux, macOS and Windows. Install it
-from [PyPI](https://pypi.org/project/xnano/):
+xnano runs on Python 3.10 to 3.14, on Linux, macOS and Windows. Install it from
+[PyPI](https://pypi.org/project/xnano/):
 
 ```bash
 pip install xnano
@@ -40,9 +40,10 @@ program can check it before it plays.
 
 ## Check the install
 
-xnano comes with a demo. Run it:
+xnano comes with a demo. It shows pictures, so it needs the `image` extra:
 
 ```bash
+pip install "xnano[image]"
 python -m xnano
 ```
 
