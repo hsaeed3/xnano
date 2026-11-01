@@ -13,6 +13,18 @@ Copyright &copy; 2026 Hammad Saeed
 
 nav = [
     {"Introduction" = "index.md"},
+    {"Learn" = [
+        {"Overview" = "learn/index.md"},
+        {"Installation" = "learn/installation.md"},
+        {"Your First Program" = "learn/first-program.md"},
+        {"Writing Content" = "learn/content.md"},
+        {"Styling" = "learn/styling.md"},
+        {"Hooks & Input" = "learn/input.md"},
+        {"Time & Effects" = "learn/time.md"},
+        {"Widgets" = "learn/widgets.md"},
+        {"Images & Pixel Art" = "learn/images.md"},
+        {"Sound" = "learn/sound.md"},
+    ]},
     {"API Reference" = [
         {"API Reference" = "api-reference/index.md"},
         # API_REFERENCE_START

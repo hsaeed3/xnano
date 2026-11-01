@@ -177,6 +177,88 @@ Docstrings are written for **users of the library**, never for the people mainta
 - Anything that is a **direct binding** of an upstream crate or API (`ratatui`, `crossterm`, `tachyonfx`, `termprofile`, ...) must say so with a ``Maps to [`crate::path::Item`](https://docs.rs/<crate>/<version>/<crate>/<path>.html).`` line linking to the exact upstream item. Use the version pinned in `Cargo.toml`, and keep the link pointing at the real upstream item.
 - Docstring layout (enforced by ruff D209/D213): multi-line docstrings put the opening and closing triple quotes on their own lines.
 
+## Design Language & UI/UX Checklist
+
+xnano has two interfaces: the programs people run in a terminal (widgets, effects, the demo, the examples, errors that reach the screen) and the documentation site that teaches them. Both follow one design language, adapted from [Zed's UI checklist](https://github.com/zed-industries/zed/blob/main/docs/src/development/ui-checklist.md) and [icon guidelines](https://github.com/zed-industries/zed/blob/main/crates/icons/README.md). The interface stays quiet so the content leads. Every visual choice carries a meaning, and a meaning always looks the same. Use this section whenever a change affects what a user sees, hears or reads.
+
+### Design Language
+
+- **Restraint.** Use one accent color and neutral text. Nothing is decorative without a job: if removing an element loses no information, remove it.
+- **Spacing comes from one scale.** In a terminal the unit is the cell. Padding and gaps are whole cells, a border takes one cell, and horizontal spacing is twice the vertical, because a cell is about twice as tall as it is wide: one row of padding pairs with two columns. On the site, spacing uses the `--xn-space-*` tokens in `docs/stylesheets/editorial/tokens.css`, a 4px scale named by its pixel value at the default size (`--xn-space-8` is 8px), never a one-off value.
+- **Type uses few sizes and builds hierarchy from weight and color.** A terminal has one font at one size, the user's. Titles and keys are `bold`, content is plain, and hints and secondary text are `dim`: one view uses at most these three levels. The site declares its sizes as `--xn-size-*` tokens and adds none outside them. Prose uses the text font, and anything a user types or reads as code uses the mono font.
+- **Color is semantic.** A color states what something is: default, muted, accent, disabled, success, warning, error or information. It keeps that meaning everywhere. In a terminal, prefer named colors (`'green'`, `'red'`, `'cyan'`) and `dim`. They follow the user's terminal theme. An RGB or hex color is drawn exactly as written and can disappear against the other background, so use one only when the exact color is the content (art, images, gradients). Success is green, warning yellow, error red, and information blue or cyan. Color never carries a meaning alone: pair it with a word or a symbol (`● online`, `▲ slow`). On the site, every color is a token defined for both color schemes, and blue is the one accent: it marks links, actions and focus, never a status.
+- **Layers express closeness.** Higher layers sit closer to the user, like Zed's elevation (background, surface, elevated surface, modal). Content on a higher `layer=` covers what is below. A popup or dialog is a bordered box with its own background on the top layer, so the content beneath never shows through its text. On the site the order is the page, then the sheet, then floating surfaces (menus, code notes, search), and only floating surfaces cast a shadow.
+- **Motion confirms a change, never delays one.** An effect or transition explains a change or draws the eye to it. It never stands between the user and the result. Immediate feedback takes about 50ms, and transitions take 150ms to 300ms, easing out. On the site, transitions use the `--xn-speed` (220ms) and `--xn-ease` tokens. Nothing moves forever unless the motion is the content or shows work in progress. On the site, respect `prefers-reduced-motion`.
+- **Symbols are one cell; icons are drawn to a grid.** In a terminal, a symbol is a single-cell glyph that common monospace fonts carry: `●`, `▲`, `✓`, `×`, `→`, and box-drawing and block characters. Check that it really is one cell wide. Emoji and many pictographs take two cells, or an ambiguous width, and break alignment, so they stay out of interface chrome. Pair a symbol with text unless its meaning is universal. Icons on the site follow Zed's icon guidelines:
+  1. Draw on a 16×16 view box. Keep the shape inside an inner 12×12 box as far as visibility allows, and prefer optical balance to mathematical alignment.
+  2. Outlined icons use a 1.2px stroke in `currentColor`, so they follow the theme and the text beside them. Larger figures, such as the homepage illustrations, share one stroke weight across their set.
+  3. Name variants `filled` and `outlined`. Prefix a deeply contextual icon with its feature: `audio-play`, `effects-sweep`.
+  4. Avoid complex SVG structure such as clipping masks, nested groups and transforms. Clean up complex shapes with [SVGOMG](https://jakearchibald.github.io/svgomg/).
+  5. Start from [Lucide](https://lucide.dev/), the icon set the site's theme already uses, then simplify the icon to fit. Use [Phosphor](https://phosphoricons.com/), or draw from scratch, when nothing fits.
+  6. Size icons 16px beside body text and 12px or 14px inside labels.
+
+### UI/UX Checklist
+
+#### Accessibility & Ergonomics
+
+- Does every key binding work as intended, including keys that terminals report differently (`backspace`, `alt`/`option`, function keys)?
+- Can a user discover the bindings on screen (a hint line), in the docstring and in the example?
+- Is everything usable from the keyboard alone? Mouse input is opt-in (`mouse=True`), so the keyboard path must be complete.
+- With the mouse enabled, do clicks, drags, scrolling and resizing all work?
+- Does it look right in light and dark terminal themes, and in both color schemes of the site?
+- Are focus and hover states clear and consistent? Are they visible without color, through bold, reverse video or a marker?
+
+#### Responsiveness
+
+- Does it scale gracefully to:
+  - narrow terminals (a 40-column split pane, a tmux side panel)?
+  - short regions (`xnano.open(height=3)` below a prompt, a 24-row window)?
+  - large full-screen windows?
+- Does a resize keep it usable and well arranged? Nothing should be cut off mid-word, drawn past an edge, or left behind.
+- Do popups and overlays stay centered and inside the screen?
+- Does every page of the site work at phone width without horizontal scrolling, and look sharp on high-DPI displays?
+
+#### Platform Consistency
+
+- Is it fully usable on Windows, Linux and macOS? Check common terminals (Windows Terminal, Terminal.app, iTerm2, GNOME Terminal, kitty, WezTerm, Alacritty), tmux and SSH.
+- Does it respect the terminal's own settings: its font, its color theme, the number of colors it shows (including `NO_COLOR`), and its input method?
+- Does it degrade gracefully when something is missing: no graphics protocol for images, no audio output or microphone, no mouse reporting, no TTY (piped output, CI)?
+
+#### Performance
+
+- Does every interaction get instant feedback? When the user starts something slow (a model generating, a large image decoding, audio loading), show that work is in progress.
+- Does it handle large inputs without degrading: long text, big tables, large images, thousands of placements?
+- Does a frame take no more than 8ms (120fps)? An idle program neither redraws nor keeps the CPU busy.
+- Is the change measured, not guessed? Add or update a benchmark for anything on the drawing path (see **Benchmarks, CPU & Memory Logging**).
+
+#### Consistency
+
+- Does it follow the design language above (spacing, type, color, layers, motion, symbols and icons)?
+- Are terms, labels and tone consistent with the rest of xnano? One concept has one name in code, on screen, in errors and in the docs.
+- Do interactions behave alike everywhere: how a program stops (`ctrl+c` by default, `q` in examples), how popups close (`esc`), how errors appear?
+
+#### Text & Internationalization
+
+- Are strings short, clear and unambiguous?
+- Do they avoid jargon only maintainers know, such as crate names, internal modules and Rust types?
+- Do wide characters (CJK, emoji) and combining marks keep their alignment? Text is measured in cells, not characters.
+
+#### User Paths & Edge Cases
+
+- What does the happy path look like?
+- What does the unhappy path look like: errors, invalid input, a key that does nothing?
+- Does it work with and without the optional extras (`xnano[audio]`, `xnano[image]`), and with and without a network connection?
+- Does it behave the same on a live terminal (`xnano.open()`), on a canvas with no screen (`xnano.new()`) and in a static render?
+- What happens when data is missing, corrupted or late: an image that fails to load, an empty table, a slow response?
+- Are error messages actionable and in xnano's voice (see **Errors teach recovery**)?
+
+#### Discoverability & Learning
+
+- Can a first-time user figure it out from the example and the docstring alone?
+- Can the user always leave or undo? When they leave, is the terminal restored exactly as it was (cursor, screen contents, modes)?
+- Are power features discoverable without getting in the way?
+- Is there a path from beginner to expert: the common case in one line, the advanced case through keywords (progressive disclosure)?
+
 ## FINAL INSTRUCTIONS FOR AGENTS
 
 [START]

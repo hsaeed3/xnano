@@ -32,6 +32,23 @@
     --xn-exhibit: 40rem;
     --xn-gutter: 1.5rem;
 
+    /* Spacing: a 4px scale, each step named by its size in pixels at the default root size
+       of 20px (0.2rem is 4px), so it grows with the text on large screens. */
+    --xn-space-2: 0.1rem;
+    --xn-space-4: 0.2rem;
+    --xn-space-8: 0.4rem;
+    --xn-space-12: 0.6rem;
+    --xn-space-16: 0.8rem;
+    --xn-space-20: 1rem;
+    --xn-space-24: 1.2rem;
+    --xn-space-32: 1.6rem;
+    --xn-space-40: 2rem;
+    --xn-space-48: 2.4rem;
+
+    /* Icons: drawn on a 16×16 grid with a 1.2px stroke, shown at 16px beside body text. */
+    --xn-icon: 0.8rem;
+    --xn-icon-stroke: 1.2;
+
     /* Construction. */
     --xn-grid: 24px;
     --xn-dot: 1px;

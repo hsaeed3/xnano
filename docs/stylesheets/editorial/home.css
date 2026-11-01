@@ -294,16 +294,17 @@
     object-position: 50% 0;
 }
 
-/* ── 02: the index of the manual ───────────────────────────────────────────────────── */
+/* ── 03: where to go next ─────────────────────────────────────────────────────────── */
 .xn-index {
     margin-top: 5.2rem;
 }
 
-.md-typeset ol.xn-index__list {
+.md-typeset ul.xn-index__list {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     margin: 0;
     padding: 0;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
     list-style: none;
 }
 
@@ -316,73 +317,95 @@
     border-left: var(--xn-rule) solid var(--xn-rule-subtle);
 }
 
+/* An entry: its icon, its title, a sentence, and the path it leads to. */
 .md-typeset a.xn-index__entry {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
+    align-items: flex-start;
+    gap: var(--xn-space-8);
     height: 100%;
-    padding: 1.1rem 1.3rem 1.6rem;
+    padding: var(--xn-space-24) var(--xn-space-24) var(--xn-space-20);
     color: var(--xn-ink);
     text-decoration: none;
+    transition: background-color var(--xn-speed) var(--xn-ease);
+}
+
+.md-typeset a.xn-index__entry:hover {
+    background-color: var(--xn-sheet);
+}
+
+.md-typeset a.xn-index__entry:focus-visible {
+    outline: var(--xn-rule) solid var(--xn-accent);
+    outline-offset: calc(-1 * var(--xn-rule));
+}
+
+/* The icon sits in a square tile two icons wide, outlined like the site's buttons. */
+.xn-index__icon {
+    display: grid;
+    place-items: center;
+    width: calc(2 * var(--xn-icon));
+    height: calc(2 * var(--xn-icon));
+    margin-bottom: var(--xn-space-8);
+    border: var(--xn-rule) solid var(--xn-rule-strong);
+    background-color: var(--xn-sheet);
+    color: var(--xn-ink-2);
+    transition:
+        border-color var(--xn-speed) var(--xn-ease),
+        color var(--xn-speed) var(--xn-ease);
+}
+
+.xn-index__icon svg {
+    width: var(--xn-icon);
+    height: var(--xn-icon);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: var(--xn-icon-stroke);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.xn-index__entry:hover .xn-index__icon,
+.xn-index__entry:focus-visible .xn-index__icon {
+    border-color: var(--xn-ink);
+    color: var(--xn-ink);
 }
 
 .xn-index__title {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    padding-bottom: 0.7rem;
-    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
     font-family: var(--xn-font-text);
     font-size: 0.8rem;
     font-weight: 500;
+    line-height: 1.4;
 }
 
 .xn-index__title .xn-arrow {
+    display: inline-block;
+    margin-left: var(--xn-space-2);
+    color: var(--xn-ink-3);
+    transition:
+        color var(--xn-speed) var(--xn-ease),
+        transform var(--xn-speed) var(--xn-ease);
+}
+
+.xn-index__entry:hover .xn-arrow,
+.xn-index__entry:focus-visible .xn-arrow {
     color: var(--xn-accent);
-}
-
-.xn-index__figure {
-    width: 100%;
-    height: auto;
-    margin: 0.3rem 0;
-    fill: none;
-    stroke: var(--xn-ink-3);
-    stroke-width: 1;
-    transition: stroke var(--xn-speed) var(--xn-ease);
-}
-
-.xn-index__figure .xn-fill {
-    fill: var(--xn-page);
-}
-
-.xn-index__figure .xn-pixels rect {
-    fill: var(--xn-ink-3);
-    stroke: none;
-    transition: fill var(--xn-speed) var(--xn-ease);
-}
-
-.xn-index__figure .xn-dot {
-    fill: var(--xn-ink-3);
-    stroke: none;
-}
-
-.xn-index__figure .xn-dots {
-    stroke: none;
-}
-
-.xn-index__entry:hover .xn-index__figure {
-    stroke: var(--xn-ink);
-}
-
-.xn-index__entry:hover .xn-pixels rect {
-    fill: var(--xn-ink);
+    transform: translate(0.1rem, -0.1rem);
 }
 
 .xn-index__text {
     color: var(--xn-ink-2);
-    font-size: 0.66rem;
-    line-height: 1.55;
+    font-size: 0.7rem;
+    line-height: 1.5;
+}
+
+/* The path sits at the foot of the entry, so the entries end on one line. */
+.xn-index__path {
+    margin-top: auto;
+    padding-top: var(--xn-space-12);
+    color: var(--xn-ink-3);
+    font-family: var(--xn-font-mono);
+    font-size: var(--xn-size-label);
+    letter-spacing: 0.02em;
 }
 
 /* ── 03: spreads ───────────────────────────────────────────────────────────────────── */
@@ -496,11 +519,11 @@ xn-features {
         display: none;
     }
 
-    .md-typeset ol.xn-index__list {
+    .md-typeset ul.xn-index__list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .xn-index__list > li:nth-child(3) {
+    .xn-index__list > li:nth-child(odd) {
         border-left: 0;
     }
 
@@ -556,7 +579,7 @@ xn-features {
         right: 0.6rem;
     }
 
-    .md-typeset ol.xn-index__list {
+    .md-typeset ul.xn-index__list {
         grid-template-columns: minmax(0, 1fr);
     }
 
@@ -565,37 +588,39 @@ xn-features {
         border-top: var(--xn-rule) solid var(--xn-rule-subtle);
     }
 
-    /* Each entry becomes a compact row: a small schematic beside its title and text. */
+    /* Each entry becomes a row: the icon beside its title, sentence and path. */
     .md-typeset a.xn-index__entry {
         display: grid;
-        grid-template-columns: 5.4rem minmax(0, 1fr);
+        grid-template-columns: auto minmax(0, 1fr);
         grid-template-areas:
-            "figure label"
-            "figure title"
-            "figure text";
-        column-gap: 1.1rem;
-        row-gap: 0.35rem;
-        padding: 1.1rem 0 1.2rem;
+            "icon title"
+            "icon text"
+            "icon path";
+        column-gap: var(--xn-space-16);
+        row-gap: var(--xn-space-4);
+        padding: var(--xn-space-20) 0;
     }
 
-    .xn-index__entry > .xn-label {
-        grid-area: label;
+    .md-typeset a.xn-index__entry:hover {
+        background-color: transparent;
+    }
+
+    .xn-index__icon {
+        grid-area: icon;
+        margin-bottom: 0;
     }
 
     .xn-index__title {
         grid-area: title;
-        padding-bottom: 0;
-        border-bottom: 0;
-    }
-
-    .xn-index__figure {
-        grid-area: figure;
-        align-self: center;
-        margin: 0;
     }
 
     .xn-index__text {
         grid-area: text;
+    }
+
+    .xn-index__path {
+        grid-area: path;
+        padding-top: var(--xn-space-4);
     }
 }
 
