@@ -101,7 +101,7 @@ with xnano.new(width=40, height=3) as canvas:
 A line whose parts look different is a [`StyledText`][xnano.styles.StyledText]:
 a list of spans, each with its own style. Write it inside a `Paragraph`.
 
-<!-- @code-block name="learn-styling-spans" type="image" height=2 -->
+<!-- @code-block name="learn-styling-spans" type="image" height=3 -->
 ```python
 import xnano
 from xnano.styles import Style, StyledText, TextSpan

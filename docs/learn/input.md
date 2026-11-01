@@ -48,7 +48,7 @@ Leave out `keys=` to hear every key. `context.keyboard.key` names the key that
 was pressed: a character such as `'a'`, or a name such as `'enter'`, `'escape'`,
 `'backspace'`, `'tab'`, `'up'` or `'f1'`.
 
-<!-- @code-block name="learn-input-any-key" type="gif" height=2
+<!-- @code-block name="learn-input-any-key" type="gif" height=3
 wait 0.6
 type xnano
 wait 0.4

@@ -138,7 +138,7 @@ Every number and text in a widget can be an
 [expression](time.md#values-that-follow-the-clock), which xnano works out again
 on every frame. This gauge fills over ten seconds, with no hook:
 
-<!-- @code-block name="learn-widgets-expression" type="gif" height=2
+<!-- @code-block name="learn-widgets-expression" type="gif" height=3
 wait 4.0
 -->
 ```python
