@@ -49,6 +49,13 @@ Keeps the terminal alive, drawing and listening, until `q` is pressed.
 </tag>
 </comments>
 
+<!-- @code-block-asset name="learn-first-program-open" -->
+
+![learn-first-program-open](../assets/examples/learn-first-program-open-light.png#only-light)
+![learn-first-program-open](../assets/examples/learn-first-program-open-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 Run it with `python focus.py`, and press `q` to quit.
 
 ## Count down
@@ -263,6 +270,13 @@ with xnano.open(height=5) as terminal:
 Melody text: three notes, the last held for two beats.
 </tag>
 </comments>
+
+<!-- @code-block-asset name="learn-first-program-finished" -->
+
+![learn-first-program-finished](../assets/examples/learn-first-program-finished-light.gif#only-light)
+![learn-first-program-finished](../assets/examples/learn-first-program-finished-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
 
 That's the whole timer. Set `MINUTES = 1` to watch it finish.
 

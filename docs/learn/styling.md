@@ -15,7 +15,7 @@ that read well on any terminal.
 A color can be given three ways: by name, as a hex string, or as a
 `(red, green, blue)` tuple.
 
-<!-- @code-block name="learn-styling-colors" type="image" height=4 -->
+<!-- @code-block name="learn-styling-colors" type="image" height=5 -->
 ```python
 import xnano
 
@@ -27,6 +27,13 @@ with xnano.new(width=40, height=4) as canvas:
     print(canvas.screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-styling-colors" -->
+
+![learn-styling-colors](../assets/examples/learn-styling-colors-light.png#only-light)
+![learn-styling-colors](../assets/examples/learn-styling-colors-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 The names are the 16 colors every terminal has: `black`, `red`, `green`,
 `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray` and their `light_` versions
 such as `light_blue`.
@@ -36,7 +43,7 @@ such as `light_blue`.
 `bold`, `dim`, `italic`, `underline`, `reverse` and `crossed_out` each take
 `True`. They combine with each other and with colors.
 
-<!-- @code-block name="learn-styling-modifiers" type="image" height=6 -->
+<!-- @code-block name="learn-styling-modifiers" type="image" height=7 -->
 ```python
 import xnano
 
@@ -49,6 +56,13 @@ with xnano.new(width=40, height=6) as canvas:
     canvas.screen.write('crossed out', crossed_out=True)
     print(canvas.screen.render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="learn-styling-modifiers" -->
+
+![learn-styling-modifiers](../assets/examples/learn-styling-modifiers-light.png#only-light)
+![learn-styling-modifiers](../assets/examples/learn-styling-modifiers-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
 
 Not every terminal draws every modifier: `italic` needs a font with an italic
 face, and some terminals show `blink` as plain text.
@@ -82,7 +96,7 @@ The methods return the placement, so they chain: `label.bold().underline()`.
 A [`Style`][xnano.styles.Style] holds a color and modifiers together, so one
 look can be given to many things. The keywords of `write()` apply on top of it.
 
-<!-- @code-block name="learn-styling-style" type="image" height=3 -->
+<!-- @code-block name="learn-styling-style" type="image" height=4 -->
 ```python
 import xnano
 from xnano.styles import Style
@@ -95,6 +109,13 @@ with xnano.new(width=40, height=3) as canvas:
     canvas.screen.write('Plain text')
     print(canvas.screen.render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="learn-styling-style" -->
+
+![learn-styling-style](../assets/examples/learn-styling-style-light.png#only-light)
+![learn-styling-style](../assets/examples/learn-styling-style-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
 
 ## Several styles in one line
 
@@ -115,16 +136,23 @@ with xnano.new(width=40, height=2) as canvas:
             TextSpan('in 0.4s', style=Style(dim=True)),
         ]
     )
-    canvas.screen.write(Paragraph(line))
+    canvas.screen.write(Paragraph(line), width='100%')
     print(canvas.screen.render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="learn-styling-spans" -->
+
+![learn-styling-spans](../assets/examples/learn-styling-spans-light.png#only-light)
+![learn-styling-spans](../assets/examples/learn-styling-spans-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
 
 ## Borders
 
 `border` picks the kind of line, and `border_style` colors it separately from
 the text inside.
 
-<!-- @code-block name="learn-styling-borders" type="image" height=3 -->
+<!-- @code-block name="learn-styling-borders" type="image" height=4 -->
 ```python
 import xnano
 from xnano.styles import Style
@@ -139,6 +167,13 @@ with xnano.new(width=40, height=3) as canvas:
     )
     print(canvas.screen.render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="learn-styling-borders" -->
+
+![learn-styling-borders](../assets/examples/learn-styling-borders-light.png#only-light)
+![learn-styling-borders](../assets/examples/learn-styling-borders-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
 
 ## Choosing colors
 

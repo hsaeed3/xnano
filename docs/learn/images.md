@@ -15,7 +15,7 @@ your code, and comes with the core package. Loading picture files needs the
 says what color each character is, and any character it doesn't name, such as
 `.`, is transparent.
 
-<!-- @code-block name="learn-images-pixel-art" type="image" height=4 -->
+<!-- @code-block name="learn-images-pixel-art" type="image" height=5 -->
 ```python
 import xnano
 
@@ -36,6 +36,13 @@ with xnano.new(width=20, height=4) as canvas:
     print(canvas.screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-images-pixel-art" -->
+
+![learn-images-pixel-art](../assets/examples/learn-images-pixel-art-light.png#only-light)
+![learn-images-pixel-art](../assets/examples/learn-images-pixel-art-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 Each cell holds two pixels, one above the other, so this heart of 7 by 6 pixels
 takes 7 columns and 3 rows. Art is a value like a string: make it once, and
 write it as many times, in as many places, as you like.
@@ -43,7 +50,7 @@ write it as many times, in as many places, as you like.
 A palette can also be one string of `character=color` pairs, which reads well
 for small sprites:
 
-<!-- @code-block name="learn-images-palette" type="image" height=3 -->
+<!-- @code-block name="learn-images-palette" type="image" height=4 -->
 ```python
 import xnano
 
@@ -62,6 +69,13 @@ with xnano.new(width=20, height=3) as canvas:
     canvas.screen.write(ship)
     print(canvas.screen.render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="learn-images-palette" -->
+
+![learn-images-palette](../assets/examples/learn-images-palette-light.png#only-light)
+![learn-images-palette](../assets/examples/learn-images-palette-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
 
 `encoding='braille'` packs two by four pixels into each cell, in one color, for
 a finer, drawing-like look.
@@ -101,6 +115,13 @@ path = pathlib.Path(xnano.__file__).parent / 'assets' / 'dusk.png'
 picture = xnano.load_image(path, width=48)
 print(xnano.region(picture).render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="learn-images-region" -->
+
+![learn-images-region](../assets/examples/learn-images-region-light.png#only-light)
+![learn-images-region](../assets/examples/learn-images-region-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
 
 The [`xnano.art`][xnano.art] reference covers the rest: cameras that look into
 larger pixel worlds, single pixels, and how images are fitted and resampled.

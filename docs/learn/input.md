@@ -44,6 +44,13 @@ with xnano.open(height=3) as terminal:
     terminal.run(stop_on='q')
 ```
 
+<!-- @code-block-asset name="learn-input-keys" -->
+
+![learn-input-keys](../assets/examples/learn-input-keys-light.gif#only-light)
+![learn-input-keys](../assets/examples/learn-input-keys-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
+
 Leave out `keys=` to hear every key. `context.keyboard.key` names the key that
 was pressed: a character such as `'a'`, or a name such as `'enter'`, `'escape'`,
 `'backspace'`, `'tab'`, `'up'` or `'f1'`.
@@ -68,6 +75,13 @@ with xnano.open(height=2) as terminal:
 
     terminal.run(stop_on='q')
 ```
+
+<!-- @code-block-asset name="learn-input-any-key" -->
+
+![learn-input-any-key](../assets/examples/learn-input-any-key-light.gif#only-light)
+![learn-input-any-key](../assets/examples/learn-input-any-key-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
 
 ## Shortcuts
 
@@ -122,6 +136,13 @@ with xnano.open(height=6, edges='stop') as terminal:
     terminal.run(stop_on='q')
 ```
 
+<!-- @code-block-asset name="learn-input-arrows" -->
+
+![learn-input-arrows](../assets/examples/learn-input-arrows-light.gif#only-light)
+![learn-input-arrows](../assets/examples/learn-input-arrows-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
+
 ## The mouse
 
 Terminals report the mouse only when asked, so open the terminal with
@@ -158,6 +179,13 @@ with xnano.open(height=4, mouse=True) as terminal:
 
     terminal.run(stop_on='q')
 ```
+
+<!-- @code-block-asset name="learn-input-mouse" -->
+
+![learn-input-mouse](../assets/examples/learn-input-mouse-light.gif#only-light)
+![learn-input-mouse](../assets/examples/learn-input-mouse-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
 
 ## Dragging
 
@@ -203,6 +231,13 @@ parent, so the slider works wherever it's drawn.
 Waits for the next movement, then carries on with its context.
 </tag>
 </comments>
+
+<!-- @code-block-asset name="learn-input-drag" -->
+
+![learn-input-drag](../assets/examples/learn-input-drag-light.gif#only-light)
+![learn-input-drag](../assets/examples/learn-input-drag-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
 
 The wheel works the same way: open with `scroll=True`, use `on='scroll'`, and
 read the steps from `context.mouse.scroll`.

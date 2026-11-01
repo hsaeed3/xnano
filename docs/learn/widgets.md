@@ -18,7 +18,7 @@ does.
 A `Gauge` fills a bar to a ratio between `0` and `1`, with a label on it. A
 `LineGauge` does the same on a single line.
 
-<!-- @code-block name="learn-widgets-gauges" type="image" height=4 -->
+<!-- @code-block name="learn-widgets-gauges" type="image" height=5 -->
 ```python
 import xnano
 from xnano.styles import Style
@@ -34,12 +34,19 @@ with xnano.new(width=48, height=4) as canvas:
     print(canvas.screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-widgets-gauges" -->
+
+![learn-widgets-gauges](../assets/examples/learn-widgets-gauges-light.png#only-light)
+![learn-widgets-gauges](../assets/examples/learn-widgets-gauges-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 ## Sparklines and bar charts
 
 A `Sparkline` draws a row of values as bars one cell wide, the shape of a series
 at a glance. A `BarChart` draws labelled bars.
 
-<!-- @code-block name="learn-widgets-charts" type="image" height=11 -->
+<!-- @code-block name="learn-widgets-charts" type="image" height=12 -->
 ```python
 import math
 
@@ -70,12 +77,19 @@ with xnano.new(width=48, height=11) as canvas:
     print(canvas.screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-widgets-charts" -->
+
+![learn-widgets-charts](../assets/examples/learn-widgets-charts-light.png#only-light)
+![learn-widgets-charts](../assets/examples/learn-widgets-charts-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 ## Tables
 
 A `Table` takes its rows as lists. A `TableRow` styles a whole row, such as the
 header, and a `TableCell` styles one cell.
 
-<!-- @code-block name="learn-widgets-table" type="image" height=6 -->
+<!-- @code-block name="learn-widgets-table" type="image" height=7 -->
 ```python
 import xnano
 from xnano.styles import Style
@@ -98,13 +112,20 @@ with xnano.new(width=48, height=6) as canvas:
     print(canvas.screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-widgets-table" -->
+
+![learn-widgets-table](../assets/examples/learn-widgets-table-light.png#only-light)
+![learn-widgets-table](../assets/examples/learn-widgets-table-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 ## Lists and tabs
 
 An `ItemList` shows a list with one item selected, marked by its
 `highlight_symbol` and `highlight_style`. `Tabs` shows a row of titles with one
 selected.
 
-<!-- @code-block name="learn-widgets-lists" type="image" height=6 -->
+<!-- @code-block name="learn-widgets-lists" type="image" height=7 -->
 ```python
 import xnano
 from xnano.styles import Style
@@ -132,6 +153,13 @@ with xnano.new(width=48, height=6) as canvas:
     print(canvas.screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-widgets-lists" -->
+
+![learn-widgets-lists](../assets/examples/learn-widgets-lists-light.png#only-light)
+![learn-widgets-lists](../assets/examples/learn-widgets-lists-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 ## Widgets that follow the clock
 
 Every number and text in a widget can be an
@@ -150,6 +178,13 @@ with xnano.open(height=2) as terminal:
     terminal.screen.write('q quit', y='bottom', dim=True)
     terminal.run(stop_on='q')
 ```
+
+<!-- @code-block-asset name="learn-widgets-expression" -->
+
+![learn-widgets-expression](../assets/examples/learn-widgets-expression-light.gif#only-light)
+![learn-widgets-expression](../assets/examples/learn-widgets-expression-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
 
 ## More widgets
 

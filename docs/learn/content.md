@@ -17,7 +17,7 @@ anywhere, even in a notebook. `xnano.new()` creates a canvas in memory, with no
 screen of its own, and `render()` turns its screen into text. `format='ansi'`
 keeps the colors.
 
-<!-- @code-block name="learn-content-frame" type="image" height=4 -->
+<!-- @code-block name="learn-content-frame" type="image" height=5 -->
 ```python
 import xnano
 
@@ -27,6 +27,13 @@ with xnano.new(width=40, height=4) as canvas:
     canvas.screen.write('ready', x='right', y='bottom', foreground='green')
     print(canvas.screen.render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="learn-content-frame" -->
+
+![learn-content-frame](../assets/examples/learn-content-frame-light.png#only-light)
+![learn-content-frame](../assets/examples/learn-content-frame-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
 
 A canvas from `xnano.open()` has exactly the same screen, so everything here
 works the same way in a live program.
@@ -41,7 +48,7 @@ it an `x` or a `y`, and it goes there instead. Both take:
 - a word: `'left'`, `'center'` or `'right'` for `x`, and `'top'`, `'center'` or
   `'bottom'` for `y`.
 
-<!-- @code-block name="learn-content-positions" type="image" height=5 -->
+<!-- @code-block name="learn-content-positions" type="image" height=6 -->
 ```python
 import xnano
 
@@ -55,6 +62,13 @@ with xnano.new(width=40, height=5) as canvas:
     print(screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-content-positions" -->
+
+![learn-content-positions](../assets/examples/learn-content-positions-light.png#only-light)
+![learn-content-positions](../assets/examples/learn-content-positions-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 Percentages and words are worked out again whenever the screen changes size, so
 `'center'` stays in the center when the user resizes the window.
 
@@ -66,7 +80,7 @@ Sizes take the same forms as positions: cells, or a percentage such as `'50%'`.
 Text that doesn't fit its width is cut off at the edge. To wrap it onto more
 lines, write it as a `Paragraph` widget:
 
-<!-- @code-block name="learn-content-wrap" type="image" height=4 -->
+<!-- @code-block name="learn-content-wrap" type="image" height=5 -->
 ```python
 import xnano
 from xnano.widgets import Paragraph
@@ -77,13 +91,20 @@ with xnano.new(width=40, height=4) as canvas:
     print(canvas.screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-content-wrap" -->
+
+![learn-content-wrap](../assets/examples/learn-content-wrap-light.png#only-light)
+![learn-content-wrap](../assets/examples/learn-content-wrap-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 ## Boxes
 
 `border` draws a box around what you write: `'plain'`, `'rounded'`, `'double'`
 or `'thick'`. A `title` sits on the top edge of the border, and `padding` puts
 space between the border and the content, in cells.
 
-<!-- @code-block name="learn-content-boxes" type="image" height=5 -->
+<!-- @code-block name="learn-content-boxes" type="image" height=6 -->
 ```python
 import xnano
 
@@ -98,6 +119,13 @@ with xnano.new(width=48, height=5) as canvas:
     print(screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-content-boxes" -->
+
+![learn-content-boxes](../assets/examples/learn-content-boxes-light.png#only-light)
+![learn-content-boxes](../assets/examples/learn-content-boxes-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 A terminal cell is about twice as tall as it is wide, so padding looks even when
 it has twice as many columns as rows, like the `thick` box above.
 
@@ -107,7 +135,7 @@ A canvas made with `layout='row'` shares its width between everything written on
 it, side by side. Each piece gets an equal share, and a `width` of `'100%'`
 fills it. `layout='column'` does the same from top to bottom.
 
-<!-- @code-block name="learn-content-row" type="image" height=3 -->
+<!-- @code-block name="learn-content-row" type="image" height=4 -->
 ```python
 import xnano
 
@@ -117,11 +145,18 @@ with xnano.new(width=48, height=3, layout='row') as canvas:
     print(canvas.screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-content-row" -->
+
+![learn-content-row](../assets/examples/learn-content-row-light.png#only-light)
+![learn-content-row](../assets/examples/learn-content-row-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 For a layout of your own, put a canvas inside another one. A canvas created
 inside the `with` block of another is measured in it, so `'50%'` is half of the
 outer canvas. Write it where you want it to show:
 
-<!-- @code-block name="learn-content-nested" type="image" height=4 -->
+<!-- @code-block name="learn-content-nested" type="image" height=5 -->
 ```python
 import xnano
 
@@ -140,13 +175,20 @@ with xnano.new(width=48, height=4) as window:
     print(window.screen.render(format='ansi'))
 ```
 
+<!-- @code-block-asset name="learn-content-nested" -->
+
+![learn-content-nested](../assets/examples/learn-content-nested-light.png#only-light)
+![learn-content-nested](../assets/examples/learn-content-nested-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
 ## Layers
 
 Content on a higher `layer` is drawn over content on a lower one. Everything
 starts on layer `0`. Give a popup its own `background`, so the text behind it
 doesn't show through.
 
-<!-- @code-block name="learn-content-layers" type="image" height=5 -->
+<!-- @code-block name="learn-content-layers" type="image" height=6 -->
 ```python
 import xnano
 
@@ -159,11 +201,19 @@ with xnano.new(width=40, height=5) as canvas:
         y='center',
         border='rounded',
         padding={'horizontal': 2},
+        foreground='white',
         background='black',
         layer=1,
     )
     print(canvas.screen.render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="learn-content-layers" -->
+
+![learn-content-layers](../assets/examples/learn-content-layers-light.png#only-light)
+![learn-content-layers](../assets/examples/learn-content-layers-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
 
 ## Changing what you wrote
 

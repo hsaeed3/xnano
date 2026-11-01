@@ -77,6 +77,13 @@ with xnano.open() as terminal:
     terminal.run(stop_on='q')
 ```
 
+<!-- @code-block-asset name="hello-world" -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/hello-world-dark.png">
+  <img alt="hello-world" src="docs/assets/readme/hello-world-light.png">
+</picture>
+<!-- /@code-block-asset -->
+
 ### Run it
 
 ```bash
@@ -238,6 +245,13 @@ with xnano.new(width='100%', height=7) as canvas:
 
     print(screen.render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="positioning-and-sizing" -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/positioning-and-sizing-dark.png">
+  <img alt="positioning-and-sizing" src="docs/assets/readme/positioning-and-sizing-light.png">
+</picture>
+<!-- /@code-block-asset -->
 
 </details>
 
@@ -770,6 +784,13 @@ heart = xnano.pixel_art(
 # two pixels fit in one cell, one above the other, so the heart takes 11 by 5 cells
 print(xnano.region(heart).render(format='ansi'))
 ```
+
+<!-- @code-block-asset name="pixel-art" -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/pixel-art-dark.png">
+  <img alt="pixel-art" src="docs/assets/readme/pixel-art-light.png">
+</picture>
+<!-- /@code-block-asset -->
 
 ### Images
 

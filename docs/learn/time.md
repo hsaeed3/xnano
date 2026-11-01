@@ -61,6 +61,13 @@ with xnano.open(height=3) as terminal:
     terminal.run(stop_on='q')
 ```
 
+<!-- @code-block-asset name="learn-time-timers" -->
+
+![learn-time-timers](../assets/examples/learn-time-timers-light.gif#only-light)
+![learn-time-timers](../assets/examples/learn-time-timers-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
+
 Timers follow the clock, so they stand still while it's paused. `clock.pause()`
 freezes time, and `clock.resume()` lets it run on. The [focus
 timer](first-program.md#pause-with-a-key) uses both.
@@ -90,6 +97,13 @@ Twelve cells a second, wrapping around at the right edge. `terminal.clock` reads
 as the elapsed seconds.
 </tag>
 </comments>
+
+<!-- @code-block-asset name="learn-time-expressions" -->
+
+![learn-time-expressions](../assets/examples/learn-time-expressions-light.gif#only-light)
+![learn-time-expressions](../assets/examples/learn-time-expressions-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
 
 A canvas with an expression on it draws every frame, because time keeps moving.
 A layout that only needs to follow the size of the window should use percentages
@@ -144,6 +158,13 @@ with xnano.open(height=6) as terminal:
 Fades the card in from black as the program starts.
 </tag>
 </comments>
+
+<!-- @code-block-asset name="learn-time-effects" -->
+
+![learn-time-effects](../assets/examples/learn-time-effects-light.gif#only-light)
+![learn-time-effects](../assets/examples/learn-time-effects-dark.gif#only-dark)
+
+<!-- /@code-block-asset -->
 
 The effects include `fade_to` and `fade_from`, `dissolve` and `coalesce`,
 `sweep_in` and `sweep_out`, `slide_in` and `slide_out`, `hsl_shift`, `paint`,
