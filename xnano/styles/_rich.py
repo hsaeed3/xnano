@@ -2,7 +2,7 @@
 xnano.styles._rich
 
 Content drawn by the rich library: rich markup, tables, panels, syntax, markdown, trees and any
-other rich renderable, laid out at the width of the area it is written in.
+other rich renderable, drawn at the size of the area that it is written in.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import functools
 import io
 import reprlib
+import sys
 from typing import TYPE_CHECKING, Any
 
 import xnano_core as _core
@@ -50,17 +51,39 @@ _INSTALL_RICH = (
 
 class RichContent:
     """
-    A rich renderable, drawn at the width of the area it is written in.
+    A rich renderable, drawn at the size of the area that it is written in.
 
-    Make one with [`from_rich`][xnano.from_rich] and write it like any other content. Rich lays
-    it out at the width of its placement, or at its natural width (at most the width of the
-    canvas) when the placement has none, and draws it again when that width changes, so a
-    table or a panel always fits. Colors and text modifiers come through as they are: the 16
-    named colors, the 256 palette colors and true colors, and bold, dim, italic, underline,
-    blink, reverse, concealed and strikethrough text.
+    Make one with [`from_rich`][xnano.from_rich]. Write it like any other content. It
+    accepts each object that follows the protocols of rich: an object with
+    ``__rich_console__`` or ``__rich__``. An optional ``__rich_measure__`` gives the natural
+    width.
 
-    Rich renderables that change in place, such as a table that gets a new row, are drawn
-    again when you call ``refresh()`` on the placement.
+    Rich draws the renderable at the width of its placement. If the write gives no width,
+    rich uses the natural width of the renderable, at most the width of the canvas. If the
+    write gives a height, the renderable gets it as ``options.height``. If the write gives
+    no height, a renderable that fills the height, such as a ``rich.layout.Layout``, gets
+    the height of the canvas. xnano draws the renderable again when its placement changes
+    size.
+
+    Rich reads the time from the canvas clock. Thus, a ``rich.spinner.Spinner`` moves with
+    the canvas and stops when the clock is paused. A ``rich.progress.Progress`` reads the
+    time with its own ``get_time``. To make it follow the canvas clock, give it
+    ``get_time=lambda: canvas.clock.elapsed_seconds``.
+
+    xnano draws text as ``rich.print`` draws it, with markup, emoji codes and highlighting.
+    To draw text without them, give a ``rich.text.Text`` instead of a string.
+
+    xnano keeps the colors of rich: the 16 named colors, the 256 palette colors and true
+    colors. It also keeps bold, dim, italic, underlined, blinking, reverse, concealed and
+    struck-through text. A double underline shows as an underline. A frame, a circle and an
+    overline show as plain text. xnano cells have no links, so a link keeps its text and its
+    style, but not its address. xnano does not draw rich control codes, such as cursor
+    movements.
+
+    If a renderable changes in place, call ``refresh()`` on its placement to draw it again.
+    For example, do this after you add a row to a table. If rich raises an error when it
+    draws the renderable, xnano does not change the error. On Python 3.11 and later, the
+    error has a note that names ``from_rich()`` and the type of the renderable.
 
     Attributes:
         renderable: What rich draws: rich markup text, or an object with ``__rich_console__``
@@ -96,33 +119,55 @@ class RichContent:
         return f'RichContent({self.renderable!r})'
 
     def __xnano_write__(self, context: Context[object, object]) -> _core.Buffer:
-        """Lay the renderable out with rich at the width of its area, and return its cells."""
+        """Return the cells that rich draws for the renderable, at the size of its area."""
         from rich.console import Console
         from rich.measure import Measurement
 
         columns, rows = surface_of(context.target).region._grid_size()
+        # The hook of a component context is the driver of the component. The driver
+        # knows which sizes the write gave. A size that the write did not give follows the
+        # content, so rich measures the content again on each run.
+        driver = context.hook
+        if not getattr(driver, '_is_width_given', True):
+            columns = 0
+        if not getattr(driver, '_is_height_given', True):
+            rows = 0
         canvas_width = max(1, context.screen.width)
+        # A console with its own width and height does not read the size of the terminal.
+        # The console reads the canvas clock only when rich asks for the time. Thus, only a
+        # renderable that moves runs again on each frame.
         console = Console(
             width=columns or canvas_width,
+            height=rows or max(1, context.screen.height),
             color_system='truecolor',
             force_terminal=True,
             legacy_windows=False,
             file=io.StringIO(),
+            get_time=lambda: context.clock.elapsed_seconds,
         )
-        if not columns:
-            natural = Measurement.get(console, console.options, self.renderable)
-            columns = max(1, min(natural.maximum, canvas_width))
-        options = console.options.update(width=columns, height=rows or None)
-        lines = console.render_lines(self.renderable, options, pad=False)
-        spans: list[_core.TextSpan] = []
-        for index, line in enumerate(lines):
-            if index:
-                spans.append(_core.TextSpan('\n'))
-            spans.extend(
-                _core.TextSpan(segment.text, style=_style(segment.style))
-                for segment in line
-                if segment.text and not segment.control
-            )
+        try:
+            if not columns:
+                natural = Measurement.get(console, console.options, self.renderable)
+                console.width = max(1, min(natural.maximum, canvas_width))
+            options = console.options.update(height=rows or None)
+            lines = console.render_lines(self.renderable, options, pad=False)
+            spans: list[_core.TextSpan] = []
+            for index, line in enumerate(lines):
+                if index:
+                    spans.append(_core.TextSpan('\n'))
+                spans.extend(
+                    _core.TextSpan(segment.text, style=_style(segment.style))
+                    for segment in line
+                    if segment.text and not segment.control
+                )
+        except Exception as error:
+            if sys.version_info >= (3, 11):
+                error.add_note(
+                    f'from_rich() could not draw the {type(self.renderable).__name__} '
+                    'renderable. The error above occurred when rich drew it. To find the '
+                    'cause, print the renderable with rich.print().'
+                )
+            raise
         return _core.Buffer.with_text(_core.StyledText(spans))
 
 
@@ -131,8 +176,9 @@ def _style(rich_style: Any) -> _core.Style | None:
     """
     The xnano style of a rich style.
 
-    Rich reuses its style objects, and they are hashable, so each is converted once, also
-    when a component makes a new [`RichContent`][xnano.styles.RichContent] on every frame.
+    Rich uses its style objects again, and they are hashable. Thus, this function converts
+    each style once, also when a component makes a new
+    [`RichContent`][xnano.styles.RichContent] on each frame.
     """
     if rich_style is None:
         return None
@@ -168,10 +214,12 @@ def from_rich(renderable: RenderableType) -> RichContent:
     """
     Draw anything the rich library draws: rich markup, a table, a panel, syntax and more.
 
-    Write the result like any other content. Rich lays it out at the width of its placement,
-    or at its natural width (at most the width of the canvas) when the placement has none, and
-    draws it again when that width changes. Colors and text modifiers come through as they
-    are. Rich itself is not a dependency of xnano: install it to use this.
+    Write the result like any other content. Rich draws it at the size of its placement. If
+    the write gives no width, rich uses the natural width of the renderable. xnano draws it
+    again when that size changes. xnano draws text as ``rich.print`` draws it, with markup,
+    emoji codes and highlighting. For the size, the time and the styles, see
+    [`RichContent`][xnano.styles.RichContent]. Rich is not a dependency of xnano. To use
+    this function, install rich.
 
     Args:
         renderable: Rich markup text such as ``'[bold red]error[/]'``, or any rich renderable:
