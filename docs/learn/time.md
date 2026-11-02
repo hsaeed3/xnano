@@ -116,9 +116,9 @@ the user changes the window size.
 A canvas with an expression on it draws every frame, because the time always
 changes. A layout that only follows the size of the window does not need an
 expression. For that layout, use percentages such as `width='50%'` and words
-such as `x='center'`. xnano calculates these values again only when the window
-changes size. The [`xnano.expressions`][xnano.expressions] reference lists all
-of the expressions.
+such as `x='center'`. xnano calculates these values again only when the size of
+the window or the size of the content changes. The
+[`xnano.expressions`][xnano.expressions] reference lists all of the expressions.
 
 ## Effects
 

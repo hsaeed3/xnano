@@ -46,8 +46,8 @@ with xnano.new(width=48, height=4) as canvas:
 ## Sparklines and bar charts
 
 A `Sparkline` shows a series of values as bars that are one cell wide. It shows
-the shape of the series in a small area. A `BarChart` shows bars with labels,
-and each `Bar` has a value and a label. xnano draws them with the ratatui
+the shape of the series in a small area. A `BarChart` shows bars, and each
+`Bar` has a value and an optional label. xnano draws them with the ratatui
 widgets [`Sparkline`][ratatui-sparkline], [`BarChart`][ratatui-barchart] and
 [`Bar`][ratatui-bar].
 
@@ -202,7 +202,7 @@ with xnano.open(height=2) as terminal:
 | Widget | What it shows | ratatui widget |
 | --- | --- | --- |
 | `Chart` | Line and scatter plots of datasets on two axes | [`Chart`][ratatui-chart] |
-| `Calendar` | A month, with styles for the dates that you select | [`Monthly`][ratatui-monthly] |
+| `Calendar` | A month, with a style for each event date in `events` | [`Monthly`][ratatui-monthly] |
 | `Scrollbar` | The position in content that is longer than its area | [`Scrollbar`][ratatui-scrollbar] |
 | `Paragraph` | Text that wraps, aligns and scrolls | [`Paragraph`][ratatui-paragraph] |
 | `Figure` | Lines, circles, rectangles, points and maps on a plane with coordinates | [`Canvas`][ratatui-canvas] |

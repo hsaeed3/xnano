@@ -139,6 +139,8 @@ class Recording:
     """How long the gif lasts: the last frame is followed by the first one."""
     source: pathlib.Path | None = None
     """The program to record, when it is not ``scripts/docs_examples/<name>.py``."""
+    setup: tuple[Hover, ...] = ()
+    """Actions to perform before the gif starts, such as putting the pointer in its place."""
 
     @property
     def program(self) -> pathlib.Path:
@@ -197,10 +199,11 @@ def glide(
     """
     Move the pointer in a straight line from ``start`` to ``end`` between two times.
 
-    The moves are at least 0.1 seconds apart, the time Kitty takes to send one while the
-    window is photographed, so they never hold up the action that follows them.
+    The moves are at least 0.15 seconds apart. Kitty takes about 0.12 seconds to send one
+    while the window is photographed, so moves closer together fall behind, and a long
+    glide would hold up the action that follows it.
     """
-    steps = max(1, int((end_seconds - start_seconds) / 0.1))
+    steps = max(1, int((end_seconds - start_seconds) / 0.15))
     return tuple(
         (
             start_seconds + (end_seconds - start_seconds) * step / steps,
@@ -349,23 +352,23 @@ def circles_play() -> tuple[tuple[float, Click | Hover], ...]:
     """
     Click each ring on its beat, and glide the pointer to the next ring between the beats.
 
-    The pointer starts on the last ring, where it ends, so the gif loops without a jump.
+    The pointer starts on the last ring (the recording's ``setup`` puts it there), where it
+    ends, so the gif loops without a jump.
     """
     cell, glide_from = CIRCLES_RINGS[-1][1], 0.6
-    beats: list[tuple[float, Click | Hover]] = [(0.2, Hover(*cell))]
+    beats: list[tuple[float, Click | Hover]] = []
     for seconds, next_cell in CIRCLES_RINGS:
-        beats += glide(cell, next_cell, glide_from, seconds - 0.12)
+        beats += glide(cell, next_cell, glide_from, seconds - 0.18)
         beats.append((seconds, Click(*next_cell)))
-        cell, glide_from = (
-            next_cell,
-            seconds + 0.22,
-        )  # a click takes 0.2 seconds to send
+        # a click takes 0.2 seconds to send, then the glide to the next ring starts
+        cell, glide_from = next_cell, seconds + 0.2
     return tuple(beats)
 
 
 RHYTHM_CIRCLES = Recording(
     "rhythm-circles",
     actions=on_beats(*circles_play()),
+    setup=(Hover(*CIRCLES_RINGS[-1][1]),),
     loop_seconds=9.2,
     source=PROGRAMS / "01_rhythm_circles.py",
 )
@@ -665,6 +668,8 @@ def record(recording: Recording, theme: Theme) -> tuple[int, int, int]:
                 f"{error}. Run it on its own and fix what it reports."
             ) from error
         first_frame = time.monotonic()
+        for action in recording.setup:
+            run_recording_action(window, action, first_frame=first_frame)
         time.sleep(0.5)  # let the first frames settle before the gif starts
         with tempfile.TemporaryDirectory(prefix="xnano-frames-") as frames:
             recorder = Recorder(window, pathlib.Path(frames))

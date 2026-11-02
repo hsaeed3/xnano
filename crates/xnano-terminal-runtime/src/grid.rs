@@ -255,7 +255,6 @@ impl Grid {
         }
     }
 
-    /// A copy of the cells of `bounds` as a standalone buffer.
     /// The cells inside `bounds` as a new grid, keeping which of them are transparent.
     ///
     /// Cells outside this grid are blank and opaque, as in [`Grid::region_buffer`].
@@ -278,13 +277,14 @@ impl Grid {
         region
     }
 
+    /// A copy of the cells of `bounds` as a standalone buffer.
     pub fn region_buffer(&self, bounds: Bounds) -> Buffer {
         let mut region = Buffer::empty(Rect::new(0, 0, bounds.width(), bounds.height()));
         let width = usize::from(bounds.width());
         // Cells outside the grid stay blank.
         let copied = width.min(usize::from(self.width().saturating_sub(bounds.left)));
         for y in 0..bounds.height() {
-            if bounds.top + y >= self.height() {
+            if bounds.top + y >= self.height() || copied == 0 {
                 break;
             }
             let source_start = self.index(bounds.left, bounds.top + y);
@@ -567,5 +567,33 @@ impl Grid {
     /// Plain text rows with trailing blanks removed.
     pub fn text_rows(&self) -> Vec<String> {
         xnano_terminal_cells::text(&self.cells)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_region_keeps_its_transparent_cells_and_blanks_the_cells_outside_the_grid() {
+        let mut grid = Grid::filled(3, 2, &Cell::new("x"));
+        grid.put(1, 0, Cell::EMPTY, 1, true);
+        let region = grid.region_grid(Bounds {
+            left: 1,
+            top: 0,
+            right: 5,
+            bottom: 3,
+        });
+        assert!(region.is_transparent(0, 0));
+        assert!(!region.is_transparent(1, 0));
+        assert_eq!(region.cell(1, 0).map(Cell::symbol), Some("x"));
+        assert_eq!(region.cell(3, 2).map(Cell::symbol), Some(" "));
+        let outside = grid.region_grid(Bounds {
+            left: 9,
+            top: 1,
+            right: 12,
+            bottom: 2,
+        });
+        assert_eq!(outside.cell(0, 0).map(Cell::symbol), Some(" "));
     }
 }

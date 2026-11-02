@@ -87,6 +87,7 @@ with xnano.open(title='drums') as terminal, xnano.new(width=80, height=24) as ga
         if now >= TIME_LIMIT:
             result = f'time · score {score} · accuracy {score / (300 * len(MAP)):.0%}'
             game.screen.write(result, x='center', y=RAIL_Y + 8, bold=True)
+            hit.remove()  # the drums stay quiet until q quits
             context.hook.remove()
 
     terminal.run(stop_on='q')
