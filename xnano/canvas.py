@@ -802,7 +802,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         # Only placements with an expression or a range need looking at before each frame.
         self._dynamic: dict[int, Placement[DepsT, StateT]] = {}
         # Whether the engine asks for a frame when the pointer moves: only while a placement
-        # before each frame reads the pointer.
+        # before each frame reads the pointer. Only the canvas's loop changes it.
         self._follows_pointer = False
         self._clock_view = Clock(cast('Canvas[object, object]', self))
         self._output = Output(cast('Canvas[object, object]', self))
@@ -863,6 +863,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     def _bind(self, runtime: _core.Runtime) -> None:
         """Connect the canvas to a runtime and register everything again. Runs on its loop."""
         self._runtime_object = runtime
+        # A new runtime follows the pointer only after the next frame says that it must.
+        self._follows_pointer = False
         self._clock = runtime.clock
         self._cursor = runtime.cursor
         self._input_state = runtime.input
@@ -1397,10 +1399,25 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             canvas._frame_registration = None
         if registration is not None:
             canvas._unregister(registration)
-        if canvas._follows_pointer:
-            # Nothing runs before a frame, so nothing follows the pointer.
-            canvas._follows_pointer = False
-            canvas._host.post(lambda: setattr(canvas._runtime, '_follows_pointer', False))
+        # Nothing may run before a frame now. The loop checks again what follows the pointer.
+        canvas._host.post(canvas._sync_follows_pointer)
+
+    def _sync_follows_pointer(self) -> None:
+        """
+        Tell the engine whether a placement follows the pointer. Runs on the canvas's loop.
+
+        The engine asks for a frame on a pointer move only while one does. Only the loop
+        changes this setting, and it reads the placements as they are now, so a placement
+        added on another thread at the same time is never missed.
+        """
+        with self._lock:
+            follows_pointer = any(
+                placement._reads_pointer for placement in self._dynamic.values()
+            )
+        runtime = self._runtime_object
+        if runtime is not None and follows_pointer != self._follows_pointer:
+            self._follows_pointer = follows_pointer
+            runtime._follows_pointer = follows_pointer
 
     def _on_loop_frame(self, core_context: FrameContext) -> None:
         """Before a frame: follow the size, images and expressions, then the frame functions."""
@@ -1437,13 +1454,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                         released += 1
             for _ in range(released):
                 self._release_frames()
-        with self._lock:
-            follows_pointer = any(
-                placement._reads_pointer for placement in self._dynamic.values()
-            )
-        if follows_pointer != self._follows_pointer:
-            self._follows_pointer = follows_pointer
-            runtime._follows_pointer = follows_pointer
+        self._sync_follows_pointer()
         if self._effects:
             is_time_dependent |= self._follow_effects(runtime)
         # Taken after the expressions ran: a component whose placement they resized asks for a
