@@ -67,10 +67,7 @@ sound work without a device everywhere.
 1. [Quick Start](#quick-start)
    1. [Write to the Terminal](#write-some-stuff-to-the-terminal)
    2. [Adding Interactivity](#adding-interactivity)
-2. [`rich` & `textual` Compatibility](#rich-and-textual-users)
-   1. [`rich`](#rich)
-   2. [`textual`](#textual)
-3. [Core Features](#core-features--examples)
+2. [Core Features](#core-features--examples)
    1. [Composing Content](#composing-content)
    2. [Positioning & Sizing Content](#positioning--sizing-content)
    3. [Styling Content](#styling-content)
@@ -103,6 +100,9 @@ sound work without a device everywhere.
    8. [AI](#ai)
       1. [Streaming Text](#streaming-text)
       2. [Making Decisions](#making-decisions)
+3. [`rich` & `textual` Compatibility](#rich-and-textual-users)
+   1. [`rich`](#rich)
+   2. [`textual`](#textual)
 4. [Learn More](#learn-more)
 
 ## Quick Start
@@ -187,119 +187,6 @@ with xnano.open(mouse=True) as terminal:
 
 Run `python main.py` again and click `Hello, world!`: every click gives it a new
 color.
-
-## `rich` and `textual` users
-
-One of the biggest goals I've had with `xnano` has been to ensure it never gets
-in the way of what the [`Textualize`](https://textualize.io/) ecosystem has been
-building for years. From version `2.2.1` onwards, `xnano` works with both
-[`rich`](https://github.com/Textualize/rich) and
-[`textual`](https://github.com/Textualize/textual), in both directions:
-
-- **Into `xnano`**: `xnano.from_rich()` writes any `rich` renderable, or `rich`
-  markup, in a canvas. `StyledText.from_ansi()` writes text with ANSI color codes,
-  such as the output of a command.
-- **Out of `xnano`**: canvases, screens, placements and regions follow the
-  [`__rich__` protocol](https://rich.readthedocs.io/en/latest/protocol.html), so
-  `rich.print()`, a `rich` `Panel` or `Table`, and a `textual` `Static` show them
-  as they are.
-
-### `rich`
-
-<!-- @code-block name="rich-console" type="image" height=9 -->
-```python
-import xnano
-from rich import print
-from rich.table import Table
-from xnano.styles import StyledText
-
-table = Table('service', 'status')
-table.add_row('web', '[green]● up[/green]')
-table.add_row('db', '[red]▲ slow[/red]')
-
-with xnano.new(width=40, height=8) as canvas:
-    # rich renderables and rich markup go into a canvas with `xnano.from_rich()`
-    canvas.write(xnano.from_rich(table))
-    canvas.write(xnano.from_rich('[bold green]✓[/] build passed'), y=6)
-
-    # text with ANSI color codes, such as the output of a command, goes in the same way
-    log_line = StyledText.from_ansi('\x1b[2m12:00:01\x1b[0m deploy started')
-    canvas.write(log_line, y='bottom')
-
-    # and the canvas goes back to rich as it is
-    print(canvas)
-```
-
-<!-- @code-block-asset name="rich-console" -->
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/rich-console-dark.png">
-  <img alt="rich-console" src="docs/assets/readme/rich-console-light.png">
-</picture>
-<!-- /@code-block-asset -->
-
-### `textual`
-
-A `textual` `Static` shows an `xnano` canvas as it is, and `xnano`'s hooks can handle
-`textual`'s keys: pass each key to the canvas with `push()` and `deliver_events()`.
-Make the canvas with `xnano.new()` outside a `with` block, so it stays open:
-`textual` draws the `Static` after it is made.
-
-<!-- @code-block name="textual" type="gif" height=5
-wait 2.5
-press space
-wait 0.5
-press space
-wait 0.5
-press space
-wait 1.2
-press r
-wait 1.2
--->
-```python
-import xnano
-from textual import events
-from textual.app import App, ComposeResult
-from textual.widgets import Static
-from xnano.events import Event
-
-
-class Counter(App):
-    BINDINGS = [('q', 'quit', 'Quit')]
-
-    def compose(self) -> ComposeResult:
-        # an xnano canvas is a rich renderable, so a textual `Static` shows it as it is
-        self.canvas = xnano.new(width=32, height=4)
-        yield Static(self.canvas)
-
-    def on_mount(self) -> None:
-        counter = self.canvas.write('presses: 0', border='rounded')
-        self.canvas.write('space +1 · r reset · q quit', dim=True)
-        self.presses = 0
-
-        # xnano hooks change the canvas
-        @self.canvas.hook(on='key', keys=['space', 'r'])
-        def count(context: xnano.Context) -> None:
-            is_space = context.keyboard.key == 'space'
-            self.presses = self.presses + 1 if is_space else 0
-            counter.text = f'presses: {self.presses}'
-
-    def on_key(self, event: events.Key) -> None:
-        # pass textual's keys to the xnano hooks, then show the canvas again
-        self.canvas.push(Event.key_press(event.key))
-        self.canvas.deliver_events()
-        self.query_one(Static).update(self.canvas)
-
-
-if __name__ == '__main__':
-    Counter().run()
-```
-
-<!-- @code-block-asset name="textual" -->
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/textual-dark.gif">
-  <img alt="textual" src="docs/assets/readme/textual-light.gif">
-</picture>
-<!-- /@code-block-asset -->
 
 ## Core Features & Examples
 
@@ -1361,6 +1248,120 @@ with xnano.open(height=3) as terminal:
 
     terminal.run(stop_on='q')
 ```
+
+## `rich` and `textual` users
+
+One of the biggest goals I've had with `xnano` has been to ensure it never gets
+in the way of what the [`Textualize`](https://textualize.io/) ecosystem has been
+building for years. From version `2.2.1` onwards, `xnano` works with both
+[`rich`](https://github.com/Textualize/rich) and
+[`textual`](https://github.com/Textualize/textual), in both directions:
+
+- **Into `xnano`**: `xnano.from_rich()` writes any `rich` renderable, or `rich`
+  markup, in a canvas. `StyledText.from_ansi()` writes text with ANSI color codes,
+  such as the output of a command.
+- **Out of `xnano`**: canvases, screens, placements and regions follow `rich`'s
+  [console protocol](https://rich.readthedocs.io/en/latest/protocol.html), so
+  `rich.print()`, a `rich` `Panel` or `Table`, and a `textual` `Static` show them
+  as they are. In a `rich` `Table`, add the column with `no_wrap=True` to keep a
+  canvas whole when the table is narrow.
+
+### `rich`
+
+<!-- @code-block name="rich-console" type="image" height=9 -->
+```python
+import xnano
+from rich import print
+from rich.table import Table
+from xnano.styles import StyledText
+
+table = Table('service', 'status')
+table.add_row('web', '[green]● up[/green]')
+table.add_row('db', '[red]▲ slow[/red]')
+
+with xnano.new(width=40, height=8) as canvas:
+    # rich renderables and rich markup go into a canvas with `xnano.from_rich()`
+    canvas.write(xnano.from_rich(table))
+    canvas.write(xnano.from_rich('[bold green]✓[/] build passed'), y=6)
+
+    # text with ANSI color codes, such as the output of a command, goes in the same way
+    log_line = StyledText.from_ansi('\x1b[2m12:00:01\x1b[0m deploy started')
+    canvas.write(log_line, y='bottom')
+
+    # and the canvas goes back to rich as it is
+    print(canvas)
+```
+
+<!-- @code-block-asset name="rich-console" -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/rich-console-dark.png">
+  <img alt="rich-console" src="docs/assets/readme/rich-console-light.png">
+</picture>
+<!-- /@code-block-asset -->
+
+### `textual`
+
+A `textual` `Static` shows an `xnano` canvas as it is, and `xnano`'s hooks can handle
+`textual`'s keys: pass each key to the canvas with `push()` and `deliver_events()`.
+Make the canvas with `xnano.new()` outside a `with` block, so it stays open:
+`textual` draws the `Static` after it is made.
+
+<!-- @code-block name="textual" type="gif" height=5
+wait 2.5
+press space
+wait 0.5
+press space
+wait 0.5
+press space
+wait 1.2
+press r
+wait 1.2
+-->
+```python
+import xnano
+from textual import events
+from textual.app import App, ComposeResult
+from textual.widgets import Static
+from xnano.events import Event
+
+
+class Counter(App):
+    BINDINGS = [('q', 'quit', 'Quit')]
+
+    def compose(self) -> ComposeResult:
+        # an xnano canvas is a rich renderable, so a textual `Static` shows it as it is
+        self.canvas = xnano.new(width=32, height=4)
+        yield Static(self.canvas)
+
+    def on_mount(self) -> None:
+        counter = self.canvas.write('presses: 0', border='rounded')
+        self.canvas.write('space +1 · r reset · q quit', dim=True)
+        self.presses = 0
+
+        # xnano hooks change the canvas
+        @self.canvas.hook(on='key', keys=['space', 'r'])
+        def count(context: xnano.Context) -> None:
+            is_space = context.keyboard.key == 'space'
+            self.presses = self.presses + 1 if is_space else 0
+            counter.text = f'presses: {self.presses}'
+
+    def on_key(self, event: events.Key) -> None:
+        # pass textual's keys to the xnano hooks, then show the canvas again
+        self.canvas.push(Event.key_press(event.key))
+        self.canvas.deliver_events()
+        self.query_one(Static).update(self.canvas)
+
+
+if __name__ == '__main__':
+    Counter().run()
+```
+
+<!-- @code-block-asset name="textual" -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/textual-dark.gif">
+  <img alt="textual" src="docs/assets/readme/textual-light.gif">
+</picture>
+<!-- /@code-block-asset -->
 
 ## Learn More
 
