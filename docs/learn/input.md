@@ -32,8 +32,8 @@ wait 1.0
 import xnano
 
 with xnano.open(height=3) as terminal:
-    count = terminal.screen.write('pressed 0 times')  # >> [placement]
-    terminal.screen.write('space count · q quit', y='bottom', dim=True)
+    count = terminal.write('pressed 0 times')  # >> [placement]
+    terminal.write('space count · q quit', y='bottom', dim=True)
     presses = 0
 
     @terminal.hook(on='key', keys='space')
@@ -47,8 +47,8 @@ with xnano.open(height=3) as terminal:
 
 <comments>
 <tag name="placement" color="blue">
-`write()` returns a **placement**. Set its `text` to change what the screen
-shows.
+`terminal.write()` is the same as `terminal.screen.write()`. It returns a
+**placement**. Set its `text` to change what the screen shows.
 </tag>
 
 <tag name="global">
@@ -80,8 +80,8 @@ wait 0.6
 import xnano
 
 with xnano.open(height=2) as terminal:
-    last = terminal.screen.write('press any key')
-    terminal.screen.write('q quit', y='bottom', dim=True)
+    last = terminal.write('press any key')
+    terminal.write('q quit', y='bottom', dim=True)
 
     @terminal.hook(on='key')
     def show_key(context: xnano.Context):
@@ -110,7 +110,7 @@ give `keys=` a list.
 import xnano
 
 with xnano.open(height=2) as terminal:
-    status = terminal.screen.write('ctrl+s save · escape cancel · q quit')
+    status = terminal.write('ctrl+s save · escape cancel · q quit')
 
     @terminal.hook(on='key', keys='ctrl+s')
     def save(context: xnano.Context):
@@ -148,8 +148,8 @@ wait 0.8
 import xnano
 
 with xnano.open(height=6, edges='stop') as terminal:  # >> [edges]
-    player = terminal.screen.write('@', x='center', y='center', foreground='yellow')
-    terminal.screen.write('arrows or wasd move · q quit', y='bottom', dim=True)
+    player = terminal.write('@', x='center', y='center', foreground='yellow')
+    terminal.write('arrows or wasd move · q quit', y='bottom', dim=True)
 
     @terminal.hook(on='key')
     def move(context: xnano.Context):
@@ -209,8 +209,8 @@ wait 0.8
 import xnano
 
 with xnano.open(height=4, mouse=True) as terminal:
-    button = terminal.screen.write(' off ', border='rounded')
-    terminal.screen.write('click the switch · q quit', y='bottom', dim=True)
+    button = terminal.write(' off ', border='rounded')
+    terminal.write('click the switch · q quit', y='bottom', dim=True)
     is_on = False
 
     @button.hook(on='mouse')
@@ -264,9 +264,9 @@ wait 1.0
 import xnano
 
 with xnano.open(height=3, mouse=True) as terminal:
-    terminal.screen.write('─' * 30, y=1, dim=True)
-    label = terminal.screen.write('drag the ●', y=2)
-    thumb = terminal.screen.write('●', x=(0, 29), y=1)
+    terminal.write('─' * 30, y=1, dim=True)
+    label = terminal.write('drag the ●', y=2)
+    thumb = terminal.write('●', x=(0, 29), y=1)
 
     @thumb.hook(on='drag')
     def slide(context: xnano.Context):
@@ -297,6 +297,48 @@ new context.
 
 <!-- /@code-block-asset -->
 
+## Follow the pointer
+
+[`PointerPosition`][xnano.expressions.PointerPosition] is the cell that the
+pointer was over in the last mouse report. It is an expression, as the clock is.
+Give `PointerPosition.x` and `PointerPosition.y` to `write()`, and the placement
+follows the pointer without a hook. Use `mouse='motion'`, so that the terminal
+reports each movement of the pointer.
+
+```python
+import xnano
+from xnano.expressions import PointerPosition
+
+with xnano.open(height=6, mouse='motion') as terminal:
+    terminal.write('move the mouse · q quit', y='bottom', dim=True)
+    terminal.write('<+>', x=PointerPosition.x - 1, y=PointerPosition.y)  # >> [center]
+    terminal.run(stop_on='q')
+```
+
+<comments>
+<tag name="center" color="blue">
+`- 1` puts the middle cell of `<+>` on the pointer. To put the center of a
+placement on the pointer, subtract half of its width and half of its height.
+</tag>
+</comments>
+
+Before the first mouse report, the position has no value, so xnano does not draw
+the placement. After that, `PointerPosition` keeps its value, also after a key
+press or another event. While the mouse does not move, the placement causes no
+frames. The canvas draws a frame for it only when the pointer moves. These rules
+apply to such a placement:
+
+- `is_visible = False` hides it, as it hides other placements.
+- Before the first mouse report, `write()` with `lock=True` raises a
+  `TerminalError`, because the position has no value to keep.
+
+`context.mouse.position` and the expression
+[`MousePosition`][xnano.expressions.MousePosition] are different. They give the
+cell of the mouse event that the hook receives now, so use them in a mouse hook.
+The cursor of the
+[Circles](https://github.com/hsaeed3/xnano/blob/main/examples/01_rhythm_circles.py)
+game follows the pointer with `PointerPosition`.
+
 ## The mouse wheel
 
 To receive the mouse wheel, give `scroll=True` to `xnano.open()`. Then attach a
@@ -314,7 +356,7 @@ text at one time, not one key at a time. The text is in
 import xnano
 
 with xnano.open(height=2) as terminal:
-    received = terminal.screen.write('paste something')
+    received = terminal.write('paste something')
 
     @terminal.hook(on='paste')
     def show_paste(context: xnano.Context):
@@ -338,7 +380,7 @@ you give other stop keys. A hook can stop the program with
 import xnano
 
 with xnano.open(height=2) as terminal:
-    terminal.screen.write('press enter three times')
+    terminal.write('press enter three times')
     presses = 0
 
     @terminal.hook(on='key', keys='enter')

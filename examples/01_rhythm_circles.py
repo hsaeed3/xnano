@@ -69,7 +69,7 @@ def show(index: int) -> None:
     """Write a ring with its number in the middle, and judge a press on it."""
     seconds, column, row = MAP[index]
     left, top = column - TIMING_RADIUS, row - TIMING_RADIUS // 2
-    rings[index] = ring = game.screen.write(ring_art(index=index), x=left, y=top)
+    rings[index] = ring = game.write(ring_art(index=index), x=left, y=top)
     ring.write(str(index % 4 + 1), x=TIMING_RADIUS, y=TIMING_RADIUS // 2, bold=True)
 
     @ring.hook(on='mouse')
@@ -84,19 +84,17 @@ def show(index: int) -> None:
 
 
 game = xnano.new(width=80, height=24)  # the game keeps to 80 by 24 cells in any window
-game.screen.write('Circles', x=2, y=0, bold=True)
-status = game.screen.write('', x=43, y=0)
+game.write('Circles', x=2, y=0, bold=True)
+status = game.write('', x=43, y=0)
 hint = 'click the rings on the beat · q quit'
-game.screen.write(hint, x='center', y='bottom', dim=True)
-word = game.screen.write('', bold=True, layer=1)
+game.write(hint, x='center', y='bottom', dim=True)
+word = game.write('', bold=True, layer=1)
 
 with xnano.open(mouse='motion', title='circles') as terminal:
-    terminal.screen.write(game, x='center', y='center')
+    terminal.write(game, x='center', y='center')
     # over the game and its rings: it shows when the mouse first moves over the window,
     # then its middle cell follows the pointer on each frame
-    terminal.screen.write(
-        CURSOR, x=PointerPosition.x - 3, y=PointerPosition.y - 1, layer=2
-    )
+    terminal.write(CURSOR, x=PointerPosition.x - 3, y=PointerPosition.y - 1, layer=2)
 
     @terminal.hook(on='frame')
     def play(context: xnano.Context) -> None:
@@ -111,7 +109,7 @@ with xnano.open(mouse='motion', title='circles') as terminal:
         status.text = f'score {score:>5}   combo {combo:>3}   {seconds_left:>2} s left'
         if now >= TIME_LIMIT:  # time is up: the result stays until q
             result = f'time · score {score} · accuracy {score / (300 * len(MAP)):.0%}'
-            game.screen.write(result, x='center', y='center', bold=True)
+            game.write(result, x='center', y='center', bold=True)
             context.hook.remove()
 
     terminal.run(stop_on='q')

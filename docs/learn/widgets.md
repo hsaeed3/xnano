@@ -7,7 +7,9 @@ icon: lucide/chart-column
 
 A widget is ready-made content, such as a gauge, a chart, a table or a list.
 You write a widget on the screen in the same way as text. A widget takes a
-position, a size, a border and a title, as text does.
+position, a size, a border and a title, as text does. `canvas.write()` is the
+same as `canvas.screen.write()`, and `canvas.render()` is the same as
+`canvas.screen.render()`.
 
 The widgets are in [`xnano.widgets`][xnano.widgets]. xnano draws them with
 [ratatui](https://ratatui.rs/concepts/widgets/), a Rust library for terminal
@@ -27,13 +29,13 @@ from xnano.styles import Style
 from xnano.widgets import Gauge, LineGauge
 
 with xnano.new(width=48, height=4) as canvas:
-    canvas.screen.write(
+    canvas.write(
         Gauge(0.62, label='62% of 512 GB', gauge_style=Style('green')), width='100%'
     )
-    canvas.screen.write(
+    canvas.write(
         LineGauge(0.35, label='upload', filled_style=Style('cyan')), width='100%', y=2
     )
-    print(canvas.screen.render(format='ansi'))
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-widgets-gauges" -->
@@ -62,14 +64,14 @@ from xnano.widgets import Bar, BarChart, Sparkline
 requests = [round(6 + 3 * math.sin(second / 4)) for second in range(46)]
 
 with xnano.new(width=48, height=11) as canvas:
-    canvas.screen.write(
+    canvas.write(
         Sparkline(requests, style=Style('cyan')),
         width='100%',
         height=3,
         border='rounded',
         title='requests',
     )
-    canvas.screen.write(
+    canvas.write(
         BarChart(
             [Bar(73, label='cpu'), Bar(41, label='memory'), Bar(18, label='disk')],
             bar_width=8,
@@ -79,7 +81,7 @@ with xnano.new(width=48, height=11) as canvas:
         width='100%',
         height=7,
     )
-    print(canvas.screen.render(format='ansi'))
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-widgets-charts" -->
@@ -103,7 +105,7 @@ from xnano.styles import Style
 from xnano.widgets import Table, TableCell, TableRow
 
 with xnano.new(width=48, height=6) as canvas:
-    canvas.screen.write(
+    canvas.write(
         Table(
             [
                 ['web', 'up', '41 ms'],
@@ -116,7 +118,7 @@ with xnano.new(width=48, height=6) as canvas:
         border='rounded',
         title='services',
     )
-    print(canvas.screen.render(format='ansi'))
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-widgets-table" -->
@@ -140,7 +142,7 @@ from xnano.styles import Style
 from xnano.widgets import ItemList, Tabs
 
 with xnano.new(width=48, height=6) as canvas:
-    canvas.screen.write(
+    canvas.write(
         Tabs(
             ['mail', 'calendar', 'contacts'],
             selected=0,
@@ -148,7 +150,7 @@ with xnano.new(width=48, height=6) as canvas:
         ),
         width='100%',
     )
-    canvas.screen.write(
+    canvas.write(
         ItemList(
             ['inbox', 'drafts', 'sent', 'archive'],
             selected=1,
@@ -158,7 +160,7 @@ with xnano.new(width=48, height=6) as canvas:
         height=4,
         y=2,
     )
-    print(canvas.screen.render(format='ansi'))
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-widgets-lists" -->
@@ -183,8 +185,8 @@ import xnano
 from xnano.widgets import Gauge
 
 with xnano.open(height=2) as terminal:
-    terminal.screen.write(Gauge(terminal.clock / 10), width='100%')
-    terminal.screen.write('q quit', y='bottom', dim=True)
+    terminal.write(Gauge(terminal.clock / 10), width='100%')
+    terminal.write('q quit', y='bottom', dim=True)
     terminal.run(stop_on='q')
 ```
 

@@ -34,8 +34,8 @@ heart = xnano.pixel_art(
 )
 
 with xnano.new(width=20, height=4) as canvas:
-    canvas.screen.write(heart, x='center')
-    print(canvas.screen.render(format='ansi'))
+    canvas.write(heart, x='center')
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-images-pixel-art" -->
@@ -44,6 +44,9 @@ with xnano.new(width=20, height=4) as canvas:
 ![learn-images-pixel-art](../assets/examples/learn-images-pixel-art-dark.png#only-dark)
 
 <!-- /@code-block-asset -->
+
+`canvas.write()` is the same as `canvas.screen.write()`, and `canvas.render()`
+is the same as `canvas.screen.render()`.
 
 Each cell holds two pixels, one above the other. Thus, this heart of 7 by 6
 pixels uses 7 columns and 3 rows. Pixel art is a value, as a string is. Make it
@@ -68,8 +71,8 @@ ship = xnano.pixel_art(
 )
 
 with xnano.new(width=20, height=3) as canvas:
-    canvas.screen.write(ship)
-    print(canvas.screen.render(format='ansi'))
+    canvas.write(ship)
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-images-palette" -->
@@ -94,7 +97,7 @@ import xnano
 
 with xnano.open() as terminal:
     picture = xnano.load_image('photo.png', width='100%')
-    terminal.screen.write(picture)
+    terminal.write(picture)
     terminal.run(stop_on='q')
 ```
 

@@ -21,7 +21,7 @@ the screen draws at most 60 frames each second. To change this limit, give
 import xnano
 
 with xnano.open(height=2, fps=30) as terminal:
-    elapsed = terminal.screen.write('')
+    elapsed = terminal.write('')
 
     @terminal.hook(on='frame')
     def show_time(context: xnano.Context):
@@ -30,8 +30,9 @@ with xnano.open(height=2, fps=30) as terminal:
     terminal.run(stop_on='q')
 ```
 
-`on='frame'` runs a hook one time before each frame. Use it only for work that
-must change on every frame. For work that runs less often, use a timer.
+`terminal.write()` is the same as `terminal.screen.write()`. `on='frame'` runs a
+hook one time before each frame. Use it only for work that must change on every
+frame. For work that runs less often, use a timer.
 
 ## Timers
 
@@ -47,8 +48,8 @@ wait 4.5
 import xnano
 
 with xnano.open(height=3) as terminal:
-    ticks = terminal.screen.write('tick 0')
-    message = terminal.screen.write('')
+    ticks = terminal.write('tick 0')
+    message = terminal.write('')
     count = 0
 
     @terminal.hook(on='tick', every=1.0)
@@ -91,9 +92,9 @@ import xnano
 from xnano.expressions import ParentWidth
 
 with xnano.open(height=3) as terminal:
-    ball = terminal.screen.write('●', y=1, foreground='cyan')
+    ball = terminal.write('●', y=1, foreground='cyan')
     ball.x = (terminal.clock * 12) % ParentWidth  # >> [expression]
-    terminal.screen.write('q quit', y='bottom', dim=True)
+    terminal.write('q quit', y='bottom', dim=True)
     terminal.run(stop_on='q')
 ```
 
@@ -142,13 +143,13 @@ wait 1.4
 import xnano
 
 with xnano.open(height=6) as terminal:
-    card = terminal.screen.write(
+    card = terminal.write(
         'xnano',
         border='rounded',
         padding={'horizontal': 4, 'vertical': 1},
         foreground='magenta',
     )
-    terminal.screen.write('1 sweep · 2 coalesce · 3 fade · q quit', y='bottom', dim=True)
+    terminal.write('1 sweep · 2 coalesce · 3 fade · q quit', y='bottom', dim=True)
     card.fx.fade_from(foreground='black', duration_milliseconds=800)  # >> [start]
 
     @terminal.hook(on='key', keys='1')
@@ -181,7 +182,27 @@ Fades the card in from black when the program starts.
 
 An effect method returns the running effect. To stop the effect early, call
 `cancel()` on it. The canvas also has an `fx` property, for an effect on all of
-the canvas.
+the canvas. `canvas.fx` is the same as `canvas.screen.fx`.
+
+```python
+import xnano
+
+with xnano.new(width=20, height=1) as canvas:
+    canvas.write('saved')
+    fade = canvas.fx.fade_from(foreground='black', duration_milliseconds=300)  # >> [all]
+    assert canvas.fx.active == (fade,)  # >> [active]
+```
+
+<comments>
+<tag name="all" color="pink">
+Fades all of the canvas in from black, not only one placement.
+</tag>
+
+<tag name="active" color="blue">
+`active` holds the effects that you started on the canvas.
+`canvas.fx.clear()` stops all of them.
+</tag>
+</comments>
 
 This table gives some of the effects:
 

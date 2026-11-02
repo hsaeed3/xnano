@@ -27,26 +27,24 @@ MISS = (0.25, 'miss', 'red', 0)  # a note this many seconds past the line is mis
 LANE_WIDTH, LINE_ROW, SPEED = 8, 17, 16  # cells, the judgement line's row, rows a second
 
 game = xnano.new(width=80, height=24)  # the game keeps to 80 by 24 cells in any window
-game.screen.write('Lanes', x=2, y=0, bold=True)
-status = game.screen.write('', x=43, y=0)
+game.write('Lanes', x=2, y=0, bold=True)
+status = game.write('', x=43, y=0)
 field = xnano.new(width=4 * LANE_WIDTH + 1, height=LINE_ROW + 2)  # notes end at its edges
-field.screen.write('\n'.join(['│       ' * 4 + '│'] * LINE_ROW), x=0, y=0, dim=True)
-field.screen.write('┷' + '━━━━━━━┷' * 4, x=0, y=LINE_ROW)  # the judgement line
+field.write('\n'.join(['│       ' * 4 + '│'] * LINE_ROW), x=0, y=0, dim=True)
+field.write('┷' + '━━━━━━━┷' * 4, x=0, y=LINE_ROW)  # the judgement line
 notes = [{} for key in KEYS]  # each lane's notes not judged yet, by their time
 for seconds, lane in MAP:  # a note's y is an expression, so it falls with the clock
     column, row = 2 + lane * LANE_WIDTH, LINE_ROW - (seconds - field.clock) * SPEED
-    notes[lane][seconds] = field.screen.write(
-        '▄' * 5, x=column, y=row, foreground=COLORS[lane]
-    )
+    notes[lane][seconds] = field.write('▄' * 5, x=column, y=row, foreground=COLORS[lane])
 pads = []  # the key under each lane, lit while it is pressed and drawn over passing notes
 for lane, key in enumerate(KEYS):
     column = 1 + lane * LANE_WIDTH
-    pads.append(field.screen.write(f'   {key}   ', x=column, y=LINE_ROW + 1, bold=True))
+    pads.append(field.write(f'   {key}   ', x=column, y=LINE_ROW + 1, bold=True))
     pads[lane].color.fg = COLORS[lane]
-game.screen.write(field, x='center', y=2)
-word = game.screen.write('', x='center', y=21, bold=True)
+game.write(field, x='center', y=2)
+word = game.write('', x='center', y=21, bold=True)
 hint = 'd f j k hit the notes on the line · q quit'
-game.screen.write(hint, x='center', y='bottom', dim=True)
+game.write(hint, x='center', y='bottom', dim=True)
 score = combo = 0
 judged_at, pressed_at = -9.0, [-9.0] * 4
 
@@ -66,7 +64,7 @@ def judge(lane: int, judgement: tuple[float, str, str, int], now: float) -> None
 
 
 with xnano.open(title='lanes') as terminal:
-    terminal.screen.write(game, x='center', y='center')
+    terminal.write(game, x='center', y='center')
 
     @terminal.hook(on='key', keys=list(KEYS))
     def hit(context: xnano.Context) -> None:

@@ -30,13 +30,14 @@ text**, which is a list of notes with spaces between them:
 import xnano
 
 with xnano.open(height=1) as terminal:
-    terminal.screen.write('♪ playing · q quit')
+    terminal.write('♪ playing · q quit')
     if terminal.speaker.is_available:
         terminal.speaker.play('C4 E4 G4:2 rest C4+E4+G4:2', instrument='piano')
     terminal.run(stop_on='q')
 ```
 
 `play()` returns immediately. The sound plays while the program continues.
+`terminal.write()` is the same as `terminal.screen.write()`.
 
 A [`Note`][xnano.Note] keeps a note as a value. It holds the pitch, the number of
 beats and the instrument that plays the note. To make a chord, give a tuple of
@@ -68,8 +69,8 @@ scale = ['C4', 'D4', 'E4', 'G4', 'A4']
 chord = xnano.Note(('C4', 'E4', 'G4'), beats=2, instrument='electric_piano')
 
 with xnano.open(height=2) as terminal:
-    terminal.screen.write('1-5 play a note · space a chord · q quit', dim=True)
-    playing = terminal.screen.write('', foreground='cyan')
+    terminal.write('1-5 play a note · space a chord · q quit', dim=True)
+    playing = terminal.write('', foreground='cyan')
 
     @terminal.hook(on='key', keys=['1', '2', '3', '4', '5', 'space'])
     def play(context: xnano.Context):
@@ -96,7 +97,7 @@ needs only a few lines:
 import xnano
 
 with xnano.open(height=1, bpm=90) as terminal:
-    count = terminal.screen.write('')
+    count = terminal.write('')
     tick = xnano.Note('C6', beats=0.1, instrument='cowbell')
     beat = 0
 
@@ -121,7 +122,7 @@ The effects are `reverb`, `delay`, `distortion`, `tremolo`, `bit_crush`,
 import xnano
 
 with xnano.open(height=1) as terminal:
-    terminal.screen.write('a bell in a large room · q quit')
+    terminal.write('a bell in a large room · q quit')
     terminal.speaker.fx.reverb(room=0.9, mix=0.5)
     terminal.speaker.play('C5 G5 E5:2', instrument='bell')
     terminal.run(stop_on='q')
@@ -138,7 +139,7 @@ import xnano
 chime = xnano.load_audio('chime.wav')
 
 with xnano.open(height=1) as terminal:
-    terminal.screen.write('space chime · q quit')
+    terminal.write('space chime · q quit')
 
     @terminal.hook(on='key', keys='space')
     def ring(context: xnano.Context):
@@ -157,10 +158,10 @@ meter becomes longer when you speak:
 import xnano
 
 with xnano.open(height=2) as terminal:
-    terminal.screen.write('speak into your microphone · q quit', dim=True)
+    terminal.write('speak into your microphone · q quit', dim=True)
     level = terminal.microphone.level
-    terminal.screen.write('░' * 40, y=1, dim=True)
-    terminal.screen.write(
+    terminal.write('░' * 40, y=1, dim=True)
+    terminal.write(
         '█' * 40, x=0, y=1, width=level * 40 + 1, foreground='green', layer=1
     )
     terminal.run(stop_on='q')

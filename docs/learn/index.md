@@ -37,9 +37,10 @@ All the guides use the same four ideas. Learn them before you start.
   memory, which you can use to draw one frame and print it. `xnano.open()`
   shows a canvas in your terminal window and returns it as a **terminal**.
 - The **screen** of a canvas, `canvas.screen`, holds its cells. You **write**
-  content on it with `screen.write()`. The call returns a **placement**, a live
-  handle on the content that you wrote. When you change the text, color,
-  position or size of a placement, the screen changes too.
+  content on it with `canvas.write()`, which is the same as
+  `canvas.screen.write()`. The call returns a **placement**, a live handle on
+  the content that you wrote. When you change the text, color, position or size
+  of a placement, the screen changes too.
 - A **hook** is a function that xnano calls when something happens, for example
   a key press, a mouse click or a tick of the clock. xnano gives each hook a
   **context**, which holds the event and the devices.

@@ -6,13 +6,16 @@ icon: lucide/layout-dashboard
 # Writing Content
 
 Everything that you see in an xnano program comes from one call:
-`screen.write()`. This guide shows how to:
+`canvas.write()`, which is the same as `canvas.screen.write()`. This guide shows
+how to:
 
 - set the position and the size of content,
 - put a box around content,
 - share the space of a canvas between pieces of content,
 - put content over other content with layers,
-- change content after you write it.
+- change content after you write it,
+- put content next to other content,
+- ask if an area holds a cell or overlaps other content.
 
 ## A frame without a terminal
 
@@ -25,10 +28,10 @@ which stays in memory and does not show in your terminal window.
 import xnano
 
 with xnano.new(width=40, height=4) as canvas:  # >> [new]
-    canvas.screen.write('Deploy', bold=True)
-    canvas.screen.write('3 services, 2 regions')
-    canvas.screen.write('ready', x='right', y='bottom', foreground='green')  # >> [corner]
-    print(canvas.screen.render(format='ansi'))  # >> [render]
+    canvas.write('Deploy', bold=True)
+    canvas.write('3 services, 2 regions')
+    canvas.write('ready', x='right', y='bottom', foreground='green')  # >> [corner]
+    print(canvas.render(format='ansi'))  # >> [render]
 ```
 
 <comments>
@@ -42,8 +45,9 @@ Makes a canvas in memory, 40 cells wide and 4 rows tall. Without `width` and
 </tag>
 
 <tag name="render" color="pink">
-`render()` returns the screen as text. With `format='ansi'`, the text keeps its
-colors and modifiers as escape codes. Without it, you get only the characters.
+`render()` returns what the canvas shows, as text. It is the same as
+`canvas.screen.render()`. With `format='ansi'`, the text keeps its colors and
+modifiers as escape codes. Without it, you get only the characters.
 </tag>
 </comments>
 
@@ -56,6 +60,37 @@ colors and modifiers as escape codes. Without it, you get only the characters.
 
 A canvas from `xnano.open()` has the same screen, so all of this page also works
 in a live program.
+
+## Write on the canvas that runs
+
+[`xnano.write()`][xnano.write] writes on the canvas that runs now. It takes the
+same arguments as `canvas.write()`. Use it in a function that does not get the
+canvas.
+
+```python
+import xnano
+
+
+def show_status(text: str) -> None:
+    xnano.write(text, x='right', foreground='green')  # >> [write]
+
+
+with xnano.new(width=20, height=1) as canvas:
+    show_status('ready')
+    assert canvas.render().strip() == 'ready'
+```
+
+<comments>
+<tag name="write" color="green">
+Writes on the canvas of the `with` block that runs now, here `canvas`.
+</tag>
+</comments>
+
+The canvas that runs now is the canvas of a `with xnano.open()` block or a
+`with xnano.new()` block. In the block of a canvas inside another canvas, it is
+the outer canvas. Outside these blocks, `xnano.write()` raises a
+[`TerminalClosedError`][xnano.errors.TerminalClosedError]. A hook gets a context
+and not the canvas. Thus, in a hook, write with `context.screen.write()`.
 
 ## Positions
 
@@ -75,13 +110,12 @@ forms:
 import xnano
 
 with xnano.new(width=40, height=5) as canvas:
-    screen = canvas.screen
-    screen.write('top left', x='left', y='top')
-    screen.write('top right', x='right', y='top')
-    screen.write('center', x='center', y='center')
-    screen.write('25% in', x='25%', y=3)
-    screen.write('bottom right', x='right', y='bottom')
-    print(screen.render(format='ansi'))
+    canvas.write('top left', x='left', y='top')
+    canvas.write('top right', x='right', y='top')
+    canvas.write('center', x='center', y='center')
+    canvas.write('25% in', x='25%', y=3)
+    canvas.write('bottom right', x='right', y='bottom')
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-content-positions" -->
@@ -113,8 +147,8 @@ from xnano.widgets import Paragraph
 
 with xnano.new(width=40, height=4) as canvas:
     text = 'Text wider than its placement wraps onto the next line.'
-    canvas.screen.write(Paragraph(text, should_wrap=True), width=20, height=3)
-    print(canvas.screen.render(format='ansi'))
+    canvas.write(Paragraph(text, should_wrap=True), width=20, height=3)
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-content-wrap" -->
@@ -140,14 +174,13 @@ the border and the content.
 import xnano
 
 with xnano.new(width=48, height=5) as canvas:
-    screen = canvas.screen
-    screen.write('plain', border='plain')
-    screen.write('rounded', border='rounded', title='title', x=10, y=0)
-    screen.write('double', border='double', x=22, y=0)
-    screen.write(
+    canvas.write('plain', border='plain')
+    canvas.write('rounded', border='rounded', title='title', x=10, y=0)
+    canvas.write('double', border='double', x=22, y=0)
+    canvas.write(
         'thick', border='thick', padding={'horizontal': 2, 'vertical': 1}, x=33, y=0
     )
-    print(screen.render(format='ansi'))
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-content-boxes" -->
@@ -178,8 +211,8 @@ import xnano
 
 with xnano.new(width=48, height=3, layout='row') as canvas:
     for name in ('logs', 'metrics', 'alerts'):
-        canvas.screen.write(name, border='rounded', width='100%')
-    print(canvas.screen.render(format='ansi'))
+        canvas.write(name, border='rounded', width='100%')
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-content-row" -->
@@ -204,17 +237,17 @@ import xnano
 
 with xnano.new(width=48, height=4) as window:
     with xnano.new(width='50%', height='100%', border='rounded', title='files') as files:  # >> [inner]
-        files.screen.write('notes.md')
-        files.screen.write('todo.md')
-    window.screen.write(files)  # >> [show]
+        files.write('notes.md')
+        files.write('todo.md')
+    window.write(files)  # >> [show]
 
     with xnano.new(  # >> [inner]
         width='50%', height='100%', border='rounded', title='preview'
     ) as preview:
-        preview.screen.write('# Notes')
-    window.screen.write(preview, x='50%', y=0)  # >> [show]
+        preview.write('# Notes')
+    window.write(preview, x='50%', y=0)  # >> [show]
 
-    print(window.screen.render(format='ansi'))
+    print(window.render(format='ansi'))
 ```
 
 <comments>
@@ -253,8 +286,8 @@ import xnano
 
 with xnano.new(width=40, height=5) as canvas:
     for row in range(5):
-        canvas.screen.write('the content underneath ' * 2, y=row, dim=True)
-    canvas.screen.write(
+        canvas.write('the content underneath ' * 2, y=row, dim=True)
+    canvas.write(
         'Saved',
         x='center',
         y='center',
@@ -264,7 +297,7 @@ with xnano.new(width=40, height=5) as canvas:
         background='black',
         layer=1,
     )
-    print(canvas.screen.render(format='ansi'))
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="learn-content-layers" -->
@@ -284,7 +317,7 @@ placement, and use them to put other content next to it.
 import xnano
 
 with xnano.new(width=30, height=4) as canvas:
-    box = canvas.screen.write('box', border='rounded')  # >> [write]
+    box = canvas.write('box', border='rounded')  # >> [write]
     assert (box.x, box.y, box.width, box.height) == (0, 0, 5, 3)
 
     box.move(5, 1)  # >> [move]
@@ -292,11 +325,11 @@ with xnano.new(width=30, height=4) as canvas:
 
     box.x = 'right'  # >> [assign]
     box.text = 'moved'  # >> [assign]
-    canvas.screen.write('<- here', x=box.x - 8, y=box.y + 1)  # >> [read]
+    canvas.write('<- here', x=box.x - 8, y=box.y + 1)  # >> [read]
 
     box.is_visible = False  # >> [visible]
     box.is_visible = True
-    print(canvas.screen.render(format='ansi'))
+    print(canvas.render(format='ansi'))
 
     box.remove()  # >> [remove]
 ```
@@ -344,3 +377,72 @@ You can write more than text:
 
 The [`Screen.write`][xnano.devices.Screen.write] reference gives all the
 keywords.
+
+## Put content next to other content
+
+`right_edge` is the first column after a placement, and `bottom_edge` is the
+first row below it. Use them to put content directly to the right of a
+placement, or directly below it.
+
+```python
+import xnano
+
+with xnano.new(width=30, height=4) as canvas:
+    card = canvas.write('card', border='rounded')
+    assert (card.right_edge, card.bottom_edge) == (6, 3)  # >> [edges]
+    canvas.write('● ready', x=card.right_edge + 1, y=card.y + 1, foreground='green')
+    canvas.write('3 items', y=card.bottom_edge, dim=True)
+    print(canvas.render(format='ansi'))
+```
+
+<comments>
+<tag name="edges" color="blue">
+`right_edge` is `x + width`, and `bottom_edge` is `y + height`. The card is 6
+cells wide and 3 rows tall, because the border is part of its size.
+</tag>
+</comments>
+
+A screen has the same two properties. For example, `canvas.screen.right_edge`
+is the first column after the canvas.
+
+## Ask what an area holds
+
+`in` tells you if a cell or an area is inside another area. A cell is a pair of
+numbers, `(column, row)`, on the screen. `overlaps()` tells you if two areas
+have at least one cell in the same position. Areas that only touch at an edge do
+not overlap.
+
+```python
+import xnano
+
+with xnano.new(width=20, height=6) as canvas:
+    basket = canvas.write('[___]', x=5, y=5)
+    apple = canvas.write('o', x=7, y=3)
+    assert (7, 3) in apple  # >> [cell]
+    assert apple in canvas  # >> [area]
+    assert not basket.overlaps(apple)
+
+    apple.down(2)  # >> [overlap]
+    assert basket.overlaps(apple)
+```
+
+<comments>
+<tag name="cell" color="blue">
+The cell in column 7 and row 3 is inside the apple.
+</tag>
+
+<tag name="area" color="green">
+All of the apple is inside the canvas. `item in canvas` is the same as
+`item in canvas.screen`.
+</tag>
+
+<tag name="overlap" color="pink">
+The apple moves down 2 rows, to row 5. It then has a cell in the same position
+as the basket.
+</tag>
+</comments>
+
+A placement counts all of its cells, with its border, padding and margin. Its
+mouse hooks receive the mouse in the same cells. A screen and a
+[`Region`][xnano.layout.Region] accept `in` and `overlaps()` too, so you can
+compare all of these areas with each other.
