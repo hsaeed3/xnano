@@ -606,6 +606,36 @@ with xnano.open(width=6, height=1) as terminal:
         assert screen.wait_for('0')
         assert screen.wait_until(lambda: '2' in screen.text, timeout=6)
 
+    def test_a_frame_hook_runs_once_a_frame_when_nothing_changes(self, run):
+        # A frame hook asks for the next frame each time it runs. Frames that change nothing
+        # must still wait for the frame interval, or the hook runs as fast as the loop spins.
+        screen = run(
+            """
+calls = 0
+with xnano.open(height=2, fps=30) as terminal:
+    label = terminal.screen.write('counting')
+
+    @terminal.hook(on='frame')
+    def count(context):
+        global calls
+        calls += 1
+
+    @terminal.hook(on='tick', after=2.0)
+    def report(context):
+        label.text = f'calls {calls}'
+
+    terminal.run(stop_on='q')
+"""
+        )
+        assert screen.wait_for('calls ', timeout=10)
+        calls = int(re.search(r'calls (\d+)', screen.text).group(1))
+        screen.press('q')
+        assert screen.finish() == 0
+        # About 60 frames in 2 seconds at fps=30; a slow machine draws fewer.
+        assert 10 <= calls <= 30 * 2 * 1.1, (
+            f'the frame hook ran {calls} times in 2 seconds'
+        )
+
     def test_the_measured_frame_rate_stays_within_fps_while_input_arrives(self, run):
         screen = run(
             """
