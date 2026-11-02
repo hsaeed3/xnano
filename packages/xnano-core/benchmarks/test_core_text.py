@@ -8,6 +8,7 @@ from xnano_core._xnano_core import (
     Buffer,
     Paragraph,
     Style,
+    StyledText,
     TextEditor,
     Write,
     display_width,
@@ -18,6 +19,12 @@ ASCII_WORDS = ('terminal', 'cell', 'buffer', 'layout', 'ratatui', 'xnano')
 WORDS = (*ASCII_WORDS, '界面', 'ünïcödé')
 PROSE = ' '.join(WORDS[index % len(WORDS)] for index in range(2000))
 ASCII_PROSE = ' '.join(ASCII_WORDS[index % len(ASCII_WORDS)] for index in range(2000))
+COLORED_LOG = ''.join(
+    f'\x1b[2m12:00:{index % 60:02}\x1b[0m \x1b[1;{31 + index % 7}m{WORDS[index % len(WORDS)]}'
+    f'\x1b[0m request {index} took \x1b[38;5;{index % 256}m{index % 97} ms\x1b[0m\n'
+    for index in range(2000)
+)
+"""Two thousand lines of colored log output, as a program prints them for a terminal."""
 
 
 def test_layout_text_wrap(benchmark):
@@ -77,6 +84,12 @@ def test_write_styled_mixed_unicode_text(benchmark):
     ]
     benchmark(buffer.update, *operations)
     assert buffer[0, 0].symbol != ' '
+
+
+def test_styled_text_from_ansi_log(benchmark):
+    text = benchmark(StyledText.from_ansi, COLORED_LOG)
+    assert text.height == 2000
+    assert str(text).startswith('12:00:00 terminal request 0 took 0 ms')
 
 
 def test_text_editor_typing(benchmark):

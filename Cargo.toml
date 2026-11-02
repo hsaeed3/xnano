@@ -55,6 +55,7 @@ tachyonfx = { version = "0.25", features = ["sendable"] }
 termprofile = "0.2.4"
 unicode-segmentation = "1"
 unicode-width = "0.2"
+vte = "0.15"
 indexmap = "2"
 time = "0.3"
 serde_json = { version = "1", features = ["preserve_order"] }

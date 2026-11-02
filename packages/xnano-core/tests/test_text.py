@@ -75,6 +75,30 @@ def test_styled_text_writes_styled_spans():
     assert buffer.height == 1
 
 
+def test_styled_text_reads_the_colors_and_styles_of_ansi_text():
+    text = StyledText.from_ansi(
+        '\x1b[1;31merror:\x1b[0m \x1b[38;5;208mdisk\x1b[0m \x1b[48;2;0;0;255mfull\x1b[0m'
+    )
+    assert str(text) == 'error: disk full'
+    styles = [span.style for span in text.spans]
+    assert styles == [
+        Style('red', bold=True),
+        Style(),
+        Style('208'),
+        Style(),
+        Style(background=(0, 0, 255)),
+    ]
+
+
+def test_styled_text_from_ansi_lays_out_lines_as_a_terminal_does():
+    text = StyledText.from_ansi(
+        'one\ttwo\nloading 10%\rloading 100%\n\x1b[2J\x1b]0;title\x07\x1b[?25ldone\n'
+    )
+    assert str(text) == 'one     two\nloading 100%\ndone'
+    assert (text.width, text.height) == (12, 3)
+    assert Buffer(text).height == 3
+
+
 def test_editor_inserts_moves_and_deletes():
     editor = TextEditor('hello')
     assert editor.cursor_offset == 5

@@ -1245,6 +1245,35 @@ class StyledText:
         Args:
             spans: ``Sequence[TextSpan]``.
         """
+    @classmethod
+    def from_ansi(cls, text: str) -> StyledText:
+        """
+        Read the text that a program prints for a terminal, with its ANSI colors and styles.
+
+        Use it for the output of a command, a log file or a library that prints in color.
+        The SGR sequences set the colors (the 16 named colors, the 256 palette colors and
+        true colors) and the text modifiers. A newline starts a new line, a tab moves to the
+        next column that is a multiple of eight, and a carriage return moves back to the
+        start of the line, so the text after it writes over the line, as on a terminal.
+        Every other control character and escape sequence (cursor movement, erasing,
+        titles and modes) is removed. A final newline does not start an empty line.
+
+        Args:
+            text: The text, with its escape sequences.
+
+        Returns:
+            The styled text, with a newline between two lines.
+
+        Examples:
+            ```python
+            text = StyledText.from_ansi('\\x1b[1;31merror:\\x1b[0m disk full')
+            assert str(text) == 'error: disk full'
+            assert text.spans[0].style == Style('red', bold=True)
+
+            progress = StyledText.from_ansi('downloading 10%\\rdownloading 100%\\n')
+            assert str(progress) == 'downloading 100%'
+            ```
+        """
     @property
     def spans(self) -> tuple[TextSpan, ...]:
         """The runs of text, in order."""

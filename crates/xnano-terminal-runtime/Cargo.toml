@@ -19,6 +19,7 @@ tachyonfx = { workspace = true }
 termprofile = { workspace = true, features = ["ratatui"] }
 unicode-segmentation = { workspace = true }
 unicode-width = { workspace = true }
+vte = { workspace = true }
 xnano-terminal-cells = { workspace = true }
 xnano-terminal-state = { workspace = true }
 
