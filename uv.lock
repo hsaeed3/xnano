@@ -2320,9 +2320,6 @@ dev = [
 name = "xnano-core"
 source = { editable = "packages/xnano-core" }
 dependencies = [
-    { name = "markdown-it-py" },
-    { name = "pydantic-core" },
-    { name = "pygments" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 
@@ -2357,9 +2354,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "markdown-it-py", specifier = ">=3.0.0" },
-    { name = "pydantic-core", specifier = ">=2.0.0" },
-    { name = "pygments", specifier = ">=2.17.0" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'", specifier = ">=4.12.0" },
     { name = "xnano-audio", marker = "extra == 'all'", editable = "packages/xnano-audio" },
     { name = "xnano-audio", marker = "extra == 'audio'", editable = "packages/xnano-audio" },
