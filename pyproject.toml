@@ -63,7 +63,7 @@ classifiers = [
 # [! AUTO-VERSIONING - DO NOT EDIT THIS BY HAND]
 version = '2.1.2'
 dependencies = [
-    "xnano-core>=2.1.4",
+    "xnano-core>=2.2.0",
 ]
 
 [project.optional-dependencies]
