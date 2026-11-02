@@ -3,7 +3,8 @@ Record the animated examples of the documentation's homepage in real Kitty windo
 
 Run it from the repository root with
 ``uv run --no-sync python scripts/docs_assets.py [NAME ...]``, where each name is one of
-``RECORDINGS`` (all of them without names). Every program in ``scripts/docs_examples/`` runs
+``RECORDINGS`` (all of them without names). Every program in ``scripts/docs_examples/``, and
+each program of ``examples/`` that a recording names as its ``source``, runs
 as written in a Kitty window of ``COLUMNS`` by ``ROWS`` cells, while the actions of its
 recording press keys, and the window is photographed into a looping gif. Each program is
 recorded twice, once for each theme of the documentation site, in a window colored like the
@@ -45,10 +46,13 @@ from readme_assets import (  # noqa: E402
     apply_theme,
     font_notice,
     font_overrides,
+    mouse_report,
     run_action,
 )
 
 EXAMPLES = ROOT / "scripts" / "docs_examples"
+PROGRAMS = ROOT / "examples"
+"""The runnable example programs, some of which the homepage records as well."""
 OUTPUT = ROOT / "docs" / "assets" / "home"
 
 COLUMNS = 80
@@ -88,6 +92,25 @@ class KeyUp:
     key: str
 
 
+@dataclass(frozen=True)
+class WaitUntil:
+    """Wait until the program's clock reads ``seconds``, counted from its first frame."""
+
+    seconds: float
+
+
+@dataclass(frozen=True)
+class Hover:
+    """Move the mouse pointer to a cell with no button held."""
+
+    column: int
+    row: int
+
+
+DELIVERY_SECONDS = 0.08
+"""About how long a key press or a click takes to reach the program once it is sent."""
+
+
 def held_key_report(key: str, *, is_release: bool) -> str:
     """
     Return the report of the kitty keyboard protocol for pressing or releasing a key.
@@ -109,14 +132,20 @@ class Recording:
     """One example program and the actions that play it while it is recorded."""
 
     name: str
-    actions: tuple[Wait | Press | Type | Click | KeyDown | KeyUp, ...]
+    actions: tuple[
+        Wait | WaitUntil | Press | Type | Click | Hover | KeyDown | KeyUp, ...
+    ]
     loop_seconds: float
     """How long the gif lasts: the last frame is followed by the first one."""
+    source: pathlib.Path | None = None
+    """The program to record, when it is not ``scripts/docs_examples/<name>.py``."""
+    setup: tuple[Hover, ...] = ()
+    """Actions to perform before the gif starts, such as putting the pointer in its place."""
 
     @property
     def program(self) -> pathlib.Path:
         """The example's source file."""
-        return EXAMPLES / f"{self.name}.py"
+        return self.source or EXAMPLES / f"{self.name}.py"
 
     def target(self, theme: Theme) -> pathlib.Path:
         """The gif of the recording for a theme."""
@@ -141,6 +170,49 @@ def presses(*steps: tuple[str, float]) -> tuple[Press | Wait, ...]:
     """Press each key of ``steps`` and wait the seconds that come with it."""
     return tuple(
         action for key, seconds in steps for action in (Press((key,)), Wait(seconds))
+    )
+
+
+def on_beats(
+    *beats: tuple[float, Press | Click | Hover],
+) -> tuple[WaitUntil | Press | Click | Hover, ...]:
+    """
+    Send each action so that it reaches the program when its clock reads the action's time.
+
+    A rhythm game judges a press by its distance from the beat, and a click takes about 0.2
+    seconds to send, so these times are kept from the program's first frame instead of being
+    added up from one wait to the next.
+    """
+    return tuple(
+        step
+        for seconds, action in beats
+        for step in (WaitUntil(seconds - DELIVERY_SECONDS), action)
+    )
+
+
+def glide(
+    start: tuple[int, int],
+    end: tuple[int, int],
+    start_seconds: float,
+    end_seconds: float,
+) -> tuple[tuple[float, Hover], ...]:
+    """
+    Move the pointer in a straight line from ``start`` to ``end`` between two times.
+
+    The moves are at least 0.15 seconds apart. Kitty takes about 0.12 seconds to send one
+    while the window is photographed, so moves closer together fall behind, and a long
+    glide would hold up the action that follows it.
+    """
+    steps = max(1, int((end_seconds - start_seconds) / 0.15))
+    return tuple(
+        (
+            start_seconds + (end_seconds - start_seconds) * step / steps,
+            Hover(
+                round(start[0] + (end[0] - start[0]) * step / steps),
+                round(start[1] + (end[1] - start[1]) * step / steps),
+            ),
+        )
+        for step in range(1, steps + 1)
     )
 
 
@@ -261,17 +333,137 @@ AI = Recording(
 )
 """A widget asked for and changed, from answers a model gave that the program replays."""
 
+CIRCLES_SHAPES = (
+    ((40, 6), (64, 12), (40, 17), (16, 12)),
+    ((12, 6), (30, 17), (48, 6), (66, 17)),
+    ((66, 6), (48, 17), (30, 6), (12, 17)),
+)
+"""The middles of the rings of ``examples/01_rhythm_circles.py``, four to a group."""
+
+CIRCLES_RINGS = [  # one ring each 0.6 seconds from 1.6 seconds, a rest after each group
+    (1.6 + group * 3.0 + number * 0.6, cell)
+    for group, shape in enumerate(CIRCLES_SHAPES)
+    for number, cell in enumerate(shape)
+]
+"""The time and the middle of each ring that the recording clicks."""
+
+
+def circles_play() -> tuple[tuple[float, Click | Hover], ...]:
+    """
+    Click each ring on its beat, and glide the pointer to the next ring between the beats.
+
+    The pointer starts on the last ring (the recording's ``setup`` puts it there), where it
+    ends, so the gif loops without a jump.
+    """
+    cell, glide_from = CIRCLES_RINGS[-1][1], 0.6
+    beats: list[tuple[float, Click | Hover]] = []
+    for seconds, next_cell in CIRCLES_RINGS:
+        beats += glide(cell, next_cell, glide_from, seconds - 0.18)
+        beats.append((seconds, Click(*next_cell)))
+        # a click takes 0.2 seconds to send, then the glide to the next ring starts
+        cell, glide_from = next_cell, seconds + 0.2
+    return tuple(beats)
+
+
+RHYTHM_CIRCLES = Recording(
+    "rhythm-circles",
+    actions=on_beats(*circles_play()),
+    setup=(Hover(*CIRCLES_RINGS[-1][1]),),
+    loop_seconds=9.2,
+    source=PROGRAMS / "01_rhythm_circles.py",
+)
+"""The first twelve rings, each clicked on its beat, ending before the next ones show."""
+
+RHYTHM_DRUMS = Recording(
+    "rhythm-drums",
+    actions=on_beats(
+        # an eighth note each 0.25 seconds from 2 seconds: d and k for the center notes,
+        # f and j for the rim notes, one hand after the other
+        *(
+            (2.0 + step * 0.25, Press((key,)))
+            for step, key in enumerate("d...f...k...j...d.f.k.j.d.k.f...")
+            if key != "."
+        )
+    ),
+    loop_seconds=9.5,
+    source=PROGRAMS / "02_rhythm_drums.py",
+)
+"""The opening of the map: slow center and rim notes, then eighth notes."""
+
+RHYTHM_CATCH = Recording(
+    "rhythm-catch",
+    actions=(
+        Wait(0.6),
+        # the first five notes fall into the basket where it starts
+        Wait(3.6),
+        # right for the next pair, then a pitch to the left each beat, down the tune
+        Press(("right",) * 4),
+        Wait(1.25),
+        Press(("left",) * 4),
+        Wait(0.5),
+        Press(("left",) * 4),
+        Wait(0.5),
+        Press(("left",) * 4),
+        Wait(1.35),
+        # back to the middle, where the tune starts again as the gif loops
+        Press(("right",) * 8),
+        Wait(0.2),
+    ),
+    loop_seconds=8.0,
+    source=PROGRAMS / "03_rhythm_catch.py",
+)
+"""The first phrase of the tune, every note caught, ending where it started."""
+
+RHYTHM_LANES = Recording(
+    "rhythm-lanes",
+    actions=on_beats(
+        # the first four bars of the map and the next note: a key each half beat from 1.5
+        *(
+            (1.5 + step * 0.25, Press((key,)))
+            for step, key in enumerate("d.f.j.k.j.f.d...d.j.f.k.dfjk.kjfk")
+            if key != "."
+        )
+    ),
+    loop_seconds=9.5,
+    source=PROGRAMS / "04_rhythm_lanes.py",
+)
+"""The first bars of the map, each note hit with its lane's key."""
+
 RECORDINGS = {
-    recording.name: recording for recording in (WIDGETS, SOUND, INPUT, EFFECTS, AI)
+    recording.name: recording
+    for recording in (
+        WIDGETS,
+        SOUND,
+        INPUT,
+        EFFECTS,
+        AI,
+        RHYTHM_CIRCLES,
+        RHYTHM_DRUMS,
+        RHYTHM_CATCH,
+        RHYTHM_LANES,
+    )
 }
 
 
 def run_recording_action(
-    window: ActualTerminal, action: Wait | Press | Type | Click | KeyDown | KeyUp
+    window: ActualTerminal,
+    action: Wait | WaitUntil | Press | Type | Click | Hover | KeyDown | KeyUp,
+    *,
+    first_frame: float,
 ) -> None:
-    """Perform one action of a recording in the window."""
-    if isinstance(action, (KeyDown, KeyUp)):
+    """
+    Perform one action of a recording in the window.
+
+    ``first_frame`` is the ``time.monotonic()`` at which the program's first frame was seen.
+    """
+    if isinstance(action, WaitUntil):
+        time.sleep(max(0.0, first_frame + action.seconds - time.monotonic()))
+    elif isinstance(action, (KeyDown, KeyUp)):
         report = held_key_report(action.key, is_release=isinstance(action, KeyUp))
+        window.command("send-text", data="text:" + report)
+    elif isinstance(action, Hover):
+        # 35 is a motion report (32) with no button held (3)
+        report = mouse_report(35, action.column, action.row)
         window.command("send-text", data="text:" + report)
     else:
         run_action(window, action)
@@ -475,13 +667,16 @@ def record(recording: Recording, theme: Theme) -> tuple[int, int, int]:
                 f"{recording.program.name} drew nothing within {STARTUP_TIMEOUT} seconds: "
                 f"{error}. Run it on its own and fix what it reports."
             ) from error
+        first_frame = time.monotonic()
+        for action in recording.setup:
+            run_recording_action(window, action, first_frame=first_frame)
         time.sleep(0.5)  # let the first frames settle before the gif starts
         with tempfile.TemporaryDirectory(prefix="xnano-frames-") as frames:
             recorder = Recorder(window, pathlib.Path(frames))
             recorder.start()
             try:
                 for action in recording.actions:
-                    run_recording_action(window, action)
+                    run_recording_action(window, action, first_frame=first_frame)
                 remaining = recording.loop_seconds + 0.2 - recorder.seconds()
                 if remaining > 0:
                     time.sleep(remaining)

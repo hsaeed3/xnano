@@ -291,6 +291,23 @@ def test_transparent_children_skip_marked_cells_only():
     assert rows(parent) == ['a c...']
 
 
+def test_copies_and_pastes_keep_the_transparent_cells():
+    source = Buffer(width=3, height=1)
+    source.update(Write('a c'))
+    source[1, 0] = Cell(' ', is_transparent=True)
+
+    pasted = Buffer(width=3, height=1)
+    pasted.update(Paste(source, mode='replace'))
+    painted = Buffer(width=3, height=1)
+    painted.paste(source)
+    copied = source.region(Rectangle(0, 0, 3, 1)).copy()
+
+    for buffer in (pasted, painted, copied):
+        parent = Buffer('......')
+        parent.attach(buffer, mode='transparent')
+        assert rows(parent) == ['a.c...']
+
+
 def test_attach_rules():
     parent = Buffer(width=2, height=2)
     child = Buffer(width=1, height=1)

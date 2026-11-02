@@ -556,14 +556,17 @@ mod tests {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let capture = OutputCapture::start(None).expect("capture starts");
+        // The harness prints the names of other tests into the capture, and names hold no
+        // hyphen, so this text cannot come from them.
+        let drawing = "drawn-by-the-terminal-writer";
         let mut terminal = terminal_output();
         terminal
-            .write_all(b"frame")
+            .write_all(drawing.as_bytes())
             .expect("the real terminal accepts writes");
         terminal.flush().expect("and flushes");
         std::thread::sleep(std::time::Duration::from_millis(100));
         assert!(
-            !capture.take().contains("frame"),
+            !capture.take().contains(drawing),
             "drawing is not captured output"
         );
         capture.finish();

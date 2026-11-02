@@ -5,15 +5,17 @@ icon: lucide/image
 
 # Images & Pixel Art
 
-xnano draws pictures in terminal cells. Pixel art is written as text, right in
-your code, and comes with the core package. Loading picture files needs the
-`image` extra from [Installation](installation.md#optional-extras).
+xnano draws pictures in the cells of the terminal. There are two kinds:
+
+- **Pixel art** is text in your code. The core package includes it.
+- **Pictures** come from files. To load a file, you need the `image` extra. See
+  [Installation](installation.md#optional-extras).
 
 ## Pixel art
 
-`xnano.pixel_art()` paints rows of text, one character per pixel. The `palette`
-says what color each character is, and any character it doesn't name, such as
-`.`, is transparent.
+`xnano.pixel_art()` draws rows of text, with one character for each pixel. The
+`palette` gives the color of each character. A character that is not in the
+palette, for example `.`, is transparent.
 
 <!-- @code-block name="learn-images-pixel-art" type="image" height=5 -->
 ```python
@@ -43,12 +45,12 @@ with xnano.new(width=20, height=4) as canvas:
 
 <!-- /@code-block-asset -->
 
-Each cell holds two pixels, one above the other, so this heart of 7 by 6 pixels
-takes 7 columns and 3 rows. Art is a value like a string: make it once, and
-write it as many times, in as many places, as you like.
+Each cell holds two pixels, one above the other. Thus, this heart of 7 by 6
+pixels uses 7 columns and 3 rows. Pixel art is a value, as a string is. Make it
+one time, then write it as many times and in as many positions as necessary.
 
-A palette can also be one string of `character=color` pairs, which reads well
-for small sprites:
+A palette can also be one string of `character=color` pairs. This form is short
+and easy to read for small pictures:
 
 <!-- @code-block name="learn-images-palette" type="image" height=4 -->
 ```python
@@ -77,14 +79,15 @@ with xnano.new(width=20, height=3) as canvas:
 
 <!-- /@code-block-asset -->
 
-`encoding='braille'` packs two by four pixels into each cell, in one color, for
-a finer, drawing-like look.
+`encoding='braille'` puts two by four pixels in each cell, in one color. Use it
+for thin lines and small details, as in a drawing.
 
 ## Pictures
 
 `xnano.load_image()` reads PNG, JPEG, GIF, WebP and XNI files. Its `width` and
-`height` take cells or a percentage, and when you give only one, the other keeps
-the picture's proportions. Write the result like anything else.
+`height` take a number of cells or a percentage. If you give only one of the
+two, the other keeps the proportions of the picture. You write a picture on the
+screen in the same way as other content.
 
 ```python
 import xnano
@@ -95,15 +98,16 @@ with xnano.open() as terminal:
     terminal.run(stop_on='q')
 ```
 
-A picture sized by a percentage is sized again when the window is resized. An
-animated GIF or WebP plays on the canvas's clock, so pausing the clock pauses it
-too, and `speed=2.0` plays it twice as fast.
+If you give the size as a percentage, xnano changes the size of the picture
+when the window changes size. An animated GIF or WebP picture plays on the clock
+of the canvas. If you pause the clock, the animation stops until you start the
+clock again. `speed=2.0` plays the animation two times faster.
 
-## Printing without a terminal
+## Print without a canvas
 
-`xnano.region()` draws content into cells with no canvas at all, ready to print.
-This one uses the picture that ships with xnano, so it runs anywhere the `image`
-extra is installed:
+`xnano.region()` draws content in cells without a canvas, and you can print the
+result. This example uses the picture that xnano includes. It runs on each
+computer that has the `image` extra:
 
 <!-- @code-block name="learn-images-region" type="image" height=15 -->
 ```python
@@ -123,5 +127,8 @@ print(xnano.region(picture).render(format='ansi'))
 
 <!-- /@code-block-asset -->
 
-The [`xnano.art`][xnano.art] reference covers the rest: cameras that look into
-larger pixel worlds, single pixels, and how images are fitted and resampled.
+The [`xnano.art`][xnano.art] reference gives more information:
+
+- cameras that show a part of a large pixel world
+- single pixels
+- how xnano fits a picture into its area.

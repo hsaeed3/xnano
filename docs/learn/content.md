@@ -5,28 +5,47 @@ icon: lucide/layout-dashboard
 
 # Writing Content
 
-Everything you see in an xnano program gets onto the screen the same way:
-through `screen.write()`. This guide covers where things go, how big they are,
-how to put them in boxes and on top of each other, and how to change them once
-they're there.
+Everything that you see in an xnano program comes from one call:
+`screen.write()`. This guide shows how to:
+
+- set the position and the size of content,
+- put a box around content,
+- share the space of a canvas between pieces of content,
+- put content over other content with layers,
+- change content after you write it.
 
 ## A frame without a terminal
 
-The examples on this page draw a single frame and print it, so you can run them
-anywhere, even in a notebook. `xnano.new()` creates a canvas in memory, with no
-screen of its own, and `render()` turns its screen into text. `format='ansi'`
-keeps the colors.
+The examples on this page draw one frame and print it, so you can run them
+anywhere, for example in a notebook. They use a canvas from `xnano.new()`,
+which stays in memory and does not show in your terminal window.
 
 <!-- @code-block name="learn-content-frame" type="image" height=5 -->
 ```python
 import xnano
 
-with xnano.new(width=40, height=4) as canvas:
+with xnano.new(width=40, height=4) as canvas:  # >> [new]
     canvas.screen.write('Deploy', bold=True)
     canvas.screen.write('3 services, 2 regions')
-    canvas.screen.write('ready', x='right', y='bottom', foreground='green')
-    print(canvas.screen.render(format='ansi'))
+    canvas.screen.write('ready', x='right', y='bottom', foreground='green')  # >> [corner]
+    print(canvas.screen.render(format='ansi'))  # >> [render]
 ```
+
+<comments>
+<tag name="new" color="blue">
+Makes a canvas in memory, 40 cells wide and 4 rows tall. Without `width` and
+`height`, a canvas is 80 cells wide and 24 rows tall.
+</tag>
+
+<tag name="corner" color="green">
+`x='right'` and `y='bottom'` put the text in the bottom-right corner.
+</tag>
+
+<tag name="render" color="pink">
+`render()` returns the screen as text. With `format='ansi'`, the text keeps its
+colors and modifiers as escape codes. Without it, you get only the characters.
+</tag>
+</comments>
 
 <!-- @code-block-asset name="learn-content-frame" -->
 
@@ -35,18 +54,21 @@ with xnano.new(width=40, height=4) as canvas:
 
 <!-- /@code-block-asset -->
 
-A canvas from `xnano.open()` has exactly the same screen, so everything here
-works the same way in a live program.
+A canvas from `xnano.open()` has the same screen, so all of this page also works
+in a live program.
 
 ## Positions
 
-Content with no position goes on the next line, the way a terminal prints. Give
-it an `x` or a `y`, and it goes there instead. Both take:
+Content without a position goes on the next line, as in a terminal that prints
+lines. To put content somewhere else, give an `x`, a `y` or both. `x` is the
+column of the left edge, and `y` is the row of the top edge. Both accept these
+forms:
 
-- a number of cells, counted from `0` at the top-left corner;
-- a percentage of the screen, such as `'25%'`;
-- a word: `'left'`, `'center'` or `'right'` for `x`, and `'top'`, `'center'` or
-  `'bottom'` for `y`.
+- A number of cells. The count starts at `0` in the top-left corner.
+- A percentage of the screen, such as `'25%'`.
+- A word. `x` accepts `'left'`, `'center'` and `'right'`, and `y` accepts
+  `'top'`, `'center'` and `'bottom'`. The word aligns the content with that part
+  of the screen.
 
 <!-- @code-block name="learn-content-positions" type="image" height=6 -->
 ```python
@@ -69,16 +91,20 @@ with xnano.new(width=40, height=5) as canvas:
 
 <!-- /@code-block-asset -->
 
-Percentages and words are worked out again whenever the screen changes size, so
-`'center'` stays in the center when the user resizes the window.
+xnano calculates percentages and words again when the size of the screen
+changes. For example, `'center'` stays in the center when the user makes the
+window larger. To keep the first position and size, give `lock=True` to
+`write()`.
 
 ## Sizes
 
-Content is as big as it needs to be, unless you give it a `width` or a `height`.
-Sizes take the same forms as positions: cells, or a percentage such as `'50%'`.
+Content gets the size that it needs, unless you give a `width` or a `height`. A
+size is a number of cells or a percentage of the screen, such as `'50%'`.
 
-Text that doesn't fit its width is cut off at the edge. To wrap it onto more
-lines, write it as a `Paragraph` widget:
+If text is wider than its `width`, xnano does not draw the part after the edge.
+The same is true for content that goes past the edge of the screen. To continue
+the text on more lines, write it in a [`Paragraph`][xnano.widgets.Paragraph]
+widget with `should_wrap=True`:
 
 <!-- @code-block name="learn-content-wrap" type="image" height=5 -->
 ```python
@@ -98,11 +124,16 @@ with xnano.new(width=40, height=4) as canvas:
 
 <!-- /@code-block-asset -->
 
+The paragraph breaks the lines between words. Without a `height`, the paragraph
+is as tall as its lines. With a `height`, xnano shows only the lines that fit.
+
 ## Boxes
 
-`border` draws a box around what you write: `'plain'`, `'rounded'`, `'double'`
-or `'thick'`. A `title` sits on the top edge of the border, and `padding` puts
-space between the border and the content, in cells.
+`border` puts a box around the content. Its value is the kind of line:
+`'plain'`, `'rounded'`, `'double'` or `'thick'`. `border=True` gives a
+`'plain'` border. `title` writes a title on the top edge of the border, and a
+`title` without a `border` gives a plain border. `padding` adds space between
+the border and the content.
 
 <!-- @code-block name="learn-content-boxes" type="image" height=6 -->
 ```python
@@ -126,14 +157,20 @@ with xnano.new(width=48, height=5) as canvas:
 
 <!-- /@code-block-asset -->
 
-A terminal cell is about twice as tall as it is wide, so padding looks even when
-it has twice as many columns as rows, like the `thick` box above.
+A border uses one cell on each side of the content. `padding` accepts a number
+of cells for all four sides. It also accepts a dictionary with the keys `top`,
+`right`, `bottom`, `left`, `vertical` and `horizontal`.
 
-## Sharing space
+A cell is about two times as tall as it is wide. Padding looks equal on all sides
+when it has two columns for each row, as in the `thick` box.
 
-A canvas made with `layout='row'` shares its width between everything written on
-it, side by side. Each piece gets an equal share, and a `width` of `'100%'`
-fills it. `layout='column'` does the same from top to bottom.
+## Layouts
+
+By default, each piece of content on a canvas has its own position. A canvas
+made with `layout='row'` puts the pieces side by side, from left to right, in
+the order that you write them. Each piece gets an equal part of the width, and
+`width='100%'` makes a piece fill its part. `layout='column'` does the same from
+top to bottom.
 
 <!-- @code-block name="learn-content-row" type="image" height=4 -->
 ```python
@@ -152,28 +189,46 @@ with xnano.new(width=48, height=3, layout='row') as canvas:
 
 <!-- /@code-block-asset -->
 
-For a layout of your own, put a canvas inside another one. A canvas created
-inside the `with` block of another is measured in it, so `'50%'` is half of the
-outer canvas. Write it where you want it to show:
+A piece with a `width` in cells keeps that width, and the other pieces share the
+remaining space.
+
+For a layout of your own, put a canvas in another canvas. If you make a canvas
+in the `with` block of another canvas, xnano measures its size in the outer
+canvas. For example, `'50%'` is half of the outer canvas. The inner canvas shows
+only after you write it on the outer screen. Write it at the position where you
+want it:
 
 <!-- @code-block name="learn-content-nested" type="image" height=5 -->
 ```python
 import xnano
 
 with xnano.new(width=48, height=4) as window:
-    with xnano.new(width='50%', height='100%', border='rounded', title='files') as files:
+    with xnano.new(width='50%', height='100%', border='rounded', title='files') as files:  # >> [inner]
         files.screen.write('notes.md')
         files.screen.write('todo.md')
-    window.screen.write(files)
+    window.screen.write(files)  # >> [show]
 
-    with xnano.new(
+    with xnano.new(  # >> [inner]
         width='50%', height='100%', border='rounded', title='preview'
     ) as preview:
         preview.screen.write('# Notes')
-    window.screen.write(preview, x='50%', y=0)
+    window.screen.write(preview, x='50%', y=0)  # >> [show]
 
     print(window.screen.render(format='ansi'))
 ```
+
+<comments>
+<tag name="inner" color="blue">
+This canvas is half as wide as `window` and as tall as `window`. On
+`xnano.new()`, `border` puts a box around the full inner canvas, and `title`
+writes a title on that box.
+</tag>
+
+<tag name="show" color="pink">
+The inner canvas shows on `window` only after this call. `x='50%'` puts
+`preview` in the right half.
+</tag>
+</comments>
 
 <!-- @code-block-asset name="learn-content-nested" -->
 
@@ -182,11 +237,15 @@ with xnano.new(width=48, height=4) as window:
 
 <!-- /@code-block-asset -->
 
+[`Screen.new`][xnano.devices.Screen.new] makes an inner canvas and writes it at
+the top-left corner in one call.
+
 ## Layers
 
-Content on a higher `layer` is drawn over content on a lower one. Everything
-starts on layer `0`. Give a popup its own `background`, so the text behind it
-doesn't show through.
+xnano draws content on a higher `layer` over content on a lower layer. The
+default layer is `0`. On the same layer, the content that you write last is on
+top. Give a popup its own `background`, so that it looks separate from the
+content below it.
 
 <!-- @code-block name="learn-content-layers" type="image" height=6 -->
 ```python
@@ -215,11 +274,11 @@ with xnano.new(width=40, height=5) as canvas:
 
 <!-- /@code-block-asset -->
 
-## Changing what you wrote
+## Change what you wrote
 
-`write()` returns a placement, and a placement is live: change it and the screen
-follows. You can read it back too, so one placement can be positioned against
-another.
+`write()` returns a placement. When you change a placement, the screen shows the
+change on the next frame. You can also read the position and the size of a
+placement, and use them to put other content next to it.
 
 ```python
 import xnano
@@ -244,31 +303,44 @@ with xnano.new(width=30, height=4) as canvas:
 
 <comments>
 <tag name="write">
-A placement knows its position and its size in cells.
+`x`, `y`, `width` and `height` give the position and the size of the placement,
+in cells. The border is part of the size.
 </tag>
 
 <tag name="move">
-`move()` shifts the placement by a number of columns and rows.
+`move(5, 1)` moves the placement 5 columns to the right and 1 row down. A
+negative number moves it to the left or up. `up()`, `down()`, `left()` and
+`right()` move it in one direction.
 </tag>
 
 <tag name="assign">
-Assign a position or new text directly. Words and percentages work here as well.
+You can set a position or the text directly, and a position accepts words and
+percentages here too. New text changes the size of the placement to fit the
+text, unless you gave the placement a size.
 </tag>
 
 <tag name="read">
-Positions read back as numbers, so they can place something else.
+A position reads back as a number of cells, also after you set a word. Use the
+number to calculate the position of other content. The number does not change
+when the placement moves later.
 </tag>
 
 <tag name="visible">
-Hide a placement and show it again without losing it.
+`is_visible = False` hides the placement, and `True` shows it again. A hidden
+placement keeps its content and its position.
 </tag>
 
 <tag name="remove">
-`remove()` takes it off the screen for good.
+`remove()` removes the placement from the screen permanently. To show the
+content again, write it again.
 </tag>
 </comments>
 
-What you can write is wider than text: a list of strings writes several lines,
-and [widgets](widgets.md), [images and pixel art](images.md) and other canvases
-are written the same way. The [`Screen.write`][xnano.devices.Screen.write]
-reference lists every option.
+You can write more than text:
+
+- A list of strings writes one line for each string.
+- [Widgets](widgets.md), [images and pixel art](images.md) and other canvases
+  use the same `write()` call.
+
+The [`Screen.write`][xnano.devices.Screen.write] reference gives all the
+keywords.

@@ -1333,10 +1333,7 @@ impl PyRegion {
         let bounds = surface.bounds()?;
         let (grid, fill) = {
             let state = surface.core.lock();
-            (
-                Grid::from_buffer(state.grid.region_buffer(bounds)),
-                state.fill.clone(),
-            )
+            (state.grid.region_grid(bounds), state.fill.clone())
         };
         new_buffer(py, grid, 0, 0, fill, None)
     }
@@ -1898,7 +1895,7 @@ impl PyBuffer {
             .extract::<PyRef<'_, PySurface>>()
             .map_err(|_| PyTypeError::new_err("paste needs a Buffer or a Region as its source"))?;
         let bounds = origin.bounds()?;
-        let region = Grid::from_buffer(origin.core.lock().grid.region_buffer(bounds));
+        let region = origin.core.lock().grid.region_grid(bounds);
         drop(origin);
         let surface = slf.as_super().borrow();
         surface.edit(|grid, destination| grid.paste(destination, &region, x, y, mode))

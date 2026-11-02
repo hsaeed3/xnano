@@ -87,6 +87,17 @@
     max-width: var(--xn-exhibit);
 }
 
+/* A picture of what a code block draws (scripts/readme_assets.py renders it 100 columns
+   wide, like the README's) spans the code block's width, so its cells and the code's
+   characters are about the same size. */
+.xn-body > p:has(> img[src*="assets/examples/"]) {
+    max-width: var(--xn-exhibit);
+}
+
+.xn-body > p > img[src*="assets/examples/"] {
+    width: 100%;
+}
+
 /* ── Headings: numbered sections under a rule ─────────────────────────────────────── */
 .md-typeset h2,
 .md-typeset h3 {

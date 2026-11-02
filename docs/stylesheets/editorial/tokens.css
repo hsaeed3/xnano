@@ -93,6 +93,24 @@
     --xn-syntax-comment: #8a8f98;
     --xn-syntax-operator: #4b505a;
     --xn-syntax-variable: #15171c;
+
+    /* The 16 terminal colors, as the documentation's pictures draw them on this scheme. */
+    --xn-ansi-black: #24292f;
+    --xn-ansi-red: #cf222e;
+    --xn-ansi-green: #116329;
+    --xn-ansi-yellow: #9a6700;
+    --xn-ansi-blue: #0969da;
+    --xn-ansi-magenta: #8250df;
+    --xn-ansi-cyan: #1b7c83;
+    --xn-ansi-white: #6e7781;
+    --xn-ansi-bright-black: #57606a;
+    --xn-ansi-bright-red: #a40e26;
+    --xn-ansi-bright-green: #1a7f37;
+    --xn-ansi-bright-yellow: #bf8700;
+    --xn-ansi-bright-blue: #218bff;
+    --xn-ansi-bright-magenta: #a475f9;
+    --xn-ansi-bright-cyan: #3192aa;
+    --xn-ansi-bright-white: #8c959f;
 }
 
 /* Dark: the same sheet on a drafting surface at night. */
@@ -127,11 +145,33 @@
     --xn-syntax-comment: #6e727b;
     --xn-syntax-operator: #a3a7b0;
     --xn-syntax-variable: #e4e5e9;
+
+    /* The 16 terminal colors, as the documentation's pictures draw them on this scheme. */
+    --xn-ansi-black: #484f58;
+    --xn-ansi-red: #ff7b72;
+    --xn-ansi-green: #3fb950;
+    --xn-ansi-yellow: #d29922;
+    --xn-ansi-blue: #58a6ff;
+    --xn-ansi-magenta: #bc8cff;
+    --xn-ansi-cyan: #39c5cf;
+    --xn-ansi-white: #b1bac4;
+    --xn-ansi-bright-black: #6e7681;
+    --xn-ansi-bright-red: #ffa198;
+    --xn-ansi-bright-green: #56d364;
+    --xn-ansi-bright-yellow: #e3b341;
+    --xn-ansi-bright-blue: #79c0ff;
+    --xn-ansi-bright-magenta: #d2a8ff;
+    --xn-ansi-bright-cyan: #56d4dd;
+    --xn-ansi-bright-white: #ffffff;
 }
 
 /* The theme's own variables, mapped onto the tokens so its components follow them. */
 [data-md-color-scheme="default"],
 [data-md-color-scheme="slate"] {
+    /* What a terminal screen draws with when output gives no color of its own. */
+    --xn-terminal-foreground: var(--xn-ink);
+    --xn-terminal-background: var(--xn-code-bg);
+
     --md-default-bg-color: var(--xn-sheet);
     --md-default-bg-color--light: var(--xn-sheet);
     --md-default-bg-color--lighter: var(--xn-sheet);

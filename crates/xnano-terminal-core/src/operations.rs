@@ -409,9 +409,7 @@ impl PyPaste {
             .extract::<PyRef<'_, PySurface>>()
             .map_err(|_| PyTypeError::new_err("Paste needs a Buffer or a Region as its source"))?;
         let bounds = origin.bounds()?;
-        let snapshot = Arc::new(xnano_terminal_runtime::grid::Grid::from_buffer(
-            origin.core.lock().grid.region_buffer(bounds),
-        ));
+        let snapshot = Arc::new(origin.core.lock().grid.region_grid(bounds));
         let (x, y) = (optional_i32(x)?, optional_i32(y)?);
         let mode = optional_name(mode, "replace")?;
         check_fixed(py, &mode, parse_paste_mode)?;

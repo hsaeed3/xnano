@@ -21,6 +21,14 @@ def green() -> Art:
     return pixel_art(['GGGG', 'GGGG'], {'G': '#00ff00'})
 
 
+def test_pixel_art_shows_the_content_below_where_no_pixel_covers_a_cell():
+    ring = pixel_art(['....', '.##.', '.##.', '....'], {'#': '#ffffff'})
+    with xnano.new(width=6, height=3) as canvas:
+        canvas.screen.write('XXXXXX\nXXXXXX\nXXXXXX')
+        canvas.screen.write(ring, x=1, y=0, layer=1)
+        assert canvas.screen.render().splitlines() == ['XX▄▄XX', 'XX▀▀XX', 'XXXXXX']
+
+
 @pytest.fixture
 def canvas():
     with xnano.new(width=8, height=4) as opened:

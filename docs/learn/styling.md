@@ -5,15 +5,23 @@ icon: lucide/palette
 
 # Styling
 
-Every `write()` takes the same styling keywords: a `foreground` and a
-`background` color, text modifiers such as `bold` and `dim`, and a border. This
-guide covers each of them, how to change them later, and how to choose colors
-that read well on any terminal.
+Each `write()` call accepts the same style keywords:
+
+- `foreground` and `background` set the colors.
+- Text modifiers, such as `bold` and `dim`, change how the text looks.
+- `border` and `border_style` put a box around the content and set its color.
+
+This guide shows each of them. It also shows how to change a style after you
+write the content, and how to choose colors that show clearly in all terminal
+themes.
 
 ## Colors
 
-A color can be given three ways: by name, as a hex string, or as a
-`(red, green, blue)` tuple.
+You can give a color in three forms:
+
+- A name, such as `'cyan'`.
+- A hex string, such as `'#e8768a'`.
+- A `(red, green, blue)` tuple, with each value from 0 to 255.
 
 <!-- @code-block name="learn-styling-colors" type="image" height=5 -->
 ```python
@@ -34,14 +42,30 @@ with xnano.new(width=40, height=4) as canvas:
 
 <!-- /@code-block-asset -->
 
-The names are the 16 colors every terminal has: `black`, `red`, `green`,
-`yellow`, `blue`, `magenta`, `cyan`, `white`, `gray` and their `light_` versions
-such as `light_blue`.
+The names are the 16 colors that every terminal has. Each of the eight normal
+colors has a light version:
+
+| Normal color | Light version |
+| --- | --- |
+| `black` | `dark_gray` |
+| `red` | `light_red` |
+| `green` | `light_green` |
+| `yellow` | `light_yellow` |
+| `blue` | `light_blue` |
+| `magenta` | `light_magenta` |
+| `cyan` | `light_cyan` |
+| `gray` | `white` |
+
+The spelling `grey` and the prefix `bright_`, as in `bright_red`, also work.
+`'reset'` gives the default color of the terminal. If xnano does not know a
+color, `write()` raises a `ValueError`, and the message shows the forms that
+work.
 
 ## Text modifiers
 
-`bold`, `dim`, `italic`, `underline`, `reverse` and `crossed_out` each take
-`True`. They combine with each other and with colors.
+A text modifier changes how text looks. Each modifier is a keyword of `write()`
+that takes `True` or `False`, and the default is `False`. You can use more than
+one modifier at the same time, and you can use modifiers with colors.
 
 <!-- @code-block name="learn-styling-modifiers" type="image" height=7 -->
 ```python
@@ -64,15 +88,24 @@ with xnano.new(width=40, height=6) as canvas:
 
 <!-- /@code-block-asset -->
 
-Not every terminal draws every modifier: `italic` needs a font with an italic
-face, and some terminals show `blink` as plain text.
+| Modifier | What it does |
+| --- | --- |
+| `bold` | Makes the text bold. |
+| `dim` | Makes the text less bright. |
+| `italic` | Makes the text italic. |
+| `underline` | Puts a line below the text. |
+| `reverse` | Swaps the foreground color and the background color. |
+| `crossed_out` | Puts a line through the text. |
+| `blink` | Makes the text blink. |
+| `hidden` | Hides the text, but keeps the cells that it uses. |
 
-## Changing styles later
+Some terminals do not show all modifiers. For example, `italic` needs a font
+with italic letters, and some terminals show `blink` text without the blink.
 
-A placement's colors live in its `color`: assign `color.fg` and `color.bg`. Each
-modifier is a method, so `label.bold()` makes text bold and `label.bold(False)`
-undoes it. The `is_bold` property (and `is_dim`, `is_italic`, and so on) reads
-it back.
+## Change a style later
+
+After you write content, you can change its style through its placement. Each
+modifier has a method with the same name, such as `bold()` or `underline()`.
 
 ```python
 import xnano
@@ -80,21 +113,47 @@ import xnano
 with xnano.new(width=30, height=1) as canvas:
     label = canvas.screen.write('status: ok', foreground='green')
 
-    label.color.fg = 'yellow'
-    label.color.bg = 'black'
-    label.bold().underline()
-    assert label.is_bold and label.is_underlined
+    label.color.fg = 'yellow'  # >> [color]
+    label.color.bg = 'black'  # >> [color]
+    label.bold().underline()  # >> [chain]
+    assert label.is_bold and label.is_underlined  # >> [read]
 
-    label.underline(False)
+    label.underline(False)  # >> [off]
     print(canvas.screen.render(format='ansi'))
 ```
 
-The methods return the placement, so they chain: `label.bold().underline()`.
+<comments>
+<tag name="color" color="blue">
+`color.fg` is the text color, and `color.bg` is the background color. They
+accept the same forms as `foreground` and `background`. `'reset'` removes the
+color.
+</tag>
 
-## Reusing a style
+<tag name="chain" color="green">
+A modifier method turns the modifier on. Each method returns the placement, so
+you can chain the calls.
+</tag>
 
-A [`Style`][xnano.styles.Style] holds a color and modifiers together, so one
-look can be given to many things. The keywords of `write()` apply on top of it.
+<tag name="read" color="amber">
+A property such as `is_bold` tells you if a modifier is on. You can also set the
+property, for example `label.is_bold = False`.
+</tag>
+
+<tag name="off" color="pink">
+Give `False` to turn a modifier off.
+</tag>
+</comments>
+
+The properties are `is_bold`, `is_dim`, `is_italic`, `is_underlined`,
+`is_reversed`, `is_crossed_out`, `is_blinking` and `is_hidden`.
+
+## Reuse a style
+
+A [`Style`][xnano.styles.Style] keeps colors and modifiers together. Make the
+style one time, then give it to each `write()` call with `style=`. The first
+argument of `Style` is the foreground color, and the second argument is the
+background color. If you also give style keywords to `write()`, they apply over
+the style.
 
 <!-- @code-block name="learn-styling-style" type="image" height=4 -->
 ```python
@@ -105,10 +164,17 @@ heading = Style('magenta', bold=True)
 
 with xnano.new(width=40, height=3) as canvas:
     canvas.screen.write('Overview', style=heading)
-    canvas.screen.write('Details', style=heading, underline=True)
+    canvas.screen.write('Details', style=heading, underline=True)  # >> [over]
     canvas.screen.write('Plain text')
     print(canvas.screen.render(format='ansi'))
 ```
+
+<comments>
+<tag name="over" color="blue">
+`underline=True` applies over the style, so `Details` is magenta, bold and
+underlined.
+</tag>
+</comments>
 
 <!-- @code-block-asset name="learn-styling-style" -->
 
@@ -119,8 +185,12 @@ with xnano.new(width=40, height=3) as canvas:
 
 ## Several styles in one line
 
-A line whose parts look different is a [`StyledText`][xnano.styles.StyledText]:
-a list of spans, each with its own style. Write it inside a `Paragraph`.
+To give different styles to parts of one line, use a
+[`StyledText`][xnano.styles.StyledText]. A `StyledText` is a list of
+[`TextSpan`][xnano.styles.TextSpan] items, and each span has its own text and
+style. A span without a style keeps the default style. `write()` does not accept
+a `StyledText` directly, so write it in a
+[`Paragraph`][xnano.widgets.Paragraph] widget.
 
 <!-- @code-block name="learn-styling-spans" type="image" height=3 -->
 ```python
@@ -149,8 +219,10 @@ with xnano.new(width=40, height=2) as canvas:
 
 ## Borders
 
-`border` picks the kind of line, and `border_style` colors it separately from
-the text inside.
+`border` sets the kind of line. `border_style` takes a `Style` for the border
+only, so the border can have a color that is different from the text.
+[Writing Content](content.md#boxes) shows the kinds of line, `title` and
+`padding`.
 
 <!-- @code-block name="learn-styling-borders" type="image" height=4 -->
 ```python
@@ -175,21 +247,21 @@ with xnano.new(width=40, height=3) as canvas:
 
 <!-- /@code-block-asset -->
 
-## Choosing colors
+## Choose colors for all themes
 
-People run terminals with light themes and dark themes, and each theme picks its
-own shade of every named color. A few habits keep a program readable on all of
-them:
+People use terminals with light themes and with dark themes, and each theme has
+its own shade for each named color. These rules keep a program easy to read in
+all themes:
 
-- **Prefer named colors and `dim`.** They follow the user's theme. A hex or
-  tuple color is drawn exactly as written, so it can vanish against the other
-  background. Keep exact colors for when the color itself is the content, such
-  as art and gradients.
-- **Give each color one meaning.** Green for success, yellow for a warning, red
-  for an error, blue or cyan for information, and keep to it across the whole
-  program.
-- **Never let color carry a meaning alone.** Some people can't tell red from
-  green, and some terminals show no color at all. Pair a color with a word or a
-  symbol: `● online`, `▲ slow`.
-- **Build hierarchy from weight, not size.** A terminal has one text size. Make
-  titles and keys `bold`, leave content plain, and `dim` the hints.
+- **Use named colors and `dim` first.** Named colors follow the theme of the
+  user. xnano sends a hex color or a tuple color as it is, so it can be almost
+  invisible on a light or a dark background. Use exact colors only when the
+  color is the content, for example in art and gradients.
+- **Give one meaning to each color.** Use green for success, yellow for a
+  warning, red for an error, and blue or cyan for information. Use the same
+  meanings everywhere in the program.
+- **Do not use color as the only sign of a meaning.** Some people cannot see
+  the difference between red and green, and some terminals show no color. Put a
+  word or a symbol with the color, for example `● online` or `▲ slow`.
+- **Show importance with weight, not with size.** A terminal has one text size.
+  Make titles and keys `bold`, keep content plain, and make hints `dim`.

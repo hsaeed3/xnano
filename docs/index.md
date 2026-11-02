@@ -5,6 +5,37 @@ icon: "fontawesome/solid/x"
 
 # xnano
 
+<!-- The homepage's first example, shown beside its statement: the homepage
+     template places what is between the two markers. It needs no files, so it
+     runs as written in a terminal and in the browser with Pyodide. Until a
+     visitor runs it, the page shows the output saved in
+     docs/assets/home/hero-example.ansi, which tests/test_readme_examples.py
+     keeps in step with the code. -->
+<!-- xn-hero-example -->
+
+```pyodide install="xnano"
+import xnano
+from xnano.styles import Style
+from xnano.widgets import Gauge, Sparkline
+
+requests = [3, 4, 6, 5, 7, 9, 8, 6, 7, 9, 10, 8, 6, 7] * 3
+sparkline = Sparkline(requests, style=Style('cyan'))
+gauge = Gauge(0.62, label='62% of 512 GB', gauge_style=Style('green'))
+
+# a canvas draws in memory, so this runs in a terminal and in a browser
+with xnano.new(width=44, height=7) as canvas:
+    screen = canvas.screen
+    screen.write('xnano', bold=True, foreground='magenta')
+    screen.write('● online', x='right', y=0, foreground='green')
+    screen.write(
+        sparkline, width='100%', height=4, border='rounded', title='requests'
+    )
+    screen.write(gauge, width='100%', y='bottom')
+    print(screen.render(format='ansi'))
+```
+
+<!-- /xn-hero-example -->
+
 <!-- The homepage's examples, in the order they appear. Each one's text is
      markdown; figure="left" or "right" puts its animation on that side, and
      light and dark name the files shown in each color scheme. -->

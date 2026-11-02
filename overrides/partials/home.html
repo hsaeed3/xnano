@@ -1,5 +1,7 @@
 {#-
-  The top of the homepage: the constructed wordmark, then the statement beside its example.
+  The top of the homepage: the constructed wordmark, the statement beside the rhythm games
+  made with xnano, then the example that runs in the browser, which content.html takes from
+  docs/index.md.
 -#}
   <section class="xn-hero" aria-label="xnano">
     <div class="xn-rule">
@@ -34,30 +36,46 @@
       </div>
       <p class="xn-label xn-meta">Python <span>/</span> Open source <span>/</span> Cross platform</p>
     </div>
-    <figure class="xn-terminal xn-crop" data-xn-code>
-<pre class="xn-terminal__code no-select"><code><span id="__span-hero-1"><span class="xn-k">import</span> xnano
-</span><span id="__span-hero-2">
-</span><span id="__span-hero-3">picture = xnano.<span class="xn-f">load_image</span>(<span class="xn-s">'dusk.png'</span>, width=<span class="xn-s">'100%'</span>)  <span class="c1"># &gt;&gt; [image]</span>
-</span><span id="__span-hero-4">
-</span><span id="__span-hero-5"><span class="xn-k">with</span> xnano.<span class="xn-f">open</span>() <span class="xn-k">as</span> terminal:  <span class="c1"># &gt;&gt; [terminal]</span>
-</span><span id="__span-hero-6">    terminal.screen.<span class="xn-f">write</span>(picture)  <span class="c1"># &gt;&gt; [terminal]</span>
-</span><span id="__span-hero-7">    terminal.speaker.<span class="xn-f">play</span>(<span class="xn-s">'C4 E4 G4:2'</span>, instrument=<span class="xn-s">'bell'</span>)  <span class="c1"># &gt;&gt; [speaker]</span>
-</span><span id="__span-hero-8">    terminal.<span class="xn-f">run</span>(stop_on=<span class="xn-s">'q'</span>)  <span class="c1"># &gt;&gt; [run]</span>
-</span></code></pre>
-<comments>
-  <definition term="load_image" kind="function"><p>Reads PNG, JPEG, GIF, WebP and XNI files.</p></definition>
-  <definition term="width" kind="parameter"><p>Cells, or a percentage of the screen.</p></definition>
-  <tag name="image"><p>Loads <code>dusk.png</code> at the full width of the screen.</p></tag>
-  <tag name="terminal"><p>Starts a live terminal and draws the picture on its screen.</p>
-    <definition term="write" kind="method"><p>Places the picture and returns a placement you can move.</p></definition>
-  </tag>
-  <tag name="speaker"><p>Plays three notes as a melody on a bell.</p></tag>
-  <tag name="run"><p>Keeps drawing until <code>q</code> is pressed.</p></tag>
-</comments>
-      <div class="xn-terminal__screen">
-        <img class="xn-only-light" src="{{ 'assets/readme/images-light.png' | url }}" alt="A pixel art dusk over mountains, drawn in terminal cells by xnano" loading="lazy">
-        <img class="xn-only-dark" src="{{ 'assets/readme/images-dark.png' | url }}" alt="A pixel art dusk over mountains, drawn in terminal cells by xnano" loading="lazy">
+    {#- The headline: four rhythm games made with xnano, each one a program in examples/,
+        recorded in Kitty by scripts/docs_assets.py. A tab shows each one. #}
+    {%- set rhythm_games = [
+      {"name": "circles", "title": "Circles", "file": "01_rhythm_circles.py", "play": "Click each ring as the timing ring closes on it.", "alt": "A rhythm game in the terminal: numbered rings appear, a timing ring closes on each one, and each click on the beat scores"},
+      {"name": "drums", "title": "Drums", "file": "02_rhythm_drums.py", "play": "Press the keys of each note as it reaches the drum.", "alt": "A rhythm game in the terminal: two kinds of notes scroll to a drum on the left, and each key press on the beat scores"},
+      {"name": "catch", "title": "Catch", "file": "03_rhythm_catch.py", "play": "Move the basket under each note before it lands.", "alt": "A rhythm game in the terminal: notes fall in time with the music, and a basket moves to catch them"},
+      {"name": "lanes", "title": "Lanes", "file": "04_rhythm_lanes.py", "play": "Press the key of each lane as its note reaches the line.", "alt": "A rhythm game in the terminal: notes fall down four lanes to a line, and each key press on the beat scores"},
+    ] %}
+    <figure class="xn-showcase xn-crop" data-xn-showcase>
+      <div class="xn-showcase__tabs" role="tablist" aria-label="Rhythm games made with xnano">
+        {%- for game in rhythm_games %}
+        <button type="button" class="xn-showcase__tab" role="tab" id="xn-showcase-tab-{{ game.name }}" aria-controls="xn-showcase-panel-{{ game.name }}" aria-selected="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}">{{ game.title }}</button>
+        {%- endfor %}
       </div>
+      {%- for game in rhythm_games %}
+      <div class="xn-showcase__panel" role="tabpanel" id="xn-showcase-panel-{{ game.name }}" aria-labelledby="xn-showcase-tab-{{ game.name }}"{% if not loop.first %} hidden{% endif %}>
+        <img class="xn-only-light" src="{{ ('assets/home/rhythm-' ~ game.name ~ '-light.gif') | url }}" alt="{{ game.alt }}" width="1201" height="769"{% if not loop.first %} loading="lazy"{% endif %}>
+        <img class="xn-only-dark" src="{{ ('assets/home/rhythm-' ~ game.name ~ '-dark.gif') | url }}" alt="{{ game.alt }}" width="1201" height="769"{% if not loop.first %} loading="lazy"{% endif %}>
+        <p class="xn-showcase__caption">{{ game.play }} <a class="xn-plain xn-underline" href="{{ config.repo_url }}/blob/main/examples/{{ game.file }}">examples/{{ game.file }}</a></p>
+      </div>
+      {%- endfor %}
     </figure>
     <span class="xn-registration xn-split__mark xn-split__mark--right" aria-hidden="true"><span></span></span>
+  </section>
+
+  {#- The example of docs/index.md, which runs in the browser: until a visitor runs it, its
+      output panel shows the saved output that data-xn-preview names. #}
+  <section class="xn-playground" aria-labelledby="xn-playground-label">
+    <div class="xn-rule">
+      <span class="xn-label">02</span>
+      <span class="xn-label" id="xn-playground-label">In your browser</span>
+    </div>
+    <div class="xn-playground__body">
+      <div class="xn-playground__text">
+        <p class="xn-playground__lead">A program you can change and run on this page.</p>
+        <p>A canvas from <code>xnano.new()</code> draws into memory, so it needs no terminal. This program writes a sparkline and a gauge on a canvas, then prints the frame. It runs the same way in a terminal.</p>
+      </div>
+      <figure class="xn-terminal xn-crop xn-runnable" data-xn-preview="{{ 'assets/home/hero-example.ansi' | url }}">
+        {{ hero_example | safe }}
+        <figcaption class="xn-runnable__caption">Change the code, then press Run. The first run loads Python into this page. This takes a few seconds.</figcaption>
+      </figure>
+    </div>
   </section>

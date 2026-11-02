@@ -5,14 +5,15 @@ icon: lucide/download
 
 # Installation
 
-xnano runs on Python 3.10 to 3.14, on Linux, macOS and Windows. Install it from
-[PyPI](https://pypi.org/project/xnano/):
+xnano runs on Python 3.10 to 3.14, on Linux, macOS and Windows. To install it
+from [PyPI](https://pypi.org/project/xnano/), use pip:
 
 ```bash
 pip install xnano
 ```
 
-Or add it to a project with [uv](https://docs.astral.sh/uv/):
+To add xnano to a project that uses [uv](https://docs.astral.sh/uv/), use this
+command:
 
 ```bash
 uv add xnano
@@ -20,32 +21,37 @@ uv add xnano
 
 ## Optional extras
 
-Pictures and sound come in their own packages, so the core install stays small.
-Add the extra you need:
+Images and sound are in separate packages, so the core package stays small. An
+**extra** installs one of these packages together with xnano. Install only the
+extras that your program uses:
 
-| Extra | Adds | Install |
+| Extra | What it adds | Command |
 | --- | --- | --- |
-| `image` | Loading PNG, JPEG, GIF and WebP pictures, animations included | `pip install "xnano[image]"` |
-| `audio` | Playing notes, melodies and audio files, and reading the microphone | `pip install "xnano[audio]"` |
+| `image` | Pictures from PNG, JPEG, GIF and WebP files, also animated pictures | `pip install "xnano[image]"` |
+| `audio` | Notes, melodies, audio files and the microphone | `pip install "xnano[audio]"` |
 
-Install both at once with `pip install "xnano[image,audio]"`.
+To install the two extras together, use `pip install "xnano[image,audio]"`. In a
+uv project, use `uv add "xnano[image,audio]"`.
 
-Pixel art, widgets, effects and everything else come with the core package. If a
-program uses an extra that isn't installed, xnano raises an `ImportError` that
-names the extra to install.
+The core package has everything else, for example pixel art, widgets, effects
+and hooks. If a program uses an extra that is not installed, xnano raises an
+`ImportError`. The error message gives the command that installs the extra.
 
-Playing sound on Linux uses ALSA, which desktop distributions include. On a
-computer with no audio device, `terminal.speaker.is_available` is `False`, so a
-program can check it before it plays.
+On Linux, xnano plays sound through ALSA, which desktop Linux distributions
+include. On a computer without a sound device, `terminal.speaker.is_available`
+is `False`. If a program plays a sound on such a computer, xnano raises an
+error. To prevent this error, check `is_available` before you play a sound.
 
-## Check the install
+## Check the installation
 
-xnano comes with a demo. It shows pictures, so it needs the `image` extra:
+xnano includes a demo program. The demo shows pictures, so it needs the `image`
+extra. Install the extra, then start the demo:
 
 ```bash
 pip install "xnano[image]"
 python -m xnano
 ```
 
-Press `q` to leave. If the demo draws, you're ready for [Your First
-Program](first-program.md).
+The demo fills the terminal window. The `xnano` command starts the same demo. To
+stop it, press `q`. If you see the demo, xnano works, and you can continue to
+[Your First Program](first-program.md).

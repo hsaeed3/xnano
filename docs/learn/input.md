@@ -5,18 +5,19 @@ icon: lucide/keyboard
 
 # Hooks & Input
 
-A **hook** is a function xnano calls when something happens. You attach one with
-the `hook` decorator, say what it listens for with `on=`, and xnano calls it
-with a [`Context`][xnano.hooks.Context]: the event that happened, and the
-canvas's devices.
+A **hook** is a function that xnano calls when something happens. Attach a hook
+with the `hook` decorator. Its `on=` argument sets the kind of event that runs
+it. xnano calls the hook with a [`Context`][xnano.hooks.Context], which holds
+the event and the devices of the canvas.
 
-This guide covers the keyboard and the mouse. Hooks that run on time, such as
-`on='tick'`, are in [Time & Effects](time.md).
+This page is about the keyboard and the mouse. For hooks that run on time, such
+as `on='tick'`, see [Time & Effects](time.md).
 
 ## Keys
 
-`on='key'` runs a hook on every key press, and again while a key repeats.
-`keys=` narrows it to one key, or a list of keys.
+`on='key'` runs a hook each time the user presses a key. While the user holds a
+key, the terminal repeats it, and the hook runs again for each repeat. `keys=`
+limits the hook to one key or to a list of keys.
 
 <!-- @code-block name="learn-input-keys" type="gif" height=3
 wait 0.6
@@ -31,18 +32,30 @@ wait 1.0
 import xnano
 
 with xnano.open(height=3) as terminal:
-    count = terminal.screen.write('pressed 0 times')
+    count = terminal.screen.write('pressed 0 times')  # >> [placement]
     terminal.screen.write('space count · q quit', y='bottom', dim=True)
     presses = 0
 
     @terminal.hook(on='key', keys='space')
     def add_one(context: xnano.Context):
-        global presses
+        global presses  # >> [global]
         presses += 1
-        count.text = f'pressed {presses} times'
+        count.text = f'pressed {presses} times'  # >> [placement]
 
     terminal.run(stop_on='q')
 ```
+
+<comments>
+<tag name="placement" color="blue">
+`write()` returns a **placement**. Set its `text` to change what the screen
+shows.
+</tag>
+
+<tag name="global">
+The hook changes `presses`, a variable outside the function, so the hook
+declares it `global`.
+</tag>
+</comments>
 
 <!-- @code-block-asset name="learn-input-keys" -->
 
@@ -51,9 +64,10 @@ with xnano.open(height=3) as terminal:
 
 <!-- /@code-block-asset -->
 
-Leave out `keys=` to hear every key. `context.keyboard.key` names the key that
-was pressed: a character such as `'a'`, or a name such as `'enter'`, `'escape'`,
-`'backspace'`, `'tab'`, `'up'` or `'f1'`.
+Leave out `keys=` to run the hook for every key. `context.keyboard.key` is the
+name of the key that the user pressed. A key name is a character such as `'a'`,
+or a word such as `'enter'`, `'escape'`, `'backspace'`, `'tab'`, `'up'` or
+`'f1'`.
 
 <!-- @code-block name="learn-input-any-key" type="gif" height=3
 wait 0.6
@@ -83,10 +97,14 @@ with xnano.open(height=2) as terminal:
 
 <!-- /@code-block-asset -->
 
+If `keys=` has a name that is not a key, `hook` raises a `ValueError`. The
+message suggests the closest key names, for example `'space'` for `'spcae'`.
+
 ## Shortcuts
 
-A key with modifiers is written with `+`: `'ctrl+s'`, `'alt+enter'`,
-`'shift+tab'`. Give `keys=` a list to run one hook for several bindings.
+A key with modifiers is one string, with `+` between the parts, such as
+`'ctrl+s'`, `'alt+enter'` or `'shift+tab'`. To run one hook for several keys,
+give `keys=` a list.
 
 ```python
 import xnano
@@ -105,12 +123,17 @@ with xnano.open(height=2) as terminal:
     terminal.run(stop_on='q')
 ```
 
-## Moving with the arrow keys
+Some terminals send a key with `alt` as `escape` followed by the key. Then
+xnano cannot always know which keys the user pressed. If your program uses
+`escape` or `alt` keys, give `keyboard='disambiguated'` to `xnano.open()`.
+Terminals that support this setting then send each key in its own form.
 
-`context.keyboard.direction()` reads the arrow keys, and `w`, `a`, `s` and `d`,
-as a step along each axis: `(-1, 0)` for left, `(0, 1)` for down. `move()` takes
-that step. `edges='stop'` keeps everything inside the canvas, however far it's
-pushed.
+## Move with the arrow keys
+
+`context.keyboard.direction()` reads the arrow keys and the `w`, `a`, `s` and
+`d` keys. It returns one step on each axis, as `(step_x, step_y)`. Each step is
+`-1`, `0` or `1`, and `y` increases downward. For example, left gives `(-1, 0)`
+and down gives `(0, 1)`. Any other key gives `(0, 0)`.
 
 <!-- @code-block name="learn-input-arrows" type="gif" height=6
 wait 0.6
@@ -124,17 +147,28 @@ wait 0.8
 ```python
 import xnano
 
-with xnano.open(height=6, edges='stop') as terminal:
+with xnano.open(height=6, edges='stop') as terminal:  # >> [edges]
     player = terminal.screen.write('@', x='center', y='center', foreground='yellow')
     terminal.screen.write('arrows or wasd move · q quit', y='bottom', dim=True)
 
     @terminal.hook(on='key')
     def move(context: xnano.Context):
         step_x, step_y = context.keyboard.direction()
-        player.move(step_x, step_y)
+        player.move(step_x, step_y)  # >> [move]
 
     terminal.run(stop_on='q')
 ```
+
+<comments>
+<tag name="edges" color="amber">
+`edges='stop'` keeps each placement inside the canvas when it moves. Without
+it, a placement can move past an edge, and xnano does not draw the part outside.
+</tag>
+
+<tag name="move" color="blue">
+Moves the placement by a number of columns and rows.
+</tag>
+</comments>
 
 <!-- @code-block-asset name="learn-input-arrows" -->
 
@@ -143,14 +177,24 @@ with xnano.open(height=6, edges='stop') as terminal:
 
 <!-- /@code-block-asset -->
 
+To use other keys, give them to `direction()`, for example
+`direction(left='h', right='l', up='k', down='j')`. These keys replace the arrow
+keys and `wasd`.
+
 ## The mouse
 
-Terminals report the mouse only when asked, so open the terminal with
-`mouse=True`. A hook on a **placement** hears the pointer only while it's over
-that placement, which makes any placement a button.
+A terminal reports the mouse only when a program asks for it. Give `mouse=True`
+to `xnano.open()` to receive presses, releases and drags. Without it, mouse
+hooks do not run. To also receive each movement of the pointer, give
+`mouse='motion'`.
 
-`context.mouse` describes the event: its `kind` (`'press'`, `'release'`,
-`'drag'`, `'move'` or `'scroll'`), the `button`, and the `position` in cells.
+A hook on a **placement** receives only the pointer events inside that
+placement. With such a hook, any placement can be a button. `context.mouse`
+describes the event:
+
+- `kind` is `'press'`, `'release'`, `'drag'` or `'move'`.
+- `button` is `'left'`, `'right'` or `'middle'`.
+- `position` is the cell under the pointer, with `x` and `y`.
 
 <!-- @code-block name="learn-input-mouse" type="gif" height=4
 wait 0.6
@@ -172,13 +216,24 @@ with xnano.open(height=4, mouse=True) as terminal:
     @button.hook(on='mouse')
     def toggle(context: xnano.Context):
         global is_on
-        if context.mouse.kind == 'press':
+        if context.mouse.kind == 'press':  # >> [press]
             is_on = not is_on
             button.text = ' on ' if is_on else ' off '
-            button.color.fg = 'green' if is_on else 'reset'
+            button.color.fg = 'green' if is_on else 'reset'  # >> [reset]
 
     terminal.run(stop_on='q')
 ```
+
+<comments>
+<tag name="press" color="pink">
+A click sends a press and then a release. The hook acts only on the press, so
+one click changes the switch one time.
+</tag>
+
+<tag name="reset">
+`'reset'` gives the text the default color of the terminal again.
+</tag>
+</comments>
 
 <!-- @code-block-asset name="learn-input-mouse" -->
 
@@ -187,14 +242,16 @@ with xnano.open(height=4, mouse=True) as terminal:
 
 <!-- /@code-block-asset -->
 
-## Dragging
+## Drag with the mouse
 
-A drag hook can be a **generator**: each bare `yield` waits for the pointer's
-next movement and hands back a fresh context. The loop runs for as long as the
-button is held.
+A drag hook can be a **generator**. Each bare `yield` waits for the next
+movement of the pointer, then gives the hook a new context. Write it as
+`context = yield`. The loop runs while the user holds the button. After a press
+inside the placement, the hook receives each movement until the user releases
+the button, also outside the placement.
 
-A range such as `x=(0, 29)` limits how far a placement can travel, so the thumb
-of this slider stays on its track.
+A range such as `x=(0, 29)` keeps a placement between two columns. Here, it
+keeps the thumb of the slider on its track, from column 0 to column 29.
 
 <!-- @code-block name="learn-input-drag" type="gif" height=3
 wait 0.6
@@ -223,12 +280,13 @@ with xnano.open(height=3, mouse=True) as terminal:
 
 <comments>
 <tag name="local">
-`local()` turns a position on the screen into a position inside the thumb's
-parent, so the slider works wherever it's drawn.
+`local()` changes a position on the screen into a position inside the parent of
+the thumb. The slider then works at any position on the screen.
 </tag>
 
 <tag name="yield">
-Waits for the next movement, then carries on with its context.
+Waits for the next movement of the pointer. Then the hook continues with the
+new context.
 </tag>
 </comments>
 
@@ -239,13 +297,18 @@ Waits for the next movement, then carries on with its context.
 
 <!-- /@code-block-asset -->
 
-The wheel works the same way: open with `scroll=True`, use `on='scroll'`, and
-read the steps from `context.mouse.scroll`.
+## The mouse wheel
 
-## Pasting
+To receive the mouse wheel, give `scroll=True` to `xnano.open()`. Then attach a
+hook with `on='scroll'`. `context.mouse.scroll.y` is the number of steps: `-1`
+for one step up and `1` for one step down. `context.mouse.scroll.x` gives the
+steps to the side, with positive steps to the right.
 
-`on='paste'` runs when the user pastes text, all at once instead of key by key.
-The text is in `context.keyboard.pasted`.
+## Pasted text
+
+`on='paste'` runs a hook when the user pastes text. The hook receives all of the
+text at one time, not one key at a time. The text is in
+`context.keyboard.pasted`.
 
 ```python
 import xnano
@@ -260,15 +323,16 @@ with xnano.open(height=2) as terminal:
     terminal.run(stop_on='q')
 ```
 
-## Stopping
+Paste events are on by default. If you give `paste=False` to `xnano.open()`,
+pasted text arrives as key presses.
 
-`terminal.run()` keeps the program running until one of its `stop_on` keys is
-pressed: `'ctrl+c'` when you give none, and any key or list of keys you choose.
-A hook can end the program itself with `context.canvas.stop()`.
+## Stop the program
 
-A hook keeps running until you remove it. The decorator returns the hook, so
-either keep that and call `remove()` on it, or call `context.hook.remove()` from
-inside.
+`terminal.run()` keeps the program open until the user presses a stop key.
+`stop_on=` sets the stop keys, as one key or a list of keys. Without
+`stop_on=`, the stop key is `'ctrl+c'`. `ctrl+c` also stops the program when
+you give other stop keys. A hook can stop the program with
+`context.canvas.stop()`.
 
 ```python
 import xnano
@@ -282,10 +346,23 @@ with xnano.open(height=2) as terminal:
         global presses
         presses += 1
         if presses == 3:
-            context.canvas.stop()
+            context.canvas.stop()  # >> [stop]
 
     terminal.run()
 ```
 
-Every kind of hook and its options are listed in the [`hook`][xnano.hook]
-reference.
+<comments>
+<tag name="stop" color="green">
+Ends the loop. `terminal.run()` returns, and the canvas closes.
+</tag>
+</comments>
+
+A hook runs until you remove it. You can remove a hook in two ways:
+
+- Outside the hook, call `remove()` on the name of the function, for example
+  `count.remove()`. The decorator replaces the function with the hook, so the
+  name refers to the hook.
+- Inside the hook, call `context.hook.remove()`.
+
+There are more kinds of hooks: `'focus'`, `'resize'`, `'state'` and `'custom'`.
+The [`hook`][xnano.hook] reference lists every kind and all of the options.

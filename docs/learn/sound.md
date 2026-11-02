@@ -5,22 +5,26 @@ icon: lucide/music
 
 # Sound
 
-A canvas has a **speaker** that plays notes, chords, melodies and audio files,
-and a **microphone** that hears how loud the room is. Notes, chords and melodies
-are synthesized as they play, so a program makes music without a single sound
-file.
+A canvas has a **speaker** and a **microphone**. The speaker plays notes,
+chords, melodies and audio files. The microphone measures how loud the sound
+around the computer is. xnano makes the sound of notes, chords and melodies
+while they play. Thus, a program can play music without sound files.
 
-Sound needs the `audio` extra from
-[Installation](installation.md#optional-extras). On a computer with no sound
-device, `terminal.speaker.is_available` is `False` and playing raises an error
-that says so. A program that must run everywhere checks `is_available` first, as
-the first example below does; the others leave the check out to stay short.
+To use sound, you need the `audio` extra. See
+[Installation](installation.md#optional-extras). On a computer without a sound
+device, `terminal.speaker.is_available` is `False`. If a program plays a sound
+on such a computer, xnano raises an error. If your program must run on all
+computers, check `is_available` before you play a sound. The first example does
+this check. The other examples do not, so that they stay short.
 
 ## Notes and melodies
 
-`speaker.play()` takes a note name such as `'C4'`, or **melody text**: notes
-separated by spaces, where `:2` holds a note for two beats, `rest` is a silence
-and `+` joins notes into a chord.
+`speaker.play()` takes a note name, for example `'C4'`. It also takes **melody
+text**, which is a list of notes with spaces between them:
+
+- `:2` after a note holds the note for two beats.
+- `rest` is a silence.
+- `+` between notes plays them together as a chord.
 
 ```python
 import xnano
@@ -32,11 +36,11 @@ with xnano.open(height=1) as terminal:
     terminal.run(stop_on='q')
 ```
 
-`play()` returns at once, and the sound plays while the program goes on.
+`play()` returns immediately. The sound plays while the program continues.
 
-A [`Note`][xnano.Note] is the same thing as a value you keep: its pitch, how
-many beats it lasts, and the instrument that plays it. A tuple of pitches is a
-chord.
+A [`Note`][xnano.Note] keeps a note as a value. It holds the pitch, the number of
+beats and the instrument that plays the note. To make a chord, give a tuple of
+pitches.
 
 ```python
 import xnano
@@ -45,15 +49,17 @@ tap = xnano.Note('C5', beats=0.25, instrument='marimba')
 chord = xnano.Note(('C4', 'E4', 'G4'), beats=2, instrument='electric_piano')
 ```
 
-The instruments are `piano`, `electric_piano`, `organ`, `bell`, `marimba`,
-`guitar`, `electric_guitar`, `pluck`, `bass`, `synth`, `pad` and `strings`; the
-plain waves `sine`, `square`, `saw` and `triangle`; and the drums `kick`,
-`snare`, `hihat`, `open_hat`, `clap`, `tom` and `cowbell`.
+The `instrument` argument takes one of these names:
 
-## Playing from keys
+- **Instruments**: `piano`, `electric_piano`, `organ`, `bell`, `marimba`,
+  `guitar`, `electric_guitar`, `pluck`, `bass`, `synth`, `pad` and `strings`
+- **Waves**: `sine`, `square`, `saw` and `triangle`
+- **Drums**: `kick`, `snare`, `hihat`, `open_hat`, `clap`, `tom` and `cowbell`
 
-Notes are plain values, so a key hook can play one on every press. Here the
-number keys play a scale, and space plays a chord:
+## Play notes from keys
+
+A note is a value, so a key hook can play a note on each key press. In this
+example, the number keys play a scale, and the space key plays a chord:
 
 ```python
 import xnano
@@ -81,9 +87,10 @@ with xnano.open(height=2) as terminal:
 
 ## Tempo and beats
 
-Beats are measured at the canvas's tempo: 120 beats per minute, unless you give
-`bpm=` to `xnano.open()`. A hook with `on='beat'` runs on the beat, with
-`every=` counted in beats, which makes a metronome a few lines long:
+xnano measures beats at the tempo of the canvas. The default tempo is 120 beats
+per minute. To change it, give `bpm=` to `xnano.open()`. A hook with `on='beat'`
+runs on the beat, and its `every=` value is a number of beats. Thus, a metronome
+needs only a few lines:
 
 ```python
 import xnano
@@ -105,9 +112,10 @@ with xnano.open(height=1, bpm=90) as terminal:
 
 ## Sound effects
 
-Sound takes effects the way a placement does. `speaker.fx` adds one to
-everything the speaker plays after it: `reverb`, `delay`, `distortion`,
-`tremolo`, `bit_crush`, `low_pass` and `high_pass`.
+The speaker takes effects, as a placement does. When you add an effect to
+`speaker.fx`, the effect changes all the sound that the speaker plays after that.
+The effects are `reverb`, `delay`, `distortion`, `tremolo`, `bit_crush`,
+`low_pass` and `high_pass`.
 
 ```python
 import xnano
@@ -121,8 +129,8 @@ with xnano.open(height=1) as terminal:
 
 ## Audio files
 
-`xnano.load_audio()` reads WAV, MP3, FLAC, Ogg Vorbis and MP4 files, and the
-speaker plays the result like a note.
+`xnano.load_audio()` reads WAV, MP3, FLAC, Ogg Vorbis and MP4 files. The speaker
+plays the result in the same way as a note.
 
 ```python
 import xnano
@@ -141,9 +149,9 @@ with xnano.open(height=1) as terminal:
 
 ## The microphone
 
-`terminal.microphone.level` is how loud the input is, from `0.0` to `1.0`. It's
-an expression, like the clock, so it can drive a size directly. This meter grows
-with your voice:
+`terminal.microphone.level` is the loudness of the input, from `0.0` to `1.0`.
+It is an expression, as the clock is. Thus, it can set a size directly. This
+meter becomes longer when you speak:
 
 ```python
 import xnano
@@ -158,15 +166,16 @@ with xnano.open(height=2) as terminal:
     terminal.run(stop_on='q')
 ```
 
-The input device opens the first time the level is read. Without a microphone,
-or without permission to record, the level stays at `0`.
+xnano opens the input device the first time that a program reads the level. If
+there is no microphone, or if the program has no permission to record, the level
+stays at `0`.
 
 ## Sound in tests
 
-A canvas from `xnano.new()` has no sound device: what it plays is recorded
-instead, at the canvas's own time. `speaker.render()` hands it back as
-[`Audio`][xnano.Audio], so a test can check what a program played without making
-a sound.
+A canvas from `xnano.new()` has no sound device. Instead, the canvas records the
+sound that it plays, on its own clock. `speaker.render()` returns the recording
+as [`Audio`][xnano.Audio]. Thus, a test can examine the sound that a program
+played, and no sound comes out of the speakers.
 
 ```python
 import xnano
@@ -178,6 +187,8 @@ with xnano.new(width=10, height=1) as canvas:
     print(recording)
 ```
 
-The [`xnano.audio`][xnano.audio] reference has the rest: melodies built in code,
-how loud and where in the stereo field each sound plays, and the microphone's
-history.
+The [`xnano.audio`][xnano.audio] reference gives more information:
+
+- melodies that you make in code
+- the volume of each sound, and its position between the left and right speakers
+- the history of the microphone level
