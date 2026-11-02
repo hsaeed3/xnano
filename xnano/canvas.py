@@ -801,6 +801,9 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         self._images: dict[int, ImageSource] = {}
         # Only placements with an expression or a range need looking at before each frame.
         self._dynamic: dict[int, Placement[DepsT, StateT]] = {}
+        # Whether the engine asks for a frame when the pointer moves: only while a placement
+        # before each frame reads the pointer.
+        self._follows_pointer = False
         self._clock_view = Clock(cast('Canvas[object, object]', self))
         self._output = Output(cast('Canvas[object, object]', self))
         # The mouse buttons the program pressed and has not released.
@@ -1394,6 +1397,10 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             canvas._frame_registration = None
         if registration is not None:
             canvas._unregister(registration)
+        if canvas._follows_pointer:
+            # Nothing runs before a frame, so nothing follows the pointer.
+            canvas._follows_pointer = False
+            canvas._host.post(lambda: setattr(canvas._runtime, '_follows_pointer', False))
 
     def _on_loop_frame(self, core_context: FrameContext) -> None:
         """Before a frame: follow the size, images and expressions, then the frame functions."""
@@ -1430,6 +1437,13 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                         released += 1
             for _ in range(released):
                 self._release_frames()
+        with self._lock:
+            follows_pointer = any(
+                placement._reads_pointer for placement in self._dynamic.values()
+            )
+        if follows_pointer != self._follows_pointer:
+            self._follows_pointer = follows_pointer
+            runtime._follows_pointer = follows_pointer
         if self._effects:
             is_time_dependent |= self._follow_effects(runtime)
         # Taken after the expressions ran: a component whose placement they resized asks for a
@@ -1700,6 +1714,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
 
     def _bindings_changed(self, placement: Placement[DepsT, StateT]) -> None:
         """An expression or range was set: look at the placement before each frame."""
+        placement._refresh_reads_pointer()
         canvas = self._canvas
         with canvas._lock:
             is_new = id(placement) not in canvas._dynamic

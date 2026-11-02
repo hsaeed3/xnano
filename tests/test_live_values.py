@@ -170,6 +170,38 @@ class TestFramesWhileTheMouseIsStill:
         canvas.push(Event.mouse_event(column=4, row=1, kind='move'))
         assert not canvas._runtime.step().did_render
 
+    def test_a_mouse_move_over_content_that_does_not_follow_it_asks_for_no_frame(
+        self, canvas
+    ):
+        for index in range(3):
+            canvas.screen.write('card', x=index * 6, y=1, border='plain')
+        canvas.clock.step()
+        canvas.push(Event.mouse_event(column=3, row=1, kind='move'))
+        assert not canvas._runtime.step().did_render
+
+    def test_a_mouse_move_asks_for_no_frame_after_the_cursor_takes_numbers(self, canvas):
+        cursor = canvas.screen.write('+', x=PointerPosition.x, y=PointerPosition.y)
+        move_pointer(canvas, 4, 1)
+        cursor.x = 0
+        cursor.y = 0
+        canvas.clock.step()
+        canvas.push(Event.mouse_event(column=9, row=2, kind='move'))
+        assert not canvas._runtime.step().did_render
+        cursor.x = PointerPosition.x
+        canvas.clock.step()
+        canvas.push(Event.mouse_event(column=6, row=2, kind='move'))
+        assert canvas._runtime.step().did_render
+        assert cast('int', cursor.x) == 6
+
+    def test_a_mouse_move_asks_for_no_frame_after_the_cursor_is_removed(self, canvas):
+        canvas.screen.write('card', x=10, y=0)
+        cursor = canvas.screen.write('+', x=PointerPosition.x, y=PointerPosition.y)
+        move_pointer(canvas, 4, 1)
+        cursor.remove()
+        canvas.clock.step()
+        canvas.push(Event.mouse_event(column=9, row=2, kind='move'))
+        assert not canvas._runtime.step().did_render
+
 
 class TestAxesBeforeTheInputArrives:
     def test_a_new_placement_reads_zero_for_its_position(self, canvas):

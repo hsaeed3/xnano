@@ -398,6 +398,9 @@ pub struct RuntimeShared {
     pub is_running: AtomicBool,
     pub is_closed: AtomicBool,
     pub is_frame_requested: AtomicBool,
+    /// Whether a placement follows the pointer. When it does, a mouse event that moves the
+    /// pointer asks for a frame. When nothing follows it, a pointer move draws nothing.
+    pub follows_pointer: AtomicBool,
     pub revision: AtomicU64,
     /// A weak reference to the Python runtime object that owns this state.
     pub runtime_object: Mutex<Option<Py<PyAny>>>,

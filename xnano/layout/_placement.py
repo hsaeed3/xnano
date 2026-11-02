@@ -30,6 +30,7 @@ from xnano._internal._axes import (
     check_point,
     check_size,
     is_static_expression,
+    reads_pointer,
 )
 from xnano._internal._dynamic_operations import DynamicOperation
 from xnano._runtime._flow import FLOW_POSITION
@@ -163,6 +164,9 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     # The axes whose expression did not have a value yet. The placement is not drawn while
     # one of them waits.
     _waiting_axes: frozenset[AxisName] = frozenset()
+    # Whether an expression or a range of this placement reads the pointer. While one does,
+    # a pointer move draws a frame.
+    _reads_pointer: bool = False
     # The axes the parent's size decides, as the buffer has them.
     _parent_measured: tuple[AxisName, ...] = ()
     # Whether this is the placement of a canvas written in here that fits its content.
@@ -321,6 +325,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             if isinstance(value, str) and value == FLOW_POSITION:
                 with self._canvas._lock:
                     self._bindings.pop(axis, None)
+                self._refresh_reads_pointer()
                 self._set_waiting(axis, is_waiting=False)
                 self._measure_by_parent(axis, is_measured=False)
                 flow = self._flow
@@ -367,6 +372,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             if axis in self._bindings:
                 with self._canvas._lock:
                     self._bindings.pop(axis, None)
+                self._refresh_reads_pointer()
             if self._parent_measured:
                 self._measure_by_parent(axis, is_measured=False)
             self._assign_within_limits(axis, converted)
@@ -412,6 +418,16 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                         self._bindings[axis] = previous
             raise
         self._canvas._bindings_changed(self)
+
+    def _refresh_reads_pointer(self) -> None:
+        """Note whether an expression or a range of this placement reads the pointer."""
+        with self._canvas._lock:
+            bounds: list[object] = [
+                expression for expression, _ in self._bindings.values()
+            ]
+            for low, high, _ in self._limits.values():
+                bounds.extend((low, high))
+        self._reads_pointer = any(reads_pointer(bound) for bound in bounds)
 
     def _set_waiting(self, axis: AxisName, *, is_waiting: bool) -> None:
         """Say whether an axis waits for a value. The placement is drawn when none waits."""

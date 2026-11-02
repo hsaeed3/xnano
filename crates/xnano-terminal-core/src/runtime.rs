@@ -992,8 +992,8 @@ impl PyRuntime {
             EventPayload::Mouse(mouse) => {
                 let is_moved = lock(&self.shared.input).record_mouse(mouse);
                 // An expression that reads the pointer, such as the position of a cursor,
-                // follows it on the next frame.
-                if is_moved {
+                // follows it on the next frame. A move draws nothing when nothing follows it.
+                if is_moved && self.shared.follows_pointer.load(Ordering::SeqCst) {
                     self.shared.request_frame();
                 }
             }
@@ -1505,6 +1505,7 @@ impl PyRuntime {
             is_running: AtomicBool::new(false),
             is_closed: AtomicBool::new(false),
             is_frame_requested: AtomicBool::new(true),
+            follows_pointer: AtomicBool::new(false),
             revision: AtomicU64::new(0),
             runtime_object: Mutex::new(None),
         });
@@ -1998,6 +1999,17 @@ impl PyRuntime {
 
     fn request_frame(&self) {
         self.shared.request_frame();
+    }
+
+    /// Whether a placement follows the pointer, so that a pointer move asks for a frame.
+    #[getter(_follows_pointer)]
+    fn follows_pointer(&self) -> bool {
+        self.shared.follows_pointer.load(Ordering::SeqCst)
+    }
+
+    #[setter(_follows_pointer)]
+    fn set_follows_pointer(&self, value: bool) {
+        self.shared.follows_pointer.store(value, Ordering::SeqCst);
     }
 
     #[pyo3(signature = (*, timeout_milliseconds = Some(0)))]

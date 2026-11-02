@@ -8437,6 +8437,10 @@ class Runtime:
             ```
         """
 
+    @property
+    def _follows_pointer(self) -> bool: ...
+    @_follows_pointer.setter
+    def _follows_pointer(self, value: bool) -> None: ...
     def request_frame(self) -> None:
         """
         Ask for a frame at the next step even if nothing changed.

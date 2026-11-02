@@ -310,6 +310,21 @@ def is_static_expression(bound: object) -> bool:
     return all(name in _STATIC_NAMES for name in _NAME.findall(repr(bound)))
 
 
+_POINTER_NAMES = frozenset({'PointerPosition', 'MousePosition'})
+
+
+def reads_pointer(bound: object) -> bool:
+    """
+    Whether an expression reads the pointer.
+
+    A pointer move draws a frame only while a placement has such an expression, so a
+    pointer move over content that does not follow it draws nothing.
+    """
+    if not isinstance(bound, _core.NumericValue):
+        return False
+    return not _POINTER_NAMES.isdisjoint(_NAME.findall(repr(bound)))
+
+
 def inspect_number(buffer: _core.Buffer, expression: NumericExpression) -> float:
     """
     Evaluate a numeric expression against a buffer.
