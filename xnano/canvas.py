@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from xnano.terminal import Terminal
     from xnano.terminal._opening import OpeningTerminal
 
+from xnano._internal._attributes import refuse_unknown_keywords
 from xnano._internal._axes import (
     check_axis,
     check_edges,
@@ -139,6 +140,7 @@ __all__ = [
     'CanvasSettings',
     'active',
     'new',
+    'write',
 ]
 
 _active_canvas: contextvars.ContextVar[
@@ -574,7 +576,9 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     [`Speaker`][xnano.devices.Speaker], ``canvas.clock.sleep(...)`` waits on the
     [`Clock`][xnano.devices.Clock], and ``canvas.keyboard`` and ``canvas.mouse`` read and
     press keys and buttons. The canvas itself holds what spans them: hooks, events, state,
-    dependencies, and running and closing.
+    dependencies, and running and closing. ``canvas.write``, ``canvas.render`` and
+    ``canvas.fx`` are the same as the members of the screen with these names, and
+    ``item in canvas`` is the same as ``item in canvas.screen.region``.
 
     How a canvas ends depends on who moves its clock. On a canvas from ``new()``,
     [`stop`][xnano.canvas.Canvas.stop] only ends a running ``iter()``: the canvas stays open
@@ -600,6 +604,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             key presses, pastes and prompts.
         mouse: The [`Mouse`][xnano.devices.Mouse]: the pointer, the buttons, the wheel.
         clock: The [`Clock`][xnano.devices.Clock] everything on the canvas runs on.
+        fx: The visual effects of all of the canvas, the same as ``screen.fx``.
         is_closed: Whether the canvas has been torn down.
         is_running: Whether the canvas is open and its loop has not been asked to end.
         deps: The dependencies given to ``new(deps=...)``, which hooks read.
@@ -1017,6 +1022,206 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         if canvas._runs_in_progress:
             self._note_dynamic_read()
         return canvas._clock_view
+
+    # -- the members of the screen that the canvas also has -------------------------------
+
+    @refuse_unknown_keywords
+    def write(
+        self,
+        content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
+        /,
+        *,
+        x: Axis = 'next',
+        y: Axis = 'next',
+        width: Axis | None = None,
+        height: Axis | None = None,
+        layer: int = 0,
+        lock: bool = False,
+        edges: EdgeBehavior | None = None,
+        effects: Sequence[WritableEffectSpecification] = (),
+        style: _core.Style | None = None,
+        foreground: ColorValue | None = None,
+        background: ColorValue | None = None,
+        bold: bool = False,
+        dim: bool = False,
+        italic: bool = False,
+        underline: bool = False,
+        blink: bool = False,
+        reverse: bool = False,
+        hidden: bool = False,
+        crossed_out: bool = False,
+        title: str | None = None,
+        border: _core.BorderKind | bool | None = None,
+        border_style: _core.Style | None = None,
+        padding: Spacing | None = None,
+        margin: Spacing | None = None,
+    ) -> Placement[DepsT, StateT]:
+        """
+        Put content on the screen of the canvas, and return the placement that holds it.
+
+        ``canvas.write(...)`` is the same as ``canvas.screen.write(...)``. It takes the same
+        arguments, does the same work and gives the same result. See
+        [`Screen.write`][xnano.devices.Screen.write] for how the screen places each kind of
+        content.
+
+        Args:
+            content: Text (or a list of lines), a [`Buffer`][xnano_core.Buffer] or widget, a
+                canvas from ``new()``, an image, or any
+                [`Writable`][xnano.components.Writable]. ``None`` makes an empty placement.
+            x: The column of the left edge: a number of cells, a percentage string, a word
+                (``'left'``, ``'center'``, ``'right'`` or ``'next'``), an expression or a
+                range. See [`Axis`][xnano.layout.Axis].
+            y: The row of the top edge, in the same forms (``'top'``, ``'center'``,
+                ``'bottom'`` or ``'next'``). ``'next'``, the default, is the first row below
+                the content written before.
+            width: The width, in the same forms. ``None`` uses the width of the content.
+            height: The height, in the same forms. ``None`` uses the height of the content.
+            layer: The layer. Content on a higher layer shows over content on a lower layer.
+            lock: Whether to keep the position and the size that the content has now when
+                the canvas changes size.
+            edges: What the content does at the edges of its area: ``'clip'``, ``'stop'`` or
+                ``'wrap'``. ``None`` uses the ``edges`` of the screen.
+            effects: The effects to start on the placement, as dictionaries with a ``kind``
+                key.
+            style: A [`Style`][xnano.styles.Style] for the text. The arguments below apply
+                over it.
+            foreground: The color of the text.
+            background: The color behind the text.
+            bold: Whether the text is bold.
+            dim: Whether the text is dim.
+            italic: Whether the text is italic.
+            underline: Whether the text has a line below it.
+            blink: Whether the text blinks.
+            reverse: Whether the foreground color and the background color change places.
+            hidden: Whether the text is hidden.
+            crossed_out: Whether the text has a line through it.
+            title: The title on the border of a box around the content.
+            border: The [`BorderKind`][xnano.styles.BorderKind] of a box around the content,
+                such as ``'plain'`` or ``'rounded'``. ``True`` is ``'plain'``, and ``False``
+                is no border.
+            border_style: The style of the border.
+            padding: The space between the border and the content: a number of cells, a
+                share of the size of the content, or a dictionary of sides.
+            margin: The space outside the box, in the same forms.
+
+        Returns:
+            The [`Placement`][xnano.layout.Placement] that holds the content. Use it to move,
+            resize or remove the content.
+
+        Raises:
+            TypeError: The content is a file path, raw bytes, an operation, a style or an
+                effect. Apply those with ``canvas.screen.update(...)``.
+            TerminalError: The content is a canvas that you cannot write here.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=12, height=3) as canvas:
+                greeting = canvas.write('hello', x='center', y='center', bold=True)
+                assert (greeting.width, greeting.y) == (5, 1)
+                assert canvas.render().splitlines()[1].strip() == 'hello'
+            ```
+        """
+        return self.screen.write(
+            content,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            layer=layer,
+            lock=lock,
+            edges=edges,
+            effects=effects,
+            style=style,
+            foreground=foreground,
+            background=background,
+            bold=bold,
+            dim=dim,
+            italic=italic,
+            underline=underline,
+            blink=blink,
+            reverse=reverse,
+            hidden=hidden,
+            crossed_out=crossed_out,
+            title=title,
+            border=border,
+            border_style=border_style,
+            padding=padding,
+            margin=margin,
+        )
+
+    def render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
+        """
+        Draw the current frame and return it as text, with no screen.
+
+        ``canvas.render(...)`` is the same as
+        [`canvas.screen.render(...)`][xnano.devices.Screen.render].
+
+        Args:
+            format: ``'text'`` for the characters only. ``'ansi'`` for the characters with
+                their colors and styles as escape codes.
+
+        Returns:
+            The frame, with one line for each row.
+
+        Raises:
+            ValueError: ``format`` is not ``'text'`` or ``'ansi'``.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=6, height=2) as canvas:
+                canvas.write('hello', y=1)
+                assert canvas.render().splitlines() == ['', 'hello']
+                assert canvas.render(format='ansi') == canvas.screen.render(format='ansi')
+            ```
+        """
+        return self.screen.render(format=format)
+
+    @property
+    def fx(self) -> WritableEffectProperties:
+        """
+        The visual effects of all of the canvas, one method for each effect.
+
+        ``canvas.fx`` is the same as [`canvas.screen.fx`][xnano.devices.Screen.fx]. An effect
+        that starts here changes every cell of the canvas, and ``canvas.fx.clear()`` stops
+        the effects that started here. See
+        [`WritableEffectProperties`][xnano.effects.WritableEffectProperties].
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new('hello', width=8, height=1) as canvas:
+                fade = canvas.fx.fade_from(foreground='black', duration_milliseconds=300)
+                assert canvas.fx.active == (fade,)
+            ```
+        """
+        return self.screen.fx
+
+    def __contains__(self, item: object) -> bool:
+        """
+        Whether an item is inside the screen of the canvas.
+
+        ``item in canvas`` is the same as ``item in canvas.screen.region``. See
+        [`Region`][xnano.layout.Region] for the items that it accepts.
+
+        Args:
+            item: What to find, such as an ``(x, y)`` pair or a
+                [`Point`][xnano_core.Point] in screen cells.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=4, height=2) as canvas:
+                assert (3, 1) in canvas
+                assert (4, 1) not in canvas
+            ```
+        """
+        return item in self.screen.region
 
     def _note_dynamic_read(self) -> None:
         """Record that the component running on this thread read the time, input or audio."""
@@ -4382,3 +4587,137 @@ def active(*, is_required: bool = True) -> Canvas[object, object] | None:
             '"with xnano.open() as terminal:", and call this inside the block.'
         )
     return canvas
+
+
+@refuse_unknown_keywords
+def write(
+    content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
+    /,
+    *,
+    x: Axis = 'next',
+    y: Axis = 'next',
+    width: Axis | None = None,
+    height: Axis | None = None,
+    layer: int = 0,
+    lock: bool = False,
+    edges: EdgeBehavior | None = None,
+    effects: Sequence[WritableEffectSpecification] = (),
+    style: _core.Style | None = None,
+    foreground: ColorValue | None = None,
+    background: ColorValue | None = None,
+    bold: bool = False,
+    dim: bool = False,
+    italic: bool = False,
+    underline: bool = False,
+    blink: bool = False,
+    reverse: bool = False,
+    hidden: bool = False,
+    crossed_out: bool = False,
+    title: str | None = None,
+    border: _core.BorderKind | bool | None = None,
+    border_style: _core.Style | None = None,
+    padding: Spacing | None = None,
+    margin: Spacing | None = None,
+) -> Placement[object, object]:
+    """
+    Put content on the running canvas, and return the placement that holds it.
+
+    The running canvas is the canvas that [`active`][xnano.active] returns.
+    ``xnano.write(...)`` is the same as ``xnano.active().screen.write(...)``. It takes the
+    same arguments as [`Screen.write`][xnano.devices.Screen.write].
+
+    Args:
+        content: Text (or a list of lines), a [`Buffer`][xnano_core.Buffer] or widget, a
+            canvas from ``new()``, an image, or any
+            [`Writable`][xnano.components.Writable]. ``None`` makes an empty placement.
+        x: The column of the left edge: a number of cells, a percentage string, a word
+            (``'left'``, ``'center'``, ``'right'`` or ``'next'``), an expression or a
+            range. See [`Axis`][xnano.layout.Axis].
+        y: The row of the top edge, in the same forms (``'top'``, ``'center'``,
+            ``'bottom'`` or ``'next'``). ``'next'``, the default, is the first row below
+            the content written before.
+        width: The width, in the same forms. ``None`` uses the width of the content.
+        height: The height, in the same forms. ``None`` uses the height of the content.
+        layer: The layer. Content on a higher layer shows over content on a lower layer.
+        lock: Whether to keep the position and the size that the content has now when
+            the canvas changes size.
+        edges: What the content does at the edges of its area: ``'clip'``, ``'stop'`` or
+            ``'wrap'``. ``None`` uses the ``edges`` of the screen.
+        effects: The effects to start on the placement, as dictionaries with a ``kind``
+            key.
+        style: A [`Style`][xnano.styles.Style] for the text. The arguments below apply
+            over it.
+        foreground: The color of the text.
+        background: The color behind the text.
+        bold: Whether the text is bold.
+        dim: Whether the text is dim.
+        italic: Whether the text is italic.
+        underline: Whether the text has a line below it.
+        blink: Whether the text blinks.
+        reverse: Whether the foreground color and the background color change places.
+        hidden: Whether the text is hidden.
+        crossed_out: Whether the text has a line through it.
+        title: The title on the border of a box around the content.
+        border: The [`BorderKind`][xnano.styles.BorderKind] of a box around the content,
+            such as ``'plain'`` or ``'rounded'``. ``True`` is ``'plain'``, and ``False``
+            is no border.
+        border_style: The style of the border.
+        padding: The space between the border and the content: a number of cells, a
+            share of the size of the content, or a dictionary of sides.
+        margin: The space outside the box, in the same forms.
+
+    Returns:
+        The [`Placement`][xnano.layout.Placement] that holds the content. Use it to move,
+        resize or remove the content.
+
+    Raises:
+        TerminalClosedError: No canvas is running. Start a canvas with
+            [`open`][xnano.open] or [`new`][xnano.new]. Then write inside its ``with`` block.
+        TypeError: The content is a file path, raw bytes, an operation, a style or an
+            effect. Apply those with ``canvas.screen.update(...)``.
+        TerminalError: The content is a canvas that you cannot write here.
+
+    Examples:
+        ```python
+        import xnano
+
+        with xnano.new(width=12, height=2) as canvas:
+            label = xnano.write('hello', foreground='green')
+            assert label.text == 'hello'
+            assert canvas.render().splitlines()[0] == 'hello'
+        ```
+    """
+    canvas = active(is_required=False)
+    if canvas is None:
+        raise TerminalClosedError(
+            'xnano.write() did not write, because no canvas is running. Start a canvas with '
+            '"with xnano.open() as terminal:" or "with xnano.new() as canvas:". Then call '
+            'xnano.write() inside the "with" block.'
+        )
+    return canvas.screen.write(
+        content,
+        x=x,
+        y=y,
+        width=width,
+        height=height,
+        layer=layer,
+        lock=lock,
+        edges=edges,
+        effects=effects,
+        style=style,
+        foreground=foreground,
+        background=background,
+        bold=bold,
+        dim=dim,
+        italic=italic,
+        underline=underline,
+        blink=blink,
+        reverse=reverse,
+        hidden=hidden,
+        crossed_out=crossed_out,
+        title=title,
+        border=border,
+        border_style=border_style,
+        padding=padding,
+        margin=margin,
+    )

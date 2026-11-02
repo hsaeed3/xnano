@@ -10,7 +10,7 @@ from xnano._internal._annotation_names import (
 )
 from xnano.art import Image, Pixel, load_image, pixel_art
 from xnano.audio import Audio, Note, load_audio, play
-from xnano.canvas import Canvas, active, new
+from xnano.canvas import Canvas, active, new, write
 from xnano.components import playable, renderable, writable
 from xnano.effects import effect
 from xnano.hooks import hook
@@ -47,6 +47,7 @@ __all__ = [
     'region',
     'renderable',
     'writable',
+    'write',
 ]
 
 # Every module has loaded by now, so the names that effect annotations need can be added.
