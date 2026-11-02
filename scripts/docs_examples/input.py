@@ -43,12 +43,12 @@ CLIFF = (  # the earth under the island, a third of its width
     "kddkdddkkdddkddkddddkddk .kk..kkk...k...kk.k..kk."
 )
 FENCE = ".tt..... .TT..... TTTTTTTT tTTttttt .TT..... TTTTTTTT tTTttttt .tt....."
-POND = (
+POND = (  # twelve pixels tall, so it starts below the fence and ends with its two tiles
     "....bbbbbbbb.... ..bbWWWWWWWWbb.. .bWWWWWWWWWWWWb. .bWWWWWWWWWWWWb. "
-    + "bWWWWWWWWWWWWWWb " * 8
+    + "bWWWWWWWWWWWWWWb " * 4
     + ".bWWWWWWWWWWWWb. .bWWWWWWWWWWWWb. ..bbWWWWWWWWbb.. ....bbbbbbbb...."
 )
-RIPPLES = [(4, 3), (11, 4), (6, 6), (3, 9), (10, 10), (7, 13)]  # light on the water
+RIPPLES = [(4, 2), (11, 3), (6, 5), (3, 7), (10, 8), (7, 9)]  # light on the water
 CROP_STAGES = (  # a seed, a sprout, a young plant and a ripe one
     "........ ........ ........ ..e..e.. ........ ...e..e. ........ ........",
     "........ ........ ........ ..VV.VV. ...VvV.. ....v... ....v... ........",
@@ -124,8 +124,9 @@ world.add(xnano.pixel_art(ground + cliff, PALETTE), x=LEFT, y=TOP)
 fence = [row * len(FARM[0]) for row in FENCE.split()]
 world.add(xnano.pixel_art(fence, PALETTE), x=LEFT, y=TOP - 4, layer=1)
 pond_x, pond_y = tile_corner(7, 0)
+pond_y += 4  # the fence covers the top four pixels of the first row
 world.add(sprite_art(POND), x=pond_x, y=pond_y, layer=1)
-ripple_rows = ["." * 16] * 16
+ripple_rows = ["." * 16] * 12
 for x, y in RIPPLES:
     ripple_rows[y] = ripple_rows[y][:x] + "ww" + ripple_rows[y][x + 2 :]
 ripples = world.add(xnano.pixel_art(ripple_rows, PALETTE), x=pond_x, y=pond_y, layer=2)
