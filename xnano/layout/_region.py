@@ -1646,7 +1646,7 @@ class Region(_Looked, Generic[NumberT_co]):
         from rich.text import Text as RichText
 
         if self._timeline is not None:
-            yield RichText(repr(self))
+            yield RichText(repr(self), no_wrap=True, overflow='crop')
             return
         yield RichText.from_ansi(
             self.render(format='ansi'), no_wrap=True, overflow='crop'
@@ -1658,14 +1658,15 @@ class Region(_Looked, Generic[NumberT_co]):
         """
         Tell rich the width of what it shows, so that rich keeps it whole when it can.
 
-        A frame of cells cannot wrap, so its smallest and its largest width are the same.
-        Rich uses this width to lay out panels, columns and nested tables. In a rich
+        The width is in cells, also for a ``braille`` or ``half_blocks`` view. A frame of
+        cells cannot wrap, so its smallest and its largest width are the same. Rich uses
+        this width to lay out panels, columns and nested tables. In a rich
         ``Table``, add the column with ``no_wrap=True``, so that rich makes the other
         columns narrower before it cuts this one.
         """
         from rich.measure import Measurement as RichMeasurement
 
-        width = len(repr(self)) if self._timeline is not None else int(self.width)
+        width = len(repr(self)) if self._timeline is not None else int(self.cells.width)
         return RichMeasurement(width, width)
 
     def __xnano_write__(self, context: Context | None = None) -> _core.Buffer:
