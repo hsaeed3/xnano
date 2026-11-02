@@ -22,6 +22,7 @@ from xnano.layout._region import Region
 from xnano.styles._owners import _TextModifiers
 
 if TYPE_CHECKING:
+    from rich.console import Group
     from typing_extensions import Self, Unpack
 
     from xnano._schema._appearance import ColorValue, Spacing
@@ -516,6 +517,22 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
             ```
         """
         return self._canvas._render(format=format)
+
+    def __rich__(self) -> Group:
+        """
+        Return the current frame for rich, so that rich and Textual can show the screen.
+
+        ``rich.print(screen)`` prints the frame with its colors and styles, as
+        [`Canvas.__rich__`][xnano.canvas.Canvas.__rich__] does. If a line is longer than the
+        space that rich gives it, rich cuts the line. Rich must be installed.
+        """
+        from rich.console import Group
+        from rich.text import Text as RichText
+
+        frame = RichText.from_ansi(
+            self.render(format='ansi'), no_wrap=True, overflow='crop'
+        )
+        return Group(frame)
 
     def local(self, point: _core.Point) -> _core.Point:
         """

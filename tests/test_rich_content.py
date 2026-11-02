@@ -557,3 +557,93 @@ def test_an_error_while_rich_draws_goes_through_with_a_note():
             'occurred when rich drew it. To find the cause, print the renderable with '
             'rich.print().'
         ]
+
+
+def _printed(item: object, *, width: int = 30, is_colored: bool = False) -> str:
+    """What a rich console prints for ``item``, without the legacy Windows console mode."""
+    console_module = pytest.importorskip('rich.console')
+    console = console_module.Console(
+        file=io.StringIO(),
+        width=width,
+        force_terminal=is_colored,
+        color_system='truecolor' if is_colored else None,
+        legacy_windows=False,
+    )
+    console.print(item)
+    return console.file.getvalue()  # pyright: ignore[reportAttributeAccessIsUnknown]
+
+
+def test_rich_prints_a_canvas_as_it_renders():
+    with xnano.new(width=12, height=3) as canvas:
+        canvas.write('hi', border='rounded')
+        canvas.write('ready', x=6, y=1)
+        assert _printed(canvas).splitlines() == [
+            line.ljust(12) for line in canvas.render().splitlines()
+        ]
+
+
+def test_rich_prints_the_colors_and_styles_of_a_canvas():
+    with xnano.new(width=10, height=1) as canvas:
+        canvas.write('ok', foreground='green', bold=True)
+        printed = _printed(canvas, is_colored=True)
+        assert 'ok' in printed
+        assert '\x1b[1;32m' in printed
+
+
+def test_rich_prints_a_screen_a_placement_and_a_region_as_they_render():
+    with xnano.new(width=10, height=3) as canvas:
+        card = canvas.write('hi', border='rounded')
+        assert _printed(canvas.screen) == _printed(canvas)
+        assert _printed(card).splitlines() == card.render().splitlines()
+    region = xnano.region('hi', border='rounded')
+    assert _printed(region).splitlines() == region.render().splitlines()
+
+
+def test_rich_cuts_a_canvas_wider_than_the_console_and_does_not_wrap_it():
+    with xnano.new(width=12, height=2) as canvas:
+        canvas.write('long text here')
+        assert _printed(canvas, width=6).splitlines()[0] == 'long t'
+        assert len(_printed(canvas, width=6).splitlines()) == 2
+
+
+def test_a_canvas_in_a_rich_table_takes_its_own_width():
+    table_module = pytest.importorskip('rich.table')
+    with xnano.new(width=8, height=1) as canvas:
+        canvas.write('xnano')
+        table = table_module.Table('left', 'right')
+        table.add_row(canvas, 'x')
+        assert '│ xnano    │ x     │' in _printed(table, width=40)
+
+
+def test_a_canvas_in_a_rich_panel_keeps_its_rows():
+    panel_module = pytest.importorskip('rich.panel')
+    with xnano.new(width=4, height=3) as canvas:
+        canvas.write('hi', border='rounded')
+        printed = _printed(panel_module.Panel(canvas), width=12).splitlines()
+        assert printed[1:4] == ['│ ╭──╮     │', '│ │hi│     │', '│ ╰──╯     │']
+
+
+def test_textual_shows_a_canvas_that_stays_open():
+    pytest.importorskip('textual')
+    import asyncio
+
+    from textual.app import App, ComposeResult
+    from textual.widgets import Static
+
+    canvas = xnano.new(width=10, height=1)
+    canvas.write('xnano!')
+
+    class Show(App[None]):
+        def compose(self) -> ComposeResult:
+            yield Static(canvas)
+
+    async def screenshot() -> str:
+        app = Show()
+        async with app.run_test(size=(20, 3)) as pilot:
+            await pilot.pause()
+            return app.export_screenshot()
+
+    try:
+        assert 'xnano!' in asyncio.run(screenshot())
+    finally:
+        canvas.close()
