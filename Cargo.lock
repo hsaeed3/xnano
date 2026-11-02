@@ -3468,7 +3468,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-core"
-version = "2.1.4"
+version = "2.2.0"
 dependencies = [
  "indexmap",
  "pyo3",
