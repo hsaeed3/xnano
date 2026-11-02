@@ -676,7 +676,12 @@ if TYPE_CHECKING:
 
     MousePosition = _CoreMousePosition
     """
-    The cell of the latest mouse report, as a ``Point``.
+    The cell of the mouse report that the canvas received last, as a ``Point``.
+
+    Use it in a hook for a mouse event, to know where that event happened. It has no value
+    before the first press, release, drag or move. A key, a paste or a wheel step removes
+    its value. To follow the pointer, use
+    [`PointerPosition`][xnano.expressions.PointerPosition], which keeps its value.
 
     ```python
     import xnano
@@ -752,13 +757,20 @@ if TYPE_CHECKING:
 
     PointerPosition = _CorePointerPosition
     """
-    The cell the pointer was last seen over, as a ``Point``; it has no value before the pointer moves.
+    The cell that the pointer was over in the last mouse report, as a ``Point``.
+
+    It has no value before the first mouse report. After that, it keeps its value, also
+    when a key or another event comes after the report. Use it to follow the pointer. A
+    placement whose position reads it is not drawn before the first report. Then it
+    follows the pointer on each frame.
 
     ```python
     import xnano
     from xnano.expressions import PointerPosition
 
     with xnano.open(width=60, height=6, mouse='motion') as terminal:
+        # The middle of the three cells is on the pointer.
+        terminal.screen.write('<+>', x=PointerPosition.x - 1, y=PointerPosition.y)
         label = terminal.screen.write('move or click the mouse')
 
         @terminal.hook(on='mouse')

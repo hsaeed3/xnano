@@ -905,7 +905,7 @@ pub fn hit_areas_at(shared: &RuntimeShared, column: i32, row: i32) -> Vec<Arc<Mu
     let mut hits: Vec<(i32, usize, Arc<Mutex<HitAreaData>>)> = Vec::new();
     for (order, area) in areas.into_iter().enumerate() {
         let data = lock(&area);
-        if data.is_removed || !data.target.lock().is_visible {
+        if data.is_removed || !data.target.lock().is_drawn() {
             continue;
         }
         let origin = absolute_origin(&data.target);

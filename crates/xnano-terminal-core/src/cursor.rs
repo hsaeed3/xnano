@@ -46,7 +46,7 @@ impl Default for CursorData {
 fn is_shown(core: &Arc<BufferCore>) -> bool {
     let mut current = Some(Arc::clone(core));
     while let Some(node) = current {
-        if !node.lock().is_visible {
+        if !node.lock().is_drawn() {
             return false;
         }
         current = node.parent();

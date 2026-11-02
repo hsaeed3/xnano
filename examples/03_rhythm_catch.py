@@ -57,14 +57,14 @@ def judge(context: xnano.Context) -> None:
 
 # the game keeps to 80 by 24 cells, in the middle of a larger window
 with xnano.open(title='catch') as terminal, xnano.new(width=80, height=24) as game:
-    terminal.screen.write(game, x='center', y='center')
-    game.screen.write(field, y=1)
-    game.screen.write('Catch', x=2, y=0, bold=True)
-    status = game.screen.write('', x=43, y=0)
-    word = game.screen.write('', y=21, bold=True)
-    result = game.screen.write('', x='center', y=10, bold=True)
+    terminal.write(game, x='center', y='center')
+    game.write(field, y=1)
+    game.write('Catch', x=2, y=0, bold=True)
+    status = game.write('', x=43, y=0)
+    word = game.write('', y=21, bold=True)
+    result = game.write('', x='center', y=10, bold=True)
     hint = '← → or a d move · shift dash · q quit'
-    game.screen.write(hint, x='center', y='bottom', dim=True)
+    game.write(hint, x='center', y='bottom', dim=True)
 
     @terminal.hook(on='key')
     def move(context: xnano.Context) -> None:

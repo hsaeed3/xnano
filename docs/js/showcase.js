@@ -1,5 +1,5 @@
 // The homepage's showcase: a panel of recordings with one tab for each, as the
-// `[data-xn-showcase]` figure in overrides/partials/home.html lays it out.
+// `[data-xn-showcase]` figure in overrides/partials/home-examples.html lays it out.
 //
 // - A click on a tab shows its panel and hides the others.
 // - With the focus on a tab, the left and right arrow keys move to the previous and next

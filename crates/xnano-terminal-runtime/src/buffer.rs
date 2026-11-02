@@ -173,6 +173,9 @@ pub struct BufferState {
     pub grid: Grid,
     pub layer: i32,
     pub is_visible: bool,
+    /// Whether the buffer waits for a value of its position or size, such as input that has
+    /// not arrived. A buffer that waits is not drawn, but it keeps its own `is_visible`.
+    pub is_waiting_for_value: bool,
     pub is_focusable: bool,
     /// Counts this buffer's own changes.
     pub revision: u64,
@@ -200,6 +203,14 @@ pub struct BufferState {
 }
 
 impl BufferState {
+    /// Whether the buffer is drawn: it is visible and it does not wait for a value.
+    ///
+    /// A buffer that is not drawn is not hit by the pointer, and its parent does not fit
+    /// its size to it.
+    pub fn is_drawn(&self) -> bool {
+        self.is_visible && !self.is_waiting_for_value
+    }
+
     /// Record a change to `area` (local coordinates), or to everything when `None`.
     pub fn touch(&mut self, area: Option<Rectangle>) {
         self.revision += 1;
@@ -296,6 +307,7 @@ impl BufferCore {
                 grid,
                 layer: 0,
                 is_visible: true,
+                is_waiting_for_value: false,
                 is_focusable: false,
                 revision: 0,
                 modified: MODIFICATION_STAMP.fetch_add(1, Ordering::SeqCst),
@@ -423,7 +435,7 @@ pub fn relayout(core: &Arc<BufferCore>) {
 }
 
 /// The cells a buffer's children cover from its top-left corner: the farthest right edge and
-/// the lowest bottom edge among its visible children with explicit geometry.
+/// the lowest bottom edge among its drawn children with explicit geometry.
 ///
 /// A child the parent's size places or sizes (see [`ParentMeasured`]) is placed within the
 /// size the other children give: one placed by its parent's size counts with its own size,
@@ -437,7 +449,7 @@ pub fn content_extent(core: &Arc<BufferCore>) -> Size {
             continue;
         }
         let child_state = child.core.lock();
-        if !child_state.is_visible {
+        if !child_state.is_drawn() {
             continue;
         }
         let measured = child_state.parent_measured;
@@ -541,10 +553,10 @@ pub fn attach(
         return Err(TreeError::ChildMounted);
     }
     {
-        let is_visible = {
+        let is_drawn = {
             let mut child_state = child.lock();
             child_state.parent = Arc::downgrade(parent);
-            child_state.is_visible
+            child_state.is_drawn()
         };
         let mut state = parent.lock();
         state.children.push(Child {
@@ -553,7 +565,7 @@ pub fn attach(
             mode,
         });
         // A hidden child changes nothing that is drawn; it touches its parent when shown.
-        if is_visible {
+        if is_drawn {
             state.touch(None);
         }
     }
@@ -641,7 +653,7 @@ pub fn compose(
 ) {
     let (area, visible) = {
         let state = core.lock();
-        if !state.is_visible {
+        if !state.is_drawn() {
             return;
         }
         let area = Rectangle::new(
@@ -695,7 +707,7 @@ pub fn tree_modified(core: &Arc<BufferCore>) -> u64 {
     };
     children
         .iter()
-        .filter(|child| child.lock().is_visible)
+        .filter(|child| child.lock().is_drawn())
         .map(tree_modified)
         .fold(own, u64::max)
 }
@@ -724,7 +736,7 @@ pub fn buffers_at(root: &Arc<BufferCore>, column: i32, row: i32) -> Vec<Arc<Buff
     ) {
         let area = {
             let state = core.lock();
-            if !state.is_visible {
+            if !state.is_drawn() {
                 return;
             }
             Rectangle::new(
@@ -753,4 +765,63 @@ pub fn buffers_at(root: &Arc<BufferCore>, column: i32, row: i32) -> Vec<Arc<Buff
         .filter(|(_, visible)| visible.contains(crate::geometry::Point::new(column, row)))
         .map(|(core, _)| core)
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn letter(symbol: &'static str) -> Arc<BufferCore> {
+        BufferCore::new(Grid::filled(1, 1, &Cell::new(symbol)), 0, 0, Cell::EMPTY)
+    }
+
+    fn drawn_symbol(root: &Arc<BufferCore>, column: u16) -> String {
+        let mut output = Grid::new(4, 1);
+        compose(
+            root,
+            &mut output,
+            (0, 0),
+            Rectangle::new(0, 0, 4, 1),
+            PasteMode::Replace,
+        );
+        output
+            .cell(column, 0)
+            .map(|cell| cell.symbol().to_owned())
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn a_buffer_that_waits_for_a_value_is_not_drawn_and_keeps_its_visibility() {
+        let root = BufferCore::new(Grid::new(4, 1), 0, 0, Cell::EMPTY);
+        root.set_fit(Some(Fit {
+            width: true,
+            ..Fit::default()
+        }));
+        let cursor = letter("+");
+        cursor.move_to(2, 0);
+        cursor.lock().is_waiting_for_value = true;
+        attach(&root, &cursor, Geometry::Explicit, PasteMode::Replace).unwrap();
+        assert!(cursor.lock().is_visible);
+        assert!(!cursor.lock().is_drawn());
+        assert_eq!(drawn_symbol(&root, 2), " ");
+        assert!(
+            buffers_at(&root, 2, 0)
+                .iter()
+                .all(|core| core.id != cursor.id)
+        );
+        assert_eq!(content_extent(&root), Size::new(0, 0));
+        let before = tree_modified(&root);
+        cursor.lock().touch(None);
+        assert_eq!(tree_modified(&root), before);
+
+        cursor.lock().is_waiting_for_value = false;
+        assert!(cursor.lock().is_drawn());
+        assert_eq!(drawn_symbol(&root, 2), "+");
+        assert_eq!(buffers_at(&root, 2, 0)[0].id, cursor.id);
+        assert_eq!(content_extent(&root), Size::new(3, 1));
+
+        cursor.lock().is_visible = false;
+        assert!(!cursor.lock().is_drawn());
+        assert_eq!(drawn_symbol(&root, 2), " ");
+    }
 }

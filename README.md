@@ -73,7 +73,7 @@ Create a file `main.py` with:
 import xnano
 
 with xnano.open() as terminal:
-    terminal.screen.write('Hello, world!', x='center', y='center')
+    terminal.write('Hello, world!', x='center', y='center')
     terminal.run(stop_on='q')
 ```
 
@@ -94,8 +94,8 @@ python main.py
 until you press `q`. You already have a program that:
 
 - opens a live terminal with `xnano.open()`, which takes over the whole window
-  (give it a `height` to draw in a region below your prompt instead);
-- writes text with `terminal.screen.write()`, placed with words such as `'center'`;
+  (give it a `height` to draw in a region below your prompt instead),
+- writes text with `terminal.write()`, at a position such as `'center'`,
 - keeps running with `terminal.run()` until one of its `stop_on` keys is pressed.
 
 ### Example upgrade
@@ -120,23 +120,18 @@ wait 0.5
 ```python
 import xnano
 
-# `xnano.new()` makes a canvas: a screen in memory that you build before showing it
-canvas = xnano.new()
-greeting = canvas.screen.write('Hello, world!', x='center', y='center')
-
-
-# a hook runs a function when something happens, and a hook on a placement only hears
-# the events inside its own cells
-@greeting.hook(on='mouse')
-def change_color(context: xnano.Context):
-    # a click is a press and then a release: change the color once, on the press
-    if context.mouse.kind == 'press':
-        greeting.color.fg.random()
-
-
-# `mouse=True` turns on mouse events, and writing the canvas shows it on the screen
+# `mouse=True` turns on mouse events
 with xnano.open(mouse=True) as terminal:
-    terminal.screen.write(canvas)
+    greeting = terminal.write('Hello, world!', x='center', y='center')
+
+    # a hook runs a function when something happens, and a hook on a placement only
+    # hears the events inside its own cells
+    @greeting.hook(on='mouse')
+    def change_color(context: xnano.Context):
+        # a click is a press and then a release: change the color once, on the press
+        if context.mouse.kind == 'press':
+            greeting.color.fg.random()
+
     terminal.run(stop_on='q')
 ```
 
@@ -152,11 +147,12 @@ color.
 
 ### Recap
 
-- `xnano.open()` is a live terminal, and `xnano.new()` is a canvas in memory
-  that you can print, or show in a terminal later. Both have the same `screen`,
+- `xnano.open()` is a live terminal. `xnano.new()` makes a canvas in memory,
+  which you can print, or show in a terminal later. Both have the same `screen`,
   `clock`, `keyboard`, `mouse` and `speaker`.
-- `screen.write()` places text, widgets and images with a number of cells, a
-  percentage or a word, and returns a placement that you can change at any time.
+- `terminal.write()` and `canvas.write()` place text, widgets and images with a
+  number of cells, a percentage or a word. Each is the same as `screen.write()`,
+  and each returns a placement that you can change at any time.
 - `hook(on=...)` runs a function when a key, the mouse or the clock does
   something, and the `context` it receives says what happened.
 
@@ -182,10 +178,10 @@ import xnano
 # `layout='row'` gives everything written on the canvas an equal share of its width,
 # and `x` and `y` place each piece inside its own share
 with xnano.new(width='100%', height=7, layout='row') as canvas:
-    canvas.screen.write(
+    canvas.write(
         'left panel', x='left', y='bottom', border='plain', foreground=(255, 0, 0)
     )
-    canvas.screen.write(
+    canvas.write(
         'center panel',
         x='center',
         y='center',
@@ -193,12 +189,12 @@ with xnano.new(width='100%', height=7, layout='row') as canvas:
         foreground='black',
         background='#f0f0f0',
     )
-    canvas.screen.write(
+    canvas.write(
         'right panel', x='right', y='top', border='thick', foreground='blue'
     )
 
     # render one frame of the screen as colored text, and print it
-    print(canvas.screen.render(format='ansi'))
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="composing-content" -->
@@ -225,25 +221,23 @@ far content can move (see the **Mouse** example).
 import xnano
 
 with xnano.new(width='100%', height=7) as canvas:
-    screen = canvas.screen
-
     # content written without a position goes on the next line, the way a terminal prints
-    screen.write('first line')
-    screen.write('second line')
+    canvas.write('first line')
+    canvas.write('second line')
 
     # a position or a size is a number of cells, a percentage or a word
-    screen.write('x=40', x=40, y=0)
-    screen.write("x='75%'", x='75%', y=1)
-    screen.write("x='right', y='bottom'", x='right', y='bottom')
-    panel = screen.write('panel', x='center', y='center', width='50%', border='rounded')
+    canvas.write('x=40', x=40, y=0)
+    canvas.write("x='75%'", x='75%', y=1)
+    canvas.write("x='right', y='bottom'", x='right', y='bottom')
+    panel = canvas.write('panel', x='center', y='center', width='50%', border='rounded')
 
     # a placement takes new values at any time, and its words follow: it stays centered
     panel.width = '60%'
-    screen.write(
+    canvas.write(
         f'the panel is {panel.width} cells wide, from column {panel.x}', y='bottom'
     )
 
-    print(screen.render(format='ansi'))
+    print(canvas.render(format='ansi'))
 ```
 
 <!-- @code-block-asset name="positioning-and-sizing" -->
@@ -314,8 +308,8 @@ import xnano
 # give `xnano.open()` a `height` to draw in a region below your prompt, or leave it out
 # to take over the whole window
 with xnano.open(height=3, title='my app') as terminal:
-    terminal.screen.write('Welcome to xnano!', border='rounded')
-    label = terminal.screen.write('press space', x=22, y=1)
+    terminal.write('Welcome to xnano!', border='rounded')
+    label = terminal.write('press space', x=22, y=1)
 
     # a hook on the terminal itself hears every event on the screen
     @terminal.hook(on='key', keys='space')
@@ -349,8 +343,8 @@ import xnano
 from xnano.expressions import ParentWidth
 
 with xnano.open(height=3) as terminal:
-    label = terminal.screen.write('')
-    ball = terminal.screen.write('●', y=1)
+    label = terminal.write('')
+    ball = terminal.write('●', y=1)
 
     # math with the clock makes an expression, which moves the ball on every frame;
     # `ParentWidth` is the screen's width, read again when the window is resized
@@ -513,8 +507,8 @@ import xnano
 
 # `edges='stop'` keeps content inside the terminal when it moves
 with xnano.open(height=8, edges='stop') as terminal:
-    player = terminal.screen.write('@', x='center', y='center')
-    terminal.screen.write(
+    player = terminal.write('@', x='center', y='center')
+    terminal.write(
         'arrows or wasd to move · ctrl+r to reset · q to quit', y='bottom', dim=True
     )
 
@@ -556,11 +550,11 @@ import xnano
 
 # `mouse=True` turns on mouse events
 with xnano.open(height=3, mouse=True) as terminal:
-    terminal.screen.write('─' * 30, y=1)
-    label = terminal.screen.write('drag the ●', y=2)
+    terminal.write('─' * 30, y=1)
+    label = terminal.write('drag the ●', y=2)
 
     # a range keeps the thumb's `x` between two columns, however far it is dragged
-    thumb = terminal.screen.write('●', x=(0, 29), y=1)
+    thumb = terminal.write('●', x=(0, 29), y=1)
 
     # a drag hook is a generator: each `yield` waits for the next movement of the pointer
     @thumb.hook(on='drag')
@@ -606,8 +600,8 @@ scale = ['C4', 'D4', 'E4', 'G4', 'A4']
 chord = xnano.Note(('C4', 'E4', 'G4'), beats=2, instrument='electric_piano')
 
 with xnano.open(height=2) as terminal:
-    terminal.screen.write('press 1-5 for a note, space for a chord')
-    playing = terminal.screen.write('', y=1, foreground='cyan')
+    terminal.write('press 1-5 for a note, space for a chord')
+    playing = terminal.write('', y=1, foreground='cyan')
 
     @terminal.hook(on='key')
     def play_note(context: xnano.Context):
@@ -649,13 +643,13 @@ wait 1.5
 import xnano
 
 with xnano.open(height=2) as terminal:
-    terminal.screen.write('speak into your microphone')
+    terminal.write('speak into your microphone')
 
     # `level` is an expression from 0.0 to 1.0, so content can follow it on every frame
     # (the default input device opens the first time a frame reads it)
     level = terminal.microphone.level
-    terminal.screen.write('░' * 40, x=0, y=1, dim=True)
-    terminal.screen.write(
+    terminal.write('░' * 40, x=0, y=1, dim=True)
+    terminal.write(
         '█' * 40, x=0, y=1, width=level * 40 + 1, foreground='green', layer=1
     )
 
@@ -695,20 +689,20 @@ requests = [
 ]
 
 with xnano.open(height=13) as terminal:
-    terminal.screen.write(
+    terminal.write(
         Gauge(0.6, label='60% of 512 GB', gauge_style=Style(foreground='green')),
         width='100%',
         border='rounded',
         title='disk',
     )
-    terminal.screen.write(
+    terminal.write(
         Sparkline(requests, style=Style(foreground='cyan')),
         width='100%',
         height=4,
         border='rounded',
         title='requests',
     )
-    load = terminal.screen.write(
+    load = terminal.write(
         BarChart(
             [
                 Bar(73, label='cpu'),
@@ -726,7 +720,7 @@ with xnano.open(height=13) as terminal:
         title='load',
     )
     # a placement's position can be read back, so the table lines up with the chart
-    terminal.screen.write(
+    terminal.write(
         Table(
             [
                 ['web', 'up', '41 ms'],

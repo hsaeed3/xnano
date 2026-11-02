@@ -1586,6 +1586,30 @@ impl PyBuffer {
         nudge(&core);
     }
 
+    /// Whether the buffer waits for a value of its position or size. A buffer that waits
+    /// is not drawn, and it keeps its own `is_visible`.
+    #[getter(_is_waiting_for_value)]
+    fn is_waiting_for_value(slf: &Bound<'_, Self>) -> bool {
+        slf.as_super().borrow().core.lock().is_waiting_for_value
+    }
+
+    #[setter(_is_waiting_for_value)]
+    fn set_is_waiting_for_value(slf: &Bound<'_, Self>, value: bool) {
+        let core = Arc::clone(&slf.as_super().borrow().core);
+        {
+            let mut state = core.lock();
+            if state.is_waiting_for_value == value {
+                return;
+            }
+            state.is_waiting_for_value = value;
+            state.touch(None);
+        }
+        if let Some(parent) = core.parent() {
+            parent.lock().touch(None);
+        }
+        nudge(&core);
+    }
+
     #[getter]
     fn is_focusable(slf: &Bound<'_, Self>) -> bool {
         slf.as_super().borrow().core.lock().is_focusable
@@ -2031,7 +2055,7 @@ fn buffer_from_grid(cls: &Bound<'_, PyType>, grid: Grid) -> PyResult<Py<PyAny>> 
 
 fn copy_buffer(slf: &Bound<'_, PyBuffer>) -> PyResult<Py<PyBuffer>> {
     let py = slf.py();
-    let (grid, x, y, fill, layer, visible, focusable, layout, intrinsic, registry, children) = {
+    let (grid, x, y, fill, layer, visibility, focusable, layout, intrinsic, registry, children) = {
         let surface = slf.as_super().borrow();
         let state = surface.core.lock();
         let registry = lock(&surface.ext.registry)
@@ -2057,7 +2081,7 @@ fn copy_buffer(slf: &Bound<'_, PyBuffer>) -> PyResult<Py<PyBuffer>> {
             state.y,
             state.fill.clone(),
             state.layer,
-            state.is_visible,
+            (state.is_visible, state.is_waiting_for_value),
             state.is_focusable,
             state.layout.clone(),
             state.intrinsic,
@@ -2071,7 +2095,7 @@ fn copy_buffer(slf: &Bound<'_, PyBuffer>) -> PyResult<Py<PyBuffer>> {
         let surface = bound.as_super().borrow();
         let mut state = surface.core.lock();
         state.layer = layer;
-        state.is_visible = visible;
+        (state.is_visible, state.is_waiting_for_value) = visibility;
         state.is_focusable = focusable;
         state.layout = layout;
         state.intrinsic = intrinsic;

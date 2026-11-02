@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
+    Any,
     Final,
     Generic,
     Literal,
@@ -58,6 +59,7 @@ if TYPE_CHECKING:
     from xnano._schema._content import Content, Writable
     from xnano.art._images import Image
     from xnano.canvas import Canvas
+    from xnano.devices._screen import Screen
     from xnano.hooks._context import Context
     from xnano.layout._placement import Placement
 
@@ -110,6 +112,36 @@ def _is_real_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def _is_number_pair(value: object) -> bool:
+    """Whether ``value`` is a pair of real numbers, such as ``(x, y)`` or ``(beat, pitch)``."""
+    return (
+        isinstance(value, tuple)
+        and len(value) == 2
+        and _is_real_number(value[0])
+        and _is_real_number(value[1])
+    )
+
+
+def _area_region(value: object) -> Region | None:
+    """
+    The cells of an area as a region, or ``None`` for a value that is not an area.
+
+    A placement gives all the cells that it takes, with its border, padding and margin. A
+    screen gives its ``region``.
+    """
+    if isinstance(value, Region):
+        return value
+    # Imported here because these modules import this one.
+    from xnano.devices._screen import Screen
+    from xnano.layout._placement import Placement
+
+    if isinstance(value, Placement):
+        return value._screen_area()
+    if isinstance(value, Screen):
+        return value.region
+    return None
+
+
 def _is_color(value: object) -> bool:
     if isinstance(value, _core.Color):
         return True
@@ -152,7 +184,8 @@ class Region(_Looked, Generic[NumberT_co]):
     view* of the cells of a canvas or a placement, from ``canvas.screen.region`` and
     ``placement.region``. Coordinates are region coordinates, ``(0, 0)`` being the top-left
     cell. ``(x, y) in region`` and ``region.local(point)`` use screen cells, the frame of
-    ``context.mouse.position``.
+    ``context.mouse.position``. ``in`` and [`overlaps`][xnano.layout.Region.overlaps] also take
+    a placement, a screen or another region, and compare them in screen cells.
 
     The default resolution is one cell. ``region.half_blocks`` addresses two pixels per cell
     (one above the other) and ``region.braille`` eight dots per cell (two by four, one color
@@ -197,6 +230,10 @@ class Region(_Looked, Generic[NumberT_co]):
         x: The screen column of the left edge; on the timeline, the beat, tick or millisecond
             it starts at.
         y: The screen row of the top edge; on the timeline, the lowest pitch as a MIDI number.
+        right_edge: The first screen column after the region, in cells. On the timeline, the
+            end of the region.
+        bottom_edge: The first screen row below the region, in cells. On the timeline, the
+            first pitch above the region.
         resolution: The grid the region is measured in: ``'cells'``, ``'half_blocks'`` or
             ``'braille'`` on the screen, ``'beats'``, ``'sixteenths'`` or ``'milliseconds'`` on
             the timeline.
@@ -644,42 +681,189 @@ class Region(_Looked, Generic[NumberT_co]):
         width, height = self._grid_size()
         return _core.Size(width, height)
 
-    def __contains__(self, point: object) -> bool:
+    @property
+    def right_edge(self) -> NumberT_co:
         """
-        Whether a screen cell, or a beat and a pitch on the timeline, is inside the region.
+        The first column after the region: ``x`` plus the width in cells.
 
-        Args:
-            point: On the screen, a ``(x, y)`` pair or a [`Point`][xnano_core.Point] in screen
-                cells, such as ``context.mouse.position``. On the timeline, a ``(beat, pitch)``
-                pair of numbers in the grid of the region, where the pitch is a MIDI number.
-                Anything else is not inside.
+        On the screen it is a screen column in cells. The ``braille`` and ``half_blocks``
+        views give the same column as ``cells``. On the timeline it is where the region ends:
+        ``x`` plus ``width``, in the resolution of the region.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=3) as canvas:
+                region = canvas.screen.write('name', x=2, y=1).region
+                assert region.right_edge == 6
+                assert region.braille.right_edge == 6
+                assert xnano.Note('C4', beats=2).region.right_edge == 2.0
+            ```
         """
         span = self._timeline
         if span is not None:
-            if not (
-                isinstance(point, tuple)
-                and len(point) == 2
-                and _is_real_number(point[0])
-                and _is_real_number(point[1])
-            ):
+            start, length = self._timeline_extent(span)
+            return cast('NumberT_co', start + length)
+        return cast('NumberT_co', self._screen_origin()[0] + self._cell_size()[0])
+
+    @property
+    def bottom_edge(self) -> int:
+        """
+        The first row below the region: ``y`` plus the height in cells.
+
+        On the screen it is a screen row in cells. The ``braille`` and ``half_blocks`` views
+        give the same row as ``cells``. On the timeline it is the first pitch above the
+        region, as a MIDI number.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=4) as canvas:
+                region = canvas.screen.write(xnano.box(4, 2), x=2, y=1).region
+                assert region.bottom_edge == 3
+                assert region.half_blocks.bottom_edge == 3
+                assert xnano.Note('C4').region.bottom_edge == 61
+            ```
+        """
+        span = self._timeline
+        if span is not None:
+            return span.lowest_pitch + span.pitch_count
+        return self._screen_origin()[1] + self._cell_size()[1]
+
+    def __contains__(self, item: object) -> bool:
+        """
+        Whether a screen cell, a whole area, or a beat and a pitch is inside the region.
+
+        On the screen, an area is inside when each of its cells is a cell of this region. The
+        comparison uses screen cells at every resolution. An empty area has a width or a
+        height of 0. It is inside when its top-left position is inside.
+
+        Args:
+            item: On the screen, a ``(x, y)`` pair of numbers or a
+                [`Point`][xnano_core.Point] in screen cells, such as
+                ``context.mouse.position``. It can also be an area: a
+                [`Region`][xnano.layout.Region], a [`Placement`][xnano.layout.Placement] or a
+                [`Screen`][xnano.devices.Screen]. A placement counts as all the cells that it
+                takes, with its border, padding and margin. A screen counts as its
+                ``region``. On the timeline, a ``(beat, pitch)`` pair of numbers in the grid
+                of the region, where the pitch is a MIDI number. No area is inside a region on
+                the timeline. Other values are not inside.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=10, height=4) as canvas:
+                card = canvas.screen.write('card', x=2, y=1, border='plain')
+                assert (3, 2) in card.region
+                assert card in canvas.screen.region
+                assert card not in card.region
+                assert canvas.screen not in card.region
+            ```
+        """
+        span = self._timeline
+        if span is not None:
+            if not _is_number_pair(item):
                 return False
-            beat, pitch = cast('tuple[float, float]', point)
+            beat, pitch = cast('tuple[float, float]', item)
             origin_x, width = self._timeline_extent(span)
             return (
                 origin_x <= beat < origin_x + width
                 and span.lowest_pitch <= pitch < span.lowest_pitch + span.pitch_count
             )
-        if isinstance(point, _core.Point):
-            column, row = point.x, point.y
-        elif isinstance(point, tuple) and len(point) == 2:
-            column, row = point
+        if isinstance(item, _core.Point):
+            column, row = item.x, item.y
+        elif _is_number_pair(item):
+            column, row = cast('tuple[float, float]', item)
         else:
-            return False
+            area = _area_region(item)
+            if area is None or area._timeline is not None:
+                return False
+            column, row = area._screen_origin()
+            area_width, area_height = area._cell_size()
+            if area_width and area_height:
+                origin_x, origin_y = self._screen_origin()
+                width, height = self._cell_size()
+                return (
+                    origin_x <= column
+                    and column + area_width <= origin_x + width
+                    and origin_y <= row
+                    and row + area_height <= origin_y + height
+                )
         width, height = self._cell_size()
         origin_x, origin_y = self._screen_origin()
         return (
             origin_x <= column < origin_x + width and origin_y <= row < origin_y + height
         )
+
+    def overlaps(
+        self,
+        other: _core.Point
+        | tuple[float, float]
+        | Region
+        | Placement[Any, Any]
+        | Screen[Any, Any],
+    ) -> bool:
+        """
+        Whether this region and another area share at least one screen cell.
+
+        Use it to find a collision, such as an apple that falls into a basket. Areas that
+        touch at an edge do not share a cell, so they do not overlap. An empty area, with a
+        width or a height of 0, has no cells and overlaps no area. A region on the timeline
+        has no screen cells, so it overlaps no area.
+
+        Args:
+            other: An area: a [`Region`][xnano.layout.Region], a
+                [`Placement`][xnano.layout.Placement] or a [`Screen`][xnano.devices.Screen].
+                A placement counts as all the cells that it takes, with its border, padding
+                and margin. A screen counts as its ``region``. A screen cell as a ``(x, y)``
+                pair of numbers or a [`Point`][xnano_core.Point] overlaps when it is inside,
+                as with ``in``.
+
+        Returns:
+            ``True`` when the two share a cell, or when the cell is inside this region.
+
+        Raises:
+            TypeError: ``other`` is not an area or a screen cell.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=6) as canvas:
+                basket = canvas.screen.write('[___]', x=5, y=5)
+                apple = canvas.screen.write('o', x=7, y=4)
+                assert not basket.region.overlaps(apple)
+                apple.down()
+                assert basket.region.overlaps(apple)
+                assert basket.region.overlaps((9, 5))
+            ```
+        """
+        area = _area_region(other)
+        if area is None:
+            if isinstance(other, _core.Point) or _is_number_pair(other):
+                return other in self
+            raise TypeError(
+                f'overlaps() takes an area or a screen cell, but got {other!r}. An area is a '
+                f'Region, a Placement or a Screen, such as canvas.screen. A screen cell is an '
+                f'(x, y) pair of numbers or a Point, such as context.mouse.position. Pass one '
+                f'of these, such as basket.overlaps(apple).'
+            )
+        if self._timeline is not None or area._timeline is not None:
+            return False
+        origin_x, origin_y = self._screen_origin()
+        width, height = self._cell_size()
+        area_x, area_y = area._screen_origin()
+        area_width, area_height = area._cell_size()
+        has_shared_column = max(origin_x, area_x) < min(
+            origin_x + width, area_x + area_width
+        )
+        has_shared_row = max(origin_y, area_y) < min(
+            origin_y + height, area_y + area_height
+        )
+        return has_shared_column and has_shared_row
 
     @overload
     def local(self, point: _core.Point) -> _core.Point: ...
@@ -1730,7 +1914,8 @@ def _check_content(content: object) -> None:
     if (
         content is None
         or isinstance(
-            content, (str, list, tuple, Region, Pixel, Art, Image, _core.Buffer)
+            content,
+            (str, _core.StyledText, list, tuple, Region, Pixel, Art, Image, _core.Buffer),
         )
         or (
             not isinstance(content, type)
@@ -1742,18 +1927,18 @@ def _check_content(content: object) -> None:
     ):
         return
     raise TypeError(
-        f'xnano.region() takes text, a widget or buffer, a region, an image, art, a pixel, '
-        f'a writable or a renderable, but got {content!r}. To put other content on a screen, create a '
+        f'xnano.region() takes text, styled text, a widget or buffer, a region, an image, art, '
+        f'a pixel, a writable or a renderable, but got {content!r}. To put other content on a screen, create a '
         f'canvas with xnano.new() and call canvas.screen.write(content), or load a file with '
         f'xnano.load_image(path) first.'
     )
 
 
 def _composed(buffer: _core.Buffer) -> _core.Buffer:
-    """The cells of ``buffer`` with its visible children drawn over them, in layer order."""
+    """The cells of ``buffer`` with the children that it draws over them, in layer order."""
     composed = _snapshot(buffer)
     for child in sorted(buffer.children, key=lambda child: child.layer):
-        if child.is_visible:
+        if child.is_visible and not child._is_waiting_for_value:
             composed.update(_core.Paste(_composed(child), x=int(child.x), y=int(child.y)))
     return composed
 

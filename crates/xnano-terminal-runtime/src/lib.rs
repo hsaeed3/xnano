@@ -11,6 +11,7 @@
 //! - [`device`]: what a terminal offers, as plain data;
 //! - [`terminal`]: the live terminal, behind the `terminal` feature.
 
+pub mod ansi;
 pub mod buffer;
 pub mod clock;
 pub mod components;

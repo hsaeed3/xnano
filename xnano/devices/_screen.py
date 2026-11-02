@@ -8,7 +8,7 @@ its title.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Generic, Literal, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, cast
 
 # The module, not the class: the canvas module imports this one while it loads.
 import xnano.canvas as _canvas_module
@@ -61,6 +61,8 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
         height: The height of the screen in cells.
         x: The column of the screen: ``0``, unless its canvas was written into another one.
         y: The row of the screen: ``0``, unless its canvas was written into another one.
+        right_edge: The first column after the screen, ``x + width``.
+        bottom_edge: The first row below the screen, ``y + height``.
         region: The cells of the screen as a [`Region`][xnano.layout.Region].
         cursor: The terminal's [`Cursor`][xnano.devices.Cursor].
         title: The window title last set on this screen.
@@ -83,7 +85,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
         with xnano.new(width=12, height=3) as canvas:
             canvas.screen.write('hello', x='center', y='center', bold=True)
             canvas.screen.border = 'rounded'
-            assert canvas.screen.render().splitlines()[1].strip() == '│ hello │'
+            assert canvas.screen.render().splitlines()[1] == '│  hello   │'
         ```
     """
 
@@ -656,6 +658,115 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
     def y(self) -> int:
         """The row of the canvas: ``0``, unless it was written into another canvas."""
         return self._canvas._screen_y
+
+    @property
+    def right_edge(self) -> int:
+        """
+        The first column after the canvas: ``x + width``, in cells.
+
+        For a canvas written into another one, it is relative to the area that holds it, like
+        ``x``. For any other canvas, it is the ``width``.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=3) as outer:
+                panel = outer.screen.new('panel', width=6, height=1)
+                panel.screen.move(x=2)
+                assert (outer.screen.right_edge, panel.screen.right_edge) == (20, 8)
+            ```
+        """
+        return self.x + self.width
+
+    @property
+    def bottom_edge(self) -> int:
+        """
+        The first row below the canvas: ``y + height``, in cells.
+
+        For a canvas written into another one, it is relative to the area that holds it, like
+        ``y``. For any other canvas, it is the ``height``.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=5) as outer:
+                panel = outer.screen.new('panel', width=6, height=2)
+                panel.screen.move(y=1)
+                assert (outer.screen.bottom_edge, panel.screen.bottom_edge) == (5, 3)
+            ```
+        """
+        return self.y + self.height
+
+    def __contains__(self, item: object) -> bool:
+        """
+        Whether a screen cell or a whole area is inside the cells of the canvas.
+
+        The answer is the same as ``item in canvas.screen.region``. See
+        [`Region`][xnano.layout.Region] for the comparison of areas.
+
+        Args:
+            item: A screen cell as a ``(x, y)`` pair of numbers or a
+                [`Point`][xnano_core.Point], such as ``context.mouse.position``. It can also be
+                an area: a [`Region`][xnano.layout.Region], a
+                [`Placement`][xnano.layout.Placement] or a screen. A placement counts as all
+                the cells that it takes, with its border, padding and margin. Other values are
+                not inside.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=10, height=3) as canvas:
+                label = canvas.screen.write('hi', x=8, y=2)
+                assert (9, 2) in canvas.screen and (10, 2) not in canvas.screen
+                assert label in canvas.screen
+                label.x = 9
+                assert label not in canvas.screen
+            ```
+        """
+        return item in self.region
+
+    def overlaps(
+        self,
+        other: _core.Point
+        | tuple[float, float]
+        | Region
+        | Placement[Any, Any]
+        | Screen[Any, Any],
+    ) -> bool:
+        """
+        Whether the cells of the canvas and another area share at least one screen cell.
+
+        The answer is the same as ``canvas.screen.region.overlaps(other)``. See
+        [`Region.overlaps`][xnano.layout.Region.overlaps].
+
+        Args:
+            other: An area: a [`Region`][xnano.layout.Region], a
+                [`Placement`][xnano.layout.Placement] or a screen. A placement counts as all
+                the cells that it takes, with its border, padding and margin. A screen cell as
+                a ``(x, y)`` pair of numbers or a [`Point`][xnano_core.Point] overlaps when it
+                is inside.
+
+        Returns:
+            ``True`` when the two share a cell, or when the cell is inside the canvas.
+
+        Raises:
+            TypeError: ``other`` is not an area or a screen cell.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=10, height=3) as canvas:
+                ball = canvas.screen.write('o', x=9, y=1)
+                assert canvas.screen.overlaps(ball)
+                ball.right(1)
+                assert not canvas.screen.overlaps(ball)
+            ```
+        """
+        return self.region.overlaps(other)
 
     @property
     def region(self) -> Region[int]:

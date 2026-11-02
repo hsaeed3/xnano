@@ -5,7 +5,7 @@ icon: "fontawesome/solid/x"
 
 # xnano
 
-<!-- The homepage's first example, shown beside its statement: the homepage
+<!-- The homepage's runnable example, shown after the features: the homepage
      template places what is between the two markers. It needs no files, so it
      runs as written in a terminal and in the browser with Pyodide. Until a
      visitor runs it, the page shows the output saved in

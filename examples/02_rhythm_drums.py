@@ -42,19 +42,19 @@ def judge(error: float, now: float) -> None:
 
 
 with xnano.open(title='drums') as terminal, xnano.new(width=80, height=24) as game:
-    terminal.screen.write(game, x='center', y='center')  # the game stays 80 by 24 cells
-    game.screen.write('Drums', x=2, y=0, bold=True)
-    status = game.screen.write('', x=43, y=0)
-    game.screen.write('d k center ●  ·  f j rim ○  ·  q quit', x='center', y=23, dim=True)
+    terminal.write(game, x='center', y='center')  # the game stays 80 by 24 cells
+    game.write('Drums', x=2, y=0, bold=True)
+    status = game.write('', x=43, y=0)
+    game.write('d k center ●  ·  f j rim ○  ·  q quit', x='center', y=23, dim=True)
     for row in (RAIL_Y, RAIL_Y + 5):  # the rails above and below the notes
-        game.screen.write('─' * 80, x=0, y=row, dim=True)
-    frame = game.screen.write(xnano.box(10, 6, border='rounded'), x=FRAME_X, y=RAIL_Y)
-    judgement = game.screen.write('', x=FRAME_X, y=RAIL_Y - 2, bold=True)
+        game.write('─' * 80, x=0, y=row, dim=True)
+    frame = game.write(xnano.box(10, 6, border='rounded'), x=FRAME_X, y=RAIL_Y)
+    judgement = game.write('', x=FRAME_X, y=RAIL_Y - 2, bold=True)
     pending = []  # the notes still to judge, in time order: time, kind and placement
     for seconds, kind in MAP:  # written last, so they pass over the rails and the frame
         art = xnano.pixel_art(ART[kind].split(), {'X': COLORS[kind]})
         column = FRAME_X + 1 + (seconds - terminal.clock) * SPEED  # in the frame on time
-        pending.append((seconds, kind, game.screen.write(art, x=column, y=RAIL_Y + 1)))
+        pending.append((seconds, kind, game.write(art, x=column, y=RAIL_Y + 1)))
 
     @terminal.hook(on='key', keys=[*CENTER_KEYS, *RIM_KEYS])
     def hit(context: xnano.Context) -> None:
@@ -86,7 +86,7 @@ with xnano.open(title='drums') as terminal, xnano.new(width=80, height=24) as ga
         status.text = f'score {score:>5}   combo {combo:>3}   {seconds_left:>2} s left'
         if now >= TIME_LIMIT:
             result = f'time · score {score} · accuracy {score / (300 * len(MAP)):.0%}'
-            game.screen.write(result, x='center', y=RAIL_Y + 8, bold=True)
+            game.write(result, x='center', y=RAIL_Y + 8, bold=True)
             hit.remove()  # the drums stay quiet until q quits
             context.hook.remove()
 

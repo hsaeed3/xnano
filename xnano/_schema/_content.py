@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from xnano.audio._notes import Note
     from xnano.hooks._context import Context
     from xnano.layout._region import Region
-    from xnano_core import Buffer
+    from xnano_core import Buffer, StyledText
 
 
 @runtime_checkable
@@ -76,9 +76,10 @@ class SupportsPlay(Protocol[DepsT_contra, StateT_contra]):
         ...
 
 
-Writable: TypeAlias = 'str | Region | Art | Pixel | Image | Buffer | SupportsWrite | SupportsRender | Sequence[Writable]'  # fmt: skip
+Writable: TypeAlias = 'str | StyledText | Region | Art | Pixel | Image | Buffer | SupportsWrite | SupportsRender | Sequence[Writable]'  # fmt: skip
 """
-Anything [`Screen.write`][xnano.devices.Screen.write] accepts: text, a
+Anything [`Screen.write`][xnano.devices.Screen.write] accepts: text, styled text (a
+[`StyledText`][xnano.styles.StyledText], such as one from ``StyledText.from_ansi()``), a
 [`Region`][xnano.layout.Region], an [`Art`][xnano.art.Art], a [`Pixel`][xnano.Pixel], an
 [`Image`][xnano.Image], a core [`Buffer`][xnano_core.Buffer], an object with
 ``__xnano_write__``, or a sequence of those, which is stacked from top to bottom; or a

@@ -29,8 +29,8 @@ block ends, xnano closes the canvas and gives the window back to your shell.
 import xnano
 
 with xnano.open(height=5) as terminal:  # >> [open]
-    terminal.screen.write('Focus', bold=True)  # >> [write]
-    terminal.screen.write('25:00', foreground='cyan')  # >> [write]
+    terminal.write('Focus', bold=True)  # >> [write]
+    terminal.write('25:00', foreground='cyan')  # >> [write]
     terminal.run(stop_on='q')  # >> [run]
 ```
 
@@ -42,8 +42,9 @@ erases the region.
 </tag>
 
 <tag name="write" color="pink">
-Writes text on the screen of the canvas. Without a position, each `write()` puts
-its text on the next line. `bold` and `foreground` set the style of the text.
+Writes text on the screen of the canvas. `terminal.write()` is the same as
+`terminal.screen.write()`. Without a position, each `write()` puts its text on
+the next line. `bold` and `foreground` set the style of the text.
 
 <definition term="write" kind="method">
 Shows text, a widget, an image or another canvas on the screen. It returns a
@@ -84,8 +85,8 @@ MINUTES = 25
 SECONDS = MINUTES * 60
 
 with xnano.open(height=5) as terminal:
-    terminal.screen.write('Focus', bold=True)
-    countdown = terminal.screen.write(f'{MINUTES:02}:00', foreground='cyan')
+    terminal.write('Focus', bold=True)
+    countdown = terminal.write(f'{MINUTES:02}:00', foreground='cyan')
 
     @terminal.hook(on='tick', every=1.0)  # >> [hook]
     def count_down(context: xnano.Context):  # >> [hook]
@@ -135,9 +136,9 @@ MINUTES = 25
 SECONDS = MINUTES * 60
 
 with xnano.open(height=5) as terminal:
-    terminal.screen.write('Focus', bold=True)
-    countdown = terminal.screen.write(f'{MINUTES:02}:00', foreground='cyan')
-    terminal.screen.write('space pause · q quit', y='bottom', dim=True)  # >> [hint]
+    terminal.write('Focus', bold=True)
+    countdown = terminal.write(f'{MINUTES:02}:00', foreground='cyan')
+    terminal.write('space pause · q quit', y='bottom', dim=True)  # >> [hint]
 
     @terminal.hook(on='tick', every=1.0)
     def count_down(context: xnano.Context):
@@ -193,10 +194,10 @@ MINUTES = 25
 SECONDS = MINUTES * 60
 
 with xnano.open(height=5) as terminal:
-    terminal.screen.write('Focus', bold=True)
-    countdown = terminal.screen.write(f'{MINUTES:02}:00', foreground='cyan')
-    terminal.screen.write(Gauge(terminal.clock / SECONDS), width='100%')  # >> [gauge]
-    terminal.screen.write('space pause · q quit', y='bottom', dim=True)
+    terminal.write('Focus', bold=True)
+    countdown = terminal.write(f'{MINUTES:02}:00', foreground='cyan')
+    terminal.write(Gauge(terminal.clock / SECONDS), width='100%')  # >> [gauge]
+    terminal.write('space pause · q quit', y='bottom', dim=True)
 
     @terminal.hook(on='tick', every=1.0)
     def count_down(context: xnano.Context):
@@ -257,10 +258,10 @@ MINUTES = 25
 SECONDS = MINUTES * 60
 
 with xnano.open(height=5) as terminal:
-    terminal.screen.write('Focus', bold=True)
-    countdown = terminal.screen.write(f'{MINUTES:02}:00', foreground='cyan')
-    terminal.screen.write(Gauge(terminal.clock / SECONDS), width='100%')
-    terminal.screen.write('space pause · q quit', y='bottom', dim=True)
+    terminal.write('Focus', bold=True)
+    countdown = terminal.write(f'{MINUTES:02}:00', foreground='cyan')
+    terminal.write(Gauge(terminal.clock / SECONDS), width='100%')
+    terminal.write('space pause · q quit', y='bottom', dim=True)
 
     @terminal.hook(on='tick', every=1.0)
     def count_down(context: xnano.Context):

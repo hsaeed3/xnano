@@ -279,6 +279,9 @@ _STATIC_NAMES = frozenset(
         'ScreenBounds',
         'ScreenPosition',
         'BufferSize',
+        # The pointer changes only through mouse events, and those events ask for a frame.
+        'PointerPosition',
+        'MousePosition',
         'x',
         'y',
         'width',
@@ -298,13 +301,28 @@ def is_static_expression(bound: object) -> bool:
     """
     Whether a number or expression keeps its value until an event that already asks for a frame.
 
-    Only an expression built from sizes, positions and numbers is known to be static. An expression
-    that reads anything else, such as the clock, a sound, a level or a provided value, may
-    change between frames, so it is not static.
+    Only an expression built from sizes, positions, the pointer and numbers is known to be static.
+    An expression that reads anything else, such as the clock, a sound, a level or a provided
+    value, may change between frames, so it is not static.
     """
     if not isinstance(bound, _core.NumericValue):
         return True
     return all(name in _STATIC_NAMES for name in _NAME.findall(repr(bound)))
+
+
+_POINTER_NAMES = frozenset({'PointerPosition', 'MousePosition'})
+
+
+def reads_pointer(bound: object) -> bool:
+    """
+    Whether an expression reads the pointer.
+
+    A pointer move draws a frame only while a placement has such an expression, so a
+    pointer move over content that does not follow it draws nothing.
+    """
+    if not isinstance(bound, _core.NumericValue):
+        return False
+    return not _POINTER_NAMES.isdisjoint(_NAME.findall(repr(bound)))
 
 
 def inspect_number(buffer: _core.Buffer, expression: NumericExpression) -> float:

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyTuple, PyType};
 use xnano_terminal_runtime::style::Style;
 use xnano_terminal_runtime::text::{self, Span, TextEditor, TextLayout};
 
@@ -85,6 +85,14 @@ impl PyStyledText {
     fn new(spans: Vec<PyTextSpan>) -> Self {
         Self {
             spans: spans.into_iter().map(|span| span.inner).collect(),
+        }
+    }
+
+    /// Read the text that a program prints for a terminal, with its ANSI colors and styles.
+    #[classmethod]
+    fn from_ansi(_cls: &Bound<'_, PyType>, text: &str) -> Self {
+        Self {
+            spans: xnano_terminal_runtime::ansi::spans_from_ansi(text),
         }
     }
 

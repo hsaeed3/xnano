@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from xnano.terminal import Terminal
     from xnano.terminal._opening import OpeningTerminal
 
+from xnano._internal._attributes import refuse_unknown_keywords
 from xnano._internal._axes import (
     check_axis,
     check_edges,
@@ -139,6 +140,7 @@ __all__ = [
     'CanvasSettings',
     'active',
     'new',
+    'write',
 ]
 
 _active_canvas: contextvars.ContextVar[
@@ -226,9 +228,13 @@ def _text_content(
         isinstance(line, str) for line in content
     ):
         content = '\n'.join(cast('Sequence[str]', content))
-    if not is_decorated or not isinstance(content, str):
+    if not is_decorated or not isinstance(content, (str, _core.StyledText)):
         return content, None
-    appearance.text = content
+    if isinstance(content, str):
+        appearance.text = content
+    else:
+        # The spans keep their styles, and the look goes over them.
+        appearance.styled_text = content
     return appearance.snapshot(), appearance
 
 
@@ -574,7 +580,9 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     [`Speaker`][xnano.devices.Speaker], ``canvas.clock.sleep(...)`` waits on the
     [`Clock`][xnano.devices.Clock], and ``canvas.keyboard`` and ``canvas.mouse`` read and
     press keys and buttons. The canvas itself holds what spans them: hooks, events, state,
-    dependencies, and running and closing.
+    dependencies, and running and closing. ``canvas.write``, ``canvas.render`` and
+    ``canvas.fx`` are the same as the members of the screen with these names, and
+    ``item in canvas`` is the same as ``item in canvas.screen.region``.
 
     How a canvas ends depends on who moves its clock. On a canvas from ``new()``,
     [`stop`][xnano.canvas.Canvas.stop] only ends a running ``iter()``: the canvas stays open
@@ -600,6 +608,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             key presses, pastes and prompts.
         mouse: The [`Mouse`][xnano.devices.Mouse]: the pointer, the buttons, the wheel.
         clock: The [`Clock`][xnano.devices.Clock] everything on the canvas runs on.
+        fx: The visual effects of all of the canvas, the same as ``screen.fx``.
         is_closed: Whether the canvas has been torn down.
         is_running: Whether the canvas is open and its loop has not been asked to end.
         deps: The dependencies given to ``new(deps=...)``, which hooks read.
@@ -792,6 +801,9 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         self._images: dict[int, ImageSource] = {}
         # Only placements with an expression or a range need looking at before each frame.
         self._dynamic: dict[int, Placement[DepsT, StateT]] = {}
+        # Whether the engine asks for a frame when the pointer moves: only while a placement
+        # before each frame reads the pointer. Only the canvas's loop changes it.
+        self._follows_pointer = False
         self._clock_view = Clock(cast('Canvas[object, object]', self))
         self._output = Output(cast('Canvas[object, object]', self))
         # The mouse buttons the program pressed and has not released.
@@ -851,6 +863,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     def _bind(self, runtime: _core.Runtime) -> None:
         """Connect the canvas to a runtime and register everything again. Runs on its loop."""
         self._runtime_object = runtime
+        # A new runtime follows the pointer only after the next frame says that it must.
+        self._follows_pointer = False
         self._clock = runtime.clock
         self._cursor = runtime.cursor
         self._input_state = runtime.input
@@ -1017,6 +1031,206 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         if canvas._runs_in_progress:
             self._note_dynamic_read()
         return canvas._clock_view
+
+    # -- the members of the screen that the canvas also has -------------------------------
+
+    @refuse_unknown_keywords
+    def write(
+        self,
+        content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
+        /,
+        *,
+        x: Axis = 'next',
+        y: Axis = 'next',
+        width: Axis | None = None,
+        height: Axis | None = None,
+        layer: int = 0,
+        lock: bool = False,
+        edges: EdgeBehavior | None = None,
+        effects: Sequence[WritableEffectSpecification] = (),
+        style: _core.Style | None = None,
+        foreground: ColorValue | None = None,
+        background: ColorValue | None = None,
+        bold: bool = False,
+        dim: bool = False,
+        italic: bool = False,
+        underline: bool = False,
+        blink: bool = False,
+        reverse: bool = False,
+        hidden: bool = False,
+        crossed_out: bool = False,
+        title: str | None = None,
+        border: _core.BorderKind | bool | None = None,
+        border_style: _core.Style | None = None,
+        padding: Spacing | None = None,
+        margin: Spacing | None = None,
+    ) -> Placement[DepsT, StateT]:
+        """
+        Put content on the screen of the canvas, and return the placement that holds it.
+
+        ``canvas.write(...)`` is the same as ``canvas.screen.write(...)``. It takes the same
+        arguments, does the same work and gives the same result. See
+        [`Screen.write`][xnano.devices.Screen.write] for how the screen places each kind of
+        content.
+
+        Args:
+            content: Text (or a list of lines), a [`Buffer`][xnano_core.Buffer] or widget, a
+                canvas from ``new()``, an image, or any
+                [`Writable`][xnano.components.Writable]. ``None`` makes an empty placement.
+            x: The column of the left edge: a number of cells, a percentage string, a word
+                (``'left'``, ``'center'``, ``'right'`` or ``'next'``), an expression or a
+                range. See [`Axis`][xnano.layout.Axis].
+            y: The row of the top edge, in the same forms (``'top'``, ``'center'``,
+                ``'bottom'`` or ``'next'``). ``'next'``, the default, is the first row below
+                the content written before.
+            width: The width, in the same forms. ``None`` uses the width of the content.
+            height: The height, in the same forms. ``None`` uses the height of the content.
+            layer: The layer. Content on a higher layer shows over content on a lower layer.
+            lock: Whether to keep the position and the size that the content has now when
+                the canvas changes size.
+            edges: What the content does at the edges of its area: ``'clip'``, ``'stop'`` or
+                ``'wrap'``. ``None`` uses the ``edges`` of the screen.
+            effects: The effects to start on the placement, as dictionaries with a ``kind``
+                key.
+            style: A [`Style`][xnano.styles.Style] for the text. The arguments below apply
+                over it.
+            foreground: The color of the text.
+            background: The color behind the text.
+            bold: Whether the text is bold.
+            dim: Whether the text is dim.
+            italic: Whether the text is italic.
+            underline: Whether the text has a line below it.
+            blink: Whether the text blinks.
+            reverse: Whether the foreground color and the background color change places.
+            hidden: Whether the text is hidden.
+            crossed_out: Whether the text has a line through it.
+            title: The title on the border of a box around the content.
+            border: The [`BorderKind`][xnano.styles.BorderKind] of a box around the content,
+                such as ``'plain'`` or ``'rounded'``. ``True`` is ``'plain'``, and ``False``
+                is no border.
+            border_style: The style of the border.
+            padding: The space between the border and the content: a number of cells, a
+                share of the size of the content, or a dictionary of sides.
+            margin: The space outside the box, in the same forms.
+
+        Returns:
+            The [`Placement`][xnano.layout.Placement] that holds the content. Use it to move,
+            resize or remove the content.
+
+        Raises:
+            TypeError: The content is a file path, raw bytes, an operation, a style or an
+                effect. Apply those with ``canvas.screen.update(...)``.
+            TerminalError: The content is a canvas that you cannot write here.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=12, height=3) as canvas:
+                greeting = canvas.write('hello', x='center', y='center', bold=True)
+                assert (greeting.width, greeting.y) == (5, 1)
+                assert canvas.render().splitlines()[1].strip() == 'hello'
+            ```
+        """
+        return self.screen.write(
+            content,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            layer=layer,
+            lock=lock,
+            edges=edges,
+            effects=effects,
+            style=style,
+            foreground=foreground,
+            background=background,
+            bold=bold,
+            dim=dim,
+            italic=italic,
+            underline=underline,
+            blink=blink,
+            reverse=reverse,
+            hidden=hidden,
+            crossed_out=crossed_out,
+            title=title,
+            border=border,
+            border_style=border_style,
+            padding=padding,
+            margin=margin,
+        )
+
+    def render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
+        """
+        Draw the current frame and return it as text, with no screen.
+
+        ``canvas.render(...)`` is the same as
+        [`canvas.screen.render(...)`][xnano.devices.Screen.render].
+
+        Args:
+            format: ``'text'`` for the characters only. ``'ansi'`` for the characters with
+                their colors and styles as escape codes.
+
+        Returns:
+            The frame, with one line for each row.
+
+        Raises:
+            ValueError: ``format`` is not ``'text'`` or ``'ansi'``.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=6, height=2) as canvas:
+                canvas.write('hello', y=1)
+                assert canvas.render().splitlines() == ['', 'hello']
+                assert canvas.render(format='ansi') == canvas.screen.render(format='ansi')
+            ```
+        """
+        return self.screen.render(format=format)
+
+    @property
+    def fx(self) -> WritableEffectProperties:
+        """
+        The visual effects of all of the canvas, one method for each effect.
+
+        ``canvas.fx`` is the same as [`canvas.screen.fx`][xnano.devices.Screen.fx]. An effect
+        that starts here changes every cell of the canvas, and ``canvas.fx.clear()`` stops
+        the effects that started here. See
+        [`WritableEffectProperties`][xnano.effects.WritableEffectProperties].
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new('hello', width=8, height=1) as canvas:
+                fade = canvas.fx.fade_from(foreground='black', duration_milliseconds=300)
+                assert canvas.fx.active == (fade,)
+            ```
+        """
+        return self.screen.fx
+
+    def __contains__(self, item: object) -> bool:
+        """
+        Whether an item is inside the screen of the canvas.
+
+        ``item in canvas`` is the same as ``item in canvas.screen.region``. See
+        [`Region`][xnano.layout.Region] for the items that it accepts.
+
+        Args:
+            item: What to find, such as an ``(x, y)`` pair or a
+                [`Point`][xnano_core.Point] in screen cells.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=4, height=2) as canvas:
+                assert (3, 1) in canvas
+                assert (4, 1) not in canvas
+            ```
+        """
+        return item in self.screen.region
 
     def _note_dynamic_read(self) -> None:
         """Record that the component running on this thread read the time, input or audio."""
@@ -1185,6 +1399,25 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             canvas._frame_registration = None
         if registration is not None:
             canvas._unregister(registration)
+        # Nothing may run before a frame now. The loop checks again what follows the pointer.
+        canvas._host.post(canvas._sync_follows_pointer)
+
+    def _sync_follows_pointer(self) -> None:
+        """
+        Tell the engine whether a placement follows the pointer. Runs on the canvas's loop.
+
+        The engine asks for a frame on a pointer move only while one does. Only the loop
+        changes this setting, and it reads the placements as they are now, so a placement
+        added on another thread at the same time is never missed.
+        """
+        with self._lock:
+            follows_pointer = any(
+                placement._reads_pointer for placement in self._dynamic.values()
+            )
+        runtime = self._runtime_object
+        if runtime is not None and follows_pointer != self._follows_pointer:
+            self._follows_pointer = follows_pointer
+            runtime._follows_pointer = follows_pointer
 
     def _on_loop_frame(self, core_context: FrameContext) -> None:
         """Before a frame: follow the size, images and expressions, then the frame functions."""
@@ -1221,6 +1454,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                         released += 1
             for _ in range(released):
                 self._release_frames()
+        self._sync_follows_pointer()
         if self._effects:
             is_time_dependent |= self._follow_effects(runtime)
         # Taken after the expressions ran: a component whose placement they resized asks for a
@@ -1491,6 +1725,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
 
     def _bindings_changed(self, placement: Placement[DepsT, StateT]) -> None:
         """An expression or range was set: look at the placement before each frame."""
+        placement._refresh_reads_pointer()
         canvas = self._canvas
         with canvas._lock:
             is_new = id(placement) not in canvas._dynamic
@@ -2537,15 +2772,14 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 placement.remove()
                 raise
             if lock:
-                for axis_name in ('x', 'y', 'width', 'height'):
-                    placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+                placement._lock_axes()
             return placement
         if content is None:
             content = _core.Buffer()
         picture = content if isinstance(content, Image) else None
         text_appearance: Appearance | None = None
         is_text = picture is None and (
-            isinstance(content, str)
+            isinstance(content, (str, _core.StyledText))
             or (
                 isinstance(content, (list, tuple))
                 and all(isinstance(line, str) for line in content)
@@ -2609,8 +2843,12 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         if needs_frames:
             self._demand_frames()
         placement._is_text = is_text
-        if is_text and text_appearance is None and isinstance(content, str):
-            placement._text_value = content
+        if is_text and text_appearance is None:
+            if isinstance(content, _core.StyledText):
+                placement._text_value = str(content)
+                placement._styled_text = content
+            elif isinstance(content, str):
+                placement._text_value = content
         if isinstance(content, Region) and decorated is None:
             # A snapshot of cells: in a box larger than it is, it sits where its x and y say.
             placement._snapshot_cells = content_buffer.copy()
@@ -2667,8 +2905,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                     placement, parent_buffer, follows_x=follows_x, follows_y=follows_y
                 )
             if lock:
-                for axis_name in ('x', 'y', 'width', 'height'):
-                    placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+                placement._lock_axes()
         except BaseException:
             placement.remove()
             raise
@@ -2761,8 +2998,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 placement._content.update(_core.Paste(inner, mode='replace'))
                 self._request_frame()
             if lock:
-                for axis_name in ('x', 'y', 'width', 'height'):
-                    placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+                placement._lock_axes()
         except BaseException:
             placement.remove()
             raise
@@ -3116,8 +3352,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             )
             self._canvas._fit_now()
         if lock:
-            for axis_name in ('x', 'y', 'width', 'height'):
-                placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+            placement._lock_axes()
 
     def _has_fit(self) -> bool:
         """Whether something on this canvas takes the size of its content."""
@@ -4382,3 +4617,137 @@ def active(*, is_required: bool = True) -> Canvas[object, object] | None:
             '"with xnano.open() as terminal:", and call this inside the block.'
         )
     return canvas
+
+
+@refuse_unknown_keywords
+def write(
+    content: Content | Canvas[WrittenDepsT, WrittenStateT] | None = None,
+    /,
+    *,
+    x: Axis = 'next',
+    y: Axis = 'next',
+    width: Axis | None = None,
+    height: Axis | None = None,
+    layer: int = 0,
+    lock: bool = False,
+    edges: EdgeBehavior | None = None,
+    effects: Sequence[WritableEffectSpecification] = (),
+    style: _core.Style | None = None,
+    foreground: ColorValue | None = None,
+    background: ColorValue | None = None,
+    bold: bool = False,
+    dim: bool = False,
+    italic: bool = False,
+    underline: bool = False,
+    blink: bool = False,
+    reverse: bool = False,
+    hidden: bool = False,
+    crossed_out: bool = False,
+    title: str | None = None,
+    border: _core.BorderKind | bool | None = None,
+    border_style: _core.Style | None = None,
+    padding: Spacing | None = None,
+    margin: Spacing | None = None,
+) -> Placement[object, object]:
+    """
+    Put content on the running canvas, and return the placement that holds it.
+
+    The running canvas is the canvas that [`active`][xnano.active] returns.
+    ``xnano.write(...)`` is the same as ``xnano.active().screen.write(...)``. It takes the
+    same arguments as [`Screen.write`][xnano.devices.Screen.write].
+
+    Args:
+        content: Text (or a list of lines), a [`Buffer`][xnano_core.Buffer] or widget, a
+            canvas from ``new()``, an image, or any
+            [`Writable`][xnano.components.Writable]. ``None`` makes an empty placement.
+        x: The column of the left edge: a number of cells, a percentage string, a word
+            (``'left'``, ``'center'``, ``'right'`` or ``'next'``), an expression or a
+            range. See [`Axis`][xnano.layout.Axis].
+        y: The row of the top edge, in the same forms (``'top'``, ``'center'``,
+            ``'bottom'`` or ``'next'``). ``'next'``, the default, is the first row below
+            the content written before.
+        width: The width, in the same forms. ``None`` uses the width of the content.
+        height: The height, in the same forms. ``None`` uses the height of the content.
+        layer: The layer. Content on a higher layer shows over content on a lower layer.
+        lock: Whether to keep the position and the size that the content has now when
+            the canvas changes size.
+        edges: What the content does at the edges of its area: ``'clip'``, ``'stop'`` or
+            ``'wrap'``. ``None`` uses the ``edges`` of the screen.
+        effects: The effects to start on the placement, as dictionaries with a ``kind``
+            key.
+        style: A [`Style`][xnano.styles.Style] for the text. The arguments below apply
+            over it.
+        foreground: The color of the text.
+        background: The color behind the text.
+        bold: Whether the text is bold.
+        dim: Whether the text is dim.
+        italic: Whether the text is italic.
+        underline: Whether the text has a line below it.
+        blink: Whether the text blinks.
+        reverse: Whether the foreground color and the background color change places.
+        hidden: Whether the text is hidden.
+        crossed_out: Whether the text has a line through it.
+        title: The title on the border of a box around the content.
+        border: The [`BorderKind`][xnano.styles.BorderKind] of a box around the content,
+            such as ``'plain'`` or ``'rounded'``. ``True`` is ``'plain'``, and ``False``
+            is no border.
+        border_style: The style of the border.
+        padding: The space between the border and the content: a number of cells, a
+            share of the size of the content, or a dictionary of sides.
+        margin: The space outside the box, in the same forms.
+
+    Returns:
+        The [`Placement`][xnano.layout.Placement] that holds the content. Use it to move,
+        resize or remove the content.
+
+    Raises:
+        TerminalClosedError: No canvas is running. Start a canvas with
+            [`open`][xnano.open] or [`new`][xnano.new]. Then write inside its ``with`` block.
+        TypeError: The content is a file path, raw bytes, an operation, a style or an
+            effect. Apply those with ``canvas.screen.update(...)``.
+        TerminalError: The content is a canvas that you cannot write here.
+
+    Examples:
+        ```python
+        import xnano
+
+        with xnano.new(width=12, height=2) as canvas:
+            label = xnano.write('hello', foreground='green')
+            assert label.text == 'hello'
+            assert canvas.render().splitlines()[0] == 'hello'
+        ```
+    """
+    canvas = active(is_required=False)
+    if canvas is None:
+        raise TerminalClosedError(
+            'xnano.write() did not write, because no canvas is running. Start a canvas with '
+            '"with xnano.open() as terminal:" or "with xnano.new() as canvas:". Then call '
+            'xnano.write() inside the "with" block.'
+        )
+    return canvas.screen.write(
+        content,
+        x=x,
+        y=y,
+        width=width,
+        height=height,
+        layer=layer,
+        lock=lock,
+        edges=edges,
+        effects=effects,
+        style=style,
+        foreground=foreground,
+        background=background,
+        bold=bold,
+        dim=dim,
+        italic=italic,
+        underline=underline,
+        blink=blink,
+        reverse=reverse,
+        hidden=hidden,
+        crossed_out=crossed_out,
+        title=title,
+        border=border,
+        border_style=border_style,
+        padding=padding,
+        margin=margin,
+    )

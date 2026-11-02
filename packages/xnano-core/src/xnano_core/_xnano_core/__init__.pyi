@@ -1245,6 +1245,35 @@ class StyledText:
         Args:
             spans: ``Sequence[TextSpan]``.
         """
+    @classmethod
+    def from_ansi(cls, text: str) -> StyledText:
+        """
+        Read the text that a program prints for a terminal, with its ANSI colors and styles.
+
+        Use it for the output of a command, a log file or a library that prints in color.
+        The SGR sequences set the colors (the 16 named colors, the 256 palette colors and
+        true colors) and the text modifiers. A newline starts a new line, a tab moves to the
+        next column that is a multiple of eight, and a carriage return moves back to the
+        start of the line, so the text after it writes over the line, as on a terminal.
+        Every other control character and escape sequence (cursor movement, erasing,
+        titles and modes) is removed. A final newline does not start an empty line.
+
+        Args:
+            text: The text, with its escape sequences.
+
+        Returns:
+            The styled text, with a newline between two lines.
+
+        Examples:
+            ```python
+            text = StyledText.from_ansi('\\x1b[1;31merror:\\x1b[0m disk full')
+            assert str(text) == 'error: disk full'
+            assert text.spans[0].style == Style('red', bold=True)
+
+            progress = StyledText.from_ansi('downloading 10%\\rdownloading 100%\\n')
+            assert str(progress) == 'downloading 100%'
+            ```
+        """
     @property
     def spans(self) -> tuple[TextSpan, ...]:
         """The runs of text, in order."""
@@ -3252,7 +3281,9 @@ class Value(Expression[ValueType]):
         """The identity hash, which keeps expressions usable in sets and dictionaries."""
 
     @property
-    def x(self: Value[Point] | Value[Rectangle]) -> NumericValue[int]:
+    def x(
+        self: Value[Point] | Value[Point | None] | Value[Rectangle],
+    ) -> NumericValue[int]:
         """
         The column of a ``Point`` or the left edge of a ``Rectangle``.
 
@@ -3265,7 +3296,9 @@ class Value(Expression[ValueType]):
         """
 
     @property
-    def y(self: Value[Point] | Value[Rectangle]) -> NumericValue[int]:
+    def y(
+        self: Value[Point] | Value[Point | None] | Value[Rectangle],
+    ) -> NumericValue[int]:
         """
         The row of a ``Point`` or the top edge of a ``Rectangle``.
 
@@ -7501,6 +7534,10 @@ class Buffer(Surface):
 
     @property
     def _absolute_bounds(self) -> Rectangle: ...
+    @property
+    def _is_waiting_for_value(self) -> bool: ...
+    @_is_waiting_for_value.setter
+    def _is_waiting_for_value(self, value: bool) -> None: ...
     def __init__(
         self,
         content: TextContent | None = None,
@@ -8400,6 +8437,10 @@ class Runtime:
             ```
         """
 
+    @property
+    def _follows_pointer(self) -> bool: ...
+    @_follows_pointer.setter
+    def _follows_pointer(self, value: bool) -> None: ...
     def request_frame(self) -> None:
         """
         Ask for a frame at the next step even if nothing changed.

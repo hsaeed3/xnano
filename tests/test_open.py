@@ -388,23 +388,29 @@ class TestPlacements:
         canvas.clock.step(delta_seconds=0.5)
         assert cast('int', ball.x) == 1
 
-    def test_a_formula_over_unseen_input_is_explained(self, canvas):
+    def test_a_formula_over_unseen_input_waits_for_it(self, canvas):
         placement = canvas.screen.write('o', x=3)
-        with pytest.raises(TypeError, match='input that has not been seen'):
-            placement.x = PointerPosition.x
+        placement.x = PointerPosition.x
+        canvas.clock.step()
+        assert cast('int', placement.x) == 3
+        assert 'o' not in canvas.screen.render()
+        canvas.push(Event.mouse_event(column=7, row=0, kind='move'))
+        canvas.deliver_events()
+        assert cast('int', placement.x) == 7
+        assert canvas.screen.render().splitlines()[0] == '       o'
 
     def test_a_rejected_formula_leaves_nothing_behind(self, canvas):
-        with pytest.raises(TypeError, match='input that has not been seen'):
-            canvas.screen.write('ghost', x=PointerPosition.x)
+        with pytest.raises(ZeroDivisionError):
+            canvas.screen.write('ghost', x=ParentWidth // (Width - Width))
         assert len(canvas._placements) == 0
         assert 'ghost' not in canvas.screen.render()
         placement = canvas.screen.write('o', x=3)
-        with pytest.raises(TypeError, match='input that has not been seen'):
-            placement.x = PointerPosition.x
+        with pytest.raises(ZeroDivisionError):
+            placement.x = ParentWidth // (Width - Width)
         assert 'x' not in placement._bindings
         placement.y = TimeElapsed * 0
         canvas.clock.step()
-        assert placement.x == 3
+        assert cast('int', placement.x) == 3
 
     def test_a_removed_placement_refuses_every_change_the_same_way(self, canvas):
         placement = canvas.screen.write('a')
@@ -434,10 +440,10 @@ class TestPlacements:
     def test_a_rejected_formula_is_reported_on_a_canvas_that_runs_by_itself(self):
         with new(width=10, height=2, realtime=True) as running:
             placement = running.screen.write('ok')
-            with pytest.raises(TypeError, match='input that has not been seen'):
-                placement.x = PointerPosition.x
-            with pytest.raises(TypeError, match='input that has not been seen'):
-                running.screen.write('ghost', x=PointerPosition.x)
+            with pytest.raises(ZeroDivisionError):
+                placement.x = ParentWidth // (Width - Width)
+            with pytest.raises(ZeroDivisionError):
+                running.screen.write('ghost', x=ParentWidth // (Width - Width))
             assert 'x' not in placement._bindings
             assert len(running._placements) == 1
             assert running.is_running
@@ -1646,11 +1652,11 @@ class TestFormulasThatLoseTheirValue:
         canvas.clock.step()
         placement = canvas.screen.write('a')
         placement.x = mouse.position.x
-        assert placement.x == 7
+        assert cast('int', placement.x) == 7
         canvas.push(Event.key_press('a'))
         canvas.clock.step()
         canvas.clock.step()
-        assert placement.x == 7, (
+        assert cast('int', placement.x) == 7, (
             'the axis keeps its last value while the expression has none'
         )
 
