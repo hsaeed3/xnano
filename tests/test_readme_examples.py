@@ -4,12 +4,15 @@ tests.test_readme_examples
 Every Python block of the README and of the pages under ``docs/`` that teach the API runs.
 
 The blocks open the screen and wait for a key, so the test swaps those calls (and ``xnano.iter``)
-for a canvas without a screen that moves five frames, and runs the rest as written.
+for a canvas without a screen that moves five frames, and runs the rest as written. A
+``pyodide`` block runs in the browser as well, and the homepage shows the saved output of its
+first one until a visitor runs it, so that output must be what the block prints.
 """
 
 from __future__ import annotations
 
 import contextvars
+import os
 import pathlib
 import re
 
@@ -23,7 +26,12 @@ PAGES = (
     REPOSITORY / 'README.md',
     REPOSITORY / 'docs' / 'index.md',
 )
-BLOCK = re.compile(r'^```python\n(.*?)^```', re.MULTILINE | re.DOTALL)
+BLOCK = re.compile(r'^```(?:python|pyodide[^\n]*)\n(.*?)^```', re.MULTILINE | re.DOTALL)
+HOMEPAGE_EXAMPLE = re.compile(
+    r'^<!-- xn-hero-example -->\n+```pyodide[^\n]*\n(.*?)^```', re.MULTILINE | re.DOTALL
+)
+HOMEPAGE_EXAMPLE_OUTPUT = REPOSITORY / 'docs' / 'assets' / 'home' / 'hero-example.ansi'
+"""The output the homepage shows for its first example until a visitor runs it."""
 
 
 def blocks() -> list[tuple[str, int, str]]:
@@ -83,3 +91,25 @@ def test_a_block_runs(name, number, source, monkeypatch, capsys):
         {'__name__': '__docs__'},
     )
     capsys.readouterr()
+
+
+def test_the_homepage_shows_what_its_first_example_prints(capsys):
+    homepage = REPOSITORY / 'docs' / 'index.md'
+    example = HOMEPAGE_EXAMPLE.search(homepage.read_text(encoding='utf-8'))
+    assert example is not None, (
+        'docs/index.md has no first example between the <!-- xn-hero-example --> markers. '
+        'Put a ```pyodide block there, or update this test.'
+    )
+    contextvars.copy_context().run(
+        exec,
+        compile(example.group(1), 'docs/index.md homepage example', 'exec'),
+        {'__name__': '__docs__'},
+    )
+    printed = capsys.readouterr().out
+    if os.environ.get('XNANO_UPDATE_HOMEPAGE_OUTPUT'):
+        HOMEPAGE_EXAMPLE_OUTPUT.write_text(printed, encoding='utf-8')
+    assert HOMEPAGE_EXAMPLE_OUTPUT.read_text(encoding='utf-8') == printed, (
+        'docs/assets/home/hero-example.ansi is not what the homepage example prints, so the '
+        'homepage would show an output its code no longer makes. Save the new output with: '
+        'XNANO_UPDATE_HOMEPAGE_OUTPUT=1 uv run pytest tests/test_readme_examples.py -k homepage'
+    )

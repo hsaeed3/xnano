@@ -4,20 +4,31 @@
 -#}
 {% include "partials/actions.html" %}
 {% if page.is_homepage or (nav.homepage and page.url == nav.homepage.url) %}
+  {#- The first example of docs/index.md sits between two markers; the hero shows it beside
+      its statement, and the rest of the page keeps everything around it. #}
+  {%- set home_content = page.content %}
+  {%- set hero_example = "" %}
+  {%- if "<!-- /xn-hero-example -->" in home_content %}
+    {%- set before_example = home_content | split("<!-- xn-hero-example -->") | list %}
+    {%- set after_example = before_example[1] | split("<!-- /xn-hero-example -->") | list %}
+    {#- Markdown wraps the block's editor in a paragraph, which cannot hold it. #}
+    {%- set hero_example = after_example[0] | replace("<p>", "") | replace("</p>", "") %}
+    {%- set home_content = before_example[0] ~ after_example[1] %}
+  {%- endif %}
   <div class="xn-home">
     {% include "partials/home.html" %}
     {#- The examples are the <features> block of docs/index.md, laid out by the markdown
         extension in scripts/docs_markdown. The rest of that page (its title) is kept for the
         page's outline. #}
-    {%- if "<xn-features>" in page.content %}
+    {%- if "<xn-features>" in home_content %}
     <div class="xn-home__text">
-      {{ page.content
+      {{ home_content
          | replace("<xn-features>", '</div><section class="xn-spreads"><div class="xn-rule"><span class="xn-label">02</span><span class="xn-label">Features</span></div><xn-features>')
          | replace("</xn-features>", '</xn-features></section><div class="xn-home__text">')
          | safe }}
     </div>
     {%- else %}
-    <div class="xn-home__text">{{ page.content }}</div>
+    <div class="xn-home__text">{{ home_content | safe }}</div>
     {%- endif %}
     {% include "partials/home-explore.html" %}
   </div>
