@@ -100,6 +100,9 @@ sound work without a device everywhere.
       1. [Pixel Art](#pixel-art)
       2. [Images](#images)
    7. [Animations](#animations)
+   8. [AI](#ai)
+      1. [Streaming Text](#streaming-text)
+      2. [Making Decisions](#making-decisions)
 4. [Learn More](#learn-more)
 
 ## Quick Start
@@ -1287,6 +1290,77 @@ with xnano.open(height=6) as terminal:
   <img alt="animations" src="docs/assets/readme/animations-light.gif">
 </picture>
 <!-- /@code-block-asset -->
+
+### AI
+
+`xnano.ai` puts language models and decision models to work on a canvas: they read
+what is on the screen, and answer in `xnano` values, such as text, a choice, pixel
+art or a melody. It needs the `ai` extra and Python 3.11 or newer:
+
+```bash
+pip install "xnano[ai]"
+```
+
+#### Streaming Text
+
+A `TextModel` writes prose, and `stream_into_async()` shows it in a placement as
+the model writes it.
+
+```python
+import xnano
+from xnano.ai import TextModel, stream_into_async
+
+# any pydantic-ai model works: this one reads the ANTHROPIC_API_KEY environment variable
+narrator = TextModel(
+    'anthropic:claude-sonnet-5-5', style='eerie, second person', max_sentences=2
+)
+
+with xnano.open(height=5) as terminal:
+    story = terminal.write('press enter to begin', width='100%', edges='wrap')
+    terminal.write('enter: next moment · q: quit', y='bottom', dim=True)
+
+    # an `async def` hook waits for the model without stopping the terminal, and the
+    # text appears in the placement as the model writes it
+    @terminal.hook(on='key', keys='enter')
+    async def narrate(context: xnano.Context):
+        request = 'Tell the next moment of a ghost story set in a lighthouse.'
+        await stream_into_async(story, narrator.stream_async(request))
+
+    terminal.run(stop_on='q')
+```
+
+#### Making Decisions
+
+A `ChoiceModel` picks one of the options that you give it, for the facts that you
+give it.
+
+```python
+import xnano
+from xnano.ai import ChoiceModel
+
+# a choice model picks one of the options you give it, for what happens on the canvas
+guard_mind = ChoiceModel('anthropic:claude-sonnet-5-5')
+actions = {'1': 'bows politely', '2': 'shouts at the guard', '3': 'offers a gold coin'}
+
+with xnano.open(height=3) as terminal:
+    guard = terminal.write('the guard watches you', foreground='yellow')
+    terminal.write('1 bow · 2 shout · 3 offer gold · q quit', y='bottom', dim=True)
+
+    @terminal.hook(on='key', keys=['1', '2', '3'])
+    async def react(context: xnano.Context):
+        decision = await guard_mind.choose_async(
+            {'the player': actions[context.keyboard.key]},
+            {
+                'welcome': 'the guard lets the player pass',
+                'block': 'the guard blocks the way',
+                'arrest': 'the guard calls for help',
+            },
+            question='How does the guard react to the player?',
+        )
+        guard.text = f'the guard decides: {decision.choice}'
+
+    terminal.run(stop_on='q')
+```
 
 ## Learn More
 

@@ -15,6 +15,7 @@ import contextvars
 import os
 import pathlib
 import re
+import sys
 
 import pytest
 
@@ -59,7 +60,17 @@ def test_the_readme_has_examples():
     ids=[f'{name}-{number}' for name, number, _ in CASES],
 )
 def test_a_block_runs(name, number, source, monkeypatch, capsys):
+    if 'xnano.ai' in source:
+        # `xnano.ai` needs the `ai` extra, which needs Python 3.11 or newer.
+        if sys.version_info < (3, 11):
+            pytest.skip('xnano.ai needs Python 3.11 or newer')
+        pytest.importorskip('pydantic_ai')
+
     def screenless(*arguments: object, **keywords: object) -> Canvas:
+        # A live terminal runs `async def` hooks on its own loop. A canvas without a screen
+        # runs them only with a clock that moves by itself.
+        if 'async def' in source:
+            keywords.setdefault('realtime', True)
         return xnano.new(*arguments, **keywords)  # type: ignore[arg-type]
 
     def stay_on_the_canvas(self: Canvas, **settings: object) -> Canvas:
