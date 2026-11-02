@@ -426,8 +426,15 @@ def test_a_built_in_renderable_shows_the_text_that_rich_print_shows(name: str):
     console_module = pytest.importorskip('rich.console')
     renderable = _built_in_renderable(name)
     output = io.StringIO()
+    # The adapter draws without the legacy Windows console mode, which on Windows would
+    # use square box corners and one column less. The reference does the same.
     console = console_module.Console(
-        file=output, width=30, height=12, force_terminal=True, color_system=None
+        file=output,
+        width=30,
+        height=12,
+        force_terminal=True,
+        color_system=None,
+        legacy_windows=False,
     )
     console.print(renderable)
     expected = '\n'.join(line.rstrip() for line in output.getvalue().splitlines())
