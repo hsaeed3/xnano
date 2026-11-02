@@ -7,7 +7,7 @@ A buffer placed on a canvas, with a position and size that are expressions.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import xnano_core as _core
 from xnano_core import EvaluationContext
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from xnano._schema._effects import WritableEffectSpecification
     from xnano.canvas import Canvas
     from xnano.components import _ComponentDriver
+    from xnano.devices._screen import Screen
 
 from xnano._internal._attributes import refuse_unknown_keywords
 from xnano._internal._axes import (
@@ -97,6 +98,8 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         y: The row of the top edge, relative to the parent.
         width: The width in cells.
         height: The height in cells.
+        right_edge: The first column after the placement, ``x + width``, relative to the parent.
+        bottom_edge: The first row below the placement, ``y + height``, relative to the parent.
         layer: Placements with a higher layer are drawn over those with a lower one.
         is_visible: Whether the buffer is drawn.
         text: The text shown, line by line.
@@ -670,6 +673,51 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         self._set_axis('height', value)
 
     @property
+    def right_edge(self) -> int:
+        """
+        The first column after the placement: ``x + width``, in cells, relative to the parent.
+
+        Like ``x`` and ``width``, it is a number of cells at the moment you read it. If ``x``
+        or ``width`` is an expression, it uses the value that the canvas calculated last.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=2) as canvas:
+                label = canvas.screen.write('name', x=2, y=0)
+                arrow = canvas.screen.write('→', x=label.right_edge + 1, y=label.y)
+                assert (label.right_edge, arrow.x) == (6, 7)
+                assert canvas.screen.render().splitlines()[0] == '  name →'
+            ```
+        """
+        self._flush_look()
+        buffer = self._buffer
+        return buffer.x + buffer.width
+
+    @property
+    def bottom_edge(self) -> int:
+        """
+        The first row below the placement: ``y + height``, in cells, relative to the parent.
+
+        Like ``y`` and ``height``, it is a number of cells at the moment you read it. If ``y``
+        or ``height`` is an expression, it uses the value that the canvas calculated last.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=6) as canvas:
+                card = canvas.screen.write('card', x=0, y=1, border='plain')
+                caption = canvas.screen.write('below', x=0, y=card.bottom_edge)
+                assert (card.bottom_edge, caption.y) == (4, 4)
+            ```
+        """
+        self._flush_look()
+        buffer = self._buffer
+        return buffer.y + buffer.height
+
+    @property
     def layer(self) -> int:
         """Placements with a higher layer are drawn over those with a lower one."""
         return self._buffer.layer
@@ -952,6 +1000,85 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         """
         buffer, inset = self._region_buffer()
         return Region(buffer, owner=cast('Placement[object, object]', self), inset=inset)
+
+    def __contains__(self, item: object) -> bool:
+        """
+        Whether a screen cell or a whole area is inside the cells that the placement takes.
+
+        These cells include the border, the padding and the margin of the placement. Its
+        mouse hooks hear the mouse in the same cells. The region of the placement is only the
+        area inside the border, padding and margin. For a placement with a border, padding or
+        margin, ``item in placement`` and ``item in placement.region`` can give different
+        answers. See [`Region`][xnano.layout.Region] for the comparison of areas.
+
+        Args:
+            item: A screen cell as a ``(x, y)`` pair of numbers or a
+                [`Point`][xnano_core.Point], such as ``context.mouse.position``. It can also be
+                an area: a [`Region`][xnano.layout.Region], a placement or a
+                [`Screen`][xnano.devices.Screen]. A placement counts as all the cells that it
+                takes. Other values are not inside.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=4) as canvas:
+                button = canvas.screen.write('ok', x=2, y=1, border='rounded')
+                assert (2, 1) in button and (6, 1) not in button
+                assert (2, 1) not in button.region
+                assert button.region in button
+            ```
+        """
+        return item in self._screen_area()
+
+    def overlaps(
+        self,
+        other: _core.Point
+        | tuple[float, float]
+        | Region
+        | Placement[Any, Any]
+        | Screen[Any, Any],
+    ) -> bool:
+        """
+        Whether the cells that the placement takes and another area share at least one cell.
+
+        These cells include the border, the padding and the margin of the placement, as with
+        ``in``. For a placement with a border, padding or margin,
+        ``placement.overlaps(other)`` and ``placement.region.overlaps(other)`` can give
+        different answers. See [`Region.overlaps`][xnano.layout.Region.overlaps].
+
+        Args:
+            other: An area: a [`Region`][xnano.layout.Region], a placement or a
+                [`Screen`][xnano.devices.Screen]. A placement counts as all the cells that it
+                takes. A screen cell as a ``(x, y)`` pair of numbers or a
+                [`Point`][xnano_core.Point] overlaps when it is inside.
+
+        Returns:
+            ``True`` when the two share a cell, or when the cell is inside the placement.
+
+        Raises:
+            TypeError: ``other`` is not an area or a screen cell.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=20, height=6) as canvas:
+                basket = canvas.screen.write('[___]', x=5, y=5)
+                apple = canvas.screen.write('o', x=7, y=4)
+                assert not basket.overlaps(apple)
+                apple.down()
+                assert basket.overlaps(apple) and apple.overlaps(basket)
+                card = canvas.screen.write('card', x=12, y=0, border='plain')
+                assert card.overlaps((12, 0)) and not card.region.overlaps((12, 0))
+            ```
+        """
+        return self._screen_area().overlaps(other)
+
+    def _screen_area(self) -> Region[int]:
+        """The cells the placement takes on the screen, with its border, padding and margin."""
+        self._flush_look()
+        return Region(self._buffer, owner=cast('Placement[object, object]', self))
 
     def _region_buffer(self) -> tuple[_core.Buffer, tuple[int, int, int, int]]:
         """The buffer that ``region`` addresses, drawn up to date, and the cells left out of it."""
