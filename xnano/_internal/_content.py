@@ -128,7 +128,7 @@ def _content_buffer(
     """Do the work of [`content_buffer`][xnano._internal._content.content_buffer], tracking the chain."""
     if isinstance(content, _core.Buffer):
         return content, None
-    if isinstance(content, str):
+    if isinstance(content, (str, _core.StyledText)):
         return _core.Buffer.with_text(content), None
     if isinstance(content, (bytes, bytearray)):
         raise TypeError(
@@ -216,9 +216,9 @@ def _content_buffer(
     else:
         missing = ' It has no __xnano_write__ method.'
     raise _NotWritable(
-        f'Cannot show a {type(content).__name__}.{missing} Use a string, a Region, an Art, '
-        f'a Pixel, an xnano.Image (made with xnano.load_image(path)), a Buffer or widget, '
-        f'an object with an __xnano_write__ method, or a sequence of those.',
+        f'Cannot show a {type(content).__name__}.{missing} Use a string, a StyledText, a '
+        f'Region, an Art, a Pixel, an xnano.Image (made with xnano.load_image(path)), a '
+        f'Buffer or widget, an object with an __xnano_write__ method, or a sequence of those.',
         content,
     )
 

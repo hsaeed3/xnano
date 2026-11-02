@@ -16,6 +16,7 @@ from xnano.effects import effect
 from xnano.hooks import hook
 from xnano.hooks._context import Context
 from xnano.layout._region import box, region
+from xnano.styles._rich import from_rich
 from xnano.terminal import Terminal, iter, iter_async, open, open_async
 from xnano_core import Color
 
@@ -31,6 +32,7 @@ __all__ = [
     'active',
     'box',
     'effect',
+    'from_rich',
     'hook',
     'iter',
     'iter_async',

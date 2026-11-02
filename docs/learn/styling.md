@@ -188,9 +188,9 @@ underlined.
 To give different styles to parts of one line, use a
 [`StyledText`][xnano.styles.StyledText]. A `StyledText` is a list of
 [`TextSpan`][xnano.styles.TextSpan] items, and each span has its own text and
-style. A span without a style keeps the default style. `write()` does not accept
-a `StyledText` directly, so write it in a
-[`Paragraph`][xnano.widgets.Paragraph] widget.
+style. A span without a style keeps the default style. `write()` accepts a
+`StyledText` in the same way as a string. This example writes it in a
+[`Paragraph`][xnano.widgets.Paragraph] widget, which also wraps long lines.
 
 <!-- @code-block name="learn-styling-spans" type="image" height=3 -->
 ```python
@@ -216,6 +216,91 @@ with xnano.new(width=40, height=2) as canvas:
 ![learn-styling-spans](../assets/examples/learn-styling-spans-dark.png#only-dark)
 
 <!-- /@code-block-asset -->
+
+## Text from other programs
+
+Many programs print colored text with ANSI escape sequences, for example `git`,
+`pytest` and logging libraries. To show such text with its colors, read it with
+`StyledText.from_ansi()`, then write the result.
+
+<!-- @code-block name="learn-styling-ansi" type="image" height=4 -->
+```python
+import xnano
+from xnano.styles import StyledText
+
+output = '\x1b[32m✓\x1b[0m build \x1b[2m(2.1s)\x1b[0m\n\x1b[1;31m✗\x1b[0m tests: 2 failed'
+
+with xnano.new(width=40, height=3) as canvas:
+    canvas.screen.write(StyledText.from_ansi(output))
+    print(canvas.screen.render(format='ansi'))
+```
+
+<!-- @code-block-asset name="learn-styling-ansi" -->
+
+![learn-styling-ansi](../assets/examples/learn-styling-ansi-light.png#only-light)
+![learn-styling-ansi](../assets/examples/learn-styling-ansi-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
+`from_ansi()` keeps the colors, the text modifiers, the line breaks, the tabs
+and the carriage returns. It removes all other escape sequences, for example
+the sequences that move the cursor. `write()` does not read escape sequences in
+a plain string, so use `from_ansi()` for text that has them.
+
+[Rich](https://rich.readthedocs.io/) draws tables, panels, syntax highlighting
+and Markdown. To write something that rich draws, give it to
+[`xnano.from_rich()`][xnano.from_rich]. Rich lays it out at the width of its
+placement and draws it again when that width changes. Install rich to use it,
+with `pip install rich`.
+
+<!-- @code-block name="learn-styling-rich" type="image" height=8 -->
+```python
+import xnano
+from rich.table import Table
+
+table = Table('service', 'status', 'p95')
+table.add_row('web', '[green]● up[/green]', '41 ms')
+table.add_row('db', '[red]▲ slow[/red]', '380 ms')
+
+with xnano.new(width=40, height=7) as canvas:
+    canvas.screen.write(xnano.from_rich(table), width='100%')
+    print(canvas.screen.render(format='ansi'))
+```
+
+<!-- @code-block-asset name="learn-styling-rich" -->
+
+![learn-styling-rich](../assets/examples/learn-styling-rich-light.png#only-light)
+![learn-styling-rich](../assets/examples/learn-styling-rich-dark.png#only-dark)
+
+<!-- /@code-block-asset -->
+
+If you change a renderable after you write it, call `refresh()` on its
+placement to draw it again. For example, do this after you add a row to a table.
+
+To show data that changes by itself, make the renderable in a
+[`writable`][xnano.writable] component. xnano runs the component again when a
+value that it reads changes, for example the clock:
+
+```python
+import xnano
+from rich.table import Table
+
+
+@xnano.writable
+def uptime(context: xnano.Context) -> xnano.styles.RichContent:
+    table = Table('uptime')
+    table.add_row(f'{context.clock.elapsed_seconds:.0f} s')
+    return xnano.from_rich(table)
+
+
+with xnano.open(height=6) as terminal:
+    terminal.screen.write(uptime)
+    terminal.run(stop_on='q')
+```
+
+A placement of rich content is the same as other placements. It takes a
+position, a size, a border, a layer and effects. Its `foreground` and
+`background` apply over the colors of rich, as they do over styled text.
 
 ## Borders
 

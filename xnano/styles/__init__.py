@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from xnano.styles._core_styles import TextContent as TextContent
     from xnano.styles._core_styles import TextLine as TextLine
     from xnano.styles._core_styles import TextSpan as TextSpan
+    from xnano.styles._rich import RichContent as RichContent
     from xnano_core import BorderKind as BorderKind
 
 _MODULES: Final[dict[str, str]] = {
@@ -55,6 +56,7 @@ _MODULES: Final[dict[str, str]] = {
     'Edges': 'xnano.styles._appearance',
     'MarginAppearance': 'xnano.styles._appearance',
     'PaddingAppearance': 'xnano.styles._appearance',
+    'RichContent': 'xnano.styles._rich',
     'Spacing': 'xnano._schema._appearance',
     'SpacingDictionary': 'xnano._schema._appearance',
     'Style': 'xnano.styles._core_styles',
@@ -79,6 +81,7 @@ __all__ = [
     'Edges',
     'MarginAppearance',
     'PaddingAppearance',
+    'RichContent',
     'Spacing',
     'SpacingDictionary',
     'Style',

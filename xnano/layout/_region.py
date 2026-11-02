@@ -1730,7 +1730,8 @@ def _check_content(content: object) -> None:
     if (
         content is None
         or isinstance(
-            content, (str, list, tuple, Region, Pixel, Art, Image, _core.Buffer)
+            content,
+            (str, _core.StyledText, list, tuple, Region, Pixel, Art, Image, _core.Buffer),
         )
         or (
             not isinstance(content, type)
@@ -1742,8 +1743,8 @@ def _check_content(content: object) -> None:
     ):
         return
     raise TypeError(
-        f'xnano.region() takes text, a widget or buffer, a region, an image, art, a pixel, '
-        f'a writable or a renderable, but got {content!r}. To put other content on a screen, create a '
+        f'xnano.region() takes text, styled text, a widget or buffer, a region, an image, art, '
+        f'a pixel, a writable or a renderable, but got {content!r}. To put other content on a screen, create a '
         f'canvas with xnano.new() and call canvas.screen.write(content), or load a file with '
         f'xnano.load_image(path) first.'
     )
