@@ -5,18 +5,20 @@ icon: lucide/chart-column
 
 # Widgets
 
-Widgets draw the things text alone can't: gauges, charts, tables, lists and
-tabs. They come from [ratatui](https://ratatui.rs/concepts/widgets/), the Rust
-library xnano draws with, and live in [`xnano.widgets`][xnano.widgets].
+A widget is ready-made content, such as a gauge, a chart, a table or a list.
+You write a widget on the screen in the same way as text. A widget takes a
+position, a size, a border and a title, as text does.
 
-A widget is a description of something to draw. You write it like any other
-content, so it takes a position, a size, a border and a title the same way text
-does.
+The widgets are in [`xnano.widgets`][xnano.widgets]. xnano draws them with
+[ratatui](https://ratatui.rs/concepts/widgets/), a Rust library for terminal
+programs. Each section of this guide links to the ratatui widgets that draw the
+xnano widgets. The ratatui pages show more examples and all the options.
 
 ## Gauges
 
-A `Gauge` fills a bar to a ratio between `0` and `1`, with a label on it. A
-`LineGauge` does the same on a single line.
+A `Gauge` fills a bar to a ratio from `0` to `1` and shows a label on the bar.
+A `LineGauge` shows the same ratio on one line. xnano draws them with the
+ratatui widgets [`Gauge`][ratatui-gauge] and [`LineGauge`][ratatui-linegauge].
 
 <!-- @code-block name="learn-widgets-gauges" type="image" height=5 -->
 ```python
@@ -43,8 +45,11 @@ with xnano.new(width=48, height=4) as canvas:
 
 ## Sparklines and bar charts
 
-A `Sparkline` draws a row of values as bars one cell wide, the shape of a series
-at a glance. A `BarChart` draws labelled bars.
+A `Sparkline` shows a series of values as bars that are one cell wide. It shows
+the shape of the series in a small area. A `BarChart` shows bars with labels,
+and each `Bar` has a value and a label. xnano draws them with the ratatui
+widgets [`Sparkline`][ratatui-sparkline], [`BarChart`][ratatui-barchart] and
+[`Bar`][ratatui-bar].
 
 <!-- @code-block name="learn-widgets-charts" type="image" height=12 -->
 ```python
@@ -86,8 +91,10 @@ with xnano.new(width=48, height=11) as canvas:
 
 ## Tables
 
-A `Table` takes its rows as lists. A `TableRow` styles a whole row, such as the
-header, and a `TableCell` styles one cell.
+A `Table` takes its rows as lists of cells. To style a full row, for example
+the header, use a `TableRow`. To style one cell, use a `TableCell`. xnano draws
+them with the ratatui widgets [`Table`][ratatui-table], [`Row`][ratatui-row] and
+[`Cell`][ratatui-cell].
 
 <!-- @code-block name="learn-widgets-table" type="image" height=7 -->
 ```python
@@ -121,9 +128,10 @@ with xnano.new(width=48, height=6) as canvas:
 
 ## Lists and tabs
 
-An `ItemList` shows a list with one item selected, marked by its
-`highlight_symbol` and `highlight_style`. `Tabs` shows a row of titles with one
-selected.
+An `ItemList` shows a list of items. `selected` sets the selected item, and
+`highlight_symbol` and `highlight_style` mark it. `Tabs` shows a row of titles,
+and `selected` sets the selected title. xnano draws them with the ratatui
+widgets [`List`][ratatui-list] and [`Tabs`][ratatui-tabs].
 
 <!-- @code-block name="learn-widgets-lists" type="image" height=7 -->
 ```python
@@ -162,9 +170,10 @@ with xnano.new(width=48, height=6) as canvas:
 
 ## Widgets that follow the clock
 
-Every number and text in a widget can be an
-[expression](time.md#values-that-follow-the-clock), which xnano works out again
-on every frame. This gauge fills over ten seconds, with no hook:
+Each number and text in a widget can be an
+[expression](time.md#values-that-follow-the-clock). xnano calculates an
+expression again on each frame. This gauge fills in ten seconds, and it needs no
+hook:
 
 <!-- @code-block name="learn-widgets-expression" type="gif" height=3
 wait 4.0
@@ -188,7 +197,31 @@ with xnano.open(height=2) as terminal:
 
 ## More widgets
 
-`xnano.widgets` also has a `Chart` for line and scatter plots, a `Calendar`, a
-`Scrollbar`, `Paragraph` for wrapped text, and `Figure` for drawing lines,
-circles, rectangles and maps. The [`xnano.widgets`][xnano.widgets] reference
-covers each one, and its link to the ratatui widget it draws with.
+`xnano.widgets` has more widgets:
+
+| Widget | What it shows | ratatui widget |
+| --- | --- | --- |
+| `Chart` | Line and scatter plots of datasets on two axes | [`Chart`][ratatui-chart] |
+| `Calendar` | A month, with styles for the dates that you select | [`Monthly`][ratatui-monthly] |
+| `Scrollbar` | The position in content that is longer than its area | [`Scrollbar`][ratatui-scrollbar] |
+| `Paragraph` | Text that wraps, aligns and scrolls | [`Paragraph`][ratatui-paragraph] |
+| `Figure` | Lines, circles, rectangles, points and maps on a plane with coordinates | [`Canvas`][ratatui-canvas] |
+
+The [`xnano.widgets`][xnano.widgets] reference gives the arguments of each
+widget.
+
+[ratatui-gauge]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Gauge.html
+[ratatui-linegauge]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.LineGauge.html
+[ratatui-sparkline]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Sparkline.html
+[ratatui-barchart]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.BarChart.html
+[ratatui-bar]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Bar.html
+[ratatui-table]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Table.html
+[ratatui-row]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Row.html
+[ratatui-cell]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Cell.html
+[ratatui-list]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.List.html
+[ratatui-tabs]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Tabs.html
+[ratatui-chart]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Chart.html
+[ratatui-monthly]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/calendar/struct.Monthly.html
+[ratatui-scrollbar]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Scrollbar.html
+[ratatui-paragraph]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/struct.Paragraph.html
+[ratatui-canvas]: https://docs.rs/ratatui/0.30.0/ratatui/widgets/canvas/struct.Canvas.html

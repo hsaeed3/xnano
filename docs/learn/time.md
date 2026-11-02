@@ -5,16 +5,17 @@ icon: lucide/timer
 
 # Time & Effects
 
-Every canvas has a **clock**. It counts the time since the canvas started, sets
-how many frames are drawn each second, and can stand still. Anything that
-changes over time follows it: timers, values worked out on every frame, and
-animated effects.
+Every canvas has a **clock**. The clock counts the time since the canvas
+started, and it sets how many frames the canvas draws each second. You can also
+pause it. Timers, values that change on each frame, and effects all follow the
+clock.
 
 ## The clock
 
-`terminal.clock.elapsed_seconds` is the time since the canvas started, not
-counting time spent paused. A live canvas draws up to 60 frames each second;
-give `fps=` to `xnano.open()` for a different rate.
+`terminal.clock.elapsed_seconds` is the time in seconds since the canvas
+started. It does not include the time while the clock was paused. A canvas on
+the screen draws at most 60 frames each second. To change this limit, give
+`fps=` to `xnano.open()`.
 
 ```python
 import xnano
@@ -29,13 +30,15 @@ with xnano.open(height=2, fps=30) as terminal:
     terminal.run(stop_on='q')
 ```
 
-`on='frame'` runs a hook once before every frame is drawn. That's the place for
-work that must happen continuously; for anything slower, use a timer.
+`on='frame'` runs a hook one time before each frame. Use it only for work that
+must change on every frame. For work that runs less often, use a timer.
 
 ## Timers
 
-`on='tick'` runs a hook on a timer: `every=` repeats it every so many seconds,
-and `after=` runs it once.
+`on='tick'` runs a hook on a timer. Give it one of these two arguments:
+
+- `every=` runs the hook repeatedly, with that many seconds between two runs.
+- `after=` runs the hook one time, that many seconds after you attach it.
 
 <!-- @code-block name="learn-time-timers" type="gif" height=3
 wait 4.5
@@ -68,15 +71,17 @@ with xnano.open(height=3) as terminal:
 
 <!-- /@code-block-asset -->
 
-Timers follow the clock, so they stand still while it's paused. `clock.pause()`
-freezes time, and `clock.resume()` lets it run on. The [focus
-timer](first-program.md#pause-with-a-key) uses both.
+Timers follow the clock, so they stop while the clock is paused.
+`clock.pause()` stops the clock, and `clock.resume()` starts it again from the
+same time. While the clock is paused, the canvas still draws and receives keys,
+so a key hook can resume the clock. The
+[focus timer](first-program.md#pause-with-a-key) uses both methods.
 
 ## Values that follow the clock
 
-Arithmetic on the clock gives an **expression**: a value that xnano works out
-again on every frame. Assign one to a position, a size, or a number in a widget,
-and it changes by itself, with no hook at all.
+Arithmetic on the clock gives an **expression**. An expression is a value that
+xnano calculates again on every frame. Assign an expression to a position, a
+size or a number in a widget. The value then changes by itself, without a hook.
 
 <!-- @code-block name="learn-time-expressions" type="gif" height=3
 wait 4.0
@@ -94,9 +99,10 @@ with xnano.open(height=3) as terminal:
 
 <comments>
 <tag name="expression" color="amber">
-Twelve cells a second, wrapping around at the right edge. `terminal.clock` reads
-as the elapsed seconds, and `ParentWidth` is the width of the screen the ball is
-on, so the wrap follows the window when it's resized.
+The ball moves 12 cells each second. At the right edge, it starts again at the
+left edge. In arithmetic, `terminal.clock` is the elapsed seconds. `ParentWidth`
+is the width of the screen that holds the ball, and it follows the window when
+the user changes the window size.
 </tag>
 </comments>
 
@@ -107,16 +113,21 @@ on, so the wrap follows the window when it's resized.
 
 <!-- /@code-block-asset -->
 
-A canvas with an expression on it draws every frame, because time keeps moving.
-A layout that only needs to follow the size of the window should use percentages
-and words instead, which cost nothing while the window stays the same size.
+A canvas with an expression on it draws every frame, because the time always
+changes. A layout that only follows the size of the window does not need an
+expression. For that layout, use percentages such as `width='50%'` and words
+such as `x='center'`. xnano calculates these values again only when the window
+changes size. The [`xnano.expressions`][xnano.expressions] reference lists all
+of the expressions.
 
 ## Effects
 
-An **effect** animates how something looks: it fades, dissolves, sweeps, slides
-or shifts its colors. Each placement has an `fx` with one method for each
-effect, and calling one starts it. `duration_milliseconds` sets how long it
-takes.
+An **effect** is a short animation of how content looks. For example, an effect
+fades, dissolves, sweeps or slides the content, or it shifts the colors.
+
+Each placement has an `fx` property, with one method for each effect. Call a
+method to start its effect. `duration_milliseconds` sets the length of the
+effect. Without it, most effects take 500 milliseconds.
 
 <!-- @code-block name="learn-time-effects" type="gif" height=6
 wait 1.2
@@ -157,7 +168,7 @@ with xnano.open(height=6) as terminal:
 
 <comments>
 <tag name="start" color="pink">
-Fades the card in from black as the program starts.
+Fades the card in from black when the program starts.
 </tag>
 </comments>
 
@@ -168,14 +179,28 @@ Fades the card in from black as the program starts.
 
 <!-- /@code-block-asset -->
 
-The effects include `fade_to` and `fade_from`, `dissolve` and `coalesce`,
-`sweep_in` and `sweep_out`, `slide_in` and `slide_out`, `hsl_shift`, `paint`,
-`lighten`, `darken` and `glitch`. They come from
-[tachyonfx](https://github.com/ratatui/tachyonfx), and the
-[`xnano.effects`][xnano.effects] reference lists each one with its settings.
+An effect method returns the running effect. To stop the effect early, call
+`cancel()` on it. The canvas also has an `fx` property, for an effect on all of
+the canvas.
 
-Keep effects purposeful. An effect that confirms a change, or draws the eye to
-one, helps; an effect that stands between the user and what they asked for gets
-in the way. An effect that answers a key press feels best short, between 150 and
-300 milliseconds. The longer ones above suit an entrance, or a showcase like
-this one.
+This table gives some of the effects:
+
+| Effects | What they do |
+| --- | --- |
+| `fade_from`, `fade_to` | Fade the colors in from a color, or out to a color. |
+| `dissolve`, `coalesce` | Take the content apart cell by cell, or put it together cell by cell. |
+| `sweep_in`, `sweep_out` | Show or hide the content behind a band of color that moves across it. |
+| `slide_in`, `slide_out` | Move the content in or out, in a direction. |
+| `hsl_shift`, `lighten`, `darken`, `saturate` | Change the hue, the lightness or the saturation of the colors. |
+| `paint` | Paint a foreground color and a background color over the content. |
+| `glitch` | Show a short glitch on some of the cells. |
+
+The effects come from [tachyonfx](https://github.com/ratatui/tachyonfx), a Rust
+library of terminal effects. The [`xnano.effects`][xnano.effects] reference
+lists every effect and its settings.
+
+Use an effect only when it has a purpose. A good effect confirms a change, or
+shows the user where the change is. A bad effect makes the user wait for the
+result. Keep an effect that answers a key press between 150 and 300
+milliseconds. Longer effects are good for an entrance, or for a demonstration
+like the example above.
