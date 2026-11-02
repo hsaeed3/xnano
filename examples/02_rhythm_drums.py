@@ -20,9 +20,9 @@ MAP = [  # when each note reaches the frame, a letter being an eighth note (0.25
 ]
 WINDOW = 0.25  # a key press this many seconds from a note's time hits it
 JUDGEMENTS = [  # how far a hit is from its note, the word, its color and the points
-    (0.08, 'tight', 'green', 300),
-    (0.16, 'close', 'yellow', 150),
-    (WINDOW, 'loose', 'reset', 50),
+    (0.08, 'great', 'green', 300),
+    (0.16, 'good', 'yellow', 150),
+    (WINDOW, 'fair', 'reset', 50),
     (float('inf'), 'miss', 'red', 0),  # the note slipped past
 ]
 FRAME_X, RAIL_Y, SPEED = 2, 9, 40  # the frame's corner, and how many cells a second

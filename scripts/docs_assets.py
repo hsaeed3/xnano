@@ -46,6 +46,7 @@ from readme_assets import (  # noqa: E402
     apply_theme,
     font_notice,
     font_overrides,
+    mouse_report,
     run_action,
 )
 
@@ -98,6 +99,14 @@ class WaitUntil:
     seconds: float
 
 
+@dataclass(frozen=True)
+class Hover:
+    """Move the mouse pointer to a cell with no button held."""
+
+    column: int
+    row: int
+
+
 DELIVERY_SECONDS = 0.08
 """About how long a key press or a click takes to reach the program once it is sent."""
 
@@ -123,7 +132,9 @@ class Recording:
     """One example program and the actions that play it while it is recorded."""
 
     name: str
-    actions: tuple[Wait | WaitUntil | Press | Type | Click | KeyDown | KeyUp, ...]
+    actions: tuple[
+        Wait | WaitUntil | Press | Type | Click | Hover | KeyDown | KeyUp, ...
+    ]
     loop_seconds: float
     """How long the gif lasts: the last frame is followed by the first one."""
     source: pathlib.Path | None = None
@@ -161,8 +172,8 @@ def presses(*steps: tuple[str, float]) -> tuple[Press | Wait, ...]:
 
 
 def on_beats(
-    *beats: tuple[float, Press | Click],
-) -> tuple[WaitUntil | Press | Click, ...]:
+    *beats: tuple[float, Press | Click | Hover],
+) -> tuple[WaitUntil | Press | Click | Hover, ...]:
     """
     Send each action so that it reaches the program when its clock reads the action's time.
 
@@ -174,6 +185,31 @@ def on_beats(
         step
         for seconds, action in beats
         for step in (WaitUntil(seconds - DELIVERY_SECONDS), action)
+    )
+
+
+def glide(
+    start: tuple[int, int],
+    end: tuple[int, int],
+    start_seconds: float,
+    end_seconds: float,
+) -> tuple[tuple[float, Hover], ...]:
+    """
+    Move the pointer in a straight line from ``start`` to ``end`` between two times.
+
+    The moves are at least 0.1 seconds apart, the time Kitty takes to send one while the
+    window is photographed, so they never hold up the action that follows them.
+    """
+    steps = max(1, int((end_seconds - start_seconds) / 0.1))
+    return tuple(
+        (
+            start_seconds + (end_seconds - start_seconds) * step / steps,
+            Hover(
+                round(start[0] + (end[0] - start[0]) * step / steps),
+                round(start[1] + (end[1] - start[1]) * step / steps),
+            ),
+        )
+        for step in range(1, steps + 1)
     )
 
 
@@ -301,16 +337,35 @@ CIRCLES_SHAPES = (
 )
 """The middles of the rings of ``examples/01_rhythm_circles.py``, four to a group."""
 
+CIRCLES_RINGS = [  # one ring each 0.6 seconds from 1.6 seconds, a rest after each group
+    (1.6 + group * 3.0 + number * 0.6, cell)
+    for group, shape in enumerate(CIRCLES_SHAPES)
+    for number, cell in enumerate(shape)
+]
+"""The time and the middle of each ring that the recording clicks."""
+
+
+def circles_play() -> tuple[tuple[float, Click | Hover], ...]:
+    """
+    Click each ring on its beat, and glide the pointer to the next ring between the beats.
+
+    The pointer starts on the last ring, where it ends, so the gif loops without a jump.
+    """
+    cell, glide_from = CIRCLES_RINGS[-1][1], 0.6
+    beats: list[tuple[float, Click | Hover]] = [(0.2, Hover(*cell))]
+    for seconds, next_cell in CIRCLES_RINGS:
+        beats += glide(cell, next_cell, glide_from, seconds - 0.12)
+        beats.append((seconds, Click(*next_cell)))
+        cell, glide_from = (
+            next_cell,
+            seconds + 0.22,
+        )  # a click takes 0.2 seconds to send
+    return tuple(beats)
+
+
 RHYTHM_CIRCLES = Recording(
     "rhythm-circles",
-    actions=on_beats(
-        # one ring each 0.6 seconds from 1.6 seconds, and a rest after each group of four
-        *(
-            (1.6 + group * 3.0 + number * 0.6, Click(column, row))
-            for group, shape in enumerate(CIRCLES_SHAPES)
-            for number, (column, row) in enumerate(shape)
-        )
-    ),
+    actions=on_beats(*circles_play()),
     loop_seconds=9.2,
     source=PROGRAMS / "01_rhythm_circles.py",
 )
@@ -389,7 +444,7 @@ RECORDINGS = {
 
 def run_recording_action(
     window: ActualTerminal,
-    action: Wait | WaitUntil | Press | Type | Click | KeyDown | KeyUp,
+    action: Wait | WaitUntil | Press | Type | Click | Hover | KeyDown | KeyUp,
     *,
     first_frame: float,
 ) -> None:
@@ -402,6 +457,10 @@ def run_recording_action(
         time.sleep(max(0.0, first_frame + action.seconds - time.monotonic()))
     elif isinstance(action, (KeyDown, KeyUp)):
         report = held_key_report(action.key, is_release=isinstance(action, KeyUp))
+        window.command("send-text", data="text:" + report)
+    elif isinstance(action, Hover):
+        # 35 is a motion report (32) with no button held (3)
+        report = mouse_report(35, action.column, action.row)
         window.command("send-text", data="text:" + report)
     else:
         run_action(window, action)

@@ -1,8 +1,9 @@
 """
 Circles: click each numbered ring on its beat, as a dotted timing ring closes in on it.
 
-The thick ring is the next to click. A click near the beat scores and plays the ring's
-note, and a ring left unclicked is a miss that breaks the combo.
+The thick ring is the next to click, and the ring cursor follows the mouse. A click near
+the beat scores and plays the ring's note, and a ring left unclicked is a miss that breaks
+the combo.
 """
 
 import math
@@ -25,8 +26,12 @@ MAP = [  # the beat of each ring in seconds and its middle: four on the beat, th
 RADIUS, TIMING_RADIUS, TIMING_SECONDS = 6, 10, 0.8  # in pixels, two to a cell's height
 HIT_SECONDS, TIME_LIMIT = 0.26, 30  # a ring this many seconds past its beat is missed
 # how far from its beat a click may be, in seconds, for each word, its color and points
-JUDGEMENTS = [(0.1, 'clean', 'green', 300), (0.18, 'near', 'yellow', 150)]
-JUDGEMENTS += [(HIT_SECONDS, 'off', 'reset', 50)]
+JUDGEMENTS = [(0.1, 'great', 'green', 300), (0.18, 'good', 'yellow', 150)]
+JUDGEMENTS += [(HIT_SECONDS, 'fair', 'reset', 50)]
+CURSOR = xnano.pixel_art(  # a white ring with a pink rim, so it shows on any background
+    '..PPP.. .PWWWP. PW...WP PW...WP .PWWWP. ..PPP..'.split(),
+    {'P': '#e8768a', 'W': 'white'},
+)
 score, combo, judged_at = 0, 0, -1.0
 rings = {}  # the rings on screen, by their place in the map
 upcoming = list(range(len(MAP)))  # the rings not shown yet
@@ -83,8 +88,9 @@ hint = 'click the rings on the beat · q quit'
 game.screen.write(hint, x='center', y='bottom', dim=True)
 word = game.screen.write('', bold=True, layer=1)
 
-with xnano.open(mouse=True, title='circles') as terminal:
+with xnano.open(mouse='motion', title='circles') as terminal:
     terminal.screen.write(game, x='center', y='center')
+    cursor = terminal.screen.write(CURSOR, layer=2)  # over the game and its rings
 
     @terminal.hook(on='frame')
     def play(context: xnano.Context) -> None:
@@ -95,6 +101,10 @@ with xnano.open(mouse=True, title='circles') as terminal:
         for index in [index for index in rings if now - MAP[index][0] > HIT_SECONDS]:
             judge(index, 'miss', 'red', 0, now)
         word.is_visible = now - judged_at < 0.4
+        pointer = context.mouse.pointer  # None until the mouse moves over the window
+        cursor.is_visible = pointer is not None
+        if pointer is not None:  # the ring's middle cell is on the pointer
+            cursor.x, cursor.y = pointer[0] - 3, pointer[1] - 1
         seconds_left = max(0, TIME_LIMIT - int(now))
         status.text = f'score {score:>5}   combo {combo:>3}   {seconds_left:>2} s left'
         if now >= TIME_LIMIT:  # time is up: the result stays until q

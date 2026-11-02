@@ -1,7 +1,7 @@
 """
 Lanes: notes fall down four lanes, and each is hit with its lane's key at the line.
 
-``d f j k`` play the lanes. A press near a note scores sharp, good or fair, and a note
+``d f j k`` play the lanes. A press near a note scores great, good or fair, and a note
 that passes the line is a miss. After 30 seconds the result stays until ``q`` quits.
 """
 
@@ -19,7 +19,7 @@ MAP = [  # each note's time and lane: the pattern twice, about 28 seconds
     if key != '.'
 ]
 JUDGEMENTS = (  # the seconds a press may be from its note, its word, color and points
-    (0.08, 'sharp', 'green', 300),
+    (0.08, 'great', 'green', 300),
     (0.16, 'good', 'yellow', 150),
     (0.25, 'fair', 'reset', 50),
 )

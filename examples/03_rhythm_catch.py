@@ -45,12 +45,12 @@ def judge(context: xnano.Context) -> None:
         caught, combo = caught + 1, combo + 1
         score += 100 + 10 * combo
         falling[judged].remove()
-        word.text, word.color.fg = 'nice', 'green'
+        word.text, word.color.fg = 'great', 'green'
         if context.speaker.is_available:
             context.speaker.play(SCALE[column // 8], instrument='marimba', beats=0.5)
     else:
         combo = 0
-        word.text, word.color.fg = 'oops', 'red'
+        word.text, word.color.fg = 'miss', 'red'
     word.x = int(basket.x) + 5
     judged, judged_at = judged + 1, context.clock.elapsed_seconds
 
