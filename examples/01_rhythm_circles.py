@@ -55,12 +55,13 @@ def ring_art(context: xnano.Context, index: int) -> Art:
 
 
 def judge(index: int, text: str, color: str, points: int, now: float) -> None:
-    """Take the ring off the screen, add its points and show its word in its place."""
+    """Take the ring off the screen, add its points and show its word below the cursor."""
     global score, combo, judged_at
     rings.pop(index).remove()
     score, combo, judged_at = score + points, combo + 1 if points else 0, now
     _, column, row = MAP[index]
-    word.text, word.color.fg, word.x, word.y = text, color, column - len(text) // 2, row
+    word.text, word.color.fg = text, color
+    word.x, word.y = column - len(text) // 2, row + 2  # two rows below the ring's middle
 
 
 def show(index: int) -> None:
