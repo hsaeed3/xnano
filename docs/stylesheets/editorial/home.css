@@ -258,6 +258,102 @@
     color: var(--xn-ink);
 }
 
+/* The showcase: rhythm games made with xnano, one tab and one recording for each. The
+   recordings are drawn on the page's color, so the frame alone sets them apart. */
+.xn-showcase {
+    --xn-crop-color: var(--xn-rule-strong);
+    min-width: 0;
+    margin: 0;
+    border: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: var(--xn-page);
+}
+
+.xn-showcase__tabs {
+    display: flex;
+    border-bottom: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: var(--xn-sheet);
+}
+
+.xn-showcase__tab {
+    padding: var(--xn-space-12) var(--xn-space-16);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--xn-ink-3);
+    cursor: pointer;
+    font-family: var(--xn-font-mono);
+    font-size: var(--xn-size-label);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    transition:
+        color var(--xn-speed) var(--xn-ease),
+        border-color var(--xn-speed) var(--xn-ease);
+}
+
+.xn-showcase__tab:hover {
+    color: var(--xn-ink);
+}
+
+.xn-showcase__tab[aria-selected="true"] {
+    border-bottom-color: var(--xn-accent);
+    color: var(--xn-ink);
+}
+
+.xn-showcase__tab:focus-visible {
+    outline: var(--xn-rule) solid var(--xn-accent);
+    outline-offset: calc(-1 * var(--xn-space-4));
+}
+
+.xn-showcase__panel img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.md-typeset .xn-showcase__caption {
+    margin: 0;
+    padding: var(--xn-space-12) var(--xn-space-16);
+    border-top: var(--xn-rule) solid var(--xn-rule-subtle);
+    background: var(--xn-sheet);
+    color: var(--xn-ink-2);
+    font-size: 0.66rem;
+    line-height: 1.5;
+}
+
+.md-typeset .xn-showcase__caption a {
+    margin-left: var(--xn-space-4);
+    font-family: var(--xn-font-mono);
+    font-size: 0.6rem;
+}
+
+/* ── 02: in your browser ───────────────────────────────────────────────────────────── */
+.xn-playground {
+    margin-top: 5.2rem;
+}
+
+.xn-playground__body {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 3.2rem;
+    align-items: start;
+    margin-top: var(--xn-space-32);
+}
+
+.md-typeset .xn-playground__text p {
+    max-width: 23em;
+    margin: 0 0 var(--xn-space-16);
+    color: var(--xn-ink-2);
+    font-size: 0.75rem;
+    line-height: 1.6;
+}
+
+.md-typeset .xn-playground__text .xn-playground__lead {
+    color: var(--xn-ink);
+    font-family: var(--xn-font-mono);
+    font-size: 0.88rem;
+    line-height: 1.62;
+}
+
 /* The runnable example: a bar, the editor, a bar, then the output as a terminal screen.
    As a grid item it may shrink below its longest line, which then scrolls. */
 .xn-runnable {
@@ -575,6 +671,11 @@ xn-features {
 
     .xn-split__mark {
         display: none;
+    }
+
+    .xn-playground__body {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--xn-space-24);
     }
 
     .md-typeset ul.xn-index__list {

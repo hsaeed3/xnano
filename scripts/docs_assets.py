@@ -3,7 +3,8 @@ Record the animated examples of the documentation's homepage in real Kitty windo
 
 Run it from the repository root with
 ``uv run --no-sync python scripts/docs_assets.py [NAME ...]``, where each name is one of
-``RECORDINGS`` (all of them without names). Every program in ``scripts/docs_examples/`` runs
+``RECORDINGS`` (all of them without names). Every program in ``scripts/docs_examples/``, and
+each program of ``examples/`` that a recording names as its ``source``, runs
 as written in a Kitty window of ``COLUMNS`` by ``ROWS`` cells, while the actions of its
 recording press keys, and the window is photographed into a looping gif. Each program is
 recorded twice, once for each theme of the documentation site, in a window colored like the
@@ -49,6 +50,8 @@ from readme_assets import (  # noqa: E402
 )
 
 EXAMPLES = ROOT / "scripts" / "docs_examples"
+PROGRAMS = ROOT / "examples"
+"""The runnable example programs, some of which the homepage records as well."""
 OUTPUT = ROOT / "docs" / "assets" / "home"
 
 COLUMNS = 80
@@ -112,11 +115,13 @@ class Recording:
     actions: tuple[Wait | Press | Type | Click | KeyDown | KeyUp, ...]
     loop_seconds: float
     """How long the gif lasts: the last frame is followed by the first one."""
+    source: pathlib.Path | None = None
+    """The program to record, when it is not ``scripts/docs_examples/<name>.py``."""
 
     @property
     def program(self) -> pathlib.Path:
         """The example's source file."""
-        return EXAMPLES / f"{self.name}.py"
+        return self.source or EXAMPLES / f"{self.name}.py"
 
     def target(self, theme: Theme) -> pathlib.Path:
         """The gif of the recording for a theme."""

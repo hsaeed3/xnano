@@ -96,6 +96,7 @@ extra_javascript = [
     "js/code-notes.js",
     "js/heading-box.js",
     "js/terminal-output.js",
+    "js/showcase.js",
 ]
 
 [project.theme]
