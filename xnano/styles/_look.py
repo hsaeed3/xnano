@@ -25,6 +25,7 @@ __all__ = [
     'align_offset',
     'aligned_text',
     'resolve_spacing',
+    'text_lines',
 ]
 
 TextAlignment: TypeAlias = tuple[
@@ -48,8 +49,26 @@ def align_offset(size: int, space: int, where: str) -> int:
     return 0
 
 
+def text_lines(text: str | _core.StyledText) -> list[str] | list[_core.StyledText]:
+    """
+    The lines of a text, without the newlines between them.
+
+    Each line of styled text keeps the styles of its spans.
+    """
+    if isinstance(text, str):
+        return text.split('\n')
+    lines: list[list[_core.TextSpan]] = [[]]
+    for span in text.spans:
+        for index, part in enumerate(span.text.split('\n')):
+            if index:
+                lines.append([])
+            if part:
+                lines[-1].append(_core.TextSpan(part, style=span.style))
+    return [_core.StyledText(spans) for spans in lines]
+
+
 def aligned_text(
-    text: str,
+    text: str | _core.StyledText,
     width: int,
     height: int,
     *,
@@ -59,16 +78,17 @@ def aligned_text(
     """
     Text in a box of ``width`` by ``height`` cells, each line placed by ``alignment``.
 
-    The style applies to the whole box, so a background colors all of it.
+    The style applies to the whole box, so a background colors all of it. It goes over the
+    styles of styled text.
     """
     buffer = _core.Buffer(width=width, height=height)
-    lines = text.split('\n')
+    lines = text_lines(text)
     top = align_offset(len(lines), height, alignment[1])
     buffer.update(
         *(
             _core.Write(
                 line,
-                x=align_offset(_core.display_width(line), width, alignment[0]),
+                x=align_offset(_core.display_width(str(line)), width, alignment[0]),
                 y=top + row,
             )
             for row, line in enumerate(lines)
@@ -313,6 +333,9 @@ class Appearance:
 
     Attributes:
         text: The text, line by line.
+        styled_text: The text with the styles of its spans, or ``None`` for plain text.
+            Setting it sets ``text`` to its plain text, and setting ``text`` sets it to
+            ``None``.
         style: A ready-made style that the color and modifier fields are applied over.
         foreground: The text color.
         background: The color behind the text.
@@ -336,6 +359,8 @@ class Appearance:
 
     text: str = ''
     """The text, line by line."""
+    styled_text: _core.StyledText | None = None
+    """The text with the styles of its spans, or ``None`` for plain text."""
     style: _core.Style | None = None
     """A ready-made style that the color and modifier fields are applied over."""
     foreground: ColorValue | None = None
@@ -409,12 +434,27 @@ class Appearance:
                     f'title must be a single line, but got {value!r}. Pass a title without '
                     f'line breaks, such as title="Menu".'
                 )
-        elif name == 'text' and not isinstance(value, str):
-            raise TypeError(
-                f'text must be a string, but got {value!r}. Pass text such as "hello", '
-                f'and join lines with newlines.'
-            )
+        elif name == 'text':
+            if not isinstance(value, str):
+                raise TypeError(
+                    f'text must be a string, but got {value!r}. Pass text such as "hello", '
+                    f'and join lines with newlines.'
+                )
+            # Plain text has no spans.
+            object.__setattr__(self, 'styled_text', None)
+        elif name == 'styled_text' and value is not None:
+            if not isinstance(value, _core.StyledText):
+                raise TypeError(
+                    f'styled_text must be a StyledText or None, but got {value!r}. Pass '
+                    f'styled text such as StyledText.from_ansi(line).'
+                )
+            object.__setattr__(self, 'text', str(value))
         object.__setattr__(self, name, value)
+
+    @property
+    def drawn_text(self) -> str | _core.StyledText:
+        """The text as it is drawn: the styled text when there is one, else the plain text."""
+        return self.text if self.styled_text is None else self.styled_text
 
     @property
     def base_border_kind(self) -> _core.BorderKind | None:
@@ -445,7 +485,7 @@ class Appearance:
 
     def text_buffer(self) -> _core.Buffer:
         """The text with its colors and modifiers, without border, padding or margin."""
-        buffer = _core.Buffer.with_text(self.text)
+        buffer = _core.Buffer.with_text(self.drawn_text)
         style = self.text_style()
         if style is not None:
             buffer.update(_core.ApplyStyle(style))
@@ -553,12 +593,16 @@ class Appearance:
             if (box_width, box_height) == (text_width, text_height) and (
                 alignment == TOP_LEFT
             ):
-                inner = _core.Buffer.with_text(self.text)
+                inner = _core.Buffer.with_text(self.drawn_text)
                 if style is not None:
                     inner.update(_core.ApplyStyle(style))
             else:
                 inner = aligned_text(
-                    self.text, box_width, box_height, style=style, alignment=alignment
+                    self.drawn_text,
+                    box_width,
+                    box_height,
+                    style=style,
+                    alignment=alignment,
                 )
         else:
             block = _core.Block(
@@ -568,8 +612,10 @@ class Appearance:
                 border_style=self.border_style,
                 padding=(left, right, top, bottom),
             )
-            if (box_width, box_height) == (natural_width, natural_height) and (
-                alignment == TOP_LEFT
+            if (
+                (box_width, box_height) == (natural_width, natural_height)
+                and alignment == TOP_LEFT
+                and self.styled_text is None
             ):
                 inner = _core.Paragraph(
                     self.text,
@@ -580,7 +626,8 @@ class Appearance:
                 )
             else:
                 # The border and padding go around the whole box, and the lines sit in the
-                # room inside them, placed as the words that place a box place it.
+                # room inside them, placed as the words that place a box place it. Styled
+                # text is drawn here too, so that the style goes over its spans.
                 inner = _snapshot(
                     _core.Paragraph(
                         '', style=style, block=block, width=box_width, height=box_height
@@ -589,7 +636,7 @@ class Appearance:
                 inner.update(
                     _core.Paste(
                         aligned_text(
-                            self.text,
+                            self.drawn_text,
                             max(0, box_width - left - right - edge),
                             max(0, box_height - top - bottom - edge),
                             style=style,

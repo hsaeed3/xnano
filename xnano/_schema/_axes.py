@@ -96,7 +96,8 @@ One number of a position or size: ``x``, ``y``, ``width`` or ``height``.
   see [`FlowPosition`][xnano.layout.FlowPosition].
 * an expression such as ``(ParentWidth - Width) // 2`` or ``ParentWidth * (TimeElapsed % 4 / 4)``:
   evaluated again on every frame, with ``TimeElapsed`` and the other clock references moving
-  with the canvas's clock.
+  with the canvas's clock. An expression such as ``PointerPosition.x`` reads input that the
+  canvas can receive later. Until the input arrives, the placement is not drawn.
 * a range, a pair ``(low, high)``: not a value but a limit on the values the axis may
   take. For ``x`` and ``y`` it is how far the placement
   may travel, such as the track of a slider; for ``width`` and ``height`` it is the

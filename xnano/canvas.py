@@ -2742,8 +2742,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 placement.remove()
                 raise
             if lock:
-                for axis_name in ('x', 'y', 'width', 'height'):
-                    placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+                placement._lock_axes()
             return placement
         if content is None:
             content = _core.Buffer()
@@ -2872,8 +2871,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                     placement, parent_buffer, follows_x=follows_x, follows_y=follows_y
                 )
             if lock:
-                for axis_name in ('x', 'y', 'width', 'height'):
-                    placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+                placement._lock_axes()
         except BaseException:
             placement.remove()
             raise
@@ -2966,8 +2964,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 placement._content.update(_core.Paste(inner, mode='replace'))
                 self._request_frame()
             if lock:
-                for axis_name in ('x', 'y', 'width', 'height'):
-                    placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+                placement._lock_axes()
         except BaseException:
             placement.remove()
             raise
@@ -3321,8 +3318,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             )
             self._canvas._fit_now()
         if lock:
-            for axis_name in ('x', 'y', 'width', 'height'):
-                placement._set_axis(axis_name, int(getattr(placement, axis_name)))
+            placement._lock_axes()
 
     def _has_fit(self) -> bool:
         """Whether something on this canvas takes the size of its content."""

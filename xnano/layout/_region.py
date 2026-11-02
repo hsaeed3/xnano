@@ -1935,10 +1935,10 @@ def _check_content(content: object) -> None:
 
 
 def _composed(buffer: _core.Buffer) -> _core.Buffer:
-    """The cells of ``buffer`` with its visible children drawn over them, in layer order."""
+    """The cells of ``buffer`` with the children that it draws over them, in layer order."""
     composed = _snapshot(buffer)
     for child in sorted(buffer.children, key=lambda child: child.layer):
-        if child.is_visible:
+        if child.is_visible and not child._is_waiting_for_value:
             composed.update(_core.Paste(_composed(child), x=int(child.x), y=int(child.y)))
     return composed
 

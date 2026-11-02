@@ -29,7 +29,6 @@ from xnano._internal._axes import (
     check_layer,
     check_point,
     check_size,
-    inspect_number,
     is_static_expression,
 )
 from xnano._internal._dynamic_operations import DynamicOperation
@@ -41,7 +40,7 @@ from xnano._schema._generics import DepsT, StateT, WrittenDepsT, WrittenStateT
 from xnano._schema._layout import EdgeBehavior
 from xnano.effects._properties import WritableEffectProperties
 from xnano.effects._registry import apply_effects
-from xnano.errors import TerminalClosedError
+from xnano.errors import TerminalClosedError, TerminalError
 from xnano.hooks._handles import _Hooked
 from xnano.layout._region import Region
 from xnano.operations import (
@@ -56,6 +55,7 @@ from xnano.styles._look import (
     TextAlignment,
     align_offset,
     aligned_text,
+    text_lines,
 )
 from xnano.styles._owners import _TextModifiers
 
@@ -85,6 +85,13 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     canvas with one keeps drawing every frame; use a percentage for a layout that only
     follows the size of the canvas.
 
+    An expression can read input that the canvas did not receive yet, such as
+    [`PointerPosition`][xnano.expressions.PointerPosition] before the pointer moves. Then
+    the placement is not drawn. When each of its axes has a value, it is drawn, and it
+    follows the input from then on. Until that time, such an axis reads the value that it
+    had before: ``0`` for the position of a new placement, and the size of the content for
+    its size. ``is_visible`` keeps the value that you set.
+
     Get one from [`Screen.write`][xnano.devices.Screen.write] or nest a child placement inside
     another with [`Placement.write`][xnano.layout.Placement.write].
 
@@ -101,13 +108,14 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         right_edge: The first column after the placement, ``x + width``, relative to the parent.
         bottom_edge: The first row below the placement, ``y + height``, relative to the parent.
         layer: Placements with a higher layer are drawn over those with a lower one.
-        is_visible: Whether the buffer is drawn.
+        is_visible: Whether the placement is shown, as you set it.
         text: The text shown, line by line.
 
     Examples:
         ```python
         import xnano
-        from xnano.expressions import parent
+        from xnano.events import Event
+        from xnano.expressions import PointerPosition, parent
 
         with xnano.new(width=20, height=3) as canvas:
             label = canvas.screen.write('hi')
@@ -119,6 +127,13 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             assert thumb.x == 10
             thumb.x = 0
             assert thumb.x == 2
+
+        with xnano.new(width=20, height=3) as canvas:
+            marker = canvas.screen.write('+', x=PointerPosition.x, y=PointerPosition.y)
+            assert canvas.screen.render().strip() == ''
+            canvas.push(Event.mouse_event(column=4, row=1, kind='move'))
+            canvas.deliver_events()
+            assert (marker.x, marker.y) == (4, 1)
         ```
     """
 
@@ -136,11 +151,16 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     _given_sizes: frozenset[AxisName] = frozenset()
     _alignment: TextAlignment = TOP_LEFT
     _text_value: str | None = None
+    # The same text with the styles of its spans, when it was given as styled text.
+    _styled_text: _core.StyledText | None = None
     # The cells of a region written as a snapshot, drawn where the alignment says.
     _snapshot_cells: _core.Buffer | None = None
     _is_drawing_text: bool = False
     # While a write sets the axes one by one, the content is drawn once, after the last.
     _is_placing: bool = False
+    # The axes whose expression did not have a value yet. The placement is not drawn while
+    # one of them waits.
+    _waiting_axes: frozenset[AxisName] = frozenset()
     # The axes the parent's size decides, as the buffer has them.
     _parent_measured: tuple[AxisName, ...] = ()
     # Whether this is the placement of a canvas written in here that fits its content.
@@ -153,7 +173,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     _edges: EdgeBehavior | None = None
     # An area that terminal.write uses inside a canvas's block follows that canvas.
     _edges_owner: Canvas[object, object] | None = None
-    _wrapped_text: str | None = None
+    _wrapped_text: str | _core.StyledText | None = None
     _wrapped_width: int | None = None
     _decorated: Decorated | None = None
     _has_nested: bool = False
@@ -299,6 +319,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             if isinstance(value, str) and value == FLOW_POSITION:
                 with self._canvas._lock:
                     self._bindings.pop(axis, None)
+                self._set_waiting(axis, is_waiting=False)
                 self._measure_by_parent(axis, is_measured=False)
                 flow = self._flow
                 if flow is None:
@@ -347,6 +368,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             if self._parent_measured:
                 self._measure_by_parent(axis, is_measured=False)
             self._assign_within_limits(axis, converted)
+            self._set_waiting(axis, is_waiting=False)
             return
         # A word, a percentage or an expression is measured in the parent, so a parent that fits
         # its content places this within the size the rest gives it.
@@ -359,9 +381,16 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 
         def evaluate() -> None:
             try:
-                self._assign_within_limits(axis, inspect_number(self._buffer, converted))
+                first = self._buffer.inspect(cast('_core.Expression[float]', converted))
             except _core.RuntimeRequiredError:
-                pass
+                return
+            if first is None:
+                # The expression reads input that did not arrive, such as the pointer before
+                # it moves. The placement is not drawn until the expression has a value.
+                self._set_waiting(axis, is_waiting=True)
+                return
+            self._assign_within_limits(axis, float(first))
+            self._set_waiting(axis, is_waiting=False)
 
         root = self._canvas._canvas
         if root._has_fit():
@@ -381,6 +410,19 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                         self._bindings[axis] = previous
             raise
         self._canvas._bindings_changed(self)
+
+    def _set_waiting(self, axis: AxisName, *, is_waiting: bool) -> None:
+        """Say whether an axis waits for a value. The placement is drawn when none waits."""
+        if (axis in self._waiting_axes) == is_waiting:
+            return
+        with self._canvas._lock:
+            waiting = self._waiting_axes
+            if (axis in waiting) == is_waiting:
+                return
+            changed: frozenset[AxisName] = frozenset((axis,))
+            waiting = waiting | changed if is_waiting else waiting - changed
+            self._waiting_axes = waiting
+            self._buffer._is_waiting_for_value = bool(waiting)
 
     def _assign(self, axis: AxisName, value: int) -> None:
         if getattr(self._buffer, axis) != value:
@@ -480,13 +522,13 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             buffer = self._buffer
             width = buffer.width
             across, down = self._alignment
-            lines = value.split('\n')
+            lines = text_lines(value if self._styled_text is None else self._styled_text)
             top = align_offset(len(lines), buffer.height, down)
             buffer.fill()
             for row, line in enumerate(lines):
                 buffer.write(
                     line,
-                    x=align_offset(_core.display_width(line), width, across),
+                    x=align_offset(_core.display_width(str(line)), width, across),
                     y=top + row,
                 )
         finally:
@@ -572,14 +614,16 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             value = min(value, high)
         return value
 
-    def _resolve_offline(self, bound: Bound) -> float:
+    def _resolve_offline(self, bound: Bound) -> float | None:
         if isinstance(bound, (int, float)):
             return bound
         if not self._canvas._host.is_on_loop():
             raise _core.RuntimeRequiredError(
                 'a bound that is an expression is evaluated by the canvas on its next frame'
             )
-        return inspect_number(self._buffer, bound)
+        value = self._buffer.inspect(cast('_core.Expression[float]', bound))
+        # A bound that reads input that did not arrive limits nothing until the input arrives.
+        return None if value is None else float(value)
 
     def _assign_within_limits(self, axis: AxisName, value: float) -> None:
         """Assign a value now, held inside the range when the range is known now."""
@@ -592,6 +636,28 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     def _enforce(self, axis: AxisName) -> None:
         """Hold the current value of an axis inside its range."""
         self._assign_within_limits(axis, getattr(self._buffer, axis))
+
+    def _lock_axes(self) -> None:
+        """
+        Give each axis the number of cells that it has now, for ``lock=True``.
+
+        Raises:
+            ValueError: An axis reads input that the canvas did not receive yet.
+        """
+        axes: tuple[AxisName, ...] = ('x', 'y', 'width', 'height')
+        for axis in axes:
+            if axis in self._waiting_axes:
+                raise TerminalError(
+                    f'lock=True keeps the position and size that the content has now. But '
+                    f'{axis} reads input that the canvas did not receive yet, such as '
+                    f'PointerPosition before the pointer moves, so {axis} has no value now. '
+                    f'Remove lock=True to follow the input, or give {axis} a number of cells.',
+                    code='validation.value',
+                    location=axis,
+                    input_value=self._bindings[axis][0],
+                )
+        for axis in axes:
+            self._set_axis(axis, int(getattr(self, axis)))
 
     def _apply_bindings(self, runtime: _core.Runtime) -> bool:
         """Evaluate every expression on the canvas's loop; return whether any follows time."""
@@ -623,6 +689,8 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             else:
                 value = getattr(self._buffer, axis)
             self._assign(axis, _round_half_away(self._clamp(axis, value, resolve)))
+            if axis in self._waiting_axes:
+                self._set_waiting(axis, is_waiting=False)
         self._refresh_wrap()
         return any(flag for _, flag in bindings.values()) or any(
             flag for _, _, flag in limits.values()
@@ -630,7 +698,12 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 
     @property
     def x(self) -> int:
-        """The column of the left edge, relative to the parent."""
+        """
+        The column of the left edge, relative to the parent.
+
+        If ``x`` reads input that the canvas did not receive yet, the placement is not
+        drawn, and ``x`` is the value that it had before: ``0`` for a new placement.
+        """
         self._flush_look()
         return self._buffer.x
 
@@ -641,7 +714,12 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 
     @property
     def y(self) -> int:
-        """The row of the top edge, relative to the parent."""
+        """
+        The row of the top edge, relative to the parent.
+
+        If ``y`` reads input that the canvas did not receive yet, the placement is not
+        drawn, and ``y`` is the value that it had before: ``0`` for a new placement.
+        """
         self._flush_look()
         return self._buffer.y
 
@@ -652,7 +730,13 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 
     @property
     def width(self) -> int:
-        """The width in cells."""
+        """
+        The width in cells.
+
+        If ``width`` reads input that the canvas did not receive yet, the placement is not
+        drawn, and ``width`` is the value that it had before: the width of the content
+        for a new placement.
+        """
         self._flush_look()
         return self._buffer.width
 
@@ -663,7 +747,13 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 
     @property
     def height(self) -> int:
-        """The height in cells."""
+        """
+        The height in cells.
+
+        If ``height`` reads input that the canvas did not receive yet, the placement is not
+        drawn, and ``height`` is the value that it had before: the height of the content
+        for a new placement.
+        """
         self._flush_look()
         return self._buffer.height
 
@@ -728,7 +818,13 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 
     @property
     def is_visible(self) -> bool:
-        """Whether the buffer is drawn."""
+        """
+        Whether the placement is shown. Set it to ``False`` to hide the placement.
+
+        A placement whose position or size reads input that the canvas did not receive yet
+        is not drawn. ``is_visible`` keeps the value that you set, and the placement is
+        drawn when the input arrives, if ``is_visible`` is ``True``.
+        """
         return self._buffer.is_visible
 
     @is_visible.setter
@@ -828,14 +924,15 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 self._show_text(written)
             return
         if written is None:
-            written = self.text
+            look = self._appearance
+            styled = self._styled_text if look is None else look.styled_text
+            written = self.text if styled is None else styled
             self._wrapped_text = written
         width = self._parent_buffer.width
         if width == self._wrapped_width or width <= 0:
             return
         self._wrapped_width = width
-        lines = _core.layout_text(written, width=width).lines
-        self._show_text('\n'.join(line.text.rstrip() for line in lines))
+        self._show_text(_wrapped(written, width))
 
     def move(self, x: int = 0, y: int = 0) -> Placement[DepsT, StateT]:
         """
@@ -1156,14 +1253,32 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 
     @property
     def text(self) -> str:
-        """
-        The text shown, line by line.
+        r"""
+        The text shown, line by line, without styles.
 
-        Assign new text to change what a text placement says; the placement grows or shrinks
-        to fit it, unless its size was set.
+        Assign a string or a [`StyledText`][xnano.styles.StyledText] to change what a text
+        placement says. The placement grows or shrinks to fit the text, unless its size was
+        set. Styled text is drawn with the styles of its spans, and the colors and modifiers
+        of the placement go over them.
+
+        Raises:
+            TypeError: The value is not a string or a ``StyledText``.
+
+        Examples:
+            ```python
+            import xnano
+            from xnano.styles import StyledText
+
+            with xnano.new(width=20, height=1) as canvas:
+                log = canvas.screen.write('starting')
+                log.text = StyledText.from_ansi('\x1b[31merror\x1b[0m: disk full')
+                assert log.text == 'error: disk full'
+                assert log.width == 16
+                assert log.core_buffer[0, 0].foreground == xnano.Color('red')
+            ```
         """
         if self._wrapped_text is not None:
-            return self._wrapped_text
+            return str(self._wrapped_text)
         self._flush_look()
         if self._appearance is not None and self._is_text:
             return self._appearance.text
@@ -1172,12 +1287,13 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         return self._content.text
 
     @text.setter
-    def text(self, value: str) -> None:
+    def text(self, value: str | _core.StyledText) -> None:
         self._require_attached()
-        if not isinstance(value, str):
+        if not isinstance(value, (str, _core.StyledText)):
             raise TypeError(
-                f'text must be a string, but got {value!r}. Pass text such as "hello", and '
-                f'join lines with newlines.'
+                f'text must be a string or a StyledText, but got {value!r}. Pass text such '
+                f'as "hello", or styled text such as StyledText.from_ansi(line). Join lines '
+                f'with newlines.'
             )
         if self._wrapped_text is not None:
             self._wrapped_text = value
@@ -1186,16 +1302,22 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             return
         self._show_text(value)
 
-    def _show_text(self, value: str) -> None:
+    def _show_text(self, value: str | _core.StyledText) -> None:
         """Draw text in the placement, which grows or shrinks to fit it."""
+        styled = value if isinstance(value, _core.StyledText) else None
+        plain = str(value)
         if self._appearance is not None:
             self._flush_look()
-            self._appearance.text = value
+            if styled is None:
+                self._appearance.text = plain
+            else:
+                self._appearance.styled_text = styled
             self._look_changed()
             self._flush_look()
             return
-        self._text_value = value
-        lines = value.split('\n')
+        self._text_value = plain
+        self._styled_text = styled
+        lines = plain.split('\n')
         self._set_natural_size('width', max(_core.display_width(line) for line in lines))
         self._set_natural_size('height', len(lines))
         self._draw_text()
@@ -1229,7 +1351,12 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 
     def _ensure_look(self) -> Appearance:
         self._require_attached()
-        return super()._ensure_look()
+        is_new = self._appearance is None
+        look = super()._ensure_look()
+        if is_new and self._is_text and self._styled_text is not None:
+            # The spans keep their styles, and the look goes over them.
+            look.styled_text = self._styled_text
+        return look
 
     def _is_decoration_wanted(self, look: Appearance) -> bool:
         """Whether text needs the two-buffer layout: per-side settings or nested content."""
@@ -1302,7 +1429,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 self._alignment != TOP_LEFT
             ):
                 content = aligned_text(
-                    look.text,
+                    look.drawn_text,
                     inner_width,
                     inner_height,
                     style=look.text_style(),
@@ -1374,12 +1501,14 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         outer.y = content.y
         outer.layer = content.layer
         outer.is_visible = content.is_visible
+        outer._is_waiting_for_value = content._is_waiting_for_value
         for buffer in (content, *later):
             parent.detach(buffer)
         content.x = 0
         content.y = 0
         content.layer = 0
         content.is_visible = True
+        content._is_waiting_for_value = False
         outer.attach(content, mode='transparent')
         parent.attach(outer, mode='transparent')
         for buffer in later:
@@ -1672,3 +1801,29 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
 def _round_half_away(value: float) -> int:
     """Round to the nearest whole number, halves away from zero."""
     return int(value + 0.5) if value >= 0 else -int(-value + 0.5)
+
+
+def _wrapped(text: str | _core.StyledText, width: int) -> str | _core.StyledText:
+    """
+    The text with a line break where it wraps at ``width``, and no spaces at line ends.
+
+    Styled text keeps the styles of its spans.
+    """
+    lines = _core.layout_text(str(text), width=width).lines
+    if isinstance(text, str):
+        return '\n'.join(line.text.rstrip() for line in lines)
+    spans: list[_core.TextSpan] = []
+    for index, line in enumerate(lines):
+        if index:
+            spans.append(_core.TextSpan('\n'))
+        start = line.start_offset
+        stop = start + len(line.text.rstrip())
+        offset = 0
+        for span in text.spans:
+            end = offset + len(span.text)
+            low, high = max(start, offset), min(stop, end)
+            if low < high:
+                part = span.text[low - offset : high - offset]
+                spans.append(_core.TextSpan(part, style=span.style))
+            offset = end
+    return _core.StyledText(spans)

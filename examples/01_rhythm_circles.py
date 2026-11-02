@@ -10,6 +10,7 @@ import math
 
 import xnano
 from xnano.art import Art
+from xnano.expressions import PointerPosition
 
 COLORS = ('#e8768a', '#946ce6', '#6098ec', '#e4a03e')  # pink, purple, blue and amber
 PITCHES = ('C5', 'E5', 'G5', 'C6')  # the note each number plays when its ring is hit
@@ -91,7 +92,11 @@ word = game.screen.write('', bold=True, layer=1)
 
 with xnano.open(mouse='motion', title='circles') as terminal:
     terminal.screen.write(game, x='center', y='center')
-    cursor = terminal.screen.write(CURSOR, layer=2)  # over the game and its rings
+    # over the game and its rings: it shows when the mouse first moves over the window,
+    # then its middle cell follows the pointer on each frame
+    terminal.screen.write(
+        CURSOR, x=PointerPosition.x - 3, y=PointerPosition.y - 1, layer=2
+    )
 
     @terminal.hook(on='frame')
     def play(context: xnano.Context) -> None:
@@ -102,10 +107,6 @@ with xnano.open(mouse='motion', title='circles') as terminal:
         for index in [index for index in rings if now - MAP[index][0] > HIT_SECONDS]:
             judge(index, 'miss', 'red', 0, now)
         word.is_visible = now - judged_at < 0.4
-        pointer = context.mouse.pointer  # None until the mouse moves over the window
-        cursor.is_visible = pointer is not None
-        if pointer is not None:  # the ring's middle cell is on the pointer
-            cursor.x, cursor.y = pointer[0] - 3, pointer[1] - 1
         seconds_left = max(0, TIME_LIMIT - int(now))
         status.text = f'score {score:>5}   combo {combo:>3}   {seconds_left:>2} s left'
         if now >= TIME_LIMIT:  # time is up: the result stays until q

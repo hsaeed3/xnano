@@ -3281,7 +3281,9 @@ class Value(Expression[ValueType]):
         """The identity hash, which keeps expressions usable in sets and dictionaries."""
 
     @property
-    def x(self: Value[Point] | Value[Rectangle]) -> NumericValue[int]:
+    def x(
+        self: Value[Point] | Value[Point | None] | Value[Rectangle],
+    ) -> NumericValue[int]:
         """
         The column of a ``Point`` or the left edge of a ``Rectangle``.
 
@@ -3294,7 +3296,9 @@ class Value(Expression[ValueType]):
         """
 
     @property
-    def y(self: Value[Point] | Value[Rectangle]) -> NumericValue[int]:
+    def y(
+        self: Value[Point] | Value[Point | None] | Value[Rectangle],
+    ) -> NumericValue[int]:
         """
         The row of a ``Point`` or the top edge of a ``Rectangle``.
 
@@ -7530,6 +7534,10 @@ class Buffer(Surface):
 
     @property
     def _absolute_bounds(self) -> Rectangle: ...
+    @property
+    def _is_waiting_for_value(self) -> bool: ...
+    @_is_waiting_for_value.setter
+    def _is_waiting_for_value(self, value: bool) -> None: ...
     def __init__(
         self,
         content: TextContent | None = None,
