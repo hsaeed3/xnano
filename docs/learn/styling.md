@@ -328,7 +328,7 @@ def uptime(context: xnano.Context) -> xnano.styles.RichContent:
 
 
 with xnano.open(height=6) as terminal:
-    terminal.write(uptime)
+    terminal.write(uptime, width=20)
     terminal.run(stop_on='q')
 ```
 
