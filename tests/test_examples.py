@@ -19,7 +19,9 @@ if sys.platform == 'win32':
 
 from emulator import Screen  # noqa: E402
 
-EXAMPLES = sorted((pathlib.Path(__file__).resolve().parent.parent / 'examples').glob('*.py'))
+EXAMPLES = sorted(
+    (pathlib.Path(__file__).resolve().parent.parent / 'examples').glob('*.py')
+)
 
 
 def test_there_are_examples():
@@ -38,7 +40,9 @@ def test_an_example_draws_and_quits(program):
         drawn = [line for line in screen.lines() if line.strip()]
         assert len(drawn) >= 3, f'{program.name} drew almost nothing:\n{screen.text}'
         screen.press('q')
-        assert screen.finish() == 0, f'{program.name} did not exit cleanly:\n{screen.text}'
+        assert screen.finish() == 0, (
+            f'{program.name} did not exit cleanly:\n{screen.text}'
+        )
         output = screen.raw.decode('utf-8', 'replace')
         assert 'Traceback' not in output
     finally:
