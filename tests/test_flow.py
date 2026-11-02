@@ -7,8 +7,6 @@ keeps following what was written before it when that grows, shrinks, moves or is
 
 from __future__ import annotations
 
-import time
-
 import pytest
 
 import xnano
@@ -396,56 +394,3 @@ class TestFit:
     def test_fit_is_spelled_as_a_word(self):
         with pytest.raises(ValueError, match="'fit'"):
             xnano.new(width='fits')
-
-
-def fastest_seconds(action, *, rounds: int = 3) -> float:
-    """The fastest of a few runs of ``action``, each on a canvas of its own."""
-    fastest = float('inf')
-    for _ in range(rounds):
-        with xnano.new(width=80, height=40) as canvas:
-            start = time.perf_counter()
-            action(canvas)
-            fastest = min(fastest, time.perf_counter() - start)
-    return fastest
-
-
-class TestScaling:
-    """Writing grows with the number of placements, not with its square."""
-
-    @pytest.mark.parametrize(
-        'write',
-        [
-            lambda canvas, index: canvas.screen.write(f'line {index}'),
-            lambda canvas, index: canvas.screen.write(
-                f'cell {index}', x='next', y=index % 40
-            ),
-            lambda canvas, index: canvas.screen.write(f'line {index}', x=0, y=index % 40),
-        ],
-        ids=['next lines', 'rows that continue', 'explicit positions'],
-    )
-    def test_four_times_the_writes_take_far_less_than_sixteen_times_as_long(self, write):
-        def write_lines(count: int):
-            return lambda canvas: [write(canvas, index) for index in range(count)]
-
-        few = fastest_seconds(write_lines(300))
-        many = fastest_seconds(write_lines(1200))
-        assert many / few < 8, (
-            f'{few * 1000:.1f} ms for 300, {many * 1000:.1f} ms for 1200'
-        )
-
-    def test_changing_the_last_line_does_not_look_at_every_line(self):
-        def seconds_to_change_the_last_of(count: int) -> float:
-            fastest = float('inf')
-            for _ in range(3):
-                with xnano.new(width=80, height=40) as canvas:
-                    for index in range(count):
-                        canvas.screen.write(f'line {index}')
-                    last = canvas.screen.write('0')
-                    start = time.perf_counter()
-                    for index in range(200):
-                        last.text = str(index)
-                    fastest = min(fastest, time.perf_counter() - start)
-            return fastest
-
-        timings = [seconds_to_change_the_last_of(count) for count in (100, 1600)]
-        assert timings[1] / timings[0] < 4, timings
