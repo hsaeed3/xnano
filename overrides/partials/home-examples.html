@@ -1,0 +1,57 @@
+{#-
+  The homepage after its features: the rhythm games made with xnano, then the example that
+  runs in the browser, which content.html takes from docs/index.md.
+-#}
+  {#- Four rhythm games made with xnano, each one a program in examples/, recorded in Kitty by
+      scripts/docs_assets.py. A tab shows each one. #}
+  {%- set rhythm_games = [
+    {"name": "circles", "title": "Circles", "file": "01_rhythm_circles.py", "play": "Click each ring as the timing ring closes on it.", "alt": "A rhythm game in the terminal: numbered rings appear, a timing ring closes on each one, and each click on the beat scores"},
+    {"name": "drums", "title": "Drums", "file": "02_rhythm_drums.py", "play": "Press the keys of each note as it reaches the drum.", "alt": "A rhythm game in the terminal: two kinds of notes scroll to a drum on the left, and each key press on the beat scores"},
+    {"name": "catch", "title": "Catch", "file": "03_rhythm_catch.py", "play": "Move the basket under each note before it lands.", "alt": "A rhythm game in the terminal: notes fall in time with the music, and a basket moves to catch them"},
+    {"name": "lanes", "title": "Lanes", "file": "04_rhythm_lanes.py", "play": "Press the key of each lane as its note reaches the line.", "alt": "A rhythm game in the terminal: notes fall down four lanes to a line, and each key press on the beat scores"},
+  ] %}
+  <section class="xn-games" aria-labelledby="xn-games-label">
+    <div class="xn-rule">
+      <span class="xn-label">03</span>
+      <span class="xn-label" id="xn-games-label">Rhythm games</span>
+    </div>
+    <div class="xn-exhibit">
+      <div class="xn-exhibit__text">
+        <p class="xn-exhibit__lead">Four rhythm games, each one program in <code>examples/</code>.</p>
+        <p>Each game keeps time with the clock of the canvas, reads the keyboard or the mouse, and plays its notes. Select a tab to watch a game.</p>
+      </div>
+      <figure class="xn-showcase xn-crop" data-xn-showcase>
+        <div class="xn-showcase__tabs" role="tablist" aria-label="Rhythm games made with xnano">
+          {%- for game in rhythm_games %}
+          <button type="button" class="xn-showcase__tab" role="tab" id="xn-showcase-tab-{{ game.name }}" aria-controls="xn-showcase-panel-{{ game.name }}" aria-selected="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}">{{ game.title }}</button>
+          {%- endfor %}
+        </div>
+        {%- for game in rhythm_games %}
+        <div class="xn-showcase__panel" role="tabpanel" id="xn-showcase-panel-{{ game.name }}" aria-labelledby="xn-showcase-tab-{{ game.name }}"{% if not loop.first %} hidden{% endif %}>
+          <img class="xn-only-light" src="{{ ('assets/home/rhythm-' ~ game.name ~ '-light.gif') | url }}" alt="{{ game.alt }}" width="1201" height="769" loading="lazy">
+          <img class="xn-only-dark" src="{{ ('assets/home/rhythm-' ~ game.name ~ '-dark.gif') | url }}" alt="{{ game.alt }}" width="1201" height="769" loading="lazy">
+          <p class="xn-showcase__caption">{{ game.play }} <a class="xn-plain xn-underline" href="{{ config.repo_url }}/blob/main/examples/{{ game.file }}">examples/{{ game.file }}</a></p>
+        </div>
+        {%- endfor %}
+      </figure>
+    </div>
+  </section>
+
+  {#- The example of docs/index.md, which runs in the browser: until a visitor runs it, its
+      output panel shows the saved output that data-xn-preview names. #}
+  <section class="xn-playground" aria-labelledby="xn-playground-label">
+    <div class="xn-rule">
+      <span class="xn-label">04</span>
+      <span class="xn-label" id="xn-playground-label">In your browser</span>
+    </div>
+    <div class="xn-exhibit">
+      <div class="xn-exhibit__text">
+        <p class="xn-exhibit__lead">A program you can change and run on this page.</p>
+        <p>A canvas from <code>xnano.new()</code> draws into memory, so it needs no terminal. This program writes a sparkline and a gauge on a canvas, then prints the frame. It runs the same way in a terminal.</p>
+      </div>
+      <figure class="xn-terminal xn-crop xn-runnable" data-xn-preview="{{ 'assets/home/hero-example.ansi' | url }}">
+        {{ hero_example | safe }}
+        <figcaption class="xn-runnable__caption">Change the code, then press Run. The first run loads Python into this page. This takes a few seconds.</figcaption>
+      </figure>
+    </div>
+  </section>

@@ -4,8 +4,8 @@
 -#}
 {% include "partials/actions.html" %}
 {% if page.is_homepage or (nav.homepage and page.url == nav.homepage.url) %}
-  {#- The first example of docs/index.md sits between two markers; the hero shows it beside
-      its statement, and the rest of the page keeps everything around it. #}
+  {#- The runnable example of docs/index.md sits between two markers. partials/home-examples.html
+      shows it after the features, and the rest of the page keeps everything around it. #}
   {%- set home_content = page.content %}
   {%- set hero_example = "" %}
   {%- if "<!-- /xn-hero-example -->" in home_content %}
@@ -23,13 +23,14 @@
     {%- if "<xn-features>" in home_content %}
     <div class="xn-home__text">
       {{ home_content
-         | replace("<xn-features>", '</div><section class="xn-spreads"><div class="xn-rule"><span class="xn-label">03</span><span class="xn-label">Features</span></div><xn-features>')
+         | replace("<xn-features>", '</div><section class="xn-spreads"><div class="xn-rule"><span class="xn-label">02</span><span class="xn-label">Features</span></div><xn-features>')
          | replace("</xn-features>", '</xn-features></section><div class="xn-home__text">')
          | safe }}
     </div>
     {%- else %}
     <div class="xn-home__text">{{ home_content | safe }}</div>
     {%- endif %}
+    {% include "partials/home-examples.html" %}
     {% include "partials/home-explore.html" %}
   </div>
 {% else %}

@@ -192,13 +192,9 @@
     box-shadow: inset calc(-1 * var(--xn-rule)) 0 0 var(--xn-accent);
 }
 
-/* ── The statement and the terminal exhibit ────────────────────────────────────────── */
+/* ── The statement and its actions ─────────────────────────────────────────────────── */
 .xn-split {
     position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-    gap: 3.2rem;
-    align-items: start;
     margin-top: 3.6rem;
     padding-top: 2.4rem;
     border-top: var(--xn-rule) solid var(--xn-rule-subtle);
@@ -326,12 +322,14 @@
     font-size: 0.6rem;
 }
 
-/* ── 02: in your browser ───────────────────────────────────────────────────────────── */
+/* ── 03 and 04: the rhythm games, and the example that runs in the browser ─────────── */
+/* Each is a short text beside its exhibit: the games' recordings, or the runnable example. */
+.xn-games,
 .xn-playground {
     margin-top: 5.2rem;
 }
 
-.xn-playground__body {
+.xn-exhibit {
     display: grid;
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     gap: 3.2rem;
@@ -339,7 +337,7 @@
     margin-top: var(--xn-space-32);
 }
 
-.md-typeset .xn-playground__text p {
+.md-typeset .xn-exhibit__text p {
     max-width: 23em;
     margin: 0 0 var(--xn-space-16);
     color: var(--xn-ink-2);
@@ -347,7 +345,7 @@
     line-height: 1.6;
 }
 
-.md-typeset .xn-playground__text .xn-playground__lead {
+.md-typeset .xn-exhibit__text .xn-exhibit__lead {
     color: var(--xn-ink);
     font-family: var(--xn-font-mono);
     font-size: 0.88rem;
@@ -448,7 +446,7 @@
     text-transform: none;
 }
 
-/* ── 03: where to go next ─────────────────────────────────────────────────────────── */
+/* ── 05: where to go next ─────────────────────────────────────────────────────────── */
 .xn-index {
     margin-top: 5.2rem;
 }
@@ -562,7 +560,7 @@
     letter-spacing: 0.02em;
 }
 
-/* ── 03: spreads ───────────────────────────────────────────────────────────────────── */
+/* ── 02: spreads ───────────────────────────────────────────────────────────────────── */
 .xn-spreads {
     margin-top: 5.2rem;
 }
@@ -664,16 +662,11 @@ xn-features {
         gap: 1rem;
     }
 
-    .xn-split {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 2.4rem;
-    }
-
     .xn-split__mark {
         display: none;
     }
 
-    .xn-playground__body {
+    .xn-exhibit {
         grid-template-columns: minmax(0, 1fr);
         gap: var(--xn-space-24);
     }
