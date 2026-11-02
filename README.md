@@ -95,8 +95,7 @@ until you press `q`. You already have a program that:
 
 - opens a live terminal with `xnano.open()`, which takes over the whole window
   (give it a `height` to draw in a region below your prompt instead),
-- writes text with `terminal.write()`, the same call as `terminal.screen.write()`,
-  at a position such as `'center'`,
+- writes text with `terminal.write()`, at a position such as `'center'`,
 - keeps running with `terminal.run()` until one of its `stop_on` keys is pressed.
 
 ### Example upgrade
@@ -121,23 +120,18 @@ wait 0.5
 ```python
 import xnano
 
-# `xnano.new()` makes a canvas: a screen in memory that you build before showing it
-canvas = xnano.new()
-greeting = canvas.write('Hello, world!', x='center', y='center')
-
-
-# a hook runs a function when something happens, and a hook on a placement only hears
-# the events inside its own cells
-@greeting.hook(on='mouse')
-def change_color(context: xnano.Context):
-    # a click is a press and then a release: change the color once, on the press
-    if context.mouse.kind == 'press':
-        greeting.color.fg.random()
-
-
-# `mouse=True` turns on mouse events, and writing the canvas shows it on the screen
+# `mouse=True` turns on mouse events
 with xnano.open(mouse=True) as terminal:
-    terminal.write(canvas)
+    greeting = terminal.write('Hello, world!', x='center', y='center')
+
+    # a hook runs a function when something happens, and a hook on a placement only
+    # hears the events inside its own cells
+    @greeting.hook(on='mouse')
+    def change_color(context: xnano.Context):
+        # a click is a press and then a release: change the color once, on the press
+        if context.mouse.kind == 'press':
+            greeting.color.fg.random()
+
     terminal.run(stop_on='q')
 ```
 
@@ -153,11 +147,12 @@ color.
 
 ### Recap
 
-- `xnano.open()` is a live terminal, and `xnano.new()` is a canvas in memory
-  that you can print, or show in a terminal later. Both have the same `screen`,
+- `xnano.open()` is a live terminal. `xnano.new()` makes a canvas in memory,
+  which you can print, or show in a terminal later. Both have the same `screen`,
   `clock`, `keyboard`, `mouse` and `speaker`.
-- `canvas.write()` places text, widgets and images with a number of cells, a
-  percentage or a word. It returns a placement that you can change at any time.
+- `terminal.write()` and `canvas.write()` place text, widgets and images with a
+  number of cells, a percentage or a word. Each is the same as `screen.write()`,
+  and each returns a placement that you can change at any time.
 - `hook(on=...)` runs a function when a key, the mouse or the clock does
   something, and the `context` it receives says what happened.
 
