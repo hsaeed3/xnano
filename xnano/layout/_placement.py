@@ -13,6 +13,8 @@ import xnano_core as _core
 from xnano_core import EvaluationContext
 
 if TYPE_CHECKING:
+    from rich.console import Group
+
     from xnano._runtime._flow import Flow
     from xnano._schema._effects import WritableEffectSpecification
     from xnano.canvas import Canvas
@@ -1229,6 +1231,23 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         """
         self._flush_look()
         return self._buffer.render(format=format)
+
+    def __rich__(self) -> Group:
+        """
+        Return the placement for rich, so that rich and Textual can show it.
+
+        Rich shows what [`render`][xnano.layout.Placement.render] draws: the placement
+        with its border, padding and nested placements, in its colors and styles. If a line
+        is longer than the space that rich gives it, rich cuts the line. Rich must be
+        installed.
+        """
+        from rich.console import Group
+        from rich.text import Text as RichText
+
+        frame = RichText.from_ansi(
+            self.render(format='ansi'), no_wrap=True, overflow='crop'
+        )
+        return Group(frame)
 
     def _single_buffer_inset(self) -> tuple[int, int, int, int]:
         """The cells of border, padding and margin around the text of a one-buffer placement."""

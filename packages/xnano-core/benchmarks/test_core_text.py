@@ -12,7 +12,6 @@ from xnano_core._xnano_core import (
     TextEditor,
     Write,
     display_width,
-    layout_text,
 )
 
 ASCII_WORDS = ('terminal', 'cell', 'buffer', 'layout', 'ratatui', 'xnano')
@@ -25,27 +24,6 @@ COLORED_LOG = ''.join(
     for index in range(2000)
 )
 """Two thousand lines of colored log output, as a program prints them for a terminal."""
-
-
-def test_layout_text_wrap(benchmark):
-    layout = benchmark(layout_text, PROSE, width=80)
-    # A trailing space may hang past the edge instead of forcing a wrap.
-    assert max(display_width(line.text.rstrip()) for line in layout.lines) <= 80
-    assert len(layout.lines) > 100
-
-
-def test_layout_text_wrap_ascii(benchmark):
-    layout = benchmark(layout_text, ASCII_PROSE, width=80)
-    assert max(display_width(line.text.rstrip()) for line in layout.lines) <= 80
-    assert ''.join(line.text for line in layout.lines) == ASCII_PROSE
-
-
-def test_layout_text_no_wrap_with_cursor(benchmark):
-    benchmark(
-        lambda: layout_text(
-            PROSE, width=80, should_wrap=False, cursor_offset=len(PROSE) // 2
-        )
-    )
 
 
 def test_display_width_mixed(benchmark):

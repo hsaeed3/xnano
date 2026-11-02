@@ -51,6 +51,7 @@ from xnano.styles._look import (
 from xnano.styles._owners import _Looked
 
 if TYPE_CHECKING:
+    from rich.console import Group
     from typing_extensions import Unpack
     from xnano_image import TerminalImage
 
@@ -1628,6 +1629,25 @@ class Region(_Looked, Generic[NumberT_co]):
         if self._timeline is not None:
             return repr(self)
         return self.render()
+
+    def __rich__(self) -> Group:
+        """
+        Return the region for rich, so that rich and Textual can show it.
+
+        Rich shows what [`render`][xnano.layout.Region.render] draws, in its colors and
+        styles. A region on the timeline has no cells, so rich shows its ``repr``. If a line
+        is longer than the space that rich gives it, rich cuts the line. Rich must be
+        installed.
+        """
+        from rich.console import Group
+        from rich.text import Text as RichText
+
+        if self._timeline is not None:
+            return Group(RichText(repr(self)))
+        frame = RichText.from_ansi(
+            self.render(format='ansi'), no_wrap=True, overflow='crop'
+        )
+        return Group(frame)
 
     def __xnano_write__(self, context: Context | None = None) -> _core.Buffer:
         """Return the buffer that shows the region: its own, or a copy for a view."""

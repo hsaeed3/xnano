@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     import asyncio
 
     from _typeshed import DataclassInstance
+    from rich.console import Group
     from typing_extensions import Self, TypeIs, Unpack
 
     from xnano._schema._content import PlaySource
@@ -1188,6 +1189,41 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             ```
         """
         return self.screen.render(format=format)
+
+    def __rich__(self) -> Group:
+        r"""
+        Return the current frame for rich, so that rich and Textual can show the canvas.
+
+        ``rich.print(canvas)`` prints the frame with its colors and styles. A canvas can also
+        go into a rich ``Panel`` or ``Table``, or into a Textual ``Static``. If a line is
+        longer than the space that rich gives it, rich cuts the line, as a terminal does.
+        Rich must be installed.
+
+        A closed canvas cannot draw. Textual draws a ``Static`` after you make it, so give
+        Textual a canvas that stays open, such as one from ``xnano.new()`` outside a ``with``
+        block.
+
+        Examples:
+            ```python
+            import io
+
+            import xnano
+            from rich.console import Console
+
+            with xnano.new(width=5, height=1) as canvas:
+                canvas.write('hello')
+                console = Console(file=io.StringIO(), width=20)
+                console.print(canvas)
+                assert console.file.getvalue() == 'hello\n'
+            ```
+        """
+        from rich.console import Group
+        from rich.text import Text as RichText
+
+        frame = RichText.from_ansi(
+            self.render(format='ansi'), no_wrap=True, overflow='crop'
+        )
+        return Group(frame)
 
     @property
     def fx(self) -> WritableEffectProperties:
