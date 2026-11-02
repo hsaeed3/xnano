@@ -861,6 +861,9 @@ class Art:
             self._cache_buffer = buffer
             return buffer
         buffer = _core.Buffer(width=columns, height=rows)
+        if self._background is None:
+            # A cell that no pixel covers lets the content below it show through.
+            buffer.fill(_core.Cell(' ', is_transparent=True))
         pixels = buffer.pixels(encoding=self._encoding)
         if self._background is not None:
             red, green, blue = self._background

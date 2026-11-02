@@ -256,6 +256,28 @@ impl Grid {
     }
 
     /// A copy of the cells of `bounds` as a standalone buffer.
+    /// The cells inside `bounds` as a new grid, keeping which of them are transparent.
+    ///
+    /// Cells outside this grid are blank and opaque, as in [`Grid::region_buffer`].
+    #[must_use]
+    pub fn region_grid(&self, bounds: Bounds) -> Grid {
+        let mut region = Grid::from_buffer(self.region_buffer(bounds));
+        if self.transparent.is_some() {
+            let columns = bounds.width().min(self.width().saturating_sub(bounds.left));
+            let rows = bounds
+                .height()
+                .min(self.height().saturating_sub(bounds.top));
+            for y in 0..rows {
+                for x in 0..columns {
+                    if self.is_transparent(bounds.left + x, bounds.top + y) {
+                        region.set_transparent(x, y, true);
+                    }
+                }
+            }
+        }
+        region
+    }
+
     pub fn region_buffer(&self, bounds: Bounds) -> Buffer {
         let mut region = Buffer::empty(Rect::new(0, 0, bounds.width(), bounds.height()));
         let width = usize::from(bounds.width());
