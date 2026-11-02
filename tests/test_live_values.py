@@ -135,6 +135,42 @@ class TestFollowingThePointer:
         assert rows(canvas)[3] == '  +'
 
 
+class TestFramesWhileTheMouseIsStill:
+    def test_a_still_mouse_asks_for_no_frame_before_the_first_move(self, canvas):
+        canvas.screen.write('+', x=PointerPosition.x, y=PointerPosition.y)
+        canvas.clock.step()
+        canvas.clock.step()
+        assert not canvas._runtime.needs_frame
+
+    def test_a_still_mouse_asks_for_no_frame_after_a_move(self, canvas):
+        canvas.screen.write('+', x=PointerPosition.x, y=PointerPosition.y)
+        move_pointer(canvas, 4, 1)
+        canvas.clock.step()
+        assert not canvas._runtime.needs_frame
+        assert rows(canvas)[1] == '    +'
+
+    def test_the_mouse_position_asks_for_no_frame_while_the_mouse_is_still(self, canvas):
+        canvas.screen.write('m', x=MousePosition.x, y=MousePosition.y)
+        move_pointer(canvas, 2, 3)
+        canvas.clock.step()
+        assert not canvas._runtime.needs_frame
+        assert rows(canvas)[3] == '  m'
+
+    def test_a_mouse_move_asks_for_a_frame(self, canvas):
+        cursor = canvas.screen.write('+', x=PointerPosition.x, y=PointerPosition.y)
+        move_pointer(canvas, 4, 1)
+        canvas.push(Event.mouse_event(column=9, row=2, kind='move'))
+        assert canvas._runtime.step().did_render
+        assert (cursor.x, cursor.y) == (9, 2)
+        assert rows(canvas)[2] == '         +'
+
+    def test_a_mouse_report_at_the_same_cell_asks_for_no_frame(self, canvas):
+        canvas.screen.write('+', x=PointerPosition.x, y=PointerPosition.y)
+        move_pointer(canvas, 4, 1)
+        canvas.push(Event.mouse_event(column=4, row=1, kind='move'))
+        assert not canvas._runtime.step().did_render
+
+
 class TestAxesBeforeTheInputArrives:
     def test_a_new_placement_reads_zero_for_its_position(self, canvas):
         cursor = canvas.screen.write('<+>', x=PointerPosition.x - 1, y=PointerPosition.y)
@@ -261,3 +297,96 @@ class TestStyledTextAssignment:
         with pytest.raises(TypeError, match='text must be a string or a StyledText'):
             log.text = value
         assert log.text == 'starting'
+
+
+FIRST_LINE = '\x1b[31mfirst\x1b[0m line'
+SECOND_LINE = '\x1b[34msecond\x1b[0m'
+WRITTEN_FIRST = [
+    pytest.param('first line', id='string'),
+    pytest.param(StyledText.from_ansi(FIRST_LINE), id='styled text'),
+]
+
+
+class TestStyledTextWrittenAsText:
+    @pytest.mark.parametrize(
+        ('look', 'drawn_style'),
+        [
+            pytest.param({}, Style('blue'), id='no look'),
+            pytest.param({'foreground': 'green'}, Style('green'), id='foreground'),
+            pytest.param({'bold': True}, Style('blue', bold=True), id='bold'),
+        ],
+    )
+    @pytest.mark.parametrize('first', WRITTEN_FIRST)
+    def test_new_text_replaces_what_was_written(self, canvas, first, look, drawn_style):
+        log = canvas.screen.write(first, **look)
+        canvas.clock.step()
+        log.text = StyledText.from_ansi(SECOND_LINE)
+        canvas.clock.step()
+        assert log.text == 'second'
+        assert rows(canvas)[0] == 'second'
+        assert (log.width, log.height) == (6, 1)
+        assert log.core_buffer[0, 0].style == drawn_style
+
+    @pytest.mark.parametrize('first', WRITTEN_FIRST)
+    def test_new_text_in_a_border_replaces_what_was_written(self, canvas, first):
+        card = canvas.screen.write(first, border=True)
+        canvas.clock.step()
+        card.text = StyledText.from_ansi(SECOND_LINE)
+        canvas.clock.step()
+        assert card.text == 'second'
+        assert card.render().splitlines() == ['┌──────┐', '│second│', '└──────┘']
+        assert card.core_buffer[1, 1].style == Style('blue')
+
+    def test_styled_text_written_with_wrap_wraps_and_takes_new_text(self):
+        with xnano.new(width=10, height=3) as canvas:
+            written = StyledText.from_ansi('\x1b[31mone two\x1b[0m three four')
+            note = canvas.screen.write(written, x=0, y=0, edges='wrap')
+            assert rows(canvas)[:2] == ['one two', 'three four']
+            assert note.core_buffer[4, 0].style == Style('red')
+            note.text = StyledText.from_ansi('\x1b[34mfive six\x1b[0m seven')
+            assert rows(canvas)[:2] == ['five six', 'seven']
+            assert note.text == 'five six seven'
+            assert note.core_buffer[0, 0].style == Style('blue')
+            assert note.core_buffer[0, 1].style == Style()
+
+    def test_the_spans_keep_their_styles_under_the_look_of_the_write(self, canvas):
+        written = StyledText.from_ansi(FIRST_LINE)
+        green = canvas.screen.write(written, x=0, y=0, foreground='green')
+        bold = canvas.screen.write(written, x=0, y=1, bold=True)
+        canvas.clock.step()
+        assert green.core_buffer[0, 0].style == Style('green')
+        assert bold.core_buffer[0, 0].style == Style('red', bold=True)
+        assert bold.core_buffer[6, 0].style == Style(bold=True)
+        assert (green.text, bold.text) == ('first line', 'first line')
+
+    def test_a_look_added_later_keeps_the_spans_of_styled_text(self, canvas):
+        log = canvas.screen.write(StyledText.from_ansi(FIRST_LINE))
+        log.is_bold = True
+        canvas.clock.step()
+        assert log.core_buffer[0, 0].style == Style('red', bold=True)
+        assert log.text == 'first line'
+
+    @pytest.mark.parametrize(
+        'keywords',
+        [
+            {'x': 'center', 'width': 16},
+            {'x': 'right', 'y': 'bottom', 'width': 14, 'height': 3},
+            {'width': 6},
+            {'border': 'rounded', 'title': 'Log', 'x': 'center', 'width': 18},
+            {'padding': 1, 'foreground': 'cyan'},
+        ],
+    )
+    def test_styled_text_takes_the_place_of_a_string_with_the_same_keywords(
+        self, keywords
+    ):
+        written = StyledText.from_ansi(
+            '\x1b[31mfirst\x1b[0m line\n\x1b[1msecond\x1b[0m row'
+        )
+        drawn = []
+        for content in (str(written), written):
+            with xnano.new(width=24, height=6) as canvas:
+                placement = canvas.screen.write(content, **keywords)
+                canvas.clock.step()
+                place = (placement.x, placement.y, placement.width, placement.height)
+                drawn.append((place, placement.text, canvas.screen.render()))
+        assert drawn[0] == drawn[1]

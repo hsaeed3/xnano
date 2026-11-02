@@ -989,7 +989,14 @@ impl PyRuntime {
                     }
                 }
             }
-            EventPayload::Mouse(mouse) => lock(&self.shared.input).record_mouse(mouse),
+            EventPayload::Mouse(mouse) => {
+                let is_moved = lock(&self.shared.input).record_mouse(mouse);
+                // An expression that reads the pointer, such as the position of a cursor,
+                // follows it on the next frame.
+                if is_moved {
+                    self.shared.request_frame();
+                }
+            }
             EventPayload::Paste(text) => lock(&self.shared.input).record_paste(text),
             EventPayload::Size(size) => {
                 #[allow(unused_mut)]

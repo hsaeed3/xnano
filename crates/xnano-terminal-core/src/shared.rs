@@ -260,7 +260,16 @@ impl InputData {
 
     /// Remember a mouse event and the buttons it leaves held; the scalars of the other kinds
     /// of event are cleared. A wheel report sets only `scroll`.
-    pub fn record_mouse(&mut self, mouse: &xnano_terminal_runtime::event::MouseEvent) {
+    ///
+    /// Returns whether the event changed `pointer` or `last_mouse_position`, which
+    /// expressions such as the position of a cursor read.
+    pub fn record_mouse(&mut self, mouse: &xnano_terminal_runtime::event::MouseEvent) -> bool {
+        let before = (self.pointer, self.last_mouse_position);
+        self.record_mouse_fields(mouse);
+        before != (self.pointer, self.last_mouse_position)
+    }
+
+    fn record_mouse_fields(&mut self, mouse: &xnano_terminal_runtime::event::MouseEvent) {
         use xnano_terminal_runtime::event::MouseKind;
         self.forget_key();
         self.last_paste = None;
@@ -477,4 +486,34 @@ pub fn full_bounds(bounds: Bounds) -> Rectangle {
         i32::from(bounds.width()),
         i32::from(bounds.height()),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use xnano_terminal_runtime::event::{MouseEvent, MouseKind};
+
+    fn mouse(column: i32, row: i32, kind: MouseKind) -> MouseEvent {
+        MouseEvent {
+            column,
+            row,
+            kind,
+            button: None,
+            scroll_x: 0,
+            scroll_y: 0,
+        }
+    }
+
+    #[test]
+    fn a_mouse_event_says_whether_it_moved_the_pointer() {
+        let mut input = InputData::default();
+        assert!(input.record_mouse(&mouse(4, 1, MouseKind::Move)));
+        assert_eq!(input.pointer, Some((4, 1)));
+        assert!(!input.record_mouse(&mouse(4, 1, MouseKind::Move)));
+        assert!(input.record_mouse(&mouse(6, 2, MouseKind::Move)));
+        // A wheel step at the same cell removes the position of the last mouse report.
+        assert!(input.record_mouse(&mouse(6, 2, MouseKind::Scroll)));
+        assert_eq!(input.last_mouse_position, None);
+        assert!(!input.record_mouse(&mouse(6, 2, MouseKind::Scroll)));
+    }
 }

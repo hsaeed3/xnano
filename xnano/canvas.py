@@ -228,9 +228,13 @@ def _text_content(
         isinstance(line, str) for line in content
     ):
         content = '\n'.join(cast('Sequence[str]', content))
-    if not is_decorated or not isinstance(content, str):
+    if not is_decorated or not isinstance(content, (str, _core.StyledText)):
         return content, None
-    appearance.text = content
+    if isinstance(content, str):
+        appearance.text = content
+    else:
+        # The spans keep their styles, and the look goes over them.
+        appearance.styled_text = content
     return appearance.snapshot(), appearance
 
 
@@ -2749,7 +2753,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         picture = content if isinstance(content, Image) else None
         text_appearance: Appearance | None = None
         is_text = picture is None and (
-            isinstance(content, str)
+            isinstance(content, (str, _core.StyledText))
             or (
                 isinstance(content, (list, tuple))
                 and all(isinstance(line, str) for line in content)
@@ -2813,8 +2817,12 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         if needs_frames:
             self._demand_frames()
         placement._is_text = is_text
-        if is_text and text_appearance is None and isinstance(content, str):
-            placement._text_value = content
+        if is_text and text_appearance is None:
+            if isinstance(content, _core.StyledText):
+                placement._text_value = str(content)
+                placement._styled_text = content
+            elif isinstance(content, str):
+                placement._text_value = content
         if isinstance(content, Region) and decorated is None:
             # A snapshot of cells: in a box larger than it is, it sits where its x and y say.
             placement._snapshot_cells = content_buffer.copy()

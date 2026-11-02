@@ -90,7 +90,9 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     the placement is not drawn. When each of its axes has a value, it is drawn, and it
     follows the input from then on. Until that time, such an axis reads the value that it
     had before: ``0`` for the position of a new placement, and the size of the content for
-    its size. ``is_visible`` keeps the value that you set.
+    its size. ``is_visible`` keeps the value that you set. A placement that follows the
+    pointer does not keep the canvas drawing: the canvas draws a frame when the pointer
+    moves.
 
     Get one from [`Screen.write`][xnano.devices.Screen.write] or nest a child placement inside
     another with [`Placement.write`][xnano.layout.Placement.write].
@@ -883,7 +885,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         if behavior == 'clip':
             return
         if behavior == 'wrap' and self._is_text:
-            if isinstance(content, str):
+            if isinstance(content, (str, _core.StyledText)):
                 self._wrapped_text = content
             elif isinstance(content, (list, tuple)):
                 self._wrapped_text = '\n'.join(cast('Sequence[str]', content))

@@ -279,6 +279,9 @@ _STATIC_NAMES = frozenset(
         'ScreenBounds',
         'ScreenPosition',
         'BufferSize',
+        # The pointer changes only through mouse events, and those events ask for a frame.
+        'PointerPosition',
+        'MousePosition',
         'x',
         'y',
         'width',
@@ -298,9 +301,9 @@ def is_static_expression(bound: object) -> bool:
     """
     Whether a number or expression keeps its value until an event that already asks for a frame.
 
-    Only an expression built from sizes, positions and numbers is known to be static. An expression
-    that reads anything else, such as the clock, a sound, a level or a provided value, may
-    change between frames, so it is not static.
+    Only an expression built from sizes, positions, the pointer and numbers is known to be static.
+    An expression that reads anything else, such as the clock, a sound, a level or a provided
+    value, may change between frames, so it is not static.
     """
     if not isinstance(bound, _core.NumericValue):
         return True
