@@ -40,7 +40,10 @@ if TYPE_CHECKING:
     import asyncio
 
     from _typeshed import DataclassInstance
-    from rich.console import Group
+    from rich.console import Console as RichConsole
+    from rich.console import ConsoleOptions as RichConsoleOptions
+    from rich.console import RenderResult as RichRenderResult
+    from rich.measure import Measurement as RichMeasurement
     from typing_extensions import Self, TypeIs, Unpack
 
     from xnano._schema._content import PlaySource
@@ -1190,18 +1193,19 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         """
         return self.screen.render(format=format)
 
-    def __rich__(self) -> Group:
+    def __rich_console__(
+        self, console: RichConsole, options: RichConsoleOptions
+    ) -> RichRenderResult:
         r"""
-        Return the current frame for rich, so that rich and Textual can show the canvas.
+        Show the current frame in rich and Textual, with its colors and styles.
 
-        ``rich.print(canvas)`` prints the frame with its colors and styles. A canvas can also
-        go into a rich ``Panel`` or ``Table``, or into a Textual ``Static``. If a line is
-        longer than the space that rich gives it, rich cuts the line, as a terminal does.
-        Rich must be installed.
+        ``rich.print(canvas)`` prints the frame. A canvas can also go into a rich ``Panel``
+        or ``Table``, or into a Textual ``Static``. If a line is longer than the space that
+        rich gives it, rich cuts the line, as a terminal does. Rich must be installed.
 
         A closed canvas cannot draw. Textual draws a ``Static`` after you make it, so give
-        Textual a canvas that stays open, such as one from ``xnano.new()`` outside a ``with``
-        block.
+        Textual a canvas that stays open, such as one from ``xnano.new()`` outside a
+        ``with`` block.
 
         Examples:
             ```python
@@ -1217,13 +1221,27 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 assert console.file.getvalue() == 'hello\n'
             ```
         """
-        from rich.console import Group
         from rich.text import Text as RichText
 
-        frame = RichText.from_ansi(
+        yield RichText.from_ansi(
             self.render(format='ansi'), no_wrap=True, overflow='crop'
         )
-        return Group(frame)
+
+    def __rich_measure__(
+        self, console: RichConsole, options: RichConsoleOptions
+    ) -> RichMeasurement:
+        """
+        Tell rich the width of what it shows, so that rich keeps it whole when it can.
+
+        A frame of cells cannot wrap, so its smallest and its largest width are the same.
+        Rich uses this width to lay out panels, columns and nested tables. In a rich
+        ``Table``, add the column with ``no_wrap=True``, so that rich makes the other
+        columns narrower before it cuts this one.
+        """
+        from rich.measure import Measurement as RichMeasurement
+
+        width = self.screen.width
+        return RichMeasurement(width, width)
 
     @property
     def fx(self) -> WritableEffectProperties:

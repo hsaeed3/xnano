@@ -22,7 +22,10 @@ from xnano.layout._region import Region
 from xnano.styles._owners import _TextModifiers
 
 if TYPE_CHECKING:
-    from rich.console import Group
+    from rich.console import Console as RichConsole
+    from rich.console import ConsoleOptions as RichConsoleOptions
+    from rich.console import RenderResult as RichRenderResult
+    from rich.measure import Measurement as RichMeasurement
     from typing_extensions import Self, Unpack
 
     from xnano._schema._appearance import ColorValue, Spacing
@@ -518,21 +521,38 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
         """
         return self._canvas._render(format=format)
 
-    def __rich__(self) -> Group:
+    def __rich_console__(
+        self, console: RichConsole, options: RichConsoleOptions
+    ) -> RichRenderResult:
         """
-        Return the current frame for rich, so that rich and Textual can show the screen.
+        Show the current frame in rich and Textual, with its colors and styles.
 
-        ``rich.print(screen)`` prints the frame with its colors and styles, as
-        [`Canvas.__rich__`][xnano.canvas.Canvas.__rich__] does. If a line is longer than the
-        space that rich gives it, rich cuts the line. Rich must be installed.
+        ``rich.print(screen)`` prints the frame, as
+        [`Canvas.__rich_console__`][xnano.canvas.Canvas.__rich_console__] does. If a line
+        is longer than the space that rich gives it, rich cuts the line. Rich must be
+        installed.
         """
-        from rich.console import Group
         from rich.text import Text as RichText
 
-        frame = RichText.from_ansi(
+        yield RichText.from_ansi(
             self.render(format='ansi'), no_wrap=True, overflow='crop'
         )
-        return Group(frame)
+
+    def __rich_measure__(
+        self, console: RichConsole, options: RichConsoleOptions
+    ) -> RichMeasurement:
+        """
+        Tell rich the width of what it shows, so that rich keeps it whole when it can.
+
+        A frame of cells cannot wrap, so its smallest and its largest width are the same.
+        Rich uses this width to lay out panels, columns and nested tables. In a rich
+        ``Table``, add the column with ``no_wrap=True``, so that rich makes the other
+        columns narrower before it cuts this one.
+        """
+        from rich.measure import Measurement as RichMeasurement
+
+        width = self.width
+        return RichMeasurement(width, width)
 
     def local(self, point: _core.Point) -> _core.Point:
         """

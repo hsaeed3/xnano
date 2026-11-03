@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import xnano
+from xnano.layout._region import _timeline_region
 from xnano.styles import RichContent, StyledText
 
 if TYPE_CHECKING:
@@ -647,3 +648,49 @@ def test_textual_shows_a_canvas_that_stays_open():
         assert 'xnano!' in asyncio.run(screenshot())
     finally:
         canvas.close()
+
+
+def test_rich_measures_a_canvas_a_screen_a_placement_and_a_region_at_their_width():
+    console_module = pytest.importorskip('rich.console')
+    measure_module = pytest.importorskip('rich.measure')
+    console = console_module.Console(width=80)
+    with xnano.new(width=12, height=2) as canvas:
+        card = canvas.write('hi', border='rounded')
+        region = xnano.region('hello', border='rounded')
+        for item, width in ((canvas, 12), (canvas.screen, 12), (card, 4), (region, 7)):
+            measured = measure_module.Measurement.get(console, console.options, item)
+            assert (measured.minimum, measured.maximum) == (width, width)
+
+
+def test_rich_measures_braille_and_half_block_views_in_cells():
+    console_module = pytest.importorskip('rich.console')
+    measure_module = pytest.importorskip('rich.measure')
+    console = console_module.Console(width=80)
+    region = xnano.region('hello world', border='rounded')
+    for view in (region.half_blocks, region.braille):
+        measured = measure_module.Measurement.get(console, console.options, view)
+        assert (measured.minimum, measured.maximum) == (13, 13)
+        assert len(_printed(view).splitlines()[0]) == 13
+
+
+def test_rich_shows_a_timeline_region_as_its_repr_on_one_line():
+    pytest.importorskip('rich')
+    region = _timeline_region(
+        start_beats=0.0, length_beats=1.5, pitches=[60, 64], tempo_changes=((0.0, 120.0),)
+    )
+    printed = _printed(region, width=20)
+    assert printed.splitlines() == [repr(region)[:20]]
+
+
+def test_a_tight_rich_table_keeps_a_canvas_whole_in_a_no_wrap_column():
+    table_module = pytest.importorskip('rich.table')
+    with xnano.new(width=12, height=2) as canvas:
+        canvas.write('xnano canvas')
+        canvas.write('second line!', y=1)
+        table = table_module.Table()
+        table.add_column('frame', no_wrap=True)
+        table.add_column('notes')
+        table.add_row(canvas, 'a long note that could easily wrap onto several lines')
+        printed = _printed(table, width=28)
+        assert '│ xnano canvas │' in printed
+        assert '│ second line! │' in printed
