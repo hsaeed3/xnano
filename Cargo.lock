@@ -3499,7 +3499,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-runtime"
-version = "2.2.1"
+version = "2.2.2"
 dependencies = [
  "codspeed-criterion-compat",
  "crossterm",
@@ -3521,7 +3521,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-state"
-version = "2.2.1"
+version = "2.2.2"
 dependencies = [
  "indexmap",
  "regex",
