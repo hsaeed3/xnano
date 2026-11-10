@@ -60,7 +60,7 @@ with xnano.open(title='log viewer') as terminal:
         # every eleventh line is an error and every fourth a warning: the rest inform
         number = len(lines) + 1
         level = 'error' if number % 11 == 0 else 'warning' if number % 4 == 0 else 'info'
-        message = MESSAGES[level][number % len(MESSAGES[level])]
+        message = MESSAGES[level][number // 2 % len(MESSAGES[level])]
         text = f'{context.clock.elapsed_seconds:7.2f}  {level:<7}  {message}'
         lines.append((level, text))
         # a view that is scrolled back keeps showing the same lines
