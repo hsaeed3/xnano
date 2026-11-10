@@ -99,7 +99,7 @@ def test_the_arrows_change_the_page_and_the_hint_names_its_keys(demo):
         ('╭preview', '↑ ↓ choose a widget'),
         ('╭effects', '↑ ↓ choose an effect · enter play again'),
         ('╭instruments', 'enter melody · m mute'),
-        ('╭log', 'press a key · click anywhere'),
+        ('╭log', 'press a key · click or drag anywhere'),
         ('╭time', 'space pause time'),
     ):
         screen.press('right')
@@ -167,10 +167,14 @@ def test_the_mouse_chooses_a_page_and_a_line_and_marks_a_click(demo):
     assert screen.wait_for('› gauge'), screen.text
     column, row = screen.find('input')
     screen.click(column + 1, row)
-    assert screen.wait_for('╭click here'), screen.text
+    assert screen.wait_for('╭click or drag here'), screen.text
     screen.click(10, 15)
     assert screen.wait_for('click at column 10, row 15'), screen.text
     assert screen.lines()[15][10] == '●'
+    screen.drag((10, 15), (20, 18))
+    assert screen.wait_until(lambda: screen.lines()[18][20] == '●'), screen.text
+    assert screen.lines()[15][10] != '●'
+    assert 'mouse  column 20, row 18' in screen.text
     screen.press('q')
     assert screen.finish() == 0
 
@@ -199,11 +203,40 @@ def test_a_window_of_any_size_opens_the_pages_without_an_error(demo, rows, colum
         assert screen.wait_for('demo needs 80 by 24'), screen.text
     else:
         screen.settle(1.0)
+    screen.resize(30, 100)
+    assert screen.wait_for('╭time'), screen.text
     for key in ('right', 'down', 'right', 'right', 'right'):
         screen.press(key)
-    screen.resize(30, 100)
     assert screen.wait_for('╭log'), screen.text
     screen.resize(3, 12)
     screen.settle(0.5)
     screen.press('q')
     assert screen.finish() == 0, screen.raw.decode('utf-8', 'replace')[-800:]
+
+
+def test_every_widget_of_the_widgets_page_draws_something_in_its_preview(demo):
+    screen = demo()
+    open_pages(screen)
+    screen.press('tab')
+    assert screen.wait_for('› bar chart'), screen.text
+    column, _ = screen.find('╭preview')
+    shown = {
+        'bar chart': 'memory',
+        'calendar': 'January 2026',
+        'chart': '└──',
+        'gauge': '60% of 512 GB',
+        'line gauge': 'upload',
+        'paragraph': 'A paragraph wraps',
+        'sparkline': '▁',
+        'table': 'service',
+        'tabs': 'settings',
+    }
+    for name, text in shown.items():
+        assert screen.wait_for(f'› {name}'), screen.text
+        preview = '\n'.join(line[column:] for line in screen.lines())
+        assert screen.wait_until(
+            lambda text=text: text in '\n'.join(line[column:] for line in screen.lines())
+        ), f'The preview of {name} does not show {text!r}:\n{preview}'
+        screen.press('down')
+    screen.press('q')
+    assert screen.finish() == 0

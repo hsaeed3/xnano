@@ -67,9 +67,8 @@ python -m xnano
 
 ## Why xnano
 
-Most terminal libraries ask you to learn their structure first: an application
-class, a tree of widgets, a layout language. `xnano` starts from one idea. You
-write something on the screen, and you get back an object that you can change.
+`xnano` starts from one idea: you write something on the screen, and you get
+back an object that you can change. Everything else builds on that.
 
 - **You write, and it shows.** [`terminal.write()`][learn-content] takes text,
   a [widget][learn-widgets], pixel art or an [image][learn-images]. You say
@@ -89,9 +88,8 @@ write something on the screen, and you get back an object that you can change.
   `.gif` and `.webp` files work the same way as text does.
 - **The drawing is done in Rust.** Layout and drawing run in
   [`ratatui`](https://ratatui.rs/), so a frame stays fast when the screen is
-  full. `make compare` times `xnano` against `rich`, `urwid` and
-  `prompt_toolkit` on the same jobs.
-- **It works with what you already use.** A canvas goes into a `rich` `Panel`
+  full.
+- **It works with `rich` and `textual`.** A canvas goes into a `rich` `Panel`
   or a `textual` `Static` as it is, and `rich` renderables go into a canvas. See
   [`rich` and `textual` users](#rich-and-textual-users).
 

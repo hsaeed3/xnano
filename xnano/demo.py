@@ -75,7 +75,7 @@ HINTS = {
     'widgets': '↑ ↓ choose a widget',
     'effects': '↑ ↓ choose an effect · enter play again',
     'sound': 'a to k play · ↑ ↓ instrument · enter melody · m mute',
-    'input': 'press a key · click anywhere',
+    'input': 'press a key · click or drag anywhere',
 }
 NOTES = dict(
     zip('asdfghjk', ('C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'), strict=True)
@@ -497,9 +497,12 @@ class _Demo:
         self.panel(page, 'preview', 0.3, 1.0, 0.0, 1.0)
         self.widget_list = self.choice_list(page, WIDGETS, self.choose_widget)
         widgets = preview_widgets()
-        short = {'gauge': 0.2, 'line gauge': 0.12, 'tabs': 0.12, 'sparkline': 0.3}
+        # these widgets are one or a few rows high in a window of any height
+        rows = {'gauge': 2, 'line gauge': 1, 'tabs': 1, 'sparkline': 4}
         for name, widget in zip(WIDGETS, widgets, strict=True):
-            preview = self.add(page, widget, 0.3, 1.0, 0.0, short.get(name, 1.0))
+            preview = self.add(page, widget, 0.3, 1.0, 0.0, 1.0)
+            if name in rows:
+                preview.height = rows[name]
             self.placements[page].remove(preview)
             self.previews.append(preview)
 
@@ -652,11 +655,11 @@ class _Demo:
     # -- input: what the keyboard and the mouse report -----------------------------------
 
     def build_input(self) -> None:
-        """The newest key and click, a log of the ones before, and a mark where you click."""
+        """The newest key and click, a log of the ones before, and a mark that follows the mouse."""
         page = 'input'
         self.panel(page, 'newest', 0.0, 0.4, 0.0, 0.4)
         self.panel(page, 'log', 0.4, 1.0, 0.0, 1.0)
-        self.panel(page, 'click here', 0.0, 0.4, 0.4, 1.0)
+        self.panel(page, 'click or drag here', 0.0, 0.4, 0.4, 1.0)
         self.newest = self.add(
             page, 'key    none yet\nmouse  none yet', 0.0, 0.4, 0.0, 0.4
         )
@@ -672,6 +675,10 @@ class _Demo:
         """Add a line to the log of the input page."""
         self.events.append(text)
         self.log.text = '\n'.join(self.events)
+        self.remember_newest()
+
+    def remember_newest(self) -> None:
+        """Show the newest key and the newest place of the mouse."""
         self.newest.text = f'key    {self.key_text}\nmouse  {self.mouse_text}'
 
     # -- the keys and the mouse of every page --------------------------------------------
@@ -733,13 +740,18 @@ class _Demo:
                 self.is_muted = not self.is_muted
                 self.show_sound()
 
-        @terminal.hook(on="mouse.kind == 'press'")
-        def click(context: Context) -> None:
+        @terminal.hook(on='mouse')
+        def point(context: Context) -> None:
             position = context.mouse.position
-            if position is None:
+            kind = context.mouse.kind
+            if position is None or kind not in ('press', 'drag'):
                 return
             self.mouse_text = f'column {position.x}, row {position.y}'
-            self.remember(f'click at column {position.x}, row {position.y}')
+            if kind == 'press':
+                self.remember(f'click at column {position.x}, row {position.y}')
+            else:
+                # a drag reports every cell it crosses, so it only changes the newest line
+                self.remember_newest()
             is_inside = 0 < position.y < terminal.screen.height - 1
             if PAGES[self.page] == 'input' and is_inside:
                 self.mark.x, self.mark.y = position.x, position.y
