@@ -427,9 +427,12 @@ class TestTimeControls:
                 label.text = str(len(times))
 
             time.sleep(1.5)
-        gaps = sorted(later - earlier for earlier, later in itertools.pairwise(times[3:]))
+        gaps = [later - earlier for earlier, later in itertools.pairwise(times[3:])]
         assert len(gaps) >= 10
-        assert gaps[len(gaps) // 2] < 0.06
+        # The typical gap and the average gap both keep the cadence: a late frame that
+        # comes back again and again raises the average, and one slow frame does not.
+        assert sorted(gaps)[len(gaps) // 2] < 0.06
+        assert sum(gaps) / len(gaps) < 0.06
 
     def test_a_canvas_that_runs_by_itself_is_stepped_only_while_stopped(self):
         canvas = xnano.new(realtime=True, width=4, height=1, fps=10)
