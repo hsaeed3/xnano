@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import dataclasses
 import gc
+import itertools
 import pathlib
 import re
 import threading
+import time
 import weakref
 from typing import cast
 
@@ -22,7 +24,7 @@ import xnano
 import xnano.terminal._screen
 from xnano.canvas import Canvas
 from xnano.errors import TerminalClosedError, TerminalError
-from xnano.hooks import Frame
+from xnano.hooks import Context, Frame
 from xnano.terminal._settings import gates_for_screen, parse_open_settings
 from xnano_core import Event, Point, TimeElapsed
 
@@ -408,6 +410,31 @@ class TestTimeControls:
                 label.text = str(index)
                 canvas.clock.step(delta_seconds=0.1)
             assert canvas.clock.measured_fps == pytest.approx(10)
+
+    def test_the_work_of_a_frame_does_not_delay_the_next_frame(self):
+        # Each frame takes 100 ms of work and the frame interval is 200 ms. The frames keep
+        # the 200 ms cadence: the work is inside the interval, not added to it (300 ms or
+        # more). The interval is long so that a slow machine, where drawing a frame takes
+        # tens of milliseconds more, still fits each frame inside it.
+        times: list[float] = []
+        with xnano.new(width=4, height=1, fps=5, realtime=True) as canvas:
+            label = canvas.screen.write('')
+
+            @canvas.hook(on='frame')
+            def work(context: Context) -> None:
+                start = time.perf_counter()
+                while time.perf_counter() - start < 0.1:
+                    pass
+                times.append(time.perf_counter())
+                label.text = str(len(times))
+
+            time.sleep(2.2)
+        gaps = [later - earlier for earlier, later in itertools.pairwise(times[2:])]
+        assert len(gaps) >= 5
+        # The typical gap and the average gap both keep the cadence: a late frame that
+        # comes back again and again raises the average, and one slow frame does not.
+        assert sorted(gaps)[len(gaps) // 2] < 0.26
+        assert sum(gaps) / len(gaps) < 0.26
 
     def test_a_canvas_that_runs_by_itself_is_stepped_only_while_stopped(self):
         canvas = xnano.new(realtime=True, width=4, height=1, fps=10)
