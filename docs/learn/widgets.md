@@ -170,6 +170,52 @@ with xnano.new(width=48, height=6) as canvas:
 
 <!-- /@code-block-asset -->
 
+## Change a widget
+
+A widget stays live after you write it, like a placement. Set one of its
+values, and the next frame shows the change. For example, `selected` of an
+`ItemList` moves the highlight, and `ratio` and `label` of a `Gauge` change its
+bar and its text. This list follows the arrow keys:
+
+```python
+import xnano
+from xnano.styles import Style
+from xnano.widgets import Gauge, ItemList
+
+folders = ['inbox', 'drafts', 'sent', 'archive']
+unread = {'inbox': 12, 'drafts': 3, 'sent': 0, 'archive': 48}
+
+with xnano.open(height=6) as terminal:
+    items = ItemList(
+        folders, selected=0, highlight_symbol='› ', highlight_style=Style(bold=True)
+    )
+    share = Gauge(unread['inbox'] / 48, label='12 unread')
+    terminal.write(items, width=20, height=4)
+    terminal.write(share, x=20, y=0, width=20, height=1)
+    terminal.write('↑ ↓ choose · q quit', y='bottom', dim=True)
+
+    @terminal.hook(on='key', keys=['up', 'down'])
+    def choose(context: xnano.Context):
+        step = 1 if context.keyboard.key == 'down' else -1
+        items.selected = (items.selected + step) % len(folders)  # >> [selected]
+        count = unread[folders[items.selected]]
+        share.ratio = count / 48  # >> [gauge]
+        share.label = f'{count} unread'  # >> [gauge]
+
+    terminal.run(stop_on='q')
+```
+
+<comments>
+<tag name="selected" color="blue">
+Moves the highlight one item up or down. `%` takes it from the last item to the
+first item, and back.
+</tag>
+
+<tag name="gauge" color="green">
+The gauge shows the folder that is selected. You do not write the gauge again.
+</tag>
+</comments>
+
 ## Widgets that follow the clock
 
 Each number and text in a widget can be an

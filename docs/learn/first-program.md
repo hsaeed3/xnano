@@ -324,3 +324,5 @@ The other guides explain each part in more detail:
 - [Widgets](widgets.md): gauges, charts, tables and lists.
 - [Images & Pixel Art](images.md): pixel art and pictures.
 - [Sound](sound.md): notes, melodies and the microphone.
+- [Testing](testing.md): tests for a program like this timer, without a
+  terminal.

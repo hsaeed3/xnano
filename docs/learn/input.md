@@ -192,6 +192,7 @@ A hook on a **placement** receives only the pointer events inside that
 placement. With such a hook, any placement can be a button. `context.mouse`
 describes the event:
 
+- `is_down` is `True` while a button is held.
 - `kind` is `'press'`, `'release'`, `'drag'` or `'move'`.
 - `button` is `'left'`, `'right'` or `'middle'`.
 - `position` is the cell under the pointer, with `x` and `y`.
@@ -216,7 +217,7 @@ with xnano.open(height=4, mouse=True) as terminal:
     @button.hook(on='mouse')
     def toggle(context: xnano.Context):
         global is_on
-        if context.mouse.kind == 'press':  # >> [press]
+        if context.mouse.is_down:  # >> [press]
             is_on = not is_on
             button.text = ' on ' if is_on else ' off '
             button.color.fg = 'green' if is_on else 'reset'  # >> [reset]
@@ -226,8 +227,8 @@ with xnano.open(height=4, mouse=True) as terminal:
 
 <comments>
 <tag name="press" color="pink">
-A click sends a press and then a release. The hook acts only on the press, so
-one click changes the switch one time.
+A click sends a press and then a release. The button is down on the press and
+up again on the release, so one click changes the switch one time.
 </tag>
 
 <tag name="reset">

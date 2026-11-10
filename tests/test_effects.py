@@ -1072,3 +1072,38 @@ class TestSuggestedValues:
     def test_percentages_are_suggested_in_steps_of_five(self) -> None:
         steps = typing.get_args(xnano.layout.Percentage)
         assert steps == tuple(f'{share}%' for share in range(5, 101, 5))
+
+
+class TestEffectAsWithBlock:
+    def test_an_effect_lasts_as_long_as_its_with_block(self):
+        with xnano.new(width=10, height=1) as canvas:
+            label = canvas.write('loading', foreground='blue')
+            plain = canvas.render(format='ansi')
+            shift = label.fx.hsl_shift(foreground=(120, 0, 0), duration_milliseconds=5000)
+            with shift as entered:
+                assert entered is shift
+                canvas.clock.sleep(1)
+                assert canvas.render(format='ansi') != plain
+            canvas.clock.step()
+            assert canvas.render(format='ansi') == plain
+
+    def test_the_effect_stops_when_the_block_raises(self):
+        with xnano.new(width=10, height=1) as canvas:
+            label = canvas.write('loading', foreground='blue')
+            plain = canvas.render(format='ansi')
+            with pytest.raises(RuntimeError, match='work failed'):
+                with label.fx.hsl_shift(
+                    foreground=(120, 0, 0), duration_milliseconds=5000
+                ):
+                    canvas.clock.sleep(1)
+                    raise RuntimeError('work failed')
+            canvas.clock.step()
+            assert canvas.render(format='ansi') == plain
+
+    def test_a_block_longer_than_the_effect_leaves_nothing_to_stop(self):
+        with xnano.new(width=10, height=1) as canvas:
+            label = canvas.write('loading', foreground='blue')
+            plain = canvas.render(format='ansi')
+            with label.fx.hsl_shift(foreground=(120, 0, 0), duration_milliseconds=100):
+                canvas.clock.sleep(1)
+            assert canvas.render(format='ansi') == plain

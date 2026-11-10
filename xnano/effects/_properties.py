@@ -61,6 +61,7 @@ else:
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from typing_extensions import Self
     from xnano_audio import TerminalAudioEffect
 
     from xnano._schema._effects import (
@@ -113,6 +114,37 @@ class EffectParameters(DynamicOperation):
             return
         surface = target._buffer if hasattr(target, '_buffer') else target
         surface.update(_core.CancelEffect(key))
+
+    def __enter__(self) -> Self:
+        """
+        Let the effect last as long as a ``with`` block, and no longer than its duration.
+
+        Leaving the block stops an effect that is still running, as
+        [`cancel`][xnano.effects.EffectParameters.cancel] does, so the content shows its own
+        look again. Use it to show an effect while some work is done: give the effect a
+        duration longer than the work can take, and the end of the block ends the effect.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=10, height=1) as canvas:
+                label = canvas.write('loading', foreground='blue')
+                plain = canvas.render(format='ansi')
+                with label.fx.hsl_shift(
+                    foreground=(120, 0, 0), duration_milliseconds=5000
+                ):
+                    canvas.clock.sleep(1)
+                    assert canvas.render(format='ansi') != plain
+                canvas.clock.step()
+                assert canvas.render(format='ansi') == plain
+            ```
+        """
+        return self
+
+    def __exit__(self, *exception: object) -> None:
+        """Stop the effect: the ``with`` block ended."""
+        self.cancel()
 
 
 class AudioEffectParameters(EffectParameters):

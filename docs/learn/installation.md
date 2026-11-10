@@ -5,8 +5,7 @@ icon: lucide/download
 
 # Installation
 
-xnano runs on Python 3.10 to 3.14, on Linux, macOS and Windows. To install it
-from [PyPI](https://pypi.org/project/xnano/), use pip:
+To install xnano from [PyPI](https://pypi.org/project/xnano/), use pip:
 
 ```bash
 pip install xnano
@@ -18,6 +17,18 @@ command:
 ```bash
 uv add xnano
 ```
+
+## Supported platforms
+
+- **Python**: 3.10 to 3.14.
+- **Linux**: x86_64 and aarch64, with glibc or musl.
+- **macOS**: Intel and Apple silicon.
+- **Windows**: x86_64.
+- **WebAssembly**: [Pyodide](https://pyodide.org/), in a browser. A browser has
+  no terminal, so a canvas from `xnano.new()` draws into memory there, and
+  images and sound are not available.
+
+Each platform has a wheel that is already built, so you do not need Rust.
 
 ## Optional extras
 

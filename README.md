@@ -331,17 +331,16 @@ with xnano.new(width='100%', height=7) as canvas:
 ### Effects
 
 Every placement has `fx`, with one method for each effect of
-[`tachyonfx`](https://github.com/ratatui/tachyonfx).
+[`tachyonfx`](https://github.com/ratatui/tachyonfx). Effects run on the clock of
+the terminal, so they pause when it pauses.
 [Learn more](https://xnano.hammad.app/learn/time/).
 
 <!-- @code-block name="animations" type="gif" height=6
-wait 1.2
+wait 2.6
 press 1
-wait 1.2
+wait 1.0
 press 2
 wait 1.2
-press 3
-wait 1.4
 -->
 ```python
 import xnano
@@ -353,23 +352,24 @@ with xnano.open(height=6) as terminal:
         padding={'horizontal': 4, 'vertical': 1},
         foreground='magenta',
     )
-    terminal.write('1 sweep · 2 slide · 3 hue · q quit', y='bottom', dim=True)
+    hint = terminal.write('loading...', y='bottom', dim=True)
 
-    # every placement has `fx`, with one method for each effect: this one fades the card in
-    card.fx.fade_from(foreground='black', duration_milliseconds=800)
-
+    # an effect follows the terminal's clock, and without a duration it takes half a
+    # second: one call starts it
     @terminal.hook(on='key', keys='1')
     def sweep(context: xnano.Context):
-        card.fx.sweep_in(color='cyan', duration_milliseconds=600)
+        card.fx.sweep_in(color='cyan')
 
     @terminal.hook(on='key', keys='2')
     def slide(context: xnano.Context):
-        card.fx.slide_in(direction='left_to_right', duration_milliseconds=600)
+        card.fx.slide_in(direction='left_to_right')
 
-    @terminal.hook(on='key', keys='3')
-    def hue(context: xnano.Context):
-        card.fx.hsl_shift(foreground=(180, 0, 0), duration_milliseconds=900)
+    # an effect is also a `with` block: it lasts as long as the block, and its duration
+    # is only the longest that it can last. The hue shifts while the work is done
+    with card.fx.hsl_shift(foreground=(360, 0, 0), duration_milliseconds=60_000):
+        terminal.clock.sleep(2)  # your slow work goes here
 
+    hint.text = '1 sweep · 2 slide · q quit'
     terminal.run(stop_on='q')
 ```
 
@@ -537,104 +537,65 @@ python examples/05_dashboard.py
 ## `rich` and `textual` users
 
 `xnano` works with [`rich`](https://github.com/Textualize/rich) and
-[`textual`](https://github.com/Textualize/textual), in both directions:
+[`textual`](https://github.com/Textualize/textual) without an adapter. A canvas
+is a `rich` renderable, so `rich.print()`, a `rich` `Panel` and a `textual`
+`Static` show it as it is. In the other direction, `xnano.from_rich()` writes a
+`rich` renderable, or `rich` markup, on a canvas.
 
-- **Into `xnano`**: `xnano.from_rich()` writes any `rich` renderable, or `rich`
-  markup, in a canvas. `StyledText.from_ansi()` writes text with ANSI color codes,
-  such as the output of a command.
-- **Out of `xnano`**: canvases, screens, placements and regions follow `rich`'s
-  [console protocol](https://rich.readthedocs.io/en/latest/protocol.html), so
-  `rich.print()`, a `rich` `Panel` or `Table`, and a `textual` `Static` show them
-  as they are. In a `rich` `Table`, add the column with `no_wrap=True` to keep a
-  canvas whole when the table is narrow.
+This application has all three on one screen. `rich` makes the table, `xnano`
+puts it on a canvas beside a gauge that follows the clock, and `textual` shows
+the canvas between its own header and footer:
 
-<!-- @code-block name="rich-console" type="image" height=9 -->
-```python
-import xnano
-from rich import print
-from rich.table import Table
-from xnano.styles import StyledText
-
-table = Table('service', 'status')
-table.add_row('web', '[green]● up[/green]')
-table.add_row('db', '[red]▲ slow[/red]')
-
-with xnano.new(width=40, height=8) as canvas:
-    # rich renderables and rich markup go into a canvas with `xnano.from_rich()`
-    canvas.write(xnano.from_rich(table))
-    canvas.write(xnano.from_rich('[bold green]✓[/] build passed'), y=6)
-
-    # text with ANSI color codes, such as the output of a command, goes in the same way
-    log_line = StyledText.from_ansi('\x1b[2m12:00:01\x1b[0m deploy started')
-    canvas.write(log_line, y='bottom')
-
-    # and the canvas goes back to rich as it is
-    print(canvas)
-```
-
-<!-- @code-block-asset name="rich-console" -->
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/rich-console-dark.png">
-  <img alt="rich-console" src="docs/assets/readme/rich-console-light.png">
-</picture>
-<!-- /@code-block-asset -->
-
-<details>
-<summary>A textual application that shows an xnano canvas</summary>
-
-A `textual` `Static` shows an `xnano` canvas as it is, and `xnano`'s hooks can handle
-`textual`'s keys: pass each key to the canvas with `push()` and `deliver_events()`.
-Make the canvas with `xnano.new()` outside a `with` block, so it stays open:
-`textual` draws the `Static` after it is made.
-
-<!-- @code-block name="textual" type="gif" height=5
-wait 2.5
-press space
-wait 0.5
-press space
-wait 0.5
-press space
-wait 1.2
-press r
-wait 1.2
+<!-- @code-block name="textual" type="gif" height=11
+wait 5.5
 -->
 ```python
 import xnano
-from textual import events
+from rich.table import Table
 from textual.app import App, ComposeResult
-from textual.widgets import Static
-from xnano.events import Event
+from textual.widgets import Footer, Header, Static
+from xnano.widgets import Gauge
 
 
-class Counter(App):
+# rich: any renderable, such as this table with rich markup in its cells
+def services() -> Table:
+    table = Table('service', 'status')
+    table.add_row('web', '[green]● up[/green]')
+    table.add_row('db', '[yellow]▲ slow[/yellow]')
+    return table
+
+
+# xnano: a canvas holds the rich table beside a gauge that follows the canvas's clock
+def dashboard() -> xnano.Canvas:
+    canvas = xnano.new(width=50, height=6)
+    canvas.write(xnano.from_rich(services()))
+    check = Gauge(canvas.clock % 5 / 5, label='next check')
+    canvas.write(check, x=24, y=1, width=26, height=3, border='rounded')
+    return canvas
+
+
+# textual: a `Static` shows the canvas as it is, between a header and a footer
+class Services(App):
+    TITLE = 'services'
     BINDINGS = [('q', 'quit', 'Quit')]
 
     def compose(self) -> ComposeResult:
-        # an xnano canvas is a rich renderable, so a textual `Static` shows it as it is
-        self.canvas = xnano.new(width=32, height=4)
+        self.canvas = dashboard()
+        yield Header()
         yield Static(self.canvas)
+        yield Footer()
 
     def on_mount(self) -> None:
-        counter = self.canvas.write('presses: 0', border='rounded')
-        self.canvas.write('space +1 · r reset · q quit', dim=True)
-        self.presses = 0
+        # textual keeps the time: it moves the xnano clock and shows the canvas again
+        self.set_interval(0.1, self.tick)
 
-        # xnano hooks change the canvas
-        @self.canvas.hook(on='key', keys=['space', 'r'])
-        def count(context: xnano.Context) -> None:
-            is_space = context.keyboard.key == 'space'
-            self.presses = self.presses + 1 if is_space else 0
-            counter.text = f'presses: {self.presses}'
-
-    def on_key(self, event: events.Key) -> None:
-        # pass textual's keys to the xnano hooks, then show the canvas again
-        self.canvas.push(Event.key_press(event.key))
-        self.canvas.deliver_events()
+    def tick(self) -> None:
+        self.canvas.clock.step(delta_seconds=0.1)
         self.query_one(Static).update(self.canvas)
 
 
 if __name__ == '__main__':
-    Counter().run()
+    Services().run()
 ```
 
 <!-- @code-block-asset name="textual" -->
@@ -644,7 +605,10 @@ if __name__ == '__main__':
 </picture>
 <!-- /@code-block-asset -->
 
-</details>
+The same canvas prints with `rich.print(dashboard())`. Make a canvas for
+`textual` outside a `with` block, so it stays open: `textual` draws the `Static`
+after it is made. To write text that has ANSI color codes, such as the output
+of a command, use `StyledText.from_ansi()`.
 
 ## Learn More
 
