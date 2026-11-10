@@ -76,7 +76,9 @@ def test_a_block_runs(name, number, source, monkeypatch, capsys):
     def stay_on_the_canvas(self: Canvas, **settings: object) -> Canvas:
         return self
 
-    def move_five_frames(self: Canvas, *, stop_on: object = None) -> None:
+    def move_five_frames(
+        self: Canvas, *, stop_on: object = None, end_on: object = None
+    ) -> None:
         for _ in self.iter(frames=5):
             pass
 

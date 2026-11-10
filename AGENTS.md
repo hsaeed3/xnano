@@ -177,6 +177,37 @@ Docstrings are written for **users of the library**, never for the people mainta
 - Anything that is a **direct binding** of an upstream crate or API (`ratatui`, `crossterm`, `tachyonfx`, `termprofile`, ...) must say so with a ``Maps to [`crate::path::Item`](https://docs.rs/<crate>/<version>/<crate>/<path>.html).`` line linking to the exact upstream item. Use the version pinned in `Cargo.toml`, and keep the link pointing at the real upstream item.
 - Docstring layout (enforced by ruff D209/D213): multi-line docstrings put the opening and closing triple quotes on their own lines.
 
+## Writing for Users
+
+Every text a person reads follows these rules: text on the screen (labels, hint lines, titles, status words), error messages, command line output, docstrings and the documentation site. They are adapted from Simplified Technical English ([ASD-STE100](https://www.asd-ste100.org/)). Names in code are technical nouns and keep their spelling.
+
+### Words
+
+- Use one word for one meaning, and one meaning for one word. The same technical noun names the same item in code, on screen, in errors and in the docs: if the docs say "placement", do not also say "block", "box" or "element" for it.
+- Use simple, well-known words: "use", not "utilize"; "start", not "initiate"; "show", not "display" as a verb; "make sure", not "ensure". No slang and no regional words.
+- Use a single verb when one exists: "start", not "fire up"; "remove", not "get rid of".
+- Do not use Latin abbreviations. Write "for example" and "that is", not "e.g." and "i.e.".
+- Use American English spelling ("color", "center").
+
+### Verbs and sentences
+
+- Use the active voice, and the simple present, simple past, simple future or imperative.
+- Describe an action with a verb: "Install the extra", not "Do the installation of the extra".
+- Keep an instruction to 20 words and a description to 25 words. Give one instruction in each sentence.
+- Do not use contractions in documentation and error messages ("do not", "is not"), and keep the articles.
+- If the reader must know a condition first, give the condition first, then the instruction: "If the terminal has no mouse, use the arrow keys."
+- Do not use semicolons: write two sentences. Use a list for many items or steps.
+- Give one topic in each paragraph, in six sentences or fewer.
+
+### Labels, hints, options and errors
+
+- A label names the thing or the action in as few words as possible, with no sentence: `services`, `pause`.
+- A hint line names each key and then its action, lowercase, with ` · ` between the pairs: `↑ ↓ choose · enter open · q quit`. The key that leaves comes last.
+- An option says what happens, not how it is implemented: `mouse=True` turns on mouse events.
+- An error says what is wrong, then what to do (see **Errors teach recovery**). It appears where the problem is: a panel that cannot load says so in that panel.
+- A message about a missing extra names the command that installs it: `pip install "xnano[image]"`.
+- A warning gives the risk and its result: "This closes the terminal. Unsaved text is lost."
+
 ## Design Language & UI/UX Checklist
 
 xnano has two interfaces: the programs people run in a terminal (widgets, effects, the demo, the examples, errors that reach the screen) and the documentation site that teaches them. Both follow one design language, adapted from [Zed's UI checklist](https://github.com/zed-industries/zed/blob/main/docs/src/development/ui-checklist.md) and [icon guidelines](https://github.com/zed-industries/zed/blob/main/crates/icons/README.md). The interface stays quiet so the content leads. Every visual choice carries a meaning, and a meaning always looks the same. Use this section whenever a change affects what a user sees, hears or reads.
@@ -204,9 +235,12 @@ xnano has two interfaces: the programs people run in a terminal (widgets, effect
 - Does every key binding work as intended, including keys that terminals report differently (`backspace`, `alt`/`option`, function keys)?
 - Can a user discover the bindings on screen (a hint line), in the docstring and in the example?
 - Is everything usable from the keyboard alone? Mouse input is opt-in (`mouse=True`), so the keyboard path must be complete.
+- Do the keys follow the conventions? The arrow keys move a choice, `tab` moves between areas or controls, `enter` and `space` activate, and `esc` closes or goes back.
 - With the mouse enabled, do clicks, drags, scrolling and resizing all work?
 - Does it look right in light and dark terminal themes, and in both color schemes of the site?
-- Are focus and hover states clear and consistent? Are they visible without color, through bold, reverse video or a marker?
+- Are focus and hover states clear and consistent? Are they visible without color, through bold, reverse video or a marker? One view has one focus, and it looks the same in every view.
+- Does the screen make sense as plain text? A screen reader, a piped output and `render(format='text')` all get the characters without their colors, so a state is never shown by color or position alone.
+- Can a person who does not want motion turn it off or skip it? An opening animation ends on any key, and no information is shown only while something moves.
 
 #### Responsiveness
 
@@ -227,7 +261,8 @@ xnano has two interfaces: the programs people run in a terminal (widgets, effect
 #### Performance
 
 - Does every interaction get instant feedback? When the user starts something slow (a model generating, a large image decoding, audio loading), show that work is in progress.
-- Does it handle large inputs without degrading: long text, big tables, large images, thousands of placements?
+- Does it handle large inputs without degrading: long text, big tables, large images, thousands of placements? Draw only what is visible, and load the rest when it is needed.
+- Do hooks stay short? A hook that runs on every frame, key or resize only changes state. Slow work (a file, a network call, a model) runs in the background and shows its progress.
 - Does a frame take no more than 8ms (120fps)? An idle program neither redraws nor keeps the CPU busy.
 - Is the change measured, not guessed? Add or update a benchmark for anything on the drawing path (see **Benchmarks, CPU & Memory Logging**).
 
@@ -235,18 +270,19 @@ xnano has two interfaces: the programs people run in a terminal (widgets, effect
 
 - Does it follow the design language above (spacing, type, color, layers, motion, symbols and icons)?
 - Are terms, labels and tone consistent with the rest of xnano? One concept has one name in code, on screen, in errors and in the docs.
-- Do interactions behave alike everywhere: how a program stops (`ctrl+c` by default, `q` in examples), how popups close (`esc`), how errors appear?
+- Do interactions behave alike everywhere: how a program stops (`ctrl+c` by default, `q` in examples), how popups close (`esc`), how errors appear (where the problem is, with what to do)?
+- Can code do everything a person can do? Whatever a key or a click changes is also a value a program can set and read, so it can be scripted and tested without a screen.
 
 #### Text & Internationalization
 
-- Are strings short, clear and unambiguous?
+- Are strings short, clear and unambiguous, and do they follow **Writing for Users**?
 - Do they avoid jargon only maintainers know, such as crate names, internal modules and Rust types?
 - Do wide characters (CJK, emoji) and combining marks keep their alignment? Text is measured in cells, not characters.
 
 #### User Paths & Edge Cases
 
 - What does the happy path look like?
-- What does the unhappy path look like: errors, invalid input, a key that does nothing?
+- What does the unhappy path look like: errors, invalid input, a key that does nothing? A key that cannot act in the current state does nothing, quietly, and never raises.
 - Does it work with and without the optional extras (`xnano[audio]`, `xnano[image]`), and with and without a network connection?
 - Does it behave the same on a live terminal (`xnano.open()`), on a canvas with no screen (`xnano.new()`) and in a static render?
 - What happens when data is missing, corrupted or late: an image that fails to load, an empty table, a slow response?
