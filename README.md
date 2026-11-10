@@ -42,11 +42,17 @@ with xnano.open() as terminal:
 
 ## Try It
 
-The demo shows the widgets, effects, input and sound in one program. Run it
-without installing anything, with [`uv`](https://docs.astral.sh/uv/):
+The demo shows the widgets, effects and input in one program. Run it without
+installing anything, with [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
 uvx xnano
+```
+
+Pictures and sound are optional extras. To see and hear them in the demo:
+
+```bash
+uvx --from "xnano[image,audio]" xnano
 ```
 
 Or install `xnano` and run the same demo:
@@ -195,7 +201,8 @@ with xnano.open(mouse=True) as terminal:
     # hears the events inside its own cells
     @greeting.hook(on='mouse')
     def change_color(context: xnano.Context):
-        # the button is down on a press and up again on the release: one color a click
+        # the button is down from the press to the release: a click gives one new color,
+        # and a drag across the text gives a new color at every step
         if context.mouse.is_down:
             greeting.color.fg.random()
 

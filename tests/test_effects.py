@@ -1107,3 +1107,9 @@ class TestEffectAsWithBlock:
             with label.fx.hsl_shift(foreground=(120, 0, 0), duration_milliseconds=100):
                 canvas.clock.sleep(1)
             assert canvas.render(format='ansi') == plain
+
+    def test_a_sound_effect_refuses_a_with_block_and_says_how_to_remove_it(self):
+        reverb = xnano.effect('audio.reverb')
+        with pytest.raises(TypeError, match=r"'audio\.reverb'.*speaker\.fx\.clear\(\)"):
+            with reverb:
+                pass

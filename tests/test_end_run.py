@@ -73,13 +73,16 @@ def test_the_canvas_runs_again_after_a_run_ended():
 def test_an_end_key_only_ends_the_run_it_was_given_to():
     with xnano.new(realtime=True, width=20, height=1) as canvas:
         press_after(canvas, 'enter')
-        canvas.run(end_on='enter')
+        canvas.run(stop_on='q', end_on='enter')
+        heard = []
+        canvas.hook(lambda context: heard.append(context.keyboard.key), on='key')
         # `enter` no longer ends anything, and the stop key of the first run is forgotten too.
         press_after(canvas, 'enter', 0.02)
         press_after(canvas, 'q', 0.04)
         press_after(canvas, 'space', 0.1)
         canvas.run(stop_on='x', end_on='space')
         assert canvas.is_running
+        assert heard == ['enter', 'q', 'space']
 
 
 def test_a_stop_key_still_stops_the_canvas_when_end_keys_are_given():
@@ -171,3 +174,18 @@ print('DONE')
         assert 'step two' not in screen.text
     finally:
         screen.close()
+
+
+def test_a_key_that_does_not_exist_leaves_nothing_behind_for_the_next_run():
+    with xnano.new(realtime=True, width=20, height=1) as canvas:
+        with pytest.raises((ValueError, TypeError)):
+            canvas.run(stop_on='q', end_on='no such key')  # type: ignore[arg-type]
+        assert canvas._waiting_runs == []
+        heard = []
+        canvas.hook(lambda context: heard.append(context.keyboard.key), on='key')
+        # `q` was the stop key of the run that failed, so it stops nothing now.
+        press_after(canvas, 'q', 0.02)
+        press_after(canvas, 'space', 0.1)
+        canvas.run(stop_on='x', end_on='space')
+        assert canvas.is_running
+        assert heard == ['q', 'space']

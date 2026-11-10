@@ -262,7 +262,7 @@ xnano has two interfaces: the programs people run in a terminal (widgets, effect
 
 - Does every interaction get instant feedback? When the user starts something slow (a model generating, a large image decoding, audio loading), show that work is in progress.
 - Does it handle large inputs without degrading: long text, big tables, large images, thousands of placements? Draw only what is visible, and load the rest when it is needed.
-- Do hooks stay short? A hook that runs on every frame, key or resize only changes state. Slow work (a file, a network call, a model) runs in the background and shows its progress.
+- Do hooks stay short? A hook that runs on every frame, key or resize does quick work only: it changes what is on the canvas and returns. Slow work (a file, a network call, a model) runs in the background and shows its progress.
 - Does a frame take no more than 8ms (120fps)? An idle program neither redraws nor keeps the CPU busy.
 - Is the change measured, not guessed? Add or update a benchmark for anything on the drawing path (see **Benchmarks, CPU & Memory Logging**).
 

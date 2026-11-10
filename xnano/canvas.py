@@ -454,14 +454,20 @@ class _WaitingRun:
         with canvas._lock:
             canvas._waiting_runs.append(self.run_ended)
         self._previous_stop_keys = canvas._stop_keys
-        self._stop_hook = canvas._listen_for_stop(stop_keys)
+        self._stop_hook: HookHandle[object, object] | None = None
         self._end_hook: HookHandle[object, object] | None = None
-        if end_keys:
 
-            def end_key(context: Context[object, object]) -> None:
-                context.canvas.end_run()
+        def end_key(context: Context[object, object]) -> None:
+            context.canvas.end_run()
 
-            self._end_hook = canvas.hook(end_key, on='key', keys=end_keys)
+        try:
+            self._stop_hook = canvas._listen_for_stop(stop_keys)
+            if end_keys:
+                self._end_hook = canvas.hook(end_key, on='key', keys=end_keys)
+        except BaseException:
+            # A key that cannot be heard fails the run before it waits: leave no hook behind.
+            self.close()
+            raise
 
     def close(self) -> None:
         """Stop hearing the keys of the run: it returned."""

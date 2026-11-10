@@ -119,7 +119,8 @@ class EffectParameters(DynamicOperation):
         """
         Let the effect last as long as a ``with`` block, and no longer than its duration.
 
-        Leaving the block stops an effect that is still running, as
+        Only an effect on what a canvas draws can be a ``with`` block; a sound effect raises
+        ``TypeError``. Leaving the block stops an effect that is still running, as
         [`cancel`][xnano.effects.EffectParameters.cancel] does, so the content shows its own
         look again. Use it to show an effect while some work is done: give the effect a
         duration longer than the work can take, and the end of the block ends the effect.
@@ -154,6 +155,19 @@ class AudioEffectParameters(EffectParameters):
     Attributes:
         customization_kind: Identifier of the sound effect kind, such as ``'audio.reverb'``.
     """
+
+    def __enter__(self) -> Self:
+        """
+        Refuse a ``with`` block: a sound effect stays on the speaker until it is cleared.
+
+        Raises:
+            TypeError: Always. Remove the sound effects with ``speaker.fx.clear()``.
+        """
+        raise TypeError(
+            f'The sound effect {self.customization_kind!r} cannot be used as a "with" block, '
+            f'because a sound effect stays on the speaker and has no end to stop at. Add it '
+            f'without "with", and remove the sound effects with speaker.fx.clear().'
+        )
 
     if TYPE_CHECKING:
 

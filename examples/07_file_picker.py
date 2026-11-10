@@ -33,6 +33,9 @@ def preview_of(path: pathlib.Path) -> str:
         if path.is_dir():
             names = sorted(inner.name for inner in path.iterdir())
             return '\n'.join(names[:VISIBLE_ROWS]) or 'an empty directory'
+        if not path.is_file():
+            # a pipe or a device has no end to read up to, so it is never opened
+            return 'not a regular file'
         with path.open(encoding='utf-8') as file:
             lines = [file.readline().rstrip('\n') for _ in range(VISIBLE_ROWS)]
         return '\n'.join(line.expandtabs(4)[:44] for line in lines)

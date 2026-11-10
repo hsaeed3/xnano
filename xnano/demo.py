@@ -323,8 +323,18 @@ class _Demo:
         return placement
 
     def show_page(self, index: int) -> None:
-        """Show the page at ``index`` and hide the others, or ask for a larger window."""
+        """Go to the page at ``index``, and play the chosen effect on the effects page."""
         self.page = index % len(PAGES)
+        if self.arrange() and PAGES[self.page] == 'effects':
+            self.play_effect()
+
+    def arrange(self) -> bool:
+        """
+        Show the current page and hide the others, or ask for a larger window.
+
+        Returns:
+            Whether the window is large enough for the page.
+        """
         name = PAGES[self.page]
         screen = self.terminal.screen
         is_small = screen.width < MINIMUM_WIDTH or screen.height < MINIMUM_HEIGHT
@@ -345,10 +355,9 @@ class _Demo:
                 f'Make the window larger, or press q to quit.'
             )
             self.hint.text = 'q quit'
-            return
+            return False
         self.hint.text = f'{HINTS[name]} · ← → page · q quit'
-        if name == 'effects':
-            self.play_effect()
+        return True
 
     # -- overview: panels that follow the clock ------------------------------------------
 
@@ -493,7 +502,7 @@ class _Demo:
         """Show the widget at ``index`` of the list in the preview."""
         self.widget = index % len(WIDGETS)
         self.widget_list.selected = self.widget
-        self.show_page(self.page)
+        self.arrange()
 
     def choice_list(
         self, page: str, names: tuple[str, ...], choose: Callable[[int], None]
@@ -732,7 +741,7 @@ class _Demo:
 
         @terminal.hook(on='resize')
         def fit(context: Context) -> None:
-            self.show_page(self.page)
+            self.arrange()
 
 
 def wordmark(color: str | None) -> Buffer:
