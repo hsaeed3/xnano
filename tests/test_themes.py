@@ -119,3 +119,28 @@ def test_an_unknown_theme_names_the_themes():
         xnano.new(theme='sepia')  # pyright: ignore[reportArgumentType]
     with xnano.new(width=4, height=1) as canvas, pytest.raises(ValueError, match='sepia'):
         canvas.write('x', theme='sepia')  # pyright: ignore[reportArgumentType]
+
+
+def test_secondary_text_that_changes_stays_secondary():
+    with xnano.new(width=12, height=1, theme='dracula') as canvas:
+        hint = canvas.write('hint', dim=True)
+        hint.text = 'other'
+        assert _colors(canvas, 0, 0)[0] == xnano.Color(DRACULA.muted)
+
+
+def test_a_style_with_colors_stays_under_a_theme():
+    with xnano.new(width=8, height=1, theme='dracula') as canvas:
+        text = StyledText([TextSpan('ok')])
+        canvas.write(text, width=6, style=Style(background='blue'))
+        assert _colors(canvas, 4, 0)[1] == xnano.Color('blue')
+    with xnano.new(
+        width=4, height=1, theme='dracula', style=Style('red', 'blue')
+    ) as canvas:
+        assert _colors(canvas, 3, 0) == (xnano.Color('red'), xnano.Color('blue'))
+
+
+def test_content_written_in_a_box_keeps_the_theme():
+    with xnano.new(width=12, height=3, theme='dracula') as canvas:
+        box = canvas.write('', width=10, height=3, border='rounded')
+        box.write('in')
+        assert _colors(canvas, 1, 1)[0] == xnano.Color(DRACULA.text)

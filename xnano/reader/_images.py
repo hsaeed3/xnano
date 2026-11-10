@@ -19,7 +19,8 @@ from xnano._internal._optional import is_installed
 __all__ = ['cells_for', 'image_file', 'load_image_in_cells', 'pixel_size']
 
 MAXIMUM_ROWS = 24
-ADDRESS = re.compile(r'^[A-Za-z][A-Za-z0-9+.-]*:')
+ADDRESS = re.compile(r'^[A-Za-z][A-Za-z0-9+.-]+:')
+"""An address with a scheme of two letters or more, so a Windows drive such as ``C:`` is a path."""
 
 
 def image_file(source: str, directory: pathlib.Path | None) -> pathlib.Path | None:
@@ -51,13 +52,15 @@ def pixel_size(path: pathlib.Path) -> tuple[int, int] | None:
     The width and the height of an image file in pixels, read from the start of the file.
 
     Returns:
-        The size, or ``None`` when the file is not a PNG, GIF, JPEG, WebP or BMP image.
+        The size, or ``None`` when the file is not a PNG, GIF, JPEG, WebP, BMP or XNI1 image.
     """
     try:
         with path.open('rb') as file:
             head = file.read(32)
             if head.startswith(b'\x89PNG\r\n\x1a\n') and len(head) >= 24:
                 return _positive(struct.unpack('>II', head[16:24]))
+            if head.startswith(b'XNI1') and len(head) >= 8:
+                return _positive(struct.unpack('>HH', head[4:8]))
             if head[:6] in (b'GIF87a', b'GIF89a'):
                 return _positive(struct.unpack('<HH', head[6:10]))
             if head.startswith(b'BM') and len(head) >= 26:

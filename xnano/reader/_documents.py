@@ -50,7 +50,6 @@ SIGNATURES: tuple[tuple[bytes, DocumentKind], ...] = (
     (b'\x89PNG\r\n\x1a\n', 'image'),
     (b'\xff\xd8\xff', 'image'),
     (b'GIF8', 'image'),
-    (b'RIFF', 'audio'),
     (b'fLaC', 'audio'),
     (b'OggS', 'audio'),
     (b'ID3', 'audio'),
@@ -134,7 +133,7 @@ def read_document(file: str | pathlib.Path) -> Document:
     data = path.read_bytes()
     kind: DocumentKind | None = KINDS.get(path.suffix.lower())
     if kind is None:
-        kind = next((kind for mark, kind in SIGNATURES if data.startswith(mark)), None)
+        kind = _kind_of_data(data)
     if kind in ('image', 'audio'):
         return Document(path, kind, data=data)
     if kind == 'pdf':
@@ -146,6 +145,18 @@ def read_document(file: str | pathlib.Path) -> Document:
     if '\x00' in text:
         return Document(path, 'bytes', data=data)
     return _text_document(path, kind, text.replace('\r\n', '\n').replace('\r', '\n'))
+
+
+def _kind_of_data(data: bytes) -> DocumentKind | None:
+    """The kind of a file from the bytes that it starts with, or ``None`` when unknown."""
+    if data.startswith(b'RIFF'):
+        container = data[8:12]
+        return (
+            'image' if container == b'WEBP' else 'audio' if container == b'WAVE' else None
+        )
+    if data.startswith(b'XNI1'):
+        return 'image'
+    return next((kind for mark, kind in SIGNATURES if data.startswith(mark)), None)
 
 
 def _existing_file(file: str | pathlib.Path) -> pathlib.Path:
@@ -284,7 +295,7 @@ def _column_widths(rows: list[list[str]], width: int) -> list[int]:
         min(max(max(display_width(row[column]) for row in rows), 1), MAXIMUM_COLUMN)
         for column in range(count)
     ]
-    return fit_widths(widths, max(width - 2 * (count - 1), count * 3))
+    return fit_widths(widths, width - 2 * (count - 1))
 
 
 def table_of(document: Document, width: int, theme: Theme) -> tuple[object, list[Line]]:
@@ -347,7 +358,10 @@ def table_of(document: Document, width: int, theme: Theme) -> tuple[object, list
 def _bytes_lines(data: bytes, width: int) -> list[Line]:
     """Bytes that are not text: their place in the file, their values and their characters."""
     lines: list[Line] = []
-    per_row = BYTES_PER_ROW if width >= 76 else 8
+    # A row is the place (10 cells), three cells for each byte, a gap and one cell more
+    # for each byte: the most bytes that fit, as 16, 8, 4, 2 or 1.
+    fitting = max((width - 11) // 4, 1)
+    per_row = next(count for count in (BYTES_PER_ROW, 8, 4, 2, 1) if count <= fitting)
     for offset in range(0, min(len(data), 65536), per_row):
         chunk = data[offset : offset + per_row]
         values = ' '.join(f'{byte:02x}' for byte in chunk).ljust(per_row * 3 - 1)

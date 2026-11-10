@@ -42,7 +42,7 @@ TASK = re.compile(r'^\[(?P<mark>[ xX])\]\s+(?P<text>.*)$')
 TABLE_DIVIDER = re.compile(r'^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$')
 REFERENCE = re.compile(r'^ {0,3}\[(?P<name>[^\]]+)\]:\s*(?P<target><[^>]*>|\S+).*$')
 COMMENT = re.compile(r'<!--.*?-->', re.DOTALL)
-HTML_BLOCK = re.compile(r'^ {0,3}</?[A-Za-z][^>]*>')
+HTML_BLOCK = re.compile(r'^ {0,3}</?[A-Za-z][A-Za-z0-9-]*(?:\s[^>]*|/?)>')
 HTML_TAG = re.compile(r'</?[A-Za-z][^>]*>')
 HTML_IMAGE = re.compile(r'<img\b[^>]*>', re.IGNORECASE)
 HTML_ATTRIBUTE = re.compile(r'(?P<name>[A-Za-z-]+)\s*=\s*"(?P<value>[^"]*)"')
@@ -83,11 +83,15 @@ def layout_markdown(
     source = _without_comments(text.expandtabs(4)).split('\n')
     references: dict[str, str] = {}
     kept: list[str] = []
-    is_fenced = False
+    opening: str | None = None  # the fence that opened the code block the line is in
     for line in source:
-        if FENCE.match(line):
-            is_fenced = not is_fenced
-        match = None if is_fenced else REFERENCE.match(line)
+        fence = FENCE.match(line)
+        if fence is not None:
+            if opening is None:
+                opening = fence['fence']
+            elif _closes(fence, opening):
+                opening = None
+        match = None if opening is not None else REFERENCE.match(line)
         if match is None:
             kept.append(line)
         else:
@@ -237,9 +241,12 @@ def _paragraph(lines: list[str], index: int, context: _Context, state: _Prefix) 
         collected.append(line)
         index += 1
     text = '\n'.join(
-        part.strip() + ('  ' if part.endswith(('  ', '\\')) else '') for part in collected
+        part.strip().removesuffix('\\').rstrip() + '\0'
+        if part.endswith(('  ', '\\'))
+        else part.strip()
+        for part in collected
     )
-    text = re.sub(r'(?:  |\\)\n', '\0', text).replace('\n', ' ').replace('\0', '\n')
+    text = text.replace('\0\n', '\0').replace('\n', ' ').replace('\0', '\n').rstrip('\n')
     _flow(text, context, state)
     return index
 
@@ -306,6 +313,15 @@ def _place(
     context.lines.extend(lines)
 
 
+def _closes(fence: re.Match[str], opening: str) -> bool:
+    """Whether ``fence`` ends the code block that the fence ``opening`` started."""
+    return (
+        fence['fence'][0] == opening[0]
+        and len(fence['fence']) >= len(opening)
+        and not fence['language']
+    )
+
+
 def _code_block(
     lines: list[str], index: int, fence: re.Match[str], context: _Context, state: _Prefix
 ) -> int:
@@ -315,12 +331,7 @@ def _code_block(
     body: list[str] = []
     while index < len(lines):
         closing = FENCE.match(lines[index])
-        if (
-            closing is not None
-            and closing['fence'][0] == mark[0]
-            and len(closing['fence']) >= len(mark)
-            and not closing['language']
-        ):
+        if closing is not None and _closes(closing, mark):
             index += 1
             break
         body.append(

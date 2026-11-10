@@ -209,12 +209,13 @@ def fit_widths(widths: list[int], available: int) -> list[int]:
         available: The cells that all the columns have together.
 
     Returns:
-        The width of each column. No column is narrower than 3 cells.
+        The width of each column. No column is narrower than 1 cell, so a table with more
+        columns than ``available`` allows is wider than it.
     """
     widths = list(widths)
     while sum(widths) > available:
         widest = max(range(len(widths)), key=lambda column: widths[column])
-        if widths[widest] <= 3:
+        if widths[widest] <= 1:
             break
         widths[widest] -= 1
     return widths
@@ -222,13 +223,27 @@ def fit_widths(widths: list[int], available: int) -> list[int]:
 
 def _split(word: str, width: int) -> tuple[str, str]:
     """The start of ``word`` that fits in ``width`` cells, and the rest of it."""
-    used = 0
-    for index, character in enumerate(word):
-        size = display_width(character)
-        if used + size > width and index:
-            return word[:index], word[index:]
-        used += size
-    return word, ''
+    fitting = 0
+    for index in range(1, len(word)):
+        if not _is_boundary(word, index):
+            continue
+        if display_width(word[:index]) > width:
+            break
+        fitting = index
+    if fitting == 0:
+        # Not one character fits: the first one goes on the line by itself.
+        fitting = next(
+            (index for index in range(1, len(word)) if _is_boundary(word, index)),
+            len(word),
+        )
+    return word[:fitting], word[fitting:]
+
+
+def _is_boundary(word: str, index: int) -> bool:
+    """Whether ``word`` can break before ``word[index]`` without cutting one character in two."""
+    character = word[index]
+    is_joined = word[index - 1] == '\u200d' or '\U0001f3fb' <= character <= '\U0001f3ff'
+    return not is_joined and display_width(character) > 0
 
 
 def pad_runs(

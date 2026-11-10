@@ -31,7 +31,7 @@ from xnano.reader._images import cells_for, load_image_in_cells, pixel_size
 from xnano.reader._lines import Line, Run, content_lines, line_of, styled
 from xnano.reader._markdown import layout_markdown
 from xnano.themes import Theme, ThemeName, theme_of
-from xnano_core import StyledText
+from xnano_core import StyledText, TextSpan, display_width
 
 __all__ = ['from_markdown', 'view']
 
@@ -47,8 +47,8 @@ def from_markdown(
     Lay Markdown out as styled text, ready to write on a canvas.
 
     Headings, emphasis, code, links, lists, quotes, fenced code and tables keep their look.
-    The text is wrapped at ``width`` cells. An image and a table are named in brackets: to
-    show them, use [`view`][xnano.reader.view].
+    The text is wrapped at ``width`` cells. An image is named in brackets: to show it, use
+    [`view`][xnano.reader.view].
 
     Args:
         text: The Markdown source.
@@ -74,9 +74,30 @@ def from_markdown(
         ```
     """
     chosen = theme_of(theme)
-    return styled(
-        layout_markdown(text, width=width, theme=chosen, directory=None), chosen
+    lines = layout_markdown(text, width=width, theme=chosen, directory=None)
+    spans: list[TextSpan] = []
+    for index, line in enumerate(lines):
+        if index:
+            spans.append(TextSpan('\n'))
+        spans.extend(TextSpan(run.text, style=chosen.style_of(run)) for run in line.spans)
+        if line.content is not None:
+            spans.extend(_content_spans(lines, index, chosen))
+    return StyledText(spans or [TextSpan('')])
+
+
+def _content_spans(lines: list[Line], index: int, theme: Theme) -> list[TextSpan]:
+    """One row of a table as styled text, or the name of an image on its first row."""
+    line = lines[index]
+    if isinstance(line.content, pathlib.Path):
+        if line.content_row:
+            return []
+        return [TextSpan(f'[image: {line.description}]', style=theme.style(dim=True))]
+    first = lines[index - line.content_row]
+    rows = _rendered([first], *first.content_size, theme, 'ansi', is_whole=True).split(
+        '\n'
     )
+    indent = ' ' * (line.content_column - display_width(line.text if line.spans else ''))
+    return [TextSpan(indent), *StyledText.from_ansi(rows[line.content_row]).spans]
 
 
 def view(
@@ -165,7 +186,9 @@ def _print(document: Document, stream: TextIO, width: int | None, theme: Theme) 
     if document.note:
         stream.write(f'{document.note}\n')
     for chunk in _chunks(lines):
-        rendered = _rendered(chunk, width, theme, 'ansi' if has_color else 'text')
+        rendered = _rendered(
+            chunk, width, len(chunk), theme, 'ansi' if has_color else 'text'
+        )
         for text in rendered.split('\n'):
             stream.write((text if has_color else text.rstrip()) + '\n')
     stream.flush()
@@ -195,16 +218,28 @@ def _chunks(lines: list[Line]) -> Iterator[list[Line]]:
 
 
 def _rendered(
-    chunk: list[Line], width: int, theme: Theme, format: Literal['text', 'ansi']
+    chunk: list[Line],
+    width: int,
+    height: int,
+    theme: Theme,
+    format: Literal['text', 'ansi'],
+    *,
+    is_whole: bool = False,
 ) -> str:
-    """The lines of ``chunk`` drawn on a canvas, with their images and tables, as text."""
+    """
+    The lines of ``chunk`` drawn on a canvas, with their images and tables, as text.
+
+    With ``is_whole``, the chunk is the first line of one table, which is drawn alone at
+    the left edge.
+    """
     import xnano
 
-    with xnano.new(width=width, height=len(chunk)) as canvas:
+    with xnano.new(width=width, height=height) as canvas:
         if theme.background is not None and theme.text is not None:
             canvas.screen.color.bg = theme.background
             canvas.screen.color.fg = theme.text
-        canvas.write(styled(chunk, theme), x=0, y=0, width=width, height=len(chunk))
+        if not is_whole:
+            canvas.write(styled(chunk, theme), x=0, y=0, width=width, height=height)
         for row, line in enumerate(chunk):
             if line.content is None or line.content_row:
                 continue
@@ -222,7 +257,7 @@ def _rendered(
                 continue
             canvas.write(
                 content,  # type: ignore[arg-type]
-                x=line.content_column,
+                x=0 if is_whole else line.content_column,
                 y=row,
                 width=columns,
                 height=rows,

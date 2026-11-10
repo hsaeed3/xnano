@@ -80,7 +80,7 @@ def markdown_table(
             max((_width(row[column]) for row in cells), default=1) or 1
             for column in range(count)
         ],
-        max(available - 2 - 2 * (count - 1), count * 3),
+        available - 2 - 2 * (count - 1),
     )
     built = [
         _row(row, widths, alignments, theme, is_header=row_index == 0)

@@ -273,3 +273,67 @@ def test_the_viewer_has_buttons_and_an_outline(viewer):
     column, row = viewer.find('quit')
     viewer.click(column, row)
     assert viewer.finish() == 0
+
+
+# -- details of the layout --------------------------------------------------------------
+
+
+def test_from_markdown_keeps_a_table_as_text():
+    text = str(xnano.from_markdown('| A | B |\n|---|--:|\n| one | 2 |\n', width=30))
+    assert '│A    B│' in text
+    assert '│one  2│' in text
+
+
+def test_markdown_keeps_an_address_at_the_start_of_a_line():
+    lines = layout_markdown('<https://xnano.hammad.app>', width=40, theme=theme_of(None))
+    assert lines[0].text == 'https://xnano.hammad.app'
+    assert lines[0].links[0][2] == 'https://xnano.hammad.app'
+
+
+def test_a_backslash_at_the_end_of_a_line_breaks_the_line():
+    lines = layout_markdown('one\\\ntwo', width=40, theme=theme_of(None))
+    assert [line.text for line in lines] == ['one', 'two']
+
+
+def test_a_fence_of_the_other_kind_does_not_end_a_code_block():
+    source = '```\n~~~\n[name]: not-a-reference\n```\n'
+    lines = layout_markdown(source, width=40, theme=theme_of(None))
+    assert any('[name]: not-a-reference' in line.text for line in lines)
+
+
+def test_a_table_with_many_columns_stays_inside_the_width():
+    header = '|' + '|'.join('abcdef' for _ in range(8)) + '|'
+    source = f'{header}\n|{"|".join(["---"] * 8)}|\n{header}\n'
+    lines = layout_markdown(source, width=30, theme=theme_of(None))
+    assert max(line.content_size[0] for line in lines if line.content is not None) <= 30
+
+
+def test_a_long_word_breaks_between_characters_and_not_inside_one():
+    family = '\U0001f468‍\U0001f469‍\U0001f467'
+    lines = layout_markdown(family * 4, width=4, theme=theme_of(None))
+    assert all(
+        line.text.count('\U0001f468') == line.text.count('\U0001f467') for line in lines
+    )
+
+
+def test_bytes_fit_in_a_narrow_width(tmp_path):
+    path = tmp_path / 'blob.bin'
+    path.write_bytes(bytes(range(256)))
+    for width in (20, 40, 80):
+        lines = _printed(path, width=width).splitlines()
+        assert all(display_width(line) <= width for line in lines), width
+
+
+def test_a_webp_file_without_a_suffix_is_an_image(tmp_path):
+    path = tmp_path / 'picture'
+    path.write_bytes(b'RIFF\x1a\x00\x00\x00WEBPVP8L' + b'\x00' * 16)
+    assert read_document(path).kind == 'image'
+    wave = tmp_path / 'sound'
+    wave.write_bytes(b'RIFF\x24\x00\x00\x00WAVEfmt ' + b'\x00' * 16)
+    assert read_document(wave).kind == 'audio'
+
+
+def test_the_size_of_an_xni_image_comes_from_its_header(tmp_path):
+    path = tmp_path / 'art.xni'
+    path.write_bytes(b'XNI1' + struct.pack('>HHH', 24, 12, 1))
+    assert pixel_size(path) == (24, 12)

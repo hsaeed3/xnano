@@ -163,6 +163,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     # The same text with the styles of its spans, when it was given as styled text.
     _styled_text: _core.StyledText | None = None
     _theme: Theme | None = None
+    _is_secondary: bool = False
     # The cells of a region written as a snapshot, drawn where the alignment says.
     _snapshot_cells: _core.Buffer | None = None
     _is_drawing_text: bool = False
@@ -1354,7 +1355,9 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             )
         if self._theme is not None:
             if isinstance(value, str):
-                value = _core.StyledText([_core.TextSpan(value)])
+                value = _core.StyledText(
+                    [_core.TextSpan(value, style=_core.Style(dim=self._is_secondary))]
+                )
             if isinstance(value, _core.StyledText):
                 value = themed_text(self._theme, value)
         if self._wrapped_text is not None:

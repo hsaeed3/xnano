@@ -120,6 +120,7 @@ class _Viewer:
         self.images: dict[pathlib.Path, object | None] = {}
         self.images_lock = threading.Lock()
         self.is_loading: set[pathlib.Path] = set()
+        self.image_generation = 0
         self.key_placements: list[Placement[None, None]] = []
         self.audio: object | None = None
         self.audio_handle: object | None = None
@@ -243,6 +244,11 @@ class _Viewer:
         if self.body is not None:
             self.body.close()
         self.written = {}
+        with self.images_lock:
+            # The images are sized for the layout, so a new layout loads them again.
+            self.images = {}
+            self.is_loading = set()
+            self.image_generation += 1
         self.body = self.body_placement = self.text = self.table = self.gauge = None
 
     # -- drawing -------------------------------------------------------------------------
@@ -263,6 +269,7 @@ class _Viewer:
             self.text.text = self.highlighted(self.lines[top : top + rows])
             self.draw_content()
         self.scrollbar.content_length = max(total - rows + 1, 1)
+        self.scrollbar.viewport_content_length = rows
         self.scrollbar.content_position = top
         self.bar.is_visible = total > rows
         document = self.document
@@ -463,9 +470,12 @@ class _Viewer:
         elif ADDRESS.match(target):
             self.message = target
         else:
-            path = self.document.path.parent / target.split('#', 1)[0]
+            name, _, heading = target.partition('#')
+            path = self.document.path.parent / name
             if path.is_file():
                 self.open(path)
+                if heading:
+                    self.follow(f'#{heading}')
                 return
             self.message = f'{target} is not a file here'
         self.draw()

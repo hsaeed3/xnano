@@ -832,11 +832,13 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             else enclosing._theme
         )
         if self._theme is not None:
-            appearance = {
-                'foreground': self._theme.text,
-                'background': self._theme.background,
-                **appearance,
-            }
+            given = appearance.get('style')
+            defaults: dict[str, object] = {}
+            if not isinstance(given, _core.Style) or given.foreground is None:
+                defaults['foreground'] = self._theme.text
+            if not isinstance(given, _core.Style) or given.background is None:
+                defaults['background'] = self._theme.background
+            appearance = {**defaults, **appearance}
         self._appearance = (
             Appearance(**cast('dict[str, object]', _plain_appearance(appearance)))  # type: ignore[arg-type]
             if appearance
@@ -2803,18 +2805,24 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
     ) -> Placement[DepsT, StateT]:
         check_layer(layer)
         chosen = theme_of(theme) if theme is not None else parent_owner._theme
+        is_secondary = False
         if chosen is not None and not isinstance(content, Canvas):
             if isinstance(content, str) and foreground is None and style is None:
                 content = _core.StyledText(
                     [_core.TextSpan(content, style=_core.Style(dim=dim))]
                 )
+                is_secondary = dim
                 dim = False
             if isinstance(content, _core.StyledText):
                 has_own_background = any(
                     span.style.background is not None for span in content.spans
                 )
                 content = themed_text(chosen, content)
-                if background is None and not has_own_background:
+                if (
+                    background is None
+                    and not has_own_background
+                    and (style is None or style.background is None)
+                ):
                     background = chosen.background
             elif isinstance(content, _core.Widget):
                 theme_widget(chosen, content)
@@ -2865,7 +2873,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 f'to change one placement.'
             )
         if isinstance(content, Canvas):
-            return self._adopt(
+            themed = self._adopt(
                 parent_buffer,
                 cast('Canvas[object, object]', content),
                 parent_owner=parent_owner,
@@ -2878,8 +2886,10 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 lock=lock,
                 is_in_flow=is_in_flow,
             )
+            themed._theme = chosen
+            return themed
         if not isinstance(content, type) and hasattr(content, '__xnano_render__'):
-            return self._place_rendering(
+            themed = self._place_rendering(
                 parent_buffer,
                 content,
                 parent_owner=parent_owner,
@@ -2892,6 +2902,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 lock=lock,
                 is_in_flow=is_in_flow,
             )
+            themed._theme = chosen
+            return themed
         if (
             isinstance(content, Region)
             and content._box_size is not None
@@ -2899,7 +2911,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 width is not None or height is not None or is_decorated or removes_border
             )
         ):
-            return self._place_box(
+            themed = self._place_box(
                 parent_buffer,
                 content,
                 appearance,
@@ -2913,6 +2925,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 lock=lock,
                 is_in_flow=is_in_flow,
             )
+            themed._theme = chosen
+            return themed
         component = (
             None
             if content is None or isinstance(content, (Region, Pixel, Image))
@@ -3102,6 +3116,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             # A canvas written into this one may have grown with what was written in it.
             self._fit_now()
         placement._theme = chosen
+        placement._is_secondary = is_secondary
         return placement
 
     def _place_box(

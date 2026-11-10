@@ -259,6 +259,7 @@ def themed_style(theme: Theme, style: Style | None) -> Style:
         reverse='reverse' in modifiers,
         crossed_out='crossed_out' in modifiers,
         blink='blink' in modifiers,
+        rapid_blink='rapid_blink' in modifiers,
         hidden='hidden' in modifiers,
     )
 

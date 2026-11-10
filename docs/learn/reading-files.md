@@ -30,9 +30,9 @@ xnano data.json | head
 | `.csv` and `.tsv` | A table. Its header stays in view while you scroll. |
 | PDF | The text of each page. This needs `pip install "xnano[pdf]"`. |
 | A picture | The picture. This needs `pip install "xnano[image]"`. |
-| A sound | Its length and format, and `space` plays it. This needs `pip install "xnano[audio]"`. |
+| A sound | Its length and sample rate, and `space` plays it. This needs `pip install "xnano[audio]"`. |
 | Other text | The text with line numbers. |
-| Other data | The bytes, 16 in each line. |
+| Other data | The bytes, up to 16 in each line. |
 
 If xnano cannot show an image or play a sound, it names the image or the sound
 in text. The rest of the document stays readable.
@@ -53,7 +53,7 @@ button for the mouse.
 | Key | What it does |
 | --- | --- |
 | `↑` `↓`, `j` `k` | Scroll one line. |
-| `space`, `page down`, `b`, `page up` | Scroll one page. |
+| `space`, `page down`, `b`, `page up` | Scroll one page. For a sound, `space` plays or stops it. |
 | `g`, `G` | Go to the start or the end. |
 | `/` | Find text. `n` and `N` go to the next and the previous match. |
 | `o` | List the headings. `enter` goes to the chosen heading. |

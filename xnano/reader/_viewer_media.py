@@ -35,13 +35,15 @@ def image_of(
         if path in viewer.is_loading:
             return None
         viewer.is_loading.add(path)
+        generation = viewer.image_generation
     is_still = viewer.document.kind != 'image'
 
     def load() -> None:
         image = load_image_in_cells(path, columns, rows, is_still=is_still)
         with viewer.images_lock:
-            viewer.images[path] = image
-            viewer.is_loading.discard(path)
+            if viewer.image_generation == generation:
+                viewer.images[path] = image
+                viewer.is_loading.discard(path)
 
     threading.Thread(target=load, name='xnano-reader-image', daemon=True).start()
     return None
