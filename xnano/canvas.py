@@ -423,6 +423,66 @@ def _parse_stop_keys(stop_on: KeyName | Sequence[KeyName] | None) -> tuple[KeyNa
     return (stop_on,) if isinstance(stop_on, str) else tuple(stop_on)
 
 
+class _WaitingRun:
+    """
+    One ``run()`` or ``run_async()`` that waits on a canvas, with the keys it listens for.
+
+    It holds the event that ``end_run()`` sets, and the hooks of the stop keys and the end
+    keys, which last only as long as the run.
+    """
+
+    __slots__ = (
+        '_canvas',
+        '_end_hook',
+        '_previous_stop_keys',
+        '_stop_hook',
+        'host',
+        'run_ended',
+    )
+
+    def __init__(
+        self,
+        canvas: Canvas[object, object],
+        host: _ThreadHost,
+        stop_keys: tuple[KeyName, ...],
+        end_keys: tuple[KeyName, ...],
+    ) -> None:
+        """Start hearing the stop keys and the end keys of a run on ``canvas``."""
+        self._canvas = canvas
+        self.host = host
+        self.run_ended = _AwaitableEvent()
+        with canvas._lock:
+            canvas._waiting_runs.append(self.run_ended)
+        self._previous_stop_keys = canvas._stop_keys
+        self._stop_hook: HookHandle[object, object] | None = None
+        self._end_hook: HookHandle[object, object] | None = None
+
+        def end_key(context: Context[object, object]) -> None:
+            context.canvas.end_run()
+
+        try:
+            self._stop_hook = canvas._listen_for_stop(stop_keys)
+            if end_keys:
+                self._end_hook = canvas.hook(end_key, on='key', keys=end_keys)
+        except BaseException:
+            # A key that cannot be heard fails the run before it waits: leave no hook behind.
+            self.close()
+            raise
+
+    def close(self) -> None:
+        """Stop hearing the keys of the run: it returned."""
+        canvas = self._canvas
+        with canvas._lock:
+            if self.run_ended in canvas._waiting_runs:
+                canvas._waiting_runs.remove(self.run_ended)
+        if canvas.is_closed:
+            return
+        for hook in (self._stop_hook, self._end_hook):
+            if hook is not None:
+                hook.remove()
+        canvas._stop_keys = self._previous_stop_keys
+
+
 class _FramePacing:
     """
     The frames ``iter`` and ``iter_async`` yield, and how long to wait between two of them.
@@ -792,6 +852,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                     weakref.ref(cast('Canvas[object, object]', self))
                 )
         self._stop_requested = _AwaitableEvent()
+        self._waiting_runs: list[_AwaitableEvent] = []
         # The event loop that async def hooks run on: the one this canvas was created in.
         self._event_loop: asyncio.AbstractEventLoop | None = running_loop()
         self._state_fields: dict[str, object] = {}
@@ -3930,52 +3991,140 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         self._require_own_presence()
         canvas = self._canvas
         canvas._stop_requested.set()
+        canvas._wake_waiting_runs()
         if not canvas._is_closed and canvas._host.is_autonomous:
             canvas._host.post(lambda: canvas._stop_runtime())
 
-    def run(self, *, stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c') -> None:
+    def end_run(self) -> None:
         """
-        Wait until the canvas's loop ends.
+        End the ``run()`` that is waiting, and leave the canvas open.
+
+        ``run()`` returns, and your program goes on with a canvas that still draws and
+        listens: write the next screen, ask a question, or call ``run()`` again. Use it for
+        a program with several steps, such as a title screen before a game. Safe from any
+        thread, including from a hook. It does nothing when no ``run()`` is waiting. To end
+        the canvas itself, call [`stop`][xnano.canvas.Canvas.stop].
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(realtime=True, width=20, height=1) as canvas:
+                label = canvas.write('loading...')
+
+                @canvas.hook(on='tick', after=0.05)
+                def loaded(context: xnano.Context) -> None:
+                    context.canvas.end_run()
+
+                canvas.run()
+                assert canvas.is_running
+                label.text = 'ready'
+                assert canvas.render() == 'ready'
+            ```
+        """
+        self._require_own_presence()
+        self._canvas._wake_waiting_runs()
+
+    def _wake_waiting_runs(self) -> None:
+        """Wake every ``run()`` that waits on this canvas: it was ended, or the canvas stops."""
+        with self._lock:
+            waiting = list(self._waiting_runs)
+        for run_ended in waiting:
+            run_ended.set()
+
+    def run(
+        self,
+        *,
+        stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+        end_on: KeyName | Sequence[KeyName] | None = None,
+    ) -> None:
+        """
+        Wait until the canvas's loop ends, or until the run is ended.
 
         A canvas that runs by itself draws and listens on its own, so this only keeps your
-        program alive until a stop key is pressed, or something calls
-        [`stop`][xnano.canvas.Canvas.stop] (a hook, another thread). Declare what you want
+        program alive. It returns in one of two ways:
+
+        - The canvas stops: a key of ``stop_on`` is pressed, or something calls
+          [`stop`][xnano.canvas.Canvas.stop] (a hook, another thread). The canvas closes and
+          gives the screen back.
+        - The run ends: a key of ``end_on`` is pressed, or something calls
+          [`end_run`][xnano.canvas.Canvas.end_run]. The canvas stays open, so your program
+          can change it and call ``run()`` again.
+
+        Afterwards [`is_running`][xnano.canvas.Canvas.is_running] says which one happened:
+        ``True`` when the run ended, ``False`` when the canvas stopped. Declare what you want
         before calling it.
 
         Args:
-            stop_on: The key, or keys, that end the loop, such as ``'q'`` or
-                ``('q', 'escape')``. ``'ctrl+c'`` by default; give ``None`` to leave ending
+            stop_on: The key, or keys, that stop the canvas, such as ``'q'`` or
+                ``('q', 'escape')``. ``'ctrl+c'`` by default; give ``None`` to leave stopping
                 to your own code.
+            end_on: The key, or keys, that end this run and leave the canvas open, such as
+                ``'enter'``. ``None`` by default: only
+                [`end_run`][xnano.canvas.Canvas.end_run] ends the run.
 
         Raises:
+            ValueError: A key is in both ``stop_on`` and ``end_on``.
             TerminalError: A callback raised on the canvas's loop, or the canvas has a clock
                 that only moves when you move it, so waiting would never end.
+
+        Examples:
+            A title screen, then the program itself. Here a timer plays the part of the
+            person pressing ``enter``:
+
+            ```python
+            import xnano
+
+            with xnano.new(realtime=True, width=24, height=1) as canvas:
+                title = canvas.write('press enter to start')
+
+                @canvas.hook(on='tick', after=0.05)
+                def press_enter(context: xnano.Context) -> None:
+                    context.keyboard.press('enter')
+
+                canvas.run(end_on='enter')
+                title.text = 'started'
+                assert canvas.render() == 'started'
+            ```
         """
         canvas = self._canvas
-        host = canvas._prepare_run(stop_on, 'run()')
+        waiting = canvas._prepare_run(stop_on, end_on, 'run()')
+        host, run_ended = waiting.host, waiting.run_ended
         try:
-            while not host.wait(0.1):
+            while not run_ended.wait(0.1) and not host.wait(0):
                 pass
+            if canvas._stop_requested.is_set():
+                while not host.wait(0.1):
+                    pass
         except KeyboardInterrupt:
             canvas.stop()
             raise
+        finally:
+            waiting.close()
         canvas._raise_run_failure()
 
     async def run_async(
-        self, *, stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c'
+        self,
+        *,
+        stop_on: KeyName | Sequence[KeyName] | None = 'ctrl+c',
+        end_on: KeyName | Sequence[KeyName] | None = None,
     ) -> None:
         """
-        Wait until the canvas's loop ends, like [`run`][xnano.canvas.Canvas.run], with ``await``.
+        Wait like [`run`][xnano.canvas.Canvas.run], with ``await``.
 
         Your event loop goes on running other tasks meanwhile. Cancelling the waiting task
         asks the canvas to [`stop`][xnano.canvas.Canvas.stop].
 
         Args:
-            stop_on: The key, or keys, that end the loop, such as ``'q'`` or
-                ``('q', 'escape')``. ``'ctrl+c'`` by default; give ``None`` to leave ending
+            stop_on: The key, or keys, that stop the canvas, such as ``'q'`` or
+                ``('q', 'escape')``. ``'ctrl+c'`` by default; give ``None`` to leave stopping
                 to your own code.
+            end_on: The key, or keys, that end this run and leave the canvas open, such as
+                ``'enter'``. ``None`` by default: only
+                [`end_run`][xnano.canvas.Canvas.end_run] ends the run.
 
         Raises:
+            ValueError: A key is in both ``stop_on`` and ``end_on``.
             TerminalError: A callback raised on the canvas's loop, or the canvas has a clock
                 that only moves when you move it, so waiting would never end.
 
@@ -4003,18 +4152,27 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         import asyncio
 
         canvas = self._canvas
-        host = canvas._prepare_run(stop_on, 'run_async()')
+        waiting = canvas._prepare_run(stop_on, end_on, 'run_async()')
+        host, run_ended = waiting.host, waiting.run_ended
         try:
-            await host.wait_async()
+            while not await run_ended.wait_async(0.1) and not host.wait(0):
+                pass
+            if canvas._stop_requested.is_set():
+                await host.wait_async()
         except asyncio.CancelledError:
             canvas.stop()
             raise
+        finally:
+            waiting.close()
         canvas._raise_run_failure()
 
     def _prepare_run(
-        self, stop_on: KeyName | Sequence[KeyName] | None, operation: str
-    ) -> _ThreadHost:
-        """Check that the canvas can run, and add the hook of its stop keys."""
+        self,
+        stop_on: KeyName | Sequence[KeyName] | None,
+        end_on: KeyName | Sequence[KeyName] | None,
+        operation: str,
+    ) -> _WaitingRun:
+        """Check that the canvas can run, and add the hooks of its stop keys and end keys."""
         canvas = self
         canvas._require_open()
         host = canvas._host
@@ -4024,8 +4182,18 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 f'forever. Drive it with canvas.iter() or canvas.clock.step(), open it on the screen '
                 f'with canvas.open(), or create it with realtime=True.'
             )
-        canvas._listen_for_stop(_parse_stop_keys(stop_on))
-        return host
+        stop_keys, end_keys = _parse_stop_keys(stop_on), _parse_stop_keys(end_on)
+        shared = [key for key in end_keys if key in stop_keys]
+        if shared:
+            raise ValueError(
+                f'{operation} cannot both stop the canvas and end the run on the key '
+                f'{shared[0]!r}, which is in stop_on and in end_on. Keep it in stop_on to '
+                f'close the canvas when it is pressed, or in end_on to return from '
+                f'{operation} with the canvas still open.'
+            )
+        return _WaitingRun(
+            cast('Canvas[object, object]', canvas), host, stop_keys, end_keys
+        )
 
     def _listen_for_stop(
         self, keys: tuple[KeyName, ...]

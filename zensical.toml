@@ -24,6 +24,7 @@ nav = [
         {"Widgets" = "learn/widgets.md"},
         {"Images & Pixel Art" = "learn/images.md"},
         {"Sound" = "learn/sound.md"},
+        {"Testing" = "learn/testing.md"},
     ]},
     {"API Reference" = [
         {"API Reference" = "api-reference/index.md"},

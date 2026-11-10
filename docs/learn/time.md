@@ -128,7 +128,8 @@ fades, dissolves, sweeps or slides the content, or it shifts the colors.
 
 Each placement has an `fx` property, with one method for each effect. Call a
 method to start its effect. `duration_milliseconds` sets the length of the
-effect. Without it, most effects take 500 milliseconds.
+effect. Without it, most effects take 500 milliseconds. An effect runs on the
+clock of the canvas, so it pauses when the clock pauses.
 
 <!-- @code-block name="learn-time-effects" type="gif" height=6
 wait 1.2
@@ -201,6 +202,38 @@ Fades all of the canvas in from black, not only one placement.
 <tag name="active" color="blue">
 `active` holds the effects that you started on the canvas.
 `canvas.fx.clear()` stops all of them.
+</tag>
+</comments>
+
+An effect is also a `with` block. The effect stops when the block ends, so it
+lasts as long as the work in the block. Give the effect a duration that is
+longer than the work can take. `clock.sleep()` waits on the clock of the
+canvas, and the canvas draws while your program waits.
+
+```python
+import xnano
+
+with xnano.open(height=3) as terminal:
+    label = terminal.write('loading...', foreground='magenta')
+    terminal.write('q quit', y='bottom', dim=True)
+
+    with label.fx.hsl_shift(
+        foreground=(360, 0, 0), duration_milliseconds=60_000
+    ):  # >> [with]
+        terminal.clock.sleep(2)  # >> [work]
+
+    label.text = 'ready'
+    terminal.run(stop_on='q')
+```
+
+<comments>
+<tag name="with" color="pink">
+Starts to shift the hue of the label. The shift can take one minute, but the
+end of the block stops it.
+</tag>
+
+<tag name="work" color="blue">
+Put your slow work here. This example waits two seconds.
 </tag>
 </comments>
 

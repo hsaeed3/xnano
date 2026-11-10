@@ -28,6 +28,7 @@ when you need it.
 | [Widgets](widgets.md) | Show gauges, charts, tables and lists |
 | [Images & Pixel Art](images.md) | Draw pixel art and load pictures |
 | [Sound](sound.md) | Play notes and melodies, and listen to the microphone |
+| [Testing](testing.md) | Test a program without a terminal: its screen, its keys and its time |
 
 ## Four ideas
 
@@ -60,5 +61,12 @@ All the guides use the same four ideas. Learn them before you start.
 | layer | A level of content. Content on a higher layer covers content on a lower layer. |
 | extra | An optional part of xnano that you install separately, such as `xnano[image]`. |
 
-The [API reference](../api-reference/index.md) gives every function, class and
-parameter.
+## After the guides
+
+- Run the demo with `python -m xnano`. It shows the widgets, the effects, sound
+  and input in one program, and its source is `xnano/demo.py`.
+- Read the programs in the
+  [`examples/`](https://github.com/hsaeed3/xnano/tree/main/examples) directory:
+  four games, a dashboard, a form, a file picker and a log viewer.
+- The [API reference](../api-reference/index.md) gives every function, class
+  and parameter.

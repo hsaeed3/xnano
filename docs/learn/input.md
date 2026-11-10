@@ -192,6 +192,7 @@ A hook on a **placement** receives only the pointer events inside that
 placement. With such a hook, any placement can be a button. `context.mouse`
 describes the event:
 
+- `is_down` is `True` while a button is held.
 - `kind` is `'press'`, `'release'`, `'drag'` or `'move'`.
 - `button` is `'left'`, `'right'` or `'middle'`.
 - `position` is the cell under the pointer, with `x` and `y`.
@@ -227,7 +228,8 @@ with xnano.open(height=4, mouse=True) as terminal:
 <comments>
 <tag name="press" color="pink">
 A click sends a press and then a release. The hook acts only on the press, so
-one click changes the switch one time.
+one click changes the switch one time. `is_down` is also `True` during a drag,
+so a hook that uses it runs its code again at each step of the drag.
 </tag>
 
 <tag name="reset">
@@ -398,6 +400,56 @@ with xnano.open(height=2) as terminal:
 Ends the loop. `terminal.run()` returns, and the canvas closes.
 </tag>
 </comments>
+
+## End a run and keep the terminal
+
+A program with several steps needs `terminal.run()` to return while the
+terminal stays open: a title screen before a game, or the pages of a form. Give
+`end_on=` the key, or the keys, that end the run. When the user presses one,
+`terminal.run()` returns, and the terminal goes on drawing and listening. Your
+program can then change the screen and call `terminal.run()` again. A hook can
+end the run with `context.canvas.end_run()`.
+
+```python
+import xnano
+
+with xnano.open(height=2) as terminal:
+    message = terminal.write('press enter to start')
+    terminal.run(stop_on='q', end_on='enter')  # >> [end]
+
+    if terminal.is_running:  # >> [is_running]
+        message.text = 'loading...'
+
+        @terminal.hook(on='tick', after=1.0)
+        def loaded(context: xnano.Context):
+            context.canvas.end_run()  # >> [end_run]
+
+        terminal.run(stop_on='q')
+
+    if terminal.is_running:
+        message.text = 'ready: press q to quit'
+        terminal.run(stop_on='q')
+```
+
+<comments>
+<tag name="end" color="blue">
+`enter` ends this run and leaves the terminal open. `q` still stops the
+terminal.
+</tag>
+
+<tag name="is_running" color="pink">
+`True` after the run ended, and `False` after the terminal stopped. A stopped
+terminal is closed, and writing to it raises an error, so the program only
+goes on while the terminal is running.
+</tag>
+
+<tag name="end_run" color="green">
+Ends the run that is waiting. If no run is waiting, it does nothing.
+</tag>
+</comments>
+
+The stop keys and the end keys belong to one call of `terminal.run()`. Give
+them again to the next call.
 
 A hook runs until you remove it. You can remove a hook in two ways:
 
