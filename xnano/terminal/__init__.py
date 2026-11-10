@@ -596,7 +596,7 @@ def _canvas_to_open(
         )
     _check_size('height', height)
     # Checked here as well as in new(), so that an error names open().
-    own = {'fps', 'bpm', 'effects', 'deps', 'state', 'layout', 'edges'}
+    own = {'fps', 'bpm', 'effects', 'deps', 'state', 'layout', 'edges', 'theme'}
     _, appearance = split_settings(
         operation, {name: value for name, value in settings.items() if name not in own}
     )

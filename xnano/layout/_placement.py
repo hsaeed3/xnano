@@ -64,6 +64,7 @@ from xnano.styles._look import (
     text_lines,
 )
 from xnano.styles._owners import _TextModifiers
+from xnano.themes import Theme, ThemeName, themed_text
 
 __all__ = ['Placement']
 
@@ -161,6 +162,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     _text_value: str | None = None
     # The same text with the styles of its spans, when it was given as styled text.
     _styled_text: _core.StyledText | None = None
+    _theme: Theme | None = None
     # The cells of a region written as a snapshot, drawn where the alignment says.
     _snapshot_cells: _core.Buffer | None = None
     _is_drawing_text: bool = False
@@ -1350,6 +1352,11 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 f'as "hello", or styled text such as StyledText.from_ansi(line). Join lines '
                 f'with newlines.'
             )
+        if self._theme is not None:
+            if isinstance(value, str):
+                value = _core.StyledText([_core.TextSpan(value)])
+            if isinstance(value, _core.StyledText):
+                value = themed_text(self._theme, value)
         if self._wrapped_text is not None:
             self._wrapped_text = value
             self._wrapped_width = None
@@ -1638,6 +1645,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         border_style: _core.Style | None = None,
         padding: Spacing | None = None,
         margin: Spacing | None = None,
+        theme: ThemeName | None = None,
     ) -> Placement[DepsT, StateT]:
         """
         Add a child placement inside this placement.
@@ -1686,6 +1694,9 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             padding: Space between the border and the text; see
                 [`Screen.write`][xnano.devices.Screen.write].
             margin: Space outside the box, in the same forms.
+            theme: The name of a theme for this content, in place of the theme of the canvas;
+                see [`ThemeName`][xnano.themes.ThemeName]. A theme gives text, borders and
+                widgets its colors, unless they are given their own.
         """
         self._require_attached()
         if isinstance(content, Region):
@@ -1724,6 +1735,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             border_style=border_style,
             padding=padding,
             margin=margin,
+            theme=theme,
         )
         if effects:
             apply_effects(cast('Placement[object, object]', placement), effects)

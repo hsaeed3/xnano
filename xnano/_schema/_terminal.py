@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Literal, TypeAlias, TypedDict
 import xnano_core as _core
 from xnano._schema._appearance import CanvasAppearanceArguments
 from xnano._schema._layout import CanvasLayout, EdgeBehavior
+from xnano.themes import ThemeName
 
 if TYPE_CHECKING:
     from xnano._schema._effects import WritableEffectSpecification
@@ -121,12 +122,17 @@ class CanvasSettings(TerminalSettings, CanvasAppearanceArguments, total=False):
         edges: What content written on the canvas does at the edges of its area, unless it
             is given its own; see [`EdgeBehavior`][xnano.layout.EdgeBehavior]. ``'clip'``
             when left out.
+        theme: The name of a theme, which gives the canvas and everything written on it
+            its colors; see [`ThemeName`][xnano.themes.ThemeName]. Without one, content
+            uses the colors of the terminal.
     """
 
     layout: CanvasLayout
     """How the canvas places what is written on it."""
     edges: EdgeBehavior
     """What content does at the edges of its area."""
+    theme: ThemeName | None
+    """The theme that colors the canvas and everything written on it."""
 
 
 class OpenSettings(CanvasSettings, total=False):

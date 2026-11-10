@@ -81,6 +81,10 @@ image = [
 monty = [
     "pydantic-monty>=1.2.0",
 ]
+# reading the text of PDF files with `xnano file.pdf` and `xnano.view()`.
+pdf = [
+    "pypdf>=5.0",
+]
 # language models, decision models and agents (`xnano.ai`); pydantic-ai needs Python 3.11.
 ai = [
     "pydantic-ai-slim[openrouter,typesafe]>=2.55; python_version >= '3.11'",

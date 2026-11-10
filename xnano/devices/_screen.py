@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from xnano.effects._properties import WritableEffectProperties
     from xnano.layout._placement import Placement
     from xnano.styles._look import Appearance
+    from xnano.themes import ThemeName
 
 __all__ = ['Screen']
 
@@ -180,6 +181,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
         border_style: _core.Style | None = None,
         padding: Spacing | None = None,
         margin: Spacing | None = None,
+        theme: ThemeName | None = None,
     ) -> Placement[DepsT, StateT]:
         """
         Put something on the canvas: text, a widget, a buffer, another canvas or an image.
@@ -278,6 +280,9 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
                 ``bottom``, ``left``, ``vertical`` and ``horizontal``. Giving it draws the
                 text in a box without a border unless ``border`` or ``title`` is also given.
             margin: Space outside the box, in the same forms.
+            theme: The name of a theme for this content, in place of the theme of the canvas;
+                see [`ThemeName`][xnano.themes.ThemeName]. A theme gives text, borders and
+                widgets its colors, unless they are given their own.
 
         Returns:
             A [`Placement`][xnano.layout.Placement] to move, resize, listen on or remove.
@@ -348,6 +353,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
                 border_style=border_style,
                 padding=padding,
                 margin=margin,
+                theme=theme,
             )
             written = canvas._rendering_writes
             if written is not None:
@@ -390,6 +396,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
                 border_style=border_style,
                 padding=padding,
                 margin=margin,
+                theme=theme,
             )
         except BaseException:
             if slot is not None:

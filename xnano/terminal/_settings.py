@@ -17,6 +17,7 @@ from xnano.canvas import Canvas, _check_appearance, _check_bpm, _check_fps
 from xnano.effects._registry import effect_sequence, normalize_effect
 from xnano.errors import TerminalError
 from xnano.styles._look import APPEARANCE_NAMES, check_border_kind
+from xnano.themes import theme_of
 
 GATE_NAMES: Final = frozenset(
     {
@@ -141,6 +142,7 @@ def split_settings(
                     'state',
                     'layout',
                     'edges',
+                    'theme',
                 }
             )
             close = difflib.get_close_matches(name, known, n=2)
@@ -225,7 +227,14 @@ def parse_open_settings(
             f'with xnano.new(layout={settings["layout"]!r}) instead, or remove layout= '
             f'from open().'
         )
-    own = {'fps', 'bpm', 'effects', 'deps', 'state', 'layout', 'edges'}
+    if 'theme' in settings and theme_of(settings['theme']) is not (  # type: ignore[arg-type]
+        canvas._theme or theme_of(None)
+    ):
+        raise TypeError(
+            f'A canvas keeps the theme it was created with. Create it with '
+            f'xnano.new(theme={settings["theme"]!r}) instead, or remove theme= from open().'
+        )
+    own = {'fps', 'bpm', 'effects', 'deps', 'state', 'layout', 'edges', 'theme'}
     gates, appearance = split_settings(
         'open', {name: value for name, value in settings.items() if name not in own}
     )
