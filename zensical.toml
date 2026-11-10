@@ -24,6 +24,7 @@ nav = [
         {"Widgets" = "learn/widgets.md"},
         {"Images & Pixel Art" = "learn/images.md"},
         {"Sound" = "learn/sound.md"},
+        {"Reading Files" = "learn/reading-files.md"},
         {"Testing" = "learn/testing.md"},
     ]},
     {"API Reference" = [
@@ -56,11 +57,13 @@ nav = [
             {"xnano.hooks" = "api-reference/xnano/hooks.md"},
             {"xnano.layout" = "api-reference/xnano/layout.md"},
             {"xnano.operations" = "api-reference/xnano/operations.md"},
+            {"xnano.reader" = "api-reference/xnano/reader.md"},
             {"xnano.sandbox" = "api-reference/xnano/sandbox.md"},
             {"xnano.state" = "api-reference/xnano/state.md"},
             {"xnano.styles" = "api-reference/xnano/styles.md"},
             {"xnano.symbols" = "api-reference/xnano/symbols.md"},
             {"xnano.terminal" = "api-reference/xnano/terminal.md"},
+            {"xnano.themes" = "api-reference/xnano/themes.md"},
             {"xnano.widgets" = "api-reference/xnano/widgets.md"},
         ]},
         {"xnano-core" = [

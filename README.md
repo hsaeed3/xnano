@@ -55,6 +55,16 @@ Pictures and sound are optional extras. To see and hear them in the demo:
 uvx --from "xnano[image,audio]" xnano
 ```
 
+The same command reads a file. On a terminal it opens a viewer with scrolling, search
+and links that you can click. In a pipe it prints the document.
+
+```bash
+uvx xnano README.md
+```
+
+It shows Markdown, text, JSON, tables (`.csv`, `.tsv`), PDFs, pictures and sound.
+`--theme NAME` chooses the colors, for example `xnano-night` or `github-light`.
+
 Or install `xnano` and run the same demo:
 
 ```bash
@@ -131,6 +141,10 @@ pip install "xnano[image]"  # pictures: .png, .jpg, .gif, .webp
 
 ```bash
 pip install "xnano[audio]"  # sound: the speaker and the microphone
+```
+
+```bash
+pip install "xnano[pdf]"  # the text of PDF files, for `xnano FILE` and `xnano.view`
 ```
 
 On Linux, playing sound on a device needs ALSA (`libasound`). Composing and rendering
@@ -531,6 +545,7 @@ with xnano.open(height=2) as terminal:
 | `06_form.py` | A form with three steps, each one a run that `enter` ends. |
 | `07_file_picker.py` | A list of files to move through and open. |
 | `08_log_viewer.py` | A log that follows new lines, scrolls back and filters by level. |
+| `09_reader.py` | Markdown laid out on the terminal, in a theme that you choose. |
 
 ```bash
 python examples/05_dashboard.py

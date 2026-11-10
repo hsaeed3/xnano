@@ -137,6 +137,7 @@ from xnano.state import (
 from xnano.styles._decoration import Decorated, insets_for, paint_decoration
 from xnano.styles._look import MOST_CELLS, Appearance, appearance_fields, resolve_spacing
 from xnano.styles._owners import _LookState
+from xnano.themes import Theme, ThemeName, theme_of, theme_widget, themed_text
 
 __all__ = [
     'Canvas',
@@ -765,6 +766,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         enclosing: Canvas[object, object] | None = None,
         layout: CanvasLayout = 'overlay',
         edges: EdgeBehavior = 'clip',
+        theme: ThemeName | None = None,
     ) -> None:
         """
         Create a canvas. Use [`new`][xnano.new] instead of calling this.
@@ -787,6 +789,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 sizes are measured in and which closes it, or ``None``.
             layout: How the canvas places what is written on it.
             edges: What content written on the canvas does at the edges of its area.
+            theme: The name of the theme of the canvas, or ``None`` for the theme of the
+                enclosing canvas.
         """
         super().__init__()
         self._canvas = self
@@ -820,6 +824,21 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         self._title = title
         self._gates: dict[str, object] = dict(gates)
         self._resolved_gates: dict[str, object] = {}
+        self._theme: Theme | None = (
+            theme_of(theme)
+            if theme is not None
+            else None
+            if enclosing is None
+            else enclosing._theme
+        )
+        if self._theme is not None:
+            given = appearance.get('style')
+            defaults: dict[str, object] = {}
+            if not isinstance(given, _core.Style) or given.foreground is None:
+                defaults['foreground'] = self._theme.text
+            if not isinstance(given, _core.Style) or given.background is None:
+                defaults['background'] = self._theme.background
+            appearance = {**defaults, **appearance}
         self._appearance = (
             Appearance(**cast('dict[str, object]', _plain_appearance(appearance)))  # type: ignore[arg-type]
             if appearance
@@ -1129,6 +1148,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         border_style: _core.Style | None = None,
         padding: Spacing | None = None,
         margin: Spacing | None = None,
+        theme: ThemeName | None = None,
     ) -> Placement[DepsT, StateT]:
         """
         Put content on the screen of the canvas, and return the placement that holds it.
@@ -1177,6 +1197,9 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             padding: The space between the border and the content: a number of cells, a
                 share of the size of the content, or a dictionary of sides.
             margin: The space outside the box, in the same forms.
+            theme: The name of a theme for this content, in place of the theme of the canvas;
+                see [`ThemeName`][xnano.themes.ThemeName]. A theme gives text, borders and
+                widgets its colors, unless they are given their own.
 
         Returns:
             The [`Placement`][xnano.layout.Placement] that holds the content. Use it to move,
@@ -1223,7 +1246,30 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             border_style=border_style,
             padding=padding,
             margin=margin,
+            theme=theme,
         )
+
+    @property
+    def theme(self) -> ThemeName | None:
+        """
+        The name of the theme of the canvas, or ``None`` when it has none.
+
+        A canvas takes its theme from ``theme=`` of [`new`][xnano.new] or
+        [`open`][xnano.open]. A canvas that is created inside the ``with`` block of
+        another canvas takes the theme of that canvas. See
+        [`ThemeName`][xnano.themes.ThemeName] for the themes and their authors.
+
+        Examples:
+            ```python
+            import xnano
+
+            with xnano.new(width=12, height=1, theme='xnano-night') as canvas:
+                assert canvas.theme == 'xnano-night'
+                canvas.write('hello')
+                assert '232;223;204' in canvas.render(format='ansi')
+            ```
+        """
+        return None if self._theme is None else cast('ThemeName', self._theme.name)
 
     def render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
         """
@@ -2754,9 +2800,43 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         border_style: _core.Style | None = None,
         padding: Spacing | None = None,
         margin: Spacing | None = None,
+        theme: ThemeName | None = None,
         is_in_flow: bool = True,
     ) -> Placement[DepsT, StateT]:
         check_layer(layer)
+        chosen = theme_of(theme) if theme is not None else parent_owner._theme
+        is_secondary = False
+        if chosen is not None and not isinstance(content, Canvas):
+            if isinstance(content, str) and foreground is None and style is None:
+                content = _core.StyledText(
+                    [_core.TextSpan(content, style=_core.Style(dim=dim))]
+                )
+                is_secondary = dim
+                dim = False
+            if isinstance(content, _core.StyledText):
+                has_own_background = any(
+                    span.style.background is not None for span in content.spans
+                )
+                content = themed_text(chosen, content)
+                if (
+                    background is None
+                    and not has_own_background
+                    and (style is None or style.background is None)
+                ):
+                    background = chosen.background
+            elif isinstance(content, _core.Widget):
+                theme_widget(chosen, content)
+            elif (style is None or style.foreground is None) and foreground is None:
+                foreground = chosen.muted if dim else chosen.text
+                dim = False
+            if (
+                background is None
+                and (style is None or style.background is None)
+                and not isinstance(content, _core.StyledText)
+            ):
+                background = chosen.background
+            if border and border_style is None:
+                border_style = _core.Style(chosen.border, chosen.background)
         removes_border = border is False
         if border is True:
             border = 'plain'
@@ -2793,7 +2873,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 f'to change one placement.'
             )
         if isinstance(content, Canvas):
-            return self._adopt(
+            themed = self._adopt(
                 parent_buffer,
                 cast('Canvas[object, object]', content),
                 parent_owner=parent_owner,
@@ -2806,8 +2886,10 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 lock=lock,
                 is_in_flow=is_in_flow,
             )
+            themed._theme = chosen
+            return themed
         if not isinstance(content, type) and hasattr(content, '__xnano_render__'):
-            return self._place_rendering(
+            themed = self._place_rendering(
                 parent_buffer,
                 content,
                 parent_owner=parent_owner,
@@ -2819,7 +2901,10 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 look=appearance if is_decorated else None,
                 lock=lock,
                 is_in_flow=is_in_flow,
+                theme=chosen,
             )
+            themed._theme = chosen
+            return themed
         if (
             isinstance(content, Region)
             and content._box_size is not None
@@ -2827,7 +2912,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 width is not None or height is not None or is_decorated or removes_border
             )
         ):
-            return self._place_box(
+            themed = self._place_box(
                 parent_buffer,
                 content,
                 appearance,
@@ -2841,6 +2926,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 lock=lock,
                 is_in_flow=is_in_flow,
             )
+            themed._theme = chosen
+            return themed
         component = (
             None
             if content is None or isinstance(content, (Region, Pixel, Image))
@@ -2874,6 +2961,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 border_style=border_style,
                 padding=padding,
                 margin=margin,
+                theme=theme,
                 is_in_flow=is_in_flow,
             )
             try:
@@ -3028,6 +3116,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         if self._fitted_placements:
             # A canvas written into this one may have grown with what was written in it.
             self._fit_now()
+        placement._theme = chosen
+        placement._is_secondary = is_secondary
         return placement
 
     def _place_box(
@@ -3133,6 +3223,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         look: Appearance | None,
         lock: bool,
         is_in_flow: bool,
+        theme: Theme | None = None,
     ) -> Placement[DepsT, StateT]:
         """Write a renderable: a canvas of its own where it is written, which it draws on."""
         # The area fits what the component writes on each axis the caller left open, and
@@ -3144,6 +3235,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             enclosing=cast('Canvas[object, object]', self),
         )
         area._is_hidden_until_written = True
+        if theme is not None:
+            area._theme = theme  # what the renderable writes takes the theme of the write
         placement = self._adopt(
             parent_buffer,
             area,
@@ -4746,6 +4839,7 @@ def _create(
 
     settings = dict(settings)
     layout = check_layout(settings.pop('layout', 'overlay'))
+    theme = cast('ThemeName | None', settings.pop('theme', None))
     edges = check_edges(
         settings.pop('edges', 'clip' if enclosing is None else enclosing.screen.edges)
     )
@@ -4771,6 +4865,7 @@ def _create(
         enclosing=enclosing,
         layout=layout,
         edges=edges,
+        theme=theme,
     )
     if content is not None:
         try:
@@ -4870,6 +4965,7 @@ def write(
     border_style: _core.Style | None = None,
     padding: Spacing | None = None,
     margin: Spacing | None = None,
+    theme: ThemeName | None = None,
 ) -> Placement[object, object]:
     """
     Put content on the running canvas, and return the placement that holds it.
@@ -4917,6 +5013,9 @@ def write(
         padding: The space between the border and the content: a number of cells, a
             share of the size of the content, or a dictionary of sides.
         margin: The space outside the box, in the same forms.
+        theme: The name of a theme for this content, in place of the theme of the canvas;
+            see [`ThemeName`][xnano.themes.ThemeName]. A theme gives text, borders and
+            widgets its colors, unless they are given their own.
 
     Returns:
         The [`Placement`][xnano.layout.Placement] that holds the content. Use it to move,
@@ -4972,4 +5071,5 @@ def write(
         border_style=border_style,
         padding=padding,
         margin=margin,
+        theme=theme,
     )

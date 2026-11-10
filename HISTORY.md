@@ -4,6 +4,83 @@ Release notes of every xnano package, newest first. This file is generated from 
 
 ## xnano
 
+### 2.2.2
+
+Published 2026-11-03. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.2.2).
+
+#### xnano 2.2.2
+
+- Rich measures a canvas, a screen, a placement and a region at the width that they draw. Rich panels, columns and nested tables give them the space that they need, and do not wrap their lines. A `braille` or `half_blocks` view of a region is measured in cells. (#217, #218)
+- In a rich `Table`, add the column of a canvas with `no_wrap=True`. Rich then makes the other columns narrower, and keeps the canvas whole.
+- In rich, a region on the timeline shows its `repr` on one line.
+- The README shows its section for `rich` and `textual` users after the core features.
+
+### 2.2.1
+
+Published 2026-11-02. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.2.1).
+
+#### xnano 2.2.1
+
+- rich and Textual show xnano directly. `rich.print(canvas)` prints the current frame with its colors and styles. A canvas, a screen, a placement or a region can also go into a rich `Panel` or `Table`, or into a Textual `Static`, with no `render()` call. A line wider than the space that rich gives is cut, as on a terminal.
+- Textual draws a `Static` after it is made, so give it a canvas that stays open, such as one from `xnano.new()` outside a `with` block.
+- The README has a table of contents, a section for rich and Textual users, an example for each ratatui widget, and Animations and AI sections.
+
+### 2.2.0
+
+Published 2026-11-02. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.2.0).
+
+#### xnano 2.1.2
+
+- **Pixel art over other content.** Pixel art without a `background` leaves the cells that no pixel covers transparent, so the text, art or canvas below shows through them, as the `pixel_art()` docstring describes. Before, its whole rectangle was opaque. In a cell where the art covers only one of the two pixels, the empty half shows the terminal's default background.
+- **Frame hooks at the requested rate.** An `on='frame'` hook, or an expression that follows the clock, runs at the canvas's `fps` (60 by default) when its frames change nothing, instead of using a whole CPU core. This comes from xnano-core 2.1.4.
+- **Rhythm game examples.** The repository's `examples/` folder holds four rhythm games of about 100 lines each: Circles (click the rings on the beat, with a cursor that follows the mouse), Drums (`d f j k`), Catch (move a basket under falling notes) and Lanes (hit notes down four lanes). They use frame hooks, mouse motion, pixel art and sound. Run one with `python examples/01_rhythm_circles.py`.
+- **Documentation.** New Learn guides teach xnano from installation to sound, with a picture of each example. The homepage runs its first example in the browser and shows the four rhythm games.
+- xnano 2.1.2 requires `xnano-core>=2.1.4`.
+
+#### xnano 2.2.0
+
+**Text from other programs**
+
+- `xnano.from_rich(renderable)` draws anything that the rich library draws: markup, tables, panels, syntax, markdown, trees, layouts, spinners and your own renderables. Rich draws it at the size of its placement, measures it again when its content grows, and reads the time from the canvas clock. Install rich to use it.
+- `write()` accepts a `StyledText`, for example from `StyledText.from_ansi(line)`. It places the text as it places a string with the same keywords.
+- `placement.text` accepts a `StyledText`, so a line changes in place with its colors. Reading `text` gives the plain text.
+
+**Shorter calls**
+
+- `canvas.write()` is the same as `canvas.screen.write()`. `canvas.render()` returns what the canvas shows, and `canvas.fx` gives its effects.
+- `xnano.write()` writes on the canvas that runs now, in a `with xnano.open()` or `with xnano.new()` block.
+- `(column, row) in placement`, `placement in canvas` and `region in screen` tell if a cell or an area is inside another area. `a.overlaps(b)` tells if two areas share a cell.
+- `right_edge` and `bottom_edge` give the first column after an area and the first row below it.
+- A position or size can read input that has not arrived yet, such as `x=PointerPosition.x` before the pointer moves. The placement shows when the input arrives and then follows it. A still mouse costs no frames.
+
+**Guides and examples**
+
+- The Learn guides, the README and the examples use the short forms. The Circles example follows the pointer with `PointerPosition`.
+
+### 2.1.1
+
+Published 2026-10-26. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.1.1).
+
+##### What's Changed
+###### Other Changes
+* fix(xnano-audio): keep bell chords in tune by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/186
+* fix(xnano-core): drop the trailing newline from ANSI renders by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/185
+* docs: render the README examples for GitHub's light and dark themes by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/187
+* fix(xnano-core): measure the frame rate from drawn frames by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/188
+* fix(xnano-core): keep glitch effects to printable characters by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/190
+* fix: redraw once an effect ends and estimate only the newest held key by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/195
+* docs: give the documentation site an editorial theme by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/196
+* fix(xnano-core): show effects started after a pause by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/197
+
+### 2.1.0
+
+Published 2026-10-24. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.1.0).
+
+##### What's Changed
+###### Other Changes
+* feat!: add xnano.ai and group the API into devices, layout, styles and hooks by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/183
+* test(xnano-core): make the output capture test reliable by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/184
+
 ### 2.0.1
 
 Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano/v2.0.1).
@@ -962,6 +1039,72 @@ Published 2026-07-07. [Release page](https://github.com/hsaeed3/xnano/releases/t
 
 ## xnano-core
 
+### 2.2.1
+
+Published 2026-11-02. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.2.1).
+
+#### xnano-core 2.2.1
+
+- `xnano-core` no longer installs `markdown-it-py`, `pydantic-core` or `pygments`, which it did not use. `pip install xnano` installs only `xnano`, `xnano-core` and, on Python older than 3.13, `typing-extensions`.
+
+### 2.2.0
+
+Published 2026-11-02. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.2.0).
+
+#### xnano-core 2.2.0
+
+- `StyledText.from_ansi(text)` reads text with ANSI color and style codes, such as the output of a command or a log file. It keeps the 16 named colors, the 256 palette colors, true colors, the underline color, and bold, dim, italic, underlined, blinking, reverse, hidden and crossed-out text. Newlines, tabs and carriage returns lay out the lines as a terminal does. All other control codes are removed.
+- A mouse event that moves the pointer asks for a frame while a placement follows the pointer. An expression that reads `PointerPosition` or `MousePosition` then follows it on the next frame. A still mouse, and a move over content that does not follow the pointer, cost no frames.
+- `Value.x` and `Value.y` accept a point that can have no value, so `PointerPosition.x` passes a type check.
+
+### 2.1.4
+
+Published 2026-11-02. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.1.4).
+
+#### xnano-core 2.1.4
+
+- **Frame pacing when nothing changes.** On a live terminal, a frame that changes nothing on the screen counts toward frame pacing. Work that asks for every frame, such as an `on='frame'` hook or an expression that follows the clock, runs at the requested `fps`. Before, those frames were not paced: one frame hook at `fps=60` ran about 35,000 times a second and kept a CPU core busy. The measured frame rate still counts only the frames that reach the terminal.
+- **Transparent cells in copies and pastes.** `Paste`, `Buffer.paste()` and `Region.copy()` keep the cells that are marked transparent (`Cell(..., is_transparent=True)`), so the copied cells let the content below show through. Before, every copied cell was opaque, so a placement drawn from a component or a cell snapshot covered its whole rectangle.
+- Released with xnano 2.1.2, which requires it.
+
+### 2.1.3
+
+Published 2026-10-26. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.1.3).
+
+##### What's Changed
+###### Other Changes
+* fix(xnano-core): keep glitch effects to printable characters by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/190
+* fix: redraw once an effect ends and estimate only the newest held key by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/195
+* docs: give the documentation site an editorial theme by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/196
+* fix(xnano-core): show effects started after a pause by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/197
+
+### 2.1.2
+
+Published 2026-10-25. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.1.2).
+
+##### What's Changed
+###### Other Changes
+* docs: render the README examples for GitHub's light and dark themes by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/187
+* fix(xnano-core): measure the frame rate from drawn frames by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/188
+
+### 2.1.1
+
+Published 2026-10-25. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.1.1).
+
+##### What's Changed
+###### Other Changes
+* fix(xnano-audio): keep bell chords in tune by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/186
+* fix(xnano-core): drop the trailing newline from ANSI renders by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/185
+
+### 2.1.0
+
+Published 2026-10-24. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.1.0).
+
+##### What's Changed
+###### Other Changes
+* feat!: add xnano.ai and group the API into devices, layout, styles and hooks by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/183
+* test(xnano-core): make the output capture test reliable by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/184
+
 ### 2.0.1
 
 Published 2026-10-19. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-core/v2.0.1).
@@ -1293,6 +1436,20 @@ Published 2026-07-07. [Release page](https://github.com/hsaeed3/xnano/releases/t
 * @hsaeed3 made their first contribution in https://github.com/hsaeed3/xnano/pull/3
 
 ## xnano-audio
+
+### 0.4.1
+
+Published 2026-10-25. [Release page](https://github.com/hsaeed3/xnano/releases/tag/xnano-audio/v0.4.1).
+
+##### What's Changed
+###### Other Changes
+* feat(audio): load MP3, FLAC, Ogg Vorbis and AAC files as sounds by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/180
+* docs: refine the code theme, text sizes and code blocks by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/181
+* feat: show transparent image pixels, type input values and add random choices by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/182
+* feat!: add xnano.ai and group the API into devices, layout, styles and hooks by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/183
+* test(xnano-core): make the output capture test reliable by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/184
+* fix(xnano-audio): keep bell chords in tune by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/186
+* fix(xnano-core): drop the trailing newline from ANSI renders by @hsaeed3 in https://github.com/hsaeed3/xnano/pull/185
 
 ### 0.4.0
 

@@ -28,6 +28,7 @@ when you need it.
 | [Widgets](widgets.md) | Show gauges, charts, tables and lists |
 | [Images & Pixel Art](images.md) | Draw pixel art and load pictures |
 | [Sound](sound.md) | Play notes and melodies, and listen to the microphone |
+| [Reading Files](reading-files.md) | Read Markdown, data, pictures and sound with `xnano FILE` |
 | [Testing](testing.md) | Test a program without a terminal: its screen, its keys and its time |
 
 ## Four ideas

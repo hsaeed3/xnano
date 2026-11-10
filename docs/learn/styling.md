@@ -411,6 +411,40 @@ with xnano.new(width=40, height=3) as canvas:
 
 <!-- /@code-block-asset -->
 
+## Themes
+
+A theme gives a whole canvas its colors: the background, text, borders and
+widgets. Pass the name of a theme to `xnano.new()` or `xnano.open()`.
+
+```python
+import xnano
+
+with xnano.new(width=30, height=4, theme='xnano-night') as canvas:
+    canvas.write('Build 142', bold=True)
+    canvas.write('passed', dim=True)
+    canvas.write('details', x='right', y=0, border='rounded')
+    print(canvas.render(format='ansi'))
+```
+
+Under a theme, plain text gets the text color, `dim` text gets the secondary
+color, and a border gets the border color. A widget gets the accent color for
+what is chosen or filled. A color that you give stays as you gave it.
+
+`write()` takes `theme=` too, for one placement in other colors.
+
+```python
+import xnano
+
+with xnano.new(width=30, height=2, theme='xnano-night') as canvas:
+    canvas.write('night')
+    canvas.write('day', theme='xnano-day')
+    assert canvas.theme == 'xnano-night'
+```
+
+Without a theme, a program uses the colors of the terminal. That is the default,
+and it is the best choice for a program that must fit every terminal.
+[`ThemeName`][xnano.themes.ThemeName] lists the themes and their authors.
+
 ## Choose colors for all themes
 
 People use terminals with light themes and with dark themes, and each theme has
