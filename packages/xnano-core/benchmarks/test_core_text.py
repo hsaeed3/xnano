@@ -1,5 +1,5 @@
 """
-Benchmarks for xnano-core text: wrapping, measuring and editing.
+Benchmarks for xnano-core text: wrapping, measuring and styling.
 """
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ from xnano_core._xnano_core import (
     Paragraph,
     Style,
     StyledText,
-    TextEditor,
     Write,
     display_width,
 )
@@ -68,14 +67,3 @@ def test_styled_text_from_ansi_log(benchmark):
     text = benchmark(StyledText.from_ansi, COLORED_LOG)
     assert text.height == 2000
     assert str(text).startswith('12:00:00 terminal request 0 took 0 ms')
-
-
-def test_text_editor_typing(benchmark):
-    def type_text() -> str:
-        editor = TextEditor()
-        for character in PROSE[:400]:
-            editor.insert_text(character)
-        return editor.text
-
-    text = benchmark(type_text)
-    assert text == PROSE[:400]
