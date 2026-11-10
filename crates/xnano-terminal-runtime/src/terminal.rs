@@ -631,13 +631,21 @@ fn wait_for_terminal(timeout: Duration) -> Wait {
 }
 
 impl InputReader {
-    fn spawn(sink: EventSink, origin: Origin, options: SessionOptions) -> Self {
+    /// Start reading input. `known_size` is the size of the terminal that the session was
+    /// opened at: a later size is reported as a resize, also when the window changed before
+    /// this thread first ran.
+    fn spawn(
+        sink: EventSink,
+        origin: Origin,
+        options: SessionOptions,
+        known_size: Option<(u16, u16)>,
+    ) -> Self {
         let should_stop = Arc::new(AtomicBool::new(false));
         let flag = Arc::clone(&should_stop);
         let handle = std::thread::Builder::new()
             .name("xnano-input".into())
             .spawn(move || {
-                let mut last_size = terminal_size();
+                let mut last_size = known_size;
                 while !flag.load(Ordering::SeqCst) {
                     if matches!(wait_for_terminal(Duration::from_millis(20)), Wait::Closed) {
                         hang_up(&sink);
@@ -952,6 +960,8 @@ impl TerminalSession {
             Some(height) => Viewport::Inline(height.max(1)),
             None => Viewport::Fullscreen,
         };
+        // Read before the terminal measures itself, so no resize falls between the two.
+        let known_size = terminal_size();
         let terminal = Terminal::with_options(SessionBackend::new(), RatatuiOptions { viewport })?;
         let modes = std::mem::take(&mut setup.modes);
         setup.armed = false;
@@ -961,6 +971,7 @@ impl TerminalSession {
             Arc::clone(&sink),
             Arc::clone(&origin),
             options.clone(),
+            known_size,
         ));
         #[cfg(unix)]
         if options.should_handle_exit_signals {
