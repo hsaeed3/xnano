@@ -67,31 +67,26 @@ python -m xnano
 
 ## Why xnano
 
-`xnano` starts from one idea: you write something on the screen, and you get
-back an object that you can change. Everything else builds on that.
+The key features are:
 
-- **You write, and it shows.** [`terminal.write()`][learn-content] takes text,
-  a [widget][learn-widgets], pixel art or an [image][learn-images]. You say
-  where it goes with a number, a percentage, or a word such as `'center'`.
-- **What you wrote stays live.** `write()` returns a [placement][api-layout].
-  Set its `text`, its [`color`][learn-styling] or its `x`, and the screen
-  changes with it. You never redraw the screen yourself.
-- **A hook is a function.** A [hook][learn-input] runs your function on a key,
-  a click, or a tick of the [clock][learn-time]. Put it on the whole screen, or
-  on one placement so that it only hears its own cells.
-- **A canvas does not need a terminal.** [`xnano.open()`][api-terminal] takes
-  over the window, or a few rows below your prompt. [`xnano.new()`][api-canvas]
-  makes the same canvas in memory, so you can print it, test it, or put it in
-  another program.
-- **Motion, sound and pictures are included.** [Effects][learn-time] such as
-  fades and sweeps, [notes and melodies][learn-sound], and `.png`, `.jpg`,
-  `.gif` and `.webp` files work the same way as text does.
-- **The drawing is done in Rust.** Layout and drawing run in
-  [`ratatui`](https://ratatui.rs/), so a frame stays fast when the screen is
-  full.
-- **It works with `rich` and `textual`.** A canvas goes into a `rich` `Panel`
-  or a `textual` `Static` as it is, and `rich` renderables go into a canvas. See
-  [`rich` and `textual` users](#rich-and-textual-users).
+- **Quick to start**: The first program is four lines of code: import, open a
+  terminal, write to it, run it.
+- **Live**: [`write()`][learn-content] returns a [placement][api-layout]. Change
+  its text, its [color][learn-styling] or its position, and the screen follows.
+  You write no redraw code.
+- **Simple layout**: A position or a size is a number of cells, a percentage, or
+  a word such as `'center'`. It holds when the window changes size.
+- **Interactive**: A [hook][learn-input] is a plain function that runs on a key,
+  a click, or a tick of the [clock][learn-time].
+- **Complete**: [Widgets][learn-widgets], [effects][learn-time],
+  [pixel art and images][learn-images] and [sound][learn-sound] are written the
+  same way as text.
+- **Runs anywhere**: [`xnano.open()`][api-terminal] takes the whole window, or a
+  few rows below your prompt. [`xnano.new()`][api-canvas] draws into memory, to
+  print or to [test][learn-testing].
+- **Fast**: Layout and drawing run in Rust, on [`ratatui`](https://ratatui.rs/).
+- **Compatible**: Works with
+  [`rich` and `textual`](#rich-and-textual-users), in both directions.
 
 [learn-content]: https://xnano.hammad.app/learn/content/
 [learn-widgets]: https://xnano.hammad.app/learn/widgets/
@@ -100,6 +95,7 @@ back an object that you can change. Everything else builds on that.
 [learn-input]: https://xnano.hammad.app/learn/input/
 [learn-time]: https://xnano.hammad.app/learn/time/
 [learn-sound]: https://xnano.hammad.app/learn/sound/
+[learn-testing]: https://xnano.hammad.app/learn/testing/
 [learn-run]: https://xnano.hammad.app/learn/input/#end-a-run-and-keep-the-terminal
 [api-layout]: https://xnano.hammad.app/api-reference/xnano/layout/
 [api-terminal]: https://xnano.hammad.app/api-reference/xnano/terminal/
