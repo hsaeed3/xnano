@@ -7,7 +7,6 @@ The keys and the mouse of the viewer: what each key does, and what a click and a
 from __future__ import annotations
 
 import functools
-import pathlib
 from collections.abc import Callable, Generator
 from typing import TYPE_CHECKING
 
@@ -86,19 +85,10 @@ def _lay_out_again(viewer: _Viewer) -> None:
 
 
 def _has_images_to_draw(viewer: _Viewer) -> bool:
-    """Whether an image in view is loading, or is loaded and not written yet."""
+    """Whether an image is loading, or one finished loading since the last frame."""
     with viewer.images_lock:
-        if viewer.is_loading:
-            return True
-        return any(
-            isinstance(line.content, pathlib.Path)
-            and line.content in viewer.images
-            and index - line.content_row not in viewer.written
-            for index, line in enumerate(
-                viewer.lines[viewer.top : viewer.top + viewer.rows], viewer.top
-            )
-            if line.content is not None and viewer.images.get(line.content) is not None  # type: ignore[arg-type]
-        )
+        has_new, viewer.has_new_image = viewer.has_new_image, False
+        return has_new or bool(viewer.is_loading)
 
 
 def hear_body(viewer: _Viewer) -> None:
@@ -107,19 +97,29 @@ def hear_body(viewer: _Viewer) -> None:
     if placement is None:
         return
 
+    pressed: list[object] = [None, False]  # where the button went down, and if it moved
+
+    @placement.hook(on='mouse')
+    def press_or_release(context: Context) -> None:
+        position = context.mouse.position
+        if context.mouse.kind == 'press':
+            pressed[:] = [position, False]
+        elif context.mouse.kind == 'release':
+            start, has_moved = pressed
+            pressed[:] = [None, False]
+            if position is not None and position == start and not has_moved:
+                click(viewer, position.x, position.y - 1)
+
     @placement.hook(on='drag')
     def drag(context: Context) -> Generator[None, Context, None]:
         start = context.mouse.position
         top = viewer.top
-        has_moved = False
         while context.mouse.is_down:
             position = context.mouse.position
             if start is not None and position is not None and position.y != start.y:
-                has_moved = True
+                pressed[1] = True
                 viewer.scroll_to(top - (position.y - start.y))
             context = yield
-        if not has_moved and start is not None:
-            click(viewer, start.x, start.y - 1)
 
 
 def click(viewer: _Viewer, column: int, row: int) -> None:

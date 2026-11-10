@@ -18,9 +18,10 @@ INLINE = re.compile(
     r"""
       (?P<escape>\\[\\`*_{}\[\]()#+\-.!|~<>])
     | (?P<code>(?P<ticks>`+)(?P<code_text>.+?)(?<!`)(?P=ticks)(?!`))
-    | (?P<image>!\[(?P<alt>[^\]]*)\]\((?P<source><[^>]*>|[^)\s]*)(?:\s+"[^"]*")?\))
+    | (?P<image>!\[(?P<alt>[^\]]*)\]
+        \((?P<source><[^>]*>|(?:[^()\s]|\([^()\s]*\))*)(?:\s+"[^"]*")?\))
     | (?P<link>\[(?P<label>(?:[^\[\]]|!?\[[^\]]*\](?:\([^)]*\))?)*)\]
-        \((?P<target><[^>]*>|[^)\s]*)(?:\s+"[^"]*")?\))
+        \((?P<target><[^>]*>|(?:[^()\s]|\([^()\s]*\))*)(?:\s+"[^"]*")?\))
     | (?P<reference>\[(?P<reference_label>[^\[\]]+)\]\[(?P<reference_name>[^\]]*)\])
     | (?P<autolink><(?P<address>https?://[^>\s]+)>)
     | (?P<break><br\s*/?>)
@@ -92,7 +93,10 @@ def _linked(label: str, target: str, references: dict[str, str]) -> list[Run]:
 
 
 def _code(match: re.Match[str], references: dict[str, str]) -> list[Run]:
-    return [Run(match['code_text'].strip() or match['code_text'], code=True)]
+    text = match['code_text'].replace('\n', ' ')
+    if text.startswith(' ') and text.endswith(' ') and text.strip():
+        text = text[1:-1]  # one space at each end separates the code from its marks
+    return [Run(text, code=True)]
 
 
 def _image(match: re.Match[str], references: dict[str, str]) -> list[Run]:

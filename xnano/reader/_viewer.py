@@ -121,6 +121,7 @@ class _Viewer:
         self.images_lock = threading.Lock()
         self.is_loading: set[pathlib.Path] = set()
         self.image_generation = 0
+        self.has_new_image = False
         self.key_placements: list[Placement[None, None]] = []
         self.audio: object | None = None
         self.audio_handle: object | None = None

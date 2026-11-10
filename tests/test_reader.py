@@ -337,3 +337,38 @@ def test_the_size_of_an_xni_image_comes_from_its_header(tmp_path):
     path = tmp_path / 'art.xni'
     path.write_bytes(b'XNI1' + struct.pack('>HHH', 24, 12, 1))
     assert pixel_size(path) == (24, 12)
+
+
+def test_inline_code_and_link_targets_keep_their_text():
+    lines = layout_markdown(
+        '`` ` `` and ` a ` and [x](a(b).md)', width=40, theme=theme_of(None)
+    )
+    assert lines[0].text == '` and a and x'
+    assert lines[0].links[0][2] == 'a(b).md'
+
+
+def test_a_click_on_a_link_opens_the_file(tmp_path):
+    pytest.importorskip('pyte')
+    if sys.platform == 'win32':
+        pytest.skip('needs a pseudo-terminal')
+    from emulator import Screen
+
+    (tmp_path / 'other.md').write_text(
+        '# Other\n\nfiller\n\n## Install\n\nThe second file.\n'
+    )
+    first = tmp_path / 'first.md'
+    first.write_text('# First\n\nGo to the [next file](other.md).\n')
+    screen = Screen(
+        command=[sys.executable, '-m', 'xnano', str(first)], rows=12, columns=50
+    )
+    try:
+        assert screen.wait_for('q quit'), screen.text
+        found = screen.find('next file')
+        assert found is not None, screen.text
+        column, row = found
+        screen.click(column + 2, row)
+        assert screen.wait_for('The second file.'), screen.text
+        screen.press('q')
+        assert screen.finish() == 0
+    finally:
+        screen.close()
