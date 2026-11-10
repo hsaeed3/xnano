@@ -78,9 +78,10 @@ The key features are:
   a word such as `'center'`. It holds when the window changes size.
 - **Interactive**: A [hook][learn-input] is a plain function that runs on a key,
   a click, or a tick of the [clock][learn-time].
-- **Complete**: [Widgets][learn-widgets], [effects][learn-time],
-  [pixel art and images][learn-images] and [sound][learn-sound] are written the
-  same way as text.
+- **Complete**: [Widgets][learn-widgets], [effects][learn-time] and
+  [pixel art and images][learn-images] are written the same way as text.
+- **Sound**: Play [notes, melodies and audio files][learn-sound] on built-in
+  instruments, in time with the clock, and read the level of the microphone.
 - **Runs anywhere**: [`xnano.open()`][api-terminal] takes the whole window, or a
   few rows below your prompt. [`xnano.new()`][api-canvas] draws into memory, to
   print or to [test][learn-testing].
