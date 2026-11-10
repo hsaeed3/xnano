@@ -187,3 +187,23 @@ def test_a_small_window_asks_for_a_larger_one_and_a_resize_brings_the_page_back(
     assert 'The demo needs' not in screen.text
     screen.press('q')
     assert screen.finish() == 0
+
+
+@pytest.mark.parametrize(('rows', 'columns'), [(14, 60), (6, 34), (2, 10)])
+def test_a_window_of_any_size_opens_the_pages_without_an_error(demo, rows, columns):
+    screen = demo(rows=rows, columns=columns)
+    screen.settle(1.5)
+    screen.press('x')
+    # The notice covers the hint line of a window this small, so wait for the notice.
+    if rows >= 5:
+        assert screen.wait_for('demo needs 80 by 24'), screen.text
+    else:
+        screen.settle(1.0)
+    for key in ('right', 'down', 'right', 'right', 'right'):
+        screen.press(key)
+    screen.resize(30, 100)
+    assert screen.wait_for('╭log'), screen.text
+    screen.resize(3, 12)
+    screen.settle(0.5)
+    screen.press('q')
+    assert screen.finish() == 0, screen.raw.decode('utf-8', 'replace')[-800:]

@@ -129,6 +129,11 @@ def row(fraction: float) -> Number:
     return 1 + ((ParentHeight - 2) * fraction) // 1
 
 
+def span(cells: Number) -> Number:
+    """A width or a height that stops at zero, so a window of any size can be drawn."""
+    return cells.maximum(0)
+
+
 def has_extra(package: str) -> bool:
     """Whether the package behind an optional extra, such as ``'xnano_image'``, is installed."""
     return importlib.util.find_spec(package) is not None
@@ -311,8 +316,8 @@ class _Demo:
             content,  # type: ignore[arg-type]
             x=edge(left) + inset_x,
             y=row(top) + inset_y,
-            width=edge(right) - edge(left) - 2 * inset_x,
-            height=row(bottom) - row(top) - 2 * inset_y,
+            width=span(edge(right) - edge(left) - 2 * inset_x),
+            height=span(row(bottom) - row(top) - 2 * inset_y),
             layer=0 if is_border else 1,
         )
         return self.keep(page, placement)
@@ -352,7 +357,7 @@ class _Demo:
             self.notice.text = (
                 f'The demo needs {MINIMUM_WIDTH} by {MINIMUM_HEIGHT} cells.\n'
                 f'This window has {screen.width} by {screen.height}.\n'
-                f'Make the window larger, or press q to quit.'
+                'Make it larger, or press q.'
             )
             self.hint.text = 'q quit'
             return False
@@ -371,7 +376,7 @@ class _Demo:
         self.panel(page, 'figure', 0.0, 0.6, 0.45, 1.0)
         self.panel(page, 'how it is made', 0.6, 1.0, 0.45, 1.0)
 
-        inner = edge(0.34) - 4
+        inner = span(edge(0.34) - 4)
         screen = terminal.screen
         self.time = self.keep(page, screen.write('', x=2, y=row(0.0) + 1, layer=1))
         sweep = LineGauge(
@@ -417,7 +422,7 @@ class _Demo:
                 self.spark,
                 x=edge(0.34) + 2,
                 y=row(0.0) + 1,
-                width=edge(0.67) - edge(0.34) - 4,
+                width=span(edge(0.67) - edge(0.34) - 4),
                 height=2,
                 layer=1,
             ),
@@ -429,8 +434,8 @@ class _Demo:
                 self.bars,
                 x=edge(0.34) + 2,
                 y=row(0.0) + 4,
-                width=edge(0.67) - edge(0.34) - 4,
-                height=row(0.45) - row(0.0) - 5,
+                width=span(edge(0.67) - edge(0.34) - 4),
+                height=span(row(0.45) - row(0.0) - 5),
                 layer=1,
             ),
         )
