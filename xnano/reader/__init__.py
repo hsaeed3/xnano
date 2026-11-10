@@ -16,7 +16,8 @@ import os
 import pathlib
 import shutil
 import sys
-from typing import TextIO
+from collections.abc import Iterator
+from typing import Literal, TextIO
 
 from xnano._internal._optional import is_installed
 from xnano.reader._documents import (
@@ -158,60 +159,76 @@ def _is_terminal(stream: object) -> bool:
 
 def _print(document: Document, stream: TextIO, width: int | None, theme: Theme) -> None:
     """Print ``document`` to ``stream``: with colors on a terminal, as plain text otherwise."""
-    import xnano
-
     has_color = _is_terminal(stream) and not os.environ.get('NO_COLOR')
+    width = _printed_width(stream, width)
+    lines = _printed_lines(document, width, theme)
+    if document.note:
+        stream.write(f'{document.note}\n')
+    for chunk in _chunks(lines):
+        rendered = _rendered(chunk, width, theme, 'ansi' if has_color else 'text')
+        for text in rendered.split('\n'):
+            stream.write((text if has_color else text.rstrip()) + '\n')
+    stream.flush()
+
+
+def _printed_width(stream: TextIO, width: int | None) -> int:
+    """The width to print at: the one given, or the width of the terminal, or 80 cells."""
     if width is None:
         columns = shutil.get_terminal_size((DEFAULT_WIDTH, 24)).columns
         width = (
             min(columns, MAXIMUM_PRINTED_WIDTH) if _is_terminal(stream) else DEFAULT_WIDTH
         )
-    width = max(width, 8)
-    lines = _printed_lines(document, width, theme)
-    if document.note:
-        stream.write(f'{document.note}\n')
-    format = 'ansi' if has_color else 'text'
+    return max(width, 8)
+
+
+def _chunks(lines: list[Line]) -> Iterator[list[Line]]:
+    """The lines in groups that one canvas draws. An image or a table stays whole."""
     start = 0
     while start < len(lines):
         end = min(start + ROWS_PER_CANVAS, len(lines))
         while (
             end < len(lines) and lines[end].content is not None and lines[end].content_row
         ):
-            end += 1  # an image or a table stays whole
-        chunk = lines[start:end]
-        with xnano.new(width=width, height=len(chunk)) as canvas:
-            if theme.background is not None and theme.text is not None:
-                canvas.screen.color.bg = theme.background
-                canvas.screen.color.fg = theme.text
-            canvas.write(styled(chunk, theme), x=0, y=0, width=width, height=len(chunk))
-            for row, line in enumerate(chunk):
-                if line.content is None or line.content_row:
-                    continue
-                columns, rows = line.content_size
-                content = line.content
-                if isinstance(content, pathlib.Path):
-                    content = load_image_in_cells(content, columns, rows, is_still=True)
-                if content is None:
-                    canvas.write(
-                        f'[image: {line.description}]',
-                        x=line.content_column,
-                        y=row,
-                        style=theme.style(dim=True),
-                    )
-                    continue
+            end += 1
+        yield lines[start:end]
+        start = end
+
+
+def _rendered(
+    chunk: list[Line], width: int, theme: Theme, format: Literal['text', 'ansi']
+) -> str:
+    """The lines of ``chunk`` drawn on a canvas, with their images and tables, as text."""
+    import xnano
+
+    with xnano.new(width=width, height=len(chunk)) as canvas:
+        if theme.background is not None and theme.text is not None:
+            canvas.screen.color.bg = theme.background
+            canvas.screen.color.fg = theme.text
+        canvas.write(styled(chunk, theme), x=0, y=0, width=width, height=len(chunk))
+        for row, line in enumerate(chunk):
+            if line.content is None or line.content_row:
+                continue
+            columns, rows = line.content_size
+            content = line.content
+            if isinstance(content, pathlib.Path):
+                content = load_image_in_cells(content, columns, rows, is_still=True)
+            if content is None:
                 canvas.write(
-                    content,  # type: ignore[arg-type]
+                    f'[image: {line.description}]',
                     x=line.content_column,
                     y=row,
-                    width=columns,
-                    height=rows,
-                    layer=1,
+                    style=theme.style(dim=True),
                 )
-            rendered = canvas.render(format=format)
-        for text in rendered.split('\n'):
-            stream.write((text if has_color else text.rstrip()) + '\n')
-        start = end
-    stream.flush()
+                continue
+            canvas.write(
+                content,  # type: ignore[arg-type]
+                x=line.content_column,
+                y=row,
+                width=columns,
+                height=rows,
+                layer=1,
+            )
+        return canvas.render(format=format)
 
 
 def _printed_lines(document: Document, width: int, theme: Theme) -> list[Line]:

@@ -149,7 +149,6 @@ class Theme:
         bold: bool = False,
         italic: bool = False,
         dim: bool = False,
-        strike: bool = False,
         underline: bool = False,
         reverse: bool = False,
         on_surface: bool = False,
@@ -164,7 +163,6 @@ class Theme:
             bold: Whether the text is bold.
             italic: Whether the text is italic.
             dim: Whether the text is secondary.
-            strike: Whether a line goes through the text.
             underline: Whether the text is underlined.
             reverse: Whether the text and its background change places.
             on_surface: Whether the text is on the surface color, not on the background.
@@ -173,43 +171,47 @@ class Theme:
             The style, or ``None`` when the text has the look of plain text in the
             colors of the terminal.
         """
+        looks = {
+            'bold': bold,
+            'italic': italic,
+            'dim': dim,
+            'underline': underline,
+            'reverse': reverse,
+        }
         return _style(
-            self, role, bold, italic, dim, strike, underline, reverse, on_surface
+            self,
+            role,
+            frozenset(name for name, is_on in looks.items() if is_on),
+            on_surface,
         )
 
     def style_of(self, run: Run) -> Style | None:
         """The style of a run of a document in this theme."""
         role = 'link' if run.target is not None else 'code' if run.code else run.role
+        looks = {
+            'bold': run.bold,
+            'italic': run.italic,
+            'dim': run.dim,
+            'crossed_out': run.strike,
+            'underline': run.target is not None,
+        }
         return _style(
-            self,
-            role,
-            run.bold,
-            run.italic,
-            run.dim,
-            run.strike,
-            run.target is not None,
-            False,
-            False,
+            self, role, frozenset(name for name, is_on in looks.items() if is_on), False
         )
 
 
 @functools.cache
 def _style(
-    theme: Theme,
-    role: str | None,
-    bold: bool,
-    italic: bool,
-    dim: bool,
-    strike: bool,
-    underline: bool,
-    reverse: bool,
-    on_surface: bool,
+    theme: Theme, role: str | None, looks: frozenset[str], on_surface: bool
 ) -> Style | None:
-    """One style for each look in each theme, made once."""
+    """One style for each role and set of looks in each theme, made once."""
     color: str | None = getattr(theme, role) if role else None
+    bold, italic = 'bold' in looks, 'italic' in looks
+    strike, underline = 'crossed_out' in looks, 'underline' in looks
     if theme.is_terminal:
-        is_dim = dim or (role == 'border')
-        if not (color or bold or italic or is_dim or strike or underline or reverse):
+        is_dim = 'dim' in looks or role == 'border'
+        is_reverse = 'reverse' in looks
+        if not (color or is_dim or is_reverse or bold or italic or strike or underline):
             return None
         return Style(
             color,
@@ -218,11 +220,11 @@ def _style(
             dim=is_dim,
             crossed_out=strike,
             underline=underline,
-            reverse=reverse,
+            reverse=is_reverse,
         )
-    foreground = color or (theme.muted if dim else theme.text)
+    foreground = color or (theme.muted if 'dim' in looks else theme.text)
     background = theme.surface if on_surface else theme.background
-    if reverse:
+    if 'reverse' in looks:
         foreground, background = background, foreground
     return Style(
         foreground,

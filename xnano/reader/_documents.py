@@ -20,7 +20,7 @@ import pathlib
 import re
 from typing import Literal
 
-from xnano.reader._lines import Line, Run, line_of, wrap_runs
+from xnano.reader._lines import Line, Run, fit_widths, line_of, wrap_runs
 from xnano.reader._markdown import layout_markdown
 from xnano.themes import Theme
 from xnano_core import display_width
@@ -130,16 +130,7 @@ def read_document(file: str | pathlib.Path) -> Document:
         IsADirectoryError: The path is a directory.
         ImportError: The file is a PDF and ``pypdf`` is not installed.
     """
-    path = pathlib.Path(file).expanduser()
-    if path.is_dir():
-        raise IsADirectoryError(
-            f'{path} is a directory, and the reader shows one file. Give the path of a '
-            f'file inside it, for example: xnano {path / "README.md"}'
-        )
-    if not path.exists():
-        raise FileNotFoundError(
-            f'There is no file at {path}. Check the path, and give it again.'
-        )
+    path = _existing_file(file)
     data = path.read_bytes()
     kind: DocumentKind | None = KINDS.get(path.suffix.lower())
     if kind is None:
@@ -151,10 +142,29 @@ def read_document(file: str | pathlib.Path) -> Document:
     try:
         text = data.decode('utf-8-sig')
     except UnicodeDecodeError:
-        text = None
-    if text is None or '\x00' in text:
         return Document(path, 'bytes', data=data)
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    if '\x00' in text:
+        return Document(path, 'bytes', data=data)
+    return _text_document(path, kind, text.replace('\r\n', '\n').replace('\r', '\n'))
+
+
+def _existing_file(file: str | pathlib.Path) -> pathlib.Path:
+    """The path of ``file``, which must be a file that exists."""
+    path = pathlib.Path(file).expanduser()
+    if path.is_dir():
+        raise IsADirectoryError(
+            f'{path} is a directory, and the reader shows one file. Give the path of a '
+            f'file inside it, for example: xnano {path / "README.md"}'
+        )
+    if not path.exists():
+        raise FileNotFoundError(
+            f'There is no file at {path}. Check the path, and give it again.'
+        )
+    return path
+
+
+def _text_document(path: pathlib.Path, kind: DocumentKind | None, text: str) -> Document:
+    """A document of text: JSON when the text is valid JSON, else the kind of its name."""
     if kind == 'json' or (kind is None and text.lstrip()[:1] in ('{', '[')):
         try:
             _parse_json(text)
@@ -255,6 +265,28 @@ def _json_lines(text: str, width: int) -> list[Line]:
     return lines
 
 
+def _table_rows(document: Document) -> list[list[str]]:
+    """The rows of a file of separated values, each with the same number of values."""
+    delimiter = '\t' if document.path.suffix.lower() == '.tsv' else ','
+    rows = [
+        row for row in csv.reader(io.StringIO(document.text), delimiter=delimiter) if row
+    ]
+    if not rows:
+        rows = [['']]
+    count = max(len(row) for row in rows)
+    return [[*row, *([''] * (count - len(row)))] for row in rows]
+
+
+def _column_widths(rows: list[list[str]], width: int) -> list[int]:
+    """The width of each column: as wide as its values, and narrower to fit in ``width``."""
+    count = len(rows[0])
+    widths = [
+        min(max(max(display_width(row[column]) for row in rows), 1), MAXIMUM_COLUMN)
+        for column in range(count)
+    ]
+    return fit_widths(widths, max(width - 2 * (count - 1), count * 3))
+
+
 def table_of(document: Document, width: int, theme: Theme) -> tuple[object, list[Line]]:
     """
     Comma or tab separated values as a [`Table`][xnano.widgets.Table].
@@ -274,30 +306,14 @@ def table_of(document: Document, width: int, theme: Theme) -> tuple[object, list
     """
     from xnano_core import Table, TableRow
 
-    delimiter = '\t' if document.path.suffix.lower() == '.tsv' else ','
-    rows = [
-        row for row in csv.reader(io.StringIO(document.text), delimiter=delimiter) if row
-    ]
-    if not rows:
-        rows = [['']]
-    count = max(len(row) for row in rows)
-    rows = [[*row, *([''] * (count - len(row)))] for row in rows]
-    widths = [
-        min(max(max(display_width(row[column]) for row in rows), 1), MAXIMUM_COLUMN)
-        for column in range(count)
-    ]
-    available = max(width - 2 * (count - 1), count * 3)
-    while sum(widths) > available:
-        widest = max(range(count), key=lambda column: widths[column])
-        if widths[widest] <= 3:
-            break
-        widths[widest] -= 1
+    rows = _table_rows(document)
+    widths = _column_widths(rows, width)
     is_number = [
         len(rows) > 1
         and all(
             re.fullmatch(r'-?[\d.,]+%?', row[column].strip() or '0') for row in rows[1:]
         )
-        for column in range(count)
+        for column in range(len(widths))
     ]
 
     def cells(row: list[str], is_header: bool) -> list[str]:

@@ -21,6 +21,7 @@ __all__ = [
     'Line',
     'Run',
     'content_lines',
+    'fit_widths',
     'line_of',
     'pad_runs',
     'styled',
@@ -146,40 +147,77 @@ def wrap_runs(
     Returns:
         The runs of each line. There is always one line.
     """
-    width = max(width, 1)
-    lines: list[list[Run]] = [[]]
-    used = 0
+    wrapped = _Wrapped(max(width, 1), keeps_spaces)
     for run in runs:
         for word in WORD.findall(run.text):
-            if word == '\n':
-                lines.append([])
-                used = 0
-                continue
-            if word.isspace() and not keeps_spaces:
-                if used == 0 or used + 1 > width:
-                    continue
-                word = ' '
-            size = display_width(word)
-            if used and used + size > width:
-                if not keeps_spaces and lines[-1] and lines[-1][-1].text.isspace():
-                    lines[-1].pop()
-                lines.append([])
-                used = 0
-                if word.isspace() and not keeps_spaces:
-                    continue
-            while size > width:
-                head, word = _split(word, width - used)
-                lines[-1].append(dataclasses.replace(run, text=head))
-                lines.append([])
-                used = 0
-                size = display_width(word)
-            if word:
-                lines[-1].append(dataclasses.replace(run, text=word))
-                used += size
-    for line in lines:
+            wrapped.add(run, word)
+    for line in wrapped.lines:
         while not keeps_spaces and line and line[-1].text.isspace():
             line.pop()
-    return lines
+    return wrapped.lines
+
+
+class _Wrapped:
+    """The lines that words are wrapped into, and the cells used in the last line."""
+
+    def __init__(self, width: int, keeps_spaces: bool) -> None:
+        """Start with one empty line of ``width`` cells."""
+        self.width = width
+        self.keeps_spaces = keeps_spaces
+        self.lines: list[list[Run]] = [[]]
+        self.used = 0
+
+    def new_line(self) -> None:
+        """Start the next line."""
+        self.lines.append([])
+        self.used = 0
+
+    def add(self, run: Run, word: str) -> None:
+        """Put ``word``, which has the looks of ``run``, where it fits."""
+        if word == '\n':
+            self.new_line()
+            return
+        is_gap = word.isspace() and not self.keeps_spaces
+        if is_gap:
+            if self.used == 0 or self.used + 1 > self.width:
+                return
+            word = ' '
+        size = display_width(word)
+        if self.used and self.used + size > self.width:
+            last = self.lines[-1]
+            if not self.keeps_spaces and last and last[-1].text.isspace():
+                last.pop()
+            self.new_line()
+            if is_gap:
+                return
+        while size > self.width:
+            head, word = _split(word, self.width - self.used)
+            self.lines[-1].append(dataclasses.replace(run, text=head))
+            self.new_line()
+            size = display_width(word)
+        if word:
+            self.lines[-1].append(dataclasses.replace(run, text=word))
+            self.used += size
+
+
+def fit_widths(widths: list[int], available: int) -> list[int]:
+    """
+    Make columns narrower until they fit, the widest column first.
+
+    Args:
+        widths: The width that each column wants, in cells.
+        available: The cells that all the columns have together.
+
+    Returns:
+        The width of each column. No column is narrower than 3 cells.
+    """
+    widths = list(widths)
+    while sum(widths) > available:
+        widest = max(range(len(widths)), key=lambda column: widths[column])
+        if widths[widest] <= 3:
+            break
+        widths[widest] -= 1
+    return widths
 
 
 def _split(word: str, width: int) -> tuple[str, str]:

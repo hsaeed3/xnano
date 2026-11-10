@@ -16,15 +16,15 @@ import pathlib
 import re
 
 from xnano.reader._images import cells_for, image_file, pixel_size
+from xnano.reader._inline import image_as_text, inline_runs
 from xnano.reader._lines import (
     Line,
     Run,
     content_lines,
     line_of,
-    pad_runs,
-    styled,
     wrap_runs,
 )
+from xnano.reader._tables import markdown_table
 from xnano.themes import Theme
 from xnano_core import display_width
 
@@ -46,25 +46,6 @@ HTML_BLOCK = re.compile(r'^ {0,3}</?[A-Za-z][^>]*>')
 HTML_TAG = re.compile(r'</?[A-Za-z][^>]*>')
 HTML_IMAGE = re.compile(r'<img\b[^>]*>', re.IGNORECASE)
 HTML_ATTRIBUTE = re.compile(r'(?P<name>[A-Za-z-]+)\s*=\s*"(?P<value>[^"]*)"')
-INLINE = re.compile(
-    r"""
-      (?P<escape>\\[\\`*_{}\[\]()#+\-.!|~<>])
-    | (?P<code>(?P<ticks>`+)(?P<code_text>.+?)(?<!`)(?P=ticks)(?!`))
-    | (?P<image>!\[(?P<alt>[^\]]*)\]\((?P<source><[^>]*>|[^)\s]*)(?:\s+"[^"]*")?\))
-    | (?P<link>\[(?P<label>(?:[^\[\]]|!?\[[^\]]*\](?:\([^)]*\))?)*)\]
-        \((?P<target><[^>]*>|[^)\s]*)(?:\s+"[^"]*")?\))
-    | (?P<reference>\[(?P<reference_label>[^\[\]]+)\]\[(?P<reference_name>[^\]]*)\])
-    | (?P<autolink><(?P<address>https?://[^>\s]+)>)
-    | (?P<break><br\s*/?>)
-    | (?P<html></?[A-Za-z][^>]*>)
-    | (?P<strong>\*\*(?=\S)(?P<strong_star>.+?)(?<=\S)\*\*
-        |(?<![A-Za-z0-9])__(?=\S)(?P<strong_under>.+?)(?<=\S)__(?![A-Za-z0-9]))
-    | (?P<strike>~~(?=\S)(?P<strike_text>.+?)(?<=\S)~~)
-    | (?P<emphasis>(?:\*(?=[^\s*])(?P<star_text>.+?)(?<=[^\s*])\*(?!\*))
-        |(?:(?<![A-Za-z0-9_])_(?=[^\s_])(?P<under_text>.+?)(?<=[^\s_])_(?![A-Za-z0-9_])))
-    """,
-    re.VERBOSE | re.DOTALL,
-)
 
 
 @dataclasses.dataclass
@@ -226,7 +207,7 @@ def _heading(text: str, level: int, context: _Context, state: _Prefix) -> None:
     context.gap()
     runs = [
         dataclasses.replace(run, bold=True, role=run.role or 'heading')
-        for run in _inline(text.strip(), context)
+        for run in inline_runs(text.strip(), context.references)
     ]
     plain = ''.join(run.text for run in runs)
     _write(runs, context, state, heading=(level, plain))
@@ -251,15 +232,7 @@ def _paragraph(lines: list[str], index: int, context: _Context, state: _Prefix) 
                 state,
             )
             return index + 1
-        if (
-            not line.strip()
-            or FENCE.match(line)
-            or HEADING.match(line)
-            or RULE.match(line)
-            or QUOTE.match(line)
-            or ((item := ITEM.match(line)) and item['text'] is not None)
-            or HTML_BLOCK.match(line)
-        ):
+        if _ends_paragraph(line):
             break
         collected.append(line)
         index += 1
@@ -271,9 +244,21 @@ def _paragraph(lines: list[str], index: int, context: _Context, state: _Prefix) 
     return index
 
 
+def _ends_paragraph(line: str) -> bool:
+    """Whether ``line`` is empty or starts another block, so the paragraph ends before it."""
+    if not line.strip():
+        return True
+    item = ITEM.match(line)
+    if item is not None and item['text'] is not None:
+        return True
+    return any(
+        pattern.match(line) for pattern in (FENCE, HEADING, RULE, QUOTE, HTML_BLOCK)
+    )
+
+
 def _flow(text: str, context: _Context, state: _Prefix) -> None:
     """A run of inline text: its images on rows of their own, the rest as wrapped lines."""
-    runs = _inline(text, context)
+    runs = inline_runs(text, context.references)
     images = [run for run in runs if run.image_source is not None]
     is_only_images = (
         images
@@ -284,17 +269,7 @@ def _flow(text: str, context: _Context, state: _Prefix) -> None:
         for run in images:
             _image(run.image_source or '', run.text, context, state)
         return
-    _write([_image_as_text(run) for run in runs], context, state)
-
-
-def _image_as_text(run: Run) -> Run:
-    """An image inside a sentence, as its description in brackets."""
-    if run.image_source is None:
-        return run
-    label = run.text or run.image_source
-    if run.target is not None:
-        return dataclasses.replace(run, text=label, image_source=None)
-    return dataclasses.replace(run, text=f'[image: {label}]', dim=True, image_source=None)
+    _write([image_as_text(run) for run in runs], context, state)
 
 
 def _image(source: str, description: str, context: _Context, state: _Prefix) -> None:
@@ -386,7 +361,8 @@ def _quote(lines: list[str], index: int, context: _Context, state: _Prefix) -> i
 def _list(lines: list[str], index: int, context: _Context, state: _Prefix) -> int:
     """A list: each item behind its marker, with the blocks inside it indented."""
     first = ITEM.match(lines[index])
-    assert first is not None
+    if first is None:
+        return index + 1
     base = len(first['indent'])
     is_ordered = first['marker'][0].isdigit()
     number = int(first['marker'][:-1]) if is_ordered else 0
@@ -398,37 +374,7 @@ def _list(lines: list[str], index: int, context: _Context, state: _Prefix) -> in
             break
         if match['marker'][0].isdigit() != is_ordered:
             break
-        content_indent = len(match['indent']) + len(match['marker']) + 1
-        body = [match['text'] or '']
-        index += 1
-        while index < len(lines):
-            line = lines[index]
-            if not line.strip():
-                following = next(
-                    (other for other in lines[index + 1 :] if other.strip()), None
-                )
-                if (
-                    following is None
-                    or len(following) - len(following.lstrip()) < content_indent
-                ):
-                    break
-                body.append('')
-                index += 1
-                continue
-            indent = len(line) - len(line.lstrip())
-            if indent >= content_indent:
-                body.append(line[content_indent:])
-            elif ITEM.match(line) and indent > base:
-                body.append(line[min(indent, base + 2) :])
-            elif (
-                ITEM.match(line)
-                or indent < content_indent
-                and (HEADING.match(line) or FENCE.match(line) or RULE.match(line))
-            ):
-                break
-            else:
-                body.append(line.strip())  # a lazy line continues the item
-            index += 1
+        body, index = _item_body(lines, index, match, base)
         marker = f'{number}. ' if is_ordered else '• '
         task = TASK.match(body[0])
         if task is not None:
@@ -449,97 +395,60 @@ def _list(lines: list[str], index: int, context: _Context, state: _Prefix) -> in
     return index
 
 
-def _cells(line: str) -> list[str]:
-    """The cells of one row of a table."""
-    text = line.strip()
-    if text.startswith('|'):
-        text = text[1:]
-    if text.endswith('|') and not text.endswith('\\|'):
-        text = text[:-1]
-    return [cell.strip().replace('\\|', '|') for cell in re.split(r'(?<!\\)\|', text)]
+def _item_body(
+    lines: list[str], index: int, match: re.Match[str], base: int
+) -> tuple[list[str], int]:
+    """The lines of the item that starts at ``index``, and the index of the line after it."""
+    content_indent = len(match['indent']) + len(match['marker']) + 1
+    body = [match['text'] or '']
+    index += 1
+    while index < len(lines):
+        line = lines[index]
+        if not line.strip():
+            if not _continues_after_gap(lines, index, content_indent):
+                break
+            body.append('')
+            index += 1
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent >= content_indent:
+            body.append(line[content_indent:])
+        elif ITEM.match(line) and indent > base:
+            body.append(line[min(indent, base + 2) :])
+        elif ITEM.match(line) or _starts_block(line):
+            break
+        else:
+            body.append(line.strip())  # a lazy line continues the item
+        index += 1
+    return body, index
+
+
+def _continues_after_gap(lines: list[str], index: int, content_indent: int) -> bool:
+    """Whether the text after the empty line at ``index`` still belongs to the item."""
+    following = next((other for other in lines[index + 1 :] if other.strip()), None)
+    return (
+        following is not None
+        and len(following) - len(following.lstrip()) >= content_indent
+    )
+
+
+def _starts_block(line: str) -> bool:
+    """Whether ``line`` starts a heading, a fence or a rule."""
+    return bool(HEADING.match(line) or FENCE.match(line) or RULE.match(line))
 
 
 def _table(lines: list[str], index: int, context: _Context, state: _Prefix) -> int:
-    """A table, as a [`Table`][xnano.widgets.Table] with its text wrapped inside its columns."""
-    from xnano_core import Block, Table, TableRow
-
-    theme = context.theme
-
-    header = _cells(lines[index])
-    alignments = [
-        'center'
-        if cell.startswith(':') and cell.endswith(':')
-        else 'right'
-        if cell.endswith(':')
-        else 'left'
-        for cell in _cells(lines[index + 1])
-    ]
-    index += 2
-    rows: list[list[str]] = []
-    while index < len(lines) and lines[index].strip() and '|' in lines[index]:
-        rows.append(_cells(lines[index]))
-        index += 1
-    count = len(header)
-    alignments = (alignments + ['left'] * count)[:count]
-    cells = [
-        [_inline(cell, context) for cell in (row + [''] * count)[:count]]
-        for row in [header, *rows]
-    ]
-    widths = [
-        max(
-            max(
-                (
-                    display_width(''.join(run.text for run in row[column]))
-                    for row in cells
-                ),
-                default=1,
-            ),
-            1,
-        )
-        for column in range(count)
-    ]
-    # A column is as wide as its text, or narrower when the table must fit: the widest
-    # column gives way first, and its text is wrapped.
-    available = max(context.width - state.width() - 2 - 2 * (count - 1), count * 3)
-    while sum(widths) > available:
-        widest = max(range(count), key=lambda column: widths[column])
-        if widths[widest] <= 3:
-            break
-        widths[widest] -= 1
-    table_rows: list[TableRow] = []
-    height = 2
-    for row_index, row in enumerate(cells):
-        wrapped = [wrap_runs(cell, widths[column]) for column, cell in enumerate(row)]
-        row_height = max(len(cell) for cell in wrapped)
-        height += row_height
-        table_rows.append(
-            TableRow(
-                [
-                    styled(
-                        [
-                            line_of(pad_runs(part, widths[column], alignments[column]))
-                            for part in cell
-                        ],
-                        theme,
-                    )
-                    for column, cell in enumerate(wrapped)
-                ],
-                height=row_height,
-                style=theme.style(role='heading', bold=True) if row_index == 0 else None,
-            )
-        )
-    table = Table(
-        table_rows[1:],
-        header=table_rows[0],
-        widths=widths,
-        column_spacing=2,
-        style=theme.style(),
-        block=Block(border_type='rounded', border_style=theme.style(role='border')),
+    """A table, on rows of its own."""
+    found = markdown_table(
+        lines,
+        index,
+        references=context.references,
+        theme=context.theme,
+        available=context.width - state.width(),
     )
     context.gap()
-    description = ' '.join(' '.join(row) for row in [header, *rows])
-    _place(table, sum(widths) + 2 * (count - 1) + 2, height, description, context, state)
-    return index
+    _place(found.table, found.width, found.height, found.description, context, state)
+    return found.end
 
 
 def _html_block(lines: list[str], index: int, context: _Context, state: _Prefix) -> int:
@@ -561,81 +470,3 @@ def _html_block(lines: list[str], index: int, context: _Context, state: _Prefix)
     if text:
         _flow(text, context, state)
     return index
-
-
-def _inline(text: str, context: _Context) -> list[Run]:
-    """The runs of a piece of inline Markdown."""
-    runs: list[Run] = []
-    position = 0
-    for match in INLINE.finditer(text):
-        if match.start() > position:
-            runs.append(Run(text[position : match.start()]))
-        position = match.end()
-        kind = _kind_of(match)
-        if kind == 'escape':
-            runs.append(Run(match['escape'][1]))
-        elif kind == 'code':
-            runs.append(Run(match['code_text'].strip() or match['code_text'], code=True))
-        elif kind == 'image':
-            source = match['source'].strip('<>')
-            runs.append(Run(match['alt'], image_source=source))
-        elif kind == 'link':
-            runs.extend(_linked(match['label'], match['target'].strip('<>'), context))
-        elif kind == 'reference':
-            name = (match['reference_name'] or match['reference_label']).lower()
-            target = context.references.get(name)
-            if target is None:
-                runs.append(Run(match['reference']))
-            else:
-                runs.extend(_linked(match['reference_label'], target, context))
-        elif kind == 'autolink':
-            runs.append(Run(match['address'], target=match['address']))
-        elif kind == 'break':
-            runs.append(Run('\n'))
-        elif kind == 'strong':
-            inner = match['strong_star'] or match['strong_under']
-            runs.extend(
-                dataclasses.replace(run, bold=True) for run in _inline(inner, context)
-            )
-        elif kind == 'strike':
-            runs.extend(
-                dataclasses.replace(run, strike=True)
-                for run in _inline(match['strike_text'], context)
-            )
-        elif kind == 'emphasis':
-            inner = match['star_text'] or match['under_text']
-            runs.extend(
-                dataclasses.replace(run, italic=True) for run in _inline(inner, context)
-            )
-        # An HTML tag inside a sentence is left out.
-    if position < len(text):
-        runs.append(Run(text[position:]))
-    return [run for run in runs if run.text or run.image_source is not None]
-
-
-_INLINE_KINDS = (
-    'escape',
-    'code',
-    'image',
-    'link',
-    'reference',
-    'autolink',
-    'break',
-    'html',
-    'strong',
-    'strike',
-    'emphasis',
-)
-
-
-def _kind_of(match: re.Match[str]) -> str:
-    """The kind of inline text that a match found, by its outer group."""
-    return next(kind for kind in _INLINE_KINDS if match[kind] is not None)
-
-
-def _linked(label: str, target: str, context: _Context) -> list[Run]:
-    """The runs of a link: its label, underlined, with the place that it leads to."""
-    return [
-        _image_as_text(dataclasses.replace(run, target=target))
-        for run in _inline(label, context)
-    ] or [Run(target, target=target)]

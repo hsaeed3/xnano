@@ -19,17 +19,8 @@ from xnano.themes import ThemeName
 __all__ = ['main']
 
 
-def main(arguments: Sequence[str] | None = None) -> int:
-    """
-    Run the ``xnano`` command.
-
-    Args:
-        arguments: The words after ``xnano`` on the command line. By default the ones that
-            the program was started with.
-
-    Returns:
-        ``0`` when the command worked, and ``1`` when the file could not be shown.
-    """
+def _parser() -> argparse.ArgumentParser:
+    """The parser of the words after ``xnano`` on the command line."""
     parser = argparse.ArgumentParser(
         prog='xnano',
         description=(
@@ -67,7 +58,21 @@ def main(arguments: Sequence[str] | None = None) -> int:
             + ', '.join(get_args(ThemeName))
         ),
     )
-    options = parser.parse_args(arguments)
+    return parser
+
+
+def main(arguments: Sequence[str] | None = None) -> int:
+    """
+    Run the ``xnano`` command.
+
+    Args:
+        arguments: The words after ``xnano`` on the command line. By default the ones that
+            the program was started with.
+
+    Returns:
+        ``0`` when the command worked, and ``1`` when the file could not be shown.
+    """
+    options = _parser().parse_args(arguments)
     if options.file is None:
         from xnano.demo import main as run_demo
 

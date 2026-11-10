@@ -12,24 +12,37 @@ clicked, a drag on the document moves it, and a click on a link follows it.
 from __future__ import annotations
 
 import dataclasses
+import functools
 import pathlib
 import re
 import threading
-from collections.abc import Callable, Generator
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import xnano
-from xnano._internal._optional import is_installed
 from xnano.expressions import ParentHeight
 from xnano.reader._documents import (
     Document,
-    audio_lines,
-    load_audio_of,
     read_document,
     table_of,
 )
-from xnano.reader._images import ADDRESS, cells_for, load_image_in_cells, pixel_size
-from xnano.reader._lines import Line, Run, content_lines, line_of, styled
+from xnano.reader._images import ADDRESS
+from xnano.reader._lines import Line, Run, line_of, styled
+from xnano.reader._viewer_find import (
+    close_outline,
+    find_text,
+    next_match,
+    start_search,
+    toggle_outline,
+)
+from xnano.reader._viewer_input import hear_body, listen
+from xnano.reader._viewer_media import (
+    audio_document_lines,
+    image_lines,
+    image_of,
+    stop_audio,
+    toggle_audio,
+)
 from xnano.themes import Theme
 from xnano_core import (
     ItemList,
@@ -48,8 +61,6 @@ if TYPE_CHECKING:
     from xnano.terminal import Terminal
 
 __all__ = ['run_viewer']
-
-WHEEL_LINES = 3
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -77,7 +88,7 @@ def run_viewer(document: Document, theme: Theme) -> None:
         try:
             terminal.run()
         finally:
-            viewer.stop_audio()
+            stop_audio(viewer)
 
 
 class _Viewer:
@@ -166,6 +177,14 @@ class _Viewer:
         )
         self.status = screen.write('', x=1, y=ParentHeight - 2, style=secondary)
         self.place = screen.write('', x='right', y=ParentHeight - 2, style=secondary)
+        self.build_outline()
+        listen(self)
+        self.show_document()
+
+    def build_outline(self) -> None:
+        """Write the list of headings, which stays hidden until it is asked for."""
+        screen = self.terminal.screen
+        theme = self.theme
         self.outline = ItemList(
             [],
             highlight_symbol='› ',
@@ -183,8 +202,6 @@ class _Viewer:
             title='outline',
         )
         self.panel.is_visible = False
-        self.listen()
-        self.show_document()
 
     def show_document(self) -> None:
         """Lay the document out for the size of the window, and draw everything."""
@@ -204,9 +221,9 @@ class _Viewer:
                 self.table, x=0, y=0, width=self.width, height=self.height, layer=1
             )
         elif document.kind == 'image':
-            self.lines = self.image_lines()
+            self.lines = image_lines(self)
         elif document.kind == 'audio':
-            self.lines = self.audio_document_lines()
+            self.lines = audio_document_lines(self)
         else:
             self.lines = document.lines(self.width, self.theme, is_source=self.is_source)
         self.headings = [
@@ -214,8 +231,8 @@ class _Viewer:
             for index, line in enumerate(self.lines)
             if line.heading
         ]
-        self.find(self.query)
-        self.hear_body()
+        find_text(self, self.query)
+        hear_body(self)
         self.build_keys()
         self.scroll_to(self.top)
 
@@ -315,7 +332,8 @@ class _Viewer:
 
     def draw_content(self) -> None:
         """Put each image and table where its lines are, and hide the ones out of view."""
-        assert self.body is not None
+        if self.body is None:
+            return
         top, rows = self.top, self.rows
         in_view: set[int] = set()
         for index in range(max(top - 256, 0), min(top + rows, len(self.lines))):
@@ -330,7 +348,7 @@ class _Viewer:
             if placement is None:
                 content = line.content
                 if isinstance(content, pathlib.Path):
-                    content = self.image(content, columns, height)
+                    content = image_of(self, content, columns, height)
                     if content is None:
                         continue
                 placement = self.body.write(
@@ -349,112 +367,6 @@ class _Viewer:
             if start not in in_view:
                 placement.is_visible = False
 
-    def image(self, path: pathlib.Path, columns: int, rows: int) -> object | None:
-        """
-        The image of ``path``, or ``None`` while it loads or when it cannot be read.
-
-        An image is decoded on another thread the first time that it comes into view, so a
-        large image never stops the scrolling. The window is drawn again when it is ready.
-        """
-        with self.images_lock:
-            if path in self.images:
-                return self.images[path]
-            if path in self.is_loading:
-                return None
-            self.is_loading.add(path)
-        is_still = self.document.kind != 'image'
-
-        def load() -> None:
-            image = load_image_in_cells(path, columns, rows, is_still=is_still)
-            with self.images_lock:
-                self.images[path] = image
-                self.is_loading.discard(path)
-
-        threading.Thread(target=load, name='xnano-reader-image', daemon=True).start()
-        return None
-
-    # -- an image and a sound, which are not lines ----------------------------------------
-
-    def image_lines(self) -> list[Line]:
-        """An image file as large as the window allows, in the middle of it."""
-        document = self.document
-        pixels = pixel_size(document.path) if is_installed('image') else None
-        if pixels is None:
-            words = (
-                'This file is not an image that xnano can read.'
-                if is_installed('image')
-                else 'Images need an extra: pip install "xnano[image]"'
-            )
-            return [
-                line_of([Run(document.path.name, bold=True)]),
-                Line(),
-                line_of([Run(words)]),
-            ]
-        columns, rows = cells_for(pixels, self.width, height=self.height)
-        if not self.message:
-            self.message = f'{pixels[0]} × {pixels[1]} pixels'
-        return [Line() for _ in range((self.height - rows) // 2)] + content_lines(
-            document.path,
-            columns=columns,
-            rows=rows,
-            column=(self.width - columns) // 2,
-            description=document.path.name,
-        )
-
-    def audio_document_lines(self) -> list[Line]:
-        """What a sound file holds, and a gauge that follows how far it has played."""
-        if self.audio is None:
-            self.audio = load_audio_of(self.document)
-        lines = audio_lines(self.document, self.audio)
-        if self.audio is None:
-            return lines
-        if not self.terminal.speaker.is_available:
-            lines.append(Line())
-            lines.append(line_of([Run('× This computer has no sound output.')]))
-            return lines
-        self.gauge = LineGauge(
-            0.0,
-            label='■ 0:00',
-            filled_style=self.theme.style(role='accent'),
-            unfilled_style=self.theme.style(role='border'),
-            style=self.theme.style(),
-        )
-        lines.append(Line())
-        lines.extend(content_lines(self.gauge, columns=min(self.width - 2, 60), rows=1))
-        return lines
-
-    def toggle_audio(self) -> None:
-        """Play the sound from its start, or stop it."""
-        if self.audio is None or self.gauge is None:
-            return
-        if self.audio_started is not None:
-            self.stop_audio()
-        else:
-            self.audio_handle = self.terminal.speaker.play(self.audio)  # type: ignore[arg-type]
-            self.audio_started = self.terminal.clock.elapsed_seconds
-        self.follow_audio()
-
-    def stop_audio(self) -> None:
-        """Stop the sound if it plays."""
-        handle, self.audio_handle, self.audio_started = self.audio_handle, None, None
-        if handle is not None:
-            handle.remove()  # type: ignore[attr-defined]
-
-    def follow_audio(self) -> None:
-        """Move the gauge to where the sound is, and notice when it has ended."""
-        if self.audio is None or self.gauge is None:
-            return
-        seconds = self.audio.duration_milliseconds / 1000  # type: ignore[attr-defined]
-        played = 0.0
-        if self.audio_started is not None:
-            played = self.terminal.clock.elapsed_seconds - self.audio_started
-            if played >= seconds:
-                self.stop_audio()
-                played = 0.0
-        mark = '▶' if self.audio_started is not None else '■'
-        self.gauge.ratio = min(played / seconds, 1.0) if seconds else 0.0
-        self.gauge.label = f'{mark} {_minutes(played)} of {_minutes(seconds)}'
-
     # -- the line of keys ----------------------------------------------------------------
 
     def keys(self) -> list[_Key]:
@@ -463,15 +375,17 @@ class _Viewer:
         keys: list[_Key] = []
         if document.kind == 'audio':
             if self.gauge is not None:
-                keys.append(_Key('space', 'play or stop', self.toggle_audio))
+                keys.append(
+                    _Key('space', 'play or stop', functools.partial(toggle_audio, self))
+                )
         elif document.kind != 'image':
             keys.append(_Key('↑', 'up', lambda: self.scroll_to(self.top - 1)))
             keys.append(_Key('↓', 'down', lambda: self.scroll_to(self.top + 1)))
-            keys.append(_Key('/', 'find', self.start_search))
+            keys.append(_Key('/', 'find', functools.partial(start_search, self)))
             if self.query:
-                keys.append(_Key('n', 'next', lambda: self.next_match(1)))
+                keys.append(_Key('n', 'next', lambda: next_match(self, 1)))
             if self.headings:
-                keys.append(_Key('o', 'outline', self.toggle_outline))
+                keys.append(_Key('o', 'outline', functools.partial(toggle_outline, self)))
             if document.has_source:
                 label = 'laid out' if self.is_source else 'source'
                 keys.append(_Key('r', label, self.toggle_source))
@@ -523,114 +437,7 @@ class _Viewer:
             if context.mouse.kind == 'press':
                 action()
 
-    # -- the search ----------------------------------------------------------------------
-
-    def start_search(self) -> None:
-        """Start to take the keys as the text to find."""
-        self.typed = ''
-        self.close_outline()
-        self.draw()
-
-    def find(self, query: str) -> None:
-        """Find the lines that hold ``query``, whatever its case."""
-        self.query = query
-        needle = query.lower()
-        self.matches = [
-            index
-            for index, line in enumerate(self.lines)
-            if needle and needle in line.text.lower()
-        ]
-        if self.table is not None:
-            self.table.selected_row = None
-
-    def finish_search(self) -> None:
-        """Take the typed text as the search, and go to the first line that holds it."""
-        typed, self.typed = self.typed or '', None
-        self.find(typed)
-        self.build_keys()
-        if not typed:
-            self.message = ''
-            self.draw()
-        elif not self.matches:
-            self.message = f'"{typed}" is not in this document'
-            self.draw()
-        else:
-            self.next_match(1, from_line=self.top - 1)
-
-    def next_match(self, step: int, *, from_line: int | None = None) -> None:
-        """Go to the next line that holds the search, or the one before, around the ends."""
-        if not self.matches:
-            return
-        start = self.top if from_line is None else from_line
-        if self.table is not None and isinstance(self.table.selected_row, int):
-            start = self.table.selected_row
-        if step > 0:
-            target = next(
-                (index for index in self.matches if index > start), self.matches[0]
-            )
-        else:
-            target = next(
-                (index for index in reversed(self.matches) if index < start),
-                self.matches[-1],
-            )
-        number = self.matches.index(target) + 1
-        self.message = f'"{self.query}" {number} of {len(self.matches)}'
-        if self.table is not None:
-            self.table.selected_row = target
-        self.scroll_to(target)
-
     # -- the outline ---------------------------------------------------------------------
-
-    def toggle_outline(self) -> None:
-        """Open the list of headings, or close it."""
-        if self.outline_choice is not None:
-            self.close_outline()
-            self.message = ''
-            self.draw()
-        elif self.headings:
-            self.outline_choice = max(
-                (
-                    place
-                    for place, entry in enumerate(self.headings)
-                    if entry[0] <= self.top
-                ),
-                default=0,
-            )
-            self.draw_outline()
-
-    def close_outline(self) -> None:
-        """Close the list of headings."""
-        self.outline_choice = None
-        self.panel.is_visible = False
-
-    def draw_outline(self) -> None:
-        """Show the list of headings around the chosen one, on top of the document."""
-        choice = self.outline_choice
-        assert choice is not None
-        rows = max(min(len(self.headings), self.height - 4), 1)
-        width = max(min(self.width - 8, 56), 12)
-        first = max(0, min(choice - rows // 2, len(self.headings) - rows))
-        self.outline_first = first
-        names: list[str] = []
-        for _, level, text in self.headings[first : first + rows]:
-            name = '  ' * (level - 1) + text
-            while display_width(name) > width - 2:
-                name = name[:-2] + '…'
-            names.append(name)
-        self.outline.clear()
-        self.outline.extend(names)
-        self.outline.selected = choice - first
-        self.panel.width, self.panel.height = width + 2, rows + 2
-        self.panel.is_visible = True
-        self.message = '↑ ↓ choose · enter go · esc close'
-        self.draw()
-
-    def choose_heading(self, place: int) -> None:
-        """Go to the heading at ``place`` of the list, and close the list."""
-        if 0 <= place < len(self.headings):
-            self.close_outline()
-            self.message = ''
-            self.scroll_to(self.headings[place][0])
 
     # -- the source, links and other files -------------------------------------------------
 
@@ -640,7 +447,7 @@ class _Viewer:
             return
         self.is_source = not self.is_source
         self.top = 0
-        self.close_outline()
+        close_outline(self)
         self.show_document()
 
     def follow(self, target: str) -> None:
@@ -671,7 +478,7 @@ class _Viewer:
             self.message = str(error)
             self.draw()
             return
-        self.stop_audio()
+        stop_audio(self)
         self.history.append((self.document, self.top))
         self.document, self.top, self.is_source, self.audio = document, 0, False, None
         self.message, self.query = document.note, ''
@@ -680,193 +487,10 @@ class _Viewer:
     def go_back(self) -> None:
         """Show the file that a link was followed from."""
         if self.history:
-            self.stop_audio()
+            stop_audio(self)
             self.document, self.top = self.history.pop()
             self.is_source, self.audio, self.message, self.query = False, None, '', ''
             self.show_document()
-
-    # -- the keys and the mouse ----------------------------------------------------------
-
-    def listen(self) -> None:
-        """Hear the keys, the wheel, the bar at the edge and a change of the window size."""
-        terminal = self.terminal
-
-        @terminal.hook(on='key')
-        def press(context: Context) -> None:
-            keyboard = context.keyboard
-            self.key(keyboard.key, keyboard.text, keyboard.binding)
-
-        @terminal.hook(on='scroll')
-        def wheel(context: Context) -> None:
-            if self.outline_choice is None:
-                self.scroll_to(self.top + WHEEL_LINES * context.mouse.scroll.y)
-
-        @terminal.hook(on='resize')
-        def fit(context: Context) -> None:
-            first = self.lines[self.top].number if self.top < len(self.lines) else None
-            self.show_document()
-            if first is not None:
-                numbers = (line.number for line in self.lines)
-                self.scroll_to(
-                    next(
-                        (
-                            index
-                            for index, number in enumerate(numbers)
-                            if number == first
-                        ),
-                        0,
-                    )
-                )
-            if self.outline_choice is not None:
-                self.draw_outline()
-
-        @terminal.hook(on='tick', every=0.1)
-        def follow(context: Context) -> None:
-            if self.audio_started is not None:
-                self.follow_audio()
-            with self.images_lock:
-                is_waiting = bool(self.is_loading)
-                has_new = any(
-                    isinstance(line.content, pathlib.Path)
-                    and line.content in self.images
-                    and index - line.content_row not in self.written
-                    for index, line in enumerate(
-                        self.lines[self.top : self.top + self.rows], self.top
-                    )
-                    if line.content is not None
-                    and self.images.get(line.content) is not None  # type: ignore[arg-type]
-                )
-            if has_new or is_waiting:
-                self.draw()
-
-        @self.bar.hook(on='drag')
-        def drag_bar(context: Context) -> Generator[None, Context, None]:
-            while context.mouse.is_down:
-                position = context.mouse.position
-                if position is not None:
-                    share = (position.y - 1) / max(self.height - 1, 1)
-                    total = max(len(self.lines) - self.rows, 0)
-                    self.scroll_to(round(total * min(max(share, 0.0), 1.0)))
-                context = yield
-
-        @self.panel.hook(on='mouse')
-        def pick(context: Context) -> None:
-            position = context.mouse.position
-            if context.mouse.kind == 'press' and position is not None:
-                row = self.panel.local(position).y - 1
-                self.choose_heading(self.outline_first + row)
-
-    def hear_body(self) -> None:
-        """Hear a click on a link of the document, and a drag that moves the document."""
-        placement = self.body_placement
-        assert placement is not None
-
-        @placement.hook(on='drag')
-        def drag(context: Context) -> Generator[None, Context, None]:
-            start = context.mouse.position
-            top = self.top
-            has_moved = False
-            while context.mouse.is_down:
-                position = context.mouse.position
-                if start is not None and position is not None and position.y != start.y:
-                    has_moved = True
-                    self.scroll_to(top - (position.y - start.y))
-                context = yield
-            if not has_moved and start is not None:
-                self.click(start.x, start.y - 1)
-
-    def click(self, column: int, row: int) -> None:
-        """Follow the link under a click, if there is one."""
-        index = self.top + row
-        if self.outline_choice is not None or not 0 <= index < len(self.lines):
-            return
-        for start, end, target in self.lines[index].links:
-            if start <= column < end:
-                self.follow(target)
-                return
-
-    def key(self, key: str | None, text: str | None, binding: str | None) -> None:
-        """Act on a key: as text for the search, in the list of headings, or on the document."""
-        if self.typed is not None:
-            self.search_key(key, text)
-            return
-        if self.outline_choice is not None:
-            self.outline_key(key, text)
-            return
-        page = max(self.rows - 1, 1)
-        is_audio = self.document.kind == 'audio'
-        if key == 'q' or (key == 'escape' and not self.query):
-            self.terminal.end_run()
-        elif key == 'escape':
-            self.find('')
-            self.message = ''
-            self.build_keys()
-            self.draw()
-        elif binding == 'ctrl+d':
-            self.scroll_to(self.top + page // 2)
-        elif binding == 'ctrl+u':
-            self.scroll_to(self.top - page // 2)
-        elif key == 'space' and is_audio:
-            self.toggle_audio()
-        elif key in ('down', 'enter') or text == 'j':
-            self.scroll_to(self.top + 1)
-        elif key == 'up' or text == 'k':
-            self.scroll_to(self.top - 1)
-        elif key in ('page_down', 'space') or text == 'f':
-            self.scroll_to(self.top + page)
-        elif key == 'page_up' or text == 'b':
-            self.scroll_to(self.top - page)
-        elif key == 'home' or text == 'g':
-            self.scroll_to(0)
-        elif key == 'end' or text == 'G':
-            self.scroll_to(len(self.lines))
-        elif text == '/':
-            self.start_search()
-        elif text == 'n':
-            self.next_match(1)
-        elif text == 'N':
-            self.next_match(-1)
-        elif text == 'o':
-            self.toggle_outline()
-        elif text == 'r':
-            self.toggle_source()
-        elif key == 'backspace':
-            self.go_back()
-
-    def search_key(self, key: str | None, text: str | None) -> None:
-        """Take a key while the person types the text to find."""
-        assert self.typed is not None
-        if key == 'enter':
-            self.finish_search()
-            return
-        if key == 'escape':
-            self.typed = None
-        elif key == 'backspace':
-            self.typed = self.typed[:-1]
-        elif text and text.isprintable():
-            self.typed += text
-        self.draw()
-
-    def outline_key(self, key: str | None, text: str | None) -> None:
-        """Take a key while the list of headings is open."""
-        choice = self.outline_choice
-        assert choice is not None
-        if key == 'q':
-            self.terminal.end_run()
-        elif key == 'escape' or text == 'o':
-            self.toggle_outline()
-        elif key == 'enter':
-            self.choose_heading(choice)
-        elif key in ('up', 'down') or text in ('j', 'k'):
-            step = 1 if key == 'down' or text == 'j' else -1
-            self.outline_choice = (choice + step) % len(self.headings)
-            self.draw_outline()
-
-
-def _minutes(seconds: float) -> str:
-    """Seconds as minutes and seconds, such as ``1:05``."""
-    whole = int(seconds)
-    return f'{whole // 60}:{whole % 60:02d}'
 
 
 def _anchor(heading: str) -> str:
