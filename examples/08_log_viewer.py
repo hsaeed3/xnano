@@ -6,8 +6,6 @@ The view follows the newest line. The up and down arrows scroll back and forward
 pauses the lines, and ``q`` quits.
 """
 
-import random
-
 import xnano
 
 VISIBLE_ROWS = 20
@@ -21,7 +19,6 @@ MESSAGES = {
     'warning': ['slow response', 'retrying the upload', 'disk is 85% full'],
     'error': ['connection refused', 'payment failed', 'worker stopped'],
 }
-generator = random.Random(3)  # seeded, so every run shows the same lines
 lines: list[tuple[str, str]] = []  # every line so far, as its level and its text
 offset = 0  # how many lines the view is scrolled back from the newest one
 is_filtered = False
@@ -60,9 +57,11 @@ with xnano.open(title='log viewer') as terminal:
     def add_line(context: xnano.Context) -> None:
         """Add one line, four times a second."""
         global offset
-        level = generator.choices(list(LEVELS), weights=[8, 2, 1])[0]
-        seconds = context.clock.elapsed_seconds
-        text = f'{seconds:7.2f}  {level:<7}  {generator.choice(MESSAGES[level])}'
+        # every eleventh line is an error and every fourth a warning: the rest inform
+        number = len(lines) + 1
+        level = 'error' if number % 11 == 0 else 'warning' if number % 4 == 0 else 'info'
+        message = MESSAGES[level][number % len(MESSAGES[level])]
+        text = f'{context.clock.elapsed_seconds:7.2f}  {level:<7}  {message}'
         lines.append((level, text))
         # a view that is scrolled back keeps showing the same lines
         if offset and (level != 'info' or not is_filtered):

@@ -6,7 +6,7 @@ yellow and one that stops answering turns red, with a symbol and a word beside t
 ``space`` pauses the updates, and ``q`` quits.
 """
 
-import random
+import math
 
 import xnano
 
@@ -19,14 +19,18 @@ STATUS = {  # the symbol and word of each status, and its color
 }
 # each service's usual response time in milliseconds, and how far it strays from it
 SERVICES = {'api': (60, 30), 'web': (380, 260), 'worker': (20, 10)}
-generator = random.Random(7)  # seeded, so every run draws the same graphs
+measured = 0  # how many response times were measured so far
 
 
 def measure_one(usual: int, spread: int) -> int:
     """One response time of a service, which now and then does not answer at all."""
-    if generator.random() < 0.05:
-        return DOWN_MILLISECONDS + generator.randrange(400)
-    return max(1, round(generator.gauss(usual, spread)))
+    global measured
+    measured += 1
+    if measured % 23 == 0:
+        return DOWN_MILLISECONDS + measured % 400
+    # two waves of different lengths make a line that rises and falls without a pattern
+    wave = math.sin(measured * 0.9) + math.sin(measured * 0.37)
+    return max(1, round(usual + spread * wave))
 
 
 history = {
@@ -44,7 +48,8 @@ def status_of(milliseconds: int) -> str:
 
 def graph_of(samples: list[int]) -> str:
     """The samples as a row of blocks, the tallest block for the slowest answer."""
-    highest = max(max(samples), 1)
+    # an answer that never came would flatten the others, so it does not set the scale
+    highest = max((sample for sample in samples if sample < DOWN_MILLISECONDS), default=1)
     return ''.join(BLOCKS[min(7, sample * 8 // (highest + 1))] for sample in samples)
 
 

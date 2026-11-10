@@ -94,6 +94,7 @@ WIDGETS = (
     'table',
     'tabs',
 )
+SERVICES = [['web', '● up', '41 ms'], ['api', '● up', '12 ms'], ['db', '× down', '']]
 SUNSET = (  # the art of the demo without the image extra: one character is one pixel
     'DDDDDDDDDDDDDDDDDDDDDDDD',
     'DDDDDDDDDDDDDDDDDDDDDDDD',
@@ -131,6 +132,48 @@ def row(fraction: float) -> Number:
 def has_extra(package: str) -> bool:
     """Whether the package behind an optional extra, such as ``'xnano_image'``, is installed."""
     return importlib.util.find_spec(package) is not None
+
+
+def preview_widgets() -> tuple[object, ...]:
+    """One widget of each kind, in the order of ``WIDGETS``, for the widgets page."""
+    wave = ChartDataset(
+        name='sin',
+        data=[(step / 4, math.sin(step / 4)) for step in range(50)],
+        marker='braille',
+        graph_type='line',
+        style=Style(ACCENT),
+    )
+    paragraph = (
+        'A paragraph wraps its text at the width it is given, and can align it '
+        'to the left, the center or the right.'
+    )
+    return (
+        BarChart(
+            [Bar(73, label='cpu'), Bar(41, label='memory'), Bar(18, label='network')],
+            bar_width=8,
+            bar_gap=3,
+            bar_style=Style(ACCENT),
+        ),
+        Calendar(2026, 1, 1, month_header_style=Style(bold=True)),
+        Chart(
+            [wave],
+            x_axis=ChartAxis(bounds=(0, 12), labels=['0', '6', '12']),
+            y_axis=ChartAxis(bounds=(-1, 1), labels=['-1', '0', '1']),
+        ),
+        Gauge(0.6, label='60% of 512 GB', gauge_style=Style('green')),
+        LineGauge(0.8, label='upload', filled_style=Style(ACCENT)),
+        Paragraph(paragraph, should_wrap=True, alignment='center'),
+        Sparkline(
+            [round(6 + 3 * math.sin(second / 4)) for second in range(60)],
+            style=Style(ACCENT),
+        ),
+        Table(SERVICES, header=['service', 'status', 'p95'], widths=[12, 10, 8]),
+        Tabs(
+            ['overview', 'logs', 'settings'],
+            selected=1,
+            highlight_style=Style(ACCENT, bold=True),
+        ),
+    )
 
 
 class _Demo:
@@ -336,6 +379,28 @@ class _Demo:
         ball = self.keep(page, screen.write('●', y=row(0.0) + 6, layer=1))
         ball.x = 2 + (edge(0.34) - 5) * (TimeElapsed % 3 / 3)
 
+        self.build_charts()
+
+        today = datetime.date.today()
+        calendar = Calendar(
+            today.year,
+            today.month,
+            today.day,
+            month_header_style=Style(bold=True),
+            weekdays_header_style=Style(dim=True),
+        )
+        self.add(page, calendar, 0.67, 1.0, 0.0, 0.45)
+
+        self.figure = Figure(x_bounds=(-10, 10), y_bounds=(-10, 10), marker='braille')
+        self.add(page, self.figure, 0.0, 0.6, 0.45, 1.0)
+        self.add(page, Paragraph(ABOUT, should_wrap=True), 0.6, 1.0, 0.45, 1.0)
+        self.follow_clock()
+        self.show_time()
+
+    def build_charts(self) -> None:
+        """A sparkline and a bar chart, which a timer fills with new values."""
+        page = 'overview'
+        screen = self.terminal.screen
         self.spark = Sparkline(self.samples, maximum=8, style=Style(ACCENT))
         self.keep(
             page,
@@ -361,19 +426,9 @@ class _Demo:
             ),
         )
 
-        today = datetime.date.today()
-        calendar = Calendar(
-            today.year,
-            today.month,
-            today.day,
-            month_header_style=Style(bold=True),
-            weekdays_header_style=Style(dim=True),
-        )
-        self.add(page, calendar, 0.67, 1.0, 0.0, 0.45)
-
-        self.figure = Figure(x_bounds=(-10, 10), y_bounds=(-10, 10), marker='braille')
-        self.add(page, self.figure, 0.0, 0.6, 0.45, 1.0)
-        self.add(page, Paragraph(ABOUT, should_wrap=True), 0.6, 1.0, 0.45, 1.0)
+    def follow_clock(self) -> None:
+        """Turn the figure on every frame, and give the charts new values on a timer."""
+        terminal = self.terminal
         orbit = [
             (8 * math.cos(angle / 36 * math.tau), 8 * math.sin(angle / 36 * math.tau))
             for angle in range(36)
@@ -412,8 +467,6 @@ class _Demo:
                 )
             self.show_time()
 
-        self.show_time()
-
     def show_time(self) -> None:
         """Say how long the clock has run, and whether it is paused."""
         clock = self.terminal.clock
@@ -429,55 +482,7 @@ class _Demo:
         self.panel(page, 'widgets', 0.0, 0.3, 0.0, 1.0)
         self.panel(page, 'preview', 0.3, 1.0, 0.0, 1.0)
         self.widget_list = self.choice_list(page, WIDGETS, self.choose_widget)
-        wave = [(step / 4, math.sin(step / 4)) for step in range(50)]
-        widgets: tuple[object, ...] = (
-            BarChart(
-                [Bar(73, label='cpu'), Bar(41, label='memory'), Bar(18, label='network')],
-                bar_width=8,
-                bar_gap=3,
-                bar_style=Style(ACCENT),
-            ),
-            Calendar(2026, 1, 1, month_header_style=Style(bold=True)),
-            Chart(
-                [
-                    ChartDataset(
-                        name='sin',
-                        data=wave,
-                        marker='braille',
-                        graph_type='line',
-                        style=Style(ACCENT),
-                    )
-                ],
-                x_axis=ChartAxis(bounds=(0, 12), labels=['0', '6', '12']),
-                y_axis=ChartAxis(bounds=(-1, 1), labels=['-1', '0', '1']),
-            ),
-            Gauge(0.6, label='60% of 512 GB', gauge_style=Style('green')),
-            LineGauge(0.8, label='upload', filled_style=Style(ACCENT)),
-            Paragraph(
-                'A paragraph wraps its text at the width it is given, and can align it '
-                'to the left, the center or the right.',
-                should_wrap=True,
-                alignment='center',
-            ),
-            Sparkline(
-                [round(6 + 3 * math.sin(second / 4)) for second in range(60)],
-                style=Style(ACCENT),
-            ),
-            Table(
-                [
-                    ['web', '● up', '41 ms'],
-                    ['api', '● up', '12 ms'],
-                    ['db', '× down', ''],
-                ],
-                header=['service', 'status', 'p95'],
-                widths=[12, 10, 8],
-            ),
-            Tabs(
-                ['overview', 'logs', 'settings'],
-                selected=1,
-                highlight_style=Style(ACCENT, bold=True),
-            ),
-        )
+        widgets = preview_widgets()
         short = {'gauge': 0.2, 'line gauge': 0.12, 'tabs': 0.12, 'sparkline': 0.3}
         for name, widget in zip(WIDGETS, widgets, strict=True):
             preview = self.add(page, widget, 0.3, 1.0, 0.0, short.get(name, 1.0))
