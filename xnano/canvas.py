@@ -2901,6 +2901,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 look=appearance if is_decorated else None,
                 lock=lock,
                 is_in_flow=is_in_flow,
+                theme=chosen,
             )
             themed._theme = chosen
             return themed
@@ -3222,6 +3223,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         look: Appearance | None,
         lock: bool,
         is_in_flow: bool,
+        theme: Theme | None = None,
     ) -> Placement[DepsT, StateT]:
         """Write a renderable: a canvas of its own where it is written, which it draws on."""
         # The area fits what the component writes on each axis the caller left open, and
@@ -3233,6 +3235,8 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             enclosing=cast('Canvas[object, object]', self),
         )
         area._is_hidden_until_written = True
+        if theme is not None:
+            area._theme = theme  # what the renderable writes takes the theme of the write
         placement = self._adopt(
             parent_buffer,
             area,

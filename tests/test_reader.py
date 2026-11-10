@@ -311,6 +311,7 @@ def test_a_table_with_many_columns_stays_inside_the_width():
 def test_a_long_word_breaks_between_characters_and_not_inside_one():
     family = '\U0001f468‍\U0001f469‍\U0001f467'
     lines = layout_markdown(family * 4, width=4, theme=theme_of(None))
+    assert ''.join(line.text for line in lines) == family * 4
     assert all(
         line.text.count('\U0001f468') == line.text.count('\U0001f467') for line in lines
     )

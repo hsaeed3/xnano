@@ -76,26 +76,31 @@ def from_markdown(
     chosen = theme_of(theme)
     lines = layout_markdown(text, width=width, theme=chosen, directory=None)
     spans: list[TextSpan] = []
+    tables: dict[int, list[str]] = {}  # the rows of each table, drawn one time
     for index, line in enumerate(lines):
         if index:
             spans.append(TextSpan('\n'))
         spans.extend(TextSpan(run.text, style=chosen.style_of(run)) for run in line.spans)
         if line.content is not None:
-            spans.extend(_content_spans(lines, index, chosen))
+            spans.extend(_content_spans(lines, index, chosen, tables))
     return StyledText(spans or [TextSpan('')])
 
 
-def _content_spans(lines: list[Line], index: int, theme: Theme) -> list[TextSpan]:
+def _content_spans(
+    lines: list[Line], index: int, theme: Theme, tables: dict[int, list[str]]
+) -> list[TextSpan]:
     """One row of a table as styled text, or the name of an image on its first row."""
     line = lines[index]
     if isinstance(line.content, pathlib.Path):
         if line.content_row:
             return []
         return [TextSpan(f'[image: {line.description}]', style=theme.style(dim=True))]
-    first = lines[index - line.content_row]
-    rows = _rendered([first], *first.content_size, theme, 'ansi', is_whole=True).split(
-        '\n'
-    )
+    start = index - line.content_row
+    if start not in tables:
+        first = lines[start]
+        drawn = _rendered([first], *first.content_size, theme, 'ansi', is_whole=True)
+        tables[start] = drawn.split('\n')
+    rows = tables[start]
     indent = ' ' * (line.content_column - display_width(line.text if line.spans else ''))
     return [TextSpan(indent), *StyledText.from_ansi(rows[line.content_row]).spans]
 

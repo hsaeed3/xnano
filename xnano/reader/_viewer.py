@@ -474,26 +474,26 @@ class _Viewer:
             name, _, heading = target.partition('#')
             path = self.document.path.parent / name
             if path.is_file():
-                self.open(path)
-                if heading:
+                if self.open(path) and heading:
                     self.follow(f'#{heading}')
                 return
             self.message = f'{target} is not a file here'
         self.draw()
 
-    def open(self, path: pathlib.Path) -> None:
-        """Show another file, and remember this one to go back to."""
+    def open(self, path: pathlib.Path) -> bool:
+        """Show another file, and remember this one. ``False`` when it cannot be read."""
         try:
             document = read_document(path)
         except (OSError, ImportError) as error:
             self.message = str(error)
             self.draw()
-            return
+            return False
         stop_audio(self)
         self.history.append((self.document, self.top))
         self.document, self.top, self.is_source, self.audio = document, 0, False, None
         self.message, self.query = document.note, ''
         self.show_document()
+        return True
 
     def go_back(self) -> None:
         """Show the file that a link was followed from."""
