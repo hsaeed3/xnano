@@ -471,7 +471,11 @@ pub struct PyRuntime {
     /// buffers and other canvases, so a moved counter only means "maybe": it makes the walk
     /// run, and the walk decides. An unmoved counter means no buffer anywhere changed.
     quiet_global_stamp: Cell<u64>,
+    /// When the last frame was due, on the pacing clock. The next frame is due one frame
+    /// interval later, so the time a frame takes to build does not delay the one after it.
     last_present_seconds: Cell<f64>,
+    /// When the frame being built started, on the pacing clock.
+    frame_started_seconds: Cell<f64>,
     last_effect_seconds: Cell<f64>,
     revisions_seen: RefCell<HashMap<u64, u64>>,
     has_rendered: Cell<bool>,
@@ -1150,7 +1154,7 @@ impl PyRuntime {
                 self.shared
                     .queue
                     .push_event(Event::new(EventKind::Tick, EventPayload::None));
-                tick.next = now + interval;
+                tick.next = next_due(tick.next, interval, now);
             }
         }
         let mut finished = Vec::new();
@@ -1161,7 +1165,7 @@ impl PyRuntime {
                     EventPayload::Timer(key.clone()),
                 ));
                 if timer.should_repeat {
-                    timer.next = now + timer.interval;
+                    timer.next = next_due(timer.next, timer.interval, now);
                 } else {
                     finished.push(key.clone());
                 }
@@ -1549,6 +1553,7 @@ impl PyRuntime {
             last_rendered_stamp: Cell::new(0),
             quiet_global_stamp: Cell::new(0),
             last_present_seconds: Cell::new(-1.0),
+            frame_started_seconds: Cell::new(0.0),
             last_effect_seconds: Cell::new(0.0),
             revisions_seen: RefCell::default(),
             has_rendered: Cell::new(false),
@@ -2716,6 +2721,10 @@ impl PyRuntime {
     fn render_frame(slf: &Bound<'_, Self>) -> PyResult<PyFrameSnapshot> {
         let py = slf.py();
         let started = std::time::Instant::now();
+        {
+            let runtime = slf.borrow();
+            runtime.frame_started_seconds.set(runtime.pace_now());
+        }
         let outcome = Self::build_frame(slf);
         match outcome {
             Ok(snapshot) => {
@@ -3024,13 +3033,27 @@ impl PyRuntime {
         // spell still shows at once, because no frame was built while nothing asked for one.
         // The measured frame rate counts only the frames that reached the terminal, and
         // pacing keeps it at or below the rate the frame interval allows.
+        //
+        // Frames keep a fixed cadence: the next frame is due one interval after this frame
+        // was due, not one interval after it was finished, so the time that a frame takes
+        // to build does not add to the wait for the next one. A frame that starts more than
+        // one interval late (after a quiet spell, or when frames take longer than the
+        // interval) starts the cadence again from the time that it started.
         let interval = runtime.config.frame_interval_milliseconds.get() as f64 / 1000.0;
         if !runtime.has_rendered.get() {
             runtime
                 .last_present_seconds
                 .set(runtime.pace_now() - interval);
         } else {
-            runtime.last_present_seconds.set(runtime.pace_now());
+            let due = runtime.last_present_seconds.get() + interval;
+            let started = runtime.frame_started_seconds.get();
+            runtime
+                .last_present_seconds
+                .set(if started < due + interval {
+                    due
+                } else {
+                    started
+                });
             if was_written {
                 runtime.shared.clock.record_drawn_frame();
             }
@@ -3261,4 +3284,13 @@ impl xnano_terminal_state::store::Listener for QueueListener {
         self.shared.request_frame();
         Ok(())
     }
+}
+
+/// When a repeating event that was due at `previous` is due again, one `interval` later.
+///
+/// The event keeps a fixed cadence, so a late check does not move every later event. When
+/// the check is more than one interval late, the cadence starts again from `now`.
+fn next_due(previous: f64, interval: f64, now: f64) -> f64 {
+    let next = previous + interval;
+    if next > now { next } else { now + interval }
 }
