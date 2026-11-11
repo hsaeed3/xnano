@@ -18,11 +18,13 @@ An _extremely nano_ terminal experience for Python, built on [`ratatui`](https:/
 [Contribution Guide](./CONTRIBUTING.md)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/home/effects-dark.gif">
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/hsaeed3/xnano-examples/blob/main/assets/xnano-showcase-dark.gif?raw=true">
   <img
-    alt="Eight cards in a terminal, each playing one of the effects of xnano"
-    src="docs/assets/home/effects-light.gif">
+    alt="xnano-examples showcase (light)"
+    src="https://github.com/hsaeed3/xnano-examples/blob/main/assets/xnano-showcase-light.gif?raw=true">
 </picture>
+
+<sup><sub>You can view the code for these examples on the [`xnano-examples`](https://github.com/hsaeed3/xnano-examples) repository.</sub></sup>
 
 </div>
 
@@ -630,6 +632,7 @@ of a command, use `StyledText.from_ansi()`.
 ## Learn More
 
 - [Documentation](https://xnano.hammad.app): the documentation site.
+- [Examples](https://github.com/hsaeed3/xnano-examples): complete applications and games built with `xnano` that you can run.
 - [Learn](https://xnano.hammad.app/learn/): a step-by-step introduction.
 - [API Reference](https://xnano.hammad.app/api-reference/): every public module,
   class and function.
