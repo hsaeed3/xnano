@@ -12,6 +12,7 @@ mod error_reports;
 mod errors;
 mod events;
 mod expressions;
+mod fonts;
 mod geometry;
 mod hooks;
 mod input;
@@ -90,6 +91,7 @@ fn _xnano_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     clocks::register(m)?;
     events::register(m)?;
     text::register(m)?;
+    fonts::register(m)?;
     cell_grid::register(m)?;
     state::register(m)?;
     references::register(m)?;

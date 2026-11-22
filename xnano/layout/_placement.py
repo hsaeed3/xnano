@@ -53,6 +53,7 @@ from xnano.operations import (
     ContextualOperation,
 )
 from xnano.state import StateNamespace
+from xnano.styles._core_styles import FontValue
 from xnano.styles._decoration import Decorated, insets_for
 from xnano.styles._look import (
     MOST_CELLS,
@@ -160,6 +161,10 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
     _given_sizes: frozenset[AxisName] = frozenset()
     _alignment: TextAlignment = TOP_LEFT
     _text_value: str | None = None
+    _font: _core.Font | None = None
+    """The font the placement's text is written in, from ``write(..., font=...)``."""
+    _font_source_text: str | None = None
+    """The text as it was given, before the font wrote it."""
     # The same text with the styles of its spans, when it was given as styled text.
     _styled_text: _core.StyledText | None = None
     _theme: Theme | None = None
@@ -1335,6 +1340,8 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 assert log.core_buffer[0, 0].foreground == xnano.Color('red')
             ```
         """
+        if self._font_source_text is not None:
+            return self._font_source_text
         if self._wrapped_text is not None:
             return str(self._wrapped_text)
         self._flush_look()
@@ -1353,6 +1360,15 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
                 f'as "hello", or styled text such as StyledText.from_ansi(line). Join lines '
                 f'with newlines.'
             )
+        if self._font is not None:
+            if not isinstance(value, str):
+                raise TypeError(
+                    f'This placement writes its text in the font {self._font.name!r}, so its '
+                    f'text must be a string, but got {type(value).__name__}. Pass plain text; '
+                    f'the colors of the placement apply to it.'
+                )
+            self._font_source_text = value
+            value = self._font.render(value)
         if self._theme is not None:
             if isinstance(value, str):
                 value = _core.StyledText(
@@ -1643,6 +1659,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
         reverse: bool = False,
         hidden: bool = False,
         crossed_out: bool = False,
+        font: FontValue | None = None,
         title: str | None = None,
         border: _core.BorderKind | bool | None = None,
         border_style: _core.Style | None = None,
@@ -1689,6 +1706,9 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             reverse: Whether foreground and background are swapped.
             hidden: Whether text is hidden.
             crossed_out: Whether text is struck through.
+            font: The font to write text in, as a [`Font`][xnano.styles.Font] or the name
+                of one, such as ``'small'``. The text takes as many cells as the font is
+                large, and keeps its colors and its place. Only text can have a font.
             title: Title for a box around text.
             border: The kind of border for a box around the content, a
                 [`BorderKind`][xnano.styles.BorderKind] such as ``'plain'``, ``'rounded'``,
@@ -1733,6 +1753,7 @@ class Placement(_Hooked[DepsT, StateT], _TextModifiers):
             reverse=reverse,
             hidden=hidden,
             crossed_out=crossed_out,
+            font=font,
             title=title,
             border=border,
             border_style=border_style,

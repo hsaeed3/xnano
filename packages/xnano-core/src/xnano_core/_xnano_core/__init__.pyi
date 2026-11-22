@@ -7,6 +7,7 @@ Every class and function here is implemented in Rust. The compiled module is the
 initializer, so ``xnano_core._xnano_core._core_types`` sits next to it.
 """
 
+import os
 from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from types import TracebackType
 from typing import ClassVar, Generic, Literal, NoReturn, TypeVar, overload
@@ -15,6 +16,9 @@ from typing_extensions import Self
 
 from ._core_types import (
     BorderKind as BorderKind,
+)
+from ._core_types import (
+    BuiltinFontName as BuiltinFontName,
 )
 from ._core_types import (
     CanvasShape as CanvasShape,
@@ -53,6 +57,9 @@ from ._core_types import (
     EvolveSymbolSet as EvolveSymbolSet,
 )
 from ._core_types import (
+    FontKind as FontKind,
+)
+from ._core_types import (
     FrameContext as FrameContext,
 )
 from ._core_types import (
@@ -69,6 +76,9 @@ from ._core_types import (
 )
 from ._core_types import (
     HookEventKind as HookEventKind,
+)
+from ._core_types import (
+    ImageFormat as ImageFormat,
 )
 from ._core_types import (
     Interpolation as Interpolation,
@@ -1550,18 +1560,192 @@ def layout_text(
         ```
     """
 
-def display_width(text: str) -> int:
+def display_width(text: str, *, font: Font | BuiltinFontName | None = None) -> int:
     """
     The number of terminal cells a string occupies.
 
-    Wide characters such as CJK ideographs take two cells.
+    Wide characters such as CJK ideographs take two cells. With a ``font``, the text is
+    measured as [`Font.render`][xnano_core._xnano_core.Font.render] writes it: its widest row.
+
+    Args:
+        text: The text to measure.
+        font: The font the text is written in, or ``None`` for the terminal's own font.
+
+    Raises:
+        ValueError: ``font`` names no built-in font.
+        TypeError: ``font`` is not a ``Font``, a string or ``None``.
 
     Examples:
         ```python
         assert display_width('abc') == 3
         assert display_width('日本') == 4
+        assert display_width('abc', font='small') == 15
         ```
     """
+
+def display_size(text: str, *, font: Font | BuiltinFontName | None = None) -> Size:
+    """
+    The width and height in terminal cells that a string occupies.
+
+    Each line of ``text`` is one row in the terminal's own font. With a ``font``, each line
+    takes as many rows as the font is tall.
+
+    Args:
+        text: The text to measure. Lines are separated by ``'\\n'``.
+        font: The font the text is written in, or ``None`` for the terminal's own font.
+
+    Returns:
+        The size of the text, in cells.
+
+    Raises:
+        ValueError: ``font`` names no built-in font.
+        TypeError: ``font`` is not a ``Font``, a string or ``None``.
+
+    Examples:
+        ```python
+        assert display_size('hello\\nhi') == Size(5, 2)
+        assert display_size('hi', font='small') == Size(10, 4)
+        ```
+    """
+
+class Font:
+    """
+    The shapes of the characters of text, made of characters or of pixels.
+
+    A character font (a FIGlet ``.flf`` file) draws each character with several rows of
+    other characters. A pixel font (a BDF ``.bdf`` file, or a built-in font) draws each
+    character with pixels. Text in a pixel font is written with half blocks, two pixels
+    to a cell, one above the other, so it shows in every terminal and keeps the color of
+    the cells it is written in.
+
+    ``Font()`` and ``Font('small')`` give the built-in 5 by 7 pixel font, and
+    ``Font('large')`` the built-in 8 by 13 pixel font. Both are the public domain xorg
+    misc-misc fonts. A character the font does not have is written as itself, in the top
+    row of its place. FIGlet characters are placed side by side at their full width.
+
+    Args:
+        name: The name of a built-in font: ``'small'`` or ``'large'``.
+
+    Raises:
+        ValueError: ``name`` is not the name of a built-in font.
+
+    Attributes:
+        name: The name of the font: the built-in name, the name in a BDF file, or the file
+            name without its suffix.
+        kind: ``'character'`` for a FIGlet font, ``'pixel'`` for a pixel font.
+        glyph_size: The size of one character: in pixels for a pixel font, in characters
+            for a character font, where the width is that of its widest character.
+
+    Examples:
+        ```python
+        font = Font('small')
+        assert font.kind == 'pixel'
+        assert font.glyph_size == Size(5, 7)
+        assert len(font.render('hi').split('\\n')) == 4
+        ```
+    """
+
+    def __init__(self, name: BuiltinFontName = 'small') -> None: ...
+    @staticmethod
+    def from_file(path: str | os.PathLike[str]) -> Font:
+        """
+        Read a font from a FIGlet (``.flf``) or BDF (``.bdf``) file.
+
+        The kind of font is read from the file itself, not from its suffix.
+
+        Args:
+            path: The path of the font file.
+
+        Raises:
+            OSError: The file cannot be read.
+            ValueError: The file is not a FIGlet or BDF font, or it is incomplete.
+
+        Examples:
+            ```python
+            import os
+            import tempfile
+
+            rows = ''.join(' $@\\n $@@\\n' for _ in range(95))
+            with tempfile.TemporaryDirectory() as directory:
+                path = os.path.join(directory, 'blank.flf')
+                with open(path, 'w') as file:
+                    file.write('flf2a$ 2 1 2 0 0\\n' + rows)
+                font = Font.from_file(path)
+            assert (font.name, font.kind) == ('blank', 'character')
+            ```
+        """
+
+    @staticmethod
+    def from_bytes(data: bytes, *, name: str = 'font') -> Font:
+        """
+        Read a font from the bytes of a FIGlet (``.flf``) or BDF (``.bdf``) file.
+
+        Args:
+            data: The contents of the font file.
+            name: The name of the font when the data does not name it. It also names the
+                font in error messages.
+
+        Raises:
+            ValueError: The data is not a FIGlet or BDF font, or it is incomplete.
+
+        Examples:
+            ```python
+            rows = ''.join('[]@\\n<>@@\\n' for _ in range(95))
+            font = Font.from_bytes(('flf2a$ 2 1 2 0 0\\n' + rows).encode(), name='boxes')
+            assert font.render('ab') == '[][]\\n<><>'
+            ```
+        """
+
+    @property
+    def name(self) -> str:
+        """The name of the font."""
+
+    @property
+    def kind(self) -> FontKind:
+        """``'character'`` for a FIGlet font, ``'pixel'`` for a pixel font."""
+
+    @property
+    def glyph_size(self) -> Size:
+        """The size of one character, in pixels or in characters."""
+
+    def has_character(self, character: str) -> bool:
+        """
+        Return whether the font has its own shape for ``character``.
+
+        Args:
+            character: One character.
+
+        Raises:
+            ValueError: ``character`` is not exactly one character.
+
+        Examples:
+            ```python
+            assert Font('small').has_character('a')
+            assert not Font('small').has_character('😀')
+            ```
+        """
+
+    def render(self, text: str) -> str:
+        """
+        Write ``text`` in this font, as rows of characters a terminal can show.
+
+        Each line of ``text`` becomes as many rows as the font is tall, and the rows of one
+        line have the same width. The result has no colors: it takes the colors of the
+        cells it is written in.
+
+        Args:
+            text: The text to write. Lines are separated by ``'\\n'``.
+
+        Returns:
+            The rows, joined with ``'\\n'``.
+
+        Examples:
+            ```python
+            rows = Font('small').render('I').split('\\n')
+            assert len(rows) == 4
+            assert all(len(row) == 5 for row in rows)
+            ```
+        """
 
 class Editor(Operation):
     """
@@ -7938,7 +8122,18 @@ class Buffer(Surface):
             ```
         """
 
-    def render(self, *, format: RenderFormat = 'ansi') -> str:
+    @overload
+    def render(self, *, format: RenderFormat = 'ansi', font: None = None) -> str: ...
+    @overload
+    def render(
+        self, *, format: ImageFormat, font: Font | BuiltinFontName | None = None
+    ) -> bytes: ...
+    def render(
+        self,
+        *,
+        format: RenderFormat | ImageFormat = 'ansi',
+        font: Font | BuiltinFontName | None = None,
+    ) -> str | bytes:
         """
         Compose the visible children and serialize the buffer.
 
@@ -7948,6 +8143,17 @@ class Buffer(Surface):
             format: ``'text'`` for plain rows or ``'ansi'`` for the same rows with
                 styling escape sequences. Both join the rows with newlines and add
                 none after the last row, so ``print`` shows exactly the buffer.
+                ``'png'`` draws the cells as a PNG image and returns its bytes.
+            font: The pixel font that draws each cell of a ``'png'`` image. Every cell is
+                one glyph in size. ``None`` uses the built-in ``'large'`` font, 8 by 13
+                pixels. Block elements and braille are drawn as shapes, with any font.
+
+        Returns:
+            Text for ``'text'`` and ``'ansi'``, and the bytes of a PNG file for ``'png'``.
+
+        Raises:
+            ValueError: ``format`` is not ``'text'``, ``'ansi'`` or ``'png'``; ``font`` is
+                given with a format other than ``'png'``; or ``font`` is a character font.
 
         Examples:
             ```python
@@ -7955,6 +8161,7 @@ class Buffer(Surface):
             assert buffer.render(format='text') == 'hi'
             assert '\\x1b[' in buffer.render(format='ansi')
             assert not buffer.render(format='ansi').endswith('\\n')
+            assert buffer.render(format='png').startswith(b'\\x89PNG')
             ```
         """
 
@@ -8768,6 +8975,25 @@ class FrameSnapshot:
             with Runtime.offscreen(width=4, height=2) as runtime:
                 runtime.mount(Buffer.with_text('ab'))
                 assert runtime.render().lines()[0].startswith('ab')
+            ```
+        """
+
+    def to_png(self, *, font: Font | BuiltinFontName | None = None) -> bytes:
+        """
+        Draw the frame as a PNG image and return the bytes of the file.
+
+        Args:
+            font: The pixel font that draws each cell. Every cell is one glyph in size.
+                ``None`` uses the built-in ``'large'`` font, 8 by 13 pixels.
+
+        Raises:
+            ValueError: ``font`` is a character font, or names no built-in font.
+
+        Examples:
+            ```python
+            with Runtime.offscreen(width=4, height=1) as runtime:
+                image = runtime.render().to_png(font='small')
+            assert image.startswith(b'\\x89PNG')
             ```
         """
 

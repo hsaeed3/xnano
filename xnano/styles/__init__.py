@@ -34,6 +34,8 @@ if TYPE_CHECKING:
     from xnano.styles._core_styles import Color as Color
     from xnano.styles._core_styles import ColorName as ColorName
     from xnano.styles._core_styles import ColorValue as ColorValue
+    from xnano.styles._core_styles import Font as Font
+    from xnano.styles._core_styles import FontValue as FontValue
     from xnano.styles._core_styles import Style as Style
     from xnano.styles._core_styles import StyledText as StyledText
     from xnano.styles._core_styles import TextContent as TextContent
@@ -52,6 +54,8 @@ _MODULES: Final[dict[str, str]] = {
     'ColorName': 'xnano.styles._core_styles',
     'ColorSlot': 'xnano.styles._appearance',
     'ColorValue': 'xnano.styles._core_styles',
+    'Font': 'xnano.styles._core_styles',
+    'FontValue': 'xnano.styles._core_styles',
     'Colors': 'xnano.styles._appearance',
     'Edges': 'xnano.styles._appearance',
     'MarginAppearance': 'xnano.styles._appearance',
@@ -79,6 +83,8 @@ __all__ = [
     'ColorValue',
     'Colors',
     'Edges',
+    'Font',
+    'FontValue',
     'MarginAppearance',
     'PaddingAppearance',
     'RichContent',

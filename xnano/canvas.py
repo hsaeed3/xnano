@@ -68,6 +68,7 @@ from xnano._internal._axes import (
 )
 from xnano._internal._content import content_buffer
 from xnano._internal._dynamic_operations import DynamicOperation
+from xnano._internal._fonts import font_text, resolve_font
 from xnano._internal._optional import require
 from xnano._runtime._flow import Flow, flow_of, is_flow_position
 from xnano._runtime._host import _Host, _InlineHost, _Registration, _ThreadHost
@@ -134,6 +135,7 @@ from xnano.state import (
     _StateFollower,
     _StateFollowers,
 )
+from xnano.styles._core_styles import FontValue
 from xnano.styles._decoration import Decorated, insets_for, paint_decoration
 from xnano.styles._look import MOST_CELLS, Appearance, appearance_fields, resolve_spacing
 from xnano.styles._owners import _LookState
@@ -1143,6 +1145,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         reverse: bool = False,
         hidden: bool = False,
         crossed_out: bool = False,
+        font: FontValue | None = None,
         title: str | None = None,
         border: _core.BorderKind | bool | None = None,
         border_style: _core.Style | None = None,
@@ -1189,6 +1192,9 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             reverse: Whether the foreground color and the background color change places.
             hidden: Whether the text is hidden.
             crossed_out: Whether the text has a line through it.
+            font: The font to write text in, as a [`Font`][xnano.styles.Font] or the name
+                of one, such as ``'small'``. The text takes as many cells as the font is
+                large, and keeps its colors and its place. Only text can have a font.
             title: The title on the border of a box around the content.
             border: The [`BorderKind`][xnano.styles.BorderKind] of a box around the content,
                 such as ``'plain'`` or ``'rounded'``. ``True`` is ``'plain'``, and ``False``
@@ -1241,6 +1247,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
             reverse=reverse,
             hidden=hidden,
             crossed_out=crossed_out,
+            font=font,
             title=title,
             border=border,
             border_style=border_style,
@@ -1271,22 +1278,40 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         """
         return None if self._theme is None else cast('ThemeName', self._theme.name)
 
-    def render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
-        """
-        Draw the current frame and return it as text, with no screen.
+    @overload
+    def render(
+        self, *, format: Literal['text', 'ansi'] = 'text', font: None = None
+    ) -> str: ...
+    @overload
+    def render(
+        self, *, format: Literal['png'], font: FontValue | None = None
+    ) -> bytes: ...
+    def render(
+        self,
+        *,
+        format: Literal['text', 'ansi', 'png'] = 'text',
+        font: FontValue | None = None,
+    ) -> str | bytes:
+        r"""
+        Draw the current frame and return it as text or as an image, with no screen.
 
         ``canvas.render(...)`` is the same as
         [`canvas.screen.render(...)`][xnano.devices.Screen.render].
 
         Args:
             format: ``'text'`` for the characters only. ``'ansi'`` for the characters with
-                their colors and styles as escape codes.
+                their colors and styles as escape codes. ``'png'`` for an image of the
+                frame, as the bytes of a PNG file.
+            font: For ``'png'`` only: the pixel font that draws each cell, as a
+                [`Font`][xnano.styles.Font] or the name of one. Every cell is one glyph in
+                size. Left out, the built-in ``'large'`` font draws cells of 8 by 13 pixels.
 
         Returns:
-            The frame, with one line for each row.
+            The frame, with one line for each row, or the bytes of a PNG file.
 
         Raises:
-            ValueError: ``format`` is not ``'text'`` or ``'ansi'``.
+            ValueError: ``format`` is not ``'text'``, ``'ansi'`` or ``'png'``, ``font`` is
+                given without ``format='png'``, or ``font`` is a character font.
 
         Examples:
             ```python
@@ -1296,9 +1321,10 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
                 canvas.write('hello', y=1)
                 assert canvas.render().splitlines() == ['', 'hello']
                 assert canvas.render(format='ansi') == canvas.screen.render(format='ansi')
+                assert canvas.render(format='png').startswith(b'\x89PNG')
             ```
         """
-        return self.screen.render(format=format)
+        return self.screen._canvas._render(format=format, font=font)
 
     def __rich_console__(
         self, console: RichConsole, options: RichConsoleOptions
@@ -2795,6 +2821,7 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         reverse: bool = False,
         hidden: bool = False,
         crossed_out: bool = False,
+        font: FontValue | None = None,
         title: str | None = None,
         border: _core.BorderKind | bool | None = None,
         border_style: _core.Style | None = None,
@@ -2804,6 +2831,48 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
         is_in_flow: bool = True,
     ) -> Placement[DepsT, StateT]:
         check_layer(layer)
+        if font is not None:
+            # Text in a font is text made of more cells: it is placed, themed and laid out
+            # like any other text, and the placement remembers the font for new text.
+            chosen_font = resolve_font(font)
+            rows = font_text(chosen_font, content)
+            source_text = (
+                content
+                if isinstance(content, str)
+                else '\n'.join(cast('Sequence[str]', content))
+            )
+            placement = self._place_on(
+                parent_buffer,
+                rows,
+                parent_owner=parent_owner,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                layer=layer,
+                lock=lock,
+                style=style,
+                foreground=foreground,
+                background=background,
+                bold=bold,
+                dim=dim,
+                italic=italic,
+                underline=underline,
+                blink=blink,
+                reverse=reverse,
+                hidden=hidden,
+                crossed_out=crossed_out,
+                title=title,
+                border=border,
+                border_style=border_style,
+                padding=padding,
+                margin=margin,
+                theme=theme,
+                is_in_flow=is_in_flow,
+            )
+            placement._font = chosen_font
+            placement._font_source_text = source_text
+            return placement
         chosen = theme_of(theme) if theme is not None else parent_owner._theme
         is_secondary = False
         if chosen is not None and not isinstance(content, Canvas):
@@ -4450,25 +4519,40 @@ class Canvas(_Hooked[DepsT, StateT], _LookState, Generic[DepsT, StateT]):
 
     # -- input, output, sound and state --------------------------------------------------
 
-    def _render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
+    def _render(
+        self,
+        *,
+        format: Literal['text', 'ansi', 'png'] = 'text',
+        font: FontValue | None = None,
+    ) -> str | bytes:
         """Draw the current frame and return it, without a screen: ``screen.render``."""
-        if format not in ('text', 'ansi'):
+        if format not in ('text', 'ansi', 'png'):
             raise ValueError(
-                f"format must be 'text' or 'ansi', but was {format!r}. 'text' gives the "
-                f"characters, 'ansi' the characters with their colors."
+                f"format must be 'text', 'ansi' or 'png', but was {format!r}. 'text' gives the "
+                f"characters, 'ansi' the characters with their colors, 'png' an image."
             )
+        if font is not None and format != 'png':
+            raise ValueError(
+                f'font= sets the font that draws the cells of an image, so it works only with '
+                f"format='png', not format={format!r}. Leave font out, or use format='png'."
+            )
+        cell_font = None if font is None else resolve_font(font)
         self._require_own_presence()
         canvas = self._canvas
         canvas._require_open()
         if canvas is not self:
             root_buffer = self._root
 
-            def render_child() -> str:
+            def render_child() -> str | bytes:
                 canvas._runtime.render()
+                if format == 'png':
+                    return root_buffer.render(format='png', font=cell_font)
                 return root_buffer.render(format=format)
 
             return canvas._host.call(render_child)
         snapshot = canvas._host.call(lambda: canvas._runtime.render())
+        if format == 'png':
+            return snapshot.to_png(font=cell_font)
         if format == 'ansi':
             return snapshot.ansi
         return '\n'.join(snapshot.lines())
@@ -4960,6 +5044,7 @@ def write(
     reverse: bool = False,
     hidden: bool = False,
     crossed_out: bool = False,
+    font: FontValue | None = None,
     title: str | None = None,
     border: _core.BorderKind | bool | None = None,
     border_style: _core.Style | None = None,
@@ -5005,6 +5090,9 @@ def write(
         reverse: Whether the foreground color and the background color change places.
         hidden: Whether the text is hidden.
         crossed_out: Whether the text has a line through it.
+        font: The font to write text in, as a [`Font`][xnano.styles.Font] or the name
+            of one, such as ``'small'``. The text takes as many cells as the font is
+            large, and keeps its colors and its place. Only text can have a font.
         title: The title on the border of a box around the content.
         border: The [`BorderKind`][xnano.styles.BorderKind] of a box around the content,
             such as ``'plain'`` or ``'rounded'``. ``True`` is ``'plain'``, and ``False``
@@ -5066,6 +5154,7 @@ def write(
         reverse=reverse,
         hidden=hidden,
         crossed_out=crossed_out,
+        font=font,
         title=title,
         border=border,
         border_style=border_style,

@@ -411,6 +411,46 @@ with xnano.new(width=40, height=3) as canvas:
 
 <!-- /@code-block-asset -->
 
+## Fonts
+
+`font` writes text in a font, so a title or a score can be larger than one
+cell. A pixel font draws each character with half blocks, two pixels in each
+cell. A character font (a FIGlet `.flf` file) draws each character with rows of
+other characters. Both show in every terminal.
+
+The text keeps its colors and its place in the layout, and it takes as many
+cells as the font is large. Change it later through `placement.text`, as with
+any other text.
+
+```python
+import xnano
+
+with xnano.new(width=40, height=6) as canvas:
+    score = canvas.write('120', font='small', foreground='cyan')
+    canvas.write('points', dim=True)
+    assert (score.width, score.height) == (15, 4)
+    score.text = '130'
+    print(canvas.render())
+```
+
+xnano has two pixel fonts built in: `'small'` (5 by 7 pixels) and `'large'`
+(8 by 13 pixels). Load another font with
+[`Font.from_file`][xnano_core._xnano_core.Font.from_file], which reads
+FIGlet (`.flf`) and BDF (`.bdf`) files. To use a font by name, register it with
+[`symbols.register`][xnano.symbols.register]:
+
+```python
+import xnano
+
+xnano.symbols.register('title', xnano.Font('large'))
+with xnano.new(width=40, height=7) as canvas:
+    canvas.write('Hi', font='title')
+xnano.symbols.remove('title')
+```
+
+`font` writes text only. A character that the font does not have is written as
+itself, in the top row of its place.
+
 ## Themes
 
 A theme gives a whole canvas its colors: the background, text, borders and

@@ -10,12 +10,13 @@ of text that each carry their own style. Colors are given as names, hex strings 
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, TypeAlias
 
 if TYPE_CHECKING:
     from xnano_core import Color as _CoreColor
     from xnano_core import ColorName as _CoreColorName
     from xnano_core import ColorValue as _CoreColorValue
+    from xnano_core import Font as _CoreFont
     from xnano_core import Style as _CoreStyle
     from xnano_core import StyledText as _CoreStyledText
     from xnano_core import TextContent as _CoreTextContent
@@ -174,10 +175,37 @@ if TYPE_CHECKING:
     ```
     """
 
+    Font = _CoreFont
+    """
+    The shapes of the characters of text, made of characters or of pixels.
+
+    Write text in a font with the ``font=`` keyword of ``write``. A character font (a
+    FIGlet ``.flf`` file) draws each character with several rows of other characters, and a
+    pixel font (a BDF ``.bdf`` file, or the built-in ``'small'`` and ``'large'`` fonts) draws
+    each character with half-block pixels. Either way the text keeps its colors and its
+    place in the layout, and takes as many cells as the font is large.
+
+    ```python
+    import xnano
+    from xnano.styles import Font
+
+    with xnano.new(width=20, height=4) as canvas:
+        title = canvas.screen.write('hi', font=Font('small'), foreground='cyan')
+        assert (title.width, title.height) == (10, 4)
+    ```
+    """
+
+FontValue: TypeAlias = 'Font | str'
+"""
+A font, or the name of one: a built-in font such as ``'small'``, or a name registered with
+[`symbols.register`][xnano.symbols.register].
+"""
+
 _CORE_NAMES: Final[dict[str, str]] = {
     'Color': 'Color',
     'ColorName': 'ColorName',
     'ColorValue': 'ColorValue',
+    'Font': 'Font',
     'Style': 'Style',
     'StyledText': 'StyledText',
     'TextContent': 'TextContent',
@@ -190,6 +218,8 @@ __all__ = [
     'Color',
     'ColorName',
     'ColorValue',
+    'Font',
+    'FontValue',
     'Style',
     'StyledText',
     'TextContent',

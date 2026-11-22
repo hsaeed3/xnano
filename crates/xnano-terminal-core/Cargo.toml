@@ -34,6 +34,7 @@ serde_json = { workspace = true }
 tachyonfx = { workspace = true }
 unicode-segmentation = { workspace = true }
 xnano-terminal-cells = { workspace = true }
+xnano-terminal-pixels = { workspace = true }
 xnano-terminal-state = { workspace = true }
 xnano-terminal-runtime = { workspace = true }
 
