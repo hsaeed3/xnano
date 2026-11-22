@@ -121,3 +121,5 @@ type_complexity = "allow"
 unnecessary_wraps = "allow"
 unused_self = "allow"
 used_underscore_binding = "allow"
+# PyO3 expands calls to names that Python needs private, such as `_xnano_core`.
+used_underscore_items = "allow"
