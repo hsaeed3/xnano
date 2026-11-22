@@ -31,7 +31,7 @@ xnano-docs-markdown = { path = "scripts/docs_markdown", editable = true }
 name = 'xnano'
 readme = 'README.md'
 description = 'A terminal framework for Python: text, widgets, effects, images and sound, built on ratatui.'
-keywords = ['terminal', 'tui', 'cli', 'console', 'ratatui', 'widgets', 'animation', 'curses']
+keywords = ['terminal', 'tui', 'cli', 'console', 'ratatui', 'widgets', 'animation', 'curses', 'pixel-art', 'image', 'bitmap', 'bitmap-font', 'pixel-font', 'figlet', 'png']
 license = {'file' = 'LICENSE'}
 authors = [{ name = 'Hammad Saeed', email = 'hammad@supportvectors.com' }]
 requires-python = '>=3.10,<3.15'
@@ -63,9 +63,9 @@ classifiers = [
 # [pyproject.toml](https://github.com/pydantic/monty/blob/main/packages/pydantic-monty/pyproject.toml),
 #
 # [! AUTO-VERSIONING - DO NOT EDIT THIS BY HAND]
-version = '2.3.0'
+version = '2.4.0b1'
 dependencies = [
-    "xnano-core>=2.2.3",
+    "xnano-core>=2.3.0b1",
 ]
 
 [project.optional-dependencies]

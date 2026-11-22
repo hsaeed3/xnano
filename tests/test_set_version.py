@@ -110,3 +110,25 @@ def test_the_repository_versions_are_synchronized():
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_a_workspace_bump_updates_the_requirements_on_workspace_crates(
+    script, tmp_path, monkeypatch
+):
+    for name, version_line in (
+        ('xnano-terminal-state', 'version.workspace = true'),
+        ('xnano-terminal-cells', 'version = "0.1.0"\nrust-version.workspace = true'),
+    ):
+        (tmp_path / 'crates' / name).mkdir(parents=True)
+        (tmp_path / 'crates' / name / 'Cargo.toml').write_text(
+            f'[package]\nname = "{name}"\n{version_line}\n', encoding='utf-8'
+        )
+    monkeypatch.setattr(script, 'ROOT', tmp_path)
+    manifest = (
+        'xnano-terminal-cells = { path = "crates/xnano-terminal-cells", version = "0.1.0" }\n'
+        'xnano-terminal-state = { path = "crates/xnano-terminal-state", version = "2.0.0" }\n'
+    )
+    assert script.synchronize_workspace_dependencies(manifest, '2.4.0-beta.1') == (
+        'xnano-terminal-cells = { path = "crates/xnano-terminal-cells", version = "0.1.0" }\n'
+        'xnano-terminal-state = { path = "crates/xnano-terminal-state", version = "2.4.0-beta.1" }\n'
+    )

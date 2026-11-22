@@ -3686,7 +3686,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-core"
-version = "2.2.3"
+version = "2.3.0-beta.1"
 dependencies = [
  "indexmap",
  "pyo3",
@@ -3730,7 +3730,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-runtime"
-version = "2.3.0"
+version = "2.4.0-beta.1"
 dependencies = [
  "codspeed-criterion-compat",
  "crossterm",
@@ -3752,7 +3752,7 @@ dependencies = [
 
 [[package]]
 name = "xnano-terminal-state"
-version = "2.3.0"
+version = "2.4.0-beta.1"
 dependencies = [
  "indexmap",
  "regex",

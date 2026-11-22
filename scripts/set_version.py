@@ -196,6 +196,28 @@ def synchronize_markdown_pins(version: str, *, check: bool) -> list[Path]:
     return changed
 
 
+def synchronize_workspace_dependencies(content: str, version: str) -> str:
+    """
+    Require ``version`` of the workspace crates that use the workspace version.
+
+    Cargo matches a prerelease such as ``2.4.0-beta.1`` only when it is asked for exactly,
+    so the path dependencies on these crates must name the workspace version.
+    """
+    for crate in sorted((ROOT / "crates").iterdir()):
+        manifest = crate / "Cargo.toml"
+        if not manifest.is_file() or not re.search(
+            r"(?m)^version\.workspace = true$", manifest.read_text(encoding="utf-8")
+        ):
+            continue
+        content = re.sub(
+            rf'(?m)^({re.escape(crate.name)} = \{{ path = "crates/{re.escape(crate.name)}", '
+            rf'version = ")[^"]*(")',
+            rf"\g<1>{version}\g<2>",
+            content,
+        )
+    return content
+
+
 def bump(package: str, version: str, *, update_locks: bool) -> None:
     """Update one authoritative version and regenerate root pins and lockfiles."""
     if not VERSION_RE.fullmatch(version):
@@ -204,6 +226,8 @@ def bump(package: str, version: str, *, update_locks: bool) -> None:
         )
     manifest = package_manifests()[package]
     content = replace_version(manifest, package, version)
+    if package == "xnano":
+        content = synchronize_workspace_dependencies(content, version)
     manifest.write_text(content, encoding="utf-8")
     ROOT_PYPROJECT.write_text(expected_pyproject(), encoding="utf-8")
     if package == "xnano":
