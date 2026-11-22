@@ -94,7 +94,9 @@ class ActualTerminal:
             '        program.kill()\n'
             '        sys.exit(1)\n'
             '    time.sleep(0.1)\n'
-            'pathlib.Path(sys.argv[2]).write_text(str(program.returncode))\n'
+            # Write then rename, so the result file never exists while it is still empty.
+            "pathlib.Path(sys.argv[2] + '.partial').write_text(str(program.returncode))\n"
+            "os.replace(sys.argv[2] + '.partial', sys.argv[2])\n"
             'while os.getppid() == kitty:\n'
             '    time.sleep(0.1)\n'
         )
