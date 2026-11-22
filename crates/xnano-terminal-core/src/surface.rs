@@ -1978,13 +1978,25 @@ impl PyBuffer {
         copy_buffer(slf)
     }
 
-    #[pyo3(signature = (*, format = "ansi"))]
-    fn render(slf: &Bound<'_, Self>, format: &str) -> PyResult<String> {
-        if format != "ansi" && format != "text" {
+    #[pyo3(signature = (*, format = "ansi", font = None))]
+    fn render<'py>(
+        slf: &Bound<'py, Self>,
+        format: &str,
+        font: Option<&Bound<'py, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if format != "ansi" && format != "text" && format != "png" {
             return Err(PyValueError::new_err(format!(
-                "\"{format}\" is not a render format; use \"ansi\" or \"text\""
+                "\"{format}\" is not a render format; use \"ansi\", \"text\" or \"png\""
             )));
         }
+        if format != "png" && font.is_some_and(|font| !font.is_none()) {
+            return Err(PyValueError::new_err(format!(
+                "font= sets the font of the cells of an image, so it works only with \
+                 format=\"png\", not format=\"{format}\". Leave font out, or use \
+                 format=\"png\"."
+            )));
+        }
+        let font = crate::fonts::font_arg(font)?;
         let core = Arc::clone(&slf.as_super().borrow().core);
         relayout(&core);
         crate::widgets::refresh_tree(&core)?;
@@ -1995,10 +2007,13 @@ impl PyBuffer {
         let mut output = Grid::new(width, height);
         let clip = Rectangle::new(0, 0, i32::from(width), i32::from(height));
         compose(&core, &mut output, (-x, -y), clip, PasteMode::Transparent);
-        Ok(if format == "text" {
-            output.text_rows().join("\n")
-        } else {
-            xnano_terminal_cells::ansi(output.buffer())
+        let py = slf.py();
+        Ok(match format {
+            "text" => output.text_rows().join("\n").into_pyobject(py)?.into_any(),
+            "png" => crate::fonts::buffer_png(py, output.buffer(), font)?.into_any(),
+            _ => xnano_terminal_cells::ansi(output.buffer())
+                .into_pyobject(py)?
+                .into_any(),
         })
     }
 

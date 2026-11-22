@@ -208,6 +208,9 @@ from xnano_core._xnano_core import (
     FocusScope as FocusScope,
 )
 from xnano_core._xnano_core import (
+    Font as Font,
+)
+from xnano_core._xnano_core import (
     Foreground as Foreground,
 )
 from xnano_core._xnano_core import (
@@ -607,6 +610,9 @@ from xnano_core._xnano_core import (
     detect_terminal_capabilities as detect_terminal_capabilities,
 )
 from xnano_core._xnano_core import (
+    display_size as display_size,
+)
+from xnano_core._xnano_core import (
     display_width as display_width,
 )
 from xnano_core._xnano_core import (
@@ -635,6 +641,9 @@ from xnano_core._xnano_core import (
 )
 from xnano_core._xnano_core._core_types import (
     BorderKind as BorderKind,
+)
+from xnano_core._xnano_core._core_types import (
+    BuiltinFontName as BuiltinFontName,
 )
 from xnano_core._xnano_core._core_types import (
     CanvasShape as CanvasShape,
@@ -676,6 +685,9 @@ from xnano_core._xnano_core._core_types import (
     Extension as Extension,
 )
 from xnano_core._xnano_core._core_types import (
+    FontKind as FontKind,
+)
+from xnano_core._xnano_core._core_types import (
     FrameContext as FrameContext,
 )
 from xnano_core._xnano_core._core_types import (
@@ -695,6 +707,9 @@ from xnano_core._xnano_core._core_types import (
 )
 from xnano_core._xnano_core._core_types import (
     HookSignal as HookSignal,
+)
+from xnano_core._xnano_core._core_types import (
+    ImageFormat as ImageFormat,
 )
 from xnano_core._xnano_core._core_types import (
     Interpolation as Interpolation,
@@ -818,6 +833,7 @@ __all__ = [
     'BufferRegion',
     'BufferScope',
     'BufferSize',
+    'BuiltinFontName',
     'Calendar',
     'CancelEffect',
     'Canvas',
@@ -880,6 +896,8 @@ __all__ = [
     'Fill',
     'FocusScope',
     'Focused',
+    'Font',
+    'FontKind',
     'Foreground',
     'Frame',
     'FrameContext',
@@ -897,6 +915,7 @@ __all__ = [
     'HookDecorator',
     'HookEventKind',
     'HookSignal',
+    'ImageFormat',
     'InputOptions',
     'InputRouter',
     'InputState',
@@ -1054,6 +1073,7 @@ __all__ = [
     'cell_grid_to_text',
     'default_registry',
     'detect_terminal_capabilities',
+    'display_size',
     'display_width',
     'inspect_cell_animation',
     'inspect_cell_grid',

@@ -19,13 +19,14 @@ from xnano.layout._region import box, region
 from xnano.reader import from_markdown, view
 from xnano.styles._rich import from_rich
 from xnano.terminal import Terminal, iter, iter_async, open, open_async
-from xnano_core import Color
+from xnano_core import Color, Font
 
 __all__ = [
     'Audio',
     'Canvas',
     'Color',
     'Context',
+    'Font',
     'Image',
     'Note',
     'Pixel',

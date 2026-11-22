@@ -100,7 +100,9 @@ class TestRender:
 
     def test_an_unknown_format_is_refused(self):
         with xnano.new(width=6, height=1) as canvas:
-            with pytest.raises(ValueError, match="format must be 'text' or 'ansi'"):
+            with pytest.raises(
+                ValueError, match="format must be 'text', 'ansi' or 'png'"
+            ):
                 canvas.render(format='html')  # pyright: ignore[reportArgumentType]
 
 

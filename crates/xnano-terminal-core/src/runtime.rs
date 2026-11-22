@@ -335,6 +335,16 @@ impl PyFrameSnapshot {
         self.grid.text_rows()
     }
 
+    #[pyo3(signature = (*, font = None))]
+    fn to_png<'py>(
+        &self,
+        py: Python<'py>,
+        font: Option<&Bound<'py, PyAny>>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let font = crate::fonts::font_arg(font)?;
+        crate::fonts::buffer_png(py, self.grid.buffer(), font)
+    }
+
     fn to_cell_grid<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let packed = xnano_terminal_cells::pack(self.grid.buffer())
             .map_err(|error| crate::errors::CellGridError::new_err(error.to_string()))?;

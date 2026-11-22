@@ -300,8 +300,27 @@ fn layout_text(
 }
 
 #[pyfunction]
-fn display_width(text: &str) -> usize {
-    text::display_width(text)
+#[pyo3(signature = (text, *, font = None))]
+fn display_width(text: &str, font: Option<&Bound<'_, PyAny>>) -> PyResult<usize> {
+    Ok(match crate::fonts::font_arg(font)? {
+        None => text::display_width(text),
+        Some(font) => xnano_terminal_pixels::measure_text(Some(&font), text).0,
+    })
+}
+
+#[pyfunction]
+#[pyo3(signature = (text, *, font = None))]
+fn display_size(text: &str, font: Option<&Bound<'_, PyAny>>) -> PyResult<crate::geometry::PySize> {
+    let (width, height) = match crate::fonts::font_arg(font)? {
+        None => (
+            text.split('\n').map(text::display_width).max().unwrap_or(0),
+            text.split('\n').count(),
+        ),
+        Some(font) => xnano_terminal_pixels::measure_text(Some(&font), text),
+    };
+    Ok(crate::geometry::PySize {
+        inner: xnano_terminal_runtime::geometry::Size::new(width as i32, height as i32),
+    })
 }
 
 #[pyclass(name = "TextEditor", module = "xnano_core._xnano_core", frozen)]
@@ -513,6 +532,7 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyTextEditor>()?;
     m.add_function(wrap_pyfunction!(layout_text, m)?)?;
     m.add_function(wrap_pyfunction!(display_width, m)?)?;
+    m.add_function(wrap_pyfunction!(display_size, m)?)?;
     let _ = Style::default();
     Ok(())
 }

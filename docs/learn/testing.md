@@ -83,6 +83,10 @@ window, make a small canvas.
 `render()` gives the characters without their colors. To test a color, read the
 placement, for example `counter.color.fg`, or use `canvas.render(format='ansi')`.
 
+`canvas.render(format='png')` gives an image of the frame, as the bytes of a PNG
+file. Each cell is drawn with a pixel font, the built-in `'large'` font if you
+give none, so the image shows the colors and the text as a person sees them.
+
 ## Press keys
 
 `canvas.push()` gives the canvas an event, and `canvas.deliver_events()` runs

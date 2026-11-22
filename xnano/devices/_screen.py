@@ -8,7 +8,7 @@ its title.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Generic, Literal, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, cast, overload
 
 # The module, not the class: the canvas module imports this one while it loads.
 import xnano.canvas as _canvas_module
@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from xnano.devices._output import Output
     from xnano.effects._properties import WritableEffectProperties
     from xnano.layout._placement import Placement
+    from xnano.styles._core_styles import FontValue
     from xnano.styles._look import Appearance
     from xnano.themes import ThemeName
 
@@ -176,6 +177,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
         reverse: bool = False,
         hidden: bool = False,
         crossed_out: bool = False,
+        font: FontValue | None = None,
         title: str | None = None,
         border: _core.BorderKind | bool | None = None,
         border_style: _core.Style | None = None,
@@ -269,6 +271,9 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
             reverse: Whether foreground and background are swapped.
             hidden: Whether the text is hidden.
             crossed_out: Whether the text is struck through.
+            font: The font to write text in, as a [`Font`][xnano.styles.Font] or the name
+                of one, such as ``'small'``. The text takes as many cells as the font is
+                large, and keeps its colors and its place. Only text can have a font.
             title: A title on the border of a box around the text.
             border: The kind of border for a box around the content, a
                 [`BorderKind`][xnano.styles.BorderKind] such as ``'plain'``, ``'rounded'``,
@@ -348,6 +353,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
                 reverse=reverse,
                 hidden=hidden,
                 crossed_out=crossed_out,
+                font=font,
                 title=title,
                 border=border,
                 border_style=border_style,
@@ -391,6 +397,7 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
                 reverse=reverse,
                 hidden=hidden,
                 crossed_out=crossed_out,
+                font=font,
                 title=title,
                 border=border,
                 border_style=border_style,
@@ -502,19 +509,39 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
         self._canvas._update(*operations)
         return self
 
-    def render(self, *, format: Literal['text', 'ansi'] = 'text') -> str:
-        """
-        Draw the current frame and return it, without a screen.
+    @overload
+    def render(
+        self, *, format: Literal['text', 'ansi'] = 'text', font: None = None
+    ) -> str: ...
+    @overload
+    def render(
+        self, *, format: Literal['png'], font: FontValue | None = None
+    ) -> bytes: ...
+    def render(
+        self,
+        *,
+        format: Literal['text', 'ansi', 'png'] = 'text',
+        font: FontValue | None = None,
+    ) -> str | bytes:
+        r"""
+        Draw the current frame and return it as text or as an image, without a screen.
 
         A canvas that was written into another one returns its own cells alone, at its own
         size, as they stand in the outer canvas's current frame.
 
         Args:
             format: ``'text'`` for the characters alone, ``'ansi'`` for the characters with
-                their colors and styles as escape codes.
+                their colors and styles as escape codes, ``'png'`` for an image of the frame
+                as the bytes of a PNG file.
+            font: For ``'png'`` only: the pixel font that draws each cell, as a
+                [`Font`][xnano.styles.Font] or the name of one. Every cell is one glyph in
+                size. Left out, the built-in ``'large'`` font draws cells of 8 by 13 pixels.
+                Block elements and braille are drawn as shapes, so pixel art looks the same
+                with any font.
 
         Raises:
-            ValueError: ``format`` is neither ``'text'`` nor ``'ansi'``.
+            ValueError: ``format`` is not ``'text'``, ``'ansi'`` or ``'png'``, ``font`` is
+                given without ``format='png'``, or ``font`` is a character font.
 
         Examples:
             ```python
@@ -524,9 +551,11 @@ class Screen(_TextModifiers, Generic[DepsT, StateT]):
                 canvas.screen.write('hello', y=1)
                 assert canvas.screen.render().splitlines() == ['', 'hello']
                 assert 'hello' in canvas.screen.render(format='ansi')
+                image = canvas.screen.render(format='png', font='small')
+                assert image.startswith(b'\x89PNG')
             ```
         """
-        return self._canvas._render(format=format)
+        return self._canvas._render(format=format, font=font)
 
     def __rich_console__(
         self, console: RichConsole, options: RichConsoleOptions

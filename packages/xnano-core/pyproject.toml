@@ -19,7 +19,8 @@ MACOSX_DEPLOYMENT_TARGET = "11.0"
 name = "xnano-core"
 dynamic = ["version"]
 authors = [{ name = "Hammad Saeed", email = "hammad@supportvectors.com" }]
-description = "The xnano terminal runtime: buffers, state, input, layout and effects on top of ratatui."
+description = "The xnano terminal runtime: buffers, state, input, layout, effects, fonts and PNG frames on top of ratatui."
+keywords = ["terminal", "tui", "ratatui", "pixel-art", "image", "bitmap", "bitmap-font", "pixel-font", "figlet", "png"]
 dependencies = [
     "typing-extensions>=4.12.0; python_version < '3.13'",
 ]

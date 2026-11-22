@@ -613,6 +613,15 @@ PixelAnchor: TypeAlias = Literal['top_left', 'center', 'bottom_right']
 RenderFormat: TypeAlias = Literal['text', 'ansi']
 """How a buffer serializes: plain text rows or text with ANSI styling."""
 
+ImageFormat: TypeAlias = Literal['png']
+"""How a buffer serializes as an image: a PNG file, as bytes."""
+
+FontKind: TypeAlias = Literal['character', 'pixel']
+"""What a font draws characters with: other characters (FIGlet) or pixels (BDF)."""
+
+BuiltinFontName: TypeAlias = Literal['small', 'large']
+"""The pixel fonts built into xnano: ``'small'`` is 5 by 7 pixels, ``'large'`` 8 by 13."""
+
 BorderKind: TypeAlias = Literal['plain', 'rounded', 'double', 'thick']
 """The line style of a border."""
 

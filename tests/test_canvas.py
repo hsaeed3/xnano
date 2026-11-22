@@ -231,7 +231,7 @@ class TestNew:
             assert str(canvas) == text
             assert canvas.screen.render(format='ansi') == canvas.screen.output.ansi
             assert '\x1b[' in canvas.screen.render(format='ansi')
-            with pytest.raises(ValueError, match="'text' or 'ansi'"):
+            with pytest.raises(ValueError, match="'text', 'ansi' or 'png'"):
                 canvas.screen.render(format='html')  # type: ignore[arg-type]
 
     def test_a_canvas_sits_at_the_origin_and_cannot_be_moved(self):

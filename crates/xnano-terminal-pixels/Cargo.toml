@@ -1,0 +1,20 @@
+[package]
+name = "xnano-terminal-pixels"
+description = "Fonts made of characters or pixels, text written in them, and terminal frames drawn as PNG images."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+copper-bdf-parser = { workspace = true }
+embedded-graphics = { workspace = true }
+embedded-graphics-unicodefonts = { workspace = true }
+png = { workspace = true }
+ratatui-core = { workspace = true }
+unicode-width = { workspace = true }
+
+[lints]
+workspace = true
